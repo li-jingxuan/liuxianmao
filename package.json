@@ -1,0 +1,17 @@
+{
+  "name": "liuxianmao",
+  "private": true,
+  "packageManager": "pnpm@9.15.9",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "type-check": "turbo run type-check",
+    "format": "prettier --write \"**/*.{js,jsx,ts,tsx,md,json,css}\""
+  },
+  "devDependencies": {
+    "prettier": "^3.8.4",
+    "turbo": "^2.9.18",
+    "typescript": "^6.0.3"
+  }
+}
