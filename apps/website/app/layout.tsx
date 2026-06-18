@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import type React from "react";
 import type { ReactNode } from "react";
-import "./globals.css";
+import "./globals.scss";
 
 export const metadata: Metadata = {
   title: "六线猫",

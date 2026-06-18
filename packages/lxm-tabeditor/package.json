@@ -1,0 +1,37 @@
+{
+  "name": "@liuxianmao/lxm-tabeditor",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./src/testing/index.ts"
+  },
+  "scripts": {
+    "assets:build": "node ./scripts/standardize-svg-assets.mjs",
+    "dev": "tsc -p tsconfig.build.json --watch",
+    "build": "tsc -p tsconfig.build.json",
+    "lint": "eslint src scripts tests --max-warnings=0",
+    "test": "vitest run",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^3.25.67",
+    "zustand": "^5.0.5",
+    "zundo": "^2.3.0"
+  },
+  "devDependencies": {
+    "@liuxianmao/eslint-config": "workspace:*",
+    "@liuxianmao/tsconfig": "workspace:*",
+    "@types/node": "^25.9.3",
+    "@types/react": "^19.2.17",
+    "eslint": "^9.0.0",
+    "react": "^19.2.7",
+    "svgo": "^3.3.2",
+    "typescript": "^6.0.3",
+    "vitest": "^3.2.4"
+  },
+  "peerDependencies": {
+    "react": ">=19"
+  }
+}
