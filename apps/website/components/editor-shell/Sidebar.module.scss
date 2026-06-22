@@ -1,0 +1,66 @@
+.left-panel {
+  min-height: 0;
+  overflow: auto;
+  border-right: 1px solid var(--border);
+  padding: 16px 12px;
+}
+
+.left-panel p {
+  margin: 0 0 10px;
+  font-size: 13px;
+}
+
+.option-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.option-button {
+  display: inline-grid;
+  width: 42px;
+  height: 38px;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-color: transparent;
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--foreground);
+  padding: 0;
+  font-size: 13px;
+  cursor: default;
+}
+
+.option-button:not(:disabled) {
+  cursor: pointer;
+}
+
+.option-button:disabled {
+  color: var(--subtle);
+}
+
+.sidebar-section,
+.technique-section {
+  margin-top: 16px;
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+}
+
+@media (max-width: 820px) {
+  .left-panel {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    max-height: 220px;
+    overflow: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sidebar-section,
+  .technique-section {
+    margin-top: 0;
+    border-top: 0;
+    padding-top: 0;
+  }
+}

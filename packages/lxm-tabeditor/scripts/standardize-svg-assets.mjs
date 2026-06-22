@@ -31,6 +31,9 @@ const SVG_FILE_NAMES = [
   "quintuplet-5-4.svg",
   "quintuplet-5-3.svg",
   "sextuplet.svg",
+  "measure-add24.svg",
+  "measure-remove24.svg",
+  "actions-copy24.svg",
 ];
 
 /** 将固定黑色及其他单色属性统一转换为主题可控的 currentColor。 */

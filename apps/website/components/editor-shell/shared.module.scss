@@ -1,0 +1,69 @@
+.music-icon {
+  font-family: "Bravura", serif;
+  font-feature-settings: "liga" 1;
+  font-variant-ligatures: common-ligatures;
+}
+
+.icon-button,
+.ghost-button,
+.dark-button {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--foreground);
+  cursor: default;
+}
+
+.icon-button:not(:disabled),
+.ghost-button:not(:disabled),
+.dark-button:not(:disabled) {
+  cursor: pointer;
+}
+
+.icon-button {
+  display: inline-grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  font-size: 18px;
+}
+
+.disabled {
+  color: var(--subtle);
+}
+
+.ghost-button,
+.dark-button {
+  min-height: 36px;
+  padding: 0 16px;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.compact {
+  min-height: 34px;
+  padding: 0 14px;
+  font-size: 13px;
+}
+
+.dark-button {
+  border-color: var(--dark);
+  background: var(--dark);
+  color: #ffffff;
+}
+
+.active {
+  border-color: transparent;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* 本地 SVG 作为遮罩继承按钮颜色，确保 active/disabled 状态无需维护多份素材。 */
+.music-asset-icon {
+  display: block;
+  width: 22px;
+  height: 22px;
+  background: currentColor;
+  mask: var(--music-icon-url) center / contain no-repeat;
+  -webkit-mask: var(--music-icon-url) center / contain no-repeat;
+}

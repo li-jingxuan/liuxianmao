@@ -1,0 +1,93 @@
+.score-toolbar {
+  display: grid;
+  grid-template-columns: auto minmax(360px, 1fr) auto minmax(260px, 0.55fr) auto;
+  gap: 10px;
+  align-items: stretch;
+  min-height: 0;
+  overflow: hidden;
+  border-bottom: 1px solid var(--border);
+  padding: 12px 16px;
+}
+
+.history-actions,
+.tool-section,
+.toolbar-measure-actions,
+.score-settings {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tool-section {
+  min-width: 0;
+  border-left: 1px solid var(--border);
+  padding-left: 10px;
+}
+
+.tool-button,
+.select-button {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--foreground);
+  cursor: default;
+}
+
+.tool-button:not(:disabled),
+.select-button:not(:disabled) {
+  cursor: pointer;
+}
+
+.tool-button {
+  display: grid;
+  width: 62px;
+  min-height: 46px;
+  place-items: center;
+  border-color: transparent;
+  color: #20242b;
+  font-size: 12px;
+}
+
+.tool-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.toolbar-measure-actions {
+  min-width: 0;
+  border-left: 1px solid var(--border);
+  padding-left: 10px;
+}
+
+.score-settings {
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.select-button {
+  min-width: 90px;
+  min-height: 36px;
+  padding: 0 16px;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+@media (max-width: 1180px) {
+  .score-toolbar {
+    grid-template-columns: auto auto auto minmax(150px, 1fr);
+    overflow: hidden;
+  }
+
+  .tool-button {
+    width: 46px;
+  }
+
+  .settings-button {
+    display: none;
+  }
+
+  .select-button {
+    min-width: 72px;
+    padding-inline: 10px;
+  }
+}

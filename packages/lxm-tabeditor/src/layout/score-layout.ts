@@ -38,6 +38,19 @@ const MEASURE_PADDING_X = 18;
 /** 六线谱第一根弦相对小节顶部的 y 坐标。 */
 const STAFF_TOP = 54;
 
+/** 时值轨道放在六线谱上方，用来单独画时值头、符干和连梁，避免与品位数字打架。 */
+const DURATION_LANE_Y = STAFF_TOP + 5;
+
+// 连音符号竖线高度、与时值轨道的间距
+const TUPLET_HEIGHT = 4;
+const TUPLET_MARGIN_TOP = DURATION_LANE_Y + TUPLET_HEIGHT + 14;
+
+/** 符干基础长度，额外的多层连梁会在此基础上继续向下延展。 */
+const DURATION_STEM_LENGTH = 14;
+
+/** 多层符尾或多层连梁之间的垂直间距。 */
+const DURATION_LEVEL_GAP = 4;
+
 /** 相邻弦线的垂直间距；六条弦实际高度为 5 个间距。 */
 const STRING_SPACING = 11;
 const STRING_LINE_WIDTH = 1;
@@ -105,6 +118,33 @@ export interface LaidOutRest {
   y: number;
 }
 
+/** 音符时值布局结果：一个 notes beat 只生成一条时值标记，多弦和弦共享同一份时值几何。 */
+export interface LaidOutDurationMark {
+  beatId: string;
+  measureId: string;
+  x: number;
+  y: number;
+  base: RhythmValue["base"];
+  dots: RhythmValue["dots"];
+  notehead: "whole" | "half" | "filled";
+  hasStem: boolean;
+  stemX: number;
+  stemTopY: number;
+  stemBaseY: number;
+  stemBottomY: number;
+  flagCount: 0 | 1 | 2 | 3;
+}
+
+/** 连梁按层输出：八分为 level=1，十六分在同一组上再追加 level=2，以此类推。 */
+export interface LaidOutBeamGroup {
+  measureId: string;
+  beatIds: string[];
+  level: 1 | 2 | 3;
+  x1: number;
+  x2: number;
+  y: number;
+}
+
 /** 连音组括号布局结果：x1/x2 覆盖连音组从首拍开始到末拍结束的范围。 */
 export interface LaidOutTuplet {
   id: string;
@@ -135,6 +175,8 @@ export interface LaidOutMeasure {
   beats: LaidOutBeat[];
   notes: LaidOutNote[];
   rests: LaidOutRest[];
+  durationMarks: LaidOutDurationMark[];
+  beamGroups: LaidOutBeamGroup[];
   tuplets: LaidOutTuplet[];
 }
 
@@ -232,12 +274,44 @@ const getBeatX = (
 ): number => {
   const usableWidth = measureWidth - MEASURE_PADDING_X * 2;
   const progress = capacityTicks > 0 ? tick / capacityTicks : 0;
+
   return measureX + MEASURE_PADDING_X + usableWidth * clamp(progress, 0, 1);
 };
 
 /** 休止符放在六线谱垂直中线附近，后续可按具体休止符类型细调 y。 */
 const getRestY = (measureY: number): number =>
   measureY + STAFF_TOP + STAFF_HEIGHT / 2;
+
+/** whole / half 用空心头，quarter 及更短时值统一用实心头。 */
+const getDurationNotehead = (
+  base: RhythmValue["base"],
+): LaidOutDurationMark["notehead"] => {
+  switch (base) {
+    case "whole":
+      return "whole";
+    case "half":
+      return "half";
+    default:
+      return "filled";
+  }
+};
+
+/** flagCount 表示该 beat 需要几层符尾；参与连梁时同样用于决定连梁层数。 */
+const getDurationFlagCount = (base: RhythmValue["base"]): 0 | 1 | 2 | 3 => {
+  switch (base) {
+    case "eighth":
+      return 1;
+    case "sixteenth":
+      return 2;
+    case "thirtySecond":
+      return 3;
+    default:
+      return 0;
+  }
+};
+
+/** whole 只有时值头没有符干，其余常规音符都绘制符干。 */
+const hasDurationStem = (base: RhythmValue["base"]): boolean => base !== "whole";
 
 /** 用函数创建 bounds，保证所有命中矩形都使用同一字段顺序。 */
 const createBounds = (
@@ -246,6 +320,71 @@ const createBounds = (
   width: number,
   height: number,
 ): LayoutBounds => ({ x, y, width, height });
+
+/**
+ * 连梁分组的 MVP 规则：
+ * 1. 只在 notes beat 之间分组，rest 会中断；
+ * 2. 只处理需要对应 level 连梁的短时值；
+ * 3. 同一段连续 beat 至少两个时，才输出真正的 beam group。
+ *
+ * 这样先把最常见的八分/十六分连续音画出来，后续如需更复杂的 partial beam，
+ * 再在 layout 层扩展，不把规则散落到 React 组件中。
+ */
+const buildBeamGroups = (
+  beats: Beat[],
+  durationMarkByBeatId: Map<string, LaidOutDurationMark>,
+): LaidOutBeamGroup[] => {
+  const beamGroups: LaidOutBeamGroup[] = [];
+
+  const flushRun = (
+    level: 1 | 2 | 3,
+    run: LaidOutDurationMark[],
+    measureId: string,
+  ) => {
+    if (run.length < 2) return;
+    beamGroups.push({
+      measureId,
+      beatIds: run.map((mark) => mark.beatId),
+      level,
+      x1: run[0]!.stemX,
+      x2: run[run.length - 1]!.stemX,
+      y: run[0]!.stemBaseY + (level - 1) * DURATION_LEVEL_GAP,
+    });
+  };
+
+  ([
+    1,
+    2,
+    3,
+  ] as const).forEach((level) => {
+    let run: LaidOutDurationMark[] = [];
+    let measureId = "";
+
+    for (const beat of beats) {
+      if (beat.kind !== "notes") {
+        flushRun(level, run, measureId);
+        run = [];
+        measureId = "";
+        continue;
+      }
+      const mark = durationMarkByBeatId.get(beat.id);
+      if (!mark || mark.flagCount < level) {
+        flushRun(level, run, measureId);
+        run = [];
+        measureId = "";
+        continue;
+      }
+      if (run.length === 0) {
+        measureId = mark.measureId;
+      }
+      run.push(mark);
+    }
+
+    flushRun(level, run, measureId);
+  });
+
+  return beamGroups;
+};
 
 const containsPoint = (bounds: LayoutBounds, x: number, y: number): boolean =>
   x >= bounds.x &&
@@ -348,6 +487,57 @@ export const layoutMeasure = (
   );
 
   /**
+   * 音符时值属于 beat，不属于单个 note。
+   * 因此这里按 notes beat 生成一份时值标记：和弦多音会共享同一时值头、符干与附点。
+   */
+  const durationMarks = measure.beats.flatMap((beat) => {
+    if (beat.kind !== "notes") return [];
+
+    if (beat.notes.length === 0) return [];
+
+    const lastNodeString = beat.notes.sort((a, b) => b.string - a.string)[0];
+    
+    const x = getBeatX(context.x, context.width, beat.tick, capacityTicks);
+    const flagCount = getDurationFlagCount(beat.rhythm.base);
+    const hasStem = hasDurationStem(beat.rhythm.base);
+
+    const nodeStringY = (lastNodeString.string - 1) * STRING_SPACING;
+    const y = context.y + DURATION_LANE_Y + nodeStringY;
+
+    // STAFF_TOP + (弦号 - 1) * 弦距
+    // 例如弦号 1 为 54，弦号 2 为 59，弦号 3 为 64，以此类推。
+    const stemBaseY = y + DURATION_STEM_LENGTH + STAFF_HEIGHT - nodeStringY;
+    /**
+     * 多层符尾/连梁需要更长的符干。
+     * 例如三十二分音符要承载 3 层，stemBottomY 会比普通八分音符再向下延伸两级间距。
+     */
+    const stemBottomY = stemBaseY + Math.max(0, flagCount - 1) * DURATION_LEVEL_GAP;
+
+    return [
+      {
+        beatId: beat.id,
+        measureId: measure.id,
+        x,
+        y,
+        base: beat.rhythm.base,
+        dots: beat.rhythm.dots,
+        notehead: getDurationNotehead(beat.rhythm.base),
+        hasStem,
+        stemX: x,
+        stemTopY: y,
+        stemBaseY,
+        stemBottomY,
+        flagCount,
+      },
+    ];
+  });
+
+  const durationMarkByBeatId = new Map(
+    durationMarks.map((mark) => [mark.beatId, mark] as const),
+  );
+  const beamGroups = buildBeamGroups(measure.beats, durationMarkByBeatId);
+
+  /**
    * 连音括号需要覆盖从首拍开始到末拍结束的区间。
    * 因此右端点不是最后一个 beat 的 x，而是 lastBeat.tick + lastBeatTicks 对应的位置。
    */
@@ -363,6 +553,7 @@ export const layoutMeasure = (
     const lastBeatTicks = getBeatTicks(lastBeat, measure.tuplets);
     const bracket: LaidOutTuplet["bracket"] =
       tuplet.bracket === "auto" ? "auto" : "show";
+      
     return [
       {
         id: tuplet.id,
@@ -375,7 +566,8 @@ export const layoutMeasure = (
           lastBeat.tick + lastBeatTicks,
           capacityTicks,
         ),
-        y: context.y + STAFF_TOP + STAFF_HEIGHT + 24,
+        // + 12 表示下移 12 的距离
+        y: context.y + STAFF_HEIGHT + TUPLET_MARGIN_TOP,
         bracket,
       },
     ];
@@ -407,6 +599,8 @@ export const layoutMeasure = (
     beats,
     notes,
     rests,
+    durationMarks,
+    beamGroups,
     tuplets,
   };
 };

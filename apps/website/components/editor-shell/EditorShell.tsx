@@ -15,8 +15,10 @@ export const EditorShell: React.FC = () => {
   const loadDocument = useScoreStore((state) => state.loadDocument);
 
   useEffect(() => {
+    const exampleDock = createExampleDocument();
+    console.log('exampleDock: ', exampleDock);
     // Iteration 1 使用规范夹具初始化 store，页面不再维护第二份 mock score。
-    loadDocument(createExampleDocument());
+    loadDocument(exampleDock);
   }, [loadDocument]);
 
   return (

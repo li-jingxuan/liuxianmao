@@ -10,7 +10,8 @@ import {
 import { Play } from "lucide-react";
 import type React from "react";
 import { cn } from "../../lib/cn";
-import styles from "./EditorShell.module.scss";
+import sharedStyles from "./shared.module.scss";
+import styles from "./PlaybackBar.module.scss";
 
 const PLAYBACK_ACTIONS = [SkipBack, Play, SkipForward, Repeat2] as const;
 
@@ -47,18 +48,22 @@ export const PlaybackBar: React.FC = () => (
     </div>
     <div className={styles["bottom-actions"]}>
       <button
-        className={cn(styles["ghost-button"], styles.compact)}
+        className={cn(sharedStyles["ghost-button"], sharedStyles.compact)}
         type="button"
       >
         节拍器
       </button>
       <button
-        className={cn(styles["ghost-button"], styles.compact)}
+        className={cn(sharedStyles["ghost-button"], sharedStyles.compact)}
         type="button"
       >
         <Repeat2 size={14} /> 循环
       </button>
-      <button className={styles["icon-button"]} type="button" aria-label="设置">
+      <button
+        className={sharedStyles["icon-button"]}
+        type="button"
+        aria-label="设置"
+      >
         <Settings size={17} />
       </button>
     </div>

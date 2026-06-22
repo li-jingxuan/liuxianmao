@@ -119,7 +119,7 @@ export const guitarTabEditorExample: LxmScoreDocument = {
                 tick: 2880,
                 rhythm: rhythm("quarter"),
                 kind: "notes",
-                notes: [note("note-001-05-01", 2, "x", [], { ghost: true })],
+                notes: [note("note-001-05-01", 2, 1, [], { ghost: true })],
               },
             ],
           },
@@ -199,7 +199,6 @@ export const guitarTabEditorExample: LxmScoreDocument = {
           },
           {
             id: "measure-003",
-            timeSignature: { numerator: 3, denominator: 4 },
             barline: "repeatStart",
             chordSymbols: [
               {
@@ -319,6 +318,7 @@ export const guitarTabEditorExample: LxmScoreDocument = {
         ],
       },
     ],
+    // 和弦
     chordLibrary: [
       {
         id: "chord-am-open",

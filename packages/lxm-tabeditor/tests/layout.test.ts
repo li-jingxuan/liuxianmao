@@ -2,6 +2,23 @@ import { describe, expect, it } from "vitest";
 import { hitTestScoreLayout, layoutScore } from "../src/layout/score-layout";
 import { createExampleDocument } from "../src/testing/example-document";
 
+interface TestDurationMark {
+  beatId: string;
+  base: string;
+  dots: number;
+  flagCount: number;
+}
+
+interface TestBeamGroup {
+  level: number;
+  beatIds: string[];
+}
+
+interface TestMeasureWithDuration {
+  durationMarks?: TestDurationMark[];
+  beamGroups?: TestBeamGroup[];
+}
+
 describe("六线谱只读排版", () => {
   it("从示例 score 生成全部小节、音符、休止符与命中索引", () => {
     const document = createExampleDocument();
@@ -60,6 +77,57 @@ describe("六线谱只读排版", () => {
       number: 3,
       bracket: "show",
     });
+  });
+
+  it("为音符拍输出时值标记、附点和基础连梁分组", () => {
+    const document = createExampleDocument();
+    const layout = layoutScore(document.score);
+    const measures = layout.systems.flatMap((system) => system.measures);
+    const firstMeasure = measures[0]! as typeof measures[number] &
+      TestMeasureWithDuration;
+    const fourthMeasure = measures[3]! as typeof measures[number] &
+      TestMeasureWithDuration;
+
+    expect(firstMeasure.durationMarks).toBeDefined();
+    expect(fourthMeasure.durationMarks).toBeDefined();
+    expect(fourthMeasure.beamGroups).toBeDefined();
+
+    expect(firstMeasure.durationMarks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          beatId: "beat-001-03",
+          base: "quarter",
+          dots: 0,
+          flagCount: 0,
+        }),
+      ]),
+    );
+
+    expect(fourthMeasure.durationMarks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          beatId: "beat-004-04",
+          base: "quarter",
+          dots: 1,
+          flagCount: 0,
+        }),
+        expect.objectContaining({
+          beatId: "beat-004-05",
+          base: "eighth",
+          dots: 0,
+          flagCount: 1,
+        }),
+      ]),
+    );
+
+    expect(fourthMeasure.beamGroups).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          level: 1,
+          beatIds: ["beat-004-01", "beat-004-02", "beat-004-03"],
+        }),
+      ]),
+    );
   });
 
   it("能把 SVG 坐标命中到最近拍点和弦线", () => {

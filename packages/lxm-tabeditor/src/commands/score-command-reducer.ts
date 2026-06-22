@@ -7,6 +7,7 @@ import type {
   ScoreCommand,
 } from "./command-types";
 
+/** reducer 在命中拍点后缓存的上下文，避免重复查找轨道/小节/拍点。 */
 interface TargetContext {
   track: Track;
   trackIndex: number;
@@ -511,7 +512,11 @@ const applyChordUpsert = (
   return { ok: true as const, value: nextScore };
 };
 
-/** 单条 Command 的不可变纯函数 reducer。 */
+/**
+ * 单条 Command 的不可变纯函数 reducer。
+ *
+ * 它先执行命令，再统一跑语义校验；只有通过校验的新 score 才会向外返回。
+ */
 export const reduceScoreCommand = (
   score: Score,
   command: ScoreCommand,
@@ -553,7 +558,11 @@ export const reduceScoreCommand = (
   return issues.length > 0 ? { ok: false, issues } : result;
 };
 
-/** 多条命令只返回最终 score；中途失败时不泄漏任何部分结果。 */
+/**
+ * 多条命令的事务入口。
+ *
+ * 调用方传入顺序即执行顺序；任一命令失败时立即停止，并丢弃此前的中间结果。
+ */
 export const reduceScoreTransaction = (
   score: Score,
   commands: ScoreCommand[],

@@ -3,7 +3,8 @@
 import { Download, MoreHorizontal, Redo2, Save, Undo2 } from "lucide-react";
 import type React from "react";
 import { redoScore, undoScore, useScoreStore } from "@liuxianmao/lxm-tabeditor";
-import styles from "./EditorShell.module.scss";
+import sharedStyles from "./shared.module.scss";
+import styles from "./HeaderBar.module.scss";
 
 /** 顶栏读取真实乐谱标题，历史按钮直接调用核心包 temporal store。 */
 export const HeaderBar: React.FC = () => {
@@ -25,7 +26,7 @@ export const HeaderBar: React.FC = () => {
 
       <div className={styles["header-actions"]} aria-label="文件操作">
         <button
-          className={styles["icon-button"]}
+          className={sharedStyles["icon-button"]}
           type="button"
           aria-label="撤销"
           onClick={undoScore}
@@ -33,7 +34,7 @@ export const HeaderBar: React.FC = () => {
           <Undo2 aria-hidden="true" size={17} />
         </button>
         <button
-          className={styles["icon-button"]}
+          className={sharedStyles["icon-button"]}
           type="button"
           aria-label="重做"
           onClick={redoScore}
@@ -41,14 +42,14 @@ export const HeaderBar: React.FC = () => {
           <Redo2 aria-hidden="true" size={17} />
         </button>
         <span className={styles.divider} aria-hidden="true" />
-        <button className={styles["ghost-button"]} type="button">
+        <button className={sharedStyles["ghost-button"]} type="button">
           <Save aria-hidden="true" size={15} /> 保存
         </button>
-        <button className={styles["dark-button"]} type="button">
+        <button className={sharedStyles["dark-button"]} type="button">
           <Download aria-hidden="true" size={15} /> 导出
         </button>
         <button
-          className={styles["icon-button"]}
+          className={sharedStyles["icon-button"]}
           type="button"
           aria-label="更多"
         >

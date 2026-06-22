@@ -14,6 +14,9 @@ export const MUSIC_CONTROL_ICON_IDS = [
   "quintupletFiveFour",
   "quintupletFiveThree",
   "sextuplet",
+  "measureAdd",
+  "measureRemove",
+  "actionsCopy",
 ] as const;
 
 export type MusicControlIcon = (typeof MUSIC_CONTROL_ICON_IDS)[number];
@@ -47,6 +50,9 @@ export const SVG_ASSETS_MANIFEST: readonly SvgAssetDefinition[] = [
   ["quintupletFiveFour", "quintuplet-5-4.svg"],
   ["quintupletFiveThree", "quintuplet-5-3.svg"],
   ["sextuplet", "sextuplet.svg"],
+  ["measureAdd", "measure-add24.svg"],
+  ["measureRemove", "measure-remove24.svg"],
+  ["actionsCopy", "actions-copy24.svg"],
 ].map(([id, fileName]) => ({
   id: id as MusicControlIcon,
   sourcePath: `docs/extracted-svg-icons/${fileName}`,

@@ -1,6 +1,6 @@
 "use client";
 
-import { Copy, Plus, Trash2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import type React from "react";
 import {
   useCallback,
@@ -22,14 +22,12 @@ import {
   useViewportStore,
   type Beat,
   type Measure,
-  type RhythmValue,
   type TabNote,
-  type Technique,
   type TimeSignature,
-  type TupletGroup,
 } from "@liuxianmao/lxm-tabeditor";
 import { BRAVURA_SYMBOLS, STAFF_STRINGS } from "./editor-data";
-import styles from "./EditorShell.module.scss";
+import sharedStyles from "./shared.module.scss";
+import styles from "./ScorePreview.module.scss";
 
 const DOUBLE_DIGIT_DELAY_MS = 700;
 
@@ -119,7 +117,6 @@ export const ScorePreview: React.FC = () => {
   const executeCommand = useScoreStore((state) => state.executeCommand);
   const zoom = useViewportStore((state) => state.zoom);
   const activeBeat = useEditorStore((state) => state.activeBeat);
-  const currentRhythm = useEditorStore((state) => state.currentRhythm);
   const setActiveBeat = useEditorStore((state) => state.setActiveBeat);
   const setSelectedNoteIds = useEditorStore((state) => state.setSelectedNoteIds);
   const fontStatus = useBravuraFontStatus();
@@ -339,96 +336,6 @@ export const ScorePreview: React.FC = () => {
     ],
   );
 
-  const setCurrentBeatRhythm = useCallback(
-    (rhythm: RhythmValue) => {
-      if (!activeBeat) return;
-      executeCommand({
-        type: "beat.setRhythm",
-        payload: { ...activeBeat, rhythm },
-      });
-    },
-    [activeBeat, executeCommand],
-  );
-
-  const handleSetDots = useCallback(
-    (dots: RhythmValue["dots"]) => {
-      if (!activeBeat) return;
-      const context = getActiveBeat(score, activeBeat);
-      setCurrentBeatRhythm({
-        ...(context?.beat.rhythm ?? currentRhythm),
-        dots,
-      });
-    },
-    [activeBeat, currentRhythm, score, setCurrentBeatRhythm],
-  );
-
-  const handleSetTuplet = useCallback(
-    (actualNotes: TupletGroup["actualNotes"]) => {
-      const track = score.tracks[0];
-      if (!track || !activeBeat) return;
-      const measure = track.measures.find((item) => item.id === activeBeat.measureId);
-      if (!measure) return;
-      const startIndex = measure.beats.findIndex(
-        (beat) => beat.id === activeBeat.beatId,
-      );
-      const beatIds = measure.beats
-        .slice(startIndex, startIndex + actualNotes)
-        .map((beat) => beat.id);
-      /*
-       * 连音组只允许连续拍点参与。
-       * 这里从当前光标向右取 actualNotes 个 beat，保证 beatIds 顺序与时间顺序一致。
-       */
-      if (beatIds.length !== actualNotes) {
-        setInputIssue(`${actualNotes} 连音需要从当前拍点开始选择连续 ${actualNotes} 个拍点。`);
-        return;
-      }
-      setInputIssue(undefined);
-      executeCommand({
-        type: "tuplet.set",
-        payload: {
-          trackId: track.id,
-          measureId: measure.id,
-          tuplet: {
-            id: createGeneratedId("tuplet"),
-            actualNotes,
-            /*
-             * schema 允许 normalNotes 为 2/3/4。
-             * 五、六连音在 MVP 中先压到 4 个普通音符的时值框架里，容量是否合法由语义校验决定。
-             */
-            normalNotes: (actualNotes === 2
-              ? 3
-              : Math.min(4, actualNotes - 1)) as TupletGroup["normalNotes"],
-            beatIds,
-            bracket: "show",
-          },
-        },
-      });
-    },
-    [activeBeat, createGeneratedId, executeCommand, score.tracks],
-  );
-
-  const handleClearTuplet = useCallback(() => {
-    const track = score.tracks[0];
-    if (!track || !activeBeat) return;
-    const measure = track.measures.find((item) => item.id === activeBeat.measureId);
-    const tuplet = measure?.tuplets.find((group) =>
-      group.beatIds.includes(activeBeat.beatId),
-    );
-    if (!measure || !tuplet) {
-      setInputIssue("当前拍点不属于连音组。");
-      return;
-    }
-    setInputIssue(undefined);
-    executeCommand({
-      type: "tuplet.clear",
-      payload: {
-        trackId: track.id,
-        measureId: measure.id,
-        tupletId: tuplet.id,
-      },
-    });
-  }, [activeBeat, executeCommand, score.tracks]);
-
   const createMeasureForInsert = useCallback(
     (barline?: Measure["barline"]) => {
       const track = score.tracks[0];
@@ -451,76 +358,6 @@ export const ScorePreview: React.FC = () => {
     [activeBeat, createGeneratedId, score.meta.timeSignature, score.tracks],
   );
 
-  const cloneMeasureForDuplicate = useCallback(
-    (measure: Measure): Measure => {
-      const beatIdByOldId = new Map<string, string>();
-      const noteIdByOldId = new Map<string, string>();
-
-      const remapTechnique = (technique: Technique): Technique => {
-        if (!("targetNoteId" in technique) || !technique.targetNoteId) {
-          return technique;
-        }
-        return {
-          ...technique,
-          targetNoteId:
-            noteIdByOldId.get(technique.targetNoteId) ?? technique.targetNoteId,
-        };
-      };
-
-      /*
-       * 复制小节必须重写小节、拍点、音符和局部标记 id。
-       * 连音组引用的是 beatId，因此先建立旧 beatId 到新 beatId 的映射，再回填 tuplet.beatIds。
-       */
-      const beats = measure.beats.map((beat) => {
-        const nextBeatId = createGeneratedId("beat");
-        beatIdByOldId.set(beat.id, nextBeatId);
-        if (beat.kind === "rest") return { ...beat, id: nextBeatId };
-        const notes = beat.notes.map((note) => {
-          const nextNoteId = createGeneratedId("note");
-          noteIdByOldId.set(note.id, nextNoteId);
-          return { ...note, id: nextNoteId };
-        });
-        return { ...beat, id: nextBeatId, notes };
-      });
-      const remappedBeats = beats.map((beat) => {
-        if (beat.kind === "rest") return beat;
-        return {
-          ...beat,
-          notes: beat.notes.map((note) => ({
-            ...note,
-            tie: note.tie
-              ? {
-                  targetNoteId:
-                    noteIdByOldId.get(note.tie.targetNoteId) ??
-                    note.tie.targetNoteId,
-                }
-              : undefined,
-            techniques: note.techniques.map(remapTechnique),
-          })),
-        };
-      });
-      return {
-        ...measure,
-        id: createGeneratedId("measure"),
-        beats: remappedBeats,
-        tuplets: measure.tuplets.map((tuplet) => ({
-          ...tuplet,
-          id: createGeneratedId("tuplet"),
-          beatIds: tuplet.beatIds.map((beatId) => beatIdByOldId.get(beatId)!),
-        })),
-        chordSymbols: measure.chordSymbols.map((symbol) => ({
-          ...symbol,
-          id: createGeneratedId("chord-symbol"),
-        })),
-        lyrics: measure.lyrics.map((lyric) => ({
-          ...lyric,
-          id: createGeneratedId("lyric"),
-        })),
-      };
-    },
-    [createGeneratedId],
-  );
-
   const handleAddMeasure = useCallback(() => {
     const track = score.tracks[0];
     if (!track) return;
@@ -535,43 +372,6 @@ export const ScorePreview: React.FC = () => {
     });
   }, [activeBeat, createMeasureForInsert, executeCommand, score.tracks]);
 
-  const handleDuplicateMeasure = useCallback(() => {
-    const track = score.tracks[0];
-    if (!track || !activeBeat) return;
-    const measure = track.measures.find((item) => item.id === activeBeat.measureId);
-    if (!measure) return;
-    executeCommand({
-      type: "measure.duplicate",
-      payload: {
-        trackId: track.id,
-        measureId: measure.id,
-        measure: cloneMeasureForDuplicate(measure),
-      },
-    });
-  }, [activeBeat, cloneMeasureForDuplicate, executeCommand, score.tracks]);
-
-  const handleDeleteMeasure = useCallback(() => {
-    const track = score.tracks[0];
-    if (!track || !activeBeat) return;
-    executeCommand({
-      type: "measure.delete",
-      payload: {
-        trackId: track.id,
-        measureId: activeBeat.measureId,
-        fallbackMeasure: createMeasureForInsert("final"),
-      },
-    });
-    setActiveBeat(undefined);
-    setSelectedNoteIds([]);
-  }, [
-    activeBeat,
-    createMeasureForInsert,
-    executeCommand,
-    score.tracks,
-    setActiveBeat,
-    setSelectedNoteIds,
-  ]);
-
   return (
     <main
       className={styles["canvas-panel"]}
@@ -581,7 +381,7 @@ export const ScorePreview: React.FC = () => {
       tabIndex={0}
     >
       <div className={styles["tempo-row"]}>
-        <span className={`${styles["tempo-note"]} ${styles["music-icon"]}`}>
+        <span className={`${styles["tempo-note"]} ${sharedStyles["music-icon"]}`}>
           {BRAVURA_SYMBOLS.noteQuarter}
         </span>
         <span>= {layout.tempo}</span>
@@ -626,17 +426,14 @@ export const ScorePreview: React.FC = () => {
                 </tspan>
               </text>
               {system.measures.map((measure) => (
-                <g
-                  className={styles["measure-svg"]}
-                  key={measure.id}
-                  aria-label={`第 ${measure.number} 小节`}
-                >
+                <g key={measure.id} aria-label={`第 ${measure.number} 小节`}>
+                  {/* TODO 这里到时候放和弦图 */}
                   <text
                     className={styles["measure-number-svg"]}
                     x={measure.x + measure.width / 2}
                     y={measure.y + 18}
                   >
-                    {measure.number}
+                    {measure.number} 
                   </text>
                   {measure.showTimeSignature ? (
                     <text
@@ -652,6 +449,7 @@ export const ScorePreview: React.FC = () => {
                       </tspan>
                     </text>
                   ) : null}
+                  {/* 弦 部分 */}
                   {STAFF_STRINGS.map((stringIndex) => (
                     <line
                       className={styles["staff-line-svg"]}
@@ -670,6 +468,8 @@ export const ScorePreview: React.FC = () => {
                       }
                     />
                   ))}
+                  
+                  {/* 激活输入框部分 */}
                   {activeBeat?.measureId === measure.id ? (
                     <rect
                       className={styles["active-cell-svg"]}
@@ -689,6 +489,8 @@ export const ScorePreview: React.FC = () => {
                       rx={5}
                     />
                   ) : null}
+
+                  {/* 小节部分 */}
                   <line
                     className={styles["barline-svg"]}
                     x1={measure.x}
@@ -707,6 +509,71 @@ export const ScorePreview: React.FC = () => {
                     y1={measure.y + measure.staffTop}
                     y2={measure.y + measure.staffTop + measure.staffHeight}
                   />
+
+                  {/* 音符时值部分：直接消费 layout 层产出的几何，不在 React 里重复排版。 */}
+                  {measure.beamGroups.map((beamGroup) => (
+                    <rect
+                      className={styles["duration-beam-svg"]}
+                      height={2}
+                      key={`${measure.id}-beam-${beamGroup.level}-${beamGroup.beatIds.join("-")}`}
+                      rx={1.5}
+                      width={Math.max(0, beamGroup.x2 - beamGroup.x1)}
+                      x={beamGroup.x1}
+                      y={beamGroup.y - 1.5}
+                    />
+                  ))}
+                  {/* 竖线部分 */}
+                  {measure.durationMarks.map((mark) => {
+                    const beamLevels = new Set(
+                      measure.beamGroups
+                        .filter((beamGroup) =>
+                          beamGroup.beatIds.includes(mark.beatId),
+                        )
+                        .map((beamGroup) => beamGroup.level),
+                    );
+                    // const noteHeadRadiusX = mark.notehead === "whole" ? 6 : 5;
+
+                    return (
+                      <g key={`${measure.id}-duration-${mark.beatId}`}>
+                        {mark.hasStem ? (
+                          <line
+                            className={styles["duration-stem-svg"]}
+                            x1={mark.stemX}
+                            x2={mark.stemX}
+                            y1={mark.stemTopY}
+                            y2={mark.stemBottomY}
+                          />
+                        ) : null}
+                        {Array.from({ length: mark.flagCount }, (_, index) => {
+                          const level = (index + 1) as 1 | 2 | 3;
+                          if (beamLevels.has(level)) return null;
+                          const flagY = mark.stemBaseY + index * 4;
+                          return (
+                            <path
+                              className={styles["duration-flag-svg"]}
+                              d={`M ${mark.stemX} ${flagY} Q ${mark.stemX + 7} ${
+                                flagY + 1.5
+                              } ${mark.stemX + 8} ${flagY + 8} Q ${
+                                mark.stemX + 5
+                              } ${flagY + 6} ${mark.stemX} ${flagY + 9}`}
+                              key={`${mark.beatId}-flag-${level}`}
+                            />
+                          );
+                        })}
+                        {mark.dots > 0 ? (
+                          <text
+                            className={styles["duration-dots-svg"]}
+                            x={mark.x + 12}
+                            y={mark.y + 4}
+                          >
+                            {".".repeat(mark.dots)}
+                          </text>
+                        ) : null}
+                      </g>
+                    );
+                  })}
+
+                  {/* 音符部分 */}
                   {measure.notes.map((note) => (
                     <g key={note.id}>
                       {note.tied ? (
@@ -732,10 +599,12 @@ export const ScorePreview: React.FC = () => {
                       </text>
                     </g>
                   ))}
+
+                  {/* 目前只有休止符部分 */}  
                   {measure.rests.map((rest) => (
                     <g key={rest.id}>
                       <text
-                        className={`${styles["rest-svg"]} ${styles["music-icon"]}`}
+                        className={`${styles["rest-svg"]} ${sharedStyles["music-icon"]}`}
                         x={rest.x}
                         y={rest.y + 8}
                       >
@@ -752,16 +621,19 @@ export const ScorePreview: React.FC = () => {
                       ) : null}
                     </g>
                   ))}
+                  
+                  {/* 连音括号部分 */}
                   {measure.tuplets.map((tuplet) => (
                     <g className={styles["tuplet-svg"]} key={tuplet.id}>
                       <path
-                        d={`M ${tuplet.x1} ${tuplet.y} L ${tuplet.x1} ${
-                          tuplet.y - 8
-                        } L ${tuplet.x2} ${tuplet.y - 8} L ${tuplet.x2} ${
-                          tuplet.y
-                        }`}
+                        d={`
+                          M ${tuplet.x1} ${tuplet.y}
+                          L ${tuplet.x1} ${tuplet.y + 4}
+                          L ${tuplet.x2} ${tuplet.y + 4}
+                          L ${tuplet.x2} ${tuplet.y}`
+                        }
                       />
-                      <text x={(tuplet.x1 + tuplet.x2) / 2} y={tuplet.y - 12}>
+                      <text x={(tuplet.x1 + tuplet.x2) / 2} y={tuplet.y + 15}>
                         {tuplet.number}
                       </text>
                     </g>
@@ -773,80 +645,13 @@ export const ScorePreview: React.FC = () => {
         </svg>
       </div>
 
-      <div className={styles["measure-actions"]}>
+      <div className={styles["score-add-measure-row"]}>
         <button
-          className={styles["add-measure-button"]}
+          className={`${styles["add-measure-button"]} ${styles["score-add-measure-button"]}`}
           onClick={handleAddMeasure}
           type="button"
         >
           <Plus aria-hidden="true" size={15} /> 添加小节
-        </button>
-        <button
-          className={styles["add-measure-button"]}
-          disabled={!activeBeat}
-          onClick={handleDuplicateMeasure}
-          type="button"
-        >
-          <Copy aria-hidden="true" size={15} /> 复制小节
-        </button>
-        <button
-          className={styles["add-measure-button"]}
-          disabled={!activeBeat}
-          onClick={handleDeleteMeasure}
-          type="button"
-        >
-          <Trash2 aria-hidden="true" size={15} /> 删除小节
-        </button>
-        <button
-          className={styles["add-measure-button"]}
-          disabled={!activeBeat}
-          onClick={() => setCurrentBeatRhythm(currentRhythm)}
-          type="button"
-        >
-          应用当前时值
-        </button>
-        <button
-          className={styles["add-measure-button"]}
-          disabled={!activeBeat}
-          onClick={() => handleSetDots(1)}
-          type="button"
-        >
-          附点
-        </button>
-        <button
-          className={styles["add-measure-button"]}
-          disabled={!activeBeat}
-          onClick={() => handleSetDots(2)}
-          type="button"
-        >
-          双附点
-        </button>
-        <button
-          className={styles["add-measure-button"]}
-          disabled={!activeBeat}
-          onClick={() => handleSetDots(0)}
-          type="button"
-        >
-          取消附点
-        </button>
-        {([2, 3, 4, 5, 6] as const).map((actualNotes) => (
-          <button
-            className={styles["add-measure-button"]}
-            disabled={!activeBeat}
-            key={actualNotes}
-            onClick={() => handleSetTuplet(actualNotes)}
-            type="button"
-          >
-            {actualNotes}连音
-          </button>
-        ))}
-        <button
-          className={styles["add-measure-button"]}
-          disabled={!activeBeat}
-          onClick={handleClearTuplet}
-          type="button"
-        >
-          取消连音
         </button>
       </div>
     </main>

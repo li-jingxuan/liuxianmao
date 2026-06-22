@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@liuxianmao/lxm-tabeditor": "workspace:*",
+    "antd": "^6.4.4",
     "clsx": "^2.1.1",
     "lucide-react": "^0.468.0",
     "next": "^16.2.9",

@@ -11,11 +11,17 @@ import {
 import type { CommandResult, ScoreCommand } from "../commands/command-types";
 
 export interface ScoreStoreState {
+  /** 当前正在编辑的乐谱快照，是页面渲染和命令写入的唯一事实来源。 */
   score: Score;
+  /** 文档修订号；从外部文档加载时读取，用于持久化或协作层对比版本。 */
   documentRevision: number;
+  /** 最近一次命令执行失败产生的问题列表，供页面提示用户。 */
   lastCommandIssues: ValidationIssue[];
+  /** 执行单条领域命令，并在成功时写入下一份 score。 */
   executeCommand: (command: ScoreCommand) => CommandResult<Score>;
+  /** 以事务方式顺序执行多条命令，成功时只提交一次状态。 */
   executeTransaction: (commands: ScoreCommand[]) => CommandResult<Score>;
+  /** 用磁盘/网络中的完整文档替换当前编辑态。 */
   loadDocument: (document: LxmScoreDocument) => void;
 }
 
@@ -25,8 +31,11 @@ export interface ScoreStoreState {
 export const useScoreStore = create<ScoreStoreState>()(
   temporal<ScoreStoreState, [], [], Pick<ScoreStoreState, "score">>(
     (set, get) => ({
+      /** 新建 store 时总是从一份合法的空白乐谱启动。 */
       score: createEmptyScore(),
+      /** 0 表示本地新文档，未继承外部 revision。 */
       documentRevision: 0,
+      /** 初始没有命令错误。 */
       lastCommandIssues: [],
       executeCommand: (command) => {
         const result = reduceScoreCommand(get().score, command);
