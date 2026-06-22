@@ -4,6 +4,7 @@ import {
   reduceScoreTransaction,
 } from "../src/commands/score-command-reducer";
 import type { Measure } from "../src/core/schema";
+import { createEmptyMeasure } from "../src/core/score-factory";
 import { createExampleDocument } from "../src/testing/example-document";
 
 const TARGET = {
@@ -93,6 +94,117 @@ describe("Score Command reducer", () => {
       },
     });
     expect(chordResult.ok).toBe(true);
+  });
+
+  it("支持修改时值、设置休止符和从休止符恢复音符", () => {
+    const score = createExampleDocument().score;
+    const setRest = reduceScoreCommand(score, {
+      type: "beat.setRest",
+      payload: TARGET,
+    });
+    expect(setRest.ok).toBe(true);
+    if (!setRest.ok) return;
+    const clearRest = reduceScoreCommand(setRest.value, {
+      type: "beat.clearRest",
+      payload: {
+        ...TARGET,
+        note: { id: "note-rest-restored", string: 2, fret: 3, techniques: [] },
+      },
+    });
+    expect(clearRest.ok).toBe(true);
+    if (!clearRest.ok) return;
+    const rhythm = reduceScoreCommand(clearRest.value, {
+      type: "beat.setRhythm",
+      payload: { ...TARGET, rhythm: { base: "quarter", dots: 0 } },
+    });
+    expect(rhythm.ok).toBe(true);
+  });
+
+  it("支持删除、复制小节和最后小节 fallback", () => {
+    const score = createExampleDocument().score;
+    const duplicate = reduceScoreCommand(score, {
+      type: "measure.duplicate",
+      payload: {
+        trackId: "track-guitar-001",
+        measureId: "measure-004",
+        measure: createEmptyMeasure({
+          id: "measure-004-copy",
+          beatIdPrefix: "beat-004-copy",
+          timeSignature: { numerator: 3, denominator: 4 },
+          barline: "final",
+        }),
+      },
+    });
+    expect(duplicate.ok).toBe(true);
+    if (!duplicate.ok) return;
+    expect(duplicate.value.tracks[0]!.measures).toHaveLength(5);
+
+    const deleted = reduceScoreCommand(duplicate.value, {
+      type: "measure.delete",
+      payload: { trackId: "track-guitar-001", measureId: "measure-004-copy" },
+    });
+    expect(deleted.ok).toBe(true);
+    if (!deleted.ok) return;
+    expect(deleted.value.tracks[0]!.measures).toHaveLength(4);
+
+    const singleMeasureScore = {
+      ...score,
+      tracks: [
+        { ...score.tracks[0]!, measures: [score.tracks[0]!.measures[0]!] },
+      ],
+    };
+    const deleteLast = reduceScoreCommand(singleMeasureScore, {
+      type: "measure.delete",
+      payload: {
+        trackId: "track-guitar-001",
+        measureId: "measure-001",
+        fallbackMeasure: createEmptyMeasure({
+          id: "measure-fallback",
+          beatIdPrefix: "beat-fallback",
+          timeSignature: { numerator: 4, denominator: 4 },
+          includeTimeSignature: true,
+          barline: "final",
+        }),
+      },
+    });
+    expect(deleteLast.ok).toBe(true);
+    if (deleteLast.ok) {
+      expect(deleteLast.value.tracks[0]!.measures[0]!.id).toBe(
+        "measure-fallback",
+      );
+    }
+  });
+
+  it("支持创建和解除连音组", () => {
+    const score = createExampleDocument().score;
+    const setTuplet = reduceScoreCommand(score, {
+      type: "tuplet.set",
+      payload: {
+        trackId: "track-guitar-001",
+        measureId: "measure-003",
+        tuplet: {
+          id: "tuplet-003-01",
+          actualNotes: 3,
+          normalNotes: 3,
+          beatIds: ["beat-003-01", "beat-003-02", "beat-003-03"],
+          bracket: "show",
+        },
+      },
+    });
+    expect(setTuplet.ok).toBe(true);
+    if (!setTuplet.ok) return;
+    const clearTuplet = reduceScoreCommand(setTuplet.value, {
+      type: "tuplet.clear",
+      payload: {
+        trackId: "track-guitar-001",
+        measureId: "measure-003",
+        tupletId: "tuplet-003-01",
+      },
+    });
+    expect(clearTuplet.ok).toBe(true);
+    if (clearTuplet.ok) {
+      expect(clearTuplet.value.tracks[0]!.measures[2]!.tuplets).toHaveLength(0);
+    }
   });
 
   it("事务任一步失败时整体回滚", () => {

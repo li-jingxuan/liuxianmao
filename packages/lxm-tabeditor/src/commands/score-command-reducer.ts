@@ -122,6 +122,56 @@ const updateNote = (
   };
 };
 
+const findTrackContext = (
+  score: Score,
+  trackId: string,
+): CommandResult<{ track: Track; trackIndex: number }> => {
+  const trackIndex = score.tracks.findIndex((track) => track.id === trackId);
+  if (trackIndex < 0) {
+    return commandFailure("TRACK_NOT_FOUND", "命令目标轨道不存在", trackId);
+  }
+  return { ok: true, value: { track: score.tracks[trackIndex]!, trackIndex } };
+};
+
+/**
+ * 小节级命令的公共寻址逻辑。
+ *
+ * reducer 中不直接相信页面传入的 index，而是每次通过稳定 id 寻址。
+ * 这样撤销、重排或复制小节后，页面缓存的视觉位置不会误写到错误小节。
+ */
+const findMeasureContext = (
+  score: Score,
+  payload: { trackId: string; measureId: string },
+): CommandResult<{
+  track: Track;
+  trackIndex: number;
+  measure: Measure;
+  measureIndex: number;
+}> => {
+  const trackResult = findTrackContext(score, payload.trackId);
+  if (!trackResult.ok) return trackResult;
+  const { track, trackIndex } = trackResult.value;
+  const measureIndex = track.measures.findIndex(
+    (measure) => measure.id === payload.measureId,
+  );
+  if (measureIndex < 0) {
+    return commandFailure(
+      "MEASURE_NOT_FOUND",
+      "命令目标小节不存在",
+      payload.measureId,
+    );
+  }
+  return {
+    ok: true,
+    value: {
+      track,
+      trackIndex,
+      measure: track.measures[measureIndex]!,
+      measureIndex,
+    },
+  };
+};
+
 const applyNoteAdd = (
   score: Score,
   command: Extract<ScoreCommand, { type: "note.add" }>,
@@ -189,16 +239,75 @@ const applyNoteDelete = (
   };
 };
 
+const applyBeatSetRhythm = (
+  score: Score,
+  command: Extract<ScoreCommand, { type: "beat.setRhythm" }>,
+) => {
+  const contextResult = findTargetContext(score, command.payload);
+  if (!contextResult.ok) return contextResult;
+  return {
+    ok: true as const,
+    value: replaceBeat(score, contextResult.value, {
+      ...contextResult.value.beat,
+      rhythm: command.payload.rhythm,
+    }),
+  };
+};
+
+const applyBeatSetRest = (
+  score: Score,
+  command: Extract<ScoreCommand, { type: "beat.setRest" }>,
+) => {
+  const contextResult = findTargetContext(score, command.payload);
+  if (!contextResult.ok) return contextResult;
+  const { beat } = contextResult.value;
+  /*
+   * 休止拍在 schema 中没有 notes 字段。
+   * 因此设置休止符时要重建 beat 对象，而不是保留原 notes 再切 kind，
+   * 否则 Zod strict object 会把残留字段视为非法数据。
+   */
+  return {
+    ok: true as const,
+    value: replaceBeat(score, contextResult.value, {
+      id: beat.id,
+      tick: beat.tick,
+      rhythm: beat.rhythm,
+      kind: "rest",
+    }),
+  };
+};
+
+const applyBeatClearRest = (
+  score: Score,
+  command: Extract<ScoreCommand, { type: "beat.clearRest" }>,
+) => {
+  const contextResult = findTargetContext(score, command.payload);
+  if (!contextResult.ok) return contextResult;
+  const { beat } = contextResult.value;
+  if (beat.kind === "notes") {
+    return commandFailure(
+      "REST_BEAT_REQUIRED",
+      "目标拍点已经是音符拍",
+      beat.id,
+    );
+  }
+  return {
+    ok: true as const,
+    value: replaceBeat(score, contextResult.value, {
+      ...beat,
+      kind: "notes",
+      notes: [command.payload.note],
+    }),
+  };
+};
+
 const applyMeasureAdd = (
   score: Score,
   command: Extract<ScoreCommand, { type: "measure.add" }>,
 ) => {
-  const trackIndex = score.tracks.findIndex(
-    (track) => track.id === command.payload.trackId,
-  );
-  if (trackIndex < 0)
-    return commandFailure("TRACK_NOT_FOUND", "命令目标轨道不存在");
-  const track = score.tracks[trackIndex]!;
+  const trackResult = findTrackContext(score, command.payload.trackId);
+  if (!trackResult.ok) return trackResult;
+  const { track, trackIndex } = trackResult.value;
   const afterIndex = command.payload.afterMeasureId
     ? track.measures.findIndex(
         (measure) => measure.id === command.payload.afterMeasureId,
@@ -218,6 +327,115 @@ const applyMeasureAdd = (
         index === trackIndex ? { ...item, measures: nextMeasures } : item,
       ),
     },
+  };
+};
+
+const applyMeasureDelete = (
+  score: Score,
+  command: Extract<ScoreCommand, { type: "measure.delete" }>,
+) => {
+  const contextResult = findMeasureContext(score, command.payload);
+  if (!contextResult.ok) return contextResult;
+  const { track, trackIndex, measureIndex } = contextResult.value;
+  const nextMeasures = track.measures.filter(
+    (_, index) => index !== measureIndex,
+  );
+  if (nextMeasures.length === 0) {
+    /*
+     * 轨道不能变成空数组：后续排版、命中和播放都默认至少存在一个小节。
+     * fallbackMeasure 由工厂函数创建，页面层只决定删除意图，不拼装空白结构。
+     */
+    if (!command.payload.fallbackMeasure) {
+      return commandFailure(
+        "LAST_MEASURE_DELETE_REQUIRES_FALLBACK",
+        "删除最后一个小节时必须提供合法空白小节",
+        command.payload.measureId,
+      );
+    }
+    nextMeasures.push(command.payload.fallbackMeasure);
+  }
+  return {
+    ok: true as const,
+    value: {
+      ...score,
+      tracks: score.tracks.map((item, index) =>
+        index === trackIndex ? { ...item, measures: nextMeasures } : item,
+      ),
+    },
+  };
+};
+
+const applyMeasureDuplicate = (
+  score: Score,
+  command: Extract<ScoreCommand, { type: "measure.duplicate" }>,
+) => {
+  const contextResult = findMeasureContext(score, command.payload);
+  if (!contextResult.ok) return contextResult;
+  const { track, trackIndex, measureIndex } = contextResult.value;
+  const nextMeasures = [...track.measures];
+  nextMeasures.splice(measureIndex + 1, 0, command.payload.measure);
+  return {
+    ok: true as const,
+    value: {
+      ...score,
+      tracks: score.tracks.map((item, index) =>
+        index === trackIndex ? { ...item, measures: nextMeasures } : item,
+      ),
+    },
+  };
+};
+
+const applyTupletSet = (
+  score: Score,
+  command: Extract<ScoreCommand, { type: "tuplet.set" }>,
+) => {
+  const contextResult = findMeasureContext(score, command.payload);
+  if (!contextResult.ok) return contextResult;
+  const { measure } = contextResult.value;
+  /*
+   * 连音组按 id 做 upsert，方便工具栏重复点击时更新同一组。
+   * 真正的连续性、容量和重叠校验仍交给 validateScoreSemantics 统一处理。
+   */
+  const nextMeasure: Measure = {
+    ...measure,
+    tuplets: measure.tuplets.some(
+      (tuplet) => tuplet.id === command.payload.tuplet.id,
+    )
+      ? measure.tuplets.map((tuplet) =>
+          tuplet.id === command.payload.tuplet.id
+            ? command.payload.tuplet
+            : tuplet,
+        )
+      : [...measure.tuplets, command.payload.tuplet],
+  };
+  return {
+    ok: true as const,
+    value: replaceMeasure(score, contextResult.value, nextMeasure),
+  };
+};
+
+const applyTupletClear = (
+  score: Score,
+  command: Extract<ScoreCommand, { type: "tuplet.clear" }>,
+) => {
+  const contextResult = findMeasureContext(score, command.payload);
+  if (!contextResult.ok) return contextResult;
+  const { measure } = contextResult.value;
+  if (!measure.tuplets.some((tuplet) => tuplet.id === command.payload.tupletId)) {
+    return commandFailure(
+      "TUPLET_NOT_FOUND",
+      "命令目标连音组不存在",
+      command.payload.tupletId,
+    );
+  }
+  return {
+    ok: true as const,
+    value: replaceMeasure(score, contextResult.value, {
+      ...measure,
+      tuplets: measure.tuplets.filter(
+        (tuplet) => tuplet.id !== command.payload.tupletId,
+      ),
+    }),
   };
 };
 
@@ -306,8 +524,22 @@ export const reduceScoreCommand = (
         return applyNoteUpdateFret(score, command);
       case "note.delete":
         return applyNoteDelete(score, command);
+      case "beat.setRhythm":
+        return applyBeatSetRhythm(score, command);
+      case "beat.setRest":
+        return applyBeatSetRest(score, command);
+      case "beat.clearRest":
+        return applyBeatClearRest(score, command);
       case "measure.add":
         return applyMeasureAdd(score, command);
+      case "measure.delete":
+        return applyMeasureDelete(score, command);
+      case "measure.duplicate":
+        return applyMeasureDuplicate(score, command);
+      case "tuplet.set":
+        return applyTupletSet(score, command);
+      case "tuplet.clear":
+        return applyTupletClear(score, command);
       case "technique.apply":
         return applyTechnique(score, command);
       case "chord.upsert":

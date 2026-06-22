@@ -158,6 +158,13 @@ export interface ScoreLayout {
   hitIndex: LayoutHitIndex;
 }
 
+export interface ScoreLayoutHit {
+  measureId: string;
+  beatId: string;
+  tick: number;
+  string: number;
+}
+
 /** Bravura SMuFL 休止符码点，只在 rest 渲染时配合 music-icon 字体类使用。 */
 const REST_SYMBOLS: Record<RhythmValue["base"], string> = {
   whole: "\uE4E3",
@@ -239,6 +246,12 @@ const createBounds = (
   width: number,
   height: number,
 ): LayoutBounds => ({ x, y, width, height });
+
+const containsPoint = (bounds: LayoutBounds, x: number, y: number): boolean =>
+  x >= bounds.x &&
+  x <= bounds.x + bounds.width &&
+  y >= bounds.y &&
+  y <= bounds.y + bounds.height;
 
 /**
  * 排版单个小节。
@@ -552,4 +565,41 @@ export const layoutScore = (
     systems,
     hitIndex,
   };
+};
+
+/**
+ * 将 SVG 坐标命中到最近的拍点和弦线。
+ *
+ * 交互层不直接读取 DOM 元素 id，而是把指针坐标转换到 layout 坐标系后调用这里。
+ * x 方向选择当前小节中距离最近的 beat，y 方向按弦距四舍五入到 1..6 弦。
+ */
+export const hitTestScoreLayout = (
+  layout: ScoreLayout,
+  point: { x: number; y: number },
+): ScoreLayoutHit | null => {
+  for (const system of layout.systems) {
+    for (const measure of system.measures) {
+      const measureBounds = layout.hitIndex.measures[measure.id];
+      if (!measureBounds || !containsPoint(measureBounds, point.x, point.y)) {
+        continue;
+      }
+      const beat = measure.beats.reduce<LaidOutBeat | null>((closest, item) => {
+        if (!closest) return item;
+        return Math.abs(item.x - point.x) < Math.abs(closest.x - point.x)
+          ? item
+          : closest;
+      }, null);
+      if (!beat) return null;
+
+      const rawString =
+        (point.y - measure.y - measure.staffTop) / measure.stringSpacing + 1;
+      return {
+        measureId: measure.id,
+        beatId: beat.id,
+        tick: beat.tick,
+        string: clamp(Math.round(rawString), 1, GUITAR_STRING_COUNT),
+      };
+    }
+  }
+  return null;
 };

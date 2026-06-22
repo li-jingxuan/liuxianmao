@@ -2,7 +2,9 @@ import { create } from "zustand";
 import type { EditorMode, RhythmValue, Technique } from "../core/schema";
 
 export interface ActiveBeatPosition {
+  trackId: string;
   measureId: string;
+  beatId: string;
   tick: number;
   string: number;
 }

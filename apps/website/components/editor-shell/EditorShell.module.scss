@@ -118,6 +118,21 @@
   cursor: default;
 }
 
+.icon-button:not(:disabled),
+.ghost-button:not(:disabled),
+.dark-button:not(:disabled),
+.select-button:not(:disabled),
+.tool-button:not(:disabled),
+.option-button:not(:disabled),
+.transport-button:not(:disabled),
+.add-measure-button:not(:disabled) {
+  cursor: pointer;
+}
+
+.add-measure-button:disabled {
+  opacity: 0.42;
+}
+
 .icon-button {
   display: inline-grid;
   width: 36px;
@@ -283,6 +298,10 @@
   padding: 18px 36px 8px;
 }
 
+.canvas-panel:focus {
+  outline: none;
+}
+
 .tempo-row {
   display: flex;
   align-items: center;
@@ -309,6 +328,17 @@
   font-size: 12px;
 }
 
+.command-issues {
+  width: min(1130px, 100%);
+  margin: 0 auto 8px;
+  border: 1px solid #f0b3b3;
+  border-radius: 8px;
+  background: #fff0f0;
+  color: #9a2424;
+  padding: 8px 12px;
+  font-size: 12px;
+}
+
 .score-sheet {
   position: relative;
   width: max-content;
@@ -321,6 +351,7 @@
   display: block;
   overflow: visible;
   color: #14171d;
+  cursor: crosshair;
   font-family: Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
 }
 
@@ -380,6 +411,18 @@
   text-anchor: middle;
 }
 
+.active-cell-svg {
+  fill: rgb(80 130 255 / 13%);
+  stroke: #4f7cff;
+  stroke-dasharray: 3 2;
+  stroke-width: 1.2;
+}
+
+.active-note-svg {
+  fill: #2454ff;
+  stroke: #eaf0ff;
+}
+
 .ghost-note-svg {
   fill: #687182;
 }
@@ -416,6 +459,14 @@
   font-size: 11px;
   font-weight: 700;
   text-anchor: middle;
+}
+
+.measure-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: min(1130px, 100%);
+  margin: 8px auto 0;
 }
 
 .score-row {

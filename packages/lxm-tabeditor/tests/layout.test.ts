@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { layoutScore } from "../src/layout/score-layout";
+import { hitTestScoreLayout, layoutScore } from "../src/layout/score-layout";
 import { createExampleDocument } from "../src/testing/example-document";
 
 describe("六线谱只读排版", () => {
@@ -59,6 +59,24 @@ describe("六线谱只读排版", () => {
       id: "tuplet-004-01",
       number: 3,
       bracket: "show",
+    });
+  });
+
+  it("能把 SVG 坐标命中到最近拍点和弦线", () => {
+    const document = createExampleDocument();
+    const layout = layoutScore(document.score);
+    const measure = layout.systems[0]!.measures[0]!;
+    const beat = measure.beats[0]!;
+    const hit = hitTestScoreLayout(layout, {
+      x: beat.x + 4,
+      y: measure.y + measure.staffTop + measure.stringSpacing * 2,
+    });
+
+    expect(hit).toEqual({
+      measureId: measure.id,
+      beatId: beat.id,
+      tick: beat.tick,
+      string: 3,
     });
   });
 
