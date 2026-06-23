@@ -30,7 +30,8 @@ const note = (
 });
 
 /**
- * Iteration 1 的规范夹具，覆盖技巧、休止拍、变拍号、三连音、歌词、和弦与跨小节延音。
+ * Iteration 1 的规范夹具，覆盖多种常见时值（四分、八分、十六分、附点）、技巧、
+ * 休止拍、变拍号、三连音、歌词、和弦与跨小节延音。
  */
 export const guitarTabEditorExample: LxmScoreDocument = {
   schema: "lxm-tab-score",
@@ -70,7 +71,7 @@ export const guitarTabEditorExample: LxmScoreDocument = {
               { id: "lyric-001", tick: 0, text: "风", syllable: "begin" },
               { id: "lyric-002", tick: 480, text: "吹", syllable: "middle" },
               { id: "lyric-003", tick: 960, text: "过", syllable: "end" },
-              { id: "lyric-004", tick: 2880, text: "来", syllable: "single" },
+              { id: "lyric-004", tick: 3360, text: "来", syllable: "single" },
             ],
             tuplets: [],
             beats: [
@@ -111,18 +112,37 @@ export const guitarTabEditorExample: LxmScoreDocument = {
               {
                 id: "beat-001-04",
                 tick: 1920,
-                rhythm: rhythm("quarter"),
-                kind: "rest",
+                rhythm: rhythm("sixteenth"),
+                kind: "notes",
+                notes: [note("note-001-04-01", 4, 2)],
               },
               {
                 id: "beat-001-05",
-                tick: 2880,
+                tick: 2160,
                 rhythm: rhythm("quarter"),
                 kind: "notes",
                 notes: [note("note-001-05-01", 2, 1, [], { ghost: true })],
               },
+              {
+                id: "beat-001-06",
+                tick: 3120,
+                rhythm: rhythm("eighth"),
+                kind: "rest",
+              },
+              {
+                id: "beat-001-07",
+                tick: 3600,
+                rhythm: rhythm("sixteenth"),
+                kind: "notes",
+                notes: [
+                  note("note-001-07-01", 1, 0, [
+                    { type: "harmonic", harmonicType: "natural" },
+                  ]),
+                ],
+              },
             ],
           },
+          // 小节 2
           {
             id: "measure-002",
             barline: "repeatEnd",
@@ -146,7 +166,7 @@ export const guitarTabEditorExample: LxmScoreDocument = {
               {
                 id: "beat-002-01",
                 tick: 0,
-                rhythm: rhythm("quarter"),
+                rhythm: rhythm("quarter", 1),
                 kind: "notes",
                 notes: [
                   note("note-002-01-01", 1, 1, [
@@ -156,8 +176,8 @@ export const guitarTabEditorExample: LxmScoreDocument = {
               },
               {
                 id: "beat-002-02",
-                tick: 960,
-                rhythm: rhythm("quarter"),
+                tick: 1440,
+                rhythm: rhythm("eighth"),
                 kind: "notes",
                 notes: [
                   note("note-002-02-01", 1, 3, [
@@ -169,7 +189,7 @@ export const guitarTabEditorExample: LxmScoreDocument = {
               {
                 id: "beat-002-03",
                 tick: 1920,
-                rhythm: rhythm("eighth"),
+                rhythm: rhythm("eighth", 1),
                 kind: "notes",
                 notes: [
                   note("note-002-03-01", 1, 1, [
@@ -179,8 +199,8 @@ export const guitarTabEditorExample: LxmScoreDocument = {
               },
               {
                 id: "beat-002-04",
-                tick: 2400,
-                rhythm: rhythm("eighth"),
+                tick: 2640,
+                rhythm: rhythm("sixteenth"),
                 kind: "notes",
                 notes: [
                   note("note-002-04-01", 2, 1, [
@@ -199,6 +219,7 @@ export const guitarTabEditorExample: LxmScoreDocument = {
           },
           {
             id: "measure-003",
+            timeSignature: { numerator: 3, denominator: 4 },
             barline: "repeatStart",
             chordSymbols: [
               {
@@ -210,21 +231,21 @@ export const guitarTabEditorExample: LxmScoreDocument = {
             ],
             lyrics: [
               { id: "lyric-005", tick: 0, text: "向", syllable: "single" },
-              { id: "lyric-006", tick: 960, text: "远", syllable: "single" },
-              { id: "lyric-007", tick: 1920, text: "方", syllable: "single" },
+              { id: "lyric-006", tick: 480, text: "远", syllable: "single" },
+              { id: "lyric-007", tick: 1440, text: "方", syllable: "single" },
             ],
             tuplets: [],
             beats: [
               {
                 id: "beat-003-01",
                 tick: 0,
-                rhythm: rhythm("quarter"),
+                rhythm: rhythm("eighth"),
                 kind: "notes",
                 notes: [note("note-003-01-01", 6, 3)],
               },
               {
                 id: "beat-003-02",
-                tick: 960,
+                tick: 480,
                 rhythm: rhythm("quarter"),
                 kind: "notes",
                 notes: [
@@ -235,8 +256,8 @@ export const guitarTabEditorExample: LxmScoreDocument = {
               },
               {
                 id: "beat-003-03",
-                tick: 1920,
-                rhythm: rhythm("quarter"),
+                tick: 1440,
+                rhythm: rhythm("quarter", 1),
                 kind: "notes",
                 notes: [
                   note("note-003-03-01", 1, 3, [], {

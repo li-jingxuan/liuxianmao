@@ -9,14 +9,17 @@ interface TestDurationMark {
   flagCount: number;
 }
 
-interface TestBeamGroup {
+interface TestBeamSegment {
+  kind: "shared" | "partial";
   level: number;
-  beatIds: string[];
+  beatIds?: string[];
+  beatId?: string;
+  direction?: "left" | "right";
 }
 
 interface TestMeasureWithDuration {
   durationMarks?: TestDurationMark[];
-  beamGroups?: TestBeamGroup[];
+  beamSegments?: TestBeamSegment[];
 }
 
 describe("六线谱只读排版", () => {
@@ -70,7 +73,7 @@ describe("六线谱只读排版", () => {
     });
     expect(measures[2]?.showTimeSignature).toBe(true);
     expect(measures.flatMap((measure) => measure.rests)[0]?.symbol).toBe(
-      "\uE4E5",
+      "\uE4E6",
     );
     expect(measures[3]?.tuplets[0]).toMatchObject({
       id: "tuplet-004-01",
@@ -79,7 +82,7 @@ describe("六线谱只读排版", () => {
     });
   });
 
-  it("为音符拍输出时值标记、附点和基础连梁分组", () => {
+  it("为音符拍输出时值标记、附点和基础连梁片段", () => {
     const document = createExampleDocument();
     const layout = layoutScore(document.score);
     const measures = layout.systems.flatMap((system) => system.measures);
@@ -90,7 +93,7 @@ describe("六线谱只读排版", () => {
 
     expect(firstMeasure.durationMarks).toBeDefined();
     expect(fourthMeasure.durationMarks).toBeDefined();
-    expect(fourthMeasure.beamGroups).toBeDefined();
+    expect(fourthMeasure.beamSegments).toBeDefined();
 
     expect(firstMeasure.durationMarks).toEqual(
       expect.arrayContaining([
@@ -99,6 +102,31 @@ describe("六线谱只读排版", () => {
           base: "quarter",
           dots: 0,
           flagCount: 0,
+        }),
+        expect.objectContaining({
+          beatId: "beat-001-07",
+          base: "sixteenth",
+          dots: 0,
+          flagCount: 2,
+        }),
+      ]),
+    );
+
+    const secondMeasure = measures[1]! as typeof measures[number] &
+      TestMeasureWithDuration;
+    expect(secondMeasure.durationMarks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          beatId: "beat-002-01",
+          base: "quarter",
+          dots: 1,
+          flagCount: 0,
+        }),
+        expect.objectContaining({
+          beatId: "beat-002-03",
+          base: "eighth",
+          dots: 1,
+          flagCount: 1,
         }),
       ]),
     );
@@ -120,11 +148,47 @@ describe("六线谱只读排版", () => {
       ]),
     );
 
-    expect(fourthMeasure.beamGroups).toEqual(
+    expect(fourthMeasure.beamSegments).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
+          kind: "shared",
           level: 1,
           beatIds: ["beat-004-01", "beat-004-02", "beat-004-03"],
+        }),
+      ]),
+    );
+  });
+
+  it("为附点八分加十六分组合输出 shared 和 partial 两类 beam segment", () => {
+    const document = createExampleDocument();
+    const layout = layoutScore(document.score);
+    const measures = layout.systems.flatMap((system) => system.measures);
+    const secondMeasure = measures[1]! as typeof measures[number] &
+      TestMeasureWithDuration;
+    const firstMeasure = measures[0]! as typeof measures[number] &
+      TestMeasureWithDuration;
+
+    expect(secondMeasure.beamSegments).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "shared",
+          level: 1,
+          beatIds: ["beat-002-02", "beat-002-03", "beat-002-04"],
+        }),
+        expect.objectContaining({
+          kind: "partial",
+          beatId: "beat-002-04",
+          level: 2,
+          direction: "left",
+        }),
+      ]),
+    );
+
+    expect(firstMeasure.beamSegments ?? []).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "partial",
+          beatId: "beat-001-07",
         }),
       ]),
     );

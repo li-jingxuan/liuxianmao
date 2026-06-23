@@ -15,6 +15,8 @@ import {
   createEmptyMeasure,
   GUITAR_STRING_COUNT,
   hitTestScoreLayout,
+  isLaidOutPartialBeam,
+  isLaidOutSharedBeam,
   layoutScore,
   MAX_FRET,
   useEditorStore,
@@ -511,27 +513,36 @@ export const ScorePreview: React.FC = () => {
                   />
 
                   {/* 音符时值部分：直接消费 layout 层产出的几何，不在 React 里重复排版。 */}
-                  {measure.beamGroups.map((beamGroup) => (
-                    <rect
-                      className={styles["duration-beam-svg"]}
-                      height={2}
-                      key={`${measure.id}-beam-${beamGroup.level}-${beamGroup.beatIds.join("-")}`}
-                      rx={1.5}
-                      width={Math.max(0, beamGroup.x2 - beamGroup.x1)}
-                      x={beamGroup.x1}
-                      y={beamGroup.y - 1.5}
-                    />
-                  ))}
+                  {measure.beamSegments.map((beamSegment) => {
+                    const key = isLaidOutSharedBeam(beamSegment)
+                      ? `${measure.id}-beam-shared-${beamSegment.level}-${beamSegment.beatIds.join("-")}`
+                      : `${measure.id}-beam-partial-${beamSegment.beatId}-${beamSegment.level}`;
+
+                    return (
+                      <rect
+                        className={styles["duration-beam-svg"]}
+                        height={2}
+                        key={key}
+                        width={Math.max(0, beamSegment.x2 - beamSegment.x1)}
+                        x={beamSegment.x1}
+                        y={beamSegment.y - 1.2}
+                      />
+                    );
+                  })}
+                  
                   {/* 竖线部分 */}
                   {measure.durationMarks.map((mark) => {
-                    const beamLevels = new Set(
-                      measure.beamGroups
-                        .filter((beamGroup) =>
-                          beamGroup.beatIds.includes(mark.beatId),
+                    const coveredBeamLevels = new Set(
+                      measure.beamSegments
+                        .filter(
+                          (beamSegment) =>
+                            (isLaidOutSharedBeam(beamSegment) &&
+                              beamSegment.beatIds.includes(mark.beatId)) ||
+                            (isLaidOutPartialBeam(beamSegment) &&
+                              beamSegment.beatId === mark.beatId),
                         )
-                        .map((beamGroup) => beamGroup.level),
+                        .map((beamSegment) => beamSegment.level),
                     );
-                    // const noteHeadRadiusX = mark.notehead === "whole" ? 6 : 5;
 
                     return (
                       <g key={`${measure.id}-duration-${mark.beatId}`}>
@@ -544,27 +555,30 @@ export const ScorePreview: React.FC = () => {
                             y2={mark.stemBottomY}
                           />
                         ) : null}
+                        
+                        {/* 音符尾巴部分 */}
                         {Array.from({ length: mark.flagCount }, (_, index) => {
                           const level = (index + 1) as 1 | 2 | 3;
-                          if (beamLevels.has(level)) return null;
-                          const flagY = mark.stemBaseY + index * 4;
+                          if (coveredBeamLevels.has(level)) return null;
+                          const flagY = mark.stemBaseY - index * 4;
                           return (
                             <path
                               className={styles["duration-flag-svg"]}
-                              d={`M ${mark.stemX} ${flagY} Q ${mark.stemX + 7} ${
-                                flagY + 1.5
-                              } ${mark.stemX + 8} ${flagY + 8} Q ${
-                                mark.stemX + 5
-                              } ${flagY + 6} ${mark.stemX} ${flagY + 9}`}
+                              d={`
+                                M ${mark.stemX} ${flagY}
+                                Q ${mark.stemX + 4} ${flagY - 2} ${mark.stemX + 8} ${flagY - 6}
+                                Q ${mark.stemX + 8.5} ${flagY - 8} ${mark.stemX + 8} ${flagY - 10}
+                              `}
                               key={`${mark.beatId}-flag-${level}`}
                             />
                           );
                         })}
+                        {/* 附点部分 */}
                         {mark.dots > 0 ? (
                           <text
                             className={styles["duration-dots-svg"]}
                             x={mark.x + 12}
-                            y={mark.y + 4}
+                            y={mark.stemBaseY - 6}
                           >
                             {".".repeat(mark.dots)}
                           </text>
