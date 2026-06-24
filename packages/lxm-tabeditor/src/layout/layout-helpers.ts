@@ -9,7 +9,6 @@ import type {
   TupletGroup,
 } from "../core/schema";
 import {
-  MEASURE_PADDING_X,
   STAFF_HEIGHT,
   STAFF_TOP,
   STRING_SPACING,
@@ -73,28 +72,6 @@ export const getBeatTicks = (beat: Beat, tuplets: TupletGroup[]): number => {
 /** 小节容量是 tick 到 x 坐标映射的分母，例如 4/4 为 3840，3/4 为 2880。 */
 export const getCapacityTicks = (timeSignature: TimeSignature): number =>
   getMeasureCapacityTicks(timeSignature);
-
-/**
- * 将小节内 tick 映射为 SVG x 坐标。
- *
- * 关键公式：
- * 1. usableWidth = 小节宽度 - 左右留白
- * 2. progress = beat.tick / 小节容量 tick
- * 3. x = 小节左边界 + 左留白 + usableWidth * progress
- *
- * clamp(progress, 0, 1) 可以防止非法或临界数据把元素画到小节外。
- */
-export const getBeatX = (
-  measureX: number,
-  measureWidth: number,
-  tick: number,
-  capacityTicks: number,
-): number => {
-  const usableWidth = measureWidth - MEASURE_PADDING_X * 2;
-  const progress = capacityTicks > 0 ? tick / capacityTicks : 0;
-
-  return measureX + MEASURE_PADDING_X + usableWidth * clamp(progress, 0, 1);
-};
 
 /** 休止符放在六线谱垂直中线附近，后续可按具体休止符类型细调 y。 */
 export const getRestY = (measureY: number): number =>

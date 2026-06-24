@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   calculateRhythmTicks,
   getMeasureCapacityTicks,
+  partitionTickRangeToRhythms,
 } from "../src/core/rhythm";
 import { validateScoreSemantics } from "../src/core/validation";
 import { createExampleDocument } from "../src/testing/example-document";
@@ -45,6 +46,19 @@ describe("整数 tick 节奏体系", () => {
     expect(getMeasureCapacityTicks({ numerator: 6, denominator: 8 })).toBe(
       2880,
     );
+  });
+
+  it("把 tick 区间切分成可落盘的合法时值片段", () => {
+    expect(
+      partitionTickRangeToRhythms(0, 240, { numerator: 4, denominator: 4 }),
+    ).toEqual([{ tick: 0, rhythm: { base: "sixteenth", dots: 0 } }]);
+
+    expect(
+      partitionTickRangeToRhythms(360, 960, { numerator: 4, denominator: 4 }),
+    ).toEqual([
+      { tick: 360, rhythm: { base: "eighth", dots: 0 } },
+      { tick: 840, rhythm: { base: "thirtySecond", dots: 0 } },
+    ]);
   });
 
   it("普通小节必须完整，弱起小节允许不足但不能溢出", () => {

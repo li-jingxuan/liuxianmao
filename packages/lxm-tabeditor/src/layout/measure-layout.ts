@@ -1,9 +1,10 @@
 import type { Beat, Measure, RhythmValue, TimeSignature } from "../core/schema";
 import {
+  DURATION_DOT_X_OFFSET,
+  DURATION_DOT_Y_OFFSET,
   DURATION_LANE_Y,
   DURATION_STEM_LENGTH,
   HIT_PADDING,
-  MEASURE_PADDING_X,
   STAFF_HEIGHT,
   STAFF_TOP,
   STRING_LINE_WIDTH,
@@ -14,17 +15,18 @@ import {
 import {
   buildBeamSegments,
   getDurationFlagCount,
+  getDurationLevelY,
   getDurationNotehead,
   hasDurationStem,
 } from "./duration-layout";
+import { buildMeasureEditGrid } from "./edit-grid";
 import {
   createBounds,
-  getBeatTicks,
-  getBeatX,
   getCapacityTicks,
   getRestY,
   getStringY,
 } from "./layout-helpers";
+import { getBeatSpacingSlot, layoutMeasureSpacing } from "./measure-spacing";
 import type {
   LayoutHitIndex,
   LaidOutDurationMark,
@@ -71,22 +73,23 @@ export const layoutMeasure = (
     timeSignature: TimeSignature;
     showTimeSignature: boolean;
     hitIndex: LayoutHitIndex;
+    editingRhythm?: RhythmValue;
   },
 ): LaidOutMeasure => {
   const capacityTicks = getCapacityTicks(context.timeSignature);
+  const spacing = layoutMeasureSpacing(measure, {
+    x: context.x,
+    assignedWidth: context.width,
+  });
 
   const beats = measure.beats.map((beat) => {
-    const x = getBeatX(context.x, context.width, beat.tick, capacityTicks);
+    const slot = getBeatSpacingSlot(spacing, beat);
+    const x = slot.x;
     /**
-     * 拍点宽度使用“该拍 tick 长度 / 小节容量”乘以可用宽度。
+     * 拍点宽度来自节奏列 spacing，而不是直接用 tick 比例换算。
      * 最小 10px 是命中测试和后续光标绘制的兜底，避免极短时值变成不可点击区域。
      */
-    const width = Math.max(
-      10,
-      ((context.width - MEASURE_PADDING_X * 2) *
-        getBeatTicks(beat, measure.tuplets)) /
-        capacityTicks,
-    );
+    const width = Math.max(10, slot.width);
     /** 拍点命中区覆盖整组六线谱高度，而不是只覆盖视觉数字，方便空拍点击定位。 */
     context.hitIndex.beats[beat.id] = createBounds(
       x - HIT_PADDING,
@@ -108,7 +111,7 @@ export const layoutMeasure = (
   /** 音符坐标由 beat.tick 决定 x，由 string 决定 y；和弦中的多个音符因此天然垂直对齐。 */
   const notes = measure.beats.flatMap((beat) => {
     if (beat.kind !== "notes") return [];
-    const x = getBeatX(context.x, context.width, beat.tick, capacityTicks);
+    const x = getBeatSpacingSlot(spacing, beat).x;
     return beat.notes.map((note) => {
       const y = getStringY(context.y, note.string);
       context.hitIndex.notes[note.id] = createBounds(
@@ -125,7 +128,7 @@ export const layoutMeasure = (
         string: note.string,
         x,
         y,
-        tied: Boolean(note.tie),
+        ...(note.tie ? { tieTargetNoteId: note.tie.targetNoteId } : {}),
         ghost: Boolean(note.ghost),
       };
     });
@@ -140,7 +143,7 @@ export const layoutMeasure = (
             measureId: measure.id,
             rhythm: beat.rhythm,
             symbol: REST_SYMBOLS[beat.rhythm.base],
-            x: getBeatX(context.x, context.width, beat.tick, capacityTicks),
+            x: getBeatSpacingSlot(spacing, beat).x,
             y: getRestY(context.y),
           },
         ]
@@ -156,7 +159,7 @@ export const layoutMeasure = (
     if (beat.notes.length === 0) return [];
 
     const lastNodeString = [...beat.notes].sort((a, b) => b.string - a.string)[0]!;
-    const x = getBeatX(context.x, context.width, beat.tick, capacityTicks);
+    const x = getBeatSpacingSlot(spacing, beat).x;
     const flagCount = getDurationFlagCount(beat.rhythm.base);
     const hasStem = hasDurationStem(beat.rhythm.base);
     const nodeStringY = (lastNodeString.string - 1) * STRING_SPACING;
@@ -171,6 +174,23 @@ export const layoutMeasure = (
      * 方向规则，可以在这里继续展开，而不影响页面层的数据消费方式。
      */
     const stemBottomY = stemBaseY;
+    const flagAnchors = Array.from({ length: flagCount }, (_, index) => {
+      const level = (index + 1) as 1 | 2 | 3;
+      return {
+        level,
+        x,
+        y: getDurationLevelY({ stemBaseY }, level),
+      };
+    });
+
+    const dot = {
+      x: x + DURATION_DOT_X_OFFSET,
+      y: (
+          flagCount > 0
+            ? getDurationLevelY({ stemBaseY }, flagCount as 1 | 2 | 3)
+            : stemBaseY
+        ) - DURATION_DOT_Y_OFFSET
+    };
 
     return [
       {
@@ -187,6 +207,8 @@ export const layoutMeasure = (
         stemBaseY,
         stemBottomY,
         flagCount,
+        flagAnchors,
+        dot,
       } satisfies LaidOutDurationMark,
     ];
   });
@@ -195,6 +217,11 @@ export const layoutMeasure = (
     durationMarks.map((mark) => [mark.beatId, mark] as const),
   );
   const beamSegments = buildBeamSegments(measure.beats, durationMarkByBeatId);
+  const editGrid = buildMeasureEditGrid(
+    measure,
+    beats,
+    context.editingRhythm,
+  );
 
   /**
    * 连音括号需要覆盖从首拍开始到末拍结束的区间。
@@ -210,23 +237,19 @@ export const layoutMeasure = (
 
     const firstBeat = tupletBeats[0]!;
     const lastBeat = tupletBeats[tupletBeats.length - 1]!;
-    // const lastBeatTicks = getBeatTicks(lastBeat, measure.tuplets);
     const bracket: LaidOutTuplet["bracket"] =
       tuplet.bracket === "auto" ? "auto" : "show";
+    const firstSlot = getBeatSpacingSlot(spacing, firstBeat);
+    const lastSlot = getBeatSpacingSlot(spacing, lastBeat);
 
     return [
       {
         id: tuplet.id,
         measureId: measure.id,
         number: tuplet.actualNotes,
-        x1: getBeatX(context.x, context.width, firstBeat.tick, capacityTicks),
-        x2: getBeatX(
-          context.x,
-          context.width,
-          // 谱上视觉不需要衍生到末拍结束位置
-          lastBeat.tick, // + lastBeatTicks,
-          capacityTicks,
-        ),
+        x1: firstSlot.x,
+        // 谱面视觉上先收束到末拍列起点，后续如果要覆盖整组时值宽度可改为 lastSlot.x + lastSlot.width。
+        x2: lastSlot.x,
         y: context.y + STAFF_HEIGHT + TUPLET_MARGIN_TOP,
         bracket,
       } satisfies LaidOutTuplet,
@@ -262,5 +285,7 @@ export const layoutMeasure = (
     durationMarks,
     beamSegments,
     tuplets,
+    spacing,
+    ...(editGrid ? { editGrid } : {}),
   };
 };

@@ -3,8 +3,9 @@ import {
   reduceScoreCommand,
   reduceScoreTransaction,
 } from "../src/commands/score-command-reducer";
+import type { AddNotePayload } from "../src/commands/command-types";
 import type { Measure } from "../src/core/schema";
-import { createEmptyMeasure } from "../src/core/score-factory";
+import { createEmptyMeasure, createEmptyScore } from "../src/core/score-factory";
 import { createExampleDocument } from "../src/testing/example-document";
 
 const TARGET = {
@@ -57,9 +58,9 @@ describe("Score Command reducer", () => {
   it("支持插入合法小节和原子 upsert 和弦", () => {
     const score = createExampleDocument().score;
     const measure: Measure = {
-      id: "measure-005",
+      id: "measure-009",
       beats: [0, 960, 1920].map((tick, index) => ({
-        id: `beat-005-0${index + 1}`,
+        id: `beat-009-0${index + 1}`,
         tick,
         rhythm: { base: "quarter", dots: 0 },
         kind: "rest" as const,
@@ -83,10 +84,10 @@ describe("Score Command reducer", () => {
       type: "chord.upsert",
       payload: {
         trackId: "track-guitar-001",
-        measureId: "measure-005",
+        measureId: "measure-009",
         definition: { id: "chord-d", name: "D", frets: [2, 3, 2, 0, "x", "x"] },
         symbol: {
-          id: "chord-symbol-007",
+          id: "chord-symbol-011",
           tick: 0,
           chordDefinitionId: "chord-d",
           display: "nameOnly",
@@ -120,6 +121,48 @@ describe("Score Command reducer", () => {
     expect(rhythm.ok).toBe(true);
   });
 
+  it("支持在长 rest 内部按当前时值写入音符", () => {
+    const score = createEmptyScore();
+    const result = reduceScoreCommand(score, {
+      type: "note.add",
+      payload: {
+        trackId: "track-guitar-main",
+        measureId: "measure-001",
+        beatId: "beat-001-1",
+        tick: 120,
+        rhythm: { base: "thirtySecond", dots: 0 },
+        note: { id: "note-slot", string: 2, fret: 3, techniques: [] },
+      } as AddNotePayload & {
+        tick: number;
+        rhythm: { base: "thirtySecond"; dots: 0 };
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.value.tracks[0]!.measures[0]!.beats).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "beat-001-1__rest_before_0",
+          tick: 0,
+          kind: "rest",
+          rhythm: { base: "thirtySecond", dots: 0 },
+        }),
+        expect.objectContaining({
+          id: "beat-001-1",
+          tick: 120,
+          kind: "notes",
+          rhythm: { base: "thirtySecond", dots: 0 },
+        }),
+        expect.objectContaining({
+          tick: 240,
+          kind: "rest",
+        }),
+      ]),
+    );
+  });
+
   it("支持删除、复制小节和最后小节 fallback", () => {
     const score = createExampleDocument().score;
     const duplicate = reduceScoreCommand(score, {
@@ -137,7 +180,7 @@ describe("Score Command reducer", () => {
     });
     expect(duplicate.ok).toBe(true);
     if (!duplicate.ok) return;
-    expect(duplicate.value.tracks[0]!.measures).toHaveLength(5);
+    expect(duplicate.value.tracks[0]!.measures).toHaveLength(9);
 
     const deleted = reduceScoreCommand(duplicate.value, {
       type: "measure.delete",
@@ -145,7 +188,7 @@ describe("Score Command reducer", () => {
     });
     expect(deleted.ok).toBe(true);
     if (!deleted.ok) return;
-    expect(deleted.value.tracks[0]!.measures).toHaveLength(4);
+    expect(deleted.value.tracks[0]!.measures).toHaveLength(8);
 
     const singleMeasureScore = {
       ...score,

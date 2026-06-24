@@ -45,6 +45,17 @@ export const hasDurationStem = (base: RhythmValue["base"]): boolean =>
   base !== "whole";
 
 /**
+ * 多层时值元素的统一 Y 轴公式。
+ *
+ * 三十二分音符会同时拥有三层符尾/连梁；如果 beam 和 flag 各自使用不同间距，
+ * 第 2、3 层就会出现错位。layout 层统一输出这个坐标，页面层只负责绘制。
+ */
+export const getDurationLevelY = (
+  mark: Pick<LaidOutDurationMark, "stemBaseY">,
+  level: 1 | 2 | 3,
+): number => mark.stemBaseY - (level - 1) * DURATION_LEVEL_GAP;
+
+/**
  * 连梁片段的 MVP 规则：
  * 1. 只在 notes beat 之间分组，rest 会中断；
  * 2. 只处理需要对应 level 连梁的短时值；
@@ -85,7 +96,7 @@ export const buildBeamSegments = (
         level,
         x1: run[0]!.stemX,
         x2: run[run.length - 1]!.stemX,
-        y: run[0]!.stemBaseY + (level - 1) * DURATION_LEVEL_GAP,
+        y: getDurationLevelY(run[0]!, level),
       });
       return;
     }
@@ -111,7 +122,7 @@ export const buildBeamSegments = (
         direction,
         x1: direction === "left" ? mark.stemX - 10 : mark.stemX,
         x2: direction === "left" ? mark.stemX : mark.stemX + 10,
-        y: mark.stemBaseY - (level - 1) * DURATION_LEVEL_GAP,
+        y: getDurationLevelY(mark, level),
       });
     }
   };

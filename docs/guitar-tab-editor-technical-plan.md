@@ -518,14 +518,15 @@ export interface LayoutTuplet {
 
 排版流程：
 
-1. 使用固定谱面逻辑宽度和固定每行小节数。
-2. 为当前行小节平均分配固定可用宽度。
-3. 不根据容器宽度动态改变断行结果。
-4. 在小节内按 tick 映射 x 坐标。
-5. 根据弦号计算 y 坐标。
-6. 根据 `TupletGroup.beatIds` 计算连音组首尾坐标、编号和括号策略。
-7. 计算技巧、歌词、和弦名称与和弦图占用高度。
-8. 运行碰撞检测，必要时扩大谱表顶部/底部留白或调整同层元素位置。
+1. 使用固定谱面逻辑宽度作为 system 宽度，页面容器变化不直接改变内部坐标系。
+2. 为每个小节生成 `RhythmicColumn`，同一 tick 上的 TAB、歌词、简谱和和弦未来共享同一列。
+3. 根据时值光学权重、最小可读列宽和未来内容占用计算小节 `minWidth` 与 `idealWidth`。
+4. 默认由 system breaker 在固定 system 宽度内选择每行小节范围；测试和特殊场景可通过 `measuresPerSystem` 强制固定每行小节数。
+5. 在每个 system 内按小节 `minWidth/idealWidth` 分配 `assignedWidth`，不再对同一行小节平均分配。
+6. 在小节内部生成 `BeatSpacingSlot`，note、rest、duration、beam、tuplet、tie 和 hitIndex 全部消费同一份 spacing slot。
+7. 根据弦号计算 y 坐标，根据 `TupletGroup.beatIds` 计算连音组首尾坐标、编号和括号策略。
+8. 后续歌词与简谱通过 `RhythmicColumn` 反向增加列宽，通过 vertical lane 增加 system 高度。
+9. 运行碰撞检测，必要时扩大谱表顶部/底部留白或调整同层元素位置。
 
 ## 6. 渲染实现
 

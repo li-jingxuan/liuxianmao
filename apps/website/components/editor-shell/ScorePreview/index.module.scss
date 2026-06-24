@@ -128,6 +128,31 @@
   stroke-width: 1.2;
 }
 
+.empty-grid-slot-svg,
+.occupied-grid-slot-svg,
+.active-grid-slot-svg {
+  pointer-events: none;
+}
+
+.empty-grid-slot-svg {
+  fill: rgb(79 124 255 / 4%);
+  stroke: rgb(79 124 255 / 20%);
+  stroke-dasharray: 2 4;
+  stroke-width: 0.8;
+}
+
+.occupied-grid-slot-svg {
+  fill: transparent;
+  stroke: rgb(20 23 29 / 8%);
+  stroke-width: 0.8;
+}
+
+.active-grid-slot-svg {
+  fill: rgb(79 124 255 / 10%);
+  stroke: #4f7cff;
+  stroke-width: 1;
+}
+
 .active-note-svg {
   fill: #2454ff;
   stroke: #eaf0ff;

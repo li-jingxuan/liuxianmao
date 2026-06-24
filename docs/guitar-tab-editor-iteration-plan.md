@@ -176,6 +176,7 @@
 - [x] 2026-06-22：完成 Iteration 3 迭代规划；未经用户确认，不开始实现。
 - [x] 2026-06-22：完成核心命令、默认小节工厂、SVG 命中测试、编辑光标、品位/休止符输入、时值/附点/连音入口、小节添加删除复制和错误提示接入。
 - [x] 2026-06-22：使用 Chrome DevTools MCP 在 `1280 × 720` 视口完成浏览器回归。验证点击命中后输入 `7`、删除音符、非法 `25` 品提示、小节添加、复制和删除均可执行；页面外层无横向溢出，Bravura 未失败，控制台无 warn/error。截图记录：`./regression/iteration-3-1280x720.png`。
+- [x] 2026-06-24：完成节奏列宽与自动分行排版改造。layout 层新增 `RhythmicColumn`、`BeatSpacingSlot`、小节 `minWidth/idealWidth/assignedWidth` 和 system breaker；note、rest、duration、beam、tuplet 与 hitIndex 统一消费 spacing slot。歌词与简谱只预留列宽/lane 接口，具体输入与渲染放入后续迭代。
 - [ ] 待用户确认本迭代验收通过后，再将 Iteration 3 总状态改为 `[x]`。
 
 ### [ ] Iteration 4：选区、剪贴板与撤销重做

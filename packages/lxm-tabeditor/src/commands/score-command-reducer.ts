@@ -3,9 +3,10 @@ import { validateScoreSemantics } from "../core/validation";
 import { createValidationIssue } from "../core/validation-types";
 import type {
   CommandResult,
-  NoteTargetPayload,
   ScoreCommand,
+  TimelineTargetPayload,
 } from "./command-types";
+import { materializeBeatAtTick } from "./timeline-materialization";
 
 /** reducer 在命中拍点后缓存的上下文，避免重复查找轨道/小节/拍点。 */
 interface TargetContext {
@@ -29,7 +30,7 @@ const commandFailure = (
 /** 统一定位命令目标，避免每个 reducer 重复散落查找逻辑。 */
 const findTargetContext = (
   score: Score,
-  payload: NoteTargetPayload,
+  payload: TimelineTargetPayload,
 ): CommandResult<TargetContext> => {
   const trackIndex = score.tracks.findIndex(
     (track) => track.id === payload.trackId,
@@ -52,9 +53,10 @@ const findTargetContext = (
     );
   }
   const measure = track.measures[measureIndex]!;
-  const beatIndex = measure.beats.findIndex(
-    (beat) => beat.id === payload.beatId,
-  );
+  const beatIndex =
+    payload.beatId !== undefined
+      ? measure.beats.findIndex((beat) => beat.id === payload.beatId)
+      : measure.beats.findIndex((beat) => beat.tick === payload.tick);
   if (beatIndex < 0)
     return commandFailure(
       "BEAT_NOT_FOUND",
@@ -99,6 +101,16 @@ const replaceBeat = (score: Score, context: TargetContext, beat: Beat): Score =>
     beats: context.measure.beats.map((item, beatIndex) =>
       beatIndex === context.beatIndex ? beat : item,
     ),
+  });
+
+const replaceMeasureBeats = (
+  score: Score,
+  context: TargetContext,
+  beats: Beat[],
+): Score =>
+  replaceMeasure(score, context, {
+    ...context.measure,
+    beats,
   });
 
 const updateNote = (
@@ -180,6 +192,42 @@ const applyNoteAdd = (
   const contextResult = findTargetContext(score, command.payload);
   if (!contextResult.ok) return contextResult;
   const context = contextResult.value;
+  const payloadTick = command.payload.tick ?? context.beat.tick;
+  if (payloadTick !== context.beat.tick) {
+    if (!command.payload.rhythm) {
+      return commandFailure(
+        "RHYTHM_REQUIRED_FOR_SLOT_WRITE",
+        "在空槽写入时必须提供目标时值",
+        context.beat.id,
+      );
+    }
+    try {
+      const nextBeats = materializeBeatAtTick({
+        measure: context.measure,
+        tick: payloadTick,
+        rhythm: command.payload.rhythm,
+        nextBeat: {
+          id: context.beat.id,
+          tick: payloadTick,
+          rhythm: command.payload.rhythm,
+          kind: "notes",
+          notes: [command.payload.note],
+        },
+        coveringBeatId: context.beat.id,
+        timeSignature: context.measure.timeSignature ?? score.meta.timeSignature,
+      });
+      return {
+        ok: true as const,
+        value: replaceMeasureBeats(score, context, nextBeats),
+      };
+    } catch (error) {
+      return commandFailure(
+        "INVALID_SLOT_WRITE",
+        error instanceof Error ? error.message : "空槽写入失败",
+        context.beat.id,
+      );
+    }
+  }
   const nextBeat: Beat =
     context.beat.kind === "rest"
       ? { ...context.beat, kind: "notes", notes: [command.payload.note] }
@@ -262,6 +310,42 @@ const applyBeatSetRest = (
   const contextResult = findTargetContext(score, command.payload);
   if (!contextResult.ok) return contextResult;
   const { beat } = contextResult.value;
+  const payloadTick = command.payload.tick ?? beat.tick;
+  if (payloadTick !== beat.tick) {
+    if (!command.payload.rhythm) {
+      return commandFailure(
+        "RHYTHM_REQUIRED_FOR_SLOT_WRITE",
+        "在空槽写入时必须提供目标时值",
+        beat.id,
+      );
+    }
+    try {
+      const nextBeats = materializeBeatAtTick({
+        measure: contextResult.value.measure,
+        tick: payloadTick,
+        rhythm: command.payload.rhythm,
+        nextBeat: {
+          id: beat.id,
+          tick: payloadTick,
+          rhythm: command.payload.rhythm,
+          kind: "rest",
+        },
+        coveringBeatId: beat.id,
+        timeSignature:
+          contextResult.value.measure.timeSignature ?? score.meta.timeSignature,
+      });
+      return {
+        ok: true as const,
+        value: replaceMeasureBeats(score, contextResult.value, nextBeats),
+      };
+    } catch (error) {
+      return commandFailure(
+        "INVALID_SLOT_WRITE",
+        error instanceof Error ? error.message : "空槽写入失败",
+        beat.id,
+      );
+    }
+  }
   /*
    * 休止拍在 schema 中没有 notes 字段。
    * 因此设置休止符时要重建 beat 对象，而不是保留原 notes 再切 kind，

@@ -9,20 +9,30 @@ import type {
 } from "../core/schema";
 import type { ValidationIssue } from "../core/validation-types";
 
-/** 音符级命令共享的定位信息：唯一锁定到某条轨道的小节拍点。 */
-export interface NoteTargetPayload {
+/** 时间线命令共享的定位信息：可指向真实 beat 起点，也可指向 beat 内部 slot。 */
+export interface TimelineTargetPayload {
   /** 目标轨道 id。 */
   trackId: string;
   /** 目标小节 id。 */
   measureId: string;
+  /** 覆盖当前 tick 的真实拍点 id；slot 写入时它不是目标 tick，只是 materialize 的来源。 */
+  beatId?: string;
+  /** 小节内目标 tick。旧调用方不传时默认使用 beat.tick。 */
+  tick?: number;
+}
+
+/** 音符级命令共享的定位信息：唯一锁定到某条轨道的小节拍点。 */
+export interface NoteTargetPayload extends TimelineTargetPayload {
   /** 目标拍点 id。 */
   beatId: string;
 }
 
 /** 在目标拍点追加一个完整音符对象。 */
-export interface AddNotePayload extends NoteTargetPayload {
+export interface AddNotePayload extends TimelineTargetPayload {
   /** 待写入的音符快照，由页面或工厂函数提前构造完成。 */
   note: TabNote;
+  /** slot 写入时用于 materialize 真实 beat 的目标时值。 */
+  rhythm?: RhythmValue;
 }
 
 /** 更新指定音符的品位，不改动弦号与技巧信息。 */
@@ -40,13 +50,15 @@ export interface DeleteNotePayload extends NoteTargetPayload {
 }
 
 /** 修改拍点时值，保持拍点是音符拍还是休止拍的种类不变。 */
-export interface SetBeatRhythmPayload extends NoteTargetPayload {
+export interface SetBeatRhythmPayload extends TimelineTargetPayload {
   /** 新的时值定义。 */
   rhythm: RhythmValue;
 }
 
 /** 将目标拍点改写为休止拍，只需要定位信息即可。 */
-export type SetBeatRestPayload = NoteTargetPayload;
+export type SetBeatRestPayload = TimelineTargetPayload & {
+  rhythm?: RhythmValue;
+};
 
 /** 把休止拍恢复成音符拍，并写入第一个音符。 */
 export interface ClearBeatRestPayload extends NoteTargetPayload {

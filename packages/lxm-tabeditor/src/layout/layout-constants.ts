@@ -8,7 +8,6 @@ import { GUITAR_STRING_COUNT } from "../core/constants";
  */
 
 export const FIXED_SCORE_LAYOUT_WIDTH = 1040;
-export const FIXED_MEASURES_PER_SYSTEM = 4;
 
 /**
  * 当前 MVP 只按 720p 桌面基线设计，不做响应式重排。
@@ -38,6 +37,35 @@ export const DURATION_STEM_LENGTH = 14;
 
 /** 多层符尾或多层连梁之间的垂直间距。 */
 export const DURATION_LEVEL_GAP = 6;
+/** 附点相对时值头锚点的水平偏移，统一由 layout 输出给渲染层消费。 */
+export const DURATION_DOT_X_OFFSET = 7;
+/** 附点相对时值头锚点的垂直偏移，避免跟多层符尾/连梁共用 Y 轴。 */
+export const DURATION_DOT_Y_OFFSET = 5;
+
+/** 不同时值在水平排版中的光学权重；它只影响视觉距离，不改变真实 tick。 */
+export const DURATION_VISUAL_WEIGHT = {
+  whole: 4,
+  half: 3,
+  quarter: 2.2,
+  eighth: 1.45,
+  sixteenth: 1,
+  thirtySecond: 0.72,
+} as const;
+
+/** 每种时值对应的最小列宽，避免短时值被压缩到不可读。 */
+export const DURATION_MIN_COLUMN_WIDTH = {
+  whole: 54,
+  half: 44,
+  quarter: 34,
+  eighth: 24,
+  sixteenth: 17,
+  thirtySecond: 12,
+} as const;
+
+/** 小节左右视觉缓冲，用于把列宽汇总成理想小节宽度。 */
+export const MEASURE_IDEAL_WIDTH_PADDING = 36;
+/** 小节最低宽度，保证小节线、拍号和命中区域仍有可读空间。 */
+export const MEASURE_MIN_WIDTH = 112;
 
 /** 相邻弦线的垂直间距；六条弦实际高度为 5 个间距。 */
 export const STRING_SPACING = 11;

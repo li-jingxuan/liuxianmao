@@ -1,16 +1,18 @@
 import { create } from "zustand";
 import type { EditorMode, RhythmValue, Technique } from "../core/schema";
 
-/** 当前光标命中的拍点位置。页面用它驱动键盘输入和选区高亮。 */
-export interface ActiveBeatPosition {
+/** 当前光标命中的时间线 slot。页面用它驱动键盘输入和选区高亮。 */
+export interface ActiveCursorPosition {
   /** 光标所在轨道 id。 */
   trackId: string;
   /** 光标所在小节 id。 */
   measureId: string;
-  /** 光标所在拍点 id。 */
-  beatId: string;
+  /** 覆盖当前 slot 的真实拍点 id；空槽写入时仍用于定位要拆分的 beat。 */
+  beatId?: string;
   /** 当前拍点在小节时间线中的 tick。 */
   tick: number;
+  /** layout/editGrid 派生的 slot id，用于渲染占位网格选中态。 */
+  slotId: string;
   /** 当前活跃弦序号，范围 1..6。 */
   string: number;
 }
@@ -23,7 +25,7 @@ export interface EditorStoreState {
   /** 当前被选中的小节 id 集合。 */
   selectedMeasureIds: string[];
   /** 当前键盘输入和点击命中的拍点位置。 */
-  activeBeat?: ActiveBeatPosition;
+  activeBeat?: ActiveCursorPosition;
   /** 新写入音符默认采用的时值。 */
   currentRhythm: RhythmValue;
   /** 当前技巧工具栏选中的技巧类型。 */
@@ -35,7 +37,7 @@ export interface EditorStoreState {
   /** 整体替换小节选区。 */
   setSelectedMeasureIds: (ids: string[]) => void;
   /** 更新当前活跃拍点；传空表示清空光标。 */
-  setActiveBeat: (position?: ActiveBeatPosition) => void;
+  setActiveBeat: (position?: ActiveCursorPosition) => void;
   /** 更新默认写入时值。 */
   setCurrentRhythm: (rhythm: RhythmValue) => void;
   /** 更新当前技巧工具。 */

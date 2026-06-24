@@ -30,8 +30,8 @@ const note = (
 });
 
 /**
- * Iteration 1 的规范夹具，覆盖多种常见时值（四分、八分、十六分、附点）、技巧、
- * 休止拍、变拍号、三连音、歌词、和弦与跨小节延音。
+ * Iteration 1 的规范夹具，覆盖多种常见时值（四分、八分、十六分、三十二分、附点）、
+ * 技巧、休止拍、变拍号、三连音、歌词、和弦与跨小节延音。
  */
 export const guitarTabEditorExample: LxmScoreDocument = {
   schema: "lxm-tab-score",
@@ -269,7 +269,7 @@ export const guitarTabEditorExample: LxmScoreDocument = {
           },
           {
             id: "measure-004",
-            barline: "final",
+            barline: "single",
             chordSymbols: [
               {
                 id: "chord-symbol-005",
@@ -333,6 +333,362 @@ export const guitarTabEditorExample: LxmScoreDocument = {
                 rhythm: rhythm("eighth"),
                 kind: "notes",
                 notes: [note("note-004-05-01", 3, 2)],
+              },
+            ],
+          },
+          // 第二段：补充更高密度的三十二分音符与附点组合。
+          {
+            id: "measure-005",
+            timeSignature: { numerator: 4, denominator: 4 },
+            chordSymbols: [
+              {
+                id: "chord-symbol-007",
+                tick: 0,
+                chordDefinitionId: "chord-c-open",
+                display: "nameOnly",
+              },
+            ],
+            lyrics: [],
+            tuplets: [],
+            beats: [
+              // 第一小节
+              {
+                id: "beat-005-01",
+                tick: 0,
+                rhythm: rhythm("thirtySecond"),
+                kind: "notes",
+                notes: [note("note-005-01-01", 2, 1)],
+              },
+              {
+                id: "beat-005-02",
+                tick: 120,
+                rhythm: rhythm("thirtySecond"),
+                kind: "notes",
+                notes: [note("note-005-02-01", 1, 0)],
+              },
+              {
+                id: "beat-005-03",
+                tick: 240,
+                rhythm: rhythm("thirtySecond"),
+                kind: "notes",
+                notes: [note("note-005-03-01", 2, 3)],
+              },
+              {
+                id: "beat-005-04",
+                tick: 360,
+                rhythm: rhythm("thirtySecond"),
+                kind: "notes",
+                notes: [note("note-005-04-01", 1, 1)],
+              },
+              {
+                id: "beat-005-05",
+                tick: 480,
+                rhythm: rhythm("sixteenth"),
+                kind: "notes",
+                notes: [note("note-005-05-01", 3, 0)],
+              },
+              {
+                id: "beat-005-06",
+                tick: 720,
+                rhythm: rhythm("eighth"),
+                kind: "notes",
+                notes: [note("note-005-06-01", 4, 2)],
+              },
+              // 第二小节
+              {
+                id: "beat-005-07",
+                tick: 1200,
+                rhythm: rhythm("thirtySecond"),
+                kind: "notes",
+                notes: [note("note-005-07-01", 3, 2)],
+              },
+              {
+                id: "beat-005-08",
+                tick: 1320,
+                rhythm: rhythm("thirtySecond"),
+                kind: "notes",
+                notes: [note("note-005-08-01", 2, 1)],
+              },
+              {
+                id: "beat-005-09",
+                tick: 1440,
+                rhythm: rhythm("thirtySecond"),
+                kind: "notes",
+                notes: [note("note-005-09-01", 1, 3)],
+              },
+              {
+                id: "beat-005-10",
+                tick: 1560,
+                rhythm: rhythm("thirtySecond"),
+                kind: "notes",
+                notes: [note("note-005-10-01", 2, 0)],
+              },
+              // 第三小节
+              {
+                id: "beat-005-11",
+                tick: 1680,
+                rhythm: rhythm("quarter"),
+                kind: "notes",
+                notes: [note("note-005-11-01", 5, 3)],
+              },
+              {
+                id: "beat-005-12",
+                tick: 2640,
+                rhythm: rhythm("eighth"),
+                kind: "notes",
+                notes: [note("note-005-12-01", 4, 0)],
+              },
+              {
+                id: "beat-005-13",
+                tick: 3120,
+                rhythm: rhythm("sixteenth"),
+                kind: "notes",
+                notes: [note("note-005-13-01", 3, 2)],
+              },
+              {
+                id: "beat-005-14",
+                tick: 3360,
+                rhythm: rhythm("sixteenth"),
+                kind: "notes",
+                notes: [note("note-005-14-01", 2, 3)],
+              },
+              {
+                id: "beat-005-15",
+                tick: 3600,
+                rhythm: rhythm("sixteenth"),
+                kind: "notes",
+                notes: [note("note-005-15-01", 1, 1)],
+              },
+            ],
+          },
+          {
+            id: "measure-006",
+            timeSignature: { numerator: 4, denominator: 4 },
+            chordSymbols: [
+              {
+                id: "chord-symbol-008",
+                tick: 0,
+                chordDefinitionId: "chord-am-open",
+                display: "nameAndDiagram",
+              },
+            ],
+            lyrics: [],
+            tuplets: [],
+            beats: [
+              {
+                id: "beat-006-01",
+                tick: 0,
+                rhythm: rhythm("eighth", 1),
+                kind: "notes",
+                notes: [note("note-006-01-01", 2, 1)],
+              },
+              {
+                id: "beat-006-02",
+                tick: 720,
+                rhythm: rhythm("sixteenth"),
+                kind: "notes",
+                notes: [note("note-006-02-01", 3, 2)],
+              },
+              {
+                id: "beat-006-03",
+                tick: 960,
+                rhythm: rhythm("sixteenth", 1),
+                kind: "notes",
+                notes: [note("note-006-03-01", 2, 3)],
+              },
+              {
+                id: "beat-006-04",
+                tick: 1320,
+                rhythm: rhythm("thirtySecond"),
+                kind: "notes",
+                notes: [note("note-006-04-01", 1, 0)],
+              },
+              {
+                id: "beat-006-05",
+                tick: 1440,
+                rhythm: rhythm("quarter", 1),
+                kind: "notes",
+                notes: [note("note-006-05-01", 4, 2)],
+              },
+              {
+                id: "beat-006-06",
+                tick: 2880,
+                rhythm: rhythm("eighth"),
+                kind: "notes",
+                notes: [note("note-006-06-01", 3, 0)],
+              },
+              {
+                id: "beat-006-07",
+                tick: 3360,
+                rhythm: rhythm("sixteenth", 1),
+                kind: "notes",
+                notes: [note("note-006-07-01", 2, 1)],
+              },
+              {
+                id: "beat-006-08",
+                tick: 3720,
+                rhythm: rhythm("thirtySecond"),
+                kind: "notes",
+                notes: [note("note-006-08-01", 1, 3)],
+              },
+            ],
+          },
+          {
+            id: "measure-007",
+            timeSignature: { numerator: 4, denominator: 4 },
+            chordSymbols: [
+              {
+                id: "chord-symbol-009",
+                tick: 0,
+                chordDefinitionId: "chord-f-barre",
+                display: "nameOnly",
+              },
+            ],
+            lyrics: [],
+            tuplets: [],
+            beats: [
+              {
+                id: "beat-007-01",
+                tick: 0,
+                rhythm: rhythm("eighth", 2),
+                kind: "notes",
+                notes: [note("note-007-01-01", 1, 1)],
+              },
+              {
+                id: "beat-007-02",
+                tick: 840,
+                rhythm: rhythm("thirtySecond"),
+                kind: "notes",
+                notes: [note("note-007-02-01", 2, 1)],
+              },
+              {
+                id: "beat-007-03",
+                tick: 960,
+                rhythm: rhythm("sixteenth", 1),
+                kind: "notes",
+                notes: [note("note-007-03-01", 3, 2)],
+              },
+              {
+                id: "beat-007-04",
+                tick: 1320,
+                rhythm: rhythm("thirtySecond"),
+                kind: "notes",
+                notes: [note("note-007-04-01", 2, 3)],
+              },
+              {
+                id: "beat-007-05",
+                tick: 1440,
+                rhythm: rhythm("quarter", 1),
+                kind: "notes",
+                notes: [note("note-007-05-01", 4, 3)],
+              },
+              {
+                id: "beat-007-06",
+                tick: 2880,
+                rhythm: rhythm("sixteenth", 2),
+                kind: "notes",
+                notes: [note("note-007-06-01", 3, 2)],
+              },
+              {
+                id: "beat-007-07",
+                tick: 3300,
+                rhythm: rhythm("thirtySecond"),
+                kind: "notes",
+                notes: [note("note-007-07-01", 2, 1)],
+              },
+              {
+                id: "beat-007-08",
+                tick: 3420,
+                rhythm: rhythm("sixteenth", 2),
+                kind: "notes",
+                notes: [note("note-007-08-01", 1, 1)],
+              },
+            ],
+          },
+          {
+            id: "measure-008",
+            timeSignature: { numerator: 4, denominator: 4 },
+            barline: "final",
+            chordSymbols: [
+              {
+                id: "chord-symbol-010",
+                tick: 0,
+                chordDefinitionId: "chord-g-open",
+                display: "nameAndDiagram",
+              },
+            ],
+            lyrics: [],
+            tuplets: [],
+            beats: [
+              {
+                id: "beat-008-01",
+                tick: 0,
+                rhythm: rhythm("eighth"),
+                kind: "notes",
+                notes: [note("note-008-01-01", 6, 3)],
+              },
+              {
+                id: "beat-008-02",
+                tick: 480,
+                rhythm: rhythm("sixteenth"),
+                kind: "notes",
+                notes: [note("note-008-02-01", 5, 2)],
+              },
+              {
+                id: "beat-008-03",
+                tick: 720,
+                rhythm: rhythm("sixteenth"),
+                kind: "notes",
+                notes: [note("note-008-03-01", 4, 0)],
+              },
+              {
+                id: "beat-008-04",
+                tick: 960,
+                rhythm: rhythm("quarter"),
+                kind: "notes",
+                notes: [note("note-008-04-01", 3, 0)],
+              },
+              {
+                id: "beat-008-05",
+                tick: 1920,
+                rhythm: rhythm("eighth", 1),
+                kind: "notes",
+                notes: [note("note-008-05-01", 2, 1)],
+              },
+              {
+                id: "beat-008-06",
+                tick: 2640,
+                rhythm: rhythm("thirtySecond"),
+                kind: "notes",
+                notes: [note("note-008-06-01", 1, 0)],
+              },
+              {
+                id: "beat-008-07",
+                tick: 2760,
+                rhythm: rhythm("thirtySecond"),
+                kind: "notes",
+                notes: [note("note-008-07-01", 2, 3)],
+              },
+              {
+                id: "beat-008-08",
+                tick: 2880,
+                rhythm: rhythm("sixteenth"),
+                kind: "notes",
+                notes: [note("note-008-08-01", 3, 2)],
+              },
+              {
+                id: "beat-008-09",
+                tick: 3120,
+                rhythm: rhythm("eighth"),
+                kind: "notes",
+                notes: [note("note-008-09-01", 2, 1)],
+              },
+              {
+                id: "beat-008-10",
+                tick: 3600,
+                rhythm: rhythm("sixteenth"),
+                kind: "notes",
+                notes: [note("note-008-10-01", 1, 3)],
               },
             ],
           },

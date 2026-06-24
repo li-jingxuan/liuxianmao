@@ -65,7 +65,9 @@ const getActiveBeatContext = (
   const measure = score.tracks
     .find((track) => track.id === activeBeat.trackId)
     ?.measures.find((item) => item.id === activeBeat.measureId);
-  const beat = measure?.beats.find((item) => item.id === activeBeat.beatId);
+  const beat = measure?.beats.find((item) =>
+    activeBeat.beatId ? item.id === activeBeat.beatId : item.tick === activeBeat.tick,
+  );
   return measure && beat ? { measure, beat } : undefined;
 };
 
@@ -116,12 +118,14 @@ export const Sidebar: React.FC = () => {
     (rhythm: RhythmValue) => {
       setCurrentRhythm(rhythm);
       if (!activeBeat) return;
+      const context = getActiveBeatContext(score, activeBeat);
+      if (!context || context.beat.tick !== activeBeat.tick) return;
       executeCommand({
         type: "beat.setRhythm",
-        payload: { ...activeBeat, rhythm },
+        payload: { ...activeBeat, beatId: context.beat.id, rhythm },
       });
     },
-    [activeBeat, executeCommand, setCurrentRhythm],
+    [activeBeat, executeCommand, score, setCurrentRhythm],
   );
 
   const applyDots = useCallback(
@@ -139,7 +143,7 @@ export const Sidebar: React.FC = () => {
   const setTuplet = useCallback(
     (actualNotes: TupletGroup["actualNotes"]) => {
       const track = score.tracks[0];
-      if (!track || !activeBeat) return;
+      if (!track || !activeBeat?.beatId) return;
       const measure = track.measures.find((item) => item.id === activeBeat.measureId);
       if (!measure) return;
       const startIndex = measure.beats.findIndex(
@@ -176,10 +180,11 @@ export const Sidebar: React.FC = () => {
 
   const clearTuplet = useCallback(() => {
     const track = score.tracks[0];
-    if (!track || !activeBeat) return;
+    if (!track || !activeBeat?.beatId) return;
+    const activeBeatId = activeBeat.beatId;
     const measure = track.measures.find((item) => item.id === activeBeat.measureId);
     const tuplet = measure?.tuplets.find((group) =>
-      group.beatIds.includes(activeBeat.beatId),
+      group.beatIds.includes(activeBeatId),
     );
     if (!measure || !tuplet) return;
     executeCommand({

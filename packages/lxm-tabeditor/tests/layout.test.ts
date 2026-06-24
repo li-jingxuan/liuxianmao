@@ -7,6 +7,15 @@ interface TestDurationMark {
   base: string;
   dots: number;
   flagCount: number;
+  flagAnchors?: Array<{
+    level: 1 | 2 | 3;
+    x: number;
+    y: number;
+  }>;
+  dot?: {
+    x: number;
+    y: number;
+  };
 }
 
 interface TestBeamSegment {
@@ -17,9 +26,57 @@ interface TestBeamSegment {
   direction?: "left" | "right";
 }
 
+interface TestTieSegment {
+  id: string;
+  systemIndex: number;
+  role: "single" | "start" | "middle" | "end";
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+}
+
+interface TestTie {
+  id: string;
+  fromNoteId: string;
+  toNoteId: string;
+  fromMeasureId: string;
+  toMeasureId: string;
+  segments: TestTieSegment[];
+}
+
 interface TestMeasureWithDuration {
   durationMarks?: TestDurationMark[];
   beamSegments?: TestBeamSegment[];
+}
+
+interface TestBeatSpacingSlot {
+  beatId: string;
+  tick: number;
+  x: number;
+  width: number;
+  columnIndex: number;
+}
+
+interface TestRhythmicColumn {
+  tick: number;
+  beatIds: string[];
+  durationWeight: number;
+  minWidth: number;
+  idealWidth: number;
+}
+
+interface TestMeasureSpacingSummary {
+  measureId: string;
+  minWidth: number;
+  idealWidth: number;
+  assignedWidth: number;
+  columns: TestRhythmicColumn[];
+  slotsByBeatId: Record<string, TestBeatSpacingSlot>;
+}
+
+interface TestMeasureWithSpacing {
+  spacing?: TestMeasureSpacingSummary;
 }
 
 describe("六线谱只读排版", () => {
@@ -54,11 +111,12 @@ describe("六线谱只读排版", () => {
 
   it("使用固定 720p 桌面基线宽度和每行 4 小节排版", () => {
     const document = createExampleDocument();
-    const layout = layoutScore(document.score);
+    const layout = layoutScore(document.score, { measuresPerSystem: 4 });
 
     expect(layout.width).toBe(1040);
-    expect(layout.systems).toHaveLength(1);
+    expect(layout.systems).toHaveLength(2);
     expect(layout.systems[0]?.measures).toHaveLength(4);
+    expect(layout.systems[1]?.measures).toHaveLength(4);
   });
 
   it("渲染变拍号、休止符和三连音括号的布局信息", () => {
@@ -194,6 +252,235 @@ describe("六线谱只读排版", () => {
     );
   });
 
+  it("为每个小节输出节奏列和 beat spacing slot", () => {
+    const document = createExampleDocument();
+    const layout = layoutScore(document.score);
+    const firstMeasure = layout.systems[0]!.measures[0]! as
+      (typeof layout.systems)[number]["measures"][number] &
+        TestMeasureWithSpacing;
+
+    expect(firstMeasure.spacing).toBeDefined();
+    expect(firstMeasure.spacing?.measureId).toBe("measure-001");
+    expect(firstMeasure.spacing?.columns.length).toBeGreaterThan(0);
+    expect(firstMeasure.spacing?.slotsByBeatId["beat-001-01"]).toEqual(
+      expect.objectContaining({
+        beatId: "beat-001-01",
+        tick: 0,
+        columnIndex: 0,
+      }),
+    );
+  });
+
+  it("三十二分音符也保留可读的最小视觉列宽", () => {
+    const document = createExampleDocument();
+    const layout = layoutScore(document.score);
+    const measures = layout.systems.flatMap((system) => system.measures) as Array<
+      (typeof layout.systems)[number]["measures"][number] &
+        TestMeasureWithSpacing
+    >;
+    const measureWithThirtySecond = measures.find((measure) =>
+      measure.spacing?.columns.some((column) =>
+        column.beatIds.some((beatId) =>
+          measure.durationMarks.some(
+            (mark) => mark.beatId === beatId && mark.base === "thirtySecond",
+          ),
+        ),
+      ),
+    );
+    const thirtySecondColumn = measureWithThirtySecond?.spacing?.columns.find(
+      (column) =>
+        column.beatIds.some((beatId) =>
+          measureWithThirtySecond.durationMarks.some(
+            (mark) => mark.beatId === beatId && mark.base === "thirtySecond",
+          ),
+        ),
+    );
+
+    expect(thirtySecondColumn).toEqual(
+      expect.objectContaining({
+        minWidth: 12,
+      }),
+    );
+  });
+
+  it("同一行内小节可根据内容获得不同宽度", () => {
+    const document = createExampleDocument();
+    const layout = layoutScore(document.score, { measuresPerSystem: 4 });
+    const firstSystemWidths = layout.systems[0]!.measures.map(
+      (measure) => measure.width,
+    );
+    const uniqueWidths = new Set(
+      firstSystemWidths.map((width) => Math.round(width)),
+    );
+
+    expect(uniqueWidths.size).toBeGreaterThan(1);
+  });
+
+  it("内容理想宽度未占满整行时保留行尾空白而不拉伸小节", () => {
+    const document = createExampleDocument();
+    const track = document.score.tracks[0]!;
+    track.measures = [track.measures[0]!];
+    const layout = layoutScore(document.score);
+    const firstSystemMeasures = layout.systems[0]!.measures;
+    const assignedWidth = firstSystemMeasures.reduce(
+      (total, measure) => total + measure.width,
+      0,
+    );
+    const idealWidth = firstSystemMeasures.reduce(
+      (total, measure) => total + measure.spacing.idealWidth,
+      0,
+    );
+
+    expect(assignedWidth).toBe(idealWidth);
+    expect(assignedWidth).toBeLessThan(layout.width - 88);
+  });
+
+  it("自动分行按小节内容宽度累加，超过行宽才换行", () => {
+    const document = createExampleDocument();
+    const track = document.score.tracks[0]!;
+    const denseMeasure = track.measures[6]!;
+    track.measures = Array.from({ length: 8 }, (_, measureIndex) => ({
+      ...denseMeasure,
+      id: `auto-break-measure-${measureIndex + 1}`,
+      beats: denseMeasure.beats.map((beat, beatIndex) => ({
+        ...beat,
+        id: `auto-break-beat-${measureIndex + 1}-${beatIndex + 1}`,
+        ...(beat.kind === "notes"
+          ? {
+              notes: beat.notes.map((note, noteIndex) => ({
+                ...note,
+                id: `auto-break-note-${measureIndex + 1}-${beatIndex + 1}-${noteIndex + 1}`,
+              })),
+            }
+          : {}),
+      })),
+    }));
+
+    const layout = layoutScore(document.score);
+    const firstSystemWidth = layout.systems[0]!.measures.reduce(
+      (total, measure) => total + measure.width,
+      0,
+    );
+
+    expect(layout.systems.length).toBeGreaterThan(1);
+    expect(firstSystemWidth).toBeLessThanOrEqual(layout.width - 88);
+  });
+
+  it("音符、时值标记和命中区共享同一 beat spacing x 坐标", () => {
+    const document = createExampleDocument();
+    const layout = layoutScore(document.score, { measuresPerSystem: 4 });
+    const firstMeasure = layout.systems[0]!.measures[0]! as
+      (typeof layout.systems)[number]["measures"][number] &
+        TestMeasureWithSpacing;
+    const slot = firstMeasure.spacing!.slotsByBeatId["beat-001-01"]!;
+    const note = firstMeasure.notes.find(
+      (item) => item.beatId === "beat-001-01",
+    )!;
+    const durationMark = firstMeasure.durationMarks.find(
+      (item) => item.beatId === "beat-001-01",
+    )!;
+    const hitBounds = layout.hitIndex.beats["beat-001-01"]!;
+
+    expect(note.x).toBe(slot.x);
+    expect(durationMark.x).toBe(slot.x);
+    expect(hitBounds.x).toBeLessThanOrEqual(slot.x);
+    expect(hitBounds.x + hitBounds.width).toBeGreaterThan(slot.x);
+  });
+
+  it("三十二分音符输出统一层距的符尾锚点和独立附点坐标", () => {
+    const document = createExampleDocument();
+    const layout = layoutScore(document.score);
+    const measures = layout.systems.flatMap((system) => system.measures);
+    const measuresWithDuration = measures as Array<
+      typeof measures[number] & TestMeasureWithDuration
+    >;
+    const thirtySecondMark = measuresWithDuration
+      .flatMap((measure) => measure.durationMarks ?? [])
+      .find((mark) => mark.base === "thirtySecond");
+
+    expect(thirtySecondMark).toBeDefined();
+    expect(thirtySecondMark?.flagCount).toBe(3);
+    expect(thirtySecondMark?.flagAnchors).toEqual([
+      expect.objectContaining({ level: 1 }),
+      expect.objectContaining({ level: 2 }),
+      expect.objectContaining({ level: 3 }),
+    ]);
+
+    const flagAnchors = thirtySecondMark?.flagAnchors ?? [];
+    expect(flagAnchors[1]!.y - flagAnchors[0]!.y).toBe(-6);
+    expect(flagAnchors[2]!.y - flagAnchors[1]!.y).toBe(-6);
+    expect(thirtySecondMark?.dot?.y).not.toBe(flagAnchors[1]!.y);
+  });
+
+  it("为跨小节延音输出逻辑 tie 和单段 segment", () => {
+    const document = createExampleDocument();
+    const layout = layoutScore(document.score, {
+      measuresPerSystem: 4,
+    }) as typeof layoutScore extends (...args: never[]) => infer T
+      ? T & { ties?: TestTie[] }
+      : never;
+
+    expect(layout.ties).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          fromNoteId: "note-003-03-01",
+          toNoteId: "note-004-01-01",
+          fromMeasureId: "measure-003",
+          toMeasureId: "measure-004",
+          segments: [
+            expect.objectContaining({
+              role: "single",
+            }),
+          ],
+        }),
+      ]),
+    );
+  });
+
+  it("同一行 tie 的单段 segment 右端点必须位于目标音方向", () => {
+    const document = createExampleDocument();
+    const layout = layoutScore(document.score, {
+      measuresPerSystem: 4,
+    }) as typeof layoutScore extends (...args: never[]) => infer T
+      ? T & { ties?: TestTie[] }
+      : never;
+
+    const tie = layout.ties?.find(
+      (item) => item.fromNoteId === "note-003-03-01",
+    );
+    const segment = tie?.segments[0];
+
+    expect(tie).toBeDefined();
+    expect(segment).toBeDefined();
+    expect(segment!.role).toBe("single");
+    expect(segment!.x2).toBeGreaterThan(segment!.x1);
+    expect(segment!.y2).toBe(segment!.y1);
+  });
+
+  it("跨行 tie 会按 system 边界拆成 start 和 end 两段", () => {
+    const document = createExampleDocument();
+    const layout = layoutScore(document.score, {
+      measuresPerSystem: 3,
+    }) as typeof layoutScore extends (...args: never[]) => infer T
+      ? T & { ties?: TestTie[] }
+      : never;
+
+    const tie = layout.ties?.find(
+      (item) => item.fromNoteId === "note-003-03-01",
+    );
+
+    expect(tie?.segments).toEqual([
+      expect.objectContaining({
+        systemIndex: 0,
+        role: "start",
+      }),
+      expect.objectContaining({
+        systemIndex: 1,
+        role: "end",
+      }),
+    ]);
+  });
+
   it("能把 SVG 坐标命中到最近拍点和弦线", () => {
     const document = createExampleDocument();
     const layout = layoutScore(document.score);
@@ -220,7 +507,7 @@ describe("六线谱只读排版", () => {
       id: `measure-copy-${index + 1}`,
     }));
 
-    const layout = layoutScore(document.score);
+    const layout = layoutScore(document.score, { measuresPerSystem: 4 });
 
     expect(layout.systems).toHaveLength(25);
     expect(layout.systems.flatMap((system) => system.measures)).toHaveLength(

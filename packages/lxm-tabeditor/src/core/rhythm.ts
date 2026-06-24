@@ -45,3 +45,65 @@ export const calculateRhythmTicks = (
 /** 根据拍号计算一个完整小节应容纳的 tick 数。 */
 export const getMeasureCapacityTicks = (timeSignature: TimeSignature): number =>
   (TICKS_PER_QUARTER * 4 * timeSignature.numerator) / timeSignature.denominator;
+
+export interface BeatFragment {
+  tick: number;
+  rhythm: RhythmValue;
+}
+
+const CANONICAL_RHYTHMS: RhythmValue[] = [
+  { base: "whole", dots: 0 },
+  { base: "half", dots: 1 },
+  { base: "half", dots: 0 },
+  { base: "quarter", dots: 1 },
+  { base: "quarter", dots: 0 },
+  { base: "eighth", dots: 1 },
+  { base: "eighth", dots: 0 },
+  { base: "sixteenth", dots: 0 },
+  { base: "thirtySecond", dots: 0 },
+];
+
+/**
+ * 把任意 tick 区间切成 schema 能直接保存的真实 beat 片段。
+ *
+ * 占位网格本身不会进入 score；当用户在长 beat 内部的空 slot 输入时，
+ * 命令层需要把原 beat 的前后空白区间 materialize 成真实 rest。
+ * 这里采用“从当前位置能放下的最大标准时值”贪心拆分：
+ * - 每个 fragment 都精确接在 cursor 上，不产生重叠或空洞；
+ * - 只返回 score schema 已支持的 RhythmValue，不引入 placeholder；
+ * - timeSignature 用来约束区间不能越过当前小节容量，避免生成语义非法片段。
+ */
+export const partitionTickRangeToRhythms = (
+  startTick: number,
+  endTick: number,
+  timeSignature: TimeSignature,
+): BeatFragment[] => {
+  const capacityTicks = getMeasureCapacityTicks(timeSignature);
+  if (startTick < 0 || endTick < startTick || endTick > capacityTicks) {
+    throw new Error(`无法把 ${startTick}-${endTick} 切成合法节奏片段`);
+  }
+
+  const fragments: BeatFragment[] = [];
+  let cursor = startTick;
+
+  while (cursor < endTick) {
+    const next = CANONICAL_RHYTHMS.find((rhythm) => {
+      const result = calculateRhythmTicks(rhythm);
+      return result.ok && cursor + result.ticks <= endTick;
+    });
+
+    if (!next) {
+      throw new Error(`无法把 ${startTick}-${endTick} 切成合法节奏片段`);
+    }
+
+    const ticksResult = calculateRhythmTicks(next);
+    if (!ticksResult.ok) {
+      throw new Error(`无法把 ${startTick}-${endTick} 切成合法节奏片段`);
+    }
+
+    fragments.push({ tick: cursor, rhythm: next });
+    cursor += ticksResult.ticks;
+  }
+
+  return fragments;
+};

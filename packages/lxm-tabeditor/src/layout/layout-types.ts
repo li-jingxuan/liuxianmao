@@ -19,6 +19,7 @@ export interface ScoreLayoutOptions {
   zoom?: number;
   width?: number;
   measuresPerSystem?: number;
+  editingRhythm?: RhythmValue;
 }
 
 /** 矩形边界统一使用 SVG 坐标，供命中测试和可视区域计算复用。 */
@@ -50,6 +51,29 @@ export interface LaidOutBeat {
   rhythm: RhythmValue;
 }
 
+/**
+ * 编辑态派生出的占位 slot。
+ *
+ * slot 只属于 layout / editor 层：它描述“当前编辑时值下可以点击哪里”，
+ * 不代表 score 中真的存在一个 beat。`coveringBeatId` 指向被该 slot 覆盖的
+ * 真实 beat；只有 `isBeatStart` 的 slot 才会同时带 `beatId`。
+ */
+export interface LaidOutEditGridSlot {
+  id: string;
+  measureId: string;
+  beatId?: string;
+  coveringBeatId: string;
+  tick: number;
+  x: number;
+  width: number;
+  isBeatStart: boolean;
+}
+
+export interface MeasureEditGrid {
+  rhythm: RhythmValue;
+  slots: LaidOutEditGridSlot[];
+}
+
 /** 音符布局结果：同一拍多根弦会共享 x，通过 string 映射到不同 y。 */
 export interface LaidOutNote {
   id: string;
@@ -59,8 +83,30 @@ export interface LaidOutNote {
   string: number;
   x: number;
   y: number;
-  tied: boolean;
+  tieTargetNoteId?: string;
   ghost: boolean;
+}
+
+/** tie 的实际渲染片段；跨行时一条逻辑 tie 会拆成多个 segment。 */
+export interface LaidOutTieSegment {
+  id: string;
+  tieId: string;
+  systemIndex: number;
+  role: "single" | "start" | "middle" | "end";
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+}
+
+/** tie 的逻辑关系，保留源/目标音符信息，供调试和后续编辑能力扩展。 */
+export interface LaidOutTie {
+  id: string;
+  fromNoteId: string;
+  toNoteId: string;
+  fromMeasureId: string;
+  toMeasureId: string;
+  segments: LaidOutTieSegment[];
 }
 
 /** 休止符布局结果：symbol 使用 Bravura 的 SMuFL 私用区码点，普通文本不使用该字体。 */
@@ -73,7 +119,58 @@ export interface LaidOutRest {
   y: number;
 }
 
+/** 小节内部节奏列：未来歌词、简谱和 TAB 都会围绕它做水平对齐。 */
+export interface RhythmicColumn {
+  /** 小节内 tick 位置；TAB、歌词和简谱未来会共享同一列。 */
+  tick: number;
+  /** 落在该 tick 上的一组 beat id。 */
+  beatIds: string[];
+  /** 视觉排版权重，只影响水平距离，不改变真实音乐时间。 */
+  durationWeight: number;
+  /** 当前列的最小可读宽度。 */
+  minWidth: number;
+  /** 当前列的理想宽度。 */
+  idealWidth: number;
+}
+
+export interface BeatSpacingSlot {
+  /** 对应 beat id。 */
+  beatId: string;
+  /** 小节内 tick 位置。 */
+  tick: number;
+  /** 最终 SVG x 坐标。 */
+  x: number;
+  /** 当前 beat 到下一列或小节尾之间的视觉宽度。 */
+  width: number;
+  /** 对应 rhythmic column 下标。 */
+  columnIndex: number;
+}
+
+export interface MeasureSpacingSummary {
+  /** 对应 measure id。 */
+  measureId: string;
+  /** 小节不可再压缩的宽度。 */
+  minWidth: number;
+  /** 小节在当前内容下的理想宽度。 */
+  idealWidth: number;
+  /** system 最终分配给小节的宽度。 */
+  assignedWidth: number;
+  /** 小节内部的节奏列。 */
+  columns: RhythmicColumn[];
+  /** beat id 到最终视觉位置的映射。 */
+  slotsByBeatId: Record<string, BeatSpacingSlot>;
+}
+
 /** 音符时值布局结果：一个 notes beat 只生成一条时值标记，多弦和弦共享同一份时值几何。 */
+export interface LaidOutDurationFlagAnchor {
+  /** 符尾/连梁层级，八分为第 1 层，三十二分最多到第 3 层。 */
+  level: 1 | 2 | 3;
+  /** 当前层级符尾的起始 x 坐标。 */
+  x: number;
+  /** 当前层级符尾的起始 y 坐标，和同层连梁共用同一套公式。 */
+  y: number;
+}
+
 export interface LaidOutDurationMark {
   beatId: string;
   measureId: string;
@@ -88,6 +185,10 @@ export interface LaidOutDurationMark {
   stemBaseY: number;
   stemBottomY: number;
   flagCount: 0 | 1 | 2 | 3;
+  /** 每一层独立符尾的锚点；已被 beam 覆盖的层级由页面层跳过绘制。 */
+  flagAnchors: LaidOutDurationFlagAnchor[];
+  /** 附点锚点独立于符尾层级，避免三十二分音符时贴到多层符尾上。 */
+  dot: { x: number; y: number };
 }
 
 interface BaseBeamSegment {
@@ -157,6 +258,8 @@ export interface LaidOutMeasure {
   durationMarks: LaidOutDurationMark[];
   beamSegments: LaidOutBeamSegment[];
   tuplets: LaidOutTuplet[];
+  spacing: MeasureSpacingSummary;
+  editGrid?: MeasureEditGrid;
 }
 
 /** system 表示一行谱表；当前只排第一条吉他轨，但结构允许后续扩展多轨。 */
@@ -176,12 +279,14 @@ export interface ScoreLayout {
   zoom: number;
   tempo: number;
   systems: LaidOutSystem[];
+  ties: LaidOutTie[];
   hitIndex: LayoutHitIndex;
 }
 
 export interface ScoreLayoutHit {
   measureId: string;
-  beatId: string;
+  beatId?: string;
   tick: number;
   string: number;
+  slotId?: string;
 }
