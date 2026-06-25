@@ -2,9 +2,9 @@ import {
   calculateRhythmTicks,
   getMeasureCapacityTicks,
 } from "../core/rhythm";
+import { TICKS_PER_QUARTER } from "../core/constants";
 import type {
   Beat,
-  Measure,
   TimeSignature,
   TupletGroup,
 } from "../core/schema";
@@ -86,3 +86,32 @@ export const containsPoint = (
   x <= bounds.x + bounds.width &&
   y >= bounds.y &&
   y <= bounds.y + bounds.height;
+
+/**
+ * 计算一个连梁拍组对应的 tick 数。
+ *
+ * - 简单拍默认按分母表示的单拍分组，例如 4/4 按四分拍、3/8 按八分拍；
+ * - 常见复合拍（6/8、9/8、12/8）按附点拍分组，也就是 3 个分母音符构成 1 个拍组。
+ *
+ * 这不是整小节容量，而是 beam grouping 用的“单个拍组宽度”。
+ */
+export const getBeamGroupTicks = (timeSignature: TimeSignature): number => {
+  const baseBeatTicks = (TICKS_PER_QUARTER * 4) / timeSignature.denominator;
+
+  // 6/8、9/8、12/8 这类拍号通常按 3 个八分音符为一组连梁。
+  if (
+    timeSignature.denominator === 8 &&
+    timeSignature.numerator >= 6 &&
+    timeSignature.numerator % 3 === 0
+  ) {
+    return baseBeatTicks * 3;
+  }
+
+  return baseBeatTicks;
+};
+
+/** 根据某个 tick 落在哪个拍组中，计算其拍组索引。 */
+export const getBeatGroupIndex = (
+  tick: number,
+  timeSignature: TimeSignature,
+): number => Math.floor(tick / getBeamGroupTicks(timeSignature));

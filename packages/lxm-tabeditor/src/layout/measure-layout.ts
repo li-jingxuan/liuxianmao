@@ -216,7 +216,9 @@ export const layoutMeasure = (
   const durationMarkByBeatId = new Map(
     durationMarks.map((mark) => [mark.beatId, mark] as const),
   );
-  const beamSegments = buildBeamSegments(measure.beats, durationMarkByBeatId);
+  // 构建横梁数据结构
+  const beamSegments = buildBeamSegments(measure.beats, durationMarkByBeatId, context.timeSignature);
+  // 构建编辑网格
   const editGrid = buildMeasureEditGrid(
     measure,
     beats,

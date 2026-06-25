@@ -1,5 +1,6 @@
-import type { Beat, RhythmValue } from "../core/schema";
+import type { Beat, RhythmValue, TimeSignature } from "../core/schema";
 import { DURATION_LEVEL_GAP } from "./layout-constants";
+import { getBeatGroupIndex } from "./layout-helpers";
 import type { LaidOutBeamSegment, LaidOutDurationMark } from "./layout-types";
 
 /**
@@ -59,26 +60,40 @@ export const getDurationLevelY = (
  * 连梁片段的 MVP 规则：
  * 1. 只在 notes beat 之间分组，rest 会中断；
  * 2. 只处理需要对应 level 连梁的短时值；
- * 3. 同一段连续 beat 至少两个时，输出 kind="shared" 的完整共享连梁；
- * 4. 高层级只有单个 beat 且旁边存在低一层节奏上下文时，输出 kind="partial" 的短横线。
+ * 3. 同一拍组内部，同一段连续 beat 至少两个时，输出 kind="shared" 的完整共享连梁；
+ * 4. 高层级只有单个 beat 且同拍组内旁边存在低一层节奏上下文时，输出 kind="partial" 的短横线。
  *
  * 这样能把完整连梁和 partial beam 统一建模成 beamSegments，页面层只需要按 kind 渲染，
  * 不需要通过 beatIds 长度等隐式规则猜测片段语义。
+ *
+ * 注意：连梁是否断开，不能只看“短时值是否连续”，还要看它们是否已经跨过拍边界。
+ * 例如 4/4 中第 3 拍末尾的八分音符，即使后面紧跟第 4 拍开头的八分音符，也应当在
+ * 拍边界处分成两段 shared beam，而不是连成一整排。
  */
+
 export const buildBeamSegments = (
   beats: Beat[],
   durationMarkByBeatId: Map<string, LaidOutDurationMark>,
+  timeSignature: TimeSignature,
 ): LaidOutBeamSegment[] => {
   const beamSegments: LaidOutBeamSegment[] = [];
-
   const hasLowerLevelContext = (
     beatIndex: number,
+    anchorBeatIndex: number,
     level: 2 | 3,
   ): boolean => {
     const beat = beats[beatIndex];
-    if (!beat || beat.kind !== "notes") return false;
+    const anchorBeat = beats[anchorBeatIndex];
+    if (!beat || !anchorBeat || beat.kind !== "notes" || anchorBeat.kind !== "notes") {
+      return false;
+    }
     const mark = durationMarkByBeatId.get(beat.id);
-    return Boolean(mark && mark.flagCount >= level - 1);
+    return Boolean(
+      mark &&
+        mark.flagCount >= level - 1 &&
+          getBeatGroupIndex(beat.tick, timeSignature) ===
+            getBeatGroupIndex(anchorBeat.tick, timeSignature),
+    );
   };
 
   const flushRun = (
@@ -104,8 +119,16 @@ export const buildBeamSegments = (
     if (run.length !== 1 || level === 1) return;
 
     const mark = run[0]!;
-    const hasLeftNeighbor = hasLowerLevelContext(startBeatIndex - 1, level);
-    const hasRightNeighbor = hasLowerLevelContext(endBeatIndex + 1, level);
+    const hasLeftNeighbor = hasLowerLevelContext(
+      startBeatIndex - 1,
+      startBeatIndex,
+      level,
+    );
+    const hasRightNeighbor = hasLowerLevelContext(
+      endBeatIndex + 1,
+      startBeatIndex,
+      level,
+    );
 
     /**
      * 当某一层连梁只有单个 beat 时，统一输出 kind="partial" 的 beam segment，
@@ -131,28 +154,59 @@ export const buildBeamSegments = (
     let run: LaidOutDurationMark[] = [];
     let measureId = "";
     let runStartBeatIndex = -1;
+    let runGroupIndex = -1;
+
+    const resetRun = () => {
+      run = [];
+      measureId = "";
+      runStartBeatIndex = -1;
+      runGroupIndex = -1;
+    };
 
     for (const [beatIndex, beat] of beats.entries()) {
+      // rest 天然中断连梁；跨过休止后必须重新开始新的拍组扫描。
       if (beat.kind !== "notes") {
         flushRun(level, run, measureId, runStartBeatIndex, beatIndex - 1);
-        run = [];
-        measureId = "";
-        runStartBeatIndex = -1;
+        resetRun();
         continue;
       }
 
       const mark = durationMarkByBeatId.get(beat.id);
+      
+      /**
+       * 当前 beat 不能参与这一层 level 的连梁时，需要先把前面积累的 run 输出掉，
+       * 然后把 run 状态清空：
+       * 1. `!mark` 说明这个 beat 没有对应的时值排版结果，无法提供 stem / flag 几何锚点；
+       * 2. `mark.flagCount < level` 说明它只属于较低层级的时值，例如十六分音符不会参与第 3 层
+       *    （三十二分）连梁。
+       *
+       * 因此这里的语义是“遇到当前层级的连梁边界，立即截断前一段 run”，避免把不同层级的
+       * 短时值错误地串成同一个 beam segment。
+       */
       if (!mark || mark.flagCount < level) {
         flushRun(level, run, measureId, runStartBeatIndex, beatIndex - 1);
-        run = [];
-        measureId = "";
-        runStartBeatIndex = -1;
+        resetRun();
         continue;
+      }
+
+      const currentGroupIndex = getBeatGroupIndex(beat.tick, timeSignature);
+
+      /**
+       * 连梁 run 还要受拍组边界约束：
+       * - 4/4 中 level=1 的八分层 shared beam 不能从第 3 拍一路连到第 4 拍；
+       * - 编辑态把长 beat materialize 成多个真实 beat 后，也仍然只按 beat.tick 所属拍组断开。
+       *
+       * 因此一旦当前 beat 进入新的拍组，就先结算前一段 run，再把它当成新 run 的起点。
+       */
+      if (run.length > 0 && currentGroupIndex !== runGroupIndex) {
+        flushRun(level, run, measureId, runStartBeatIndex, beatIndex - 1);
+        resetRun();
       }
 
       if (run.length === 0) {
         measureId = mark.measureId;
         runStartBeatIndex = beatIndex;
+        runGroupIndex = currentGroupIndex;
       }
       run.push(mark);
     }

@@ -31,6 +31,7 @@ export const ScoreSystemLayer: React.FC<ScoreSystemLayerProps> = ({
       </tspan>
     </text>
 
+    {/* 小节集合 */}
     {measures.map((measure) => (
       <ScoreMeasureLayer
         key={measure.id}

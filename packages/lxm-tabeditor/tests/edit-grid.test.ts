@@ -32,13 +32,13 @@ describe("占位编辑网格", () => {
 
     expect(
       measure.editGrid?.slots.filter(
-        (slot) => slot.coveringBeatId === "beat-005-11",
+        (slot) => slot.coveringBeatId === "beat-005-07",
       ),
     ).toHaveLength(8);
     expect(
       measure.editGrid?.slots.filter(
         (slot) =>
-          slot.coveringBeatId === "beat-005-11" && slot.beatId === undefined,
+          slot.coveringBeatId === "beat-005-07" && slot.beatId === undefined,
       ),
     ).toHaveLength(7);
   });
@@ -55,7 +55,7 @@ describe("占位编辑网格", () => {
       (typeof layout.systems)[number]["measures"][number] &
         TestMeasureWithEditGrid;
     const secondSlot = measure.editGrid?.slots.filter(
-      (slot) => slot.coveringBeatId === "beat-005-11",
+      (slot) => slot.coveringBeatId === "beat-005-07",
     )[1];
     expect(secondSlot).toBeDefined();
     if (!secondSlot) return;
@@ -67,7 +67,7 @@ describe("占位编辑网格", () => {
 
     expect(hit).toMatchObject({
       measureId: "measure-005",
-      beatId: "beat-005-11",
+      beatId: "beat-005-07",
       tick: secondSlot.tick,
       slotId: secondSlot.id,
     });

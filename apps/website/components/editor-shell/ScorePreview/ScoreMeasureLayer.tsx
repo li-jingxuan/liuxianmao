@@ -37,6 +37,7 @@ export const ScoreMeasureLayer: React.FC<ScoreMeasureLayerProps> = ({
   return (
     <g aria-label={`第 ${measure.number} 小节`}>
       {/* TODO 这里到时候放和弦图 */}
+      {/* 小节号 */}
       <text
         className={styles["measure-number-svg"]}
         x={measure.x + measure.width / 2}
@@ -44,6 +45,8 @@ export const ScoreMeasureLayer: React.FC<ScoreMeasureLayerProps> = ({
       >
         {measure.number}
       </text>
+
+      {/* 拍号 */}
       {measure.showTimeSignature ? (
         <text
           className={styles["time-signature-svg"]}
@@ -59,6 +62,7 @@ export const ScoreMeasureLayer: React.FC<ScoreMeasureLayerProps> = ({
         </text>
       ) : null}
 
+      {/* 六线谱的线 */}
       {STAFF_STRINGS.map((stringIndex) => (
         <line
           className={styles["staff-line-svg"]}
@@ -74,6 +78,7 @@ export const ScoreMeasureLayer: React.FC<ScoreMeasureLayerProps> = ({
         />
       ))}
 
+      {/* 编辑网格 */}
       <MeasureGridLayer
         activeSlotId={
           selection.activeMeasureId === measure.id
@@ -122,8 +127,11 @@ export const ScoreMeasureLayer: React.FC<ScoreMeasureLayerProps> = ({
         y2={measure.y + measure.staffTop + measure.staffHeight}
       />
 
+      {/* 时值层（横梁、时值符号） */}
       <MeasureDurationLayer measure={measure} />
+      {/* 音符/休止符层 */}
       <MeasureNotesLayer measure={measure} activeNoteId={selection.activeNoteId} />
+      {/* 连音组 */}
       <MeasureTupletLayer measure={measure} />
     </g>
   );

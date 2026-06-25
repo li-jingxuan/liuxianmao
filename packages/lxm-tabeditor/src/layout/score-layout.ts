@@ -342,6 +342,7 @@ export const layoutSystem = (
   );
   let measureX = context.x + SYSTEM_HEADER_WIDTH;
 
+  // 小节数据结构
   const laidOutMeasures = measures.map((measure, offset) => {
     const nextTimeSignature = measure.timeSignature ?? effectiveTimeSignature;
     const measureWidth =

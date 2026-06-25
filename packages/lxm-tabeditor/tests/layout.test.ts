@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { createEmptyScore } from "../src/core/score-factory";
 import { hitTestScoreLayout, layoutScore } from "../src/layout/score-layout";
 import { createExampleDocument } from "../src/testing/example-document";
 
@@ -247,6 +248,114 @@ describe("六线谱只读排版", () => {
         expect.objectContaining({
           kind: "partial",
           beatId: "beat-001-07",
+        }),
+      ]),
+    );
+  });
+
+  it("4/4 小节的八分层连梁会在拍边界处断开，而不是跨拍连成一段", () => {
+    const score = createEmptyScore();
+    score.tracks[0]!.measures[0]!.beats = [
+      { id: "beat-001-01", tick: 0, rhythm: { base: "quarter", dots: 0 }, kind: "rest" },
+      { id: "beat-001-02", tick: 960, rhythm: { base: "quarter", dots: 0 }, kind: "rest" },
+      {
+        id: "beat-001-03",
+        tick: 1920,
+        rhythm: { base: "thirtySecond", dots: 0 },
+        kind: "notes",
+        notes: [{ id: "note-001-03-01", string: 2, fret: 1, techniques: [] }],
+      },
+      {
+        id: "beat-001-04",
+        tick: 2040,
+        rhythm: { base: "thirtySecond", dots: 0 },
+        kind: "notes",
+        notes: [{ id: "note-001-04-01", string: 1, fret: 3, techniques: [] }],
+      },
+      {
+        id: "beat-001-05",
+        tick: 2160,
+        rhythm: { base: "thirtySecond", dots: 0 },
+        kind: "notes",
+        notes: [{ id: "note-001-05-01", string: 2, fret: 0, techniques: [] }],
+      },
+      {
+        id: "beat-001-06",
+        tick: 2280,
+        rhythm: { base: "thirtySecond", dots: 0 },
+        kind: "notes",
+        notes: [{ id: "note-001-06-01", string: 5, fret: 3, techniques: [] }],
+      },
+      {
+        id: "beat-001-07",
+        tick: 2400,
+        rhythm: { base: "eighth", dots: 0 },
+        kind: "notes",
+        notes: [{ id: "note-001-07-01", string: 4, fret: 0, techniques: [] }],
+      },
+      {
+        id: "beat-001-08",
+        tick: 2880,
+        rhythm: { base: "eighth", dots: 0 },
+        kind: "notes",
+        notes: [{ id: "note-001-08-01", string: 3, fret: 2, techniques: [] }],
+      },
+      {
+        id: "beat-001-09",
+        tick: 3360,
+        rhythm: { base: "sixteenth", dots: 0 },
+        kind: "notes",
+        notes: [{ id: "note-001-09-01", string: 2, fret: 3, techniques: [] }],
+      },
+      {
+        id: "beat-001-10",
+        tick: 3600,
+        rhythm: { base: "sixteenth", dots: 0 },
+        kind: "notes",
+        notes: [{ id: "note-001-10-01", string: 1, fret: 1, techniques: [] }],
+      },
+    ];
+
+    const layout = layoutScore(score);
+    const measure = layout.systems[0]!.measures[0]! as typeof layout.systems[number]["measures"][number] &
+      TestMeasureWithDuration;
+
+    expect(measure.beamSegments).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "shared",
+          level: 1,
+          beatIds: [
+            "beat-001-03",
+            "beat-001-04",
+            "beat-001-05",
+            "beat-001-06",
+            "beat-001-07",
+          ],
+        }),
+        expect.objectContaining({
+          kind: "shared",
+          level: 1,
+          beatIds: ["beat-001-08", "beat-001-09", "beat-001-10"],
+        }),
+      ]),
+    );
+
+    expect(measure.beamSegments ?? []).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "shared",
+          level: 1,
+          beatIds: [
+            "beat-001-03",
+            "beat-001-04",
+            "beat-001-05",
+            "beat-001-06",
+            "beat-001-07",
+            "beat-001-08",
+            "beat-001-09",
+            "beat-001-10",
+          ],
         }),
       ]),
     );
