@@ -63,9 +63,12 @@ export const useScorePreviewPointerHit = ({
       };
       const hit = hitTestScoreLayout(layout, point);
       if (!hit) return;
+      // 命中结果里的 slot metadata 要原样进入 active cursor，后续 reducer 会据此
+      // 决定这次输入是“拆已有 beat”还是“把 gap materialize 成真实时间线”。
       const nextActiveBeat = {
         trackId: track.id,
         ...hit,
+        slotKind: hit.slotKind ?? "beat",
         slotId:
           hit.slotId ??
           `${hit.measureId}-${hit.beatId ?? hit.tick.toString()}-slot-0`,

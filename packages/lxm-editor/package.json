@@ -1,11 +1,10 @@
 {
-  "name": "@liuxianmao/lxm-tabeditor",
+  "name": "@liuxianmao/lxm-editor",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts",
-    "./testing": "./src/testing/index.ts"
+    ".": "./src/index.ts"
   },
   "scripts": {
     "assets:build": "node ./scripts/standardize-svg-assets.mjs",

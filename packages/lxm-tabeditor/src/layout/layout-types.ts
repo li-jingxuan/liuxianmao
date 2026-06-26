@@ -51,15 +51,18 @@ export interface LaidOutBeat {
   rhythm: RhythmValue;
 }
 
+/** 编辑网格 slot 来源：真实 beat 覆盖区或小节时间空洞。 */
+export type EditGridSlotKind = "beat" | "gap";
+
 /**
- * 编辑态派生出的占位 slot。
+ * 编辑态派生出的 beat slot。
  *
- * slot 只属于 layout / editor 层：它描述“当前编辑时值下可以点击哪里”，
- * 不代表 score 中真的存在一个 beat。`coveringBeatId` 指向被该 slot 覆盖的
- * 真实 beat；只有 `isBeatStart` 的 slot 才会同时带 `beatId`。
+ * beat slot 对应真实 beat 覆盖的时间区间；只有首个 slot 会同时暴露 `beatId`，
+ * 其他细分 slot 通过 `coveringBeatId` 回指原始 beat，供命令层做 materialize。
  */
-export interface LaidOutEditGridSlot {
+export interface LaidOutBeatEditGridSlot {
   id: string;
+  kind: "beat";
   measureId: string;
   beatId?: string;
   coveringBeatId: string;
@@ -68,6 +71,29 @@ export interface LaidOutEditGridSlot {
   width: number;
   isBeatStart: boolean;
 }
+
+/**
+ * 编辑态派生出的 gap slot。
+ *
+ * gap slot 不对应真实 beat，只描述“这段时间线还没有音乐事件，但当前编辑时值
+ * 可以在这里落盘”。命令层需要依赖 gapStartTick / gapEndTick 把写入 materialize
+ * 成真实 beat/rest。
+ */
+export interface LaidOutGapEditGridSlot {
+  id: string;
+  kind: "gap";
+  measureId: string;
+  tick: number;
+  x: number;
+  width: number;
+  gapStartTick: number;
+  gapEndTick: number;
+  isBeatStart: false;
+}
+
+export type LaidOutEditGridSlot =
+  | LaidOutBeatEditGridSlot
+  | LaidOutGapEditGridSlot;
 
 export interface MeasureEditGrid {
   rhythm: RhythmValue;
@@ -289,4 +315,7 @@ export interface ScoreLayoutHit {
   tick: number;
   string: number;
   slotId?: string;
+  slotKind?: EditGridSlotKind;
+  gapStartTick?: number;
+  gapEndTick?: number;
 }

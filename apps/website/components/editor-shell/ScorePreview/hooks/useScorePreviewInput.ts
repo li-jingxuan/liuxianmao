@@ -113,14 +113,17 @@ export const useScorePreviewInput = ({
     (fret: number | "x") => {
       if (!activeBeat) return;
       const context = getActiveBeat(score, activeBeat);
-      if (!context) return;
-      const existingNote = getBeatNoteOnString(context.beat, activeBeat.string);
+      // gap cursor 本身没有真实 beat，因此这里只在 beat slot 下尝试读取已有音符。
+      const existingNote =
+        context && activeBeat.slotKind !== "gap"
+          ? getBeatNoteOnString(context.beat, activeBeat.string)
+          : undefined;
       /*
        * 同拍同弦只允许一个音符。
        * 已有音符时更新品位；空位置统一走 note.add，并把 currentRhythm 传给命令层。
        * 当光标落在 beat 内部 slot 时，reducer 会据此拆分 covering beat。
        */
-      if (existingNote) {
+      if (existingNote && context) {
         executeCommand({
           type: "note.updateFret",
           payload: {
@@ -198,6 +201,7 @@ export const useScorePreviewInput = ({
         beatId: next.beat.id,
         tick: next.beat.tick,
         slotId: `${next.measure.id}-${next.beat.id}-slot-0`,
+        slotKind: "beat",
         string: nextString,
       });
       setSelectedNoteIds(note ? [note.id] : []);

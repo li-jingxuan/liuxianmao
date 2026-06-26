@@ -16,6 +16,18 @@ const cloneBeatAsRest = (
   kind: "rest",
 });
 
+const createGapRest = (
+  sourceId: string,
+  suffix: string,
+  tick: number,
+  rhythm: RhythmValue,
+): Beat => ({
+  id: `${sourceId}__${suffix}`,
+  tick,
+  rhythm,
+  kind: "rest",
+});
+
 /**
  * 在真实时间线上 materialize 一个 slot 写入目标。
  *
@@ -91,4 +103,68 @@ export const materializeBeatAtTick = ({
       beat.id === coveringBeat.id ? [...before, nextBeat, ...after] : [beat],
     )
     .sort((a, b) => a.tick - b.tick);
+};
+
+/**
+ * 在 gap 区间内 materialize 一个新的真实 beat。
+ *
+ * 和 `materializeBeatAtTick` 的区别是：gap 本身没有 covering beat，所以这里不会替换
+ * 任何已有事件，而是把 gap 拆成「前半段 rest + 目标 beat + 后半段 rest」后再与原
+ * beats 合并排序。这样 score schema 里仍然只保存真实音乐事件。
+ */
+export const materializeBeatIntoGap = ({
+  measure,
+  tick,
+  rhythm,
+  nextBeat,
+  gapStartTick,
+  gapEndTick,
+  timeSignature,
+}: {
+  measure: Measure;
+  tick: number;
+  rhythm: RhythmValue;
+  nextBeat: Beat;
+  gapStartTick: number;
+  gapEndTick: number;
+  timeSignature: TimeSignature;
+}): Beat[] => {
+  const targetTicks = calculateRhythmTicks(rhythm);
+  if (!targetTicks.ok) {
+    throw new Error("无法 materialize 非整数 tick 时值");
+  }
+
+  const targetEndTick = tick + targetTicks.ticks;
+  if (tick < gapStartTick || targetEndTick > gapEndTick) {
+    throw new Error("目标 slot 超出 gap 时间范围");
+  }
+
+  const before = partitionTickRangeToRhythms(
+    gapStartTick,
+    tick,
+    timeSignature,
+  ).map((fragment, index) =>
+    createGapRest(
+      nextBeat.id,
+      `gap_before_${index}`,
+      fragment.tick,
+      fragment.rhythm,
+    ),
+  );
+  const after = partitionTickRangeToRhythms(
+    targetEndTick,
+    gapEndTick,
+    timeSignature,
+  ).map((fragment, index) =>
+    createGapRest(
+      nextBeat.id,
+      `gap_after_${index}`,
+      fragment.tick,
+      fragment.rhythm,
+    ),
+  );
+
+  return [...measure.beats, ...before, nextBeat, ...after].sort(
+    (left, right) => left.tick - right.tick,
+  );
 };

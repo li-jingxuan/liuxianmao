@@ -28,13 +28,25 @@ export const calculateRhythmTicks = (
   rhythm: RhythmValue,
   tuplet?: Pick<TupletGroup, "actualNotes" | "normalNotes">,
 ): RhythmTickResult => {
+  // 附点时值使用分数表达：
+  // - 无附点 = 1/1
+  // - 单附点 = 3/2
+  // - 双附点 = 7/4
   const dotted = DOTTED_MULTIPLIERS[rhythm.dots];
+
+  // 最终 tick = 基础时值 × 附点倍率 × 连音倍率。
+  // 这里把所有倍率都保留为“分子 / 分母”的形式统一计算：
+  // - BASE_DURATION_TICKS[rhythm.base] 是基础音符对应的整数 tick
+  // - dotted.numerator / dotted.denominator 是附点倍率
+  // - normalNotes / actualNotes 是连音倍率，例如三连音八分音符是 2 / 3
   const numerator =
     BASE_DURATION_TICKS[rhythm.base] *
     dotted.numerator *
     (tuplet?.normalNotes ?? 1);
   const denominator = dotted.denominator * (tuplet?.actualNotes ?? 1);
 
+  // 内部时间轴严格使用整数 tick。
+  // 如果当前节奏组合无法精确落到整数 tick 网格，就返回失败，让上层决定如何处理。
   if (numerator % denominator !== 0) {
     return { ok: false, code: "NON_INTEGER_RHYTHM_TICKS" };
   }

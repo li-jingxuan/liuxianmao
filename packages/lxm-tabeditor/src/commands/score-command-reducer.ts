@@ -6,7 +6,10 @@ import type {
   ScoreCommand,
   TimelineTargetPayload,
 } from "./command-types";
-import { materializeBeatAtTick } from "./timeline-materialization";
+import {
+  materializeBeatAtTick,
+  materializeBeatIntoGap,
+} from "./timeline-materialization";
 
 /** reducer 在命中拍点后缓存的上下文，避免重复查找轨道/小节/拍点。 */
 interface TargetContext {
@@ -185,10 +188,96 @@ const findMeasureContext = (
   };
 };
 
+/**
+ * gap slot 写入需要的最小边界检查。
+ *
+ * beat slot 可以靠 `findTargetContext` 找到真实 beat 继续工作，但 gap slot 没有
+ * 对应 beat，所以必须先确认 tick 和 gap 区间都已经由命中层完整透传下来。
+ */
+const validateGapPayload = (
+  payload: TimelineTargetPayload & { rhythm?: unknown },
+): CommandResult<{ tick: number; gapStartTick: number; gapEndTick: number }> => {
+  if (payload.tick === undefined) {
+    return commandFailure(
+      "TICK_REQUIRED_FOR_GAP_WRITE",
+      "gap slot 写入缺少目标 tick",
+    );
+  }
+  if (payload.gapStartTick === undefined || payload.gapEndTick === undefined) {
+    return commandFailure(
+      "GAP_RANGE_REQUIRED",
+      "gap slot 写入缺少时间范围",
+    );
+  }
+  if (!payload.rhythm) {
+    return commandFailure(
+      "RHYTHM_REQUIRED_FOR_SLOT_WRITE",
+      "在 gap 空槽写入时必须提供目标时值",
+    );
+  }
+  return {
+    ok: true,
+    value: {
+      tick: payload.tick,
+      gapStartTick: payload.gapStartTick,
+      gapEndTick: payload.gapEndTick,
+    },
+  };
+};
+
 const applyNoteAdd = (
   score: Score,
   command: Extract<ScoreCommand, { type: "note.add" }>,
 ) => {
+  if (command.payload.slotKind === "gap") {
+    const gapResult = validateGapPayload(command.payload);
+    if (!gapResult.ok) return gapResult;
+    if (!command.payload.rhythm) {
+      return commandFailure(
+        "RHYTHM_REQUIRED_FOR_SLOT_WRITE",
+        "在 gap 空槽写入时必须提供目标时值",
+        command.payload.measureId,
+      );
+    }
+
+    const measureResult = findMeasureContext(score, command.payload);
+    if (!measureResult.ok) return measureResult;
+    const { tick, gapStartTick, gapEndTick } = gapResult.value;
+    const nextBeat: Beat = {
+      id: `beat-gap-${command.payload.measureId}-${tick}`,
+      tick,
+      rhythm: command.payload.rhythm,
+      kind: "notes",
+      notes: [command.payload.note],
+    };
+
+    try {
+      const nextBeats = materializeBeatIntoGap({
+        measure: measureResult.value.measure,
+        tick,
+        rhythm: command.payload.rhythm,
+        nextBeat,
+        gapStartTick,
+        gapEndTick,
+        timeSignature:
+          measureResult.value.measure.timeSignature ?? score.meta.timeSignature,
+      });
+      return {
+        ok: true as const,
+        value: replaceMeasure(score, measureResult.value, {
+          ...measureResult.value.measure,
+          beats: nextBeats,
+        }),
+      };
+    } catch (error) {
+      return commandFailure(
+        "INVALID_GAP_WRITE",
+        error instanceof Error ? error.message : "gap 空槽写入失败",
+        command.payload.measureId,
+      );
+    }
+  }
+
   const contextResult = findTargetContext(score, command.payload);
   if (!contextResult.ok) return contextResult;
   const context = contextResult.value;
@@ -307,6 +396,54 @@ const applyBeatSetRest = (
   score: Score,
   command: Extract<ScoreCommand, { type: "beat.setRest" }>,
 ) => {
+  if (command.payload.slotKind === "gap") {
+    const gapResult = validateGapPayload(command.payload);
+    if (!gapResult.ok) return gapResult;
+    if (!command.payload.rhythm) {
+      return commandFailure(
+        "RHYTHM_REQUIRED_FOR_SLOT_WRITE",
+        "在 gap 空槽写入时必须提供目标时值",
+        command.payload.measureId,
+      );
+    }
+
+    const measureResult = findMeasureContext(score, command.payload);
+    if (!measureResult.ok) return measureResult;
+    const { tick, gapStartTick, gapEndTick } = gapResult.value;
+    const nextBeat: Beat = {
+      id: `beat-gap-rest-${command.payload.measureId}-${tick}`,
+      tick,
+      rhythm: command.payload.rhythm,
+      kind: "rest",
+    };
+
+    try {
+      const nextBeats = materializeBeatIntoGap({
+        measure: measureResult.value.measure,
+        tick,
+        rhythm: command.payload.rhythm,
+        nextBeat,
+        gapStartTick,
+        gapEndTick,
+        timeSignature:
+          measureResult.value.measure.timeSignature ?? score.meta.timeSignature,
+      });
+      return {
+        ok: true as const,
+        value: replaceMeasure(score, measureResult.value, {
+          ...measureResult.value.measure,
+          beats: nextBeats,
+        }),
+      };
+    } catch (error) {
+      return commandFailure(
+        "INVALID_GAP_WRITE",
+        error instanceof Error ? error.message : "gap 空槽写入失败",
+        command.payload.measureId,
+      );
+    }
+  }
+
   const contextResult = findTargetContext(score, command.payload);
   if (!contextResult.ok) return contextResult;
   const { beat } = contextResult.value;

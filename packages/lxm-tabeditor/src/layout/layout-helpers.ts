@@ -12,8 +12,9 @@ import {
   STAFF_HEIGHT,
   STAFF_TOP,
   STRING_SPACING,
+  MEASURE_PADDING_X,
 } from "./layout-constants";
-import type { LayoutBounds } from "./layout-types";
+import type { LayoutBounds, MeasureSpacingSummary } from "./layout-types";
 
 /**
  * layout 层通用辅助函数。
@@ -76,6 +77,29 @@ export const getCapacityTicks = (timeSignature: TimeSignature): number =>
 /** 休止符放在六线谱垂直中线附近，后续可按具体休止符类型细调 y。 */
 export const getRestY = (measureY: number): number =>
   measureY + STAFF_TOP + STAFF_HEIGHT / 2;
+
+/**
+ * 计算小节内部时间轴的左边界。
+ *
+ * 这里返回的是“整小节 tick 时间轴”的起点，而不是首个真实 beat 的列起点。
+ * 真实 beat 仍然由 spacing.slotsByBeatId 决定视觉位置；但 edit-grid 需要让
+ * 前导 gap 也能占有独立的水平空间，所以时间轴必须稳定地从小节左 padding 开始。
+ */
+export const getMeasureInnerLeftX = (
+  _spacing: MeasureSpacingSummary,
+  measureX: number,
+): number => measureX + MEASURE_PADDING_X;
+
+/**
+ * 计算小节内部真正可排版的右边界。
+ *
+ * 这里使用 `assignedWidth - padding` 而不是最后一个 beat 的右边缘，
+ * 因为尾部 gap 就是要延伸到“小节可用区域的末端”，而不是停在最后一个真实 beat 后面。
+ */
+export const getMeasureInnerRightX = (
+  spacing: MeasureSpacingSummary,
+  measureX: number,
+): number => measureX + spacing.assignedWidth - MEASURE_PADDING_X;
 
 export const containsPoint = (
   bounds: LayoutBounds,

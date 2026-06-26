@@ -1,4 +1,5 @@
-import type { Beat, Measure } from "../core/schema";
+import { getMeasureCapacityTicks } from "../core/rhythm";
+import type { Beat, Measure, TimeSignature } from "../core/schema";
 import {
   DURATION_MIN_COLUMN_WIDTH,
   DURATION_VISUAL_WEIGHT,
@@ -6,6 +7,11 @@ import {
   MEASURE_MIN_WIDTH,
   MEASURE_PADDING_X,
 } from "./layout-constants";
+import {
+  getBeatTicks,
+  getMeasureInnerLeftX,
+  getMeasureInnerRightX,
+} from "./layout-helpers";
 import type {
   BeatSpacingSlot,
   MeasureSpacingSummary,
@@ -127,15 +133,31 @@ export const layoutMeasureSpacing = (
   context: {
     x: number;
     assignedWidth: number;
+    timeSignature: TimeSignature;
   },
 ): MeasureSpacingSummary => {
   const summary = summarizeMeasureSpacingWidth(measure);
   const assignedWidth = Math.max(context.assignedWidth, summary.minWidth);
   const availableWidth = Math.max(0, assignedWidth - MEASURE_PADDING_X * 2);
-  const columnWidths = distributeColumnWidths(summary.columns, availableWidth);
+  const capacityTicks = getMeasureCapacityTicks(context.timeSignature);
+  const firstColumnTick = summary.columns[0]?.tick ?? 0;
+  /**
+   * 真实 beat 列宽仍由原有节奏列分配逻辑负责，但如果首个 beat 不是从 tick=0 开始，
+   * 小节前导静默区也必须占有水平空间；否则 edit-grid 会把前导 gap 压扁成 1px。
+   *
+   * 这里按“前导 gap 占整小节容量的 tick 比例”先预留一段宽度，再把剩余宽度分配给
+   * 真实 beat 列。这样不会伪造 placeholder beat，也能保证首个真实 beat 的 x
+   * 晚于小节时间轴起点。
+   */
+  const leadingGapWidth =
+    capacityTicks > 0 ? (availableWidth * firstColumnTick) / capacityTicks : 0;
+  const columnWidths = distributeColumnWidths(
+    summary.columns,
+    Math.max(0, availableWidth - leadingGapWidth),
+  );
   const slotsByBeatId: Record<string, BeatSpacingSlot> = {};
 
-  let cursorX = context.x + MEASURE_PADDING_X;
+  let cursorX = context.x + MEASURE_PADDING_X + leadingGapWidth;
 
   summary.columns.forEach((column, columnIndex) => {
     const width = columnWidths[columnIndex] ?? 0;
@@ -178,4 +200,77 @@ export const getBeatSpacingSlot = (
     width: 0,
     columnIndex: -1,
   };
+};
+
+/**
+ * 把小节内任意 tick 投影到 SVG x 坐标。
+ *
+ * 已有 beat 内部继续沿用 beat 自己的视觉宽度按比例插值；gap 区域则在相邻 beat
+ * 边界之间做线性插值。这样可以在不伪造 placeholder beat 的前提下，为中间空洞和
+ * 尾部空白生成稳定的可点击几何。
+ */
+export const projectTickToMeasureX = (
+  spacing: MeasureSpacingSummary,
+  measure: Measure,
+  context: {
+    measureX: number;
+    timeSignature: TimeSignature;
+    tick: number;
+  },
+): number => {
+  const capacityTicks = getMeasureCapacityTicks(context.timeSignature);
+  const clampedTick = Math.max(0, Math.min(context.tick, capacityTicks));
+  const leftX = getMeasureInnerLeftX(spacing, context.measureX);
+  const rightX = getMeasureInnerRightX(spacing, context.measureX);
+  const sortedBeats = [...measure.beats].sort((left, right) => left.tick - right.tick);
+  const timelineAnchors = [
+    { tick: 0, x: leftX },
+    ...sortedBeats.flatMap((beat, index) => {
+      const slot = spacing.slotsByBeatId[beat.id];
+      if (!slot) return [];
+
+      const beatTicks = getBeatTicks(beat, measure.tuplets);
+      const nextBeat = sortedBeats[index + 1];
+      const nextSlot = nextBeat ? spacing.slotsByBeatId[nextBeat.id] : undefined;
+      const nextBoundaryTick = nextBeat?.tick ?? capacityTicks;
+      const nextBoundaryX = nextSlot?.x ?? rightX;
+      const beatEndTick = Math.min(beat.tick + beatTicks, capacityTicks);
+
+      /**
+       * start anchor 始终对齐真实 beat 列起点。
+       * 如果 beat 自身时值在“下一个真实 beat 起点”之前就结束，说明后面存在 gap；
+       * 这里再补一个 beatEnd anchor，把真实 beat 与后续 gap 的水平空间拆开。
+       */
+      const anchors = [{ tick: beat.tick, x: slot.x }];
+      if (beatEndTick > beat.tick && beatEndTick < nextBoundaryTick) {
+        const ratio =
+          nextBoundaryTick === beat.tick
+            ? 0
+            : (beatEndTick - beat.tick) / (nextBoundaryTick - beat.tick);
+        anchors.push({
+          tick: beatEndTick,
+          x: slot.x + (nextBoundaryX - slot.x) * ratio,
+        });
+      }
+      return anchors;
+    }),
+    { tick: capacityTicks, x: rightX },
+  ].sort((left, right) => left.tick - right.tick);
+
+  for (let index = 0; index < timelineAnchors.length - 1; index += 1) {
+    const currentAnchor = timelineAnchors[index]!;
+    const nextAnchor = timelineAnchors[index + 1]!;
+    if (clampedTick < currentAnchor.tick || clampedTick > nextAnchor.tick) {
+      continue;
+    }
+
+    const rangeTicks = nextAnchor.tick - currentAnchor.tick;
+    const ratio =
+      rangeTicks === 0
+        ? 0
+        : (clampedTick - currentAnchor.tick) / rangeTicks;
+    return currentAnchor.x + (nextAnchor.x - currentAnchor.x) * ratio;
+  }
+
+  return rightX;
 };

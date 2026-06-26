@@ -8,6 +8,7 @@ import type {
   TupletGroup,
 } from "../core/schema";
 import type { ValidationIssue } from "../core/validation-types";
+import type { EditGridSlotKind } from "../layout/layout-types";
 
 /** 时间线命令共享的定位信息：可指向真实 beat 起点，也可指向 beat 内部 slot。 */
 export interface TimelineTargetPayload {
@@ -15,10 +16,16 @@ export interface TimelineTargetPayload {
   trackId: string;
   /** 目标小节 id。 */
   measureId: string;
-  /** 覆盖当前 tick 的真实拍点 id；slot 写入时它不是目标 tick，只是 materialize 的来源。 */
+  /** beat slot 覆盖的真实拍点 id；gap slot 不对应真实 beat。 */
   beatId?: string;
   /** 小节内目标 tick。旧调用方不传时默认使用 beat.tick。 */
   tick?: number;
+  /** 当前写入目标的来源类型，用于区分拆已有 beat 与写入 gap。 */
+  slotKind?: EditGridSlotKind;
+  /** gap slot 所属空洞的起始 tick。 */
+  gapStartTick?: number;
+  /** gap slot 所属空洞的结束 tick。 */
+  gapEndTick?: number;
 }
 
 /** 音符级命令共享的定位信息：唯一锁定到某条轨道的小节拍点。 */

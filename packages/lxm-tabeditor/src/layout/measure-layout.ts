@@ -80,6 +80,7 @@ export const layoutMeasure = (
   const spacing = layoutMeasureSpacing(measure, {
     x: context.x,
     assignedWidth: context.width,
+    timeSignature: context.timeSignature,
   });
 
   const beats = measure.beats.map((beat) => {
@@ -219,11 +220,11 @@ export const layoutMeasure = (
   // 构建横梁数据结构
   const beamSegments = buildBeamSegments(measure.beats, durationMarkByBeatId, context.timeSignature);
   // 构建编辑网格
-  const editGrid = buildMeasureEditGrid(
-    measure,
-    beats,
-    context.editingRhythm,
-  );
+  const editGrid = buildMeasureEditGrid(measure, spacing, beats, {
+    measureX: context.x,
+    timeSignature: context.timeSignature,
+    editingRhythm: context.editingRhythm,
+  });
 
   /**
    * 连音括号需要覆盖从首拍开始到末拍结束的区间。

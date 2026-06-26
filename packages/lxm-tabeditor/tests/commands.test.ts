@@ -163,6 +163,128 @@ describe("Score Command reducer", () => {
     );
   });
 
+  it("支持在 gap slot 内按当前时值写入音符", () => {
+    const score = createEmptyScore();
+    score.tracks[0]!.measures[0] = {
+      ...score.tracks[0]!.measures[0]!,
+      beats: [
+        {
+          id: "beat-gap-existing",
+          tick: 0,
+          rhythm: { base: "quarter", dots: 0 },
+          kind: "rest",
+        },
+      ],
+    };
+
+    const result = reduceScoreCommand(score, {
+      type: "note.add",
+      payload: {
+        trackId: "track-guitar-main",
+        measureId: "measure-001",
+        tick: 960,
+        slotKind: "gap",
+        gapStartTick: 960,
+        gapEndTick: 3840,
+        rhythm: { base: "quarter", dots: 0 },
+        note: { id: "note-gap-write", string: 2, fret: 5, techniques: [] },
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.value.tracks[0]!.measures[0]!.beats).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ tick: 960, kind: "notes" }),
+        expect.objectContaining({
+          tick: 1920,
+          kind: "rest",
+          rhythm: { base: "half", dots: 0 },
+        }),
+      ]),
+    );
+  });
+
+  it("支持在 gap slot 内按当前时值写入休止符", () => {
+    const score = createEmptyScore();
+    score.tracks[0]!.measures[0] = {
+      ...score.tracks[0]!.measures[0]!,
+      beats: [
+        {
+          id: "beat-gap-existing",
+          tick: 0,
+          rhythm: { base: "quarter", dots: 0 },
+          kind: "rest",
+        },
+      ],
+    };
+
+    const result = reduceScoreCommand(score, {
+      type: "beat.setRest",
+      payload: {
+        trackId: "track-guitar-main",
+        measureId: "measure-001",
+        tick: 960,
+        slotKind: "gap",
+        gapStartTick: 960,
+        gapEndTick: 3840,
+        rhythm: { base: "quarter", dots: 0 },
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.value.tracks[0]!.measures[0]!.beats).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ tick: 960, kind: "rest" }),
+        expect.objectContaining({
+          tick: 1920,
+          kind: "rest",
+          rhythm: { base: "half", dots: 0 },
+        }),
+      ]),
+    );
+  });
+
+  it("gap 写入后 beats 仍按 tick 升序排列", () => {
+    const score = createEmptyScore();
+    score.tracks[0]!.measures[0] = {
+      ...score.tracks[0]!.measures[0]!,
+      beats: [
+        {
+          id: "beat-gap-existing",
+          tick: 0,
+          rhythm: { base: "quarter", dots: 0 },
+          kind: "rest",
+        },
+      ],
+    };
+
+    const result = reduceScoreCommand(score, {
+      type: "note.add",
+      payload: {
+        trackId: "track-guitar-main",
+        measureId: "measure-001",
+        tick: 2880,
+        slotKind: "gap",
+        gapStartTick: 960,
+        gapEndTick: 3840,
+        rhythm: { base: "quarter", dots: 0 },
+        note: { id: "note-gap-late", string: 1, fret: 7, techniques: [] },
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const ticks = result.value.tracks[0]!.measures[0]!.beats.map(
+      (beat) => beat.tick,
+    );
+    expect(ticks).toEqual([...ticks].sort((left, right) => left - right));
+  });
+
   it("支持删除、复制小节和最后小节 fallback", () => {
     const score = createExampleDocument().score;
     const duplicate = reduceScoreCommand(score, {

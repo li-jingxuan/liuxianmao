@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { EditorMode, RhythmValue, Technique } from "../core/schema";
+import type { EditGridSlotKind } from "../layout/layout-types";
 
 /** 当前光标命中的时间线 slot。页面用它驱动键盘输入和选区高亮。 */
 export interface ActiveCursorPosition {
@@ -7,12 +8,18 @@ export interface ActiveCursorPosition {
   trackId: string;
   /** 光标所在小节 id。 */
   measureId: string;
-  /** 覆盖当前 slot 的真实拍点 id；空槽写入时仍用于定位要拆分的 beat。 */
+  /** beat slot 对应的真实拍点 id；gap slot 不对应真实 beat。 */
   beatId?: string;
-  /** 当前拍点在小节时间线中的 tick。 */
+  /** 当前 slot 在小节时间线中的 tick。 */
   tick: number;
   /** layout/editGrid 派生的 slot id，用于渲染占位网格选中态。 */
   slotId: string;
+  /** 当前 slot 的来源，命令层据此决定是拆 beat 还是写 gap。 */
+  slotKind: EditGridSlotKind;
+  /** gap slot 所属空洞的起始 tick；beat slot 不传。 */
+  gapStartTick?: number;
+  /** gap slot 所属空洞的结束 tick；beat slot 不传。 */
+  gapEndTick?: number;
   /** 当前活跃弦序号，范围 1..6。 */
   string: number;
 }

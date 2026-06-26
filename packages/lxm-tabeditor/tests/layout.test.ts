@@ -496,6 +496,34 @@ describe("六线谱只读排版", () => {
     expect(hitBounds.x + hitBounds.width).toBeGreaterThan(slot.x);
   });
 
+  it("尾部 gap 中的 slot x 坐标按 tick 单调递增且留在小节内", () => {
+    const score = createEmptyScore();
+    score.tracks[0]!.measures[0] = {
+      ...score.tracks[0]!.measures[0]!,
+      beats: [
+        {
+          id: "beat-tail-gap",
+          tick: 0,
+          rhythm: { base: "half", dots: 0 },
+          kind: "rest",
+        },
+      ],
+    };
+
+    const layout = layoutScore(score, {
+      editingRhythm: { base: "quarter", dots: 0 },
+    });
+    const measure = layout.systems[0]!.measures[0]!;
+    const gapSlots =
+      measure.editGrid?.slots.filter((slot) => slot.kind === "gap") ?? [];
+
+    expect(gapSlots.map((slot) => slot.tick)).toEqual([1920, 2880]);
+    expect(gapSlots[0]!.x).toBeLessThan(gapSlots[1]!.x);
+    expect(gapSlots[1]!.x + gapSlots[1]!.width).toBeLessThanOrEqual(
+      measure.x + measure.width,
+    );
+  });
+
   it("三十二分音符输出统一层距的符尾锚点和独立附点坐标", () => {
     const document = createExampleDocument();
     const layout = layoutScore(document.score);

@@ -113,6 +113,7 @@ export const Toolbar: React.FC = () => {
             beatId: nextBeat.id,
             tick: nextBeat.tick,
             slotId: `${nextMeasure.id}-${nextBeat.id}-slot-0`,
+            slotKind: "beat",
             string: activeBeat?.string ?? 1,
           }
         : undefined,

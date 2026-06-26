@@ -50,6 +50,15 @@ interface MeasureWidthSummary {
   idealWidth: number;
 }
 
+const containsEditGridSlotPoint = (
+  context: { x: number; width: number; y: number; height: number },
+  point: { x: number; y: number },
+): boolean =>
+  point.x >= context.x &&
+  point.x < context.x + context.width &&
+  point.y >= context.y &&
+  point.y <= context.y + context.height;
+
 const allocateMeasureWidths = (
   summaries: MeasureWidthSummary[],
   availableWidth: number,
@@ -506,25 +515,43 @@ export const hitTestScoreLayout = (
         (point.y - measure.y - measure.staffTop) / measure.stringSpacing + 1;
       const string = clamp(Math.round(rawString), 1, GUITAR_STRING_COUNT);
       const slot = measure.editGrid?.slots.find((item) =>
-        containsPoint(
+        containsEditGridSlotPoint(
           {
             x: item.x,
             y: measure.y + measure.staffTop - HIT_PADDING,
             width: item.width,
             height: measure.staffHeight + HIT_PADDING * 2,
           },
-          point.x,
-          point.y,
+          point,
         ),
       );
 
       if (slot) {
+        /**
+         * gap slot 和 beat slot 共享同一套命中矩形，但命令层后续处理完全不同：
+         * - beat slot 仍然回指 coveringBeatId，表示“在已有 beat 内部写入”；
+         * - gap slot 不再伪装成最近 beat，而是显式返回 gap 范围，让 reducer
+         *   知道这次写入要 materialize 一段全新的真实时间线片段。
+         */
+        if (slot.kind === "gap") {
+          return {
+            measureId: measure.id,
+            tick: slot.tick,
+            string,
+            slotId: slot.id,
+            slotKind: "gap",
+            gapStartTick: slot.gapStartTick,
+            gapEndTick: slot.gapEndTick,
+          };
+        }
+
         return {
           measureId: measure.id,
           beatId: slot.coveringBeatId,
           tick: slot.tick,
           string,
           slotId: slot.id,
+          slotKind: "beat",
         };
       }
 
