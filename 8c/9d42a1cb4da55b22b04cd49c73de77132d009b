@@ -1,0 +1,263 @@
+apps/website/app/editor/EditorShell/index.tsx
+  h_064d44c346f0f5 10-12 gitai:{"mixed_line_ranges":[{"Single":10}],"operations":[]}
+  s_9d75c4c9ad2af6::t_a32a05746675b8 1
+packages/lxm-editor/src/core/rhythm.ts
+  h_064d44c346f0f5 1-9
+packages/lxm-editor/example/example-mvp1.json.ts
+  s_7ffe3627c93a44::t_6338513c293a9a 173
+  s_f60b1681032b0b::t_4e4855fbbcc1ba 180 gitai:{"mixed_line_ranges":[{"Single":180}],"operations":[]}
+  s_b1fa91b4192047::t_5a2faaedf5e61f 100-104,107
+  s_33785fcf0ee1ec::t_4cf34053c35fe1 80-83,85-89,91
+  s_e232097594af59::t_19b3feb352016e 143
+  s_5982392e11b383::t_31e6241f8531a5 154-157
+  h_064d44c346f0f5 12-13,78,84,90,105-106,109-122,124-134,149-152,158,164,194 gitai:{"mixed_line_ranges":[{"Single":84},{"Single":90},{"Range":[105,106]},{"Single":158},{"Single":164},{"Single":194}],"operations":[]}
+  s_e139f13f30c818::t_01f4e3b6d52983 123
+  s_ebd4b4df0fe2c7::t_ceeaa90a3336fb 184-187,189-193,195
+  s_97c51dec807407::t_cb83b965261c2c 188
+  s_6bbbce9c49439e::t_2f240b8398207e 93
+  s_db5d45fd4d3bfb::t_ac325b7c22b56e 26
+  s_817659d0b82d10::t_9c2dbb794c8be6 99
+  s_095530d5821185::t_79580bf78c2121 27
+packages/lxm-editor/docs/mvp-layout-implementation-plan.md
+  h_064d44c346f0f5 1-1036
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "8c9d42a1cb4da55b22b04cd49c73de77132d009b",
+  "prompts": {},
+  "humans": {
+    "h_064d44c346f0f5": {
+      "author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    }
+  },
+  "sessions": {
+    "s_095530d5821185": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-339a4873-fbc0-4dcb-bd88-79b9f63eaa9d",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_33785fcf0ee1ec": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-64a3a81c-eed6-4f6d-bac7-312fe6d9f715",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_5982392e11b383": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-2fbb9f62-ecf1-49ad-9e0d-b903eedff1e0",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_6bbbce9c49439e": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-b59bb8a5-c713-4035-b022-9bb6163c43b3",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_7ffe3627c93a44": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-66a9becc-f950-4fb6-9380-6b801a91fa95",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_817659d0b82d10": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-6bd13034-d6e0-471d-a018-f64ac04a8001",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_97c51dec807407": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-43b468d9-b871-4658-88c8-77ce6fa26525",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_9d75c4c9ad2af6": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-b09eb6aa-023a-4542-bce6-0b162d185a1b",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_b1fa91b4192047": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-ed490cfb-09d3-4ca0-8d95-8206bf0414c3",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_db5d45fd4d3bfb": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-50d3f331-6519-4ab8-8a6b-708912253bd5",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_e139f13f30c818": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-6e3cadd6-3ca5-4ab9-989f-e11b179c0ce4",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_e232097594af59": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-609b686c-8573-44ee-9b1e-10a027398b36",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_ebd4b4df0fe2c7": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-a0aaef71-8688-4ecf-92ee-1047a6e907be",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_f60b1681032b0b": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-10aaf936-543e-41d8-b28e-bed6537331aa",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {
+    "apps/website/app/editor/EditorShell/index.tsx": [
+      {
+        "hash": "h_064d44c346f0f5",
+        "line_ranges": [
+          {
+            "Range": [
+              10,
+              12
+            ]
+          }
+        ],
+        "mixed_line_ranges": [
+          {
+            "Single": 10
+          }
+        ],
+        "operations": []
+      }
+    ],
+    "packages/lxm-editor/example/example-mvp1.json.ts": [
+      {
+        "hash": "s_f60b1681032b0b::t_4e4855fbbcc1ba",
+        "line_ranges": [
+          {
+            "Single": 180
+          }
+        ],
+        "mixed_line_ranges": [
+          {
+            "Single": 180
+          }
+        ],
+        "operations": []
+      },
+      {
+        "hash": "h_064d44c346f0f5",
+        "line_ranges": [
+          {
+            "Range": [
+              12,
+              13
+            ]
+          },
+          {
+            "Single": 78
+          },
+          {
+            "Single": 84
+          },
+          {
+            "Single": 90
+          },
+          {
+            "Range": [
+              105,
+              106
+            ]
+          },
+          {
+            "Range": [
+              109,
+              122
+            ]
+          },
+          {
+            "Range": [
+              124,
+              134
+            ]
+          },
+          {
+            "Range": [
+              149,
+              152
+            ]
+          },
+          {
+            "Single": 158
+          },
+          {
+            "Single": 164
+          },
+          {
+            "Single": 194
+          }
+        ],
+        "mixed_line_ranges": [
+          {
+            "Single": 84
+          },
+          {
+            "Single": 90
+          },
+          {
+            "Range": [
+              105,
+              106
+            ]
+          },
+          {
+            "Single": 158
+          },
+          {
+            "Single": 164
+          },
+          {
+            "Single": 194
+          }
+        ],
+        "operations": []
+      }
+    ]
+  },
+  "remote_transcripts": {}
+}
