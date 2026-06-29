@@ -9,6 +9,8 @@
  *  - 节奏型（全音、二分、四分、八分、十六分、三十二分音符、浮点音符）
  */
 
+import { ILXMDocument } from "../src";
+
 /**
  * MVP 02 简单编辑
  * 
@@ -21,8 +23,8 @@
  * 
 */
 
-export const example = {
-  schema: 'lxm-tab-score',
+const EXAMPLE_MVP_1: ILXMDocument = {
+  schema: "lxm-tab-score",
   schemaVersion: 1,
   documentRevision: 1,
   // 乐谱信息
@@ -73,20 +75,125 @@ export const example = {
             ],
             // 节拍
             beats: [
+              // 第一拍
               {
-                id: "beat-001-01",
+                id: "beat-001-00",
                 // 时值
                 tick: 0,
                 // 节奏
-                rhythm: { base: 'eighth', dots: 0 }, // rhythm("eighth"),
+                rhythm: { base: 'quarter', dots: 0 },
                 // 类型
                 kind: "notes",
                 // 具体标记
                 notes: [
                   // string: 弦号，fret：品位
-                  { id: '', string: 1, fret: 0 }
+                  { id: 'note-001-00', string: 5, fret: 3 }
                 ],
               },
+              // 第二拍
+              {
+                id: "beat-001-01",
+                // 时值
+                tick: 0,
+                // 节奏
+                rhythm: { base: 'eighth', dots: 0 },
+                // 类型
+                kind: "notes",
+                // 具体标记
+                notes: [
+                  // string: 弦号，fret：品位
+                  { id: 'note-001-01', string: 3, fret: 3 },
+                  { id: 'note-001-01', string: 2, fret: 3 }
+                ],
+              },
+              {
+                id: "beat-001-02",
+                // 时值
+                tick: 0,
+                // 节奏
+                rhythm: { base: 'eighth', dots: 0 },
+                // 类型
+                kind: "notes",
+                // 具体标记
+                notes: [
+                  // string: 弦号，fret：品位
+                  { id: 'note-001-03', string: 5, fret: 5 }
+                ],
+              },
+              // 第三拍
+              {
+                id: "beat-001-03",
+                // 时值
+                tick: 0,
+                // 节奏
+                rhythm: { base: 'eighth', dots: 0 },
+                // 类型
+                kind: "notes",
+                // 具体标记
+                notes: [
+                  // string: 弦号，fret：品位
+                  { id: 'note-001-03', string: 5, fret: 5 }
+                ],
+              },
+              {
+                id: "beat-001-04",
+                // 时值
+                tick: 0,
+                // 节奏
+                rhythm: { base: 'sixteenth', dots: 0 },
+                // 类型
+                kind: "notes",
+                // 具体标记
+                notes: [
+                  // string: 弦号，fret：品位
+                  { id: 'note-001-04', string: 2, fret: 3 },
+                  { id: 'note-001-05', string: 6, fret: 0 }
+                ],
+              },
+              {
+                id: "beat-001-05",
+                // 时值
+                tick: 0,
+                // 节奏
+                rhythm: { base: 'sixteenth', dots: 0 },
+                // 类型
+                kind: "notes",
+                // 具体标记
+                notes: [
+                  // string: 弦号，fret：品位
+                  { id: 'note-001-06', string: 6, fret: 3 }
+                ],
+              },
+              // 第四拍
+              {
+                id: "beat-001-6",
+                // 时值
+                tick: 0,
+                // 节奏
+                rhythm: { base: 'sixteenth', dots: 0 }, // rhythm("eighth"),
+                // 类型
+                kind: "notes",
+                // 具体标记
+                notes: [
+                  // string: 弦号，fret：品位
+                  { id: 'note-001-07', string: 6, fret: 3 },
+                  { id: 'note-001-08', string: 2, fret: 3 }
+                ],
+              },
+              {
+                id: "beat-001-7",
+                // 时值
+                tick: 0,
+                // 节奏
+                rhythm: { base: 'eighth', dots: 0 },
+                // 类型
+                kind: "notes",
+                // 具体标记
+                notes: [
+                  // string: 弦号，fret：品位
+                  { id: 'note-001-09', string: 6, fret: 0 }
+                ],
+              }
             ]
           }
         ]
@@ -94,3 +201,5 @@ export const example = {
     ]
   }
 }
+
+export default EXAMPLE_MVP_1;

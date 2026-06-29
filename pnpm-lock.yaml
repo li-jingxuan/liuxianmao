@@ -26,6 +26,9 @@ importers:
 
   apps/website:
     dependencies:
+      '@liuxianmao/lxm-editor':
+        specifier: workspace:*
+        version: link:../../packages/lxm-editor
       '@liuxianmao/lxm-tabeditor':
         specifier: workspace:*
         version: link:../../packages/lxm-tabeditor
