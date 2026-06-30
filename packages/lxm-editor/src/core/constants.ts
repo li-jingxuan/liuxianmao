@@ -4,7 +4,7 @@ export const SCORE_DOCUMENT_SCHEMA = "lxm-tab-score" as const;
 /** 当前文档版本；项目明确不维护旧版本迁移链。 */
 export const CURRENT_SCHEMA_VERSION = 1 as const;
 
-/** 四分音符 tick 数，兼顾附点与常用二至六连音。 */
+/** 四分音符一拍的 tick 数，兼顾附点与常用二至六连音。 */
 export const TICKS_PER_QUARTER = 960 as const;
 
 /** 吉他 MVP 的固定弦数。 */

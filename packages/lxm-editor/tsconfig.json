@@ -5,6 +5,7 @@
     "types": ["node", "vitest/globals"]
   },
   "include": [
+    "example/*.ts",
     "src/**/*.ts",
     "src/**/*.tsx",
     "tests/**/*.ts",

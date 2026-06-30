@@ -1,1 +1,0 @@
-{"version":3,"file":"index.js","sourceRoot":"","sources":["index.ts"],"names":[],"mappings":"AACA,OAAO,KAAK,aAAa,MAAM,qBAAqB,CAAA","sourcesContent":["\nexport * as EXAMPLE_MVP_1 from './example-mvp1.json'\n"]}

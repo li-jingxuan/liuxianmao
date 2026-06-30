@@ -90,7 +90,7 @@ const EXAMPLE_MVP_1 = {
                             {
                                 id: "beat-001-01",
                                 // 时值
-                                tick: 0,
+                                tick: 960,
                                 // 节奏
                                 rhythm: { base: 'eighth', dots: 0 },
                                 // 类型
@@ -105,7 +105,7 @@ const EXAMPLE_MVP_1 = {
                             {
                                 id: "beat-001-02",
                                 // 时值
-                                tick: 0,
+                                tick: 1440,
                                 // 节奏
                                 rhythm: { base: 'eighth', dots: 0 },
                                 // 类型
@@ -120,7 +120,7 @@ const EXAMPLE_MVP_1 = {
                             {
                                 id: "beat-001-03",
                                 // 时值
-                                tick: 0,
+                                tick: 1920,
                                 // 节奏
                                 rhythm: { base: 'eighth', dots: 0 },
                                 // 类型
@@ -134,7 +134,7 @@ const EXAMPLE_MVP_1 = {
                             {
                                 id: "beat-001-04",
                                 // 时值
-                                tick: 0,
+                                tick: 2400,
                                 // 节奏
                                 rhythm: { base: 'sixteenth', dots: 0 },
                                 // 类型
@@ -149,7 +149,7 @@ const EXAMPLE_MVP_1 = {
                             {
                                 id: "beat-001-05",
                                 // 时值
-                                tick: 0,
+                                tick: 2640,
                                 // 节奏
                                 rhythm: { base: 'sixteenth', dots: 0 },
                                 // 类型
@@ -164,7 +164,7 @@ const EXAMPLE_MVP_1 = {
                             {
                                 id: "beat-001-6",
                                 // 时值
-                                tick: 0,
+                                tick: 2880,
                                 // 节奏
                                 rhythm: { base: 'sixteenth', dots: 0 }, // rhythm("eighth"),
                                 // 类型
@@ -179,7 +179,7 @@ const EXAMPLE_MVP_1 = {
                             {
                                 id: "beat-001-7",
                                 // 时值
-                                tick: 0,
+                                tick: 3120,
                                 // 节奏
                                 rhythm: { base: 'eighth', dots: 0 },
                                 // 类型
