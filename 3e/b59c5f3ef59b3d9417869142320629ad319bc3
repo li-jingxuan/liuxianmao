@@ -1,0 +1,982 @@
+packages/lxm-editor/tsconfig.json
+  h_064d44c346f0f5 8 gitai:{"mixed_line_ranges":[{"Single":8}],"operations":[]}
+packages/lxm-editor/src/core/constants.ts
+  h_064d44c346f0f5 7
+packages/lxm-editor/src/layout/layout-constants.ts
+  s_e3556a218aa871::t_c2674912ba2db4 27-28,30
+  h_064d44c346f0f5 2,11,14-15,17-18,20-23,26,29,32-52 gitai:{"mixed_line_ranges":[{"Single":11},{"Single":18}],"operations":[]}
+  s_d2cbb7b6ec831c::t_cae792212d0981 24
+packages/lxm-editor/src/layout/layout-types.ts
+  s_67ea380166062b::t_c5a5b0eb8ba7b9 54
+  s_02ef7fa9807038::t_880c2723a4b840 71
+  s_452403e0c68a97::t_b047b32d5c1944 36-37 gitai:{"mixed_line_ranges":[{"Single":37}],"operations":[]}
+  s_a1b755bbd16e99::t_789722d872f7db 38 gitai:{"mixed_line_ranges":[{"Single":38}],"operations":[]}
+  s_2ce32dd2cbeadc::t_6a7106151f44da 24
+  h_064d44c346f0f5 9,13,19,28-30,39-53,55-57,59,61-70,72-107 gitai:{"mixed_line_ranges":[{"Single":9},{"Single":30},{"Single":45},{"Single":53},{"Single":61},{"Single":73}],"operations":[]}
+  s_c88a48ab052bb5::t_2c8a0b731027ba 33-34 gitai:{"mixed_line_ranges":[{"Single":34}],"operations":[]}
+packages/lxm-editor/tsconfig.build.json
+  s_d0b4b9451c250f::t_a711f1fbcc4f8f 10
+packages/lxm-editor/src/layout/layout-helpers.ts
+  h_064d44c346f0f5 8,10-12 gitai:{"mixed_line_ranges":[{"Single":8}],"operations":[]}
+packages/lxm-editor/src/layout/index.ts
+  s_933b7d9451f743::t_e621a2521d1e7b 22
+  s_0f56358cd24703::t_30b918f488c18f 3,7
+  s_930e77b973a327::t_23a560320f610c 32
+  s_74d901a4ff0f97::t_f9baa3d38b91ff 88-89
+  s_6708f66804ece4::t_9bcc8b0d698949 68-70
+  s_27a3f62830a90e::t_c8f55f500694f6 47
+  s_49d03fbcc27f33::t_d51a7edec5683f 77 gitai:{"mixed_line_ranges":[{"Single":77}],"operations":[]}
+  s_e2ec46dcefde6c::t_ed32bb5e690226 23-24,26-27
+  h_064d44c346f0f5 1-2,5-6,8,10,12-13,17,19-21,25,28-31,34-39,41-46,48,52-53,55,57,63-64,66-67,71-76,83-87,91 gitai:{"mixed_line_ranges":[{"Single":5},{"Single":17},{"Range":[28,29]},{"Range":[37,38]},{"Single":52},{"Single":55},{"Single":63},{"Single":74},{"Single":86}],"operations":[]}
+  s_3bd5bb0c390c1d::t_425fdba73f70ac 65
+  s_846c82908a3dfc::t_ecd5f8d3ac1a13 80
+  s_e6779075681626::t_b1c2966be30c9e 33
+  s_4314de8183b91c::t_14dabaaa92caf1 54,56
+  s_b310a8df723cc3::t_178208033c966c 90
+  s_b733afd347da54::t_c65849c1de0ece 78,82
+packages/lxm-editor/src/layout/measure-layout.ts
+  h_064d44c346f0f5 9-10,12-18,20,22-28,30-32,34,41 gitai:{"mixed_line_ranges":[{"Single":18},{"Single":31}],"operations":[]}
+  s_62b62260cd94ce::t_4c8118c3600fa7 29
+  s_b608ec3c6efea3::t_c9be6612d03769 11
+  s_c3c356a628b6b0::t_da24190d49a7ef 21
+  s_107e26a9de0634::t_0c81dbc03f60bd 35-40
+packages/lxm-editor/src/core/rhythm.ts
+  s_4769843becaaa6::t_ba03facbbca216 34-37
+  s_ad665434010803::t_c32e131a06961e 21
+  s_eb77830ba7fb3d::t_e21e6fa911841f 11
+  h_064d44c346f0f5 48,56 gitai:{"mixed_line_ranges":[{"Single":56}],"operations":[]}
+  s_809ad0a284af41::t_c48b943caa8d12 43
+packages/lxm-editor/src/layout/measure-spacing.ts
+  s_54ddfaca4e460e::t_5525e8bdb892b7 49
+  s_5f0c1e1f65d174::t_410010ad952a36 96
+  s_e8ea0b318e9905::t_1431820cb8f7aa 20
+  s_bc923b412bf477::t_6518102220110e 44
+  s_bd1a17f04ec481::t_3f17d96aecd67e 22
+  s_b4942474fd1e44::t_3f8d96e82be833 29
+  s_0e88d77c3fe48b::t_8ba40217833b43 141
+  s_a51760db0c9103::t_12d30da73353ff 51,53
+  s_365fc057ccb039::t_55ee8827c3ef03 58-59
+  h_064d44c346f0f5 1-17,19,21,23-28,30,32-33,35-43,45-46,50,52,57,60-64,66-95,97-136,138-139,142-145 gitai:{"mixed_line_ranges":[{"Range":[45,46]},{"Single":50},{"Single":57},{"Single":60},{"Range":[62,63]},{"Single":69},{"Single":76},{"Single":79},{"Range":[98,99]},{"Single":102},{"Single":145}],"operations":[]}
+  s_782bf1c9f4352b::t_a8d232cacb17f6 31
+  s_58c0abcd2c68df::t_33c9a2884f248c 56
+  s_b47ce02caa6de9::t_6ea7ce5089f4b6 47-48
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "3eb59c5f3ef59b3d9417869142320629ad319bc3",
+  "prompts": {},
+  "humans": {
+    "h_064d44c346f0f5": {
+      "author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    }
+  },
+  "sessions": {
+    "s_02ef7fa9807038": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-c2a27786-d694-4e11-85b8-16f3f2380f07",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_0e88d77c3fe48b": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-729eb7e9-d03d-4bc1-b97c-acb43ae8f2eb",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_0f56358cd24703": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-5402e6ca-3969-4458-8963-f08406fed30a",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_107e26a9de0634": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-2e3f2803-2f9d-4fc1-ba75-914606708cd2",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_27a3f62830a90e": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-6c771415-be81-4f68-b4d0-bf6b59e5befe",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_2ce32dd2cbeadc": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-e7cbd11b-3d6c-4077-957a-7c78ad02cd21",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_365fc057ccb039": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-49597a84-55c7-4eb6-8304-ba198c6e82fb",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_3bd5bb0c390c1d": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-722b975e-fb00-445b-894a-197d3335edf4",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_4314de8183b91c": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-1852c011-f692-45d2-9693-87182cc222f5",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_452403e0c68a97": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-7ce61768-6e9a-4819-86a9-6f78602ce3ea",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_4769843becaaa6": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-863f3954-3380-4045-b33b-5a75896b5edd",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_49d03fbcc27f33": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-1c96a959-ed8a-4d2d-8a02-039f00c9ac78",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_54ddfaca4e460e": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-b8d1c8ba-a667-4948-8aaa-29935806d2d6",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_58c0abcd2c68df": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-1f663418-b370-429b-b525-f0807cd35a1f",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_5f0c1e1f65d174": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-3e1ba499-18df-47de-80cd-5195708692c4",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_62b62260cd94ce": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-15a5e53c-9259-40e4-8859-99867abc43a5",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_6708f66804ece4": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-d87faf0f-97fd-487e-809f-d3f3f24c92b0",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_67ea380166062b": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-ae548fdf-5394-4065-a47f-a17e596675d5",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_74d901a4ff0f97": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-4efcbe4d-03ce-4b4d-a344-0d52e287854b",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_782bf1c9f4352b": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-bca4c2df-a489-4da3-bf37-f590f5d79ed8",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_809ad0a284af41": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-efbdac98-4379-405e-9960-a6cbcccd95f5",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_846c82908a3dfc": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-1595e9e7-d7c1-4845-974c-9707aaa74142",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_930e77b973a327": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-8920b4f4-8e2b-40ad-8eb4-330d298ebd42",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_933b7d9451f743": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-56bb3057-9e22-4163-a8cb-8fbfadf4259d",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_a1b755bbd16e99": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-9efd0a5f-d793-4f7b-8761-766d957fe143",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_a51760db0c9103": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-46a0bf84-7ca5-4574-ad9b-d02be318758f",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_ad665434010803": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-e5be9093-22e5-495f-a9b3-aabd1de7ecde",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_b310a8df723cc3": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-5e32d270-d5b1-4176-a2cb-b15aedf7e48e",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_b47ce02caa6de9": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-d9a2d282-9fc4-4df2-ad7a-4968d13fb9c1",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_b4942474fd1e44": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-e6a964f3-2982-4923-9c88-4cb2285ee835",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_b608ec3c6efea3": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-62f02547-e2b5-41c2-970e-3852e17c94c9",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_b733afd347da54": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-2b5aafca-c794-45ce-8484-16e43cb2a37f",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_bc923b412bf477": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-a7e57aab-963b-4f50-9099-d9fa7de73314",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_bd1a17f04ec481": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-7de46c95-da64-4dfa-96af-f20d8dcee5cd",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_c3c356a628b6b0": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-297184b8-035f-4481-abf3-dbf8e5daf5cc",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_c88a48ab052bb5": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-0c822904-eb12-455d-b36f-393c7c114191",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_d0b4b9451c250f": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-01d26d6b-f34a-4690-8081-0e149062e4c9",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_d2cbb7b6ec831c": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-ba01850c-e8ee-41eb-a739-7974190e4956",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_e2ec46dcefde6c": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-f802863d-3469-4232-a60f-7dbe9b5111c4",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_e3556a218aa871": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-5b7adc38-6839-4a90-8d2a-7ebfd7905216",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_e6779075681626": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-65cfc034-5bfa-4aff-b97c-4c906bc52911",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_e8ea0b318e9905": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-cde055b3-9f9b-45b5-b4e1-375e072c8523",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    },
+    "s_eb77830ba7fb3d": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-d6cde767-fd65-423f-a1ea-d057a65f6340",
+        "model": "default"
+      },
+      "human_author": "lijingxuan <lijingxuan.mekh@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {
+    "packages/lxm-editor/src/core/rhythm.ts": [
+      {
+        "hash": "h_064d44c346f0f5",
+        "line_ranges": [
+          {
+            "Single": 48
+          },
+          {
+            "Single": 56
+          }
+        ],
+        "mixed_line_ranges": [
+          {
+            "Single": 56
+          }
+        ],
+        "operations": []
+      }
+    ],
+    "packages/lxm-editor/src/layout/index.ts": [
+      {
+        "hash": "s_49d03fbcc27f33::t_d51a7edec5683f",
+        "line_ranges": [
+          {
+            "Single": 77
+          }
+        ],
+        "mixed_line_ranges": [
+          {
+            "Single": 77
+          }
+        ],
+        "operations": []
+      },
+      {
+        "hash": "h_064d44c346f0f5",
+        "line_ranges": [
+          {
+            "Range": [
+              1,
+              2
+            ]
+          },
+          {
+            "Range": [
+              5,
+              6
+            ]
+          },
+          {
+            "Single": 8
+          },
+          {
+            "Single": 10
+          },
+          {
+            "Range": [
+              12,
+              13
+            ]
+          },
+          {
+            "Single": 17
+          },
+          {
+            "Range": [
+              19,
+              21
+            ]
+          },
+          {
+            "Single": 25
+          },
+          {
+            "Range": [
+              28,
+              31
+            ]
+          },
+          {
+            "Range": [
+              34,
+              39
+            ]
+          },
+          {
+            "Range": [
+              41,
+              46
+            ]
+          },
+          {
+            "Single": 48
+          },
+          {
+            "Range": [
+              52,
+              53
+            ]
+          },
+          {
+            "Single": 55
+          },
+          {
+            "Single": 57
+          },
+          {
+            "Range": [
+              63,
+              64
+            ]
+          },
+          {
+            "Range": [
+              66,
+              67
+            ]
+          },
+          {
+            "Range": [
+              71,
+              76
+            ]
+          },
+          {
+            "Range": [
+              83,
+              87
+            ]
+          },
+          {
+            "Single": 91
+          }
+        ],
+        "mixed_line_ranges": [
+          {
+            "Single": 5
+          },
+          {
+            "Single": 17
+          },
+          {
+            "Range": [
+              28,
+              29
+            ]
+          },
+          {
+            "Range": [
+              37,
+              38
+            ]
+          },
+          {
+            "Single": 52
+          },
+          {
+            "Single": 55
+          },
+          {
+            "Single": 63
+          },
+          {
+            "Single": 74
+          },
+          {
+            "Single": 86
+          }
+        ],
+        "operations": []
+      }
+    ],
+    "packages/lxm-editor/src/layout/layout-constants.ts": [
+      {
+        "hash": "h_064d44c346f0f5",
+        "line_ranges": [
+          {
+            "Single": 2
+          },
+          {
+            "Single": 11
+          },
+          {
+            "Range": [
+              14,
+              15
+            ]
+          },
+          {
+            "Range": [
+              17,
+              18
+            ]
+          },
+          {
+            "Range": [
+              20,
+              23
+            ]
+          },
+          {
+            "Single": 26
+          },
+          {
+            "Single": 29
+          },
+          {
+            "Range": [
+              32,
+              52
+            ]
+          }
+        ],
+        "mixed_line_ranges": [
+          {
+            "Single": 11
+          },
+          {
+            "Single": 18
+          }
+        ],
+        "operations": []
+      }
+    ],
+    "packages/lxm-editor/src/layout/layout-helpers.ts": [
+      {
+        "hash": "h_064d44c346f0f5",
+        "line_ranges": [
+          {
+            "Single": 8
+          },
+          {
+            "Range": [
+              10,
+              12
+            ]
+          }
+        ],
+        "mixed_line_ranges": [
+          {
+            "Single": 8
+          }
+        ],
+        "operations": []
+      }
+    ],
+    "packages/lxm-editor/src/layout/layout-types.ts": [
+      {
+        "hash": "s_452403e0c68a97::t_b047b32d5c1944",
+        "line_ranges": [
+          {
+            "Range": [
+              36,
+              37
+            ]
+          }
+        ],
+        "mixed_line_ranges": [
+          {
+            "Single": 37
+          }
+        ],
+        "operations": []
+      },
+      {
+        "hash": "s_a1b755bbd16e99::t_789722d872f7db",
+        "line_ranges": [
+          {
+            "Single": 38
+          }
+        ],
+        "mixed_line_ranges": [
+          {
+            "Single": 38
+          }
+        ],
+        "operations": []
+      },
+      {
+        "hash": "h_064d44c346f0f5",
+        "line_ranges": [
+          {
+            "Single": 9
+          },
+          {
+            "Single": 13
+          },
+          {
+            "Single": 19
+          },
+          {
+            "Range": [
+              28,
+              30
+            ]
+          },
+          {
+            "Range": [
+              39,
+              53
+            ]
+          },
+          {
+            "Range": [
+              55,
+              57
+            ]
+          },
+          {
+            "Single": 59
+          },
+          {
+            "Range": [
+              61,
+              70
+            ]
+          },
+          {
+            "Range": [
+              72,
+              107
+            ]
+          }
+        ],
+        "mixed_line_ranges": [
+          {
+            "Single": 9
+          },
+          {
+            "Single": 30
+          },
+          {
+            "Single": 45
+          },
+          {
+            "Single": 53
+          },
+          {
+            "Single": 61
+          },
+          {
+            "Single": 73
+          }
+        ],
+        "operations": []
+      },
+      {
+        "hash": "s_c88a48ab052bb5::t_2c8a0b731027ba",
+        "line_ranges": [
+          {
+            "Range": [
+              33,
+              34
+            ]
+          }
+        ],
+        "mixed_line_ranges": [
+          {
+            "Single": 34
+          }
+        ],
+        "operations": []
+      }
+    ],
+    "packages/lxm-editor/src/layout/measure-layout.ts": [
+      {
+        "hash": "h_064d44c346f0f5",
+        "line_ranges": [
+          {
+            "Range": [
+              9,
+              10
+            ]
+          },
+          {
+            "Range": [
+              12,
+              18
+            ]
+          },
+          {
+            "Single": 20
+          },
+          {
+            "Range": [
+              22,
+              28
+            ]
+          },
+          {
+            "Range": [
+              30,
+              32
+            ]
+          },
+          {
+            "Single": 34
+          },
+          {
+            "Single": 41
+          }
+        ],
+        "mixed_line_ranges": [
+          {
+            "Single": 18
+          },
+          {
+            "Single": 31
+          }
+        ],
+        "operations": []
+      }
+    ],
+    "packages/lxm-editor/src/layout/measure-spacing.ts": [
+      {
+        "hash": "h_064d44c346f0f5",
+        "line_ranges": [
+          {
+            "Range": [
+              1,
+              17
+            ]
+          },
+          {
+            "Single": 19
+          },
+          {
+            "Single": 21
+          },
+          {
+            "Range": [
+              23,
+              28
+            ]
+          },
+          {
+            "Single": 30
+          },
+          {
+            "Range": [
+              32,
+              33
+            ]
+          },
+          {
+            "Range": [
+              35,
+              43
+            ]
+          },
+          {
+            "Range": [
+              45,
+              46
+            ]
+          },
+          {
+            "Single": 50
+          },
+          {
+            "Single": 52
+          },
+          {
+            "Single": 57
+          },
+          {
+            "Range": [
+              60,
+              64
+            ]
+          },
+          {
+            "Range": [
+              66,
+              95
+            ]
+          },
+          {
+            "Range": [
+              97,
+              136
+            ]
+          },
+          {
+            "Range": [
+              138,
+              139
+            ]
+          },
+          {
+            "Range": [
+              142,
+              145
+            ]
+          }
+        ],
+        "mixed_line_ranges": [
+          {
+            "Range": [
+              45,
+              46
+            ]
+          },
+          {
+            "Single": 50
+          },
+          {
+            "Single": 57
+          },
+          {
+            "Single": 60
+          },
+          {
+            "Range": [
+              62,
+              63
+            ]
+          },
+          {
+            "Single": 69
+          },
+          {
+            "Single": 76
+          },
+          {
+            "Single": 79
+          },
+          {
+            "Range": [
+              98,
+              99
+            ]
+          },
+          {
+            "Single": 102
+          },
+          {
+            "Single": 145
+          }
+        ],
+        "operations": []
+      }
+    ],
+    "packages/lxm-editor/tsconfig.json": [
+      {
+        "hash": "h_064d44c346f0f5",
+        "line_ranges": [
+          {
+            "Single": 8
+          }
+        ],
+        "mixed_line_ranges": [
+          {
+            "Single": 8
+          }
+        ],
+        "operations": []
+      }
+    ]
+  },
+  "remote_transcripts": {}
+}
