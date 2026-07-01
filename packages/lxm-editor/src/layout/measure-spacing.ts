@@ -26,7 +26,13 @@ interface ILXMMeasureSpacingSummary {
   assignedWidth: number;
   slotsByBeatId: Record<string, ILXMBeatLayout>;
 }
-type ILXMSummarizeMeasureSpacingWidth = Omit<ILXMMeasureSpacingSummary, "assignedWidth" | "slotsByBeatId">;
+type ILXMSummarizeMeasureSpacingWidth = 
+  Omit<
+    ILXMMeasureSpacingSummary, "slotsByBeatId"
+  > & {
+    // 小节内容的宽度（不包含左右边距）
+    contentWidth: number;
+  };
 
 /** 计算当前拍的节奏 tick 数量 */
 const getBeatRhythmTicks = (beat: ILXMBeat): number => {
@@ -82,11 +88,18 @@ export const summarizeMeasureSpacingWidth = (measure: ILXMMeasure): ILXMSummariz
     measurePaddingX,
   );
 
+  const assignedWidth = Math.max(idealWidth, minWidth);
+  
   return {
     measureId: measure.id,
+    // 理想宽度 和 最小宽度
     minWidth,
     idealWidth,
     columns,
+    // 小节分配的宽度
+    assignedWidth,
+    // 小节内容的宽度（不包含左右边距）
+    contentWidth: assignedWidth - measurePaddingX,
   };
 };
 
@@ -98,27 +111,18 @@ export const layoutMeasureSpacing = (
   context: {
     x: number;
     // TODO 如果这个小节已经分配了宽度，目前版本这个参数没有意义
-    assignedWidth?: number;
+    // assignedWidth?: number;
   },
 ): ILXMMeasureSpacingSummary => {
   // 小节 Column Width 摘要信息
   const summary = summarizeMeasureSpacingWidth(measure)
 
-  const assignedWidth = Math.max(
-    context.assignedWidth ?? summary.idealWidth,
-    summary.minWidth,
-  );
-  const availableWidth = Math.max(0, assignedWidth - LXM_MEASURE_PADDING_X * 2);
-  const totalIdealWidth = summary.columns.reduce(
-    (total, column) => total + column.idealWidth,
-    0,
-  );
-  const scale = totalIdealWidth > 0 ? availableWidth / totalIdealWidth : 1;
+  // 计算每个 beat 节拍的x坐标信息
   const slotsByBeatId: Record<string, ILXMBeatLayout> = {};
+  // 当前 x 游标位置
   let cursorX = context.x + LXM_MEASURE_PADDING_X;
-
   summary.columns.forEach((column, columnIndex) => {
-    const width = Math.max(column.minWidth, column.idealWidth * scale);
+    const width = Math.max(column.minWidth, column.idealWidth);
 
     for (const beatId of column.beatIds) {
       const beat = measure.beats.find((item) => item.id === beatId);
@@ -140,7 +144,6 @@ export const layoutMeasureSpacing = (
 
   return {
     ...summary,
-    assignedWidth,
     slotsByBeatId,
   };
 }

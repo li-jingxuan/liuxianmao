@@ -1,5 +1,10 @@
 import type {
   CURRENT_SCHEMA_VERSION,
+  LXM_BARLINE_TYPES,
+  LXM_BEAT_KINDS,
+  LXM_CHORD_SYMBOL_DISPLAY_TYPES,
+  LXM_INSTRUMENT_TYPES,
+  LXM_RHYTHM_BASES,
   SCORE_DOCUMENT_SCHEMA,
   STANDARD_GUITAR_TUNING,
 } from "./constants";
@@ -9,28 +14,6 @@ export type ILXMSchema = typeof SCORE_DOCUMENT_SCHEMA;
 
 /** MVP 阶段支持的乐谱文档版本。 */
 export type ILXMSchemaVersion = typeof CURRENT_SCHEMA_VERSION;
-
-/** 可展示在六线谱上的基础节奏类型。 */
-export const LXM_RHYTHM_BASES = [
-  "whole",
-  "half",
-  "quarter",
-  "eighth",
-  "sixteenth",
-  "thirtySecond",
-] as const;
-
-/** 小节线类型；当前示例只包含单小节线。 */
-export const LXM_BARLINE_TYPES = ["single"] as const;
-
-/** 乐器类型；当前 MVP 只描述吉他轨道。 */
-export const LXM_INSTRUMENT_TYPES = ["guitar"] as const;
-
-/** 和弦标记的展示方式。 */
-export const LXM_CHORD_SYMBOL_DISPLAY_TYPES = ["nameAndDiagram"] as const;
-
-/** 节拍内容类型；notes 表示真实音符集合。 */
-export const LXM_BEAT_KINDS = ["notes"] as const;
 
 export type ILXMRhythmBase = (typeof LXM_RHYTHM_BASES)[number];
 export type ILXMBarlineType = (typeof LXM_BARLINE_TYPES)[number];

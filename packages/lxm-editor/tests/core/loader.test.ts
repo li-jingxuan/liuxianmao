@@ -15,7 +15,7 @@ describe("loadDocument", () => {
 
     expect(result.ok).toBe(true);
     expect(result.document.score.tracks[0]?.measures[0]?.beats[0]?.rhythm.base).toBe(
-      "eighth",
+      "quarter",
     );
   });
 

@@ -6,7 +6,7 @@
  * 一套结构化布局产物，而不是直接理解原始乐谱数据。
  */
 
-import type { ILXMTrack, ILXMRhythm } from "../core/types";
+import type { ILXMTrack, ILXMRhythm, ILXMBarlineType } from "../core/types";
 
 /** 后续歌词、简谱、和弦等内容通过 beatId 贡献额外列宽。 */
 export interface ILXMColumnWidthContributors {
@@ -42,6 +42,7 @@ export interface ILXMLayout {
 export interface ILXMMeasureLayout {
   id: string;
   index: number;
+  
   // 小节在谱面上的起始坐标
   x: number;
   y: number;
@@ -49,6 +50,8 @@ export interface ILXMMeasureLayout {
   width: number;
   height: number;
 
+  // 小节线布局
+  barline: ILXMBarlineLayout;
   // 基于 measure.beats 原始数据计算节奏列宽 columns
   // 基于 columns 计算到的 beats(beat slot) 位置（x，width: columns.idealWidth）
   // 基于 beat.x + string.y 得到每个 note 的位置（x，y）
@@ -104,4 +107,25 @@ export interface ILXMNoteLayout {
   fretText: string;
   x: number;
   y: number;
+}
+
+/** 小节线布局结果。 */
+export interface ILXMBarlineLayout {
+  type: ILXMBarlineType;
+  parts: ILXMBarlinePartLayout[];
+}
+
+export type ILXMBarlinePartLayout = ILXMBarlineLinePartLayout | ILXMBarlineDotPartLayout;
+export interface ILXMBarlineLinePartLayout {
+  kind: 'line';
+  x: number;
+  y1: number;
+  y2: number;
+  strokeWidth: number;
+}
+export interface ILXMBarlineDotPartLayout {
+  kind: "dot";
+  cx: number;
+  cy: number;
+  radius: number;
 }

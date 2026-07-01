@@ -1,12 +1,16 @@
 import { z } from "zod";
 
-import { CURRENT_SCHEMA_VERSION, MAX_FRET, SCORE_DOCUMENT_SCHEMA } from "./constants";
 import {
+  CURRENT_SCHEMA_VERSION,
   LXM_BARLINE_TYPES,
   LXM_BEAT_KINDS,
   LXM_CHORD_SYMBOL_DISPLAY_TYPES,
   LXM_INSTRUMENT_TYPES,
   LXM_RHYTHM_BASES,
+  MAX_FRET,
+  SCORE_DOCUMENT_SCHEMA,
+} from "./constants";
+import {
   type ILXMBeat,
   type ILXMChordSymbol,
   type ILXMDocument,

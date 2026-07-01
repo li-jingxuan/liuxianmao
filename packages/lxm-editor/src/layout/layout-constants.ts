@@ -30,6 +30,26 @@ export const LXM_STRING_SPACING = 12;
 // 六线谱的高度
 export const LXM_STAFF_HEIGHT = LXM_STRING_SPACING * (GUITAR_STRING_COUNT - 1);
 
+// 小节线细线宽度
+export const LXM_BARLINE_THIN_STROKE_WIDTH = 1;
+
+// 小节线粗线宽度
+export const LXM_BARLINE_THICK_STROKE_WIDTH = 3;
+
+// 复合小节线中相邻竖线的横向间距
+export const LXM_BARLINE_LINE_GAP = 4;
+
+// 反复小节线圆点半径
+export const LXM_BARLINE_REPEAT_DOT_RADIUS = 2;
+
+// 反复小节线圆点与基准竖线的横向距离
+export const LXM_BARLINE_REPEAT_DOT_OFFSET_X = 8;
+
+// 反复小节线上方圆点相对第一弦的纵向偏移
+export const LXM_BARLINE_REPEAT_UPPER_DOT_OFFSET_Y = LXM_STRING_SPACING * 1.5;
+
+// 反复小节线下方圆点相对第一弦的纵向偏移
+export const LXM_BARLINE_REPEAT_LOWER_DOT_OFFSET_Y = LXM_STRING_SPACING * 3.5;
 
 /** 不同时值的视觉权重只影响横向距离，不改变音乐 tick。 */
 export const LXM_DURATION_VISUAL_WEIGHT = {

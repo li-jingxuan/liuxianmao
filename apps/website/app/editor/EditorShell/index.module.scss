@@ -1,0 +1,12 @@
+.scoreSvg{
+  margin: 20px;
+}
+
+.scoreSvg .fretNoteText{
+  font-size: 12px;
+  stroke: #fff;
+  stroke-linejoin: round;
+  stroke-width: 5px;
+  paint-order: stroke;
+  font-weight: 700;
+}

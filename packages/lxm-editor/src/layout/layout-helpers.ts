@@ -10,3 +10,8 @@ import { LXM_STAFF_Y, LXM_STAFF_HEIGHT } from "./layout-constants";
 /** 计算小节高度 */
 export const calculateMeasureHeight = (): number =>
   LXM_STAFF_Y * 2 + LXM_STAFF_HEIGHT;
+
+/** 按数组元素的指定键排序 */
+export const arraySortByKey = <T = Array<unknown>>(array: T[], key: keyof T): T[] => 
+  array.sort((left, right) => (left[key] as number) < (right[key] as number) ? -1 : 1)
+

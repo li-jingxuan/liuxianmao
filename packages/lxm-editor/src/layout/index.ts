@@ -1,5 +1,5 @@
 import { ILXMDocument, ILXMMeasure } from "../core/types";
-import { ILXMLayoutOptions, ILXMLayout, ILXMMeasureLayout, ILXMColumnWidthContributors } from "./layout-types";
+import { ILXMLayoutOptions, ILXMLayout, ILXMMeasureLayout } from "./layout-types";
 import {
   LXM_LAYOUT_DEFAULT_X,
   LXM_LAYOUT_DEFAULT_Y,
@@ -49,7 +49,7 @@ const buildMeasures = (
 
   return {
     laidOutMeasure,
-    width: cursorX - x - gap,
+    width: cursorX, //  - x - gap,
     // 小节是横向移动的，需要取当前行最高值的小节作为基准高度
     height: laidOutMeasure.reduce(
       (maxHeight, measure) => Math.max(maxHeight, measure.y + measure.height - y),
