@@ -13,6 +13,7 @@ import { calculateMeasureHeight } from "./layout-helpers"
 import { STANDARD_GUITAR_TUNING } from "../core/constants";
 import { LXM_STRING_SPACING, LXM_STAFF_Y } from "./layout-constants";
 import { layoutBarline } from "./barline-layout";
+import { layoutDurationBeams } from "./duration-beam-layout";
 
 export interface ILXMLayoutMeasureContext {
   index: number;
@@ -76,14 +77,20 @@ export const layoutMeasure = (
 	context: ILXMLayoutMeasureContext
 ): ILXMMeasureLayout => {
 	const { index, x, y } = context;
-	const measureSpacing = layoutMeasureSpacing(measure, { x })
 	const {
 		assignedWidth,
 		columns,
 		slotsByBeatId,
-	} = measureSpacing;
+	} = layoutMeasureSpacing(measure, { x })
+	
 	const beats = Object.values(slotsByBeatId)
 	const strings = buildStringLines(x, y, assignedWidth)
+	const notes = layoutNodes(measure.id, measure.beats, slotsByBeatId, context.y)
+	
+	const {
+		beamSegments,
+		durationMarks
+	} = layoutDurationBeams(measure, beats, notes, strings)
 
 	return {
 		id: measure.id,
@@ -96,6 +103,8 @@ export const layoutMeasure = (
 		columns,
 		beats,
 		strings,
-		notes: layoutNodes(measure.id, measure.beats, slotsByBeatId, context.y)
+		notes,
+		beamSegments,
+		durationMarks,
 	}
 }

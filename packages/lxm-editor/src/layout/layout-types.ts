@@ -61,6 +61,11 @@ export interface ILXMMeasureLayout {
   strings: ILXMStringLineLayout[],
   notes: ILXMNoteLayout[],
 
+  // beat 级别的时值符干布局，供渲染层绘制 stem。
+  durationMarks: ILXMDurationMarkLayout[],
+  // 连梁布局，供渲染层绘制时值连接线。
+  beamSegments: ILXMBeamSegmentLayout[],
+
   // 小节的边界框，用于后期做命中检测、框选 等
   // bounds: [],
 }
@@ -129,3 +134,45 @@ export interface ILXMBarlineDotPartLayout {
   cy: number;
   radius: number;
 }
+
+/** 连梁布局 */
+export type ILXMBeamSegmentLayout = ILXMSharedBeamSegmentLayout | ILXMPartialBeamSegmentLayout;
+
+interface ILXMBeamSegmentBase {
+  kind: 'shared' | 'partial';
+  measureId: string,
+  beatIds: string[],
+  // 连梁的层级
+  level: number,
+  x1: number,
+  x2: number,
+  y: number,
+  // 连梁的厚度（也就是线宽）
+  thickness: number,
+}
+/** 共享连梁布局 */
+export interface ILXMSharedBeamSegmentLayout extends ILXMBeamSegmentBase {
+  kind: 'shared';
+}
+/** 部分连梁布局（如：附点音符） */
+export interface ILXMPartialBeamSegmentLayout extends ILXMBeamSegmentBase {
+  kind: 'partial';
+  direction: 'left' | 'right';
+}
+
+/** beat 级别的时值符干布局；一个和弦 beat 只生成一个符干。 */
+export interface ILXMDurationMarkLayout {
+  beatId: string;
+  measureId: string;
+  
+  // 符干坐标
+  stemX: number;
+  stemY1: number;
+  stemY2: number;
+
+  // 连梁 Y 坐标
+  beamY: number;
+  // 连梁层级
+  beamLevel: number;
+}
+

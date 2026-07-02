@@ -57,9 +57,13 @@ export const calculateRhythmTicks = (rhythm: ILXMRhythm): RhythmTickResult => {
   return { ok: true, ticks: numerator / denominator };
 };
 
+/** 根据拍号计算完整拍组容量，4/4 等于 960 tick。 */
+export const getCompleteBeatCapacityTicks = (
+  {numerator,denominator}: ILXMTimeSignature,
+) => TICKS_PER_QUARTER * numerator / denominator;
+
 /** 根据拍号计算完整小节容量，4/4 等于 3840 tick。 */
 export const getMeasureCapacityTicks = (
   timeSignature: ILXMTimeSignature,
-): number =>
-  (TICKS_PER_QUARTER * 4 * timeSignature.numerator) /
-  timeSignature.denominator;
+): number => getCompleteBeatCapacityTicks(timeSignature) * 4
+

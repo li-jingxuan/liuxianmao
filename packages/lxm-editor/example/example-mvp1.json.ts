@@ -96,7 +96,7 @@ const EXAMPLE_MVP_1: ILXMDocument = {
                 // 小节内起始 tick
                 tick: 960,
                 // 节奏
-                rhythm: { base: 'eighth', dots: 0 },
+                rhythm: { base: 'eighth', dots: 1 },
                 // 类型
                 kind: "notes",
                 // 具体标记
@@ -109,9 +109,9 @@ const EXAMPLE_MVP_1: ILXMDocument = {
               {
                 id: "beat-001-02",
                 // 小节内起始 tick
-                tick: 1440,
+                tick: 1680,
                 // 节奏
-                rhythm: { base: 'eighth', dots: 0 },
+                rhythm: { base: 'sixteenth', dots: 0 },
                 // 类型
                 kind: "notes",
                 // 具体标记
@@ -170,7 +170,7 @@ const EXAMPLE_MVP_1: ILXMDocument = {
                 // 小节内起始 tick
                 tick: 2880,
                 // 节奏
-                rhythm: { base: 'sixteenth', dots: 0 }, // rhythm("eighth"),
+                rhythm: { base: 'sixteenth', dots: 1 },
                 // 类型
                 kind: "notes",
                 // 具体标记
@@ -183,7 +183,7 @@ const EXAMPLE_MVP_1: ILXMDocument = {
               {
                 id: "beat-001-7",
                 // 小节内起始 tick
-                tick: 3120,
+                tick: 3240,
                 // 节奏
                 rhythm: { base: 'sixteenth', dots: 0 },
                 // 类型
@@ -198,7 +198,7 @@ const EXAMPLE_MVP_1: ILXMDocument = {
               {
                 id: "beat-001-8",
                 // 小节内起始 tick
-                tick: 3360,
+                tick: 3480,
                 // 节奏
                 rhythm: { base: 'eighth', dots: 0 },
                 // 类型

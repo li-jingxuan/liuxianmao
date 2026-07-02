@@ -22,7 +22,9 @@
 
 - `whole / half / quarter` 不生成连梁。
 - `eighth` 生成 1 层 beam，`sixteenth` 生成 2 层 beam，`thirtySecond` 生成 3 层 beam。
-- 连续、相邻、可连梁的 beat 自动组成一个 run；较长时值或缺失 slot 会打断 run。
+- 连续、相邻、可连梁的 beat 自动组成一个 run；较长时值、缺失 slot 或拍组边界会打断 run。
+- 连梁分组必须尊重拍号下的 beat group：`4/4`、`3/4`、`2/4` 按一个四分音符一组；`6/8`、`9/8`、`12/8` 这类复拍子按三个八分音符一组。
+- `buildBeamSegments` 只处理单个 run 内的 shared/partial beam 几何，不负责判断是否跨拍连接；跨拍断开由 `groupContiguousMarks` 完成。
 - run 长度大于等于 2 时生成 shared beam。
 - 高层级 beam 如果只有单个 beat 需要显示，则生成 partial beam，方向优先指向同一个 run 中最近的相邻 beat。
 - 完全孤立的短时值 beat 暂不生成 partial beam；独立符尾能力后续单独实现。
@@ -40,7 +42,7 @@
 - Modify: `packages/lxm-editor/src/layout/measure-layout.ts`  
   在 strings/beats/notes 生成后调用 `layoutDurationBeams(...)`。
 - Create: `packages/lxm-editor/tests/layout/duration-beam-layout.test.ts`  
-  覆盖 beam level、shared beam 分组、partial beam、长时值打断、完全孤立短时值不生成 beam。
+  覆盖 beam level、shared beam 分组、partial beam、长时值打断、拍组边界断开、完全孤立短时值不生成 beam。
 - Modify: `apps/website/app/editor/EditorShell/index.tsx`  
   仅作为人工验证入口，按 layout 结果渲染 stem 和 beam；不把计算逻辑写进 React。
 
@@ -135,6 +137,43 @@ describe("layoutDurationBeams", () => {
       "beat-3",
     ]);
     expect(layout.beamSegments).toEqual([]);
+  });
+
+  it("4/4 中短时值连梁不会跨过四分音符拍组边界", () => {
+    const layout = layoutMeasure(
+      createMeasure([
+        createBeat("beat-1", 0, "sixteenth"),
+        createBeat("beat-2", 240, "sixteenth"),
+        createBeat("beat-3", 480, "eighth"),
+        createBeat("beat-4", 960, "eighth"),
+        createBeat("beat-5", 1440, "eighth"),
+      ]),
+      { index: 0, x: 10, y: 20 },
+    );
+
+    expect(layout.beamSegments).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "shared",
+          level: 1,
+          beatIds: ["beat-1", "beat-2", "beat-3"],
+        }),
+        expect.objectContaining({
+          kind: "shared",
+          level: 1,
+          beatIds: ["beat-4", "beat-5"],
+        }),
+      ]),
+    );
+    expect(layout.beamSegments).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "shared",
+          level: 1,
+          beatIds: ["beat-1", "beat-2", "beat-3", "beat-4", "beat-5"],
+        }),
+      ]),
+    );
   });
 
   it("高层级 beam 只有单个 beat 时生成 partial beam", () => {
@@ -400,7 +439,12 @@ git commit -m "feat: add duration beam layout constants"
 - [ ] **Step 1: Create `duration-beam-layout.ts`**
 
 ```ts
-import type { ILXMMeasure, ILXMRhythmBase } from "../core/types";
+import { BASE_RHYTHM_TICKS } from "../core/rhythm";
+import type {
+  ILXMMeasure,
+  ILXMRhythmBase,
+  ILXMTimeSignature,
+} from "../core/types";
 import {
   LXM_DURATION_BEAM_LEVEL_GAP,
   LXM_DURATION_BEAM_THICKNESS,
@@ -430,6 +474,31 @@ const LXM_RHYTHM_BEAM_LEVEL: Record<ILXMRhythmBase, number> = {
   sixteenth: 2,
   thirtySecond: 3,
 };
+
+const LXM_COMPOUND_METER_BEAT_UNIT = 3;
+const LXM_COMPOUND_METER_DENOMINATOR = 8;
+
+const isCompoundEighthMeter = (timeSignature: ILXMTimeSignature): boolean =>
+  timeSignature.denominator === LXM_COMPOUND_METER_DENOMINATOR &&
+  timeSignature.numerator % LXM_COMPOUND_METER_BEAT_UNIT === 0;
+
+const getSimpleMeterBeatTicks = (
+  timeSignature: ILXMTimeSignature,
+): number =>
+  (BASE_RHYTHM_TICKS.quarter * 4) / timeSignature.denominator;
+
+const getCompoundMeterBeatTicks = (): number =>
+  BASE_RHYTHM_TICKS.eighth * LXM_COMPOUND_METER_BEAT_UNIT;
+
+const getBeamGroupTicks = (timeSignature: ILXMTimeSignature): number =>
+  isCompoundEighthMeter(timeSignature)
+    ? getCompoundMeterBeatTicks()
+    : getSimpleMeterBeatTicks(timeSignature);
+
+const getBeatBeamGroupIndex = (
+  tick: number,
+  timeSignature: ILXMTimeSignature,
+): number => Math.floor(tick / getBeamGroupTicks(timeSignature));
 
 const getLastStringLine = (
   strings: ILXMStringLineLayout[],
@@ -489,6 +558,7 @@ const groupContiguousMarks = (
 ): ILXMDurationMarkLayout[][] => {
   const groups: ILXMDurationMarkLayout[][] = [];
   let currentGroup: ILXMDurationMarkLayout[] = [];
+  let previousBeamGroupIndex: number | null = null;
 
   for (const beat of [...measure.beats].sort((left, right) => left.tick - right.tick)) {
     const mark = markByBeatId.get(beat.id);
@@ -496,10 +566,23 @@ const groupContiguousMarks = (
     if (!mark) {
       if (currentGroup.length > 0) groups.push(currentGroup);
       currentGroup = [];
+      previousBeamGroupIndex = null;
       continue;
     }
 
+    const beamGroupIndex = getBeatBeamGroupIndex(beat.tick, measure.timeSignature);
+
+    // 同一小节内的短时值不能跨拍组连接，例如 4/4 中每个四分音符拍组需要独立成梁。
+    if (
+      previousBeamGroupIndex !== null &&
+      previousBeamGroupIndex !== beamGroupIndex
+    ) {
+      groups.push(currentGroup);
+      currentGroup = [];
+    }
+
     currentGroup.push(mark);
+    previousBeamGroupIndex = beamGroupIndex;
   }
 
   if (currentGroup.length > 0) groups.push(currentGroup);
@@ -599,7 +682,7 @@ export const layoutDurationBeams = (
         : null;
     })
     .filter((mark): mark is ILXMDurationMarkLayout => Boolean(mark));
-  const markByBeatId = new Map(durationMarks.map((mark) => [mark.beatId, mark]));
+  const markByBeatId = new Map(durationMarks.map((ark) => [mark.beatId, mark]));
   const groups = groupContiguousMarks(measure, markByBeatId);
   const beamSegments = groups.flatMap(buildBeamSegments);
 

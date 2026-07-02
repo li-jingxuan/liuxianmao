@@ -6,6 +6,7 @@
  */
 
 import { LXM_STAFF_Y, LXM_STAFF_HEIGHT } from "./layout-constants";
+import { ILXMStringLineLayout } from "./layout-types";
 
 /** 计算小节高度 */
 export const calculateMeasureHeight = (): number =>
@@ -15,3 +16,12 @@ export const calculateMeasureHeight = (): number =>
 export const arraySortByKey = <T = Array<unknown>>(array: T[], key: keyof T): T[] => 
   array.sort((left, right) => (left[key] as number) < (right[key] as number) ? -1 : 1)
 
+/** 找到 strings 中的 index 最大的元素 */
+export const getLastStringLine = (
+  strings: ILXMStringLineLayout[],
+): ILXMStringLineLayout | undefined =>
+  strings.reduce<ILXMStringLineLayout | undefined>(
+    (lastString, string) =>
+      !lastString || string.index > lastString.index ? string : lastString,
+    undefined,
+  );

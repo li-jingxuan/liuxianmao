@@ -80,6 +80,31 @@ export const EditorShell: React.FC = () => {
                 })
               }
             </g>
+
+            {/* 绘制符干 */}
+            <g>
+              {
+                measure.durationMarks.map((mark) => {
+                  return <line
+                    key={mark.beatId} x1={mark.stemX} y1={mark.stemY1}
+                    x2={mark.stemX} y2={mark.stemY2} stroke="black" strokeWidth={1}
+                  />
+                })
+              }
+            </g>
+
+            {/* 绘制连梁 */}
+
+            <g>
+              {
+                measure.beamSegments.map((segment,index) => {
+                  return <line
+                    key={index} x1={segment.x1} y1={segment.y}
+                    x2={segment.x2} y2={segment.y} stroke="black" strokeWidth={segment.thickness}
+                  />
+                })
+              }
+            </g>
           </g>
         })
       }

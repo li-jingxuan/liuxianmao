@@ -66,6 +66,7 @@ export const buildRhythmicColumns = (measure: ILXMMeasure): ILXMRhythmicColumn[]
         minWidth,
         // 理想宽度 = Max(最小宽度限制, 最小宽度限制 * 时值权重)
         // thirtySecond 三十二分音符（durationWeight = 0.72）会使用 minWidth 作为理想宽度
+        // TODO 这里应该多种因素来计算小节理想宽度
         idealWidth: Math.max(minWidth, minWidth * durationWeight),
       };
     });
