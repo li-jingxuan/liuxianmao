@@ -36,7 +36,15 @@ interface ILXMDurationDotAnchor {
 }
 
 interface ILXMDurationMarkLayout {
-  // 保留现有字段
+  beatId: string;
+  measureId: string;
+  stemX: number;
+  stemY1: number;
+  stemY2: number;
+  beamY: number;
+  beamLevel: number;
+
+  // 本次新增：附点数量与每个附点的中心坐标。
   dots: number;
   dotAnchors: ILXMDurationDotAnchor[];
 }
