@@ -4,7 +4,13 @@
 
 为 `packages/lxm-editor` 补齐附点的布局数据，使任意 SVG、Canvas 或其他渲染器都能直接绘制附点，无须从 `rhythm.dots` 再次推导位置。
 
-本次只修改 `lxm-editor` 的数据模型、布局计算和测试；不迁移网站页面，也不参考或修改旧版 `packages/lxm-tabeditor`。
+本次只修改 `packages/lxm-editor` 的数据模型、布局计算和测试；不迁移 `apps/website` 页面。
+
+## 当前代码结构
+
+- 工作区中的乐谱核心包仅保留 `packages/lxm-editor`，它包含 `src/core`、`src/layout` 与对应的 `tests/core`、`tests/layout`。
+- `packages/lxm-editor/src/core` 负责乐谱数据类型、schema 与节奏 tick 换算；`src/layout` 负责把数据转换为可供渲染器消费的几何布局。
+- `apps/website` 是独立消费方，不属于本次附点 layout 的改动范围。
 
 ## 当前状态
 
