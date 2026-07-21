@@ -135,9 +135,6 @@ export interface ILXMBarlineDotPartLayout {
   radius: number;
 }
 
-/** 连梁布局 */
-export type ILXMBeamSegmentLayout = ILXMSharedBeamSegmentLayout | ILXMPartialBeamSegmentLayout;
-
 interface ILXMBeamSegmentBase {
   kind: 'shared' | 'partial';
   measureId: string,
@@ -160,6 +157,15 @@ export interface ILXMPartialBeamSegmentLayout extends ILXMBeamSegmentBase {
   direction: 'left' | 'right';
 }
 
+/** 连梁布局 */
+export type ILXMBeamSegmentLayout = ILXMSharedBeamSegmentLayout | ILXMPartialBeamSegmentLayout;
+
+/** 单个附点的中心坐标；渲染器据此绘制圆点或对应字形。 */
+export interface ILXMDurationDotAnchor {
+  x: number;
+  y: number;
+}
+
 /** beat 级别的时值符干布局；一个和弦 beat 只生成一个符干。 */
 export interface ILXMDurationMarkLayout {
   beatId: string;
@@ -174,5 +180,9 @@ export interface ILXMDurationMarkLayout {
   beamY: number;
   // 连梁层级
   beamLevel: number;
-}
 
+  /** 原始 rhythm 中的附点数量。 */
+  dots: number;
+  /** 每个附点的布局中心；无附点时为空数组。 */
+  dotAnchors: ILXMDurationDotAnchor[];
+}

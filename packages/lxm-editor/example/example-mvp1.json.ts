@@ -185,7 +185,7 @@ const EXAMPLE_MVP_1: ILXMDocument = {
                 // 小节内起始 tick
                 tick: 3240,
                 // 节奏
-                rhythm: { base: 'sixteenth', dots: 0 },
+                rhythm: { base: 'eighth', dots: 0 },
                 // 类型
                 kind: "notes",
                 // 具体标记
@@ -198,17 +198,17 @@ const EXAMPLE_MVP_1: ILXMDocument = {
               {
                 id: "beat-001-8",
                 // 小节内起始 tick
-                tick: 3480,
+                tick: 3720,
                 // 节奏
-                rhythm: { base: 'eighth', dots: 0 },
+                rhythm: { base: 'thirtySecond', dots: 0 },
                 // 类型
                 kind: "notes",
                 // 具体标记
                 notes: [
-                  // string: 弦号，fret：品位
+                  // 复用原示例中第四拍末尾的音符内容。
                   { id: 'note-001-12', string: 5, fret: 6 }
                 ],
-              }
+              },
             ]
           }
         ]

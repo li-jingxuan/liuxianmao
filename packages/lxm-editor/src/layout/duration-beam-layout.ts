@@ -10,7 +10,7 @@ import {
   ILXMStringLineLayout
 } from './layout-types'
 import { arraySortByKey, getLastStringLine } from './layout-helpers'
-import { ILXMBeat, ILXMMeasure, ILXMRhythmBase } from '../core/types';
+import { ILXMBeat, ILXMMeasure, ILXMRhythm, ILXMRhythmBase } from '../core/types';
 import { calculateRhythmTicks, getCompleteBeatCapacityTicks } from '../core/rhythm';
 
 interface ILXMDurationBeamLayoutResult {
@@ -37,6 +37,11 @@ export const LXM_DURATION_BEAM_THICKNESS = 3;
 // partial beam 的默认短横线长度。
 // TODO 这里明显不对，要根据时值和dots来计算
 export const LXM_DURATION_PARTIAL_BEAM_LENGTH = 12;
+// 第一个附点相对符干的水平偏移，以及多附点之间的水平间距。
+export const LXM_DURATION_DOT_OFFSET_X = 5;
+export const LXM_DURATION_DOT_GAP_X = 5;
+// 附点相对连梁基线的纵向偏移，避免与横梁重叠。
+// export const LXM_DURATION_DOT_OFFSET_Y = 7;
 // 时值符干和音符所在弦线之间的纵向间距，避免符干压住品位数字。
 export const LXM_DURATION_STEM_NOTE_GAP = 6;
 
@@ -224,6 +229,19 @@ export const layoutBeamSegments = (
   return beamSegments
 }
 
+/** 根据符干与连梁基线生成当前 beat 的全部附点中心坐标。 */
+const buildDurationDotAnchors = (
+  stemX: number,
+  beamBaseY: number,
+  rhythm: ILXMRhythm,
+) => {
+  
+  return Array.from({ length: rhythm.dots }, (_, index) => ({
+    x: stemX + LXM_DURATION_DOT_OFFSET_X + index * LXM_DURATION_DOT_GAP_X,
+    y: beamBaseY - (LXM_RHYTHM_BEAM_LEVEL[rhythm.base] * LXM_DURATION_BEAM_LEVEL_GAP) - 1
+  }))
+};
+
 /** 构建时值符干布局 */
 export const buildDurationMark = (
   measureId: string,
@@ -253,7 +271,13 @@ export const buildDurationMark = (
     stemY2: beamBaseY,
     // 连梁的 Y 坐标（往上排列，这里与 符干 的 Y 坐标是相同的）
     beamY: beamBaseY,
-    beamLevel: beamLevel
+    beamLevel: beamLevel,
+    dots: beat.rhythm.dots,
+    dotAnchors: buildDurationDotAnchors(
+      currentBeat.x,
+      beamBaseY,
+      beat.rhythm,
+    ),
   }
 })
 
@@ -283,7 +307,6 @@ export const layoutDurationBeams = (
   const markByBeatId = new Map(durationMarks.map(mark => [mark.beatId, mark]))
   const beamGroups = groupContiguousMarks(measure, markByBeatId)
 
-  console.log('beamGroups: ', beamGroups)
   const dotCountByBeatId = new Map(sourceBeats.map(beat => [beat.id, beat.rhythm.dots]))
   const beamSegments = beamGroups.flatMap(group => layoutBeamSegments(group, dotCountByBeatId))
   

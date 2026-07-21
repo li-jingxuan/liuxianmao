@@ -20,6 +20,7 @@ export const EditorShell: React.FC = () => {
 
     const layoutData = buildLayout(document.document, { x: 0, y: 0 })
 
+    console.log('layoutData: ', layoutData)
     return layoutData
   }, [])
 
@@ -85,16 +86,31 @@ export const EditorShell: React.FC = () => {
             <g>
               {
                 measure.durationMarks.map((mark) => {
-                  return <line
-                    key={mark.beatId} x1={mark.stemX} y1={mark.stemY1}
-                    x2={mark.stemX} y2={mark.stemY2} stroke="black" strokeWidth={1}
-                  />
+                  
+                  return (
+                    <g key={mark.beatId}>
+                      <line
+                        key={mark.beatId} x1={mark.stemX} y1={mark.stemY1}
+                        x2={mark.stemX} y2={mark.stemY2} stroke="black" strokeWidth={1}
+                      />
+
+                      {
+                        mark.dots > 0 && (
+                          mark.dotAnchors.map((dot, index) => {
+
+                            return <circle
+                              key={index} cx={dot.x} cy={dot.y} r={1} fill="black"
+                            />
+                          }
+                        ))
+                      }
+                    </g>
+                  )
                 })
               }
             </g>
 
             {/* 绘制连梁 */}
-
             <g>
               {
                 measure.beamSegments.map((segment,index) => {
