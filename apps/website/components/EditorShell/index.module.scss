@@ -1,8 +1,14 @@
-.scoreSvg{
+.editor {
   margin: 20px;
 }
 
-.scoreSvg .fretNoteText{
+.scoreSvg {
+  display: block;
+  cursor: crosshair;
+  outline: none;
+}
+
+.scoreSvg .fretNoteText {
   font-size: 12px;
   stroke: #fff;
   stroke-linejoin: round;
@@ -10,4 +16,24 @@
   paint-order: stroke;
   font-weight: 700;
   text-anchor: middle;
+}
+
+.cursorLayer {
+  .activeCursor {
+    fill: rgba(40, 100, 227, 0.3);
+  }
+}
+
+.inputHint,
+.errorMessage {
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+
+.inputHint {
+  color: #5b6470;
+}
+
+.errorMessage {
+  color: #b42318;
 }

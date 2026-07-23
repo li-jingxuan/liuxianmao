@@ -3,7 +3,6 @@ import type { ILXMBeat, ILXMMeasure } from "../core/types";
 import {
   LXM_DURATION_MIN_COLUMN_WIDTH,
   LXM_DURATION_VISUAL_WEIGHT,
-  LXM_MEASURE_MIN_WIDTH,
   LXM_MEASURE_PADDING_X,
 } from "./layout-constants";
 import type {
@@ -26,13 +25,13 @@ interface ILXMMeasureSpacingSummary {
   assignedWidth: number;
   slotsByBeatId: Record<string, ILXMBeatLayout>;
 }
-type ILXMSummarizeMeasureSpacingWidth = 
-  Omit<
-    ILXMMeasureSpacingSummary, "slotsByBeatId"
-  > & {
-    // 小节内容的宽度（不包含左右边距）
-    contentWidth: number;
-  };
+type ILXMSummarizeMeasureSpacingWidth = Omit<
+  ILXMMeasureSpacingSummary,
+  "slotsByBeatId"
+> & {
+  // 小节内容的宽度（不包含左右边距）
+  contentWidth: number;
+};
 
 /** 计算当前拍的节奏 tick 数量 */
 const getBeatRhythmTicks = (beat: ILXMBeat): number => {
@@ -46,7 +45,9 @@ const getBeatRhythmTicks = (beat: ILXMBeat): number => {
 };
 
 /** 构建节奏列；同一 tick 的 TAB、歌词、简谱未来会共享这一列。 */
-export const buildRhythmicColumns = (measure: ILXMMeasure): ILXMRhythmicColumn[] => {
+export const buildRhythmicColumns = (
+  measure: ILXMMeasure,
+): ILXMRhythmicColumn[] => {
   // 当前只需要考虑 notes 类型的节拍
   // 数据结构中暂时不考虑相同 tick 存在多个 beat（节拍）的情况：多轨和多声部才可能出现这种情况
   return measure.beats
@@ -72,9 +73,11 @@ export const buildRhythmicColumns = (measure: ILXMMeasure): ILXMRhythmicColumn[]
     });
 };
 
-export const summarizeMeasureSpacingWidth = (measure: ILXMMeasure): ILXMSummarizeMeasureSpacingWidth => {
+export const summarizeMeasureSpacingWidth = (
+  measure: ILXMMeasure,
+): ILXMSummarizeMeasureSpacingWidth => {
   // 计算每个 beat 节拍列信息
-  const columns = buildRhythmicColumns(measure)
+  const columns = buildRhythmicColumns(measure);
   // 小节内左右边距
   const measurePaddingX = LXM_MEASURE_PADDING_X * 2;
   // 当前小节内容最小宽度
@@ -90,7 +93,7 @@ export const summarizeMeasureSpacingWidth = (measure: ILXMMeasure): ILXMSummariz
   );
 
   const assignedWidth = Math.max(idealWidth, minWidth);
-  
+
   return {
     measureId: measure.id,
     // 理想宽度 和 最小宽度
@@ -104,9 +107,9 @@ export const summarizeMeasureSpacingWidth = (measure: ILXMMeasure): ILXMSummariz
   };
 };
 
-/** 
+/**
  * 将节奏列转换成 beat slot，assignedWidth 本轮默认取小节 idealWidth。
-*/
+ */
 export const layoutMeasureSpacing = (
   measure: ILXMMeasure,
   context: {
@@ -116,7 +119,7 @@ export const layoutMeasureSpacing = (
   },
 ): ILXMMeasureSpacingSummary => {
   // 小节 Column Width 摘要信息
-  const summary = summarizeMeasureSpacingWidth(measure)
+  const summary = summarizeMeasureSpacingWidth(measure);
 
   // 计算每个 beat 节拍的x坐标信息
   const slotsByBeatId: Record<string, ILXMBeatLayout> = {};
@@ -147,4 +150,4 @@ export const layoutMeasureSpacing = (
     ...summary,
     slotsByBeatId,
   };
-}
+};

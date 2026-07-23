@@ -12,8 +12,14 @@ import { GUITAR_STRING_COUNT } from "../core/constants";
 export const LXM_LAYOUT_DEFAULT_X = 0;
 export const LXM_LAYOUT_DEFAULT_Y = 0;
 
-// 小节之间隔多远
-export const LXM_MEASURE_GAP = 12;
+/** 单条谱面行默认可容纳的逻辑宽度；由调用方可通过 systemWidth 覆盖。 */
+export const LXM_SYSTEM_DEFAULT_WIDTH = 600;
+
+/** 相邻两条谱面行之间的垂直留白，避免符干、连梁发生视觉重叠。 */
+export const LXM_SYSTEM_GAP_Y = 36;
+
+/** 点击弦线时允许的纵向误差范围，提升鼠标命中容错。 */
+export const LXM_STRING_HIT_RADIUS_Y = 6;
 
 // 左右留白距离
 export const LXM_MEASURE_PADDING_X = 18;
