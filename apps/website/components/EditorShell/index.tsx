@@ -6,6 +6,7 @@ import {
   EXAMPLE,
   hitTestLayout,
   loadDocument,
+  LXMScoreCommandEnum,
   type ILXMDocument,
   type ILXMHitTarget,
   type ILXMLayout,
@@ -74,7 +75,7 @@ export const EditorShell: React.FC = () => {
     }
 
     const result = applyScoreCommand(document, {
-      type: "note.set",
+      type: LXMScoreCommandEnum.SetNote,
       ...activeCursor,
       fret,
     });
@@ -95,7 +96,7 @@ export const EditorShell: React.FC = () => {
     }
 
     const result = applyScoreCommand(document, {
-      type: "note.remove",
+      type: LXMScoreCommandEnum.RemoveNote,
       ...activeCursor,
     });
     if (!result.ok) {
@@ -153,12 +154,14 @@ export const EditorShell: React.FC = () => {
     )
       return;
 
+    // 取消
     if (event.key === "Escape") {
       event.preventDefault();
       clearFretDraft();
       setErrorMessage(null);
       return;
     }
+    // 删除
     if (event.key === "Backspace" || event.key === "Delete") {
       event.preventDefault();
       clearFretDraft();

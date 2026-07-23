@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import EXAMPLE_MVP_2 from "../../example/example-mvp2.json";
-import { applyScoreCommand } from "../../src/core/commands";
+import {
+  applyScoreCommand,
+  LXMScoreCommandEnum,
+} from "../../src/core/commands";
 import { buildLayout } from "../../src/layout";
 
 /** 每个测试使用新副本，避免命令结果和 fixture 共享可变引用。 */
@@ -17,7 +20,7 @@ describe("applyScoreCommand", () => {
   it("note.set 在空弦新增音符并增加文档修订号", () => {
     const document = createDocument();
     const result = applyScoreCommand(document, {
-      type: "note.set",
+      type: LXMScoreCommandEnum.SetNote,
       ...target,
       string: 1,
       fret: 12,
@@ -42,7 +45,7 @@ describe("applyScoreCommand", () => {
 
   it("note.set 覆盖同一弦而不产生重复音符", () => {
     const result = applyScoreCommand(createDocument(), {
-      type: "note.set",
+      type: LXMScoreCommandEnum.SetNote,
       ...target,
       string: 6,
       fret: 9,
@@ -59,7 +62,7 @@ describe("applyScoreCommand", () => {
 
   it("note.remove 只删除目标弦且允许重复删除", () => {
     const firstResult = applyScoreCommand(createDocument(), {
-      type: "note.remove",
+      type: LXMScoreCommandEnum.RemoveNote,
       trackId: "mvp2-track-guitar",
       measureId: "mvp2-measure-2",
       beatId: "mvp2-beat-2-1",
@@ -73,7 +76,7 @@ describe("applyScoreCommand", () => {
     expect(notes).toEqual([expect.objectContaining({ string: 2, fret: 3 })]);
 
     const secondResult = applyScoreCommand(firstResult.document, {
-      type: "note.remove",
+      type: LXMScoreCommandEnum.RemoveNote,
       trackId: "mvp2-track-guitar",
       measureId: "mvp2-measure-2",
       beatId: "mvp2-beat-2-1",
@@ -84,7 +87,7 @@ describe("applyScoreCommand", () => {
 
   it("删除拍点最后一个音符后仍可重新布局", () => {
     const result = applyScoreCommand(createDocument(), {
-      type: "note.remove",
+      type: LXMScoreCommandEnum.RemoveNote,
       ...target,
       string: 6,
     });
@@ -102,7 +105,7 @@ describe("applyScoreCommand", () => {
   it("拒绝非法弦号、品位和不存在的目标", () => {
     expect(
       applyScoreCommand(createDocument(), {
-        type: "note.set",
+        type: LXMScoreCommandEnum.SetNote,
         ...target,
         string: 7,
         fret: 1,
@@ -110,7 +113,7 @@ describe("applyScoreCommand", () => {
     ).toMatchObject({ ok: false, code: "INVALID_STRING" });
     expect(
       applyScoreCommand(createDocument(), {
-        type: "note.set",
+        type: LXMScoreCommandEnum.SetNote,
         ...target,
         string: 1,
         fret: 25,
@@ -118,7 +121,7 @@ describe("applyScoreCommand", () => {
     ).toMatchObject({ ok: false, code: "INVALID_FRET" });
     expect(
       applyScoreCommand(createDocument(), {
-        type: "note.remove",
+        type: LXMScoreCommandEnum.RemoveNote,
         ...target,
         measureId: "missing",
         string: 1,

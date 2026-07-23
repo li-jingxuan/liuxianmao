@@ -12,23 +12,27 @@ import type { ILXMDocument, ILXMNote } from "./types";
 /** 当前 v2 支持的乐谱编辑意图。 */
 export type ILXMScoreCommand = ILXMSetNoteCommand | ILXMRemoveNoteCommand;
 
-/** 在指定拍点和弦设置数值品位；同弦已有音符时执行覆盖。 */
-export interface ILXMSetNoteCommand {
-  type: "note.set";
+export enum LXMScoreCommandEnum {
+  SetNote = "note.set",
+  RemoveNote = "note.remove",
+}
+
+export interface ILXMScoreCommandBase {
+  type: LXMScoreCommandEnum;
   trackId: string;
   measureId: string;
   beatId: string;
   string: number;
+}
+/** 在指定拍点和弦设置数值品位；同弦已有音符时执行覆盖。 */
+export interface ILXMSetNoteCommand extends ILXMScoreCommandBase {
+  type: LXMScoreCommandEnum.SetNote;
   fret: number;
 }
 
 /** 删除指定拍点和弦的某一根弦音符。 */
-export interface ILXMRemoveNoteCommand {
-  type: "note.remove";
-  trackId: string;
-  measureId: string;
-  beatId: string;
-  string: number;
+export interface ILXMRemoveNoteCommand extends ILXMScoreCommandBase {
+  type: LXMScoreCommandEnum.RemoveNote;
 }
 
 /** 命令失败原因，供页面层映射为明确的用户提示。 */
@@ -99,7 +103,7 @@ export const applyScoreCommand = (
       message: "弦号必须在 1 到 6 之间",
     };
   }
-  if (command.type === "note.set" && !isValidFret(command.fret)) {
+  if (command.type === LXMScoreCommandEnum.SetNote && !isValidFret(command.fret)) {
     return {
       ok: false,
       code: "INVALID_FRET",
@@ -120,7 +124,7 @@ export const applyScoreCommand = (
     return { ok: false, code: "BEAT_NOT_FOUND", message: "目标节拍不存在" };
 
   const updatedNotes: ILXMNote[] =
-    command.type === "note.set"
+    command.type === LXMScoreCommandEnum.SetNote
       ? (() => {
           const existing = beat.notes.find(
             (note) => note.string === command.string,
