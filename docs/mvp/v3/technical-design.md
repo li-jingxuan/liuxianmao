@@ -68,7 +68,7 @@ packages/lxm-editor/src/
 
 apps/website/
   components/EditorShell/    # 文档状态、光标恢复、SVG 渲染
-  components/EditorToolbar/  # 新增：只发出领域命令意图
+  components/EditorToolbar/  # 新增：顶栏 SVG 图标与领域命令意图
 ```
 
 边界如下：
@@ -286,7 +286,22 @@ interface ILXMMeasureLayout {
 
 ### 7.1 工具栏
 
-新增 `EditorToolbar`，使用语义化 button 并以 `activeCursor` 决定可用状态：
+新增位于编辑器顶栏的 `EditorToolbar`，使用语义化 button 并以 `activeCursor` 决定可用状态。顶栏的操作图标优先复用 `docs/extracted-svg-icons/` 已提取的本地 SVG，而非新增图标库或在线资源。
+
+实施时将经确认的源图标复制至 `apps/website/public/assets/svg/music-controls/`，并更新 `apps/website/assets/svg/svg-assets-manifest.ts`；页面通过现有 `MusicAssetIcon` 或 `<img>` 引用 public 资源。`docs/` 下的提取目录是素材来源，不作为运行时 URL。
+
+第一版顶栏图标映射固定如下：
+
+| 操作 | 源图标 |
+| --- | --- |
+| 全、二、四、八、十六、三十二分音符 | `note-whole.svg`、`note-half.svg`、`note-quarter.svg`、`note-eighth.svg`、`note-sixteenth.svg`、`note-thirty-second.svg` |
+| 单附点、双附点 | `note-dot.svg`、`note-double-dotted.svg` |
+| 新增、复制、删除小节 | `measure-add24.svg`、`actions-copy24.svg`、`measure-remove24.svg` |
+| 设为/取消休止（临时图标） | `measure-multi-measure-rest32.svg` |
+
+现有素材目录目前没有单拍休止符的独立 SVG；因此 `measure-multi-measure-rest32.svg` 在 v3 仅作为顶栏“休止”操作的临时图标，不代表乐谱中的单拍休止记谱。谱面内的休止符仍由 `rest-layout.ts` 和 Bravura/SMuFL glyph 映射渲染，二者不得混用。
+
+工具栏包含：
 
 - 基础时值：whole、half、quarter、eighth、sixteenth、thirtySecond。
 - 附点：切换无附点、单附点、双附点；按钮应显示当前目标节奏。

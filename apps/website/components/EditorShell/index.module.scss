@@ -2,6 +2,42 @@
   margin: 20px;
 }
 
+.editorToolbar {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.toolbarButton {
+  display: inline-grid;
+  min-width: 30px;
+  height: 30px;
+  padding: 4px;
+  place-items: center;
+  border: 1px solid #c9ced8;
+  border-radius: 4px;
+  background: #fff;
+  color: #1d2025;
+  cursor: pointer;
+
+  &:hover:not(:disabled) { background: #edf2ff; }
+  &:disabled { cursor: not-allowed; opacity: 0.45; }
+}
+
+.toolbarIcon {
+  width: 20px;
+  height: 20px;
+  background: currentColor;
+  mask: var(--music-icon-url) center / contain no-repeat;
+}
+
+.restLayer {
+  font-family: Bravura, serif;
+  font-size: 22px;
+}
+
 .scoreSvg {
   display: block;
   cursor: crosshair;

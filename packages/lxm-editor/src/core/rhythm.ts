@@ -6,7 +6,7 @@
  * 等于多少 tick、附点如何换算、小节拍号对应多少 tick。
  */
 import { TICKS_PER_QUARTER } from "./constants";
-import type { ILXMRhythm, ILXMTimeSignature } from "./types";
+import type { ILXMBeat, ILXMRhythm, ILXMTimeSignature } from "./types";
 
 // 基准节奏时值对应 tick 数
 export const BASE_RHYTHM_TICKS = {
@@ -67,3 +67,39 @@ export const getMeasureCapacityTicks = (
   timeSignature: ILXMTimeSignature,
 ): number => getCompleteBeatCapacityTicks(timeSignature) * 4
 
+/** 获取 beat 的结束 tick；调用方可据此构建连续、不重叠的时间轴。 */
+export const getBeatEndTick = (beat: ILXMBeat): RhythmTickResult => {
+  const duration = calculateRhythmTicks(beat.rhythm);
+  return duration.ok ? { ok: true, ticks: beat.tick + duration.ticks } : duration;
+};
+
+/**
+ * 将一段静音时长分解为可显示的休止 beat。
+ *
+ * 采用从长到短的贪心策略：当前所有基础时值都是 120 tick 的整数倍，先取最长
+ * 时值既能减少 beat 数，也能保证每一步都保持精确整数 tick；最后无法整除时才
+ * 明确失败，绝不通过取整制造错误的音乐时间。
+ */
+export const createRestRhythmsForTicks = (
+  ticks: number,
+): { ok: true; rhythms: ILXMRhythm[] } | { ok: false; code: "RHYTHM_NOT_REPRESENTABLE" } => {
+  if (!Number.isInteger(ticks) || ticks < 0) {
+    return { ok: false, code: "RHYTHM_NOT_REPRESENTABLE" };
+  }
+
+  const bases = Object.entries(BASE_RHYTHM_TICKS)
+    .sort(([, left], [, right]) => right - left) as [ILXMRhythm["base"], number][];
+  const rhythms: ILXMRhythm[] = [];
+  let remaining = ticks;
+
+  for (const [base, duration] of bases) {
+    while (remaining >= duration) {
+      rhythms.push({ base, dots: 0 });
+      remaining -= duration;
+    }
+  }
+
+  return remaining === 0
+    ? { ok: true, rhythms }
+    : { ok: false, code: "RHYTHM_NOT_REPRESENTABLE" };
+};

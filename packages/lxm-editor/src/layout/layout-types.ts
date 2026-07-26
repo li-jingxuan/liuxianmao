@@ -83,6 +83,8 @@ export interface ILXMMeasureLayout {
   // 音符和弦线布局位置信息
   strings: ILXMStringLineLayout[];
   notes: ILXMNoteLayout[];
+  /** 休止符由核心 layout 产出，页面只按 glyph 与坐标渲染。 */
+  restMarks: ILXMRestLayout[];
 
   // beat 级别的时值符干布局，供渲染层绘制 stem。
   durationMarks: ILXMDurationMarkLayout[];
@@ -159,6 +161,17 @@ export interface ILXMNoteLayout {
   fretText: string;
   x: number;
   y: number;
+}
+
+/** 单个休止 beat 的图形信息；glyph 使用 Bravura/SMuFL 私有区字符。 */
+export interface ILXMRestLayout {
+  id: string;
+  beatId: string;
+  measureId: string;
+  rhythm: ILXMRhythm;
+  x: number;
+  y: number;
+  glyph: string;
 }
 
 /** 小节线布局结果。 */

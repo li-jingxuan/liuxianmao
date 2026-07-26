@@ -37,7 +37,7 @@ export const LXM_INSTRUMENT_TYPES = ["guitar"] as const;
 export const LXM_CHORD_SYMBOL_DISPLAY_TYPES = ["nameAndDiagram"] as const;
 
 /** 节拍内容类型；notes 表示真实音符集合。 */
-export const LXM_BEAT_KINDS = ["notes"] as const;
+export const LXM_BEAT_KINDS = ["notes", "rest"] as const;
 
 /** 四分音符一拍的 tick 数，兼顾附点与常用二至六连音。 */
 export const TICKS_PER_QUARTER = 960 as const;

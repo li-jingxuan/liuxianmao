@@ -50,7 +50,8 @@ export const buildRhythmicColumns = (
 ): ILXMRhythmicColumn[] => {
   // 当前只需要考虑 notes 类型的节拍
   // 数据结构中暂时不考虑相同 tick 存在多个 beat（节拍）的情况：多轨和多声部才可能出现这种情况
-  return measure.beats
+  return [...measure.beats]
+    // 先复制再排序；layout 是纯计算，绝不能改变调用方的文档 beat 顺序。
     .sort((left, right) => left.tick - right.tick)
     .map((beat) => {
       const rhythmTicks = getBeatRhythmTicks(beat);

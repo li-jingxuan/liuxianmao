@@ -10,8 +10,11 @@ import {
   type ILXMDocument,
   type ILXMHitTarget,
   type ILXMLayout,
+  type ILXMRhythm,
 } from "@liuxianmao/lxm-editor";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { MusicAssetIcon } from "../MusicAssetIcon";
+import type { MusicControlIcon } from "../../assets/svg/svg-assets-manifest";
 import styles from "./index.module.scss";
 
 /** MVP v2 固定每行四个普通小节；后续可由编辑器视口状态替换。 */
@@ -21,9 +24,7 @@ const FRET_DRAFT_TIMEOUT_MS = 600;
 
 /** 从规范 fixture 加载初始文档，失败时返回 null 供页面显示错误状态。 */
 const loadInitialDocument = (): ILXMDocument | null => {
-  const result = loadDocument(JSON.stringify(EXAMPLE.EXAMPLE_MVP_1.default));
-  // const result = loadDocument(JSON.stringify(EXAMPLE.EXAMPLE_MVP_2.default));
-  console.log(result);
+  const result = loadDocument(JSON.stringify(EXAMPLE.EXAMPLE_MVP_2.default));
   return result.ok ? result.document : null;
 };
 
@@ -51,7 +52,8 @@ export const EditorShell: React.FC = () => {
     });
   }, [document]);
 
-  console.log(lxmLayout)
+  console.log('lxmLayout: ', lxmLayout)
+
   /** 组件卸载时取消延迟提交，避免异步回调写入已卸载组件。 */
   useEffect(
     () => () => {
@@ -106,6 +108,104 @@ export const EditorShell: React.FC = () => {
 
     setDocument(result.document);
     setErrorMessage(null);
+  };
+
+  /** 统一接收顶栏命令，确保按钮与键盘输入走同一条核心领域写入口。 */
+  const executeToolbarCommand = (
+    command: Parameters<typeof applyScoreCommand>[1],
+  ) => {
+    if (!document) return;
+    const result = applyScoreCommand(document, command);
+    if (!result.ok) {
+      setErrorMessage(result.message);
+      return;
+    }
+    setDocument(result.document);
+    // 删除小节后旧 target 必然失效；其余命令保留稳定 ID，由新 layout 重新定位。
+    if (command.type === LXMScoreCommandEnum.RemoveMeasure)
+      setActiveCursor(null);
+    setErrorMessage(null);
+  };
+
+  /** 当前光标是顶栏节奏操作的业务定位；没有光标时不构造不完整命令。 */
+  const getActiveBeatCommandTarget = () => {
+    if (!activeCursor) {
+      setErrorMessage("请先点击谱面中的拍点，再使用节奏工具。");
+      return null;
+    }
+    return {
+      trackId: activeCursor.trackId,
+      measureId: activeCursor.measureId,
+      beatId: activeCursor.beatId,
+    };
+  };
+
+  /** 修改基础时值时保留当前附点数，用户可再通过附点按钮精确调整。 */
+  const setActiveRhythmBase = (base: ILXMRhythm["base"]) => {
+    const target = getActiveBeatCommandTarget();
+    if (!target || !activeBeat) return;
+    executeToolbarCommand({
+      type: LXMScoreCommandEnum.SetBeatRhythm,
+      ...target,
+      rhythm: { base, dots: activeBeat.rhythm.dots },
+    });
+  };
+
+  /** 附点按钮直接设置目标数量，避免 toggle 在键盘/鼠标操作间产生歧义。 */
+  const setActiveDots = (dots: 0 | 1 | 2) => {
+    const target = getActiveBeatCommandTarget();
+    if (!target || !activeBeat) return;
+    executeToolbarCommand({
+      type: LXMScoreCommandEnum.SetBeatRhythm,
+      ...target,
+      rhythm: { ...activeBeat.rhythm, dots },
+    });
+  };
+
+  const setActiveBeatKind = (kind: "notes" | "rest") => {
+    const target = getActiveBeatCommandTarget();
+    if (!target) return;
+    executeToolbarCommand({
+      type: LXMScoreCommandEnum.SetBeatKind,
+      ...target,
+      kind,
+    });
+  };
+
+  const insertMeasureAfterActive = () => {
+    if (!activeCursor) {
+      setErrorMessage("请先点击目标小节，再新增小节。");
+      return;
+    }
+    executeToolbarCommand({
+      type: LXMScoreCommandEnum.InsertMeasure,
+      trackId: activeCursor.trackId,
+      afterMeasureId: activeCursor.measureId,
+    });
+  };
+
+  const copyActiveMeasure = () => {
+    if (!activeCursor) {
+      setErrorMessage("请先点击目标小节，再复制小节。");
+      return;
+    }
+    executeToolbarCommand({
+      type: LXMScoreCommandEnum.CopyMeasure,
+      trackId: activeCursor.trackId,
+      measureId: activeCursor.measureId,
+    });
+  };
+
+  const removeActiveMeasure = () => {
+    if (!activeCursor) {
+      setErrorMessage("请先点击目标小节，再删除小节。");
+      return;
+    }
+    executeToolbarCommand({
+      type: LXMScoreCommandEnum.RemoveMeasure,
+      trackId: activeCursor.trackId,
+      measureId: activeCursor.measureId,
+    });
   };
 
   /** 将草稿转换为品位并交给命令层；非法草稿不会修改文档。 */
@@ -210,11 +310,126 @@ export const EditorShell: React.FC = () => {
   const activeString = activeMeasure?.strings.find(
     (string) => string.index === activeCursor?.string,
   );
+  /** 顶栏每个图标均有文字 aria-label，避免只靠音乐符号传达操作含义。 */
+  const rhythmButtons: {
+    base: ILXMRhythm["base"];
+    icon: MusicControlIcon;
+    label: string;
+  }[] = [
+    { base: "whole", icon: "noteWhole", label: "全音符" },
+    { base: "half", icon: "noteHalf", label: "二分音符" },
+    { base: "quarter", icon: "noteQuarter", label: "四分音符" },
+    { base: "eighth", icon: "noteEighth", label: "八分音符" },
+    { base: "sixteenth", icon: "noteSixteenth", label: "十六分音符" },
+    { base: "thirtySecond", icon: "noteThirtySecond", label: "三十二分音符" },
+  ];
   // const firstString = activeMeasure?.strings[0];
   // const lastString = activeMeasure?.strings[activeMeasure.strings.length - 1];
 
   return (
     <div className={styles.editor}>
+      <div
+        className={styles.editorToolbar}
+        role="toolbar"
+        aria-label="节奏与小节工具"
+      >
+        {rhythmButtons.map((button) => (
+          <button
+            key={button.base}
+            type="button"
+            className={styles.toolbarButton}
+            aria-label={`设置为${button.label}`}
+            disabled={!activeCursor}
+            onClick={() => setActiveRhythmBase(button.base)}
+          >
+            <MusicAssetIcon
+              assetId={button.icon}
+              className={styles.toolbarIcon}
+            />
+          </button>
+        ))}
+        <button
+          type="button"
+          className={styles.toolbarButton}
+          aria-label="取消附点"
+          disabled={!activeCursor}
+          onClick={() => setActiveDots(0)}
+        >
+          无点
+        </button>
+        <button
+          type="button"
+          className={styles.toolbarButton}
+          aria-label="设置单附点"
+          disabled={!activeCursor}
+          onClick={() => setActiveDots(1)}
+        >
+          <MusicAssetIcon assetId="noteDot" className={styles.toolbarIcon} />
+        </button>
+        <button
+          type="button"
+          className={styles.toolbarButton}
+          aria-label="设置双附点"
+          disabled={!activeCursor}
+          onClick={() => setActiveDots(2)}
+        >
+          <MusicAssetIcon
+            assetId="noteDoubleDotted"
+            className={styles.toolbarIcon}
+          />
+        </button>
+        <button
+          type="button"
+          className={styles.toolbarButton}
+          aria-label="设为休止"
+          disabled={!activeCursor}
+          onClick={() => setActiveBeatKind("rest")}
+        >
+          休止
+        </button>
+        <button
+          type="button"
+          className={styles.toolbarButton}
+          aria-label="取消休止"
+          disabled={!activeCursor}
+          onClick={() => setActiveBeatKind("notes")}
+        >
+          恢复
+        </button>
+        <button
+          type="button"
+          className={styles.toolbarButton}
+          aria-label="在当前小节后新增小节"
+          disabled={!activeCursor}
+          onClick={insertMeasureAfterActive}
+        >
+          <MusicAssetIcon assetId="measureAdd" className={styles.toolbarIcon} />
+        </button>
+        <button
+          type="button"
+          className={styles.toolbarButton}
+          aria-label="复制当前小节"
+          disabled={!activeCursor}
+          onClick={copyActiveMeasure}
+        >
+          <MusicAssetIcon
+            assetId="actionsCopy"
+            className={styles.toolbarIcon}
+          />
+        </button>
+        <button
+          type="button"
+          className={styles.toolbarButton}
+          aria-label="删除当前小节"
+          disabled={!activeCursor}
+          onClick={removeActiveMeasure}
+        >
+          <MusicAssetIcon
+            assetId="measureRemove"
+            className={styles.toolbarIcon}
+          />
+        </button>
+      </div>
       <p className={styles.inputHint}>
         点击弦线和拍点后输入 0–24；Backspace/Delete 删除当前弦音符。
         {fretDraft && ` 正在输入：${fretDraft}`}
@@ -224,6 +439,7 @@ export const EditorShell: React.FC = () => {
           {errorMessage}
         </p>
       )}
+      {/* SVG 面板 */}
       <svg
         className={styles.scoreSvg}
         viewBox={`0 0 ${lxmLayout.width} ${lxmLayout.height}`}
@@ -235,19 +451,17 @@ export const EditorShell: React.FC = () => {
         onPointerDown={handlePointerDown}
         onKeyDown={handleKeyDown}
       >
-        {activeMeasure &&
-          activeBeat &&
-          activeString && (
-            <g className={styles.cursorLayer} pointerEvents="none">
-              <rect
-                className={styles.activeCursor}
-                x={activeBeat.x - 11}
-                y={activeString.y1 - 9.5}
-                width={22}
-                height={18}
-              />
-            </g>
-          )}
+        {activeMeasure && activeBeat && activeString && (
+          <g className={styles.cursorLayer} pointerEvents="none">
+            <rect
+              className={styles.activeCursor}
+              x={activeBeat.x - 11}
+              y={activeString.y1 - 9.5}
+              width={22}
+              height={18}
+            />
+          </g>
+        )}
         {lxmLayout.systems.map((system) => (
           <g key={system.index}>
             {system.measures.map((measure) => (
@@ -264,6 +478,18 @@ export const EditorShell: React.FC = () => {
                       stroke="black"
                       strokeWidth={1}
                     />
+                  ))}
+                </g>
+                <g className={styles.restLayer} pointerEvents="none">
+                  {measure.restMarks.map((rest) => (
+                    <text
+                      key={rest.id}
+                      x={rest.x}
+                      y={rest.y}
+                      textAnchor="middle"
+                    >
+                      {rest.glyph}
+                    </text>
                   ))}
                 </g>
                 <g>

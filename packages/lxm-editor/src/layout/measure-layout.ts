@@ -14,6 +14,7 @@ import { STANDARD_GUITAR_TUNING } from "../core/constants";
 import { LXM_STRING_SPACING, LXM_STAFF_Y } from "./layout-constants";
 import { layoutBarline } from "./barline-layout";
 import { layoutDurationBeams } from "./duration-beam-layout";
+import { layoutRests } from "./rest-layout";
 
 export interface ILXMLayoutMeasureContext {
   index: number;
@@ -99,6 +100,8 @@ export const layoutMeasure = (
     notes,
     strings,
   );
+  // 休止符同样依赖 beat slot，确保其与后续音符共享唯一的水平时间坐标。
+  const restMarks = layoutRests(measure.id, measure.beats, slotsByBeatId, strings);
 
   return {
     id: measure.id,
@@ -113,6 +116,7 @@ export const layoutMeasure = (
     beats,
     strings,
     notes,
+    restMarks,
     beamSegments,
     durationMarks,
   };

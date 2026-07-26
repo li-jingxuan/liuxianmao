@@ -12,9 +12,6 @@ const HomePage: React.FC = () => {
 
       {/* 编辑器主体 */}
       <div className={styles.editorContentWrapper}>
-        <div className={styles.editorToolbar}>
-          工具栏
-        </div>
         <div className={styles.sidlerBar}>
           侧边栏
         </div>

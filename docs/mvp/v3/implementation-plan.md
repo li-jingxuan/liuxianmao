@@ -179,6 +179,7 @@
 - 修改 `measure-layout.ts`：为 rest beats 生成 `restMarks`；保持 notes、strings、barline 坐标逻辑不变。
 - 修改 `duration-beam-layout.ts`：跳过 rest beat，不为其输出符干或连梁。
 - 修改 `apps/website/components/EditorShell/index.tsx`：只消费 `measure.restMarks` 绘制 glyph；不在 JSX 推导时值或坐标。
+- 休止符的谱面 glyph 与顶栏操作图标分离：谱面仍使用 `rest-layout.ts` 的 Bravura/SMuFL 映射，不复用 `measure-multi-measure-rest32.svg`。
 
 ### 测试
 
@@ -205,6 +206,13 @@
   - 时值按钮、附点按钮、休止切换、新增/复制/删除小节按钮。
   - 使用 button、`aria-label` 和 disabled 状态；没有 cursor 时禁用依赖当前目标的操作。
   - 仅发出 command，不保存 document 副本。
+- 将下列素材从 `docs/extracted-svg-icons/` 复制到 `apps/website/public/assets/svg/music-controls/`，并同步更新 `apps/website/assets/svg/svg-assets-manifest.ts`：
+  - 时值：`note-whole.svg`、`note-half.svg`、`note-quarter.svg`、`note-eighth.svg`、`note-sixteenth.svg`、`note-thirty-second.svg`。
+  - 附点：`note-dot.svg`、`note-double-dotted.svg`。
+  - 小节：`measure-add24.svg`、`actions-copy24.svg`、`measure-remove24.svg`。
+  - 休止操作的临时图标：`measure-multi-measure-rest32.svg`。
+  - 如果同名素材已存在，核对内容后复用，不产生重复副本。
+- 顶栏通过 `MusicAssetIcon` 或 public URL 渲染图标；`docs/extracted-svg-icons/` 不作为页面运行时资源。`measure-multi-measure-rest32.svg` 仅代表操作入口，不替代谱面内单拍休止 glyph。
 - 在 `EditorShell` 集中新增 `executeCommand(command)`：
   - 调用 `applyScoreCommand`；成功则替换 document，失败则设置现有错误文本。
   - 成功后按技术方案恢复 cursor：保留原目标；当前小节删除时定位相邻小节首 beat。
@@ -215,6 +223,7 @@
 - 两行以上谱面中，分别编辑首行、末行 beat 的时值、附点与 rest 状态。
 - 验证 ripple 后光标仍指向相同 beat ID，且命中位置随 layout 更新。
 - 验证新增、复制、删除后的自动换行、SVG `viewBox`、光标回退和 toolbar disabled 状态。
+- 验证顶栏时值、附点、小节和临时休止图标在默认、hover、disabled 状态下均可辨识，且具有对应 `aria-label`。
 - 验证 overflow、对 rest 输入品位、删除最后小节、无 cursor 操作均显示可读错误且文档不变。
 - 浏览器控制台无 error/warning，页面不出现非预期滚动。
 
@@ -249,3 +258,4 @@ pnpm build
 | 日期 | 状态 | 说明 |
 | --- | --- | --- |
 | 2026-07-24 | 待实施 | 已完成 V3 技术方案和实施计划；尚未开始生产代码改动。 |
+| 2026-07-24 | 进行中 | 已完成语义校验、休止/节奏/小节领域命令、休止符 layout、顶栏基础操作与核心单元测试；尚未进行真实浏览器交互验收。 |

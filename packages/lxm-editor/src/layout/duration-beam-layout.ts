@@ -247,13 +247,13 @@ export const layoutBeamSegments = (
  */
 const buildDurationDotAnchors = (
   stemX: number,
-  noteAnchorY: number,
+  beamBaseY: number,
   rhythm: ILXMRhythm,
 ) => {
   return Array.from({ length: rhythm.dots }, (_, index) => ({
     x: stemX + LXM_DURATION_DOT_OFFSET_X + index * LXM_DURATION_DOT_GAP_X,
-    // 根据时值横梁层级计算附点 Y 坐标
-    y: noteAnchorY - (LXM_RHYTHM_BEAM_LEVEL[rhythm.base] * LXM_DURATION_BEAM_LEVEL_GAP) - 0.5,
+    // 附点以连梁基线为参考，避免与横梁重叠；附点应与品位数字处于同一视觉层，而不是跟随远离弦线的横梁基线。
+    y: beamBaseY - (LXM_RHYTHM_BEAM_LEVEL[rhythm.base] * LXM_DURATION_BEAM_LEVEL_GAP) - 1
   }));
 };
 
@@ -291,6 +291,7 @@ export const buildDurationMark = (
       dots: beat.rhythm.dots,
       dotAnchors: buildDurationDotAnchors(
         currentBeat.x,
+        // 附点应与品位数字处于同一视觉层，而不是跟随远离弦线的横梁基线。
         beamBaseY,
         beat.rhythm,
       ),
@@ -307,7 +308,8 @@ export const layoutDurationBeams = (
   // 删除某拍最后一个音符后，该 beat 仍保留在时间轴中，但不应生成 -Infinity
   // 坐标的符干；因此只为实际有音符的 beat 计算时值图形。
   const sourceBeats = arraySortByKey<ILXMBeat>(measure.beats, "tick").filter(
-    (beat) => beat.notes.length > 0,
+    // 休止符没有 TAB 音头，不能生成符干或连梁；空 notes beat 同样跳过。
+    (beat) => beat.kind === "notes" && beat.notes.length > 0,
   );
   const beatLayoutMap = new Map(
     beatLayouts.map((layout) => [layout.id, layout]),

@@ -128,4 +128,54 @@ describe("applyScoreCommand", () => {
       }),
     ).toMatchObject({ ok: false, code: "MEASURE_NOT_FOUND" });
   });
+
+  it("可把 beat 设为休止、取消休止，并阻止直接向休止输入品位", () => {
+    const restResult = applyScoreCommand(createDocument(), {
+      type: LXMScoreCommandEnum.SetBeatKind,
+      ...target,
+      kind: "rest",
+    });
+    expect(restResult).toMatchObject({ ok: true });
+    if (!restResult.ok) return;
+    expect(restResult.document.score.tracks[0]!.measures[0]!.beats[0]).toMatchObject({ kind: "rest", notes: [] });
+    expect(applyScoreCommand(restResult.document, {
+      type: LXMScoreCommandEnum.SetNote, ...target, string: 1, fret: 3,
+    })).toMatchObject({ ok: false, code: "REST_BEAT_NOT_EDITABLE" });
+  });
+
+  it("缩短时值会补充尾部休止以保持小节容量", () => {
+    const result = applyScoreCommand(createDocument(), {
+      type: LXMScoreCommandEnum.SetBeatRhythm,
+      ...target,
+      rhythm: { base: "eighth", dots: 0 },
+    });
+    expect(result).toMatchObject({ ok: true });
+    if (!result.ok) return;
+    const beats = result.document.score.tracks[0]!.measures[0]!.beats;
+    expect(beats.at(-1)).toMatchObject({ kind: "rest" });
+    expect(buildLayout(result.document, { systemWidth: 700 }).systems).not.toHaveLength(0);
+  });
+
+  it("新增、复制、删除小节均保持可编辑文档", () => {
+    const inserted = applyScoreCommand(createDocument(), {
+      type: LXMScoreCommandEnum.InsertMeasure,
+      trackId: target.trackId,
+      afterMeasureId: target.measureId,
+    });
+    expect(inserted).toMatchObject({ ok: true });
+    if (!inserted.ok) return;
+    const copied = applyScoreCommand(inserted.document, {
+      type: LXMScoreCommandEnum.CopyMeasure,
+      trackId: target.trackId,
+      measureId: target.measureId,
+    });
+    expect(copied).toMatchObject({ ok: true });
+    if (!copied.ok) return;
+    const removed = applyScoreCommand(copied.document, {
+      type: LXMScoreCommandEnum.RemoveMeasure,
+      trackId: target.trackId,
+      measureId: target.measureId,
+    });
+    expect(removed).toMatchObject({ ok: true });
+  });
 });

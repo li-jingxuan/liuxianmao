@@ -1,6 +1,7 @@
 import type { z } from "zod";
 
 import { LXMDocumentSchema } from "./schema";
+import { validateDocumentSemantics } from "./semantic-validation";
 import type { DocumentLoadResult } from "./types";
 
 const JSON_PARSE_ERROR_MESSAGE = "JSON 格式错误";
@@ -34,6 +35,11 @@ export const loadDocument = (json: string): DocumentLoadResult => {
       ok: false,
       errors: parsedDocument.error.issues.map(formatZodIssue),
     };
+  }
+
+  const semanticResult = validateDocumentSemantics(parsedDocument.data);
+  if (!semanticResult.ok) {
+    return { ok: false, errors: semanticResult.issues.map((issue) => `${issue.path}: ${issue.message}`) };
   }
 
   return {

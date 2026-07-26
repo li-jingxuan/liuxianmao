@@ -6,6 +6,7 @@
 | --- | --- |
 | [技术实现方案](./technical-design.md) | 定义节奏时间轴、领域命令、休止符布局和页面交互的契约。 |
 | [详细实施计划](./implementation-plan.md) | 按提交切分实施顺序、测试要求与版本验收清单。 |
+| [System 行宽对齐修复方案](./system-width-alignment-fix.md) | 说明 System 宽度不齐的根因、最终宽度分配算法与回归测试。 |
 
 ## 范围
 
