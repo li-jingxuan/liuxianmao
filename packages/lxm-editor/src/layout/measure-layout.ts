@@ -23,9 +23,15 @@ export interface ILXMLayoutMeasureContext {
   x: number;
   y: number;
 
+  /**
+   * System 布局为当前小节分配的最终宽度。
+   *
+   * 未传入时，小节使用由节奏内容计算出的固有宽度；传入时只允许在固有宽度
+   * 基础上扩张。这个值只属于布局过程，不应写回乐谱文档。
+   */
+  assignedWidth?: number;
+
   // TODO 下面两个参数后续版本在拓展
-  // 小节已经设置了宽度，则参与计算比较
-  // assignedWidth?: number;
   // 小节内和弦符号、歌词和简谱 需要的最小宽度
   // widthContributors?: ILXMColumnWidthContributors;
 }
@@ -75,14 +81,21 @@ export const layoutNodes = (
   });
 };
 
+// 构建小节
 export const layoutMeasure = (
   measure: ILXMMeasure,
   context: ILXMLayoutMeasureContext,
 ): ILXMMeasureLayout => {
-  const { index, systemIndex, x, y } = context;
+  const {
+    index,
+    systemIndex,
+    x,
+    y,
+    assignedWidth: requestedAssignedWidth,
+  } = context;
   const { assignedWidth, columns, slotsByBeatId } = layoutMeasureSpacing(
     measure,
-    { x },
+    { x, assignedWidth: requestedAssignedWidth },
   );
 
   const beats = Object.values(slotsByBeatId);
@@ -101,7 +114,12 @@ export const layoutMeasure = (
     strings,
   );
   // 休止符同样依赖 beat slot，确保其与后续音符共享唯一的水平时间坐标。
-  const restMarks = layoutRests(measure.id, measure.beats, slotsByBeatId, strings);
+  const restMarks = layoutRests(
+    measure.id,
+    measure.beats,
+    slotsByBeatId,
+    strings,
+  );
 
   return {
     id: measure.id,

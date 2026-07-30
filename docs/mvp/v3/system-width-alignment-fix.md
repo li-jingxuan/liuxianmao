@@ -91,7 +91,8 @@ interface ILXMLayoutMeasureContext {
 
 - 未传入 `assignedWidth`：返回现有固有宽度，用于断行预计算和独立单小节测试。
 - 传入合法的更大宽度：重新分配 beat columns，使所有内部几何使用最终宽度。
-- `assignedWidth < minWidth`：核心实现抛出或返回明确布局错误；本次算法只扩张，正常流程不会触发该分支。
+- `assignedWidth < intrinsicWidth`：核心实现抛出明确布局错误；本次算法只扩张，正常流程不会触发该分支。只与 `minWidth` 比较是不够的，因为处于 `minWidth` 与 `intrinsicWidth` 之间的值仍会压缩现有理想列宽。
+- `assignedWidth`、`systemWidth` 或 `measureGap` 为非有限数值，以及 `systemWidth <= 0`、`measureGap < 0` 时，核心实现抛出明确布局参数错误，避免比例计算产生 `Infinity` 或 `NaN` 坐标。
 
 ## 5. 宽度分配算法
 
@@ -229,6 +230,7 @@ packages/lxm-editor/tests/layout/
 - `measureGap > 0` 时只分配扣除 gap 后的剩余空间。
 - 不同 `startX` 下最终右边界正确。
 - stretched beat slot 的 hit test 仍命中正确 `measureId + beatId + string`。
+- 拉伸后，首拍向左覆盖到小节起点，末拍向右覆盖到小节终点，避免扩大的末列后半段成为命中盲区。
 - 音符、休止符、附点、符干与连梁在拉伸后使用最新坐标。
 
 ## 8. 不采用的方案

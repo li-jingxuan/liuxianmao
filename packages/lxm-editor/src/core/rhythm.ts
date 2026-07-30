@@ -5,7 +5,7 @@
  * SVG 坐标或渲染策略计算。后续实现时应保持它是纯音乐时间层：例如四分音符
  * 等于多少 tick、附点如何换算、小节拍号对应多少 tick。
  */
-import { TICKS_PER_QUARTER } from "./constants";
+import { LXM_RHYTHM_BASES, TICKS_PER_QUARTER } from "./constants";
 import type { ILXMBeat, ILXMRhythm, ILXMTimeSignature } from "./types";
 
 // 基准节奏时值对应 tick 数
@@ -28,6 +28,18 @@ const DOTTED_RHYTHM_MULTIPLIERS = {
 export type RhythmTickResult =
   | { ok: true; ticks: number }
   | { ok: false; code: "UNSUPPORTED_DOTS" | "NON_INTEGER_RHYTHM_TICKS" };
+
+/**
+ * 一个保持附点写法不变、只缩短基础时值的候选。
+ *
+ * level 表示沿 LXM_RHYTHM_BASES 向更短方向移动了几级。把级数显式返回，是为了让
+ * 上层压缩规划能够比较“修改是否均匀”，而不必再次理解基础时值的排列规则。
+ */
+export interface ILXMShorterRhythmOption {
+  rhythm: ILXMRhythm;
+  level: number;
+  ticks: number;
+}
 
 /** 只计算音乐时间轴 tick，不参与任何视觉宽度决策。 */
 export const calculateRhythmTicks = (rhythm: ILXMRhythm): RhythmTickResult => {
@@ -57,20 +69,56 @@ export const calculateRhythmTicks = (rhythm: ILXMRhythm): RhythmTickResult => {
   return { ok: true, ticks: numerator / denominator };
 };
 
+/**
+ * 返回当前 rhythm 的全部更短候选，顺序固定为“缩短一级”到“缩短最多级”。
+ *
+ * 自动压缩只调整 base，不调整 dots。附点属于用户可见的节奏拼写；如果这里为了
+ * 凑容量擅自移除附点，用户修改一个 beat 时就会同时改变其他 beat 的附点语义。
+ * 因此精确容量组合由上层在这些保留附点的候选中寻找，找不到时明确失败。
+ */
+export const getShorterRhythmOptions = (
+  rhythm: ILXMRhythm,
+): ILXMShorterRhythmOption[] => {
+  const currentIndex = LXM_RHYTHM_BASES.indexOf(rhythm.base);
+  if (currentIndex < 0) return [];
+
+  return LXM_RHYTHM_BASES.slice(currentIndex + 1).flatMap(
+    (base, optionIndex) => {
+      const candidate: ILXMRhythm = { base, dots: rhythm.dots };
+      const duration = calculateRhythmTicks(candidate);
+
+      // 正常 schema 下候选都可表示；保留过滤守卫，避免未来扩展 rhythm 后把非法
+      // tick 带入容量规划。
+      return duration.ok
+        ? [
+            {
+              rhythm: candidate,
+              level: optionIndex + 1,
+              ticks: duration.ticks,
+            },
+          ]
+        : [];
+    },
+  );
+};
+
 /** 根据拍号计算完整拍组容量，4/4 等于 960 tick。 */
-export const getCompleteBeatCapacityTicks = (
-  {numerator,denominator}: ILXMTimeSignature,
-) => TICKS_PER_QUARTER * numerator / denominator;
+export const getCompleteBeatCapacityTicks = ({
+  numerator,
+  denominator,
+}: ILXMTimeSignature) => (TICKS_PER_QUARTER * numerator) / denominator;
 
 /** 根据拍号计算完整小节容量，4/4 等于 3840 tick。 */
 export const getMeasureCapacityTicks = (
   timeSignature: ILXMTimeSignature,
-): number => getCompleteBeatCapacityTicks(timeSignature) * 4
+): number => getCompleteBeatCapacityTicks(timeSignature) * 4;
 
 /** 获取 beat 的结束 tick；调用方可据此构建连续、不重叠的时间轴。 */
 export const getBeatEndTick = (beat: ILXMBeat): RhythmTickResult => {
   const duration = calculateRhythmTicks(beat.rhythm);
-  return duration.ok ? { ok: true, ticks: beat.tick + duration.ticks } : duration;
+  return duration.ok
+    ? { ok: true, ticks: beat.tick + duration.ticks }
+    : duration;
 };
 
 /**
@@ -82,13 +130,16 @@ export const getBeatEndTick = (beat: ILXMBeat): RhythmTickResult => {
  */
 export const createRestRhythmsForTicks = (
   ticks: number,
-): { ok: true; rhythms: ILXMRhythm[] } | { ok: false; code: "RHYTHM_NOT_REPRESENTABLE" } => {
+):
+  | { ok: true; rhythms: ILXMRhythm[] }
+  | { ok: false; code: "RHYTHM_NOT_REPRESENTABLE" } => {
   if (!Number.isInteger(ticks) || ticks < 0) {
     return { ok: false, code: "RHYTHM_NOT_REPRESENTABLE" };
   }
 
-  const bases = Object.entries(BASE_RHYTHM_TICKS)
-    .sort(([, left], [, right]) => right - left) as [ILXMRhythm["base"], number][];
+  const bases = Object.entries(BASE_RHYTHM_TICKS).sort(
+    ([, left], [, right]) => right - left,
+  ) as [ILXMRhythm["base"], number][];
   const rhythms: ILXMRhythm[] = [];
   let remaining = ticks;
 

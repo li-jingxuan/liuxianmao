@@ -68,19 +68,20 @@ export const hitTestLayout = (
   const measure = system?.measures.find((item) => item.id === bounds.measureId);
   if (!measure) return null;
 
-  
-  const beat = measure.beats.find(
-    (item, index) =>{
-      let lastOneHalfWidth = 10
-      // 判断当前偏向哪一个节奏拍，优先更近的哪一个
-      if(index > 0) {
-        lastOneHalfWidth = measure.beats[index - 1].width / 2
-      }
+  // beat.x 是节奏列的起点而不是音符中心。相邻 beat 以两个起点的中点作为
+  // 分界，可以稳定地选择离点击位置最近的一拍。首拍向左覆盖到小节起点，末拍
+  // 向右覆盖到小节终点；否则 System 拉伸后，最后一列的后半段会形成很大的
+  // 无法点击区域。beats 当前由 spacing 按 x 顺序生成，这里仍显式排序，避免
+  // 后续调用方改变数组构造方式时悄悄破坏命中逻辑。
+  const beatsByX = [...measure.beats].sort((left, right) => left.x - right.x);
+  const beat = beatsByX.find((item, index) => {
+    const nextBeat = beatsByX[index + 1];
+    const rightBoundary = nextBeat
+      ? (item.x + nextBeat.x) / 2
+      : measure.x + measure.width;
 
-      const oneHalfWidth = item.width / 2
-      return point.x >= item.x - lastOneHalfWidth && point.x <= item.x + oneHalfWidth // item.width
-    }
-  );
+    return point.x <= rightBoundary;
+  });
   if (!beat) return null;
 
   const string = measure.strings.find(

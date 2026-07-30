@@ -33,4 +33,22 @@ describe("hitTestLayout", () => {
       }),
     ).toBeNull();
   });
+
+  it("拉伸后点击最后一个 beat 到小节右边界之间仍命中最后一拍", () => {
+    const layout = buildLayout(EXAMPLE_MVP_2, { systemWidth: 1380 });
+    const measure = layout.systems[0]!.measures[0]!;
+    const lastBeat = measure.beats.at(-1)!;
+    const string = measure.strings[2]!;
+
+    expect(
+      hitTestLayout(layout, {
+        x: measure.x + measure.width - 1,
+        y: string.y1,
+      }),
+    ).toMatchObject({
+      measureId: measure.id,
+      beatId: lastBeat.id,
+      string: string.index,
+    });
+  });
 });

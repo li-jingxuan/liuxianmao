@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   calculateRhythmTicks,
   getMeasureCapacityTicks,
+  getShorterRhythmOptions,
 } from "../../src/core/rhythm";
 
 describe("calculateRhythmTicks", () => {
@@ -42,8 +43,42 @@ describe("calculateRhythmTicks", () => {
 
 describe("getMeasureCapacityTicks", () => {
   it("根据拍号计算完整小节容量", () => {
-    expect(getMeasureCapacityTicks({ numerator: 4, denominator: 4 })).toBe(3840);
-    expect(getMeasureCapacityTicks({ numerator: 3, denominator: 4 })).toBe(2880);
-    expect(getMeasureCapacityTicks({ numerator: 6, denominator: 8 })).toBe(2880);
+    expect(getMeasureCapacityTicks({ numerator: 4, denominator: 4 })).toBe(
+      3840,
+    );
+    expect(getMeasureCapacityTicks({ numerator: 3, denominator: 4 })).toBe(
+      2880,
+    );
+    expect(getMeasureCapacityTicks({ numerator: 6, denominator: 8 })).toBe(
+      2880,
+    );
+  });
+});
+
+describe("getShorterRhythmOptions", () => {
+  it("按基础时值顺序返回所有更短候选及缩短级数", () => {
+    expect(getShorterRhythmOptions({ base: "whole", dots: 0 })).toEqual([
+      { rhythm: { base: "half", dots: 0 }, level: 1, ticks: 1920 },
+      { rhythm: { base: "quarter", dots: 0 }, level: 2, ticks: 960 },
+      { rhythm: { base: "eighth", dots: 0 }, level: 3, ticks: 480 },
+      { rhythm: { base: "sixteenth", dots: 0 }, level: 4, ticks: 240 },
+      { rhythm: { base: "thirtySecond", dots: 0 }, level: 5, ticks: 120 },
+    ]);
+  });
+
+  it("压缩候选保留原附点数且不修改输入对象", () => {
+    const rhythm = { base: "eighth", dots: 1 } as const;
+
+    expect(getShorterRhythmOptions(rhythm)).toEqual([
+      { rhythm: { base: "sixteenth", dots: 1 }, level: 1, ticks: 360 },
+      { rhythm: { base: "thirtySecond", dots: 1 }, level: 2, ticks: 180 },
+    ]);
+    expect(rhythm).toEqual({ base: "eighth", dots: 1 });
+  });
+
+  it("三十二分音符没有更短的可表示候选", () => {
+    expect(getShorterRhythmOptions({ base: "thirtySecond", dots: 2 })).toEqual(
+      [],
+    );
   });
 });

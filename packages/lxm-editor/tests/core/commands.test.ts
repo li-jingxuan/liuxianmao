@@ -137,10 +137,17 @@ describe("applyScoreCommand", () => {
     });
     expect(restResult).toMatchObject({ ok: true });
     if (!restResult.ok) return;
-    expect(restResult.document.score.tracks[0]!.measures[0]!.beats[0]).toMatchObject({ kind: "rest", notes: [] });
-    expect(applyScoreCommand(restResult.document, {
-      type: LXMScoreCommandEnum.SetNote, ...target, string: 1, fret: 3,
-    })).toMatchObject({ ok: false, code: "REST_BEAT_NOT_EDITABLE" });
+    expect(
+      restResult.document.score.tracks[0]!.measures[0]!.beats[0],
+    ).toMatchObject({ kind: "rest", notes: [] });
+    expect(
+      applyScoreCommand(restResult.document, {
+        type: LXMScoreCommandEnum.SetNote,
+        ...target,
+        string: 1,
+        fret: 3,
+      }),
+    ).toMatchObject({ ok: false, code: "REST_BEAT_NOT_EDITABLE" });
   });
 
   it("缩短时值会补充尾部休止以保持小节容量", () => {
@@ -153,7 +160,51 @@ describe("applyScoreCommand", () => {
     if (!result.ok) return;
     const beats = result.document.score.tracks[0]!.measures[0]!.beats;
     expect(beats.at(-1)).toMatchObject({ kind: "rest" });
-    expect(buildLayout(result.document, { systemWidth: 700 }).systems).not.toHaveLength(0);
+    expect(
+      buildLayout(result.document, { systemWidth: 700 }).systems,
+    ).not.toHaveLength(0);
+  });
+
+  it("变长溢出时自动压缩同小节内最近的后续 beat", () => {
+    const result = applyScoreCommand(createDocument(), {
+      type: LXMScoreCommandEnum.SetBeatRhythm,
+      trackId: "mvp2-track-guitar",
+      measureId: "mvp2-measure-6",
+      beatId: "mvp2-beat-6-1",
+      rhythm: { base: "quarter", dots: 0 },
+    });
+
+    expect(result).toMatchObject({ ok: true });
+    if (!result.ok) return;
+    const measure = result.document.score.tracks[0]!.measures[5]!;
+    expect(measure.beats.slice(0, 4).map((beat) => beat.rhythm.base)).toEqual([
+      "quarter",
+      "thirtySecond",
+      "thirtySecond",
+      "sixteenth",
+    ]);
+    expect(
+      buildLayout(result.document, { systemWidth: 700 }).systems,
+    ).not.toHaveLength(0);
+  });
+
+  it("后续 beat 无法容纳增长时返回明确错误且保持文档不变", () => {
+    const document = createDocument();
+    const snapshot = structuredClone(document);
+    const result = applyScoreCommand(document, {
+      type: LXMScoreCommandEnum.SetBeatRhythm,
+      trackId: "mvp2-track-guitar",
+      measureId: "mvp2-measure-6",
+      beatId: "mvp2-beat-6-7",
+      rhythm: { base: "half", dots: 0 },
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      code: "FOLLOWING_BEATS_CANNOT_COMPRESS",
+      message: "后续节拍已达到最短可用时值，无法容纳当前修改",
+    });
+    expect(document).toEqual(snapshot);
   });
 
   it("新增、复制、删除小节均保持可编辑文档", () => {

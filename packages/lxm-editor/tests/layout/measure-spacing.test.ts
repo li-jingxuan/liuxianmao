@@ -74,4 +74,46 @@ describe("layoutMeasureSpacing", () => {
       }),
     );
   });
+
+  it("保持首尾 padding 不变，并按固有列宽比例分配额外空间", () => {
+    const measure = createMeasure([
+      createBeat("beat-quarter", 0, "quarter"),
+      createBeat("beat-sixteenth", 960, "sixteenth"),
+    ]);
+    const intrinsic = summarizeMeasureSpacingWidth(measure);
+    const assignedWidth = intrinsic.assignedWidth + intrinsic.contentWidth;
+    const spacing = layoutMeasureSpacing(measure, { x: 100, assignedWidth });
+
+    expect(spacing.assignedWidth).toBeCloseTo(assignedWidth);
+    expect(spacing.slotsByBeatId["beat-quarter"]!.x).toBe(
+      100 + LXM_MEASURE_PADDING_X,
+    );
+    expect(spacing.slotsByBeatId["beat-quarter"]!.width).toBeCloseTo(
+      34 * 2.2 * 2,
+    );
+    expect(spacing.slotsByBeatId["beat-sixteenth"]!.width).toBeCloseTo(17 * 2);
+
+    const lastSlot = spacing.slotsByBeatId["beat-sixteenth"]!;
+    expect(lastSlot.x + lastSlot.width).toBeCloseTo(
+      100 + assignedWidth - LXM_MEASURE_PADDING_X,
+    );
+  });
+
+  it("拒绝小于固有宽度或非有限值的 assignedWidth", () => {
+    const measure = createMeasure([createBeat("beat-quarter", 0, "quarter")]);
+    const intrinsic = summarizeMeasureSpacingWidth(measure).assignedWidth;
+
+    expect(() =>
+      layoutMeasureSpacing(measure, {
+        x: 0,
+        assignedWidth: intrinsic - 1,
+      }),
+    ).toThrow(/assignedWidth/);
+    expect(() =>
+      layoutMeasureSpacing(measure, {
+        x: 0,
+        assignedWidth: Number.POSITIVE_INFINITY,
+      }),
+    ).toThrow(/assignedWidth/);
+  });
 });

@@ -6,11 +6,9 @@
  */
 import { GUITAR_STRING_COUNT, MAX_FRET } from "./constants";
 import { createDocumentIdFactory } from "./id-factory";
-import {
-  createRestRhythmsForTicks,
-  calculateRhythmTicks,
-  getMeasureCapacityTicks,
-} from "./rhythm";
+import { createRestBeats } from "./rest-beats";
+import { getMeasureCapacityTicks } from "./rhythm";
+import { changeMeasureBeatRhythm } from "./rhythm-change";
 import { LXMDocumentSchema } from "./schema";
 import { validateDocumentSemantics } from "./semantic-validation";
 import type {
@@ -87,6 +85,7 @@ export type ILXMScoreCommandErrorCode =
   | "INVALID_RHYTHM"
   | "REST_BEAT_NOT_EDITABLE"
   | "MEASURE_OVERFLOW"
+  | "FOLLOWING_BEATS_CANNOT_COMPRESS"
   | "RHYTHM_NOT_REPRESENTABLE"
   | "CANNOT_REMOVE_LAST_MEASURE"
   | "DOCUMENT_INVALID"
@@ -155,36 +154,11 @@ const findTarget = (document: ILXMDocument, command: ILXMBeatCommandBase) => {
   return { track, measure, beat };
 };
 
-/** 由 rhythm 序列创建连续的 rest beats，所有 ID 由集中工厂分配。 */
-const createRestBeats = (
-  startTick: number,
-  ticks: number,
-  createBeatId: () => string,
-): ILXMBeat[] | null => {
-  const result = createRestRhythmsForTicks(ticks);
-  if (!result.ok) return null;
-  let tick = startTick;
-  return result.rhythms.map((rhythm) => {
-    const duration = calculateRhythmTicks(rhythm);
-    // createRestRhythmsForTicks 只输出可计算 rhythm；此处保留守卫便于未来扩展。
-    if (!duration.ok) throw new Error("休止节奏分解产生了无效 rhythm");
-    const beat: ILXMBeat = {
-      id: createBeatId(),
-      tick,
-      rhythm,
-      kind: "rest",
-      notes: [],
-    };
-    tick += duration.ticks;
-    return beat;
-  });
-};
-
 /**
- * 设置时值后重建目标小节尾部。
+ * 设置目标 beat 时值，并把所有容量处理委托给单小节节奏模块。
  *
- * 真正的音符 beat 仅随 delta 平移，绝不被自动改变时值；尾部 rest 是唯一允许
- * 自动伸缩的静音缓冲区。这样既保证容量完整，也让用户能预期 ripple 的结果。
+ * commands.ts 只负责文档级定位、ID 依赖、错误文案和最终校验。后续 beat 如何选择
+ * 压缩方案属于统一领域规则，不能散落到页面或命令分发逻辑中。
  */
 const setBeatRhythm = (
   document: ILXMDocument,
@@ -192,59 +166,37 @@ const setBeatRhythm = (
 ): ILXMApplyScoreCommandResult => {
   const target = findTarget(document, command);
   if ("ok" in target) return target;
-  const nextDuration = calculateRhythmTicks(command.rhythm);
-  if (!nextDuration.ok) return fail("INVALID_RHYTHM", "不支持该时值或附点数");
-  const previousDuration = calculateRhythmTicks(target.beat.rhythm);
-  if (!previousDuration.ok) return fail("INVALID_RHYTHM", "当前 beat 时值无效");
-  const delta = nextDuration.ticks - previousDuration.ticks;
-  const capacity = getMeasureCapacityTicks(target.measure.timeSignature);
   const factory = createDocumentIdFactory(document);
-  const targetIndex = target.measure.beats.findIndex(
-    (beat) => beat.id === target.beat.id,
-  );
-  const beforeAndTarget = target.measure.beats
-    .slice(0, targetIndex + 1)
-    .map((beat) =>
-      beat.id === target.beat.id ? { ...beat, rhythm: command.rhythm } : beat,
-    );
-  const after = target.measure.beats
-    .slice(targetIndex + 1)
-    .map((beat) => ({ ...beat, tick: beat.tick + delta }));
-
-  // 连续末尾休止是可调整的缓冲区；先从时间轴中取走，之后按最终剩余容量重建。
-  const combined = [...beforeAndTarget, ...after];
-  let firstTrailingRest = combined.length;
-  while (
-    firstTrailingRest > 0 &&
-    combined[firstTrailingRest - 1]?.kind === "rest"
-  )
-    firstTrailingRest -= 1;
-  const fixed = combined.slice(0, firstTrailingRest);
-  const fixedEnd =
-    fixed.length === 0
-      ? 0
-      : (() => {
-          const last = fixed[fixed.length - 1]!;
-          const duration = calculateRhythmTicks(last.rhythm);
-          return duration.ok ? last.tick + duration.ticks : Number.NaN;
-        })();
-  if (!Number.isFinite(fixedEnd) || fixedEnd > capacity)
-    return fail("MEASURE_OVERFLOW", "修改时值后超出小节容量");
-  const rests = createRestBeats(
-    fixedEnd,
-    capacity - fixedEnd,
+  const rhythmChange = changeMeasureBeatRhythm(
+    target.measure,
+    target.beat.id,
+    command.rhythm,
     factory.createBeatId,
   );
-  if (!rests)
+
+  if (!rhythmChange.ok) {
+    if (rhythmChange.code === "BEAT_NOT_FOUND")
+      return fail("BEAT_NOT_FOUND", "目标节拍不存在");
+    if (rhythmChange.code === "INVALID_RHYTHM")
+      return fail("INVALID_RHYTHM", "不支持该时值或附点数");
+    if (rhythmChange.code === "FOLLOWING_BEATS_CANNOT_COMPRESS")
+      return fail(
+        "FOLLOWING_BEATS_CANNOT_COMPRESS",
+        "后续节拍已达到最短可用时值，无法容纳当前修改，请先将后续节拍调整为休止符。",
+      );
     return fail(
       "RHYTHM_NOT_REPRESENTABLE",
       "剩余休止时长无法由当前节奏类型表示",
     );
+  }
+
   return finalize(
-    replaceMeasure(document, command.trackId, command.measureId, {
-      ...target.measure,
-      beats: [...fixed, ...rests],
-    }),
+    replaceMeasure(
+      document,
+      command.trackId,
+      command.measureId,
+      rhythmChange.measure,
+    ),
   );
 };
 

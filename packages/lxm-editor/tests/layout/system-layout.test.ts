@@ -57,4 +57,68 @@ describe("buildLayout 的 system 自动换行", () => {
     );
     expect(layout.systems[0]!.width).toBeGreaterThan(100);
   });
+
+  it("将所有未超宽 System（包括末行）拉伸到目标宽度", () => {
+    const systemWidth = 1380;
+    const layout = buildLayout(EXAMPLE_MVP_2, { systemWidth });
+
+    expect(layout.systems).toHaveLength(2);
+    expect(layout.systems.map((system) => system.measures.length)).toEqual([
+      4, 4,
+    ]);
+    for (const system of layout.systems) {
+      const lastMeasure = system.measures.at(-1)!;
+      expect(system.width).toBe(systemWidth);
+      expect(lastMeasure.x + lastMeasure.width).toBeCloseTo(
+        system.x + systemWidth,
+      );
+    }
+  });
+
+  it("measureGap 不参与内容拉伸，最终右边界仍与目标宽度一致", () => {
+    const systemWidth = 1380;
+    const measureGap = 12;
+    const layout = buildLayout(EXAMPLE_MVP_2, { systemWidth, measureGap });
+
+    for (const system of layout.systems) {
+      const lastMeasure = system.measures.at(-1)!;
+      expect(lastMeasure.x + lastMeasure.width).toBeCloseTo(
+        system.x + systemWidth,
+      );
+      system.measures.slice(1).forEach((measure, index) => {
+        const previous = system.measures[index]!;
+        expect(measure.x - (previous.x + previous.width)).toBeCloseTo(
+          measureGap,
+        );
+      });
+    }
+  });
+
+  it("拒绝无法生成有限布局的 systemWidth 和 measureGap", () => {
+    expect(() =>
+      buildLayout(EXAMPLE_MVP_2, { systemWidth: Number.POSITIVE_INFINITY }),
+    ).toThrow(/systemWidth/);
+    expect(() => buildLayout(EXAMPLE_MVP_2, { systemWidth: 0 })).toThrow(
+      /systemWidth/,
+    );
+    expect(() => buildLayout(EXAMPLE_MVP_2, { measureGap: -1 })).toThrow(
+      /measureGap/,
+    );
+  });
+
+  it("小节高度完整容纳固定 rhythm lane 和底部留白", () => {
+    const layout = buildLayout(EXAMPLE_MVP_2, { systemWidth: 1380 });
+    const durationLaneFits = layout.systems.every((system) =>
+      system.measures.every((measure) =>
+        measure.durationMarks.every(
+          (mark) =>
+            // Bravura down flag 在当前字号下从字形原点向下延伸约 36px。
+            (mark.flag ? mark.flag.y + 36 : mark.stemY2) <=
+            measure.y + measure.height - 12,
+        ),
+      ),
+    );
+
+    expect(durationLaneFits).toBe(true);
+  });
 });

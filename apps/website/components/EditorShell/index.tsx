@@ -52,7 +52,7 @@ export const EditorShell: React.FC = () => {
     });
   }, [document]);
 
-  console.log('lxmLayout: ', lxmLayout)
+  console.log("lxmLayout: ", lxmLayout);
 
   /** 组件卸载时取消延迟提交，避免异步回调写入已卸载组件。 */
   useEffect(
@@ -529,18 +529,48 @@ export const EditorShell: React.FC = () => {
                     ),
                   )}
                 </g>
-                <g>
-                  {/* 删除最后一个音符后，对应的符干与附点会随最新 layout 自动消失。 */}
+                <g className={styles.durationLayer} pointerEvents="none">
+                  {/*
+                    页面只消费核心 layout 已经决定好的符干、占位线、旗帜和附点。
+                    这里不读取 rhythm.base，避免 React 与核心排版各维护一套时值规则。
+                  */}
                   {measure.durationMarks.map((mark) => (
                     <g key={mark.beatId}>
-                      <line
-                        x1={mark.stemX}
-                        y1={mark.stemY1}
-                        x2={mark.stemX}
-                        y2={mark.stemY2}
-                        stroke="black"
-                        strokeWidth={1}
-                      />
+                      {/*
+                        head glyph 仍保留在核心布局数据中，但当前视觉契约不创建
+                        对应 SVG DOM。长时值由“一根起音符干 + 后续占位线”表达。
+                      */}
+                      {mark.stemVisible && (
+                        <line
+                          x1={mark.stemX}
+                          y1={mark.stemY1}
+                          x2={mark.stemX}
+                          y2={mark.stemY2}
+                          stroke="black"
+                          strokeWidth={1}
+                        />
+                      )}
+                      {mark.sustainMarks.map((sustainMark) => (
+                        <line
+                          key={sustainMark.unitIndex}
+                          x1={sustainMark.x1}
+                          y1={sustainMark.y}
+                          x2={sustainMark.x2}
+                          y2={sustainMark.y}
+                          stroke="black"
+                          strokeWidth={sustainMark.thickness}
+                        />
+                      ))}
+                      {mark.flag && (
+                        <text
+                          className={styles.durationGlyph}
+                          x={mark.flag.x}
+                          y={mark.flag.y}
+                          fontSize={mark.flag.fontSize}
+                        >
+                          {mark.flag.glyph}
+                        </text>
+                      )}
                       {mark.dotAnchors.map((dot, index) => (
                         <circle
                           key={index}
@@ -553,7 +583,7 @@ export const EditorShell: React.FC = () => {
                     </g>
                   ))}
                 </g>
-                <g>
+                <g pointerEvents="none">
                   {/* 连梁段已在核心包完成分组，页面只负责绘制。 */}
                   {measure.beamSegments.map((segment, index) => (
                     <line

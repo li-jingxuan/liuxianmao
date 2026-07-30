@@ -9,7 +9,7 @@ import {
   ILXMNoteLayout,
   ILXMStringLineLayout,
 } from "./layout-types";
-import { arraySortByKey, getLastStringLine } from "./layout-helpers";
+import { arraySortByKey } from "./layout-helpers";
 import {
   ILXMBeat,
   ILXMMeasure,
@@ -20,6 +20,21 @@ import {
   calculateRhythmTicks,
   getCompleteBeatCapacityTicks,
 } from "../core/rhythm";
+import {
+  LXM_DURATION_FLAG_FONT_SIZE,
+  LXM_DURATION_FLAG_OFFSET_X,
+  LXM_DURATION_FLAG_OFFSET_Y,
+  LXM_DURATION_DOT_CLEARANCE_Y,
+  LXM_DURATION_HEAD_FONT_SIZE,
+  LXM_DURATION_HEAD_OFFSET_Y,
+  LXM_DURATION_STEM_LENGTH,
+  LXM_DURATION_STEM_NOTE_GAP,
+  LXM_DURATION_SUSTAIN_HORIZONTAL_PADDING,
+  LXM_DURATION_SUSTAIN_MIN_WIDTH,
+  LXM_DURATION_SUSTAIN_OFFSET_Y,
+  LXM_DURATION_SUSTAIN_THICKNESS,
+  LXM_DURATION_SUSTAIN_WIDTH,
+} from "./layout-constants";
 
 interface ILXMDurationBeamLayoutResult {
   beamSegments: ILXMBeamSegmentLayout[];
@@ -36,8 +51,37 @@ const LXM_RHYTHM_BEAM_LEVEL: Record<ILXMRhythmBase, number> = {
   thirtySecond: 3,
 };
 
-// 连梁区域相对第六弦向下的顶部距离；符干终点会落在这条 baseline 上。
-export const LXM_DURATION_BEAM_TOP_OFFSET_Y = 22;
+/**
+ * TAB 数字不能像五线谱音符头一样直接切换空心/实心，因此在第六弦下方的独立
+ * rhythm lane 使用 Bravura/SMuFL 节奏头表达基础时值。四分及更短时值共享实心头，
+ * 再由 beamLevel 对应的连梁或旗帜继续区分。
+ */
+const LXM_DURATION_HEAD_GLYPH: Record<ILXMRhythmBase, string> = {
+  whole: "\uE0A2",
+  half: "\uE0A3",
+  quarter: "\uE0A4",
+  eighth: "\uE0A4",
+  sixteenth: "\uE0A4",
+  thirtySecond: "\uE0A4",
+};
+
+/** 一个基础时值包含的四分音符单位数；短于四分时不生成延续占位线。 */
+const LXM_RHYTHM_QUARTER_UNIT_COUNT: Record<ILXMRhythmBase, number> = {
+  whole: 4,
+  half: 2,
+  quarter: 1,
+  eighth: 0,
+  sixteenth: 0,
+  thirtySecond: 0,
+};
+
+/** 孤立短时值使用一个已经包含完整层数的向下 composite flag。 */
+const LXM_DURATION_FLAG_GLYPH: Partial<Record<ILXMRhythmBase, string>> = {
+  eighth: "\uE241",
+  sixteenth: "\uE243",
+  thirtySecond: "\uE245",
+};
+
 // 多层连梁之间的纵向距离。
 export const LXM_DURATION_BEAM_LEVEL_GAP = 5;
 // 连梁横条厚度。
@@ -48,10 +92,6 @@ export const LXM_DURATION_PARTIAL_BEAM_LENGTH = 12;
 // 第一个附点相对符干的水平偏移，以及多附点之间的水平间距。
 export const LXM_DURATION_DOT_OFFSET_X = 5;
 export const LXM_DURATION_DOT_GAP_X = 5;
-// 附点相对连梁基线的纵向偏移，避免与横梁重叠。
-// export const LXM_DURATION_DOT_OFFSET_Y = 7;
-// 时值符干和音符所在弦线之间的纵向间距，避免符干压住品位数字。
-export const LXM_DURATION_STEM_NOTE_GAP = 6;
 
 /**
  * 1. 需要计算当前 timeSignature 下的 tick 总和（4/4拍 = 960tick）
@@ -240,40 +280,91 @@ export const layoutBeamSegments = (
 };
 
 /**
- * 根据当前 beat 最低音符的锚点生成附点中心坐标。
+ * 根据 rhythm lane 最高图形生成附点中心坐标。
  *
- * 附点应紧邻 TAB 品位数字，而不是落在符干终点或连梁附近；多附点仅沿 X 轴等距
- * 排列，保持相同的 Y 坐标。
+ * 有连梁时以最高层连梁为基准，无连梁时以 sustain lane 为基准。这样附点既不
+ * 与隐藏的节奏头绑定，也不会和旗帜、连梁或长时值占位线重叠。
  */
 const buildDurationDotAnchors = (
   stemX: number,
-  beamBaseY: number,
+  beamY: number,
+  beamLevel: number,
   rhythm: ILXMRhythm,
 ) => {
+  const topRhythmY =
+    beamLevel > 0
+      ? beamY - (beamLevel - 1) * LXM_DURATION_BEAM_LEVEL_GAP
+      : beamY;
+
   return Array.from({ length: rhythm.dots }, (_, index) => ({
     x: stemX + LXM_DURATION_DOT_OFFSET_X + index * LXM_DURATION_DOT_GAP_X,
-    // 附点以连梁基线为参考，避免与横梁重叠；附点应与品位数字处于同一视觉层，而不是跟随远离弦线的横梁基线。
-    y: beamBaseY - (LXM_RHYTHM_BEAM_LEVEL[rhythm.base] * LXM_DURATION_BEAM_LEVEL_GAP) - 1
+    y: topRhythmY - LXM_DURATION_DOT_CLEARANCE_Y,
   }));
 };
 
-/** 构建时值符干布局 */
+/**
+ * 把长时值的 beat slot 等分为四分音符单位，并在起音后的每个单位中央放置
+ * 一条短横线。线段宽度会受单元边界约束，因此不会越出当前 beat slot。
+ */
+const buildDurationSustainMarks = (
+  beatLayout: ILXMBeatLayout,
+  rhythmBase: ILXMRhythmBase,
+  staffCenterY: number,
+) => {
+  const totalQuarterUnits = LXM_RHYTHM_QUARTER_UNIT_COUNT[rhythmBase];
+  if (totalQuarterUnits <= 1) return [];
+
+  const unitWidth = beatLayout.width / totalQuarterUnits;
+  const availableWidth =
+    unitWidth - LXM_DURATION_SUSTAIN_HORIZONTAL_PADDING * 2;
+
+  if (availableWidth < LXM_DURATION_SUSTAIN_MIN_WIDTH) {
+    throw new Error(
+      `时值占位单元宽度不足：beatId=${beatLayout.id}, availableWidth=${availableWidth}`,
+    );
+  }
+
+  const lineWidth = Math.min(LXM_DURATION_SUSTAIN_WIDTH, availableWidth);
+
+  return Array.from({ length: totalQuarterUnits - 1 }, (_, index) => {
+    const unitIndex = index + 1;
+    const unitCenterX =
+      beatLayout.x + unitWidth * (unitIndex + 0.5);
+
+    return {
+      unitIndex,
+      x1: unitCenterX - lineWidth / 2,
+      x2: unitCenterX + lineWidth / 2,
+      // 长时值占位线位于第一弦与第六弦之间的视觉中线。偏移常量只用于
+      // 浏览器像素级校准，不能再把占位线带回下方的 rhythm lane。
+      y: staffCenterY + LXM_DURATION_SUSTAIN_OFFSET_Y,
+      thickness: LXM_DURATION_SUSTAIN_THICKNESS,
+    };
+  });
+};
+
+/** 构建节奏头、符干、附点和连梁层级所共享的基础 mark。 */
 export const buildDurationMark = (
   measureId: string,
+  headY: number,
   beamBaseY: number,
+  staffCenterY: number,
   sourceBeats: ILXMBeat[],
   beatLayoutMap: Map<string, ILXMBeatLayout>,
-  noteLayouts: ILXMNoteLayout[],
+  noteLayoutsByBeatId: Map<string, ILXMNoteLayout[]>,
 ): ILXMDurationMarkLayout[] =>
   sourceBeats.map((beat) => {
     const currentBeat = beatLayoutMap.get(beat.id);
     if (!currentBeat) {
       throw new Error(`beatLayoutMap is empty! beat id: ${beat.id}`);
     }
-
-    // 计算 beamBaseY, 找到最大 Y 坐标的音符，加上一点 offsetY 值
-    const beatNotes = noteLayouts.filter((c) => c.beatId === beat.id);
-    const beatStemAnchorY = Math.max(...beatNotes.map((c) => c.y));
+    const beatNotes = noteLayoutsByBeatId.get(beat.id);
+    if (!beatNotes || beatNotes.length === 0) {
+      throw new Error(
+        `时值布局缺少音符坐标：measureId=${measureId}, beatId=${beat.id}`,
+      );
+    }
+    const lowestNoteY = Math.max(...beatNotes.map((note) => note.y));
 
     // 计算 beamLevel
     const beamLevel = LXM_RHYTHM_BEAM_LEVEL[beat.rhythm.base];
@@ -281,24 +372,39 @@ export const buildDurationMark = (
     return {
       beatId: beat.id,
       measureId,
-      // 符干坐标
-      stemX: currentBeat.x, //  + LXM_DURATION_STEM_OFFSET_X,
-      stemY1: beatStemAnchorY + LXM_DURATION_STEM_NOTE_GAP,
+      head: {
+        glyph: LXM_DURATION_HEAD_GLYPH[beat.rhythm.base],
+        x: currentBeat.x,
+        y: headY,
+        fontSize: LXM_DURATION_HEAD_FONT_SIZE,
+      },
+      stemVisible: true,
+      // stemX 与 TAB 音符共享时间锚点；stemY1 从和弦中画面最靠下的实际音符开始。
+      stemX: currentBeat.x,
+      stemY1: lowestNoteY + LXM_DURATION_STEM_NOTE_GAP,
       stemY2: beamBaseY,
       // 连梁的 Y 坐标（往上排列，这里与 符干 的 Y 坐标是相同的）
       beamY: beamBaseY,
       beamLevel: beamLevel,
+      // 首个四分单位已经由符干表达，只为剩余单位建立占位数据。
+      sustainMarks: buildDurationSustainMarks(
+        currentBeat,
+        beat.rhythm.base,
+        staffCenterY,
+      ),
+      // 孤立 flag 在 beamSegments 完成后统一回填；此阶段只构建稳定的基础 mark。
+      flag: null,
       dots: beat.rhythm.dots,
       dotAnchors: buildDurationDotAnchors(
         currentBeat.x,
-        // 附点应与品位数字处于同一视觉层，而不是跟随远离弦线的横梁基线。
         beamBaseY,
+        beamLevel,
         beat.rhythm,
       ),
     };
   });
 
-/** 布局时值连梁/符干 */
+/** 布局完整时值符号：基础 mark、shared/partial beam，以及孤立 composite flag。 */
 export const layoutDurationBeams = (
   measure: ILXMMeasure,
   beatLayouts: ILXMBeatLayout[],
@@ -314,19 +420,34 @@ export const layoutDurationBeams = (
   const beatLayoutMap = new Map(
     beatLayouts.map((layout) => [layout.id, layout]),
   );
-  const lastStringLine = getLastStringLine(strings);
+  // 一次遍历建立 beat → notes 索引，避免 buildDurationMark 为每个 beat 重复扫描
+  // 整个 noteLayouts 数组。索引保存最终 note.y，符干因此能连接真实渲染坐标。
+  const noteLayoutsByBeatId = noteLayouts.reduce((map, note) => {
+    const beatNotes = map.get(note.beatId) ?? [];
+    beatNotes.push(note);
+    map.set(note.beatId, beatNotes);
+    return map;
+  }, new Map<string, ILXMNoteLayout[]>());
+  const firstStringLine = strings.find((line) => line.index === 1);
+  const lastStringLine = strings.find((line) => line.index === 6);
 
-  if (!lastStringLine) {
-    throw new Error("lastStringLine is empty!");
+  if (!firstStringLine || !lastStringLine) {
+    throw new Error(`时值布局缺少边界弦线：measureId=${measure.id}`);
   }
 
-  const beamBaseY = lastStringLine.y2 + LXM_DURATION_BEAM_TOP_OFFSET_Y;
+  const headY = lastStringLine.y2 + LXM_DURATION_HEAD_OFFSET_Y;
+  const beamBaseY = headY + LXM_DURATION_STEM_LENGTH;
+  // 直接使用最终弦线布局坐标，确保 System 或谱面整体发生 Y 偏移后，占位线仍
+  // 位于六线谱正中间。不能只使用高度差的一半，否则会丢失谱面的起始 Y。
+  const staffCenterY = (firstStringLine.y1 + lastStringLine.y1) / 2;
   const durationMarks = buildDurationMark(
     measure.id,
+    headY,
     beamBaseY,
+    staffCenterY,
     sourceBeats,
     beatLayoutMap,
-    noteLayouts,
+    noteLayoutsByBeatId,
   );
   const markByBeatId = new Map(
     durationMarks.map((mark) => [mark.beatId, mark]),
@@ -339,9 +460,34 @@ export const layoutDurationBeams = (
   const beamSegments = beamGroups.flatMap((group) =>
     layoutBeamSegments(group, dotCountByBeatId),
   );
+  const coveredBeatIds = new Set(
+    beamSegments.flatMap((segment) => segment.beatIds),
+  );
+  const sourceBeatById = new Map(sourceBeats.map((beat) => [beat.id, beat]));
+  const marksWithFlags = durationMarks.map((mark) => {
+    const beat = sourceBeatById.get(mark.beatId);
+    const flagGlyph = beat
+      ? LXM_DURATION_FLAG_GLYPH[beat.rhythm.base]
+      : undefined;
+
+    // 当前 beam 算法会为有邻居的短时值生成 shared 或 partial segment；只有完全
+    // 没有出现在任何 segment 中的短时值才是孤立音符。此处补 composite flag，
+    // 避免与已经存在的连梁重复表达同一层时值。
+    if (!flagGlyph || coveredBeatIds.has(mark.beatId)) return mark;
+
+    return {
+      ...mark,
+      flag: {
+        glyph: flagGlyph,
+        x: mark.stemX + LXM_DURATION_FLAG_OFFSET_X,
+        y: mark.stemY2 + LXM_DURATION_FLAG_OFFSET_Y,
+        fontSize: LXM_DURATION_FLAG_FONT_SIZE,
+      },
+    };
+  });
 
   return {
     beamSegments,
-    durationMarks,
+    durationMarks: marksWithFlags,
   };
 };

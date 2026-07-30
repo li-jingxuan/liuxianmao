@@ -21,7 +21,9 @@ export interface ILXMLayoutOptions {
   x?: number;
   y?: number;
   measureGap?: number;
-  /** 单条谱面行的最大逻辑宽度；超过该宽度时从下一个小节开始换行。 */
+  /**
+   * 普通谱面行的目标逻辑宽度，同时也是断行上限；单个超宽小节保留真实宽度。
+   */
   systemWidth?: number;
   /** 相邻谱面行之间的垂直间距。 */
   systemGapY?: number;
@@ -51,7 +53,7 @@ export interface ILXMSystemLayout {
   /** 当前谱面行的左上角逻辑坐标。 */
   x: number;
   y: number;
-  /** 当前行实际使用的宽度；超宽小节可以大于配置的 systemWidth。 */
+  /** 普通行等于配置的 systemWidth；超宽小节行可以大于该值。 */
   width: number;
   /** 当前行中最高小节决定的高度。 */
   height: number;
@@ -230,11 +232,38 @@ export interface ILXMDurationDotAnchor {
   y: number;
 }
 
-/** beat 级别的时值符干布局；一个和弦 beat 只生成一个符干。 */
+/** 页面可直接使用 Bravura 渲染的时值字形及其最终坐标。 */
+export interface ILXMDurationGlyphLayout {
+  glyph: string;
+  x: number;
+  y: number;
+  fontSize: number;
+}
+
+/**
+ * 长时值中，一个四分音符单位之后的延续占位线。
+ *
+ * `unitIndex` 从 1 开始：0 号单位由当前拍的符干表示，后续单位才绘制占位线。
+ * 布局层输出最终线段坐标，渲染层不再重复推导拍宽或时值单位。
+ */
+export interface ILXMDurationSustainMarkLayout {
+  unitIndex: number;
+  x1: number;
+  x2: number;
+  y: number;
+  thickness: number;
+}
+
+/** beat 级别的时值布局；一个和弦 beat 只生成一套节奏头、符干和旗帜。 */
 export interface ILXMDurationMarkLayout {
   beatId: string;
   measureId: string;
 
+  /** 六线谱下方固定 rhythm lane 中的节奏头。 */
+  head: ILXMDurationGlyphLayout;
+
+  /** 所有音符时值都绘制符干；长时值再由 sustainMarks 补足持续单位。 */
+  stemVisible: boolean;
   // 符干坐标
   stemX: number;
   stemY1: number;
@@ -244,6 +273,12 @@ export interface ILXMDurationMarkLayout {
   beamY: number;
   // 连梁层级
   beamLevel: number;
+
+  /** 二分、全音符剩余四分音符单位的时间占位线。 */
+  sustainMarks: ILXMDurationSustainMarkLayout[];
+
+  /** 仅完全没有连梁覆盖的孤立短时值使用 composite flag。 */
+  flag: ILXMDurationGlyphLayout | null;
 
   /** 原始 rhythm 中的附点数量。 */
   dots: number;

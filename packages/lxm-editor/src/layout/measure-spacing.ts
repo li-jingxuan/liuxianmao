@@ -50,28 +50,30 @@ export const buildRhythmicColumns = (
 ): ILXMRhythmicColumn[] => {
   // 当前只需要考虑 notes 类型的节拍
   // 数据结构中暂时不考虑相同 tick 存在多个 beat（节拍）的情况：多轨和多声部才可能出现这种情况
-  return [...measure.beats]
-    // 先复制再排序；layout 是纯计算，绝不能改变调用方的文档 beat 顺序。
-    .sort((left, right) => left.tick - right.tick)
-    .map((beat) => {
-      const rhythmTicks = getBeatRhythmTicks(beat);
-      // 当前节拍的时值权重
-      const durationWeight = LXM_DURATION_VISUAL_WEIGHT[beat.rhythm.base];
-      // 当前节拍的最小宽度限制
-      const minWidth = LXM_DURATION_MIN_COLUMN_WIDTH[beat.rhythm.base];
+  return (
+    [...measure.beats]
+      // 先复制再排序；layout 是纯计算，绝不能改变调用方的文档 beat 顺序。
+      .sort((left, right) => left.tick - right.tick)
+      .map((beat) => {
+        const rhythmTicks = getBeatRhythmTicks(beat);
+        // 当前节拍的时值权重
+        const durationWeight = LXM_DURATION_VISUAL_WEIGHT[beat.rhythm.base];
+        // 当前节拍的最小宽度限制
+        const minWidth = LXM_DURATION_MIN_COLUMN_WIDTH[beat.rhythm.base];
 
-      return {
-        tick: beat.tick,
-        beatIds: [beat.id],
-        rhythmTicks,
-        durationWeight,
-        minWidth,
-        // 理想宽度 = Max(最小宽度限制, 最小宽度限制 * 时值权重)
-        // thirtySecond 三十二分音符（durationWeight = 0.72）会使用 minWidth 作为理想宽度
-        // TODO 这里应该多种因素来计算小节理想宽度
-        idealWidth: Math.max(minWidth, minWidth * durationWeight),
-      };
-    });
+        return {
+          tick: beat.tick,
+          beatIds: [beat.id],
+          rhythmTicks,
+          durationWeight,
+          minWidth,
+          // 理想宽度 = Max(最小宽度限制, 最小宽度限制 * 时值权重)
+          // thirtySecond 三十二分音符（durationWeight = 0.72）会使用 minWidth 作为理想宽度
+          // TODO 这里应该多种因素来计算小节理想宽度
+          idealWidth: Math.max(minWidth, minWidth * durationWeight),
+        };
+      })
+  );
 };
 
 export const summarizeMeasureSpacingWidth = (
@@ -109,25 +111,59 @@ export const summarizeMeasureSpacingWidth = (
 };
 
 /**
- * 将节奏列转换成 beat slot，assignedWidth 本轮默认取小节 idealWidth。
+ * 将节奏列转换成最终 beat slot。
+ *
+ * 小节左右 padding 始终保持固定；System 分配的额外宽度只进入节奏内容区，并按
+ * 每个 column 的固有 idealWidth 成比例分配。因此该函数不会通过放大首尾空白来
+ * 假装对齐，小节中的拍点、音符、休止符和后续命中区域都会使用真实拉伸后的坐标。
  */
 export const layoutMeasureSpacing = (
   measure: ILXMMeasure,
   context: {
     x: number;
-    // TODO 如果这个小节已经分配了宽度，目前版本这个参数没有意义
-    // assignedWidth?: number;
+    /** 由 System 分配的最终宽度；省略时使用小节固有宽度。 */
+    assignedWidth?: number;
   },
 ): ILXMMeasureSpacingSummary => {
-  // 小节 Column Width 摘要信息
+  // summary 中的 assignedWidth 是仅由节奏内容推导出的固有宽度。为了避免把
+  // “固有宽度”和“最终分配宽度”混在一起，下面分别保留两个变量。
   const summary = summarizeMeasureSpacingWidth(measure);
+  const intrinsicWidth = summary.assignedWidth;
+  const assignedWidth = context.assignedWidth ?? intrinsicWidth;
+
+  // 本轮算法只负责扩张。若允许 assignedWidth 落在 minWidth 和 idealWidth
+  // 之间，extraWidth 会变成负数并悄悄压缩节奏列，违背 System 对齐的契约。
+  // EPSILON 只容忍上层残差吸收可能带来的机器精度误差，不允许真实压缩。
+  const widthEpsilon = Number.EPSILON * Math.max(1, intrinsicWidth) * 8;
+  if (
+    !Number.isFinite(assignedWidth) ||
+    assignedWidth + widthEpsilon < intrinsicWidth
+  ) {
+    throw new RangeError(
+      `assignedWidth 必须是大于等于小节固有宽度 ${intrinsicWidth} 的有限数值，实际为 ${assignedWidth}`,
+    );
+  }
+
+  const extraWidth = assignedWidth - intrinsicWidth;
+  const assignedContentWidth = assignedWidth - LXM_MEASURE_PADDING_X * 2;
+  let allocatedContentWidth = 0;
 
   // 计算每个 beat 节拍的x坐标信息
   const slotsByBeatId: Record<string, ILXMBeatLayout> = {};
   // 当前 x 游标位置
   let cursorX = context.x + LXM_MEASURE_PADDING_X;
   summary.columns.forEach((column, columnIndex) => {
-    const width = Math.max(column.minWidth, column.idealWidth);
+    const isLastColumn = columnIndex === summary.columns.length - 1;
+    // 前 n - 1 列按 idealWidth 比例获得额外空间；最后一列直接吸收内容区剩余值，
+    // 避免多次浮点加法让最后一个 slot 偏离右 padding。
+    const proportionalWidth =
+      summary.contentWidth > 0
+        ? column.idealWidth +
+          (extraWidth * column.idealWidth) / summary.contentWidth
+        : column.idealWidth;
+    const width = isLastColumn
+      ? assignedContentWidth - allocatedContentWidth
+      : proportionalWidth;
 
     for (const beatId of column.beatIds) {
       const beat = measure.beats.find((item) => item.id === beatId);
@@ -145,10 +181,12 @@ export const layoutMeasureSpacing = (
     }
 
     cursorX += width;
+    allocatedContentWidth += width;
   });
 
   return {
     ...summary,
+    assignedWidth,
     slotsByBeatId,
   };
 };

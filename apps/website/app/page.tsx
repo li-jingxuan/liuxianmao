@@ -8,13 +8,13 @@ const HomePage: React.FC = () => {
 
   return (
     <div className={styles.editorShell}>
-      <div className={styles.toolbar}></div>
+      {/* <div className={styles.toolbar}></div> */}
 
       {/* 编辑器主体 */}
       <div className={styles.editorContentWrapper}>
-        <div className={styles.sidlerBar}>
+        {/* <div className={styles.sidlerBar}>
           侧边栏
-        </div>
+        </div> */}
         <div className={styles.editorContentContainer}>
           <EditorShell />
         </div>
