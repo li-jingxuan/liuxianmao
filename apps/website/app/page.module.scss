@@ -1,15 +1,15 @@
 $toolbarH: 60px;
 
-.editorShell{
+.editorShell {
   height: 100vh;
 }
 
 .toolbar {
-  height: $toolbarH; 
+  height: $toolbarH;
   border-bottom: 1px solid #cacaca;
 }
 
-.editorContentWrapper{
+.editorContentWrapper {
   margin: 15px;
   background-color: #fff;
   border-radius: 5px;
@@ -17,15 +17,33 @@ $toolbarH: 60px;
   flex-wrap: wrap;
   height: calc(100vh - $toolbarH - 30px);
 
-  .sidlerBar{
+  .sidlerBar {
     min-width: 200px;
     width: 200px;
     border-right: 1px solid #cacaca;
   }
 
-  .editorContentContainer{
+  .editorContentContainer {
     flex: 1;
-    overflow: auto;
+    min-width: 0;
+    overflow: hidden;
     height: 100%;
+  }
+}
+
+@media print {
+  .editorShell,
+  .editorContentWrapper,
+  .editorContentContainer {
+    height: auto;
+  }
+
+  .editorContentWrapper {
+    margin: 0;
+    border-radius: 0;
+  }
+
+  .editorContentContainer {
+    overflow: visible;
   }
 }

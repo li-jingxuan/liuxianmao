@@ -1,5 +1,13 @@
 .editor {
-  margin: 20px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 100%;
+}
+
+.editorControls {
+  flex: none;
+  padding: 20px 20px 0;
 }
 
 .editorToolbar {
@@ -51,8 +59,28 @@
 
 .scoreSvg {
   display: block;
+  width: 100%;
+  height: auto;
   cursor: crosshair;
   outline: none;
+}
+
+.pageViewport {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: 24px;
+  background: var(--panel-muted);
+}
+
+.paper {
+  width: 210mm;
+  min-height: 297mm;
+  margin: 0 auto;
+  padding: 15mm;
+  background: #fff;
+  box-shadow: 0 4px 24px rgb(0 0 0 / 12%);
 }
 
 .scoreSvg .fretNoteText {
@@ -83,4 +111,36 @@
 
 .errorMessage {
   color: #b42318;
+}
+
+@page {
+  size: A4 portrait;
+  margin: 0;
+}
+
+@media print {
+  .editor {
+    height: auto;
+  }
+
+  .editorControls {
+    display: none;
+  }
+
+  .pageViewport {
+    overflow: visible;
+    padding: 0;
+    background: #fff;
+  }
+
+  .paper {
+    width: 210mm;
+    min-height: 297mm;
+    margin: 0;
+    box-shadow: none;
+  }
+
+  .cursorLayer {
+    display: none;
+  }
 }

@@ -47,3 +47,12 @@ body {
 button {
   font: inherit;
 }
+
+@media print {
+  html,
+  body {
+    height: auto;
+    overflow: visible;
+    background: #fff;
+  }
+}

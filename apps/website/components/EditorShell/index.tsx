@@ -17,8 +17,8 @@ import { MusicAssetIcon } from "../MusicAssetIcon";
 import type { MusicControlIcon } from "../../assets/svg/svg-assets-manifest";
 import styles from "./index.module.scss";
 
-/** MVP v2 固定每行四个普通小节；后续可由编辑器视口状态替换。 */
-const MVP_V2_SYSTEM_WIDTH = 345 * 4;
+/** A4 纸张扣除四周 15mm 页边距后的 180mm 内容区逻辑宽度。 */
+const A4_CONTENT_WIDTH = 680;
 /** 两位品位输入等待第二个数字的时间，超时后提交一位品位。 */
 const FRET_DRAFT_TIMEOUT_MS = 600;
 
@@ -48,7 +48,7 @@ export const EditorShell: React.FC = () => {
     return buildLayout(document, {
       x: 0,
       y: 0,
-      systemWidth: MVP_V2_SYSTEM_WIDTH,
+      systemWidth: A4_CONTENT_WIDTH,
     });
   }, [document]);
 
@@ -328,280 +328,289 @@ export const EditorShell: React.FC = () => {
 
   return (
     <div className={styles.editor}>
-      <div
-        className={styles.editorToolbar}
-        role="toolbar"
-        aria-label="节奏与小节工具"
-      >
-        {rhythmButtons.map((button) => (
+      <div className={styles.editorControls}>
+        <div
+          className={styles.editorToolbar}
+          role="toolbar"
+          aria-label="节奏与小节工具"
+        >
+          {rhythmButtons.map((button) => (
+            <button
+              key={button.base}
+              type="button"
+              className={styles.toolbarButton}
+              aria-label={`设置为${button.label}`}
+              disabled={!activeCursor}
+              onClick={() => setActiveRhythmBase(button.base)}
+            >
+              <MusicAssetIcon
+                assetId={button.icon}
+                className={styles.toolbarIcon}
+              />
+            </button>
+          ))}
           <button
-            key={button.base}
             type="button"
             className={styles.toolbarButton}
-            aria-label={`设置为${button.label}`}
+            aria-label="取消附点"
             disabled={!activeCursor}
-            onClick={() => setActiveRhythmBase(button.base)}
+            onClick={() => setActiveDots(0)}
+          >
+            无点
+          </button>
+          <button
+            type="button"
+            className={styles.toolbarButton}
+            aria-label="设置单附点"
+            disabled={!activeCursor}
+            onClick={() => setActiveDots(1)}
+          >
+            <MusicAssetIcon assetId="noteDot" className={styles.toolbarIcon} />
+          </button>
+          <button
+            type="button"
+            className={styles.toolbarButton}
+            aria-label="设置双附点"
+            disabled={!activeCursor}
+            onClick={() => setActiveDots(2)}
           >
             <MusicAssetIcon
-              assetId={button.icon}
+              assetId="noteDoubleDotted"
               className={styles.toolbarIcon}
             />
           </button>
-        ))}
-        <button
-          type="button"
-          className={styles.toolbarButton}
-          aria-label="取消附点"
-          disabled={!activeCursor}
-          onClick={() => setActiveDots(0)}
-        >
-          无点
-        </button>
-        <button
-          type="button"
-          className={styles.toolbarButton}
-          aria-label="设置单附点"
-          disabled={!activeCursor}
-          onClick={() => setActiveDots(1)}
-        >
-          <MusicAssetIcon assetId="noteDot" className={styles.toolbarIcon} />
-        </button>
-        <button
-          type="button"
-          className={styles.toolbarButton}
-          aria-label="设置双附点"
-          disabled={!activeCursor}
-          onClick={() => setActiveDots(2)}
-        >
-          <MusicAssetIcon
-            assetId="noteDoubleDotted"
-            className={styles.toolbarIcon}
-          />
-        </button>
-        <button
-          type="button"
-          className={styles.toolbarButton}
-          aria-label="设为休止"
-          disabled={!activeCursor}
-          onClick={() => setActiveBeatKind("rest")}
-        >
-          休止
-        </button>
-        <button
-          type="button"
-          className={styles.toolbarButton}
-          aria-label="取消休止"
-          disabled={!activeCursor}
-          onClick={() => setActiveBeatKind("notes")}
-        >
-          恢复
-        </button>
-        <button
-          type="button"
-          className={styles.toolbarButton}
-          aria-label="在当前小节后新增小节"
-          disabled={!activeCursor}
-          onClick={insertMeasureAfterActive}
-        >
-          <MusicAssetIcon assetId="measureAdd" className={styles.toolbarIcon} />
-        </button>
-        <button
-          type="button"
-          className={styles.toolbarButton}
-          aria-label="复制当前小节"
-          disabled={!activeCursor}
-          onClick={copyActiveMeasure}
-        >
-          <MusicAssetIcon
-            assetId="actionsCopy"
-            className={styles.toolbarIcon}
-          />
-        </button>
-        <button
-          type="button"
-          className={styles.toolbarButton}
-          aria-label="删除当前小节"
-          disabled={!activeCursor}
-          onClick={removeActiveMeasure}
-        >
-          <MusicAssetIcon
-            assetId="measureRemove"
-            className={styles.toolbarIcon}
-          />
-        </button>
-      </div>
-      <p className={styles.inputHint}>
-        点击弦线和拍点后输入 0–24；Backspace/Delete 删除当前弦音符。
-        {fretDraft && ` 正在输入：${fretDraft}`}
-      </p>
-      {errorMessage && (
-        <p className={styles.errorMessage} role="alert">
-          {errorMessage}
-        </p>
-      )}
-      {/* SVG 面板 */}
-      <svg
-        className={styles.scoreSvg}
-        viewBox={`0 0 ${lxmLayout.width} ${lxmLayout.height}`}
-        width={lxmLayout.width}
-        height={lxmLayout.height}
-        tabIndex={0}
-        role="application"
-        aria-label="六线谱编辑器"
-        onPointerDown={handlePointerDown}
-        onKeyDown={handleKeyDown}
-      >
-        {activeMeasure && activeBeat && activeString && (
-          <g className={styles.cursorLayer} pointerEvents="none">
-            <rect
-              className={styles.activeCursor}
-              x={activeBeat.x - 11}
-              y={activeString.y1 - 9.5}
-              width={22}
-              height={18}
+          <button
+            type="button"
+            className={styles.toolbarButton}
+            aria-label="设为休止"
+            disabled={!activeCursor}
+            onClick={() => setActiveBeatKind("rest")}
+          >
+            休止
+          </button>
+          <button
+            type="button"
+            className={styles.toolbarButton}
+            aria-label="取消休止"
+            disabled={!activeCursor}
+            onClick={() => setActiveBeatKind("notes")}
+          >
+            恢复
+          </button>
+          <button
+            type="button"
+            className={styles.toolbarButton}
+            aria-label="在当前小节后新增小节"
+            disabled={!activeCursor}
+            onClick={insertMeasureAfterActive}
+          >
+            <MusicAssetIcon
+              assetId="measureAdd"
+              className={styles.toolbarIcon}
             />
-          </g>
+          </button>
+          <button
+            type="button"
+            className={styles.toolbarButton}
+            aria-label="复制当前小节"
+            disabled={!activeCursor}
+            onClick={copyActiveMeasure}
+          >
+            <MusicAssetIcon
+              assetId="actionsCopy"
+              className={styles.toolbarIcon}
+            />
+          </button>
+          <button
+            type="button"
+            className={styles.toolbarButton}
+            aria-label="删除当前小节"
+            disabled={!activeCursor}
+            onClick={removeActiveMeasure}
+          >
+            <MusicAssetIcon
+              assetId="measureRemove"
+              className={styles.toolbarIcon}
+            />
+          </button>
+        </div>
+        <p className={styles.inputHint}>
+          点击弦线和拍点后输入 0–24；Backspace/Delete 删除当前弦音符。
+          {fretDraft && ` 正在输入：${fretDraft}`}
+        </p>
+        {errorMessage && (
+          <p className={styles.errorMessage} role="alert">
+            {errorMessage}
+          </p>
         )}
-        {lxmLayout.systems.map((system) => (
-          <g key={system.index}>
-            {system.measures.map((measure) => (
-              <g key={measure.id}>
-                <g>
-                  {/* 绘制六条弦线；相邻小节直接相接，不额外插入外部间距。 */}
-                  {measure.strings.map((string) => (
-                    <line
-                      key={string.index}
-                      x1={string.x1}
-                      y1={string.y1}
-                      x2={string.x2}
-                      y2={string.y2}
-                      stroke="black"
-                      strokeWidth={1}
-                    />
-                  ))}
-                </g>
-                <g className={styles.restLayer} pointerEvents="none">
-                  {measure.restMarks.map((rest) => (
-                    <text
-                      key={rest.id}
-                      x={rest.x}
-                      y={rest.y}
-                      textAnchor="middle"
-                    >
-                      {rest.glyph}
-                    </text>
-                  ))}
-                </g>
-                <g>
-                  {/* 品位数字使用 layout 给出的坐标；页面层不重新计算其位置。 */}
-                  {measure.notes.map((note) => (
-                    <text
-                      className={styles.fretNoteText}
-                      key={note.id}
-                      x={note.x}
-                      y={note.y + 4}
-                    >
-                      {note.fretText}
-                    </text>
-                  ))}
-                </g>
-                <g>
-                  {/* 小节线由单小节 layout 决定类型与坐标。 */}
-                  {measure.barline.parts.map((part, index) =>
-                    part.kind === "line" ? (
-                      <line
-                        key={index}
-                        x1={part.x}
-                        y1={part.y1}
-                        x2={part.x}
-                        y2={part.y2}
-                        stroke="black"
-                        strokeWidth={part.strokeWidth}
-                      />
-                    ) : (
-                      <circle
-                        key={index}
-                        cx={part.cx}
-                        cy={part.cy}
-                        r={part.radius}
-                        fill="black"
-                      />
-                    ),
-                  )}
-                </g>
-                <g className={styles.durationLayer} pointerEvents="none">
-                  {/*
-                    页面只消费核心 layout 已经决定好的符干、占位线、旗帜和附点。
-                    这里不读取 rhythm.base，避免 React 与核心排版各维护一套时值规则。
-                  */}
-                  {measure.durationMarks.map((mark) => (
-                    <g key={mark.beatId}>
-                      {/*
-                        head glyph 仍保留在核心布局数据中，但当前视觉契约不创建
-                        对应 SVG DOM。长时值由“一根起音符干 + 后续占位线”表达。
-                      */}
-                      {mark.stemVisible && (
+      </div>
+      <div className={styles.pageViewport}>
+        <main className={styles.paper} aria-label="A4 乐谱页面">
+          {/* SVG 面板 */}
+          <svg
+            className={styles.scoreSvg}
+            viewBox={`0 0 ${lxmLayout.width} ${lxmLayout.height}`}
+            width={lxmLayout.width}
+            height={lxmLayout.height}
+            tabIndex={0}
+            role="application"
+            aria-label="六线谱编辑器"
+            onPointerDown={handlePointerDown}
+            onKeyDown={handleKeyDown}
+          >
+            {activeMeasure && activeBeat && activeString && (
+              <g className={styles.cursorLayer} pointerEvents="none">
+                <rect
+                  className={styles.activeCursor}
+                  x={activeBeat.x - 11}
+                  y={activeString.y1 - 9.5}
+                  width={22}
+                  height={18}
+                />
+              </g>
+            )}
+            {lxmLayout.systems.map((system) => (
+              <g key={system.index}>
+                {system.measures.map((measure) => (
+                  <g key={measure.id}>
+                    <g>
+                      {/* 绘制六条弦线；相邻小节直接相接，不额外插入外部间距。 */}
+                      {measure.strings.map((string) => (
                         <line
-                          x1={mark.stemX}
-                          y1={mark.stemY1}
-                          x2={mark.stemX}
-                          y2={mark.stemY2}
+                          key={string.index}
+                          x1={string.x1}
+                          y1={string.y1}
+                          x2={string.x2}
+                          y2={string.y2}
                           stroke="black"
                           strokeWidth={1}
                         />
-                      )}
-                      {mark.sustainMarks.map((sustainMark) => (
-                        <line
-                          key={sustainMark.unitIndex}
-                          x1={sustainMark.x1}
-                          y1={sustainMark.y}
-                          x2={sustainMark.x2}
-                          y2={sustainMark.y}
-                          stroke="black"
-                          strokeWidth={sustainMark.thickness}
-                        />
                       ))}
-                      {mark.flag && (
+                    </g>
+                    <g className={styles.restLayer} pointerEvents="none">
+                      {measure.restMarks.map((rest) => (
                         <text
-                          className={styles.durationGlyph}
-                          x={mark.flag.x}
-                          y={mark.flag.y}
-                          fontSize={mark.flag.fontSize}
+                          key={rest.id}
+                          x={rest.x}
+                          y={rest.y}
+                          textAnchor="middle"
                         >
-                          {mark.flag.glyph}
+                          {rest.glyph}
                         </text>
+                      ))}
+                    </g>
+                    <g>
+                      {/* 品位数字使用 layout 给出的坐标；页面层不重新计算其位置。 */}
+                      {measure.notes.map((note) => (
+                        <text
+                          className={styles.fretNoteText}
+                          key={note.id}
+                          x={note.x}
+                          y={note.y + 4}
+                        >
+                          {note.fretText}
+                        </text>
+                      ))}
+                    </g>
+                    <g>
+                      {/* 小节线由单小节 layout 决定类型与坐标。 */}
+                      {measure.barline.parts.map((part, index) =>
+                        part.kind === "line" ? (
+                          <line
+                            key={index}
+                            x1={part.x}
+                            y1={part.y1}
+                            x2={part.x}
+                            y2={part.y2}
+                            stroke="black"
+                            strokeWidth={part.strokeWidth}
+                          />
+                        ) : (
+                          <circle
+                            key={index}
+                            cx={part.cx}
+                            cy={part.cy}
+                            r={part.radius}
+                            fill="black"
+                          />
+                        ),
                       )}
-                      {mark.dotAnchors.map((dot, index) => (
-                        <circle
+                    </g>
+                    <g className={styles.durationLayer} pointerEvents="none">
+                      {/*
+                    页面只消费核心 layout 已经决定好的符干、占位线、旗帜和附点。
+                    这里不读取 rhythm.base，避免 React 与核心排版各维护一套时值规则。
+                  */}
+                      {measure.durationMarks.map((mark) => (
+                        <g key={mark.beatId}>
+                          {/*
+                        head glyph 仍保留在核心布局数据中，但当前视觉契约不创建
+                        对应 SVG DOM。长时值由“一根起音符干 + 后续占位线”表达。
+                      */}
+                          {mark.stemVisible && (
+                            <line
+                              x1={mark.stemX}
+                              y1={mark.stemY1}
+                              x2={mark.stemX}
+                              y2={mark.stemY2}
+                              stroke="black"
+                              strokeWidth={1}
+                            />
+                          )}
+                          {mark.sustainMarks.map((sustainMark) => (
+                            <line
+                              key={sustainMark.unitIndex}
+                              x1={sustainMark.x1}
+                              y1={sustainMark.y}
+                              x2={sustainMark.x2}
+                              y2={sustainMark.y}
+                              stroke="black"
+                              strokeWidth={sustainMark.thickness}
+                            />
+                          ))}
+                          {mark.flag && (
+                            <text
+                              className={styles.durationGlyph}
+                              x={mark.flag.x}
+                              y={mark.flag.y}
+                              fontSize={mark.flag.fontSize}
+                            >
+                              {mark.flag.glyph}
+                            </text>
+                          )}
+                          {mark.dotAnchors.map((dot, index) => (
+                            <circle
+                              key={index}
+                              cx={dot.x}
+                              cy={dot.y}
+                              r={1}
+                              fill="black"
+                            />
+                          ))}
+                        </g>
+                      ))}
+                    </g>
+                    <g pointerEvents="none">
+                      {/* 连梁段已在核心包完成分组，页面只负责绘制。 */}
+                      {measure.beamSegments.map((segment, index) => (
+                        <line
                           key={index}
-                          cx={dot.x}
-                          cy={dot.y}
-                          r={1}
-                          fill="black"
+                          x1={segment.x1}
+                          y1={segment.y}
+                          x2={segment.x2}
+                          y2={segment.y}
+                          stroke="black"
+                          strokeWidth={segment.thickness}
                         />
                       ))}
                     </g>
-                  ))}
-                </g>
-                <g pointerEvents="none">
-                  {/* 连梁段已在核心包完成分组，页面只负责绘制。 */}
-                  {measure.beamSegments.map((segment, index) => (
-                    <line
-                      key={index}
-                      x1={segment.x1}
-                      y1={segment.y}
-                      x2={segment.x2}
-                      y2={segment.y}
-                      stroke="black"
-                      strokeWidth={segment.thickness}
-                    />
-                  ))}
-                </g>
+                  </g>
+                ))}
               </g>
             ))}
-          </g>
-        ))}
-      </svg>
+          </svg>
+        </main>
+      </div>
     </div>
   );
 };
