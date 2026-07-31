@@ -6,8 +6,7 @@
  */
 import { GUITAR_STRING_COUNT, MAX_FRET } from "./constants";
 import { createDocumentIdFactory } from "./id-factory";
-import { createRestBeats } from "./rest-beats";
-import { getMeasureCapacityTicks } from "./rhythm";
+import { createMeasureRestBeats } from "./rest-beats";
 import { changeMeasureBeatRhythm } from "./rhythm-change";
 import { LXMDocumentSchema } from "./schema";
 import { validateDocumentSemantics } from "./semantic-validation";
@@ -83,7 +82,6 @@ export type ILXMScoreCommandErrorCode =
   | "INVALID_STRING"
   | "INVALID_FRET"
   | "INVALID_RHYTHM"
-  | "REST_BEAT_NOT_EDITABLE"
   | "MEASURE_OVERFLOW"
   | "FOLLOWING_BEATS_CANNOT_COMPRESS"
   | "RHYTHM_NOT_REPRESENTABLE"
@@ -225,11 +223,6 @@ export const applyScoreCommand = (
       !isValidFret(command.fret)
     )
       return fail("INVALID_FRET", `品位必须在 0 到 ${MAX_FRET} 之间`);
-    if (
-      command.type === LXMScoreCommandEnum.SetNote &&
-      target.beat.kind === "rest"
-    )
-      return fail("REST_BEAT_NOT_EDITABLE", "请先取消休止，再输入音符");
     const factory = createDocumentIdFactory(document);
     let nextBeat: ILXMBeat;
     if (command.type === LXMScoreCommandEnum.SetBeatKind)
@@ -262,7 +255,7 @@ export const applyScoreCommand = (
               fret: command.fret,
             },
           ];
-      nextBeat = { ...target.beat, notes };
+      nextBeat = { ...target.beat, kind: "notes", notes };
     }
     return finalize(
       replaceMeasure(document, command.trackId, command.measureId, {
@@ -337,9 +330,8 @@ export const applyScoreCommand = (
       })),
     };
   } else {
-    const rests = createRestBeats(
-      0,
-      getMeasureCapacityTicks(source.timeSignature),
+    const rests = createMeasureRestBeats(
+      source.timeSignature,
       factory.createBeatId,
     );
     if (!rests)

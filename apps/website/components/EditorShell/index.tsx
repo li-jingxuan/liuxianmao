@@ -17,8 +17,8 @@ import { MusicAssetIcon } from "../MusicAssetIcon";
 import type { MusicControlIcon } from "../../assets/svg/svg-assets-manifest";
 import styles from "./index.module.scss";
 
-/** A4 纸张扣除四周 15mm 页边距后的 180mm 内容区逻辑宽度。 */
-const A4_CONTENT_WIDTH = 680;
+/** A4 纸张扣除左右各 8mm 页边距后的 194mm 内容区逻辑宽度。 */
+const A4_CONTENT_WIDTH = 733;
 /** 两位品位输入等待第二个数字的时间，超时后提交一位品位。 */
 const FRET_DRAFT_TIMEOUT_MS = 600;
 
@@ -49,10 +49,9 @@ export const EditorShell: React.FC = () => {
       x: 0,
       y: 0,
       systemWidth: A4_CONTENT_WIDTH,
+      density: "compact",
     });
   }, [document]);
-
-  console.log("lxmLayout: ", lxmLayout);
 
   /** 组件卸载时取消延迟提交，避免异步回调写入已卸载组件。 */
   useEffect(
@@ -115,15 +114,40 @@ export const EditorShell: React.FC = () => {
     command: Parameters<typeof applyScoreCommand>[1],
   ) => {
     if (!document) return;
+
+    const cursorAfterMeasureRemoval = (() => {
+      if (command.type !== LXMScoreCommandEnum.RemoveMeasure || !activeCursor)
+        return activeCursor;
+
+      const track = document.score.tracks.find(
+        (item) => item.id === command.trackId,
+      );
+      const removedIndex = track?.measures.findIndex(
+        (measure) => measure.id === command.measureId,
+      );
+      if (!track || removedIndex === undefined || removedIndex < 0) return null;
+
+      const fallbackMeasure =
+        track.measures[removedIndex + 1] ?? track.measures[removedIndex - 1];
+      const fallbackBeat = fallbackMeasure?.beats[0];
+      if (!fallbackMeasure || !fallbackBeat) return null;
+
+      return {
+        ...activeCursor,
+        measureId: fallbackMeasure.id,
+        beatId: fallbackBeat.id,
+      };
+    })();
+
     const result = applyScoreCommand(document, command);
     if (!result.ok) {
       setErrorMessage(result.message);
       return;
     }
     setDocument(result.document);
-    // 删除小节后旧 target 必然失效；其余命令保留稳定 ID，由新 layout 重新定位。
+    // 删除当前小节后定位相邻小节首拍；其余命令保留稳定 ID，由新 layout 重新定位。
     if (command.type === LXMScoreCommandEnum.RemoveMeasure)
-      setActiveCursor(null);
+      setActiveCursor(cursorAfterMeasureRemoval);
     setErrorMessage(null);
   };
 

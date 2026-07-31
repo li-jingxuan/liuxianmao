@@ -90,8 +90,8 @@ export const LXM_DURATION_BEAM_THICKNESS = 3;
 // TODO 这里明显不对，要根据时值和dots来计算
 export const LXM_DURATION_PARTIAL_BEAM_LENGTH = 12;
 // 第一个附点相对符干的水平偏移，以及多附点之间的水平间距。
-export const LXM_DURATION_DOT_OFFSET_X = 5;
-export const LXM_DURATION_DOT_GAP_X = 5;
+export const LXM_DURATION_DOT_OFFSET_X = 2.5;
+export const LXM_DURATION_DOT_GAP_X = 2.5;
 
 /**
  * 1. 需要计算当前 timeSignature 下的 tick 总和（4/4拍 = 960tick）

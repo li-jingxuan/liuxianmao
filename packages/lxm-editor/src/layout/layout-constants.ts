@@ -7,6 +7,7 @@
  */
 
 import { GUITAR_STRING_COUNT } from "../core/constants";
+import type { ILXMLayoutDensity } from "./layout-types";
 
 // 谱面布局默认位置
 export const LXM_LAYOUT_DEFAULT_X = 0;
@@ -18,11 +19,49 @@ export const LXM_SYSTEM_DEFAULT_WIDTH = 600;
 /** 相邻两条谱面行之间的垂直留白，避免符干、连梁发生视觉重叠。 */
 export const LXM_SYSTEM_GAP_Y = 36;
 
+/**
+ * 稀疏 System 的节奏内容区最大横向拉伸倍数。
+ *
+ * 该限制用于所有末行以及任意位置的单小节行。倍数只作用于 beat columns 的内容
+ * 宽度；小节左右 padding 与 measureGap 都保持固定，避免通过放大空白伪造舒展感。
+ * 当按此倍数计算出的宽度足以覆盖完整行宽时，System 仍会自然铺满。
+ */
+export const LXM_SPARSE_SYSTEM_MAX_CONTENT_SCALE = 1.6;
+
+/** 默认排版密度保持 MVP v1-v3 既有页面和核心测试的几何结果。 */
+export const LXM_LAYOUT_DEFAULT_DENSITY: ILXMLayoutDensity = "comfortable";
+
+/**
+ * 横向排版 profile 只供核心 layout implementation 使用。
+ *
+ * 网站只选择 density，不感知列宽缩放、最低可读宽度和小节 padding 的组合规则。
+ */
+export const LXM_LAYOUT_DENSITY_PROFILES = {
+  comfortable: {
+    measurePaddingX: 18,
+    idealColumnScale: 1,
+    minColumnWidth: null,
+  },
+  compact: {
+    measurePaddingX: 8,
+    idealColumnScale: 0.48,
+    minColumnWidth: 15,
+  },
+} as const satisfies Record<
+  ILXMLayoutDensity,
+  {
+    measurePaddingX: number;
+    idealColumnScale: number;
+    minColumnWidth: number | null;
+  }
+>;
+
 /** 点击弦线时允许的纵向误差范围，提升鼠标命中容错。 */
 export const LXM_STRING_HIT_RADIUS_Y = 6;
 
 // 左右留白距离
-export const LXM_MEASURE_PADDING_X = 18;
+export const LXM_MEASURE_PADDING_X =
+  LXM_LAYOUT_DENSITY_PROFILES.comfortable.measurePaddingX;
 
 // 第一弦和第六弦上下留白距离
 export const LXM_STAFF_Y = 28;
@@ -62,7 +101,7 @@ export const LXM_DURATION_SUSTAIN_THICKNESS = 1;
 export const LXM_DURATION_SUSTAIN_OFFSET_Y = 0;
 
 /** 附点与最高连梁（或无连梁时的 rhythm lane）之间的垂直净空。 */
-export const LXM_DURATION_DOT_CLEARANCE_Y = 4;
+export const LXM_DURATION_DOT_CLEARANCE_Y = 5;
 
 /** Bravura 孤立短时值旗帜字号。 */
 export const LXM_DURATION_FLAG_FONT_SIZE = 18;

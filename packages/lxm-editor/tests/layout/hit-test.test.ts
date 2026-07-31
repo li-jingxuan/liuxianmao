@@ -3,6 +3,19 @@ import { describe, expect, it } from "vitest";
 import EXAMPLE_MVP_2 from "../../example/example-mvp2.json";
 import { buildLayout, hitTestLayout } from "../../src/layout";
 
+const documentWithFirstMeasureOnly = {
+  ...EXAMPLE_MVP_2,
+  score: {
+    ...EXAMPLE_MVP_2.score,
+    tracks: [
+      {
+        ...EXAMPLE_MVP_2.score.tracks[0]!,
+        measures: [EXAMPLE_MVP_2.score.tracks[0]!.measures[0]!],
+      },
+    ],
+  },
+};
+
 describe("hitTestLayout", () => {
   it("可以命中第二条谱面行中的指定 beat 与弦", () => {
     const layout = buildLayout(EXAMPLE_MVP_2, { systemWidth: 700 });
@@ -50,5 +63,42 @@ describe("hitTestLayout", () => {
       beatId: lastBeat.id,
       string: string.index,
     });
+  });
+
+  it("紧凑 A4 排版仍能命中第二行的目标 beat 与弦", () => {
+    const layout = buildLayout(EXAMPLE_MVP_2, {
+      systemWidth: 733,
+      density: "compact",
+    });
+    const measure = layout.systems[1]!.measures[0]!;
+    const beat = measure.beats[1]!;
+    const string = measure.strings[4]!;
+
+    expect(hitTestLayout(layout, { x: beat.x + 1, y: string.y1 })).toEqual({
+      trackId: "mvp2-track-guitar",
+      systemIndex: 1,
+      measureId: "mvp2-measure-5",
+      beatId: "mvp2-beat-5-2",
+      string: 5,
+    });
+  });
+
+  it("稀疏 System 的右侧画布留白不误命中最后一拍", () => {
+    const systemWidth = 733;
+    const layout = buildLayout(documentWithFirstMeasureOnly, {
+      systemWidth,
+      density: "compact",
+    });
+    const system = layout.systems[0]!;
+    const measure = system.measures[0]!;
+    const string = measure.strings[2]!;
+
+    expect(system.width).toBeLessThan(layout.width);
+    expect(
+      hitTestLayout(layout, {
+        x: system.x + system.width + (layout.width - system.width) / 2,
+        y: string.y1,
+      }),
+    ).toBeNull();
   });
 });

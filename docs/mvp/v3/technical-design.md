@@ -108,7 +108,7 @@ interface ILXMBeat {
 - `kind === "rest"` 时，`notes.length === 0`。
 - `kind === "notes"` 时允许 `notes` 为空，以便用户先创建节奏位置再输入音符；v3 不把空 notes beat 自动转为 rest。
 - 一个 beat 内任意 `note.string` 至多出现一次。
-- `note.set` 对 rest beat 返回 `REST_BEAT_NOT_EDITABLE`；用户须先取消休止再输入音符。
+- `note.set` 对 rest beat 自动完成 `rest → notes` 转换，并在同一次命令中写入音符；非法输入仍保持原 rest 不变。
 
 ### 4.2 语义校验 API
 
@@ -189,7 +189,6 @@ type ILXMScoreCommand =
 ```ts
 type ILXMScoreCommandErrorCode =
   | "INVALID_RHYTHM"
-  | "REST_BEAT_NOT_EDITABLE"
   | "MEASURE_OVERFLOW"
   | "RHYTHM_NOT_REPRESENTABLE"
   | "CANNOT_REMOVE_LAST_MEASURE"
@@ -279,7 +278,7 @@ interface ILXMMeasureLayout {
 
 - `layoutMeasureSpacing` 继续按全部 beat（含 rest）生成节奏列，保证休止与后续音符对齐。
 - `layoutDurationBeams` 对 rest beat 不生成符干或连梁；v3 不实现跨休止连梁。
-- `hit-test` 仍命中 existing beat slot 与弦。用户点击休止 beat 的任意弦后，可通过工具栏取消休止；直接数字输入返回可展示错误。
+- `hit-test` 仍命中 existing beat slot 与弦。用户点击休止 beat 的任意弦后，既可通过工具栏取消休止，也可直接输入合法品位并由一次 `note.set` 自动转为 notes。
 - system-layout 不需要特殊分支；小节宽度仍来自 measure layout，新增、复制、删除后自动重新断行。
 
 ## 7. 页面集成
@@ -292,12 +291,12 @@ interface ILXMMeasureLayout {
 
 第一版顶栏图标映射固定如下：
 
-| 操作 | 源图标 |
-| --- | --- |
+| 操作                               | 源图标                                                                                                                   |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | 全、二、四、八、十六、三十二分音符 | `note-whole.svg`、`note-half.svg`、`note-quarter.svg`、`note-eighth.svg`、`note-sixteenth.svg`、`note-thirty-second.svg` |
-| 单附点、双附点 | `note-dot.svg`、`note-double-dotted.svg` |
-| 新增、复制、删除小节 | `measure-add24.svg`、`actions-copy24.svg`、`measure-remove24.svg` |
-| 设为/取消休止（临时图标） | `measure-multi-measure-rest32.svg` |
+| 单附点、双附点                     | `note-dot.svg`、`note-double-dotted.svg`                                                                                 |
+| 新增、复制、删除小节               | `measure-add24.svg`、`actions-copy24.svg`、`measure-remove24.svg`                                                        |
+| 设为/取消休止（临时图标）          | `measure-multi-measure-rest32.svg`                                                                                       |
 
 现有素材目录目前没有单拍休止符的独立 SVG；因此 `measure-multi-measure-rest32.svg` 在 v3 仅作为顶栏“休止”操作的临时图标，不代表乐谱中的单拍休止记谱。谱面内的休止符仍由 `rest-layout.ts` 和 Bravura/SMuFL glyph 映射渲染，二者不得混用。
 
@@ -317,7 +316,7 @@ interface ILXMMeasureLayout {
 1. 目标 `measureId + beatId + string` 仍存在时原样保留。
 2. 删除当前小节时，选择同位置的下一小节首个 beat；没有下一小节则选择前一小节首个 beat。
 3. 删除后只剩唯一小节的场景不会发生，因为命令应已失败。
-4. 目标 rest beat 可保持光标，供用户取消休止；数值品位输入显示错误而不自动转为 notes。
+4. 目标 rest beat 可保持光标；合法数值品位输入会在一次命令内转为 notes，非法输入不改变 rest。
 
 ### 7.3 v2 遗留清理
 
@@ -344,7 +343,7 @@ interface ILXMMeasureLayout {
 
 - `semantic-validation.test.ts`：合法 `4/4`、`3/4`、`6/8`；无效 dots、tick 空洞、重叠、溢出、容量不足、休止含音符、重复弦、重复 ID 与非法 chord tick。
 - `rhythm.test.ts`：`createRestBeatsForTicks` 对常用容量及不可表示剩余的结果。
-- `commands.test.ts`：缩短/变长 ripple、末尾 rest 吸收、溢出拒绝、rest 创建和取消、对 rest 写音失败、insert/copy/remove、最后小节删除失败、ID 唯一性、不可变性和 revision。
+- `commands.test.ts`：缩短/变长 ripple、末尾 rest 吸收、溢出拒绝、rest 创建和取消、rest 直接输入与非法输入原子性、insert/copy/remove、最后小节删除失败、ID 唯一性、不可变性和 revision。
 - `rest-layout.test.ts`：每种基础时值与附点的 glyph 映射、休止坐标位于目标 beat slot、notes beat 不生成 rest layout。
 - `system-layout.test.ts`：新增、复制、删除后 system 分组、Y 坐标和整谱高度可重新计算。
 

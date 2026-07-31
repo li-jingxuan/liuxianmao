@@ -242,8 +242,8 @@ describe("layoutDurationBeams 附点布局", () => {
       dotAnchors: [
         {
           x: 40 + LXM_DURATION_DOT_OFFSET_X,
-          // 第一层连梁 y=108，附点向上避让 4px。
-          y: 104,
+          // 第一层连梁 y=108，附点向上避让 5px。
+          y: 103,
         },
       ],
     });
@@ -261,11 +261,11 @@ describe("layoutDurationBeams 附点布局", () => {
       dotAnchors: [
         {
           x: 40 + LXM_DURATION_DOT_OFFSET_X,
-          y: 104,
+          y: 103,
         },
         {
           x: 40 + LXM_DURATION_DOT_OFFSET_X + LXM_DURATION_DOT_GAP_X,
-          y: 104,
+          y: 103,
         },
       ],
     });
@@ -477,25 +477,24 @@ describe("layoutDurationBeams 谱面时值符号", () => {
       createDurationLayoutInputs(0, "whole");
     beatLayouts[0]!.width = 80;
 
-    const mark = layoutDurationBeams(
-      measure,
-      beatLayouts,
-      noteLayouts,
-      strings,
-    ).durationMarks[0]!;
+    const mark = layoutDurationBeams(measure, beatLayouts, noteLayouts, strings)
+      .durationMarks[0]!;
 
     expect(mark.sustainMarks).toEqual([
       { unitIndex: 1, x1: 65, x2: 75, y: 45, thickness: 1 },
       { unitIndex: 2, x1: 85, x2: 95, y: 45, thickness: 1 },
       { unitIndex: 3, x1: 105, x2: 115, y: 45, thickness: 1 },
     ]);
-    expect(mark.sustainMarks.every(({ x1, x2 }) => x1 >= 40 && x2 <= 120))
-      .toBe(true);
+    expect(mark.sustainMarks.every(({ x1, x2 }) => x1 >= 40 && x2 <= 120)).toBe(
+      true,
+    );
   });
 
   it("按弦编号计算六线谱中点，不依赖 strings 数组顺序或谱面起始 Y", () => {
-    const { measure, beatLayouts, noteLayouts } =
-      createDurationLayoutInputs(0, "half");
+    const { measure, beatLayouts, noteLayouts } = createDurationLayoutInputs(
+      0,
+      "half",
+    );
     const unorderedStrings: ILXMStringLineLayout[] = [
       { index: 4, x1: 0, y1: 156, x2: 100, y2: 156 },
       { index: 1, x1: 0, y1: 120, x2: 100, y2: 120 },
@@ -528,8 +527,10 @@ describe("layoutDurationBeams 谱面时值符号", () => {
     );
 
     for (const base of ["whole", "half"] as const) {
-      const { measure, beatLayouts, noteLayouts } =
-        createDurationLayoutInputs(0, base);
+      const { measure, beatLayouts, noteLayouts } = createDurationLayoutInputs(
+        0,
+        base,
+      );
       const mark = layoutDurationBeams(
         measure,
         beatLayouts,
@@ -538,14 +539,17 @@ describe("layoutDurationBeams 谱面时值符号", () => {
       ).durationMarks[0]!;
 
       expect(mark.sustainMarks.length).toBe(base === "whole" ? 3 : 1);
-      expect(mark.sustainMarks.every((sustainMark) => sustainMark.y === 50))
-        .toBe(true);
+      expect(
+        mark.sustainMarks.every((sustainMark) => sustainMark.y === 50),
+      ).toBe(true);
     }
   });
 
   it("缺少第一弦或第六弦时抛出包含 measureId 的明确错误", () => {
-    const { measure, beatLayouts, noteLayouts } =
-      createDurationLayoutInputs(0, "half");
+    const { measure, beatLayouts, noteLayouts } = createDurationLayoutInputs(
+      0,
+      "half",
+    );
     const invalidStringSets: ILXMStringLineLayout[][] = [
       [
         { index: 2, x1: 0, y1: 32, x2: 100, y2: 32 },
@@ -559,12 +563,7 @@ describe("layoutDurationBeams 谱面时值符号", () => {
 
     for (const invalidStrings of invalidStringSets) {
       expect(() =>
-        layoutDurationBeams(
-          measure,
-          beatLayouts,
-          noteLayouts,
-          invalidStrings,
-        ),
+        layoutDurationBeams(measure, beatLayouts, noteLayouts, invalidStrings),
       ).toThrow(`时值布局缺少边界弦线：measureId=${measure.id}`);
     }
   });

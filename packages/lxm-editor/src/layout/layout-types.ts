@@ -8,6 +8,9 @@
 
 import type { ILXMTrack, ILXMRhythm, ILXMBarlineType } from "../core/types";
 
+/** 谱面横向排版密度；默认舒适模式保持既有几何，紧凑模式用于纸张排版。 */
+export type ILXMLayoutDensity = "comfortable" | "compact";
+
 /** 后续歌词、简谱、和弦等内容通过 beatId 贡献额外列宽。 */
 export interface ILXMColumnWidthContributors {
   // TODO 下面是和弦符号、歌词和简谱预留的 BeatId 对应的宽度，当前版本不靠谱
@@ -27,6 +30,8 @@ export interface ILXMLayoutOptions {
   systemWidth?: number;
   /** 相邻谱面行之间的垂直间距。 */
   systemGapY?: number;
+  /** 小节与 beat column 的横向排版密度；省略时使用 comfortable。 */
+  density?: ILXMLayoutDensity;
   // TODO 下面是和弦符号、歌词和简谱预留的 BeatId 对应的宽度，当前版本不靠谱
   // widthContributors?: ILXMColumnWidthContributors;
 }
@@ -37,7 +42,10 @@ export interface ILXMLayout {
   // x,y 是整谱在页面上的起始坐标
   x: number;
   y: number;
-  // 整谱的宽度和高度(svg 需要设置 width 和 height 属性)
+  /**
+   * 整谱画布的宽度和高度（SVG 用于设置 width、height 与 viewBox）。
+   * 非空布局的 width 至少为配置的 systemWidth；它可以大于稀疏末行的实际宽度。
+   */
   width: number;
   height: number;
   /** 按自动换行结果分组的谱面行；渲染与命中均应从这里消费小节。 */
@@ -53,7 +61,10 @@ export interface ILXMSystemLayout {
   /** 当前谱面行的左上角逻辑坐标。 */
   x: number;
   y: number;
-  /** 普通行等于配置的 systemWidth；超宽小节行可以大于该值。 */
+  /**
+   * 当前行的实际绘制宽度。正文多小节行通常等于配置 systemWidth；稀疏末行或
+   * 单小节行可以更短，超宽小节行可以更长。
+   */
   width: number;
   /** 当前行中最高小节决定的高度。 */
   height: number;

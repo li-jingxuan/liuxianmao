@@ -3,10 +3,12 @@ import type { ILXMBeat, ILXMMeasure } from "../core/types";
 import {
   LXM_DURATION_MIN_COLUMN_WIDTH,
   LXM_DURATION_VISUAL_WEIGHT,
-  LXM_MEASURE_PADDING_X,
+  LXM_LAYOUT_DEFAULT_DENSITY,
+  LXM_LAYOUT_DENSITY_PROFILES,
 } from "./layout-constants";
 import type {
   ILXMBeatLayout,
+  ILXMLayoutDensity,
   ILXMRhythmicColumn,
   // ILXMColumnWidthContributors,
 } from "./layout-types";
@@ -47,7 +49,9 @@ const getBeatRhythmTicks = (beat: ILXMBeat): number => {
 /** 构建节奏列；同一 tick 的 TAB、歌词、简谱未来会共享这一列。 */
 export const buildRhythmicColumns = (
   measure: ILXMMeasure,
+  density: ILXMLayoutDensity = LXM_LAYOUT_DEFAULT_DENSITY,
 ): ILXMRhythmicColumn[] => {
+  const profile = LXM_LAYOUT_DENSITY_PROFILES[density];
   // 当前只需要考虑 notes 类型的节拍
   // 数据结构中暂时不考虑相同 tick 存在多个 beat（节拍）的情况：多轨和多声部才可能出现这种情况
   return (
@@ -59,7 +63,13 @@ export const buildRhythmicColumns = (
         // 当前节拍的时值权重
         const durationWeight = LXM_DURATION_VISUAL_WEIGHT[beat.rhythm.base];
         // 当前节拍的最小宽度限制
-        const minWidth = LXM_DURATION_MIN_COLUMN_WIDTH[beat.rhythm.base];
+        const durationMinWidth =
+          LXM_DURATION_MIN_COLUMN_WIDTH[beat.rhythm.base];
+        const baseIdealWidth = Math.max(
+          durationMinWidth,
+          durationMinWidth * durationWeight,
+        );
+        const minWidth = profile.minColumnWidth ?? durationMinWidth;
 
         return {
           tick: beat.tick,
@@ -70,7 +80,10 @@ export const buildRhythmicColumns = (
           // 理想宽度 = Max(最小宽度限制, 最小宽度限制 * 时值权重)
           // thirtySecond 三十二分音符（durationWeight = 0.72）会使用 minWidth 作为理想宽度
           // TODO 这里应该多种因素来计算小节理想宽度
-          idealWidth: Math.max(minWidth, minWidth * durationWeight),
+          idealWidth: Math.max(
+            minWidth,
+            baseIdealWidth * profile.idealColumnScale,
+          ),
         };
       })
   );
@@ -78,11 +91,13 @@ export const buildRhythmicColumns = (
 
 export const summarizeMeasureSpacingWidth = (
   measure: ILXMMeasure,
+  density: ILXMLayoutDensity = LXM_LAYOUT_DEFAULT_DENSITY,
 ): ILXMSummarizeMeasureSpacingWidth => {
+  const profile = LXM_LAYOUT_DENSITY_PROFILES[density];
   // 计算每个 beat 节拍列信息
-  const columns = buildRhythmicColumns(measure);
+  const columns = buildRhythmicColumns(measure, density);
   // 小节内左右边距
-  const measurePaddingX = LXM_MEASURE_PADDING_X * 2;
+  const measurePaddingX = profile.measurePaddingX * 2;
   // 当前小节内容最小宽度
   const minWidth = columns.reduce(
     (total, column) => total + column.minWidth,
@@ -121,13 +136,17 @@ export const layoutMeasureSpacing = (
   measure: ILXMMeasure,
   context: {
     x: number;
+    /** 当前谱面的横向排版密度。 */
+    density?: ILXMLayoutDensity;
     /** 由 System 分配的最终宽度；省略时使用小节固有宽度。 */
     assignedWidth?: number;
   },
 ): ILXMMeasureSpacingSummary => {
+  const density = context.density ?? LXM_LAYOUT_DEFAULT_DENSITY;
+  const profile = LXM_LAYOUT_DENSITY_PROFILES[density];
   // summary 中的 assignedWidth 是仅由节奏内容推导出的固有宽度。为了避免把
   // “固有宽度”和“最终分配宽度”混在一起，下面分别保留两个变量。
-  const summary = summarizeMeasureSpacingWidth(measure);
+  const summary = summarizeMeasureSpacingWidth(measure, density);
   const intrinsicWidth = summary.assignedWidth;
   const assignedWidth = context.assignedWidth ?? intrinsicWidth;
 
@@ -145,13 +164,13 @@ export const layoutMeasureSpacing = (
   }
 
   const extraWidth = assignedWidth - intrinsicWidth;
-  const assignedContentWidth = assignedWidth - LXM_MEASURE_PADDING_X * 2;
+  const assignedContentWidth = assignedWidth - profile.measurePaddingX * 2;
   let allocatedContentWidth = 0;
 
   // 计算每个 beat 节拍的x坐标信息
   const slotsByBeatId: Record<string, ILXMBeatLayout> = {};
   // 当前 x 游标位置
-  let cursorX = context.x + LXM_MEASURE_PADDING_X;
+  let cursorX = context.x + profile.measurePaddingX;
   summary.columns.forEach((column, columnIndex) => {
     const isLastColumn = columnIndex === summary.columns.length - 1;
     // 前 n - 1 列按 idealWidth 比例获得额外空间；最后一列直接吸收内容区剩余值，

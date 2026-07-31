@@ -9,6 +9,7 @@ import type { ILXMDocument } from "../core/types";
 import {
   LXM_LAYOUT_DEFAULT_X,
   LXM_LAYOUT_DEFAULT_Y,
+  LXM_LAYOUT_DEFAULT_DENSITY,
   LXM_SYSTEM_DEFAULT_WIDTH,
   LXM_SYSTEM_GAP_Y,
 } from "./layout-constants";
@@ -47,12 +48,14 @@ export const buildLayout = (
 
   const x = options.x ?? LXM_LAYOUT_DEFAULT_X;
   const y = options.y ?? LXM_LAYOUT_DEFAULT_Y;
+  const systemWidth = options.systemWidth ?? LXM_SYSTEM_DEFAULT_WIDTH;
   const systems = layoutSystems(track.measures, {
     startX: x,
     startY: y,
     measureGap: options.measureGap ?? 0,
-    systemWidth: options.systemWidth ?? LXM_SYSTEM_DEFAULT_WIDTH,
+    systemWidth,
     systemGapY: options.systemGapY ?? LXM_SYSTEM_GAP_Y,
+    density: options.density ?? LXM_LAYOUT_DEFAULT_DENSITY,
   });
   const lastSystem = systems[systems.length - 1];
 
@@ -60,10 +63,16 @@ export const buildLayout = (
     trackId: track.id,
     x,
     y,
-    width: systems.reduce(
-      (maxWidth, system) => Math.max(maxWidth, system.width),
-      0,
-    ),
+    // 稀疏末行可以短于 systemWidth，但 SVG 画布不能随之缩窄，否则右侧留白会从
+    // 坐标系中消失，页面也无法继续使用完整内容区。非空布局以 systemWidth 为
+    // 下限；单个超宽小节仍可把画布扩展到其真实宽度，避免裁剪。
+    width:
+      systems.length === 0
+        ? 0
+        : systems.reduce(
+            (maxWidth, system) => Math.max(maxWidth, system.width),
+            systemWidth,
+          ),
     height: lastSystem ? lastSystem.y + lastSystem.height - y : 0,
     systems,
     hitIndex: buildHitIndex(track.id, systems),

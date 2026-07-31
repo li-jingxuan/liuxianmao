@@ -19,14 +19,14 @@
 
 ## 3. 目标版本概览
 
-| 版本 | 目标 | 交付结果 |
-| --- | --- | --- |
+| 版本   | 目标                   | 交付结果                                   |
+| ------ | ---------------------- | ------------------------------------------ |
 | MVP v2 | 多行谱面与最小输入闭环 | 自动换行的系统行、点击定位、单音输入与删除 |
-| MVP v3 | 小节与节奏编辑 | 时值/附点、小节增删复制、容量校验 |
-| MVP v4 | 高频编辑效率 | 选择、键盘导航、剪贴板、撤销重做 |
-| MVP v5 | 吉他演奏技巧 | 常用技巧的数据模型、输入与跨小节渲染 |
-| MVP v6 | 音乐文本信息 | 歌词、和弦名称、和弦图与碰撞规避 |
-| MVP v7 | 保存与交付质量 | 保存加载、导出、错误恢复与发布验收 |
+| MVP v3 | 小节与节奏编辑         | 时值/附点、小节增删复制、容量校验          |
+| MVP v4 | 高频编辑效率           | 选择、键盘导航、剪贴板、撤销重做           |
+| MVP v5 | 吉他演奏技巧           | 常用技巧的数据模型、输入与跨小节渲染       |
+| MVP v6 | 音乐文本信息           | 歌词、和弦名称、和弦图与碰撞规避           |
+| MVP v7 | 保存与交付质量         | 保存加载、导出、错误恢复与发布验收         |
 
 ## 4. MVP v2：多行谱面与最小输入闭环
 
@@ -114,7 +114,13 @@ interface ActiveCursor {
 
 ```ts
 type ScoreCommand =
-  | { type: "note.set"; measureId: string; beatId: string; string: number; fret: number | "x" }
+  | {
+      type: "note.set";
+      measureId: string;
+      beatId: string;
+      string: number;
+      fret: number | "x";
+    }
   | { type: "note.remove"; measureId: string; beatId: string; string: number };
 ```
 
@@ -257,4 +263,4 @@ type ScoreCommand =
 
 ## 11. 推荐的下一步
 
-从 MVP v2.0 开始：先定义 `ILXMSystemLayout`、扩展 `ILXMLayout` 的 `systems` 输出，再把当前横向小节排列替换为 system breaker。该基础完成后，再进入 v2.1 的命中索引与编辑光标。
+MVP v3 封版后进入 MVP v4：先建立稳定的 Beat 范围选择与文档顺序导航，再实现原子范围命令、只记录 document 的撤销历史，最后接入浏览器剪贴板和快捷键。详细方案见 [MVP v4 技术实现方案](./v4/technical-design.md)。

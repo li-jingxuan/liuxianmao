@@ -11,6 +11,9 @@
 | [符干连接与长时值占位方案](./duration-stem-sustain-placeholder-fix.md)    | 在保留节奏头数据的同时隐藏字形，以实际音符连接符干，并用延时线区分 whole/half/quarter。 |
 | [后续 Beat 级联压缩方案](./rhythm-overflow-following-beat-compression.md) | 在时值变长且末尾休止不足时，精确压缩同小节后续 beat，并保持时间轴与音符内容完整。       |
 | [A4 单页预览方案](./a4-page-preview-fix.md)                               | 将谱面按 A4 内容宽度重新断行，并建立纸张预览与单页打印的尺寸基线。                      |
+| [A4 紧凑四小节排版方案](./a4-compact-four-measures-fix.md)                | 增加可选 compact 密度，使常规 A4 谱面优先每行容纳四个小节并保留安全换行。               |
+| [稀疏 System 受控拉伸方案](./sparse-system-balanced-stretch-fix.md)       | 对末行及任意单小节行限制内容拉伸比例，并解耦实际行宽、画布宽度与命中边界。              |
+| [版本验收记录](./release-acceptance.md)                                   | 记录 v3 最终自动化检查、浏览器交互验收、范围调整与已知限制。                            |
 
 ## 范围
 
@@ -27,3 +30,7 @@
 - 自适应视口、分页打印和移动端交互。
 
 完整版本边界见 [MVP 版本路线图](../mvp-version-roadmap.md)。
+
+## 状态
+
+MVP v3 已于 2026-07-31 完成封版验收。后续高频编辑能力进入 [MVP v4](../v4/README.md)。

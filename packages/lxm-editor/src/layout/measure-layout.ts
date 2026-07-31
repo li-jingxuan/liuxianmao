@@ -7,7 +7,11 @@
  */
 
 import { ILXMBeat, ILXMMeasure } from "../core/types";
-import { ILXMMeasureLayout, ILXMNoteLayout } from "./layout-types";
+import {
+  ILXMLayoutDensity,
+  ILXMMeasureLayout,
+  ILXMNoteLayout,
+} from "./layout-types";
 import { layoutMeasureSpacing } from "./measure-spacing";
 import { calculateMeasureHeight } from "./layout-helpers";
 import { STANDARD_GUITAR_TUNING } from "../core/constants";
@@ -22,6 +26,8 @@ export interface ILXMLayoutMeasureContext {
   systemIndex: number;
   x: number;
   y: number;
+  /** 当前谱面的横向排版密度；由 system-layout 统一传入。 */
+  density: ILXMLayoutDensity;
 
   /**
    * System 布局为当前小节分配的最终宽度。
@@ -91,11 +97,12 @@ export const layoutMeasure = (
     systemIndex,
     x,
     y,
+    density,
     assignedWidth: requestedAssignedWidth,
   } = context;
   const { assignedWidth, columns, slotsByBeatId } = layoutMeasureSpacing(
     measure,
-    { x, assignedWidth: requestedAssignedWidth },
+    { x, density, assignedWidth: requestedAssignedWidth },
   );
 
   const beats = Object.values(slotsByBeatId);

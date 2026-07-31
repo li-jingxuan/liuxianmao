@@ -1,33 +1,13 @@
-$toolbarH: 60px;
-
-.editorShell {
-  height: 100vh;
-}
-
-.toolbar {
-  height: $toolbarH;
-  border-bottom: 1px solid #cacaca;
-}
-
 .editorContentWrapper {
-  margin: 15px;
   background-color: #fff;
   border-radius: 5px;
   display: flex;
   flex-wrap: wrap;
-  height: calc(100vh - $toolbarH - 30px);
-
-  .sidlerBar {
-    min-width: 200px;
-    width: 200px;
-    border-right: 1px solid #cacaca;
-  }
-
+  height: 100%;
   .editorContentContainer {
     flex: 1;
     min-width: 0;
-    overflow: hidden;
-    height: 100%;
+    height: 100vh
   }
 }
 

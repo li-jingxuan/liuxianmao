@@ -129,7 +129,7 @@ describe("applyScoreCommand", () => {
     ).toMatchObject({ ok: false, code: "MEASURE_NOT_FOUND" });
   });
 
-  it("可把 beat 设为休止、取消休止，并阻止直接向休止输入品位", () => {
+  it("note.set 自动取消休止并在同一次命令中写入音符", () => {
     const restResult = applyScoreCommand(createDocument(), {
       type: LXMScoreCommandEnum.SetBeatKind,
       ...target,
@@ -140,14 +140,68 @@ describe("applyScoreCommand", () => {
     expect(
       restResult.document.score.tracks[0]!.measures[0]!.beats[0],
     ).toMatchObject({ kind: "rest", notes: [] });
+
+    const restDocument = structuredClone(restResult.document);
+    const noteResult = applyScoreCommand(restResult.document, {
+      type: LXMScoreCommandEnum.SetNote,
+      ...target,
+      string: 1,
+      fret: 3,
+    });
+    expect(noteResult).toMatchObject({ ok: true });
+    if (!noteResult.ok) return;
+
+    const nextBeat =
+      noteResult.document.score.tracks[0]!.measures[0]!.beats[0]!;
+    expect(nextBeat).toMatchObject({
+      id: target.beatId,
+      kind: "notes",
+      notes: [expect.objectContaining({ string: 1, fret: 3 })],
+    });
+    expect(nextBeat.tick).toBe(
+      restDocument.score.tracks[0]!.measures[0]!.beats[0]!.tick,
+    );
+    expect(nextBeat.rhythm).toEqual(
+      restDocument.score.tracks[0]!.measures[0]!.beats[0]!.rhythm,
+    );
+    expect(noteResult.document.documentRevision).toBe(
+      restResult.document.documentRevision + 1,
+    );
+    expect(restResult.document).toEqual(restDocument);
+
+    const layout = buildLayout(noteResult.document, { systemWidth: 700 });
+    const firstMeasure = layout.systems[0]!.measures[0]!;
+    const beatLayout = firstMeasure.beats.find(
+      (beat) => beat.id === target.beatId,
+    )!;
+    const noteLayout = firstMeasure.notes.find(
+      (note) => note.beatId === target.beatId && note.string === 1,
+    )!;
+    expect(
+      firstMeasure.restMarks.some((rest) => rest.beatId === target.beatId),
+    ).toBe(false);
+    expect(noteLayout.x).toBe(beatLayout.x);
+  });
+
+  it("休止拍输入非法品位时保持休止状态", () => {
+    const restResult = applyScoreCommand(createDocument(), {
+      type: LXMScoreCommandEnum.SetBeatKind,
+      ...target,
+      kind: "rest",
+    });
+    expect(restResult).toMatchObject({ ok: true });
+    if (!restResult.ok) return;
+    const snapshot = structuredClone(restResult.document);
+
     expect(
       applyScoreCommand(restResult.document, {
         type: LXMScoreCommandEnum.SetNote,
         ...target,
         string: 1,
-        fret: 3,
+        fret: 25,
       }),
-    ).toMatchObject({ ok: false, code: "REST_BEAT_NOT_EDITABLE" });
+    ).toMatchObject({ ok: false, code: "INVALID_FRET" });
+    expect(restResult.document).toEqual(snapshot);
   });
 
   it("缩短时值会补充尾部休止以保持小节容量", () => {
@@ -202,19 +256,52 @@ describe("applyScoreCommand", () => {
     expect(result).toEqual({
       ok: false,
       code: "FOLLOWING_BEATS_CANNOT_COMPRESS",
-      message: "后续节拍已达到最短可用时值，无法容纳当前修改",
+      message:
+        "后续节拍已达到最短可用时值，无法容纳当前修改，请先将后续节拍调整为休止符。",
     });
     expect(document).toEqual(snapshot);
   });
 
   it("新增、复制、删除小节均保持可编辑文档", () => {
-    const inserted = applyScoreCommand(createDocument(), {
+    const document = createDocument();
+    const snapshot = structuredClone(document);
+    const inserted = applyScoreCommand(document, {
       type: LXMScoreCommandEnum.InsertMeasure,
       trackId: target.trackId,
       afterMeasureId: target.measureId,
     });
     expect(inserted).toMatchObject({ ok: true });
     if (!inserted.ok) return;
+    const insertedTrack = inserted.document.score.tracks[0]!;
+    const insertedMeasure = insertedTrack.measures[1]!;
+    expect(insertedMeasure.timeSignature).toEqual({
+      numerator: 4,
+      denominator: 4,
+    });
+    expect(insertedMeasure.beats).toHaveLength(4);
+    expect(
+      insertedMeasure.beats.map(({ tick, rhythm, kind, notes }) => ({
+        tick,
+        rhythm,
+        kind,
+        notes,
+      })),
+    ).toEqual(
+      [0, 960, 1920, 2880].map((tick) => ({
+        tick,
+        rhythm: { base: "quarter", dots: 0 },
+        kind: "rest",
+        notes: [],
+      })),
+    );
+    expect(inserted.document.documentRevision).toBe(
+      document.documentRevision + 1,
+    );
+    expect(document).toEqual(snapshot);
+    expect(
+      buildLayout(inserted.document, { systemWidth: 700 }).systems,
+    ).not.toHaveLength(0);
+
     const copied = applyScoreCommand(inserted.document, {
       type: LXMScoreCommandEnum.CopyMeasure,
       trackId: target.trackId,

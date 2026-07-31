@@ -46,6 +46,24 @@ describe("summarizeMeasureSpacingWidth", () => {
       summary.assignedWidth - LXM_MEASURE_PADDING_X * 2,
     );
   });
+
+  it("紧凑排版缩小理想列宽但保留最低可读宽度", () => {
+    const summary = summarizeMeasureSpacingWidth(
+      createMeasure([
+        createBeat("beat-quarter", 0, "quarter"),
+        createBeat("beat-sixteenth", 960, "sixteenth"),
+      ]),
+      "compact",
+    );
+
+    expect(summary.columns.map((column) => column.minWidth)).toEqual([15, 15]);
+    expect(summary.columns.map((column) => column.idealWidth)).toEqual([
+      34 * 2.2 * 0.48,
+      15,
+    ]);
+    expect(summary.minWidth).toBe(15 + 15 + 8 * 2);
+    expect(summary.idealWidth).toBeCloseTo(34 * 2.2 * 0.48 + 15 + 8 * 2);
+  });
 });
 
 describe("layoutMeasureSpacing", () => {
@@ -115,5 +133,24 @@ describe("layoutMeasureSpacing", () => {
         assignedWidth: Number.POSITIVE_INFINITY,
       }),
     ).toThrow(/assignedWidth/);
+  });
+
+  it("紧凑排版保持 8px 首尾 padding 并让末拍覆盖到右边界", () => {
+    const measure = createMeasure([
+      createBeat("beat-quarter", 0, "quarter"),
+      createBeat("beat-sixteenth", 960, "sixteenth"),
+    ]);
+    const intrinsic = summarizeMeasureSpacingWidth(measure, "compact");
+    const assignedWidth = intrinsic.assignedWidth + 40;
+    const spacing = layoutMeasureSpacing(measure, {
+      x: 100,
+      density: "compact",
+      assignedWidth,
+    });
+
+    expect(spacing.slotsByBeatId["beat-quarter"]!.x).toBe(108);
+    const lastSlot = spacing.slotsByBeatId["beat-sixteenth"]!;
+    expect(lastSlot.width).toBeGreaterThanOrEqual(15);
+    expect(lastSlot.x + lastSlot.width).toBeCloseTo(100 + assignedWidth - 8);
   });
 });
