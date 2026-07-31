@@ -1,10 +1,14 @@
 /**
- * MVP v3 的纯领域命令。
+ * 乐谱编辑器的纯领域命令。
  *
  * 所有命令只返回新的文档；页面层不拥有 tick 重排、容量修复或实体 ID 分配逻辑，
  * 从而让未来撤销、保存和协作使用同一份确定性的编辑规则。
  */
 import { GUITAR_STRING_COUNT, MAX_FRET } from "./constants";
+import {
+  resolveTabCellSelection,
+  type ILXMTabCellReference,
+} from "../editing/tab-cell-selection";
 import { createDocumentIdFactory } from "./id-factory";
 import { createMeasureRestBeats } from "./rest-beats";
 import { changeMeasureBeatRhythm } from "./rhythm-change";
@@ -21,6 +25,8 @@ import type {
 export enum LXMScoreCommandEnum {
   SetNote = "note.set",
   RemoveNote = "note.remove",
+  SetNotesInRect = "note.setRect",
+  RemoveNotesInRect = "note.removeRect",
   SetBeatRhythm = "beat.setRhythm",
   SetBeatKind = "beat.setKind",
   InsertMeasure = "measure.insert",
@@ -44,6 +50,25 @@ export interface ILXMSetNoteCommand extends ILXMBeatCommandBase {
 export interface ILXMRemoveNoteCommand extends ILXMBeatCommandBase {
   type: LXMScoreCommandEnum.RemoveNote;
   string: number;
+}
+/**
+ * 批量 Note 命令只接收两个稳定端点。
+ *
+ * 页面不能提前展开单元格数组，否则范围上限、文档顺序和原子性会泄漏到 UI 层。
+ */
+export interface ILXMTabCellRange {
+  trackId: string;
+  anchor: Omit<ILXMTabCellReference, "trackId">;
+  focus: Omit<ILXMTabCellReference, "trackId">;
+}
+export interface ILXMSetNotesInRectCommand {
+  type: LXMScoreCommandEnum.SetNotesInRect;
+  range: ILXMTabCellRange;
+  fret: number;
+}
+export interface ILXMRemoveNotesInRectCommand {
+  type: LXMScoreCommandEnum.RemoveNotesInRect;
+  range: ILXMTabCellRange;
 }
 export interface ILXMSetBeatRhythmCommand extends ILXMBeatCommandBase {
   type: LXMScoreCommandEnum.SetBeatRhythm;
@@ -69,6 +94,8 @@ export interface ILXMRemoveMeasureCommand extends ILXMScoreCommandBase {
 export type ILXMScoreCommand =
   | ILXMSetNoteCommand
   | ILXMRemoveNoteCommand
+  | ILXMSetNotesInRectCommand
+  | ILXMRemoveNotesInRectCommand
   | ILXMSetBeatRhythmCommand
   | ILXMSetBeatKindCommand
   | ILXMInsertMeasureCommand
@@ -81,6 +108,8 @@ export type ILXMScoreCommandErrorCode =
   | "BEAT_NOT_FOUND"
   | "INVALID_STRING"
   | "INVALID_FRET"
+  | "INVALID_TAB_CELL_RANGE"
+  | "TAB_CELL_RANGE_TOO_LARGE"
   | "INVALID_RHYTHM"
   | "MEASURE_OVERFLOW"
   | "FOLLOWING_BEATS_CANNOT_COMPRESS"
@@ -89,26 +118,37 @@ export type ILXMScoreCommandErrorCode =
   | "DOCUMENT_INVALID"
   | "SEMANTIC_VALIDATION_FAILED";
 export type ILXMApplyScoreCommandResult =
-  | { ok: true; document: ILXMDocument }
+  | { ok: true; changed: boolean; document: ILXMDocument }
   | { ok: false; code: ILXMScoreCommandErrorCode; message: string };
 
 const fail = (
   code: ILXMScoreCommandErrorCode,
   message: string,
-): ILXMApplyScoreCommandResult => ({ ok: false, code, message });
+): Extract<ILXMApplyScoreCommandResult, { ok: false }> => ({
+  ok: false,
+  code,
+  message,
+});
 const isValidString = (string: number) =>
   Number.isInteger(string) && string >= 1 && string <= GUITAR_STRING_COUNT;
 const isValidFret = (fret: number) =>
   Number.isInteger(fret) && fret >= 0 && fret <= MAX_FRET;
+
+/** no-op 必须保留原引用与 revision，store 据此跳过历史快照。 */
+const unchanged = (document: ILXMDocument): ILXMApplyScoreCommandResult => ({
+  ok: true,
+  changed: false,
+  document,
+});
 
 /** 对候选文档执行两层守卫，保证命令无法写入结构或音乐语义非法的数据。 */
 const finalize = (document: ILXMDocument): ILXMApplyScoreCommandResult => {
   const parsed = LXMDocumentSchema.safeParse(document);
   if (!parsed.success)
     return fail("DOCUMENT_INVALID", "命令结果不符合乐谱文档格式");
-  const semantic = validateDocumentSemantics(parsed.data);
+  const semantic = validateDocumentSemantics(document);
   return semantic.ok
-    ? { ok: true, document: parsed.data }
+    ? { ok: true, changed: true, document }
     : fail(
         "SEMANTIC_VALIDATION_FAILED",
         semantic.issues[0]?.message ?? "命令结果不符合乐谱语义",
@@ -164,6 +204,11 @@ const setBeatRhythm = (
 ): ILXMApplyScoreCommandResult => {
   const target = findTarget(document, command);
   if ("ok" in target) return target;
+  if (
+    target.beat.rhythm.base === command.rhythm.base &&
+    target.beat.rhythm.dots === command.rhythm.dots
+  )
+    return unchanged(document);
   const factory = createDocumentIdFactory(document);
   const rhythmChange = changeMeasureBeatRhythm(
     target.measure,
@@ -198,11 +243,130 @@ const setBeatRhythm = (
   );
 };
 
-/** 应用所有 MVP v3 命令。 */
+/** 把命令端点补全为 selection 引用，并委托统一范围解析模块校验。 */
+const resolveCommandRange = (
+  document: ILXMDocument,
+  range: ILXMTabCellRange,
+) => {
+  const result = resolveTabCellSelection(document, {
+    anchor: { trackId: range.trackId, ...range.anchor },
+    focus: { trackId: range.trackId, ...range.focus },
+  });
+  return result.ok ? result : fail(result.code, result.message);
+};
+
+/**
+ * 原子地设置或删除矩形中的 Note。
+ *
+ * 函数先完成全部范围/品位校验，再遍历候选分支。整个批次只创建一个 document、
+ * 增加一次 revision 并调用一次 finalize；任何失败都不会暴露部分结果。
+ */
+const editNotesInRect = (
+  document: ILXMDocument,
+  command: ILXMSetNotesInRectCommand | ILXMRemoveNotesInRectCommand,
+): ILXMApplyScoreCommandResult => {
+  if (
+    command.type === LXMScoreCommandEnum.SetNotesInRect &&
+    !isValidFret(command.fret)
+  )
+    return fail("INVALID_FRET", `品位必须在 0 到 ${MAX_FRET} 之间`);
+
+  const resolved = resolveCommandRange(document, command.range);
+  if (!resolved.ok) return resolved;
+  const track = document.score.tracks.find(
+    (candidate) => candidate.id === resolved.range.trackId,
+  );
+  // resolve 已验证 track 存在；该守卫让函数在未来解析器契约变化时仍原子失败。
+  if (!track) return fail("INVALID_TAB_CELL_RANGE", "目标轨道不存在");
+
+  const targetBeatIds = new Set(
+    resolved.range.beats.map((beat) => beat.beatId),
+  );
+  const targetMeasureIds = new Set(
+    resolved.range.beats.map((beat) => beat.measureId),
+  );
+  const targetStrings = Array.from(
+    { length: resolved.range.endString - resolved.range.startString + 1 },
+    (_, index) => resolved.range.startString + index,
+  );
+  const factory = createDocumentIdFactory(document);
+  let changed = false;
+
+  const nextMeasures = track.measures.map((measure) => {
+    if (!targetMeasureIds.has(measure.id)) return measure;
+    let measureChanged = false;
+    const nextBeats = measure.beats.map((beat) => {
+      if (!targetBeatIds.has(beat.id)) return beat;
+
+      if (command.type === LXMScoreCommandEnum.RemoveNotesInRect) {
+        const nextNotes = beat.notes.filter(
+          (note) => !targetStrings.includes(note.string),
+        );
+        if (nextNotes.length === beat.notes.length) return beat;
+        changed = true;
+        measureChanged = true;
+        // 删除最后一个 Note 后仍保持 notes；rest 转换只能由 beat.setKind 明确触发。
+        return { ...beat, notes: nextNotes };
+      }
+
+      let beatChanged = beat.kind === "rest";
+      const notesByString = new Map(
+        beat.notes.map((note) => [note.string, note]),
+      );
+      for (const string of targetStrings) {
+        const existing = notesByString.get(string);
+        if (!existing) {
+          beatChanged = true;
+          notesByString.set(string, {
+            id: factory.createNoteId(),
+            string,
+            fret: command.fret,
+          });
+        } else if (existing.fret !== command.fret) {
+          beatChanged = true;
+          notesByString.set(string, { ...existing, fret: command.fret });
+        }
+      }
+      if (!beatChanged) return beat;
+
+      changed = true;
+      measureChanged = true;
+      // Map 保留已有 Note 顺序，新建 Note 按目标弦从 1 到 6 稳定追加。
+      return {
+        ...beat,
+        kind: "notes" as const,
+        notes: [...notesByString.values()],
+      };
+    });
+    return measureChanged ? { ...measure, beats: nextBeats } : measure;
+  });
+
+  if (!changed) return unchanged(document);
+
+  return finalize({
+    ...document,
+    documentRevision: document.documentRevision + 1,
+    score: {
+      ...document.score,
+      tracks: document.score.tracks.map((candidate) =>
+        candidate.id === track.id
+          ? { ...track, measures: nextMeasures }
+          : candidate,
+      ),
+    },
+  });
+};
+
+/** 应用所有领域命令；分发器本身不包含页面状态或历史逻辑。 */
 export const applyScoreCommand = (
   document: ILXMDocument,
   command: ILXMScoreCommand,
 ): ILXMApplyScoreCommandResult => {
+  if (
+    command.type === LXMScoreCommandEnum.SetNotesInRect ||
+    command.type === LXMScoreCommandEnum.RemoveNotesInRect
+  )
+    return editNotesInRect(document, command);
   if (command.type === LXMScoreCommandEnum.SetBeatRhythm)
     return setBeatRhythm(document, command);
   if (
@@ -225,22 +389,27 @@ export const applyScoreCommand = (
       return fail("INVALID_FRET", `品位必须在 0 到 ${MAX_FRET} 之间`);
     const factory = createDocumentIdFactory(document);
     let nextBeat: ILXMBeat;
-    if (command.type === LXMScoreCommandEnum.SetBeatKind)
+    if (command.type === LXMScoreCommandEnum.SetBeatKind) {
+      if (target.beat.kind === command.kind) return unchanged(document);
       nextBeat =
         command.kind === "rest"
           ? { ...target.beat, kind: "rest", notes: [] }
           : { ...target.beat, kind: "notes" };
-    else if (command.type === LXMScoreCommandEnum.RemoveNote)
+    } else if (command.type === LXMScoreCommandEnum.RemoveNote) {
+      if (!target.beat.notes.some((note) => note.string === command.string))
+        return unchanged(document);
       nextBeat = {
         ...target.beat,
         notes: target.beat.notes.filter(
           (note) => note.string !== command.string,
         ),
       };
-    else {
+    } else {
       const existing = target.beat.notes.find(
         (note) => note.string === command.string,
       );
+      if (target.beat.kind === "notes" && existing?.fret === command.fret)
+        return unchanged(document);
       const notes: ILXMNote[] = existing
         ? target.beat.notes.map((note) =>
             note.string === command.string

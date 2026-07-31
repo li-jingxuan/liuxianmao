@@ -48,7 +48,7 @@ export const GUITAR_STRING_COUNT = 6 as const;
 /** MVP 默认允许的最大品位。 */
 export const MAX_FRET = 24 as const;
 
-/** zundo 保存的最大历史快照数量。 */
+/** website editor store 保存的最大 document 历史快照数量。 */
 export const HISTORY_LIMIT = 100 as const;
 
 /** 标准调弦从 1 弦到 6 弦排列。 */

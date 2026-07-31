@@ -1,20 +1,23 @@
 "use client";
 
 import {
-  applyScoreCommand,
   buildLayout,
-  EXAMPLE,
+  createCollapsedTabCellSelection,
   hitTestLayout,
-  loadDocument,
+  layoutTabCellCaret,
+  layoutTabCellSelection,
   LXMScoreCommandEnum,
-  type ILXMDocument,
+  navigateTabCellSelection,
+  resolveTabCellSelection,
   type ILXMHitTarget,
   type ILXMLayout,
   type ILXMRhythm,
+  type ILXMTabCellReference,
 } from "@liuxianmao/lxm-editor";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { MusicAssetIcon } from "../MusicAssetIcon";
 import type { MusicControlIcon } from "../../assets/svg/svg-assets-manifest";
+import { useEditorStore } from "../../stores/editor-store";
+import { MusicAssetIcon } from "../MusicAssetIcon";
 import styles from "./index.module.scss";
 
 /** A4 纸张扣除左右各 8mm 页边距后的 194mm 内容区逻辑宽度。 */
@@ -22,29 +25,44 @@ const A4_CONTENT_WIDTH = 733;
 /** 两位品位输入等待第二个数字的时间，超时后提交一位品位。 */
 const FRET_DRAFT_TIMEOUT_MS = 600;
 
-/** 从规范 fixture 加载初始文档，失败时返回 null 供页面显示错误状态。 */
-const loadInitialDocument = (): ILXMDocument | null => {
-  const result = loadDocument(JSON.stringify(EXAMPLE.EXAMPLE_MVP_2.default));
-  return result.ok ? result.document : null;
-};
+/** layout 命中结果含视觉 systemIndex；selection 只保留稳定业务 ID。 */
+const toCellReference = (target: ILXMHitTarget): ILXMTabCellReference => ({
+  trackId: target.trackId,
+  measureId: target.measureId,
+  beatId: target.beatId,
+  string: target.string,
+});
+
+/** 表单编辑目标应保留浏览器原生键盘行为，不能被谱面快捷键劫持。 */
+const isTextEditingTarget = (target: EventTarget | null): boolean =>
+  target instanceof HTMLInputElement ||
+  target instanceof HTMLTextAreaElement ||
+  target instanceof HTMLSelectElement ||
+  (target instanceof HTMLElement && target.isContentEditable);
 
 export const EditorShell: React.FC = () => {
-  /** 持久化乐谱状态；所有更新都通过 applyScoreCommand 产生。 */
-  const [document, setDocument] = useState<ILXMDocument | null>(
-    loadInitialDocument,
-  );
-  /** 临时光标不写入 ILXMDocument，也不会影响后续撤销历史。 */
-  const [activeCursor, setActiveCursor] = useState<ILXMHitTarget | null>(null);
-  /** 品位数字草稿用于把连续输入的 1 + 2 合并为一次 12 品命令。 */
+  const document = useEditorStore((state) => state.document);
+  const selection = useEditorStore((state) => state.selection);
+  const errorMessage = useEditorStore((state) => state.errorMessage);
+  const execute = useEditorStore((state) => state.execute);
+  const setSelection = useEditorStore((state) => state.setSelection);
+  const setErrorMessage = useEditorStore((state) => state.setErrorMessage);
+  const undo = useEditorStore((state) => state.undo);
+  const redo = useEditorStore((state) => state.redo);
+  const canUndo = useEditorStore((state) => state.canUndo);
+  const canRedo = useEditorStore((state) => state.canRedo);
+
+  /** 品位草稿是瞬时输入状态，不进入 document 或历史。 */
   const [fretDraft, setFretDraft] = useState("");
-  /** 命令和输入错误展示在编辑器附近，便于用户理解未生效原因。 */
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const fretDraftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** drag anchor 用 ref 保存，避免 pointermove 读取到尚未提交的 React/store 状态。 */
+  const dragAnchorRef = useRef<ILXMTabCellReference | null>(null);
+  const activePointerIdRef = useRef<number | null>(null);
+  const focusCaretRef = useRef<SVGRectElement | null>(null);
 
   /** document 变化后重新生成 system、命中索引和所有 SVG 几何数据。 */
   const lxmLayout = useMemo<ILXMLayout | null>(() => {
     if (!document) return null;
-
     return buildLayout(document, {
       x: 0,
       y: 0,
@@ -52,6 +70,49 @@ export const EditorShell: React.FC = () => {
       density: "compact",
     });
   }, [document]);
+
+  /**
+   * 页面只消费核心范围解析结果。
+   * 这里不通过 measure/beat 数组下标推导范围，保证重排后仍使用同一业务选区。
+   */
+  const resolvedSelection = useMemo(() => {
+    if (!document || !selection) return null;
+    const result = resolveTabCellSelection(document, selection);
+    return result.ok ? result.range : null;
+  }, [document, selection]);
+  const selectionRects = useMemo(
+    () =>
+      lxmLayout && resolvedSelection
+        ? layoutTabCellSelection(lxmLayout, resolvedSelection)
+        : [],
+    [lxmLayout, resolvedSelection],
+  );
+  const focusCaret = useMemo(
+    () =>
+      lxmLayout && selection
+        ? layoutTabCellCaret(lxmLayout, selection.focus)
+        : null,
+    [lxmLayout, selection],
+  );
+
+  /** 单 Beat 工具读取领域 Beat；layout 只负责坐标，不能成为 rhythm 数据源。 */
+  const activeBeat = useMemo(() => {
+    if (!document || !resolvedSelection || resolvedSelection.beats.length !== 1)
+      return null;
+    const target = resolvedSelection.beats[0]!;
+    return (
+      document.score.tracks
+        .find((track) => track.id === target.trackId)
+        ?.measures.find((measure) => measure.id === target.measureId)
+        ?.beats.find((beat) => beat.id === target.beatId) ?? null
+    );
+  }, [document, resolvedSelection]);
+  const selectedMeasureIds = useMemo(
+    () => new Set(resolvedSelection?.beats.map((beat) => beat.measureId) ?? []),
+    [resolvedSelection],
+  );
+  const canEditSingleBeat = resolvedSelection?.beats.length === 1;
+  const canEditSingleMeasure = selectedMeasureIds.size === 1;
 
   /** 组件卸载时取消延迟提交，避免异步回调写入已卸载组件。 */
   useEffect(
@@ -61,6 +122,14 @@ export const EditorShell: React.FC = () => {
     [],
   );
 
+  /** selection/layout 改变后只滚动 focus caret，不滚动整个范围的左上角。 */
+  useEffect(() => {
+    focusCaretRef.current?.scrollIntoView({
+      block: "nearest",
+      inline: "nearest",
+    });
+  }, [focusCaret]);
+
   /** 清理当前品位草稿和对应的延时提交。 */
   const clearFretDraft = () => {
     if (fretDraftTimerRef.current) clearTimeout(fretDraftTimerRef.current);
@@ -68,118 +137,83 @@ export const EditorShell: React.FC = () => {
     setFretDraft("");
   };
 
-  /** 将一个合法数值品位写入当前光标位置。 */
-  const setActiveNote = (fret: number) => {
-    if (!document || !activeCursor) {
-      setErrorMessage("请先点击谱面中的弦和拍点，再输入品位。");
+  /** 将合法品位作为一条原子矩形命令提交，整个选区只产生一条历史。 */
+  const setSelectedNotes = (fret: number) => {
+    if (!selection) {
+      setErrorMessage("请先选择谱面中的 TAB 单元格，再输入品位。");
       return;
     }
-
-    const result = applyScoreCommand(document, {
-      type: LXMScoreCommandEnum.SetNote,
-      ...activeCursor,
+    execute({
+      type: LXMScoreCommandEnum.SetNotesInRect,
+      range: {
+        trackId: selection.anchor.trackId,
+        anchor: {
+          measureId: selection.anchor.measureId,
+          beatId: selection.anchor.beatId,
+          string: selection.anchor.string,
+        },
+        focus: {
+          measureId: selection.focus.measureId,
+          beatId: selection.focus.beatId,
+          string: selection.focus.string,
+        },
+      },
       fret,
     });
-    if (!result.ok) {
-      setErrorMessage(result.message);
-      return;
-    }
-
-    setDocument(result.document);
-    setErrorMessage(null);
   };
 
-  /** 删除当前光标弦上的音符；重复删除由核心命令安全地处理为 no-op。 */
-  const removeActiveNote = () => {
-    if (!document || !activeCursor) {
-      setErrorMessage("请先点击谱面中的弦和拍点，再删除音符。");
+  /** 删除同样是一条批量命令，页面绝不循环发送 note.remove。 */
+  const removeSelectedNotes = () => {
+    if (!selection) {
+      setErrorMessage("请先选择谱面中的 TAB 单元格，再删除音符。");
       return;
     }
-
-    const result = applyScoreCommand(document, {
-      type: LXMScoreCommandEnum.RemoveNote,
-      ...activeCursor,
+    execute({
+      type: LXMScoreCommandEnum.RemoveNotesInRect,
+      range: {
+        trackId: selection.anchor.trackId,
+        anchor: {
+          measureId: selection.anchor.measureId,
+          beatId: selection.anchor.beatId,
+          string: selection.anchor.string,
+        },
+        focus: {
+          measureId: selection.focus.measureId,
+          beatId: selection.focus.beatId,
+          string: selection.focus.string,
+        },
+      },
     });
-    if (!result.ok) {
-      setErrorMessage(result.message);
-      return;
-    }
-
-    setDocument(result.document);
-    setErrorMessage(null);
   };
 
-  /** 统一接收顶栏命令，确保按钮与键盘输入走同一条核心领域写入口。 */
-  const executeToolbarCommand = (
-    command: Parameters<typeof applyScoreCommand>[1],
-  ) => {
-    if (!document) return;
-
-    const cursorAfterMeasureRemoval = (() => {
-      if (command.type !== LXMScoreCommandEnum.RemoveMeasure || !activeCursor)
-        return activeCursor;
-
-      const track = document.score.tracks.find(
-        (item) => item.id === command.trackId,
-      );
-      const removedIndex = track?.measures.findIndex(
-        (measure) => measure.id === command.measureId,
-      );
-      if (!track || removedIndex === undefined || removedIndex < 0) return null;
-
-      const fallbackMeasure =
-        track.measures[removedIndex + 1] ?? track.measures[removedIndex - 1];
-      const fallbackBeat = fallbackMeasure?.beats[0];
-      if (!fallbackMeasure || !fallbackBeat) return null;
-
-      return {
-        ...activeCursor,
-        measureId: fallbackMeasure.id,
-        beatId: fallbackBeat.id,
-      };
-    })();
-
-    const result = applyScoreCommand(document, command);
-    if (!result.ok) {
-      setErrorMessage(result.message);
-      return;
-    }
-    setDocument(result.document);
-    // 删除当前小节后定位相邻小节首拍；其余命令保留稳定 ID，由新 layout 重新定位。
-    if (command.type === LXMScoreCommandEnum.RemoveMeasure)
-      setActiveCursor(cursorAfterMeasureRemoval);
-    setErrorMessage(null);
-  };
-
-  /** 当前光标是顶栏节奏操作的业务定位；没有光标时不构造不完整命令。 */
-  const getActiveBeatCommandTarget = () => {
-    if (!activeCursor) {
-      setErrorMessage("请先点击谱面中的拍点，再使用节奏工具。");
+  /** 单 Beat 工具在跨 Beat 选区中不构造命令，避免静默修改 focus。 */
+  const getSingleBeatTarget = () => {
+    const target = resolvedSelection?.beats[0];
+    if (!target || resolvedSelection?.beats.length !== 1) {
+      setErrorMessage("节奏与休止工具只支持单个 Beat 选区。");
       return null;
     }
     return {
-      trackId: activeCursor.trackId,
-      measureId: activeCursor.measureId,
-      beatId: activeCursor.beatId,
+      trackId: target.trackId,
+      measureId: target.measureId,
+      beatId: target.beatId,
     };
   };
 
-  /** 修改基础时值时保留当前附点数，用户可再通过附点按钮精确调整。 */
   const setActiveRhythmBase = (base: ILXMRhythm["base"]) => {
-    const target = getActiveBeatCommandTarget();
+    const target = getSingleBeatTarget();
     if (!target || !activeBeat) return;
-    executeToolbarCommand({
+    execute({
       type: LXMScoreCommandEnum.SetBeatRhythm,
       ...target,
       rhythm: { base, dots: activeBeat.rhythm.dots },
     });
   };
 
-  /** 附点按钮直接设置目标数量，避免 toggle 在键盘/鼠标操作间产生歧义。 */
   const setActiveDots = (dots: 0 | 1 | 2) => {
-    const target = getActiveBeatCommandTarget();
+    const target = getSingleBeatTarget();
     if (!target || !activeBeat) return;
-    executeToolbarCommand({
+    execute({
       type: LXMScoreCommandEnum.SetBeatRhythm,
       ...target,
       rhythm: { ...activeBeat.rhythm, dots },
@@ -187,119 +221,187 @@ export const EditorShell: React.FC = () => {
   };
 
   const setActiveBeatKind = (kind: "notes" | "rest") => {
-    const target = getActiveBeatCommandTarget();
+    const target = getSingleBeatTarget();
     if (!target) return;
-    executeToolbarCommand({
-      type: LXMScoreCommandEnum.SetBeatKind,
-      ...target,
-      kind,
-    });
+    execute({ type: LXMScoreCommandEnum.SetBeatKind, ...target, kind });
+  };
+
+  /** 小节工具只接受唯一 measure；跨小节选区时按钮禁用。 */
+  const getSingleMeasureTarget = () => {
+    const target = resolvedSelection?.beats[0];
+    if (!target || selectedMeasureIds.size !== 1) {
+      setErrorMessage("小节工具只支持位于同一小节内的选区。");
+      return null;
+    }
+    return { trackId: target.trackId, measureId: target.measureId };
   };
 
   const insertMeasureAfterActive = () => {
-    if (!activeCursor) {
-      setErrorMessage("请先点击目标小节，再新增小节。");
-      return;
-    }
-    executeToolbarCommand({
+    const target = getSingleMeasureTarget();
+    if (!target) return;
+    execute({
       type: LXMScoreCommandEnum.InsertMeasure,
-      trackId: activeCursor.trackId,
-      afterMeasureId: activeCursor.measureId,
+      trackId: target.trackId,
+      afterMeasureId: target.measureId,
     });
   };
 
   const copyActiveMeasure = () => {
-    if (!activeCursor) {
-      setErrorMessage("请先点击目标小节，再复制小节。");
-      return;
-    }
-    executeToolbarCommand({
-      type: LXMScoreCommandEnum.CopyMeasure,
-      trackId: activeCursor.trackId,
-      measureId: activeCursor.measureId,
-    });
+    const target = getSingleMeasureTarget();
+    if (!target) return;
+    execute({ type: LXMScoreCommandEnum.CopyMeasure, ...target });
   };
 
   const removeActiveMeasure = () => {
-    if (!activeCursor) {
-      setErrorMessage("请先点击目标小节，再删除小节。");
-      return;
-    }
-    executeToolbarCommand({
-      type: LXMScoreCommandEnum.RemoveMeasure,
-      trackId: activeCursor.trackId,
-      measureId: activeCursor.measureId,
-    });
+    const target = getSingleMeasureTarget();
+    if (!target) return;
+    execute({ type: LXMScoreCommandEnum.RemoveMeasure, ...target });
   };
 
-  /** 将草稿转换为品位并交给命令层；非法草稿不会修改文档。 */
+  /** 将草稿转换为品位；两位数字最终仍只提交一次命令。 */
   const commitFretDraft = (draft: string) => {
     clearFretDraft();
     if (draft.length === 0) return;
-
     const fret = Number(draft);
     if (!Number.isInteger(fret) || fret < 0 || fret > 24) {
       setErrorMessage("品位必须在 0 到 24 之间。");
       return;
     }
-
-    setActiveNote(fret);
+    setSelectedNotes(fret);
   };
 
-  /**
-   * 将浏览器 client 坐标转换为 SVG viewBox 逻辑坐标。
-   * 不能直接使用 offsetX/offsetY，因为 SVG 在缩放或滚动后两者不再等价。
-   */
-  const handlePointerDown: React.PointerEventHandler<SVGSVGElement> = (
-    event,
-  ) => {
-    const matrix = event.currentTarget.getScreenCTM();
-    if (!matrix || !lxmLayout) return;
-
+  /** 使用 SVG CTM 完成 client 坐标到 layout 逻辑坐标的唯一转换。 */
+  const hitTestPointer = (
+    svg: SVGSVGElement,
+    event: Pick<React.PointerEvent<SVGSVGElement>, "clientX" | "clientY">,
+  ): ILXMTabCellReference | null => {
+    const matrix = svg.getScreenCTM();
+    if (!matrix || !lxmLayout) return null;
     const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(
       matrix.inverse(),
     );
     const target = hitTestLayout(lxmLayout, { x: point.x, y: point.y });
-
-    event.currentTarget.focus();
-    clearFretDraft();
-    setActiveCursor(target);
-    setErrorMessage(target ? null : "请点击小节内的弦线和拍点。");
+    return target ? toCellReference(target) : null;
   };
 
-  /** 处理数字品位、删除和取消草稿等 MVP v2 最小键盘操作。 */
-  const handleKeyDown: React.KeyboardEventHandler<SVGSVGElement> = (event) => {
-    const target = event.target;
+  const handlePointerDown: React.PointerEventHandler<SVGSVGElement> = (
+    event,
+  ) => {
+    const target = hitTestPointer(event.currentTarget, event);
+    event.currentTarget.focus();
+    clearFretDraft();
+
+    if (!target) {
+      if (!event.shiftKey) setSelection(null);
+      setErrorMessage("请点击小节内的弦线和拍点。");
+      return;
+    }
+
+    // Shift+pointerdown 延续已有 anchor；普通拖动从当前命中格建立新 anchor。
+    const anchor = event.shiftKey && selection ? selection.anchor : target;
+    dragAnchorRef.current = anchor;
+    activePointerIdRef.current = event.pointerId;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setSelection({ anchor, focus: target });
+  };
+
+  const handlePointerMove: React.PointerEventHandler<SVGSVGElement> = (
+    event,
+  ) => {
     if (
-      target instanceof HTMLInputElement ||
-      target instanceof HTMLTextAreaElement ||
-      target instanceof HTMLSelectElement ||
-      (target instanceof HTMLElement && target.isContentEditable)
+      activePointerIdRef.current !== event.pointerId ||
+      !dragAnchorRef.current
     )
       return;
+    const target = hitTestPointer(event.currentTarget, event);
+    // 谱面空白不产生伪坐标，保留最后一个合法 focus。
+    if (target) setSelection({ anchor: dragAnchorRef.current, focus: target });
+  };
 
-    // 取消
+  const finishPointerDrag: React.PointerEventHandler<SVGSVGElement> = (
+    event,
+  ) => {
+    if (activePointerIdRef.current !== event.pointerId) return;
+    if (event.currentTarget.hasPointerCapture(event.pointerId))
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    activePointerIdRef.current = null;
+    dragAnchorRef.current = null;
+  };
+
+  /**
+   * 谱面键盘入口。
+   *
+   * 只有实际执行的快捷键才 preventDefault；边界处 changed:false 的方向键继续保留
+   * 浏览器默认行为，符合核心导航函数的显式 no-op 契约。
+   */
+  const handleKeyDown: React.KeyboardEventHandler<SVGSVGElement> = (event) => {
+    if (isTextEditingTarget(event.target)) return;
+
+    const isPrimaryModifier = event.metaKey || event.ctrlKey;
+    if (isPrimaryModifier && event.key.toLowerCase() === "z") {
+      const shouldRedo = event.shiftKey;
+      if ((shouldRedo && canRedo) || (!shouldRedo && canUndo)) {
+        event.preventDefault();
+        clearFretDraft();
+        if (shouldRedo) redo();
+        else undo();
+      }
+      return;
+    }
+    if (event.ctrlKey && event.key.toLowerCase() === "y") {
+      if (canRedo) {
+        event.preventDefault();
+        clearFretDraft();
+        redo();
+      }
+      return;
+    }
+
+    const directions = {
+      ArrowLeft: "left",
+      ArrowRight: "right",
+      ArrowUp: "up",
+      ArrowDown: "down",
+    } as const;
+    const direction = directions[event.key as keyof typeof directions];
+    if (direction && document && selection) {
+      const result = navigateTabCellSelection(
+        document,
+        selection,
+        direction,
+        event.shiftKey,
+      );
+      if (result.ok && result.changed) {
+        event.preventDefault();
+        clearFretDraft();
+        setSelection(result.selection);
+      } else if (!result.ok) setErrorMessage(result.message);
+      return;
+    }
+
     if (event.key === "Escape") {
+      if (!selection && !fretDraft) return;
       event.preventDefault();
       clearFretDraft();
+      if (selection)
+        setSelection(createCollapsedTabCellSelection(selection.focus));
       setErrorMessage(null);
       return;
     }
-    // 删除
     if (event.key === "Backspace" || event.key === "Delete") {
+      if (!selection) return;
       event.preventDefault();
       clearFretDraft();
-      removeActiveNote();
+      removeSelectedNotes();
       return;
     }
-    if (!/^\d$/.test(event.key)) return;
+    if (!/^\d$/.test(event.key) || isPrimaryModifier) return;
 
     event.preventDefault();
-    if (!activeCursor) {
-      setErrorMessage("请先点击谱面中的弦和拍点，再输入品位。");
+    if (!selection) {
+      setErrorMessage("请先选择谱面中的 TAB 单元格，再输入品位。");
       return;
     }
-
     const nextDraft = `${fretDraft}${event.key}`;
     if (nextDraft.length > 2 || Number(nextDraft) > 24) {
       clearFretDraft();
@@ -309,7 +411,7 @@ export const EditorShell: React.FC = () => {
 
     if (fretDraftTimerRef.current) clearTimeout(fretDraftTimerRef.current);
     setFretDraft(nextDraft);
-    // 0 或 3–9 不能组成合法两位品位；1、2 留出输入 10–24 的窗口。
+    // 0 或 3–9 不可能成为合法两位品位前缀；1、2 等待第二位数字。
     if (nextDraft.length === 2 || event.key === "0" || Number(event.key) >= 3) {
       commitFretDraft(nextDraft);
       return;
@@ -320,21 +422,10 @@ export const EditorShell: React.FC = () => {
     );
   };
 
-  if (!lxmLayout)
-    return <p className={styles.errorMessage}>无法加载 MVP v2 示例乐谱。</p>;
+  if (!document || !lxmLayout)
+    return <p className={styles.errorMessage}>无法加载 MVP v4 示例乐谱。</p>;
 
-  const activeMeasure = activeCursor
-    ? lxmLayout.systems
-        .flatMap((system) => system.measures)
-        .find((measure) => measure.id === activeCursor.measureId)
-    : undefined;
-  const activeBeat = activeMeasure?.beats.find(
-    (beat) => beat.id === activeCursor?.beatId,
-  );
-  const activeString = activeMeasure?.strings.find(
-    (string) => string.index === activeCursor?.string,
-  );
-  /** 顶栏每个图标均有文字 aria-label，避免只靠音乐符号传达操作含义。 */
+  /** 顶栏每个音乐图标都有文字 aria-label，避免只靠符号传达操作含义。 */
   const rhythmButtons: {
     base: ILXMRhythm["base"];
     icon: MusicControlIcon;
@@ -347,8 +438,6 @@ export const EditorShell: React.FC = () => {
     { base: "sixteenth", icon: "noteSixteenth", label: "十六分音符" },
     { base: "thirtySecond", icon: "noteThirtySecond", label: "三十二分音符" },
   ];
-  // const firstString = activeMeasure?.strings[0];
-  // const lastString = activeMeasure?.strings[activeMeasure.strings.length - 1];
 
   return (
     <div className={styles.editor}>
@@ -356,15 +445,34 @@ export const EditorShell: React.FC = () => {
         <div
           className={styles.editorToolbar}
           role="toolbar"
-          aria-label="节奏与小节工具"
+          aria-label="节奏、小节与历史工具"
         >
+          <button
+            type="button"
+            className={styles.toolbarButton}
+            aria-label="撤销"
+            disabled={!canUndo}
+            onClick={undo}
+          >
+            ↶
+          </button>
+          <button
+            type="button"
+            className={styles.toolbarButton}
+            aria-label="重做"
+            disabled={!canRedo}
+            onClick={redo}
+          >
+            ↷
+          </button>
+          <span className={styles.toolbarSeparator} aria-hidden="true" />
           {rhythmButtons.map((button) => (
             <button
               key={button.base}
               type="button"
               className={styles.toolbarButton}
               aria-label={`设置为${button.label}`}
-              disabled={!activeCursor}
+              disabled={!canEditSingleBeat}
               onClick={() => setActiveRhythmBase(button.base)}
             >
               <MusicAssetIcon
@@ -377,7 +485,7 @@ export const EditorShell: React.FC = () => {
             type="button"
             className={styles.toolbarButton}
             aria-label="取消附点"
-            disabled={!activeCursor}
+            disabled={!canEditSingleBeat}
             onClick={() => setActiveDots(0)}
           >
             无点
@@ -386,7 +494,7 @@ export const EditorShell: React.FC = () => {
             type="button"
             className={styles.toolbarButton}
             aria-label="设置单附点"
-            disabled={!activeCursor}
+            disabled={!canEditSingleBeat}
             onClick={() => setActiveDots(1)}
           >
             <MusicAssetIcon assetId="noteDot" className={styles.toolbarIcon} />
@@ -395,7 +503,7 @@ export const EditorShell: React.FC = () => {
             type="button"
             className={styles.toolbarButton}
             aria-label="设置双附点"
-            disabled={!activeCursor}
+            disabled={!canEditSingleBeat}
             onClick={() => setActiveDots(2)}
           >
             <MusicAssetIcon
@@ -407,7 +515,7 @@ export const EditorShell: React.FC = () => {
             type="button"
             className={styles.toolbarButton}
             aria-label="设为休止"
-            disabled={!activeCursor}
+            disabled={!canEditSingleBeat}
             onClick={() => setActiveBeatKind("rest")}
           >
             休止
@@ -416,16 +524,17 @@ export const EditorShell: React.FC = () => {
             type="button"
             className={styles.toolbarButton}
             aria-label="取消休止"
-            disabled={!activeCursor}
+            disabled={!canEditSingleBeat}
             onClick={() => setActiveBeatKind("notes")}
           >
             恢复
           </button>
+          <span className={styles.toolbarSeparator} aria-hidden="true" />
           <button
             type="button"
             className={styles.toolbarButton}
             aria-label="在当前小节后新增小节"
-            disabled={!activeCursor}
+            disabled={!canEditSingleMeasure}
             onClick={insertMeasureAfterActive}
           >
             <MusicAssetIcon
@@ -437,7 +546,7 @@ export const EditorShell: React.FC = () => {
             type="button"
             className={styles.toolbarButton}
             aria-label="复制当前小节"
-            disabled={!activeCursor}
+            disabled={!canEditSingleMeasure}
             onClick={copyActiveMeasure}
           >
             <MusicAssetIcon
@@ -449,7 +558,7 @@ export const EditorShell: React.FC = () => {
             type="button"
             className={styles.toolbarButton}
             aria-label="删除当前小节"
-            disabled={!activeCursor}
+            disabled={!canEditSingleMeasure}
             onClick={removeActiveMeasure}
           >
             <MusicAssetIcon
@@ -459,7 +568,9 @@ export const EditorShell: React.FC = () => {
           </button>
         </div>
         <p className={styles.inputHint}>
-          点击弦线和拍点后输入 0–24；Backspace/Delete 删除当前弦音符。
+          点击或拖动选择，Shift 扩展，方向键导航；输入 0–24 批量设置品位，
+          Backspace/Delete 批量删除。
+          {resolvedSelection && ` 已选择 ${resolvedSelection.cellCount} 格。`}
           {fretDraft && ` 正在输入：${fretDraft}`}
         </p>
         {errorMessage && (
@@ -470,7 +581,6 @@ export const EditorShell: React.FC = () => {
       </div>
       <div className={styles.pageViewport}>
         <main className={styles.paper} aria-label="A4 乐谱页面">
-          {/* SVG 面板 */}
           <svg
             className={styles.scoreSvg}
             viewBox={`0 0 ${lxmLayout.width} ${lxmLayout.height}`}
@@ -480,25 +590,39 @@ export const EditorShell: React.FC = () => {
             role="application"
             aria-label="六线谱编辑器"
             onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={finishPointerDrag}
+            onPointerCancel={finishPointerDrag}
             onKeyDown={handleKeyDown}
           >
-            {activeMeasure && activeBeat && activeString && (
-              <g className={styles.cursorLayer} pointerEvents="none">
+            {/* 选区层位于音乐元素下方，且永不参与指针命中。 */}
+            <g className={styles.selectionLayer} pointerEvents="none">
+              {selectionRects.map((rect) => (
                 <rect
-                  className={styles.activeCursor}
-                  x={activeBeat.x - 11}
-                  y={activeString.y1 - 9.5}
-                  width={22}
-                  height={18}
+                  key={`${rect.measureId}-${rect.beatIds.join("-")}`}
+                  className={styles.selectionRange}
+                  x={rect.x}
+                  y={rect.y}
+                  width={rect.width}
+                  height={rect.height}
                 />
-              </g>
-            )}
+              ))}
+              {focusCaret && (
+                <rect
+                  ref={focusCaretRef}
+                  className={styles.focusCaret}
+                  x={focusCaret.x}
+                  y={focusCaret.y}
+                  width={focusCaret.width}
+                  height={focusCaret.height}
+                />
+              )}
+            </g>
             {lxmLayout.systems.map((system) => (
               <g key={system.index}>
                 {system.measures.map((measure) => (
                   <g key={measure.id}>
                     <g>
-                      {/* 绘制六条弦线；相邻小节直接相接，不额外插入外部间距。 */}
                       {measure.strings.map((string) => (
                         <line
                           key={string.index}
@@ -524,7 +648,6 @@ export const EditorShell: React.FC = () => {
                       ))}
                     </g>
                     <g>
-                      {/* 品位数字使用 layout 给出的坐标；页面层不重新计算其位置。 */}
                       {measure.notes.map((note) => (
                         <text
                           className={styles.fretNoteText}
@@ -537,7 +660,6 @@ export const EditorShell: React.FC = () => {
                       ))}
                     </g>
                     <g>
-                      {/* 小节线由单小节 layout 决定类型与坐标。 */}
                       {measure.barline.parts.map((part, index) =>
                         part.kind === "line" ? (
                           <line
@@ -561,16 +683,8 @@ export const EditorShell: React.FC = () => {
                       )}
                     </g>
                     <g className={styles.durationLayer} pointerEvents="none">
-                      {/*
-                    页面只消费核心 layout 已经决定好的符干、占位线、旗帜和附点。
-                    这里不读取 rhythm.base，避免 React 与核心排版各维护一套时值规则。
-                  */}
                       {measure.durationMarks.map((mark) => (
                         <g key={mark.beatId}>
-                          {/*
-                        head glyph 仍保留在核心布局数据中，但当前视觉契约不创建
-                        对应 SVG DOM。长时值由“一根起音符干 + 后续占位线”表达。
-                      */}
                           {mark.stemVisible && (
                             <line
                               x1={mark.stemX}
@@ -615,7 +729,6 @@ export const EditorShell: React.FC = () => {
                       ))}
                     </g>
                     <g pointerEvents="none">
-                      {/* 连梁段已在核心包完成分组，页面只负责绘制。 */}
                       {measure.beamSegments.map((segment, index) => (
                         <line
                           key={index}

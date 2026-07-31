@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
+    "test": "pnpm --dir ../.. exec vitest run apps/website/stores/editor-store.test.ts",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
@@ -16,7 +17,8 @@
     "lucide-react": "^0.468.0",
     "next": "^16.2.9",
     "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "react-dom": "^19.2.7",
+    "zustand": "^5.0.5"
   },
   "devDependencies": {
     "@liuxianmao/eslint-config": "workspace:*",

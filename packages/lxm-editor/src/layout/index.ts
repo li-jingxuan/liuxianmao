@@ -80,4 +80,9 @@ export const buildLayout = (
 };
 
 export { hitTestLayout } from "./hit-test";
+export { layoutTabCellCaret, layoutTabCellSelection } from "./selection-layout";
+export type {
+  ILXMTabCellCaretLayout,
+  ILXMTabCellSelectionRect,
+} from "./selection-layout";
 export { layoutSystems } from "./system-layout";

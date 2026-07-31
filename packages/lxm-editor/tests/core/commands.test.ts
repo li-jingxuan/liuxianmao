@@ -4,6 +4,7 @@ import EXAMPLE_MVP_2 from "../../example/example-mvp2.json";
 import {
   applyScoreCommand,
   LXMScoreCommandEnum,
+  type ILXMScoreCommand,
 } from "../../src/core/commands";
 import { buildLayout } from "../../src/layout";
 
@@ -60,6 +61,42 @@ describe("applyScoreCommand", () => {
     ]);
   });
 
+  it("单点 Note、rhythm 和 kind 的 no-op 保留原引用与 revision", () => {
+    const document = createDocument();
+    const commands: ILXMScoreCommand[] = [
+      {
+        type: LXMScoreCommandEnum.SetNote,
+        ...target,
+        string: 6,
+        fret: 0,
+      },
+      {
+        type: LXMScoreCommandEnum.RemoveNote,
+        ...target,
+        string: 1,
+      },
+      {
+        type: LXMScoreCommandEnum.SetBeatRhythm,
+        ...target,
+        rhythm: { base: "quarter" as const, dots: 0 },
+      },
+      {
+        type: LXMScoreCommandEnum.SetBeatKind,
+        ...target,
+        kind: "notes" as const,
+      },
+    ];
+
+    for (const command of commands) {
+      const result = applyScoreCommand(document, command);
+      expect(result).toEqual({ ok: true, changed: false, document });
+      if (result.ok)
+        expect(result.document.documentRevision).toBe(
+          document.documentRevision,
+        );
+    }
+  });
+
   it("note.remove 只删除目标弦且允许重复删除", () => {
     const firstResult = applyScoreCommand(createDocument(), {
       type: LXMScoreCommandEnum.RemoveNote,
@@ -82,7 +119,11 @@ describe("applyScoreCommand", () => {
       beatId: "mvp2-beat-2-1",
       string: 5,
     });
-    expect(secondResult).toMatchObject({ ok: true });
+    expect(secondResult).toEqual({
+      ok: true,
+      changed: false,
+      document: firstResult.document,
+    });
   });
 
   it("删除拍点最后一个音符后仍可重新布局", () => {

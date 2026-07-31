@@ -46,6 +46,13 @@
   mask: var(--music-icon-url) center / contain no-repeat;
 }
 
+.toolbarSeparator {
+  width: 1px;
+  height: 22px;
+  margin: 0 4px;
+  background: #d8dde6;
+}
+
 .restLayer {
   font-family: Bravura, serif;
   font-size: 22px;
@@ -93,10 +100,15 @@
   text-anchor: middle;
 }
 
-.cursorLayer {
-  .activeCursor {
-    fill: rgba(40, 100, 227, 0.3);
-  }
+.selectionRange {
+  fill: rgba(40, 100, 227, 0.18);
+}
+
+.focusCaret {
+  fill: rgba(40, 100, 227, 0.1);
+  stroke: #2864e3;
+  stroke-width: 1.5px;
+  vector-effect: non-scaling-stroke;
 }
 
 .inputHint,
@@ -140,7 +152,7 @@
     box-shadow: none;
   }
 
-  .cursorLayer {
+  .selectionLayer {
     display: none;
   }
 }
