@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import EXAMPLE_MVP_2 from "../../example/example-mvp2.json";
 import { buildLayout, hitTestLayout } from "../../src/layout";
+import { getBeatCellBounds } from "../../src/layout/beat-cell-bounds";
 
 const documentWithFirstMeasureOnly = {
   ...EXAMPLE_MVP_2,
@@ -80,6 +81,25 @@ describe("hitTestLayout", () => {
       measureId: "mvp2-measure-5",
       beatId: "mvp2-beat-5-2",
       string: 5,
+    });
+  });
+
+  it("选框单元格的水平中心命中同一个 beat", () => {
+    const layout = buildLayout(EXAMPLE_MVP_2, { systemWidth: 733 });
+    const measure = layout.systems[0]!.measures[0]!;
+    const beat = measure.beats[1]!;
+    const bounds = getBeatCellBounds(measure, beat.id)!;
+    const string = measure.strings[3]!;
+
+    expect(
+      hitTestLayout(layout, {
+        x: bounds.left + bounds.width / 2,
+        y: string.y1,
+      }),
+    ).toMatchObject({
+      measureId: measure.id,
+      beatId: beat.id,
+      string: string.index,
     });
   });
 

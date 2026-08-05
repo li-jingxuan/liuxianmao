@@ -4,6 +4,7 @@
  * 命中计算只依赖 layout 产物，避免页面根据数组下标或 CSS 尺寸重新猜测业务位置。
  */
 
+import { getBeatCellBounds } from "./beat-cell-bounds";
 import { LXM_STRING_HIT_RADIUS_Y } from "./layout-constants";
 import type {
   ILXMHitIndex,
@@ -68,19 +69,18 @@ export const hitTestLayout = (
   const measure = system?.measures.find((item) => item.id === bounds.measureId);
   if (!measure) return null;
 
-  // beat.x 是节奏列的起点而不是音符中心。相邻 beat 以两个起点的中点作为
-  // 分界，可以稳定地选择离点击位置最近的一拍。首拍向左覆盖到小节起点，末拍
-  // 向右覆盖到小节终点；否则 System 拉伸后，最后一列的后半段会形成很大的
-  // 无法点击区域。beats 当前由 spacing 按 x 顺序生成，这里仍显式排序，避免
-  // 后续调用方改变数组构造方式时悄悄破坏命中逻辑。
+  // 命中和选框必须共享完全相同的 Beat 单元格边界。如果两处分别推导中点，后续
+  // 修改其中一处时很容易再次出现“点击属于 A Beat，但高亮画在 B 区域”的偏差。
+  // 这里仍按 x 排序后使用 find；公共边界点会稳定归入顺序靠前的 Beat，与修复前
+  // 的右边界包含规则保持一致。
   const beatsByX = [...measure.beats].sort((left, right) => left.x - right.x);
-  const beat = beatsByX.find((item, index) => {
-    const nextBeat = beatsByX[index + 1];
-    const rightBoundary = nextBeat
-      ? (item.x + nextBeat.x) / 2
-      : measure.x + measure.width;
-
-    return point.x <= rightBoundary;
+  const beat = beatsByX.find((item) => {
+    const cellBounds = getBeatCellBounds(measure, item.id);
+    return (
+      cellBounds !== null &&
+      point.x >= cellBounds.left &&
+      point.x <= cellBounds.right
+    );
   });
   if (!beat) return null;
 

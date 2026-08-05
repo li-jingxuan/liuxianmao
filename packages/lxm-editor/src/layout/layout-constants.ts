@@ -59,6 +59,16 @@ export const LXM_LAYOUT_DENSITY_PROFILES = {
 /** 点击弦线时允许的纵向误差范围，提升鼠标命中容错。 */
 export const LXM_STRING_HIT_RADIUS_Y = 6;
 
+/**
+ * TAB 当前活动输入框的固定逻辑尺寸。
+ *
+ * caret 是精确表达当前 Beat/string 输入位置的视觉标记，不应随节奏列宽度、
+ * System 拉伸或命中容错区域一起变化。20 × 14 能完整包围当前一位/两位品位文本，
+ * 并在 12px 弦距上下各保留 1 个逻辑单位的视觉空隙。
+ */
+export const LXM_TAB_FOCUS_CARET_WIDTH = 20;
+export const LXM_TAB_FOCUS_CARET_HEIGHT = 14;
+
 // 左右留白距离
 export const LXM_MEASURE_PADDING_X =
   LXM_LAYOUT_DENSITY_PROFILES.comfortable.measurePaddingX;

@@ -302,6 +302,8 @@ export const EditorShell: React.FC = () => {
     dragAnchorRef.current = anchor;
     activePointerIdRef.current = event.pointerId;
     event.currentTarget.setPointerCapture(event.pointerId);
+
+    console.log({ anchor, focus: target })
     setSelection({ anchor, focus: target });
   };
 

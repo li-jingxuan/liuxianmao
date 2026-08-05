@@ -14,6 +14,11 @@ import type {
   ILXMMeasureLayout,
   ILXMStringLineLayout,
 } from "./layout-types";
+import { getBeatCellBounds } from "./beat-cell-bounds";
+import {
+  LXM_TAB_FOCUS_CARET_HEIGHT,
+  LXM_TAB_FOCUS_CARET_WIDTH,
+} from "./layout-constants";
 
 /** 一个范围在单个 measure/system 内的高亮片段。 */
 export interface ILXMTabCellSelectionRect {
@@ -71,6 +76,62 @@ const getStringCellBounds = (
   return { top, bottom };
 };
 
+/**
+ * 计算固定尺寸 focus caret 的几何。
+ *
+ * beat.x 与 string.y1 是音乐元素使用的最终时间/弦锚点。caret 必须围绕这两个
+ * 锚点严格居中，不能复用更宽的点击命中边界，也不能为了留在 measure 内而 clamp，
+ * 否则首尾 Beat 会再次出现肉眼可见的偏心。
+ */
+const getFixedFocusCaretRect = (
+  beat: ILXMBeatLayout,
+  string: ILXMStringLineLayout,
+): Pick<ILXMTabCellCaretLayout, "x" | "y" | "width" | "height"> | null => {
+  const x = beat.x - LXM_TAB_FOCUS_CARET_WIDTH / 2;
+  const y = string.y1 - LXM_TAB_FOCUS_CARET_HEIGHT / 2;
+
+  // 常量由源码控制，正常情况下始终合法。这里仍做防御性校验，避免未来修改
+  // 常量或 layout 坐标后把 NaN、Infinity、零宽高继续传给 SVG。
+  if (
+    !Number.isFinite(x) ||
+    !Number.isFinite(y) ||
+    !Number.isFinite(LXM_TAB_FOCUS_CARET_WIDTH) ||
+    !Number.isFinite(LXM_TAB_FOCUS_CARET_HEIGHT) ||
+    LXM_TAB_FOCUS_CARET_WIDTH <= 0 ||
+    LXM_TAB_FOCUS_CARET_HEIGHT <= 0
+  ) {
+    return null;
+  }
+
+  return {
+    x,
+    y,
+    width: LXM_TAB_FOCUS_CARET_WIDTH,
+    height: LXM_TAB_FOCUS_CARET_HEIGHT,
+  };
+};
+
+/**
+ * 单 Beat 选区的纵向范围也以固定 caret 高度为基准。
+ *
+ * 单弦时 range 与 caret 完全重合；连续多弦时，从首弦中心向上延伸半个 caret
+ * 高度，到末弦中心向下延伸半个 caret 高度，从而完整包住 focus caret 描边。
+ */
+const getSingleBeatStringSpan = (
+  strings: ILXMStringLineLayout[],
+  startString: number,
+  endString: number,
+): { top: number; bottom: number } | null => {
+  const start = strings.find((string) => string.index === startString);
+  const end = strings.find((string) => string.index === endString);
+  if (!start || !end) return null;
+
+  return {
+    top: Math.min(start.y1, end.y1) - LXM_TAB_FOCUS_CARET_HEIGHT / 2,
+    bottom: Math.max(start.y1, end.y1) + LXM_TAB_FOCUS_CARET_HEIGHT / 2,
+  };
+};
+
 const getBeatSpan = (
   measure: ILXMMeasureLayout,
   beatIds: Set<string>,
@@ -82,8 +143,28 @@ const getBeatSpan = (
   const last = beats.at(-1);
   if (!first || !last) return null;
 
-  // beat.x/width 是 measure-spacing 分配后的最终 slot，完整覆盖选择命中区域。
-  return { beats, x: first.x, width: last.x + last.width - first.x };
+  // 单 Beat 选区表达的是一个明确的输入列，使用固定宽度并以时间锚点居中。
+  // 多 Beat 选区才需要使用宽单元格边界覆盖完整的连续选择范围。
+  if (first.id === last.id) {
+    return {
+      beats,
+      x: first.x - LXM_TAB_FOCUS_CARET_WIDTH / 2,
+      width: LXM_TAB_FOCUS_CARET_WIDTH,
+    };
+  }
+
+  // beat.x 是音乐元素共用的时间锚点，不是选框左边界。范围必须从首 Beat 的
+  // 单元格左边界覆盖到末 Beat 的单元格右边界，才能让单格选框围绕 Beat 展开，
+  // 并让连续多 Beat 选区之间既没有空隙也没有重叠。
+  const firstBounds = getBeatCellBounds(measure, first.id);
+  const lastBounds = getBeatCellBounds(measure, last.id);
+  if (!firstBounds || !lastBounds) return null;
+
+  return {
+    beats,
+    x: firstBounds.left,
+    width: lastBounds.right - firstBounds.left,
+  };
 };
 
 /** 将规范范围按实际 measure/system 拆成多个互不跨行的 SVG 矩形。 */
@@ -97,14 +178,22 @@ export const layoutTabCellSelection = (
   return layout.systems.flatMap((system) =>
     system.measures.flatMap((measure) => {
       const span = getBeatSpan(measure, selectedBeatIds);
-      const startBounds = getStringCellBounds(
-        measure.strings,
-        selection.startString,
-      );
-      const endBounds = getStringCellBounds(
-        measure.strings,
-        selection.endString,
-      );
+      // 单 Beat range 与固定 caret 使用同一个垂直尺寸基准；多 Beat range 仍按
+      // 弦单元格中点切分，保持既有矩形范围语义。
+      const singleBeatStringSpan =
+        span?.beats.length === 1
+          ? getSingleBeatStringSpan(
+              measure.strings,
+              selection.startString,
+              selection.endString,
+            )
+          : null;
+      const startBounds =
+        singleBeatStringSpan ??
+        getStringCellBounds(measure.strings, selection.startString);
+      const endBounds =
+        singleBeatStringSpan ??
+        getStringCellBounds(measure.strings, selection.endString);
       if (!span || !startBounds || !endBounds) return [];
 
       return [
@@ -144,18 +233,21 @@ export const layoutTabCellCaret = (
     const beat = measure.beats.find(
       (candidate) => candidate.id === focus.beatId,
     );
-    const stringBounds = getStringCellBounds(measure.strings, focus.string);
-    if (!beat || !stringBounds) return null;
+    const string = measure.strings.find(
+      (candidate) => candidate.index === focus.string,
+    );
+    if (!beat || !string) return null;
+    const caretRect = getFixedFocusCaretRect(beat, string);
+    if (!caretRect) return null;
 
     return {
       systemIndex: system.index,
       measureId: measure.id,
       beatId: beat.id,
       string: focus.string,
-      x: beat.x,
-      y: stringBounds.top,
-      width: beat.width,
-      height: stringBounds.bottom - stringBounds.top,
+      // 固定 Rect 只表达当前活动输入位置；较宽的点击容错继续由 hit-test 使用
+      // getBeatCellBounds 负责，两种几何不再互相绑死。
+      ...caretRect,
     };
   }
   return null;

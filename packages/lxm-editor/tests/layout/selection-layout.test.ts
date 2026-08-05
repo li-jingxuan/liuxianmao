@@ -3,6 +3,11 @@ import { describe, expect, it } from "vitest";
 import EXAMPLE_MVP_4 from "../../example/example-mvp4.json";
 import { resolveTabCellSelection } from "../../src/editing/tab-cell-selection";
 import { buildLayout } from "../../src/layout";
+import { getBeatCellBounds } from "../../src/layout/beat-cell-bounds";
+import {
+  LXM_TAB_FOCUS_CARET_HEIGHT,
+  LXM_TAB_FOCUS_CARET_WIDTH,
+} from "../../src/layout/layout-constants";
 import {
   layoutTabCellCaret,
   layoutTabCellSelection,
@@ -25,7 +30,7 @@ const resolve = (
 };
 
 describe("selection layout", () => {
-  it("单格矩形完整使用最终 beat slot 和目标弦单元格", () => {
+  it("单格矩形以 Beat/string 锚点为中心使用固定 20 × 14 尺寸", () => {
     const layout = buildLayout(EXAMPLE_MVP_4, {
       systemWidth: 733,
       density: "compact",
@@ -42,10 +47,10 @@ describe("selection layout", () => {
     expect(rects[0]).toMatchObject({
       measureId: measure.id,
       beatIds: [beat.id],
-      x: beat.x,
-      width: beat.width,
-      y: (strings[1]!.y1 + strings[2]!.y1) / 2,
-      height: strings[3]!.y1 - strings[2]!.y1,
+      x: beat.x - 10,
+      width: 20,
+      y: strings[2]!.y1 - 7,
+      height: 14,
     });
   });
 
@@ -113,12 +118,98 @@ describe("selection layout", () => {
     const beat = measure.beats.find(
       (candidate) => candidate.id === focus.beatId,
     )!;
+    const string = measure.strings.find(
+      (candidate) => candidate.index === focus.string,
+    )!;
 
     expect(caret).toMatchObject({
       beatId: focus.beatId,
       string: 4,
-      x: beat.x,
-      width: beat.width,
+      x: beat.x - LXM_TAB_FOCUS_CARET_WIDTH / 2,
+      y: string.y1 - LXM_TAB_FOCUS_CARET_HEIGHT / 2,
+      width: LXM_TAB_FOCUS_CARET_WIDTH,
+      height: LXM_TAB_FOCUS_CARET_HEIGHT,
     });
+    expect(caret!.x + caret!.width / 2).toBe(beat.x);
+    expect(caret!.y + caret!.height / 2).toBe(string.y1);
+  });
+
+  it("单格范围与 focus caret 使用完全相同的固定矩形", () => {
+    const layout = buildLayout(EXAMPLE_MVP_4, { systemWidth: 733 });
+    const focus = cell(1, 3, 4);
+    const rect = layoutTabCellSelection(layout, resolve(focus, focus))[0]!;
+    const caret = layoutTabCellCaret(layout, focus)!;
+
+    expect({
+      x: rect.x,
+      y: rect.y,
+      width: rect.width,
+      height: rect.height,
+    }).toEqual({
+      x: caret.x,
+      y: caret.y,
+      width: caret.width,
+      height: caret.height,
+    });
+  });
+
+  it("单 Beat 多弦范围保持固定宽度，并完整包住首尾弦 caret", () => {
+    const layout = buildLayout(EXAMPLE_MVP_4, { systemWidth: 733 });
+    const anchor = cell(1, 2, 2);
+    const focus = cell(1, 2, 5);
+    const rect = layoutTabCellSelection(layout, resolve(anchor, focus))[0]!;
+    const measure = layout.systems[0]!.measures[0]!;
+    const beat = measure.beats.find(
+      (candidate) => candidate.id === focus.beatId,
+    )!;
+    const startString = measure.strings.find((string) => string.index === 2)!;
+    const endString = measure.strings.find((string) => string.index === 5)!;
+
+    expect(rect).toMatchObject({
+      x: beat.x - LXM_TAB_FOCUS_CARET_WIDTH / 2,
+      y: startString.y1 - LXM_TAB_FOCUS_CARET_HEIGHT / 2,
+      width: LXM_TAB_FOCUS_CARET_WIDTH,
+      height: endString.y1 - startString.y1 + LXM_TAB_FOCUS_CARET_HEIGHT,
+    });
+  });
+
+  it("多 Beat 范围继续使用宽单元格边界，不被固定 caret 宽度截短", () => {
+    const layout = buildLayout(EXAMPLE_MVP_4, { systemWidth: 733 });
+    const range = resolve(cell(1, 2, 3), cell(1, 4, 3));
+    const rect = layoutTabCellSelection(layout, range)[0]!;
+    const measure = layout.systems[0]!.measures[0]!;
+    const first = measure.beats.find(
+      (beat) => beat.id === range.beats[0]!.beatId,
+    )!;
+    const last = measure.beats.find(
+      (beat) => beat.id === range.beats.at(-1)!.beatId,
+    )!;
+    const firstBounds = getBeatCellBounds(measure, first.id)!;
+    const lastBounds = getBeatCellBounds(measure, last.id)!;
+
+    expect(rect.x).toBe(firstBounds.left);
+    expect(rect.width).toBe(lastBounds.right - firstBounds.left);
+  });
+
+  it("compact 与 comfortable 下 caret 尺寸固定，只更新中心坐标", () => {
+    expect(LXM_TAB_FOCUS_CARET_WIDTH).toBe(20);
+    expect(LXM_TAB_FOCUS_CARET_HEIGHT).toBe(14);
+
+    for (const density of ["compact", "comfortable"] as const) {
+      const layout = buildLayout(EXAMPLE_MVP_4, { systemWidth: 733, density });
+      const focus = cell(1, 3, 4);
+      const caret = layoutTabCellCaret(layout, focus)!;
+      const measure = layout.systems[0]!.measures[0]!;
+      const beat = measure.beats.find(
+        (candidate) => candidate.id === focus.beatId,
+      )!;
+      const string = measure.strings.find(
+        (candidate) => candidate.index === focus.string,
+      )!;
+
+      expect(caret).toMatchObject({ width: 20, height: 14 });
+      expect(caret.x + caret.width / 2).toBe(beat.x);
+      expect(caret.y + caret.height / 2).toBe(string.y1);
+    }
   });
 });
