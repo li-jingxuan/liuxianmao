@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "test": "pnpm --dir ../.. exec vitest run apps/website/stores/editor-store.test.ts",
+    "test": "pnpm --dir ../.. exec vitest run apps/website/tests",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {

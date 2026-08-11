@@ -5,6 +5,7 @@ import {
   LXMMeasureSchema,
   LXMNoteSchema,
   LXMRhythmSchema,
+  LXMTrackSchema,
 } from "../../src/core/schema";
 
 const createValidMeasure = () => ({
@@ -16,6 +17,33 @@ const createValidMeasure = () => ({
 });
 
 describe("core schema", () => {
+  const createValidTrack = () => ({
+    id: "track-schema-test",
+    name: "测试吉他",
+    instrument: "guitar",
+    tuning: {
+      strings: [{ index: 1, pitch: "E4", midi: 64 }],
+    },
+    startBarline: "none",
+    measures: [],
+  });
+
+  it("只允许 none 或 repeatStart 作为谱首边界", () => {
+    expect(LXMTrackSchema.safeParse(createValidTrack()).success).toBe(true);
+    expect(
+      LXMTrackSchema.safeParse({
+        ...createValidTrack(),
+        startBarline: "repeatStart",
+      }).success,
+    ).toBe(true);
+    expect(
+      LXMTrackSchema.safeParse({
+        ...createValidTrack(),
+        startBarline: "final",
+      }).success,
+    ).toBe(false);
+  });
+
   it("允许常见小节线类型通过小节 schema", () => {
     const result = LXMMeasureSchema.safeParse({
       ...createValidMeasure(),

@@ -6,7 +6,7 @@ import {
 } from "@liuxianmao/lxm-editor";
 import { describe, expect, it } from "vitest";
 
-import { createEditorStore } from "./editor-store";
+import { createEditorStore } from "../stores/editor-store";
 
 const EXAMPLE_MVP_4 = EXAMPLE_MVP_4_DOCUMENT;
 
@@ -22,6 +22,29 @@ const selection = {
 };
 
 describe("editor store history", () => {
+  it("小节边界修改产生一条历史并可撤销重做", () => {
+    const initial = structuredClone(EXAMPLE_MVP_4);
+    const store = createEditorStore(initial);
+
+    store.getState().execute({
+      type: LXMScoreCommandEnum.SetBarlineBoundary,
+      trackId: target.trackId,
+      boundary: { kind: "afterMeasure", measureId: target.measureId },
+      barline: "double",
+    });
+    expect(
+      store.getState().document?.score.tracks[0]?.measures[0]?.barline,
+    ).toBe("double");
+    expect(store.getState().historyDepth).toEqual({ past: 1, future: 0 });
+
+    store.getState().undo();
+    expect(store.getState().document).toBe(initial);
+    store.getState().redo();
+    expect(
+      store.getState().document?.score.tracks[0]?.measures[0]?.barline,
+    ).toBe("double");
+  });
+
   it("成功命令入历史，失败与 no-op 不入历史", () => {
     const store = createEditorStore(structuredClone(EXAMPLE_MVP_4));
     store.getState().setSelection(selection);

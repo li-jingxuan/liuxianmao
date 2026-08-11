@@ -1,6 +1,6 @@
 /**
  * MVP 01
- * 
+ *
  * 简单小节渲染：
  *  - 节拍调号
  *  - 弦线和小节：需要考虑自适应宽度和自动换行
@@ -13,15 +13,15 @@ import { ILXMDocument } from "../src";
 
 /**
  * MVP 02 简单编辑
- * 
+ *
  * - 数据流转 - 设计数据仓库 - 命令模式
  * - 编辑网格系统
  *  - 时值占位：每个音符根据不同时值占据不同的网格宽度
  *  - 缺失的音符需要占位
- * 
+ *
  * - MVP 01 的基础上，增加编辑功能
- * 
-*/
+ *
+ */
 
 const EXAMPLE_MVP_1: ILXMDocument = {
   schema: "lxm-tab-score",
@@ -30,9 +30,9 @@ const EXAMPLE_MVP_1: ILXMDocument = {
   // 乐谱信息
   score: {
     // 乐谱ID
-    id: '',
+    id: "",
     // 乐谱名称
-    title: '',
+    title: "",
     // 乐谱元信息
     meta: {},
     // 乐谱轨道
@@ -46,7 +46,7 @@ const EXAMPLE_MVP_1: ILXMDocument = {
         instrument: "guitar",
         // 弦乐
         tuning: {
-          strings:  [
+          strings: [
             { index: 1, pitch: "E4", midi: 64 },
             { index: 2, pitch: "B3", midi: 59 },
             { index: 3, pitch: "G3", midi: 55 },
@@ -55,8 +55,10 @@ const EXAMPLE_MVP_1: ILXMDocument = {
             { index: 6, pitch: "E2", midi: 40 },
           ],
         },
+        // 谱首不显示额外反复线。
+        startBarline: "none",
         // 小节集合
-        measures:[
+        measures: [
           {
             // 小节ID
             id: "measure-001",
@@ -81,13 +83,13 @@ const EXAMPLE_MVP_1: ILXMDocument = {
                 // 小节内起始 tick
                 tick: 0,
                 // 节奏
-                rhythm: { base: 'quarter', dots: 0 },
+                rhythm: { base: "quarter", dots: 0 },
                 // 类型
                 kind: "notes",
                 // 具体标记
                 notes: [
                   // string: 弦号，fret：品位
-                  { id: 'note-001-00', string: 5, fret: 3 }
+                  { id: "note-001-00", string: 5, fret: 3 },
                 ],
               },
               // 第二拍
@@ -96,14 +98,14 @@ const EXAMPLE_MVP_1: ILXMDocument = {
                 // 小节内起始 tick
                 tick: 960,
                 // 节奏
-                rhythm: { base: 'eighth', dots: 1 },
+                rhythm: { base: "eighth", dots: 1 },
                 // 类型
                 kind: "notes",
                 // 具体标记
                 notes: [
                   // string: 弦号，fret：品位
-                  { id: 'note-001-01', string: 3, fret: 3 },
-                  { id: 'note-001-02', string: 2, fret: 3 }
+                  { id: "note-001-01", string: 3, fret: 3 },
+                  { id: "note-001-02", string: 2, fret: 3 },
                 ],
               },
               {
@@ -111,13 +113,13 @@ const EXAMPLE_MVP_1: ILXMDocument = {
                 // 小节内起始 tick
                 tick: 1680,
                 // 节奏
-                rhythm: { base: 'sixteenth', dots: 0 },
+                rhythm: { base: "sixteenth", dots: 0 },
                 // 类型
                 kind: "notes",
                 // 具体标记
                 notes: [
                   // string: 弦号，fret：品位
-                  { id: 'note-001-03', string: 5, fret: 5 }
+                  { id: "note-001-03", string: 5, fret: 5 },
                 ],
               },
               // 第三拍
@@ -126,13 +128,13 @@ const EXAMPLE_MVP_1: ILXMDocument = {
                 // 小节内起始 tick
                 tick: 1920,
                 // 节奏
-                rhythm: { base: 'eighth', dots: 0 },
+                rhythm: { base: "eighth", dots: 0 },
                 // 类型
                 kind: "notes",
                 // 具体标记
                 notes: [
                   // string: 弦号，fret：品位
-                  { id: 'note-001-04', string: 5, fret: 5 }
+                  { id: "note-001-04", string: 5, fret: 5 },
                 ],
               },
               {
@@ -140,14 +142,14 @@ const EXAMPLE_MVP_1: ILXMDocument = {
                 // 小节内起始 tick
                 tick: 2400,
                 // 节奏
-                rhythm: { base: 'sixteenth', dots: 0 },
+                rhythm: { base: "sixteenth", dots: 0 },
                 // 类型
                 kind: "notes",
                 // 具体标记
                 notes: [
                   // string: 弦号，fret：品位
-                  { id: 'note-001-05', string: 2, fret: 3 },
-                  { id: 'note-001-06', string: 6, fret: 0 }
+                  { id: "note-001-05", string: 2, fret: 3 },
+                  { id: "note-001-06", string: 6, fret: 0 },
                 ],
               },
               {
@@ -155,13 +157,13 @@ const EXAMPLE_MVP_1: ILXMDocument = {
                 // 小节内起始 tick
                 tick: 2640,
                 // 节奏
-                rhythm: { base: 'sixteenth', dots: 0 },
+                rhythm: { base: "sixteenth", dots: 0 },
                 // 类型
                 kind: "notes",
                 // 具体标记
                 notes: [
                   // string: 弦号，fret：品位
-                  { id: 'note-001-07', string: 6, fret: 3 }
+                  { id: "note-001-07", string: 6, fret: 3 },
                 ],
               },
               // 第四拍
@@ -170,14 +172,14 @@ const EXAMPLE_MVP_1: ILXMDocument = {
                 // 小节内起始 tick
                 tick: 2880,
                 // 节奏
-                rhythm: { base: 'sixteenth', dots: 1 },
+                rhythm: { base: "sixteenth", dots: 1 },
                 // 类型
                 kind: "notes",
                 // 具体标记
                 notes: [
                   // string: 弦号，fret：品位
-                  { id: 'note-001-08', string: 6, fret: 3 },
-                  { id: 'note-001-09', string: 2, fret: 3 }
+                  { id: "note-001-08", string: 6, fret: 3 },
+                  { id: "note-001-09", string: 2, fret: 3 },
                 ],
               },
               {
@@ -185,14 +187,14 @@ const EXAMPLE_MVP_1: ILXMDocument = {
                 // 小节内起始 tick
                 tick: 3240,
                 // 节奏
-                rhythm: { base: 'eighth', dots: 0 },
+                rhythm: { base: "eighth", dots: 0 },
                 // 类型
                 kind: "notes",
                 // 具体标记
                 notes: [
                   // string: 弦号，fret：品位
-                  { id: 'note-001-10', string: 6, fret: 3 },
-                  { id: 'note-001-11', string: 2, fret: 3 }
+                  { id: "note-001-10", string: 6, fret: 3 },
+                  { id: "note-001-11", string: 2, fret: 3 },
                 ],
               },
               {
@@ -200,21 +202,21 @@ const EXAMPLE_MVP_1: ILXMDocument = {
                 // 小节内起始 tick
                 tick: 3720,
                 // 节奏
-                rhythm: { base: 'thirtySecond', dots: 0 },
+                rhythm: { base: "thirtySecond", dots: 0 },
                 // 类型
                 kind: "notes",
                 // 具体标记
                 notes: [
                   // 复用原示例中第四拍末尾的音符内容。
-                  { id: 'note-001-12', string: 5, fret: 6 }
+                  { id: "note-001-12", string: 5, fret: 6 },
                 ],
               },
-            ]
-          }
-        ]
-      }
-    ]
-  }
-}
+            ],
+          },
+        ],
+      },
+    ],
+  },
+};
 
 export default EXAMPLE_MVP_1;

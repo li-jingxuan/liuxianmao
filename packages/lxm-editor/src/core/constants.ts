@@ -30,6 +30,9 @@ export const LXM_BARLINE_TYPES = [
   "repeatBoth",
 ] as const;
 
+/** 谱首边界只需要表达“无额外小节线”或“从第一小节开始反复”。 */
+export const LXM_TRACK_START_BARLINE_TYPES = ["none", "repeatStart"] as const;
+
 /** 乐器类型；当前 MVP 只描述吉他轨道。 */
 export const LXM_INSTRUMENT_TYPES = ["guitar"] as const;
 

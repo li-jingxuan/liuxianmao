@@ -15,11 +15,13 @@ import { changeMeasureBeatRhythm } from "./rhythm-change";
 import { LXMDocumentSchema } from "./schema";
 import { validateDocumentSemantics } from "./semantic-validation";
 import type {
+  ILXMBarlineType,
   ILXMBeat,
   ILXMDocument,
   ILXMMeasure,
   ILXMNote,
   ILXMRhythm,
+  ILXMTrackStartBarlineType,
 } from "./types";
 
 export enum LXMScoreCommandEnum {
@@ -32,6 +34,7 @@ export enum LXMScoreCommandEnum {
   InsertMeasure = "measure.insert",
   CopyMeasure = "measure.copy",
   RemoveMeasure = "measure.remove",
+  SetBarlineBoundary = "barline.setBoundary",
 }
 
 export interface ILXMScoreCommandBase {
@@ -91,6 +94,17 @@ export interface ILXMRemoveMeasureCommand extends ILXMScoreCommandBase {
   measureId: string;
 }
 
+/** 小节边界使用稳定业务引用；命令内部负责映射到 track 或 measure 字段。 */
+export type ILXMBarlineBoundaryReference =
+  | { kind: "trackStart" }
+  | { kind: "afterMeasure"; measureId: string };
+
+export interface ILXMSetBarlineBoundaryCommand extends ILXMScoreCommandBase {
+  type: LXMScoreCommandEnum.SetBarlineBoundary;
+  boundary: ILXMBarlineBoundaryReference;
+  barline: ILXMTrackStartBarlineType | ILXMBarlineType;
+}
+
 export type ILXMScoreCommand =
   | ILXMSetNoteCommand
   | ILXMRemoveNoteCommand
@@ -100,7 +114,8 @@ export type ILXMScoreCommand =
   | ILXMSetBeatKindCommand
   | ILXMInsertMeasureCommand
   | ILXMCopyMeasureCommand
-  | ILXMRemoveMeasureCommand;
+  | ILXMRemoveMeasureCommand
+  | ILXMSetBarlineBoundaryCommand;
 
 export type ILXMScoreCommandErrorCode =
   | "TRACK_NOT_FOUND"
@@ -115,6 +130,8 @@ export type ILXMScoreCommandErrorCode =
   | "FOLLOWING_BEATS_CANNOT_COMPRESS"
   | "RHYTHM_NOT_REPRESENTABLE"
   | "CANNOT_REMOVE_LAST_MEASURE"
+  | "BARLINE_BOUNDARY_NOT_FOUND"
+  | "INVALID_BARLINE_FOR_BOUNDARY"
   | "DOCUMENT_INVALID"
   | "SEMANTIC_VALIDATION_FAILED";
 export type ILXMApplyScoreCommandResult =
@@ -133,6 +150,19 @@ const isValidString = (string: number) =>
   Number.isInteger(string) && string >= 1 && string <= GUITAR_STRING_COUNT;
 const isValidFret = (fret: number) =>
   Number.isInteger(fret) && fret >= 0 && fret <= MAX_FRET;
+
+const TRACK_START_BARLINES = new Set<ILXMTrackStartBarlineType>([
+  "none",
+  "repeatStart",
+]);
+const MEASURE_BARLINES = new Set<ILXMBarlineType>([
+  "single",
+  "double",
+  "final",
+  "repeatStart",
+  "repeatEnd",
+  "repeatBoth",
+]);
 
 /** no-op 必须保留原引用与 revision，store 据此跳过历史快照。 */
 const unchanged = (document: ILXMDocument): ILXMApplyScoreCommandResult => ({
@@ -357,11 +387,71 @@ const editNotesInRect = (
   });
 };
 
+/** 原子修改谱首或小节后的结构边界，并隐藏两种持久化位置的差异。 */
+const setBarlineBoundary = (
+  document: ILXMDocument,
+  command: ILXMSetBarlineBoundaryCommand,
+): ILXMApplyScoreCommandResult => {
+  const track = document.score.tracks.find(
+    (candidate) => candidate.id === command.trackId,
+  );
+  if (!track) return fail("TRACK_NOT_FOUND", "目标轨道不存在");
+
+  if (command.boundary.kind === "trackStart") {
+    if (!TRACK_START_BARLINES.has(command.barline as ILXMTrackStartBarlineType))
+      return fail(
+        "INVALID_BARLINE_FOR_BOUNDARY",
+        "谱首边界只支持无小节线或开始反复线",
+      );
+    const barline = command.barline as ILXMTrackStartBarlineType;
+    if (track.startBarline === barline) return unchanged(document);
+    return finalize({
+      ...document,
+      documentRevision: document.documentRevision + 1,
+      score: {
+        ...document.score,
+        tracks: document.score.tracks.map((candidate) =>
+          candidate.id === track.id
+            ? { ...track, startBarline: barline }
+            : candidate,
+        ),
+      },
+    });
+  }
+
+  // 判别联合已经排除 trackStart；把稳定 ID 提取到局部变量，避免闭包回调丢失
+  // TypeScript 对 command.boundary 的收窄结果，也让后续错误路径只依赖一个值。
+  const targetMeasureId = command.boundary.measureId;
+  const measureIndex = track.measures.findIndex(
+    (measure) => measure.id === targetMeasureId,
+  );
+  if (measureIndex < 0)
+    return fail("BARLINE_BOUNDARY_NOT_FOUND", "目标小节边界不存在");
+  if (!MEASURE_BARLINES.has(command.barline as ILXMBarlineType))
+    return fail("INVALID_BARLINE_FOR_BOUNDARY", "小节右边界不支持该小节线类型");
+  const barline = command.barline as ILXMBarlineType;
+  if (
+    measureIndex === track.measures.length - 1 &&
+    (barline === "repeatStart" || barline === "repeatBoth")
+  )
+    return fail(
+      "INVALID_BARLINE_FOR_BOUNDARY",
+      "乐谱末尾没有可开始反复的后续小节",
+    );
+  const measure = track.measures[measureIndex]!;
+  if (measure.barline === barline) return unchanged(document);
+  return finalize(
+    replaceMeasure(document, track.id, measure.id, { ...measure, barline }),
+  );
+};
+
 /** 应用所有领域命令；分发器本身不包含页面状态或历史逻辑。 */
 export const applyScoreCommand = (
   document: ILXMDocument,
   command: ILXMScoreCommand,
 ): ILXMApplyScoreCommandResult => {
+  if (command.type === LXMScoreCommandEnum.SetBarlineBoundary)
+    return setBarlineBoundary(document, command);
   if (
     command.type === LXMScoreCommandEnum.SetNotesInRect ||
     command.type === LXMScoreCommandEnum.RemoveNotesInRect

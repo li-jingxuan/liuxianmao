@@ -18,6 +18,66 @@ const target = {
 };
 
 describe("applyScoreCommand", () => {
+  it("原子设置谱首和小节右边界，并对 no-op 保留原文档", () => {
+    const document = createDocument();
+    const startResult = applyScoreCommand(document, {
+      type: LXMScoreCommandEnum.SetBarlineBoundary,
+      trackId: target.trackId,
+      boundary: { kind: "trackStart" },
+      barline: "repeatStart",
+    });
+    expect(startResult).toMatchObject({ ok: true, changed: true });
+    if (!startResult.ok) return;
+    expect(startResult.document.score.tracks[0]!.startBarline).toBe(
+      "repeatStart",
+    );
+
+    const boundaryResult = applyScoreCommand(startResult.document, {
+      type: LXMScoreCommandEnum.SetBarlineBoundary,
+      trackId: target.trackId,
+      boundary: { kind: "afterMeasure", measureId: target.measureId },
+      barline: "repeatBoth",
+    });
+    expect(boundaryResult).toMatchObject({ ok: true, changed: true });
+    if (!boundaryResult.ok) return;
+    expect(boundaryResult.document.score.tracks[0]!.measures[0]!.barline).toBe(
+      "repeatBoth",
+    );
+
+    const noOp = applyScoreCommand(boundaryResult.document, {
+      type: LXMScoreCommandEnum.SetBarlineBoundary,
+      trackId: target.trackId,
+      boundary: { kind: "afterMeasure", measureId: target.measureId },
+      barline: "repeatBoth",
+    });
+    expect(noOp).toEqual({
+      ok: true,
+      changed: false,
+      document: boundaryResult.document,
+    });
+  });
+
+  it("拒绝边界不支持的类型和谱尾开始反复", () => {
+    const document = createDocument();
+    expect(
+      applyScoreCommand(document, {
+        type: LXMScoreCommandEnum.SetBarlineBoundary,
+        trackId: target.trackId,
+        boundary: { kind: "trackStart" },
+        barline: "final",
+      }),
+    ).toMatchObject({ ok: false, code: "INVALID_BARLINE_FOR_BOUNDARY" });
+
+    expect(
+      applyScoreCommand(document, {
+        type: LXMScoreCommandEnum.SetBarlineBoundary,
+        trackId: target.trackId,
+        boundary: { kind: "afterMeasure", measureId: "mvp2-measure-8" },
+        barline: "repeatStart",
+      }),
+    ).toMatchObject({ ok: false, code: "INVALID_BARLINE_FOR_BOUNDARY" });
+  });
+
   it("note.set 在空弦新增音符并增加文档修订号", () => {
     const document = createDocument();
     const result = applyScoreCommand(document, {

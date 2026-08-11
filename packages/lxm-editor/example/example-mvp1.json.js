@@ -51,6 +51,7 @@ const EXAMPLE_MVP_1 = {
                         { index: 6, pitch: "E2", midi: 40 },
                     ],
                 },
+                startBarline: "none",
                 // 小节集合
                 measures: [
                     {

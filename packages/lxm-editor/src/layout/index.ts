@@ -56,6 +56,7 @@ export const buildLayout = (
     systemWidth,
     systemGapY: options.systemGapY ?? LXM_SYSTEM_GAP_Y,
     density: options.density ?? LXM_LAYOUT_DEFAULT_DENSITY,
+    startBarline: track.startBarline,
   });
   const lastSystem = systems[systems.length - 1];
 

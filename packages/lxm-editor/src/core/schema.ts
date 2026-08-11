@@ -7,6 +7,7 @@ import {
   LXM_CHORD_SYMBOL_DISPLAY_TYPES,
   LXM_INSTRUMENT_TYPES,
   LXM_RHYTHM_BASES,
+  LXM_TRACK_START_BARLINE_TYPES,
   MAX_FRET,
   SCORE_DOCUMENT_SCHEMA,
 } from "./constants";
@@ -119,6 +120,7 @@ export const LXMTrackSchema = z
     name: z.string(),
     instrument: z.enum(LXM_INSTRUMENT_TYPES),
     tuning: LXMTuningSchema,
+    startBarline: z.enum(LXM_TRACK_START_BARLINE_TYPES),
     measures: z.array(LXMMeasureSchema),
   })
   .strict() satisfies z.ZodType<ILXMTrack>;

@@ -53,6 +53,43 @@
   background: #d8dde6;
 }
 
+/** 小节线下拉框保留完整中文名称，避免只用相似图标区分六种边界。 */
+.toolbarField {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 12px;
+  color: #5b6470;
+}
+
+.toolbarSelect {
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid #c9ced8;
+  border-radius: 4px;
+  background: #fff;
+  color: #1d2025;
+
+  &:disabled {
+    opacity: 0.45;
+  }
+}
+
+/** TAB 与拍号是乐谱正文，打印时保留；这里只集中设置文字的视觉重量。 */
+.tabLabel {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 700;
+  // 细白描边只清理穿过字形的弦线，仍能看出六线谱在 TAB 谱号区域连续延伸。
+  paint-order: stroke fill;
+  stroke: #fff;
+  stroke-width: 2px;
+}
+
+.timeSignatureLayer {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 700;
+}
+
 .restLayer {
   font-family: Bravura, serif;
   font-size: 22px;

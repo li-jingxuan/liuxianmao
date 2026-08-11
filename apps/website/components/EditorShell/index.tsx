@@ -10,6 +10,8 @@ import {
   navigateTabCellSelection,
   resolveTabCellSelection,
   type ILXMHitTarget,
+  type ILXMBarlineLayout,
+  type ILXMBarlineType,
   type ILXMLayout,
   type ILXMRhythm,
   type ILXMTabCellReference,
@@ -18,12 +20,53 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { MusicControlIcon } from "../../assets/svg/svg-assets-manifest";
 import { useEditorStore } from "../../stores/editor-store";
 import { MusicAssetIcon } from "../MusicAssetIcon";
+import {
+  createDeferredFretDraftCommit,
+  resolveEditorHistoryShortcut,
+} from "./editor-interaction";
 import styles from "./index.module.scss";
 
 /** A4 纸张扣除左右各 8mm 页边距后的 194mm 内容区逻辑宽度。 */
 const A4_CONTENT_WIDTH = 733;
 /** 两位品位输入等待第二个数字的时间，超时后提交一位品位。 */
 const FRET_DRAFT_TIMEOUT_MS = 600;
+
+/** 小节线工具完整保留核心已支持的六类领域值，并提供可读中文名称。 */
+const BARLINE_OPTIONS: { value: ILXMBarlineType; label: string }[] = [
+  { value: "single", label: "单小节线" },
+  { value: "double", label: "双小节线" },
+  { value: "final", label: "终止线" },
+  { value: "repeatStart", label: "开始反复线" },
+  { value: "repeatEnd", label: "结束反复线" },
+  { value: "repeatBoth", label: "双向反复线" },
+];
+
+/**
+ * 小节线和行首反复线共享同一份核心几何；页面只区分 line/circle 两种基础图元。
+ * 抽成纯渲染函数后，跨 system 投影不会在 JSX 中复制一套容易漂移的规则。
+ */
+const renderBarlineParts = (barline: ILXMBarlineLayout) =>
+  barline.parts.map((part, index) =>
+    part.kind === "line" ? (
+      <line
+        key={index}
+        x1={part.x}
+        y1={part.y1}
+        x2={part.x}
+        y2={part.y2}
+        stroke="black"
+        strokeWidth={part.strokeWidth}
+      />
+    ) : (
+      <circle
+        key={index}
+        cx={part.cx}
+        cy={part.cy}
+        r={part.radius}
+        fill="black"
+      />
+    ),
+  );
 
 /** layout 命中结果含视觉 systemIndex；selection 只保留稳定业务 ID。 */
 const toCellReference = (target: ILXMHitTarget): ILXMTabCellReference => ({
@@ -54,11 +97,15 @@ export const EditorShell: React.FC = () => {
 
   /** 品位草稿是瞬时输入状态，不进入 document 或历史。 */
   const [fretDraft, setFretDraft] = useState("");
-  const fretDraftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const deferredFretDraftCommit = useMemo(
+    () => createDeferredFretDraftCommit(FRET_DRAFT_TIMEOUT_MS),
+    [],
+  );
   /** drag anchor 用 ref 保存，避免 pointermove 读取到尚未提交的 React/store 状态。 */
   const dragAnchorRef = useRef<ILXMTabCellReference | null>(null);
   const activePointerIdRef = useRef<number | null>(null);
   const focusCaretRef = useRef<SVGRectElement | null>(null);
+  const scoreSvgRef = useRef<SVGSVGElement | null>(null);
 
   /** document 变化后重新生成 system、命中索引和所有 SVG 几何数据。 */
   const lxmLayout = useMemo<ILXMLayout | null>(() => {
@@ -114,12 +161,33 @@ export const EditorShell: React.FC = () => {
   const canEditSingleBeat = resolvedSelection?.beats.length === 1;
   const canEditSingleMeasure = selectedMeasureIds.size === 1;
 
+  /**
+   * 小节线工具跟随 selection.focus，而不是范围的第一个 Beat。
+   * 用户反向拖动或跨小节扩展时，focus 才代表当前正在操作的业务位置。
+   */
+  const focusedMeasureContext = useMemo(() => {
+    if (!document || !selection) return null;
+    const track = document.score.tracks.find(
+      (candidate) => candidate.id === selection.focus.trackId,
+    );
+    const measureIndex =
+      track?.measures.findIndex(
+        (measure) => measure.id === selection.focus.measureId,
+      ) ?? -1;
+    if (!track || measureIndex < 0) return null;
+    return {
+      track,
+      measure: track.measures[measureIndex]!,
+      measureIndex,
+      isFirstMeasure: measureIndex === 0,
+      isLastMeasure: measureIndex === track.measures.length - 1,
+    };
+  }, [document, selection]);
+
   /** 组件卸载时取消延迟提交，避免异步回调写入已卸载组件。 */
   useEffect(
-    () => () => {
-      if (fretDraftTimerRef.current) clearTimeout(fretDraftTimerRef.current);
-    },
-    [],
+    () => () => deferredFretDraftCommit.cancel(),
+    [deferredFretDraftCommit],
   );
 
   /** selection/layout 改变后只滚动 focus caret，不滚动整个范围的左上角。 */
@@ -132,9 +200,14 @@ export const EditorShell: React.FC = () => {
 
   /** 清理当前品位草稿和对应的延时提交。 */
   const clearFretDraft = () => {
-    if (fretDraftTimerRef.current) clearTimeout(fretDraftTimerRef.current);
-    fretDraftTimerRef.current = null;
+    deferredFretDraftCommit.cancel();
     setFretDraft("");
+  };
+
+  /** 所有立即生效的编辑动作都先使等待中的品位草稿失效。 */
+  const runImmediateEditorAction = (action: () => void): void => {
+    clearFretDraft();
+    action();
   };
 
   /** 将合法品位作为一条原子矩形命令提交，整个选区只产生一条历史。 */
@@ -258,6 +331,43 @@ export const EditorShell: React.FC = () => {
     execute({ type: LXMScoreCommandEnum.RemoveMeasure, ...target });
   };
 
+  /**
+   * 下拉框只表达“focus 小节之后的边界”。字段定位、谱尾合法性、no-op 和 revision
+   * 都由核心 barline.setBoundary 命令处理，页面不直接写 ILXMDocument。
+   */
+  const setFocusedMeasureBarline = (barline: ILXMBarlineType) => {
+    if (!focusedMeasureContext) {
+      setErrorMessage("请先选择需要设置右边界的小节。");
+      return;
+    }
+    execute({
+      type: LXMScoreCommandEnum.SetBarlineBoundary,
+      trackId: focusedMeasureContext.track.id,
+      boundary: {
+        kind: "afterMeasure",
+        measureId: focusedMeasureContext.measure.id,
+      },
+      barline,
+    });
+  };
+
+  /** 谱首没有前一个 measure，因此通过独立的 trackStart 边界命令开关反复线。 */
+  const toggleTrackStartRepeat = () => {
+    if (!focusedMeasureContext?.isFirstMeasure) {
+      setErrorMessage("谱首反复线只能在选中第一小节时设置。");
+      return;
+    }
+    execute({
+      type: LXMScoreCommandEnum.SetBarlineBoundary,
+      trackId: focusedMeasureContext.track.id,
+      boundary: { kind: "trackStart" },
+      barline:
+        focusedMeasureContext.track.startBarline === "repeatStart"
+          ? "none"
+          : "repeatStart",
+    });
+  };
+
   /** 将草稿转换为品位；两位数字最终仍只提交一次命令。 */
   const commitFretDraft = (draft: string) => {
     clearFretDraft();
@@ -303,7 +413,6 @@ export const EditorShell: React.FC = () => {
     activePointerIdRef.current = event.pointerId;
     event.currentTarget.setPointerCapture(event.pointerId);
 
-    console.log({ anchor, focus: target })
     setSelection({ anchor, focus: target });
   };
 
@@ -330,34 +439,29 @@ export const EditorShell: React.FC = () => {
     dragAnchorRef.current = null;
   };
 
-  /**
-   * 谱面键盘入口。
-   *
-   * 只有实际执行的快捷键才 preventDefault；边界处 changed:false 的方向键继续保留
-   * 浏览器默认行为，符合核心导航函数的显式 no-op 契约。
-   */
-  const handleKeyDown: React.KeyboardEventHandler<SVGSVGElement> = (event) => {
+  /** 编辑器级历史快捷键在 SVG 或 Toolbar 持有焦点时都生效。 */
+  const handleEditorKeyDown: React.KeyboardEventHandler<HTMLDivElement> = (
+    event,
+  ) => {
     if (isTextEditingTarget(event.target)) return;
 
+    const action = resolveEditorHistoryShortcut(event, { canUndo, canRedo });
+    if (!action) return;
+
+    event.preventDefault();
+    runImmediateEditorAction(action === "undo" ? undo : redo);
+  };
+
+  /**
+   * 谱面键盘入口只处理导航和 Note 输入，避免 Toolbar 上的方向键被谱面劫持。
+   * 边界处 changed:false 时保留浏览器默认行为。
+   */
+  const handleScoreKeyDown: React.KeyboardEventHandler<SVGSVGElement> = (
+    event,
+  ) => {
     const isPrimaryModifier = event.metaKey || event.ctrlKey;
-    if (isPrimaryModifier && event.key.toLowerCase() === "z") {
-      const shouldRedo = event.shiftKey;
-      if ((shouldRedo && canRedo) || (!shouldRedo && canUndo)) {
-        event.preventDefault();
-        clearFretDraft();
-        if (shouldRedo) redo();
-        else undo();
-      }
-      return;
-    }
-    if (event.ctrlKey && event.key.toLowerCase() === "y") {
-      if (canRedo) {
-        event.preventDefault();
-        clearFretDraft();
-        redo();
-      }
-      return;
-    }
+    // 历史快捷键向上冒泡到编辑器根节点统一处理。
+    if (isPrimaryModifier) return;
 
     const directions = {
       ArrowLeft: "left",
@@ -397,7 +501,7 @@ export const EditorShell: React.FC = () => {
       removeSelectedNotes();
       return;
     }
-    if (!/^\d$/.test(event.key) || isPrimaryModifier) return;
+    if (!/^\d$/.test(event.key)) return;
 
     event.preventDefault();
     if (!selection) {
@@ -411,17 +515,30 @@ export const EditorShell: React.FC = () => {
       return;
     }
 
-    if (fretDraftTimerRef.current) clearTimeout(fretDraftTimerRef.current);
     setFretDraft(nextDraft);
     // 0 或 3–9 不可能成为合法两位品位前缀；1、2 等待第二位数字。
     if (nextDraft.length === 2 || event.key === "0" || Number(event.key) >= 3) {
       commitFretDraft(nextDraft);
       return;
     }
-    fretDraftTimerRef.current = setTimeout(
-      () => commitFretDraft(nextDraft),
-      FRET_DRAFT_TIMEOUT_MS,
-    );
+    deferredFretDraftCommit.schedule(nextDraft, commitFretDraft);
+  };
+
+  /** 点击 SVG 外的 A4 空白或灰色工作区时清空临时选区。 */
+  const handleWorkspacePointerDown: React.PointerEventHandler<
+    HTMLDivElement
+  > = (event) => {
+    const target = event.target;
+    if (
+      event.shiftKey ||
+      (target instanceof Node && scoreSvgRef.current?.contains(target))
+    )
+      return;
+
+    runImmediateEditorAction(() => {
+      setSelection(null);
+      setErrorMessage(null);
+    });
   };
 
   if (!document || !lxmLayout)
@@ -442,7 +559,7 @@ export const EditorShell: React.FC = () => {
   ];
 
   return (
-    <div className={styles.editor}>
+    <div className={styles.editor} onKeyDown={handleEditorKeyDown}>
       <div className={styles.editorControls}>
         <div
           className={styles.editorToolbar}
@@ -454,7 +571,7 @@ export const EditorShell: React.FC = () => {
             className={styles.toolbarButton}
             aria-label="撤销"
             disabled={!canUndo}
-            onClick={undo}
+            onClick={() => runImmediateEditorAction(undo)}
           >
             ↶
           </button>
@@ -463,7 +580,7 @@ export const EditorShell: React.FC = () => {
             className={styles.toolbarButton}
             aria-label="重做"
             disabled={!canRedo}
-            onClick={redo}
+            onClick={() => runImmediateEditorAction(redo)}
           >
             ↷
           </button>
@@ -475,7 +592,9 @@ export const EditorShell: React.FC = () => {
               className={styles.toolbarButton}
               aria-label={`设置为${button.label}`}
               disabled={!canEditSingleBeat}
-              onClick={() => setActiveRhythmBase(button.base)}
+              onClick={() =>
+                runImmediateEditorAction(() => setActiveRhythmBase(button.base))
+              }
             >
               <MusicAssetIcon
                 assetId={button.icon}
@@ -488,7 +607,7 @@ export const EditorShell: React.FC = () => {
             className={styles.toolbarButton}
             aria-label="取消附点"
             disabled={!canEditSingleBeat}
-            onClick={() => setActiveDots(0)}
+            onClick={() => runImmediateEditorAction(() => setActiveDots(0))}
           >
             无点
           </button>
@@ -497,7 +616,7 @@ export const EditorShell: React.FC = () => {
             className={styles.toolbarButton}
             aria-label="设置单附点"
             disabled={!canEditSingleBeat}
-            onClick={() => setActiveDots(1)}
+            onClick={() => runImmediateEditorAction(() => setActiveDots(1))}
           >
             <MusicAssetIcon assetId="noteDot" className={styles.toolbarIcon} />
           </button>
@@ -506,7 +625,7 @@ export const EditorShell: React.FC = () => {
             className={styles.toolbarButton}
             aria-label="设置双附点"
             disabled={!canEditSingleBeat}
-            onClick={() => setActiveDots(2)}
+            onClick={() => runImmediateEditorAction(() => setActiveDots(2))}
           >
             <MusicAssetIcon
               assetId="noteDoubleDotted"
@@ -518,7 +637,9 @@ export const EditorShell: React.FC = () => {
             className={styles.toolbarButton}
             aria-label="设为休止"
             disabled={!canEditSingleBeat}
-            onClick={() => setActiveBeatKind("rest")}
+            onClick={() =>
+              runImmediateEditorAction(() => setActiveBeatKind("rest"))
+            }
           >
             休止
           </button>
@@ -527,7 +648,9 @@ export const EditorShell: React.FC = () => {
             className={styles.toolbarButton}
             aria-label="取消休止"
             disabled={!canEditSingleBeat}
-            onClick={() => setActiveBeatKind("notes")}
+            onClick={() =>
+              runImmediateEditorAction(() => setActiveBeatKind("notes"))
+            }
           >
             恢复
           </button>
@@ -537,7 +660,7 @@ export const EditorShell: React.FC = () => {
             className={styles.toolbarButton}
             aria-label="在当前小节后新增小节"
             disabled={!canEditSingleMeasure}
-            onClick={insertMeasureAfterActive}
+            onClick={() => runImmediateEditorAction(insertMeasureAfterActive)}
           >
             <MusicAssetIcon
               assetId="measureAdd"
@@ -549,7 +672,7 @@ export const EditorShell: React.FC = () => {
             className={styles.toolbarButton}
             aria-label="复制当前小节"
             disabled={!canEditSingleMeasure}
-            onClick={copyActiveMeasure}
+            onClick={() => runImmediateEditorAction(copyActiveMeasure)}
           >
             <MusicAssetIcon
               assetId="actionsCopy"
@@ -561,12 +684,56 @@ export const EditorShell: React.FC = () => {
             className={styles.toolbarButton}
             aria-label="删除当前小节"
             disabled={!canEditSingleMeasure}
-            onClick={removeActiveMeasure}
+            onClick={() => runImmediateEditorAction(removeActiveMeasure)}
           >
             <MusicAssetIcon
               assetId="measureRemove"
               className={styles.toolbarIcon}
             />
+          </button>
+          <span className={styles.toolbarSeparator} aria-hidden="true" />
+          <label className={styles.toolbarField}>
+            <span>右边界</span>
+            <select
+              className={styles.toolbarSelect}
+              aria-label="设置当前焦点小节的右边界"
+              disabled={!focusedMeasureContext}
+              value={focusedMeasureContext?.measure.barline ?? "single"}
+              onChange={(event) =>
+                runImmediateEditorAction(() =>
+                  setFocusedMeasureBarline(
+                    event.currentTarget.value as ILXMBarlineType,
+                  ),
+                )
+              }
+            >
+              {BARLINE_OPTIONS.map((option) => (
+                <option
+                  key={option.value}
+                  value={option.value}
+                  // 谱尾没有下一小节，开始反复和双向反复在领域层也会被拒绝。
+                  disabled={
+                    focusedMeasureContext?.isLastMeasure &&
+                    (option.value === "repeatStart" ||
+                      option.value === "repeatBoth")
+                  }
+                >
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            className={styles.toolbarButton}
+            aria-label="切换谱首开始反复线"
+            aria-pressed={
+              focusedMeasureContext?.track.startBarline === "repeatStart"
+            }
+            disabled={!focusedMeasureContext?.isFirstMeasure}
+            onClick={() => runImmediateEditorAction(toggleTrackStartRepeat)}
+          >
+            谱首反复
           </button>
         </div>
         <p className={styles.inputHint}>
@@ -581,9 +748,13 @@ export const EditorShell: React.FC = () => {
           </p>
         )}
       </div>
-      <div className={styles.pageViewport}>
+      <div
+        className={styles.pageViewport}
+        onPointerDown={handleWorkspacePointerDown}
+      >
         <main className={styles.paper} aria-label="A4 乐谱页面">
           <svg
+            ref={scoreSvgRef}
             className={styles.scoreSvg}
             viewBox={`0 0 ${lxmLayout.width} ${lxmLayout.height}`}
             width={lxmLayout.width}
@@ -595,7 +766,7 @@ export const EditorShell: React.FC = () => {
             onPointerMove={handlePointerMove}
             onPointerUp={finishPointerDrag}
             onPointerCancel={finishPointerDrag}
-            onKeyDown={handleKeyDown}
+            onKeyDown={handleScoreKeyDown}
           >
             {/* 选区层位于音乐元素下方，且永不参与指针命中。 */}
             <g className={styles.selectionLayer} pointerEvents="none">
@@ -622,6 +793,37 @@ export const EditorShell: React.FC = () => {
             </g>
             {lxmLayout.systems.map((system) => (
               <g key={system.index}>
+                {/*
+                  行头先补画六根弦线，再在谱内叠加纵向 T/A/B；这样仍保留必要的
+                  谱号列宽，却不会在第一小节前形成与六线谱割裂的空白块。
+                */}
+                <g className={styles.systemHeaderLayer} pointerEvents="none">
+                  {system.header.strings.map((string) => (
+                    <line
+                      key={string.index}
+                      x1={string.x1}
+                      y1={string.y1}
+                      x2={string.x2}
+                      y2={string.y2}
+                      stroke="black"
+                      strokeWidth={1}
+                    />
+                  ))}
+                  {system.header.tabLetters.map((letter) => (
+                    <text
+                      key={letter.text}
+                      className={styles.tabLabel}
+                      x={letter.x}
+                      y={letter.y}
+                      fontSize={letter.fontSize}
+                      textAnchor={letter.textAnchor}
+                    >
+                      {letter.text}
+                    </text>
+                  ))}
+                  {system.header.leadingBarline &&
+                    renderBarlineParts(system.header.leadingBarline)}
+                </g>
                 {system.measures.map((measure) => (
                   <g key={measure.id}>
                     <g>
@@ -637,6 +839,33 @@ export const EditorShell: React.FC = () => {
                         />
                       ))}
                     </g>
+                    {measure.timeSignature && (
+                      <g
+                        className={styles.timeSignatureLayer}
+                        pointerEvents="none"
+                      >
+                        <text
+                          x={measure.timeSignature.numerator.x}
+                          y={measure.timeSignature.numerator.y}
+                          fontSize={measure.timeSignature.numerator.fontSize}
+                          textAnchor={
+                            measure.timeSignature.numerator.textAnchor
+                          }
+                        >
+                          {measure.timeSignature.numerator.text}
+                        </text>
+                        <text
+                          x={measure.timeSignature.denominator.x}
+                          y={measure.timeSignature.denominator.y}
+                          fontSize={measure.timeSignature.denominator.fontSize}
+                          textAnchor={
+                            measure.timeSignature.denominator.textAnchor
+                          }
+                        >
+                          {measure.timeSignature.denominator.text}
+                        </text>
+                      </g>
+                    )}
                     <g className={styles.restLayer} pointerEvents="none">
                       {measure.restMarks.map((rest) => (
                         <text
@@ -661,29 +890,7 @@ export const EditorShell: React.FC = () => {
                         </text>
                       ))}
                     </g>
-                    <g>
-                      {measure.barline.parts.map((part, index) =>
-                        part.kind === "line" ? (
-                          <line
-                            key={index}
-                            x1={part.x}
-                            y1={part.y1}
-                            x2={part.x}
-                            y2={part.y2}
-                            stroke="black"
-                            strokeWidth={part.strokeWidth}
-                          />
-                        ) : (
-                          <circle
-                            key={index}
-                            cx={part.cx}
-                            cy={part.cy}
-                            r={part.radius}
-                            fill="black"
-                          />
-                        ),
-                      )}
-                    </g>
+                    <g>{renderBarlineParts(measure.barline)}</g>
                     <g className={styles.durationLayer} pointerEvents="none">
                       {measure.durationMarks.map((mark) => (
                         <g key={mark.beatId}>

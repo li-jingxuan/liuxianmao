@@ -3,7 +3,11 @@ import { describe, expect, it } from "vitest";
 import EXAMPLE_MVP_2 from "../../example/example-mvp2.json";
 import { loadDocument } from "../../src/core/loader";
 import { buildLayout } from "../../src/layout";
-import { LXM_SPARSE_SYSTEM_MAX_CONTENT_SCALE } from "../../src/layout/layout-constants";
+import {
+  LXM_SPARSE_SYSTEM_MAX_CONTENT_SCALE,
+  LXM_SYSTEM_HEADER_WIDTH,
+  LXM_TIME_SIGNATURE_WIDTH,
+} from "../../src/layout/layout-constants";
 import { summarizeMeasureSpacingWidth } from "../../src/layout/measure-spacing";
 
 /** 供断行测试复用的固定逻辑宽度；每行应容纳两个标准四分小节。 */
@@ -42,6 +46,8 @@ const sparseSystemMaxReadableWidth = (
     summarizeMeasureSpacingWidth(
       EXAMPLE_MVP_2.score.tracks[0]!.measures[measureIndex]!,
       "compact",
+      // 规范谱例只有整首第一小节展示 4/4；普通换行不会重复相同拍号。
+      measureIndex === 0 ? LXM_TIME_SIGNATURE_WIDTH : 0,
     ),
   );
   const totalIntrinsicWidth = summaries.reduce(
@@ -54,10 +60,124 @@ const sparseSystemMaxReadableWidth = (
   );
   const fixedWidth = totalIntrinsicWidth - totalContentWidth;
 
-  return fixedWidth + totalContentWidth * LXM_SPARSE_SYSTEM_MAX_CONTENT_SCALE;
+  return (
+    LXM_SYSTEM_HEADER_WIDTH +
+    fixedWidth +
+    totalContentWidth * LXM_SPARSE_SYSTEM_MAX_CONTENT_SCALE
+  );
 };
 
 describe("buildLayout 的 system 自动换行", () => {
+  it("每条 system 在六线谱内生成纵向 TAB 行头，且所有 measure 从统一 staffX 开始", () => {
+    const layout = buildLayout(EXAMPLE_MVP_2, {
+      systemWidth: TWO_MEASURES_PER_SYSTEM_WIDTH,
+    });
+
+    for (const system of layout.systems) {
+      expect(system.header.tabLetters.map((letter) => letter.text)).toEqual([
+        "T",
+        "A",
+        "B",
+      ]);
+      expect(
+        new Set(system.header.tabLetters.map((letter) => letter.x)).size,
+      ).toBe(1);
+      expect(system.header.tabLetters.map((letter) => letter.y)).toEqual(
+        [...system.header.tabLetters.map((letter) => letter.y)].sort(
+          (left, right) => left - right,
+        ),
+      );
+      const firstStringY = system.header.strings[0]!.y1;
+      const lastStringY = system.header.strings.at(-1)!.y1;
+      for (const letter of system.header.tabLetters) {
+        expect(letter.y).toBeGreaterThan(firstStringY);
+        expect(letter.y).toBeLessThan(lastStringY);
+      }
+      expect(system.header.width).toBe(LXM_SYSTEM_HEADER_WIDTH);
+      expect(system.header.staffX).toBe(system.x + LXM_SYSTEM_HEADER_WIDTH);
+      expect(system.measures[0]!.x).toBe(system.header.staffX);
+      expect(system.header.strings).toHaveLength(6);
+      for (const string of system.header.strings) {
+        expect(string.x1).toBe(system.x);
+        expect(string.x2).toBe(system.header.staffX);
+      }
+    }
+  });
+
+  it("拍号只在整首第一小节和真实变化点显示", () => {
+    const document = documentWithMeasures([0, 1, 2, 3]);
+    const measures = document.score.tracks[0]!.measures;
+    measures[2] = {
+      ...measures[2]!,
+      timeSignature: { numerator: 3, denominator: 4 },
+    };
+    measures[3] = {
+      ...measures[3]!,
+      timeSignature: { numerator: 3, denominator: 4 },
+    };
+    const layout = buildLayout(document, { systemWidth: 400 });
+    const byId = new Map(
+      layout.systems.flatMap((system) =>
+        system.measures.map((measure) => [measure.id, measure] as const),
+      ),
+    );
+
+    expect(byId.get(measures[0]!.id)!.timeSignature).toMatchObject({
+      numerator: { text: "4" },
+      denominator: { text: "4" },
+    });
+    expect(byId.get(measures[1]!.id)!.timeSignature).toBeNull();
+    expect(byId.get(measures[2]!.id)!.timeSignature).toMatchObject({
+      numerator: { text: "3" },
+      denominator: { text: "4" },
+    });
+    expect(byId.get(measures[3]!.id)!.timeSignature).toBeNull();
+  });
+
+  it("跨 system 的双向反复线拆成行尾结束反复和下一行开始反复", () => {
+    const document = documentWithMeasures([0, 1]);
+    document.score.tracks[0]!.measures[0] = {
+      ...document.score.tracks[0]!.measures[0]!,
+      barline: "repeatBoth",
+    };
+    const layout = buildLayout(document, { systemWidth: 250 });
+
+    expect(layout.systems).toHaveLength(2);
+    expect(layout.systems[0]!.measures[0]!.barline.type).toBe("repeatEnd");
+    expect(layout.systems[1]!.header.leadingBarline?.type).toBe("repeatStart");
+    // layout 投影不能反向改写领域文档。
+    expect(document.score.tracks[0]!.measures[0]!.barline).toBe("repeatBoth");
+  });
+
+  it("谱首反复为圆点和首次拍号预留净空，并按新增宽度重新断行", () => {
+    const document = structuredClone(EXAMPLE_MVP_2);
+    document.score.tracks[0]!.startBarline = "repeatStart";
+    const layout = buildLayout(document, {
+      systemWidth: A4_COMPACT_SYSTEM_WIDTH,
+      density: "compact",
+    });
+    const firstSystem = layout.systems[0]!;
+    const firstMeasure = firstSystem.measures[0]!;
+    const repeatDots = firstSystem.header.leadingBarline!.parts.filter(
+      (part) => part.kind === "dot",
+    );
+
+    expect(
+      layout.systems.reduce(
+        (count, system) => count + system.measures.length,
+        0,
+      ),
+    ).toBe(8);
+    expect(firstMeasure.timeSignature).not.toBeNull();
+    expect(
+      repeatDots.every(
+        (dot) =>
+          dot.kind === "dot" &&
+          dot.cx + dot.radius < firstMeasure.timeSignature!.numerator.x,
+      ),
+    ).toBe(true);
+  });
+
   it("MVP v2 fixture 可以通过文档加载器校验", () => {
     expect(loadDocument(JSON.stringify(EXAMPLE_MVP_2))).toMatchObject({
       ok: true,
@@ -168,9 +288,9 @@ describe("buildLayout 的 system 自动换行", () => {
 
   it("非末行的单小节 System 同样限制拉伸", () => {
     const measureIndexes = [0, 1];
-    // 两个小节的固有宽度总和放不进 300，但首小节的 1.6 倍最大可读宽度仍小于
-    // 300，因此首行同时满足“被下一个小节挤换行”和“应保留右侧留白”。
-    const systemWidth = 300;
+    // v4.1 行头和首次拍号也属于整行固定宽度。330 仍放不下两个小节，但大于
+    // 首小节的最大可读宽度，因此能同时验证换行与单小节留白限制。
+    const systemWidth = 330;
     const layout = buildLayout(documentWithMeasures(measureIndexes), {
       systemWidth,
       density: "compact",
