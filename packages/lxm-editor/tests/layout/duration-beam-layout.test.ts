@@ -28,9 +28,15 @@ const createBeat = (
   notes: [{ id: `${id}-note`, string: 3, fret: 2 }],
 });
 
-const createMeasure = (beats: ILXMMeasure["beats"]): ILXMMeasure => ({
+const createMeasure = (
+  beats: ILXMMeasure["beats"],
+  timeSignature: ILXMMeasure["timeSignature"] = {
+    numerator: 4,
+    denominator: 4,
+  },
+): ILXMMeasure => ({
   id: "measure-duration-beam-test",
-  timeSignature: { numerator: 4, denominator: 4 },
+  timeSignature,
   barline: "single",
   chordSymbols: [],
   beats,
@@ -150,6 +156,57 @@ describe("groupContiguousMarks", () => {
       ["beat-dotted-eighth", "beat-sixteenth"],
       ["beat-next-eighth", "beat-next-eighth-2"],
     ]);
+  });
+
+  it("3/4 的六个八分音符按三个四分音符拍组断开", () => {
+    const beats = Array.from({ length: 6 }, (_, index) =>
+      createBeat(`three-four-${index + 1}`, index * 480, "eighth"),
+    );
+    const measure = createMeasure(beats, {
+      numerator: 3,
+      denominator: 4,
+    });
+    const groups = groupContiguousMarks(
+      measure,
+      createMarkMap(beats.map((beat) => createMark(beat.id, 1))),
+    );
+
+    expect(getGroupBeatIds(groups)).toEqual([
+      ["three-four-1", "three-four-2"],
+      ["three-four-3", "three-four-4"],
+      ["three-four-5", "three-four-6"],
+    ]);
+  });
+
+  it("6/8 的六个八分音符按两个附点四分音符拍组断开", () => {
+    const beats = Array.from({ length: 6 }, (_, index) =>
+      createBeat(`six-eight-${index + 1}`, index * 480, "eighth"),
+    );
+    const measure = createMeasure(beats, {
+      numerator: 6,
+      denominator: 8,
+    });
+    const groups = groupContiguousMarks(
+      measure,
+      createMarkMap(beats.map((beat) => createMark(beat.id, 1))),
+    );
+
+    expect(getGroupBeatIds(groups)).toEqual([
+      ["six-eight-1", "six-eight-2", "six-eight-3"],
+      ["six-eight-4", "six-eight-5", "six-eight-6"],
+    ]);
+  });
+
+  it("未知不对称拍号保守降级为整小节单组", () => {
+    const beats = Array.from({ length: 5 }, (_, index) =>
+      createBeat(`five-eight-${index + 1}`, index * 480, "eighth"),
+    );
+    const groups = groupContiguousMarks(
+      createMeasure(beats, { numerator: 5, denominator: 8 }),
+      createMarkMap(beats.map((beat) => createMark(beat.id, 1))),
+    );
+
+    expect(getGroupBeatIds(groups)).toEqual([beats.map((beat) => beat.id)]);
   });
 });
 

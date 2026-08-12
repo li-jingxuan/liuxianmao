@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import EXAMPLE_MVP_4 from "../../example/example-mvp4.json";
 import {
+  MAX_BEAT_RANGE_BEATS,
   MAX_TAB_CELL_RANGE_CELLS,
   buildOrderedBeatIndex,
+  resolveBeatRange,
   resolveTabCellSelection,
   type ILXMTabCellSelection,
 } from "../../src/editing/tab-cell-selection";
@@ -13,6 +15,62 @@ const reference = (measure: number, beat: number, string: number) => ({
   measureId: `mvp2-measure-${measure}`,
   beatId: `mvp2-beat-${measure}-${beat}`,
   string,
+});
+
+describe("resolveBeatRange", () => {
+  it("忽略弦维度并规范化跨小节的正反向端点", () => {
+    const forward = resolveBeatRange(EXAMPLE_MVP_4, {
+      trackId: "mvp2-track-guitar",
+      anchor: reference(1, 8, 1),
+      focus: reference(2, 2, 6),
+    });
+    const reverse = resolveBeatRange(EXAMPLE_MVP_4, {
+      trackId: "mvp2-track-guitar",
+      anchor: reference(2, 2, 3),
+      focus: reference(1, 8, 4),
+    });
+
+    expect(forward).toEqual(reverse);
+    expect(forward).toMatchObject({
+      ok: true,
+      range: {
+        beats: [
+          { beatId: "mvp2-beat-1-8" },
+          { beatId: "mvp2-beat-1-9" },
+          { beatId: "mvp2-beat-2-1" },
+          { beatId: "mvp2-beat-2-2" },
+        ],
+      },
+    });
+  });
+
+  it("对超限 Beat 范围返回专用错误", () => {
+    const document = structuredClone(EXAMPLE_MVP_4);
+    const measure = document.score.tracks[0]!.measures[0]!;
+    measure.beats = Array.from(
+      { length: MAX_BEAT_RANGE_BEATS + 1 },
+      (_, index) => ({
+        ...measure.beats[0]!,
+        id: `large-beat-range-${index}`,
+        tick: index,
+      }),
+    );
+
+    expect(
+      resolveBeatRange(document, {
+        trackId: "mvp2-track-guitar",
+        anchor: { measureId: measure.id, beatId: "large-beat-range-0" },
+        focus: {
+          measureId: measure.id,
+          beatId: `large-beat-range-${MAX_BEAT_RANGE_BEATS}`,
+        },
+      }),
+    ).toEqual({
+      ok: false,
+      code: "BEAT_RANGE_TOO_LARGE",
+      message: `Beat 选区最多包含 ${MAX_BEAT_RANGE_BEATS} 个 Beat`,
+    });
+  });
 });
 
 describe("resolveTabCellSelection", () => {

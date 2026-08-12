@@ -5,7 +5,11 @@
  * SVG 坐标或渲染策略计算。后续实现时应保持它是纯音乐时间层：例如四分音符
  * 等于多少 tick、附点如何换算、小节拍号对应多少 tick。
  */
-import { LXM_RHYTHM_BASES, TICKS_PER_QUARTER } from "./constants";
+import {
+  LXM_EDITABLE_TIME_SIGNATURES,
+  LXM_RHYTHM_BASES,
+  TICKS_PER_QUARTER,
+} from "./constants";
 import type { ILXMBeat, ILXMRhythm, ILXMTimeSignature } from "./types";
 
 // 基准节奏时值对应 tick 数
@@ -102,16 +106,60 @@ export const getShorterRhythmOptions = (
   );
 };
 
-/** 根据拍号计算完整拍组容量，4/4 等于 960 tick。 */
-export const getCompleteBeatCapacityTicks = ({
+/** 分子、分母是值对象，不能依赖对象引用判断两个拍号是否相同。 */
+export const isSameTimeSignature = (
+  left: ILXMTimeSignature,
+  right: ILXMTimeSignature,
+): boolean =>
+  left.numerator === right.numerator && left.denominator === right.denominator;
+
+/** 命令层只允许写入已有明确拍组定义的首批拍号。 */
+export const isEditableTimeSignature = (
+  timeSignature: ILXMTimeSignature,
+): boolean =>
+  LXM_EDITABLE_TIME_SIGNATURES.some((candidate) =>
+    isSameTimeSignature(candidate, timeSignature),
+  );
+
+/**
+ * 根据拍号计算完整小节容量。
+ *
+ * 一个全音符等于四个四分音符，因此公式中的 4 不能省略。例如 3/4 是
+ * 960 * 4 * 3 / 4 = 2880 tick，6/8 同样是 2880 tick。
+ *
+ * 这里刻意只回答“整小节多长”，不再同时承担连梁拍组含义。旧实现把两个概念
+ * 混在一起，会让 3/4 和 6/8 都得到错误的 720 tick 拍组。
+ */
+export const getMeasureCapacityTicks = ({
   numerator,
   denominator,
-}: ILXMTimeSignature) => (TICKS_PER_QUARTER * numerator) / denominator;
+}: ILXMTimeSignature): number =>
+  (TICKS_PER_QUARTER * 4 * numerator) / denominator;
 
-/** 根据拍号计算完整小节容量，4/4 等于 3840 tick。 */
-export const getMeasureCapacityTicks = (
+/**
+ * 返回拍号的显式连梁拍组；null 表示核心不掌握该拍号的专业分组语义。
+ *
+ * 数组而不是单一长度可以自然扩展不等长拍组。当前白名单虽然除复拍子外都等长，
+ * layout 仍按累计边界消费数组，未来增加 5/8 的 2+3 时无需再次更改接口。
+ */
+export const getTimeSignatureBeatGroupTicks = (
   timeSignature: ILXMTimeSignature,
-): number => getCompleteBeatCapacityTicks(timeSignature) * 4;
+): number[] | null => {
+  if (isSameTimeSignature(timeSignature, { numerator: 2, denominator: 4 }))
+    return [TICKS_PER_QUARTER, TICKS_PER_QUARTER];
+  if (isSameTimeSignature(timeSignature, { numerator: 3, denominator: 4 }))
+    return [TICKS_PER_QUARTER, TICKS_PER_QUARTER, TICKS_PER_QUARTER];
+  if (isSameTimeSignature(timeSignature, { numerator: 4, denominator: 4 }))
+    return [
+      TICKS_PER_QUARTER,
+      TICKS_PER_QUARTER,
+      TICKS_PER_QUARTER,
+      TICKS_PER_QUARTER,
+    ];
+  if (isSameTimeSignature(timeSignature, { numerator: 6, denominator: 8 }))
+    return [TICKS_PER_QUARTER * 1.5, TICKS_PER_QUARTER * 1.5];
+  return null;
+};
 
 /** 获取 beat 的结束 tick；调用方可据此构建连续、不重叠的时间轴。 */
 export const getBeatEndTick = (beat: ILXMBeat): RhythmTickResult => {

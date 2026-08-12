@@ -8,6 +8,25 @@ export interface EditorHistoryShortcutInput {
   shiftKey: boolean;
 }
 
+export type BeatKindShortcutAction = "setRest" | "unsetRest";
+
+export interface BeatKindShortcutInput {
+  key: string;
+  metaKey: boolean;
+  ctrlKey: boolean;
+  altKey: boolean;
+  shiftKey: boolean;
+}
+
+/** 单键只在谱面入口生效；带系统修饰键的 R 完全交还浏览器。 */
+export const resolveBeatKindShortcut = (
+  input: BeatKindShortcutInput,
+): BeatKindShortcutAction | null => {
+  if (input.metaKey || input.ctrlKey || input.altKey) return null;
+  if (input.key.toLowerCase() !== "r") return null;
+  return input.shiftKey ? "unsetRest" : "setRest";
+};
+
 /**
  * 将编辑器级历史快捷键解析为明确动作。
  *

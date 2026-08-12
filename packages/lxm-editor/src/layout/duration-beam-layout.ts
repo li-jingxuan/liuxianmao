@@ -18,7 +18,8 @@ import {
 } from "../core/types";
 import {
   calculateRhythmTicks,
-  getCompleteBeatCapacityTicks,
+  getMeasureCapacityTicks,
+  getTimeSignatureBeatGroupTicks,
 } from "../core/rhythm";
 import {
   LXM_DURATION_FLAG_FONT_SIZE,
@@ -109,8 +110,26 @@ export const groupContiguousMarks = (
   markByBeatId: Map<string, ILXMDurationMarkLayout>,
 ): ILXMDurationMarkLayout[][] => {
   const groups: ILXMDurationMarkLayout[][] = [];
-  // 完整拍组 tick 总和
-  const beatGroupTicks = getCompleteBeatCapacityTicks(measure.timeSignature);
+  /*
+   * 拍组和小节容量是两个不同概念。3/4 与 6/8 都有 2880 tick 的小节容量，但
+   * 3/4 应按三个四分音符分组，6/8 应按两个附点四分音符分组。这里消费显式数组
+   * 并累计成绝对边界，因此未来即使加入 5/8 的 2+3 非等长拍组也不必改算法。
+   *
+   * 对 schema 可加载、但没有专业 profile 的拍号使用“整小节单组”保守降级；
+   * 宁可少断一次连梁，也不能凭分子分母猜测不对称拍子的音乐重音。
+   */
+  const beatGroupTicks = getTimeSignatureBeatGroupTicks(
+    measure.timeSignature,
+  ) ?? [getMeasureCapacityTicks(measure.timeSignature)];
+  let accumulatedTicks = 0;
+  const beatGroupEndTicks = beatGroupTicks.map((ticks) => {
+    accumulatedTicks += ticks;
+    return accumulatedTicks;
+  });
+  const getGroupIndex = (tick: number): number => {
+    const index = beatGroupEndTicks.findIndex((endTick) => tick < endTick);
+    return index < 0 ? beatGroupEndTicks.length : index;
+  };
 
   let currentGroup: ILXMDurationMarkLayout[] = [];
   let previousBeatEndTick: number | null = null;
@@ -138,9 +157,9 @@ export const groupContiguousMarks = (
     // 当前 beat 结束 tick
     const beatEndTick = beat.tick + rhythmTicksResult.ticks;
     // 当前 beat 开始拍组索引
-    const beatStartGroupIndex = Math.floor(beatStartTick / beatGroupTicks);
+    const beatStartGroupIndex = getGroupIndex(beatStartTick);
     // 当前 beat 结束拍组索引
-    const beatEndGroupIndex = Math.floor((beatEndTick - 1) / beatGroupTicks);
+    const beatEndGroupIndex = getGroupIndex(beatEndTick - 1);
     // 当前 beat 是否跨拍组边界
     const beatCrossesGroupBoundary = beatStartGroupIndex !== beatEndGroupIndex;
 
@@ -328,8 +347,7 @@ const buildDurationSustainMarks = (
 
   return Array.from({ length: totalQuarterUnits - 1 }, (_, index) => {
     const unitIndex = index + 1;
-    const unitCenterX =
-      beatLayout.x + unitWidth * (unitIndex + 0.5);
+    const unitCenterX = beatLayout.x + unitWidth * (unitIndex + 0.5);
 
     return {
       unitIndex,

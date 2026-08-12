@@ -6,6 +6,7 @@ import {
   hitTestLayout,
   layoutTabCellCaret,
   layoutTabCellSelection,
+  LXM_EDITABLE_TIME_SIGNATURES,
   LXMScoreCommandEnum,
   navigateTabCellSelection,
   resolveTabCellSelection,
@@ -15,6 +16,7 @@ import {
   type ILXMLayout,
   type ILXMRhythm,
   type ILXMTabCellReference,
+  type ILXMTimeSignature,
 } from "@liuxianmao/lxm-editor";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { MusicControlIcon } from "../../assets/svg/svg-assets-manifest";
@@ -22,6 +24,7 @@ import { useEditorStore } from "../../stores/editor-store";
 import { MusicAssetIcon } from "../MusicAssetIcon";
 import {
   createDeferredFretDraftCommit,
+  resolveBeatKindShortcut,
   resolveEditorHistoryShortcut,
 } from "./editor-interaction";
 import styles from "./index.module.scss";
@@ -40,6 +43,12 @@ const BARLINE_OPTIONS: { value: ILXMBarlineType; label: string }[] = [
   { value: "repeatEnd", label: "结束反复线" },
   { value: "repeatBoth", label: "双向反复线" },
 ];
+
+/** 拍号是值对象；页面只把它格式化为 select 的稳定字符串值。 */
+const formatTimeSignature = ({
+  numerator,
+  denominator,
+}: ILXMTimeSignature): string => `${numerator}/${denominator}`;
 
 /**
  * 小节线和行首反复线共享同一份核心几何；页面只区分 line/circle 两种基础图元。
@@ -159,6 +168,7 @@ export const EditorShell: React.FC = () => {
     [resolvedSelection],
   );
   const canEditSingleBeat = resolvedSelection?.beats.length === 1;
+  const canEditBeatRange = Boolean(resolvedSelection?.beats.length);
   const canEditSingleMeasure = selectedMeasureIds.size === 1;
 
   /**
@@ -293,10 +303,27 @@ export const EditorShell: React.FC = () => {
     });
   };
 
-  const setActiveBeatKind = (kind: "notes" | "rest") => {
-    const target = getSingleBeatTarget();
-    if (!target) return;
-    execute({ type: LXMScoreCommandEnum.SetBeatKind, ...target, kind });
+  /** 休止属于完整 Beat；框选的弦范围不会缩窄该命令的作用域。 */
+  const setSelectedBeatKind = (kind: "notes" | "rest") => {
+    if (!selection || !resolvedSelection?.beats.length) {
+      setErrorMessage("请先选择需要设置休止状态的 Beat。");
+      return;
+    }
+    execute({
+      type: LXMScoreCommandEnum.SetBeatKindRange,
+      range: {
+        trackId: selection.anchor.trackId,
+        anchor: {
+          measureId: selection.anchor.measureId,
+          beatId: selection.anchor.beatId,
+        },
+        focus: {
+          measureId: selection.focus.measureId,
+          beatId: selection.focus.beatId,
+        },
+      },
+      kind,
+    });
   };
 
   /** 小节工具只接受唯一 measure；跨小节选区时按钮禁用。 */
@@ -365,6 +392,37 @@ export const EditorShell: React.FC = () => {
         focusedMeasureContext.track.startBarline === "repeatStart"
           ? "none"
           : "repeatStart",
+    });
+  };
+
+  /**
+   * 页面只提交“目标小节、目标拍号、作用范围”。容量、尾部休止、受影响小节列表
+   * 和原子失败均由核心 measure.setTimeSignature 命令处理，避免 React 根据可能已经
+   * 过期的 document 快照自行展开范围。
+   */
+  const setFocusedMeasureTimeSignature = (value: string) => {
+    if (!focusedMeasureContext) {
+      setErrorMessage("请先选择需要设置拍号的小节。");
+      return;
+    }
+    const timeSignature = LXM_EDITABLE_TIME_SIGNATURES.find(
+      (candidate) => formatTimeSignature(candidate) === value,
+    );
+    if (!timeSignature) {
+      setErrorMessage("当前只支持 2/4、3/4、4/4 和 6/8 拍号。");
+      return;
+    }
+    execute({
+      type: LXMScoreCommandEnum.SetTimeSignature,
+      trackId: focusedMeasureContext.track.id,
+      measureId: focusedMeasureContext.measure.id,
+      timeSignature: { ...timeSignature },
+      /*
+       * 页面固定采用乐谱中最常见的持续拍号语义：新拍号从当前小节生效，并持续到
+       * 下一个已经存在的拍号变化点。若只需要临时改变一个小节，用户可在下一小节
+       * 再设置回原拍号；核心命令仍保留 measure scope 供测试和未来高级工具使用。
+       */
+      scope: "untilNextChange",
     });
   };
 
@@ -492,6 +550,14 @@ export const EditorShell: React.FC = () => {
       if (selection)
         setSelection(createCollapsedTabCellSelection(selection.focus));
       setErrorMessage(null);
+      return;
+    }
+    const beatKindAction = resolveBeatKindShortcut(event);
+    if (beatKindAction && selection) {
+      event.preventDefault();
+      runImmediateEditorAction(() =>
+        setSelectedBeatKind(beatKindAction === "setRest" ? "rest" : "notes"),
+      );
       return;
     }
     if (event.key === "Backspace" || event.key === "Delete") {
@@ -635,10 +701,11 @@ export const EditorShell: React.FC = () => {
           <button
             type="button"
             className={styles.toolbarButton}
-            aria-label="设为休止"
-            disabled={!canEditSingleBeat}
+            aria-label="将选中 Beat 设为休止并清空全部弦音符"
+            title="设为休止（R）"
+            disabled={!canEditBeatRange}
             onClick={() =>
-              runImmediateEditorAction(() => setActiveBeatKind("rest"))
+              runImmediateEditorAction(() => setSelectedBeatKind("rest"))
             }
           >
             休止
@@ -646,10 +713,11 @@ export const EditorShell: React.FC = () => {
           <button
             type="button"
             className={styles.toolbarButton}
-            aria-label="取消休止"
-            disabled={!canEditSingleBeat}
+            aria-label="取消选中 Beat 的休止状态"
+            title="取消休止（Shift+R）"
+            disabled={!canEditBeatRange}
             onClick={() =>
-              runImmediateEditorAction(() => setActiveBeatKind("notes"))
+              runImmediateEditorAction(() => setSelectedBeatKind("notes"))
             }
           >
             恢复
@@ -691,6 +759,67 @@ export const EditorShell: React.FC = () => {
               className={styles.toolbarIcon}
             />
           </button>
+          <span className={styles.toolbarSeparator} aria-hidden="true" />
+          <label className={styles.toolbarField}>
+            <span>
+              拍号
+              {focusedMeasureContext
+                ? `（第 ${focusedMeasureContext.measureIndex + 1} 小节）`
+                : ""}
+            </span>
+            <select
+              className={styles.toolbarSelect}
+              aria-label="设置当前焦点小节的拍号"
+              disabled={!focusedMeasureContext}
+              value={
+                focusedMeasureContext
+                  ? formatTimeSignature(
+                      focusedMeasureContext.measure.timeSignature,
+                    )
+                  : ""
+              }
+              onChange={(event) =>
+                runImmediateEditorAction(() =>
+                  setFocusedMeasureTimeSignature(event.currentTarget.value),
+                )
+              }
+            >
+              {!focusedMeasureContext && (
+                <option value="" disabled>
+                  未选择小节
+                </option>
+              )}
+              {focusedMeasureContext &&
+                !LXM_EDITABLE_TIME_SIGNATURES.some(
+                  (candidate) =>
+                    formatTimeSignature(candidate) ===
+                    formatTimeSignature(
+                      focusedMeasureContext.measure.timeSignature,
+                    ),
+                ) && (
+                  // 旧文档可能含白名单外拍号：允许查看当前值，但不能由本工具再次写入。
+                  <option
+                    value={formatTimeSignature(
+                      focusedMeasureContext.measure.timeSignature,
+                    )}
+                    disabled
+                  >
+                    {formatTimeSignature(
+                      focusedMeasureContext.measure.timeSignature,
+                    )}
+                    （只读）
+                  </option>
+                )}
+              {LXM_EDITABLE_TIME_SIGNATURES.map((timeSignature) => {
+                const value = formatTimeSignature(timeSignature);
+                return (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                );
+              })}
+            </select>
+          </label>
           <span className={styles.toolbarSeparator} aria-hidden="true" />
           <label className={styles.toolbarField}>
             <span>右边界</span>
@@ -738,7 +867,7 @@ export const EditorShell: React.FC = () => {
         </div>
         <p className={styles.inputHint}>
           点击或拖动选择，Shift 扩展，方向键导航；输入 0–24 批量设置品位，
-          Backspace/Delete 批量删除。
+          Backspace/Delete 批量删除，R 设为休止，Shift+R 取消休止。
           {resolvedSelection && ` 已选择 ${resolvedSelection.cellCount} 格。`}
           {fretDraft && ` 正在输入：${fretDraft}`}
         </p>

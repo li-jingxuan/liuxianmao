@@ -86,6 +86,14 @@ export interface ILXMTimeSignature {
   denominator: number;
 }
 
+/**
+ * 拍号命令的作用范围。
+ *
+ * measure 用于只改变一个小节；untilNextChange 用于从当前小节建立一个持续的
+ * 拍号段落，并在命令执行前已经存在的下一个拍号变化点停止。
+ */
+export type ILXMTimeSignatureChangeScope = "measure" | "untilNextChange";
+
 /** 小节内某个 tick 位置上的和弦标记。 */
 export interface ILXMChordSymbol {
   id: string;

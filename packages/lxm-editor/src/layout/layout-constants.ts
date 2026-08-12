@@ -71,7 +71,7 @@ export const LXM_LAYOUT_DENSITY_PROFILES = {
     minColumnWidth: null,
   },
   compact: {
-    measurePaddingX: 8,
+    measurePaddingX: 12,
     // v4.1 把 TAB 行头、首次拍号和反复线净空纳入同一 A4 内容宽度。0.34 在不
     // 突破 15px 最低列宽的前提下，仍能让既有八小节规范谱保持每行四小节。
     idealColumnScale: 0.34,

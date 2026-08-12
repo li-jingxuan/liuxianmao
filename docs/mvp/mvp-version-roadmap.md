@@ -242,6 +242,9 @@ type ScoreCommand =
 - 不存在的目标音、非法跨弦或不合法时间顺序会被拒绝。
 - 跨 system 技巧具有明确的续接视觉效果。
 
+详细方案见 [MVP v5 技术实现方案](./v5/technical-design.md)，实施顺序见
+[MVP v5 详细实施计划](./v5/implementation-plan.md)。
+
 ## 9. MVP v6：歌词、和弦名称与和弦图
 
 ### 9.1 目标

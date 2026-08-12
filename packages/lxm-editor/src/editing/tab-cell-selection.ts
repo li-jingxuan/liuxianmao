@@ -9,6 +9,20 @@ import type { ILXMDocument, ILXMTrack } from "../core/types";
 
 /** 单次命令允许展开的最大单元格数，防止误选导致同步编辑耗时不可控。 */
 export const MAX_TAB_CELL_RANGE_CELLS = 512;
+/** 单次 Beat 状态命令的安全上限；与弦宽无关。 */
+export const MAX_BEAT_RANGE_BEATS = 512;
+
+/** Beat 范围端点只保存稳定业务 ID，不携带弦或布局信息。 */
+export interface ILXMBeatReference {
+  measureId: string;
+  beatId: string;
+}
+
+export interface ILXMBeatRange {
+  trackId: string;
+  anchor: ILXMBeatReference;
+  focus: ILXMBeatReference;
+}
 
 /** 一个 TAB 单元格的稳定业务引用；视觉 systemIndex 明确不属于持久引用。 */
 export interface ILXMTabCellReference {
@@ -41,6 +55,19 @@ export interface ILXMResolvedTabCellRange {
   endString: number;
   cellCount: number;
 }
+
+export interface ILXMResolvedBeatRange {
+  trackId: string;
+  beats: ILXMOrderedBeat[];
+}
+
+export type ILXMResolveBeatRangeResult =
+  | { ok: true; range: ILXMResolvedBeatRange }
+  | {
+      ok: false;
+      code: "INVALID_BEAT_RANGE" | "BEAT_RANGE_TOO_LARGE";
+      message: string;
+    };
 
 export type ILXMResolveTabCellSelectionErrorCode =
   | "INVALID_TAB_CELL_RANGE"
@@ -81,6 +108,51 @@ const invalidRange = (message: string): ILXMResolveTabCellSelectionResult => ({
   code: "INVALID_TAB_CELL_RANGE",
   message,
 });
+
+/** 按稳定端点解析与拖动方向无关的连续 Beat 范围。 */
+export const resolveBeatRange = (
+  document: ILXMDocument,
+  range: ILXMBeatRange,
+): ILXMResolveBeatRangeResult => {
+  const track = document.score.tracks.find(
+    (candidate) => candidate.id === range.trackId,
+  );
+  if (!track)
+    return {
+      ok: false,
+      code: "INVALID_BEAT_RANGE",
+      message: "Beat 选区的目标轨道不存在",
+    };
+
+  const orderedBeats = buildOrderedBeatIndex(track);
+  const findEndpoint = (reference: ILXMBeatReference) =>
+    orderedBeats.findIndex(
+      (beat) =>
+        beat.measureId === reference.measureId &&
+        beat.beatId === reference.beatId,
+    );
+  const anchorIndex = findEndpoint(range.anchor);
+  const focusIndex = findEndpoint(range.focus);
+  if (anchorIndex < 0 || focusIndex < 0)
+    return {
+      ok: false,
+      code: "INVALID_BEAT_RANGE",
+      message: "Beat 选区端点不存在",
+    };
+
+  const beats = orderedBeats.slice(
+    Math.min(anchorIndex, focusIndex),
+    Math.max(anchorIndex, focusIndex) + 1,
+  );
+  if (beats.length > MAX_BEAT_RANGE_BEATS)
+    return {
+      ok: false,
+      code: "BEAT_RANGE_TOO_LARGE",
+      message: `Beat 选区最多包含 ${MAX_BEAT_RANGE_BEATS} 个 Beat`,
+    };
+
+  return { ok: true, range: { trackId: track.id, beats } };
+};
 
 /**
  * 将任意拖动方向的 anchor/focus 规范化为可供命令和布局消费的矩形。

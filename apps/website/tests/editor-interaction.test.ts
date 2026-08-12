@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   createDeferredFretDraftCommit,
+  resolveBeatKindShortcut,
   resolveEditorHistoryShortcut,
 } from "../components/EditorShell/editor-interaction";
 
@@ -32,6 +33,32 @@ describe("editor interaction", () => {
         { key: "z", metaKey: true, ctrlKey: false, shiftKey: false },
         { canUndo: false, canRedo: false },
       ),
+    ).toBeNull();
+  });
+
+  it("解析 R 与 Shift+R，并保留带系统修饰键的快捷键", () => {
+    const base = { metaKey: false, ctrlKey: false, altKey: false };
+    expect(
+      resolveBeatKindShortcut({ ...base, key: "r", shiftKey: false }),
+    ).toBe("setRest");
+    expect(resolveBeatKindShortcut({ ...base, key: "R", shiftKey: true })).toBe(
+      "unsetRest",
+    );
+    expect(
+      resolveBeatKindShortcut({
+        ...base,
+        key: "r",
+        shiftKey: false,
+        metaKey: true,
+      }),
+    ).toBeNull();
+    expect(
+      resolveBeatKindShortcut({
+        ...base,
+        key: "r",
+        shiftKey: false,
+        altKey: true,
+      }),
     ).toBeNull();
   });
 

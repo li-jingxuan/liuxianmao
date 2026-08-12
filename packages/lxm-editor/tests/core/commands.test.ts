@@ -11,6 +11,25 @@ import { buildLayout } from "../../src/layout";
 /** 每个测试使用新副本，避免命令结果和 fixture 共享可变引用。 */
 const createDocument = () => structuredClone(EXAMPLE_MVP_2);
 
+/**
+ * 拍号范围测试使用全休止小节，避免 fixture 中真实音符主动触发保守缩容拒绝。
+ * 每个 ID 包含小节和拍序号，保证最终 semantic validation 仍能检查全局唯一性。
+ */
+const createAllRestDocument = () => {
+  const document = createDocument();
+  document.score.tracks[0]!.measures.forEach((measure, measureIndex) => {
+    measure.chordSymbols = [];
+    measure.beats = [0, 960, 1920, 2880].map((tick, beatIndex) => ({
+      id: `time-signature-rest-${measureIndex + 1}-${beatIndex + 1}`,
+      tick,
+      rhythm: { base: "quarter" as const, dots: 0 },
+      kind: "rest" as const,
+      notes: [],
+    }));
+  });
+  return document;
+};
+
 const target = {
   trackId: "mvp2-track-guitar",
   measureId: "mvp2-measure-1",
@@ -416,5 +435,159 @@ describe("applyScoreCommand", () => {
       measureId: target.measureId,
     });
     expect(removed).toMatchObject({ ok: true });
+  });
+
+  it("从第四小节建立持续 3/4 段落且整批只增加一次 revision", () => {
+    const document = createAllRestDocument();
+    const track = document.score.tracks[0]!;
+    const originalReferences = [...track.measures];
+    const result = applyScoreCommand(document, {
+      type: LXMScoreCommandEnum.SetTimeSignature,
+      trackId: track.id,
+      measureId: track.measures[3]!.id,
+      timeSignature: { numerator: 3, denominator: 4 },
+      scope: "untilNextChange",
+    });
+
+    expect(result).toMatchObject({ ok: true, changed: true });
+    if (!result.ok) return;
+    const nextMeasures = result.document.score.tracks[0]!.measures;
+    expect(
+      nextMeasures.map(
+        (measure) =>
+          `${measure.timeSignature.numerator}/${measure.timeSignature.denominator}`,
+      ),
+    ).toEqual(["4/4", "4/4", "4/4", "3/4", "3/4", "3/4", "3/4", "3/4"]);
+    expect(result.document.documentRevision).toBe(
+      document.documentRevision + 1,
+    );
+    // 范围外小节保持原引用；范围内小节才被不可变替换。
+    expect(nextMeasures[0]).toBe(originalReferences[0]);
+    expect(nextMeasures[2]).toBe(originalReferences[2]);
+    expect(nextMeasures[3]).not.toBe(originalReferences[3]);
+  });
+
+  it("仅当前小节变拍会保留相邻小节并形成恢复拍号显示", () => {
+    const document = createAllRestDocument();
+    const track = document.score.tracks[0]!;
+    const result = applyScoreCommand(document, {
+      type: LXMScoreCommandEnum.SetTimeSignature,
+      trackId: track.id,
+      measureId: track.measures[3]!.id,
+      timeSignature: { numerator: 3, denominator: 4 },
+      scope: "measure",
+    });
+
+    expect(result).toMatchObject({ ok: true, changed: true });
+    if (!result.ok) return;
+    const nextTrack = result.document.score.tracks[0]!;
+    expect(nextTrack.measures[3]!.timeSignature).toEqual({
+      numerator: 3,
+      denominator: 4,
+    });
+    expect(nextTrack.measures[4]!.timeSignature).toEqual({
+      numerator: 4,
+      denominator: 4,
+    });
+
+    const timeSignatures = buildLayout(result.document, {
+      systemWidth: 2000,
+    }).systems.flatMap((system) =>
+      system.measures.flatMap((measure) =>
+        measure.timeSignature
+          ? [
+              `${measure.timeSignature.numerator.text}/${measure.timeSignature.denominator.text}`,
+            ]
+          : [],
+      ),
+    );
+    expect(timeSignatures).toEqual(["4/4", "3/4", "4/4"]);
+  });
+
+  it("持续范围在命令前已有的下一拍号变化点停止", () => {
+    const document = createAllRestDocument();
+    const track = document.score.tracks[0]!;
+    track.measures.slice(4).forEach((measure) => {
+      measure.timeSignature = { numerator: 3, denominator: 4 };
+      measure.beats = [0, 960, 1920].map((tick, index) => ({
+        id: `existing-three-four-${measure.id}-${index}`,
+        tick,
+        rhythm: { base: "quarter" as const, dots: 0 },
+        kind: "rest" as const,
+        notes: [],
+      }));
+    });
+
+    const result = applyScoreCommand(document, {
+      type: LXMScoreCommandEnum.SetTimeSignature,
+      trackId: track.id,
+      measureId: track.measures[2]!.id,
+      timeSignature: { numerator: 6, denominator: 8 },
+      scope: "untilNextChange",
+    });
+    expect(result).toMatchObject({ ok: true, changed: true });
+    if (!result.ok) return;
+    expect(
+      result.document.score.tracks[0]!.measures.map(
+        (measure) => measure.timeSignature,
+      ),
+    ).toEqual([
+      { numerator: 4, denominator: 4 },
+      { numerator: 4, denominator: 4 },
+      { numerator: 6, denominator: 8 },
+      { numerator: 6, denominator: 8 },
+      { numerator: 3, denominator: 4 },
+      { numerator: 3, denominator: 4 },
+      { numerator: 3, denominator: 4 },
+      { numerator: 3, denominator: 4 },
+    ]);
+  });
+
+  it("多小节中任一真实内容溢出时整条命令原子失败", () => {
+    const document = createAllRestDocument();
+    const originalFixture = createDocument();
+    // 第二小节恢复为填满 4/4 的真实八分音符，确保 3/4 缩容必然切到内容。
+    document.score.tracks[0]!.measures[1] =
+      originalFixture.score.tracks[0]!.measures[1]!;
+    const snapshot = structuredClone(document);
+    const firstMeasureReference = document.score.tracks[0]!.measures[0];
+
+    const result = applyScoreCommand(document, {
+      type: LXMScoreCommandEnum.SetTimeSignature,
+      trackId: target.trackId,
+      measureId: document.score.tracks[0]!.measures[0]!.id,
+      timeSignature: { numerator: 3, denominator: 4 },
+      scope: "untilNextChange",
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      code: "MEASURE_CONTENT_EXCEEDS_TIME_SIGNATURE",
+    });
+    expect(document).toEqual(snapshot);
+    expect(document.score.tracks[0]!.measures[0]).toBe(firstMeasureReference);
+  });
+
+  it("拒绝非白名单拍号并让相同拍号保持 no-op", () => {
+    const document = createAllRestDocument();
+    expect(
+      applyScoreCommand(document, {
+        type: LXMScoreCommandEnum.SetTimeSignature,
+        trackId: target.trackId,
+        measureId: target.measureId,
+        timeSignature: { numerator: 5, denominator: 8 },
+        scope: "measure",
+      }),
+    ).toMatchObject({ ok: false, code: "UNSUPPORTED_TIME_SIGNATURE" });
+
+    expect(
+      applyScoreCommand(document, {
+        type: LXMScoreCommandEnum.SetTimeSignature,
+        trackId: target.trackId,
+        measureId: target.measureId,
+        timeSignature: { numerator: 4, denominator: 4 },
+        scope: "untilNextChange",
+      }),
+    ).toEqual({ ok: true, changed: false, document });
   });
 });

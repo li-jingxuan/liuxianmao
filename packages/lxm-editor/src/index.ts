@@ -8,6 +8,7 @@ export * from "./core/commands";
 export * from "./core/loader";
 export * from "./core/schema";
 export * from "./core/semantic-validation";
+export * from "./core/time-signature-change";
 export * from "./core/types";
 
 /**
