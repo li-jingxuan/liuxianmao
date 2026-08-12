@@ -43,6 +43,25 @@ describe("loadDocument", () => {
     );
   });
 
+  it("加载旧扫弦数据时从目标 Beat Note 推导兼容弦范围", () => {
+    const legacyDocument = structuredClone(EXAMPLE_MVP_5);
+    const strum = legacyDocument.score.tracks[0]!.techniques.find(
+      (technique) => technique.type === "strum",
+    );
+    if (!strum || strum.type !== "strum") throw new Error("缺少扫弦 fixture");
+    const legacyStrum = strum as Partial<typeof strum>;
+    delete legacyStrum.minString;
+    delete legacyStrum.maxString;
+
+    const result = loadDocument(JSON.stringify(legacyDocument));
+    if (!result.ok) throw new Error(result.errors.join("\n"));
+    expect(
+      result.document.score.tracks[0]!.techniques.find(
+        (technique) => technique.type === "strum",
+      ),
+    ).toMatchObject({ minString: 2, maxString: 3 });
+  });
+
   it("文档字段不符合 schema 时返回字段路径和错误信息", () => {
     const invalidDocument = {
       ...EXAMPLE_MVP_1,

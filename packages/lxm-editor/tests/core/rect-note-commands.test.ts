@@ -151,6 +151,64 @@ describe("rect Note commands", () => {
     });
   });
 
+  it("在扫弦范围内输入单个音符时级联取消整拍技巧", () => {
+    const document = structuredClone(EXAMPLE_MVP_4);
+    const track = document.score.tracks[0]!;
+    const targetBeat = track.measures[0]!.beats[0]!;
+    track.techniques = [
+      {
+        id: "tech-cancelled-by-single-note-input",
+        type: "strum",
+        beatId: targetBeat.id,
+        minString: 2,
+        maxString: 5,
+        stroke: "down",
+      },
+    ];
+    const revisionBefore = document.documentRevision;
+
+    const result = applyScoreCommand(document, {
+      type: LXMScoreCommandEnum.SetNotesInRect,
+      range: range(endpoint(1, 1, 3), endpoint(1, 1, 3)),
+      fret: 9,
+    });
+    expect(result).toMatchObject({ ok: true, changed: true });
+    if (!result.ok) return;
+
+    expect(result.document.documentRevision).toBe(revisionBefore + 1);
+    expect(result.document.score.tracks[0]!.techniques).toEqual([]);
+    expect(
+      result.document.score.tracks[0]!.measures[0]!.beats[0]!.notes.find(
+        (note) => note.string === 3,
+      )?.fret,
+    ).toBe(9);
+  });
+
+  it("在扫弦范围外输入单个音符时保留技巧", () => {
+    const document = structuredClone(EXAMPLE_MVP_4);
+    const track = document.score.tracks[0]!;
+    const targetBeat = track.measures[0]!.beats[0]!;
+    track.techniques = [
+      {
+        id: "tech-preserved-outside-range",
+        type: "strum",
+        beatId: targetBeat.id,
+        minString: 2,
+        maxString: 4,
+        stroke: "down",
+      },
+    ];
+
+    const result = applyScoreCommand(document, {
+      type: LXMScoreCommandEnum.SetNotesInRect,
+      range: range(endpoint(1, 1, 6), endpoint(1, 1, 6)),
+      fret: 7,
+    });
+    expect(result).toMatchObject({ ok: true, changed: true });
+    if (!result.ok) return;
+    expect(result.document.score.tracks[0]!.techniques).toHaveLength(1);
+  });
+
   it("非法品位和范围原子失败且不消费原文档", () => {
     const document = structuredClone(EXAMPLE_MVP_4);
     const snapshot = structuredClone(document);

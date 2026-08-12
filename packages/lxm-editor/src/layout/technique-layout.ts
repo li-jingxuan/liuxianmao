@@ -15,11 +15,15 @@ import type { ILXMTechnique, ILXMTrack } from "../core/types";
 import {
   LXM_TECHNIQUE_AREA_PADDING_BOTTOM,
   LXM_TECHNIQUE_AREA_PADDING_TOP,
+  LXM_TECHNIQUE_ARROW_HEIGHT,
+  LXM_TECHNIQUE_ARROW_WIDTH,
   LXM_TECHNIQUE_HIT_PADDING,
   LXM_TECHNIQUE_HORIZONTAL_CLEARANCE,
   LXM_TECHNIQUE_LANE_HEIGHT,
   LXM_TECHNIQUE_PATH_STROKE_WIDTH,
   LXM_TECHNIQUE_TEXT_FONT_SIZE,
+  LXM_DURATION_STEM_NOTE_GAP,
+  LXM_TECHNIQUE_ARROW_OFFSET_Y,
 } from "./layout-constants";
 import type {
   ILXMBarlineLayout,
@@ -50,6 +54,8 @@ interface ILXMAnchorMaps {
       x: number;
       width: number;
       notes: ILXMNoteLayout[];
+      /** 当前 measure 六根弦的最终 Y 坐标，供显式选择范围技巧使用。 */
+      stringYByIndex: ReadonlyMap<number, number>;
       systemIndex: number;
     }
   >;
@@ -72,6 +78,7 @@ const buildAnchorMaps = (systems: ILXMSystemLayout[]): ILXMAnchorMaps => {
       x: number;
       width: number;
       notes: ILXMNoteLayout[];
+      stringYByIndex: ReadonlyMap<number, number>;
       systemIndex: number;
     }
   >();
@@ -85,12 +92,141 @@ const buildAnchorMaps = (systems: ILXMSystemLayout[]): ILXMAnchorMaps => {
           x: beat.x,
           width: beat.width,
           notes: measure.notes.filter((note) => note.beatId === beat.id),
+          stringYByIndex: new Map(
+            measure.strings.map((string) => [string.index, string.y1]),
+          ),
           systemIndex: system.index,
         }),
       );
     }),
   );
   return { notes, beats };
+};
+
+/**
+ * 收集应隐藏基础品位文本的 Beat × 弦范围。
+ *
+ * 范围端点来自用户的矩形选区，不要求端点上预先存在 Note；只要弦号能解析到当前
+ * staff 的真实 Y 坐标即可。非法范围不会进入投影，避免技巧无路径时误隐藏品位。
+ */
+interface ILXMFretSuppressionRange {
+  beatId: string;
+  minString: number;
+  maxString: number;
+}
+
+const getFretSuppressionRanges = (
+  techniques: ILXMTechnique[],
+  anchors: ILXMAnchorMaps,
+): readonly ILXMFretSuppressionRange[] =>
+  techniques.flatMap((technique) => {
+    if (technique.type !== "strum" && technique.type !== "arpeggio") return [];
+    const beat = anchors.beats.get(technique.beatId);
+    const hasValidRange =
+      beat?.stringYByIndex.has(technique.minString) &&
+      beat.stringYByIndex.has(technique.maxString) &&
+      technique.minString < technique.maxString;
+    return hasValidRange
+      ? [
+          {
+            beatId: technique.beatId,
+            minString: technique.minString,
+            maxString: technique.maxString,
+          },
+        ]
+      : [];
+  });
+
+/**
+ * 在所有时值、技巧 anchor 与 SVG segment 完成后，只裁剪最终可见的基础品位。
+ * 保持结构共享既减少无关对象变化，也让调用方可以可靠判断哪些 system/measure
+ * 真正受到了投影影响。
+ */
+const applyFretVisibilityProjection = (
+  systems: ILXMSystemLayout[],
+  suppressionRanges: readonly ILXMFretSuppressionRange[],
+): ILXMSystemLayout[] => {
+  if (suppressionRanges.length === 0) return systems;
+
+  return systems.map((system) => {
+    let systemChanged = false;
+    const measures = system.measures.map((measure) => {
+      const notes = measure.notes.filter(
+        (note) =>
+          !suppressionRanges.some(
+            (range) =>
+              range.beatId === note.beatId &&
+              note.string >= range.minString &&
+              note.string <= range.maxString,
+          ),
+      );
+      if (notes.length === measure.notes.length) return measure;
+      systemChanged = true;
+      return { ...measure, notes };
+    });
+    return systemChanged ? { ...system, measures } : system;
+  });
+};
+
+/**
+ * 让符干避开同 Beat 的扫弦/琶音范围。
+ *
+ * duration layout 仍先用完整 Note 计算 beam/flag；技巧范围确定后这里只扩大 stem
+ * 起点到“最低 Note 与最下方技巧弦线”两者中更靠下的位置，不改其他节奏几何。
+ */
+const applyChordTraversalDurationProjection = (
+  systems: ILXMSystemLayout[],
+  techniques: ILXMTechnique[],
+): ILXMSystemLayout[] => {
+  type ChordTraversalTechnique = Extract<
+    ILXMTechnique,
+    { type: "strum" | "arpeggio" }
+  >;
+  const techniquesByBeatId = new Map<string, ChordTraversalTechnique[]>();
+  techniques.forEach((technique) => {
+    if (technique.type !== "strum" && technique.type !== "arpeggio") return;
+    const beatTechniques = techniquesByBeatId.get(technique.beatId) ?? [];
+    beatTechniques.push(technique);
+    techniquesByBeatId.set(technique.beatId, beatTechniques);
+  });
+  if (techniquesByBeatId.size === 0) return systems;
+
+  return systems.map((system) => {
+    let systemChanged = false;
+    const measures = system.measures.map((measure) => {
+      let measureChanged = false;
+      const durationMarks = measure.durationMarks.map((mark) => {
+        const beatTechniques = techniquesByBeatId.get(mark.beatId);
+        if (!beatTechniques) return mark;
+        const stemY1 = beatTechniques.reduce((lowestY, technique) => {
+          const stringY = measure.strings.find(
+            (string) => string.index === technique.maxString,
+          )?.y1;
+          if (stringY === undefined) return lowestY;
+          // 下行琶音的显式箭头会越过最下方弦线；复用同一个 offset 常量，保证
+          // 箭头视觉几何与符干避让始终同步。扫弦和上行琶音没有底部延伸。
+          const techniqueBottomOffset =
+            technique.type === "arpeggio" &&
+            technique.direction === "descending"
+              ? LXM_TECHNIQUE_ARROW_OFFSET_Y
+              : 0;
+          return Math.max(
+            lowestY,
+            stringY +
+              LXM_DURATION_STEM_NOTE_GAP +
+              techniqueBottomOffset,
+          );
+        }, mark.stemY1);
+        if (stemY1 === mark.stemY1) return mark;
+        measureChanged = true;
+        return { ...mark, stemY1 };
+      });
+      if (!measureChanged) return measure;
+      systemChanged = true;
+      return { ...measure, durationMarks };
+    });
+    return systemChanged ? { ...system, measures } : system;
+  });
 };
 
 const isStaffLocal = (technique: ILXMTechnique): boolean =>
@@ -165,6 +301,19 @@ const createCandidates = (
   track.techniques.flatMap((technique) => {
     const endpoints = getTechniqueEndpoints(technique, anchors);
     if (!endpoints) return [];
+    if (
+      (technique.type === "strum" || technique.type === "arpeggio") &&
+      (technique.minString >= technique.maxString ||
+        !anchors.beats
+          .get(technique.beatId)
+          ?.stringYByIndex.has(technique.minString) ||
+        !anchors.beats
+          .get(technique.beatId)
+          ?.stringYByIndex.has(technique.maxString))
+    )
+      // buildLayout 是公开函数，不能假设所有调用者都先执行过语义校验。非法整拍
+      // 技巧直接跳过，比输出含 Infinity/NaN 的 path 与 bounds 更安全、可预测。
+      return [];
     const candidates: ILXMTechniqueCandidate[] = [];
     for (
       let systemIndex = endpoints.startSystem;
@@ -394,6 +543,8 @@ const createSegmentLayout = (
     (lane + 1) * LXM_TECHNIQUE_LANE_HEIGHT -
     4;
   let path: ILXMTechniqueSegmentLayout["path"] = null;
+  let arrowHead: ILXMTechniqueSegmentLayout["arrowHead"];
+  let focusEndpoints: ILXMTechniqueSegmentLayout["focusEndpoints"];
   let texts: ILXMTextLayout[] = [];
   let minY = laneY - 8;
   let maxY = laneY + 4;
@@ -452,14 +603,42 @@ const createSegmentLayout = (
       if (technique.type === "pickStroke") {
         texts = [text(technique.stroke === "down" ? "⌄" : "⌃", beat.x, laneY)];
       } else {
-        const ys = beat.notes.map((note) => note.y);
-        const y1 = Math.min(...ys) - 2;
-        const y2 = Math.max(...ys) + 2;
-        const x = beat.x - 9;
+        const fromY = beat.stringYByIndex.get(technique.minString);
+        const toY = beat.stringYByIndex.get(technique.maxString);
+        // createCandidates 已过滤非法范围；这里保留窄化守卫，防止未来 anchor 构建
+        // 契约变化时把 undefined 坐标传播到 SVG path。
+        if (fromY === undefined || toY === undefined) return {
+            techniqueId: technique.id,
+            type: technique.type,
+            systemIndex: candidate.systemIndex,
+            segmentIndex: candidate.segmentIndex,
+            continuation: candidate.continuation,
+            lane,
+            path: null,
+            texts: [],
+            bounds: { x: beat.x, y: 0, width: 0, height: 0 },
+          };
+        const y1 = Math.min(fromY, toY) - 2;
+        const y2 = Math.max(fromY, toY) + 2;
+        // 基础品位在投影阶段隐藏，因此记号应与 Beat/Note 的时间中心重合。
+        const x = beat.x;
         x1 = x - 3;
         x2 = x + 3;
         minY = y1;
         maxY = y2;
+        const directionStartY =
+          technique.type === "arpeggio"
+            ? technique.direction === "ascending"
+              ? y2
+              : y1
+            : technique.stroke === "down"
+              ? y2
+              : y1;
+        const directionEndY = directionStartY === y1 ? y2 : y1;
+        focusEndpoints = {
+          start: { x, y: directionStartY },
+          end: { x, y: directionEndY },
+        };
         path =
           technique.type === "arpeggio"
             ? {
@@ -469,7 +648,6 @@ const createSegmentLayout = (
                     ? verticalWavePath(x, y2, y1)
                     : verticalWavePath(x, y1, y2),
                 strokeWidth: LXM_TECHNIQUE_PATH_STROKE_WIDTH,
-                markerEnd: "arrow",
               }
             : {
                 // down/up 是演奏手方向。TAB 的低音弦在下方，因此 down 从 y2 指向
@@ -481,6 +659,27 @@ const createSegmentLayout = (
                 strokeWidth: LXM_TECHNIQUE_PATH_STROKE_WIDTH,
                 markerEnd: "arrow",
               };
+        if (technique.type === "arpeggio") {
+          const direction = technique.direction === "ascending" ? "up" : "down";
+          const offsetTipY = direction === "up" ? -LXM_TECHNIQUE_ARROW_OFFSET_Y : LXM_TECHNIQUE_ARROW_OFFSET_Y;
+          const tipY = (direction === "up" ? y1 : y2) + offsetTipY;
+          const baseY =
+            direction === "up"
+              ? tipY + LXM_TECHNIQUE_ARROW_HEIGHT
+              : tipY - LXM_TECHNIQUE_ARROW_HEIGHT;
+          arrowHead = {
+            direction,
+            points: [
+              [x, tipY],
+              [x - LXM_TECHNIQUE_ARROW_WIDTH / 2, baseY],
+              [x + LXM_TECHNIQUE_ARROW_WIDTH / 2, baseY],
+            ],
+          };
+          minY = Math.min(minY, tipY, baseY);
+          maxY = Math.max(maxY, tipY, baseY);
+          x1 = Math.min(x1, x - LXM_TECHNIQUE_ARROW_WIDTH / 2);
+          x2 = Math.max(x2, x + LXM_TECHNIQUE_ARROW_WIDTH / 2);
+        }
       }
     }
   } else {
@@ -529,6 +728,8 @@ const createSegmentLayout = (
     continuation: candidate.continuation,
     lane,
     path,
+    ...(arrowHead ? { arrowHead } : {}),
+    ...(focusEndpoints ? { focusEndpoints } : {}),
     texts,
     bounds: {
       x: x1 - padding,
@@ -568,7 +769,7 @@ export const layoutTrackTechniques = (
     segmentsBySystem.set(candidate.systemIndex, segments);
   });
 
-  return systems.map((system) => ({
+  const systemsWithTechniques = systems.map((system) => ({
     ...system,
     techniques: (segmentsBySystem.get(system.index) ?? []).sort(
       (left, right) =>
@@ -577,4 +778,13 @@ export const layoutTrackTechniques = (
         left.techniqueId.localeCompare(right.techniqueId),
     ),
   }));
+  // anchors 在投影前由完整 Note layout 建立；技巧跨度、时值符干与其他 Note 技巧
+  // 均已消费真实坐标。这里过滤只影响最终 adapter 可见的基础品位文本。
+  return applyFretVisibilityProjection(
+    applyChordTraversalDurationProjection(
+      systemsWithTechniques,
+      track.techniques,
+    ),
+    getFretSuppressionRanges(track.techniques, anchors),
+  );
 };

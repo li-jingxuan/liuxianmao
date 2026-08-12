@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import {
   CURRENT_SCHEMA_VERSION,
+  GUITAR_STRING_COUNT,
   LXM_BARLINE_TYPES,
   LXM_BEAT_KINDS,
   LXM_CHORD_SYMBOL_DISPLAY_TYPES,
@@ -139,6 +140,8 @@ export const LXMTechniqueSchema = z.discriminatedUnion("type", [
       id: z.string(),
       type: z.literal("strum"),
       beatId: z.string(),
+      minString: z.number().int().min(1).max(GUITAR_STRING_COUNT),
+      maxString: z.number().int().min(1).max(GUITAR_STRING_COUNT),
       stroke: z.enum(LXM_STROKE_DIRECTIONS),
     })
     .strict(),
@@ -147,6 +150,8 @@ export const LXMTechniqueSchema = z.discriminatedUnion("type", [
       id: z.string(),
       type: z.literal("arpeggio"),
       beatId: z.string(),
+      minString: z.number().int().min(1).max(GUITAR_STRING_COUNT),
+      maxString: z.number().int().min(1).max(GUITAR_STRING_COUNT),
       direction: z.enum(LXM_ARPEGGIO_DIRECTIONS),
     })
     .strict(),

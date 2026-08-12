@@ -83,7 +83,11 @@ export const buildLayout = (
   };
 };
 
-export { hitTestLayout, hitTestTechnique } from "./hit-test";
+export {
+  hitTestLayout,
+  hitTestTechnique,
+  hitTestTechniqueTarget,
+} from "./hit-test";
 export { layoutTabCellCaret, layoutTabCellSelection } from "./selection-layout";
 export type {
   ILXMTabCellCaretLayout,

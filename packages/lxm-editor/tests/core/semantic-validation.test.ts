@@ -35,4 +35,33 @@ describe("validateDocumentSemantics", () => {
       ]),
     });
   });
+
+  it("拒绝同一 Beat 上方向不同的重复扫弦记号", () => {
+    const document = createDocument();
+    document.score.tracks[0]!.techniques = [
+      {
+        id: "semantic-strum-down",
+        type: "strum",
+        beatId: "mvp2-beat-1-2",
+        minString: 2,
+        maxString: 3,
+        stroke: "down",
+      },
+      {
+        id: "semantic-strum-up",
+        type: "strum",
+        beatId: "mvp2-beat-1-2",
+        minString: 2,
+        maxString: 3,
+        stroke: "up",
+      },
+    ];
+
+    expect(validateDocumentSemantics(document)).toMatchObject({
+      ok: false,
+      issues: expect.arrayContaining([
+        expect.objectContaining({ code: "INVALID_TECHNIQUE" }),
+      ]),
+    });
+  });
 });

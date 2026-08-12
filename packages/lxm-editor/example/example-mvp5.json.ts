@@ -75,12 +75,16 @@ const techniques: ILXMTechnique[] = [
     id: "mvp5-tech-strum",
     type: "strum",
     beatId: "mvp2-beat-1-2",
+    minString: 2,
+    maxString: 3,
     stroke: "down",
   },
   {
     id: "mvp5-tech-arpeggio",
     type: "arpeggio",
     beatId: "mvp2-beat-1-5",
+    minString: 2,
+    maxString: 6,
     direction: "ascending",
   },
   {

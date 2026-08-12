@@ -5,6 +5,7 @@ import {
   LXMMeasureSchema,
   LXMNoteSchema,
   LXMRhythmSchema,
+  LXMTechniqueSchema,
   LXMTrackSchema,
 } from "../../src/core/schema";
 
@@ -81,5 +82,26 @@ describe("core schema", () => {
     });
 
     expect(result.success).toBe(false);
+  });
+
+  it("扫弦 schema 要求持久化用户选择的弦范围", () => {
+    expect(
+      LXMTechniqueSchema.safeParse({
+        id: "schema-strum-range",
+        type: "strum",
+        beatId: "beat-1",
+        minString: 2,
+        maxString: 5,
+        stroke: "down",
+      }).success,
+    ).toBe(true);
+    expect(
+      LXMTechniqueSchema.safeParse({
+        id: "schema-strum-without-range",
+        type: "strum",
+        beatId: "beat-1",
+        stroke: "down",
+      }).success,
+    ).toBe(false);
   });
 });

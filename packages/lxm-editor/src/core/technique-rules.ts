@@ -5,7 +5,7 @@
  * interface 后面。命令、loader 语义校验和页面只消费这里的结果，不各自实现一套
  * “看起来合法”的近似规则，否则删除、加载与交互很容易产生不同结论。
  */
-import { MAX_FRET } from "./constants";
+import { GUITAR_STRING_COUNT, MAX_FRET } from "./constants";
 import type {
   ILXMBeat,
   ILXMNote,
@@ -164,7 +164,11 @@ const getTechniqueKey = (
   if (isBeatTechnique(technique)) {
     const direction =
       technique.type === "arpeggio" ? technique.direction : technique.stroke;
-    return `${technique.type}:${technique.beatId}:${direction}`;
+    const stringRange =
+      technique.type === "strum" || technique.type === "arpeggio"
+        ? `:${technique.minString}:${technique.maxString}`
+        : "";
+    return `${technique.type}:${technique.beatId}${stringRange}:${direction}`;
   }
   return `${technique.type}:${technique.fromBeatId}:${technique.toBeatId}`;
 };
@@ -270,16 +274,24 @@ export const validateTechnique = (
         "技巧目标 Beat 不存在",
         "beatId",
       );
-    const noteCount = target.beat.kind === "notes" ? target.beat.notes.length : 0;
     if (
-      (technique.type === "strum" || technique.type === "arpeggio") &&
-      noteCount < 2
-    )
-      return fail(
-        "TECHNIQUE_TARGET_INVALID",
-        "扫弦和琶音要求目标 Beat 至少包含两颗音符",
-        "beatId",
-      );
+      technique.type === "strum" ||
+      technique.type === "arpeggio"
+    ) {
+      if (
+        !Number.isInteger(technique.minString) ||
+        !Number.isInteger(technique.maxString) ||
+        technique.minString < 1 ||
+        technique.maxString > GUITAR_STRING_COUNT ||
+        technique.minString >= technique.maxString
+      )
+        return fail(
+          "TECHNIQUE_TARGET_INVALID",
+          "扫弦和琶音要求同一 Beat 内至少选择两根连续弦线",
+          "maxString",
+        );
+    }
+    const noteCount = target.beat.kind === "notes" ? target.beat.notes.length : 0;
     if (technique.type === "pickStroke" && noteCount !== 1)
       return fail(
         "TECHNIQUE_TARGET_INVALID",
@@ -355,14 +367,21 @@ export const validateTechnique = (
     )
       return fail("TECHNIQUE_CONFLICT", "颤音奏与同起点 H/P 不能重复表达");
 
+    const techniqueIsChordTraversal =
+      technique.type === "strum" || technique.type === "arpeggio";
+    const existingIsChordTraversal =
+      existing.type === "strum" || existing.type === "arpeggio";
     if (
-      isBeatTechnique(technique) &&
-      isBeatTechnique(existing) &&
-      technique.beatId === existing.beatId &&
-      ((technique.type === "strum" && existing.type === "arpeggio") ||
-        (technique.type === "arpeggio" && existing.type === "strum"))
+      techniqueIsChordTraversal &&
+      existingIsChordTraversal &&
+      technique.beatId === existing.beatId
     )
-      return fail("TECHNIQUE_CONFLICT", "同一和弦不能同时标记扫弦和琶音");
+      // 方向是同一个整拍技巧的可修改参数，不是允许叠加第二个记号的维度。
+      // 统一限制还能避免 down/up 或 ascending/descending 在同一位置重叠绘制。
+      return fail(
+        "TECHNIQUE_CONFLICT",
+        "同一和弦最多只能标记一个扫弦或琶音技巧",
+      );
 
     if (
       isBeatRange(technique) &&

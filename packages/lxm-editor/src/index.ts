@@ -2,6 +2,7 @@ export * from "./layout";
 export * from "./layout/layout-types";
 export * from "./editing/navigation";
 export * from "./editing/tab-cell-selection";
+export * from "./editing/technique-selection";
 export * from "./core/constants";
 export * from "./core/id-factory";
 export * from "./core/commands";

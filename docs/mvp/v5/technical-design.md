@@ -39,8 +39,8 @@ v5 在这一基线上增加吉他技巧闭环：
 | 单音标记 | `naturalHarmonic`、`artificialHarmonic` | Note                  | 品位数字两侧 `< >` 与 `[ ]`      |
 | 单音标记 | `tapping`                               | Note                  | 音符上方 `T`                     |
 | 单音标记 | `trill`                                 | Note + 辅助 fret      | `tr`、辅助品位和短波浪线         |
-| 整拍标记 | `strum`                                 | Beat                  | 和弦左侧直线扫弦方向记号         |
-| 整拍标记 | `arpeggio`                              | Beat                  | 和弦左侧波浪线及上行/下行箭头    |
+| 整拍标记 | `strum`                                 | Beat + 连续弦范围      | 和弦中心直线扫弦方向记号         |
+| 整拍标记 | `arpeggio`                              | Beat + 连续弦范围      | 和弦中心波浪线及上行/下行箭头    |
 | 整拍标记 | `pickStroke`                            | Beat                  | 音符上方拨片上拨/下拨符号        |
 | 区间标记 | `palmMute`                              | 起始 Beat + 结束 Beat | 上方 `P.M.` 与延续虚线           |
 | 区间标记 | `letRing`                               | 起始 Beat + 结束 Beat | 上方 `let ring` 与延续虚线       |
@@ -55,10 +55,10 @@ v5 在这一基线上增加吉他技巧闭环：
 - `slideUp` 要求目标 fret 大于起始 fret；`slideDown` 要求目标 fret 小于起始 fret。
 - `tie` 要求两端实际音高相同；同一 track、同一弦下等价为 fret 相同。
 - `palmMute` 可覆盖多根弦上的演奏，但 Beat 端点仍必须按 track 的文档时间顺序递增。
-- `strum`、`arpeggio` 的目标 Beat 必须为 notes 且至少包含两颗 Note；`pickStroke` 首版只用于恰好一颗 Note 的 Beat，避免与扫弦方向重复表达。
+- `strum`、`arpeggio` 的选区必须位于同一 Beat 且跨至少两根弦线，并持久化 `minString/maxString`；`pickStroke` 首版只用于恰好一颗 Note 的 Beat，避免与扫弦方向重复表达。
 - `strum.stroke` 使用吉他演奏术语 `down/up`：down 表示从低音弦扫向高音弦，不能直接等同于 SVG Y 轴方向；视觉映射只由 layout 处理。
 - `arpeggio.direction` 使用音高语义 `ascending/descending`，避免与扫弦手部方向混淆。
-- 扫弦/琶音保留目标 Beat 的全部源 Note；按 [扫弦/琶音优先记谱 Fix](./strum-arpeggio-note-exclusivity-fix.md)，核心 layout 完成技巧与时值几何后，在最终投影中隐藏该 Beat 的品位文本。
+- 扫弦/琶音保留目标 Beat 的全部源 Note；核心 layout 完成技巧与时值几何后，在最终投影中只隐藏弦范围内的基础品位。范围内单格输入会在同一命令中取消技巧，范围外输入不受影响。
 - `tapping` 作用于一颗 Note；`trill` 保存主 Note 与 `auxiliaryFret`，不虚构第二个具有独立时值的 Note。辅助品位必须合法且不同于主品位。
 - `palmMute` 与 `letRing` 改为稳定 Beat 区间引用；端点 Beat 必须为 notes、顺序递增，区间内不能经过全局 rest。
 - 休止 Beat 不能作为任何技巧端点。
@@ -230,12 +230,16 @@ type ILXMTechnique =
       id: string;
       type: "strum";
       beatId: string;
+      minString: number;
+      maxString: number;
       stroke: "down" | "up";
     }
   | {
       id: string;
       type: "arpeggio";
       beatId: string;
+      minString: number;
+      maxString: number;
       direction: "ascending" | "descending";
     }
   | {
@@ -379,7 +383,7 @@ findNextNoteOnSameString(
 持久化引用不能因已有命令产生悬挂：
 
 - `note.remove` / `note.removeRect`：删除 Note 的同一原子命令内，级联删除所有引用该 Note 的技巧；
-- 删除 Note 后若 Beat 已不满足整拍技巧约束，例如和弦只剩一颗 Note，则同一命令级联删除该 Beat 的 `strum` / `arpeggio`；
+- 在 `minString/maxString` 范围内输入单格 Note 时，同一命令级联删除该 Beat 的 `strum` / `arpeggio`；范围外输入保留技巧；
 - `beat.setKind` 变为 rest：清空 notes，并删除该 Beat 上的单音/连接/整拍技巧，以及以该 Beat 为端点或经过该 Beat 的区间技巧；
 - `measure.remove`：级联删除引用该小节任意 Note/Beat 的技巧；
 - `measure.copy`：复制 Note 并重建 Note ID，但不复制技巧；技巧可能跨越源小节边界，自动复制会产生含糊语义；
@@ -493,7 +497,7 @@ Tie 和其他连接技巧共享 segment interface，但使用不同的续接模�
 - bend 曲线、vibrato、tapping、trill、pickStroke、hammer/pull/tie 弧线、palm mute 和 let ring 使用同一 lane 分配器；
 - slide 位于同弦两个 fret 文本之间，不占 system 上方 lane，但其端点避开文本包围区；
 - natural/artificial harmonic 扩大对应 Note 的文本装饰范围，不改变 Beat X；
-- strum/arpeggio 位于和弦左侧并纵向覆盖该 Beat 的最高、最低目标弦；strum 使用直线方向记号，arpeggio 使用波浪线，direction 决定可选箭头；二者不占上方 lane；源 Note 先参与跨度与时值计算，再从最终可见 Note layout 中移除；
+- strum/arpeggio 横向居中于目标 Beat/Note，并纵向覆盖用户在同一 Beat 选择的 `minString/maxString` 连续弦范围；strum 使用直线方向记号，arpeggio 使用波浪线，direction 决定箭头；二者不占上方 lane；源 Note 先参与时值与其他技巧计算，再按弦范围从最终可见 Note layout 中移除；
 - strum 的 down/up 是演奏手方向，arpeggio 的 ascending/descending 是音高方向；layout 结合 TAB 弦序映射到最终箭头，不允许页面直接把枚举值映射为 SVG `y1/y2`；
 - technique area 高度进入 system.height，相邻 system 的 Y 位置必须在该高度确定后计算；
 - v5 只处理技巧彼此、TAB 行头、拍号、staff 与页面裁切的碰撞。歌词、和弦名称等 v6 lane 尚不存在。
@@ -507,7 +511,7 @@ Tie 和其他连接技巧共享 segment interface，但使用不同的续接模�
 - 泛音括号后的 fret 文本包围宽度；
 - 极短距离的 `H` / `P` 标签；
 - bend 的起点箭头与 `Full` 文本。
-- strum/arpeggio 在和弦左侧的纵向记号及其水平净空。
+- strum/arpeggio 在和弦中心的纵向记号及其水平净空。
 
 实现时扩展 `summarizeMeasureSpacingWidth` 的内部 contributor，而不是从 website 传 `widthContributors`。贡献按 Beat ID 汇总到节奏列最小宽度；长区间的 path 本身不贡献宽度。
 
@@ -521,7 +525,7 @@ Tie 和其他连接技巧共享 segment interface，但使用不同的续接模�
 - tapping 使用 focus Note；trill 还要求用户选择合法辅助品位；
 - 双音技巧：若选区在同一弦且起止单元格都有 Note，按文档顺序作为两端；
 - 双音快捷：折叠选区时可使用“连接到同弦下一音”；
-- strum/arpeggio：使用 focus Beat，要求该 Beat 至少两颗 Note；pickStroke 要求单音 Beat；
+- strum/arpeggio：要求选区位于同一 Beat 且至少跨两根弦线，持久化规范化的 `minString/maxString`；pickStroke 要求单音 Beat；
 - palm mute/let ring：使用选区首尾 Beat；跨弦矩形允许，弦范围不进入持久化目标；
 - 点击已渲染技巧进入临时 `selectedTechniqueId`，可修改或删除；该 UI 状态不进入 document/history。
 

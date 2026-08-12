@@ -97,6 +97,12 @@ export interface ILXMTechniquePathLayout {
   markerEnd?: "arrow";
 }
 
+/** 页面直接渲染的确定性箭头三角形，点坐标已经位于最终 SVG 坐标系。 */
+export interface ILXMTechniqueArrowHeadLayout {
+  direction: "up" | "down";
+  points: readonly [number, number][];
+}
+
 export interface ILXMTechniqueSegmentLayout {
   techniqueId: string;
   type: ILXMTechniqueType;
@@ -106,6 +112,13 @@ export interface ILXMTechniqueSegmentLayout {
   /** -1 表示 staff 内局部记号；非负数表示 system 上方 lane。 */
   lane: number;
   path: ILXMTechniquePathLayout | null;
+  /** 琶音等不能依赖 path 末端切线的技巧使用显式箭头。 */
+  arrowHead?: ILXMTechniqueArrowHeadLayout;
+  /** 点击时用于选择离指针最近的音乐起止端。 */
+  focusEndpoints?: {
+    start: { x: number; y: number };
+    end: { x: number; y: number };
+  };
   texts: ILXMTextLayout[];
   bounds: { x: number; y: number; width: number; height: number };
 }
@@ -133,8 +146,14 @@ export interface ILXMMeasureLayout {
   // 基于 beat.x + string.y 得到每个 note 的位置（x，y）
   columns: ILXMRhythmicColumn[];
   beats: ILXMBeatLayout[];
-  // 音符和弦线布局位置信息
+  // 弦线布局位置信息。
   strings: ILXMStringLineLayout[];
+  /**
+   * 最终可渲染的基础品位投影。
+   *
+   * 扫弦/琶音等具有更高记谱优先级的技巧可以让这里少于领域 Beat.notes；播放、
+   * 导出、音高分析和编辑不得从该数组反推完整 Note 集合，而应读取 ILXMDocument。
+   */
   notes: ILXMNoteLayout[];
   /** 休止符由核心 layout 产出，页面只按 glyph 与坐标渲染。 */
   restMarks: ILXMRestLayout[];
@@ -202,6 +221,7 @@ export interface ILXMTechniqueHitBounds {
   y: number;
   width: number;
   height: number;
+  focusEndpoints?: ILXMTechniqueSegmentLayout["focusEndpoints"];
 }
 
 /** 一次成功命中得到的稳定业务位置，不保存任何临时像素坐标。 */

@@ -81,7 +81,13 @@ describe("MVP v5 技巧领域命令", () => {
         fromNoteId: "mvp2-note-1-3-5",
         auxiliaryFret: 7,
       } as const,
-      { type: "strum", beatId: "mvp2-beat-1-2", stroke: "down" } as const,
+      {
+        type: "strum",
+        beatId: "mvp2-beat-1-2",
+        minString: 2,
+        maxString: 3,
+        stroke: "down",
+      } as const,
       {
         type: "pickStroke",
         beatId: "mvp2-beat-1-1",
@@ -111,6 +117,8 @@ describe("MVP v5 技巧领域命令", () => {
         technique: {
           type: "arpeggio",
           beatId: "mvp2-beat-1-2",
+          minString: 2,
+          maxString: 3,
           direction: "ascending",
         },
       }),
@@ -136,6 +144,88 @@ describe("MVP v5 技巧领域命令", () => {
           type: "letRing",
           fromBeatId: "mvp2-beat-1-3",
           toBeatId: "mvp2-beat-1-5",
+        },
+      }),
+    ).toMatchObject({ ok: false, code: "TECHNIQUE_CONFLICT" });
+  });
+
+  it.each([
+    {
+      existing: { type: "strum", stroke: "down" } as const,
+      conflicting: { type: "strum", stroke: "up" } as const,
+    },
+    {
+      existing: { type: "arpeggio", direction: "ascending" } as const,
+      conflicting: { type: "arpeggio", direction: "descending" } as const,
+    },
+    {
+      existing: { type: "strum", stroke: "down" } as const,
+      conflicting: { type: "arpeggio", direction: "ascending" } as const,
+    },
+  ])(
+    "同一 Beat 的 $existing.type 与 $conflicting.type 不因方向不同而允许叠加",
+    ({ existing, conflicting }) => {
+      const document = createDocument();
+      const added = applyScoreCommand(document, {
+        type: LXMScoreCommandEnum.AddTechnique,
+        trackId,
+        technique: {
+          ...existing,
+          beatId: "mvp2-beat-1-2",
+          minString: 2,
+          maxString: 3,
+        },
+      });
+      expect(added).toMatchObject({ ok: true, changed: true });
+      if (!added.ok) return;
+
+      expect(
+        applyScoreCommand(added.document, {
+          type: LXMScoreCommandEnum.AddTechnique,
+          trackId,
+          technique: {
+            ...conflicting,
+            beatId: "mvp2-beat-1-2",
+            minString: 2,
+            maxString: 3,
+          },
+        }),
+      ).toMatchObject({ ok: false, code: "TECHNIQUE_CONFLICT" });
+    },
+  );
+
+  it("更新技巧目标时也执行同一 Beat 的扫弦/琶音唯一性校验", () => {
+    const document = createDocument();
+    document.score.tracks[0]!.techniques = [
+      {
+        id: "tech-strum-a",
+        type: "strum",
+        beatId: "mvp2-beat-1-2",
+        minString: 2,
+        maxString: 3,
+        stroke: "down",
+      },
+      {
+        id: "tech-arpeggio-b",
+        type: "arpeggio",
+        beatId: "mvp2-beat-1-5",
+        minString: 2,
+        maxString: 6,
+        direction: "ascending",
+      },
+    ];
+
+    expect(
+      applyScoreCommand(document, {
+        type: LXMScoreCommandEnum.UpdateTechnique,
+        trackId,
+        techniqueId: "tech-arpeggio-b",
+        technique: {
+          type: "arpeggio",
+          beatId: "mvp2-beat-1-2",
+          minString: 2,
+          maxString: 3,
+          direction: "descending",
         },
       }),
     ).toMatchObject({ ok: false, code: "TECHNIQUE_CONFLICT" });

@@ -4,13 +4,14 @@ import {
   buildLayout,
   createCollapsedTabCellSelection,
   hitTestLayout,
-  hitTestTechnique,
+  hitTestTechniqueTarget,
   layoutTabCellCaret,
   layoutTabCellSelection,
   LXM_EDITABLE_TIME_SIGNATURES,
   LXMScoreCommandEnum,
   navigateTabCellSelection,
   resolveTabCellSelection,
+  resolveTechniqueSelection,
   type ILXMHitTarget,
   type ILXMBarlineLayout,
   type ILXMBarlineType,
@@ -135,6 +136,7 @@ export const EditorShell: React.FC = () => {
     });
   }, [document]);
 
+  console.log('lxmLayout: ', lxmLayout)
   /**
    * 页面只消费核心范围解析结果。
    * 这里不通过 measure/beat 数组下标推导范围，保证重排后仍使用同一业务选区。
@@ -478,13 +480,23 @@ export const EditorShell: React.FC = () => {
     // 技巧可能位于六线谱上方，不能先走 TAB 单元格命中。跨行技巧的所有 segment
     // 共享同一个 ID，因此点击任意续接段都会选中同一领域对象。
     const point = getLayoutPoint(event.currentTarget, event);
-    const techniqueId =
-      point && lxmLayout ? hitTestTechnique(lxmLayout, point) : null;
-    if (techniqueId) {
+    const techniqueTarget =
+      point && lxmLayout ? hitTestTechniqueTarget(lxmLayout, point) : null;
+    if (techniqueTarget) {
       dragAnchorRef.current = null;
       activePointerIdRef.current = null;
-      setSelectedTechniqueId(techniqueId);
-      setErrorMessage(null);
+      setSelectedTechniqueId(techniqueTarget.techniqueId);
+      const techniqueSelection = document
+        ? resolveTechniqueSelection(
+            document,
+            techniqueTarget.techniqueId,
+            techniqueTarget.focusEndpoint,
+          )
+        : null;
+      setSelection(techniqueSelection);
+      setErrorMessage(
+        techniqueSelection ? null : "当前技巧无法映射到可编辑的 TAB 单元格。",
+      );
       return;
     }
 
@@ -901,6 +913,7 @@ export const EditorShell: React.FC = () => {
             谱首反复
           </button>
           <TechniqueToolbar
+            key={selectedTechniqueId ?? "new-technique"}
             document={document}
             selection={selection}
             selectedTechniqueId={selectedTechniqueId}
@@ -1173,6 +1186,14 @@ export const EditorShell: React.FC = () => {
                               ? "url(#technique-arrow)"
                               : undefined
                           }
+                        />
+                      )}
+                      {technique.arrowHead && (
+                        <polygon
+                          points={technique.arrowHead.points
+                            .map(([x, y]) => `${x},${y}`)
+                            .join(" ")}
+                          fill="currentColor"
                         />
                       )}
                       {technique.texts.map((item, index) => (

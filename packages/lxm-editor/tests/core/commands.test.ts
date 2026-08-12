@@ -140,6 +140,33 @@ describe("applyScoreCommand", () => {
     ]);
   });
 
+  it("note.set 在技巧范围内即使品位相同也取消扫弦", () => {
+    const document = createDocument();
+    document.score.tracks[0]!.techniques = [
+      {
+        id: "tech-cancelled-by-note-set",
+        type: "strum",
+        beatId: target.beatId,
+        minString: 2,
+        maxString: 6,
+        stroke: "down",
+      },
+    ];
+
+    const result = applyScoreCommand(document, {
+      type: LXMScoreCommandEnum.SetNote,
+      ...target,
+      string: 6,
+      fret: 0,
+    });
+    expect(result).toMatchObject({ ok: true, changed: true });
+    if (!result.ok) return;
+    expect(result.document.score.tracks[0]!.techniques).toEqual([]);
+    expect(result.document.documentRevision).toBe(
+      document.documentRevision + 1,
+    );
+  });
+
   it("单点 Note、rhythm 和 kind 的 no-op 保留原引用与 revision", () => {
     const document = createDocument();
     const commands: ILXMScoreCommand[] = [

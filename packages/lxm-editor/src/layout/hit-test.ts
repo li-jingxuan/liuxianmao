@@ -42,6 +42,9 @@ export const buildHitIndex = (
       techniqueId: technique.techniqueId,
       systemIndex: system.index,
       ...technique.bounds,
+      ...(technique.focusEndpoints
+        ? { focusEndpoints: technique.focusEndpoints }
+        : {}),
     })),
   ),
 });
@@ -58,6 +61,34 @@ export const hitTestTechnique = (
   layout.hitIndex.techniqueBounds.find((bounds) =>
     isPointInBounds(point, bounds),
   )?.techniqueId ?? null;
+
+export interface ILXMTechniqueHitTarget {
+  techniqueId: string;
+  focusEndpoint: "start" | "end";
+}
+
+/** 命中技巧并把像素距离折叠为稳定的音乐起止端提示。 */
+export const hitTestTechniqueTarget = (
+  layout: ILXMLayout,
+  point: ILXMLayoutPoint,
+): ILXMTechniqueHitTarget | null => {
+  const bounds = layout.hitIndex.techniqueBounds.find((candidate) =>
+    isPointInBounds(point, candidate),
+  );
+  if (!bounds) return null;
+  const endpoints = bounds.focusEndpoints;
+  if (!endpoints)
+    return { techniqueId: bounds.techniqueId, focusEndpoint: "start" };
+  const distanceSquared = (endpoint: { x: number; y: number }) =>
+    (endpoint.x - point.x) ** 2 + (endpoint.y - point.y) ** 2;
+  return {
+    techniqueId: bounds.techniqueId,
+    focusEndpoint:
+      distanceSquared(endpoints.start) <= distanceSquared(endpoints.end)
+        ? "start"
+        : "end",
+  };
+};
 
 /** 判断点是否落在小节的可见矩形内，边界点属于该小节。 */
 const isPointInBounds = (

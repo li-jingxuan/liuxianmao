@@ -233,6 +233,48 @@ describe("editor store history", () => {
     expect(store.getState().document?.score.tracks[0]?.techniques).toEqual([]);
   });
 
+  it("扫弦直接替换为琶音只产生一个历史项并保留技巧 ID", () => {
+    const document = structuredClone(EXAMPLE_MVP_4);
+    document.score.tracks[0]!.techniques = [
+      {
+        id: "tech-atomic-replace",
+        type: "strum",
+        beatId: "mvp2-beat-1-2",
+        minString: 2,
+        maxString: 3,
+        stroke: "down",
+      },
+    ];
+    const store = createEditorStore(document);
+    store.getState().setSelectedTechniqueId("tech-atomic-replace");
+
+    const result = store.getState().execute({
+      type: LXMScoreCommandEnum.UpdateTechnique,
+      trackId: target.trackId,
+      techniqueId: "tech-atomic-replace",
+      technique: {
+        type: "arpeggio",
+        beatId: "mvp2-beat-1-2",
+        minString: 2,
+        maxString: 3,
+        direction: "ascending",
+      },
+    });
+    expect(result).toMatchObject({ ok: true, changed: true });
+    expect(store.getState().historyDepth).toEqual({ past: 1, future: 0 });
+    expect(store.getState().selectedTechniqueId).toBe("tech-atomic-replace");
+    expect(store.getState().document?.score.tracks[0]!.techniques[0]).toMatchObject({
+      id: "tech-atomic-replace",
+      type: "arpeggio",
+    });
+
+    store.getState().undo();
+    expect(store.getState().document?.score.tracks[0]!.techniques[0]).toMatchObject({
+      id: "tech-atomic-replace",
+      type: "strum",
+    });
+  });
+
   it("undo/redo 后的 document 仍可通过语义校验和 layout", () => {
     const store = createEditorStore(structuredClone(EXAMPLE_MVP_4));
     store.getState().execute({

@@ -68,16 +68,30 @@ export const TechniqueToolbar = ({
   setSelectedTechniqueId,
   setErrorMessage,
 }: TechniqueToolbarProps) => {
-  const [type, setType] = useState<ILXMTechniqueType>("hammerOn");
-  const [direction, setDirection] = useState<"down" | "up">("down");
-  const [trillFret, setTrillFret] = useState(7);
-
   const selectedTechnique = useMemo(
     () =>
       document.score.tracks
         .flatMap((track) => track.techniques)
         .find((technique) => technique.id === selectedTechniqueId) ?? null,
     [document, selectedTechniqueId],
+  );
+  const [type, setType] = useState<ILXMTechniqueType>(
+    selectedTechnique?.type ?? "hammerOn",
+  );
+  const [direction, setDirection] = useState<"down" | "up">(() => {
+    if (selectedTechnique?.type === "arpeggio")
+      return selectedTechnique.direction === "ascending" ? "down" : "up";
+    if (
+      selectedTechnique?.type === "strum" ||
+      selectedTechnique?.type === "pickStroke"
+    )
+      return selectedTechnique.stroke;
+    return "down";
+  });
+  const [trillFret, setTrillFret] = useState(() =>
+    selectedTechnique?.type === "trill"
+      ? selectedTechnique.auxiliaryFret
+      : 7,
   );
 
   const buildDraft = (): {
@@ -166,20 +180,38 @@ export const TechniqueToolbar = ({
       };
     }
 
-    if (type === "strum")
-      return {
-        trackId: track.id,
-        draft: { type, beatId: selection.focus.beatId, stroke: direction },
+    if (type === "strum" || type === "arpeggio") {
+      if (
+        resolved.range.beats.length !== 1 ||
+        resolved.range.startString === resolved.range.endString
+      ) {
+        setErrorMessage("扫弦和琶音需要在同一 Beat 内选择至少两根弦线。");
+        return null;
+      }
+      const stringRange = {
+        minString: resolved.range.startString,
+        maxString: resolved.range.endString,
       };
-    if (type === "arpeggio")
+      if (type === "strum")
+        return {
+          trackId: track.id,
+          draft: {
+            type,
+            beatId: selection.focus.beatId,
+            ...stringRange,
+            stroke: direction,
+          },
+        };
       return {
         trackId: track.id,
         draft: {
           type,
           beatId: selection.focus.beatId,
+          ...stringRange,
           direction: direction === "down" ? "ascending" : "descending",
         },
       };
+    }
     if (type === "pickStroke")
       return {
         trackId: track.id,
@@ -199,11 +231,11 @@ export const TechniqueToolbar = ({
     };
   };
 
-  const submit = (mode: "add" | "update") => {
+  const submit = () => {
     const target = buildDraft();
     if (!target) return;
     const result =
-      mode === "update" && selectedTechniqueId
+      selectedTechniqueId
         ? execute({
             type: LXMScoreCommandEnum.UpdateTechnique,
             trackId: target.trackId,
@@ -215,7 +247,7 @@ export const TechniqueToolbar = ({
             trackId: target.trackId,
             technique: target.draft,
           });
-    if (result?.ok && result.changed && mode === "add") {
+    if (result?.ok && result.changed && !selectedTechniqueId) {
       const created = result.document.score.tracks
         .find((track) => track.id === target.trackId)
         ?.techniques.at(-1);
@@ -294,17 +326,9 @@ export const TechniqueToolbar = ({
         type="button"
         className={styles.toolbarButton}
         disabled={!selection}
-        onClick={() => submit("add")}
+        onClick={submit}
       >
-        添加技巧
-      </button>
-      <button
-        type="button"
-        className={styles.toolbarButton}
-        disabled={!selectedTechniqueId}
-        onClick={() => submit("update")}
-      >
-        更新选中
+        {selectedTechniqueId ? "应用更改" : "添加技巧"}
       </button>
       <button
         type="button"

@@ -32,6 +32,7 @@ import type {
   ILXMTimeSignature,
   ILXMTimeSignatureChangeScope,
   ILXMTechniqueDraft,
+  ILXMTrack,
   ILXMTrackStartBarlineType,
 } from "./types";
 
@@ -232,6 +233,31 @@ const unchanged = (document: ILXMDocument): ILXMApplyScoreCommandResult => ({
   changed: false,
   document,
 });
+
+/**
+ * 用户在带扫弦/琶音的 Beat 上重新输入单个品位时，显式输入优先于整拍技巧。
+ * 该清理与 Note 修改放在同一个候选 track 中提交，因此只产生一次 revision 和
+ * 一个历史项；其他 Beat 技巧以及 Note 级技巧均不受影响。
+ */
+const removeChordTraversalTechniquesAtCell = (
+  track: ILXMTrack,
+  beatId: string | undefined,
+  string: number | undefined,
+): ILXMTrack => {
+  if (beatId === undefined || string === undefined) return track;
+  const techniques = track.techniques.filter(
+    (technique) =>
+      !(
+        (technique.type === "strum" || technique.type === "arpeggio") &&
+        technique.beatId === beatId &&
+        string >= technique.minString &&
+        string <= technique.maxString
+      ),
+  );
+  return techniques.length === track.techniques.length
+    ? track
+    : { ...track, techniques };
+};
 
 /** 对候选文档执行两层守卫，保证命令无法写入结构或音乐语义非法的数据。 */
 const finalize = (document: ILXMDocument): ILXMApplyScoreCommandResult => {
@@ -482,7 +508,22 @@ const editNotesInRect = (
     (_, index) => resolved.range.startString + index,
   );
   const factory = createDocumentIdFactory(document);
-  let changed = false;
+  const singleInputBeatId =
+    command.type === LXMScoreCommandEnum.SetNotesInRect &&
+    resolved.range.cellCount === 1
+      ? resolved.range.beats[0]?.beatId
+      : undefined;
+  const singleInputString =
+    command.type === LXMScoreCommandEnum.SetNotesInRect &&
+    resolved.range.cellCount === 1
+      ? resolved.range.startString
+      : undefined;
+  const trackAfterTechniqueCancellation = removeChordTraversalTechniquesAtCell(
+    track,
+    singleInputBeatId,
+    singleInputString,
+  );
+  let changed = trackAfterTechniqueCancellation !== track;
 
   const nextMeasures = track.measures.map((measure) => {
     if (!targetMeasureIds.has(measure.id)) return measure;
@@ -542,7 +583,10 @@ const editNotesInRect = (
       ...document.score,
       tracks: document.score.tracks.map((candidate) =>
         candidate.id === track.id
-          ? pruneInvalidTechniques({ ...track, measures: nextMeasures })
+          ? pruneInvalidTechniques({
+              ...trackAfterTechniqueCancellation,
+              measures: nextMeasures,
+            })
           : candidate,
       ),
     },
@@ -831,7 +875,23 @@ export const applyScoreCommand = (
       const existing = target.beat.notes.find(
         (note) => note.string === command.string,
       );
-      if (target.beat.kind === "notes" && existing?.fret === command.fret)
+      const hasChordTraversalAtCell = document.score.tracks.some(
+        (track) =>
+          track.id === command.trackId &&
+          track.techniques.some(
+            (technique) =>
+              (technique.type === "strum" ||
+                technique.type === "arpeggio") &&
+              technique.beatId === target.beat.id &&
+              command.string >= technique.minString &&
+              command.string <= technique.maxString,
+          ),
+      );
+      if (
+        target.beat.kind === "notes" &&
+        existing?.fret === command.fret &&
+        !hasChordTraversalAtCell
+      )
         return unchanged(document);
       const notes: ILXMNote[] = existing
         ? target.beat.notes.map((note) =>
@@ -849,14 +909,36 @@ export const applyScoreCommand = (
           ];
       nextBeat = { ...target.beat, kind: "notes", notes };
     }
-    return finalize(
-      replaceMeasure(document, command.trackId, command.measureId, {
+    const trackWithEditedMeasure = replaceMeasure(
+      document,
+      command.trackId,
+      command.measureId,
+      {
         ...target.measure,
         beats: target.measure.beats.map((beat) =>
           beat.id === target.beat.id ? nextBeat : beat,
         ),
-      }),
+      },
     );
+    const nextDocument =
+      command.type === LXMScoreCommandEnum.SetNote
+        ? {
+            ...trackWithEditedMeasure,
+            score: {
+              ...trackWithEditedMeasure.score,
+              tracks: trackWithEditedMeasure.score.tracks.map((track) =>
+                track.id === command.trackId
+                  ? removeChordTraversalTechniquesAtCell(
+                      track,
+                      target.beat.id,
+                      command.string,
+                    )
+                  : track,
+              ),
+            },
+          }
+        : trackWithEditedMeasure;
+    return finalize(nextDocument);
   }
 
   const track = document.score.tracks.find(

@@ -142,7 +142,7 @@ export interface ILXMNote {
  * MVP v5 技巧判别联合。
  *
  * - 单音与连接技巧引用 Note；
- * - 扫弦、琶音和拨片方向引用一个完整 Beat；
+ * - 扫弦、琶音引用一个 Beat 内的显式弦范围，拨片方向引用一个完整 Beat；
  * - P.M. 与 Let Ring 引用 Beat 区间。
  *
  * 把三种目标形态写进类型 interface，可阻止页面把“扫弦”错误绑定到和弦中的
@@ -181,12 +181,20 @@ export type ILXMTechnique =
       id: string;
       type: "strum";
       beatId: string;
+      /** 规范化后的较小弦号，与 maxString 一起表达用户选择的连续弦范围。 */
+      minString: number;
+      /** 规范化后的较大弦号；演奏方向由 stroke 独立表达。 */
+      maxString: number;
       stroke: ILXMStrokeDirection;
     }
   | {
       id: string;
       type: "arpeggio";
       beatId: string;
+      /** 规范化后的较小弦号，与 maxString 一起表达用户选择的连续弦范围。 */
+      minString: number;
+      /** 规范化后的较大弦号；音高方向由 direction 独立表达。 */
+      maxString: number;
       direction: ILXMArpeggioDirection;
     }
   | {

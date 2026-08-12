@@ -140,6 +140,11 @@ export const LXM_DURATION_HEAD_FONT_SIZE = 16;
 /** 符干从和弦中画面最靠下音符继续向下延伸时的垂直间距。 */
 export const LXM_DURATION_STEM_NOTE_GAP = 6;
 
+/** 显式技巧箭头尺寸；不依赖 SVG marker 的路径切线自动旋转。 */
+export const LXM_TECHNIQUE_ARROW_WIDTH = 6;
+export const LXM_TECHNIQUE_ARROW_HEIGHT = 6;
+export const LXM_TECHNIQUE_ARROW_OFFSET_Y = 5;
+
 /** 节奏头到连梁/旗帜锚点之间的固定符干长度。 */
 export const LXM_DURATION_STEM_LENGTH = 28;
 
