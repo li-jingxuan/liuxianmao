@@ -56,6 +56,7 @@ export const buildLayout = (
     systemWidth,
     systemGapY: options.systemGapY ?? LXM_SYSTEM_GAP_Y,
     density: options.density ?? LXM_LAYOUT_DEFAULT_DENSITY,
+    startBarline: track.startBarline,
   });
   const lastSystem = systems[systems.length - 1];
 
@@ -80,4 +81,9 @@ export const buildLayout = (
 };
 
 export { hitTestLayout } from "./hit-test";
+export { layoutTabCellCaret, layoutTabCellSelection } from "./selection-layout";
+export type {
+  ILXMTabCellCaretLayout,
+  ILXMTabCellSelectionRect,
+} from "./selection-layout";
 export { layoutSystems } from "./system-layout";

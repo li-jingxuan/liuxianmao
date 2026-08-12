@@ -30,6 +30,9 @@ export const LXM_BARLINE_TYPES = [
   "repeatBoth",
 ] as const;
 
+/** 谱首边界只需要表达“无额外小节线”或“从第一小节开始反复”。 */
+export const LXM_TRACK_START_BARLINE_TYPES = ["none", "repeatStart"] as const;
+
 /** 乐器类型；当前 MVP 只描述吉他轨道。 */
 export const LXM_INSTRUMENT_TYPES = ["guitar"] as const;
 
@@ -42,13 +45,30 @@ export const LXM_BEAT_KINDS = ["notes", "rest"] as const;
 /** 四分音符一拍的 tick 数，兼顾附点与常用二至六连音。 */
 export const TICKS_PER_QUARTER = 960 as const;
 
+/**
+ * MVP v4.1 首批允许用户主动写入的拍号。
+ *
+ * schema 仍然允许加载更广泛的正整数拍号；这里单独维护“可编辑白名单”，是因为
+ * 拍号不仅决定小节容量，还决定连梁的音乐拍组。对于 5/8、7/8 等不对称拍号，
+ * 单凭分子和分母无法判断应采用 2+3 还是 3+2，若页面贸然开放自由输入，就会在
+ * 没有用户意图的情况下猜测记谱语义。
+ *
+ * 页面选项、领域命令校验和拍组解析必须共同消费这一个常量，避免三处白名单漂移。
+ */
+export const LXM_EDITABLE_TIME_SIGNATURES = [
+  { numerator: 2, denominator: 4 },
+  { numerator: 3, denominator: 4 },
+  { numerator: 4, denominator: 4 },
+  { numerator: 6, denominator: 8 },
+] as const;
+
 /** 吉他 MVP 的固定弦数。 */
 export const GUITAR_STRING_COUNT = 6 as const;
 
 /** MVP 默认允许的最大品位。 */
 export const MAX_FRET = 24 as const;
 
-/** zundo 保存的最大历史快照数量。 */
+/** website editor store 保存的最大 document 历史快照数量。 */
 export const HISTORY_LIMIT = 100 as const;
 
 /** 标准调弦从 1 弦到 6 弦排列。 */

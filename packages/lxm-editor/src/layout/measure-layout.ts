@@ -6,8 +6,8 @@
  * 不直接决定节奏列宽策略。
  */
 
-import { ILXMBeat, ILXMMeasure } from "../core/types";
-import {
+import type { ILXMBarlineType, ILXMBeat, ILXMMeasure } from "../core/types";
+import type {
   ILXMLayoutDensity,
   ILXMMeasureLayout,
   ILXMNoteLayout,
@@ -15,10 +15,15 @@ import {
 import { layoutMeasureSpacing } from "./measure-spacing";
 import { calculateMeasureHeight } from "./layout-helpers";
 import { STANDARD_GUITAR_TUNING } from "../core/constants";
-import { LXM_STRING_SPACING, LXM_STAFF_Y } from "./layout-constants";
+import {
+  LXM_STRING_SPACING,
+  LXM_STAFF_Y,
+  LXM_TIME_SIGNATURE_WIDTH,
+} from "./layout-constants";
 import { layoutBarline } from "./barline-layout";
 import { layoutDurationBeams } from "./duration-beam-layout";
 import { layoutRests } from "./rest-layout";
+import { layoutTimeSignature } from "./time-signature-layout";
 
 export interface ILXMLayoutMeasureContext {
   index: number;
@@ -36,6 +41,18 @@ export interface ILXMLayoutMeasureContext {
    * 基础上扩张。这个值只属于布局过程，不应写回乐谱文档。
    */
   assignedWidth?: number;
+
+  /** 由 system 层按完整文档顺序决定，measure 层只负责生成最终几何。 */
+  showTimeSignature?: boolean;
+
+  /** 前一边界为开始反复时，为圆点与拍号/第一拍预留的固定净空。 */
+  leadingBarlineClearance?: number;
+
+  /**
+   * 自动换行可能把 repeatStart/repeatBoth 拆成行尾与下一行行首两部分。
+   * 领域文档保持原类型，这里只覆盖当前 measure 右侧实际需要绘制的投影类型。
+   */
+  visualBarline?: ILXMBarlineType;
 
   // TODO 下面两个参数后续版本在拓展
   // 小节内和弦符号、歌词和简谱 需要的最小宽度
@@ -99,10 +116,21 @@ export const layoutMeasure = (
     y,
     density,
     assignedWidth: requestedAssignedWidth,
+    showTimeSignature = false,
+    leadingBarlineClearance = 0,
+    visualBarline = measure.barline,
   } = context;
+  const leadingWidth =
+    leadingBarlineClearance +
+    (showTimeSignature ? LXM_TIME_SIGNATURE_WIDTH : 0);
   const { assignedWidth, columns, slotsByBeatId } = layoutMeasureSpacing(
     measure,
-    { x, density, assignedWidth: requestedAssignedWidth },
+    {
+      x,
+      density,
+      assignedWidth: requestedAssignedWidth,
+      leadingWidth,
+    },
   );
 
   const beats = Object.values(slotsByBeatId);
@@ -135,7 +163,10 @@ export const layoutMeasure = (
     x,
     y,
     width: assignedWidth,
-    barline: layoutBarline(measure.barline, strings),
+    barline: layoutBarline(visualBarline, strings),
+    timeSignature: showTimeSignature
+      ? layoutTimeSignature(measure, x, y, leadingBarlineClearance)
+      : null,
     height: calculateMeasureHeight(),
     columns,
     beats,

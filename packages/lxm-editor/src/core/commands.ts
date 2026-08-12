@@ -1,31 +1,48 @@
 /**
- * MVP v3 的纯领域命令。
+ * 乐谱编辑器的纯领域命令。
  *
  * 所有命令只返回新的文档；页面层不拥有 tick 重排、容量修复或实体 ID 分配逻辑，
  * 从而让未来撤销、保存和协作使用同一份确定性的编辑规则。
  */
 import { GUITAR_STRING_COUNT, MAX_FRET } from "./constants";
+import {
+  resolveBeatRange,
+  resolveTabCellSelection,
+  type ILXMBeatRange,
+  type ILXMTabCellReference,
+} from "../editing/tab-cell-selection";
 import { createDocumentIdFactory } from "./id-factory";
 import { createMeasureRestBeats } from "./rest-beats";
 import { changeMeasureBeatRhythm } from "./rhythm-change";
+import { isEditableTimeSignature, isSameTimeSignature } from "./rhythm";
 import { LXMDocumentSchema } from "./schema";
 import { validateDocumentSemantics } from "./semantic-validation";
+import { changeMeasureTimeSignature } from "./time-signature-change";
 import type {
+  ILXMBarlineType,
   ILXMBeat,
   ILXMDocument,
   ILXMMeasure,
   ILXMNote,
   ILXMRhythm,
+  ILXMTimeSignature,
+  ILXMTimeSignatureChangeScope,
+  ILXMTrackStartBarlineType,
 } from "./types";
 
 export enum LXMScoreCommandEnum {
   SetNote = "note.set",
   RemoveNote = "note.remove",
+  SetNotesInRect = "note.setRect",
+  RemoveNotesInRect = "note.removeRect",
   SetBeatRhythm = "beat.setRhythm",
   SetBeatKind = "beat.setKind",
+  SetBeatKindRange = "beat.setKindRange",
   InsertMeasure = "measure.insert",
   CopyMeasure = "measure.copy",
   RemoveMeasure = "measure.remove",
+  SetTimeSignature = "measure.setTimeSignature",
+  SetBarlineBoundary = "barline.setBoundary",
 }
 
 export interface ILXMScoreCommandBase {
@@ -45,12 +62,36 @@ export interface ILXMRemoveNoteCommand extends ILXMBeatCommandBase {
   type: LXMScoreCommandEnum.RemoveNote;
   string: number;
 }
+/**
+ * 批量 Note 命令只接收两个稳定端点。
+ *
+ * 页面不能提前展开单元格数组，否则范围上限、文档顺序和原子性会泄漏到 UI 层。
+ */
+export interface ILXMTabCellRange {
+  trackId: string;
+  anchor: Omit<ILXMTabCellReference, "trackId">;
+  focus: Omit<ILXMTabCellReference, "trackId">;
+}
+export interface ILXMSetNotesInRectCommand {
+  type: LXMScoreCommandEnum.SetNotesInRect;
+  range: ILXMTabCellRange;
+  fret: number;
+}
+export interface ILXMRemoveNotesInRectCommand {
+  type: LXMScoreCommandEnum.RemoveNotesInRect;
+  range: ILXMTabCellRange;
+}
 export interface ILXMSetBeatRhythmCommand extends ILXMBeatCommandBase {
   type: LXMScoreCommandEnum.SetBeatRhythm;
   rhythm: ILXMRhythm;
 }
 export interface ILXMSetBeatKindCommand extends ILXMBeatCommandBase {
   type: LXMScoreCommandEnum.SetBeatKind;
+  kind: ILXMBeat["kind"];
+}
+export interface ILXMSetBeatKindRangeCommand {
+  type: LXMScoreCommandEnum.SetBeatKindRange;
+  range: ILXMBeatRange;
   kind: ILXMBeat["kind"];
 }
 export interface ILXMInsertMeasureCommand extends ILXMScoreCommandBase {
@@ -65,15 +106,37 @@ export interface ILXMRemoveMeasureCommand extends ILXMScoreCommandBase {
   type: LXMScoreCommandEnum.RemoveMeasure;
   measureId: string;
 }
+export interface ILXMSetTimeSignatureCommand extends ILXMScoreCommandBase {
+  type: LXMScoreCommandEnum.SetTimeSignature;
+  measureId: string;
+  timeSignature: ILXMTimeSignature;
+  scope: ILXMTimeSignatureChangeScope;
+}
+
+/** 小节边界使用稳定业务引用；命令内部负责映射到 track 或 measure 字段。 */
+export type ILXMBarlineBoundaryReference =
+  | { kind: "trackStart" }
+  | { kind: "afterMeasure"; measureId: string };
+
+export interface ILXMSetBarlineBoundaryCommand extends ILXMScoreCommandBase {
+  type: LXMScoreCommandEnum.SetBarlineBoundary;
+  boundary: ILXMBarlineBoundaryReference;
+  barline: ILXMTrackStartBarlineType | ILXMBarlineType;
+}
 
 export type ILXMScoreCommand =
   | ILXMSetNoteCommand
   | ILXMRemoveNoteCommand
+  | ILXMSetNotesInRectCommand
+  | ILXMRemoveNotesInRectCommand
   | ILXMSetBeatRhythmCommand
   | ILXMSetBeatKindCommand
+  | ILXMSetBeatKindRangeCommand
   | ILXMInsertMeasureCommand
   | ILXMCopyMeasureCommand
-  | ILXMRemoveMeasureCommand;
+  | ILXMRemoveMeasureCommand
+  | ILXMSetTimeSignatureCommand
+  | ILXMSetBarlineBoundaryCommand;
 
 export type ILXMScoreCommandErrorCode =
   | "TRACK_NOT_FOUND"
@@ -81,34 +144,68 @@ export type ILXMScoreCommandErrorCode =
   | "BEAT_NOT_FOUND"
   | "INVALID_STRING"
   | "INVALID_FRET"
+  | "INVALID_TAB_CELL_RANGE"
+  | "TAB_CELL_RANGE_TOO_LARGE"
+  | "INVALID_BEAT_RANGE"
+  | "BEAT_RANGE_TOO_LARGE"
   | "INVALID_RHYTHM"
   | "MEASURE_OVERFLOW"
   | "FOLLOWING_BEATS_CANNOT_COMPRESS"
   | "RHYTHM_NOT_REPRESENTABLE"
+  | "UNSUPPORTED_TIME_SIGNATURE"
+  | "INVALID_TIME_SIGNATURE_SCOPE"
+  | "MEASURE_CONTENT_EXCEEDS_TIME_SIGNATURE"
+  | "CHORD_SYMBOL_OUTSIDE_TIME_SIGNATURE"
   | "CANNOT_REMOVE_LAST_MEASURE"
+  | "BARLINE_BOUNDARY_NOT_FOUND"
+  | "INVALID_BARLINE_FOR_BOUNDARY"
   | "DOCUMENT_INVALID"
   | "SEMANTIC_VALIDATION_FAILED";
 export type ILXMApplyScoreCommandResult =
-  | { ok: true; document: ILXMDocument }
+  | { ok: true; changed: boolean; document: ILXMDocument }
   | { ok: false; code: ILXMScoreCommandErrorCode; message: string };
 
 const fail = (
   code: ILXMScoreCommandErrorCode,
   message: string,
-): ILXMApplyScoreCommandResult => ({ ok: false, code, message });
+): Extract<ILXMApplyScoreCommandResult, { ok: false }> => ({
+  ok: false,
+  code,
+  message,
+});
 const isValidString = (string: number) =>
   Number.isInteger(string) && string >= 1 && string <= GUITAR_STRING_COUNT;
 const isValidFret = (fret: number) =>
   Number.isInteger(fret) && fret >= 0 && fret <= MAX_FRET;
+
+const TRACK_START_BARLINES = new Set<ILXMTrackStartBarlineType>([
+  "none",
+  "repeatStart",
+]);
+const MEASURE_BARLINES = new Set<ILXMBarlineType>([
+  "single",
+  "double",
+  "final",
+  "repeatStart",
+  "repeatEnd",
+  "repeatBoth",
+]);
+
+/** no-op 必须保留原引用与 revision，store 据此跳过历史快照。 */
+const unchanged = (document: ILXMDocument): ILXMApplyScoreCommandResult => ({
+  ok: true,
+  changed: false,
+  document,
+});
 
 /** 对候选文档执行两层守卫，保证命令无法写入结构或音乐语义非法的数据。 */
 const finalize = (document: ILXMDocument): ILXMApplyScoreCommandResult => {
   const parsed = LXMDocumentSchema.safeParse(document);
   if (!parsed.success)
     return fail("DOCUMENT_INVALID", "命令结果不符合乐谱文档格式");
-  const semantic = validateDocumentSemantics(parsed.data);
+  const semantic = validateDocumentSemantics(document);
   return semantic.ok
-    ? { ok: true, document: parsed.data }
+    ? { ok: true, changed: true, document }
     : fail(
         "SEMANTIC_VALIDATION_FAILED",
         semantic.issues[0]?.message ?? "命令结果不符合乐谱语义",
@@ -139,6 +236,106 @@ const replaceMeasure = (
   },
 });
 
+/**
+ * 原子修改一个拍号段落。
+ *
+ * 命令先在旧文档上解析完整目标范围，再用同一个局部 ID factory 规划每个小节。
+ * 规划阶段不会写入 document；只有所有小节都成功协调容量后，才一次性复制 track
+ * 分支、递增一次 revision 并执行最终校验。这样 untilNextChange 中间任一小节无法
+ * 缩容时，前面已经规划成功的小节也不会泄漏成部分提交。
+ */
+const setTimeSignature = (
+  document: ILXMDocument,
+  command: ILXMSetTimeSignatureCommand,
+): ILXMApplyScoreCommandResult => {
+  const track = document.score.tracks.find(
+    (candidate) => candidate.id === command.trackId,
+  );
+  if (!track) return fail("TRACK_NOT_FOUND", "目标轨道不存在");
+
+  const targetIndex = track.measures.findIndex(
+    (measure) => measure.id === command.measureId,
+  );
+  if (targetIndex < 0) return fail("MEASURE_NOT_FOUND", "目标小节不存在");
+  if (!isEditableTimeSignature(command.timeSignature))
+    return fail(
+      "UNSUPPORTED_TIME_SIGNATURE",
+      "当前只支持编辑 2/4、3/4、4/4 和 6/8 拍号",
+    );
+  if (command.scope !== "measure" && command.scope !== "untilNextChange")
+    return fail("INVALID_TIME_SIGNATURE_SCOPE", "拍号修改范围无效");
+
+  const targetMeasure = track.measures[targetIndex]!;
+  if (isSameTimeSignature(targetMeasure.timeSignature, command.timeSignature))
+    return unchanged(document);
+
+  /*
+   * untilNextChange 的边界必须以“命令执行前目标小节的拍号”为准。若第 3、4 小节
+   * 是 4/4、第 5 小节已是 3/4，从第 3 小节改成 6/8 时只能收集第 3、4 小节，
+   * 不能在规划过程中因为候选值变化而继续越过第 5 小节。
+   */
+  const targetIndexes = [targetIndex];
+  if (command.scope === "untilNextChange") {
+    for (
+      let index = targetIndex + 1;
+      index < track.measures.length;
+      index += 1
+    ) {
+      const measure = track.measures[index]!;
+      if (
+        !isSameTimeSignature(measure.timeSignature, targetMeasure.timeSignature)
+      )
+        break;
+      targetIndexes.push(index);
+    }
+  }
+
+  const factory = createDocumentIdFactory(document);
+  const plannedByIndex = new Map<number, ILXMMeasure>();
+  for (const index of targetIndexes) {
+    const result = changeMeasureTimeSignature(
+      track.measures[index]!,
+      command.timeSignature,
+      factory.createBeatId,
+    );
+    if (!result.ok) {
+      if (result.code === "MEASURE_CONTENT_EXCEEDS_TIME_SIGNATURE")
+        return fail(
+          result.code,
+          `第 ${index + 1} 小节的真实内容超出新拍号容量，未修改任何小节`,
+        );
+      if (result.code === "CHORD_SYMBOL_OUTSIDE_TIME_SIGNATURE")
+        return fail(
+          result.code,
+          `第 ${index + 1} 小节存在落在新拍号容量之外的和弦标记，未修改任何小节`,
+        );
+      return fail(
+        "RHYTHM_NOT_REPRESENTABLE",
+        `第 ${index + 1} 小节的剩余休止无法精确表示，未修改任何小节`,
+      );
+    }
+    plannedByIndex.set(index, result.measure);
+  }
+
+  return finalize({
+    ...document,
+    documentRevision: document.documentRevision + 1,
+    score: {
+      ...document.score,
+      tracks: document.score.tracks.map((candidate) =>
+        candidate.id === track.id
+          ? {
+              ...track,
+              measures: track.measures.map(
+                (measure, index) => plannedByIndex.get(index) ?? measure,
+              ),
+            }
+          : candidate,
+      ),
+    },
+  });
+};
+
 /** 查找命令目标；统一错误语义，避免各命令遗漏轨道或小节判断。 */
 const findTarget = (document: ILXMDocument, command: ILXMBeatCommandBase) => {
   const track = document.score.tracks.find(
@@ -164,6 +361,11 @@ const setBeatRhythm = (
 ): ILXMApplyScoreCommandResult => {
   const target = findTarget(document, command);
   if ("ok" in target) return target;
+  if (
+    target.beat.rhythm.base === command.rhythm.base &&
+    target.beat.rhythm.dots === command.rhythm.dots
+  )
+    return unchanged(document);
   const factory = createDocumentIdFactory(document);
   const rhythmChange = changeMeasureBeatRhythm(
     target.measure,
@@ -198,11 +400,246 @@ const setBeatRhythm = (
   );
 };
 
-/** 应用所有 MVP v3 命令。 */
+/** 把命令端点补全为 selection 引用，并委托统一范围解析模块校验。 */
+const resolveCommandRange = (
+  document: ILXMDocument,
+  range: ILXMTabCellRange,
+) => {
+  const result = resolveTabCellSelection(document, {
+    anchor: { trackId: range.trackId, ...range.anchor },
+    focus: { trackId: range.trackId, ...range.focus },
+  });
+  return result.ok ? result : fail(result.code, result.message);
+};
+
+/**
+ * 原子地设置或删除矩形中的 Note。
+ *
+ * 函数先完成全部范围/品位校验，再遍历候选分支。整个批次只创建一个 document、
+ * 增加一次 revision 并调用一次 finalize；任何失败都不会暴露部分结果。
+ */
+const editNotesInRect = (
+  document: ILXMDocument,
+  command: ILXMSetNotesInRectCommand | ILXMRemoveNotesInRectCommand,
+): ILXMApplyScoreCommandResult => {
+  if (
+    command.type === LXMScoreCommandEnum.SetNotesInRect &&
+    !isValidFret(command.fret)
+  )
+    return fail("INVALID_FRET", `品位必须在 0 到 ${MAX_FRET} 之间`);
+
+  const resolved = resolveCommandRange(document, command.range);
+  if (!resolved.ok) return resolved;
+  const track = document.score.tracks.find(
+    (candidate) => candidate.id === resolved.range.trackId,
+  );
+  // resolve 已验证 track 存在；该守卫让函数在未来解析器契约变化时仍原子失败。
+  if (!track) return fail("INVALID_TAB_CELL_RANGE", "目标轨道不存在");
+
+  const targetBeatIds = new Set(
+    resolved.range.beats.map((beat) => beat.beatId),
+  );
+  const targetMeasureIds = new Set(
+    resolved.range.beats.map((beat) => beat.measureId),
+  );
+  const targetStrings = Array.from(
+    { length: resolved.range.endString - resolved.range.startString + 1 },
+    (_, index) => resolved.range.startString + index,
+  );
+  const factory = createDocumentIdFactory(document);
+  let changed = false;
+
+  const nextMeasures = track.measures.map((measure) => {
+    if (!targetMeasureIds.has(measure.id)) return measure;
+    let measureChanged = false;
+    const nextBeats = measure.beats.map((beat) => {
+      if (!targetBeatIds.has(beat.id)) return beat;
+
+      if (command.type === LXMScoreCommandEnum.RemoveNotesInRect) {
+        const nextNotes = beat.notes.filter(
+          (note) => !targetStrings.includes(note.string),
+        );
+        if (nextNotes.length === beat.notes.length) return beat;
+        changed = true;
+        measureChanged = true;
+        // 删除最后一个 Note 后仍保持 notes；rest 转换只能由 beat.setKind 明确触发。
+        return { ...beat, notes: nextNotes };
+      }
+
+      let beatChanged = beat.kind === "rest";
+      const notesByString = new Map(
+        beat.notes.map((note) => [note.string, note]),
+      );
+      for (const string of targetStrings) {
+        const existing = notesByString.get(string);
+        if (!existing) {
+          beatChanged = true;
+          notesByString.set(string, {
+            id: factory.createNoteId(),
+            string,
+            fret: command.fret,
+          });
+        } else if (existing.fret !== command.fret) {
+          beatChanged = true;
+          notesByString.set(string, { ...existing, fret: command.fret });
+        }
+      }
+      if (!beatChanged) return beat;
+
+      changed = true;
+      measureChanged = true;
+      // Map 保留已有 Note 顺序，新建 Note 按目标弦从 1 到 6 稳定追加。
+      return {
+        ...beat,
+        kind: "notes" as const,
+        notes: [...notesByString.values()],
+      };
+    });
+    return measureChanged ? { ...measure, beats: nextBeats } : measure;
+  });
+
+  if (!changed) return unchanged(document);
+
+  return finalize({
+    ...document,
+    documentRevision: document.documentRevision + 1,
+    score: {
+      ...document.score,
+      tracks: document.score.tracks.map((candidate) =>
+        candidate.id === track.id
+          ? { ...track, measures: nextMeasures }
+          : candidate,
+      ),
+    },
+  });
+};
+
+/** 原子设置连续 Beat 的内容类型；范围中的弦维度不参与休止语义。 */
+const setBeatKindInRange = (
+  document: ILXMDocument,
+  command: ILXMSetBeatKindRangeCommand,
+): ILXMApplyScoreCommandResult => {
+  const resolved = resolveBeatRange(document, command.range);
+  if (!resolved.ok) return fail(resolved.code, resolved.message);
+
+  const track = document.score.tracks.find(
+    (candidate) => candidate.id === resolved.range.trackId,
+  );
+  if (!track) return fail("INVALID_BEAT_RANGE", "Beat 选区的目标轨道不存在");
+
+  const targetBeatIds = new Set(
+    resolved.range.beats.map((beat) => beat.beatId),
+  );
+  const targetMeasureIds = new Set(
+    resolved.range.beats.map((beat) => beat.measureId),
+  );
+  let changed = false;
+  const measures = track.measures.map((measure) => {
+    if (!targetMeasureIds.has(measure.id)) return measure;
+    let measureChanged = false;
+    const beats = measure.beats.map((beat) => {
+      if (!targetBeatIds.has(beat.id)) return beat;
+      if (command.kind === "rest") {
+        if (beat.kind === "rest" && beat.notes.length === 0) return beat;
+        changed = true;
+        measureChanged = true;
+        return { ...beat, kind: "rest" as const, notes: [] };
+      }
+      if (beat.kind === "notes") return beat;
+      changed = true;
+      measureChanged = true;
+      return { ...beat, kind: "notes" as const };
+    });
+    return measureChanged ? { ...measure, beats } : measure;
+  });
+
+  if (!changed) return unchanged(document);
+  return finalize({
+    ...document,
+    documentRevision: document.documentRevision + 1,
+    score: {
+      ...document.score,
+      tracks: document.score.tracks.map((candidate) =>
+        candidate.id === track.id ? { ...track, measures } : candidate,
+      ),
+    },
+  });
+};
+
+/** 原子修改谱首或小节后的结构边界，并隐藏两种持久化位置的差异。 */
+const setBarlineBoundary = (
+  document: ILXMDocument,
+  command: ILXMSetBarlineBoundaryCommand,
+): ILXMApplyScoreCommandResult => {
+  const track = document.score.tracks.find(
+    (candidate) => candidate.id === command.trackId,
+  );
+  if (!track) return fail("TRACK_NOT_FOUND", "目标轨道不存在");
+
+  if (command.boundary.kind === "trackStart") {
+    if (!TRACK_START_BARLINES.has(command.barline as ILXMTrackStartBarlineType))
+      return fail(
+        "INVALID_BARLINE_FOR_BOUNDARY",
+        "谱首边界只支持无小节线或开始反复线",
+      );
+    const barline = command.barline as ILXMTrackStartBarlineType;
+    if (track.startBarline === barline) return unchanged(document);
+    return finalize({
+      ...document,
+      documentRevision: document.documentRevision + 1,
+      score: {
+        ...document.score,
+        tracks: document.score.tracks.map((candidate) =>
+          candidate.id === track.id
+            ? { ...track, startBarline: barline }
+            : candidate,
+        ),
+      },
+    });
+  }
+
+  // 判别联合已经排除 trackStart；把稳定 ID 提取到局部变量，避免闭包回调丢失
+  // TypeScript 对 command.boundary 的收窄结果，也让后续错误路径只依赖一个值。
+  const targetMeasureId = command.boundary.measureId;
+  const measureIndex = track.measures.findIndex(
+    (measure) => measure.id === targetMeasureId,
+  );
+  if (measureIndex < 0)
+    return fail("BARLINE_BOUNDARY_NOT_FOUND", "目标小节边界不存在");
+  if (!MEASURE_BARLINES.has(command.barline as ILXMBarlineType))
+    return fail("INVALID_BARLINE_FOR_BOUNDARY", "小节右边界不支持该小节线类型");
+  const barline = command.barline as ILXMBarlineType;
+  if (
+    measureIndex === track.measures.length - 1 &&
+    (barline === "repeatStart" || barline === "repeatBoth")
+  )
+    return fail(
+      "INVALID_BARLINE_FOR_BOUNDARY",
+      "乐谱末尾没有可开始反复的后续小节",
+    );
+  const measure = track.measures[measureIndex]!;
+  if (measure.barline === barline) return unchanged(document);
+  return finalize(
+    replaceMeasure(document, track.id, measure.id, { ...measure, barline }),
+  );
+};
+
+/** 应用所有领域命令；分发器本身不包含页面状态或历史逻辑。 */
 export const applyScoreCommand = (
   document: ILXMDocument,
   command: ILXMScoreCommand,
 ): ILXMApplyScoreCommandResult => {
+  if (command.type === LXMScoreCommandEnum.SetTimeSignature)
+    return setTimeSignature(document, command);
+  if (command.type === LXMScoreCommandEnum.SetBarlineBoundary)
+    return setBarlineBoundary(document, command);
+  if (command.type === LXMScoreCommandEnum.SetBeatKindRange)
+    return setBeatKindInRange(document, command);
+  if (
+    command.type === LXMScoreCommandEnum.SetNotesInRect ||
+    command.type === LXMScoreCommandEnum.RemoveNotesInRect
+  )
+    return editNotesInRect(document, command);
   if (command.type === LXMScoreCommandEnum.SetBeatRhythm)
     return setBeatRhythm(document, command);
   if (
@@ -225,22 +662,27 @@ export const applyScoreCommand = (
       return fail("INVALID_FRET", `品位必须在 0 到 ${MAX_FRET} 之间`);
     const factory = createDocumentIdFactory(document);
     let nextBeat: ILXMBeat;
-    if (command.type === LXMScoreCommandEnum.SetBeatKind)
+    if (command.type === LXMScoreCommandEnum.SetBeatKind) {
+      if (target.beat.kind === command.kind) return unchanged(document);
       nextBeat =
         command.kind === "rest"
           ? { ...target.beat, kind: "rest", notes: [] }
           : { ...target.beat, kind: "notes" };
-    else if (command.type === LXMScoreCommandEnum.RemoveNote)
+    } else if (command.type === LXMScoreCommandEnum.RemoveNote) {
+      if (!target.beat.notes.some((note) => note.string === command.string))
+        return unchanged(document);
       nextBeat = {
         ...target.beat,
         notes: target.beat.notes.filter(
           (note) => note.string !== command.string,
         ),
       };
-    else {
+    } else {
       const existing = target.beat.notes.find(
         (note) => note.string === command.string,
       );
+      if (target.beat.kind === "notes" && existing?.fret === command.fret)
+        return unchanged(document);
       const notes: ILXMNote[] = existing
         ? target.beat.notes.map((note) =>
             note.string === command.string

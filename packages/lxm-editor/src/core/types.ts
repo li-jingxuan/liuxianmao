@@ -5,6 +5,7 @@ import type {
   LXM_CHORD_SYMBOL_DISPLAY_TYPES,
   LXM_INSTRUMENT_TYPES,
   LXM_RHYTHM_BASES,
+  LXM_TRACK_START_BARLINE_TYPES,
   SCORE_DOCUMENT_SCHEMA,
   STANDARD_GUITAR_TUNING,
 } from "./constants";
@@ -17,6 +18,8 @@ export type ILXMSchemaVersion = typeof CURRENT_SCHEMA_VERSION;
 
 export type ILXMRhythmBase = (typeof LXM_RHYTHM_BASES)[number];
 export type ILXMBarlineType = (typeof LXM_BARLINE_TYPES)[number];
+export type ILXMTrackStartBarlineType =
+  (typeof LXM_TRACK_START_BARLINE_TYPES)[number];
 export type ILXMInstrumentType = (typeof LXM_INSTRUMENT_TYPES)[number];
 export type ILXMChordSymbolDisplayType =
   (typeof LXM_CHORD_SYMBOL_DISPLAY_TYPES)[number];
@@ -47,6 +50,8 @@ export interface ILXMTrack {
   name: string;
   instrument: ILXMInstrumentType;
   tuning: ILXMTuning;
+  /** 第一小节之前的谱首边界；普通谱面使用 none。 */
+  startBarline: ILXMTrackStartBarlineType;
   measures: ILXMMeasure[];
 }
 
@@ -69,6 +74,7 @@ export type ILXMStandardGuitarTuning = typeof STANDARD_GUITAR_TUNING;
 export interface ILXMMeasure {
   id: string;
   timeSignature: ILXMTimeSignature;
+  /** 该小节之后的结构边界。 */
   barline: ILXMBarlineType;
   chordSymbols: ILXMChordSymbol[];
   beats: ILXMBeat[];
@@ -79,6 +85,14 @@ export interface ILXMTimeSignature {
   numerator: number;
   denominator: number;
 }
+
+/**
+ * 拍号命令的作用范围。
+ *
+ * measure 用于只改变一个小节；untilNextChange 用于从当前小节建立一个持续的
+ * 拍号段落，并在命令执行前已经存在的下一个拍号变化点停止。
+ */
+export type ILXMTimeSignatureChangeScope = "measure" | "untilNextChange";
 
 /** 小节内某个 tick 位置上的和弦标记。 */
 export interface ILXMChordSymbol {

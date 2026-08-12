@@ -217,6 +217,11 @@ const layoutBarlinePart = (
 export const layoutBarline = (
   barline: ILXMBarlineType,
   strings: ILXMStringLineLayout[],
+  /**
+   * 默认使用小节右边界；system 行首反复线会显式传入 staffX。
+   * 复用同一个几何模板可以保证行内和跨行投影的粗细线、圆点完全一致。
+   */
+  anchorX?: number,
 ): ILXMBarlineLayout => {
   const firstString = getFirstStringLine(strings);
   const lastString = getLastStringLine(strings);
@@ -228,7 +233,7 @@ export const layoutBarline = (
   const pattern = LXM_BARLINE_LAYOUT_PATTERN[barline];
   const context = {
     // 小节线默认以小节右边界作为横向基准点。
-    baseX: firstString.x2,
+    baseX: anchorX ?? firstString.x2,
     // 反复点的 offsetY 也以第一根弦 y 为纵向基准。
     topY: firstString.y1,
     bottomY: lastString.y1,

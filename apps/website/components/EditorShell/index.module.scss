@@ -46,6 +46,50 @@
   mask: var(--music-icon-url) center / contain no-repeat;
 }
 
+.toolbarSeparator {
+  width: 1px;
+  height: 22px;
+  margin: 0 4px;
+  background: #d8dde6;
+}
+
+/** 小节线下拉框保留完整中文名称，避免只用相似图标区分六种边界。 */
+.toolbarField {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 12px;
+  color: #5b6470;
+}
+
+.toolbarSelect {
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid #c9ced8;
+  border-radius: 4px;
+  background: #fff;
+  color: #1d2025;
+
+  &:disabled {
+    opacity: 0.45;
+  }
+}
+
+/** TAB 与拍号是乐谱正文，打印时保留；这里只集中设置文字的视觉重量。 */
+.tabLabel {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 700;
+  // 细白描边只清理穿过字形的弦线，仍能看出六线谱在 TAB 谱号区域连续延伸。
+  paint-order: stroke fill;
+  stroke: #fff;
+  stroke-width: 2px;
+}
+
+.timeSignatureLayer {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 700;
+}
+
 .restLayer {
   font-family: Bravura, serif;
   font-size: 22px;
@@ -61,6 +105,10 @@
   display: block;
   width: 100%;
   height: auto;
+  // compact 模式首 Beat 的固定 20px caret 会在保持严格居中时向 viewBox 左侧
+  // 越出最多 2 个逻辑单位。允许 SVG 显示这部分视觉描边，避免通过 clamp 再次
+  // 造成首 Beat caret 偏心；纸张自身的 padding 仍会约束最终页面观感。
+  overflow: visible;
   cursor: crosshair;
   outline: none;
 }
@@ -93,10 +141,15 @@
   text-anchor: middle;
 }
 
-.cursorLayer {
-  .activeCursor {
-    fill: rgba(40, 100, 227, 0.3);
-  }
+.selectionRange {
+  fill: rgba(40, 100, 227, 0.18);
+}
+
+.focusCaret {
+  fill: rgba(40, 100, 227, 0.1);
+  stroke: #2864e3;
+  stroke-width: 1.5px;
+  vector-effect: non-scaling-stroke;
 }
 
 .inputHint,
@@ -140,7 +193,7 @@
     box-shadow: none;
   }
 
-  .cursorLayer {
+  .selectionLayer {
     display: none;
   }
 }

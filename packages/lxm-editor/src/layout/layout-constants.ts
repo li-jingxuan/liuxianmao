@@ -20,6 +20,34 @@ export const LXM_SYSTEM_DEFAULT_WIDTH = 600;
 export const LXM_SYSTEM_GAP_Y = 36;
 
 /**
+ * 每条谱面行左侧的纵向 TAB 谱号列宽。
+ *
+ * 这里仍需保留一列很窄的几何宽度，避免拍号和第一拍压住字母；但六根弦线会贯穿
+ * 整列，因此它不再表现为六线谱正文之前的一块空白区域。
+ */
+export const LXM_SYSTEM_HEADER_WIDTH = 22;
+
+/** 纵向 T/A/B 使用同一字号与水平中心，三个基线分别落在六线谱上、中、下部。 */
+export const LXM_TAB_LABEL_FONT_SIZE = 11;
+export const LXM_TAB_LABEL_CENTER_OFFSET_X = 10;
+export const LXM_TAB_LABEL_BASELINE_OFFSETS_Y = [10, 30, 50] as const;
+
+/**
+ * 拍号是小节的固定前导记号，不随节奏列一起拉伸。
+ * width 同时覆盖两位数分子/分母与拍号右侧净空。
+ */
+export const LXM_TIME_SIGNATURE_WIDTH = 24;
+export const LXM_TIME_SIGNATURE_FONT_SIZE = 14;
+export const LXM_TIME_SIGNATURE_NUMERATOR_OFFSET_Y = 22;
+export const LXM_TIME_SIGNATURE_DENOMINATOR_OFFSET_Y = 48;
+
+/**
+ * 开始反复线的圆点会向右伸入下一小节。下一小节的拍号和第一拍必须额外后移，
+ * 不能只依赖 compact 模式 8px padding，否则圆点会与拍号数字落在同一位置。
+ */
+export const LXM_LEADING_REPEAT_CLEARANCE_WIDTH = 12;
+
+/**
  * 稀疏 System 的节奏内容区最大横向拉伸倍数。
  *
  * 该限制用于所有末行以及任意位置的单小节行。倍数只作用于 beat columns 的内容
@@ -43,8 +71,10 @@ export const LXM_LAYOUT_DENSITY_PROFILES = {
     minColumnWidth: null,
   },
   compact: {
-    measurePaddingX: 8,
-    idealColumnScale: 0.48,
+    measurePaddingX: 12,
+    // v4.1 把 TAB 行头、首次拍号和反复线净空纳入同一 A4 内容宽度。0.34 在不
+    // 突破 15px 最低列宽的前提下，仍能让既有八小节规范谱保持每行四小节。
+    idealColumnScale: 0.34,
     minColumnWidth: 15,
   },
 } as const satisfies Record<
@@ -58,6 +88,16 @@ export const LXM_LAYOUT_DENSITY_PROFILES = {
 
 /** 点击弦线时允许的纵向误差范围，提升鼠标命中容错。 */
 export const LXM_STRING_HIT_RADIUS_Y = 6;
+
+/**
+ * TAB 当前活动输入框的固定逻辑尺寸。
+ *
+ * caret 是精确表达当前 Beat/string 输入位置的视觉标记，不应随节奏列宽度、
+ * System 拉伸或命中容错区域一起变化。20 × 14 能完整包围当前一位/两位品位文本，
+ * 并在 12px 弦距上下各保留 1 个逻辑单位的视觉空隙。
+ */
+export const LXM_TAB_FOCUS_CARET_WIDTH = 20;
+export const LXM_TAB_FOCUS_CARET_HEIGHT = 14;
 
 // 左右留白距离
 export const LXM_MEASURE_PADDING_X =

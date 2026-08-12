@@ -68,6 +68,8 @@ export interface ILXMSystemLayout {
   width: number;
   /** 当前行中最高小节决定的高度。 */
   height: number;
+  /** 行头包含 TAB 文字及由谱首/跨行反复边界投影出的可选小节线。 */
+  header: ILXMSystemHeaderLayout;
   /** 按原始文档顺序排列的小节布局。 */
   measures: ILXMMeasureLayout[];
 }
@@ -88,6 +90,8 @@ export interface ILXMMeasureLayout {
 
   // 小节线布局
   barline: ILXMBarlineLayout;
+  /** 第一小节或拍号变化点的最终文字几何；其他小节为 null。 */
+  timeSignature: ILXMTimeSignatureLayout | null;
   // 基于 measure.beats 原始数据计算节奏列宽 columns
   // 基于 columns 计算到的 beats(beat slot) 位置（x，width: columns.idealWidth）
   // 基于 beat.x + string.y 得到每个 note 的位置（x，y）
@@ -106,6 +110,34 @@ export interface ILXMMeasureLayout {
 
   // 小节的边界框，用于后期做命中检测、框选 等
   // bounds: [],
+}
+
+/** 页面可直接映射为 SVG text 的最终文字几何。 */
+export interface ILXMTextLayout {
+  text: string;
+  x: number;
+  y: number;
+  fontSize: number;
+  textAnchor: "start" | "middle" | "end";
+}
+
+/** 每条 system 的固定行头；六根弦线贯穿该区域，staffX 是第一小节的真实起点。 */
+export interface ILXMSystemHeaderLayout {
+  width: number;
+  staffX: number;
+  /** 纵向排列的 T、A、B 三个字母，页面无需再拆分或计算行距。 */
+  tabLetters: ILXMTextLayout[];
+  /** 从 system 左边缘延伸到第一小节的六根弦线，避免 TAB 左侧形成视觉空白。 */
+  strings: ILXMStringLineLayout[];
+  leadingBarline: ILXMBarlineLayout | null;
+}
+
+/** 拍号分子、分母分别布局，渲染层无需理解排版规则。 */
+export interface ILXMTimeSignatureLayout {
+  measureId: string;
+  width: number;
+  numerator: ILXMTextLayout;
+  denominator: ILXMTextLayout;
 }
 
 /** 小节矩形边界，用于先快速过滤不可能命中的小节。 */

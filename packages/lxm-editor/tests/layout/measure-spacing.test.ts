@@ -58,11 +58,12 @@ describe("summarizeMeasureSpacingWidth", () => {
 
     expect(summary.columns.map((column) => column.minWidth)).toEqual([15, 15]);
     expect(summary.columns.map((column) => column.idealWidth)).toEqual([
-      34 * 2.2 * 0.48,
+      // v4.1 为同一 A4 行内的 TAB 行头与首次拍号让出固定宽度。
+      34 * 2.2 * 0.34,
       15,
     ]);
     expect(summary.minWidth).toBe(15 + 15 + 8 * 2);
-    expect(summary.idealWidth).toBeCloseTo(34 * 2.2 * 0.48 + 15 + 8 * 2);
+    expect(summary.idealWidth).toBeCloseTo(34 * 2.2 * 0.34 + 15 + 8 * 2);
   });
 });
 

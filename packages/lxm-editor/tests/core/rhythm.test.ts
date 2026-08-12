@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   calculateRhythmTicks,
+  getTimeSignatureBeatGroupTicks,
   getMeasureCapacityTicks,
+  isEditableTimeSignature,
+  isSameTimeSignature,
   getShorterRhythmOptions,
 } from "../../src/core/rhythm";
 
@@ -52,6 +55,38 @@ describe("getMeasureCapacityTicks", () => {
     expect(getMeasureCapacityTicks({ numerator: 6, denominator: 8 })).toBe(
       2880,
     );
+  });
+});
+
+describe("拍号 profile", () => {
+  it("按值比较拍号并只开放首批可编辑集合", () => {
+    expect(
+      isSameTimeSignature(
+        { numerator: 3, denominator: 4 },
+        { numerator: 3, denominator: 4 },
+      ),
+    ).toBe(true);
+    expect(isEditableTimeSignature({ numerator: 2, denominator: 4 })).toBe(
+      true,
+    );
+    expect(isEditableTimeSignature({ numerator: 6, denominator: 8 })).toBe(
+      true,
+    );
+    expect(isEditableTimeSignature({ numerator: 5, denominator: 8 })).toBe(
+      false,
+    );
+  });
+
+  it("3/4 与 6/8 容量相同但返回不同的音乐拍组", () => {
+    expect(
+      getTimeSignatureBeatGroupTicks({ numerator: 3, denominator: 4 }),
+    ).toEqual([960, 960, 960]);
+    expect(
+      getTimeSignatureBeatGroupTicks({ numerator: 6, denominator: 8 }),
+    ).toEqual([1440, 1440]);
+    expect(
+      getTimeSignatureBeatGroupTicks({ numerator: 5, denominator: 8 }),
+    ).toBeNull();
   });
 });
 
