@@ -52,6 +52,7 @@ const EXAMPLE_MVP_1 = {
                     ],
                 },
                 startBarline: "none",
+                techniques: [],
                 // 小节集合
                 measures: [
                     {

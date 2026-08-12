@@ -245,6 +245,8 @@ export const layoutSystems = (
         leadingBarline,
       }),
       measures: laidOutMeasures,
+      techniques: [],
+      techniqueLaneCount: 0,
     });
 
     systemY += systemHeight + options.systemGapY;

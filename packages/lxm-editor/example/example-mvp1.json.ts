@@ -57,6 +57,7 @@ const EXAMPLE_MVP_1: ILXMDocument = {
         },
         // 谱首不显示额外反复线。
         startBarline: "none",
+        techniques: [],
         // 小节集合
         measures: [
           {

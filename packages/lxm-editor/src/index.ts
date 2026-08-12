@@ -9,6 +9,7 @@ export * from "./core/loader";
 export * from "./core/schema";
 export * from "./core/semantic-validation";
 export * from "./core/time-signature-change";
+export * from "./core/technique-rules";
 export * from "./core/types";
 
 /**
@@ -16,5 +17,6 @@ export * from "./core/types";
  * namespace 导出；后续清理历史构建产物时可再统一 EXAMPLE 门面。
  */
 export { default as EXAMPLE_MVP_4_DOCUMENT } from "../example/example-mvp4.json";
+export { default as EXAMPLE_MVP_5_DOCUMENT } from "../example/example-mvp5.json";
 
 export * as EXAMPLE from "../example";

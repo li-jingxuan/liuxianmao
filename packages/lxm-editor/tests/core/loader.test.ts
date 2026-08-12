@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import * as exampleMvp1Module from "../../example/example-mvp1.json";
+import EXAMPLE_MVP_5 from "../../example/example-mvp5.json";
 import { loadDocument } from "../../src/core/loader";
 
 const EXAMPLE_MVP_1 = exampleMvp1Module.default;
@@ -14,9 +15,9 @@ describe("loadDocument", () => {
     }
 
     expect(result.ok).toBe(true);
-    expect(result.document.score.tracks[0]?.measures[0]?.beats[0]?.rhythm.base).toBe(
-      "quarter",
-    );
+    expect(
+      result.document.score.tracks[0]?.measures[0]?.beats[0]?.rhythm.base,
+    ).toBe("quarter");
   });
 
   it("JSON 字符串格式错误时返回解析失败结果", () => {
@@ -28,6 +29,18 @@ describe("loadDocument", () => {
     }
 
     expect(result.errors[0]).toContain("JSON");
+  });
+
+  it("MVP v5 示例中的 16 类技巧均可通过正式加载流程", () => {
+    const result = loadDocument(JSON.stringify(EXAMPLE_MVP_5));
+
+    if (!result.ok) throw new Error(result.errors.join("\n"));
+
+    const techniques = result.document.score.tracks[0]?.techniques ?? [];
+    expect(techniques).toHaveLength(16);
+    expect(new Set(techniques.map((technique) => technique.type)).size).toBe(
+      16,
+    );
   });
 
   it("文档字段不符合 schema 时返回字段路径和错误信息", () => {

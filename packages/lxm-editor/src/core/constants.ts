@@ -42,6 +42,41 @@ export const LXM_CHORD_SYMBOL_DISPLAY_TYPES = ["nameAndDiagram"] as const;
 /** 节拍内容类型；notes 表示真实音符集合。 */
 export const LXM_BEAT_KINDS = ["notes", "rest"] as const;
 
+/**
+ * MVP v5 可持久化的吉他技巧类型。
+ *
+ * 这里仅维护判别字段白名单；每一类技巧究竟引用 Note、Beat 还是 Beat 区间，
+ * 由 types.ts 的判别联合和 technique-rules.ts 的领域规则共同约束。集中白名单
+ * 可以让 schema、工具栏与测试消费同一份能力集合，避免字符串在多层之间漂移。
+ */
+export const LXM_TECHNIQUE_TYPES = [
+  "hammerOn",
+  "pullOff",
+  "slideUp",
+  "slideDown",
+  "bend",
+  "vibrato",
+  "naturalHarmonic",
+  "artificialHarmonic",
+  "palmMute",
+  "tie",
+  "tapping",
+  "trill",
+  "strum",
+  "arpeggio",
+  "pickStroke",
+  "letRing",
+] as const;
+
+/** 扫弦与拨片方向使用演奏手术语；layout 负责映射到 SVG 坐标方向。 */
+export const LXM_STROKE_DIRECTIONS = ["down", "up"] as const;
+
+/** 琶音方向描述音高运动，不与扫弦手部方向混用。 */
+export const LXM_ARPEGGIO_DIRECTIONS = [
+  "ascending",
+  "descending",
+] as const;
+
 /** 四分音符一拍的 tick 数，兼顾附点与常用二至六连音。 */
 export const TICKS_PER_QUARTER = 960 as const;
 

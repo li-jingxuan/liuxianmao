@@ -6,7 +6,12 @@
  * 一套结构化布局产物，而不是直接理解原始乐谱数据。
  */
 
-import type { ILXMTrack, ILXMRhythm, ILXMBarlineType } from "../core/types";
+import type {
+  ILXMTrack,
+  ILXMRhythm,
+  ILXMBarlineType,
+  ILXMTechniqueType,
+} from "../core/types";
 
 /** 谱面横向排版密度；默认舒适模式保持既有几何，紧凑模式用于纸张排版。 */
 export type ILXMLayoutDensity = "comfortable" | "compact";
@@ -72,6 +77,37 @@ export interface ILXMSystemLayout {
   header: ILXMSystemHeaderLayout;
   /** 按原始文档顺序排列的小节布局。 */
   measures: ILXMMeasureLayout[];
+  /** 技巧已经按当前 systemWidth 拆段并生成最终 SVG 几何。 */
+  techniques: ILXMTechniqueSegmentLayout[];
+  /** system 上方技巧区占用的 lane 数；staff 内局部记号不计入。 */
+  techniqueLaneCount: number;
+}
+
+export type ILXMTechniqueContinuation =
+  | "none"
+  | "fromPrevious"
+  | "toNext"
+  | "both";
+
+/** 页面直接消费 SVG path；任何弧线、波浪或箭头计算都留在核心 layout。 */
+export interface ILXMTechniquePathLayout {
+  d: string;
+  strokeWidth: number;
+  dashArray?: string;
+  markerEnd?: "arrow";
+}
+
+export interface ILXMTechniqueSegmentLayout {
+  techniqueId: string;
+  type: ILXMTechniqueType;
+  systemIndex: number;
+  segmentIndex: number;
+  continuation: ILXMTechniqueContinuation;
+  /** -1 表示 staff 内局部记号；非负数表示 system 上方 lane。 */
+  lane: number;
+  path: ILXMTechniquePathLayout | null;
+  texts: ILXMTextLayout[];
+  bounds: { x: number; y: number; width: number; height: number };
 }
 
 /** 小节布局结果，包含弦线、beat slot 和音符坐标。 */
@@ -154,6 +190,18 @@ export interface ILXMMeasureHitBounds {
 /** 由 layout 构建的命中索引；当前数据量较小，顺序扫描已足够。 */
 export interface ILXMHitIndex {
   measureBounds: ILXMMeasureHitBounds[];
+  techniqueBounds: ILXMTechniqueHitBounds[];
+}
+
+/** 技巧命中只返回稳定技巧 ID；多段跨行几何共享同一个领域目标。 */
+export interface ILXMTechniqueHitBounds {
+  trackId: string;
+  techniqueId: string;
+  systemIndex: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 }
 
 /** 一次成功命中得到的稳定业务位置，不保存任何临时像素坐标。 */

@@ -36,12 +36,33 @@ export const buildHitIndex = (
       height: measure.height,
     })),
   ),
+  techniqueBounds: systems.flatMap((system) =>
+    system.techniques.map((technique) => ({
+      trackId,
+      techniqueId: technique.techniqueId,
+      systemIndex: system.index,
+      ...technique.bounds,
+    })),
+  ),
 });
+
+/**
+ * 独立技巧命中避免 SVG DOM 层反推领域对象。
+ *
+ * 同一个跨行技巧会有多个 bounds；命中任意一个 segment 都返回同一 techniqueId。
+ */
+export const hitTestTechnique = (
+  layout: ILXMLayout,
+  point: ILXMLayoutPoint,
+): string | null =>
+  layout.hitIndex.techniqueBounds.find((bounds) =>
+    isPointInBounds(point, bounds),
+  )?.techniqueId ?? null;
 
 /** 判断点是否落在小节的可见矩形内，边界点属于该小节。 */
 const isPointInBounds = (
   point: ILXMLayoutPoint,
-  bounds: ILXMMeasureHitBounds,
+  bounds: { x: number; y: number; width: number; height: number },
 ) =>
   point.x >= bounds.x &&
   point.x <= bounds.x + bounds.width &&

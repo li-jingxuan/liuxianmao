@@ -7,6 +7,8 @@ import {
   LXM_CHORD_SYMBOL_DISPLAY_TYPES,
   LXM_INSTRUMENT_TYPES,
   LXM_RHYTHM_BASES,
+  LXM_STROKE_DIRECTIONS,
+  LXM_ARPEGGIO_DIRECTIONS,
   LXM_TRACK_START_BARLINE_TYPES,
   MAX_FRET,
   SCORE_DOCUMENT_SCHEMA,
@@ -20,6 +22,7 @@ import {
   type ILXMRhythm,
   type ILXMScore,
   type ILXMTimeSignature,
+  type ILXMTechnique,
   type ILXMTuning,
   type ILXMTuningString,
   type ILXMTrack,
@@ -91,6 +94,82 @@ export const LXMNoteSchema = z
   })
   .strict() satisfies z.ZodType<ILXMNote>;
 
+/**
+ * 技巧 schema 与 TypeScript 判别联合保持同构。
+ *
+ * 每个成员都使用 strict，确保例如 strum 不会意外携带 fromNoteId，或单音技巧
+ * 混入 beatId。引用是否存在、两端是否同弦等跨实体规则交给语义校验处理。
+ */
+export const LXMTechniqueSchema = z.discriminatedUnion("type", [
+  z
+    .object({
+      id: z.string(),
+      type: z.literal("bend"),
+      fromNoteId: z.string(),
+      semitones: z.literal(2),
+    })
+    .strict(),
+  ...(["vibrato", "naturalHarmonic", "artificialHarmonic", "tapping"] as const).map(
+    (type) =>
+      z
+        .object({ id: z.string(), type: z.literal(type), fromNoteId: z.string() })
+        .strict(),
+  ),
+  z
+    .object({
+      id: z.string(),
+      type: z.literal("trill"),
+      fromNoteId: z.string(),
+      auxiliaryFret: z.number().int().min(0).max(MAX_FRET),
+    })
+    .strict(),
+  ...(["hammerOn", "pullOff", "slideUp", "slideDown", "tie"] as const).map(
+    (type) =>
+      z
+        .object({
+          id: z.string(),
+          type: z.literal(type),
+          fromNoteId: z.string(),
+          toNoteId: z.string(),
+        })
+        .strict(),
+  ),
+  z
+    .object({
+      id: z.string(),
+      type: z.literal("strum"),
+      beatId: z.string(),
+      stroke: z.enum(LXM_STROKE_DIRECTIONS),
+    })
+    .strict(),
+  z
+    .object({
+      id: z.string(),
+      type: z.literal("arpeggio"),
+      beatId: z.string(),
+      direction: z.enum(LXM_ARPEGGIO_DIRECTIONS),
+    })
+    .strict(),
+  z
+    .object({
+      id: z.string(),
+      type: z.literal("pickStroke"),
+      beatId: z.string(),
+      stroke: z.enum(LXM_STROKE_DIRECTIONS),
+    })
+    .strict(),
+  ...(["palmMute", "letRing"] as const).map((type) =>
+    z
+      .object({
+        id: z.string(),
+        type: z.literal(type),
+        fromBeatId: z.string(),
+        toBeatId: z.string(),
+      })
+      .strict(),
+  ),
+]) satisfies z.ZodType<ILXMTechnique>;
+
 /** 节拍内容校验，tick 表示该节拍在小节中的起始位置。 */
 export const LXMBeatSchema = z
   .object({
@@ -122,6 +201,7 @@ export const LXMTrackSchema = z
     tuning: LXMTuningSchema,
     startBarline: z.enum(LXM_TRACK_START_BARLINE_TYPES),
     measures: z.array(LXMMeasureSchema),
+    techniques: z.array(LXMTechniqueSchema),
   })
   .strict() satisfies z.ZodType<ILXMTrack>;
 

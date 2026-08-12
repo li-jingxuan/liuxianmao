@@ -5,6 +5,9 @@ import type {
   LXM_CHORD_SYMBOL_DISPLAY_TYPES,
   LXM_INSTRUMENT_TYPES,
   LXM_RHYTHM_BASES,
+  LXM_STROKE_DIRECTIONS,
+  LXM_ARPEGGIO_DIRECTIONS,
+  LXM_TECHNIQUE_TYPES,
   LXM_TRACK_START_BARLINE_TYPES,
   SCORE_DOCUMENT_SCHEMA,
   STANDARD_GUITAR_TUNING,
@@ -24,6 +27,10 @@ export type ILXMInstrumentType = (typeof LXM_INSTRUMENT_TYPES)[number];
 export type ILXMChordSymbolDisplayType =
   (typeof LXM_CHORD_SYMBOL_DISPLAY_TYPES)[number];
 export type ILXMBeatKind = (typeof LXM_BEAT_KINDS)[number];
+export type ILXMTechniqueType = (typeof LXM_TECHNIQUE_TYPES)[number];
+export type ILXMStrokeDirection = (typeof LXM_STROKE_DIRECTIONS)[number];
+export type ILXMArpeggioDirection =
+  (typeof LXM_ARPEGGIO_DIRECTIONS)[number];
 
 /** 允许业务方扩展的普通对象元信息。 */
 export type ILXMRecord = Record<string, unknown>;
@@ -53,6 +60,13 @@ export interface ILXMTrack {
   /** 第一小节之前的谱首边界；普通谱面使用 none。 */
   startBarline: ILXMTrackStartBarlineType;
   measures: ILXMMeasure[];
+  /**
+   * 吉他技巧独立于 Note/Beat 保存，引用稳定业务 ID。
+   *
+   * 这样跨小节、跨 system 的技巧只有一个领域事实来源；自动换行仅在 layout
+   * 中把它拆成多个视觉 segment，不会把临时坐标或分段写回文档。
+   */
+  techniques: ILXMTechnique[];
 }
 
 /** 弦乐器调弦信息。 */
@@ -123,6 +137,77 @@ export interface ILXMNote {
   string: number;
   fret: number;
 }
+
+/**
+ * MVP v5 技巧判别联合。
+ *
+ * - 单音与连接技巧引用 Note；
+ * - 扫弦、琶音和拨片方向引用一个完整 Beat；
+ * - P.M. 与 Let Ring 引用 Beat 区间。
+ *
+ * 把三种目标形态写进类型 interface，可阻止页面把“扫弦”错误绑定到和弦中的
+ * 任意一颗 Note，也避免区间技巧在多根弦上重复存储相同关系。
+ */
+export type ILXMTechnique =
+  | {
+      id: string;
+      type: "bend";
+      fromNoteId: string;
+      /** MVP 首版固定为全音推弦，保留参数便于后续扩展半音等档位。 */
+      semitones: 2;
+    }
+  | {
+      id: string;
+      type:
+        | "vibrato"
+        | "naturalHarmonic"
+        | "artificialHarmonic"
+        | "tapping";
+      fromNoteId: string;
+    }
+  | {
+      id: string;
+      type: "trill";
+      fromNoteId: string;
+      auxiliaryFret: number;
+    }
+  | {
+      id: string;
+      type: "hammerOn" | "pullOff" | "slideUp" | "slideDown" | "tie";
+      fromNoteId: string;
+      toNoteId: string;
+    }
+  | {
+      id: string;
+      type: "strum";
+      beatId: string;
+      stroke: ILXMStrokeDirection;
+    }
+  | {
+      id: string;
+      type: "arpeggio";
+      beatId: string;
+      direction: ILXMArpeggioDirection;
+    }
+  | {
+      id: string;
+      type: "pickStroke";
+      beatId: string;
+      stroke: ILXMStrokeDirection;
+    }
+  | {
+      id: string;
+      type: "palmMute" | "letRing";
+      fromBeatId: string;
+      toBeatId: string;
+    };
+
+/** 分布式 Omit 保留判别联合的每一个成员，供新增/修改命令接收无 ID 草稿。 */
+export type ILXMTechniqueDraft = ILXMTechnique extends infer Technique
+  ? Technique extends ILXMTechnique
+    ? Omit<Technique, "id">
+    : never
+  : never;
 
 /** JSON 加载后的成功结果。 */
 export interface ILXMDocumentLoadSuccess {

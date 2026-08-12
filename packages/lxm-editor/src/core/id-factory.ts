@@ -6,6 +6,7 @@ export interface ILXMIdFactory {
   createBeatId(): string;
   createNoteId(): string;
   createChordSymbolId(): string;
+  createTechniqueId(): string;
 }
 
 /** 收集所有可持久化实体 ID；不同实体类型同样禁止重名，便于后续引用。 */
@@ -14,6 +15,7 @@ const collectEntityIds = (document: ILXMDocument): Set<string> =>
     document.score.id,
     ...document.score.tracks.flatMap((track) => [
       track.id,
+      ...track.techniques.map((technique) => technique.id),
       ...track.measures.flatMap((measure) => [
         measure.id,
         ...measure.chordSymbols.map((symbol) => symbol.id),
@@ -46,5 +48,6 @@ export const createDocumentIdFactory = (document: ILXMDocument): ILXMIdFactory =
     createBeatId: () => create("beat"),
     createNoteId: () => create("note"),
     createChordSymbolId: () => create("chord"),
+    createTechniqueId: () => create("technique"),
   };
 };

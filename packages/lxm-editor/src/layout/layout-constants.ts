@@ -20,6 +20,20 @@ export const LXM_SYSTEM_DEFAULT_WIDTH = 600;
 export const LXM_SYSTEM_GAP_Y = 36;
 
 /**
+ * system 上方技巧区的确定性尺寸。
+ *
+ * 每条 lane 容纳一条弧线/文本线；水平区间相交的技巧会被分到不同 lane。额外
+ * padding 让最靠近 staff 的 lane 与第一弦之间仍有清晰净空。
+ */
+export const LXM_TECHNIQUE_LANE_HEIGHT = 14;
+export const LXM_TECHNIQUE_AREA_PADDING_TOP = 4;
+export const LXM_TECHNIQUE_AREA_PADDING_BOTTOM = 6;
+export const LXM_TECHNIQUE_HORIZONTAL_CLEARANCE = 6;
+export const LXM_TECHNIQUE_TEXT_FONT_SIZE = 10;
+export const LXM_TECHNIQUE_PATH_STROKE_WIDTH = 1.2;
+export const LXM_TECHNIQUE_HIT_PADDING = 4;
+
+/**
  * 每条谱面行左侧的纵向 TAB 谱号列宽。
  *
  * 这里仍需保留一列很窄的几何宽度，避免拍号和第一拍压住字母；但六根弦线会贯穿
@@ -71,7 +85,9 @@ export const LXM_LAYOUT_DENSITY_PROFILES = {
     minColumnWidth: null,
   },
   compact: {
-    measurePaddingX: 12,
+    // A4 紧凑契约与既有几何测试均以 8px 为基线；12px 会把规范八小节
+    // 从 4+4 挤成 3+5，并让第二行命中目标整体漂移。
+    measurePaddingX: 8,
     // v4.1 把 TAB 行头、首次拍号和反复线净空纳入同一 A4 内容宽度。0.34 在不
     // 突破 15px 最低列宽的前提下，仍能让既有八小节规范谱保持每行四小节。
     idealColumnScale: 0.34,

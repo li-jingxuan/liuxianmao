@@ -18,6 +18,10 @@ import { isEditableTimeSignature, isSameTimeSignature } from "./rhythm";
 import { LXMDocumentSchema } from "./schema";
 import { validateDocumentSemantics } from "./semantic-validation";
 import { changeMeasureTimeSignature } from "./time-signature-change";
+import {
+  pruneInvalidTechniques,
+  validateTechnique,
+} from "./technique-rules";
 import type {
   ILXMBarlineType,
   ILXMBeat,
@@ -27,6 +31,7 @@ import type {
   ILXMRhythm,
   ILXMTimeSignature,
   ILXMTimeSignatureChangeScope,
+  ILXMTechniqueDraft,
   ILXMTrackStartBarlineType,
 } from "./types";
 
@@ -43,6 +48,9 @@ export enum LXMScoreCommandEnum {
   RemoveMeasure = "measure.remove",
   SetTimeSignature = "measure.setTimeSignature",
   SetBarlineBoundary = "barline.setBoundary",
+  AddTechnique = "technique.add",
+  UpdateTechnique = "technique.update",
+  RemoveTechnique = "technique.remove",
 }
 
 export interface ILXMScoreCommandBase {
@@ -124,6 +132,21 @@ export interface ILXMSetBarlineBoundaryCommand extends ILXMScoreCommandBase {
   barline: ILXMTrackStartBarlineType | ILXMBarlineType;
 }
 
+/** 技巧新增/修改只接收领域草稿；持久化 ID 统一由核心工厂创建或保留。 */
+export interface ILXMAddTechniqueCommand extends ILXMScoreCommandBase {
+  type: LXMScoreCommandEnum.AddTechnique;
+  technique: ILXMTechniqueDraft;
+}
+export interface ILXMUpdateTechniqueCommand extends ILXMScoreCommandBase {
+  type: LXMScoreCommandEnum.UpdateTechnique;
+  techniqueId: string;
+  technique: ILXMTechniqueDraft;
+}
+export interface ILXMRemoveTechniqueCommand extends ILXMScoreCommandBase {
+  type: LXMScoreCommandEnum.RemoveTechnique;
+  techniqueId: string;
+}
+
 export type ILXMScoreCommand =
   | ILXMSetNoteCommand
   | ILXMRemoveNoteCommand
@@ -136,7 +159,10 @@ export type ILXMScoreCommand =
   | ILXMCopyMeasureCommand
   | ILXMRemoveMeasureCommand
   | ILXMSetTimeSignatureCommand
-  | ILXMSetBarlineBoundaryCommand;
+  | ILXMSetBarlineBoundaryCommand
+  | ILXMAddTechniqueCommand
+  | ILXMUpdateTechniqueCommand
+  | ILXMRemoveTechniqueCommand;
 
 export type ILXMScoreCommandErrorCode =
   | "TRACK_NOT_FOUND"
@@ -159,6 +185,15 @@ export type ILXMScoreCommandErrorCode =
   | "CANNOT_REMOVE_LAST_MEASURE"
   | "BARLINE_BOUNDARY_NOT_FOUND"
   | "INVALID_BARLINE_FOR_BOUNDARY"
+  | "TECHNIQUE_NOT_FOUND"
+  | "TECHNIQUE_NOTE_NOT_FOUND"
+  | "TECHNIQUE_BEAT_NOT_FOUND"
+  | "TECHNIQUE_TARGET_INVALID"
+  | "TECHNIQUE_NOTES_NOT_ORDERED"
+  | "TECHNIQUE_REQUIRES_SAME_STRING"
+  | "TECHNIQUE_REQUIRES_SAME_PITCH"
+  | "TECHNIQUE_DIRECTION_MISMATCH"
+  | "TECHNIQUE_CONFLICT"
   | "DOCUMENT_INVALID"
   | "SEMANTIC_VALIDATION_FAILED";
 export type ILXMApplyScoreCommandResult =
@@ -226,12 +261,12 @@ const replaceMeasure = (
     tracks: document.score.tracks.map((track) =>
       track.id !== trackId
         ? track
-        : {
+        : pruneInvalidTechniques({
             ...track,
             measures: track.measures.map((measure) =>
               measure.id === measureId ? nextMeasure : measure,
             ),
-          },
+          }),
     ),
   },
 });
@@ -507,7 +542,7 @@ const editNotesInRect = (
       ...document.score,
       tracks: document.score.tracks.map((candidate) =>
         candidate.id === track.id
-          ? { ...track, measures: nextMeasures }
+          ? pruneInvalidTechniques({ ...track, measures: nextMeasures })
           : candidate,
       ),
     },
@@ -560,7 +595,9 @@ const setBeatKindInRange = (
     score: {
       ...document.score,
       tracks: document.score.tracks.map((candidate) =>
-        candidate.id === track.id ? { ...track, measures } : candidate,
+        candidate.id === track.id
+          ? pruneInvalidTechniques({ ...track, measures })
+          : candidate,
       ),
     },
   });
@@ -624,11 +661,124 @@ const setBarlineBoundary = (
   );
 };
 
+/**
+ * 新增、修改与删除技巧共享一个深 Module interface。
+ *
+ * 页面不需要知道目标解析、互斥矩阵或 ID 分配；所有候选先通过领域规则，再只复制
+ * 目标 track 并进行最终两层校验。update 排除自身后校验，避免把原技巧误判为重复。
+ */
+const editTechnique = (
+  document: ILXMDocument,
+  command:
+    | ILXMAddTechniqueCommand
+    | ILXMUpdateTechniqueCommand
+    | ILXMRemoveTechniqueCommand,
+): ILXMApplyScoreCommandResult => {
+  const track = document.score.tracks.find(
+    (candidate) => candidate.id === command.trackId,
+  );
+  if (!track) return fail("TRACK_NOT_FOUND", "目标轨道不存在");
+
+  if (command.type === LXMScoreCommandEnum.RemoveTechnique) {
+    if (!track.techniques.some((item) => item.id === command.techniqueId))
+      return fail("TECHNIQUE_NOT_FOUND", "目标技巧不存在");
+    return finalize({
+      ...document,
+      documentRevision: document.documentRevision + 1,
+      score: {
+        ...document.score,
+        tracks: document.score.tracks.map((candidate) =>
+          candidate.id === track.id
+            ? {
+                ...track,
+                techniques: track.techniques.filter(
+                  (item) => item.id !== command.techniqueId,
+                ),
+              }
+            : candidate,
+        ),
+      },
+    });
+  }
+
+  const existing =
+    command.type === LXMScoreCommandEnum.UpdateTechnique
+      ? track.techniques.find((item) => item.id === command.techniqueId)
+      : undefined;
+  if (
+    command.type === LXMScoreCommandEnum.UpdateTechnique &&
+    existing === undefined
+  )
+    return fail("TECHNIQUE_NOT_FOUND", "目标技巧不存在");
+
+  const toTechniqueDraftJson = (value: (typeof track.techniques)[number]) => {
+    const { id: _id, ...draft } = value;
+    return JSON.stringify(draft);
+  };
+  const commandDraftJson = JSON.stringify(command.technique);
+  // 完全重复新增是成功 no-op；它与“同一目标但参数冲突”是不同语义，必须在
+  // validateTechnique 的冲突矩阵之前识别。
+  if (
+    command.type === LXMScoreCommandEnum.AddTechnique &&
+    track.techniques.some(
+      (candidate) => toTechniqueDraftJson(candidate) === commandDraftJson,
+    )
+  )
+    return unchanged(document);
+
+  const validation = validateTechnique(
+    track,
+    command.technique,
+    command.type === LXMScoreCommandEnum.UpdateTechnique
+      ? command.techniqueId
+      : undefined,
+  );
+  if (!validation.ok)
+    return fail(validation.error.code, validation.error.message);
+
+  if (
+    existing &&
+    toTechniqueDraftJson(existing) === commandDraftJson
+  )
+    return unchanged(document);
+
+  const technique = {
+    ...command.technique,
+    id:
+      command.type === LXMScoreCommandEnum.UpdateTechnique
+        ? command.techniqueId
+        : createDocumentIdFactory(document).createTechniqueId(),
+  } as (typeof track.techniques)[number];
+  const techniques =
+    command.type === LXMScoreCommandEnum.UpdateTechnique
+      ? track.techniques.map((item) =>
+          item.id === command.techniqueId ? technique : item,
+        )
+      : [...track.techniques, technique];
+
+  return finalize({
+    ...document,
+    documentRevision: document.documentRevision + 1,
+    score: {
+      ...document.score,
+      tracks: document.score.tracks.map((candidate) =>
+        candidate.id === track.id ? { ...track, techniques } : candidate,
+      ),
+    },
+  });
+};
+
 /** 应用所有领域命令；分发器本身不包含页面状态或历史逻辑。 */
 export const applyScoreCommand = (
   document: ILXMDocument,
   command: ILXMScoreCommand,
 ): ILXMApplyScoreCommandResult => {
+  if (
+    command.type === LXMScoreCommandEnum.AddTechnique ||
+    command.type === LXMScoreCommandEnum.UpdateTechnique ||
+    command.type === LXMScoreCommandEnum.RemoveTechnique
+  )
+    return editTechnique(document, command);
   if (command.type === LXMScoreCommandEnum.SetTimeSignature)
     return setTimeSignature(document, command);
   if (command.type === LXMScoreCommandEnum.SetBarlineBoundary)
@@ -728,7 +878,9 @@ export const applyScoreCommand = (
       score: {
         ...document.score,
         tracks: document.score.tracks.map((item) =>
-          item.id === track.id ? { ...track, measures: next } : item,
+          item.id === track.id
+            ? pruneInvalidTechniques({ ...track, measures: next })
+            : item,
         ),
       },
     });
@@ -794,7 +946,9 @@ export const applyScoreCommand = (
     score: {
       ...document.score,
       tracks: document.score.tracks.map((item) =>
-        item.id === track.id ? { ...track, measures: nextMeasures } : item,
+        item.id === track.id
+          ? pruneInvalidTechniques({ ...track, measures: nextMeasures })
+          : item,
       ),
     },
   });

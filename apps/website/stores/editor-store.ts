@@ -9,7 +9,7 @@ import {
   applyScoreCommand,
   buildOrderedBeatIndex,
   createCollapsedTabCellSelection,
-  EXAMPLE_MVP_4_DOCUMENT,
+  EXAMPLE_MVP_5_DOCUMENT,
   getFirstTabCellReference,
   HISTORY_LIMIT,
   loadDocument,
@@ -32,6 +32,8 @@ interface EditorHistory {
 export interface EditorStore {
   document: ILXMDocument | null;
   selection: ILXMTabCellSelection | null;
+  /** 当前点击的技巧仅属于 UI 焦点，不进入文档历史。 */
+  selectedTechniqueId: string | null;
   errorMessage: string | null;
   canUndo: boolean;
   canRedo: boolean;
@@ -39,6 +41,7 @@ export interface EditorStore {
   historyDepth: { past: number; future: number };
   execute: (command: ILXMScoreCommand) => ILXMApplyScoreCommandResult | null;
   setSelection: (selection: ILXMTabCellSelection | null) => void;
+  setSelectedTechniqueId: (techniqueId: string | null) => void;
   setErrorMessage: (message: string | null) => void;
   undo: () => void;
   redo: () => void;
@@ -48,7 +51,7 @@ type EditorStoreState = EditorStore & { history: EditorHistory };
 
 /** 初始 fixture 也经过正式 loader，避免页面绕过 schema/语义校验。 */
 const loadInitialDocument = (): ILXMDocument | null => {
-  const result = loadDocument(JSON.stringify(EXAMPLE_MVP_4_DOCUMENT));
+  const result = loadDocument(JSON.stringify(EXAMPLE_MVP_5_DOCUMENT));
   return result.ok ? result.document : null;
 };
 
@@ -213,7 +216,8 @@ export const createEditorStore = (
   createStore<EditorStoreState>((set, get) => ({
     document: initialDocument,
     selection: null,
-    errorMessage: initialDocument ? null : "无法加载 MVP v4 示例乐谱。",
+    selectedTechniqueId: null,
+    errorMessage: initialDocument ? null : "无法加载 MVP v5 示例乐谱。",
     history: { past: [], future: [] },
     canUndo: false,
     canRedo: false,
@@ -250,6 +254,13 @@ export const createEditorStore = (
       set({
         document: result.document,
         selection: reconcileSelection(result.document, selectionCandidate),
+        selectedTechniqueId: result.document.score.tracks.some((track) =>
+          track.techniques.some(
+            (technique) => technique.id === state.selectedTechniqueId,
+          ),
+        )
+          ? state.selectedTechniqueId
+          : null,
         errorMessage: null,
         ...toHistoryState(history),
       });
@@ -271,6 +282,20 @@ export const createEditorStore = (
       set({ selection, errorMessage: null });
     },
 
+    setSelectedTechniqueId: (selectedTechniqueId) => {
+      const document = get().document;
+      const exists = document?.score.tracks.some((track) =>
+        track.techniques.some(
+          (technique) => technique.id === selectedTechniqueId,
+        ),
+      );
+      set({
+        selectedTechniqueId:
+          selectedTechniqueId === null || exists ? selectedTechniqueId : null,
+        errorMessage: null,
+      });
+    },
+
     setErrorMessage: (errorMessage) => set({ errorMessage }),
 
     undo: () => {
@@ -284,6 +309,13 @@ export const createEditorStore = (
       set({
         document: previous,
         selection: reconcileSelection(previous, state.selection),
+        selectedTechniqueId: previous.score.tracks.some((track) =>
+          track.techniques.some(
+            (technique) => technique.id === state.selectedTechniqueId,
+          ),
+        )
+          ? state.selectedTechniqueId
+          : null,
         errorMessage: null,
         ...toHistoryState(history),
       });
@@ -300,6 +332,13 @@ export const createEditorStore = (
       set({
         document: next,
         selection: reconcileSelection(next, state.selection),
+        selectedTechniqueId: next.score.tracks.some((track) =>
+          track.techniques.some(
+            (technique) => technique.id === state.selectedTechniqueId,
+          ),
+        )
+          ? state.selectedTechniqueId
+          : null,
         errorMessage: null,
         ...toHistoryState(history),
       });

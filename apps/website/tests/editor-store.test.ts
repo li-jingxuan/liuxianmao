@@ -194,6 +194,45 @@ describe("editor store history", () => {
     expect(store.getState().historyDepth.past).toBe(100);
   });
 
+  it("技巧增删进入统一历史，删除后清理失效的技巧选中态", () => {
+    const store = createEditorStore(structuredClone(EXAMPLE_MVP_4));
+    const addResult = store.getState().execute({
+      type: LXMScoreCommandEnum.AddTechnique,
+      trackId: target.trackId,
+      technique: {
+        type: "naturalHarmonic",
+        fromNoteId: "mvp2-note-1-1-6",
+      },
+    });
+    expect(addResult?.ok).toBe(true);
+    const techniqueId =
+      store.getState().document?.score.tracks[0]?.techniques[0]?.id;
+    expect(techniqueId).toBeTruthy();
+    if (!techniqueId) return;
+
+    store.getState().setSelectedTechniqueId(techniqueId);
+    store.getState().execute({
+      type: LXMScoreCommandEnum.RemoveTechnique,
+      trackId: target.trackId,
+      techniqueId,
+    });
+    expect(store.getState()).toMatchObject({
+      selectedTechniqueId: null,
+      historyDepth: { past: 2, future: 0 },
+    });
+
+    store.getState().undo();
+    expect(
+      store
+        .getState()
+        .document?.score.tracks[0]?.techniques.some(
+          (technique) => technique.id === techniqueId,
+        ),
+    ).toBe(true);
+    store.getState().redo();
+    expect(store.getState().document?.score.tracks[0]?.techniques).toEqual([]);
+  });
+
   it("undo/redo 后的 document 仍可通过语义校验和 layout", () => {
     const store = createEditorStore(structuredClone(EXAMPLE_MVP_4));
     store.getState().execute({

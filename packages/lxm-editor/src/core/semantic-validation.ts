@@ -5,6 +5,7 @@
  * 命令层面对的是一条连续、完整且无冲突的时间轴。
  */
 import { calculateRhythmTicks, getMeasureCapacityTicks } from "./rhythm";
+import { validateTechnique } from "./technique-rules";
 import type { ILXMDocument, ILXMMeasure } from "./types";
 
 export type ILXMSemanticValidationIssueCode =
@@ -14,7 +15,8 @@ export type ILXMSemanticValidationIssueCode =
   | "REST_HAS_NOTES"
   | "DUPLICATE_NOTE_STRING"
   | "DUPLICATE_ENTITY_ID"
-  | "INVALID_CHORD_TICK";
+  | "INVALID_CHORD_TICK"
+  | "INVALID_TECHNIQUE";
 
 export interface ILXMSemanticValidationIssue {
   code: ILXMSemanticValidationIssueCode;
@@ -133,6 +135,20 @@ export const validateDocumentSemantics = (
         issues,
       ),
     );
+    track.techniques.forEach((technique, techniqueIndex) => {
+      const techniquePath = `${trackPath}.techniques.${techniqueIndex}`;
+      registerId(technique.id, `${techniquePath}.id`);
+      // 排除自身后再校验冲突，否则任何已持久化技巧都会被自己的重复 key 命中。
+      const result = validateTechnique(track, technique, technique.id);
+      if (!result.ok)
+        issues.push({
+          code: "INVALID_TECHNIQUE",
+          path: result.error.field
+            ? `${techniquePath}.${result.error.field}`
+            : techniquePath,
+          message: result.error.message,
+        });
+    });
   });
   return issues.length === 0 ? { ok: true } : { ok: false, issues };
 };

@@ -16,6 +16,7 @@ import {
 import { buildHitIndex } from "./hit-test";
 import type { ILXMLayout, ILXMLayoutOptions } from "./layout-types";
 import { layoutSystems } from "./system-layout";
+import { layoutTrackTechniques } from "./technique-layout";
 
 /** 没有可布局轨道时返回的空布局，保持调用方无需做 null 判断。 */
 const getDefaultLayout = (options: ILXMLayoutOptions): ILXMLayout => {
@@ -29,7 +30,7 @@ const getDefaultLayout = (options: ILXMLayoutOptions): ILXMLayout => {
     width: 0,
     height: 0,
     systems: [],
-    hitIndex: { measureBounds: [] },
+    hitIndex: { measureBounds: [], techniqueBounds: [] },
   };
 };
 
@@ -49,15 +50,17 @@ export const buildLayout = (
   const x = options.x ?? LXM_LAYOUT_DEFAULT_X;
   const y = options.y ?? LXM_LAYOUT_DEFAULT_Y;
   const systemWidth = options.systemWidth ?? LXM_SYSTEM_DEFAULT_WIDTH;
-  const systems = layoutSystems(track.measures, {
+  const systemGapY = options.systemGapY ?? LXM_SYSTEM_GAP_Y;
+  const baseSystems = layoutSystems(track.measures, {
     startX: x,
     startY: y,
     measureGap: options.measureGap ?? 0,
     systemWidth,
-    systemGapY: options.systemGapY ?? LXM_SYSTEM_GAP_Y,
+    systemGapY,
     density: options.density ?? LXM_LAYOUT_DEFAULT_DENSITY,
     startBarline: track.startBarline,
   });
+  const systems = layoutTrackTechniques(track, baseSystems, systemGapY);
   const lastSystem = systems[systems.length - 1];
 
   return {
@@ -80,7 +83,7 @@ export const buildLayout = (
   };
 };
 
-export { hitTestLayout } from "./hit-test";
+export { hitTestLayout, hitTestTechnique } from "./hit-test";
 export { layoutTabCellCaret, layoutTabCellSelection } from "./selection-layout";
 export type {
   ILXMTabCellCaretLayout,

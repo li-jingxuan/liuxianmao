@@ -4,6 +4,7 @@ import {
   buildLayout,
   createCollapsedTabCellSelection,
   hitTestLayout,
+  hitTestTechnique,
   layoutTabCellCaret,
   layoutTabCellSelection,
   LXM_EDITABLE_TIME_SIGNATURES,
@@ -27,6 +28,7 @@ import {
   resolveBeatKindShortcut,
   resolveEditorHistoryShortcut,
 } from "./editor-interaction";
+import { TechniqueToolbar } from "./TechniqueToolbar";
 import styles from "./index.module.scss";
 
 /** A4 纸张扣除左右各 8mm 页边距后的 194mm 内容区逻辑宽度。 */
@@ -98,6 +100,12 @@ export const EditorShell: React.FC = () => {
   const errorMessage = useEditorStore((state) => state.errorMessage);
   const execute = useEditorStore((state) => state.execute);
   const setSelection = useEditorStore((state) => state.setSelection);
+  const selectedTechniqueId = useEditorStore(
+    (state) => state.selectedTechniqueId,
+  );
+  const setSelectedTechniqueId = useEditorStore(
+    (state) => state.setSelectedTechniqueId,
+  );
   const setErrorMessage = useEditorStore((state) => state.setErrorMessage);
   const undo = useEditorStore((state) => state.undo);
   const redo = useEditorStore((state) => state.redo);
@@ -439,28 +447,54 @@ export const EditorShell: React.FC = () => {
   };
 
   /** 使用 SVG CTM 完成 client 坐标到 layout 逻辑坐标的唯一转换。 */
-  const hitTestPointer = (
+  const getLayoutPoint = (
     svg: SVGSVGElement,
     event: Pick<React.PointerEvent<SVGSVGElement>, "clientX" | "clientY">,
-  ): ILXMTabCellReference | null => {
+  ): { x: number; y: number } | null => {
     const matrix = svg.getScreenCTM();
     if (!matrix || !lxmLayout) return null;
     const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(
       matrix.inverse(),
     );
-    const target = hitTestLayout(lxmLayout, { x: point.x, y: point.y });
+    return { x: point.x, y: point.y };
+  };
+
+  const hitTestPointer = (
+    svg: SVGSVGElement,
+    event: Pick<React.PointerEvent<SVGSVGElement>, "clientX" | "clientY">,
+  ): ILXMTabCellReference | null => {
+    const point = getLayoutPoint(svg, event);
+    if (!point || !lxmLayout) return null;
+    const target = hitTestLayout(lxmLayout, point);
     return target ? toCellReference(target) : null;
   };
 
   const handlePointerDown: React.PointerEventHandler<SVGSVGElement> = (
     event,
   ) => {
-    const target = hitTestPointer(event.currentTarget, event);
     event.currentTarget.focus();
     clearFretDraft();
 
+    // 技巧可能位于六线谱上方，不能先走 TAB 单元格命中。跨行技巧的所有 segment
+    // 共享同一个 ID，因此点击任意续接段都会选中同一领域对象。
+    const point = getLayoutPoint(event.currentTarget, event);
+    const techniqueId =
+      point && lxmLayout ? hitTestTechnique(lxmLayout, point) : null;
+    if (techniqueId) {
+      dragAnchorRef.current = null;
+      activePointerIdRef.current = null;
+      setSelectedTechniqueId(techniqueId);
+      setErrorMessage(null);
+      return;
+    }
+
+    const target = hitTestPointer(event.currentTarget, event);
+
     if (!target) {
-      if (!event.shiftKey) setSelection(null);
+      if (!event.shiftKey) {
+        setSelection(null);
+        setSelectedTechniqueId(null);
+      }
       setErrorMessage("请点击小节内的弦线和拍点。");
       return;
     }
@@ -471,6 +505,7 @@ export const EditorShell: React.FC = () => {
     activePointerIdRef.current = event.pointerId;
     event.currentTarget.setPointerCapture(event.pointerId);
 
+    setSelectedTechniqueId(null);
     setSelection({ anchor, focus: target });
   };
 
@@ -603,12 +638,13 @@ export const EditorShell: React.FC = () => {
 
     runImmediateEditorAction(() => {
       setSelection(null);
+      setSelectedTechniqueId(null);
       setErrorMessage(null);
     });
   };
 
   if (!document || !lxmLayout)
-    return <p className={styles.errorMessage}>无法加载 MVP v4 示例乐谱。</p>;
+    return <p className={styles.errorMessage}>无法加载 MVP v5 示例乐谱。</p>;
 
   /** 顶栏每个音乐图标都有文字 aria-label，避免只靠符号传达操作含义。 */
   const rhythmButtons: {
@@ -864,10 +900,19 @@ export const EditorShell: React.FC = () => {
           >
             谱首反复
           </button>
+          <TechniqueToolbar
+            document={document}
+            selection={selection}
+            selectedTechniqueId={selectedTechniqueId}
+            execute={execute}
+            setSelectedTechniqueId={setSelectedTechniqueId}
+            setErrorMessage={setErrorMessage}
+          />
         </div>
         <p className={styles.inputHint}>
           点击或拖动选择，Shift 扩展，方向键导航；输入 0–24 批量设置品位，
-          Backspace/Delete 批量删除，R 设为休止，Shift+R 取消休止。
+          Backspace/Delete 批量删除，R 设为休止，Shift+R 取消休止；技巧可按当前
+          Note、Beat 或范围添加，点击技巧图形可更新或删除。
           {resolvedSelection && ` 已选择 ${resolvedSelection.cellCount} 格。`}
           {fretDraft && ` 正在输入：${fretDraft}`}
         </p>
@@ -897,6 +942,20 @@ export const EditorShell: React.FC = () => {
             onPointerCancel={finishPointerDrag}
             onKeyDown={handleScoreKeyDown}
           >
+            <defs>
+              {/* 所有方向型技巧共用一个 SVG marker，路径方向由核心 layout 决定。 */}
+              <marker
+                id="technique-arrow"
+                viewBox="0 0 10 10"
+                refX="8"
+                refY="5"
+                markerWidth="5"
+                markerHeight="5"
+                orient="auto-start-reverse"
+              >
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" />
+              </marker>
+            </defs>
             {/* 选区层位于音乐元素下方，且永不参与指针命中。 */}
             <g className={styles.selectionLayer} pointerEvents="none">
               {selectionRects.map((rect) => (
@@ -1081,6 +1140,56 @@ export const EditorShell: React.FC = () => {
                     </g>
                   </g>
                 ))}
+                {/* 技巧层只映射核心产出的 path/text/bounds，不在 React 内计算几何。 */}
+                <g className={styles.techniqueLayer}>
+                  {system.techniques.map((technique) => (
+                    <g
+                      key={`${technique.techniqueId}-${technique.segmentIndex}`}
+                      className={
+                        technique.techniqueId === selectedTechniqueId
+                          ? styles.selectedTechnique
+                          : styles.techniqueSegment
+                      }
+                      aria-label={`技巧 ${technique.type}`}
+                    >
+                      <rect
+                        className={styles.techniqueHitArea}
+                        x={technique.bounds.x}
+                        y={technique.bounds.y}
+                        width={technique.bounds.width}
+                        height={technique.bounds.height}
+                      />
+                      {technique.path && (
+                        <path
+                          d={technique.path.d}
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth={technique.path.strokeWidth}
+                          strokeDasharray={technique.path.dashArray}
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          markerEnd={
+                            technique.path.markerEnd === "arrow"
+                              ? "url(#technique-arrow)"
+                              : undefined
+                          }
+                        />
+                      )}
+                      {technique.texts.map((item, index) => (
+                        <text
+                          key={`${item.text}-${index}`}
+                          x={item.x}
+                          y={item.y}
+                          fontSize={item.fontSize}
+                          textAnchor={item.textAnchor}
+                          fill="currentColor"
+                        >
+                          {item.text}
+                        </text>
+                      ))}
+                    </g>
+                  ))}
+                </g>
               </g>
             ))}
           </svg>

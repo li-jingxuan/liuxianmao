@@ -75,6 +75,28 @@
   }
 }
 
+/** 技巧工具使用 display: contents 接入既有可换行工具栏，不额外制造嵌套行。 */
+.techniqueToolbar {
+  display: contents;
+}
+
+.toolbarNumberInput {
+  width: 56px;
+  height: 30px;
+  padding: 0 6px;
+  border: 1px solid #c9ced8;
+  border-radius: 4px;
+}
+
+.techniqueSelectionLabel {
+  max-width: 140px;
+  overflow: hidden;
+  color: #2864e3;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /** TAB 与拍号是乐谱正文，打印时保留；这里只集中设置文字的视觉重量。 */
 .tabLabel {
   font-family: Georgia, "Times New Roman", serif;
@@ -152,6 +174,22 @@
   vector-effect: non-scaling-stroke;
 }
 
+/** 透明 bounds 扩大细线技巧的点击区域；视觉路径仍保持乐谱所需的轻量线宽。 */
+.techniqueSegment,
+.selectedTechnique {
+  color: #1d2025;
+  cursor: pointer;
+}
+
+.selectedTechnique {
+  color: #2864e3;
+}
+
+.techniqueHitArea {
+  fill: transparent;
+  stroke: none;
+}
+
 .inputHint,
 .errorMessage {
   margin: 0 0 8px;
@@ -195,5 +233,10 @@
 
   .selectionLayer {
     display: none;
+  }
+
+  // selectedTechniqueId 是临时交互状态；打印只保留技巧本身，不输出蓝色焦点色。
+  .selectedTechnique {
+    color: #1d2025;
   }
 }

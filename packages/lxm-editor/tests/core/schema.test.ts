@@ -25,6 +25,7 @@ describe("core schema", () => {
       strings: [{ index: 1, pitch: "E4", midi: 64 }],
     },
     startBarline: "none",
+    techniques: [],
     measures: [],
   });
 

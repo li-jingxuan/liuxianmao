@@ -83,6 +83,7 @@ const EXAMPLE_MVP_2: ILXMDocument = {
           ],
         },
         startBarline: "none",
+        techniques: [],
         measures: [
           // 小节 1：沿用 MVP1 的混合节奏与 Am 标记，覆盖附点和短时值连梁。
           createMeasure(
