@@ -38,4 +38,13 @@ describe("createConversion", () => {
       requestId: "req_1",
     } satisfies Partial<PindouApiError>);
   });
+
+  it("uses a dedicated Chinese message for Seedream timeout", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: { code: "AI_TIMEOUT", message: "upstream", request_id: "req_ai" } }), { status: 504 })));
+    await expect(createConversion(input)).rejects.toMatchObject({
+      code: "AI_TIMEOUT",
+      message: "AI 处理超时，本次未确认成功，请稍后手动重试",
+      requestId: "req_ai",
+    } satisfies Partial<PindouApiError>);
+  });
 });

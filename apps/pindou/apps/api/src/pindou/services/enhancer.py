@@ -2,9 +2,20 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Protocol
 
 from PIL import Image
+
+from pindou.schemas.conversion import BackgroundMode
+
+
+@dataclass(frozen=True, slots=True)
+class EnhancementOptions:
+    """增强器所需的业务上下文，避免在供应商实现中依赖 HTTP 表单。"""
+
+    background_mode: BackgroundMode
+    background_color: str | None = None
 
 
 class ImageEnhancer(Protocol):
@@ -17,7 +28,13 @@ class ImageEnhancer(Protocol):
     @property
     def name(self) -> str: ...
 
-    def enhance(self, image: Image.Image) -> Image.Image: ...
+    @property
+    def model(self) -> str | None: ...
+
+    @property
+    def prompt_version(self) -> str | None: ...
+
+    def enhance(self, image: Image.Image, *, options: EnhancementOptions) -> Image.Image: ...
 
 
 class PassThroughEnhancer:
@@ -27,6 +44,15 @@ class PassThroughEnhancer:
     def name(self) -> str:
         return "passthrough"
 
-    def enhance(self, image: Image.Image) -> Image.Image:
+    @property
+    def model(self) -> None:
+        return None
+
+    @property
+    def prompt_version(self) -> None:
+        return None
+
+    def enhance(self, image: Image.Image, *, options: EnhancementOptions) -> Image.Image:
         """原样返回输入对象，为后续 AI 增强器保留稳定接口缝隙。"""
+        del options
         return image

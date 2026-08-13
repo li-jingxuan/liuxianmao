@@ -6,7 +6,22 @@ import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
 
+from pindou.api.dependencies import get_color_chart, get_image_enhancer
+from pindou.core.config import get_settings
 from pindou.main import app
+
+
+@pytest.fixture(autouse=True)
+def isolate_tests_from_real_seedream(monkeypatch: pytest.MonkeyPatch):
+    """测试始终强制 passthrough，禁止读取真实 Key 或产生方舟费用。"""
+    monkeypatch.setenv("IMAGE_ENHANCER", "passthrough")
+    get_settings.cache_clear()
+    get_color_chart.cache_clear()
+    get_image_enhancer.cache_clear()
+    yield
+    get_settings.cache_clear()
+    get_color_chart.cache_clear()
+    get_image_enhancer.cache_clear()
 
 
 @pytest.fixture

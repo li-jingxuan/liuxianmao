@@ -16,6 +16,8 @@ from pindou.schemas.conversion import (
     ConversionResponse,
     PaletteColor,
 )
+from pindou.services.enhancer import EnhancementOptions
+from pindou.services.seedream_prompt import normalize_background_color
 
 router = APIRouter(prefix="/conversions", tags=["conversions"])
 
@@ -51,6 +53,13 @@ def create_conversion(
     if chart.get_set(color_set_size) is None:
         raise ApiError(400, "COLOR_SET_INVALID", "请选择有效的 MARD 颜色组")
 
+    # 纯色需同时作用于 AI 提示词和方形画布补边，因此在入口统一规范化。
+    normalized_background_color = (
+        normalize_background_color(background_color)
+        if background_mode is BackgroundMode.SOLID
+        else None
+    )
+
     # 只读取“上限 + 1”字节即可判断超限，避免把任意大文件完整读入内存。
     content = image.file.read(app_settings.upload_max_bytes + 1)
     if len(content) > app_settings.upload_max_bytes:
@@ -62,8 +71,14 @@ def create_conversion(
     decoded = decode_image(content, max_pixels=app_settings.upload_max_pixels)
     enhanced = decoded
     try:
-        # MVP1 返回原对象；未来的 Seedream 实现可以返回一个新的 Pillow Image。
-        enhanced = enhancer.enhance(decoded)
+        # passthrough 返回原对象；Seedream 则返回新的 Pillow Image。
+        enhanced = enhancer.enhance(
+            decoded,
+            options=EnhancementOptions(
+                background_mode=background_mode,
+                background_color=normalized_background_color,
+            ),
+        )
         grid = build_bead_grid(
             enhanced,
             chart=chart,
@@ -71,7 +86,7 @@ def create_conversion(
             max_colors=max_colors,
             color_set_size=color_set_size,
             background_mode=background_mode,
-            background_color=background_color,
+            background_color=normalized_background_color,
         )
     finally:
         # 无论量化成功还是失败，都关闭所有 Pillow 对象，防止文件句柄和内存泄漏。
@@ -96,6 +111,11 @@ def create_conversion(
         rows=[list(row) for row in grid.rows],
         meta=ConversionMeta(
             # 回传约束与色卡版本，便于前端展示和未来复现结果。
+            enhancer=enhancer.name,
+            enhancer_model=enhancer.model,
+            enhancer_prompt_version=enhancer.prompt_version,
+            background_mode=background_mode,
+            background_color=normalized_background_color,
             color_set_size=color_set_size,
             color_chart_version=chart.schema_version,
             actual_color_count=len(grid.palette),

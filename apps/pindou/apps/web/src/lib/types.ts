@@ -1,5 +1,5 @@
 /** 后端支持的背景处理方式，与 FastAPI 的 BackgroundMode 枚举保持一致。 */
-export type BackgroundMode = "transparent" | "solid" | "keep";
+export type BackgroundMode = "simplify" | "solid" | "keep";
 
 /**
  * 单个 MARD 拼豆颜色。
@@ -28,7 +28,11 @@ export type BeadGrid = {
   palette: PaletteColor[];
   rows: number[][];
   meta: {
-    enhancer: "passthrough";
+    enhancer: "passthrough" | "seedream-5-lite";
+    enhancer_model?: string;
+    enhancer_prompt_version?: string;
+    background_mode: BackgroundMode;
+    background_color?: `#${string}`;
     palette_brand: "MARD";
     color_set_size: number;
     color_chart_version: string;

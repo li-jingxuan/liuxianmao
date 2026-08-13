@@ -1,3 +1,4 @@
 # pnpm 11 使用显式布尔映射控制依赖安装脚本；这里只允许已审查的解析器执行。
 allowBuilds:
+  '@parcel/watcher': true
   unrs-resolver: true

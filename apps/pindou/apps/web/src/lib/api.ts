@@ -2,6 +2,7 @@ import type { ColorSetsResponse, ConversionInput, BeadGrid } from "./types";
 
 type ApiErrorBody = { error?: { code?: string; message?: string; request_id?: string } };
 
+const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://192.168.124.22:8000";
 /**
  * 保留后端稳定错误码和 request id 的业务异常。
  * UI 默认展示 message；排查线上问题时可进一步记录 code 和 requestId。
@@ -17,6 +18,14 @@ export class PindouApiError extends Error {
   }
 }
 
+const ERROR_MESSAGES: Record<string, string> = {
+  AI_INPUT_REJECTED: "图片未通过 AI 内容安全检查，请更换图片后重试",
+  AI_OUTPUT_REJECTED: "AI 生成结果未通过内容安全检查，请调整素材后重试",
+  AI_BUSY: "AI 服务忙，请稍后重试",
+  AI_TIMEOUT: "AI 处理超时，本次未确认成功，请稍后手动重试",
+  AI_UPSTREAM_ERROR: "AI 服务暂时不可用，请稍后重试",
+};
+
 /**
  * 集中解析所有 API 响应，确保列表请求和转换请求采用一致的错误策略。
  * 后端非 2xx 响应可能因代理或网关异常而不是 JSON，因此 JSON 解析失败时
@@ -26,14 +35,15 @@ const parseResponse = async <T>(response: Response): Promise<T> => {
   const body = (await response.json().catch(() => null)) as T | ApiErrorBody | null;
   if (!response.ok) {
     const error = (body as ApiErrorBody | null)?.error;
-    throw new PindouApiError(error?.message ?? "请求失败，请稍后重试", error?.code, error?.request_id);
+    const code = error?.code ?? "UNKNOWN_ERROR";
+    throw new PindouApiError(ERROR_MESSAGES[code] ?? error?.message ?? "请求失败，请稍后重试", code, error?.request_id);
   }
   return body as T;
 };
 
 /** 加载后端实际可用的 MARD 颜色组，前端不维护重复的硬编码列表。 */
 export const getColorSets = async (signal?: AbortSignal): Promise<ColorSetsResponse> => {
-  const response = await fetch("/api/v1/color-sets", { signal });
+  const response = await fetch(`${BASE_URL}/api/v1/color-sets`, { signal });
   return parseResponse<ColorSetsResponse>(response);
 };
 
@@ -53,6 +63,6 @@ export const createConversion = async (input: ConversionInput, signal?: AbortSig
     form.set("background_color", input.backgroundColor);
   }
 
-  const response = await fetch("/api/v1/conversions", { method: "POST", body: form, signal });
+  const response = await fetch(`${BASE_URL}/api/v1/conversions`, { method: "POST", body: form, signal });
   return parseResponse<BeadGrid>(response);
 };

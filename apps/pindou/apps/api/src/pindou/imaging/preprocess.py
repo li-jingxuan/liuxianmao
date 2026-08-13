@@ -10,7 +10,7 @@ from PIL import Image, ImageColor, ImageOps, UnidentifiedImageError
 from pindou.core.errors import ApiError
 from pindou.schemas.conversion import BackgroundMode
 
-SUPPORTED_FORMATS = {"JPEG", "PNG", "WEBP"}
+SUPPORTED_FORMATS = {"JPEG", "PNG", "WEBP","MPO"}
 
 
 def decode_image(content: bytes, *, max_pixels: int) -> Image.Image:
@@ -24,6 +24,7 @@ def decode_image(content: bytes, *, max_pixels: int) -> Image.Image:
         with Image.open(BytesIO(content)) as source:
             # 只接受静态、已明确支持的光栅格式；SVG、GIF 等不会进入后续管线。
             if source.format not in SUPPORTED_FORMATS:
+                print(f"Unsupported image format: {source.format}")
                 raise ApiError(400, "IMAGE_UNSUPPORTED", "仅支持 JPG、PNG 和 WebP 图片")
             # 压缩文件可能很小但解码后极大，因此必须额外限制宽×高。
             if source.width * source.height > max_pixels:
@@ -47,9 +48,9 @@ def fit_to_square_grid(
 ) -> Image.Image:
     """按原始比例把图片放入 N×N 工作画布。
 
-    `ImageOps.contain` 保证不裁剪、不拉伸；未覆盖区域作为补边。MVP1 的 keep 与
-    transparent 对补边都使用透明色，区别只体现在原图已有 Alpha 会被保留；它们
-    都不会替 JPG 自动抠图。solid 则先铺满用户纯色，再合成原图。
+    `ImageOps.contain` 保证不裁剪、不拉伸；未覆盖区域作为补边。
+    solid 用用户纯色补边，simplify/keep 使用透明补边。这里只处理
+    方形画布，原图内部背景的编辑已由 ImageEnhancer 完成。
     """
     # BOX 重采样适合把大量源像素平均压缩到一颗拼豆格，减少单点采样偏色。
     fitted = ImageOps.contain(image, (grid_size, grid_size), method=Image.Resampling.BOX)
@@ -70,7 +71,7 @@ def fit_to_square_grid(
         canvas.alpha_composite(fitted, (left, top))
         return canvas
 
-    # keep/transparent 的补边透明；原图自身的不透明背景仍然保留。
+    # keep/simplify 的方形补边透明；原图内部背景已由增强器处理。
     canvas = Image.new("RGBA", (grid_size, grid_size), (0, 0, 0, 0))
     canvas.alpha_composite(fitted, (left, top))
     return canvas

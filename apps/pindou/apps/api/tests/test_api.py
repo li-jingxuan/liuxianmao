@@ -16,6 +16,36 @@ def test_healthcheck(client: TestClient) -> None:
     assert response.headers["x-request-id"].startswith("req_")
 
 
+def test_cors_allows_any_origin_and_preflight_request(client: TestClient) -> None:
+    """任意网站/IP 的浏览器预检请求都可以调用公开 API。"""
+    response = client.options(
+        "/api/v1/conversions",
+        headers={
+            "Origin": "https://example-client.test",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "content-type,x-request-id",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "*"
+    assert "POST" in response.headers["access-control-allow-methods"]
+    assert "content-type" in response.headers["access-control-allow-headers"].lower()
+    assert "access-control-allow-credentials" not in response.headers
+
+
+def test_cors_exposes_request_id_to_browser(client: TestClient) -> None:
+    """跨域前端可读取排障所需的 x-request-id 响应头。"""
+    response = client.get(
+        "/healthz",
+        headers={"Origin": "http://192.168.1.20:3000"},
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "*"
+    assert response.headers["access-control-expose-headers"] == "x-request-id"
+
+
 def test_list_color_sets_comes_from_chart(client: TestClient) -> None:
     """颜色组选项必须与源色卡一致，不能来自路由内另一份硬编码成员清单。"""
     response = client.get("/api/v1/color-sets")
@@ -65,6 +95,8 @@ def test_create_conversion_returns_grid_restricted_to_selected_set(
     assert len(payload["rows"]) == grid_size
     assert all(len(row) == grid_size for row in payload["rows"])
     assert payload["meta"]["enhancer"] == "passthrough"
+    assert payload["meta"]["background_mode"] == "keep"
+    assert payload["meta"]["background_color"] is None
     assert payload["meta"]["color_set_size"] == color_set_size
     assert payload["meta"]["color_chart_version"] == "1.0"
     assert payload["meta"]["actual_color_count"] <= 8
@@ -106,3 +138,37 @@ def test_grid_size_outside_range_has_stable_error(client: TestClient) -> None:
 
     assert response.status_code == 400
     assert response.json()["error"]["code"] == "GRID_SIZE_INVALID"
+
+
+def test_solid_background_is_normalized_and_returned(client: TestClient) -> None:
+    """纯色会统一为大写 HEX，并同时作为画布补边元数据。"""
+    response = client.post(
+        "/api/v1/conversions",
+        files={"image": ("source.png", make_png_bytes(size=(16, 8)), "image/png")},
+        data={
+            "grid_size": "8",
+            "max_colors": "8",
+            "color_set_size": "24",
+            "background_mode": "solid",
+            "background_color": "#aabbcc",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["meta"]["background_color"] == "#AABBCC"
+
+
+def test_legacy_transparent_background_is_rejected(client: TestClient) -> None:
+    """旧 transparent 与“简化背景”语义不同，不做静默兼容。"""
+    response = client.post(
+        "/api/v1/conversions",
+        files={"image": ("source.png", make_png_bytes(), "image/png")},
+        data={
+            "grid_size": "8",
+            "max_colors": "8",
+            "color_set_size": "24",
+            "background_mode": "transparent",
+        },
+    )
+
+    assert response.status_code == 422

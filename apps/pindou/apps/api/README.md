@@ -1,6 +1,8 @@
 # Pindou API
 
-FastAPI service that converts an uploaded image into a square MARD bead grid. MVP1 is stateless, uses the pass-through image enhancer, and returns JSON only.
+FastAPI service that converts an uploaded image into a square MARD bead grid. It can use
+Seedream 5.0 lite before deterministic MARD quantization, remains stateless, and returns grid
+JSON only.
 
 ## Setup
 
@@ -13,11 +15,46 @@ python3 -m venv .venv
 
 ## Run
 
-```bash
-.venv/bin/fastapi dev
+For local deterministic conversion, keep `IMAGE_ENHANCER=passthrough` in `.env`. To enable
+Seedream, configure the server-only key and switch the enhancer:
+
+```dotenv
+IMAGE_ENHANCER=seedream
+ARK_DOUBAO_API_KEY=<secret>
+ARK_DOUBAO_IMAGE_MODEL=doubao-seedream-5-0-lite-260128
 ```
 
-OpenAPI is available at `http://127.0.0.1:8000/docs`.
+Never expose the key through a `NEXT_PUBLIC_*` variable. Tests force `passthrough` and never
+call the paid API.
+
+```bash
+.venv/bin/python -m pindou.cli
+```
+
+After reinstalling the editable package, `.venv/bin/pindou-api` is an equivalent shortcut.
+
+The server listens on `0.0.0.0:8000` by default. OpenAPI is available from the same machine at
+`http://127.0.0.1:8000/docs`, or from another device on the LAN at
+`http://<host-lan-ip>:8000/docs`.
+
+The listener can be changed in `.env`:
+
+```dotenv
+API_HOST=0.0.0.0
+API_PORT=8000
+API_RELOAD=true
+```
+
+`0.0.0.0` is a bind address and should not be entered in the browser. Use the computer's actual
+LAN IP, such as `http://192.168.1.20:8000`. The operating-system firewall must also allow the
+configured port. Set `API_RELOAD=false` outside development.
+
+## CORS
+
+The API currently allows requests from every browser origin, IP, method, and request header.
+Cross-origin credentials are intentionally disabled, while `x-request-id` is exposed for client
+diagnostics. If cookie-based authentication is added later, replace the wildcard origin with an
+explicit trusted-origin list before enabling credentials.
 
 ## Check
 
@@ -42,7 +79,10 @@ curl -X POST http://127.0.0.1:8000/api/v1/conversions \
   -F 'grid_size=52' \
   -F 'max_colors=18' \
   -F 'color_set_size=48' \
-  -F 'background_mode=keep'
+  -F 'background_mode=simplify'
 ```
+
+`background_mode` supports `simplify`, `solid`, and `keep`. `solid` additionally requires
+`background_color=#RRGGBB`. Seedream prompts are maintained in Chinese and vary by mode.
 
 All returned palette codes are guaranteed to belong to the selected MARD color set.

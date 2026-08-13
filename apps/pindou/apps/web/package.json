@@ -26,6 +26,8 @@
     "eslint": "^9.39.5",
     "eslint-config-next": "latest",
     "jsdom": "latest",
+    "postcss-pxtorem": "^6.1.0",
+    "sass": "^1.102.0",
     "typescript": "^6.0.3",
     "vitest": "latest"
   }

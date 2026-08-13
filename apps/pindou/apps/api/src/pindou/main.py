@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from uuid import uuid4
 
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from pindou.api.dependencies import get_color_chart, get_image_enhancer
@@ -23,11 +24,28 @@ async def lifespan(_: FastAPI):
     时失败。缓存对象在进程生命周期内只读复用，无需关闭外部连接。
     """
     get_color_chart()
-    get_image_enhancer()
-    yield
+    enhancer = get_image_enhancer()
+    try:
+        yield
+    finally:
+        # SeedreamEnhancer 持有 HTTP 连接池；passthrough 没有 close，安全跳过。
+        close = getattr(enhancer, "close", None)
+        if callable(close):
+            close()
 
 
 app = FastAPI(title="Pindou API", version="0.1.0", lifespan=lifespan)
+
+# 当前 API 使用 Bearer/表单请求且不依赖跨域 Cookie，因此可以安全地返回通配
+# Access-Control-Allow-Origin。若未来引入 Cookie 会话，必须改成明确的可信域名列表。
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["x-request-id"],
+)
 
 
 @app.middleware("http")

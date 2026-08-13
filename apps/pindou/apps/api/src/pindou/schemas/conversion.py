@@ -9,13 +9,10 @@ from pydantic import BaseModel, Field
 
 
 class BackgroundMode(StrEnum):
-    """方形工作画布未被原图覆盖区域的处理方式。"""
+    """AI 编辑原图背景的产品策略。"""
 
-    # keep 保留原图本身的背景和 Alpha；它不会对 JPG 自动抠图。
+    SIMPLIFY = "simplify"
     KEEP = "keep"
-    # transparent 使用透明补边；原图本身已有的背景仍然保留。
-    TRANSPARENT = "transparent"
-    # solid 使用 background_color 铺满补边区域。
     SOLID = "solid"
 
 
@@ -33,7 +30,11 @@ class PaletteColor(BaseModel):
 class ConversionMeta(BaseModel):
     """描述本次量化约束和可复现版本的元数据。"""
 
-    enhancer: Literal["passthrough"] = "passthrough"
+    enhancer: Literal["passthrough", "seedream-5-lite"]
+    enhancer_model: str | None = None
+    enhancer_prompt_version: str | None = None
+    background_mode: BackgroundMode
+    background_color: str | None = Field(default=None, pattern=r"^#[0-9A-F]{6}$")
     palette_brand: Literal["MARD"] = "MARD"
     color_set_size: int
     color_chart_version: str

@@ -12,4 +12,4 @@ node_modules/
 .next/
 coverage/
 .env.local
-
+.env
