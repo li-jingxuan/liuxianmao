@@ -13,5 +13,3 @@ node_modules/
 coverage/
 .env.local
 
-# 与运行时色卡内容完全相同，仅保留本地备用副本
-docs/MARD_色卡.min.json
