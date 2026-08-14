@@ -88,3 +88,18 @@ export type ConversionInput = {
   backgroundMode: BackgroundMode;
   backgroundColor?: string;
 };
+
+/** POST /api/v1/access-keys 的签发参数。 */
+export type AccessKeyCreateInput = {
+  prefix: string;
+  allowedUses: number;
+};
+
+/** POST /api/v1/access-keys 成功响应。 */
+export type AccessKeyCreateResponse = {
+  key: string;
+  prefix: string;
+  allowed_uses: number;
+  remaining_uses: number;
+  created_at: string;
+};

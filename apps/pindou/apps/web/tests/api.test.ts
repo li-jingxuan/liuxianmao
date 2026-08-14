@@ -1,7 +1,16 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createConversion, getColorCatalog, PindouApiError } from "../src/lib/api";
-import type { ColorCatalogResponse, ConversionInput } from "../src/lib/types";
+import {
+  createAccessKey,
+  createConversion,
+  getColorCatalog,
+  PindouApiError,
+} from "../src/lib/api";
+import type {
+  AccessKeyCreateResponse,
+  ColorCatalogResponse,
+  ConversionInput,
+} from "../src/lib/types";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -118,5 +127,39 @@ describe("getColorCatalog", () => {
       message: "色卡不可用",
       requestId: "req_colors",
     } satisfies Partial<PindouApiError>);
+  });
+});
+
+describe("createAccessKey", () => {
+  it("submits the route prefix, allowed uses and admin API key", async () => {
+    const payload: AccessKeyCreateResponse = {
+      key: "gk_demo_secret",
+      prefix: "demo",
+      allowed_uses: 12,
+      remaining_uses: 12,
+      created_at: "2026-08-14T10:00:00Z",
+    };
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(payload), { status: 201 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      createAccessKey(
+        { prefix: "demo", allowedUses: 12 },
+        { adminApiKey: "admin-secret" },
+      ),
+    ).resolves.toEqual(payload);
+
+    const [url, request] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toMatch(/\/api\/v1\/access-keys$/);
+    expect(request).toMatchObject({
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Admin-API-Key": "admin-secret",
+      },
+      body: JSON.stringify({ prefix: "demo", allowed_uses: 12 }),
+    });
   });
 });

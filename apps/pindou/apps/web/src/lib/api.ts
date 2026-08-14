@@ -1,4 +1,6 @@
 import type {
+  AccessKeyCreateInput,
+  AccessKeyCreateResponse,
   BeadGrid,
   ColorCatalogResponse,
   ColorSetsResponse,
@@ -7,6 +9,7 @@ import type {
 
 type ApiErrorBody = { error?: { code?: string; message?: string; request_id?: string } };
 type ApiRequestOptions = { apiKey?: string; signal?: AbortSignal };
+type AdminApiRequestOptions = { adminApiKey: string; signal?: AbortSignal };
 
 // 生产环境由 Next.js rewrite 将同源 /api 转发到 Compose 内部的 API 服务。
 // 本地开发仍可通过 NEXT_PUBLIC_API_BASE_URL 指向单独运行的 FastAPI。
@@ -89,4 +92,24 @@ export const createConversion = async (
     signal,
   });
   return parseResponse<BeadGrid>(response);
+};
+
+/** 使用管理密钥为路由中的来源前缀签发消费密钥。 */
+export const createAccessKey = async (
+  input: AccessKeyCreateInput,
+  { adminApiKey, signal }: AdminApiRequestOptions,
+): Promise<AccessKeyCreateResponse> => {
+  const response = await fetch(`${BASE_URL}/api/v1/access-keys`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Admin-API-Key": adminApiKey,
+    },
+    body: JSON.stringify({
+      prefix: input.prefix,
+      allowed_uses: input.allowedUses,
+    }),
+    signal,
+  });
+  return parseResponse<AccessKeyCreateResponse>(response);
 };
