@@ -65,8 +65,8 @@ services:
       args:
         NODE_IMAGE: ${NODE_IMAGE:-docker.m.daocloud.io/library/node:22-alpine}
         NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com}
-        NEXT_PUBLIC_API_BASE_URL: /api
-        PINDOU_API_ORIGIN: http://api:3112
+        NEXT_PUBLIC_API_BASE_URL: /
+        PINDOU_API_ORIGIN: http://127.0.0.1:3112
     restart: unless-stopped
     depends_on:
       api:
