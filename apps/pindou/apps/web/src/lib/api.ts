@@ -11,9 +11,8 @@ type ApiErrorBody = { error?: { code?: string; message?: string; request_id?: st
 type ApiRequestOptions = { apiKey?: string; signal?: AbortSignal };
 type AdminApiRequestOptions = { adminApiKey: string; signal?: AbortSignal };
 
-// 生产环境由 Next.js rewrite 将同源 /api 转发到 Compose 内部的 API 服务。
-// 本地开发仍可通过 NEXT_PUBLIC_API_BASE_URL 指向单独运行的 FastAPI。
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:3112";
+// Web 端统一访问公网 API，仍允许通过环境变量覆盖以便联调。
+const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://tppixel-api.cpolar.top";
 /**
  * 保留后端稳定错误码和 request id 的业务异常。
  * UI 默认展示 message；排查线上问题时可进一步记录 code 和 requestId。
