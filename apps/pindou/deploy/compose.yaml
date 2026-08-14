@@ -34,6 +34,8 @@ services:
       DATABASE_URL: ${DATABASE_URL:?请在 deploy/.env 中设置 DATABASE_URL}
       MARD_COLOR_CHART_PATH: /app/docs/MARD_色卡.json
       IMAGE_BACKUP_DIR: /var/lib/pindou/images
+    ports:
+      - "${API_PROT:-3112}:3112"
     command:
       - sh
       - -c
