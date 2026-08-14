@@ -1,0 +1,24 @@
+name: pindou
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-pindou}
+      POSTGRES_USER: ${POSTGRES_USER:-pindou}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?请在环境变量或仓库根目录 .env 中设置 POSTGRES_PASSWORD}
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - pindou_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  pindou_postgres_data:
+

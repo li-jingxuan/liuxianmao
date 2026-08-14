@@ -110,7 +110,7 @@ function ResultCanvas({ grid }: { grid: BeadGrid }) {
   return <canvas ref={canvasRef} aria-label="拼豆图纸预览" />;
 }
 
-export function PindouConverter() {
+export function PindouConverter({ apiKey }: { apiKey?: string }) {
   // DOM 引用：文件选择器由定制按钮触发；结果引用用于转换后平滑定位。
   const inputRef = useRef<HTMLInputElement>(null);
   const resultRef = useRef<HTMLElement>(null);
@@ -226,15 +226,16 @@ export function PindouConverter() {
       50,
     );
     try {
-      const conversion = await createConversion({
-        image: file,
-        gridSize,
-        // 设计稿没有最大颜色数控件；MVP1 按计划固定提交 18。
-        maxColors: 18,
-        colorSetSize,
-        backgroundMode,
-        backgroundColor,
-      });
+      const conversion = await createConversion(
+        {
+          image: file,
+          gridSize,
+          colorSetSize,
+          backgroundMode,
+          backgroundColor,
+        },
+        { apiKey },
+      );
       setResult(conversion);
       setStatus("complete");
     } catch (cause) {
@@ -575,7 +576,7 @@ export function PindouConverter() {
                         </dt>
                         <dd>
                           {result.meta.actual_color_count} /{" "}
-                          {result.meta.color_set_size}
+                          {result.meta.effective_max_colors}
                         </dd>
                       </div>
                       <div>

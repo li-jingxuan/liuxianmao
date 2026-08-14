@@ -2,14 +2,19 @@
 
 from __future__ import annotations
 
+import secrets
 from functools import lru_cache
 from typing import Annotated
 
 import httpx
-from fastapi import Depends
+from fastapi import Depends, Header
+from sqlmodel import Session
 
 from pindou.color.chart import MardColorChart, load_mard_color_chart
 from pindou.core.config import Settings, get_settings
+from pindou.core.errors import ApiError
+from pindou.db.session import get_session
+from pindou.services.access_keys import AccessKeyService
 from pindou.services.enhancer import ImageEnhancer, PassThroughEnhancer
 from pindou.services.seedream_client import SeedreamClient
 from pindou.services.seedream_enhancer import SeedreamEnhancer
@@ -20,11 +25,41 @@ def provide_settings() -> Settings:
     return get_settings()
 
 
+def provide_access_key_service(
+    session: Annotated[Session, Depends(get_session)],
+    settings: Annotated[Settings, Depends(provide_settings)],
+) -> AccessKeyService:
+    """用请求级 Session 和服务端 pepper 构造密钥领域服务。"""
+    configured_pepper = settings.api_key_hash_pepper
+    if configured_pepper is None:
+        raise RuntimeError("API_KEY_HASH_PEPPER is required")
+    return AccessKeyService(
+        session,
+        hash_pepper=configured_pepper.get_secret_value(),
+    )
+
+
+def require_admin_api_key(
+    settings: Annotated[Settings, Depends(provide_settings)],
+    supplied_key: Annotated[str | None, Header(alias="X-Admin-API-Key")] = None,
+) -> None:
+    """以常量时间比较固定签发管理密钥。"""
+    configured_key = settings.key_issuer_api_key
+    expected = configured_key.get_secret_value() if configured_key is not None else ""
+    if not supplied_key or not expected or not secrets.compare_digest(supplied_key, expected):
+        raise ApiError(
+            401,
+            "ADMIN_API_KEY_INVALID",
+            "签发管理密钥无效",
+            headers={"WWW-Authenticate": "ApiKey"},
+        )
+
+
 @lru_cache
 def get_color_chart() -> MardColorChart:
     """加载并缓存经过完整校验的 MARD 色卡。
 
-    色卡包含数百条颜色和 11 个累计颜色组，没有必要在每个请求中重复读取 JSON。
+    色卡包含数百条颜色和 11 个颜色套装，没有必要在每个请求中重复读取 JSON。
     启动生命周期会主动调用此函数，因此色卡损坏时服务会启动失败，而不是等到
     第一位用户上传图片后才暴露配置问题。
     """
@@ -71,3 +106,6 @@ def get_image_enhancer() -> ImageEnhancer:
 SettingsDep = Annotated[Settings, Depends(provide_settings)]
 ColorChartDep = Annotated[MardColorChart, Depends(get_color_chart)]
 ImageEnhancerDep = Annotated[ImageEnhancer, Depends(get_image_enhancer)]
+SessionDep = Annotated[Session, Depends(get_session)]
+AccessKeyServiceDep = Annotated[AccessKeyService, Depends(provide_access_key_service)]
+AdminApiKeyDep = Annotated[None, Depends(require_admin_api_key)]

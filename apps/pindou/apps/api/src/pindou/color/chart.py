@@ -26,6 +26,7 @@ class MardColor:
     """单个可采购的 MARD 拼豆颜色。"""
 
     code: str
+    series: str
     hex: str
     rgb: tuple[int, int, int]
     lab: LabColor
@@ -33,9 +34,10 @@ class MardColor:
 
 @dataclass(frozen=True, slots=True)
 class MardColorSet:
-    """用户可选择的累计套装，例如 24 色组或 264 色组。
+    """用户可选择的套装，例如 24 色商家套装或 221 色标准套装。
 
     `colors` 的成员顺序来自源色卡；量化时它也是唯一允许使用的颜色白名单。
+    不同档位可能来自不同套装体系，因此不能假定小档位一定是大档位的子集。
     """
 
     size: int
@@ -47,6 +49,8 @@ class MardColorChart:
     """完成结构校验后的内存色卡索引。"""
 
     schema_version: str
+    # 保留源色卡的自然顺序，供目录展示使用，避免 A10 被排到 A2 前面。
+    colors: tuple[MardColor, ...]
     # 通过色号 O(1) 查找完整颜色数据，便于把 sets[].colors 引用解析为对象。
     colors_by_code: dict[str, MardColor]
     # 通过用户提交的 color_set_size 直接获得合法颜色白名单。
@@ -54,7 +58,7 @@ class MardColorChart:
 
     @property
     def set_sizes(self) -> tuple[int, ...]:
-        """按从小到大顺序返回全部可选累计套装。"""
+        """按从小到大顺序返回全部可选套装。"""
         return tuple(sorted(self.sets_by_size))
 
     def get_set(self, size: int) -> MardColorSet | None:
@@ -64,6 +68,16 @@ class MardColorChart:
 
 class InvalidColorChartError(ValueError):
     """色卡文件缺失、JSON 非法或内部引用不一致。"""
+
+
+def group_colors_by_series(
+    colors: tuple[MardColor, ...],
+) -> tuple[tuple[str, tuple[MardColor, ...]], ...]:
+    """按系列第一次出现的顺序分组，不改变系列内的源色卡顺序。"""
+    groups: dict[str, list[MardColor]] = {}
+    for color in colors:
+        groups.setdefault(color.series, []).append(color)
+    return tuple((series, tuple(items)) for series, items in groups.items())
 
 
 def _required_dict(value: Any, field: str) -> dict[str, Any]:
@@ -86,8 +100,8 @@ def load_mard_color_chart(path: Path) -> MardColorChart:
     校验不仅确认 JSON 能解析，还会确认：
 
     - schema 版本存在；
-    - 色号唯一，RGB 落在 0–255，Lab 字段可转为浮点数；
-    - 每个累计颜色组的成员数量与 size 完全一致；
+    - 色号唯一且与系列匹配，RGB 落在 0–255，Lab 字段可转为浮点数；
+    - 每个颜色套装的成员数量与 size 完全一致；
     - 颜色组内没有重复或不存在的色号。
 
     服务启动时执行这些检查，可以保证后续量化器无需反复防御损坏数据。
@@ -104,20 +118,28 @@ def load_mard_color_chart(path: Path) -> MardColorChart:
         raise InvalidColorChartError("meta.schema_version is required")
 
     # 第一遍解析完整颜色表，建立 code -> MardColor 的唯一索引。
+    colors: list[MardColor] = []
     colors_by_code: dict[str, MardColor] = {}
     for index, item_value in enumerate(_required_list(root.get("colors"), "colors")):
         item = _required_dict(item_value, f"colors[{index}]")
         code = str(item.get("code", "")).strip()
+        series = str(item.get("series", "")).strip()
         hex_value = str(item.get("hex", "")).upper()
         rgb_value = _required_dict(item.get("rgb"), f"colors[{index}].rgb")
         lab_value = _required_dict(item.get("lab"), f"colors[{index}].lab")
         if not code or code in colors_by_code:
             raise InvalidColorChartError(f"invalid or duplicate color code: {code!r}")
+        series_number = code.removeprefix(series)
+        if not series or not code.startswith(series) or not series_number.isdigit():
+            raise InvalidColorChartError(f"invalid series {series!r} for color {code!r}")
+        if int(series_number) <= 0:
+            raise InvalidColorChartError(f"invalid series number for color {code!r}")
         if len(hex_value) != 7 or not hex_value.startswith("#"):
             raise InvalidColorChartError(f"invalid HEX value for color {code}")
         try:
             color = MardColor(
                 code=code,
+                series=series,
                 hex=hex_value,
                 rgb=(int(rgb_value["r"]), int(rgb_value["g"]), int(rgb_value["b"])),
                 lab=LabColor(
@@ -130,6 +152,7 @@ def load_mard_color_chart(path: Path) -> MardColorChart:
             raise InvalidColorChartError(f"invalid color fields for {code}") from exc
         if any(channel < 0 or channel > 255 for channel in color.rgb):
             raise InvalidColorChartError(f"invalid RGB value for color {code}")
+        colors.append(color)
         colors_by_code[code] = color
 
     # 第二遍解析套装。此时所有色号已知，可以验证每个成员引用。
@@ -144,7 +167,7 @@ def load_mard_color_chart(path: Path) -> MardColorChart:
         if size in sets_by_size or size <= 0:
             raise InvalidColorChartError(f"invalid or duplicate color set size: {size}")
         if len(codes) != size or len(set(codes)) != size:
-            # 累计套装声明为 N 色时，必须恰好有 N 个互不重复的色号。
+            # 套装声明为 N 色时，必须恰好有 N 个互不重复的色号。
             raise InvalidColorChartError(f"set {size} must contain {size} unique colors")
         unknown = [code for code in codes if code not in colors_by_code]
         if unknown:
@@ -159,6 +182,7 @@ def load_mard_color_chart(path: Path) -> MardColorChart:
         raise InvalidColorChartError("color chart must contain colors and sets")
     return MardColorChart(
         schema_version=schema_version,
+        colors=tuple(colors),
         colors_by_code=colors_by_code,
         sets_by_size=sets_by_size,
     )

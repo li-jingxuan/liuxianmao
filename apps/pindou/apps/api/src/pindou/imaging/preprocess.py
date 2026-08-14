@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-import re
 from io import BytesIO
 
-from PIL import Image, ImageColor, ImageOps, UnidentifiedImageError
+from PIL import Image, ImageOps, UnidentifiedImageError
 
 from pindou.core.errors import ApiError
 from pindou.schemas.conversion import BackgroundMode
@@ -44,13 +43,12 @@ def fit_to_square_grid(
     *,
     grid_size: int,
     background_mode: BackgroundMode,
-    background_color: str | None,
 ) -> Image.Image:
     """按原始比例把图片放入 N×N 工作画布。
 
     `ImageOps.contain` 保证不裁剪、不拉伸；未覆盖区域作为补边。
-    solid 用用户纯色补边，simplify/keep 使用透明补边。这里只处理
-    方形画布，原图内部背景的编辑已由 ImageEnhancer 完成。
+    三种模式的方形补边均为空格；透明模式下原图内部背景的移除由
+    ImageEnhancer 完成并通过 Alpha 表达。
     """
     # BOX 重采样适合把大量源像素平均压缩到一颗拼豆格，减少单点采样偏色。
     fitted = ImageOps.contain(image, (grid_size, grid_size), method=Image.Resampling.BOX)
@@ -58,20 +56,7 @@ def fit_to_square_grid(
     left = (grid_size - fitted.width) // 2
     top = (grid_size - fitted.height) // 2
 
-    if background_mode is BackgroundMode.SOLID:
-        # 先用正则严格限制 #RRGGBB，避免 Pillow 接受颜色名或其他非契约格式。
-        if background_color is None or re.fullmatch(r"#[0-9A-Fa-f]{6}", background_color) is None:
-            raise ApiError(400, "BACKGROUND_COLOR_INVALID", "纯色背景必须提供颜色")
-        try:
-            red, green, blue = ImageColor.getrgb(background_color)
-        except ValueError as exc:
-            raise ApiError(400, "BACKGROUND_COLOR_INVALID", "背景颜色必须为 #RRGGBB") from exc
-        canvas = Image.new("RGBA", (grid_size, grid_size), (red, green, blue, 255))
-        # alpha_composite 正确处理原图的半透明边缘，不产生黑边或白边。
-        canvas.alpha_composite(fitted, (left, top))
-        return canvas
-
-    # keep/simplify 的方形补边透明；原图内部背景已由增强器处理。
+    del background_mode
     canvas = Image.new("RGBA", (grid_size, grid_size), (0, 0, 0, 0))
     canvas.alpha_composite(fitted, (left, top))
     return canvas

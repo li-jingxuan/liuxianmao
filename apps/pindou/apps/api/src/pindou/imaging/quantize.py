@@ -9,8 +9,8 @@ from PIL import Image
 from pindou.color.chart import MardColor, MardColorChart
 from pindou.color.distance import ciede2000, srgb_to_lab
 
-# Alpha 小于 16/255 时肉眼几乎不可见，直接视为空格可避免产生边缘杂色拼豆。
-ALPHA_TRANSPARENT_THRESHOLD = 16
+# 拼豆只有“放置/空格”两种状态；50% Alpha 覆盖率作为确定性的二值分界。
+ALPHA_TRANSPARENT_THRESHOLD = 128
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,13 +48,13 @@ def quantize_to_mard_grid(
     *,
     chart: MardColorChart,
     color_set_size: int,
-    max_colors: int,
+    effective_max_colors: int,
 ) -> QuantizedGrid:
     """把 N×N RGBA 工作图量化为受颜色组约束的 MARD 网格。
 
     算法分为两个阶段：
 
-    1. Median Cut 把画面归并为不超过 `max_colors` 个图片代表色；
+    1. Median Cut 把画面归并为不超过 `effective_max_colors` 个图片代表色；
     2. 每个代表色只在用户选择的 MARD `sets[].colors` 白名单内匹配最近色。
 
     必须先建立白名单再匹配，不能先在 264 色中匹配后过滤，否则用户可能得到
@@ -87,7 +87,7 @@ def quantize_to_mard_grid(
     sample = Image.new("RGB", (len(visible_rgb), 1))
     sample.putdata(visible_rgb)
     quantized = sample.quantize(
-        colors=max_colors,
+        colors=effective_max_colors,
         method=Image.Quantize.MEDIANCUT,
         dither=Image.Dither.NONE,
     )
@@ -109,7 +109,7 @@ def quantize_to_mard_grid(
         mapped_colors[palette_index] = _nearest_allowed_color(rgb, color_set.colors)
 
     # 多个代表色可能映射到同一个实体 MARD 色号。下面重建紧凑调色板并合并重复色，
-    # 因此最终实际用色数只会小于或等于 max_colors。
+    # 因此最终实际用色数只会小于或等于 effective_max_colors。
     output_palette: list[MardColor] = []
     output_index_by_code: dict[str, int] = {}
     rows: list[tuple[int, ...]] = []

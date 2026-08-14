@@ -5,29 +5,56 @@ from io import BytesIO
 import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
+from sqlmodel import Session, SQLModel
 
 from pindou.api.dependencies import get_color_chart, get_image_enhancer
 from pindou.core.config import get_settings
+from pindou.db.session import dispose_engine, get_engine
 from pindou.main import app
+from pindou.models import ApiAccessKey, ApiKeyPrefix  # noqa: F401
+from pindou.services.access_keys import AccessKeyService, KeyPrefixService
 
 
 @pytest.fixture(autouse=True)
-def isolate_tests_from_real_seedream(monkeypatch: pytest.MonkeyPatch):
-    """测试始终强制 passthrough，禁止读取真实 Key 或产生方舟费用。"""
+def isolate_tests_from_external_services(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> str:
+    """测试使用隔离 SQLite 和 passthrough，不接触生产数据库或付费 API。"""
+    monkeypatch.setenv("APP_ENV", "test")
     monkeypatch.setenv("IMAGE_ENHANCER", "passthrough")
+    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'pindou-test.db'}")
+    monkeypatch.setenv("KEY_ISSUER_API_KEY", "test-admin-key")
+    monkeypatch.setenv("API_KEY_HASH_PEPPER", "test-hash-pepper")
     get_settings.cache_clear()
+    dispose_engine()
     get_color_chart.cache_clear()
     get_image_enhancer.cache_clear()
-    yield
+
+    engine = get_engine()
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as session:
+        KeyPrefixService(session).add(code="web", display_name="Web")
+        issued = AccessKeyService(session, hash_pepper="test-hash-pepper").issue(
+            prefix_code="web",
+            allowed_uses=1_000_000,
+        )
+
+    yield issued.key
+
+    dispose_engine()
     get_settings.cache_clear()
     get_color_chart.cache_clear()
     get_image_enhancer.cache_clear()
 
 
 @pytest.fixture
-def client() -> TestClient:
+def client(isolate_tests_from_external_services: str) -> TestClient:
     """使用 TestClient 触发完整 FastAPI lifespan，确保色卡会在测试启动时校验。"""
-    with TestClient(app) as test_client:
+    with TestClient(
+        app,
+        headers={"X-API-Key": isolate_tests_from_external_services},
+    ) as test_client:
         yield test_client
 
 

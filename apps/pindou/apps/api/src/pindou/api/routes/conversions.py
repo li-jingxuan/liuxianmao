@@ -4,11 +4,18 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, File, Form, UploadFile
+from fastapi import APIRouter, File, Form, Header, Request, Response, UploadFile
 
-from pindou.api.dependencies import ColorChartDep, ImageEnhancerDep, SettingsDep
+from pindou.api.dependencies import (
+    AccessKeyServiceDep,
+    ColorChartDep,
+    ImageEnhancerDep,
+    SettingsDep,
+)
 from pindou.core.errors import ApiError
+from pindou.imaging.color_budget import resolve_color_budget
 from pindou.imaging.grid import build_bead_grid
+from pindou.imaging.image_backup import backup_enhanced_images
 from pindou.imaging.preprocess import decode_image
 from pindou.schemas.conversion import (
     BackgroundMode,
@@ -17,28 +24,30 @@ from pindou.schemas.conversion import (
     PaletteColor,
 )
 from pindou.services.enhancer import EnhancementOptions
-from pindou.services.seedream_prompt import normalize_background_color
 
 router = APIRouter(prefix="/conversions", tags=["conversions"])
 
 
 @router.post("")
 def create_conversion(
+    request: Request,
+    response: Response,
     image: Annotated[UploadFile, File()],
     grid_size: Annotated[int, Form()],
-    max_colors: Annotated[int, Form()],
     color_set_size: Annotated[int, Form()],
+    max_colors: Annotated[int | None, Form()] = None,
     background_mode: Annotated[BackgroundMode, Form()] = BackgroundMode.KEEP,
-    background_color: Annotated[str | None, Form()] = None,
     *,
     chart: ColorChartDep,
     enhancer: ImageEnhancerDep,
     app_settings: SettingsDep,
+    access_keys: AccessKeyServiceDep,
+    api_key: Annotated[str | None, Header(alias="X-API-Key")] = None,
 ) -> ConversionResponse:
     """把上传图片转换为受指定 MARD 颜色组约束的方形拼豆网格。
 
     此端点使用普通同步函数：Pillow 解码和颜色量化都是阻塞型 CPU 工作，FastAPI
-    会把同步路由放在线程池执行。MVP1 不保存图片，也不返回 PNG；响应只包含前端
+    会把同步路由放在线程池执行。AI 模式会备份增强前后的图片，但响应仍只包含前端
     Canvas 渲染所需的调色板和位置矩阵。
     """
     # 第一层先验证低成本的表单参数，避免非法请求进入图片解码和量化阶段。
@@ -48,16 +57,14 @@ def create_conversion(
             "GRID_SIZE_INVALID",
             f"网格尺寸必须在 {app_settings.min_grid_size} 到 {app_settings.max_grid_size} 之间",
         )
-    if not 8 <= max_colors <= 24:
+    if max_colors is not None and not 8 <= max_colors <= 24:
         raise ApiError(400, "MAX_COLORS_INVALID", "最大颜色数必须在 8 到 24 之间")
     if chart.get_set(color_set_size) is None:
         raise ApiError(400, "COLOR_SET_INVALID", "请选择有效的 MARD 颜色组")
-
-    # 纯色需同时作用于 AI 提示词和方形画布补边，因此在入口统一规范化。
-    normalized_background_color = (
-        normalize_background_color(background_color)
-        if background_mode is BackgroundMode.SOLID
-        else None
+    color_budget = resolve_color_budget(
+        grid_size=grid_size,
+        color_set_size=color_set_size,
+        legacy_max_colors=max_colors,
     )
 
     # 只读取“上限 + 1”字节即可判断超限，避免把任意大文件完整读入内存。
@@ -71,22 +78,34 @@ def create_conversion(
     decoded = decode_image(content, max_pixels=app_settings.upload_max_pixels)
     enhanced = decoded
     try:
+        # 仅在所有低成本参数和图片校验通过后扣次；条件更新已提交后不因后续
+        # AI/量化错误退款，避免并发补偿造成超额使用。
+        quota = access_keys.consume(api_key, request_id=request.state.request_id)
+        response.headers["X-RateLimit-Limit"] = str(quota.initial_uses)
+        response.headers["X-RateLimit-Remaining"] = str(quota.remaining_uses)
+
         # passthrough 返回原对象；Seedream 则返回新的 Pillow Image。
         enhanced = enhancer.enhance(
             decoded,
             options=EnhancementOptions(
+                grid_size=grid_size,
+                color_budget_band=color_budget.prompt_band,
                 background_mode=background_mode,
-                background_color=normalized_background_color,
             ),
         )
+        if enhancer.name != "passthrough":
+            backup_enhanced_images(
+                decoded,
+                enhanced,
+                directory=app_settings.image_backup_dir,
+            )
         grid = build_bead_grid(
             enhanced,
             chart=chart,
             grid_size=grid_size,
-            max_colors=max_colors,
+            effective_max_colors=color_budget.effective_max_colors,
             color_set_size=color_set_size,
             background_mode=background_mode,
-            background_color=normalized_background_color,
         )
     finally:
         # 无论量化成功还是失败，都关闭所有 Pillow 对象，防止文件句柄和内存泄漏。
@@ -115,8 +134,10 @@ def create_conversion(
             enhancer_model=enhancer.model,
             enhancer_prompt_version=enhancer.prompt_version,
             background_mode=background_mode,
-            background_color=normalized_background_color,
             color_set_size=color_set_size,
+            color_budget_mode=color_budget.mode,
+            color_budget_policy_version=color_budget.policy_version,
+            effective_max_colors=color_budget.effective_max_colors,
             color_chart_version=chart.schema_version,
             actual_color_count=len(grid.palette),
         ),

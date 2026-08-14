@@ -1,8 +1,16 @@
-import type { ColorSetsResponse, ConversionInput, BeadGrid } from "./types";
+import type {
+  BeadGrid,
+  ColorCatalogResponse,
+  ColorSetsResponse,
+  ConversionInput,
+} from "./types";
 
 type ApiErrorBody = { error?: { code?: string; message?: string; request_id?: string } };
+type ApiRequestOptions = { apiKey?: string; signal?: AbortSignal };
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://192.168.124.22:8000";
+// 生产环境由 Next.js rewrite 将同源 /api 转发到 Compose 内部的 API 服务。
+// 本地开发仍可通过 NEXT_PUBLIC_API_BASE_URL 指向单独运行的 FastAPI。
+const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api";
 /**
  * 保留后端稳定错误码和 request id 的业务异常。
  * UI 默认展示 message；排查线上问题时可进一步记录 code 和 requestId。
@@ -47,15 +55,25 @@ export const getColorSets = async (signal?: AbortSignal): Promise<ColorSetsRespo
   return parseResponse<ColorSetsResponse>(response);
 };
 
+/** 加载按色号系列分组的完整 MARD 色卡。 */
+export const getColorCatalog = async (
+  signal?: AbortSignal,
+): Promise<ColorCatalogResponse> => {
+  const response = await fetch(`${BASE_URL}/api/v1/colors`, { signal });
+  return parseResponse<ColorCatalogResponse>(response);
+};
+
 /**
  * 把转换参数序列化为 FastAPI 接受的 multipart/form-data。
  * 不手动设置 Content-Type，让浏览器自动补上包含 boundary 的请求头。
  */
-export const createConversion = async (input: ConversionInput, signal?: AbortSignal): Promise<BeadGrid> => {
+export const createConversion = async (
+  input: ConversionInput,
+  { apiKey, signal }: ApiRequestOptions = {},
+): Promise<BeadGrid> => {
   const form = new FormData();
   form.set("image", input.image);
   form.set("grid_size", String(input.gridSize));
-  form.set("max_colors", String(input.maxColors));
   form.set("color_set_size", String(input.colorSetSize));
   form.set("background_mode", input.backgroundMode);
   // background_color 只在纯色模式发送，避免后端误读其他模式下的陈旧色值。
@@ -63,6 +81,12 @@ export const createConversion = async (input: ConversionInput, signal?: AbortSig
     form.set("background_color", input.backgroundColor);
   }
 
-  const response = await fetch(`${BASE_URL}/api/v1/conversions`, { method: "POST", body: form, signal });
+  const headers = apiKey ? { "X-API-Key": apiKey } : undefined;
+  const response = await fetch(`${BASE_URL}/api/v1/conversions`, {
+    method: "POST",
+    body: form,
+    headers,
+    signal,
+  });
   return parseResponse<BeadGrid>(response);
 };

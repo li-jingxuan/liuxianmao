@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 
@@ -16,6 +17,7 @@ class ApiError(Exception):
     status_code: int
     code: str
     message: str
+    headers: Mapping[str, str] | None = None
 
     def __str__(self) -> str:
         return self.message

@@ -35,6 +35,9 @@ export type BeadGrid = {
     background_color?: `#${string}`;
     palette_brand: "MARD";
     color_set_size: number;
+    color_budget_mode: "auto" | "legacy-explicit";
+    color_budget_policy_version: string;
+    effective_max_colors: number;
     color_chart_version: string;
     actual_color_count: number;
   };
@@ -48,11 +51,31 @@ export type ColorSetsResponse = {
   sets: Array<{ size: number; label: string; color_count: number }>;
 };
 
+/** GET /api/v1/colors 返回的完整 MARD 色卡目录。 */
+export type CatalogColor = {
+  code: string;
+  hex: `#${string}`;
+  rgb: [number, number, number];
+};
+
+export type ColorSeriesGroup = {
+  series: string;
+  label: string;
+  color_count: number;
+  colors: CatalogColor[];
+};
+
+export type ColorCatalogResponse = {
+  brand: "MARD";
+  schema_version: string;
+  total_count: number;
+  groups: ColorSeriesGroup[];
+};
+
 /** 创建转换请求时，UI 状态到 multipart/form-data 字段的类型化中间结构。 */
 export type ConversionInput = {
   image: File;
   gridSize: number;
-  maxColors: number;
   colorSetSize: number;
   backgroundMode: BackgroundMode;
   backgroundColor?: string;

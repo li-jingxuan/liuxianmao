@@ -1,4 +1,4 @@
-"""向前端暴露 MARD 累计颜色组选择项。"""
+"""向前端暴露 MARD 颜色套装选择项。"""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ router = APIRouter(prefix="/color-sets", tags=["color-sets"])
 
 @router.get("")
 def list_color_sets(chart: ColorChartDep, app_settings: SettingsDep) -> ColorSetsResponse:
-    """返回色卡中真实存在的累计颜色组。
+    """返回色卡中真实存在的颜色套装。
 
     前端必须消费此接口，不能自行维护 24、48……264 的列表。这样色卡升级、
     删除或新增颜色组时，前后端不会出现可选项不一致的问题。

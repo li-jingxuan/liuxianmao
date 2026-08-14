@@ -8,26 +8,35 @@ afterEach(() => vi.unstubAllGlobals());
 const input: ConversionInput = {
   image: new File(["image"], "source.png", { type: "image/png" }),
   gridSize: 48,
-  maxColors: 18,
   colorSetSize: 48,
-  backgroundMode: "solid",
-  backgroundColor: "#FFFFFF",
+  backgroundMode: "transparent",
 };
 
 describe("createConversion", () => {
   it("submits all API contract fields", async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ width: 48 }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
-    await createConversion(input);
+    await createConversion(input, { apiKey: "test-route-key" });
     const [url, request] = fetchMock.mock.calls[0] as [string, RequestInit];
     const form = request.body as FormData;
-    expect(url).toBe("/api/v1/conversions");
+    expect(url).toMatch(/\/api\/v1\/conversions$/);
     expect(request.method).toBe("POST");
+    expect(request.headers).toEqual({ "X-API-Key": "test-route-key" });
     expect(form.get("grid_size")).toBe("48");
-    expect(form.get("max_colors")).toBe("18");
+    expect(form.has("max_colors")).toBe(false);
     expect(form.get("color_set_size")).toBe("48");
-    expect(form.get("background_mode")).toBe("solid");
-    expect(form.get("background_color")).toBe("#FFFFFF");
+    expect(form.get("background_mode")).toBe("transparent");
+    expect(form.has("background_color")).toBe(false);
+  });
+
+  it("omits the API key header when the route has no key", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ width: 48 }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await createConversion(input);
+
+    const [, request] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(request.headers).toBeUndefined();
   });
 
   it("parses the stable API error shape", async () => {

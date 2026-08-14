@@ -13,7 +13,7 @@ class BackgroundMode(StrEnum):
 
     SIMPLIFY = "simplify"
     KEEP = "keep"
-    SOLID = "solid"
+    TRANSPARENT = "transparent"
 
 
 class PaletteColor(BaseModel):
@@ -34,9 +34,11 @@ class ConversionMeta(BaseModel):
     enhancer_model: str | None = None
     enhancer_prompt_version: str | None = None
     background_mode: BackgroundMode
-    background_color: str | None = Field(default=None, pattern=r"^#[0-9A-F]{6}$")
     palette_brand: Literal["MARD"] = "MARD"
     color_set_size: int
+    color_budget_mode: Literal["auto", "legacy-explicit"]
+    color_budget_policy_version: str
+    effective_max_colors: int = Field(ge=1)
     color_chart_version: str
     actual_color_count: int = Field(ge=0)
 
@@ -49,8 +51,8 @@ class ConversionResponse(BaseModel):
     """
 
     # schema_version 描述 JSON 形状；algorithm_version 描述量化行为。
-    schema_version: Literal["1"] = "1"
-    algorithm_version: Literal["bead-grid-v1"] = "bead-grid-v1"
+    schema_version: Literal["2"] = "2"
+    algorithm_version: Literal["bead-grid-constrained-v1"] = "bead-grid-constrained-v1"
     width: int = Field(ge=1)
     height: int = Field(ge=1)
     palette: list[PaletteColor]
@@ -67,7 +69,7 @@ class ColorSetOption(BaseModel):
 
 
 class ColorSetsResponse(BaseModel):
-    """由 MARD 色卡 sets[] 动态生成的累计颜色组列表。"""
+    """由 MARD 色卡 sets[] 动态生成的颜色套装列表。"""
 
     brand: Literal["MARD"] = "MARD"
     schema_version: str

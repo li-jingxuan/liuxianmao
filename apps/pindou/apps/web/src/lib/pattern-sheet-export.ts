@@ -188,7 +188,7 @@ const drawInfoAndPalettePanel = (
   const info = [
     ["网格尺寸", `${grid.width} × ${grid.height}`],
     ["原图尺寸", `${sourceDetails.width} × ${sourceDetails.height}`],
-    ["使用颜色", `${grid.palette.length}`],
+    ["使用颜色", `${grid.palette.length} / ${grid.meta.effective_max_colors}`],
     ["总豆数", countOccupiedBeads(grid).toLocaleString("zh-CN")],
     ["色卡品牌", grid.meta.palette_brand],
     ["色卡套装", `${grid.meta.color_set_size} 色`],

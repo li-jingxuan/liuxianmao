@@ -16,13 +16,13 @@ def test_quantization_only_uses_selected_color_set() -> None:
         image,
         chart=chart,
         color_set_size=24,
-        max_colors=8,
+        effective_max_colors=8,
     )
     result_120 = quantize_to_mard_grid(
         image,
         chart=chart,
         color_set_size=120,
-        max_colors=8,
+        effective_max_colors=8,
     )
     image.close()
 
@@ -41,9 +41,28 @@ def test_transparent_pixels_use_negative_one() -> None:
         image,
         chart=chart,
         color_set_size=24,
-        max_colors=8,
+        effective_max_colors=8,
     )
     image.close()
 
     assert result.palette == ()
     assert all(cell == -1 for row in result.rows for cell in row)
+
+
+def test_alpha_coverage_is_resolved_to_binary_bead_occupancy() -> None:
+    """半透明像素必须按 50% 覆盖率变成空格或实体豆，不能产生透明豆。"""
+    chart = get_color_chart()
+    image = Image.new("RGBA", (2, 1))
+    image.putdata(((255, 0, 0, 127), (255, 0, 0, 128)))
+
+    result = quantize_to_mard_grid(
+        image,
+        chart=chart,
+        color_set_size=24,
+        effective_max_colors=8,
+    )
+    image.close()
+
+    assert result.rows[0][0] == -1
+    assert result.rows[0][1] == 0
+    assert len(result.palette) == 1

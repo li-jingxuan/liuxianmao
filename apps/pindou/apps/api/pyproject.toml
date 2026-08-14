@@ -4,11 +4,14 @@ version = "0.1.0"
 description = "Image-to-bead-grid API"
 requires-python = ">=3.12"
 dependencies = [
+  "alembic>=1.14,<2",
   "fastapi[standard]>=0.115,<1",
   "httpx>=0.28,<1",
   "pillow>=11,<13",
   "pydantic-settings>=2.7,<3",
+  "psycopg[binary]>=3.2,<4",
   "python-multipart>=0.0.20,<1",
+  "sqlmodel>=0.0.24,<1",
   "uvicorn[standard]>=0.34,<1",
 ]
 
@@ -27,6 +30,9 @@ entrypoint = "pindou.main:app"
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
+markers = [
+  "postgres: integration tests requiring TEST_POSTGRES_URL",
+]
 
 [tool.ruff]
 line-length = 100

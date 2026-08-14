@@ -1,0 +1,266 @@
+.page {
+  width: min(calc(100% - 64px), 1440px);
+  margin: 0 auto;
+  padding: 48px 0 72px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+  margin-bottom: 30px;
+}
+
+.heading {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.headingIcon {
+  display: grid;
+  width: 54px;
+  height: 54px;
+  place-items: center;
+  border-radius: 17px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--primary), #9a72ff);
+  box-shadow: 0 12px 28px rgba(104, 72, 255, 0.24);
+}
+
+.headingIcon svg {
+  width: 27px;
+  height: 27px;
+}
+
+.heading h1 {
+  margin: 0 0 7px;
+  font-size: 34px;
+  letter-spacing: -0.035em;
+}
+
+.heading p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.total {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 13px 18px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.total strong {
+  color: var(--primary);
+  font-size: 25px;
+}
+
+.total span {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  padding: 14px;
+  border: 1px solid rgba(228, 232, 243, 0.9);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 10px 30px rgba(70, 78, 128, 0.06);
+}
+
+.filters button {
+  min-width: 66px;
+  height: 40px;
+  padding: 0 13px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  color: #65708e;
+  background: var(--soft);
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: border-color 150ms ease, background 150ms ease, color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.filters button span {
+  margin-left: 4px;
+  color: #949db7;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.filters button:hover {
+  border-color: rgba(104, 72, 255, 0.35);
+  color: var(--primary);
+}
+
+.filters button[aria-pressed="true"] {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: #fff;
+  box-shadow: 0 5px 14px rgba(104, 72, 255, 0.12);
+}
+
+.filters button[aria-pressed="true"] span {
+  color: var(--primary);
+}
+
+.groups {
+  display: grid;
+  gap: 24px;
+  margin-top: 24px;
+}
+
+.group {
+  padding: 25px;
+  border: 1px solid rgba(228, 232, 243, 0.9);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 12px 34px rgba(70, 78, 128, 0.06);
+}
+
+.groupHeading {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.groupHeading h2 {
+  margin: 0;
+  font-size: 21px;
+  letter-spacing: -0.02em;
+}
+
+.groupHeading span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.colorGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: 13px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.colorCard {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid #dfe3ed;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.swatch {
+  height: 88px;
+  border-bottom: 1px solid #dfe3ed;
+}
+
+.colorMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 11px 12px;
+}
+
+.colorMeta strong {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 15px;
+  text-overflow: ellipsis;
+}
+
+.colorMeta span {
+  color: var(--muted);
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  font-size: 11px;
+  letter-spacing: -0.02em;
+}
+
+.statePanel {
+  display: grid;
+  min-height: 280px;
+  place-items: center;
+  gap: 16px;
+  padding: 32px;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.statePanel button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 42px;
+  padding: 0 16px;
+  border: 1px solid var(--primary);
+  border-radius: 12px;
+  color: var(--primary);
+  background: #fff;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.statePanel button svg {
+  width: 17px;
+  height: 17px;
+}
+
+.spinner {
+  width: 34px;
+  height: 34px;
+  border: 3px solid #e7e5ff;
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 800ms linear infinite;
+}
+
+.skeletonGrid {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(90px, 1fr));
+  gap: 12px;
+  width: 100%;
+}
+
+.skeletonGrid i {
+  height: 112px;
+  border-radius: 13px;
+  background: linear-gradient(100deg, #f0f1f7 20%, #fafaff 45%, #f0f1f7 70%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes shimmer {
+  to {
+    background-position-x: -200%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner,
+  .skeletonGrid i {
+    animation: none;
+  }
+}

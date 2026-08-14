@@ -1,0 +1,7 @@
+.env
+backups/*
+data/postgres/*
+data/api-images/*
+!backups/.gitkeep
+!data/postgres/.gitkeep
+!data/api-images/.gitkeep

@@ -19,6 +19,11 @@ def _default_color_chart_path() -> Path:
     return Path(__file__).resolve().parents[5] / "docs" / "MARD_色卡.json"
 
 
+def _default_image_backup_dir() -> Path:
+    """把运行时图片备份放在 API 包的 assets/images 目录。"""
+    return Path(__file__).resolve().parents[1] / "assets" / "images"
+
+
 API_ENV_FILE = Path(__file__).resolve().parents[3] / ".env"
 
 
@@ -43,7 +48,7 @@ class Settings(BaseSettings):
     api_host: str = "0.0.0.0"
     api_port: int = Field(default=8000, ge=1, le=65535)
     api_reload: bool = True
-    image_enhancer: str = "passthrough"
+    image_enhancer: str = "seedream" # "passthrough"
     # 同时限制压缩文件体积和解码后像素量，防止压缩炸弹耗尽内存。
     upload_max_bytes: int = 10 * 1024 * 1024
     upload_max_pixels: int = 25_000_000
@@ -56,6 +61,18 @@ class Settings(BaseSettings):
         default_factory=_default_color_chart_path,
         validation_alias="MARD_COLOR_CHART_PATH",
     )
+    image_backup_dir: Path = Field(
+        default_factory=_default_image_backup_dir,
+        validation_alias="IMAGE_BACKUP_DIR",
+    )
+
+    # PostgreSQL 与 API Key 配置不提供可误用的生产默认值。测试环境会显式注入
+    # 隔离数据库和假密钥，其他环境缺失时在启动阶段失败。
+    database_url: SecretStr | None = None
+    # 管理员签发密钥
+    key_issuer_api_key: SecretStr | None = None
+    # 后端签发密钥
+    api_key_hash_pepper: SecretStr | None = None
 
     # 方舟密钥仅在 seedream 模式下必需，passthrough 可无 Key 运行。
     ark_doubao_api_key: SecretStr | None = None
@@ -73,11 +90,24 @@ class Settings(BaseSettings):
     ark_doubao_max_response_bytes: int = Field(default=30 * 1024 * 1024, ge=1024)
     seedream_input_max_edge: int = Field(default=2048, ge=256, le=8192)
     seedream_output_max_pixels: int = Field(default=20_000_000, ge=1_000_000)
-    seedream_prompt_version: str = "seedream-pindou-v2"
+    seedream_prompt_version: str = "seedream-pindou-v4-color-aware"
 
     @model_validator(mode="after")
-    def validate_seedream_configuration(self) -> Settings:
-        """在启动期拒绝不完整的 AI 配置，不静默降级。"""
+    def validate_configuration(self) -> Settings:
+        """在启动期拒绝不完整的数据库、密钥和 AI 配置。"""
+        if self.app_env != "test":
+            required_secrets = {
+                "DATABASE_URL": self.database_url,
+                "KEY_ISSUER_API_KEY": self.key_issuer_api_key,
+                "API_KEY_HASH_PEPPER": self.api_key_hash_pepper,
+            }
+            missing = [
+                name
+                for name, value in required_secrets.items()
+                if value is None or not value.get_secret_value()
+            ]
+            if missing:
+                raise ValueError(f"缺少必需配置: {', '.join(missing)}")
         if self.image_enhancer not in {"passthrough", "seedream"}:
             raise ValueError("IMAGE_ENHANCER 仅支持 passthrough 或 seedream")
         if self.image_enhancer == "seedream":

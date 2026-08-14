@@ -7,6 +7,8 @@ from typing import Protocol
 
 from PIL import Image
 
+from pindou.core.errors import ApiError
+from pindou.imaging.color_budget import ColorBudgetBand
 from pindou.schemas.conversion import BackgroundMode
 
 
@@ -14,8 +16,9 @@ from pindou.schemas.conversion import BackgroundMode
 class EnhancementOptions:
     """增强器所需的业务上下文，避免在供应商实现中依赖 HTTP 表单。"""
 
+    grid_size: int
+    color_budget_band: ColorBudgetBand
     background_mode: BackgroundMode
-    background_color: str | None = None
 
 
 class ImageEnhancer(Protocol):
@@ -54,5 +57,12 @@ class PassThroughEnhancer:
 
     def enhance(self, image: Image.Image, *, options: EnhancementOptions) -> Image.Image:
         """原样返回输入对象，为后续 AI 增强器保留稳定接口缝隙。"""
-        del options
+        if options.background_mode is BackgroundMode.TRANSPARENT:
+            alpha_extrema = image.getchannel("A").getextrema() if "A" in image.getbands() else None
+            if alpha_extrema is None or alpha_extrema[0] == 255:
+                raise ApiError(
+                    400,
+                    "TRANSPARENT_BACKGROUND_UNAVAILABLE",
+                    "原图没有透明背景，请开启 AI 增强后重试",
+                )
         return image

@@ -1,0 +1,82 @@
+name: pindou
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?请在 deploy/.env 中设置 POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:?请在 deploy/.env 中设置 POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?请在 deploy/.env 中设置 POSTGRES_PASSWORD}
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    networks: [pindou]
+
+  api:
+    image: ${API_IMAGE:-pindou-api:local}
+    build:
+      context: ..
+      dockerfile: deploy/api.Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      APP_ENV: production
+      API_HOST: 0.0.0.0
+      API_PORT: 8000
+      API_RELOAD: "false"
+      DATABASE_URL: ${DATABASE_URL:?请在 deploy/.env 中设置 DATABASE_URL}
+      MARD_COLOR_CHART_PATH: /app/docs/MARD_色卡.json
+      IMAGE_BACKUP_DIR: /var/lib/pindou/images
+    command:
+      - sh
+      - -c
+      - >-
+        alembic -c /app/apps/api/alembic.ini upgrade head &&
+        uvicorn pindou.main:app --host 0.0.0.0 --port 8000
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./data/api-images:/var/lib/pindou/images
+    expose: ["8000"]
+    healthcheck:
+      test:
+        ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks: [pindou]
+
+  web:
+    image: ${WEB_IMAGE:-pindou-web:local}
+    build:
+      context: ..
+      dockerfile: deploy/web.Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: /api
+        PINDOU_API_ORIGIN: http://api:8000
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--quiet", "http://127.0.0.1:3000/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks: [pindou]
+
+networks:
+  pindou:
+    driver: bridge

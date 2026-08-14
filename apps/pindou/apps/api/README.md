@@ -15,6 +15,17 @@ python3 -m venv .venv
 
 ## Run
 
+Start PostgreSQL from the repository root, then apply migrations:
+
+```bash
+POSTGRES_PASSWORD='<local-password>' docker compose up -d postgres
+cd apps/api
+.venv/bin/alembic upgrade head
+```
+
+Configure `DATABASE_URL`, `KEY_ISSUER_API_KEY`, and `API_KEY_HASH_PEPPER` in `apps/api/.env`.
+The issuer key and pepper must be different high-entropy secrets.
+
 For local deterministic conversion, keep `IMAGE_ENHANCER=passthrough` in `.env`. To enable
 Seedream, configure the server-only key and switch the enhancer:
 
@@ -52,8 +63,9 @@ configured port. Set `API_RELOAD=false` outside development.
 ## CORS
 
 The API currently allows requests from every browser origin, IP, method, and request header.
-Cross-origin credentials are intentionally disabled, while `x-request-id` is exposed for client
-diagnostics. If cookie-based authentication is added later, replace the wildcard origin with an
+Cross-origin credentials are intentionally disabled, while `x-request-id`,
+`x-ratelimit-limit`, and `x-ratelimit-remaining` are exposed for client diagnostics and quota
+display. If cookie-based authentication is added later, replace the wildcard origin with an
 explicit trusted-origin list before enabling credentials.
 
 ## Check
@@ -75,11 +87,29 @@ Convert an image:
 
 ```bash
 curl -X POST http://127.0.0.1:8000/api/v1/conversions \
+  -H 'X-API-Key: pdk_web_<secret>' \
   -F 'image=@/absolute/path/source.png' \
   -F 'grid_size=52' \
   -F 'max_colors=18' \
   -F 'color_set_size=48' \
   -F 'background_mode=simplify'
+```
+
+Issue a two-use key for the registered `web` source:
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/v1/access-keys \
+  -H 'Content-Type: application/json' \
+  -H 'X-Admin-API-Key: <KEY_ISSUER_API_KEY>' \
+  -d '{"prefix":"web","allowed_uses":2}'
+```
+
+Manage source prefixes through the ORM-backed CLI:
+
+```bash
+.venv/bin/pindou-api key-prefix add wechat --name '微信小程序'
+.venv/bin/pindou-api key-prefix disable wechat
+.venv/bin/pindou-api key-prefix enable wechat
 ```
 
 `background_mode` supports `simplify`, `solid`, and `keep`. `solid` additionally requires
