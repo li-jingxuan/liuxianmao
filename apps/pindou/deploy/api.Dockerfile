@@ -1,5 +1,7 @@
-FROM python:3.12-slim
-
+# 默认使用与 Web 构建一致的镜像源；部署环境可通过 PYTHON_IMAGE 覆盖。
+ARG PYTHON_IMAGE=docker.m.daocloud.io/library/python:3.12-slim
+FROM ${PYTHON_IMAGE}
+# FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app/apps/api/src
