@@ -90,9 +90,9 @@ curl -X POST http://127.0.0.1:8000/api/v1/conversions \
   -H 'X-API-Key: pdk_web_<secret>' \
   -F 'image=@/absolute/path/source.png' \
   -F 'grid_size=52' \
-  -F 'max_colors=18' \
   -F 'color_set_size=48' \
-  -F 'background_mode=simplify'
+  -F 'background_mode=solid' \
+  -F 'background_color=#FFFFFF'
 ```
 
 Issue a two-use key for the registered `web` source:
@@ -112,7 +112,8 @@ Manage source prefixes through the ORM-backed CLI:
 .venv/bin/pindou-api key-prefix enable wechat
 ```
 
-`background_mode` supports `simplify`, `solid`, and `keep`. `solid` additionally requires
-`background_color=#RRGGBB`. Seedream prompts are maintained in Chinese and vary by mode.
+`background_mode` supports `simplify`, `solid`, and `keep`. `solid` defaults to pure white
+`#FFFFFF`; callers may submit another `#RRGGBB` value. Automatic color caps are 30 for 52×52 and
+54 for 78×78/104×104 grids. Seedream prompts remain independent from those hard caps.
 
 All returned palette codes are guaranteed to belong to the selected MARD color set.

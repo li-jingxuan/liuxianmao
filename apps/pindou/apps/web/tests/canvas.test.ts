@@ -4,8 +4,8 @@ import { drawBeadGrid, exportBeadGrid, PATTERN_EXPORT_CELL_SIZE } from "../src/l
 import type { BeadGrid } from "../src/lib/types";
 
 const grid: BeadGrid = {
-  schema_version: "1",
-  algorithm_version: "bead-grid-v1",
+  schema_version: "2",
+  algorithm_version: "bead-grid-constrained-v1",
   width: 2,
   height: 2,
   palette: [{ id: 0, brand: "MARD", code: "A1", hex: "#FF0000", rgb: [255, 0, 0] }],
@@ -16,7 +16,7 @@ const grid: BeadGrid = {
     palette_brand: "MARD",
     color_set_size: 24,
     color_budget_mode: "auto",
-    color_budget_policy_version: "grid-color-budget-v1",
+    color_budget_policy_version: "grid-color-budget-v2",
     effective_max_colors: 8,
     color_chart_version: "1.0",
     actual_color_count: 1,

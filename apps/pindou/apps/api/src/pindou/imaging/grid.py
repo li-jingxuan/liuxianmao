@@ -18,6 +18,7 @@ def build_bead_grid(
     effective_max_colors: int,
     color_set_size: int,
     background_mode: BackgroundMode,
+    background_color: str | None,
 ) -> QuantizedGrid:
     """串联“方形采样”和“MARD 量化”，构造最终网格。
 
@@ -29,6 +30,7 @@ def build_bead_grid(
         image,
         grid_size=grid_size,
         background_mode=background_mode,
+        background_color=background_color,
     )
     try:
         return quantize_to_mard_grid(

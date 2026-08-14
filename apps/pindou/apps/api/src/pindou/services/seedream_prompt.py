@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import re
+
+from pindou.core.errors import ApiError
 from pindou.imaging.color_budget import (
     ColorBudgetBand,
     GridDetailBand,
@@ -10,10 +13,14 @@ from pindou.imaging.color_budget import (
 from pindou.schemas.conversion import BackgroundMode
 from pindou.services.enhancer import EnhancementOptions
 
+DEFAULT_SOLID_BACKGROUND_COLOR = "#FFFFFF"
+HEX_COLOR_PATTERN = re.compile(r"#[0-9A-Fa-f]{6}")
+
 BASE_PROMPT = """
-以输入图为唯一内容依据。保留主体身份、数量、姿态、朝向、关键轮廓、主要配色和整体构图，不改变原图的核心语义。
-将图像整理为边界清晰、色块连续、适合后续缩小和有限色卡量化的平面插画中间图。
-优先保证主体可识别性和主体与背景的分离度，再保留次要装饰。
+以输入图为唯一内容依据。保留主体身份、类别、数量、姿态、朝向、标志性轮廓、主要配色、关键身份色和整体场景语义，不改变原图的核心内容。
+只做后续缩小和有限色卡量化所必需的归纳与边界整理，不主动增加细节、装饰、纹理或新的视觉重点。
+将图像整理为主体轮廓清楚、主要色块连续、视觉层级稳定的平面插画中间图。
+优先保证主体整体可识别，再保留少量有身份意义的内部特征；次要局部和背景细节可以合并或弱化。
 """.strip()
 
 GRID_DETAIL_PROMPTS: dict[GridDetailBand, str] = {
@@ -24,24 +31,36 @@ GRID_DETAIL_PROMPTS: dict[GridDetailBand, str] = {
 删除独立小亮点、细线、狭长色带和缩小后会消失的孤立区域。阴影最多保留一层宽而连续的形体阴影。
 """.strip(),
     GridDetailBand.SMALL: """
-细节等级：低分辨率简化表达。
-保持清楚的外轮廓和较大的内部结构分区，保留主要五官、服饰分区、动物花色或物体功能结构。
-将相近颜色和零碎纹理合并成连续色块，移除细发丝、细小文字、密集线条、高光噪点和无识别价值的小装饰。
-只使用少量必要阴影，避免窄于主要轮廓线宽的孤立细节。
+细节策略：主体轮廓优先（52×52 预设档）。
+把主要视觉预算集中在主体外轮廓、姿态、头身大形和主要结构分区。
+先保证主体整体一眼可识别，再保留最有身份意义的 2–4 个内部特征。
+合并细小五官、发丝、褶皱、纹理、反光、重复装饰和零碎配件，不要逐项强调原图中的所有局部。细肢体、尾巴、把手或连接结构只在防止断裂时做必要加粗，不得借此扩充细节。
+预计缩小后只能形成单个零散采样点的特征，应删除或并入相邻结构。光影最多保留固有色、一个主要亮面和一个主要暗面，避免细碎明暗。
+结果应以稳定、连续、清楚的主体轮廓为第一目标，内部信息宁少勿碎。
 """.strip(),
     GridDetailBand.MEDIUM: """
-细节等级：中等分辨率平面化表达。
-保留主体的关键内部结构、主要五官关系、服饰层次、材质分区和有语义价值的配件。
-允许有限的局部细节和两到三层明暗，但仍将摄影纹理、细碎反光、随机噪点和重复图案归并为稳定色块。
-轮廓优先于纹理，局部细节不能破坏主体边界的连续性。
+细节策略：主体结构优先（78×78 预设档）。
+按“主体外轮廓与姿态、主要结构分区、少量身份特征、次要装饰”的顺序分配细节。完整保留主体大形和关键内部关系，但不要让五官、配件、材质和花纹同时成为视觉重点。
+保留主要表情关系、服饰分区、动物主花色或物体功能结构；将次要配件、重复图案、细发丝、摄影纹理、细碎反光和柔和渐变合并为稳定色块。
+容易断裂或粘连的结构可以做必要的轮廓整理和对比分离，但不主动放大局部特征。使用两到三层主要明暗，避免高频边缘和零散强调色。
+结果应先读出主体轮廓和姿态，再读出少量关键内部结构，而不是同时展示大量细节。
 """.strip(),
     GridDetailBand.LARGE: """
-细节等级：较高分辨率的克制平面化表达。
-保留完整的主体结构、主要五官和表情关系、服饰或物体的关键构造、具有识别意义的局部图案及主要空间层次。
-可以保留适量边缘转折和明暗层次，但不要恢复照片级纹理、毛孔、颗粒、细碎反光、杂乱发丝或无规律背景噪点。
-将低价值纹理合并为较大的稳定区域，确保色块边界清楚且便于有限色卡量化。
+细节策略：较高网格的克制保留（104×104 预设档）。
+保留完整主体结构、主要五官和表情、服饰或物体的关键构造、识别性图案、重要材质分区和主要空间层次，但不要原样复制摄影画面的全部频率。
+先保证主体轮廓和主要结构之间的分界，再保留有身份意义的局部。面积过小、对比不足或容易粘连的特征只做必要整理，不主动放大或增加视觉权重。
+将毛孔、颗粒、杂乱发丝、细碎反光、无规律纹理和连续渐变归并为有方向、有层级的平面形体。允许保留三到四层有意义的明暗或材质变化，但每一层都应形成面积足够、边界稳定的区域。
+结果可以比低网格保留更多细节，但仍应避免照片式复刻和无重点的细节堆积。
 """.strip(),
 }
+
+SUBJECT_FIRST_PROMPT = """
+当前网格小于 104×104，主体是唯一视觉重点。
+主体外轮廓的连续性和可辨识度高于内部细节、背景层次和装饰完整度。
+将背景限制为场景识别所需的少量大区域，使用比主体更少、更大、对比更弱的色块；合并背景物体内部纹理、重复结构、细碎边缘、光影和装饰，不新增高对比背景细节。
+按照当前背景模式决定背景物体能否删除：保留背景时维持有语义物体的类别、数量、位置和遮挡关系，但降低其内部细节；简化背景时可继续删除低价值物体。
+不得因为背景丰富或局部精致而牺牲主体轮廓、姿态和主要结构分区。
+""".strip()
 
 COLOR_BUDGET_PROMPTS: dict[ColorBudgetBand, str] = {
     ColorBudgetBand.RESTRAINED: """
@@ -88,15 +107,32 @@ def _build_background_prompt(options: EnhancementOptions) -> str:
     if options.background_mode is BackgroundMode.KEEP:
         return KEEP_BACKGROUND_PROMPT
 
+    color = normalize_background_color(options.background_color)
+    white_priority = (
+        "使用纯白背景，保持背景干净、明亮且颜色一致。"
+        if color == DEFAULT_SOLID_BACKGROUND_COLOR
+        else "严格使用目标颜色，保持背景干净且颜色一致。"
+    )
     return (
-        "背景处理：完整移除原背景及其中所有物体，保留前景主体的完整轮廓和自然边缘。\n"
-        "主体外区域必须使用真实 Alpha 通道完全透明，不绘制白底、纯色底或棋盘格。\n"
-        "保留主体内部原有颜色，不增加地平线、边框、投影或背景物体。"
+        "背景处理：完整移除原背景及其中所有无关物体，保留前景主体的完整轮廓、"
+        "内部特征和自然边缘。\n"
+        "将主体放在均匀、平坦、无渐变、无纹理、无阴影、无物体的纯色背景上。\n"
+        f"背景目标颜色为 {color}。{white_priority}不改变主体内部原有颜色，"
+        "不增加地面、地平线、边框或投影。"
     )
 
 
+def normalize_background_color(value: str | None) -> str:
+    """纯色未指定时使用纯白，并只允许标准 HEX 进入 Prompt 和图像处理。"""
+    if value is None:
+        return DEFAULT_SOLID_BACKGROUND_COLOR
+    if HEX_COLOR_PATTERN.fullmatch(value) is None:
+        raise ApiError(400, "BACKGROUND_COLOR_INVALID", "背景颜色必须为 #RRGGBB")
+    return value.upper()
+
+
 def build_seedream_prompt(options: EnhancementOptions) -> str:
-    """按网格、颜色预算、背景模式和禁止项组装 Prompt v4。"""
+    """按网格、主体优先级、颜色预算、背景模式和禁止项组装 Prompt v7。"""
     detail_band = classify_grid_detail(options.grid_size)
     grid_context = (
         f"这张中间图随后会被等比适配并缩小为 {options.grid_size}×{options.grid_size} "
@@ -107,14 +143,15 @@ def build_seedream_prompt(options: EnhancementOptions) -> str:
         "这张中间图最终会被映射到有限的实体拼豆色卡。\n"
         "请按照当前颜色表达档位组织主要色块、强调色和明暗层级，不追求精确颜色数。"
     )
-    return "\n\n".join(
+    prompt_parts = [BASE_PROMPT, grid_context, GRID_DETAIL_PROMPTS[detail_band]]
+    if options.grid_size < 104:
+        prompt_parts.append(SUBJECT_FIRST_PROMPT)
+    prompt_parts.extend(
         (
-            BASE_PROMPT,
-            grid_context,
-            GRID_DETAIL_PROMPTS[detail_band],
             color_budget_context,
             COLOR_BUDGET_PROMPTS[options.color_budget_band],
             _build_background_prompt(options),
             OUTPUT_GUARD_PROMPT,
         )
     )
+    return "\n\n".join(prompt_parts)

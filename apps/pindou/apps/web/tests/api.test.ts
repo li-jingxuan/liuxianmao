@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createConversion, PindouApiError } from "../src/lib/api";
-import type { ConversionInput } from "../src/lib/types";
+import { createConversion, getColorCatalog, PindouApiError } from "../src/lib/api";
+import type { ColorCatalogResponse, ConversionInput } from "../src/lib/types";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -9,7 +9,8 @@ const input: ConversionInput = {
   image: new File(["image"], "source.png", { type: "image/png" }),
   gridSize: 48,
   colorSetSize: 48,
-  backgroundMode: "transparent",
+  backgroundMode: "solid",
+  backgroundColor: "#FFFFFF",
 };
 
 describe("createConversion", () => {
@@ -25,8 +26,8 @@ describe("createConversion", () => {
     expect(form.get("grid_size")).toBe("48");
     expect(form.has("max_colors")).toBe(false);
     expect(form.get("color_set_size")).toBe("48");
-    expect(form.get("background_mode")).toBe("transparent");
-    expect(form.has("background_color")).toBe(false);
+    expect(form.get("background_mode")).toBe("solid");
+    expect(form.get("background_color")).toBe("#FFFFFF");
   });
 
   it("omits the API key header when the route has no key", async () => {
@@ -54,6 +55,68 @@ describe("createConversion", () => {
       code: "AI_TIMEOUT",
       message: "AI 处理超时，本次未确认成功，请稍后手动重试",
       requestId: "req_ai",
+    } satisfies Partial<PindouApiError>);
+  });
+});
+
+describe("getColorCatalog", () => {
+  it("loads the complete color catalog and forwards the abort signal", async () => {
+    const payload: ColorCatalogResponse = {
+      brand: "MARD",
+      schema_version: "1.0",
+      total_count: 1,
+      groups: [
+        {
+          series: "A",
+          label: "A 系列",
+          color_count: 1,
+          colors: [{ code: "A1", hex: "#F9F0CD", rgb: [249, 240, 205] }],
+        },
+      ],
+      sets: [
+        {
+          size: 24,
+          label: "MARD 24色套装",
+          color_count: 1,
+          colors: [{ code: "A1", hex: "#F9F0CD", rgb: [249, 240, 205] }],
+        },
+      ],
+    };
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(payload), { status: 200 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const controller = new AbortController();
+
+    await expect(getColorCatalog(controller.signal)).resolves.toEqual(payload);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringMatching(/\/api\/v1\/colors$/),
+      { signal: controller.signal },
+    );
+  });
+
+  it("uses the shared API error parser", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            error: {
+              code: "CATALOG_UNAVAILABLE",
+              message: "色卡不可用",
+              request_id: "req_colors",
+            },
+          }),
+          { status: 503 },
+        ),
+      ),
+    );
+
+    await expect(getColorCatalog()).rejects.toMatchObject({
+      code: "CATALOG_UNAVAILABLE",
+      message: "色卡不可用",
+      requestId: "req_colors",
     } satisfies Partial<PindouApiError>);
   });
 });

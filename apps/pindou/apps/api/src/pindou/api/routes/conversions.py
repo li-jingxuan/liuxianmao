@@ -24,6 +24,7 @@ from pindou.schemas.conversion import (
     PaletteColor,
 )
 from pindou.services.enhancer import EnhancementOptions
+from pindou.services.seedream_prompt import normalize_background_color
 
 router = APIRouter(prefix="/conversions", tags=["conversions"])
 
@@ -36,7 +37,8 @@ def create_conversion(
     grid_size: Annotated[int, Form()],
     color_set_size: Annotated[int, Form()],
     max_colors: Annotated[int | None, Form()] = None,
-    background_mode: Annotated[BackgroundMode, Form()] = BackgroundMode.KEEP,
+    background_mode: Annotated[BackgroundMode, Form()] = BackgroundMode.SOLID,
+    background_color: Annotated[str | None, Form()] = None,
     *,
     chart: ColorChartDep,
     enhancer: ImageEnhancerDep,
@@ -57,14 +59,19 @@ def create_conversion(
             "GRID_SIZE_INVALID",
             f"网格尺寸必须在 {app_settings.min_grid_size} 到 {app_settings.max_grid_size} 之间",
         )
-    if max_colors is not None and not 8 <= max_colors <= 24:
-        raise ApiError(400, "MAX_COLORS_INVALID", "最大颜色数必须在 8 到 24 之间")
+    if max_colors is not None and not 8 <= max_colors <= 54:
+        raise ApiError(400, "MAX_COLORS_INVALID", "最大颜色数必须在 8 到 54 之间")
     if chart.get_set(color_set_size) is None:
         raise ApiError(400, "COLOR_SET_INVALID", "请选择有效的 MARD 颜色组")
     color_budget = resolve_color_budget(
         grid_size=grid_size,
         color_set_size=color_set_size,
         legacy_max_colors=max_colors,
+    )
+    normalized_background_color = (
+        normalize_background_color(background_color)
+        if background_mode is BackgroundMode.SOLID
+        else None
     )
 
     # 只读取“上限 + 1”字节即可判断超限，避免把任意大文件完整读入内存。
@@ -91,6 +98,7 @@ def create_conversion(
                 grid_size=grid_size,
                 color_budget_band=color_budget.prompt_band,
                 background_mode=background_mode,
+                background_color=normalized_background_color,
             ),
         )
         if enhancer.name != "passthrough":
@@ -106,6 +114,7 @@ def create_conversion(
             effective_max_colors=color_budget.effective_max_colors,
             color_set_size=color_set_size,
             background_mode=background_mode,
+            background_color=normalized_background_color,
         )
     finally:
         # 无论量化成功还是失败，都关闭所有 Pillow 对象，防止文件句柄和内存泄漏。
@@ -116,6 +125,7 @@ def create_conversion(
 
     # 在 HTTP 边界把内部不可变 tuple 模型转换为 JSON 友好的 list/Pydantic 模型。
     return ConversionResponse(
+        algorithm_version=grid.algorithm_version,
         width=grid.width,
         height=grid.height,
         palette=[
@@ -134,10 +144,11 @@ def create_conversion(
             enhancer_model=enhancer.model,
             enhancer_prompt_version=enhancer.prompt_version,
             background_mode=background_mode,
+            background_color=normalized_background_color,
             color_set_size=color_set_size,
             color_budget_mode=color_budget.mode,
             color_budget_policy_version=color_budget.policy_version,
-            effective_max_colors=color_budget.effective_max_colors,
+            effective_max_colors=grid.effective_max_colors,
             color_chart_version=chart.schema_version,
             actual_color_count=len(grid.palette),
         ),

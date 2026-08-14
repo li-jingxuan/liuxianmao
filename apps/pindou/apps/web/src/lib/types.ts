@@ -21,8 +21,8 @@ export type PaletteColor = {
  * 前端二次量化造成颜色不一致。
  */
 export type BeadGrid = {
-  schema_version: "1";
-  algorithm_version: string;
+  schema_version: "2";
+  algorithm_version: "bead-grid-constrained-v1";
   width: number;
   height: number;
   palette: PaletteColor[];
@@ -65,11 +65,19 @@ export type ColorSeriesGroup = {
   colors: CatalogColor[];
 };
 
+export type ColorSetGroup = {
+  size: number;
+  label: string;
+  color_count: number;
+  colors: CatalogColor[];
+};
+
 export type ColorCatalogResponse = {
   brand: "MARD";
   schema_version: string;
   total_count: number;
   groups: ColorSeriesGroup[];
+  sets: ColorSetGroup[];
 };
 
 /** 创建转换请求时，UI 状态到 multipart/form-data 字段的类型化中间结构。 */

@@ -64,15 +64,6 @@ class SeedreamEnhancer:
             except SeedreamUpstreamError as exc:
                 raise self._map_upstream_error(exc) from exc
             output = self._decode_output(result.image_bytes)
-            if options.background_mode.value == "transparent":
-                alpha_extrema = output.getchannel("A").getextrema()
-                if alpha_extrema is None or alpha_extrema[0] == 255 or alpha_extrema[1] == 0:
-                    output.close()
-                    raise ApiError(
-                        502,
-                        "AI_TRANSPARENT_BACKGROUND_INVALID",
-                        "AI 未返回有效的透明背景，请重试",
-                    )
             return output
         finally:
             self._semaphore.release()

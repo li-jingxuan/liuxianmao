@@ -24,10 +24,20 @@ class ColorSeriesGroup(BaseModel):
     colors: list[CatalogColor]
 
 
+class ColorSetGroup(BaseModel):
+    """一个可用于图片转换的 MARD 颜色套装。"""
+
+    size: int = Field(ge=1)
+    label: str = Field(min_length=1)
+    color_count: int = Field(ge=1)
+    colors: list[CatalogColor]
+
+
 class ColorCatalogResponse(BaseModel):
-    """按色号系列分组的完整 MARD 色卡。"""
+    """同时提供色号系列和颜色套装两种分组的完整 MARD 色卡。"""
 
     brand: Literal["MARD"] = "MARD"
     schema_version: str
     total_count: int = Field(ge=1)
     groups: list[ColorSeriesGroup]
+    sets: list[ColorSetGroup]

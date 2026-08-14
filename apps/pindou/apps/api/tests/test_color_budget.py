@@ -39,7 +39,7 @@ def test_auto_color_budget_follows_grid_boundaries(
     assert budget.prompt_band is expected_band
 
 
-def test_legacy_explicit_budget_is_preserved() -> None:
+def test_explicit_budget_does_not_tighten_grid_aware_prompt_band() -> None:
     budget = resolve_color_budget(
         grid_size=104,
         color_set_size=48,
@@ -48,20 +48,26 @@ def test_legacy_explicit_budget_is_preserved() -> None:
 
     assert budget.mode == "legacy-explicit"
     assert budget.effective_max_colors == 11
-    assert budget.prompt_band is ColorBudgetBand.RESTRAINED
+    assert budget.prompt_band is ColorBudgetBand.RICH
 
 
 def test_color_budget_never_exceeds_available_colors_or_cells() -> None:
-    assert resolve_color_budget(
-        grid_size=4,
-        color_set_size=3,
-        legacy_max_colors=24,
-    ).effective_max_colors == 3
-    assert resolve_color_budget(
-        grid_size=2,
-        color_set_size=24,
-        legacy_max_colors=8,
-    ).effective_max_colors == 4
+    assert (
+        resolve_color_budget(
+            grid_size=4,
+            color_set_size=3,
+            legacy_max_colors=24,
+        ).effective_max_colors
+        == 3
+    )
+    assert (
+        resolve_color_budget(
+            grid_size=2,
+            color_set_size=24,
+            legacy_max_colors=8,
+        ).effective_max_colors
+        == 4
+    )
 
 
 @pytest.mark.parametrize(

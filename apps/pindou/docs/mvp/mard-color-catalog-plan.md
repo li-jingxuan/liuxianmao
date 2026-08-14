@@ -1,6 +1,6 @@
 # MARD 全量色卡分组展示 MVP 方案
 
-> 状态：待实施  
+> 状态：已实施（含套装分组）
 > 方案日期：2026-08-14  
 > 影响范围：`apps/api` / `apps/web`  
 > 目标页面：`/colors`（PC 测试页）
@@ -9,11 +9,16 @@
 
 新增一个公开只读接口和一个独立 PC 测试页：
 
-- `GET /api/v1/colors`：一次返回完整 MARD 色卡，并按 A、B、C……ZG 系列分组；
-- `MardColorCatalog`：React 函数组件，提供“全部”和 15 个系列筛选；
+- `GET /api/v1/colors`：一次返回完整 MARD 色卡，同时提供 A、B、C……ZG 系列分组和 24、48……221、264 色套装分组；
+- `MardColorCatalog`：React 函数组件，可在“按色号系列”和“按颜色套装”之间切换，并筛选具体系列或套装；
 - `/colors`：承载组件的独立页面，不改动现有图片转换主流程，也不在主页面增加入口。
 
-“颜色分组”在本方案中特指色号系列，而不是现有 `/api/v1/color-sets` 中的 24、48、72……套装档位。当前源色卡共有 291 色、15 个系列：
+当前源色卡共有 291 色、15 个系列，并声明 11 个可用于转换的套装档位：24、48、72、96、120、144、168、192、216、221、264。页面支持两套独立分组语义：
+
+- 色号系列：每个颜色只属于一个 A、B……ZG 系列；
+- 颜色套装：每组直接对应源色卡 `sets[]`，累计商家套装之间允许重复包含同一颜色；221 色标准套装是独立体系，不能假设它是 264 色套装的严格子集。
+
+系列数量如下：
 
 | 系列 | 数量 | 系列 | 数量 | 系列 | 数量 |
 | --- | ---: | --- | ---: | --- | ---: |
@@ -23,7 +28,7 @@
 | P | 23 | Q | 5 | R | 28 |
 | T | 1 | Y | 5 | ZG | 8 |
 
-MVP 只请求一次 291 色数据，筛选在浏览器内完成。这个体量不需要分页，也不需要用户切换筛选时重复请求 API。
+MVP 只请求一次目录数据，系列/套装切换和具体分组筛选都在浏览器内完成。这个体量不需要分页，也不需要切换时重复请求 API。
 
 ## 2. 背景与现状
 
@@ -39,7 +44,8 @@ MVP 只请求一次 291 色数据，筛选在浏览器内完成。这个体量�
 ### 3.1 目标
 
 - 展示源色卡中的全部 291 个颜色，不受当前转换套装大小影响。
-- “全部”状态按系列分区展示；选择某一系列时只展示该系列。
+- 默认按系列分区展示，并允许切换为套装分区展示。
+- 系列视图可筛选单个系列；套装视图可筛选 24、48……221、264 中的单个套装。
 - 每个颜色至少展示真实色块、MARD 色号和 HEX 值。
 - 系列顺序、颜色顺序和数量均来自后端色卡，不在前端硬编码。
 - 页面刷新、接口失败和空数据都有明确状态。
@@ -51,7 +57,7 @@ MVP 只请求一次 291 色数据，筛选在浏览器内完成。这个体量�
 - 不做移动端专项布局和验收。
 - 不做色号搜索、模糊搜索、排序切换或多选筛选。
 - 不做点击复制、收藏、库存、价格或跳转购买。
-- 不把某个套装包含关系作为本期筛选条件。
+- 不做“同时属于多个套装”等交叉条件或集合差异筛选。
 - 不把色卡改成数据库表，也不增加后台编辑能力。
 - 不提供分页、服务端 `series` 查询参数或虚拟列表。
 - 不将测试页嵌入现有转换器，也不改变转换器的颜色套装下拉框。
@@ -147,11 +153,19 @@ class ColorSeriesGroup(BaseModel):
     colors: list[CatalogColor]
 
 
+class ColorSetGroup(BaseModel):
+    size: int = Field(ge=1)
+    label: str = Field(min_length=1)
+    color_count: int = Field(ge=1)
+    colors: list[CatalogColor]
+
+
 class ColorCatalogResponse(BaseModel):
     brand: Literal["MARD"] = "MARD"
     schema_version: str
     total_count: int = Field(ge=1)
     groups: list[ColorSeriesGroup]
+    sets: list[ColorSetGroup]
 ```
 
 示例响应：
@@ -171,6 +185,16 @@ class ColorCatalogResponse(BaseModel):
         { "code": "A2", "hex": "#FBFBD4", "rgb": [251, 251, 212] }
       ]
     }
+  ],
+  "sets": [
+    {
+      "size": 24,
+      "label": "MARD 24色套装",
+      "color_count": 24,
+      "colors": [
+        { "code": "A4", "hex": "#FFE953", "rgb": [255, 233, 83] }
+      ]
+    }
   ]
 }
 ```
@@ -183,8 +207,12 @@ class ColorCatalogResponse(BaseModel):
 total_count == sum(group.color_count for group in groups)
 group.color_count == len(group.colors)
 group.series 唯一
-所有 color.code 全局唯一
+系列分组内所有 color.code 全局唯一
+set.color_count == set.size == len(set.colors)
+sets[].size 与色卡 set_sizes 一致并升序返回
 ```
+
+套装分组不满足跨组全局唯一：例如 24 色套装的成员也会出现在 48、72 等累计套装中，这是源色卡的正确业务语义。接口不从全量颜色重新推导套装，而是只消费 `MardColorChart.sets_by_size` 中已经通过引用、数量与唯一性校验的成员。
 
 ### 5.3 为什么 MVP 不做服务端筛选
 

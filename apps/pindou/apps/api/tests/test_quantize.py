@@ -3,6 +3,8 @@ from __future__ import annotations
 from PIL import Image
 
 from pindou.api.dependencies import get_color_chart
+from pindou.color.chart import MardColor, MardColorChart, MardColorSet
+from pindou.color.distance import srgb_to_lab
 from pindou.imaging.quantize import quantize_to_mard_grid
 
 
@@ -66,3 +68,112 @@ def test_alpha_coverage_is_resolved_to_binary_bead_occupancy() -> None:
     assert result.rows[0][0] == -1
     assert result.rows[0][1] == 0
     assert len(result.palette) == 1
+
+
+def test_palette_is_optimized_directly_over_allowed_mard_colors() -> None:
+    """这个已计算样例的最佳二色组合是绿+灰，Median Cut 后投影会选成蓝+白。"""
+    candidate_rgbs = (
+        (0, 0, 0),
+        (255, 255, 255),
+        (255, 0, 0),
+        (0, 255, 0),
+        (0, 0, 255),
+        (128, 128, 128),
+    )
+    colors = tuple(
+        MardColor(
+            code=f"C{index}",
+            series="C",
+            hex=f"#{red:02X}{green:02X}{blue:02X}",
+            rgb=rgb,
+            lab=srgb_to_lab(rgb),
+        )
+        for index, rgb in enumerate(candidate_rgbs)
+        for red, green, blue in (rgb,)
+    )
+    chart = MardColorChart(
+        schema_version="test",
+        colors=colors,
+        colors_by_code={color.code: color for color in colors},
+        sets_by_size={6: MardColorSet(size=6, colors=colors)},
+    )
+    source_colors = (
+        ((22, 61, 102), 3),
+        ((201, 177, 148), 7),
+        ((75, 133, 55), 1),
+        ((133, 210, 167), 7),
+    )
+    pixels = tuple((*rgb, 255) for rgb, count in source_colors for _ in range(count))
+    image = Image.new("RGBA", (len(pixels), 1))
+    image.putdata(pixels)
+
+    result = quantize_to_mard_grid(
+        image,
+        chart=chart,
+        color_set_size=6,
+        effective_max_colors=2,
+    )
+    image.close()
+
+    assert {color.code for color in result.palette} == {"C3", "C5"}
+
+
+def test_quantization_is_deterministic_and_reports_internal_metrics() -> None:
+    chart = get_color_chart()
+    image = Image.new("RGBA", (4, 1))
+    image.putdata(
+        (
+            (255, 0, 0, 255),
+            (0, 255, 0, 255),
+            (255, 255, 255, 0),
+            (0, 0, 255, 255),
+        )
+    )
+
+    first = quantize_to_mard_grid(
+        image,
+        chart=chart,
+        color_set_size=24,
+        effective_max_colors=8,
+    )
+    second = quantize_to_mard_grid(
+        image,
+        chart=chart,
+        color_set_size=24,
+        effective_max_colors=8,
+    )
+    image.close()
+
+    assert first == second
+    assert first.algorithm_version == "bead-grid-constrained-v1"
+    assert first.effective_max_colors == 3
+    assert first.metrics.occupied_cell_count == 3
+    assert first.metrics.transparent_cell_count == 1
+    assert first.metrics.observation_count == 3
+    assert first.metrics.mean_delta_e00 >= 0
+    assert first.metrics.p90_delta_e00 >= 0
+    assert first.metrics.greedy_round_count == len(first.palette)
+    assert 0 <= first.metrics.accepted_swap_count <= 2
+
+
+def test_transparent_hidden_rgb_does_not_affect_palette_selection() -> None:
+    chart = get_color_chart()
+    first_image = Image.new("RGBA", (2, 1))
+    first_image.putdata(((220, 30, 30, 255), (255, 255, 255, 0)))
+    second_image = Image.new("RGBA", (2, 1))
+    second_image.putdata(((220, 30, 30, 255), (0, 0, 0, 0)))
+
+    results = tuple(
+        quantize_to_mard_grid(
+            image,
+            chart=chart,
+            color_set_size=24,
+            effective_max_colors=8,
+        )
+        for image in (first_image, second_image)
+    )
+    first_image.close()
+    second_image.close()
+
+    assert results[0].palette == results[1].palette
+    assert results[0].rows == results[1].rows

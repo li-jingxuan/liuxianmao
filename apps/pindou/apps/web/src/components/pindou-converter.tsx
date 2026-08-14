@@ -16,6 +16,7 @@ import {
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 
 import { createConversion, getColorSets } from "@/lib/api";
+import { countOccupiedBeads } from "@/lib/bead-grid";
 import { drawBeadGrid } from "@/lib/canvas";
 import { exportPatternSheet } from "@/lib/pattern-sheet-export";
 import type { BackgroundMode, BeadGrid, ColorSetsResponse } from "@/lib/types";
@@ -120,13 +121,13 @@ export function PindouConverter({ apiKey }: { apiKey?: string }) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [details, setDetails] = useState<ImageDetails | null>(null);
 
-  // 用户参数状态。最大颜色数按设计约定固定为 18，因此不作为可编辑 state。
+  // 用户参数状态。颜色硬上限由网格尺寸在后端统一派生。
   const [gridSize, setGridSize] = useState<number>(52);
   const [customGridSize, setCustomGridSize] = useState("");
   const [colorSets, setColorSets] = useState<ColorSetsResponse | null>(null);
   const [colorSetSize, setColorSetSize] = useState<number>(48);
   const [backgroundMode, setBackgroundMode] = useState<BackgroundMode>("solid");
-  const [backgroundColor, setBackgroundColor] = useState("#EEF0F6");
+  const [backgroundColor, setBackgroundColor] = useState("#FFFFFF");
 
   // 转换流程状态。result 只在 complete 时展示，错误后回到 idle 允许直接重试。
   const [status, setStatus] = useState<Status>("idle");
@@ -271,11 +272,7 @@ export function PindouConverter({ apiKey }: { apiKey?: string }) {
 
   // 透明格不需要放豆，因此总豆数按非 -1 单元统计，而不是简单 width×height。
   const occupiedBeads = useMemo(
-    () =>
-      result?.rows.reduce(
-        (total, row) => total + row.filter((index) => index !== -1).length,
-        0,
-      ) ?? 0,
+    () => (result ? countOccupiedBeads(result) : 0),
     [result],
   );
 
@@ -496,6 +493,7 @@ export function PindouConverter({ apiKey }: { apiKey?: string }) {
                 onChange={(event) =>
                   setBackgroundColor(event.target.value.toUpperCase())
                 }
+                aria-label="纯色背景颜色"
               />
             </label> */}
           </div>
@@ -542,8 +540,8 @@ export function PindouConverter({ apiKey }: { apiKey?: string }) {
           {status === "processing" && (
             <div className={cx("processing-panel")} aria-live="polite">
               <Logo />
-              <strong>AI 正在简化图像…</strong>
-              <p>完成后将匹配合适的 MARD 拼豆颜色</p>
+              <strong>AI 制作中…</strong>
+              <p>完成后将匹配合适的拼豆颜色</p>
               <div className={cx("progress-track")}>
                 <span />
               </div>
@@ -563,7 +561,7 @@ export function PindouConverter({ apiKey }: { apiKey?: string }) {
                       <div>
                         <dt>
                           <Grid2X2 />
-                          网格大小
+                          {/* 网格大小 */}
                         </dt>
                         <dd>
                           {result.width} × {result.height}
@@ -572,7 +570,7 @@ export function PindouConverter({ apiKey }: { apiKey?: string }) {
                       <div>
                         <dt>
                           <Palette />
-                          使用颜色
+                          {/* 使用颜色 */}
                         </dt>
                         <dd>
                           {result.meta.actual_color_count} /{" "}
@@ -582,7 +580,7 @@ export function PindouConverter({ apiKey }: { apiKey?: string }) {
                       <div>
                         <dt>
                           <Logo />
-                          总豆数
+                          {/* 总豆数 */}
                         </dt>
                         <dd>{occupiedBeads.toLocaleString("zh-CN")}</dd>
                       </div>
@@ -596,7 +594,7 @@ export function PindouConverter({ apiKey }: { apiKey?: string }) {
                           key={color.id}
                           style={{ backgroundColor: color.hex }}
                           title={`${color.code} · ${color.hex}`}
-                        />
+                        >{color.code}</span>
                       ))}
                       {result.palette.length > 17 && (
                         <span className={cx("more-colors")}>

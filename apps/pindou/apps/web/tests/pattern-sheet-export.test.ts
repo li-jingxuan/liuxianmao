@@ -9,8 +9,8 @@ import {
 import type { BeadGrid } from "../src/lib/types";
 
 const createGrid = (paletteSize = 7): BeadGrid => ({
-  schema_version: "1",
-  algorithm_version: "bead-grid-v1",
+  schema_version: "2",
+  algorithm_version: "bead-grid-constrained-v1",
   width: 24,
   height: 24,
   palette: Array.from({ length: paletteSize }, (_, index) => ({
@@ -29,8 +29,8 @@ const createGrid = (paletteSize = 7): BeadGrid => ({
     palette_brand: "MARD",
     color_set_size: 48,
     color_budget_mode: "auto",
-    color_budget_policy_version: "grid-color-budget-v1",
-    effective_max_colors: 12,
+    color_budget_policy_version: "grid-color-budget-v2",
+    effective_max_colors: 30,
     color_chart_version: "1.0",
     actual_color_count: paletteSize,
   },

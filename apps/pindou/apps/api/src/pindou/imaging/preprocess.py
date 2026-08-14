@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
+import re
 from io import BytesIO
 
-from PIL import Image, ImageOps, UnidentifiedImageError
+from PIL import Image, ImageColor, ImageOps, UnidentifiedImageError
 
 from pindou.core.errors import ApiError
 from pindou.schemas.conversion import BackgroundMode
 
-SUPPORTED_FORMATS = {"JPEG", "PNG", "WEBP","MPO"}
+SUPPORTED_FORMATS = {"JPEG", "PNG", "WEBP", "MPO"}
 
 
 def decode_image(content: bytes, *, max_pixels: int) -> Image.Image:
@@ -43,12 +44,13 @@ def fit_to_square_grid(
     *,
     grid_size: int,
     background_mode: BackgroundMode,
+    background_color: str | None,
 ) -> Image.Image:
     """按原始比例把图片放入 N×N 工作画布。
 
     `ImageOps.contain` 保证不裁剪、不拉伸；未覆盖区域作为补边。
-    三种模式的方形补边均为空格；透明模式下原图内部背景的移除由
-    ImageEnhancer 完成并通过 Alpha 表达。
+    solid 使用指定纯色补边；simplify/keep 使用透明补边。这里只处理方形画布，
+    原图内部背景的编辑已由 ImageEnhancer 完成。
     """
     # BOX 重采样适合把大量源像素平均压缩到一颗拼豆格，减少单点采样偏色。
     fitted = ImageOps.contain(image, (grid_size, grid_size), method=Image.Resampling.BOX)
@@ -56,7 +58,14 @@ def fit_to_square_grid(
     left = (grid_size - fitted.width) // 2
     top = (grid_size - fitted.height) // 2
 
-    del background_mode
+    if background_mode is BackgroundMode.SOLID:
+        if background_color is None or re.fullmatch(r"#[0-9A-F]{6}", background_color) is None:
+            raise ApiError(400, "BACKGROUND_COLOR_INVALID", "背景颜色必须为 #RRGGBB")
+        red, green, blue = ImageColor.getrgb(background_color)
+        canvas = Image.new("RGBA", (grid_size, grid_size), (red, green, blue, 255))
+        canvas.alpha_composite(fitted, (left, top))
+        return canvas
+
     canvas = Image.new("RGBA", (grid_size, grid_size), (0, 0, 0, 0))
     canvas.alpha_composite(fitted, (left, top))
     return canvas

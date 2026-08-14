@@ -1,5 +1,8 @@
 import { drawBeadGrid, PATTERN_EXPORT_CELL_SIZE } from "./canvas";
 import type { BeadGrid } from "./types";
+import { countOccupiedBeads } from "./bead-grid";
+
+export { countOccupiedBeads } from "./bead-grid";
 
 const SHEET_PADDING = 36;
 const SECTION_GAP = 36;
@@ -85,12 +88,6 @@ export const calculateContainRect = (
     height,
   };
 };
-
-export const countOccupiedBeads = (grid: BeadGrid) =>
-  grid.rows.reduce(
-    (total, row) => total + row.filter((paletteIndex) => paletteIndex !== -1).length,
-    0,
-  );
 
 type DecodedSource = {
   image: CanvasImageSource;

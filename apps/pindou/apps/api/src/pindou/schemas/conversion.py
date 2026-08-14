@@ -13,7 +13,7 @@ class BackgroundMode(StrEnum):
 
     SIMPLIFY = "simplify"
     KEEP = "keep"
-    TRANSPARENT = "transparent"
+    SOLID = "solid"
 
 
 class PaletteColor(BaseModel):
@@ -34,11 +34,16 @@ class ConversionMeta(BaseModel):
     enhancer_model: str | None = None
     enhancer_prompt_version: str | None = None
     background_mode: BackgroundMode
+    background_color: str | None = Field(
+        default=None,
+        pattern=r"^#[0-9A-F]{6}$",
+        exclude_if=lambda value: value is None,
+    )
     palette_brand: Literal["MARD"] = "MARD"
     color_set_size: int
     color_budget_mode: Literal["auto", "legacy-explicit"]
     color_budget_policy_version: str
-    effective_max_colors: int = Field(ge=1)
+    effective_max_colors: int = Field(ge=0)
     color_chart_version: str
     actual_color_count: int = Field(ge=0)
 

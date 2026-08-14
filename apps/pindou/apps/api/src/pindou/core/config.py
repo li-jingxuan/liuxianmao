@@ -90,7 +90,7 @@ class Settings(BaseSettings):
     ark_doubao_max_response_bytes: int = Field(default=30 * 1024 * 1024, ge=1024)
     seedream_input_max_edge: int = Field(default=2048, ge=256, le=8192)
     seedream_output_max_pixels: int = Field(default=20_000_000, ge=1_000_000)
-    seedream_prompt_version: str = "seedream-pindou-v4-color-aware"
+    seedream_prompt_version: str = "seedream-pindou-v7-subject-first"
 
     @model_validator(mode="after")
     def validate_configuration(self) -> Settings:

@@ -10,7 +10,7 @@ type ApiRequestOptions = { apiKey?: string; signal?: AbortSignal };
 
 // 生产环境由 Next.js rewrite 将同源 /api 转发到 Compose 内部的 API 服务。
 // 本地开发仍可通过 NEXT_PUBLIC_API_BASE_URL 指向单独运行的 FastAPI。
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api";
+const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
 /**
  * 保留后端稳定错误码和 request id 的业务异常。
  * UI 默认展示 message；排查线上问题时可进一步记录 code 和 requestId。
@@ -32,6 +32,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   AI_BUSY: "AI 服务忙，请稍后重试",
   AI_TIMEOUT: "AI 处理超时，本次未确认成功，请稍后手动重试",
   AI_UPSTREAM_ERROR: "AI 服务暂时不可用，请稍后重试",
+  BACKGROUND_COLOR_INVALID: "纯色背景颜色无效，请重新选择",
 };
 
 /**
@@ -76,7 +77,6 @@ export const createConversion = async (
   form.set("grid_size", String(input.gridSize));
   form.set("color_set_size", String(input.colorSetSize));
   form.set("background_mode", input.backgroundMode);
-  // background_color 只在纯色模式发送，避免后端误读其他模式下的陈旧色值。
   if (input.backgroundMode === "solid" && input.backgroundColor) {
     form.set("background_color", input.backgroundColor);
   }

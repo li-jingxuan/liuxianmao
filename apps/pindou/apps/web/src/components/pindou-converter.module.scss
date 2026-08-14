@@ -553,20 +553,20 @@
 
 .result-sidebar h3 {
   margin: 0 0 17px;
-  font-size: 18px;
+  font-size: 14px;
 }
 
 .info-panel dl {
   margin: 0;
   display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 14px;
 }
 
 .info-panel dl>div {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  gap: 8px;
 }
 
 .info-panel dt {
@@ -593,8 +593,9 @@
 
 .info-panel dd {
   margin: 0;
-  font-weight: 650;
+  font-weight: 500;
   white-space: nowrap;
+  font-size: 12px;
 }
 
 .swatches {
@@ -608,6 +609,9 @@
   height: 31px;
   border-radius: 50%;
   border: 1px solid rgba(15, 25, 54, 0.08);
+  font-size: 12px;
+  line-height: 30px;
+  text-align: center;
 }
 
 .swatches .more-colors {

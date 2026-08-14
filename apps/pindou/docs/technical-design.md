@@ -115,11 +115,11 @@ class PassThroughEnhancer:
 ### 4.4 颜色量化与 MARD 色板映射
 
 1. 将网格颜色从 sRGB 转到 Lab。
-2. Alpha 低于阈值的单元标记为透明。
-3. 用 Median Cut 得到不超过 `max_colors` 个图片代表色，关闭抖动。
+2. Alpha 低于 50% 覆盖率的单元标记为透明空格，不计入颜色和豆数。
+3. 将相近源色聚合为最多 512 个带面积权重的颜色观察。
 4. 根据用户提交的 `color_set_size` 精确读取色卡中对应 `sets[].colors`，形成允许颜色白名单。
-5. 将每个代表色通过 CIEDE2000 映射到该白名单中的最近颜色，禁止映射到组外色号。
-6. 合并映射到同一 MARD 色号的代表色，并重建单元索引。
+5. 直接在白名单中贪心选择最多 `effective_max_colors` 个真实色号，并执行有限局部交换。
+6. 使用 CIEDE2000 将每个颜色观察映射到已选色号，并重建单元索引。
 7. 将用户所选颜色组、色板 schema 版本写入响应元数据。
 8. 固定颜色取整、距离并列时的选择规则，确保相同输入参数返回相同网格。
 
@@ -207,17 +207,17 @@ type BeadGrid = {
 | --- | --- | --- |
 | `image` | File | JPG/PNG/WebP，最大 10 MiB |
 | `grid_size` | int | 预设 `52/78/104`，或自定义 `8..156` |
-| `max_colors` | int | `8..24` |
+| `max_colors` | int? | 可选显式上限 `8..54`；省略时按网格自动派生 |
 | `color_set_size` | int | 必须是 `GET /color-sets` 返回的某个 `size` |
-| `background_mode` | Enum | `keep` / `transparent` / `solid` |
-| `background_color` | string? | `solid` 时必须为 `#RRGGBB` |
+| `background_mode` | Enum | `simplify` / `solid` / `keep`；默认 `solid` |
+| `background_color` | string? | `solid` 背景色，默认纯白 `#FFFFFF` |
 
 处理完成后返回 `200 OK`：
 
 ```json
 {
-  "schema_version": "1",
-  "algorithm_version": "bead-grid-v1",
+  "schema_version": "2",
+  "algorithm_version": "bead-grid-constrained-v1",
   "width": 8,
   "height": 8,
   "palette": [
@@ -305,7 +305,7 @@ const drawBeadGrid = (
 - 画布逻辑尺寸为 `width × cellSize`、`height × cellSize`。
 - 方格使用整数坐标 `fillRect`。
 - 圆珠默认直径为单格的 `84%`，圆心位于单格中心。
-- 透明格不绘制；透明背景先 `clearRect`。
+- `rows` 中的透明格不绘制；纯色背景模式正常量化为 MARD 豆色。
 - 颜色只从 `palette` 读取，渲染层不得重新量化或自动调整颜色。
 - 预览可根据 `devicePixelRatio` 放大 backing store，CSS 控制显示尺寸。
 - 正式导出使用固定 `cellSize`，例如 `20`，不能依赖当前页面缩放或 DPR。

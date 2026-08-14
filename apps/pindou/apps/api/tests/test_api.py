@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from io import BytesIO
 from pathlib import Path
 
 import pytest
@@ -151,6 +150,35 @@ def test_list_colors_returns_complete_catalog_grouped_by_series(client: TestClie
     assert colors[-1]["code"] == "ZG8"
     assert all(set(color) == {"code", "hex", "rgb"} for color in colors)
 
+    assert [color_set["size"] for color_set in payload["sets"]] == [
+        24,
+        48,
+        72,
+        96,
+        120,
+        144,
+        168,
+        192,
+        216,
+        221,
+        264,
+    ]
+    for color_set in payload["sets"]:
+        assert color_set["label"] == f"MARD {color_set['size']}色套装"
+        assert color_set["color_count"] == color_set["size"]
+        assert len(color_set["colors"]) == color_set["size"]
+        assert all(set(color) == {"code", "hex", "rgb"} for color in color_set["colors"])
+
+    set_24 = next(color_set for color_set in payload["sets"] if color_set["size"] == 24)
+    set_221 = next(color_set for color_set in payload["sets"] if color_set["size"] == 221)
+    set_264 = next(color_set for color_set in payload["sets"] if color_set["size"] == 264)
+    assert {color["code"] for color in set_24["colors"]} < {
+        color["code"] for color in set_264["colors"]
+    }
+    assert {color["code"] for color in set_221["colors"]} != {
+        color["code"] for color in set_264["colors"]
+    }
+
 
 @pytest.mark.parametrize("grid_size", [8, 52, 78, 104, 156])
 @pytest.mark.parametrize("color_set_size", [24, 48, 264])
@@ -176,12 +204,14 @@ def test_create_conversion_returns_grid_restricted_to_selected_set(
     assert payload["width"] == payload["height"] == grid_size
     assert len(payload["rows"]) == grid_size
     assert all(len(row) == grid_size for row in payload["rows"])
+    assert payload["schema_version"] == "2"
+    assert payload["algorithm_version"] == "bead-grid-constrained-v1"
     assert payload["meta"]["enhancer"] == "passthrough"
     assert payload["meta"]["background_mode"] == "keep"
-    assert payload["meta"]["background_color"] is None
+    assert "background_color" not in payload["meta"]
     assert payload["meta"]["color_set_size"] == color_set_size
     assert payload["meta"]["color_budget_mode"] == "legacy-explicit"
-    assert payload["meta"]["color_budget_policy_version"] == "grid-color-budget-v1"
+    assert payload["meta"]["color_budget_policy_version"] == "grid-color-budget-v2"
     assert payload["meta"]["effective_max_colors"] == 8
     assert payload["meta"]["color_chart_version"] == "1.0"
     assert payload["meta"]["actual_color_count"] <= 8
@@ -223,9 +253,7 @@ def test_ai_conversion_backs_up_original_and_enhanced_images(
     originals = list(backup_dir.glob("*-original.png"))
     enhanced = list(backup_dir.glob("*-enhanced.png"))
     assert len(originals) == len(enhanced) == 1
-    assert originals[0].stem.removesuffix("-original") == enhanced[0].stem.removesuffix(
-        "-enhanced"
-    )
+    assert originals[0].stem.removesuffix("-original") == enhanced[0].stem.removesuffix("-enhanced")
     with Image.open(originals[0]) as original_image:
         assert original_image.getpixel((0, 0)) == (255, 0, 0, 255)
     with Image.open(enhanced[0]) as enhanced_image:
@@ -237,7 +265,7 @@ def test_ai_conversion_backs_up_original_and_enhanced_images(
 
 @pytest.mark.parametrize(
     ("grid_size", "expected_max_colors"),
-    [(8, 8), (52, 12), (78, 18), (104, 24)],
+    [(8, 8), (52, 30), (78, 48), (104, 48)],
 )
 def test_create_conversion_uses_auto_color_budget_when_max_is_omitted(
     client: TestClient,
@@ -257,7 +285,7 @@ def test_create_conversion_uses_auto_color_budget_when_max_is_omitted(
     assert response.status_code == 200
     meta = response.json()["meta"]
     assert meta["color_budget_mode"] == "auto"
-    assert meta["color_budget_policy_version"] == "grid-color-budget-v1"
+    assert meta["color_budget_policy_version"] == "grid-color-budget-v2"
     assert meta["effective_max_colors"] == expected_max_colors
     assert meta["actual_color_count"] <= expected_max_colors
 
@@ -279,7 +307,7 @@ def test_invalid_color_set_has_stable_error(client: TestClient) -> None:
     assert response.json()["error"]["code"] == "COLOR_SET_INVALID"
 
 
-@pytest.mark.parametrize("max_colors", [7, 25])
+@pytest.mark.parametrize("max_colors", [7, 55])
 def test_explicit_max_colors_outside_legacy_range_has_stable_error(
     client: TestClient,
     max_colors: int,
@@ -321,7 +349,6 @@ def test_grid_size_outside_range_has_stable_error(
 
 
 def test_solid_background_is_normalized_and_returned(client: TestClient) -> None:
-    """纯色会统一为大写 HEX，并同时作为画布补边元数据。"""
     response = client.post(
         "/api/v1/conversions",
         files={"image": ("source.png", make_png_bytes(size=(16, 8)), "image/png")},
@@ -335,35 +362,55 @@ def test_solid_background_is_normalized_and_returned(client: TestClient) -> None
     )
 
     assert response.status_code == 200
-    assert response.json()["meta"]["background_color"] == "#AABBCC"
+    payload = response.json()
+    assert payload["meta"]["background_mode"] == "solid"
+    assert payload["meta"]["background_color"] == "#AABBCC"
+    assert all(cell != -1 for row in payload["rows"] for cell in row)
 
 
-def test_transparent_background_returns_unoccupied_cells_without_background_color(
-    client: TestClient,
-) -> None:
-    """透明背景使用真实 Alpha 空格，不返回纯色背景字段。"""
-    image = Image.new("RGBA", (8, 8), (255, 0, 0, 255))
-    for y in range(8):
-        for x in range(4):
-            image.putpixel((x, y), (0, 0, 0, 0))
-    output = BytesIO()
-    image.save(output, format="PNG")
-    image.close()
-
+def test_solid_background_defaults_to_pure_white(client: TestClient) -> None:
     response = client.post(
         "/api/v1/conversions",
-        files={"image": ("source.png", output.getvalue(), "image/png")},
+        files={"image": ("source.png", make_png_bytes(size=(16, 8)), "image/png")},
         data={
             "grid_size": "8",
             "max_colors": "8",
             "color_set_size": "24",
-            "background_mode": "transparent",
         },
     )
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["schema_version"] == "2"
-    assert payload["meta"]["background_mode"] == "transparent"
-    assert "background_color" not in payload["meta"]
-    assert sum(cell != -1 for row in payload["rows"] for cell in row) == 32
+    assert payload["meta"]["background_mode"] == "solid"
+    assert payload["meta"]["background_color"] == "#FFFFFF"
+    assert all(cell != -1 for row in payload["rows"] for cell in row)
+
+
+def test_removed_transparent_background_mode_is_rejected(client: TestClient) -> None:
+    response = client.post(
+        "/api/v1/conversions",
+        files={"image": ("source.png", make_png_bytes(), "image/png")},
+        data={
+            "grid_size": "8",
+            "color_set_size": "24",
+            "background_mode": "transparent",
+        },
+    )
+
+    assert response.status_code == 422
+
+
+def test_invalid_solid_background_color_has_stable_error(client: TestClient) -> None:
+    response = client.post(
+        "/api/v1/conversions",
+        files={"image": ("source.png", make_png_bytes(), "image/png")},
+        data={
+            "grid_size": "8",
+            "color_set_size": "24",
+            "background_mode": "solid",
+            "background_color": "white",
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "BACKGROUND_COLOR_INVALID"

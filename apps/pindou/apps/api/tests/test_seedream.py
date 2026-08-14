@@ -15,7 +15,7 @@ from pindou.schemas.conversion import BackgroundMode
 from pindou.services.enhancer import EnhancementOptions
 from pindou.services.seedream_client import SeedreamClient, SeedreamUpstreamError
 from pindou.services.seedream_enhancer import SeedreamEnhancer
-from pindou.services.seedream_prompt import build_seedream_prompt
+from pindou.services.seedream_prompt import build_seedream_prompt, normalize_background_color
 
 
 def make_png_bytes(color: tuple[int, int, int, int] = (20, 40, 60, 255)) -> bytes:
@@ -44,7 +44,7 @@ def make_client(handler: httpx.MockTransport) -> SeedreamClient:
     [
         (BackgroundMode.SIMPLIFY, "可以删除无关小物体", "完整移除原背景"),
         (BackgroundMode.KEEP, "不能删除整个有语义的背景物体", "可以删除无关小物体"),
-        (BackgroundMode.TRANSPARENT, "真实 Alpha 通道完全透明", "有语义的背景物体"),
+        (BackgroundMode.SOLID, "背景目标颜色为 #FFFFFF", "有语义的背景物体"),
     ],
 )
 def test_chinese_prompts_are_isolated_by_background_mode(
@@ -62,7 +62,7 @@ def test_chinese_prompts_are_isolated_by_background_mode(
     )
 
     assert "缩小为 52×52 个采样单元" in prompt
-    assert "细节等级：低分辨率简化表达" in prompt
+    assert "主体轮廓优先（52×52 预设档）" in prompt
     assert "30" not in prompt
     assert "54" not in prompt
     assert "颜色预算：平衡" in prompt
@@ -94,10 +94,10 @@ def test_grid_detail_band_boundaries(
 @pytest.mark.parametrize(
     ("grid_size", "expected", "unexpected"),
     [
-        (24, "极低分辨率图标化表达", "低分辨率简化表达"),
-        (52, "低分辨率简化表达", "中等分辨率平面化表达"),
-        (78, "中等分辨率平面化表达", "较高分辨率的克制平面化表达"),
-        (104, "较高分辨率的克制平面化表达", "中等分辨率平面化表达"),
+        (24, "极低分辨率图标化表达", "主体轮廓优先"),
+        (52, "主体轮廓优先", "主体结构优先"),
+        (78, "主体结构优先", "较高网格的克制保留"),
+        (104, "较高网格的克制保留", "主体结构优先"),
     ],
 )
 def test_prompt_contains_only_selected_grid_detail_band(
@@ -116,6 +116,68 @@ def test_prompt_contains_only_selected_grid_detail_band(
     assert f"{grid_size}×{grid_size}" in prompt
     assert expected in prompt
     assert unexpected not in prompt
+
+
+def test_prompt_restricts_changes_to_required_simplification() -> None:
+    prompt = build_seedream_prompt(
+        EnhancementOptions(
+            grid_size=52,
+            color_budget_band=ColorBudgetBand.BALANCED,
+            background_mode=BackgroundMode.SIMPLIFY,
+        )
+    )
+
+    assert "只做后续缩小和有限色卡量化所必需的归纳与边界整理" in prompt
+    assert "不主动增加细节、装饰、纹理或新的视觉重点" in prompt
+    assert "优先保证主体整体可识别" in prompt
+    assert "不添加输入图中不存在的角色、物体、肢体、文字、标志、边框或水印" in prompt
+
+
+@pytest.mark.parametrize(
+    ("grid_size", "expected_priorities"),
+    [
+        (52, ("主体外轮廓、姿态、头身大形", "2–4 个内部特征", "内部信息宁少勿碎")),
+        (78, ("主体外轮廓与姿态、主要结构分区", "不主动放大局部特征", "先读出主体轮廓和姿态")),
+        (104, ("较高网格的克制保留", "不主动放大或增加视觉权重", "避免照片式复刻")),
+    ],
+)
+def test_preset_prompts_contain_expected_detail_priorities(
+    grid_size: int,
+    expected_priorities: tuple[str, ...],
+) -> None:
+    prompt = build_seedream_prompt(
+        EnhancementOptions(
+            grid_size=grid_size,
+            color_budget_band=ColorBudgetBand.RICH,
+            background_mode=BackgroundMode.KEEP,
+        )
+    )
+
+    for priority in expected_priorities:
+        assert priority in prompt
+
+
+@pytest.mark.parametrize(
+    ("grid_size", "is_subject_first"),
+    [(52, True), (78, True), (103, True), (104, False)],
+)
+def test_grids_below_104_reduce_background_detail(
+    grid_size: int,
+    is_subject_first: bool,
+) -> None:
+    prompt = build_seedream_prompt(
+        EnhancementOptions(
+            grid_size=grid_size,
+            color_budget_band=ColorBudgetBand.RICH,
+            background_mode=BackgroundMode.KEEP,
+        )
+    )
+
+    subject_first_text = "当前网格小于 104×104，主体是唯一视觉重点"
+    assert (subject_first_text in prompt) is is_subject_first
+    if is_subject_first:
+        assert "使用比主体更少、更大、对比更弱的色块" in prompt
+        assert "保留背景时维持有语义物体的类别、数量、位置和遮挡关系" in prompt
 
 
 @pytest.mark.parametrize(
@@ -146,7 +208,21 @@ def test_prompt_contains_only_selected_color_budget_band(
     assert unexpected not in prompt
 
 
-def test_transparent_enhancement_rejects_opaque_upstream_output() -> None:
+def test_solid_background_prompt_uses_normalized_custom_color() -> None:
+    prompt = build_seedream_prompt(
+        EnhancementOptions(
+            grid_size=52,
+            color_budget_band=ColorBudgetBand.BALANCED,
+            background_mode=BackgroundMode.SOLID,
+            background_color="#aabbcc",
+        )
+    )
+
+    assert "背景目标颜色为 #AABBCC" in prompt
+    assert normalize_background_color(None) == "#FFFFFF"
+
+
+def test_solid_enhancement_accepts_opaque_upstream_output() -> None:
     output = make_png_bytes((20, 40, 60, 255))
 
     def handler(_: httpx.Request) -> httpx.Response:
@@ -166,21 +242,20 @@ def test_transparent_enhancement_rejects_opaque_upstream_output() -> None:
     )
     image = Image.new("RGBA", (8, 8), (255, 0, 0, 255))
     try:
-        with pytest.raises(ApiError) as raised:
-            enhancer.enhance(
-                image,
-                options=EnhancementOptions(
-                    grid_size=52,
-                    color_budget_band=ColorBudgetBand.BALANCED,
-                    background_mode=BackgroundMode.TRANSPARENT,
-                ),
-            )
+        enhanced = enhancer.enhance(
+            image,
+            options=EnhancementOptions(
+                grid_size=52,
+                color_budget_band=ColorBudgetBand.BALANCED,
+                background_mode=BackgroundMode.SOLID,
+                background_color="#FFFFFF",
+            ),
+        )
+        assert enhanced.getchannel("A").getextrema() == (255, 255)
+        enhanced.close()
     finally:
         image.close()
         enhancer.close()
-
-    assert raised.value.code == "AI_TRANSPARENT_BACKGROUND_INVALID"
-
 
 def test_seedream_client_sends_single_non_streaming_image_and_decodes_response() -> None:
     output = make_png_bytes()
@@ -227,9 +302,10 @@ def test_seedream_client_sends_single_non_streaming_image_and_decodes_response()
 )
 def test_enhancer_maps_official_error_codes(upstream_code: str, expected_code: str) -> None:
     def handler(_: httpx.Request) -> httpx.Response:
-        return httpx.Response(429 if upstream_code == "QuotaExceeded" else 400, json={
-            "error": {"code": upstream_code, "message": "upstream detail"}
-        })
+        return httpx.Response(
+            429 if upstream_code == "QuotaExceeded" else 400,
+            json={"error": {"code": upstream_code, "message": "upstream detail"}},
+        )
 
     client = make_client(httpx.MockTransport(handler))
     enhancer = SeedreamEnhancer(
@@ -269,7 +345,7 @@ def test_seedream_settings_require_key_without_exposing_it() -> None:
         ark_doubao_api_key="very-secret-key",
     )
     assert "very-secret-key" not in repr(settings)
-    assert settings.seedream_prompt_version == "seedream-pindou-v4-color-aware"
+    assert settings.seedream_prompt_version == "seedream-pindou-v7-subject-first"
 
 
 def test_client_rejects_invalid_base64() -> None:
