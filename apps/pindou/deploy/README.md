@@ -32,7 +32,7 @@ docker compose --env-file deploy/.env -f deploy/compose.yaml up -d --build
 docker compose --env-file deploy/.env -f deploy/compose.yaml ps
 ```
 
-访问地址：`http://<NAS IP>:3000`。
+访问地址：`http://<NAS IP>:3111`。
 
 Web 构建默认使用 DaoCloud Node 镜像和 npmmirror npm 源，并缓存 pnpm 依赖。
 如果镜像不可用，可在 `deploy/.env` 中切回官方源：

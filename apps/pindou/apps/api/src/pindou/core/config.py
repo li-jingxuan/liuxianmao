@@ -46,7 +46,7 @@ class Settings(BaseSettings):
     app_env: str = "development"
     # 默认监听所有 IPv4 网卡，局域网设备可通过宿主机 IP 访问。
     api_host: str = "0.0.0.0"
-    api_port: int = Field(default=8000, ge=1, le=65535)
+    api_port: int = Field(default=3112, ge=1, le=65535)
     api_reload: bool = True
     image_enhancer: str = "seedream" # "passthrough"
     # 同时限制压缩文件体积和解码后像素量，防止压缩炸弹耗尽内存。

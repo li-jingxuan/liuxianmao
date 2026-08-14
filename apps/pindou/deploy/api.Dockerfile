@@ -20,5 +20,5 @@ RUN pip install --no-cache-dir --upgrade pip \
     && chown -R pindou:pindou /app /var/lib/pindou
 
 USER pindou
-EXPOSE 8000
-CMD ["uvicorn", "pindou.main:app", "--host", "0.0.0.0", "--port", "8000"]
+EXPOSE 3112
+CMD ["uvicorn", "pindou.main:app", "--host", "0.0.0.0", "--port", "3112"]

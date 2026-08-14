@@ -20,7 +20,7 @@
 ```text
 局域网浏览器
       |
-      | 仅暴露 3000（可选再由 fnOS 反代为 80/443）
+      | 仅暴露 3111（可选再由 fnOS 反代为 80/443）
       v
   pindou-web  ---- 内部网络 ---->  pindou-api  ---->  postgres
    Next.js                         FastAPI             PostgreSQL
@@ -29,7 +29,7 @@
                                       +---- 火山方舟（可选）
 ```
 
-推荐只对 NAS 暴露 Web 端口；API、PostgreSQL 和 Compose 内部网络不做端口映射。Web 的 Next.js rewrite 将 `/api/*` 转发给 `api:8000`，浏览器始终访问同源地址。
+推荐只对 NAS 暴露 Web 端口；API、PostgreSQL 和 Compose 内部网络不做端口映射。Web 的 Next.js rewrite 将 `/api/*` 转发给 `api:3112`，浏览器始终访问同源地址。
 
 ## 2. 飞牛 NAS 准备
 
@@ -48,7 +48,7 @@
    实际卷路径以 fnOS 的存储卷名称为准，不要直接照抄 `/vol1`。
 3. 为该目录设置仅管理员可读的权限；`.env` 不要提交 Git，也不要放在 Web 静态目录。
 4. 预留至少 2 核 CPU、4 GB RAM 和足够的图片/数据库空间。Seedream 会增加网络等待和内存峰值，建议 API 容器限制并发为 2。
-5. 若仅局域网使用，给 NAS 配置固定 DHCP 租约（例如 `192.168.1.20`），客户端访问 `http://<NAS_IP>:3000`。公网使用时优先在 fnOS 反向代理中配置域名和 HTTPS，不要直接转发 PostgreSQL 端口。
+5. 若仅局域网使用，给 NAS 配置固定 DHCP 租约（例如 `192.168.1.20`），客户端访问 `http://<NAS_IP>:3111`。公网使用时优先在 fnOS 反向代理中配置域名和 HTTPS，不要直接转发 PostgreSQL 端口。
 
 ## 3. 代码改造清单（部署前完成）
 
@@ -76,12 +76,12 @@
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api";
 ```
 
-并在 `apps/web/next.config.ts` 开启 rewrite。`PINDOU_API_ORIGIN` 是构建阶段参数，生产固定为 Compose 网络中的 `http://api:8000`：
+并在 `apps/web/next.config.ts` 开启 rewrite。`PINDOU_API_ORIGIN` 是构建阶段参数，生产固定为 Compose 网络中的 `http://api:3112`：
 
 ```ts
 import type { NextConfig } from "next";
 
-const apiOrigin = process.env.PINDOU_API_ORIGIN ?? "http://api:8000";
+const apiOrigin = process.env.PINDOU_API_ORIGIN ?? "http://api:3112";
 
 const nextConfig: NextConfig = {
   output: "standalone",
@@ -93,7 +93,7 @@ const nextConfig: NextConfig = {
 export default nextConfig;
 ```
 
-这样 `NEXT_PUBLIC_API_BASE_URL` 不需要写入 NAS IP，且 API 不需要对宿主机开放端口。由于 Next.js rewrite 配置会随构建产物固化，若更换 Compose 服务名或网络，必须重新构建 Web 镜像。若暂时不改 Web 代码，必须把 `NEXT_PUBLIC_API_BASE_URL=http://<NAS_IP>:8000` 注入 Web 构建，并额外映射 API 端口；这只是过渡方案，不推荐作为公网部署方案。
+这样 `NEXT_PUBLIC_API_BASE_URL` 不需要写入 NAS IP，且 API 不需要对宿主机开放端口。由于 Next.js rewrite 配置会随构建产物固化，若更换 Compose 服务名或网络，必须重新构建 Web 镜像。若暂时不改 Web 代码，必须把 `NEXT_PUBLIC_API_BASE_URL=http://<NAS_IP>:3112` 注入 Web 构建，并额外映射 API 端口；这只是过渡方案，不推荐作为公网部署方案。
 
 ### 3.3 构建上下文与忽略文件
 
@@ -126,8 +126,8 @@ RUN mkdir -p /var/lib/pindou/images \
     && chown -R pindou:pindou /app /var/lib/pindou
 
 USER pindou
-EXPOSE 8000
-CMD ["uvicorn", "pindou.main:app", "--host", "0.0.0.0", "--port", "8000"]
+EXPOSE 3112
+CMD ["uvicorn", "pindou.main:app", "--host", "0.0.0.0", "--port", "3112"]
 ```
 
 实际构建时应在仓库根目录执行；如果项目采用锁文件，建议在构建阶段使用锁定依赖，避免 `>=` 范围在每次构建时漂移。
@@ -150,19 +150,19 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY apps/web ./
 ARG NEXT_PUBLIC_API_BASE_URL=/api
 ENV NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}
-ARG PINDOU_API_ORIGIN=http://api:8000
+ARG PINDOU_API_ORIGIN=http://api:3112
 ENV PINDOU_API_ORIGIN=${PINDOU_API_ORIGIN}
 RUN mkdir -p public && pnpm build
 
 FROM node:22-alpine AS runner
 WORKDIR /app
-ENV NODE_ENV=production PORT=3000 HOSTNAME=0.0.0.0
+ENV NODE_ENV=production PORT=3111 HOSTNAME=0.0.0.0
 RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 USER nextjs
-EXPOSE 3000
+EXPOSE 3111
 CMD ["node", "server.js"]
 ```
 
@@ -203,20 +203,20 @@ services:
     environment:
       APP_ENV: production
       API_HOST: 0.0.0.0
-      API_PORT: 8000
+      API_PORT: 3112
       API_RELOAD: "false"
       DATABASE_URL: ${DATABASE_URL:?请在 .env 中设置 DATABASE_URL}
       MARD_COLOR_CHART_PATH: /app/docs/MARD_色卡.json
       IMAGE_BACKUP_DIR: /var/lib/pindou/images
-    command: ["sh", "-c", "alembic -c /app/apps/api/alembic.ini upgrade head && uvicorn pindou.main:app --host 0.0.0.0 --port 8000"]
+    command: ["sh", "-c", "alembic -c /app/apps/api/alembic.ini upgrade head && uvicorn pindou.main:app --host 0.0.0.0 --port 3112"]
     depends_on:
       postgres:
         condition: service_healthy
     volumes:
       - ./api-images:/var/lib/pindou/images
-    expose: ["8000"]
+    expose: ["3112"]
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:3112/healthz')"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -230,15 +230,15 @@ services:
       dockerfile: apps/web/Dockerfile
       args:
         NEXT_PUBLIC_API_BASE_URL: /api
-        PINDOU_API_ORIGIN: http://api:8000
+        PINDOU_API_ORIGIN: http://api:3112
     restart: unless-stopped
     depends_on:
       api:
         condition: service_healthy
     ports:
-      - "${WEB_PORT:-3000}:3000"
+      - "${WEB_PORT:-3111}:3111"
     healthcheck:
-      test: ["CMD", "wget", "--spider", "--quiet", "http://127.0.0.1:3000/"]
+      test: ["CMD", "wget", "--spider", "--quiet", "http://127.0.0.1:3111/"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -268,7 +268,7 @@ IMAGE_ENHANCER=passthrough
 ARK_DOUBAO_API_KEY=
 ARK_DOUBAO_IMAGE_MODEL=doubao-seedream-5-0-lite-260128
 
-WEB_PORT=3000
+WEB_PORT=3111
 API_IMAGE=registry.example.com/pindou-api:2026-08-14
 WEB_IMAGE=registry.example.com/pindou-web:2026-08-14
 ```
@@ -318,8 +318,8 @@ docker compose logs -f --tail=100 api
 验收清单：
 
 1. `docker compose ps` 中 PostgreSQL、API、Web 均为 `healthy`/`running`。
-2. `curl http://127.0.0.1:3000/` 返回页面；从另一台局域网设备打开 `http://<NAS_IP>:3000`。
-3. 在 API 容器内检查 `http://127.0.0.1:8000/healthz` 和 `http://127.0.0.1:8000/readyz`；从 Web 入口验证 `/api/v1/color-sets` 能返回 JSON。
+2. `curl http://127.0.0.1:3111/` 返回页面；从另一台局域网设备打开 `http://<NAS_IP>:3111`。
+3. 在 API 容器内检查 `http://127.0.0.1:3112/healthz` 和 `http://127.0.0.1:3112/readyz`；从 Web 入口验证 `/api/v1/color-sets` 能返回 JSON。
 4. 浏览器开发者工具确认请求为同源 `/api/v1/color-sets` 和 `/api/v1/conversions`，没有请求 `localhost`。
 5. 上传一张小图片完成一次转换；若启用 API Key，再验证无效 key、额度耗尽和数据库重启后的行为。
 
@@ -365,7 +365,7 @@ API 图片备份目录 `api-images/` 也应纳入 fnOS 快照或 rsync 计划。
 - 资源：重点观察 NAS 的 CPU、内存、存储空间、容器重启次数和 PostgreSQL 卷增长。
 - API 启动失败：优先查 `DATABASE_URL`、三项必需密钥、色卡路径和迁移日志。
 - Web 页面能打开但请求打到 `localhost`：检查 `NEXT_PUBLIC_API_BASE_URL` 是否仍为旧值，并重新构建 Web 镜像（该变量在构建时写入客户端包）。
-- `502/504`：检查 API 是否 healthy、`PINDOU_API_ORIGIN` 是否为 `http://api:8000`，以及 API 是否因 Seedream 超时或并发限制持续重启。
+- `502/504`：检查 API 是否 healthy、`PINDOU_API_ORIGIN` 是否为 `http://api:3112`，以及 API 是否因 Seedream 超时或并发限制持续重启。
 - 数据库连接失败：确认 Compose 网络中的主机名是 `postgres`，不要使用 NAS 宿主机 IP 或 `localhost`；检查数据库健康日志和磁盘空间。
 - 上传后文件消失：确认 `api_images` 卷挂载到 `/var/lib/pindou/images`，并核对应用的 `IMAGE_BACKUP_DIR`。
 

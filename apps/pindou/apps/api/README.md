@@ -44,20 +44,20 @@ call the paid API.
 
 After reinstalling the editable package, `.venv/bin/pindou-api` is an equivalent shortcut.
 
-The server listens on `0.0.0.0:8000` by default. OpenAPI is available from the same machine at
-`http://127.0.0.1:8000/docs`, or from another device on the LAN at
-`http://<host-lan-ip>:8000/docs`.
+The server listens on `0.0.0.0:3112` by default. OpenAPI is available from the same machine at
+`http://127.0.0.1:3112/docs`, or from another device on the LAN at
+`http://<host-lan-ip>:3112/docs`.
 
 The listener can be changed in `.env`:
 
 ```dotenv
 API_HOST=0.0.0.0
-API_PORT=8000
+API_PORT=3112
 API_RELOAD=true
 ```
 
 `0.0.0.0` is a bind address and should not be entered in the browser. Use the computer's actual
-LAN IP, such as `http://192.168.1.20:8000`. The operating-system firewall must also allow the
+LAN IP, such as `http://192.168.1.20:3112`. The operating-system firewall must also allow the
 configured port. Set `API_RELOAD=false` outside development.
 
 ## CORS
@@ -80,13 +80,13 @@ explicit trusted-origin list before enabling credentials.
 List MARD color sets:
 
 ```bash
-curl http://127.0.0.1:8000/api/v1/color-sets
+curl http://127.0.0.1:3112/api/v1/color-sets
 ```
 
 Convert an image:
 
 ```bash
-curl -X POST http://127.0.0.1:8000/api/v1/conversions \
+curl -X POST http://127.0.0.1:3112/api/v1/conversions \
   -H 'X-API-Key: pdk_web_<secret>' \
   -F 'image=@/absolute/path/source.png' \
   -F 'grid_size=52' \
@@ -98,7 +98,7 @@ curl -X POST http://127.0.0.1:8000/api/v1/conversions \
 Issue a two-use key for the registered `web` source:
 
 ```bash
-curl -X POST http://127.0.0.1:8000/api/v1/access-keys \
+curl -X POST http://127.0.0.1:3112/api/v1/access-keys \
   -H 'Content-Type: application/json' \
   -H 'X-Admin-API-Key: <KEY_ISSUER_API_KEY>' \
   -d '{"prefix":"web","allowed_uses":2}'

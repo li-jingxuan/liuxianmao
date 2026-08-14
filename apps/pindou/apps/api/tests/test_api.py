@@ -56,7 +56,7 @@ def test_cors_exposes_request_id_to_browser(client: TestClient) -> None:
     """跨域前端可读取排障所需的 x-request-id 响应头。"""
     response = client.get(
         "/healthz",
-        headers={"Origin": "http://192.168.1.20:3000"},
+        headers={"Origin": "http://192.168.1.20:3111"},
     )
 
     assert response.status_code == 200

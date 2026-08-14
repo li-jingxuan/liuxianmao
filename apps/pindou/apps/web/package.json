@@ -5,9 +5,9 @@
   "type": "module",
   "packageManager": "pnpm@11.10.0",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --port 3111",
     "build": "next build",
-    "start": "next start",
+    "start": "next start --port 3111",
     "lint": "eslint .",
     "test": "vitest run"
   },

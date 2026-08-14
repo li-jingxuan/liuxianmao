@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 
-// const apiOrigin = process.env.PINDOU_API_ORIGIN ?? "http://127.0.0.1:8000";
+// const apiOrigin = process.env.PINDOU_API_ORIGIN ?? "http://127.0.0.1:3112";
 
 const nextConfig: NextConfig = {
   // 生产镜像使用 standalone server，减少运行时镜像体积。

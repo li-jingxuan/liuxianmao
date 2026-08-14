@@ -29,7 +29,7 @@ services:
     environment:
       APP_ENV: production
       API_HOST: 0.0.0.0
-      API_PORT: 8000
+      API_PORT: 3112
       API_RELOAD: "false"
       DATABASE_URL: ${DATABASE_URL:?请在 deploy/.env 中设置 DATABASE_URL}
       MARD_COLOR_CHART_PATH: /app/docs/MARD_色卡.json
@@ -39,16 +39,16 @@ services:
       - -c
       - >-
         alembic -c /app/apps/api/alembic.ini upgrade head &&
-        uvicorn pindou.main:app --host 0.0.0.0 --port 8000
+        uvicorn pindou.main:app --host 0.0.0.0 --port 3112
     depends_on:
       postgres:
         condition: service_healthy
     volumes:
       - ./data/api-images:/var/lib/pindou/images
-    expose: ["8000"]
+    expose: ["3112"]
     healthcheck:
       test:
-        ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz')"]
+        ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:3112/healthz')"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -64,15 +64,15 @@ services:
         NODE_IMAGE: ${NODE_IMAGE:-docker.m.daocloud.io/library/node:22-alpine}
         NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com}
         NEXT_PUBLIC_API_BASE_URL: /api
-        PINDOU_API_ORIGIN: http://api:8000
+        PINDOU_API_ORIGIN: http://api:3112
     restart: unless-stopped
     depends_on:
       api:
         condition: service_healthy
     ports:
-      - "${WEB_PORT:-3000}:3000"
+      - "${WEB_PORT:-3111}:3111"
     healthcheck:
-      test: ["CMD", "wget", "--spider", "--quiet", "http://127.0.0.1:3000/"]
+      test: ["CMD", "wget", "--spider", "--quiet", "http://127.0.0.1:3111/"]
       interval: 15s
       timeout: 5s
       retries: 5
