@@ -35,7 +35,8 @@ services:
       MARD_COLOR_CHART_PATH: /app/docs/MARD_色卡.json
       IMAGE_BACKUP_DIR: /var/lib/pindou/images
     ports:
-      - "${API_PROT:-3112}:3112"
+      # 宿主机端口与容器 API 监听端口分开命名，避免和 API_PORT 混淆。
+      - "${API_HOST_PORT:-3112}:3112"
     command:
       - sh
       - -c
@@ -47,7 +48,6 @@ services:
         condition: service_healthy
     volumes:
       - ./data/api-images:/var/lib/pindou/images
-    expose: ["3112"]
     healthcheck:
       test:
         ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:3112/healthz')"]

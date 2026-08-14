@@ -77,4 +77,6 @@ docker compose --env-file deploy/.env -f deploy/compose.yaml down
 
 数据库、图片和备份分别保存在 `deploy/data/postgres/`、
 `deploy/data/api-images/` 和 `deploy/backups/`。不要提交 `deploy/.env`，也不要将
-API 或 PostgreSQL 端口直接暴露到公网。
+API 或 PostgreSQL 端口直接暴露到公网。当前 Compose 默认将 API 映射到
+`API_HOST_PORT`（默认 `3112`）；若不需要从 NAS 宿主机或局域网直接访问 API，可删除
+`api` 服务的 `ports` 配置。
