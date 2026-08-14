@@ -54,6 +54,23 @@ docker compose --env-file deploy/.env -f deploy/compose.yaml up -d --build
 docker compose --env-file deploy/.env -f deploy/compose.yaml ps
 ```
 
+Web 镜像默认通过 DaoCloud 拉取 Node 基础镜像，并通过 npmmirror 下载 pnpm
+和前端依赖。依赖下载使用 BuildKit cache；构建因网络中断后再次执行时，会复用
+已经下载到 pnpm store 的 Next.js、SWC 和 Sharp 等包。
+
+如果当前网络使用企业 npm 代理，或默认镜像暂时不可用，可在 `deploy/.env`
+中覆盖：
+
+```dotenv
+# 国内默认值
+NODE_IMAGE=docker.m.daocloud.io/library/node:22-alpine
+NPM_REGISTRY=https://registry.npmmirror.com
+
+# 需要切回官方源时使用
+# NODE_IMAGE=node:22-alpine
+# NPM_REGISTRY=https://registry.npmjs.org
+```
+
 Compose 只把 Web 映射到 NAS 宿主机，默认访问地址为：
 
 ```text
