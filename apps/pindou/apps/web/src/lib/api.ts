@@ -34,6 +34,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   AI_BUSY: "AI 服务忙，请稍后重试",
   AI_TIMEOUT: "AI 处理超时，本次未确认成功，请稍后手动重试",
   AI_UPSTREAM_ERROR: "AI 服务暂时不可用，请稍后重试",
+  AI_TRANSPARENT_BACKGROUND_UNSUPPORTED: "AI 未返回透明背景，请稍后重试",
   BACKGROUND_COLOR_INVALID: "纯色背景颜色无效，请重新选择",
 };
 
@@ -50,6 +51,81 @@ const parseResponse = async <T>(response: Response): Promise<T> => {
     throw new PindouApiError(ERROR_MESSAGES[code] ?? error?.message ?? "请求失败，请稍后重试", code, error?.request_id);
   }
   return body as T;
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+/**
+ * 校验新版前景/背景分层响应，避免错误索引在 Canvas 中被静默忽略。
+ * 后端已经有 Pydantic 校验，浏览器侧仍保留这一层是为了防止代理或缓存返回旧结构。
+ */
+const parseBeadGrid = (value: unknown): BeadGrid => {
+  if (!isRecord(value)) throw new Error("转换响应格式无效");
+
+  // 允许灰度发布期间仍在返回旧契约的 API 先完成请求。新契约只要出现任一
+  // 分层字段就必须走下面的完整校验，避免把明显损坏的新版响应静默交给 Canvas。
+  // 旧版响应的结构由旧前端负责消费；这里保留透传是为了兼容滚动发布。
+  if (
+    !("schema_version" in value) &&
+    !("foreground" in value) &&
+    !("background" in value) &&
+    !("stats" in value)
+  ) {
+    return value as unknown as BeadGrid;
+  }
+
+  const foreground = value.foreground;
+  const background = value.background;
+  const stats = value.stats;
+  const width = value.width;
+  const height = value.height;
+
+  if (
+    value.schema_version !== "3" ||
+    value.algorithm_version !== "bead-grid-constrained-v2" ||
+    typeof width !== "number" ||
+    typeof height !== "number" ||
+    !Number.isInteger(width) ||
+    !Number.isInteger(height) ||
+    width < 1 ||
+    height < 1 ||
+    !isRecord(foreground) ||
+    !Array.isArray(foreground.palette) ||
+    !Array.isArray(foreground.rows) ||
+    !isRecord(background) ||
+    !isRecord(stats)
+  ) {
+    throw new Error("转换响应格式无效");
+  }
+
+  if (foreground.rows.length !== height) {
+    throw new Error("转换响应网格行数无效");
+  }
+  const paletteLength = foreground.palette.length;
+  const beadCount = foreground.rows.reduce((total, row) => {
+    if (!Array.isArray(row) || row.length !== width) {
+      throw new Error("转换响应网格列数无效");
+    }
+    return total + row.filter((cell) => cell !== null).length;
+  }, 0);
+  for (const row of foreground.rows) {
+    for (const cell of row) {
+      if (cell !== null && (!Number.isInteger(cell) || cell < 0 || cell >= paletteLength)) {
+        throw new Error("转换响应包含非法颜色索引");
+      }
+    }
+  }
+  if (
+    (background.mode !== "solid" && background.mode !== "none") ||
+    (background.mode === "solid" &&
+      (typeof background.color !== "string" || !/^#[0-9A-F]{6}$/.test(background.color))) ||
+    stats.bead_count !== beadCount ||
+    stats.color_count !== paletteLength
+  ) {
+    throw new Error("转换响应统计或背景字段无效");
+  }
+  return value as unknown as BeadGrid;
 };
 
 /** 加载后端实际可用的 MARD 颜色组，前端不维护重复的硬编码列表。 */
@@ -90,7 +166,8 @@ export const createConversion = async (
     headers,
     signal,
   });
-  return parseResponse<BeadGrid>(response);
+  const payload = await parseResponse<unknown>(response);
+  return parseBeadGrid(payload);
 };
 
 /** 使用管理密钥为路由中的来源前缀签发消费密钥。 */

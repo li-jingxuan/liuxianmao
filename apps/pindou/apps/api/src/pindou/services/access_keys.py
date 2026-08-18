@@ -137,6 +137,7 @@ def _invalid_access_key() -> ApiError:
     return ApiError(
         401,
         "API_KEY_INVALID_OR_EXHAUSTED",
+        # API Key 无效或可用次数已耗尽
         "API Key 无效或可用次数已耗尽",
         headers={"WWW-Authenticate": "ApiKey"},
     )

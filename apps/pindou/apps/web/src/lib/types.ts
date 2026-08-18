@@ -21,18 +21,25 @@ export type PaletteColor = {
  * 前端二次量化造成颜色不一致。
  */
 export type BeadGrid = {
-  schema_version: "2";
-  algorithm_version: "bead-grid-constrained-v1";
+  schema_version: "3";
+  algorithm_version: "bead-grid-constrained-v2";
   width: number;
   height: number;
-  palette: PaletteColor[];
-  rows: number[][];
+  foreground: {
+    palette: PaletteColor[];
+    // null 表示不放主体豆，背景由独立渲染层铺设。
+    rows: Array<Array<number | null>>;
+  };
+  background:
+    | { mode: "solid"; color: `#${string}` }
+    | { mode: "none" };
   meta: {
     enhancer: "passthrough" | "seedream-5-lite";
     enhancer_model?: string;
     enhancer_prompt_version?: string;
     background_mode: BackgroundMode;
     background_color?: `#${string}`;
+    background_processing?: "none" | "native_alpha" | "edge_flood_fill";
     palette_brand: "MARD";
     color_set_size: number;
     color_budget_mode: "auto" | "legacy-explicit";
@@ -40,6 +47,10 @@ export type BeadGrid = {
     effective_max_colors: number;
     color_chart_version: string;
     actual_color_count: number;
+  };
+  stats: {
+    bead_count: number;
+    color_count: number;
   };
 };
 

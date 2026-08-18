@@ -1,0 +1,212 @@
+.backdrop {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(26, 31, 56, 0.58);
+  backdrop-filter: blur(8px);
+}
+
+.dialog {
+  width: min(100%, 620px);
+  overflow: hidden;
+  border: 1px solid rgba(228, 232, 243, 0.9);
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(24, 29, 65, 0.26);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px 24px 18px;
+}
+
+.header h2 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 21px;
+}
+
+.header p {
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.iconButton {
+  display: grid;
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: #f1f3f9;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.iconButton:hover {
+  color: var(--ink);
+}
+
+.iconButton:disabled,
+.secondaryButton:disabled,
+.primaryButton:disabled,
+.rotationControls button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.iconButton svg {
+  width: 19px;
+}
+
+.cropStage {
+  position: relative;
+  width: 100%;
+  height: min(62vh, 480px);
+  min-height: 290px;
+  background: #1e2131;
+}
+
+.controls {
+  display: grid;
+  gap: 15px;
+  padding: 18px 24px 4px;
+}
+
+.zoomControl {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--muted);
+}
+
+.zoomControl svg {
+  width: 17px;
+  flex: 0 0 auto;
+}
+
+.zoomControl input {
+  width: 100%;
+  accent-color: var(--primary);
+}
+
+.error {
+  margin: 0;
+  padding: 9px 11px;
+  border-radius: 10px;
+  background: #fff0f1;
+  color: #bf3042;
+  font-size: 12px;
+}
+
+.rotationControls {
+  display: flex;
+  gap: 10px;
+}
+
+.rotationControls button {
+  display: inline-flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: #fff;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.rotationControls button:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.rotationControls svg {
+  width: 15px;
+}
+
+.footer {
+  display: grid;
+  grid-template-columns: auto auto minmax(130px, 1fr);
+  gap: 10px;
+  padding: 20px 24px 24px;
+}
+
+.secondaryButton,
+.primaryButton {
+  min-height: 42px;
+  padding: 0 15px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.secondaryButton {
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--muted);
+}
+
+.secondaryButton:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.primaryButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 0;
+  background: linear-gradient(100deg, var(--primary), var(--primary-2), #6541f5);
+  color: #fff;
+  box-shadow: 0 8px 16px rgba(104, 72, 255, 0.2);
+}
+
+.primaryButton svg {
+  width: 17px;
+}
+
+@media (max-width: 520px) {
+  .backdrop {
+    align-items: end;
+    padding: 0;
+  }
+
+  .dialog {
+    width: 100%;
+    border-radius: 24px 24px 0 0;
+  }
+
+  .header,
+  .controls,
+  .footer {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .cropStage {
+    height: min(58vh, 430px);
+  }
+
+  .footer {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .primaryButton {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+}

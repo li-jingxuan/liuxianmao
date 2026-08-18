@@ -5,11 +5,12 @@ from __future__ import annotations
 import base64
 from io import BytesIO
 from threading import BoundedSemaphore
+from typing import Literal
 
 from PIL import Image, ImageOps, UnidentifiedImageError
 
 from pindou.core.errors import ApiError
-from pindou.services.enhancer import EnhancementOptions
+from pindou.services.enhancer import EnhancementOptions, EnhancementResult
 from pindou.services.seedream_client import SeedreamClient, SeedreamUpstreamError
 from pindou.services.seedream_prompt import build_seedream_prompt
 
@@ -51,8 +52,13 @@ class SeedreamEnhancer:
     def close(self) -> None:
         self._client.close()
 
-    def enhance(self, image: Image.Image, *, options: EnhancementOptions) -> Image.Image:
-        """限制输入尺寸、调用方舟，并将上游结果安全解码为 RGBA。"""
+    def enhance(
+        self,
+        image: Image.Image,
+        *,
+        options: EnhancementOptions,
+    ) -> EnhancementResult:
+        """限制输入尺寸、调用方舟，并记录上游实际返回的 Alpha 状态。"""
         acquired = self._semaphore.acquire(timeout=self._queue_timeout_seconds)
         if not acquired:
             raise ApiError(429, "AI_BUSY", "AI 服务忙，请稍后重试")
@@ -63,8 +69,8 @@ class SeedreamEnhancer:
                 result = self._client.edit_image(image_data_url=data_url, prompt=prompt)
             except SeedreamUpstreamError as exc:
                 raise self._map_upstream_error(exc) from exc
-            output = self._decode_output(result.image_bytes)
-            return output
+            output, alpha_status = self._decode_output(result.image_bytes)
+            return EnhancementResult(image=output, background_alpha_status=alpha_status)
         finally:
             self._semaphore.release()
 
@@ -83,15 +89,28 @@ class SeedreamEnhancer:
         finally:
             prepared.close()
 
-    def _decode_output(self, content: bytes) -> Image.Image:
-        """不信任上游声明尺寸，解码前后都执行像素限制。"""
+    def _decode_output(
+        self,
+        content: bytes,
+    ) -> tuple[Image.Image, Literal["transparent", "opaque", "absent"]]:
+        """不信任上游声明尺寸，并确认 RGBA 转换前是否真实存在 Alpha。"""
         try:
             with Image.open(BytesIO(content)) as source:
                 if source.width * source.height > self._output_max_pixels:
                     raise ApiError(502, "AI_UPSTREAM_ERROR", "AI 返回图片超过像素限制")
                 source.load()
+                has_alpha_channel = "A" in source.getbands()
                 transposed = ImageOps.exif_transpose(source)
-                return transposed.convert("RGBA")
+                output = transposed.convert("RGBA")
+                if not has_alpha_channel:
+                    alpha_status: Literal["transparent", "opaque", "absent"] = "absent"
+                else:
+                    alpha = output.getchannel("A")
+                    try:
+                        alpha_status = "transparent" if alpha.getextrema()[0] < 128 else "opaque"
+                    finally:
+                        alpha.close()
+                return output, alpha_status
         except ApiError:
             raise
         except (Image.DecompressionBombError, UnidentifiedImageError, OSError, ValueError) as exc:

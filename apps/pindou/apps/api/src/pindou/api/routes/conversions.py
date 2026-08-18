@@ -16,14 +16,17 @@ from pindou.core.errors import ApiError
 from pindou.imaging.color_budget import resolve_color_budget
 from pindou.imaging.grid import build_bead_grid
 from pindou.imaging.image_backup import backup_enhanced_images
-from pindou.imaging.preprocess import decode_image
+from pindou.imaging.preprocess import decode_image, remove_connected_solid_background
 from pindou.schemas.conversion import (
     BackgroundMode,
     ConversionMeta,
     ConversionResponse,
+    ConversionStats,
+    ForegroundGrid,
     PaletteColor,
+    RenderBackground,
 )
-from pindou.services.enhancer import EnhancementOptions
+from pindou.services.enhancer import EnhancementOptions, EnhancementResult
 from pindou.services.seedream_prompt import normalize_background_color
 
 router = APIRouter(prefix="/conversions", tags=["conversions"])
@@ -84,6 +87,8 @@ def create_conversion(
     # 解码阶段会验证真实图片格式、应用 EXIF 方向并统一转换为 RGBA。
     decoded = decode_image(content, max_pixels=app_settings.upload_max_pixels)
     enhanced = decoded
+    enhancement_result: EnhancementResult | None = None
+    background_processing = "none"
     try:
         # 仅在所有低成本参数和图片校验通过后扣次；条件更新已提交后不因后续
         # AI/量化错误退款，避免并发补偿造成超额使用。
@@ -91,8 +96,8 @@ def create_conversion(
         response.headers["X-RateLimit-Limit"] = str(quota.initial_uses)
         response.headers["X-RateLimit-Remaining"] = str(quota.remaining_uses)
 
-        # passthrough 返回原对象；Seedream 则返回新的 Pillow Image。
-        enhanced = enhancer.enhance(
+        # 增强器必须返回真实 Alpha 状态；Solid 模式据此决定是否可安全排除背景。
+        enhancement_result = enhancer.enhance(
             decoded,
             options=EnhancementOptions(
                 grid_size=grid_size,
@@ -101,6 +106,23 @@ def create_conversion(
                 background_color=normalized_background_color,
             ),
         )
+        enhanced = enhancement_result.image
+        if (
+            background_mode is BackgroundMode.SOLID
+            and enhancement_result.background_alpha_status != "transparent"
+        ):
+            # Seedream 当前常返回不透明白底；仅抠除与边缘连通的近似纯色区域，
+            # 避免主体内部的白色衣物/高光被误删后再进入量化。
+            processed = remove_connected_solid_background(
+                enhanced,
+                color_distance_threshold=app_settings.solid_background_removal_threshold,
+            )
+            if enhanced is not decoded:
+                enhanced.close()
+            enhanced = processed
+            background_processing = "edge_flood_fill"
+        elif background_mode is BackgroundMode.SOLID:
+            background_processing = "native_alpha"
         if enhancer.name != "passthrough":
             backup_enhanced_images(
                 decoded,
@@ -124,20 +146,29 @@ def create_conversion(
         decoded.close()
 
     # 在 HTTP 边界把内部不可变 tuple 模型转换为 JSON 友好的 list/Pydantic 模型。
+    # Solid 背景是渲染层，不进入前景 palette；keep/simplify 不额外铺设背景层。
+    render_background = (
+        RenderBackground(mode="solid", color=normalized_background_color)
+        if background_mode is BackgroundMode.SOLID
+        else RenderBackground(mode="none")
+    )
     return ConversionResponse(
         algorithm_version=grid.algorithm_version,
         width=grid.width,
         height=grid.height,
-        palette=[
-            PaletteColor(
-                id=index,
-                code=color.code,
-                hex=color.hex,
-                rgb=color.rgb,
-            )
-            for index, color in enumerate(grid.palette)
-        ],
-        rows=[list(row) for row in grid.rows],
+        foreground=ForegroundGrid(
+            palette=[
+                PaletteColor(
+                    id=index,
+                    code=color.code,
+                    hex=color.hex,
+                    rgb=color.rgb,
+                )
+                for index, color in enumerate(grid.palette)
+            ],
+            rows=[list(row) for row in grid.rows],
+        ),
+        background=render_background,
         meta=ConversionMeta(
             # 回传约束与色卡版本，便于前端展示和未来复现结果。
             enhancer=enhancer.name,
@@ -145,11 +176,13 @@ def create_conversion(
             enhancer_prompt_version=enhancer.prompt_version,
             background_mode=background_mode,
             background_color=normalized_background_color,
+            background_processing=background_processing,
             color_set_size=color_set_size,
             color_budget_mode=color_budget.mode,
             color_budget_policy_version=color_budget.policy_version,
             effective_max_colors=grid.effective_max_colors,
             color_chart_version=chart.schema_version,
-            actual_color_count=len(grid.palette),
+            actual_color_count=grid.color_count,
         ),
+        stats=ConversionStats(bead_count=grid.bead_count, color_count=grid.color_count),
     )

@@ -44,7 +44,7 @@ def make_client(handler: httpx.MockTransport) -> SeedreamClient:
     [
         (BackgroundMode.SIMPLIFY, "可以删除无关小物体", "完整移除原背景"),
         (BackgroundMode.KEEP, "不能删除整个有语义的背景物体", "可以删除无关小物体"),
-        (BackgroundMode.SOLID, "背景目标颜色为 #FFFFFF", "有语义的背景物体"),
+        (BackgroundMode.SOLID, "输出透明背景", "背景目标颜色为"),
     ],
 )
 def test_chinese_prompts_are_isolated_by_background_mode(
@@ -208,7 +208,7 @@ def test_prompt_contains_only_selected_color_budget_band(
     assert unexpected not in prompt
 
 
-def test_solid_background_prompt_uses_normalized_custom_color() -> None:
+def test_solid_background_prompt_requests_transparent_output() -> None:
     prompt = build_seedream_prompt(
         EnhancementOptions(
             grid_size=52,
@@ -218,7 +218,8 @@ def test_solid_background_prompt_uses_normalized_custom_color() -> None:
         )
     )
 
-    assert "背景目标颜色为 #AABBCC" in prompt
+    assert "输出透明背景" in prompt
+    assert "背景目标颜色为" not in prompt
     assert normalize_background_color(None) == "#FFFFFF"
 
 
@@ -251,8 +252,9 @@ def test_solid_enhancement_accepts_opaque_upstream_output() -> None:
                 background_color="#FFFFFF",
             ),
         )
-        assert enhanced.getchannel("A").getextrema() == (255, 255)
-        enhanced.close()
+        assert enhanced.background_alpha_status == "opaque"
+        assert enhanced.image.getchannel("A").getextrema() == (255, 255)
+        enhanced.image.close()
     finally:
         image.close()
         enhancer.close()

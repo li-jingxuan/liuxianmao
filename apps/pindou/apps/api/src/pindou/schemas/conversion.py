@@ -39,30 +39,60 @@ class ConversionMeta(BaseModel):
         pattern=r"^#[0-9A-F]{6}$",
         exclude_if=lambda value: value is None,
     )
+    # 记录 Solid 背景实际采用的分离路径，便于定位上游 Alpha 能力差异。
+    background_processing: Literal["none", "native_alpha", "edge_flood_fill"] = "none"
     palette_brand: Literal["MARD"] = "MARD"
     color_set_size: int
     color_budget_mode: Literal["auto", "legacy-explicit"]
     color_budget_policy_version: str
     effective_max_colors: int = Field(ge=0)
     color_chart_version: str
+    # 颜色数量现在只统计前景，不包含 Solid 渲染背景。
     actual_color_count: int = Field(ge=0)
+
+
+class ForegroundGrid(BaseModel):
+    """主体拼豆层；rows 中的 null 表示不放主体豆。"""
+
+    palette: list[PaletteColor]
+    rows: list[list[int | None]]
+
+
+class RenderBackground(BaseModel):
+    """仅供 Canvas/PNG 铺底的背景层，不参与颜色量化。"""
+
+    mode: Literal["solid", "none"]
+    color: str | None = Field(
+        default=None,
+        pattern=r"^#[0-9A-F]{6}$",
+        exclude_if=lambda value: value is None,
+    )
+
+
+class ConversionStats(BaseModel):
+    """主体制作统计，不把渲染背景计入豆数或颜色数。"""
+
+    bead_count: int = Field(ge=0)
+    color_count: int = Field(ge=0)
 
 
 class ConversionResponse(BaseModel):
     """图片转换成功后的公开网格契约。
 
-    `rows[y][x]` 为 `palette` 索引，-1 表示透明格。后端不返回或保存 PNG，
-    Next.js 使用这份数据完成 Canvas 预览和浏览器导出。
+    `foreground.rows[y][x]` 为主体 palette 索引，null 表示不放主体豆。
+    `background` 是独立渲染层，后端不返回或保存 PNG，Next.js 使用这份数据
+    完成 Canvas 预览和浏览器导出。
     """
 
     # schema_version 描述 JSON 形状；algorithm_version 描述量化行为。
-    schema_version: Literal["2"] = "2"
-    algorithm_version: Literal["bead-grid-constrained-v1"] = "bead-grid-constrained-v1"
+    schema_version: Literal["3"] = "3"
+    algorithm_version: Literal["bead-grid-constrained-v2"] = "bead-grid-constrained-v2"
     width: int = Field(ge=1)
     height: int = Field(ge=1)
-    palette: list[PaletteColor]
-    rows: list[list[int]]
+    foreground: ForegroundGrid
+    background: RenderBackground
     meta: ConversionMeta
+    stats: ConversionStats
 
 
 class ColorSetOption(BaseModel):

@@ -123,17 +123,18 @@ class PassThroughEnhancer:
 7. 将用户所选颜色组、色板 schema 版本写入响应元数据。
 8. 固定颜色取整、距离并列时的选择规则，确保相同输入参数返回相同网格。
 
-因此最终 `palette.length` 仍不超过 `max_colors`，而且每个 MARD `code` 都必须属于用户选择的颜色组。颜色组按 [MARD_色卡.json](./MARD_色卡.json) 的套装定义，例如 48 色组使用 `sets[size=48].colors` 的全部 48 个色号。24–216 色与 264 色沿用来源商家的累计分盒映射；221 色独立表示 A–H、M 标准系列，不能假定它是 216 色组追加 5 色。仓库色卡注明 HEX 是网页显示近似值，实物可能存在批次和屏幕色差，UI 需要提示。
+因此最终 `foreground.palette.length` 仍不超过 `max_colors`，而且每个 MARD `code` 都必须属于用户选择的颜色组。Solid 背景不进入量化调色板：AI Prompt 会要求透明背景，但服务端不能依赖上游 Alpha；对不透明白底执行边缘连通近似纯色抠除，背景颜色只在前端渲染层铺设。颜色组按 [MARD_色卡.json](./MARD_色卡.json) 的套装定义，例如 48 色组使用 `sets[size=48].colors` 的全部 48 个色号。24–216 色与 264 色沿用来源商家的累计分盒映射；221 色独立表示 A–H、M 标准系列，不能假定它是 216 色组追加 5 色。仓库色卡注明 HEX 是网页显示近似值，实物可能存在批次和屏幕色差，UI 需要提示。
 
 ## 5. 网格数据契约
 
 ### 5.1 为什么使用调色板索引
 
-不要为 9216 个格子重复返回 `#RRGGBB`，也不要返回大量 `{x, y, color}` 对象。推荐用调色板加二维索引矩阵：
+不要为 9216 个格子重复返回 `#RRGGBB`，也不要返回大量 `{x, y, color}` 对象。推荐使用前景层调色板加二维索引矩阵，并把 Solid 背景作为独立渲染层：
 
-- `palette[index]` 是实际颜色；
-- `rows[y][x]` 是 `(x, y)` 位置的调色板索引；
-- `-1` 表示透明格。
+- `foreground.palette[index]` 是主体实际颜色；
+- `foreground.rows[y][x]` 是 `(x, y)` 位置的主体调色板索引；
+- `null` 表示不放主体豆；
+- `background` 只描述渲染时是否铺设纯色，不参与量化。
 
 这样坐标明确、JSON 易调试；最大 `156 × 156` 只有 24,336 个索引，MVP1 无需 RLE 或 Base64 二进制压缩。
 
@@ -149,30 +150,40 @@ type PaletteColor = {
 };
 
 type BeadGrid = {
-  schema_version: "1";
-  algorithm_version: string;
+  schema_version: "3";
+  algorithm_version: "bead-grid-constrained-v2";
   width: number;
   height: number;
-  palette: PaletteColor[];
-  rows: number[][];
+  foreground: {
+    palette: PaletteColor[];
+    rows: Array<Array<number | null>>;
+  };
+  background:
+    | { mode: "solid"; color: `#${string}` }
+    | { mode: "none" };
   meta: {
-    enhancer: "passthrough";
+    enhancer: "passthrough" | "seedream-5-lite";
+    background_mode: "simplify" | "solid" | "keep";
+    background_processing?: "none" | "native_alpha" | "edge_flood_fill";
     palette_brand: "MARD";
     color_set_size: number;
     color_chart_version: string;
     actual_color_count: number;
   };
+  stats: { bead_count: number; color_count: number };
 };
 ```
 
 必须满足：
 
-- `rows.length === height`；
-- 每一行 `rows[y].length === width`；
-- 每个值是 `-1` 或合法的 `palette` 索引；
-- `palette.length <= max_colors`；
-- `palette[i].id === i`；
-- 每个 `palette[i].code` 都存在于 `sets[size=meta.color_set_size].colors`。
+- `foreground.rows.length === height`；
+- 每一行 `foreground.rows[y].length === width`；
+- 每个值是 `null` 或合法的 `foreground.palette` 索引；
+- `foreground.palette.length <= max_colors`；
+- `foreground.palette[i].id === i`；
+- 每个 `foreground.palette[i].code` 都存在于 `sets[size=meta.color_set_size].colors`；
+- `stats.bead_count` 等于前景矩阵中非 `null` 单元数量；
+- `stats.color_count` 等于 `foreground.palette.length`。
 
 ## 6. API 设计
 
@@ -216,32 +227,36 @@ type BeadGrid = {
 
 ```json
 {
-  "schema_version": "2",
-  "algorithm_version": "bead-grid-constrained-v1",
+  "schema_version": "3",
+  "algorithm_version": "bead-grid-constrained-v2",
   "width": 8,
   "height": 8,
-  "palette": [
-    { "id": 0, "brand": "MARD", "code": "A4", "hex": "#FFE953", "rgb": [255, 233, 83] },
-    { "id": 1, "brand": "MARD", "code": "H1", "hex": "#E2E2E2", "rgb": [226, 226, 226] },
-    { "id": 2, "brand": "MARD", "code": "B5", "hex": "#00BD35", "rgb": [0, 189, 53] }
-  ],
-  "rows": [
-    [-1, -1, 0, 0, 0, 0, -1, -1],
-    [-1, 0, 0, 0, 0, 0, 0, -1],
-    [1, 1, 0, 0, 0, 0, 1, 1],
-    [1, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 1],
-    [1, 1, 2, 2, 2, 2, 1, 1],
-    [-1, 1, 1, 2, 2, 1, 1, -1],
-    [-1, -1, 1, 1, 1, 1, -1, -1]
-  ],
+  "foreground": {
+    "palette": [
+      { "id": 0, "brand": "MARD", "code": "A4", "hex": "#FFE953", "rgb": [255, 233, 83] },
+      { "id": 1, "brand": "MARD", "code": "H1", "hex": "#E2E2E2", "rgb": [226, 226, 226] },
+      { "id": 2, "brand": "MARD", "code": "B5", "hex": "#00BD35", "rgb": [0, 189, 53] }
+    ],
+    "rows": [
+      [null, null, 0, 0, 0, 0, null, null],
+      [null, 0, 0, 0, 0, 0, 0, null],
+      [1, 1, 0, 0, 0, 0, 1, 1],
+      [1, 0, 0, 0, 0, 0, 0, 1],
+      [1, 0, 0, 0, 0, 0, 0, 1],
+      [1, 1, 2, 2, 2, 2, 1, 1],
+      [null, 1, 1, 2, 2, 1, 1, null],
+      [null, null, 1, 1, 1, 1, null, null]
+    ]
+  },
+  "background": { "mode": "solid", "color": "#FFFFFF" },
   "meta": {
     "enhancer": "passthrough",
     "palette_brand": "MARD",
     "color_set_size": 24,
     "color_chart_version": "1.0",
     "actual_color_count": 3
-  }
+  },
+  "stats": { "bead_count": 48, "color_count": 3 }
 }
 ```
 
@@ -296,7 +311,7 @@ const drawBeadGrid = (
   grid: BeadGrid,
   options: RenderOptions,
 ): void => {
-  // 遍历 rows[y][x]，-1 跳过，其余从 palette 取色
+  // 先铺 background，再遍历 foreground.rows；null 跳过，其余从 palette 取色。
 };
 ```
 
@@ -305,8 +320,8 @@ const drawBeadGrid = (
 - 画布逻辑尺寸为 `width × cellSize`、`height × cellSize`。
 - 方格使用整数坐标 `fillRect`。
 - 圆珠默认直径为单格的 `84%`，圆心位于单格中心。
-- `rows` 中的透明格不绘制；纯色背景模式正常量化为 MARD 豆色。
-- 颜色只从 `palette` 读取，渲染层不得重新量化或自动调整颜色。
+- `foreground.rows` 中的 null 格不绘制主体豆；Solid 背景由 background 层铺设。
+- 颜色只从 `foreground.palette` 读取，渲染层不得重新量化或自动调整颜色。
 - 预览可根据 `devicePixelRatio` 放大 backing store，CSS 控制显示尺寸。
 - 正式导出使用固定 `cellSize`，例如 `20`，不能依赖当前页面缩放或 DPR。
 

@@ -4,12 +4,15 @@ import { drawBeadGrid, exportBeadGrid, PATTERN_EXPORT_CELL_SIZE } from "../src/l
 import type { BeadGrid } from "../src/lib/types";
 
 const grid: BeadGrid = {
-  schema_version: "2",
-  algorithm_version: "bead-grid-constrained-v1",
+  schema_version: "3",
+  algorithm_version: "bead-grid-constrained-v2",
   width: 2,
   height: 2,
-  palette: [{ id: 0, brand: "MARD", code: "A1", hex: "#FF0000", rgb: [255, 0, 0] }],
-  rows: [[0, -1], [-1, 0]],
+  foreground: {
+    palette: [{ id: 0, brand: "MARD", code: "A1", hex: "#FF0000", rgb: [255, 0, 0] }],
+    rows: [[0, null], [null, 0]],
+  },
+  background: { mode: "none" },
   meta: {
     enhancer: "passthrough",
     background_mode: "keep",
@@ -21,6 +24,7 @@ const grid: BeadGrid = {
     color_chart_version: "1.0",
     actual_color_count: 1,
   },
+  stats: { bead_count: 2, color_count: 1 },
 };
 
 const createContext = () => ({
@@ -85,12 +89,18 @@ describe("drawBeadGrid", () => {
       ...grid,
       width: 1,
       height: 1,
-      palette: [{ ...grid.palette[0], hex: "#FFFFFF", rgb: [255, 255, 255] }],
-      rows: [[0]],
+      foreground: {
+        palette: [{ ...grid.foreground.palette[0], hex: "#FFFFFF", rgb: [255, 255, 255] }],
+        rows: [[0]],
+      },
+      stats: { bead_count: 1, color_count: 1 },
     };
     const darkGrid: BeadGrid = {
       ...lightGrid,
-      palette: [{ ...grid.palette[0], hex: "#000000", rgb: [0, 0, 0] }],
+      foreground: {
+        palette: [{ ...grid.foreground.palette[0], hex: "#000000", rgb: [0, 0, 0] }],
+        rows: [[0]],
+      },
     };
 
     drawBeadGrid(lightContext, lightGrid, { cellSize: 36, gridLine: false, showColorCode: true });

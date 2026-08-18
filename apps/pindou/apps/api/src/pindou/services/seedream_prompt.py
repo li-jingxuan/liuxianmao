@@ -107,18 +107,12 @@ def _build_background_prompt(options: EnhancementOptions) -> str:
     if options.background_mode is BackgroundMode.KEEP:
         return KEEP_BACKGROUND_PROMPT
 
-    color = normalize_background_color(options.background_color)
-    white_priority = (
-        "使用纯白背景，保持背景干净、明亮且颜色一致。"
-        if color == DEFAULT_SOLID_BACKGROUND_COLOR
-        else "严格使用目标颜色，保持背景干净且颜色一致。"
-    )
     return (
-        "背景处理：完整移除原背景及其中所有无关物体，保留前景主体的完整轮廓、"
+        "背景处理：完整移除原背景及其中所有无关物体，仅保留前景主体的完整轮廓、"
         "内部特征和自然边缘。\n"
-        "将主体放在均匀、平坦、无渐变、无纹理、无阴影、无物体的纯色背景上。\n"
-        f"背景目标颜色为 {color}。{white_priority}不改变主体内部原有颜色，"
-        "不增加地面、地平线、边框或投影。"
+        "输出透明背景，背景区域 Alpha 必须为 0；不要生成白色或其他纯色背景，"
+        "不要生成地面、地平线、边框、投影或渐变。\n"
+        "不改变主体内部原有颜色。"
     )
 
 

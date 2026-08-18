@@ -14,18 +14,23 @@ import {
   X,
 } from "lucide-react";
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import type { Area } from "react-easy-crop";
 
 import { createConversion, getColorSets } from "@/lib/api";
-import { countOccupiedBeads } from "@/lib/bead-grid";
+import { countForegroundBeads } from "@/lib/bead-grid";
 import { drawBeadGrid } from "@/lib/canvas";
+import { cropImageToFile } from "@/lib/image-crop";
 import { exportPatternSheet } from "@/lib/pattern-sheet-export";
 import type { BackgroundMode, BeadGrid, ColorSetsResponse } from "@/lib/types";
 import { validateImage } from "@/lib/validation";
 
 import styles from "./pindou-converter.module.scss";
+import { ImageCropModal } from "./image-crop-modal";
 
 // 快捷尺寸来自 MVP1 设计稿；自定义尺寸与后端共用同一范围约束。
 const GRID_SIZES = [52, 78, 104] as const;
+const DEFAULT_GRID_SIZE = 78;
+const DEFAULT_COLOR_SET_SIZE = 221;
 const MIN_GRID_SIZE = 8;
 const MAX_GRID_SIZE = 156;
 
@@ -38,6 +43,22 @@ const BACKGROUNDS: Array<{ value: BackgroundMode; label: string }> = [
 
 type ImageDetails = { width: number; height: number };
 type Status = "idle" | "processing" | "complete";
+
+/** 微信内置浏览器不支持稳定的 a[download]，需要切换到长按保存流程。 */
+const isWechatBrowser = () =>
+  typeof navigator !== "undefined" && /MicroMessenger/i.test(navigator.userAgent);
+
+/** 把 Blob 转为 data URL，确保微信 WebView 能把生成图当作普通图片长按保存。 */
+const blobToDataUrl = (blob: Blob): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () =>
+      typeof reader.result === "string"
+        ? resolve(reader.result)
+        : reject(new Error("无法读取导出图片"));
+    reader.onerror = () => reject(new Error("无法读取导出图片"));
+    reader.readAsDataURL(blob);
+  });
 
 /** 将语义化样式名映射为 CSS Modules 生成的局部类名。 */
 const cx = (...classNames: Array<string | false | undefined>) =>
@@ -69,6 +90,34 @@ const Logo = () => (
 const FieldIcon = ({ children }: { children: React.ReactNode }) => (
   <span className={cx("field-icon")}>{children}</span>
 );
+
+/** 微信端保存提示：H5 没有直接写入相册的通用权限，只能交给用户长按保存。 */
+function ImageSaveGuide({ imageUrl, onClose }: { imageUrl: string; onClose: () => void }) {
+  return (
+    <div className={cx("save-guide-backdrop")} role="presentation" onClick={onClose}>
+      <section
+        className={cx("save-guide")}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="save-guide-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <button className={cx("save-guide-close")} type="button" aria-label="关闭保存提示" onClick={onClose}>
+          <X />
+        </button>
+        <h2 id="save-guide-title">长按图片保存</h2>
+        <p>请长按下方图片，在菜单中选择“保存图片”或“保存到相册”。</p>
+        {/* 使用 data URL 而不是 Blob URL，兼容微信 iOS/Android WebView 的长按菜单。 */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img className={cx("save-guide-image")} src={imageUrl} alt="可长按保存的拼豆图纸" />
+        <p className={cx("save-guide-hint")}>如果没有出现保存菜单，请点击右上角 ···，选择“在浏览器打开”后再保存。</p>
+        <button className={cx("secondary-button", "save-guide-done")} type="button" onClick={onClose}>
+          完成
+        </button>
+      </section>
+    </div>
+  );
+}
 
 /**
  * 响应式结果画布。
@@ -118,22 +167,30 @@ export function PindouConverter({ apiKey }: { apiKey?: string }) {
 
   // 上传文件状态。previewUrl 仅用于当前浏览器会话，必须在替换/卸载时释放。
   const [file, setFile] = useState<File | null>(null);
+  // originalFile 用于重新裁剪；pendingCropFile 只表示当前弹窗尚未确认的新选择。
+  const [originalFile, setOriginalFile] = useState<File | null>(null);
+  const [pendingCropFile, setPendingCropFile] = useState<File | null>(null);
+  const [cropSourceUrl, setCropSourceUrl] = useState<string | null>(null);
+  const [isCropOpen, setIsCropOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [details, setDetails] = useState<ImageDetails | null>(null);
 
   // 用户参数状态。颜色硬上限由网格尺寸在后端统一派生。
-  const [gridSize, setGridSize] = useState<number>(52);
+  const [gridSize, setGridSize] = useState<number>(DEFAULT_GRID_SIZE);
   const [customGridSize, setCustomGridSize] = useState("");
   const [colorSets, setColorSets] = useState<ColorSetsResponse | null>(null);
-  const [colorSetSize, setColorSetSize] = useState<number>(48);
+  const [colorSetSize, setColorSetSize] = useState<number>(
+    DEFAULT_COLOR_SET_SIZE,
+  );
   const [backgroundMode, setBackgroundMode] = useState<BackgroundMode>("solid");
-  const [backgroundColor, setBackgroundColor] = useState("#FFFFFF");
+  const [backgroundColor] = useState("#FFFFFF");
 
   // 转换流程状态。result 只在 complete 时展示，错误后回到 idle 允许直接重试。
   const [status, setStatus] = useState<Status>("idle");
   const [result, setResult] = useState<BeadGrid | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [savePreviewUrl, setSavePreviewUrl] = useState<string | null>(null);
 
   // 首次挂载时从后端加载颜色组；卸载时中止请求，防止更新已销毁组件。
   useEffect(() => {
@@ -141,10 +198,10 @@ export function PindouConverter({ apiKey }: { apiKey?: string }) {
     getColorSets(controller.signal)
       .then((response) => {
         setColorSets(response);
-        // 设计稿默认 48 色；若色卡将来移除此组，则尊重后端 default_size。
+        // 首页默认使用 221 色标准套装；若将来移除该组，则尊重后端默认值。
         setColorSetSize(
-          response.sets.some(({ size }) => size === 48)
-            ? 48
+          response.sets.some(({ size }) => size === DEFAULT_COLOR_SET_SIZE)
+            ? DEFAULT_COLOR_SET_SIZE
             : response.default_size,
         );
       })
@@ -163,12 +220,22 @@ export function PindouConverter({ apiKey }: { apiKey?: string }) {
     [previewUrl],
   );
 
+  // 裁剪弹窗使用独立 Object URL；取消或确认后释放，避免反复选图累积 Blob 引用。
+  useEffect(
+    () => () => {
+      if (cropSourceUrl) URL.revokeObjectURL(cropSourceUrl);
+    },
+    [cropSourceUrl],
+  );
+
   /**
    * 以新文件完整替换旧上传状态。
    * 文件变化会令旧转换结果失效，因此同时重置结果和流程状态；参数选择保留。
    */
   const replaceFile = async (nextFile: File | null) => {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
+    // 更换图片后关闭旧的微信保存预览，避免用户误保存上一张图纸。
+    setSavePreviewUrl(null);
     setFile(nextFile);
     setPreviewUrl(null);
     setDetails(null);
@@ -193,8 +260,76 @@ export function PindouConverter({ apiKey }: { apiKey?: string }) {
     }
   };
 
+  /** 打开当前原图的裁剪弹窗；已裁剪图片再次编辑时仍回到 originalFile。 */
+  const openCropEditor = () => {
+    const sourceFile = originalFile ?? file;
+    if (!sourceFile) {
+      inputRef.current?.click();
+      return;
+    }
+    const sourceUrl = URL.createObjectURL(sourceFile);
+    setPendingCropFile(sourceFile);
+    setCropSourceUrl(sourceUrl);
+    setIsCropOpen(true);
+  };
+
+  /** 关闭裁剪弹窗并放弃 pending 文件，不影响当前已经确认的图片。 */
+  const closeCropEditor = () => {
+    setIsCropOpen(false);
+    setPendingCropFile(null);
+    setCropSourceUrl(null);
+  };
+
+  /** 跳过裁剪时直接提交原文件，但仍保留它作为后续重新裁剪的基准。 */
+  const skipCrop = async () => {
+    if (!pendingCropFile) return;
+    const nextFile = pendingCropFile;
+    setOriginalFile(nextFile);
+    setError(null);
+    await replaceFile(nextFile);
+    closeCropEditor();
+  };
+
+  /** 将裁剪区域转换为 File 后提交到现有预览和转换流程。 */
+  const confirmCrop = async (area: Area) => {
+    if (!pendingCropFile) return;
+    try {
+      const croppedFile = await cropImageToFile(pendingCropFile, area, {
+        mimeType: pendingCropFile.type,
+        quality: 0.92,
+        maxSizeMB: 10,
+        maxWidthOrHeight: 4096,
+      });
+      setOriginalFile(pendingCropFile);
+      setError(null);
+      await replaceFile(croppedFile);
+      closeCropEditor();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "图片裁剪失败，请重试");
+      throw cause;
+    }
+  };
+
+  /** 移除当前图片，并同时清理待确认的裁剪会话。 */
+  const removeFile = async () => {
+    closeCropEditor();
+    setOriginalFile(null);
+    await replaceFile(null);
+  };
+
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    void replaceFile(event.target.files?.[0] ?? null);
+    const nextFile = event.target.files?.[0] ?? null;
+    if (nextFile) {
+      const validationError = validateImage(nextFile);
+      if (validationError) {
+        setError(validationError);
+      } else {
+        const sourceUrl = URL.createObjectURL(nextFile);
+        setPendingCropFile(nextFile);
+        setCropSourceUrl(sourceUrl);
+        setIsCropOpen(true);
+      }
+    }
     // 清空 input，确保用户连续选择同一个文件时仍会触发 change。
     event.target.value = "";
   };
@@ -245,7 +380,7 @@ export function PindouConverter({ apiKey }: { apiKey?: string }) {
     }
   };
 
-  /** 将网格导出为 PNG，并通过临时 Object URL 触发浏览器下载。 */
+  /** 将网格导出为 PNG；普通浏览器下载，微信内置浏览器切换为长按保存。 */
   const download = async () => {
     if (!result || !file || !details || isExporting) return;
     setError(null);
@@ -256,6 +391,13 @@ export function PindouConverter({ apiKey }: { apiKey?: string }) {
         sourceFile: file,
         sourceDetails: details,
       });
+
+      // 微信 H5 不具备可靠的文件下载/相册写入能力，改用可长按的图片预览。
+      if (isWechatBrowser()) {
+        setSavePreviewUrl(await blobToDataUrl(blob));
+        return;
+      }
+
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -270,9 +412,9 @@ export function PindouConverter({ apiKey }: { apiKey?: string }) {
     }
   };
 
-  // 透明格不需要放豆，因此总豆数按非 -1 单元统计，而不是简单 width×height。
+  // null 格属于背景或空位，不需要制作主体豆；统计逻辑与导出图纸保持一致。
   const occupiedBeads = useMemo(
-    () => (result ? countOccupiedBeads(result) : 0),
+    () => (result ? countForegroundBeads(result) : 0),
     [result],
   );
 
@@ -287,7 +429,7 @@ export function PindouConverter({ apiKey }: { apiKey?: string }) {
     const value = event.target.value;
     setCustomGridSize(value);
     if (!value) {
-      setGridSize(GRID_SIZES[0]);
+      setGridSize(DEFAULT_GRID_SIZE);
       setError(null);
       return;
     }
@@ -348,12 +490,12 @@ export function PindouConverter({ apiKey }: { apiKey?: string }) {
               <button
                 className={cx("file-meta")}
                 type="button"
-                onClick={() => inputRef.current?.click()}
+                onClick={openCropEditor}
               >
                 <strong>{file.name}</strong>
                 <span>
                   {details
-                    ? `${details.width} × ${details.height}`
+                    ? `${details.width} × ${details.height} · 点击调整`
                     : "正在读取图片…"}
                 </span>
               </button>
@@ -361,7 +503,7 @@ export function PindouConverter({ apiKey }: { apiKey?: string }) {
                 className={cx("remove-file")}
                 type="button"
                 aria-label="移除图片"
-                onClick={() => void replaceFile(null)}
+                onClick={() => void removeFile()}
               >
                 <X />
               </button>
@@ -511,9 +653,22 @@ export function PindouConverter({ apiKey }: { apiKey?: string }) {
           onClick={() => void convert()}
         >
           <Sparkles />
-          {status === "processing" ? "AI 处理中…" : "开始转换"}
+          {status === "processing" ? "图片处理中…" : "开始转换"}
         </button>
       </section>
+
+      {isCropOpen && cropSourceUrl && (
+        <ImageCropModal
+          imageUrl={cropSourceUrl}
+          onConfirm={confirmCrop}
+          onSkip={() => void skipCrop()}
+          onCancel={closeCropEditor}
+        />
+      )}
+
+      {savePreviewUrl && (
+        <ImageSaveGuide imageUrl={savePreviewUrl} onClose={() => setSavePreviewUrl(null)} />
+      )}
 
       {/* idle 时不渲染结果区；processing 与 complete 复用同一语义区域。 */}
       {status !== "idle" && (
@@ -573,7 +728,7 @@ export function PindouConverter({ apiKey }: { apiKey?: string }) {
                           {/* 使用颜色 */}
                         </dt>
                         <dd>
-                          {result.meta.actual_color_count} /{" "}
+                          {result.stats.color_count} /{" "}
                           {result.meta.effective_max_colors}
                         </dd>
                       </div>
@@ -589,20 +744,23 @@ export function PindouConverter({ apiKey }: { apiKey?: string }) {
                   <div className={cx("palette-panel")}>
                     <h3>主要颜色</h3>
                     <div className={cx("swatches")}>
-                      {result.palette.slice(0, 17).map((color) => (
+                      {result.foreground.palette.slice(0, 17).map((color) => (
                         <span
                           key={color.id}
                           style={{ backgroundColor: color.hex }}
                           title={`${color.code} · ${color.hex}`}
                         >{color.code}</span>
                       ))}
-                      {result.palette.length > 17 && (
+                      {result.foreground.palette.length > 17 && (
                         <span className={cx("more-colors")}>
-                          +{result.palette.length - 17}
+                          +{result.foreground.palette.length - 17}
                         </span>
                       )}
                     </div>
-                    <p>屏幕色仅供参考，实物可能存在色差</p>
+                    <p>
+                      屏幕色仅供参考，实物可能存在色差
+                      {result.background.mode === "solid" && "；纯色背景不计入颜色和豆数"}
+                    </p>
                   </div>
                 </div>
               </div>

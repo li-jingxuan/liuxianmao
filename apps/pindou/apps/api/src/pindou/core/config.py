@@ -49,6 +49,8 @@ class Settings(BaseSettings):
     api_port: int = Field(default=3112, ge=1, le=65535)
     api_reload: bool = True
     image_enhancer: str = "seedream" # "passthrough"
+    # Seedream 无法稳定返回透明图时，服务端从边缘连通区域抠除近似纯色背景。
+    solid_background_removal_threshold: int = Field(default=42, ge=0, le=255)
     # 同时限制压缩文件体积和解码后像素量，防止压缩炸弹耗尽内存。
     upload_max_bytes: int = 10 * 1024 * 1024
     upload_max_pixels: int = 25_000_000
@@ -80,7 +82,7 @@ class Settings(BaseSettings):
     ark_doubao_image_model: str = "doubao-seedream-5-0-lite-260128"
     ark_doubao_image_size: str = "2K"
     ark_doubao_response_format: str = "b64_json"
-    ark_doubao_watermark: bool = True
+    ark_doubao_watermark: bool = False # 水印
     ark_doubao_connect_timeout_seconds: float = 5.0
     ark_doubao_read_timeout_seconds: float = 90.0
     ark_doubao_write_timeout_seconds: float = 15.0

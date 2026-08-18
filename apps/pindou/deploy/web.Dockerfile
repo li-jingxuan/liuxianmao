@@ -35,9 +35,7 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY apps/web ./
 ARG NEXT_PUBLIC_API_BASE_URL=https://tppixel-api.cpolar.top
-ARG PINDOU_API_ORIGIN=http://127.0.0.1:3112
-ENV NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL} \
-    PINDOU_API_ORIGIN=${PINDOU_API_ORIGIN}
+ENV NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}
 RUN mkdir -p public && pnpm exec next build --webpack
 
 FROM ${NODE_IMAGE} AS runner

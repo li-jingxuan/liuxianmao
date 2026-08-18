@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import re
+from collections import deque
 from io import BytesIO
 
-from PIL import Image, ImageColor, ImageOps, UnidentifiedImageError
+from PIL import Image, ImageOps, UnidentifiedImageError
 
 from pindou.core.errors import ApiError
 from pindou.schemas.conversion import BackgroundMode
@@ -48,9 +49,9 @@ def fit_to_square_grid(
 ) -> Image.Image:
     """按原始比例把图片放入 N×N 工作画布。
 
-    `ImageOps.contain` 保证不裁剪、不拉伸；未覆盖区域作为补边。
-    solid 使用指定纯色补边；simplify/keep 使用透明补边。这里只处理方形画布，
-    原图内部背景的编辑已由 ImageEnhancer 完成。
+    `ImageOps.contain` 保证不裁剪、不拉伸；所有未覆盖区域都保持透明。
+    Solid 的真实背景颜色只在前端渲染层铺设，不能在量化前合成，否则会污染
+    前景调色板和豆数统计。原图内部背景的编辑由 ImageEnhancer 完成。
     """
     # BOX 重采样适合把大量源像素平均压缩到一颗拼豆格，减少单点采样偏色。
     fitted = ImageOps.contain(image, (grid_size, grid_size), method=Image.Resampling.BOX)
@@ -58,14 +59,98 @@ def fit_to_square_grid(
     left = (grid_size - fitted.width) // 2
     top = (grid_size - fitted.height) // 2
 
-    if background_mode is BackgroundMode.SOLID:
-        if background_color is None or re.fullmatch(r"#[0-9A-F]{6}", background_color) is None:
-            raise ApiError(400, "BACKGROUND_COLOR_INVALID", "背景颜色必须为 #RRGGBB")
-        red, green, blue = ImageColor.getrgb(background_color)
-        canvas = Image.new("RGBA", (grid_size, grid_size), (red, green, blue, 255))
+    if (
+        background_mode is BackgroundMode.SOLID
+        and (background_color is None or re.fullmatch(r"#[0-9A-F]{6}", background_color) is None)
+    ):
+        raise ApiError(400, "BACKGROUND_COLOR_INVALID", "背景颜色必须为 #RRGGBB")
+    try:
+        # 透明画布让 Alpha 成为唯一的前景/空格边界；Canvas 渲染时再单独铺 Solid 背景。
+        canvas = Image.new("RGBA", (grid_size, grid_size), (0, 0, 0, 0))
         canvas.alpha_composite(fitted, (left, top))
         return canvas
+    finally:
+        fitted.close()
 
-    canvas = Image.new("RGBA", (grid_size, grid_size), (0, 0, 0, 0))
-    canvas.alpha_composite(fitted, (left, top))
-    return canvas
+
+def remove_connected_solid_background(
+    image: Image.Image,
+    *,
+    color_distance_threshold: int = 42,
+    alpha_threshold: int = 128,
+) -> Image.Image:
+    """抠除与图片边缘连通的近似纯色背景，并保留主体内部同色区域。
+
+    Seedream 当前经常返回不透明白底，即使 Prompt 要求透明 Alpha。这里不再把
+    “是否透明”交给上游决定：以四边最常见颜色作为背景参考，只从边缘做 flood-fill，
+    因此主体内部的白色衣物、高光不会因为颜色相同而整体消失。
+    """
+    if color_distance_threshold < 0 or color_distance_threshold > 255:
+        raise ValueError("背景颜色距离阈值必须在 0 到 255 之间")
+    if alpha_threshold < 0 or alpha_threshold > 255:
+        raise ValueError("Alpha 阈值必须在 0 到 255 之间")
+
+    output = image.convert("RGBA")
+    width, height = output.size
+    if width == 0 or height == 0:
+        return output
+
+    pixels = output.load()
+    border_colors = [
+        pixels[x, y][:3]
+        for x, y in (
+            [(x, 0) for x in range(width)]
+            + [(x, height - 1) for x in range(width)]
+            + [(0, y) for y in range(1, height - 1)]
+            + [(width - 1, y) for y in range(1, height - 1)]
+        )
+        if pixels[x, y][3] >= alpha_threshold
+    ]
+    if not border_colors:
+        return output
+
+    # 16 档量化直方图比单点取样稳定，能抵抗 AI 白底上的轻微压缩噪声。
+    histogram: dict[tuple[int, int, int], int] = {}
+    for red, green, blue in border_colors:
+        bucket = (red // 16, green // 16, blue // 16)
+        histogram[bucket] = histogram.get(bucket, 0) + 1
+    reference_bucket = max(histogram, key=histogram.__getitem__)
+    reference = tuple(channel * 16 + 8 for channel in reference_bucket)
+    threshold_squared = color_distance_threshold**2
+
+    def is_background(x: int, y: int) -> bool:
+        red, green, blue, alpha = pixels[x, y]
+        if alpha < alpha_threshold:
+            return False
+        distance_squared = sum(
+            (channel - expected) ** 2
+            for channel, expected in zip((red, green, blue), reference, strict=True)
+        )
+        return distance_squared <= threshold_squared
+
+    queue: deque[tuple[int, int]] = deque()
+    visited = bytearray(width * height)
+    for x, y in (
+        [(x, 0) for x in range(width)]
+        + [(x, height - 1) for x in range(width)]
+        + [(0, y) for y in range(1, height - 1)]
+        + [(width - 1, y) for y in range(1, height - 1)]
+    ):
+        if is_background(x, y):
+            queue.append((x, y))
+
+    while queue:
+        x, y = queue.popleft()
+        index = y * width + x
+        if visited[index] or not is_background(x, y):
+            continue
+        visited[index] = 1
+        red, green, blue, _ = pixels[x, y]
+        pixels[x, y] = (red, green, blue, 0)
+        for next_x, next_y in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)):
+            if 0 <= next_x < width and 0 <= next_y < height:
+                next_index = next_y * width + next_x
+                if not visited[next_index]:
+                    queue.append((next_x, next_y))
+
+    return output

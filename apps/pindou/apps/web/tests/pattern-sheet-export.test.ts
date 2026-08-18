@@ -9,20 +9,23 @@ import {
 import type { BeadGrid } from "../src/lib/types";
 
 const createGrid = (paletteSize = 7): BeadGrid => ({
-  schema_version: "2",
-  algorithm_version: "bead-grid-constrained-v1",
+  schema_version: "3",
+  algorithm_version: "bead-grid-constrained-v2",
   width: 24,
   height: 24,
-  palette: Array.from({ length: paletteSize }, (_, index) => ({
-    id: index,
-    brand: "MARD" as const,
-    code: `A${index + 1}`,
-    hex: `#${index.toString(16).padStart(6, "0")}` as `#${string}`,
-    rgb: [index, index, index],
-  })),
-  rows: Array.from({ length: 24 }, (_, y) =>
-    Array.from({ length: 24 }, (_, x) => (x === 0 && y === 0 ? -1 : (x + y) % paletteSize)),
-  ),
+  foreground: {
+    palette: Array.from({ length: paletteSize }, (_, index) => ({
+      id: index,
+      brand: "MARD" as const,
+      code: `A${index + 1}`,
+      hex: `#${index.toString(16).padStart(6, "0")}` as `#${string}`,
+      rgb: [index, index, index] as [number, number, number],
+    })),
+    rows: Array.from({ length: 24 }, (_, y) =>
+      Array.from({ length: 24 }, (_, x) => (x === 0 && y === 0 ? null : (x + y) % paletteSize)),
+    ),
+  },
+  background: { mode: "none" },
   meta: {
     enhancer: "passthrough",
     background_mode: "keep",
@@ -34,6 +37,7 @@ const createGrid = (paletteSize = 7): BeadGrid => ({
     color_chart_version: "1.0",
     actual_color_count: paletteSize,
   },
+  stats: { bead_count: 575, color_count: paletteSize },
 });
 
 const createContext = () => ({
@@ -145,7 +149,7 @@ describe("exportPatternSheet", () => {
     expect(context.drawImage).toHaveBeenCalledOnce();
     expect(context.fillText).toHaveBeenCalledWith("图像信息", expect.any(Number), expect.any(Number));
     expect(context.fillText).toHaveBeenCalledWith("使用色卡（7）", expect.any(Number), expect.any(Number));
-    grid.palette.forEach((color) => {
+    grid.foreground.palette.forEach((color) => {
       expect(context.fillText).toHaveBeenCalledWith(
         color.code,
         expect.any(Number),

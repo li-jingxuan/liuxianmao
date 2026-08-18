@@ -28,7 +28,7 @@ class ConstrainedQuantizationPolicy:
 
 
 CONSTRAINED_QUANTIZATION_POLICY = ConstrainedQuantizationPolicy(
-    version="bead-grid-constrained-v1",
+    version="bead-grid-constrained-v2",
     alpha_occupied_threshold=128,
     max_color_observations=512,
     min_relative_gain=0.001,
@@ -58,16 +58,18 @@ class QuantizationMetrics:
 class QuantizedGrid:
     """与渲染方式无关的拼豆网格结果。
 
-    `palette` 只包含实际使用到的 MARD 颜色；`rows[y][x]` 存放对应索引，-1
-    表示透明。使用 tuple 保证领域结果构造后不可被 HTTP 层意外修改。
+    `palette` 只包含前景实际使用到的 MARD 颜色；`rows[y][x]` 存放对应索引，
+    None 表示透明/背景空格。使用 tuple 保证领域结果构造后不可被 HTTP 层意外修改。
     """
 
     width: int
     height: int
     palette: tuple[MardColor, ...]
-    rows: tuple[tuple[int, ...], ...]
+    rows: tuple[tuple[int | None, ...], ...]
     algorithm_version: str
     effective_max_colors: int
+    bead_count: int
+    color_count: int
     # 耗时指标天然随运行环境波动，不参与领域结果的确定性相等比较。
     metrics: QuantizationMetrics = field(compare=False)
 
@@ -310,7 +312,7 @@ def quantize_to_mard_grid(
     ]
     if not visible_rgb:
         # 全透明图片没有调色板；仍返回尺寸完整且全部为 -1 的网格。
-        empty_rows = tuple(tuple(-1 for _ in range(image.width)) for _ in range(image.height))
+        empty_rows = tuple(tuple(None for _ in range(image.width)) for _ in range(image.height))
         total_ms = (perf_counter() - total_started_at) * 1000
         return QuantizedGrid(
             width=image.width,
@@ -319,6 +321,8 @@ def quantize_to_mard_grid(
             rows=empty_rows,
             algorithm_version=CONSTRAINED_QUANTIZATION_POLICY.version,
             effective_max_colors=0,
+            bead_count=0,
+            color_count=0,
             metrics=QuantizationMetrics(
                 occupied_cell_count=0,
                 transparent_cell_count=image.width * image.height,
@@ -345,16 +349,17 @@ def quantize_to_mard_grid(
     # 输出调色板继续按网格中的首次出现顺序重建，保持前端和导出契约稳定。
     output_palette: list[MardColor] = []
     output_index_by_code: dict[str, int] = {}
-    rows: list[tuple[int, ...]] = []
+    rows: list[tuple[int | None, ...]] = []
     visible_index = 0
     for y in range(image.height):
-        row: list[int] = []
+        row: list[int | None] = []
         for x in range(image.width):
             # rgba_pixels 保留完整 N×N 坐标；quantized_indexes 只包含可见格，
             # visible_index 专门把两种索引空间重新对齐。
             _, _, _, alpha = rgba_pixels[y * image.width + x]
             if alpha < CONSTRAINED_QUANTIZATION_POLICY.alpha_occupied_threshold:
-                row.append(-1)
+                # 透明格和 Solid 背景都不属于主体拼豆，背景颜色由前端独立铺设。
+                row.append(None)
                 continue
             observation_index = observations.index_by_visible_pixel[visible_index]
             visible_index += 1
@@ -423,5 +428,7 @@ def quantize_to_mard_grid(
         rows=tuple(rows),
         algorithm_version=CONSTRAINED_QUANTIZATION_POLICY.version,
         effective_max_colors=max_colors,
+        bead_count=len(visible_rgb),
+        color_count=len(output_palette),
         metrics=metrics,
     )

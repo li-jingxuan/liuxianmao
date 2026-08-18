@@ -1,6 +1,5 @@
 import { drawBeadGrid, PATTERN_EXPORT_CELL_SIZE } from "./canvas";
 import type { BeadGrid } from "./types";
-import { countOccupiedBeads } from "./bead-grid";
 
 export { countOccupiedBeads } from "./bead-grid";
 
@@ -48,7 +47,7 @@ export const calculatePatternSheetLayout = (
   const gridHeight = grid.height * cellSize;
   const footerColumnWidth = (gridWidth - FOOTER_COLUMN_GAP) / 2;
   const paletteColumns = footerColumnWidth >= 720 ? 6 : 3;
-  const paletteRows = Math.ceil(grid.palette.length / paletteColumns);
+  const paletteRows = Math.ceil(grid.foreground.palette.length / paletteColumns);
   const footerHeight = Math.max(
     FOOTER_MIN_HEIGHT,
     PANEL_PADDING * 2 + INFO_HEIGHT + INFO_PALETTE_GAP + PALETTE_TITLE_HEIGHT + paletteRows * PALETTE_ROW_HEIGHT,
@@ -185,8 +184,8 @@ const drawInfoAndPalettePanel = (
   const info = [
     ["网格尺寸", `${grid.width} × ${grid.height}`],
     ["原图尺寸", `${sourceDetails.width} × ${sourceDetails.height}`],
-    ["使用颜色", `${grid.palette.length} / ${grid.meta.effective_max_colors}`],
-    ["总豆数", countOccupiedBeads(grid).toLocaleString("zh-CN")],
+    ["使用颜色", `${grid.stats.color_count} / ${grid.meta.effective_max_colors}`],
+    ["总豆数", grid.stats.bead_count.toLocaleString("zh-CN")],
     ["色卡品牌", grid.meta.palette_brand],
     ["色卡套装", `${grid.meta.color_set_size} 色`],
   ] as const;
@@ -207,11 +206,11 @@ const drawInfoAndPalettePanel = (
   const paletteTitleY = panel.y + PANEL_PADDING + INFO_HEIGHT + INFO_PALETTE_GAP;
   context.fillStyle = "#0F1936";
   context.font = "700 24px system-ui, sans-serif";
-  context.fillText(`使用色卡（${grid.palette.length}）`, contentX, paletteTitleY);
+  context.fillText(`使用色卡（${grid.foreground.palette.length}）`, contentX, paletteTitleY);
 
   const paletteStartY = paletteTitleY + PALETTE_TITLE_HEIGHT;
   const itemWidth = contentWidth / layout.paletteColumns;
-  grid.palette.forEach((color, index) => {
+  grid.foreground.palette.forEach((color, index) => {
     const column = index % layout.paletteColumns;
     const row = Math.floor(index / layout.paletteColumns);
     const x = contentX + column * itemWidth;

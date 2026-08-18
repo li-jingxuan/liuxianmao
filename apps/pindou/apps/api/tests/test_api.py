@@ -11,7 +11,7 @@ from pindou.api.dependencies import get_color_chart, get_image_enhancer, provide
 from pindou.core.config import Settings
 from pindou.imaging.color_budget import ColorBudgetBand
 from pindou.main import app
-from pindou.services.enhancer import EnhancementOptions
+from pindou.services.enhancer import EnhancementOptions, EnhancementResult
 
 
 class FakeAiEnhancer:
@@ -20,9 +20,12 @@ class FakeAiEnhancer:
     prompt_version = "fake-prompt"
     last_options: EnhancementOptions | None = None
 
-    def enhance(self, image: Image.Image, *, options: EnhancementOptions) -> Image.Image:
+    def enhance(self, image: Image.Image, *, options: EnhancementOptions) -> EnhancementResult:
         type(self).last_options = options
-        return Image.new("RGBA", image.size, (0, 0, 255, 255))
+        return EnhancementResult(
+            image=Image.new("RGBA", image.size, (0, 0, 255, 255)),
+            background_alpha_status="opaque",
+        )
 
 
 def test_healthcheck(client: TestClient) -> None:
@@ -202,12 +205,13 @@ def test_create_conversion_returns_grid_restricted_to_selected_set(
     assert response.status_code == 200
     payload = response.json()
     assert payload["width"] == payload["height"] == grid_size
-    assert len(payload["rows"]) == grid_size
-    assert all(len(row) == grid_size for row in payload["rows"])
-    assert payload["schema_version"] == "2"
-    assert payload["algorithm_version"] == "bead-grid-constrained-v1"
+    assert len(payload["foreground"]["rows"]) == grid_size
+    assert all(len(row) == grid_size for row in payload["foreground"]["rows"])
+    assert payload["schema_version"] == "3"
+    assert payload["algorithm_version"] == "bead-grid-constrained-v2"
     assert payload["meta"]["enhancer"] == "passthrough"
     assert payload["meta"]["background_mode"] == "keep"
+    assert payload["meta"]["background_processing"] == "none"
     assert "background_color" not in payload["meta"]
     assert payload["meta"]["color_set_size"] == color_set_size
     assert payload["meta"]["color_budget_mode"] == "legacy-explicit"
@@ -218,7 +222,9 @@ def test_create_conversion_returns_grid_restricted_to_selected_set(
     selected_set = get_color_chart().get_set(color_set_size)
     assert selected_set is not None
     allowed_codes = {color.code for color in selected_set.colors}
-    assert {color["code"] for color in payload["palette"]} <= allowed_codes
+    assert {color["code"] for color in payload["foreground"]["palette"]} <= allowed_codes
+    assert payload["stats"]["color_count"] == len(payload["foreground"]["palette"])
+    assert payload["background"] == {"mode": "none"}
 
 
 def test_ai_conversion_backs_up_original_and_enhanced_images(
@@ -365,7 +371,9 @@ def test_solid_background_is_normalized_and_returned(client: TestClient) -> None
     payload = response.json()
     assert payload["meta"]["background_mode"] == "solid"
     assert payload["meta"]["background_color"] == "#AABBCC"
-    assert all(cell != -1 for row in payload["rows"] for cell in row)
+    assert payload["meta"]["background_processing"] == "edge_flood_fill"
+    assert payload["background"] == {"mode": "solid", "color": "#AABBCC"}
+    assert any(cell is None for row in payload["foreground"]["rows"] for cell in row)
 
 
 def test_solid_background_defaults_to_pure_white(client: TestClient) -> None:
@@ -383,7 +391,9 @@ def test_solid_background_defaults_to_pure_white(client: TestClient) -> None:
     payload = response.json()
     assert payload["meta"]["background_mode"] == "solid"
     assert payload["meta"]["background_color"] == "#FFFFFF"
-    assert all(cell != -1 for row in payload["rows"] for cell in row)
+    assert payload["meta"]["background_processing"] == "edge_flood_fill"
+    assert payload["background"] == {"mode": "solid", "color": "#FFFFFF"}
+    assert any(cell is None for row in payload["foreground"]["rows"] for cell in row)
 
 
 def test_removed_transparent_background_mode_is_rejected(client: TestClient) -> None:

@@ -65,11 +65,17 @@ export const drawBeadGrid = (
   const height = grid.height * cellSize;
   if (clear) context.clearRect(0, 0, width, height);
 
-  grid.rows.forEach((row, y) => {
+  if (grid.background.mode === "solid") {
+    // 背景是独立渲染层，不属于需要购买和标注的主体拼豆；先铺底再画前景。
+    context.fillStyle = grid.background.color;
+    context.fillRect(0, 0, width, height);
+  }
+
+  grid.foreground.rows.forEach((row, y) => {
     row.forEach((paletteIndex, x) => {
-      // -1 是后端契约规定的透明格，不填色但仍保留所在网格的位置。
-      if (paletteIndex === -1) return;
-      const color = grid.palette[paletteIndex];
+      // null 表示背景或空格；它不能绘制前景色块、色号，也不参与统计。
+      if (paletteIndex === null) return;
+      const color = grid.foreground.palette[paletteIndex];
       // 对意外的越界索引做容错，避免单个坏数据中断整张图的渲染。
       if (!color) return;
       context.fillStyle = color.hex;

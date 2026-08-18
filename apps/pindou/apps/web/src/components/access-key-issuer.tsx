@@ -101,6 +101,8 @@ export function AccessKeyIssuer({ prefix }: AccessKeyIssuerProps) {
     if (!result) return;
 
     try {
+      // 签发接口只保证消费密钥本身可直接作为 X-API-Key 使用；复制时不要把
+      // 页面 URL 混入密钥，避免调用方把整段链接误传给 API。
       await copyText(result.key);
       setCopyState("copied");
     } catch {
