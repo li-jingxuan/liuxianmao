@@ -69,7 +69,8 @@ services:
       args:
         NODE_IMAGE: ${NODE_IMAGE:-docker.m.daocloud.io/library/node:22-alpine}
         NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com}
-        NEXT_PUBLIC_API_BASE_URL: https://tppixel-api.cpolar.top
+        # 本地浏览器访问 Web 时，前端请求宿主机映射出来的 API 端口。
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:3112}
     restart: unless-stopped
     depends_on:
       api:
