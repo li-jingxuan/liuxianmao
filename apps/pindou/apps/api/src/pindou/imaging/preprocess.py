@@ -85,17 +85,24 @@ def remove_connected_solid_background(
     “是否透明”交给上游决定：以四边最常见颜色作为背景参考，只从边缘做 flood-fill，
     因此主体内部的白色衣物、高光不会因为颜色相同而整体消失。
     """
+    # 阈值使用 RGB 欧氏距离，255 是单通道最大值；显式校验可以避免部署配置
+    # 误填负数或过大值后把整张图片误判成背景。
     if color_distance_threshold < 0 or color_distance_threshold > 255:
         raise ValueError("背景颜色距离阈值必须在 0 到 255 之间")
+    # 与量化器保持相同的 Alpha 占用边界：低于该值的像素本来就不会生成拼豆。
     if alpha_threshold < 0 or alpha_threshold > 255:
         raise ValueError("Alpha 阈值必须在 0 到 255 之间")
 
+    # convert() 返回独立图片，调用方可以安全关闭输入对象；背景抠除不会污染
+    # 备份或其他仍持有原图引用的流程。
     output = image.convert("RGBA")
     width, height = output.size
     if width == 0 or height == 0:
         return output
 
     pixels = output.load()
+    # 只采集四条边，不采集整张图：背景必须从边缘可达，主体内部同色区域才会
+    # 因为被主体包围而保留下来。四角只出现一次，避免对参考色产生额外权重。
     border_colors = [
         pixels[x, y][:3]
         for x, y in (
@@ -106,6 +113,7 @@ def remove_connected_solid_background(
         )
         if pixels[x, y][3] >= alpha_threshold
     ]
+    # 如果边缘全部透明，说明上游已经提供了可靠的透明轮廓，此处无需猜测背景色。
     if not border_colors:
         return output
 
@@ -114,6 +122,8 @@ def remove_connected_solid_background(
     for red, green, blue in border_colors:
         bucket = (red // 16, green // 16, blue // 16)
         histogram[bucket] = histogram.get(bucket, 0) + 1
+    # 选择出现次数最多的桶作为背景参考，而不是取左上角像素，避免单个边缘噪点
+    # 或主体碰到角落时把错误颜色扩散到整条 flood-fill 路径。
     reference_bucket = max(histogram, key=histogram.__getitem__)
     reference = tuple(channel * 16 + 8 for channel in reference_bucket)
     threshold_squared = color_distance_threshold**2
@@ -122,14 +132,19 @@ def remove_connected_solid_background(
         red, green, blue, alpha = pixels[x, y]
         if alpha < alpha_threshold:
             return False
+        # 使用平方距离避免 sqrt；判断结果与真实欧氏距离完全等价。
         distance_squared = sum(
             (channel - expected) ** 2
             for channel, expected in zip((red, green, blue), reference, strict=True)
         )
         return distance_squared <= threshold_squared
 
+    # 队列只保存“从边缘发现、待确认”的坐标；visited 用一维 bytearray 降低
+    # Python 元组集合在高分辨率图片上的额外内存开销。
     queue: deque[tuple[int, int]] = deque()
     visited = bytearray(width * height)
+    # 以四边作为 flood-fill 的种子。主体如果与画布边缘相连，算法会保守地把
+    # 相近颜色视为背景，这是纯色抠除方案无法解决的固有边界，需通过样例调阈值。
     for x, y in (
         [(x, 0) for x in range(width)]
         + [(x, height - 1) for x in range(width)]
@@ -142,11 +157,14 @@ def remove_connected_solid_background(
     while queue:
         x, y = queue.popleft()
         index = y * width + x
+        # 非背景像素可能被多个邻居重复入队，因此必须在出队时再次判断颜色和访问状态。
         if visited[index] or not is_background(x, y):
             continue
         visited[index] = 1
         red, green, blue, _ = pixels[x, y]
+        # 只清零 Alpha，保留 RGB 便于调试和后续图像处理；量化阶段会依据 Alpha 跳过它。
         pixels[x, y] = (red, green, blue, 0)
+        # 四邻域而非八邻域，避免仅对角相接的主体缝隙被背景“斜穿”过去。
         for next_x, next_y in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)):
             if 0 <= next_x < width and 0 <= next_y < height:
                 next_index = next_y * width + next_x

@@ -39,6 +39,7 @@ export type BeadGrid = {
     enhancer_prompt_version?: string;
     background_mode: BackgroundMode;
     background_color?: `#${string}`;
+    // 后端实际采用的背景分离路径；旧响应可能没有此字段，因此保持可选兼容性。
     background_processing?: "none" | "native_alpha" | "edge_flood_fill";
     palette_brand: "MARD";
     color_set_size: number;

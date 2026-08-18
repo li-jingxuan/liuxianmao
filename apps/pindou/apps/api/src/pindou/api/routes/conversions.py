@@ -87,6 +87,7 @@ def create_conversion(
     # 解码阶段会验证真实图片格式、应用 EXIF 方向并统一转换为 RGBA。
     decoded = decode_image(content, max_pixels=app_settings.upload_max_pixels)
     enhanced = decoded
+    # 记录本次请求实际采用的背景分离路径；它不是用户输入，而是处理结果的可观测信息。
     enhancement_result: EnhancementResult | None = None
     background_processing = "none"
     try:
@@ -107,6 +108,8 @@ def create_conversion(
             ),
         )
         enhanced = enhancement_result.image
+        # Prompt 只能表达意图，Alpha 状态才反映上游实际能力。Solid 模式下，
+        # absent/opaque 都必须进入服务端抠除；否则白底会在量化时变成大量白色拼豆。
         if (
             background_mode is BackgroundMode.SOLID
             and enhancement_result.background_alpha_status != "transparent"
@@ -117,18 +120,23 @@ def create_conversion(
                 enhanced,
                 color_distance_threshold=app_settings.solid_background_removal_threshold,
             )
+            # remove_connected_solid_background() 返回新对象。先关闭 Seedream 返回的
+            # 中间图，再把新对象交给后续量化，避免一次请求同时持有两份大图。
             if enhanced is not decoded:
                 enhanced.close()
             enhanced = processed
             background_processing = "edge_flood_fill"
         elif background_mode is BackgroundMode.SOLID:
             background_processing = "native_alpha"
+        # 备份的是已经完成背景处理、即将进入量化的图像，便于人工核对“白底是否被抠除”。
         if enhancer.name != "passthrough":
             backup_enhanced_images(
                 decoded,
                 enhanced,
                 directory=app_settings.image_backup_dir,
             )
+        # 此处只能传入已经完成背景分离的 enhanced；build_bead_grid 内部只负责方形适配
+        # 和量化，不再猜测 AI 背景语义，保证职责边界清晰。
         grid = build_bead_grid(
             enhanced,
             chart=chart,

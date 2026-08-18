@@ -39,7 +39,9 @@ class ConversionMeta(BaseModel):
         pattern=r"^#[0-9A-F]{6}$",
         exclude_if=lambda value: value is None,
     )
-    # 记录 Solid 背景实际采用的分离路径，便于定位上游 Alpha 能力差异。
+    # 记录 Solid 背景实际采用的分离路径，便于定位上游 Alpha 能力差异：
+    # none 表示 keep/simplify，native_alpha 表示上游已有透明区域，edge_flood_fill
+    # 表示服务端从不透明/无 Alpha 的 AI 输出中抠除了边缘背景。
     background_processing: Literal["none", "native_alpha", "edge_flood_fill"] = "none"
     palette_brand: Literal["MARD"] = "MARD"
     color_set_size: int
