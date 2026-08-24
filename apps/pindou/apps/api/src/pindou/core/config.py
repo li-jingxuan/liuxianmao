@@ -70,6 +70,7 @@ class Settings(BaseSettings):
         default_factory=_default_color_chart_path,
         validation_alias="MARD_COLOR_CHART_PATH",
     )
+
     image_backup_dir: Path = Field(
         default_factory=_default_image_backup_dir,
         validation_alias="IMAGE_BACKUP_DIR",
@@ -79,14 +80,18 @@ class Settings(BaseSettings):
         default_factory=_default_image_delivery_dir,
         validation_alias="IMAGE_DELIVERY_DIR",
     )
+    # 链接有效期，默认 7 天
     image_delivery_ttl_seconds: int = Field(
         default=7 * 24 * 60 * 60,
         ge=60 * 60,
         le=30 * 24 * 60 * 60,
     )
-    image_delivery_max_bytes: int = Field(default=30 * 1024 * 1024, ge=1024)
+    # 单张 PNG 最大 15 MiB
+    image_delivery_max_bytes: int = Field(default=15 * 1024 * 1024, ge=1024)
+    # 图片最大 5000 万像素
     image_delivery_max_pixels: int = Field(default=50_000_000, ge=1_000_000)
-    image_delivery_cleanup_interval_seconds: int = Field(default=60 * 60, ge=60)
+    # 每 3 * 24 小时清理一次过期图片
+    image_delivery_cleanup_interval_seconds: int = Field(default=3 * 24 * 60 * 60, ge=60)
 
     # PostgreSQL 与 API Key 配置不提供可误用的生产默认值。测试环境会显式注入
     # 隔离数据库和假密钥，其他环境缺失时在启动阶段失败。
