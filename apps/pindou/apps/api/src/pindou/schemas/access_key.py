@@ -26,3 +26,9 @@ class AccessKeyCreateResponse(BaseModel):
     remaining_uses: int
     created_at: datetime
 
+
+class AccessKeyQuotaResponse(BaseModel):
+    """当前消费密钥的只读额度，不触发扣次。"""
+
+    initial_uses: int = Field(ge=1)
+    remaining_uses: int = Field(ge=0)

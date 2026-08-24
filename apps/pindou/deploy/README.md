@@ -7,8 +7,9 @@
 ```bash
 cp deploy/.env.example deploy/.env
 chmod 600 deploy/.env
-mkdir -p deploy/data/postgres deploy/data/api-images deploy/backups
-sudo chown -R 10001:10001 deploy/data/api-images
+mkdir -p deploy/data/postgres deploy/data/api-images deploy/data/image-deliveries deploy/backups
+# API 容器以 10001 用户运行，两个图片目录都必须允许它写入。
+sudo chown -R 10001:10001 deploy/data/api-images deploy/data/image-deliveries
 ```
 
 编辑 `deploy/.env`，至少替换：
@@ -75,8 +76,9 @@ docker compose --env-file deploy/.env -f deploy/compose.yaml down
 ./deploy/backup-postgres.sh
 ```
 
-数据库、图片和备份分别保存在 `deploy/data/postgres/`、
-`deploy/data/api-images/` 和 `deploy/backups/`。不要提交 `deploy/.env`，也不要将
+数据库、AI 排查图片、短期交付图和备份分别保存在 `deploy/data/postgres/`、
+`deploy/data/api-images/`、`deploy/data/image-deliveries/` 和 `deploy/backups/`。
+交付图默认 7 天后自动删除，不应纳入长期快照。不要提交 `deploy/.env`，也不要将
 API 或 PostgreSQL 端口直接暴露到公网。当前 Compose 默认将 API 映射到
 `API_HOST_PORT`（默认 `3112`）；若不需要从 NAS 宿主机或局域网直接访问 API，可删除
 `api` 服务的 `ports` 配置。

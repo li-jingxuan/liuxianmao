@@ -101,6 +101,18 @@ export type ConversionInput = {
   backgroundColor?: string;
 };
 
+/** 当前消费密钥的只读额度。 */
+export type AccessKeyQuotaResponse = {
+  initial_uses: number;
+  remaining_uses: number;
+};
+
+/** 转换网格与响应头中携带的即时额度。 */
+export type ConversionResult = {
+  grid: BeadGrid;
+  quota: AccessKeyQuotaResponse | null;
+};
+
 /** POST /api/v1/access-keys 的签发参数。 */
 export type AccessKeyCreateInput = {
   prefix: string;
@@ -114,4 +126,12 @@ export type AccessKeyCreateResponse = {
   allowed_uses: number;
   remaining_uses: number;
   created_at: string;
+};
+
+/** 管理员上传图纸及公开预览页查询共用的临时交付契约。 */
+export type ImageDeliveryResponse = {
+  token: string;
+  image_url: string;
+  download_url: string;
+  expires_at: string;
 };

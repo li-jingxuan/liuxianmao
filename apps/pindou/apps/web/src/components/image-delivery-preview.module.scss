@@ -1,0 +1,296 @@
+.shell {
+  --delivery-ink: #0f1936;
+  --delivery-muted: #68728a;
+  --delivery-primary: #6848ff;
+  min-height: 100vh;
+  padding: 28px max(16px, calc((100vw - 1120px) / 2)) 48px;
+  color: var(--delivery-ink);
+  background: linear-gradient(160deg, #f8f9ff 0%, #f2f0ff 52%, #f7fbff 100%);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.header h1,
+.header p,
+.viewerHeading h2,
+.viewerHeading p,
+.stateCard h2,
+.stateCard p,
+.instructions h2 {
+  margin: 0;
+}
+
+.header h1 {
+  font-size: 28px;
+}
+
+.header p {
+  margin-top: 3px;
+  color: var(--delivery-muted);
+}
+
+.logo {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px;
+}
+
+.logo i {
+  border-radius: 4px;
+  background: #ff6d8e;
+}
+
+.logo i:nth-child(2) { background: #ffd05b; }
+.logo i:nth-child(3) { background: #6edbb3; }
+.logo i:nth-child(4) { background: #7758ff; }
+
+.viewerCard,
+.stateCard,
+.instructions {
+  border: 1px solid rgba(15, 25, 54, 0.09);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 18px 50px rgba(52, 43, 113, 0.08);
+}
+
+.viewerCard {
+  padding: 22px;
+}
+
+.viewerHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.viewerHeading h2 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 20px;
+}
+
+.viewerHeading h2 svg,
+.viewerHeading p svg {
+  width: 19px;
+  height: 19px;
+}
+
+.viewerHeading p {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 7px;
+  color: var(--delivery-muted);
+  font-size: 13px;
+}
+
+.viewerHeading .expiringSoon {
+  color: #c46919;
+  font-weight: 650;
+}
+
+.zoomControls {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px;
+  border-radius: 13px;
+  background: #f1f2f8;
+}
+
+.zoomControls button {
+  min-width: 38px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 9px;
+  background: #fff;
+  color: var(--delivery-ink);
+  cursor: pointer;
+}
+
+.zoomControls button:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+
+.zoomControls button svg {
+  width: 17px;
+  height: 17px;
+}
+
+.zoomControls output {
+  min-width: 54px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.imageViewport {
+  max-height: min(72vh, 820px);
+  overflow: auto;
+  border: 1px solid #e0e3ec;
+  border-radius: 16px;
+  background: #eef0f5;
+  overscroll-behavior: contain;
+  touch-action: pan-x pan-y pinch-zoom;
+}
+
+.imageViewport img {
+  display: block;
+  max-width: none;
+  height: auto;
+  margin: 0 auto;
+  background: #fff;
+  -webkit-touch-callout: default;
+}
+
+.downloadButton {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  margin-top: 18px;
+  border-radius: 14px;
+  background: linear-gradient(100deg, var(--delivery-primary), #795bff);
+  color: #fff;
+  font-weight: 750;
+  text-decoration: none;
+  box-shadow: 0 10px 24px rgba(104, 72, 255, 0.22);
+}
+
+.downloadButton svg {
+  width: 20px;
+}
+
+.instructions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+  margin-top: 20px;
+  padding: 24px;
+}
+
+.instructions h2 {
+  margin-bottom: 12px;
+  font-size: 18px;
+}
+
+.instructions ol,
+.instructions ul {
+  margin: 0;
+  padding-left: 22px;
+  color: var(--delivery-muted);
+  line-height: 1.85;
+}
+
+.stateCard {
+  min-height: 360px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 32px;
+  text-align: center;
+}
+
+.stateCard>svg {
+  width: 42px;
+  height: 42px;
+  color: var(--delivery-primary);
+}
+
+.stateCard p {
+  color: var(--delivery-muted);
+}
+
+.stateCard button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 6px;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 11px;
+  background: var(--delivery-primary);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.stateCard button svg {
+  width: 17px;
+}
+
+.loadingIcon {
+  animation: delivery-spin 1.2s linear infinite;
+}
+
+@keyframes delivery-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 720px) {
+  .shell {
+    padding-top: 20px;
+  }
+
+  .header h1 {
+    font-size: 23px;
+  }
+
+  .viewerCard {
+    padding: 14px;
+  }
+
+  .viewerHeading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .zoomControls {
+    justify-content: center;
+  }
+
+  .imageViewport {
+    max-height: 64vh;
+  }
+
+  .instructions {
+    grid-template-columns: 1fr;
+    gap: 22px;
+    padding: 20px;
+  }
+}
+
+@media (max-width: 420px) {
+  .zoomControls button span {
+    display: none;
+  }
+
+  .zoomControls output {
+    min-width: 46px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loadingIcon {
+    animation: none;
+  }
+}

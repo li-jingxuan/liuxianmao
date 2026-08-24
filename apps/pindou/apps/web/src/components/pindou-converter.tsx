@@ -3,6 +3,7 @@
 import {
   CheckCircle2,
   ChevronDown,
+  Copy,
   Download,
   Grid2X2,
   ImageIcon,
@@ -11,12 +12,26 @@ import {
   Settings,
   Sparkles,
   Upload,
+  UploadCloud,
   X,
 } from "lucide-react";
-import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import {
+  ChangeEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { Area } from "react-easy-crop";
 
-import { createConversion, getColorSets } from "@/lib/api";
+import {
+  createConversion,
+  createImageDelivery,
+  getAccessKeyQuota,
+  getColorSets,
+  PindouApiError,
+} from "@/lib/api";
 import { countForegroundBeads } from "@/lib/bead-grid";
 import { drawBeadGrid } from "@/lib/canvas";
 import { cropImageToFile } from "@/lib/image-crop";
@@ -43,6 +58,15 @@ const BACKGROUNDS: Array<{ value: BackgroundMode; label: string }> = [
 
 type ImageDetails = { width: number; height: number };
 type Status = "idle" | "processing" | "complete";
+type QuotaState =
+  | { status: "loading" }
+  | { status: "ready"; initialUses: number; remainingUses: number }
+  | { status: "invalid" }
+  | { status: "error" };
+type Delivery = {
+  previewUrl: string;
+  expiresAt: string;
+};
 
 /** 微信内置浏览器不支持稳定的 a[download]，需要切换到长按保存流程。 */
 const isWechatBrowser = () =>
@@ -160,10 +184,18 @@ function ResultCanvas({ grid }: { grid: BeadGrid }) {
   return <canvas ref={canvasRef} aria-label="拼豆图纸预览" />;
 }
 
-export function PindouConverter({ apiKey }: { apiKey?: string }) {
+export function PindouConverter({
+  apiKey,
+  deliveryAdminKey,
+}: {
+  apiKey?: string;
+  deliveryAdminKey?: string;
+}) {
   // DOM 引用：文件选择器由定制按钮触发；结果引用用于转换后平滑定位。
   const inputRef = useRef<HTMLInputElement>(null);
   const resultRef = useRef<HTMLElement>(null);
+  // 请求序号避免较早发出的额度查询晚返回后覆盖更新的数据。
+  const quotaRequestIdRef = useRef(0);
 
   // 上传文件状态。previewUrl 仅用于当前浏览器会话，必须在替换/卸载时释放。
   const [file, setFile] = useState<File | null>(null);
@@ -184,6 +216,7 @@ export function PindouConverter({ apiKey }: { apiKey?: string }) {
   );
   const [backgroundMode, setBackgroundMode] = useState<BackgroundMode>("solid");
   const [backgroundColor] = useState("#FFFFFF");
+  const [quotaState, setQuotaState] = useState<QuotaState>({ status: "loading" });
 
   // 转换流程状态。result 只在 complete 时展示，错误后回到 idle 允许直接重试。
   const [status, setStatus] = useState<Status>("idle");
@@ -191,6 +224,75 @@ export function PindouConverter({ apiKey }: { apiKey?: string }) {
   const [error, setError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [savePreviewUrl, setSavePreviewUrl] = useState<string | null>(null);
+  // 本地下载和管理员上传复用同一 Blob，确保两条交付链路的图片完全一致。
+  const [exportBlob, setExportBlob] = useState<Blob | null>(null);
+  const [delivery, setDelivery] = useState<Delivery | null>(null);
+  const [isUploadingDelivery, setIsUploadingDelivery] = useState(false);
+  const [isDeliveryCopied, setIsDeliveryCopied] = useState(false);
+
+  /** 从服务端重新读取权威额度；查询失败不应覆盖现有转换错误。 */
+  const refreshQuota = useCallback(
+    async (signal?: AbortSignal) => {
+      const requestId = ++quotaRequestIdRef.current;
+      // 确保 effect 只启动异步同步流程，不在调用栈内触发级联渲染。
+      await Promise.resolve();
+      if (!apiKey) {
+        setQuotaState({ status: "invalid" });
+        return;
+      }
+      try {
+        const quota = await getAccessKeyQuota(apiKey, signal);
+        if (requestId !== quotaRequestIdRef.current) return;
+        setQuotaState({
+          status: "ready",
+          initialUses: quota.initial_uses,
+          remainingUses: quota.remaining_uses,
+        });
+      } catch (cause) {
+        if ((cause as Error).name === "AbortError") return;
+        if (requestId !== quotaRequestIdRef.current) return;
+        setQuotaState(
+          cause instanceof PindouApiError && cause.code === "API_KEY_INVALID"
+            ? { status: "invalid" }
+            : { status: "error" },
+        );
+      }
+    },
+    [apiKey],
+  );
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const requestId = ++quotaRequestIdRef.current;
+    if (!apiKey) {
+      // 通过微任务进入状态更新，避免 effect 调用栈内产生级联渲染。
+      void Promise.resolve().then(() => {
+        if (requestId === quotaRequestIdRef.current) {
+          setQuotaState({ status: "invalid" });
+        }
+      });
+      return () => controller.abort();
+    }
+    void getAccessKeyQuota(apiKey, controller.signal)
+      .then((quota) => {
+        if (requestId !== quotaRequestIdRef.current) return;
+        setQuotaState({
+          status: "ready",
+          initialUses: quota.initial_uses,
+          remainingUses: quota.remaining_uses,
+        });
+      })
+      .catch((cause: unknown) => {
+        if ((cause as Error).name === "AbortError") return;
+        if (requestId !== quotaRequestIdRef.current) return;
+        setQuotaState(
+          cause instanceof PindouApiError && cause.code === "API_KEY_INVALID"
+            ? { status: "invalid" }
+            : { status: "error" },
+        );
+      });
+    return () => controller.abort();
+  }, [apiKey]);
 
   // 首次挂载时从后端加载颜色组；卸载时中止请求，防止更新已销毁组件。
   useEffect(() => {
@@ -236,6 +338,9 @@ export function PindouConverter({ apiKey }: { apiKey?: string }) {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     // 更换图片后关闭旧的微信保存预览，避免用户误保存上一张图纸。
     setSavePreviewUrl(null);
+    setExportBlob(null);
+    setDelivery(null);
+    setIsDeliveryCopied(false);
     setFile(nextFile);
     setPreviewUrl(null);
     setDetails(null);
@@ -351,6 +456,9 @@ export function PindouConverter({ apiKey }: { apiKey?: string }) {
     }
     setError(null);
     setResult(null);
+    setExportBlob(null);
+    setDelivery(null);
+    setIsDeliveryCopied(false);
     setStatus("processing");
     // 等待 processing 结果卡挂载后再滚动，否则 ref 此刻仍为空。
     window.setTimeout(
@@ -372,12 +480,35 @@ export function PindouConverter({ apiKey }: { apiKey?: string }) {
         },
         { apiKey },
       );
-      setResult(conversion);
+      setResult(conversion.grid);
+      if (conversion.quota) {
+        setQuotaState({
+          status: "ready",
+          initialUses: conversion.quota.initial_uses,
+          remainingUses: conversion.quota.remaining_uses,
+        });
+      }
       setStatus("complete");
     } catch (cause) {
       setStatus("idle");
       setError(cause instanceof Error ? cause.message : "转换失败，请稍后重试");
+    } finally {
+      // 转换在 AI/量化失败前也可能已经扣次，成功和失败都重新校准额度。
+      void refreshQuota();
     }
+  };
+
+  /** 只生成一次完整施工图，供本地下载和管理员上传共同复用。 */
+  const getPatternSheetBlob = async (): Promise<Blob> => {
+    if (exportBlob) return exportBlob;
+    if (!result || !file || !details) throw new Error("当前图纸尚未准备完成");
+    const blob = await exportPatternSheet({
+      grid: result,
+      sourceFile: file,
+      sourceDetails: details,
+    });
+    setExportBlob(blob);
+    return blob;
   };
 
   /** 将网格导出为 PNG；普通浏览器下载，微信内置浏览器切换为长按保存。 */
@@ -386,11 +517,7 @@ export function PindouConverter({ apiKey }: { apiKey?: string }) {
     setError(null);
     setIsExporting(true);
     try {
-      const blob = await exportPatternSheet({
-        grid: result,
-        sourceFile: file,
-        sourceDetails: details,
-      });
+      const blob = await getPatternSheetBlob();
 
       // 微信 H5 不具备可靠的文件下载/相册写入能力，改用可长按的图片预览。
       if (isWechatBrowser()) {
@@ -409,6 +536,41 @@ export function PindouConverter({ apiKey }: { apiKey?: string }) {
       setError(cause instanceof Error ? cause.message : "导出失败，请重试");
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  /** 管理员把当前完整施工图上传为短期交付文件，并生成用户预览链接。 */
+  const uploadDelivery = async () => {
+    if (!deliveryAdminKey || !result || !file || !details || isUploadingDelivery) return;
+    setError(null);
+    setIsUploadingDelivery(true);
+    setIsDeliveryCopied(false);
+    try {
+      const blob = await getPatternSheetBlob();
+      const response = await createImageDelivery(blob, { adminApiKey: deliveryAdminKey });
+      setDelivery({
+        previewUrl: new URL(
+          `/delivery/${encodeURIComponent(response.token)}`,
+          window.location.origin,
+        ).toString(),
+        expiresAt: response.expires_at,
+      });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "图纸上传失败，请稍后重试");
+    } finally {
+      setIsUploadingDelivery(false);
+    }
+  };
+
+  /** 优先使用 Clipboard API；失败时提示管理员手动复制，避免伪造成功状态。 */
+  const copyDeliveryLink = async () => {
+    if (!delivery) return;
+    try {
+      await navigator.clipboard.writeText(delivery.previewUrl);
+      setIsDeliveryCopied(true);
+      window.setTimeout(() => setIsDeliveryCopied(false), 1800);
+    } catch {
+      setError("自动复制失败，请长按链接手动复制");
     }
   };
 
@@ -646,10 +808,40 @@ export function PindouConverter({ apiKey }: { apiKey?: string }) {
             {error}
           </div>
         )}
+        <div
+          className={cx(
+            "quota-message",
+            quotaState.status === "ready" &&
+              quotaState.remainingUses > 0 &&
+              quotaState.remainingUses <= 3 &&
+              "quota-warning",
+            ((quotaState.status === "ready" && quotaState.remainingUses === 0) ||
+              quotaState.status === "invalid") &&
+              "quota-danger",
+          )}
+          role="status"
+          aria-live="polite"
+        >
+          {quotaState.status === "loading" && "正在查询剩余次数…"}
+          {quotaState.status === "ready" &&
+            quotaState.remainingUses > 0 &&
+            `剩余转换次数：${quotaState.remainingUses.toLocaleString("zh-CN")} 次`}
+          {quotaState.status === "ready" &&
+            quotaState.remainingUses === 0 &&
+            "转换次数已用完"}
+          {quotaState.status === "invalid" && "当前访问链接无效"}
+          {quotaState.status === "error" && "剩余次数暂时无法获取"}
+        </div>
         <button
           className={cx("primary-button", "convert-button")}
           type="button"
-          disabled={status === "processing" || !colorSets}
+          disabled={
+            status === "processing" ||
+            !colorSets ||
+            quotaState.status === "loading" ||
+            quotaState.status === "invalid" ||
+            (quotaState.status === "ready" && quotaState.remainingUses === 0)
+          }
           onClick={() => void convert()}
         >
           <Sparkles />
@@ -685,10 +877,23 @@ export function PindouConverter({ apiKey }: { apiKey?: string }) {
             {status === "processing" ? (
               <span className={cx("status-chip", "processing")}>处理中…</span>
             ) : (
-              <span className={cx("status-chip", "complete")}>
-                <CheckCircle2 />
-                转换完成
-              </span>
+              <div className={cx("result-heading-actions")}>
+                {deliveryAdminKey && (
+                  <button
+                    className={cx("delivery-upload-button")}
+                    type="button"
+                    disabled={isUploadingDelivery || isExporting || !result || !file || !details}
+                    onClick={() => void uploadDelivery()}
+                  >
+                    <UploadCloud />
+                    {isUploadingDelivery ? "正在上传…" : "上传并生成链接"}
+                  </button>
+                )}
+                <span className={cx("status-chip", "complete")}>
+                  <CheckCircle2 />
+                  转换完成
+                </span>
+              </div>
             )}
           </div>
 
@@ -705,6 +910,36 @@ export function PindouConverter({ apiKey }: { apiKey?: string }) {
 
           {status === "complete" && result && (
             <div className={cx("result-content")}>
+              {delivery && (
+                <div className={cx("delivery-link-panel")}>
+                  <div>
+                    <div className={cx("delivery-link-title")}>
+                      <strong>交付链接已生成</strong>
+                      <button
+                        type="button"
+                        aria-label="复制完整交付链接"
+                        title={isDeliveryCopied ? "已复制" : "复制完整链接"}
+                        onClick={() => void copyDeliveryLink()}
+                      >
+                        <Copy />
+                      </button>
+                      <span aria-live="polite">
+                        {isDeliveryCopied ? "已复制" : ""}
+                      </span>
+                    </div>
+                    <a href={delivery.previewUrl} target="_blank" rel="noreferrer">
+                      {delivery.previewUrl}
+                    </a>
+                    <small>
+                      有效期至{" "}
+                      {new Intl.DateTimeFormat("zh-CN", {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      }).format(new Date(delivery.expiresAt))}
+                    </small>
+                  </div>
+                </div>
+              )}
               <div className={cx("result-grid")}>
                 <div className={cx("canvas-wrap")}>
                   <ResultCanvas grid={result} />
@@ -770,6 +1005,9 @@ export function PindouConverter({ apiKey }: { apiKey?: string }) {
                   type="button"
                   onClick={() => {
                     setResult(null);
+                    setExportBlob(null);
+                    setDelivery(null);
+                    setIsDeliveryCopied(false);
                     setStatus("idle");
                     window.scrollTo({ top: 0, behavior: "smooth" });
                   }}

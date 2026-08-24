@@ -1,8 +1,8 @@
 # Pindou API
 
 FastAPI service that converts an uploaded image into a square MARD bead grid. It can use
-Seedream 5.0 lite before deterministic MARD quantization, remains stateless, and returns grid
-JSON only.
+Seedream 5.0 lite before deterministic MARD quantization and returns grid JSON. 管理员还可以
+把完整施工图短期保存为公开交付链接；该目录与 AI 排查备份完全隔离并按 TTL 清理。
 
 ## Setup
 
@@ -25,6 +25,16 @@ cd apps/api
 
 Configure `DATABASE_URL`, `KEY_ISSUER_API_KEY`, and `API_KEY_HASH_PEPPER` in `apps/api/.env`.
 The issuer key and pepper must be different high-entropy secrets.
+
+管理员图纸交付使用以下配置；环境变量用途和默认值均在示例中保留中文说明：
+
+```dotenv
+IMAGE_DELIVERY_DIR=/absolute/path/to/image-deliveries
+IMAGE_DELIVERY_TTL_SECONDS=604800
+IMAGE_DELIVERY_MAX_BYTES=31457280
+IMAGE_DELIVERY_MAX_PIXELS=50000000
+IMAGE_DELIVERY_CLEANUP_INTERVAL_SECONDS=3600
+```
 
 For local deterministic conversion, keep `IMAGE_ENHANCER=passthrough` in `.env`. To enable
 Seedream, configure the server-only key and switch the enhancer:
@@ -103,6 +113,18 @@ curl -X POST http://127.0.0.1:3112/api/v1/access-keys \
   -H 'X-Admin-API-Key: <KEY_ISSUER_API_KEY>' \
   -d '{"prefix":"web","allowed_uses":2}'
 ```
+
+Upload a complete PNG pattern and receive a temporary token:
+
+```bash
+curl -X POST http://127.0.0.1:3112/api/v1/image-deliveries \
+  -H 'X-Admin-API-Key: <KEY_ISSUER_API_KEY>' \
+  -F 'file=@/absolute/path/pindou-pattern.png'
+```
+
+The public metadata, inline image, and download endpoints are respectively
+`/image-deliveries/{token}`, `/image-deliveries/{token}/image`, and
+`/image-deliveries/{token}/download` under the `/api/v1` prefix.
 
 Manage source prefixes through the ORM-backed CLI:
 

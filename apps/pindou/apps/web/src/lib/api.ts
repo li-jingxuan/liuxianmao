@@ -1,10 +1,13 @@
 import type {
   AccessKeyCreateInput,
   AccessKeyCreateResponse,
+  AccessKeyQuotaResponse,
   BeadGrid,
   ColorCatalogResponse,
   ColorSetsResponse,
   ConversionInput,
+  ConversionResult,
+  ImageDeliveryResponse,
 } from "./types";
 
 type ApiErrorBody = { error?: { code?: string; message?: string; request_id?: string } };
@@ -36,6 +39,13 @@ const ERROR_MESSAGES: Record<string, string> = {
   AI_UPSTREAM_ERROR: "AI 服务暂时不可用，请稍后重试",
   AI_TRANSPARENT_BACKGROUND_UNSUPPORTED: "AI 未返回透明背景，请稍后重试",
   BACKGROUND_COLOR_INVALID: "纯色背景颜色无效，请重新选择",
+  API_KEY_INVALID: "当前访问链接无效",
+  API_KEY_INVALID_OR_EXHAUSTED: "当前访问链接无效或转换次数已用完",
+  ADMIN_API_KEY_INVALID: "当前链接没有图纸上传权限",
+  DELIVERY_IMAGE_INVALID: "生成的图纸格式无效，请重新导出",
+  DELIVERY_IMAGE_TOO_LARGE: "图纸尺寸过大，请降低网格尺寸后重试",
+  DELIVERY_STORAGE_UNAVAILABLE: "图纸存储暂时不可用，请稍后重试",
+  DELIVERY_IMAGE_NOT_FOUND: "图纸链接不存在或已过期",
 };
 
 /**
@@ -55,6 +65,25 @@ const parseResponse = async <T>(response: Response): Promise<T> => {
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
+
+/** 校验只读额度响应，避免异常缓存或代理数据把按钮错误地置为可用。 */
+const parseAccessKeyQuota = (value: unknown): AccessKeyQuotaResponse => {
+  if (!isRecord(value)) throw new Error("额度响应格式无效");
+  const initialUses = value.initial_uses;
+  const remainingUses = value.remaining_uses;
+  if (
+    typeof initialUses !== "number" ||
+    typeof remainingUses !== "number" ||
+    !Number.isSafeInteger(initialUses) ||
+    !Number.isSafeInteger(remainingUses) ||
+    initialUses < 1 ||
+    remainingUses < 0 ||
+    remainingUses > initialUses
+  ) {
+    throw new Error("额度响应格式无效");
+  }
+  return { initial_uses: initialUses, remaining_uses: remainingUses };
+};
 
 /**
  * 校验新版前景/背景分层响应，避免错误索引在 Canvas 中被静默忽略。
@@ -149,7 +178,7 @@ export const getColorCatalog = async (
 export const createConversion = async (
   input: ConversionInput,
   { apiKey, signal }: ApiRequestOptions = {},
-): Promise<BeadGrid> => {
+): Promise<ConversionResult> => {
   const form = new FormData();
   form.set("image", input.image);
   form.set("grid_size", String(input.gridSize));
@@ -167,7 +196,33 @@ export const createConversion = async (
     signal,
   });
   const payload = await parseResponse<unknown>(response);
-  return parseBeadGrid(payload);
+  const limit = Number(response.headers.get("X-RateLimit-Limit"));
+  const remaining = Number(response.headers.get("X-RateLimit-Remaining"));
+  const hasValidQuota =
+    Number.isSafeInteger(limit) &&
+    Number.isSafeInteger(remaining) &&
+    limit >= 1 &&
+    remaining >= 0 &&
+    remaining <= limit;
+  return {
+    grid: parseBeadGrid(payload),
+    quota: hasValidQuota
+      ? { initial_uses: limit, remaining_uses: remaining }
+      : null,
+  };
+};
+
+/** 查询当前消费密钥额度；该请求只读，不会扣减转换次数。 */
+export const getAccessKeyQuota = async (
+  apiKey: string,
+  signal?: AbortSignal,
+): Promise<AccessKeyQuotaResponse> => {
+  const response = await fetch(`${BASE_URL}/api/v1/access-keys/quota`, {
+    headers: { "X-API-Key": apiKey },
+    cache: "no-store",
+    signal,
+  });
+  return parseAccessKeyQuota(await parseResponse<unknown>(response));
 };
 
 /** 使用管理密钥为路由中的来源前缀签发消费密钥。 */
@@ -189,3 +244,35 @@ export const createAccessKey = async (
   });
   return parseResponse<AccessKeyCreateResponse>(response);
 };
+
+/** 使用固定管理密钥上传完整 PNG，上传属于交付动作，不消耗转换次数。 */
+export const createImageDelivery = async (
+  blob: Blob,
+  { adminApiKey, signal }: AdminApiRequestOptions,
+): Promise<ImageDeliveryResponse> => {
+  const form = new FormData();
+  form.set("file", blob, "pindou-pattern.png");
+  const response = await fetch(`${BASE_URL}/api/v1/image-deliveries`, {
+    method: "POST",
+    headers: { "X-Admin-API-Key": adminApiKey },
+    body: form,
+    signal,
+  });
+  return parseResponse<ImageDeliveryResponse>(response);
+};
+
+/** 公开预览页按 token 查询原图地址和服务端计算的过期时间。 */
+export const getImageDelivery = async (
+  token: string,
+  signal?: AbortSignal,
+): Promise<ImageDeliveryResponse> => {
+  const response = await fetch(
+    `${BASE_URL}/api/v1/image-deliveries/${encodeURIComponent(token)}`,
+    { cache: "no-store", signal },
+  );
+  return parseResponse<ImageDeliveryResponse>(response);
+};
+
+/** 把 API 返回的相对路径转换成浏览器可直接加载的完整地址。 */
+export const resolveApiUrl = (path: string): string =>
+  new URL(path, `${BASE_URL.replace(/\/$/, "")}/`).toString();

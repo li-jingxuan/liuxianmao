@@ -126,6 +126,42 @@ def test_conversion_consumes_exact_number_of_uses(client: TestClient) -> None:
     assert all(item.operation == "conversion" for item in matching_history)
 
 
+def test_quota_query_does_not_consume_and_includes_exhausted_key(
+    client: TestClient,
+) -> None:
+    issue_response = client.post(
+        "/api/v1/access-keys",
+        headers={"X-Admin-API-Key": "test-admin-key"},
+        json={"prefix": "web", "allowed_uses": 1},
+    )
+    api_key = issue_response.json()["key"]
+
+    initial = client.get("/api/v1/access-keys/quota", headers={"X-API-Key": api_key})
+    repeated = client.get("/api/v1/access-keys/quota", headers={"X-API-Key": api_key})
+    conversion = _conversion_request(client, api_key=api_key)
+    exhausted = client.get("/api/v1/access-keys/quota", headers={"X-API-Key": api_key})
+
+    assert initial.status_code == repeated.status_code == exhausted.status_code == 200
+    assert initial.json() == repeated.json() == {"initial_uses": 1, "remaining_uses": 1}
+    assert initial.headers["cache-control"] == "no-store"
+    assert conversion.status_code == 200
+    assert exhausted.json() == {"initial_uses": 1, "remaining_uses": 0}
+    with Session(get_engine()) as session:
+        assert len(session.exec(select(ApiKeyUsage)).all()) == 1
+
+
+def test_quota_query_rejects_missing_or_unknown_key(client: TestClient) -> None:
+    missing = client.get("/api/v1/access-keys/quota", headers={"X-API-Key": ""})
+    unknown = client.get(
+        "/api/v1/access-keys/quota",
+        headers={"X-API-Key": "pdk_web_unknown"},
+    )
+
+    assert missing.status_code == unknown.status_code == 401
+    assert missing.json()["error"]["code"] == "API_KEY_INVALID"
+    assert unknown.json()["error"]["code"] == "API_KEY_INVALID"
+
+
 def test_invalid_conversion_does_not_consume_use(client: TestClient) -> None:
     issue_response = client.post(
         "/api/v1/access-keys",

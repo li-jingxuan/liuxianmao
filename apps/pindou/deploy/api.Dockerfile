@@ -16,9 +16,10 @@ COPY apps/api/migrations /app/apps/api/migrations
 COPY apps/api/alembic.ini /app/apps/api/alembic.ini
 COPY docs/MARD_色卡.json /app/docs/MARD_色卡.json
 
+# AI 排查备份与对外交付图分目录，后者会按 TTL 自动清理。
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir /app/apps/api \
-    && mkdir -p /var/lib/pindou/images \
+    && mkdir -p /var/lib/pindou/images /var/lib/pindou/image-deliveries \
     && chown -R pindou:pindou /app /var/lib/pindou
 
 USER pindou

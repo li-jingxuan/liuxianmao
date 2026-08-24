@@ -16,6 +16,7 @@ from pindou.core.errors import ApiError
 from pindou.db.session import get_session
 from pindou.services.access_keys import AccessKeyService
 from pindou.services.enhancer import ImageEnhancer, PassThroughEnhancer
+from pindou.services.image_deliveries import ImageDeliveryStore
 from pindou.services.seedream_client import SeedreamClient
 from pindou.services.seedream_enhancer import SeedreamEnhancer
 
@@ -102,6 +103,23 @@ def get_image_enhancer() -> ImageEnhancer:
     )
 
 
+@lru_cache
+def get_image_delivery_store() -> ImageDeliveryStore:
+    """按进程复用无状态的交付文件存储配置。"""
+    app_settings = get_settings()
+    return ImageDeliveryStore(
+        directory=app_settings.image_delivery_dir,
+        ttl_seconds=app_settings.image_delivery_ttl_seconds,
+        max_bytes=app_settings.image_delivery_max_bytes,
+        max_pixels=app_settings.image_delivery_max_pixels,
+    )
+
+
+def provide_image_delivery_store() -> ImageDeliveryStore:
+    """向交付路由提供与 lifespan 相同的存储实例。"""
+    return get_image_delivery_store()
+
+
 # 使用 `Annotated + Depends` 定义可复用的依赖类型，使路由签名保持简洁且类型明确。
 SettingsDep = Annotated[Settings, Depends(provide_settings)]
 ColorChartDep = Annotated[MardColorChart, Depends(get_color_chart)]
@@ -109,3 +127,4 @@ ImageEnhancerDep = Annotated[ImageEnhancer, Depends(get_image_enhancer)]
 SessionDep = Annotated[Session, Depends(get_session)]
 AccessKeyServiceDep = Annotated[AccessKeyService, Depends(provide_access_key_service)]
 AdminApiKeyDep = Annotated[None, Depends(require_admin_api_key)]
+ImageDeliveryStoreDep = Annotated[ImageDeliveryStore, Depends(provide_image_delivery_store)]

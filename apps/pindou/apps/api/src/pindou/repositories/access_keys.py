@@ -72,6 +72,17 @@ class AccessKeyRepository:
         self._session.refresh(access_key)
         return access_key
 
+    def get_quota(self, key_hash: bytes) -> StoredQuotaUsage | None:
+        """按密钥摘要读取额度，余额为零的有效密钥也必须可查询。"""
+        statement = select(
+            ApiAccessKey.initial_uses,
+            ApiAccessKey.remaining_uses,
+        ).where(ApiAccessKey.key_hash == key_hash)
+        row = self._session.exec(statement).one_or_none()
+        if row is None:
+            return None
+        return StoredQuotaUsage(initial_uses=row[0], remaining_uses=row[1])
+
     def consume(
         self,
         key_hash: bytes,

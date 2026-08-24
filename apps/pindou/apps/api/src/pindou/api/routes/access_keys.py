@@ -2,10 +2,16 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, status
+from typing import Annotated
+
+from fastapi import APIRouter, Header, Response, status
 
 from pindou.api.dependencies import AccessKeyServiceDep, AdminApiKeyDep
-from pindou.schemas.access_key import AccessKeyCreateRequest, AccessKeyCreateResponse
+from pindou.schemas.access_key import (
+    AccessKeyCreateRequest,
+    AccessKeyCreateResponse,
+    AccessKeyQuotaResponse,
+)
 
 router = APIRouter(prefix="/access-keys", tags=["access-keys"])
 
@@ -29,3 +35,17 @@ def create_access_key(
         created_at=issued.created_at,
     )
 
+
+@router.get("/quota")
+def get_access_key_quota(
+    response: Response,
+    service: AccessKeyServiceDep,
+    api_key: Annotated[str | None, Header(alias="X-API-Key")] = None,
+) -> AccessKeyQuotaResponse:
+    """查询当前消费密钥的剩余额度，不扣减次数。"""
+    quota = service.get_quota(api_key)
+    response.headers["Cache-Control"] = "no-store"
+    return AccessKeyQuotaResponse(
+        initial_uses=quota.initial_uses,
+        remaining_uses=quota.remaining_uses,
+    )

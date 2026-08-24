@@ -2,6 +2,7 @@
 backups/*
 data/postgres/*
 data/api-images/*
+data/image-deliveries/*
 !backups/.gitkeep
 !data/postgres/.gitkeep
 !data/api-images/.gitkeep

@@ -3,6 +3,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createAccessKey,
   createConversion,
+  createImageDelivery,
+  getAccessKeyQuota,
+  getImageDelivery,
   getColorCatalog,
   PindouApiError,
 } from "../src/lib/api";
@@ -65,6 +68,134 @@ describe("createConversion", () => {
       message: "AI 处理超时，本次未确认成功，请稍后手动重试",
       requestId: "req_ai",
     } satisfies Partial<PindouApiError>);
+  });
+
+  it("returns valid quota response headers with the conversion grid", async () => {
+    const response = new Response(JSON.stringify({ width: 48 }), {
+      status: 200,
+      headers: {
+        "X-RateLimit-Limit": "20",
+        "X-RateLimit-Remaining": "12",
+      },
+    });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response));
+
+    await expect(createConversion(input)).resolves.toMatchObject({
+      grid: { width: 48 },
+      quota: { initial_uses: 20, remaining_uses: 12 },
+    });
+  });
+
+  it("ignores malformed quota headers without discarding a valid conversion", async () => {
+    const response = new Response(JSON.stringify({ width: 48 }), {
+      status: 200,
+      headers: {
+        "X-RateLimit-Limit": "20",
+        "X-RateLimit-Remaining": "21",
+      },
+    });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response));
+
+    await expect(createConversion(input)).resolves.toMatchObject({
+      grid: { width: 48 },
+      quota: null,
+    });
+  });
+});
+
+describe("getAccessKeyQuota", () => {
+  it("queries without caching or consuming a use", async () => {
+    const quota = { initial_uses: 20, remaining_uses: 12 };
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(quota), { status: 200 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const controller = new AbortController();
+
+    await expect(
+      getAccessKeyQuota("test-route-key", controller.signal),
+    ).resolves.toEqual(quota);
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringMatching(/\/api\/v1\/access-keys\/quota$/),
+      {
+        headers: { "X-API-Key": "test-route-key" },
+        cache: "no-store",
+        signal: controller.signal,
+      },
+    );
+  });
+
+  it("maps an invalid key to the dedicated UI message", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({ error: { code: "API_KEY_INVALID", message: "invalid" } }),
+          { status: 401 },
+        ),
+      ),
+    );
+
+    await expect(getAccessKeyQuota("invalid-key")).rejects.toMatchObject({
+      code: "API_KEY_INVALID",
+      message: "当前访问链接无效",
+    } satisfies Partial<PindouApiError>);
+  });
+
+  it("rejects an impossible quota payload", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({ initial_uses: 10, remaining_uses: 11 }),
+          { status: 200 },
+        ),
+      ),
+    );
+
+    await expect(getAccessKeyQuota("valid-key")).rejects.toThrow("额度响应格式无效");
+  });
+});
+
+describe("image delivery", () => {
+  const delivery = {
+    token: "delivery-token",
+    image_url: "/api/v1/image-deliveries/delivery-token/image",
+    download_url: "/api/v1/image-deliveries/delivery-token/download",
+    expires_at: "2026-09-01T10:00:00Z",
+  };
+
+  it("uploads the PNG with the fixed admin header", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(delivery), { status: 201 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const blob = new Blob(["png"], { type: "image/png" });
+
+    await expect(
+      createImageDelivery(blob, { adminApiKey: "fixed-admin-key" }),
+    ).resolves.toEqual(delivery);
+
+    const [url, request] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toMatch(/\/api\/v1\/image-deliveries$/);
+    expect(request.method).toBe("POST");
+    expect(request.headers).toEqual({ "X-Admin-API-Key": "fixed-admin-key" });
+    expect((request.body as FormData).get("file")).toBeInstanceOf(Blob);
+  });
+
+  it("loads public metadata without an admin header", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(delivery), { status: 200 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const controller = new AbortController();
+
+    await expect(getImageDelivery("delivery-token", controller.signal)).resolves.toEqual(delivery);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringMatching(/\/api\/v1\/image-deliveries\/delivery-token$/),
+      { cache: "no-store", signal: controller.signal },
+    );
   });
 });
 

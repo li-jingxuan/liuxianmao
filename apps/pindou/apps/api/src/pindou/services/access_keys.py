@@ -98,6 +98,22 @@ class AccessKeyService:
             remaining_uses=usage.remaining_uses,
         )
 
+    def get_quota(self, plaintext_key: str | None) -> QuotaUsage:
+        """读取当前额度但不消费次数，供客户端展示权威余额。"""
+        if not plaintext_key or len(plaintext_key) > MAX_KEY_LENGTH:
+            raise _invalid_access_key_for_lookup()
+        try:
+            usage = self._keys.get_quota(self.hash_key(plaintext_key))
+        except SQLAlchemyError as exc:
+            self._session.rollback()
+            raise _database_unavailable() from exc
+        if usage is None:
+            raise _invalid_access_key_for_lookup()
+        return QuotaUsage(
+            initial_uses=usage.initial_uses,
+            remaining_uses=usage.remaining_uses,
+        )
+
     def hash_key(self, plaintext_key: str) -> bytes:
         return hmac.digest(self._hash_pepper, plaintext_key.encode("utf-8"), "sha256")
 
@@ -139,6 +155,15 @@ def _invalid_access_key() -> ApiError:
         "API_KEY_INVALID_OR_EXHAUSTED",
         # API Key 无效或可用次数已耗尽
         "API Key 无效或可用次数已耗尽",
+        headers={"WWW-Authenticate": "ApiKey"},
+    )
+
+
+def _invalid_access_key_for_lookup() -> ApiError:
+    return ApiError(
+        401,
+        "API_KEY_INVALID",
+        "API Key 无效",
         headers={"WWW-Authenticate": "ApiKey"},
     )
 

@@ -38,6 +38,12 @@ services:
       DATABASE_URL: ${DATABASE_URL:?请在 deploy/.env 中设置 DATABASE_URL}
       MARD_COLOR_CHART_PATH: /app/docs/MARD_色卡.json
       IMAGE_BACKUP_DIR: /var/lib/pindou/images
+      # 管理员交付图使用独立持久卷，并在 7 天后由 API 自动清理。
+      IMAGE_DELIVERY_DIR: /var/lib/pindou/image-deliveries
+      IMAGE_DELIVERY_TTL_SECONDS: ${IMAGE_DELIVERY_TTL_SECONDS:-604800}
+      IMAGE_DELIVERY_MAX_BYTES: ${IMAGE_DELIVERY_MAX_BYTES:-31457280}
+      IMAGE_DELIVERY_MAX_PIXELS: ${IMAGE_DELIVERY_MAX_PIXELS:-50000000}
+      IMAGE_DELIVERY_CLEANUP_INTERVAL_SECONDS: ${IMAGE_DELIVERY_CLEANUP_INTERVAL_SECONDS:-3600}
     ports:
       # 宿主机端口与容器 API 监听端口分开命名，避免和 API_PORT 混淆。
       - "${API_HOST_PORT:-3112}:3112"
@@ -52,6 +58,7 @@ services:
         condition: service_healthy
     volumes:
       - ./data/api-images:/var/lib/pindou/images
+      - ./data/image-deliveries:/var/lib/pindou/image-deliveries
     healthcheck:
       test:
         ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:3112/healthz')"]

@@ -7,7 +7,11 @@ from fastapi.testclient import TestClient
 from PIL import Image
 from sqlmodel import Session, SQLModel
 
-from pindou.api.dependencies import get_color_chart, get_image_enhancer
+from pindou.api.dependencies import (
+    get_color_chart,
+    get_image_delivery_store,
+    get_image_enhancer,
+)
 from pindou.core.config import get_settings
 from pindou.db.session import dispose_engine, get_engine
 from pindou.main import app
@@ -26,10 +30,14 @@ def isolate_tests_from_external_services(
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'pindou-test.db'}")
     monkeypatch.setenv("KEY_ISSUER_API_KEY", "test-admin-key")
     monkeypatch.setenv("API_KEY_HASH_PEPPER", "test-hash-pepper")
+    # 每个测试使用独立交付目录，避免公开链接文件污染源码或其他用例。
+    monkeypatch.setenv("IMAGE_DELIVERY_DIR", str(tmp_path / "image-deliveries"))
+    monkeypatch.setenv("IMAGE_DELIVERY_TTL_SECONDS", "3600")
     get_settings.cache_clear()
     dispose_engine()
     get_color_chart.cache_clear()
     get_image_enhancer.cache_clear()
+    get_image_delivery_store.cache_clear()
 
     engine = get_engine()
     SQLModel.metadata.create_all(engine)
@@ -46,6 +54,7 @@ def isolate_tests_from_external_services(
     get_settings.cache_clear()
     get_color_chart.cache_clear()
     get_image_enhancer.cache_clear()
+    get_image_delivery_store.cache_clear()
 
 
 @pytest.fixture
