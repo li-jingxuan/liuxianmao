@@ -15,7 +15,11 @@ from pindou.schemas.conversion import BackgroundMode
 from pindou.services.enhancer import EnhancementOptions
 from pindou.services.seedream_client import SeedreamClient, SeedreamUpstreamError
 from pindou.services.seedream_enhancer import SeedreamEnhancer
-from pindou.services.seedream_prompt import build_seedream_prompt, normalize_background_color
+from pindou.services.seedream_prompt import (
+    SEEDREAM_PROMPT_VERSION,
+    build_seedream_prompt,
+    normalize_background_color,
+)
 
 
 def make_png_bytes(color: tuple[int, int, int, int] = (20, 40, 60, 255)) -> bytes:
@@ -44,7 +48,7 @@ def make_client(handler: httpx.MockTransport) -> SeedreamClient:
     [
         (BackgroundMode.SIMPLIFY, "可以删除无关小物体", "完整移除原背景"),
         (BackgroundMode.KEEP, "不能删除整个有语义的背景物体", "可以删除无关小物体"),
-        (BackgroundMode.SOLID, "输出透明背景", "背景目标颜色为"),
+        (BackgroundMode.SOLID, "内部键色背景", "可以删除无关小物体"),
     ],
 )
 def test_chinese_prompts_are_isolated_by_background_mode(
@@ -58,6 +62,7 @@ def test_chinese_prompts_are_isolated_by_background_mode(
             grid_size=52,
             color_budget_band=ColorBudgetBand.BALANCED,
             background_mode=mode,
+            chroma_key="#FF00FF" if mode is BackgroundMode.SOLID else None,
         )
     )
 
@@ -208,18 +213,23 @@ def test_prompt_contains_only_selected_color_budget_band(
     assert unexpected not in prompt
 
 
-def test_solid_background_prompt_requests_transparent_output() -> None:
+def test_solid_background_prompt_prevents_chroma_spill() -> None:
     prompt = build_seedream_prompt(
         EnhancementOptions(
             grid_size=52,
             color_budget_band=ColorBudgetBand.BALANCED,
             background_mode=BackgroundMode.SOLID,
             background_color="#aabbcc",
+            chroma_key="#ff00ff",
         )
     )
 
-    assert "输出透明背景" in prompt
-    assert "背景目标颜色为" not in prompt
+    assert "#FF00FF 内部键色背景" in prompt
+    assert "不得覆盖、替换或改变主体内部原有的白色" in prompt
+    assert "抗锯齿色带" in prompt
+    assert "键色不得产生环境光、反射、辉光、色溢或透射" in prompt
+    assert "禁止绿色、青色、品红色或蓝色的描边" in prompt
+    assert "不生成半透明过渡带" in prompt
     assert normalize_background_color(None) == "#FFFFFF"
 
 
@@ -235,7 +245,6 @@ def test_solid_enhancement_accepts_opaque_upstream_output() -> None:
     enhancer = SeedreamEnhancer(
         client=make_client(httpx.MockTransport(handler)),
         model="test-model",
-        prompt_version="test-prompt",
         input_max_edge=512,
         output_max_pixels=1_000_000,
         max_concurrency=1,
@@ -250,9 +259,9 @@ def test_solid_enhancement_accepts_opaque_upstream_output() -> None:
                 color_budget_band=ColorBudgetBand.BALANCED,
                 background_mode=BackgroundMode.SOLID,
                 background_color="#FFFFFF",
+                chroma_key="#FF00FF",
             ),
         )
-        assert enhanced.background_alpha_status == "opaque"
         assert enhanced.image.getchannel("A").getextrema() == (255, 255)
         enhanced.image.close()
     finally:
@@ -313,7 +322,6 @@ def test_enhancer_maps_official_error_codes(upstream_code: str, expected_code: s
     enhancer = SeedreamEnhancer(
         client=client,
         model="test-model",
-        prompt_version="seedream-pindou-v2",
         input_max_edge=512,
         output_max_pixels=1_000_000,
         max_concurrency=1,
@@ -347,7 +355,7 @@ def test_seedream_settings_require_key_without_exposing_it() -> None:
         ark_doubao_api_key="very-secret-key",
     )
     assert "very-secret-key" not in repr(settings)
-    assert settings.seedream_prompt_version == "seedream-pindou-v7-subject-first"
+    assert SEEDREAM_PROMPT_VERSION == "seedream-pindou-v9-chroma-despill"
 
 
 def test_client_rejects_invalid_base64() -> None:

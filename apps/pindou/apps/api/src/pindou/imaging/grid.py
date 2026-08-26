@@ -26,7 +26,7 @@ def build_bead_grid(
     HTTP 路由仍只需调用这一入口。临时工作图在 `finally` 中关闭，调用方只得到
     与 Pillow 生命周期无关的不可变网格数据。
     """
-    fitted = fit_to_square_grid(
+    sampled = fit_to_square_grid(
         image,
         grid_size=grid_size,
         background_mode=background_mode,
@@ -34,10 +34,11 @@ def build_bead_grid(
     )
     try:
         return quantize_to_mard_grid(
-            fitted,
+            sampled.image,
             chart=chart,
             color_set_size=color_set_size,
             effective_max_colors=effective_max_colors,
+            edge_strengths=sampled.edge_strengths,
         )
     finally:
-        fitted.close()
+        sampled.image.close()

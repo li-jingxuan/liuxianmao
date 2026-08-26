@@ -22,7 +22,7 @@ export type PaletteColor = {
  */
 export type BeadGrid = {
   schema_version: "3";
-  algorithm_version: "bead-grid-constrained-v2";
+  algorithm_version: "bead-grid-constrained-v3";
   width: number;
   height: number;
   foreground: {
@@ -39,8 +39,8 @@ export type BeadGrid = {
     enhancer_prompt_version?: string;
     background_mode: BackgroundMode;
     background_color?: `#${string}`;
-    // 后端实际采用的背景分离路径；旧响应可能没有此字段，因此保持可选兼容性。
-    background_processing?: "none" | "native_alpha" | "edge_flood_fill";
+    // 后端实际采用且已经通过可信度验证的背景分离路径。
+    background_processing: "none" | "native_alpha" | "chroma_key";
     palette_brand: "MARD";
     color_set_size: number;
     color_budget_mode: "auto" | "legacy-explicit";

@@ -112,7 +112,7 @@ const parseBeadGrid = (value: unknown): BeadGrid => {
 
   if (
     value.schema_version !== "3" ||
-    value.algorithm_version !== "bead-grid-constrained-v2" ||
+    value.algorithm_version !== "bead-grid-constrained-v3" ||
     typeof width !== "number" ||
     typeof height !== "number" ||
     !Number.isInteger(width) ||

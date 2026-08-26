@@ -15,6 +15,8 @@ from pindou.services.enhancer import EnhancementOptions
 
 DEFAULT_SOLID_BACKGROUND_COLOR = "#FFFFFF"
 HEX_COLOR_PATTERN = re.compile(r"#[0-9A-Fa-f]{6}")
+# Prompt 内容与版本号必须在同一模块内同步变更，避免环境变量把实际实现标成旧版。
+SEEDREAM_PROMPT_VERSION = "seedream-pindou-v9-chroma-despill"
 
 BASE_PROMPT = """
 以输入图为唯一内容依据。保留主体身份、类别、数量、姿态、朝向、标志性轮廓、主要配色、关键身份色和整体场景语义，不改变原图的核心内容。
@@ -65,21 +67,29 @@ SUBJECT_FIRST_PROMPT = """
 COLOR_BUDGET_PROMPTS: dict[ColorBudgetBand, str] = {
     ColorBudgetBand.RESTRAINED: """
 颜色预算：受限。
-使用少量稳定主色和清楚的冷暖、明暗或色相区分，将视觉相近的颜色主动合并为连续区域。
-删除只占极小面积的孤立颜色、细碎高光和渐变过渡；同一结构只保留最必要的亮面、固有色和暗面关系。
+同一结构只使用一到两个必要颜色层级，以固有色为主，最多保留一个主要亮面或暗面。
+将视觉相近、承担相同结构语义的颜色主动合并为连续区域，删除孤立颜色、细碎高光、抗锯齿过渡色和渐变中间色。
 优先保证主体身份色和主体与背景的对比，不追求颜色数量。
 """.strip(),
     ColorBudgetBand.BALANCED: """
 颜色预算：平衡。
-保留主体主要配色、关键身份色和少量有意义的强调色，合并无识别价值的近似色和摄影渐变。
-允许有限的明暗层级，但每种颜色应形成面积足够、边界连续的区域，避免零散杂色。
+保留主体主要配色、关键身份色和少量有意义的强调色；同一结构最多使用固有色、主要亮面、主要暗面三个层级。
+合并无识别价值的近似色、摄影渐变、抗锯齿过渡色和微弱光照变化；每种颜色必须形成面积足够、边界连续的区域。
 """.strip(),
     ColorBudgetBand.RICH: """
 颜色预算：丰富但受控。
-保留有助于识别主体的色相差异、主要材质分区、局部强调色和必要明暗层次。
-仍然合并肉眼难以区分的近似色、细碎反光、噪点色和无规律渐变。
+保留有助于识别主体的色相差异、主要材质分区、局部强调色和必要明暗层次，但同一结构最多保留三到四个有明确形体作用的颜色层级。
+合并肉眼难以区分、承担相同结构语义的近似色，以及细碎反光、噪点色、抗锯齿过渡色和无规律渐变。
 """.strip(),
 }
+
+OUTLINE_PROMPT = """
+轮廓与线条策略：
+主体外轮廓必须稳定、连续，并与相邻区域具有明显的明度或色相差异；不要用多条不同深浅的近似颜色模拟同一条轮廓。
+关键外轮廓在缩小后应覆盖至少约 1.5 个目标采样单元；决定身份的内部线条至少覆盖约 1 个目标采样单元。
+预计缩小后不足一个采样单元的线条，应加粗为连续结构，或在不影响主体身份时删除并入相邻色块。
+不要为轮廓、阴影或色块边缘生成抗锯齿色带、柔和渐变和重复描边。
+""".strip()
 
 SIMPLIFY_BACKGROUND_PROMPT = """
 背景处理：保留场景类型、主要背景区域和主体与背景的空间关系，但可以删除无关小物体、重复元素和低识别价值的装饰。
@@ -107,12 +117,21 @@ def _build_background_prompt(options: EnhancementOptions) -> str:
     if options.background_mode is BackgroundMode.KEEP:
         return KEEP_BACKGROUND_PROMPT
 
+    if options.chroma_key is None or HEX_COLOR_PATTERN.fullmatch(options.chroma_key) is None:
+        raise ValueError("Solid 模式必须由前景准备模块提供内部键色")
+    chroma_key = options.chroma_key.upper()
     return (
         "背景处理：完整移除原背景及其中所有无关物体，仅保留前景主体的完整轮廓、"
         "内部特征和自然边缘。\n"
-        "输出透明背景，背景区域 Alpha 必须为 0；不要生成白色或其他纯色背景，"
-        "不要生成地面、地平线、边框、投影或渐变。\n"
-        "不改变主体内部原有颜色。"
+        "把本次输出视为供后续程序抠图的键色素材，不是带环境光的完整场景。\n"
+        f"将主体外全部区域替换为完全不透明、均匀、平坦、无渐变、无纹理的 {chroma_key} "
+        "内部键色背景；"
+        "键色必须从画布四边连续覆盖到主体最外轮廓之外。\n"
+        "内部键色只能出现在主体外背景，不得覆盖、替换或改变主体内部原有的白色、"
+        "浅色或其他颜色；键色不得产生环境光、反射、辉光、色溢或透射，也不得混入主体边缘。\n"
+        "主体边界像素只能使用主体自身颜色或中性轮廓色；禁止绿色、青色、品红色或蓝色的描边、"
+        "光晕、毛边和抗锯齿混色。键色应在主体最外轮廓处干净截止，不生成半透明过渡带。\n"
+        "不要生成地面、地平线、边框、投影或渐变；主体必须保持完整不透明。"
     )
 
 
@@ -126,7 +145,7 @@ def normalize_background_color(value: str | None) -> str:
 
 
 def build_seedream_prompt(options: EnhancementOptions) -> str:
-    """按网格、主体优先级、颜色预算、背景模式和禁止项组装 Prompt v7。"""
+    """按网格、轮廓、颜色预算和背景模式组装 Prompt v9。"""
     detail_band = classify_grid_detail(options.grid_size)
     grid_context = (
         f"这张中间图随后会被等比适配并缩小为 {options.grid_size}×{options.grid_size} "
@@ -137,7 +156,7 @@ def build_seedream_prompt(options: EnhancementOptions) -> str:
         "这张中间图最终会被映射到有限的实体拼豆色卡。\n"
         "请按照当前颜色表达档位组织主要色块、强调色和明暗层级，不追求精确颜色数。"
     )
-    prompt_parts = [BASE_PROMPT, grid_context, GRID_DETAIL_PROMPTS[detail_band]]
+    prompt_parts = [BASE_PROMPT, grid_context, GRID_DETAIL_PROMPTS[detail_band], OUTLINE_PROMPT]
     if options.grid_size < 104:
         prompt_parts.append(SUBJECT_FIRST_PROMPT)
     prompt_parts.extend(

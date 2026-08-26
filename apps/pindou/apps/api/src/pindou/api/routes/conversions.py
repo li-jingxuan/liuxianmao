@@ -14,9 +14,10 @@ from pindou.api.dependencies import (
 )
 from pindou.core.errors import ApiError
 from pindou.imaging.color_budget import resolve_color_budget
+from pindou.imaging.foreground import prepare_foreground
 from pindou.imaging.grid import build_bead_grid
 from pindou.imaging.image_backup import backup_enhanced_images
-from pindou.imaging.preprocess import decode_image, remove_connected_solid_background
+from pindou.imaging.preprocess import decode_image
 from pindou.schemas.conversion import (
     BackgroundMode,
     ConversionMeta,
@@ -26,7 +27,7 @@ from pindou.schemas.conversion import (
     PaletteColor,
     RenderBackground,
 )
-from pindou.services.enhancer import EnhancementOptions, EnhancementResult
+from pindou.services.enhancer import EnhancementOptions
 from pindou.services.seedream_prompt import normalize_background_color
 
 router = APIRouter(prefix="/conversions", tags=["conversions"])
@@ -87,8 +88,8 @@ def create_conversion(
     # 解码阶段会验证真实图片格式、应用 EXIF 方向并统一转换为 RGBA。
     decoded = decode_image(content, max_pixels=app_settings.upload_max_pixels)
     enhanced = decoded
-    # 记录本次请求实际采用的背景分离路径；它不是用户输入，而是处理结果的可观测信息。
-    enhancement_result: EnhancementResult | None = None
+    # prepare_foreground() 是背景能力的唯一 seam。路由只记录已经通过验证的处理结果，
+    # 不再了解 Alpha 覆盖率、键色选择或 flood-fill 等实现细节。
     background_processing = "none"
     try:
         # 仅在所有低成本参数和图片校验通过后扣次；条件更新已提交后不因后续
@@ -97,9 +98,9 @@ def create_conversion(
         response.headers["X-RateLimit-Limit"] = str(quota.initial_uses)
         response.headers["X-RateLimit-Remaining"] = str(quota.remaining_uses)
 
-        # 增强器必须返回真实 Alpha 状态；Solid 模式据此决定是否可安全排除背景。
-        enhancement_result = enhancer.enhance(
+        prepared = prepare_foreground(
             decoded,
+            enhancer=enhancer,
             options=EnhancementOptions(
                 grid_size=grid_size,
                 color_budget_band=color_budget.prompt_band,
@@ -107,27 +108,8 @@ def create_conversion(
                 background_color=normalized_background_color,
             ),
         )
-        enhanced = enhancement_result.image
-        # Prompt 只能表达意图，Alpha 状态才反映上游实际能力。Solid 模式下，
-        # absent/opaque 都必须进入服务端抠除；否则白底会在量化时变成大量白色拼豆。
-        if (
-            background_mode is BackgroundMode.SOLID
-            and enhancement_result.background_alpha_status != "transparent"
-        ):
-            # Seedream 当前常返回不透明白底；仅抠除与边缘连通的近似纯色区域，
-            # 避免主体内部的白色衣物/高光被误删后再进入量化。
-            processed = remove_connected_solid_background(
-                enhanced,
-                color_distance_threshold=app_settings.solid_background_removal_threshold,
-            )
-            # remove_connected_solid_background() 返回新对象。先关闭 Seedream 返回的
-            # 中间图，再把新对象交给后续量化，避免一次请求同时持有两份大图。
-            if enhanced is not decoded:
-                enhanced.close()
-            enhanced = processed
-            background_processing = "edge_flood_fill"
-        elif background_mode is BackgroundMode.SOLID:
-            background_processing = "native_alpha"
+        enhanced = prepared.image
+        background_processing = prepared.processing
         # 备份的是已经完成背景处理、即将进入量化的图像，便于人工核对“白底是否被抠除”。
         if enhancer.name != "passthrough":
             backup_enhanced_images(

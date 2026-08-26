@@ -5,38 +5,9 @@ from PIL import Image
 from pindou.api.dependencies import get_color_chart
 from pindou.color.chart import MardColor, MardColorChart, MardColorSet
 from pindou.color.distance import srgb_to_lab
-from pindou.imaging.preprocess import remove_connected_solid_background
+from pindou.imaging.preprocess import fit_to_square_grid
 from pindou.imaging.quantize import quantize_to_mard_grid
-
-
-def test_solid_background_removal_keeps_disconnected_white_subject_pixels() -> None:
-    """边缘白底应变透明，但被主体包围的白色高光仍需保留。"""
-    image = Image.new("RGBA", (7, 7), (255, 255, 255, 255))
-    for y in range(1, 6):
-        for x in range(1, 6):
-            image.putpixel((x, y), (220, 40, 40, 255))
-    image.putpixel((3, 3), (255, 255, 255, 255))
-
-    result = remove_connected_solid_background(image)
-
-    assert result.getpixel((0, 0))[3] == 0
-    assert result.getpixel((3, 3))[3] == 255
-    assert result.getpixel((1, 1))[3] == 255
-    result.close()
-    image.close()
-
-
-def test_solid_background_removal_handles_compressed_near_white_edges() -> None:
-    """AI/JPEG 造成的轻微白底偏色也应在阈值内被抠除。"""
-    image = Image.new("RGBA", (4, 4), (247, 249, 246, 255))
-    image.putpixel((1, 1), (24, 120, 220, 255))
-
-    result = remove_connected_solid_background(image, color_distance_threshold=42)
-
-    assert result.getpixel((0, 0))[3] == 0
-    assert result.getpixel((1, 1))[3] == 255
-    result.close()
-    image.close()
+from pindou.schemas.conversion import BackgroundMode
 
 
 def test_quantization_only_uses_selected_color_set() -> None:
@@ -178,7 +149,7 @@ def test_quantization_is_deterministic_and_reports_internal_metrics() -> None:
     image.close()
 
     assert first == second
-    assert first.algorithm_version == "bead-grid-constrained-v2"
+    assert first.algorithm_version == "bead-grid-constrained-v3"
     assert first.effective_max_colors == 3
     assert first.metrics.occupied_cell_count == 3
     assert first.metrics.transparent_cell_count == 1
@@ -210,3 +181,146 @@ def test_transparent_hidden_rgb_does_not_affect_palette_selection() -> None:
 
     assert results[0].palette == results[1].palette
     assert results[0].rows == results[1].rows
+
+
+def test_quantization_merges_visually_similar_mard_colors() -> None:
+    """两个近似实体色即使都能精确拟合源图，也应在受控误差内合并。"""
+    rgbs = ((100, 100, 100), (108, 108, 108), (245, 245, 245))
+    colors = tuple(
+        MardColor(
+            code=f"C{index}",
+            series="C",
+            hex=f"#{red:02X}{green:02X}{blue:02X}",
+            rgb=rgb,
+            lab=srgb_to_lab(rgb),
+        )
+        for index, rgb in enumerate(rgbs)
+        for red, green, blue in (rgb,)
+    )
+    chart = MardColorChart(
+        schema_version="test",
+        colors=colors,
+        colors_by_code={color.code: color for color in colors},
+        sets_by_size={3: MardColorSet(size=3, colors=colors)},
+    )
+    image = Image.new("RGBA", (4, 1))
+    image.putdata(((*rgbs[0], 255), (*rgbs[0], 255), (*rgbs[1], 255), (*rgbs[1], 255)))
+
+    result = quantize_to_mard_grid(
+        image,
+        chart=chart,
+        color_set_size=3,
+        effective_max_colors=2,
+    )
+    image.close()
+
+    assert result.color_count == 1
+    assert result.metrics.merged_color_count == 1
+
+
+def test_edge_aware_sampling_reports_high_contrast_line_strength() -> None:
+    """高分辨率细线缩格后必须留下边缘权重，供量化器保护轮廓色。"""
+    image = Image.new("RGBA", (80, 80), (255, 255, 255, 255))
+    for y in range(80):
+        image.putpixel((39, y), (0, 0, 0, 255))
+        image.putpixel((40, y), (0, 0, 0, 255))
+
+    sampled = fit_to_square_grid(
+        image,
+        grid_size=8,
+        background_mode=BackgroundMode.KEEP,
+        background_color=None,
+    )
+    image.close()
+    try:
+        assert max(sampled.edge_strengths) > 0.3
+        assert len(sampled.edge_strengths) == 64
+    finally:
+        sampled.image.close()
+
+
+def test_edge_weight_can_protect_small_high_contrast_outline_color() -> None:
+    """面积较小的高强度轮廓色应能战胜面积略大的普通填充色。"""
+    rgbs = ((20, 20, 20), (120, 120, 120), (240, 240, 240))
+    colors = tuple(
+        MardColor(
+            code=f"C{index}",
+            series="C",
+            hex=f"#{red:02X}{green:02X}{blue:02X}",
+            rgb=rgb,
+            lab=srgb_to_lab(rgb),
+        )
+        for index, rgb in enumerate(rgbs)
+        for red, green, blue in (rgb,)
+    )
+    chart = MardColorChart(
+        schema_version="test",
+        colors=colors,
+        colors_by_code={color.code: color for color in colors},
+        sets_by_size={3: MardColorSet(size=3, colors=colors)},
+    )
+    image = Image.new("RGBA", (3, 1))
+    image.putdata(((*rgbs[1], 255), (*rgbs[1], 255), (*rgbs[0], 255)))
+
+    unweighted = quantize_to_mard_grid(
+        image,
+        chart=chart,
+        color_set_size=3,
+        effective_max_colors=1,
+    )
+    edge_weighted = quantize_to_mard_grid(
+        image,
+        chart=chart,
+        color_set_size=3,
+        effective_max_colors=1,
+        edge_strengths=(0.0, 0.0, 1.0),
+    )
+    image.close()
+
+    assert [color.code for color in unweighted.palette] == ["C1"]
+    assert [color.code for color in edge_weighted.palette] == ["C0"]
+
+
+def test_cleanup_removes_only_low_edge_isolated_color_cell() -> None:
+    """低对比孤立格会被清理，同一位置标记为关键边缘时则必须保留。"""
+    rgbs = ((100, 100, 100), (118, 118, 118))
+    colors = tuple(
+        MardColor(
+            code=f"C{index}",
+            series="C",
+            hex=f"#{red:02X}{green:02X}{blue:02X}",
+            rgb=rgb,
+            lab=srgb_to_lab(rgb),
+        )
+        for index, rgb in enumerate(rgbs)
+        for red, green, blue in (rgb,)
+    )
+    chart = MardColorChart(
+        schema_version="test",
+        colors=colors,
+        colors_by_code={color.code: color for color in colors},
+        sets_by_size={2: MardColorSet(size=2, colors=colors)},
+    )
+    image = Image.new("RGBA", (3, 3), (*rgbs[0], 255))
+    image.putpixel((1, 1), (*rgbs[1], 255))
+
+    cleaned = quantize_to_mard_grid(
+        image,
+        chart=chart,
+        color_set_size=2,
+        effective_max_colors=2,
+        edge_strengths=(0.0,) * 9,
+    )
+    protected = quantize_to_mard_grid(
+        image,
+        chart=chart,
+        color_set_size=2,
+        effective_max_colors=2,
+        edge_strengths=(0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0),
+    )
+    image.close()
+
+    assert cleaned.color_count == 1
+    assert cleaned.metrics.cleaned_cell_count == 1
+    assert protected.color_count == 2
+    assert protected.metrics.cleaned_cell_count == 0

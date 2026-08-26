@@ -95,7 +95,6 @@ def get_image_enhancer() -> ImageEnhancer:
     return SeedreamEnhancer(
         client=client,
         model=app_settings.ark_doubao_image_model,
-        prompt_version=app_settings.seedream_prompt_version,
         input_max_edge=app_settings.seedream_input_max_edge,
         output_max_pixels=app_settings.seedream_output_max_pixels,
         max_concurrency=app_settings.ark_doubao_max_concurrency,

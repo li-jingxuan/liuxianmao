@@ -24,8 +24,25 @@ class FakeAiEnhancer:
         type(self).last_options = options
         return EnhancementResult(
             image=Image.new("RGBA", image.size, (0, 0, 255, 255)),
-            background_alpha_status="opaque",
         )
+
+
+class FakeSolidEnhancer:
+    """模拟遵循内部键色背景要求的增强器，避免 Solid 接口测试依赖外部 AI。"""
+
+    name = "passthrough"
+    model = None
+    prompt_version = None
+
+    def enhance(self, image: Image.Image, *, options: EnhancementOptions) -> EnhancementResult:
+        assert options.chroma_key is not None
+        key = tuple(int(options.chroma_key[index : index + 2], 16) for index in (1, 3, 5))
+        output = Image.new("RGBA", image.size, (*key, 255))
+        # 留出稳定键色边框，中间白色区域代表必须参与色号与豆数统计的主体。
+        for x in range(2, image.width - 2):
+            for y in range(2, image.height - 2):
+                output.putpixel((x, y), (255, 255, 255, 255))
+        return EnhancementResult(image=output)
 
 
 def test_healthcheck(client: TestClient) -> None:
@@ -208,7 +225,7 @@ def test_create_conversion_returns_grid_restricted_to_selected_set(
     assert len(payload["foreground"]["rows"]) == grid_size
     assert all(len(row) == grid_size for row in payload["foreground"]["rows"])
     assert payload["schema_version"] == "3"
-    assert payload["algorithm_version"] == "bead-grid-constrained-v2"
+    assert payload["algorithm_version"] == "bead-grid-constrained-v3"
     assert payload["meta"]["enhancer"] == "passthrough"
     assert payload["meta"]["background_mode"] == "keep"
     assert payload["meta"]["background_processing"] == "none"
@@ -355,45 +372,57 @@ def test_grid_size_outside_range_has_stable_error(
 
 
 def test_solid_background_is_normalized_and_returned(client: TestClient) -> None:
-    response = client.post(
-        "/api/v1/conversions",
-        files={"image": ("source.png", make_png_bytes(size=(16, 8)), "image/png")},
-        data={
-            "grid_size": "8",
-            "max_colors": "8",
-            "color_set_size": "24",
-            "background_mode": "solid",
-            "background_color": "#aabbcc",
-        },
-    )
+    app.dependency_overrides[get_image_enhancer] = FakeSolidEnhancer
+    try:
+        response = client.post(
+            "/api/v1/conversions",
+            files={"image": ("source.png", make_png_bytes(size=(16, 8)), "image/png")},
+            data={
+                "grid_size": "8",
+                "max_colors": "8",
+                "color_set_size": "24",
+                "background_mode": "solid",
+                "background_color": "#aabbcc",
+            },
+        )
+    finally:
+        app.dependency_overrides.pop(get_image_enhancer, None)
 
     assert response.status_code == 200
     payload = response.json()
     assert payload["meta"]["background_mode"] == "solid"
     assert payload["meta"]["background_color"] == "#AABBCC"
-    assert payload["meta"]["background_processing"] == "edge_flood_fill"
+    assert payload["meta"]["background_processing"] == "chroma_key"
     assert payload["background"] == {"mode": "solid", "color": "#AABBCC"}
     assert any(cell is None for row in payload["foreground"]["rows"] for cell in row)
+    assert payload["stats"]["bead_count"] > 0
+    assert [color["code"] for color in payload["foreground"]["palette"]] == ["H2"]
 
 
 def test_solid_background_defaults_to_pure_white(client: TestClient) -> None:
-    response = client.post(
-        "/api/v1/conversions",
-        files={"image": ("source.png", make_png_bytes(size=(16, 8)), "image/png")},
-        data={
-            "grid_size": "8",
-            "max_colors": "8",
-            "color_set_size": "24",
-        },
-    )
+    app.dependency_overrides[get_image_enhancer] = FakeSolidEnhancer
+    try:
+        response = client.post(
+            "/api/v1/conversions",
+            files={"image": ("source.png", make_png_bytes(size=(16, 8)), "image/png")},
+            data={
+                "grid_size": "8",
+                "max_colors": "8",
+                "color_set_size": "24",
+            },
+        )
+    finally:
+        app.dependency_overrides.pop(get_image_enhancer, None)
 
     assert response.status_code == 200
     payload = response.json()
     assert payload["meta"]["background_mode"] == "solid"
     assert payload["meta"]["background_color"] == "#FFFFFF"
-    assert payload["meta"]["background_processing"] == "edge_flood_fill"
+    assert payload["meta"]["background_processing"] == "chroma_key"
     assert payload["background"] == {"mode": "solid", "color": "#FFFFFF"}
     assert any(cell is None for row in payload["foreground"]["rows"] for cell in row)
+    assert payload["stats"]["bead_count"] > 0
+    assert [color["code"] for color in payload["foreground"]["palette"]] == ["H2"]
 
 
 def test_removed_transparent_background_mode_is_rejected(client: TestClient) -> None:

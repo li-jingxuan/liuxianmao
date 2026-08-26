@@ -54,10 +54,6 @@ class Settings(BaseSettings):
     api_port: int = Field(default=3112, ge=1, le=65535)
     api_reload: bool = True
     image_enhancer: str = "seedream" # "passthrough"
-    # Seedream 无法稳定返回透明图时，服务端从边缘连通区域抠除近似纯色背景。
-    # 阈值越大越容易去掉压缩噪声和浅色阴影，但也越可能误伤贴近主体的浅色区域；
-    # 默认 42 只作为可回归的起点，生产调参必须结合实际 AI 样例集验证。
-    solid_background_removal_threshold: int = Field(default=42, ge=0, le=255)
     # 同时限制压缩文件体积和解码后像素量，防止压缩炸弹耗尽内存。
     upload_max_bytes: int = 10 * 1024 * 1024
     upload_max_pixels: int = 25_000_000
@@ -117,7 +113,6 @@ class Settings(BaseSettings):
     ark_doubao_max_response_bytes: int = Field(default=30 * 1024 * 1024, ge=1024)
     seedream_input_max_edge: int = Field(default=2048, ge=256, le=8192)
     seedream_output_max_pixels: int = Field(default=20_000_000, ge=1_000_000)
-    seedream_prompt_version: str = "seedream-pindou-v7-subject-first"
 
     @model_validator(mode="after")
     def validate_configuration(self) -> Settings:

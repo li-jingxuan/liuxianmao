@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal, Protocol
+from typing import Protocol
 
 from PIL import Image
 
@@ -19,14 +19,20 @@ class EnhancementOptions:
     color_budget_band: ColorBudgetBand
     background_mode: BackgroundMode
     background_color: str | None = None
+    # Solid 模式内部使用的抠图键色。它与用户最终看到的背景色完全独立，只能由
+    # 前景准备模块选择并传给增强器，HTTP 路由和前端都不应允许用户直接指定。
+    chroma_key: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
 class EnhancementResult:
-    """增强器输出图片及其真实 Alpha 能力状态。"""
+    """增强器输出图片。
+
+    Alpha 或键色是否足以构成可信前景，不应由供应商适配器自行宣称。统一交给
+    `prepare_foreground()` 检查，避免“存在一个透明像素就算透明图”的宽松判断。
+    """
 
     image: Image.Image
-    background_alpha_status: Literal["transparent", "opaque", "absent"]
 
 
 class ImageEnhancer(Protocol):
@@ -69,12 +75,6 @@ class PassThroughEnhancer:
         return None
 
     def enhance(self, image: Image.Image, *, options: EnhancementOptions) -> EnhancementResult:
-        """原样返回输入对象，同时报告输入图片是否真的含有透明 Alpha。"""
+        """原样返回输入对象；是否具备可信前景蒙版由调用方统一验证。"""
         del options
-        alpha = image.getchannel("A") if "A" in image.getbands() else None
-        if alpha is None:
-            status: Literal["transparent", "opaque", "absent"] = "absent"
-        else:
-            status = "transparent" if alpha.getextrema()[0] < 128 else "opaque"
-            alpha.close()
-        return EnhancementResult(image=image, background_alpha_status=status)
+        return EnhancementResult(image=image)

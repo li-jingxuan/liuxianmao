@@ -5,14 +5,13 @@ from __future__ import annotations
 import base64
 from io import BytesIO
 from threading import BoundedSemaphore
-from typing import Literal
 
 from PIL import Image, ImageOps, UnidentifiedImageError
 
 from pindou.core.errors import ApiError
 from pindou.services.enhancer import EnhancementOptions, EnhancementResult
 from pindou.services.seedream_client import SeedreamClient, SeedreamUpstreamError
-from pindou.services.seedream_prompt import build_seedream_prompt
+from pindou.services.seedream_prompt import SEEDREAM_PROMPT_VERSION, build_seedream_prompt
 
 
 class SeedreamEnhancer:
@@ -23,7 +22,6 @@ class SeedreamEnhancer:
         *,
         client: SeedreamClient,
         model: str,
-        prompt_version: str,
         input_max_edge: int,
         output_max_pixels: int,
         max_concurrency: int,
@@ -31,7 +29,6 @@ class SeedreamEnhancer:
     ) -> None:
         self._client = client
         self._model = model
-        self._prompt_version = prompt_version
         self._input_max_edge = input_max_edge
         self._output_max_pixels = output_max_pixels
         self._semaphore = BoundedSemaphore(max_concurrency)
@@ -47,7 +44,8 @@ class SeedreamEnhancer:
 
     @property
     def prompt_version(self) -> str:
-        return self._prompt_version
+        """返回与当前 Prompt 实现绑定的唯一版本号。"""
+        return SEEDREAM_PROMPT_VERSION
 
     def close(self) -> None:
         self._client.close()
@@ -69,10 +67,10 @@ class SeedreamEnhancer:
                 result = self._client.edit_image(image_data_url=data_url, prompt=prompt)
             except SeedreamUpstreamError as exc:
                 raise self._map_upstream_error(exc) from exc
-            # 这里只负责识别上游结果，不在增强器内抠除背景；背景策略属于 API
-            # 领域后处理，便于 passthrough 与 Seedream 共享同一套规则。
-            output, alpha_status = self._decode_output(result.image_bytes)
-            return EnhancementResult(image=output, background_alpha_status=alpha_status)
+            # 供应商适配器只做安全解码，不在这里宣称 Alpha 是否可信。完整蒙版验证
+            # 统一由 prepare_foreground() 完成，避免不同增强器形成不同判断标准。
+            output = self._decode_output(result.image_bytes)
+            return EnhancementResult(image=output)
         finally:
             self._semaphore.release()
 
@@ -91,33 +89,16 @@ class SeedreamEnhancer:
         finally:
             prepared.close()
 
-    def _decode_output(
-        self,
-        content: bytes,
-    ) -> tuple[Image.Image, Literal["transparent", "opaque", "absent"]]:
-        """不信任上游声明尺寸，并确认 RGBA 转换前是否真实存在 Alpha。"""
+    def _decode_output(self, content: bytes) -> Image.Image:
+        """不信任上游声明尺寸，并统一解码为独立 RGBA 图片。"""
         try:
             with Image.open(BytesIO(content)) as source:
                 if source.width * source.height > self._output_max_pixels:
                     raise ApiError(502, "AI_UPSTREAM_ERROR", "AI 返回图片超过像素限制")
                 source.load()
-                # 必须在 convert("RGBA") 之前检查：Pillow 转换后所有图片都会有 A
-                # 通道，不能据此证明上游真的返回了透明背景。
-                has_alpha_channel = "A" in source.getbands()
                 transposed = ImageOps.exif_transpose(source)
                 output = transposed.convert("RGBA")
-                if not has_alpha_channel:
-                    # JPEG/RGB 等格式没有 Alpha；转换后的 A=255 只是类型统一结果。
-                    alpha_status: Literal["transparent", "opaque", "absent"] = "absent"
-                else:
-                    alpha = output.getchannel("A")
-                    try:
-                        # 只要存在低于量化占用阈值的像素，就认为上游提供了可用透明区域；
-                        # 全 255 的 PNG 仍按 opaque 处理，继续走边缘背景抠除。
-                        alpha_status = "transparent" if alpha.getextrema()[0] < 128 else "opaque"
-                    finally:
-                        alpha.close()
-                return output, alpha_status
+                return output
         except ApiError:
             raise
         except (Image.DecompressionBombError, UnidentifiedImageError, OSError, ValueError) as exc:

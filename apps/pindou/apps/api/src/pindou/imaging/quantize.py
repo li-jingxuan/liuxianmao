@@ -25,15 +25,27 @@ class ConstrainedQuantizationPolicy:
     min_relative_gain: float
     swap_min_relative_gain: float
     max_accepted_swaps: int
+    edge_weight: float
+    max_observation_weight: float
+    merge_max_delta_e00: float
+    merge_max_mean_error_increase: float
+    cleanup_max_delta_e00: float
+    cleanup_max_edge_strength: float
 
 
 CONSTRAINED_QUANTIZATION_POLICY = ConstrainedQuantizationPolicy(
-    version="bead-grid-constrained-v2",
+    version="bead-grid-constrained-v3",
     alpha_occupied_threshold=128,
     max_color_observations=512,
-    min_relative_gain=0.001,
+    min_relative_gain=0.005,
     swap_min_relative_gain=0.0005,
     max_accepted_swaps=2,
+    edge_weight=1.0,
+    max_observation_weight=3.0,
+    merge_max_delta_e00=6.0,
+    merge_max_mean_error_increase=3.0,
+    cleanup_max_delta_e00=8.0,
+    cleanup_max_edge_strength=0.20,
 )
 
 
@@ -48,6 +60,8 @@ class QuantizationMetrics:
     p90_delta_e00: float
     greedy_round_count: int
     accepted_swap_count: int
+    merged_color_count: int
+    cleaned_cell_count: int
     distance_matrix_ms: float
     palette_selection_ms: float
     total_ms: float
@@ -79,7 +93,7 @@ class _ColorObservations:
     """量化模块内部的源色聚合结果。"""
 
     rgbs: tuple[tuple[int, int, int], ...]
-    weights: tuple[int, ...]
+    weights: tuple[float, ...]
     index_by_visible_pixel: tuple[int, ...]
 
 
@@ -90,26 +104,38 @@ class _PaletteSelection:
     delta_e_by_observation: tuple[float, ...]
     greedy_round_count: int
     accepted_swap_count: int
+    merged_color_count: int
     distance_matrix_ms: float
     selection_ms: float
 
 
 def _build_color_observations(
     visible_rgb: list[tuple[int, int, int]],
+    visible_weights: list[float],
 ) -> _ColorObservations:
-    """自适应降低 RGB 精度，把观察数限制在可控范围并保留面积权重。"""
+    """自适应降低 RGB 精度，并聚合面积与受限边缘权重。
+
+    代表 RGB 同样按视觉权重求平均，防止一个颜色桶内的关键轮廓色被大量低梯度
+    像素重新拉回普通面积平均。边缘权重已经在调用方裁剪，不会无限放大小区域。
+    """
+    if len(visible_rgb) != len(visible_weights):
+        raise ValueError("可见像素与权重数量必须一致")
     shift = 0
     while True:
-        buckets: dict[tuple[int, int, int], list[int]] = {}
+        buckets: dict[tuple[int, int, int], list[float]] = {}
         keys: list[tuple[int, int, int]] = []
-        for red, green, blue in visible_rgb:
+        for (red, green, blue), visual_weight in zip(
+            visible_rgb,
+            visible_weights,
+            strict=True,
+        ):
             key = (red >> shift, green >> shift, blue >> shift)
             keys.append(key)
-            aggregate = buckets.setdefault(key, [0, 0, 0, 0])
-            aggregate[0] += red
-            aggregate[1] += green
-            aggregate[2] += blue
-            aggregate[3] += 1
+            aggregate = buckets.setdefault(key, [0.0, 0.0, 0.0, 0.0])
+            aggregate[0] += red * visual_weight
+            aggregate[1] += green * visual_weight
+            aggregate[2] += blue * visual_weight
+            aggregate[3] += visual_weight
         if (
             len(buckets) <= CONSTRAINED_QUANTIZATION_POLICY.max_color_observations
             or shift == 7
@@ -120,17 +146,17 @@ def _build_color_observations(
     ordered_keys = tuple(sorted(buckets))
     observation_index = {key: index for index, key in enumerate(ordered_keys)}
     rgbs: list[tuple[int, int, int]] = []
-    weights: list[int] = []
+    weights: list[float] = []
     for key in ordered_keys:
-        red_sum, green_sum, blue_sum, count = buckets[key]
+        red_sum, green_sum, blue_sum, total_weight = buckets[key]
         rgbs.append(
             (
-                (red_sum + count // 2) // count,
-                (green_sum + count // 2) // count,
-                (blue_sum + count // 2) // count,
+                round(red_sum / total_weight),
+                round(green_sum / total_weight),
+                round(blue_sum / total_weight),
             )
         )
-        weights.append(count)
+        weights.append(total_weight)
     return _ColorObservations(
         rgbs=tuple(rgbs),
         weights=tuple(weights),
@@ -240,6 +266,52 @@ def _select_mard_palette(
         current_error = best_error
         accepted_swap_count += 1
 
+    # 贪心目标会为了还原大面积柔和渐变而选择多个非常接近的实体色。这里在选色后
+    # 尝试删除近似候选：只有颜色本身接近，并且删除后每个加权观察的平均误差增量
+    # 不超过策略预算时才接受。相比硬砍颜色上限，这能保留真正高对比的身份色。
+    merged_color_count = 0
+    total_observation_weight = max(1.0, sum(observations.weights))
+    while len(selected) > 1:
+        merge_options: list[tuple[float, tuple[str, ...], tuple[int, ...]]] = []
+        for first_position in range(len(selected)):
+            for second_position in range(first_position + 1, len(selected)):
+                first_index = selected[first_position]
+                second_index = selected[second_position]
+                pair_delta_e = ciede2000(
+                    candidates[first_index].lab,
+                    candidates[second_index].lab,
+                )
+                if pair_delta_e > CONSTRAINED_QUANTIZATION_POLICY.merge_max_delta_e00:
+                    continue
+
+                # 分别尝试删除近似色中的一个，保留对当前观察集合总误差更小的方向。
+                for removed_position in (first_position, second_position):
+                    remaining = tuple(
+                        index
+                        for position, index in enumerate(selected)
+                        if position != removed_position
+                    )
+                    error = sum(
+                        weight * min(row[index] for index in remaining)
+                        for row, weight in zip(distances, observations.weights, strict=True)
+                    )
+                    mean_error_increase = max(0.0, error - current_error) / total_observation_weight
+                    if (
+                        mean_error_increase
+                        <= CONSTRAINED_QUANTIZATION_POLICY.merge_max_mean_error_increase
+                    ):
+                        merge_options.append(
+                            (
+                                error,
+                                tuple(candidates[index].code for index in remaining),
+                                remaining,
+                            )
+                        )
+        if not merge_options:
+            break
+        current_error, _, selected = min(merge_options)
+        merged_color_count += 1
+
     selected_colors = tuple(candidates[index] for index in selected)
     assignment_by_observation = tuple(
         min(
@@ -261,6 +333,7 @@ def _select_mard_palette(
         delta_e_by_observation=delta_e_by_observation,
         greedy_round_count=greedy_round_count,
         accepted_swap_count=accepted_swap_count,
+        merged_color_count=merged_color_count,
         distance_matrix_ms=distance_matrix_ms,
         selection_ms=(perf_counter() - selection_started_at) * 1000,
     )
@@ -268,7 +341,7 @@ def _select_mard_palette(
 
 def _weighted_percentile(
     values: tuple[float, ...],
-    weights: tuple[int, ...],
+    weights: tuple[float, ...],
     percentile: float,
 ) -> float:
     """计算离散观察的确定性加权百分位数。"""
@@ -281,12 +354,91 @@ def _weighted_percentile(
     return 0.0
 
 
+def _cleanup_isolated_low_contrast_cells(
+    rows: list[list[int | None]],
+    *,
+    palette: list[MardColor],
+    edge_strengths: tuple[float, ...],
+    width: int,
+    height: int,
+) -> int:
+    """保守替换低对比孤立单格，返回实际修改数量。
+
+    本函数只处理“周围没有同色邻居、邻域主色占绝对多数、当前格又不是高强度
+    边缘”的单格。眼睛、轮廓尖角和细肢体端点通常具有较高边缘强度，因此不会
+    因面积小被直接清除。读取始终来自原始快照，避免一次扫描产生连锁扩散。
+    """
+    snapshot = [row.copy() for row in rows]
+    replacements: list[tuple[int, int, int]] = []
+    for y in range(height):
+        for x in range(width):
+            current = snapshot[y][x]
+            if current is None:
+                continue
+            if (
+                edge_strengths[y * width + x]
+                > CONSTRAINED_QUANTIZATION_POLICY.cleanup_max_edge_strength
+            ):
+                continue
+
+            neighbours = [
+                snapshot[next_y][next_x]
+                for next_y in range(max(0, y - 1), min(height, y + 2))
+                for next_x in range(max(0, x - 1), min(width, x + 2))
+                if (next_x, next_y) != (x, y) and snapshot[next_y][next_x] is not None
+            ]
+            if not neighbours or current in neighbours:
+                continue
+            counts: dict[int, int] = {}
+            for neighbour in neighbours:
+                assert neighbour is not None
+                counts[neighbour] = counts.get(neighbour, 0) + 1
+            majority, majority_count = max(counts.items(), key=lambda item: (item[1], -item[0]))
+            if majority_count < 3 or majority_count / len(neighbours) < 0.75:
+                continue
+            if (
+                ciede2000(palette[current].lab, palette[majority].lab)
+                > CONSTRAINED_QUANTIZATION_POLICY.cleanup_max_delta_e00
+            ):
+                continue
+            replacements.append((x, y, majority))
+
+    for x, y, replacement in replacements:
+        rows[y][x] = replacement
+    return len(replacements)
+
+
+def _compact_palette(
+    rows: list[list[int | None]],
+    palette: list[MardColor],
+) -> tuple[tuple[MardColor, ...], tuple[tuple[int | None, ...], ...]]:
+    """按网格首次出现顺序移除清理后不再使用的颜色并重写索引。"""
+    compacted: list[MardColor] = []
+    new_index_by_old: dict[int, int] = {}
+    compacted_rows: list[tuple[int | None, ...]] = []
+    for row in rows:
+        compacted_row: list[int | None] = []
+        for old_index in row:
+            if old_index is None:
+                compacted_row.append(None)
+                continue
+            new_index = new_index_by_old.get(old_index)
+            if new_index is None:
+                new_index = len(compacted)
+                new_index_by_old[old_index] = new_index
+                compacted.append(palette[old_index])
+            compacted_row.append(new_index)
+        compacted_rows.append(tuple(compacted_row))
+    return tuple(compacted), tuple(compacted_rows)
+
+
 def quantize_to_mard_grid(
     image: Image.Image,
     *,
     chart: MardColorChart,
     color_set_size: int,
     effective_max_colors: int,
+    edge_strengths: tuple[float, ...] | None = None,
 ) -> QuantizedGrid:
     """把 N×N RGBA 工作图量化为受颜色组约束的 MARD 网格。
 
@@ -304,12 +456,29 @@ def quantize_to_mard_grid(
         rgba_pixels = list(rgba_image.get_flattened_data())
     finally:
         rgba_image.close()
-    # 透明像素的隐藏 RGB 值没有视觉意义，参与选色会污染调色板。
-    visible_rgb = [
-        (red, green, blue)
-        for red, green, blue, alpha in rgba_pixels
-        if alpha >= CONSTRAINED_QUANTIZATION_POLICY.alpha_occupied_threshold
-    ]
+    if edge_strengths is None:
+        edge_strengths = tuple(0.0 for _ in rgba_pixels)
+    if len(edge_strengths) != len(rgba_pixels):
+        raise ValueError("边缘强度数量必须与图片像素数量一致")
+
+    # 透明像素的隐藏 RGB 值没有视觉意义，参与选色会污染调色板。可见格按边缘
+    # 强度获得受限加权，让小面积轮廓拥有合理话语权，但上限阻止其支配整张图。
+    visible_rgb: list[tuple[int, int, int]] = []
+    visible_weights: list[float] = []
+    for (red, green, blue, alpha), edge_strength in zip(
+        rgba_pixels,
+        edge_strengths,
+        strict=True,
+    ):
+        if alpha < CONSTRAINED_QUANTIZATION_POLICY.alpha_occupied_threshold:
+            continue
+        visible_rgb.append((red, green, blue))
+        visible_weights.append(
+            min(
+                CONSTRAINED_QUANTIZATION_POLICY.max_observation_weight,
+                1.0 + CONSTRAINED_QUANTIZATION_POLICY.edge_weight * max(0.0, edge_strength),
+            )
+        )
     if not visible_rgb:
         # 全透明图片没有调色板；仍返回尺寸完整且全部为 -1 的网格。
         empty_rows = tuple(tuple(None for _ in range(image.width)) for _ in range(image.height))
@@ -331,6 +500,8 @@ def quantize_to_mard_grid(
                 p90_delta_e00=0.0,
                 greedy_round_count=0,
                 accepted_swap_count=0,
+                merged_color_count=0,
+                cleaned_cell_count=0,
                 distance_matrix_ms=0.0,
                 palette_selection_ms=0.0,
                 total_ms=total_ms,
@@ -338,7 +509,7 @@ def quantize_to_mard_grid(
             ),
         )
 
-    observations = _build_color_observations(visible_rgb)
+    observations = _build_color_observations(visible_rgb, visible_weights)
     max_colors = min(effective_max_colors, len(color_set.colors), len(visible_rgb))
     selection = _select_mard_palette(
         observations,
@@ -349,7 +520,7 @@ def quantize_to_mard_grid(
     # 输出调色板继续按网格中的首次出现顺序重建，保持前端和导出契约稳定。
     output_palette: list[MardColor] = []
     output_index_by_code: dict[str, int] = {}
-    rows: list[tuple[int | None, ...]] = []
+    rows: list[list[int | None]] = []
     visible_index = 0
     for y in range(image.height):
         row: list[int | None] = []
@@ -370,7 +541,16 @@ def quantize_to_mard_grid(
                 output_index_by_code[mapped_color.code] = output_index
                 output_palette.append(mapped_color)
             row.append(output_index)
-        rows.append(tuple(row))
+        rows.append(row)
+
+    cleaned_cell_count = _cleanup_isolated_low_contrast_cells(
+        rows,
+        palette=output_palette,
+        edge_strengths=edge_strengths,
+        width=image.width,
+        height=image.height,
+    )
+    compacted_palette, compacted_rows = _compact_palette(rows, output_palette)
 
     total_ms = (perf_counter() - total_started_at) * 1000
     total_weighted_error = sum(
@@ -385,7 +565,7 @@ def quantize_to_mard_grid(
         occupied_cell_count=len(visible_rgb),
         transparent_cell_count=image.width * image.height - len(visible_rgb),
         observation_count=len(observations.rgbs),
-        mean_delta_e00=total_weighted_error / len(visible_rgb),
+        mean_delta_e00=total_weighted_error / sum(observations.weights),
         p90_delta_e00=_weighted_percentile(
             selection.delta_e_by_observation,
             observations.weights,
@@ -393,6 +573,8 @@ def quantize_to_mard_grid(
         ),
         greedy_round_count=selection.greedy_round_count,
         accepted_swap_count=selection.accepted_swap_count,
+        merged_color_count=selection.merged_color_count,
+        cleaned_cell_count=cleaned_cell_count,
         distance_matrix_ms=selection.distance_matrix_ms,
         palette_selection_ms=selection.selection_ms,
         total_ms=total_ms,
@@ -410,11 +592,13 @@ def quantize_to_mard_grid(
             "observation_count": metrics.observation_count,
             "candidate_color_count": len(color_set.colors),
             "effective_max_colors": max_colors,
-            "actual_color_count": len(output_palette),
+            "actual_color_count": len(compacted_palette),
             "mean_delta_e00": metrics.mean_delta_e00,
             "p90_delta_e00": metrics.p90_delta_e00,
             "greedy_round_count": metrics.greedy_round_count,
             "accepted_swap_count": metrics.accepted_swap_count,
+            "merged_color_count": metrics.merged_color_count,
+            "cleaned_cell_count": metrics.cleaned_cell_count,
             "distance_matrix_ms": metrics.distance_matrix_ms,
             "palette_selection_ms": metrics.palette_selection_ms,
             "total_ms": metrics.total_ms,
@@ -424,11 +608,11 @@ def quantize_to_mard_grid(
     return QuantizedGrid(
         width=image.width,
         height=image.height,
-        palette=tuple(output_palette),
-        rows=tuple(rows),
+        palette=compacted_palette,
+        rows=compacted_rows,
         algorithm_version=CONSTRAINED_QUANTIZATION_POLICY.version,
         effective_max_colors=max_colors,
         bead_count=len(visible_rgb),
-        color_count=len(output_palette),
+        color_count=len(compacted_palette),
         metrics=metrics,
     )

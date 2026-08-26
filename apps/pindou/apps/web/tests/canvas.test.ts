@@ -5,7 +5,7 @@ import type { BeadGrid } from "../src/lib/types";
 
 const grid: BeadGrid = {
   schema_version: "3",
-  algorithm_version: "bead-grid-constrained-v2",
+  algorithm_version: "bead-grid-constrained-v3",
   width: 2,
   height: 2,
   foreground: {
@@ -16,6 +16,7 @@ const grid: BeadGrid = {
   meta: {
     enhancer: "passthrough",
     background_mode: "keep",
+    background_processing: "none",
     palette_brand: "MARD",
     color_set_size: 24,
     color_budget_mode: "auto",

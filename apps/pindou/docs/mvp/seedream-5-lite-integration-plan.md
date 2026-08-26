@@ -268,7 +268,9 @@ Seedream 是生成式图像模型。即使 prompt 指定 `#RRGGBB`，也不能�
 
 #### 5.4.4 版本与可观测性
 
-公共模板版本以 `seedream-pindou-v2` 记入响应 meta 和日志，并记录 `background_mode`；不记录组装后的完整 prompt。效果评估使用固定图集，每次只改一类约束，不在代码中散落多份提示词字符串。
+公共模板版本由 Prompt 模块中的常量记入响应 meta，并记录 `background_mode`；
+不记录组装后的完整 prompt。版本号不接受环境变量覆盖，保证版本标记和实际实现
+始终同步。效果评估使用固定图集，每次只改一类约束，不在代码中散落多份提示词字符串。
 
 ### 5.5 配置设计
 
@@ -288,7 +290,6 @@ ARK_DOUBAO_TOTAL_TIMEOUT_SECONDS=100
 ARK_DOUBAO_MAX_CONCURRENCY=2
 ARK_DOUBAO_MAX_RESPONSE_BYTES=31457280
 SEEDREAM_INPUT_MAX_EDGE=2048
-SEEDREAM_PROMPT_VERSION=seedream-pindou-v2
 ```
 
 规则：
