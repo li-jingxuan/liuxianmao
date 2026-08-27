@@ -102,6 +102,7 @@ curl -X POST http://127.0.0.1:3112/api/v1/conversions \
   -F 'grid_size=52' \
   -F 'color_set_size=48' \
   -F 'background_mode=solid' \
+  -F 'fallback_mode=simplify' \
   -F 'background_color=#FFFFFF'
 ```
 
@@ -135,7 +136,9 @@ Manage source prefixes through the ORM-backed CLI:
 ```
 
 `background_mode` supports `simplify`, `solid`, and `keep`. `solid` defaults to pure white
-`#FFFFFF`; callers may submit another `#RRGGBB` value. Automatic color caps are 30 for 52×52 and
-54 for 78×78/104×104 grids. Seedream prompts remain independent from those hard caps.
+`#FFFFFF`; callers may submit another `#RRGGBB` value. Solid always uses the bundled local ONNX
+foreground model. `fallback_mode=simplify` explicitly authorizes a low-confidence mask to return a
+background-inclusive result with `meta.degraded=true`; runtime/model failures remain 503. Automatic
+color caps are 30 for 52×52 and 54 for 78×78/104×104 grids.
 
 All returned palette codes are guaranteed to belong to the selected MARD color set.

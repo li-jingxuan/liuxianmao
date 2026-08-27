@@ -184,6 +184,7 @@ export const createConversion = async (
   form.set("grid_size", String(input.gridSize));
   form.set("color_set_size", String(input.colorSetSize));
   form.set("background_mode", input.backgroundMode);
+  form.set("fallback_mode", input.fallbackMode ?? "none");
   if (input.backgroundMode === "solid" && input.backgroundColor) {
     form.set("background_color", input.backgroundColor);
   }

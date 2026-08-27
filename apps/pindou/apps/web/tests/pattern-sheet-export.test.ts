@@ -29,7 +29,9 @@ const createGrid = (paletteSize = 7): BeadGrid => ({
   meta: {
     enhancer: "passthrough",
     background_mode: "keep",
+    applied_background_mode: "keep",
     background_processing: "none",
+    degraded: false,
     palette_brand: "MARD",
     color_set_size: 48,
     color_budget_mode: "auto",

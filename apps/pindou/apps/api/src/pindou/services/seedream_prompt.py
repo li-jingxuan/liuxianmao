@@ -16,7 +16,7 @@ from pindou.services.enhancer import EnhancementOptions
 DEFAULT_SOLID_BACKGROUND_COLOR = "#FFFFFF"
 HEX_COLOR_PATTERN = re.compile(r"#[0-9A-Fa-f]{6}")
 # Prompt 内容与版本号必须在同一模块内同步变更，避免环境变量把实际实现标成旧版。
-SEEDREAM_PROMPT_VERSION = "seedream-pindou-v9-chroma-despill"
+SEEDREAM_PROMPT_VERSION = "seedream-pindou-v10-local-matting"
 
 BASE_PROMPT = """
 以输入图为唯一内容依据。保留主体身份、类别、数量、姿态、朝向、标志性轮廓、主要配色、关键身份色和整体场景语义，不改变原图的核心内容。
@@ -117,21 +117,14 @@ def _build_background_prompt(options: EnhancementOptions) -> str:
     if options.background_mode is BackgroundMode.KEEP:
         return KEEP_BACKGROUND_PROMPT
 
-    if options.chroma_key is None or HEX_COLOR_PATTERN.fullmatch(options.chroma_key) is None:
-        raise ValueError("Solid 模式必须由前景准备模块提供内部键色")
-    chroma_key = options.chroma_key.upper()
     return (
-        "背景处理：完整移除原背景及其中所有无关物体，仅保留前景主体的完整轮廓、"
-        "内部特征和自然边缘。\n"
-        "把本次输出视为供后续程序抠图的键色素材，不是带环境光的完整场景。\n"
-        f"将主体外全部区域替换为完全不透明、均匀、平坦、无渐变、无纹理的 {chroma_key} "
-        "内部键色背景；"
-        "键色必须从画布四边连续覆盖到主体最外轮廓之外。\n"
-        "内部键色只能出现在主体外背景，不得覆盖、替换或改变主体内部原有的白色、"
-        "浅色或其他颜色；键色不得产生环境光、反射、辉光、色溢或透射，也不得混入主体边缘。\n"
-        "主体边界像素只能使用主体自身颜色或中性轮廓色；禁止绿色、青色、品红色或蓝色的描边、"
-        "光晕、毛边和抗锯齿混色。键色应在主体最外轮廓处干净截止，不生成半透明过渡带。\n"
-        "不要生成地面、地平线、边框、投影或渐变；主体必须保持完整不透明。"
+        "背景处理：突出所有主要前景主体及其完整轮廓、内部特征和自然边缘，删除无关小物体、"
+        "复杂纹理和抢占视觉注意力的背景元素。\n"
+        "主体与背景必须有清晰边界，但不要生成键色、透明通道、荧光描边或特殊抠图协议；"
+        "后续程序会使用本地前景模型生成蒙版。\n"
+        "背景应简洁、平坦、低细节，并与主体主要颜色保持足够对比；不要让背景颜色反射、"
+        "辉光或色溢混入主体边缘。\n"
+        "不要生成地平线、边框、投影或渐变，不要删除、裁断或重绘主体结构。"
     )
 
 

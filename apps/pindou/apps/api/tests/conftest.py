@@ -9,14 +9,35 @@ from sqlmodel import Session, SQLModel
 
 from pindou.api.dependencies import (
     get_color_chart,
+    get_foreground_mask_adapter,
     get_image_delivery_store,
     get_image_enhancer,
 )
 from pindou.core.config import get_settings
 from pindou.db.session import dispose_engine, get_engine
+from pindou.imaging.foreground import RawForegroundMask
 from pindou.main import app
 from pindou.models import ApiAccessKey, ApiKeyPrefix  # noqa: F401
 from pindou.services.access_keys import AccessKeyService, KeyPrefixService
+
+
+class TestForegroundMaskAdapter:
+    """用稳定中心软蒙版让接口测试不依赖本机 ONNX Runtime。"""
+
+    name = "test-foreground"
+    model_version = "test-v1"
+    ready = True
+
+    def generate(self, image: Image.Image) -> RawForegroundMask:
+        mask = Image.new("L", image.size, 0)
+        left = max(1, image.width // 4)
+        top = max(1, image.height // 4)
+        right = max(left + 1, image.width - left)
+        bottom = max(top + 1, image.height - top)
+        for x in range(left, right):
+            for y in range(top, bottom):
+                mask.putpixel((x, y), 255)
+        return RawForegroundMask(mask, self.name, self.model_version)
 
 
 @pytest.fixture(autouse=True)
@@ -27,6 +48,7 @@ def isolate_tests_from_external_services(
     """测试使用隔离 SQLite 和 passthrough，不接触生产数据库或付费 API。"""
     monkeypatch.setenv("APP_ENV", "test")
     monkeypatch.setenv("IMAGE_ENHANCER", "passthrough")
+    monkeypatch.setenv("FOREGROUND_MASK_ADAPTER", "unavailable")
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'pindou-test.db'}")
     monkeypatch.setenv("KEY_ISSUER_API_KEY", "test-admin-key")
     monkeypatch.setenv("API_KEY_HASH_PEPPER", "test-hash-pepper")
@@ -37,7 +59,9 @@ def isolate_tests_from_external_services(
     dispose_engine()
     get_color_chart.cache_clear()
     get_image_enhancer.cache_clear()
+    get_foreground_mask_adapter.cache_clear()
     get_image_delivery_store.cache_clear()
+    app.dependency_overrides[get_foreground_mask_adapter] = TestForegroundMaskAdapter
 
     engine = get_engine()
     SQLModel.metadata.create_all(engine)
@@ -51,9 +75,11 @@ def isolate_tests_from_external_services(
     yield issued.key
 
     dispose_engine()
+    app.dependency_overrides.pop(get_foreground_mask_adapter, None)
     get_settings.cache_clear()
     get_color_chart.cache_clear()
     get_image_enhancer.cache_clear()
+    get_foreground_mask_adapter.cache_clear()
     get_image_delivery_store.cache_clear()
 
 

@@ -29,6 +29,14 @@ def _default_image_delivery_dir() -> Path:
     return Path(__file__).resolve().parents[1] / "assets" / "image-deliveries"
 
 
+def _default_foreground_model_path() -> Path:
+    return Path(__file__).resolve().parents[3] / "models" / "foreground" / "u2netp.onnx"
+
+
+def _default_foreground_model_metadata_path() -> Path:
+    return Path(__file__).resolve().parents[3] / "models" / "foreground" / "model.json"
+
+
 API_ENV_FILE = Path(__file__).resolve().parents[3] / ".env"
 
 
@@ -114,6 +122,16 @@ class Settings(BaseSettings):
     seedream_input_max_edge: int = Field(default=2048, ge=256, le=8192)
     seedream_output_max_pixels: int = Field(default=20_000_000, ge=1_000_000)
 
+    foreground_mask_adapter: str = "onnx-u2netp"
+    foreground_model_path: Path = Field(default_factory=_default_foreground_model_path)
+    foreground_model_metadata_path: Path = Field(
+        default_factory=_default_foreground_model_metadata_path
+    )
+    foreground_mask_max_concurrency: int = Field(default=1, ge=1, le=8)
+    foreground_mask_queue_timeout_seconds: float = Field(default=3.0, gt=0)
+    foreground_onnx_intra_op_threads: int = Field(default=2, ge=1, le=16)
+    foreground_onnx_allow_spinning: bool = False
+
     @model_validator(mode="after")
     def validate_configuration(self) -> Settings:
         """在启动期拒绝不完整的数据库、密钥和 AI 配置。"""
@@ -139,6 +157,10 @@ class Settings(BaseSettings):
                 raise ValueError("IMAGE_ENHANCER=seedream 时必须配置 ARK_DOUBAO_IMAGE_MODEL")
         if self.ark_doubao_response_format != "b64_json":
             raise ValueError("MVP2 仅支持 ARK_DOUBAO_RESPONSE_FORMAT=b64_json")
+        if self.foreground_mask_adapter not in {"onnx-u2netp", "unavailable"}:
+            raise ValueError("FOREGROUND_MASK_ADAPTER 仅支持 onnx-u2netp")
+        if self.foreground_mask_adapter == "unavailable" and self.app_env != "test":
+            raise ValueError("FOREGROUND_MASK_ADAPTER=unavailable 仅允许测试环境使用")
         return self
 
 

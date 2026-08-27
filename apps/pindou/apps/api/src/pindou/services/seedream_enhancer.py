@@ -68,7 +68,7 @@ class SeedreamEnhancer:
             except SeedreamUpstreamError as exc:
                 raise self._map_upstream_error(exc) from exc
             # 供应商适配器只做安全解码，不在这里宣称 Alpha 是否可信。完整蒙版验证
-            # 统一由 prepare_foreground() 完成，避免不同增强器形成不同判断标准。
+            # 统一由 ForegroundPreparer 完成，避免不同增强器形成不同判断标准。
             output = self._decode_output(result.image_bytes)
             return EnhancementResult(image=output)
         finally:

@@ -9,12 +9,11 @@ from fastapi import APIRouter, File, Form, Header, Request, Response, UploadFile
 from pindou.api.dependencies import (
     AccessKeyServiceDep,
     ColorChartDep,
-    ImageEnhancerDep,
+    ForegroundPreparerDep,
     SettingsDep,
 )
 from pindou.core.errors import ApiError
 from pindou.imaging.color_budget import resolve_color_budget
-from pindou.imaging.foreground import prepare_foreground
 from pindou.imaging.grid import build_bead_grid
 from pindou.imaging.image_backup import backup_enhanced_images
 from pindou.imaging.preprocess import decode_image
@@ -23,6 +22,7 @@ from pindou.schemas.conversion import (
     ConversionMeta,
     ConversionResponse,
     ConversionStats,
+    ForegroundFallbackMode,
     ForegroundGrid,
     PaletteColor,
     RenderBackground,
@@ -43,9 +43,10 @@ def create_conversion(
     max_colors: Annotated[int | None, Form()] = None,
     background_mode: Annotated[BackgroundMode, Form()] = BackgroundMode.SOLID,
     background_color: Annotated[str | None, Form()] = None,
+    fallback_mode: Annotated[ForegroundFallbackMode, Form()] = ForegroundFallbackMode.NONE,
     *,
     chart: ColorChartDep,
-    enhancer: ImageEnhancerDep,
+    foreground_preparer: ForegroundPreparerDep,
     app_settings: SettingsDep,
     access_keys: AccessKeyServiceDep,
     api_key: Annotated[str | None, Header(alias="X-API-Key")] = None,
@@ -88,8 +89,7 @@ def create_conversion(
     # 解码阶段会验证真实图片格式、应用 EXIF 方向并统一转换为 RGBA。
     decoded = decode_image(content, max_pixels=app_settings.upload_max_pixels)
     enhanced = decoded
-    # prepare_foreground() 是背景能力的唯一 seam。路由只记录已经通过验证的处理结果，
-    # 不再了解 Alpha 覆盖率、键色选择或 flood-fill 等实现细节。
+    # ForegroundPreparer 是背景能力的唯一 seam；路由不感知模型 tensor 或蒙版阈值。
     background_processing = "none"
     try:
         # 仅在所有低成本参数和图片校验通过后扣次；条件更新已提交后不因后续
@@ -98,20 +98,20 @@ def create_conversion(
         response.headers["X-RateLimit-Limit"] = str(quota.initial_uses)
         response.headers["X-RateLimit-Remaining"] = str(quota.remaining_uses)
 
-        prepared = prepare_foreground(
+        prepared = foreground_preparer.prepare(
             decoded,
-            enhancer=enhancer,
             options=EnhancementOptions(
                 grid_size=grid_size,
                 color_budget_band=color_budget.prompt_band,
                 background_mode=background_mode,
                 background_color=normalized_background_color,
             ),
+            fallback_mode=fallback_mode,
         )
         enhanced = prepared.image
         background_processing = prepared.processing
         # 备份的是已经完成背景处理、即将进入量化的图像，便于人工核对“白底是否被抠除”。
-        if enhancer.name != "passthrough":
+        if prepared.enhancer_name != "passthrough":
             backup_enhanced_images(
                 decoded,
                 enhanced,
@@ -125,8 +125,12 @@ def create_conversion(
             grid_size=grid_size,
             effective_max_colors=color_budget.effective_max_colors,
             color_set_size=color_set_size,
-            background_mode=background_mode,
-            background_color=normalized_background_color,
+            background_mode=prepared.applied_background_mode,
+            background_color=(
+                normalized_background_color
+                if prepared.applied_background_mode is BackgroundMode.SOLID
+                else None
+            ),
         )
     finally:
         # 无论量化成功还是失败，都关闭所有 Pillow 对象，防止文件句柄和内存泄漏。
@@ -139,7 +143,7 @@ def create_conversion(
     # Solid 背景是渲染层，不进入前景 palette；keep/simplify 不额外铺设背景层。
     render_background = (
         RenderBackground(mode="solid", color=normalized_background_color)
-        if background_mode is BackgroundMode.SOLID
+        if prepared.applied_background_mode is BackgroundMode.SOLID
         else RenderBackground(mode="none")
     )
     return ConversionResponse(
@@ -161,12 +165,16 @@ def create_conversion(
         background=render_background,
         meta=ConversionMeta(
             # 回传约束与色卡版本，便于前端展示和未来复现结果。
-            enhancer=enhancer.name,
-            enhancer_model=enhancer.model,
-            enhancer_prompt_version=enhancer.prompt_version,
+            enhancer=prepared.enhancer_name,
+            enhancer_model=prepared.enhancer_model,
+            enhancer_prompt_version=prepared.enhancer_prompt_version,
             background_mode=background_mode,
+            applied_background_mode=prepared.applied_background_mode,
             background_color=normalized_background_color,
             background_processing=background_processing,
+            foreground_model_version=prepared.foreground_model_version,
+            degraded=prepared.degraded,
+            degrade_reason=prepared.degrade_reason,
             color_set_size=color_set_size,
             color_budget_mode=color_budget.mode,
             color_budget_policy_version=color_budget.policy_version,

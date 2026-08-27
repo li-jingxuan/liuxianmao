@@ -1,5 +1,6 @@
 /** 后端支持的背景处理方式，与 FastAPI 的 BackgroundMode 枚举保持一致。 */
 export type BackgroundMode = "simplify" | "solid" | "keep";
+export type ForegroundFallbackMode = "none" | "simplify";
 
 /**
  * 单个 MARD 拼豆颜色。
@@ -38,9 +39,13 @@ export type BeadGrid = {
     enhancer_model?: string;
     enhancer_prompt_version?: string;
     background_mode: BackgroundMode;
+    applied_background_mode: BackgroundMode;
     background_color?: `#${string}`;
     // 后端实际采用且已经通过可信度验证的背景分离路径。
-    background_processing: "none" | "native_alpha" | "chroma_key";
+    background_processing: "none" | "local_matte" | "fallback_simplify";
+    foreground_model_version?: string;
+    degraded: boolean;
+    degrade_reason?: "foreground_low_confidence";
     palette_brand: "MARD";
     color_set_size: number;
     color_budget_mode: "auto" | "legacy-explicit";
@@ -99,6 +104,7 @@ export type ConversionInput = {
   colorSetSize: number;
   backgroundMode: BackgroundMode;
   backgroundColor?: string;
+  fallbackMode?: ForegroundFallbackMode;
 };
 
 /** 当前消费密钥的只读额度。 */

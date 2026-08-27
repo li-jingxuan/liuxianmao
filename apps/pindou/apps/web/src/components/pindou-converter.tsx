@@ -216,6 +216,7 @@ export function PindouConverter({
   );
   const [backgroundMode, setBackgroundMode] = useState<BackgroundMode>("solid");
   const [backgroundColor] = useState("#FFFFFF");
+  const [allowSimplifyFallback, setAllowSimplifyFallback] = useState(false);
   const [quotaState, setQuotaState] = useState<QuotaState>({ status: "loading" });
 
   // 转换流程状态。result 只在 complete 时展示，错误后回到 idle 允许直接重试。
@@ -477,6 +478,10 @@ export function PindouConverter({
           colorSetSize,
           backgroundMode,
           backgroundColor,
+          fallbackMode:
+            backgroundMode === "solid" && allowSimplifyFallback
+              ? "simplify"
+              : "none",
         },
         { apiKey },
       );
@@ -615,6 +620,20 @@ export function PindouConverter({
             <p>把喜欢的图片变成拼豆图纸</p>
           </div>
         </div>
+
+        {backgroundMode === "solid" && (
+          <label className={cx("fallback-option")}>
+            <input
+              type="checkbox"
+              checked={allowSimplifyFallback}
+              onChange={(event) => setAllowSimplifyFallback(event.target.checked)}
+            />
+            <span>
+              主体识别不可靠时，允许生成包含背景的简化版本
+              <small>系统故障不会触发此降级</small>
+            </span>
+          </label>
+        )}
         {/* <button className={cx("icon-button")} aria-label="查看使用说明" title="上传图片并选择参数，即可生成拼豆图纸">
           <HelpCircle />
         </button> */}
@@ -910,6 +929,11 @@ export function PindouConverter({
 
           {status === "complete" && result && (
             <div className={cx("result-content")}>
+              {result.meta.degraded && (
+                <div className={cx("degraded-notice")} role="status">
+                  未能可靠分离主体，已按你的选择生成包含背景的简化版本。
+                </div>
+              )}
               {delivery && (
                 <div className={cx("delivery-link-panel")}>
                   <div>

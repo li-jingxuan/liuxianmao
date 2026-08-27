@@ -48,7 +48,7 @@ def make_client(handler: httpx.MockTransport) -> SeedreamClient:
     [
         (BackgroundMode.SIMPLIFY, "可以删除无关小物体", "完整移除原背景"),
         (BackgroundMode.KEEP, "不能删除整个有语义的背景物体", "可以删除无关小物体"),
-        (BackgroundMode.SOLID, "内部键色背景", "可以删除无关小物体"),
+        (BackgroundMode.SOLID, "本地前景模型生成蒙版", "不能删除整个有语义的背景物体"),
     ],
 )
 def test_chinese_prompts_are_isolated_by_background_mode(
@@ -62,7 +62,6 @@ def test_chinese_prompts_are_isolated_by_background_mode(
             grid_size=52,
             color_budget_band=ColorBudgetBand.BALANCED,
             background_mode=mode,
-            chroma_key="#FF00FF" if mode is BackgroundMode.SOLID else None,
         )
     )
 
@@ -213,23 +212,23 @@ def test_prompt_contains_only_selected_color_budget_band(
     assert unexpected not in prompt
 
 
-def test_solid_background_prompt_prevents_chroma_spill() -> None:
+def test_solid_background_prompt_delegates_mask_generation_to_local_model() -> None:
     prompt = build_seedream_prompt(
         EnhancementOptions(
             grid_size=52,
             color_budget_band=ColorBudgetBand.BALANCED,
             background_mode=BackgroundMode.SOLID,
             background_color="#aabbcc",
-            chroma_key="#ff00ff",
         )
     )
 
-    assert "#FF00FF 内部键色背景" in prompt
-    assert "不得覆盖、替换或改变主体内部原有的白色" in prompt
+    assert "本地前景模型生成蒙版" in prompt
+    assert "不要生成键色、透明通道" in prompt
+    assert "背景应简洁、平坦、低细节" in prompt
+    assert "与主体主要颜色保持足够对比" in prompt
     assert "抗锯齿色带" in prompt
-    assert "键色不得产生环境光、反射、辉光、色溢或透射" in prompt
-    assert "禁止绿色、青色、品红色或蓝色的描边" in prompt
-    assert "不生成半透明过渡带" in prompt
+    assert "色溢" in prompt
+    assert "#FF00FF" not in prompt
     assert normalize_background_color(None) == "#FFFFFF"
 
 
@@ -259,7 +258,6 @@ def test_solid_enhancement_accepts_opaque_upstream_output() -> None:
                 color_budget_band=ColorBudgetBand.BALANCED,
                 background_mode=BackgroundMode.SOLID,
                 background_color="#FFFFFF",
-                chroma_key="#FF00FF",
             ),
         )
         assert enhanced.image.getchannel("A").getextrema() == (255, 255)
@@ -355,7 +353,7 @@ def test_seedream_settings_require_key_without_exposing_it() -> None:
         ark_doubao_api_key="very-secret-key",
     )
     assert "very-secret-key" not in repr(settings)
-    assert SEEDREAM_PROMPT_VERSION == "seedream-pindou-v9-chroma-despill"
+    assert SEEDREAM_PROMPT_VERSION == "seedream-pindou-v10-local-matting"
 
 
 def test_client_rejects_invalid_base64() -> None:

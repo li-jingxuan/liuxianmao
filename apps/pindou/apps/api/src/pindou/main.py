@@ -13,8 +13,10 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 
 from pindou.api.dependencies import (
+    ForegroundMaskAdapterDep,
     SessionDep,
     get_color_chart,
+    get_foreground_mask_adapter,
     get_image_delivery_store,
     get_image_enhancer,
 )
@@ -56,6 +58,7 @@ async def lifespan(_: FastAPI):
     get_color_chart()
     get_engine()
     enhancer = get_image_enhancer()
+    foreground_mask_adapter = get_foreground_mask_adapter()
     delivery_store = get_image_delivery_store()
     delivery_store.prepare()
     delivery_store.delete_expired()
@@ -70,6 +73,9 @@ async def lifespan(_: FastAPI):
         close = getattr(enhancer, "close", None)
         if callable(close):
             close()
+        close_mask_adapter = getattr(foreground_mask_adapter, "close", None)
+        if callable(close_mask_adapter):
+            close_mask_adapter()
         dispose_engine()
 
 
@@ -128,12 +134,17 @@ def healthcheck() -> HealthResponse:
 
 
 @app.get("/readyz")
-def readiness_check(session: SessionDep) -> HealthResponse:
-    """确认数据库可连接，供编排系统判断实例是否可以接收流量。"""
+def readiness_check(
+    session: SessionDep,
+    foreground_mask_adapter: ForegroundMaskAdapterDep,
+) -> HealthResponse:
+    """确认数据库和本地前景模型已就绪，供编排系统决定是否接流量。"""
     try:
         check_database(session)
     except SQLAlchemyError as exc:
         raise ApiError(503, "DATABASE_UNAVAILABLE", "数据库暂时不可用，请稍后重试") from exc
+    if not foreground_mask_adapter.ready:
+        raise ApiError(503, "FOREGROUND_MASK_UNAVAILABLE", "主体识别能力暂时不可用")
     return HealthResponse()
 
 

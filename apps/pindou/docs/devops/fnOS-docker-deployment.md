@@ -216,7 +216,7 @@ services:
       - ./api-images:/var/lib/pindou/images
     expose: ["3112"]
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:3112/healthz')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:3112/readyz')"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -361,9 +361,9 @@ API 图片备份目录 `api-images/` 也应纳入 fnOS 快照或 rsync 计划。
 ## 8. 监控与故障排查
 
 - 日志：`docker compose logs --since=30m api web postgres`；应用已有 `x-request-id`，排查时记录该 ID。
-- 健康状态：API `/healthz` 只检查进程，`/readyz` 检查数据库；Web 健康检查访问根路径。
+- 健康状态：API `/healthz` 只检查进程，`/readyz` 检查数据库和本地前景模型；Web 健康检查访问根路径。
 - 资源：重点观察 NAS 的 CPU、内存、存储空间、容器重启次数和 PostgreSQL 卷增长。
-- API 启动失败：优先查 `DATABASE_URL`、三项必需密钥、色卡路径和迁移日志。
+- API 启动失败：优先查 `DATABASE_URL`、三项必需密钥、色卡路径、前景模型 SHA-256 和迁移日志。
 - Web 页面能打开但请求打到 `localhost`：检查 `NEXT_PUBLIC_API_BASE_URL` 是否仍为旧值，并重新构建 Web 镜像（该变量在构建时写入客户端包）。
 - `502/504`：检查 API 是否 healthy、`PINDOU_API_ORIGIN` 是否为 `http://api:3112`，以及 API 是否因 Seedream 超时或并发限制持续重启。
 - 数据库连接失败：确认 Compose 网络中的主机名是 `postgres`，不要使用 NAS 宿主机 IP 或 `localhost`；检查数据库健康日志和磁盘空间。

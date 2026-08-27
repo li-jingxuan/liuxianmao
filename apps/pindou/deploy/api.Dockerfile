@@ -12,6 +12,7 @@ RUN addgroup --system --gid 10001 pindou \
 
 COPY apps/api/pyproject.toml /app/apps/api/pyproject.toml
 COPY apps/api/src /app/apps/api/src
+COPY apps/api/models /app/apps/api/models
 COPY apps/api/migrations /app/apps/api/migrations
 COPY apps/api/alembic.ini /app/apps/api/alembic.ini
 COPY docs/MARD_色卡.json /app/docs/MARD_色卡.json

@@ -23,6 +23,7 @@ const input: ConversionInput = {
   colorSetSize: 48,
   backgroundMode: "solid",
   backgroundColor: "#FFFFFF",
+  fallbackMode: "simplify",
 };
 
 describe("createConversion", () => {
@@ -40,6 +41,7 @@ describe("createConversion", () => {
     expect(form.get("color_set_size")).toBe("48");
     expect(form.get("background_mode")).toBe("solid");
     expect(form.get("background_color")).toBe("#FFFFFF");
+    expect(form.get("fallback_mode")).toBe("simplify");
   });
 
   it("omits the API key header when the route has no key", async () => {

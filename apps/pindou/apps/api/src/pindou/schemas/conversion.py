@@ -16,6 +16,13 @@ class BackgroundMode(StrEnum):
     SOLID = "solid"
 
 
+class ForegroundFallbackMode(StrEnum):
+    """Solid 主体低置信时是否允许改变结果语义。"""
+
+    NONE = "none"
+    SIMPLIFY = "simplify"
+
+
 class PaletteColor(BaseModel):
     """前端渲染和展示用的单个实际 MARD 色号。"""
 
@@ -34,13 +41,22 @@ class ConversionMeta(BaseModel):
     enhancer_model: str | None = None
     enhancer_prompt_version: str | None = None
     background_mode: BackgroundMode
+    applied_background_mode: BackgroundMode
     background_color: str | None = Field(
         default=None,
         pattern=r"^#[0-9A-F]{6}$",
         exclude_if=lambda value: value is None,
     )
-    # 只记录已经通过前景准备模块验证的处理路径，不再暴露旧的猜色 flood-fill。
-    background_processing: Literal["none", "native_alpha", "chroma_key"] = "none"
+    background_processing: Literal["none", "local_matte", "fallback_simplify"] = "none"
+    foreground_model_version: str | None = Field(
+        default=None,
+        exclude_if=lambda value: value is None,
+    )
+    degraded: bool = False
+    degrade_reason: Literal["foreground_low_confidence"] | None = Field(
+        default=None,
+        exclude_if=lambda value: value is None,
+    )
     palette_brand: Literal["MARD"] = "MARD"
     color_set_size: int
     color_budget_mode: Literal["auto", "legacy-explicit"]

@@ -25,6 +25,10 @@ sudo chown -R 10001:10001 deploy/data/api-images deploy/data/image-deliveries
 ./generate-api-secrets.sh
 ```
 
+API 镜像内置固定 SHA-256 的 U-2-NetP ONNX 前景模型。NAS 资源较紧时可在
+`deploy/.env` 调整 `FOREGROUND_ONNX_INTRA_OP_THREADS`，首版建议保持 2；
+`FOREGROUND_MASK_MAX_CONCURRENCY` 建议保持 1，压测后再扩大。
+
 ## 2. 构建并启动
 
 ```bash
@@ -82,3 +86,6 @@ docker compose --env-file deploy/.env -f deploy/compose.yaml down
 API 或 PostgreSQL 端口直接暴露到公网。当前 Compose 默认将 API 映射到
 `API_HOST_PORT`（默认 `3112`）；若不需要从 NAS 宿主机或局域网直接访问 API，可删除
 `api` 服务的 `ports` 配置。
+
+API Compose 健康检查使用 `/readyz`，会同时验证数据库和本地前景模型已加载；
+`/healthz` 只代表进程存活。

@@ -44,6 +44,13 @@ services:
       IMAGE_DELIVERY_MAX_BYTES: ${IMAGE_DELIVERY_MAX_BYTES:-31457280}
       IMAGE_DELIVERY_MAX_PIXELS: ${IMAGE_DELIVERY_MAX_PIXELS:-50000000}
       IMAGE_DELIVERY_CLEANUP_INTERVAL_SECONDS: ${IMAGE_DELIVERY_CLEANUP_INTERVAL_SECONDS:-3600}
+      FOREGROUND_MASK_ADAPTER: onnx-u2netp
+      FOREGROUND_MODEL_PATH: /app/apps/api/models/foreground/u2netp.onnx
+      FOREGROUND_MODEL_METADATA_PATH: /app/apps/api/models/foreground/model.json
+      FOREGROUND_MASK_MAX_CONCURRENCY: ${FOREGROUND_MASK_MAX_CONCURRENCY:-1}
+      FOREGROUND_MASK_QUEUE_TIMEOUT_SECONDS: ${FOREGROUND_MASK_QUEUE_TIMEOUT_SECONDS:-3}
+      FOREGROUND_ONNX_INTRA_OP_THREADS: ${FOREGROUND_ONNX_INTRA_OP_THREADS:-2}
+      FOREGROUND_ONNX_ALLOW_SPINNING: ${FOREGROUND_ONNX_ALLOW_SPINNING:-false}
     ports:
       # 宿主机端口与容器 API 监听端口分开命名，避免和 API_PORT 混淆。
       - "${API_HOST_PORT:-3112}:3112"
@@ -61,7 +68,7 @@ services:
       - ./data/image-deliveries:/var/lib/pindou/image-deliveries
     healthcheck:
       test:
-        ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:3112/healthz')"]
+        ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:3112/readyz')"]
       interval: 15s
       timeout: 5s
       retries: 5

@@ -19,9 +19,6 @@ class EnhancementOptions:
     color_budget_band: ColorBudgetBand
     background_mode: BackgroundMode
     background_color: str | None = None
-    # Solid 模式内部使用的抠图键色。它与用户最终看到的背景色完全独立，只能由
-    # 前景准备模块选择并传给增强器，HTTP 路由和前端都不应允许用户直接指定。
-    chroma_key: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,7 +26,7 @@ class EnhancementResult:
     """增强器输出图片。
 
     Alpha 或键色是否足以构成可信前景，不应由供应商适配器自行宣称。统一交给
-    `prepare_foreground()` 检查，避免“存在一个透明像素就算透明图”的宽松判断。
+    Solid 输出的主体蒙版由 `ForegroundPreparer` 统一生成和验证。
     """
 
     image: Image.Image
