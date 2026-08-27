@@ -10,13 +10,13 @@ from pindou.imaging.color_budget import (
     GridDetailBand,
     classify_grid_detail,
 )
-from pindou.schemas.conversion import BackgroundMode
+from pindou.schemas.conversion import BackgroundMode, ConversionStyle
 from pindou.services.enhancer import EnhancementOptions
 
 DEFAULT_SOLID_BACKGROUND_COLOR = "#FFFFFF"
 HEX_COLOR_PATTERN = re.compile(r"#[0-9A-Fa-f]{6}")
 # Prompt 内容与版本号必须在同一模块内同步变更，避免环境变量把实际实现标成旧版。
-SEEDREAM_PROMPT_VERSION = "seedream-pindou-v10-local-matting"
+SEEDREAM_PROMPT_VERSION = "seedream-pindou-v10-conversion-style"
 
 BASE_PROMPT = """
 以输入图为唯一内容依据。保留主体身份、类别、数量、姿态、朝向、标志性轮廓、主要配色、关键身份色和整体场景语义，不改变原图的核心内容。
@@ -24,6 +24,43 @@ BASE_PROMPT = """
 将图像整理为主体轮廓清楚、主要色块连续、视觉层级稳定的平面插画中间图。
 优先保证主体整体可识别，再保留少量有身份意义的内部特征；次要局部和背景细节可以合并或弱化。
 """.strip()
+
+CHIBI_STYLE_PROMPT = """
+主体风格：将前景主体转换为清晰、可爱、圆润的 Q 版平面插画表达。
+人物或拟人角色使用约 2–3 头身的大头小身体比例，适度放大最有身份意义的面部特征，
+简化四肢、服饰褶皱和次要配件；非人物主体也使用圆润、紧凑、低细节的可爱化比例。
+保留主体身份、类别、数量、朝向、动作、主要配色、标志性服饰或结构，以及主体之间的关系。
+比例变化不能造成肢体缺失、主体粘连、遮挡关系颠倒或构图重心明显偏移。
+""".strip()
+
+STICKER_STYLE_PROMPT = """
+主体风格：将主体转换为轮廓醒目、色彩鲜明、形体紧凑的贴纸插画表达。
+使用粗细稳定的单层深色外轮廓和少量必要内部线条，色块平坦、封闭、连续，主体与背景清楚分离。
+保留主体身份、数量、姿态、主要配色和标志性结构，不增加文字、标志或装饰。
+不要生成白色裁切边、离型纸、包装、投影、翘边、反光或贴在物体表面的展示场景。
+""".strip()
+
+MINIMAL_ILLUSTRATION_STYLE_PROMPT = """
+主体风格：将画面主动归纳为简约现代的平面插画。
+使用简洁几何形体、克制的封闭轮廓和少量连续大色块，合并次要结构、重复装饰、纹理和细碎明暗。
+保留主体身份、类别、数量、动作、主要配色、关键识别特征和构图关系；简化不等于删除主体或改变语义。
+不要生成渐变、颗粒、笔触、复杂光影或装饰性小图形。
+""".strip()
+
+PAPER_CUT_STYLE_PROMPT = """
+主体风格：将画面转换为彩色剪纸插画，使用少量完整纸片形状表达主体结构和必要空间层次。
+所有纸片使用清晰封闭的硬边界、连续纯色色块和克制的前后分层，保留主体身份、数量、姿态、主要配色和构图。
+不要生成纸张纤维、毛边、褶皱、卷曲、密集镂空、真实投影、桌面摆拍或立体手工作品照片。
+不要让纸片分层改变主体数量、肢体完整性和遮挡关系。
+""".strip()
+
+STYLE_PROMPTS: dict[ConversionStyle, str | None] = {
+    ConversionStyle.ORIGINAL: None,
+    ConversionStyle.CHIBI: CHIBI_STYLE_PROMPT,
+    ConversionStyle.STICKER: STICKER_STYLE_PROMPT,
+    ConversionStyle.MINIMAL_ILLUSTRATION: MINIMAL_ILLUSTRATION_STYLE_PROMPT,
+    ConversionStyle.PAPER_CUT: PAPER_CUT_STYLE_PROMPT,
+}
 
 GRID_DETAIL_PROMPTS: dict[GridDetailBand, str] = {
     GridDetailBand.MICRO: """
@@ -138,7 +175,7 @@ def normalize_background_color(value: str | None) -> str:
 
 
 def build_seedream_prompt(options: EnhancementOptions) -> str:
-    """按网格、轮廓、颜色预算和背景模式组装 Prompt v9。"""
+    """按转换类型、网格、颜色预算和背景模式组装 Prompt。"""
     detail_band = classify_grid_detail(options.grid_size)
     grid_context = (
         f"这张中间图随后会被等比适配并缩小为 {options.grid_size}×{options.grid_size} "
@@ -149,7 +186,11 @@ def build_seedream_prompt(options: EnhancementOptions) -> str:
         "这张中间图最终会被映射到有限的实体拼豆色卡。\n"
         "请按照当前颜色表达档位组织主要色块、强调色和明暗层级，不追求精确颜色数。"
     )
-    prompt_parts = [BASE_PROMPT, grid_context, GRID_DETAIL_PROMPTS[detail_band], OUTLINE_PROMPT]
+    prompt_parts = [BASE_PROMPT]
+    style_prompt = STYLE_PROMPTS[options.conversion_style]
+    if style_prompt is not None:
+        prompt_parts.append(style_prompt)
+    prompt_parts.extend((grid_context, GRID_DETAIL_PROMPTS[detail_band], OUTLINE_PROMPT))
     if options.grid_size < 104:
         prompt_parts.append(SUBJECT_FIRST_PROMPT)
     prompt_parts.extend(

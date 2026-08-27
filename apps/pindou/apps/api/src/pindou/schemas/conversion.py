@@ -16,6 +16,16 @@ class BackgroundMode(StrEnum):
     SOLID = "solid"
 
 
+class ConversionStyle(StrEnum):
+    """AI 增强阶段支持的受控图片转换类型。"""
+
+    ORIGINAL = "original"
+    CHIBI = "chibi"
+    STICKER = "sticker"
+    MINIMAL_ILLUSTRATION = "minimal_illustration"
+    PAPER_CUT = "paper_cut"
+
+
 class ForegroundFallbackMode(StrEnum):
     """Solid 主体低置信时是否允许改变结果语义。"""
 
@@ -40,6 +50,7 @@ class ConversionMeta(BaseModel):
     enhancer: Literal["passthrough", "seedream-5-lite"]
     enhancer_model: str | None = None
     enhancer_prompt_version: str | None = None
+    conversion_style: ConversionStyle
     background_mode: BackgroundMode
     applied_background_mode: BackgroundMode
     background_color: str | None = Field(
@@ -101,7 +112,7 @@ class ConversionResponse(BaseModel):
     """
 
     # schema_version 描述 JSON 形状；algorithm_version 描述量化行为。
-    schema_version: Literal["3"] = "3"
+    schema_version: Literal["4"] = "4"
     algorithm_version: Literal["bead-grid-constrained-v3"] = "bead-grid-constrained-v3"
     width: int = Field(ge=1)
     height: int = Field(ge=1)

@@ -9,7 +9,7 @@ from typing import Literal, Protocol
 from PIL import Image
 
 from pindou.core.errors import ApiError
-from pindou.schemas.conversion import BackgroundMode, ForegroundFallbackMode
+from pindou.schemas.conversion import BackgroundMode, ConversionStyle, ForegroundFallbackMode
 from pindou.services.enhancer import EnhancementOptions, ImageEnhancer
 
 logger = logging.getLogger(__name__)
@@ -156,6 +156,16 @@ class ForegroundPreparer:
         self._enhancer = enhancer
         self._mask_adapter = mask_adapter
         self._policy = policy or ForegroundPolicy()
+
+    @property
+    def supported_styles(self) -> frozenset[ConversionStyle]:
+        """向编排层公开增强器能力，同时隐藏具体供应商实现。"""
+        return self._enhancer.supported_styles
+
+    @property
+    def enhancer_name(self) -> str:
+        """供结构化日志标记当前增强器，不让路由判断具体名称。"""
+        return self._enhancer.name
 
     def prepare(
         self,

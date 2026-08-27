@@ -4,7 +4,7 @@ import { drawBeadGrid, exportBeadGrid, PATTERN_EXPORT_CELL_SIZE } from "../src/l
 import type { BeadGrid } from "../src/lib/types";
 
 const grid: BeadGrid = {
-  schema_version: "3",
+  schema_version: "4",
   algorithm_version: "bead-grid-constrained-v3",
   width: 2,
   height: 2,
@@ -15,6 +15,7 @@ const grid: BeadGrid = {
   background: { mode: "none" },
   meta: {
     enhancer: "passthrough",
+    conversion_style: "original",
     background_mode: "keep",
     applied_background_mode: "keep",
     background_processing: "none",

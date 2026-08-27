@@ -11,7 +11,7 @@ from PIL import Image
 from pindou.core.config import Settings
 from pindou.core.errors import ApiError
 from pindou.imaging.color_budget import ColorBudgetBand, GridDetailBand, classify_grid_detail
-from pindou.schemas.conversion import BackgroundMode
+from pindou.schemas.conversion import BackgroundMode, ConversionStyle
 from pindou.services.enhancer import EnhancementOptions
 from pindou.services.seedream_client import SeedreamClient, SeedreamUpstreamError
 from pindou.services.seedream_enhancer import SeedreamEnhancer
@@ -62,6 +62,7 @@ def test_chinese_prompts_are_isolated_by_background_mode(
             grid_size=52,
             color_budget_band=ColorBudgetBand.BALANCED,
             background_mode=mode,
+            conversion_style=ConversionStyle.ORIGINAL,
         )
     )
 
@@ -114,6 +115,7 @@ def test_prompt_contains_only_selected_grid_detail_band(
             grid_size=grid_size,
             color_budget_band=ColorBudgetBand.RICH,
             background_mode=BackgroundMode.KEEP,
+            conversion_style=ConversionStyle.ORIGINAL,
         )
     )
 
@@ -128,6 +130,7 @@ def test_prompt_restricts_changes_to_required_simplification() -> None:
             grid_size=52,
             color_budget_band=ColorBudgetBand.BALANCED,
             background_mode=BackgroundMode.SIMPLIFY,
+            conversion_style=ConversionStyle.ORIGINAL,
         )
     )
 
@@ -154,6 +157,7 @@ def test_preset_prompts_contain_expected_detail_priorities(
             grid_size=grid_size,
             color_budget_band=ColorBudgetBand.RICH,
             background_mode=BackgroundMode.KEEP,
+            conversion_style=ConversionStyle.ORIGINAL,
         )
     )
 
@@ -174,6 +178,7 @@ def test_grids_below_104_reduce_background_detail(
             grid_size=grid_size,
             color_budget_band=ColorBudgetBand.RICH,
             background_mode=BackgroundMode.KEEP,
+            conversion_style=ConversionStyle.ORIGINAL,
         )
     )
 
@@ -202,6 +207,7 @@ def test_prompt_contains_only_selected_color_budget_band(
             grid_size=52,
             color_budget_band=color_budget_band,
             background_mode=BackgroundMode.KEEP,
+            conversion_style=ConversionStyle.ORIGINAL,
         )
     )
 
@@ -218,6 +224,7 @@ def test_solid_background_prompt_delegates_mask_generation_to_local_model() -> N
             grid_size=52,
             color_budget_band=ColorBudgetBand.BALANCED,
             background_mode=BackgroundMode.SOLID,
+            conversion_style=ConversionStyle.ORIGINAL,
             background_color="#aabbcc",
         )
     )
@@ -257,6 +264,7 @@ def test_solid_enhancement_accepts_opaque_upstream_output() -> None:
                 grid_size=52,
                 color_budget_band=ColorBudgetBand.BALANCED,
                 background_mode=BackgroundMode.SOLID,
+                conversion_style=ConversionStyle.ORIGINAL,
                 background_color="#FFFFFF",
             ),
         )
@@ -265,6 +273,7 @@ def test_solid_enhancement_accepts_opaque_upstream_output() -> None:
     finally:
         image.close()
         enhancer.close()
+
 
 def test_seedream_client_sends_single_non_streaming_image_and_decodes_response() -> None:
     output = make_png_bytes()
@@ -334,6 +343,7 @@ def test_enhancer_maps_official_error_codes(upstream_code: str, expected_code: s
                     grid_size=52,
                     color_budget_band=ColorBudgetBand.BALANCED,
                     background_mode=BackgroundMode.KEEP,
+                    conversion_style=ConversionStyle.ORIGINAL,
                 ),
             )
     finally:
@@ -353,7 +363,48 @@ def test_seedream_settings_require_key_without_exposing_it() -> None:
         ark_doubao_api_key="very-secret-key",
     )
     assert "very-secret-key" not in repr(settings)
-    assert SEEDREAM_PROMPT_VERSION == "seedream-pindou-v10-local-matting"
+    assert SEEDREAM_PROMPT_VERSION == "seedream-pindou-v10-conversion-style"
+
+
+@pytest.mark.parametrize(
+    ("conversion_style", "expected", "unexpected"),
+    [
+        (ConversionStyle.CHIBI, "2–3 头身", "白色裁切边"),
+        (ConversionStyle.STICKER, "白色裁切边", "2–3 头身"),
+        (ConversionStyle.MINIMAL_ILLUSTRATION, "简约现代的平面插画", "纸张纤维"),
+        (ConversionStyle.PAPER_CUT, "纸张纤维", "简约现代的平面插画"),
+    ],
+)
+def test_prompt_contains_only_selected_conversion_style(
+    conversion_style: ConversionStyle,
+    expected: str,
+    unexpected: str,
+) -> None:
+    prompt = build_seedream_prompt(
+        EnhancementOptions(
+            grid_size=78,
+            color_budget_band=ColorBudgetBand.BALANCED,
+            background_mode=BackgroundMode.KEEP,
+            conversion_style=conversion_style,
+        )
+    )
+
+    assert expected in prompt
+    assert unexpected not in prompt
+    assert "不能删除整个有语义的背景物体" in prompt
+
+
+def test_original_style_does_not_add_a_style_fragment() -> None:
+    prompt = build_seedream_prompt(
+        EnhancementOptions(
+            grid_size=78,
+            color_budget_band=ColorBudgetBand.BALANCED,
+            background_mode=BackgroundMode.KEEP,
+            conversion_style=ConversionStyle.ORIGINAL,
+        )
+    )
+
+    assert "主体风格：" not in prompt
 
 
 def test_client_rejects_invalid_base64() -> None:
@@ -366,3 +417,39 @@ def test_client_rejects_invalid_base64() -> None:
             client.edit_image(image_data_url="data:image/png;base64,AAAA", prompt="中文")
     finally:
         client.close()
+
+
+def test_development_mode_logs_full_prompt(caplog: pytest.LogCaptureFixture) -> None:
+    """开发模式输出完整提示词，默认关闭时不记录提示词内容。"""
+    output = make_png_bytes()
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={"data": [{"b64_json": base64.b64encode(output).decode()}]},
+        )
+
+    options = EnhancementOptions(
+        grid_size=52,
+        color_budget_band=ColorBudgetBand.BALANCED,
+        background_mode=BackgroundMode.KEEP,
+        conversion_style=ConversionStyle.ORIGINAL,
+    )
+    caplog.set_level("INFO", logger="uvicorn.error")
+    enhancer = SeedreamEnhancer(
+        client=make_client(httpx.MockTransport(handler)),
+        model="test-model",
+        input_max_edge=512,
+        output_max_pixels=1_000_000,
+        max_concurrency=1,
+        queue_timeout_seconds=1,
+        log_prompts=True,
+    )
+    image = Image.new("RGBA", (8, 8), (255, 0, 0, 255))
+    try:
+        enhancer.enhance(image, options=options)
+    finally:
+        image.close()
+        enhancer.close()
+
+    assert build_seedream_prompt(options) in caplog.text

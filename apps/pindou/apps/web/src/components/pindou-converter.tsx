@@ -36,7 +36,12 @@ import { countForegroundBeads } from "@/lib/bead-grid";
 import { drawBeadGrid } from "@/lib/canvas";
 import { cropImageToFile } from "@/lib/image-crop";
 import { exportPatternSheet } from "@/lib/pattern-sheet-export";
-import type { BackgroundMode, BeadGrid, ColorSetsResponse } from "@/lib/types";
+import type {
+  BackgroundMode,
+  BeadGrid,
+  ColorSetsResponse,
+  ConversionStyle,
+} from "@/lib/types";
 import { validateImage } from "@/lib/validation";
 
 import styles from "./pindou-converter.module.scss";
@@ -55,6 +60,21 @@ const BACKGROUNDS: Array<{ value: BackgroundMode; label: string }> = [
   { value: "solid", label: "纯色背景" },
   { value: "keep", label: "保留原图背景" },
 ];
+
+const CONVERSION_STYLES = [
+  { value: "original", label: "原图增强" },
+  { value: "chibi", label: "Q版" },
+  { value: "sticker", label: "贴纸风" },
+  { value: "minimal_illustration", label: "简约插画" },
+  { value: "paper_cut", label: "剪纸风" },
+] as const satisfies ReadonlyArray<{
+  value: ConversionStyle;
+  label: string;
+}>;
+
+const CONVERSION_STYLE_LABELS: Record<ConversionStyle, string> = Object.fromEntries(
+  CONVERSION_STYLES.map(({ value, label }) => [value, label]),
+) as Record<ConversionStyle, string>;
 
 type ImageDetails = { width: number; height: number };
 type Status = "idle" | "processing" | "complete";
@@ -215,8 +235,10 @@ export function PindouConverter({
     DEFAULT_COLOR_SET_SIZE,
   );
   const [backgroundMode, setBackgroundMode] = useState<BackgroundMode>("solid");
+  const [conversionStyle, setConversionStyle] =
+    useState<ConversionStyle>("chibi");
   const [backgroundColor] = useState("#FFFFFF");
-  const [allowSimplifyFallback, setAllowSimplifyFallback] = useState(false);
+  // const [allowSimplifyFallback, setAllowSimplifyFallback] = useState(false);
   const [quotaState, setQuotaState] = useState<QuotaState>({ status: "loading" });
 
   // 转换流程状态。result 只在 complete 时展示，错误后回到 idle 允许直接重试。
@@ -476,12 +498,11 @@ export function PindouConverter({
           image: file,
           gridSize,
           colorSetSize,
+          conversionStyle,
           backgroundMode,
           backgroundColor,
-          fallbackMode:
-            backgroundMode === "solid" && allowSimplifyFallback
-              ? "simplify"
-              : "none",
+          // 主体识别不可靠时，默认允许生成包含背景的简化版本
+          fallbackMode: 'simplify',
         },
         { apiKey },
       );
@@ -621,7 +642,7 @@ export function PindouConverter({
           </div>
         </div>
 
-        {backgroundMode === "solid" && (
+        {/* {backgroundMode === "solid" && (
           <label className={cx("fallback-option")}>
             <input
               type="checkbox"
@@ -633,7 +654,7 @@ export function PindouConverter({
               <small>系统故障不会触发此降级</small>
             </span>
           </label>
-        )}
+        )} */}
         {/* <button className={cx("icon-button")} aria-label="查看使用说明" title="上传图片并选择参数，即可生成拼豆图纸">
           <HelpCircle />
         </button> */}
@@ -702,6 +723,33 @@ export function PindouConverter({
               </span>
             </button>
           )}
+        </div>
+
+        <div className={cx("form-row")}>
+          <div className={cx("field-label")}>
+            <FieldIcon>
+              <Sparkles />
+            </FieldIcon>
+            <span>转换类型</span>
+          </div>
+          <div
+            className={cx("segmented", "conversion-style-options")}
+            role="group"
+            aria-label="转换类型"
+          >
+            {CONVERSION_STYLES.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                className={cx(conversionStyle === option.value && "active")}
+                aria-pressed={conversionStyle === option.value}
+                disabled={status === "processing"}
+                onClick={() => setConversionStyle(option.value)}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className={cx("form-row")}>
@@ -972,6 +1020,15 @@ export function PindouConverter({
                   <div className={cx("info-panel")}>
                     <h3>图像信息</h3>
                     <dl>
+                      <div>
+                        <dt>
+                          <Sparkles />
+                          {/* 实际转换类型 */}
+                        </dt>
+                        <dd>
+                          {CONVERSION_STYLE_LABELS[result.meta.conversion_style]}
+                        </dd>
+                      </div>
                       <div>
                         <dt>
                           <Grid2X2 />

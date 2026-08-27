@@ -98,6 +98,8 @@ def get_image_enhancer() -> ImageEnhancer:
         max_response_bytes=app_settings.ark_doubao_max_response_bytes,
         timeout=timeout,
     )
+
+    print('app_settings.app_env', app_settings.app_env, app_settings.app_env == "development")
     return SeedreamEnhancer(
         client=client,
         model=app_settings.ark_doubao_image_model,
@@ -105,6 +107,7 @@ def get_image_enhancer() -> ImageEnhancer:
         output_max_pixels=app_settings.seedream_output_max_pixels,
         max_concurrency=app_settings.ark_doubao_max_concurrency,
         queue_timeout_seconds=app_settings.ark_doubao_queue_timeout_seconds,
+        log_prompts=app_settings.app_env == "development",
     )
 
 

@@ -8,7 +8,7 @@ from PIL import Image
 from pindou.imaging.color_budget import ColorBudgetBand
 from pindou.imaging.foreground import ForegroundPreparer
 from pindou.imaging.foreground_mask_onnx import OnnxForegroundMaskAdapter
-from pindou.schemas.conversion import BackgroundMode
+from pindou.schemas.conversion import BackgroundMode, ConversionStyle
 from pindou.services.enhancer import EnhancementOptions, PassThroughEnhancer
 
 onnxruntime = pytest.importorskip("onnxruntime")
@@ -61,6 +61,7 @@ def test_regression_image_passes_complete_solid_preparation() -> None:
                 grid_size=78,
                 color_budget_band=ColorBudgetBand.BALANCED,
                 background_mode=BackgroundMode.SOLID,
+                conversion_style=ConversionStyle.ORIGINAL,
                 background_color="#FFFFFF",
             ),
         )

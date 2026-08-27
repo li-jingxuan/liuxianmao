@@ -259,6 +259,15 @@
   box-shadow: 0 5px 12px rgba(104, 72, 255, 0.09);
 }
 
+.conversion-style-options {
+  min-width: 0;
+}
+
+.conversion-style-options button {
+  padding: 0 8px;
+  font-size: 13px;
+}
+
 .grid-options button {
   font-size: 12px;
 }
@@ -716,7 +725,7 @@
 .info-panel dl {
   margin: 0;
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: repeat(2, 1fr);
   gap: 14px;
 }
 
@@ -937,7 +946,8 @@
   .select-wrap,
   .grid-options,
   .grid-controls,
-  .background-controls {
+  .background-controls,
+  .conversion-style-options {
     margin: 0 2px;
   }
 

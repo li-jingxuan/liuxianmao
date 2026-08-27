@@ -21,14 +21,29 @@ const input: ConversionInput = {
   image: new File(["image"], "source.png", { type: "image/png" }),
   gridSize: 48,
   colorSetSize: 48,
+  conversionStyle: "original",
   backgroundMode: "solid",
   backgroundColor: "#FFFFFF",
   fallbackMode: "simplify",
 };
 
+const validGrid = {
+  schema_version: "4",
+  algorithm_version: "bead-grid-constrained-v3",
+  width: 1,
+  height: 1,
+  foreground: {
+    palette: [{ id: 0, brand: "MARD", code: "A1", hex: "#FFFFFF", rgb: [255, 255, 255] }],
+    rows: [[0]],
+  },
+  background: { mode: "none" },
+  meta: { conversion_style: "original" },
+  stats: { bead_count: 1, color_count: 1 },
+};
+
 describe("createConversion", () => {
   it("submits all API contract fields", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ width: 48 }), { status: 200 }));
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(validGrid), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
     await createConversion(input, { apiKey: "test-route-key" });
     const [url, request] = fetchMock.mock.calls[0] as [string, RequestInit];
@@ -39,13 +54,14 @@ describe("createConversion", () => {
     expect(form.get("grid_size")).toBe("48");
     expect(form.has("max_colors")).toBe(false);
     expect(form.get("color_set_size")).toBe("48");
+    expect(form.get("conversion_style")).toBe("original");
     expect(form.get("background_mode")).toBe("solid");
     expect(form.get("background_color")).toBe("#FFFFFF");
     expect(form.get("fallback_mode")).toBe("simplify");
   });
 
   it("omits the API key header when the route has no key", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ width: 48 }), { status: 200 }));
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(validGrid), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
     await createConversion(input);
@@ -73,7 +89,7 @@ describe("createConversion", () => {
   });
 
   it("returns valid quota response headers with the conversion grid", async () => {
-    const response = new Response(JSON.stringify({ width: 48 }), {
+    const response = new Response(JSON.stringify(validGrid), {
       status: 200,
       headers: {
         "X-RateLimit-Limit": "20",
@@ -83,13 +99,13 @@ describe("createConversion", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response));
 
     await expect(createConversion(input)).resolves.toMatchObject({
-      grid: { width: 48 },
+      grid: { width: 1 },
       quota: { initial_uses: 20, remaining_uses: 12 },
     });
   });
 
   it("ignores malformed quota headers without discarding a valid conversion", async () => {
-    const response = new Response(JSON.stringify({ width: 48 }), {
+    const response = new Response(JSON.stringify(validGrid), {
       status: 200,
       headers: {
         "X-RateLimit-Limit": "20",
@@ -99,9 +115,40 @@ describe("createConversion", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response));
 
     await expect(createConversion(input)).resolves.toMatchObject({
-      grid: { width: 48 },
+      grid: { width: 1 },
       quota: null,
     });
+  });
+
+  it.each([
+    { label: "schema 3", payload: { ...validGrid, schema_version: "3" } },
+    { label: "missing conversion style", payload: { ...validGrid, meta: {} } },
+  ])("rejects invalid responses: $label", async ({ payload }) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response(JSON.stringify(payload), { status: 200 })),
+    );
+
+    await expect(createConversion(input)).rejects.toThrow("转换响应格式无效");
+  });
+
+  it("uses the dedicated message for an unavailable conversion style", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            error: { code: "CONVERSION_STYLE_UNAVAILABLE", message: "upstream" },
+          }),
+          { status: 503 },
+        ),
+      ),
+    );
+
+    await expect(createConversion(input)).rejects.toMatchObject({
+      code: "CONVERSION_STYLE_UNAVAILABLE",
+      message: "当前转换类型暂不可用，请选择原图增强后重试",
+    } satisfies Partial<PindouApiError>);
   });
 });
 

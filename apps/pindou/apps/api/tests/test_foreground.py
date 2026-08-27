@@ -6,7 +6,11 @@ from PIL import Image
 from pindou.core.errors import ApiError
 from pindou.imaging.color_budget import ColorBudgetBand
 from pindou.imaging.foreground import ForegroundPreparer, RawForegroundMask
-from pindou.schemas.conversion import BackgroundMode, ForegroundFallbackMode
+from pindou.schemas.conversion import (
+    BackgroundMode,
+    ConversionStyle,
+    ForegroundFallbackMode,
+)
 from pindou.services.enhancer import EnhancementOptions, EnhancementResult
 
 
@@ -14,6 +18,7 @@ class _OpaqueEnhancer:
     name = "test-enhancer"
     model = "test-model"
     prompt_version = "test-prompt"
+    supported_styles = frozenset(ConversionStyle)
 
     def enhance(self, image: Image.Image, *, options: EnhancementOptions) -> EnhancementResult:
         del options
@@ -61,6 +66,7 @@ def _options(mode: BackgroundMode = BackgroundMode.SOLID) -> EnhancementOptions:
         grid_size=52,
         color_budget_band=ColorBudgetBand.BALANCED,
         background_mode=mode,
+        conversion_style=ConversionStyle.ORIGINAL,
         background_color="#FFFFFF" if mode is BackgroundMode.SOLID else None,
     )
 

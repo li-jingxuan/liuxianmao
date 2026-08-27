@@ -7,8 +7,11 @@ from typing import Protocol
 
 from PIL import Image
 
+from pindou.core.errors import ApiError
 from pindou.imaging.color_budget import ColorBudgetBand
-from pindou.schemas.conversion import BackgroundMode
+from pindou.schemas.conversion import BackgroundMode, ConversionStyle
+
+ORIGINAL_ONLY = frozenset({ConversionStyle.ORIGINAL})
 
 
 @dataclass(frozen=True, slots=True)
@@ -18,6 +21,7 @@ class EnhancementOptions:
     grid_size: int
     color_budget_band: ColorBudgetBand
     background_mode: BackgroundMode
+    conversion_style: ConversionStyle
     background_color: str | None = None
 
 
@@ -48,6 +52,9 @@ class ImageEnhancer(Protocol):
     @property
     def prompt_version(self) -> str | None: ...
 
+    @property
+    def supported_styles(self) -> frozenset[ConversionStyle]: ...
+
     def enhance(
         self,
         image: Image.Image,
@@ -71,7 +78,16 @@ class PassThroughEnhancer:
     def prompt_version(self) -> None:
         return None
 
+    @property
+    def supported_styles(self) -> frozenset[ConversionStyle]:
+        return ORIGINAL_ONLY
+
     def enhance(self, image: Image.Image, *, options: EnhancementOptions) -> EnhancementResult:
         """原样返回输入对象；是否具备可信前景蒙版由调用方统一验证。"""
-        del options
+        if options.conversion_style not in self.supported_styles:
+            raise ApiError(
+                503,
+                "CONVERSION_STYLE_UNAVAILABLE",
+                "当前转换类型暂不可用，请选择原图增强后重试",
+            )
         return EnhancementResult(image=image)

@@ -1,6 +1,12 @@
 /** 后端支持的背景处理方式，与 FastAPI 的 BackgroundMode 枚举保持一致。 */
 export type BackgroundMode = "simplify" | "solid" | "keep";
 export type ForegroundFallbackMode = "none" | "simplify";
+export type ConversionStyle =
+  | "original"
+  | "chibi"
+  | "sticker"
+  | "minimal_illustration"
+  | "paper_cut";
 
 /**
  * 单个 MARD 拼豆颜色。
@@ -22,7 +28,7 @@ export type PaletteColor = {
  * 前端二次量化造成颜色不一致。
  */
 export type BeadGrid = {
-  schema_version: "3";
+  schema_version: "4";
   algorithm_version: "bead-grid-constrained-v3";
   width: number;
   height: number;
@@ -38,6 +44,7 @@ export type BeadGrid = {
     enhancer: "passthrough" | "seedream-5-lite";
     enhancer_model?: string;
     enhancer_prompt_version?: string;
+    conversion_style: ConversionStyle;
     background_mode: BackgroundMode;
     applied_background_mode: BackgroundMode;
     background_color?: `#${string}`;
@@ -104,6 +111,7 @@ export type ConversionInput = {
   colorSetSize: number;
   backgroundMode: BackgroundMode;
   backgroundColor?: string;
+  conversionStyle: ConversionStyle;
   fallbackMode?: ForegroundFallbackMode;
 };
 

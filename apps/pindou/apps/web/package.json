@@ -5,7 +5,7 @@
   "type": "module",
   "packageManager": "pnpm@11.10.0",
   "scripts": {
-    "dev": "NEXT_PUBLIC_API_BASE_URL=http://localhost:3112 next dev --hostname 0.0.0.0 --port 3111",
+    "dev": "NEXT_PUBLIC_API_BASE_URL=http://192.168.124.31:3112 next dev --hostname 0.0.0.0 --port 3111",
     "build": "next build",
     "start": "next start --port 3111",
     "lint": "eslint .",

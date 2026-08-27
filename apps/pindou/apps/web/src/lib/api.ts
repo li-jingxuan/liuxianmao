@@ -37,6 +37,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   AI_BUSY: "AI 服务忙，请稍后重试",
   AI_TIMEOUT: "AI 处理超时，本次未确认成功，请稍后手动重试",
   AI_UPSTREAM_ERROR: "AI 服务暂时不可用，请稍后重试",
+  CONVERSION_STYLE_UNAVAILABLE: "当前转换类型暂不可用，请选择原图增强后重试",
   AI_TRANSPARENT_BACKGROUND_UNSUPPORTED: "AI 未返回透明背景，请稍后重试",
   BACKGROUND_COLOR_INVALID: "纯色背景颜色无效，请重新选择",
   API_KEY_INVALID: "当前访问链接无效",
@@ -92,26 +93,15 @@ const parseAccessKeyQuota = (value: unknown): AccessKeyQuotaResponse => {
 const parseBeadGrid = (value: unknown): BeadGrid => {
   if (!isRecord(value)) throw new Error("转换响应格式无效");
 
-  // 允许灰度发布期间仍在返回旧契约的 API 先完成请求。新契约只要出现任一
-  // 分层字段就必须走下面的完整校验，避免把明显损坏的新版响应静默交给 Canvas。
-  // 旧版响应的结构由旧前端负责消费；这里保留透传是为了兼容滚动发布。
-  if (
-    !("schema_version" in value) &&
-    !("foreground" in value) &&
-    !("background" in value) &&
-    !("stats" in value)
-  ) {
-    return value as unknown as BeadGrid;
-  }
-
   const foreground = value.foreground;
   const background = value.background;
+  const meta = value.meta;
   const stats = value.stats;
   const width = value.width;
   const height = value.height;
 
   if (
-    value.schema_version !== "3" ||
+    value.schema_version !== "4" ||
     value.algorithm_version !== "bead-grid-constrained-v3" ||
     typeof width !== "number" ||
     typeof height !== "number" ||
@@ -123,6 +113,14 @@ const parseBeadGrid = (value: unknown): BeadGrid => {
     !Array.isArray(foreground.palette) ||
     !Array.isArray(foreground.rows) ||
     !isRecord(background) ||
+    !isRecord(meta) ||
+    ![
+      "original",
+      "chibi",
+      "sticker",
+      "minimal_illustration",
+      "paper_cut",
+    ].includes(String(meta.conversion_style)) ||
     !isRecord(stats)
   ) {
     throw new Error("转换响应格式无效");
@@ -183,6 +181,7 @@ export const createConversion = async (
   form.set("image", input.image);
   form.set("grid_size", String(input.gridSize));
   form.set("color_set_size", String(input.colorSetSize));
+  form.set("conversion_style", input.conversionStyle);
   form.set("background_mode", input.backgroundMode);
   form.set("fallback_mode", input.fallbackMode ?? "none");
   if (input.backgroundMode === "solid" && input.backgroundColor) {

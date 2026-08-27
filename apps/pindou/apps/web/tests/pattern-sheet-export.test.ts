@@ -9,7 +9,7 @@ import {
 import type { BeadGrid } from "../src/lib/types";
 
 const createGrid = (paletteSize = 7): BeadGrid => ({
-  schema_version: "3",
+  schema_version: "4",
   algorithm_version: "bead-grid-constrained-v3",
   width: 24,
   height: 24,
@@ -28,6 +28,7 @@ const createGrid = (paletteSize = 7): BeadGrid => ({
   background: { mode: "none" },
   meta: {
     enhancer: "passthrough",
+    conversion_style: "original",
     background_mode: "keep",
     applied_background_mode: "keep",
     background_processing: "none",

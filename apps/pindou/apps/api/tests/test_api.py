@@ -17,7 +17,7 @@ from pindou.core.config import Settings
 from pindou.imaging.color_budget import ColorBudgetBand
 from pindou.imaging.foreground import RawForegroundMask
 from pindou.main import app
-from pindou.schemas.conversion import BackgroundMode
+from pindou.schemas.conversion import BackgroundMode, ConversionStyle
 from pindou.services.enhancer import EnhancementOptions, EnhancementResult
 
 
@@ -26,6 +26,7 @@ class FakeAiEnhancer:
     model = "fake-model"
     prompt_version = "fake-prompt"
     last_options: EnhancementOptions | None = None
+    supported_styles = frozenset(ConversionStyle)
 
     def enhance(self, image: Image.Image, *, options: EnhancementOptions) -> EnhancementResult:
         type(self).last_options = options
@@ -40,6 +41,7 @@ class FakeSolidEnhancer:
     name = "passthrough"
     model = None
     prompt_version = None
+    supported_styles = frozenset(ConversionStyle)
 
     def enhance(self, image: Image.Image, *, options: EnhancementOptions) -> EnhancementResult:
         assert options.background_mode is BackgroundMode.SOLID
@@ -229,6 +231,7 @@ def test_create_conversion_returns_grid_restricted_to_selected_set(
             "grid_size": str(grid_size),
             "max_colors": "8",
             "color_set_size": str(color_set_size),
+            "conversion_style": "original",
             "background_mode": "keep",
         },
     )
@@ -238,10 +241,11 @@ def test_create_conversion_returns_grid_restricted_to_selected_set(
     assert payload["width"] == payload["height"] == grid_size
     assert len(payload["foreground"]["rows"]) == grid_size
     assert all(len(row) == grid_size for row in payload["foreground"]["rows"])
-    assert payload["schema_version"] == "3"
+    assert payload["schema_version"] == "4"
     assert payload["algorithm_version"] == "bead-grid-constrained-v3"
     assert payload["meta"]["enhancer"] == "passthrough"
     assert payload["meta"]["background_mode"] == "keep"
+    assert payload["meta"]["conversion_style"] == "original"
     assert payload["meta"]["applied_background_mode"] == "keep"
     assert payload["meta"]["background_processing"] == "none"
     assert "background_color" not in payload["meta"]
@@ -280,6 +284,7 @@ def test_ai_conversion_backs_up_original_and_enhanced_images(
                 "grid_size": "8",
                 "max_colors": "8",
                 "color_set_size": "24",
+                "conversion_style": "original",
                 "background_mode": "keep",
             },
         )
@@ -299,6 +304,74 @@ def test_ai_conversion_backs_up_original_and_enhanced_images(
     assert FakeAiEnhancer.last_options is not None
     assert FakeAiEnhancer.last_options.grid_size == 8
     assert FakeAiEnhancer.last_options.color_budget_band is ColorBudgetBand.RESTRAINED
+    assert FakeAiEnhancer.last_options.conversion_style is ConversionStyle.ORIGINAL
+
+
+@pytest.mark.parametrize("conversion_style", list(ConversionStyle))
+def test_conversion_style_reaches_enhancer_and_response_meta(
+    client: TestClient,
+    conversion_style: ConversionStyle,
+) -> None:
+    FakeAiEnhancer.last_options = None
+    app.dependency_overrides[get_image_enhancer] = FakeAiEnhancer
+    try:
+        response = client.post(
+            "/api/v1/conversions",
+            files={"image": ("source.png", make_png_bytes(), "image/png")},
+            data={
+                "grid_size": "8",
+                "color_set_size": "24",
+                "conversion_style": conversion_style.value,
+                "background_mode": "keep",
+            },
+        )
+    finally:
+        app.dependency_overrides.pop(get_image_enhancer, None)
+
+    assert response.status_code == 200
+    assert FakeAiEnhancer.last_options is not None
+    assert FakeAiEnhancer.last_options.conversion_style is conversion_style
+    assert response.json()["meta"]["conversion_style"] == conversion_style.value
+
+
+def test_passthrough_rejects_non_original_style_before_reading_image(
+    client: TestClient,
+) -> None:
+    response = client.post(
+        "/api/v1/conversions",
+        files={"image": ("source.png", make_png_bytes(), "image/png")},
+        data={
+            "grid_size": "8",
+            "color_set_size": "24",
+            "conversion_style": "chibi",
+            "background_mode": "keep",
+        },
+    )
+
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "CONVERSION_STYLE_UNAVAILABLE"
+
+
+@pytest.mark.parametrize("conversion_style", [None, "watercolor"])
+def test_missing_or_unknown_conversion_style_is_rejected_by_validation(
+    client: TestClient,
+    conversion_style: str | None,
+) -> None:
+    data = {
+        "grid_size": "8",
+        "color_set_size": "24",
+        "background_mode": "keep",
+    }
+    if conversion_style is not None:
+        data["conversion_style"] = conversion_style
+
+    response = client.post(
+        "/api/v1/conversions",
+        files={"image": ("source.png", make_png_bytes(), "image/png")},
+        data=data,
+    )
+
+    assert response.status_code == 422
 
 
 @pytest.mark.parametrize(
@@ -316,6 +389,7 @@ def test_create_conversion_uses_auto_color_budget_when_max_is_omitted(
         data={
             "grid_size": str(grid_size),
             "color_set_size": "48",
+            "conversion_style": "original",
             "background_mode": "keep",
         },
     )
@@ -337,6 +411,7 @@ def test_invalid_color_set_has_stable_error(client: TestClient) -> None:
             "grid_size": "52",
             "max_colors": "18",
             "color_set_size": "25",
+            "conversion_style": "original",
             "background_mode": "keep",
         },
     )
@@ -357,6 +432,7 @@ def test_explicit_max_colors_outside_legacy_range_has_stable_error(
             "grid_size": "52",
             "max_colors": str(max_colors),
             "color_set_size": "48",
+            "conversion_style": "original",
             "background_mode": "keep",
         },
     )
@@ -378,6 +454,7 @@ def test_grid_size_outside_range_has_stable_error(
             "grid_size": str(grid_size),
             "max_colors": "18",
             "color_set_size": "264",
+            "conversion_style": "original",
             "background_mode": "keep",
         },
     )
@@ -396,6 +473,7 @@ def test_solid_background_is_normalized_and_returned(client: TestClient) -> None
                 "grid_size": "8",
                 "max_colors": "8",
                 "color_set_size": "24",
+                "conversion_style": "original",
                 "background_mode": "solid",
                 "background_color": "#aabbcc",
             },
@@ -426,6 +504,7 @@ def test_solid_background_defaults_to_pure_white(client: TestClient) -> None:
                 "grid_size": "8",
                 "max_colors": "8",
                 "color_set_size": "24",
+                "conversion_style": "original",
             },
         )
     finally:
@@ -456,6 +535,7 @@ def test_solid_low_confidence_can_explicitly_fallback_to_simplify(
             data={
                 "grid_size": "8",
                 "color_set_size": "24",
+                "conversion_style": "original",
                 "background_mode": "solid",
                 "fallback_mode": "simplify",
             },
@@ -481,6 +561,7 @@ def test_removed_transparent_background_mode_is_rejected(client: TestClient) -> 
         data={
             "grid_size": "8",
             "color_set_size": "24",
+            "conversion_style": "original",
             "background_mode": "transparent",
         },
     )
@@ -495,6 +576,7 @@ def test_invalid_solid_background_color_has_stable_error(client: TestClient) -> 
         data={
             "grid_size": "8",
             "color_set_size": "24",
+            "conversion_style": "original",
             "background_mode": "solid",
             "background_color": "white",
         },

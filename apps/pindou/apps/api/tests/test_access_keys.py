@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pytest
 from conftest import make_png_bytes
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
@@ -14,20 +15,24 @@ def _conversion_request(
     *,
     api_key: str,
     grid_size: str = "8",
+    conversion_style: str | None = "original",
     request_id: str | None = None,
 ):
     headers = {"X-API-Key": api_key}
     if request_id is not None:
         headers["X-Request-ID"] = request_id
+    data = {
+        "grid_size": grid_size,
+        "color_set_size": "24",
+        "background_mode": "keep",
+    }
+    if conversion_style is not None:
+        data["conversion_style"] = conversion_style
     return client.post(
         "/api/v1/conversions",
         headers=headers,
         files={"image": ("source.png", make_png_bytes(), "image/png")},
-        data={
-            "grid_size": grid_size,
-            "color_set_size": "24",
-            "background_mode": "keep",
-        },
+        data=data,
     )
 
 
@@ -178,6 +183,30 @@ def test_invalid_conversion_does_not_consume_use(client: TestClient) -> None:
     assert valid.headers["x-ratelimit-remaining"] == "0"
     with Session(get_engine()) as session:
         assert len(session.exec(select(ApiKeyUsage)).all()) == 1
+
+
+@pytest.mark.parametrize("conversion_style", [None, "watercolor", "chibi"])
+def test_invalid_or_unavailable_style_does_not_consume_use(
+    client: TestClient,
+    conversion_style: str | None,
+) -> None:
+    issue_response = client.post(
+        "/api/v1/access-keys",
+        headers={"X-Admin-API-Key": "test-admin-key"},
+        json={"prefix": "web", "allowed_uses": 1},
+    )
+    api_key = issue_response.json()["key"]
+
+    rejected = _conversion_request(
+        client,
+        api_key=api_key,
+        conversion_style=conversion_style,
+    )
+    valid = _conversion_request(client, api_key=api_key)
+
+    assert rejected.status_code == (503 if conversion_style == "chibi" else 422)
+    assert valid.status_code == 200
+    assert valid.headers["x-ratelimit-remaining"] == "0"
 
 
 def test_readiness_checks_database(client: TestClient) -> None:

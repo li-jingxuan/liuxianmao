@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+from time import perf_counter
 from typing import Annotated
 
 from fastapi import APIRouter, File, Form, Header, Request, Response, UploadFile
@@ -22,6 +24,7 @@ from pindou.schemas.conversion import (
     ConversionMeta,
     ConversionResponse,
     ConversionStats,
+    ConversionStyle,
     ForegroundFallbackMode,
     ForegroundGrid,
     PaletteColor,
@@ -31,6 +34,7 @@ from pindou.services.enhancer import EnhancementOptions
 from pindou.services.seedream_prompt import normalize_background_color
 
 router = APIRouter(prefix="/conversions", tags=["conversions"])
+logger = logging.getLogger(__name__)
 
 
 @router.post("")
@@ -40,6 +44,7 @@ def create_conversion(
     image: Annotated[UploadFile, File()],
     grid_size: Annotated[int, Form()],
     color_set_size: Annotated[int, Form()],
+    conversion_style: Annotated[ConversionStyle, Form()],
     max_colors: Annotated[int | None, Form()] = None,
     background_mode: Annotated[BackgroundMode, Form()] = BackgroundMode.SOLID,
     background_color: Annotated[str | None, Form()] = None,
@@ -78,6 +83,22 @@ def create_conversion(
         if background_mode is BackgroundMode.SOLID
         else None
     )
+    if conversion_style not in foreground_preparer.supported_styles:
+        logger.warning(
+            "Image conversion style unavailable",
+            extra={
+                "conversion_style": conversion_style.value,
+                "enhancer": foreground_preparer.enhancer_name,
+                "background_mode": background_mode.value,
+                "grid_size": grid_size,
+                "error_code": "CONVERSION_STYLE_UNAVAILABLE",
+            },
+        )
+        raise ApiError(
+            503,
+            "CONVERSION_STYLE_UNAVAILABLE",
+            "当前转换类型暂不可用，请选择原图增强后重试",
+        )
 
     # 只读取“上限 + 1”字节即可判断超限，避免把任意大文件完整读入内存。
     content = image.file.read(app_settings.upload_max_bytes + 1)
@@ -98,16 +119,33 @@ def create_conversion(
         response.headers["X-RateLimit-Limit"] = str(quota.initial_uses)
         response.headers["X-RateLimit-Remaining"] = str(quota.remaining_uses)
 
-        prepared = foreground_preparer.prepare(
-            decoded,
-            options=EnhancementOptions(
-                grid_size=grid_size,
-                color_budget_band=color_budget.prompt_band,
-                background_mode=background_mode,
-                background_color=normalized_background_color,
-            ),
-            fallback_mode=fallback_mode,
-        )
+        enhancement_started = perf_counter()
+        try:
+            prepared = foreground_preparer.prepare(
+                decoded,
+                options=EnhancementOptions(
+                    grid_size=grid_size,
+                    color_budget_band=color_budget.prompt_band,
+                    background_mode=background_mode,
+                    conversion_style=conversion_style,
+                    background_color=normalized_background_color,
+                ),
+                fallback_mode=fallback_mode,
+            )
+        except ApiError as exc:
+            logger.warning(
+                "Image enhancement failed",
+                extra={
+                    "conversion_style": conversion_style.value,
+                    "enhancer": foreground_preparer.enhancer_name,
+                    "background_mode": background_mode.value,
+                    "grid_size": grid_size,
+                    "ai_duration_ms": (perf_counter() - enhancement_started) * 1_000,
+                    "error_code": exc.code,
+                },
+            )
+            raise
+        ai_duration_ms = (perf_counter() - enhancement_started) * 1_000
         enhanced = prepared.image
         background_processing = prepared.processing
         # 备份的是已经完成背景处理、即将进入量化的图像，便于人工核对“白底是否被抠除”。
@@ -131,6 +169,18 @@ def create_conversion(
                 if prepared.applied_background_mode is BackgroundMode.SOLID
                 else None
             ),
+        )
+        logger.info(
+            "Image conversion completed",
+            extra={
+                "conversion_style": conversion_style.value,
+                "enhancer": prepared.enhancer_name,
+                "enhancer_prompt_version": prepared.enhancer_prompt_version,
+                "background_mode": background_mode.value,
+                "grid_size": grid_size,
+                "ai_duration_ms": ai_duration_ms,
+                "error_code": None,
+            },
         )
     finally:
         # 无论量化成功还是失败，都关闭所有 Pillow 对象，防止文件句柄和内存泄漏。
@@ -168,6 +218,7 @@ def create_conversion(
             enhancer=prepared.enhancer_name,
             enhancer_model=prepared.enhancer_model,
             enhancer_prompt_version=prepared.enhancer_prompt_version,
+            conversion_style=conversion_style,
             background_mode=background_mode,
             applied_background_mode=prepared.applied_background_mode,
             background_color=normalized_background_color,

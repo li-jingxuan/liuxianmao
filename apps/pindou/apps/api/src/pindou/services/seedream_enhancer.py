@@ -3,15 +3,22 @@
 from __future__ import annotations
 
 import base64
+import logging
 from io import BytesIO
 from threading import BoundedSemaphore
 
 from PIL import Image, ImageOps, UnidentifiedImageError
 
 from pindou.core.errors import ApiError
+from pindou.schemas.conversion import ConversionStyle
 from pindou.services.enhancer import EnhancementOptions, EnhancementResult
 from pindou.services.seedream_client import SeedreamClient, SeedreamUpstreamError
 from pindou.services.seedream_prompt import SEEDREAM_PROMPT_VERSION, build_seedream_prompt
+
+SEEDREAM_STYLES = frozenset(ConversionStyle)
+# Uvicorn 默认只为自身 logger 安装终端 handler，普通模块 INFO logger 会被静默过滤。
+# 复用 `uvicorn.error` 的终端 handler，确保开发模式下完整 Prompt 确实显示在启动终端。
+logger = logging.getLogger("uvicorn.error")
 
 
 class SeedreamEnhancer:
@@ -26,6 +33,7 @@ class SeedreamEnhancer:
         output_max_pixels: int,
         max_concurrency: int,
         queue_timeout_seconds: float,
+        log_prompts: bool = False,
     ) -> None:
         self._client = client
         self._model = model
@@ -33,6 +41,8 @@ class SeedreamEnhancer:
         self._output_max_pixels = output_max_pixels
         self._semaphore = BoundedSemaphore(max_concurrency)
         self._queue_timeout_seconds = queue_timeout_seconds
+        # 仅由开发环境注入；生产环境默认关闭，避免把用户图片上下文记录到日志。
+        self._log_prompts = log_prompts
 
     @property
     def name(self) -> str:
@@ -47,6 +57,10 @@ class SeedreamEnhancer:
         """返回与当前 Prompt 实现绑定的唯一版本号。"""
         return SEEDREAM_PROMPT_VERSION
 
+    @property
+    def supported_styles(self) -> frozenset[ConversionStyle]:
+        return SEEDREAM_STYLES
+
     def close(self) -> None:
         self._client.close()
 
@@ -57,12 +71,22 @@ class SeedreamEnhancer:
         options: EnhancementOptions,
     ) -> EnhancementResult:
         """限制输入尺寸、调用方舟，并记录上游实际返回的 Alpha 状态。"""
+        if options.conversion_style not in self.supported_styles:
+            raise ApiError(
+                503,
+                "CONVERSION_STYLE_UNAVAILABLE",
+                "当前转换类型暂不可用，请选择原图增强后重试",
+            )
         acquired = self._semaphore.acquire(timeout=self._queue_timeout_seconds)
         if not acquired:
             raise ApiError(429, "AI_BUSY", "AI 服务忙，请稍后重试")
         try:
             data_url = self._encode_image_data_url(image)
             prompt = build_seedream_prompt(options)
+            logger.info('self._log_prompts: %s', 1 if self._log_prompts else 0)
+            # if self._log_prompts:
+                # 使用 logger 而不是 print，确保提示词带有时间、级别并进入 Uvicorn 控制台。
+            logger.info("Seedream prompt (development):\n%s", prompt)
             try:
                 result = self._client.edit_image(image_data_url=data_url, prompt=prompt)
             except SeedreamUpstreamError as exc:

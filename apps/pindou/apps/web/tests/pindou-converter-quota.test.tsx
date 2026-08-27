@@ -36,6 +36,21 @@ afterEach(() => {
 });
 
 describe("PindouConverter quota", () => {
+  it("defaults to the chibi conversion style", async () => {
+    getAccessKeyQuotaMock.mockResolvedValue({
+      initial_uses: 20,
+      remaining_uses: 12,
+    });
+
+    render(<PindouConverter apiKey="valid-key" />);
+
+    expect(screen.getByRole("button", { name: "Q版" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByRole("group", { name: "转换类型" })).toBeInTheDocument();
+  });
+
   it("loads and displays the remaining conversion uses above an enabled button", async () => {
     getAccessKeyQuotaMock.mockResolvedValue({
       initial_uses: 20,
