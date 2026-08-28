@@ -15,9 +15,10 @@ from pindou.api.dependencies import (
     SettingsDep,
 )
 from pindou.core.errors import ApiError
+from pindou.core.event_log import write_event_log
 from pindou.imaging.color_budget import resolve_color_budget
 from pindou.imaging.grid import build_bead_grid
-from pindou.imaging.image_backup import backup_enhanced_images
+from pindou.imaging.image_backup import backup_ai_processing_images
 from pindou.imaging.preprocess import decode_image
 from pindou.schemas.conversion import (
     BackgroundMode,
@@ -35,6 +36,36 @@ from pindou.services.seedream_prompt import normalize_background_color
 
 router = APIRouter(prefix="/conversions", tags=["conversions"])
 logger = logging.getLogger(__name__)
+
+_DEGRADE_DIAGNOSTIC_KEYS = frozenset(
+    {
+        "validation_failures",
+        "chroma_policy_version",
+        "requested_key",
+        "actual_key",
+        "requested_key_delta_e76",
+        "max_requested_key_delta_e76",
+        "border_coverage",
+        "min_border_coverage",
+        "edge_count",
+        "min_edge_count",
+        "background_coverage",
+        "min_background_coverage",
+        "max_background_coverage",
+        "transition_coverage",
+        "max_transition_coverage",
+        "fallback_mask",
+        "foreground_validation_failures",
+        "foreground_coverage",
+        "min_foreground_coverage",
+        "max_foreground_coverage",
+        "foreground_background_coverage",
+        "min_foreground_background_coverage",
+        "foreground_uncertain_coverage",
+        "max_foreground_uncertain_coverage",
+        "foreground_policy_version",
+    }
+)
 
 
 @router.post("")
@@ -110,6 +141,7 @@ def create_conversion(
     # 解码阶段会验证真实图片格式、应用 EXIF 方向并统一转换为 RGBA。
     decoded = decode_image(content, max_pixels=app_settings.upload_max_pixels)
     enhanced = decoded
+    enhancer_image = None
     # ForegroundPreparer 是背景能力的唯一 seam；路由不感知模型 tensor 或蒙版阈值。
     background_processing = "none"
     try:
@@ -147,12 +179,63 @@ def create_conversion(
             raise
         ai_duration_ms = (perf_counter() - enhancement_started) * 1_000
         enhanced = prepared.image
+        enhancer_image = prepared.enhancer_image
         background_processing = prepared.processing
-        # 备份的是已经完成背景处理、即将进入量化的图像，便于人工核对“白底是否被抠除”。
+        if prepared.degraded:
+            # 通用落盘模块不感知业务字段；路由在边界上显式白名单化，
+            # 避免未来 diagnostics 加入敏感对象后被无意写入文件。
+            degrade_diagnostics = {
+                key: value
+                for key, value in (prepared.diagnostics or {}).items()
+                if key in _DEGRADE_DIAGNOSTIC_KEYS
+            }
+            try:
+                write_event_log(
+                    "foreground_degraded",
+                    {
+                        "request_id": request.state.request_id,
+                        "processing": prepared.processing,
+                        "degrade_reason": prepared.degrade_reason,
+                        "enhancer": prepared.enhancer_name,
+                        "enhancer_model": prepared.enhancer_model,
+                        "enhancer_prompt_version": prepared.enhancer_prompt_version,
+                        "foreground_model_version": prepared.foreground_model_version,
+                        "background_mode": background_mode.value,
+                        "grid_size": grid_size,
+                        "ai_duration_ms": ai_duration_ms,
+                        **degrade_diagnostics,
+                    },
+                    directory=app_settings.event_log_dir,
+                )
+            except Exception:
+                # 诊断日志不是转换产物；落盘故障可观测但不能将成功转换变为 5xx。
+                logger.exception(
+                    "Failed to persist foreground degradation event",
+                    extra={"request_id": request.state.request_id},
+                )
+        # 分别保存 Seedream 原始增强结果与 ONNX 最终输入，避免阶段语义混淆。
         if prepared.enhancer_name != "passthrough":
-            backup_enhanced_images(
+            backup_ai_processing_images(
                 decoded,
-                enhanced,
+                enhancer_image if enhancer_image is not None else enhanced,
+                # ONNX 关闭时最终前景只存在请求内存中，不落盘；Seedream 原始输出
+                # 仍由 enhancer_image 单独备份，避免把降级透明结果误标为 ONNX 阶段。
+                foreground_final=(
+                    enhanced
+                    if app_settings.enable_onnx_matting and background_mode is BackgroundMode.SOLID
+                    else None
+                ),
+                metrics={
+                    "enhancer": prepared.enhancer_name,
+                    "enhancer_model": prepared.enhancer_model,
+                    "enhancer_prompt_version": prepared.enhancer_prompt_version,
+                    "background_processing": prepared.processing,
+                    "foreground_model_version": prepared.foreground_model_version,
+                    "degraded": prepared.degraded,
+                    "degrade_reason": prepared.degrade_reason,
+                    "ai_duration_ms": ai_duration_ms,
+                    **(prepared.diagnostics or {}),
+                },
                 directory=app_settings.image_backup_dir,
             )
         # 此处只能传入已经完成背景分离的 enhanced；build_bead_grid 内部只负责方形适配
@@ -183,11 +266,12 @@ def create_conversion(
             },
         )
     finally:
-        # 无论量化成功还是失败，都关闭所有 Pillow 对象，防止文件句柄和内存泄漏。
-        # 如果增强器返回原对象，只关闭一次；返回新对象时则分别关闭。
-        if enhanced is not decoded:
-            enhanced.close()
-        decoded.close()
+        # 按对象身份去重关闭原图、增强中间图和最终图，兼容 passthrough 返回原对象。
+        closed_image_ids: set[int] = set()
+        for owned_image in (enhanced, enhancer_image, decoded):
+            if owned_image is not None and id(owned_image) not in closed_image_ids:
+                owned_image.close()
+                closed_image_ids.add(id(owned_image))
 
     # 在 HTTP 边界把内部不可变 tuple 模型转换为 JSON 友好的 list/Pydantic 模型。
     # Solid 背景是渲染层，不进入前景 palette；keep/simplify 不额外铺设背景层。

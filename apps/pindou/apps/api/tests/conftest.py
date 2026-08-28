@@ -48,12 +48,15 @@ def isolate_tests_from_external_services(
     """测试使用隔离 SQLite 和 passthrough，不接触生产数据库或付费 API。"""
     monkeypatch.setenv("APP_ENV", "test")
     monkeypatch.setenv("IMAGE_ENHANCER", "passthrough")
+    monkeypatch.setenv("ENABLE_ONNX_MATTING", "true")
     monkeypatch.setenv("FOREGROUND_MASK_ADAPTER", "unavailable")
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'pindou-test.db'}")
     monkeypatch.setenv("KEY_ISSUER_API_KEY", "test-admin-key")
     monkeypatch.setenv("API_KEY_HASH_PEPPER", "test-hash-pepper")
     # 每个测试使用独立交付目录，避免公开链接文件污染源码或其他用例。
     monkeypatch.setenv("IMAGE_DELIVERY_DIR", str(tmp_path / "image-deliveries"))
+    # 事件日志同样按用例隔离，禁止测试数据写入仓库的 log/。
+    monkeypatch.setenv("EVENT_LOG_DIR", str(tmp_path / "event-log"))
     monkeypatch.setenv("IMAGE_DELIVERY_TTL_SECONDS", "3600")
     get_settings.cache_clear()
     dispose_engine()

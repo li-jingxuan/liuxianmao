@@ -15,6 +15,7 @@ from pindou.core.config import Settings, get_settings
 from pindou.core.errors import ApiError
 from pindou.db.session import get_session
 from pindou.imaging.foreground import (
+    DisabledForegroundMaskAdapter,
     ForegroundMaskAdapter,
     ForegroundPreparer,
     UnavailableForegroundMaskAdapter,
@@ -99,7 +100,6 @@ def get_image_enhancer() -> ImageEnhancer:
         timeout=timeout,
     )
 
-    print('app_settings.app_env', app_settings.app_env, app_settings.app_env == "development")
     return SeedreamEnhancer(
         client=client,
         model=app_settings.ark_doubao_image_model,
@@ -115,11 +115,16 @@ def get_image_enhancer() -> ImageEnhancer:
 def get_foreground_mask_adapter() -> ForegroundMaskAdapter:
     """进程级加载并复用固定 ONNX Session；测试可替换为确定性 Adapter。"""
     app_settings = get_settings()
+    if not app_settings.enable_onnx_matting:
+        return DisabledForegroundMaskAdapter()
     if app_settings.foreground_mask_adapter == "unavailable":
         return UnavailableForegroundMaskAdapter()
+    # 模型变体和资产在配置注册表中成对绑定，业务流程只依赖统一 Adapter。
+    artifact = app_settings.foreground_model_artifact
     return OnnxForegroundMaskAdapter(
-        model_path=app_settings.foreground_model_path,
-        metadata_path=app_settings.foreground_model_metadata_path,
+        model_path=artifact.model_path,
+        metadata_path=artifact.metadata_path,
+        expected_model_name=app_settings.foreground_model_variant,
         max_concurrency=app_settings.foreground_mask_max_concurrency,
         queue_timeout_seconds=app_settings.foreground_mask_queue_timeout_seconds,
         intra_op_threads=app_settings.foreground_onnx_intra_op_threads,
@@ -130,9 +135,14 @@ def get_foreground_mask_adapter() -> ForegroundMaskAdapter:
 def provide_foreground_preparer(
     enhancer: Annotated[ImageEnhancer, Depends(get_image_enhancer)],
     mask_adapter: Annotated[ForegroundMaskAdapter, Depends(get_foreground_mask_adapter)],
+    settings: Annotated[Settings, Depends(provide_settings)],
 ) -> ForegroundPreparer:
     """把内部 Adapter 组合进前景准备深模块，路由只依赖其单一接口。"""
-    return ForegroundPreparer(enhancer=enhancer, mask_adapter=mask_adapter)
+    return ForegroundPreparer(
+        enhancer=enhancer,
+        mask_adapter=mask_adapter,
+        enable_onnx_matting=settings.enable_onnx_matting,
+    )
 
 
 @lru_cache

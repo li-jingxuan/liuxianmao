@@ -49,7 +49,12 @@ export type BeadGrid = {
     applied_background_mode: BackgroundMode;
     background_color?: `#${string}`;
     // 后端实际采用且已经通过可信度验证的背景分离路径。
-    background_processing: "none" | "local_matte" | "fallback_simplify";
+    background_processing:
+      | "none"
+      | "chroma_matte"
+      | "hybrid_matte"
+      | "local_matte"
+      | "fallback_simplify";
     foreground_model_version?: string;
     degraded: boolean;
     degrade_reason?: "foreground_low_confidence";

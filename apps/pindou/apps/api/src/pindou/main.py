@@ -15,6 +15,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from pindou.api.dependencies import (
     ForegroundMaskAdapterDep,
     SessionDep,
+    SettingsDep,
     get_color_chart,
     get_foreground_mask_adapter,
     get_image_delivery_store,
@@ -137,13 +138,14 @@ def healthcheck() -> HealthResponse:
 def readiness_check(
     session: SessionDep,
     foreground_mask_adapter: ForegroundMaskAdapterDep,
+    settings: SettingsDep,
 ) -> HealthResponse:
     """确认数据库和本地前景模型已就绪，供编排系统决定是否接流量。"""
     try:
         check_database(session)
     except SQLAlchemyError as exc:
         raise ApiError(503, "DATABASE_UNAVAILABLE", "数据库暂时不可用，请稍后重试") from exc
-    if not foreground_mask_adapter.ready:
+    if settings.enable_onnx_matting and not foreground_mask_adapter.ready:
         raise ApiError(503, "FOREGROUND_MASK_UNAVAILABLE", "主体识别能力暂时不可用")
     return HealthResponse()
 

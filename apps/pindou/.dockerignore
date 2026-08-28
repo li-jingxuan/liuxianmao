@@ -1,3 +1,5 @@
+# 完整 U²-Net 由镜像构建步骤下载并校验，禁止把开发机副本送入构建上下文。
+apps/api/models/foreground/u2net.onnx
 .git
 .gitignore
 .env

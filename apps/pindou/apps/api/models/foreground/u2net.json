@@ -1,0 +1,16 @@
+{
+  "name": "u2net",
+  "version": "rembg-v0.0.0-u2net",
+  "sha256": "8d10d2f3bb75ae3b6d527c77944fc5e7dcd94b29809d47a739a7a728a912b491",
+  "input_size": [320, 320],
+  "normalization": {
+    "mean": [0.485, 0.456, 0.406],
+    "std": [0.229, 0.224, 0.225]
+  },
+  "output_activation": "probability",
+  "task": "class-agnostic-salient-foreground-segmentation",
+  "license": "Apache-2.0",
+  "source_code": "https://github.com/xuebinqin/U-2-Net",
+  "artifact_source": "https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2net.onnx",
+  "limitations": "Soft saliency mask, not a physically accurate optical alpha matte. Quality validation and explicit fallback are required."
+}

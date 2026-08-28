@@ -66,7 +66,9 @@
 
 - 将 `IMAGE_BACKUP_DIR=/var/lib/pindou/images`，并在 Compose 中挂载 NAS 目录。
 - 将 `MARD_COLOR_CHART_PATH=/app/docs/MARD_色卡.json`，确保镜像内路径稳定。
-- 生产先用 `IMAGE_ENHANCER=passthrough` 验证链路；确认方舟 API 密钥、额度和出网后再切换 `seedream`。
+- 生产固定使用 `IMAGE_ENHANCER=seedream`；Solid 必须先生成动态键色图。
+- `ENABLE_ONNX_MATTING=true` 对 Seedream 键色图执行 ONNX 并直接使用其蒙版；`false` 使用键色蒙版。
+- `FOREGROUND_MODEL_VARIANT=u2net` 默认使用完整 U²-Net；需要降低资源占用或回滚时改为 `u2netp` 并重启 API。
 
 ### 3.2 Web 同源 API 代理
 
@@ -264,8 +266,10 @@ DATABASE_URL=postgresql+psycopg://pindou:URL编码后的密码@postgres:5432/pin
 
 KEY_ISSUER_API_KEY=替换为新的随机密钥
 API_KEY_HASH_PEPPER=替换为另一个随机密钥
-IMAGE_ENHANCER=passthrough
-ARK_DOUBAO_API_KEY=
+IMAGE_ENHANCER=seedream
+ENABLE_ONNX_MATTING=true
+FOREGROUND_MODEL_VARIANT=u2net
+ARK_DOUBAO_API_KEY=替换为服务端方舟密钥
 ARK_DOUBAO_IMAGE_MODEL=doubao-seedream-5-0-lite-260128
 
 WEB_PORT=3111

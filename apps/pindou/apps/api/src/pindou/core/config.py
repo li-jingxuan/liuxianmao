@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
+from types import MappingProxyType
 
-from pydantic import Field, SecretStr, model_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -24,17 +27,42 @@ def _default_image_backup_dir() -> Path:
     return Path(__file__).resolve().parents[1] / "assets" / "images"
 
 
+def _default_event_log_dir() -> Path:
+    """通用运行事件默认落到仓库根目录，便于与源码资产分离。"""
+    return Path(__file__).resolve().parents[5] / "log"
+
+
 def _default_image_delivery_dir() -> Path:
     """开发环境默认把临时交付图放在独立目录，避免与 AI 排查备份混用。"""
     return Path(__file__).resolve().parents[1] / "assets" / "image-deliveries"
 
 
-def _default_foreground_model_path() -> Path:
-    return Path(__file__).resolve().parents[3] / "models" / "foreground" / "u2netp.onnx"
+def _foreground_model_root() -> Path:
+    """定位随 API 发布的前景模型目录。"""
+    return Path(__file__).resolve().parents[3] / "models" / "foreground"
 
 
-def _default_foreground_model_metadata_path() -> Path:
-    return Path(__file__).resolve().parents[3] / "models" / "foreground" / "model.json"
+@dataclass(frozen=True)
+class ForegroundModelArtifact:
+    """绑定一个模型变体及其元数据，防止部署配置交叉配对。"""
+
+    model_path: Path
+    metadata_path: Path
+
+
+_FOREGROUND_MODEL_ROOT = _foreground_model_root()
+FOREGROUND_MODEL_ARTIFACTS: Mapping[str, ForegroundModelArtifact] = MappingProxyType(
+    {
+        "u2net": ForegroundModelArtifact(
+            model_path=_FOREGROUND_MODEL_ROOT / "u2net.onnx",
+            metadata_path=_FOREGROUND_MODEL_ROOT / "u2net.json",
+        ),
+        "u2netp": ForegroundModelArtifact(
+            model_path=_FOREGROUND_MODEL_ROOT / "u2netp.onnx",
+            metadata_path=_FOREGROUND_MODEL_ROOT / "u2netp.json",
+        ),
+    }
+)
 
 
 API_ENV_FILE = Path(__file__).resolve().parents[3] / ".env"
@@ -61,7 +89,9 @@ class Settings(BaseSettings):
     api_host: str = "0.0.0.0"
     api_port: int = Field(default=3112, ge=1, le=65535)
     api_reload: bool = True
-    image_enhancer: str = "seedream" # "passthrough"
+    image_enhancer: str = "seedream"  # "passthrough"
+    # Solid 模式是否启用本地 ONNX 抠图；关闭时显式使用 Seedream 动态键色。
+    enable_onnx_matting: bool = False
     # 同时限制压缩文件体积和解码后像素量，防止压缩炸弹耗尽内存。
     upload_max_bytes: int = 10 * 1024 * 1024
     upload_max_pixels: int = 25_000_000
@@ -78,6 +108,10 @@ class Settings(BaseSettings):
     image_backup_dir: Path = Field(
         default_factory=_default_image_backup_dir,
         validation_alias="IMAGE_BACKUP_DIR",
+    )
+    event_log_dir: Path = Field(
+        default_factory=_default_event_log_dir,
+        validation_alias="EVENT_LOG_DIR",
     )
     # 管理员交付图包含用户原图，只做短期保存并由后台任务自动清理。
     image_delivery_dir: Path = Field(
@@ -111,7 +145,7 @@ class Settings(BaseSettings):
     ark_doubao_image_model: str = "doubao-seedream-5-0-lite-260128"
     ark_doubao_image_size: str = "2K"
     ark_doubao_response_format: str = "b64_json"
-    ark_doubao_watermark: bool = False # 水印
+    ark_doubao_watermark: bool = False  # 水印
     ark_doubao_connect_timeout_seconds: float = 5.0
     ark_doubao_read_timeout_seconds: float = 90.0
     ark_doubao_write_timeout_seconds: float = 15.0
@@ -122,15 +156,24 @@ class Settings(BaseSettings):
     seedream_input_max_edge: int = Field(default=2048, ge=256, le=8192)
     seedream_output_max_pixels: int = Field(default=20_000_000, ge=1_000_000)
 
-    foreground_mask_adapter: str = "onnx-u2netp"
-    foreground_model_path: Path = Field(default_factory=_default_foreground_model_path)
-    foreground_model_metadata_path: Path = Field(
-        default_factory=_default_foreground_model_metadata_path
-    )
+    # Adapter 只表达推理实现；具体模型由唯一的全局变体开关选择。
+    foreground_mask_adapter: str = "onnx"
+    foreground_model_variant: str = "u2net"
     foreground_mask_max_concurrency: int = Field(default=1, ge=1, le=8)
     foreground_mask_queue_timeout_seconds: float = Field(default=3.0, gt=0)
     foreground_onnx_intra_op_threads: int = Field(default=2, ge=1, le=16)
     foreground_onnx_allow_spinning: bool = False
+
+    @field_validator("foreground_mask_adapter", "foreground_model_variant", mode="before")
+    @classmethod
+    def normalize_foreground_selection(cls, value: object) -> object:
+        """统一模型相关开关的大小写和首尾空白。"""
+        return value.strip().lower() if isinstance(value, str) else value
+
+    @property
+    def foreground_model_artifact(self) -> ForegroundModelArtifact:
+        """返回当前变体绑定的模型资产。"""
+        return FOREGROUND_MODEL_ARTIFACTS[self.foreground_model_variant]
 
     @model_validator(mode="after")
     def validate_configuration(self) -> Settings:
@@ -157,10 +200,17 @@ class Settings(BaseSettings):
                 raise ValueError("IMAGE_ENHANCER=seedream 时必须配置 ARK_DOUBAO_IMAGE_MODEL")
         if self.ark_doubao_response_format != "b64_json":
             raise ValueError("MVP2 仅支持 ARK_DOUBAO_RESPONSE_FORMAT=b64_json")
-        if self.foreground_mask_adapter not in {"onnx-u2netp", "unavailable"}:
-            raise ValueError("FOREGROUND_MASK_ADAPTER 仅支持 onnx-u2netp")
+        if self.foreground_mask_adapter not in {"onnx", "unavailable"}:
+            raise ValueError("FOREGROUND_MASK_ADAPTER 仅支持 onnx")
         if self.foreground_mask_adapter == "unavailable" and self.app_env != "test":
             raise ValueError("FOREGROUND_MASK_ADAPTER=unavailable 仅允许测试环境使用")
+        if self.foreground_model_variant not in FOREGROUND_MODEL_ARTIFACTS:
+            supported = ", ".join(FOREGROUND_MODEL_ARTIFACTS)
+            raise ValueError(f"FOREGROUND_MODEL_VARIANT 仅支持 {supported}")
+        if not self.enable_onnx_matting and self.image_enhancer == "passthrough":
+            raise ValueError("ENABLE_ONNX_MATTING=false 时 IMAGE_ENHANCER 必须为 seedream")
+        if self.app_env == "production" and self.image_enhancer == "passthrough":
+            raise ValueError("生产环境 IMAGE_ENHANCER 必须为 seedream")
         return self
 
 

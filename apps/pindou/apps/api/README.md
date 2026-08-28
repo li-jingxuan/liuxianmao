@@ -26,6 +26,9 @@ cd apps/api
 Configure `DATABASE_URL`, `KEY_ISSUER_API_KEY`, and `API_KEY_HASH_PEPPER` in `apps/api/.env`.
 The issuer key and pepper must be different high-entropy secrets.
 
+通用结构化事件日志默认写入仓库根目录 `log/`，可用 `EVENT_LOG_DIR` 覆盖。
+当前只接入了 `foreground_degraded` 事件，每次降级对应一个 JSON 文件。
+
 管理员图纸交付使用以下配置；环境变量用途和默认值均在示例中保留中文说明：
 
 ```dotenv
@@ -36,11 +39,13 @@ IMAGE_DELIVERY_MAX_PIXELS=50000000
 IMAGE_DELIVERY_CLEANUP_INTERVAL_SECONDS=3600
 ```
 
-For local deterministic conversion, keep `IMAGE_ENHANCER=passthrough` in `.env`. To enable
-Seedream, configure the server-only key and switch the enhancer:
+For local deterministic keep/simplify conversion, `IMAGE_ENHANCER=passthrough` remains available.
+Solid conversion always requires Seedream to generate a dynamic chroma background. Configure the
+server-only key and switch the enhancer:
 
 ```dotenv
 IMAGE_ENHANCER=seedream
+ENABLE_ONNX_MATTING=false
 ARK_DOUBAO_API_KEY=<secret>
 ARK_DOUBAO_IMAGE_MODEL=doubao-seedream-5-0-lite-260128
 ```
@@ -136,9 +141,13 @@ Manage source prefixes through the ORM-backed CLI:
 ```
 
 `background_mode` supports `simplify`, `solid`, and `keep`. `solid` defaults to pure white
-`#FFFFFF`; callers may submit another `#RRGGBB` value. Solid always uses the bundled local ONNX
-foreground model. `fallback_mode=simplify` explicitly authorizes a low-confidence mask to return a
-background-inclusive result with `meta.degraded=true`; runtime/model failures remain 503. Automatic
-color caps are 30 for 52×52 and 54 for 78×78/104×104 grids.
+`#FFFFFF`; callers may submit another `#RRGGBB` value. Solid always asks Seedream for a dynamic
+chroma background. `ENABLE_ONNX_MATTING=true` runs the bundled local ONNX model on that chroma
+image and uses the validated ONNX mask directly as Alpha; `false` uses the validated chroma mask.
+`FOREGROUND_MODEL_VARIANT=u2net` selects the full default model, while `u2netp` keeps the
+lightweight rollback path without changing application code.
+`fallback_mode=simplify` explicitly authorizes a low-confidence mask to return a degraded result;
+the chroma background is still removed before quantization. Runtime/model failures remain 503.
+Automatic color caps are 30 for 52×52 and 54 for 78×78/104×104 grids.
 
 All returned palette codes are guaranteed to belong to the selected MARD color set.

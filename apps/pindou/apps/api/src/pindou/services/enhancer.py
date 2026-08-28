@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Literal, Protocol
 
 from PIL import Image
 
@@ -23,6 +23,17 @@ class EnhancementOptions:
     background_mode: BackgroundMode
     conversion_style: ConversionStyle
     background_color: str | None = None
+    # 仅由前景准备 module 派生，不接受 HTTP 表单直接控制。
+    background_hint_kind: Literal["none", "chroma_key"] = "none"
+
+
+@dataclass(frozen=True, slots=True)
+class BackgroundHint:
+    """增强器请求过的内部背景提示；调用方必须验证图片后才能使用。"""
+
+    kind: Literal["chroma_key"]
+    requested_color: tuple[int, int, int]
+    policy_version: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -34,6 +45,7 @@ class EnhancementResult:
     """
 
     image: Image.Image
+    background_hint: BackgroundHint | None = None
 
 
 class ImageEnhancer(Protocol):

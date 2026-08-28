@@ -10,6 +10,7 @@ from PIL import Image
 
 from pindou.core.config import Settings
 from pindou.core.errors import ApiError
+from pindou.imaging.chroma_key import format_chroma_key
 from pindou.imaging.color_budget import ColorBudgetBand, GridDetailBand, classify_grid_detail
 from pindou.schemas.conversion import BackgroundMode, ConversionStyle
 from pindou.services.enhancer import EnhancementOptions
@@ -239,6 +240,23 @@ def test_solid_background_prompt_delegates_mask_generation_to_local_model() -> N
     assert normalize_background_color(None) == "#FFFFFF"
 
 
+def test_solid_chroma_prompt_requests_flat_internal_background() -> None:
+    prompt = build_seedream_prompt(
+        EnhancementOptions(
+            grid_size=52,
+            color_budget_band=ColorBudgetBand.BALANCED,
+            background_mode=BackgroundMode.SOLID,
+            conversion_style=ConversionStyle.ORIGINAL,
+        ),
+        chroma_key="#00FF00",
+    )
+
+    assert "全部画布严格填充为单一颜色 #00FF00" in prompt
+    assert "完全不透明、均匀、平坦、无渐变" in prompt
+    assert "不得覆盖、替换、重新着色或删除主体内部" in prompt
+    assert "本地前景模型生成蒙版" not in prompt
+
+
 def test_solid_enhancement_accepts_opaque_upstream_output() -> None:
     output = make_png_bytes((20, 40, 60, 255))
 
@@ -270,6 +288,50 @@ def test_solid_enhancement_accepts_opaque_upstream_output() -> None:
         )
         assert enhanced.image.getchannel("A").getextrema() == (255, 255)
         enhanced.image.close()
+    finally:
+        image.close()
+        enhancer.close()
+
+
+def test_solid_validated_chroma_enhancement_returns_requested_hint() -> None:
+    output = make_png_bytes((0, 255, 0, 255))
+    captured_prompt = ""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal captured_prompt
+        captured_prompt = str(json.loads(request.content)["prompt"])
+        return httpx.Response(
+            200,
+            json={"data": [{"b64_json": base64.b64encode(output).decode()}]},
+        )
+
+    enhancer = SeedreamEnhancer(
+        client=make_client(httpx.MockTransport(handler)),
+        model="test-model",
+        input_max_edge=512,
+        output_max_pixels=1_000_000,
+        max_concurrency=1,
+        queue_timeout_seconds=1,
+    )
+    image = Image.new("RGBA", (8, 8), (220, 30, 30, 255))
+    try:
+        enhanced = enhancer.enhance(
+            image,
+            options=EnhancementOptions(
+                grid_size=52,
+                color_budget_band=ColorBudgetBand.BALANCED,
+                background_mode=BackgroundMode.SOLID,
+                conversion_style=ConversionStyle.ORIGINAL,
+                background_hint_kind="chroma_key",
+            ),
+        )
+        try:
+            assert enhanced.background_hint is not None
+            requested = format_chroma_key(enhanced.background_hint.requested_color)
+            assert requested in captured_prompt
+            assert "严格填充为单一颜色" in captured_prompt
+        finally:
+            enhanced.image.close()
     finally:
         image.close()
         enhancer.close()
@@ -363,7 +425,31 @@ def test_seedream_settings_require_key_without_exposing_it() -> None:
         ark_doubao_api_key="very-secret-key",
     )
     assert "very-secret-key" not in repr(settings)
-    assert SEEDREAM_PROMPT_VERSION == "seedream-pindou-v10-conversion-style"
+    assert SEEDREAM_PROMPT_VERSION == "seedream-pindou-v11-validated-chroma"
+
+
+def test_disabling_onnx_requires_seedream() -> None:
+    with pytest.raises(ValueError, match="ENABLE_ONNX_MATTING"):
+        Settings(
+            _env_file=None,
+            image_enhancer="passthrough",
+            enable_onnx_matting=False,
+        )
+
+
+def test_production_requires_seedream_even_when_onnx_is_enabled() -> None:
+    """生产 Solid 必须先由 Seedream 生成键色图，ONNX 开启不再允许绕过。"""
+    with pytest.raises(ValueError, match="生产环境 IMAGE_ENHANCER"):
+        Settings(
+            _env_file=None,
+            app_env="production",
+            image_enhancer="passthrough",
+            enable_onnx_matting=True,
+            foreground_mask_adapter="onnx",
+            database_url="postgresql+psycopg://test:test@localhost/test",
+            key_issuer_api_key="admin",
+            api_key_hash_pepper="pepper",
+        )
 
 
 @pytest.mark.parametrize(

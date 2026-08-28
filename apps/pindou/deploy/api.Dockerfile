@@ -13,14 +13,21 @@ RUN addgroup --system --gid 10001 pindou \
 COPY apps/api/pyproject.toml /app/apps/api/pyproject.toml
 COPY apps/api/src /app/apps/api/src
 COPY apps/api/models /app/apps/api/models
+COPY apps/api/scripts /app/apps/api/scripts
 COPY apps/api/migrations /app/apps/api/migrations
 COPY apps/api/alembic.ini /app/apps/api/alembic.ini
 COPY docs/MARD_色卡.json /app/docs/MARD_色卡.json
 
-# AI 排查备份与对外交付图分目录，后者会按 TTL 自动清理。
+# 完整模型超过 GitHub 普通单文件上限：构建期下载并按仓库元数据校验，运行期不联网。
+ARG U2NET_MODEL_URL=https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2net.onnx
+RUN python /app/apps/api/scripts/download_foreground_model.py \
+    --variant u2net \
+    --url "${U2NET_MODEL_URL}"
+
+# AI 排查备份、事件日志与对外交付图分目录，后者会按 TTL 自动清理。
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir /app/apps/api \
-    && mkdir -p /var/lib/pindou/images /var/lib/pindou/image-deliveries \
+    && mkdir -p /var/lib/pindou/images /var/lib/pindou/log /var/lib/pindou/image-deliveries \
     && chown -R pindou:pindou /app /var/lib/pindou
 
 USER pindou

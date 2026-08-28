@@ -10,8 +10,9 @@ from threading import BoundedSemaphore
 from PIL import Image, ImageOps, UnidentifiedImageError
 
 from pindou.core.errors import ApiError
+from pindou.imaging.chroma_key import ChromaPolicy, format_chroma_key, select_chroma_key
 from pindou.schemas.conversion import ConversionStyle
-from pindou.services.enhancer import EnhancementOptions, EnhancementResult
+from pindou.services.enhancer import BackgroundHint, EnhancementOptions, EnhancementResult
 from pindou.services.seedream_client import SeedreamClient, SeedreamUpstreamError
 from pindou.services.seedream_prompt import SEEDREAM_PROMPT_VERSION, build_seedream_prompt
 
@@ -43,6 +44,7 @@ class SeedreamEnhancer:
         self._queue_timeout_seconds = queue_timeout_seconds
         # 仅由开发环境注入；生产环境默认关闭，避免把用户图片上下文记录到日志。
         self._log_prompts = log_prompts
+        self._chroma_policy = ChromaPolicy()
 
     @property
     def name(self) -> str:
@@ -82,11 +84,19 @@ class SeedreamEnhancer:
             raise ApiError(429, "AI_BUSY", "AI 服务忙，请稍后重试")
         try:
             data_url = self._encode_image_data_url(image)
-            prompt = build_seedream_prompt(options)
-            logger.info('self._log_prompts: %s', 1 if self._log_prompts else 0)
-            # if self._log_prompts:
-                # 使用 logger 而不是 print，确保提示词带有时间、级别并进入 Uvicorn 控制台。
-            logger.info("Seedream prompt (development):\n%s", prompt)
+            chroma_rgb = None
+            if (
+                options.background_mode.value == "solid"
+                and options.background_hint_kind == "chroma_key"
+            ):
+                chroma_rgb = select_chroma_key(image, policy=self._chroma_policy)
+            prompt = build_seedream_prompt(
+                options,
+                chroma_key=format_chroma_key(chroma_rgb) if chroma_rgb is not None else None,
+            )
+            if self._log_prompts:
+                # 开发环境才记录完整提示词，避免生产日志长期保留用户图片上下文。
+                logger.info("Seedream prompt (development):\n%s", prompt)
             try:
                 result = self._client.edit_image(image_data_url=data_url, prompt=prompt)
             except SeedreamUpstreamError as exc:
@@ -94,7 +104,16 @@ class SeedreamEnhancer:
             # 供应商适配器只做安全解码，不在这里宣称 Alpha 是否可信。完整蒙版验证
             # 统一由 ForegroundPreparer 完成，避免不同增强器形成不同判断标准。
             output = self._decode_output(result.image_bytes)
-            return EnhancementResult(image=output)
+            hint = (
+                BackgroundHint(
+                    kind="chroma_key",
+                    requested_color=chroma_rgb,
+                    policy_version=self._chroma_policy.version,
+                )
+                if chroma_rgb is not None
+                else None
+            )
+            return EnhancementResult(image=output, background_hint=hint)
         finally:
             self._semaphore.release()
 

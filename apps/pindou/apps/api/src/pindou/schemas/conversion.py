@@ -58,7 +58,13 @@ class ConversionMeta(BaseModel):
         pattern=r"^#[0-9A-F]{6}$",
         exclude_if=lambda value: value is None,
     )
-    background_processing: Literal["none", "local_matte", "fallback_simplify"] = "none"
+    background_processing: Literal[
+        "none",
+        "chroma_matte",
+        "hybrid_matte",
+        "local_matte",
+        "fallback_simplify",
+    ] = "none"
     foreground_model_version: str | None = Field(
         default=None,
         exclude_if=lambda value: value is None,

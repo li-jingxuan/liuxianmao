@@ -27,6 +27,7 @@ services:
       dockerfile: deploy/api.Dockerfile
       args:
         PYTHON_IMAGE: ${PYTHON_IMAGE:-docker.m.daocloud.io/library/python:3.12-slim}
+        U2NET_MODEL_URL: ${U2NET_MODEL_URL:-https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2net.onnx}
     restart: unless-stopped
     env_file:
       - .env
@@ -38,15 +39,16 @@ services:
       DATABASE_URL: ${DATABASE_URL:?请在 deploy/.env 中设置 DATABASE_URL}
       MARD_COLOR_CHART_PATH: /app/docs/MARD_色卡.json
       IMAGE_BACKUP_DIR: /var/lib/pindou/images
+      EVENT_LOG_DIR: /var/lib/pindou/log
       # 管理员交付图使用独立持久卷，并在 7 天后由 API 自动清理。
       IMAGE_DELIVERY_DIR: /var/lib/pindou/image-deliveries
       IMAGE_DELIVERY_TTL_SECONDS: ${IMAGE_DELIVERY_TTL_SECONDS:-604800}
       IMAGE_DELIVERY_MAX_BYTES: ${IMAGE_DELIVERY_MAX_BYTES:-31457280}
       IMAGE_DELIVERY_MAX_PIXELS: ${IMAGE_DELIVERY_MAX_PIXELS:-50000000}
       IMAGE_DELIVERY_CLEANUP_INTERVAL_SECONDS: ${IMAGE_DELIVERY_CLEANUP_INTERVAL_SECONDS:-3600}
-      FOREGROUND_MASK_ADAPTER: onnx-u2netp
-      FOREGROUND_MODEL_PATH: /app/apps/api/models/foreground/u2netp.onnx
-      FOREGROUND_MODEL_METADATA_PATH: /app/apps/api/models/foreground/model.json
+      FOREGROUND_MASK_ADAPTER: onnx
+      # 默认使用完整 U²-Net；修改全局变量并重启即可回退 U²-NetP。
+      FOREGROUND_MODEL_VARIANT: ${FOREGROUND_MODEL_VARIANT:-u2net}
       FOREGROUND_MASK_MAX_CONCURRENCY: ${FOREGROUND_MASK_MAX_CONCURRENCY:-1}
       FOREGROUND_MASK_QUEUE_TIMEOUT_SECONDS: ${FOREGROUND_MASK_QUEUE_TIMEOUT_SECONDS:-3}
       FOREGROUND_ONNX_INTRA_OP_THREADS: ${FOREGROUND_ONNX_INTRA_OP_THREADS:-2}
@@ -65,6 +67,7 @@ services:
         condition: service_healthy
     volumes:
       - ./data/api-images:/var/lib/pindou/images
+      - ./data/api-logs:/var/lib/pindou/log
       - ./data/image-deliveries:/var/lib/pindou/image-deliveries
     healthcheck:
       test:

@@ -16,7 +16,7 @@ from pindou.services.enhancer import EnhancementOptions
 DEFAULT_SOLID_BACKGROUND_COLOR = "#FFFFFF"
 HEX_COLOR_PATTERN = re.compile(r"#[0-9A-Fa-f]{6}")
 # Prompt 内容与版本号必须在同一模块内同步变更，避免环境变量把实际实现标成旧版。
-SEEDREAM_PROMPT_VERSION = "seedream-pindou-v10-conversion-style"
+SEEDREAM_PROMPT_VERSION = "seedream-pindou-v11-validated-chroma"
 
 BASE_PROMPT = """
 以输入图为唯一内容依据。保留主体身份、类别、数量、姿态、朝向、标志性轮廓、主要配色、关键身份色和整体场景语义，不改变原图的核心内容。
@@ -147,12 +147,27 @@ OUTPUT_GUARD_PROMPT = """
 """.strip()
 
 
-def _build_background_prompt(options: EnhancementOptions) -> str:
+def _build_background_prompt(
+    options: EnhancementOptions,
+    *,
+    chroma_key: str | None = None,
+) -> str:
     """只选择当前背景模式的唯一片段。"""
     if options.background_mode is BackgroundMode.SIMPLIFY:
         return SIMPLIFY_BACKGROUND_PROMPT
     if options.background_mode is BackgroundMode.KEEP:
         return KEEP_BACKGROUND_PROMPT
+
+    if chroma_key is not None:
+        return (
+            "背景处理：完整移除原背景及其中的物体、地面、投影、倒影、纹理和装饰，"
+            "保留所有主要前景主体及其完整自然轮廓、内部结构、配件和主体之间的关系。\n"
+            f"将主体之外的全部画布严格填充为单一颜色 {chroma_key}。该背景必须完全不透明、"
+            "均匀、平坦、无渐变、无纹理、无阴影、无边框、无物体。\n"
+            f"{chroma_key} 只允许出现在主体外背景，不得覆盖、替换、重新着色或删除主体内部"
+            "的任何区域。主体边缘不得出现该颜色的反光、辉光、色溢、描边或抗锯齿色带。\n"
+            "不得删除浅色、白色、细小、低对比的主体部分，不得合并多个主体。"
+        )
 
     return (
         "背景处理：突出所有主要前景主体及其完整轮廓、内部特征和自然边缘，删除无关小物体、"
@@ -174,7 +189,11 @@ def normalize_background_color(value: str | None) -> str:
     return value.upper()
 
 
-def build_seedream_prompt(options: EnhancementOptions) -> str:
+def build_seedream_prompt(
+    options: EnhancementOptions,
+    *,
+    chroma_key: str | None = None,
+) -> str:
     """按转换类型、网格、颜色预算和背景模式组装 Prompt。"""
     detail_band = classify_grid_detail(options.grid_size)
     grid_context = (
@@ -197,7 +216,7 @@ def build_seedream_prompt(options: EnhancementOptions) -> str:
         (
             color_budget_context,
             COLOR_BUDGET_PROMPTS[options.color_budget_band],
-            _build_background_prompt(options),
+            _build_background_prompt(options, chroma_key=chroma_key),
             OUTPUT_GUARD_PROMPT,
         )
     )
