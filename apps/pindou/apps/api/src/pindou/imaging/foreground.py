@@ -258,7 +258,8 @@ class ForegroundPreparer:
             raise ApiError(
                 422,
                 "AI_BACKGROUND_SEPARATION_FAILED",
-                "Seedream 未返回带透明通道的 PNG",
+                # Seedream 
+                "AI 未返回带透明通道的 PNG",
             )
         if enhanced is not source:
             enhanced.close()
