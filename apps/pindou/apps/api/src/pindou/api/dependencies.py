@@ -96,8 +96,6 @@ def get_image_enhancer() -> ImageEnhancer:
     client = SeedreamClient(
         client=ark,
         model=model,
-        model_pro=app_settings.ark_doubao_image_model_pro,
-        model_lite=app_settings.ark_doubao_image_model_lite,
         image_size=app_settings.ark_doubao_image_size,
         watermark=app_settings.ark_doubao_watermark,
         max_response_bytes=app_settings.ark_doubao_max_response_bytes,
