@@ -9,18 +9,13 @@ from typing import Annotated
 import httpx
 from fastapi import Depends, Header
 from sqlmodel import Session
+from volcenginesdkarkruntime import Ark
 
 from pindou.color.chart import MardColorChart, load_mard_color_chart
 from pindou.core.config import Settings, get_settings
 from pindou.core.errors import ApiError
 from pindou.db.session import get_session
-from pindou.imaging.foreground import (
-    DisabledForegroundMaskAdapter,
-    ForegroundMaskAdapter,
-    ForegroundPreparer,
-    UnavailableForegroundMaskAdapter,
-)
-from pindou.imaging.foreground_mask_onnx import OnnxForegroundMaskAdapter
+from pindou.imaging.foreground import ForegroundPreparer
 from pindou.services.access_keys import AccessKeyService
 from pindou.services.enhancer import ImageEnhancer, PassThroughEnhancer
 from pindou.services.image_deliveries import ImageDeliveryStore
@@ -90,59 +85,42 @@ def get_image_enhancer() -> ImageEnhancer:
         write=app_settings.ark_doubao_write_timeout_seconds,
         pool=app_settings.ark_doubao_pool_timeout_seconds,
     )
-    client = SeedreamClient(
+
+    model = app_settings.ark_doubao_image_model_lite
+    ark = Ark(
         api_key=api_key.get_secret_value(),
         base_url=app_settings.ark_doubao_base_url,
-        model=app_settings.ark_doubao_image_model,
+        timeout=timeout,
+        max_retries=0,
+    )
+    client = SeedreamClient(
+        client=ark,
+        model=model,
+        model_pro=app_settings.ark_doubao_image_model_pro,
+        model_lite=app_settings.ark_doubao_image_model_lite,
         image_size=app_settings.ark_doubao_image_size,
         watermark=app_settings.ark_doubao_watermark,
         max_response_bytes=app_settings.ark_doubao_max_response_bytes,
-        timeout=timeout,
     )
 
     return SeedreamEnhancer(
         client=client,
-        model=app_settings.ark_doubao_image_model,
+        model=model,
         input_max_edge=app_settings.seedream_input_max_edge,
         output_max_pixels=app_settings.seedream_output_max_pixels,
         max_concurrency=app_settings.ark_doubao_max_concurrency,
         queue_timeout_seconds=app_settings.ark_doubao_queue_timeout_seconds,
         log_prompts=app_settings.app_env == "development",
-    )
-
-
-@lru_cache
-def get_foreground_mask_adapter() -> ForegroundMaskAdapter:
-    """进程级加载并复用固定 ONNX Session；测试可替换为确定性 Adapter。"""
-    app_settings = get_settings()
-    if not app_settings.enable_onnx_matting:
-        return DisabledForegroundMaskAdapter()
-    if app_settings.foreground_mask_adapter == "unavailable":
-        return UnavailableForegroundMaskAdapter()
-    # 模型变体和资产在配置注册表中成对绑定，业务流程只依赖统一 Adapter。
-    artifact = app_settings.foreground_model_artifact
-    return OnnxForegroundMaskAdapter(
-        model_path=artifact.model_path,
-        metadata_path=artifact.metadata_path,
-        expected_model_name=app_settings.foreground_model_variant,
-        max_concurrency=app_settings.foreground_mask_max_concurrency,
-        queue_timeout_seconds=app_settings.foreground_mask_queue_timeout_seconds,
-        intra_op_threads=app_settings.foreground_onnx_intra_op_threads,
-        allow_spinning=app_settings.foreground_onnx_allow_spinning,
+        image_backup_dir=app_settings.image_backup_dir,
+        event_log_dir=app_settings.event_log_dir,
     )
 
 
 def provide_foreground_preparer(
     enhancer: Annotated[ImageEnhancer, Depends(get_image_enhancer)],
-    mask_adapter: Annotated[ForegroundMaskAdapter, Depends(get_foreground_mask_adapter)],
-    settings: Annotated[Settings, Depends(provide_settings)],
 ) -> ForegroundPreparer:
-    """把内部 Adapter 组合进前景准备深模块，路由只依赖其单一接口。"""
-    return ForegroundPreparer(
-        enhancer=enhancer,
-        mask_adapter=mask_adapter,
-        enable_onnx_matting=settings.enable_onnx_matting,
-    )
+    """构造不依赖本地模型的前景准备模块。"""
+    return ForegroundPreparer(enhancer=enhancer)
 
 
 @lru_cache
@@ -166,10 +144,6 @@ def provide_image_delivery_store() -> ImageDeliveryStore:
 SettingsDep = Annotated[Settings, Depends(provide_settings)]
 ColorChartDep = Annotated[MardColorChart, Depends(get_color_chart)]
 ImageEnhancerDep = Annotated[ImageEnhancer, Depends(get_image_enhancer)]
-ForegroundMaskAdapterDep = Annotated[
-    ForegroundMaskAdapter,
-    Depends(get_foreground_mask_adapter),
-]
 ForegroundPreparerDep = Annotated[ForegroundPreparer, Depends(provide_foreground_preparer)]
 SessionDep = Annotated[Session, Depends(get_session)]
 AccessKeyServiceDep = Annotated[AccessKeyService, Depends(provide_access_key_service)]

@@ -98,6 +98,19 @@ class AccessKeyService:
             remaining_uses=usage.remaining_uses,
         )
 
+    def assert_available(self, plaintext_key: str | None) -> QuotaUsage:
+        """只读校验密钥额度；真正扣减必须由成功转换后的 consume 完成。"""
+        if not plaintext_key or len(plaintext_key) > MAX_KEY_LENGTH:
+            raise _invalid_access_key()
+        try:
+            usage = self._keys.get_quota(self.hash_key(plaintext_key))
+        except SQLAlchemyError as exc:
+            self._session.rollback()
+            raise _database_unavailable() from exc
+        if usage is None or usage.remaining_uses <= 0:
+            raise _invalid_access_key()
+        return QuotaUsage(initial_uses=usage.initial_uses, remaining_uses=usage.remaining_uses)
+
     def get_quota(self, plaintext_key: str | None) -> QuotaUsage:
         """读取当前额度但不消费次数，供客户端展示权威余额。"""
         if not plaintext_key or len(plaintext_key) > MAX_KEY_LENGTH:

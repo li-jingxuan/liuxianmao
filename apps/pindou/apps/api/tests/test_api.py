@@ -20,11 +20,11 @@ from pindou.imaging.color_budget import ColorBudgetBand
 from pindou.imaging.foreground import RawForegroundMask
 from pindou.main import app
 from pindou.schemas.conversion import BackgroundMode, ConversionStyle
-from pindou.services.enhancer import BackgroundHint, EnhancementOptions, EnhancementResult
+from pindou.services.enhancer import EnhancementOptions, EnhancementResult, NativeAlphaHint
 
 
 class FakeAiEnhancer:
-    name = "seedream-5-lite"
+    name = "seedream-5-pro"
     model = "fake-model"
     prompt_version = "fake-prompt"
     last_options: EnhancementOptions | None = None
@@ -32,58 +32,63 @@ class FakeAiEnhancer:
 
     def enhance(self, image: Image.Image, *, options: EnhancementOptions) -> EnhancementResult:
         type(self).last_options = options
+        if options.background_mode is BackgroundMode.SOLID:
+            output = Image.new("RGBA", image.size, (0, 0, 0, 0))
+            for x in range(image.width // 4, image.width - image.width // 4):
+                for y in range(image.height // 4, image.height - image.height // 4):
+                    output.putpixel((x, y), (0, 0, 255, 255))
+        else:
+            output = Image.new("RGBA", image.size, (0, 0, 255, 255))
         return EnhancementResult(
-            image=Image.new("RGBA", image.size, (0, 0, 255, 255)),
+            image=output,
             background_hint=(
-                BackgroundHint("chroma_key", (0, 255, 0), "solid-chroma-v1")
-                if options.background_hint_kind == "chroma_key"
-                else None
+                NativeAlphaHint() if options.background_mode is BackgroundMode.SOLID else None
             ),
         )
 
 
 class FakeSolidEnhancer:
-    """模拟 Seedream 返回平坦键色背景，Solid 最终 Alpha 由 ONNX 蒙版负责。"""
+    """模拟 Seedream 返回通过覆盖率和边缘连通验证的原生透明 PNG。"""
 
-    name = "passthrough"
-    model = None
-    prompt_version = None
+    name = "seedream-5-pro"
+    model = "test-model"
+    prompt_version = "test-native-alpha"
     supported_styles = frozenset(ConversionStyle)
 
     def enhance(self, image: Image.Image, *, options: EnhancementOptions) -> EnhancementResult:
         assert options.background_mode is BackgroundMode.SOLID
-        assert options.background_hint_kind == "chroma_key"
-        output = Image.new("RGBA", image.size, (0, 255, 0, 255))
+        output = Image.new("RGBA", image.size, (0, 0, 0, 0))
         for x in range(image.width // 4, image.width - image.width // 4):
             for y in range(image.height // 4, image.height - image.height // 4):
                 output.putpixel((x, y), (255, 255, 255, 255))
-        return EnhancementResult(
-            image=output,
-            background_hint=BackgroundHint("chroma_key", (0, 255, 0), "solid-chroma-v1"),
-        )
+        return EnhancementResult(image=output, background_hint=NativeAlphaHint())
 
 
-class FakeChromaDegradedEnhancer:
-    """模拟只有顶边遵循键色的 Seedream 输出，稳定触发完整验证降级。"""
+class FakeInvalidAlphaEnhancer:
+    """模拟携带 Alpha band 但全不透明的无效 Seedream 输出。"""
 
-    name = "seedream-5-lite"
+    name = "seedream-5-pro"
     model = "test-model"
     prompt_version = "test-chroma"
     supported_styles = frozenset(ConversionStyle)
 
     def enhance(self, image: Image.Image, *, options: EnhancementOptions) -> EnhancementResult:
-        assert options.background_hint_kind == "chroma_key"
+        del options
         output = Image.new("RGBA", image.size, (220, 30, 30, 255))
-        for x in range(image.width):
-            output.putpixel((x, 0), (0, 255, 0, 255))
-        return EnhancementResult(
-            image=output,
-            background_hint=BackgroundHint(
-                kind="chroma_key",
-                requested_color=(0, 255, 0),
-                policy_version="solid-chroma-v1",
-            ),
-        )
+        return EnhancementResult(image=output, background_hint=NativeAlphaHint())
+
+
+class FakeUpstreamErrorEnhancer:
+    name = "seedream-5-pro"
+    model = "test-model"
+    prompt_version = "test-prompt"
+    supported_styles = frozenset(ConversionStyle)
+
+    def enhance(self, image: Image.Image, *, options: EnhancementOptions) -> EnhancementResult:
+        del image, options
+        from pindou.core.errors import ApiError
+
+        raise ApiError(502, "AI_UPSTREAM_ERROR", "AI 服务暂时不可用")
 
 
 class ConstantForegroundMaskAdapter:
@@ -349,11 +354,11 @@ def test_ai_keep_conversion_backs_up_original_and_seedream_images(
     assert FakeAiEnhancer.last_options.conversion_style is ConversionStyle.ORIGINAL
 
 
-def test_ai_solid_conversion_backs_up_seedream_and_final_foreground_stages(
+def test_ai_solid_conversion_backs_up_native_alpha_seedream_stage(
     client: TestClient,
     tmp_path: Path,
 ) -> None:
-    """Solid 模式保存不透明 Seedream 图和量化前最终 RGBA。"""
+    """原生 Alpha 已是最终前景，不重复伪造一个 ONNX 最终阶段文件。"""
     backup_dir = tmp_path / "assets" / "images"
     app.dependency_overrides[get_image_enhancer] = FakeAiEnhancer
     app.dependency_overrides[provide_settings] = lambda: Settings(
@@ -380,25 +385,20 @@ def test_ai_solid_conversion_backs_up_seedream_and_final_foreground_stages(
     assert response.status_code == 200
     originals = list(backup_dir.glob("*-original.png"))
     seedream = list(backup_dir.glob("*-seedream-enhanced.png"))
-    final = list(backup_dir.glob("*-foreground-final.png"))
     metrics = list(backup_dir.glob("*-foreground-metrics.json"))
-    assert len(originals) == len(seedream) == len(final) == len(metrics) == 1
+    assert len(originals) == len(seedream) == len(metrics) == 1
+    assert not list(backup_dir.glob("*-foreground-final.png"))
     timestamps = {
         originals[0].stem.removesuffix("-original"),
         seedream[0].stem.removesuffix("-seedream-enhanced"),
-        final[0].stem.removesuffix("-foreground-final"),
         metrics[0].stem.removesuffix("-foreground-metrics"),
     }
     assert len(timestamps) == 1
     with Image.open(seedream[0]) as seedream_image:
-        assert seedream_image.getpixel((0, 0)) == (0, 0, 255, 255)
-    with Image.open(final[0]) as onnx_image:
-        assert onnx_image.getpixel((0, 0)) == (0, 0, 255, 0)
-        assert onnx_image.getpixel((8, 8)) == (0, 0, 255, 255)
+        assert seedream_image.getpixel((0, 0))[3] == 0
+        assert seedream_image.getpixel((8, 8)) == (0, 0, 255, 255)
     stage_metrics = json.loads(metrics[0].read_text(encoding="utf-8"))
-    assert stage_metrics["requested_key"] == "#00FF00"
-    assert stage_metrics["background_processing"] == "local_matte"
-    assert stage_metrics["foreground_model_version"] == "test-v1"
+    assert stage_metrics["background_processing"] == "transparent_background"
 
 
 @pytest.mark.parametrize("conversion_style", list(ConversionStyle))
@@ -579,9 +579,9 @@ def test_solid_background_is_normalized_and_returned(client: TestClient) -> None
     payload = response.json()
     assert payload["meta"]["background_mode"] == "solid"
     assert payload["meta"]["background_color"] == "#AABBCC"
-    assert payload["meta"]["background_processing"] == "local_matte"
+    assert payload["meta"]["background_processing"] == "transparent_background"
     assert payload["meta"]["applied_background_mode"] == "solid"
-    assert payload["meta"]["foreground_model_version"] == "test-v1"
+    assert "foreground_model_version" not in payload["meta"]
     assert payload["background"] == {"mode": "solid", "color": "#AABBCC"}
     assert any(cell is None for row in payload["foreground"]["rows"] for cell in row)
     assert payload["stats"]["bead_count"] > 0
@@ -608,7 +608,7 @@ def test_solid_background_defaults_to_pure_white(client: TestClient) -> None:
     payload = response.json()
     assert payload["meta"]["background_mode"] == "solid"
     assert payload["meta"]["background_color"] == "#FFFFFF"
-    assert payload["meta"]["background_processing"] == "local_matte"
+    assert payload["meta"]["background_processing"] == "transparent_background"
     assert payload["meta"]["applied_background_mode"] == "solid"
     assert payload["background"] == {"mode": "solid", "color": "#FFFFFF"}
     assert any(cell is None for row in payload["foreground"]["rows"] for cell in row)
@@ -616,7 +616,7 @@ def test_solid_background_defaults_to_pure_white(client: TestClient) -> None:
     assert [color["code"] for color in payload["foreground"]["palette"]] == ["H2"]
 
 
-def test_solid_low_confidence_can_explicitly_fallback_to_simplify(
+def test_solid_native_alpha_does_not_depend_on_onnx_confidence(
     client: TestClient,
     tmp_path: Path,
 ) -> None:
@@ -652,31 +652,21 @@ def test_solid_low_confidence_can_explicitly_fallback_to_simplify(
     assert response.status_code == 200
     payload = response.json()
     assert payload["meta"]["background_mode"] == "solid"
-    assert payload["meta"]["applied_background_mode"] == "simplify"
-    assert payload["meta"]["background_processing"] == "fallback_simplify"
-    assert payload["meta"]["degraded"] is True
-    assert payload["meta"]["degrade_reason"] == "foreground_low_confidence"
-    assert payload["background"] == {"mode": "none"}
-    paths = list(event_log_dir.glob("*-foreground_degraded.json"))
-    assert len(paths) == 1
-    event = json.loads(paths[0].read_text(encoding="utf-8"))
-    assert event["requested_key"] == "#00FF00"
-    assert event["actual_key"] == "#00FF00"
-    assert event["foreground_validation_failures"] == [
-        "foreground_coverage_above_maximum",
-        "background_coverage_below_minimum",
-    ]
-    assert event["fallback_mask"] == "validated-edge-key"
+    assert payload["meta"]["applied_background_mode"] == "solid"
+    assert payload["meta"]["background_processing"] == "transparent_background"
+    assert payload["meta"]["degraded"] is False
+    assert payload["background"] == {"mode": "solid", "color": "#FFFFFF"}
+    assert list(event_log_dir.glob("*-foreground_degraded.json")) == []
 
 
-def test_dynamic_chroma_degradation_persists_exact_reason(
+def test_solid_accepts_opaque_alpha_without_simplify_fallback(
     client: TestClient,
     tmp_path: Path,
 ) -> None:
-    """降级事件通过 request_id 关联请求，并持久化完整键色校验的失败证据。"""
+    """本版本默认信任 Ark 的透明背景结果，不评分 Alpha 覆盖率。"""
     event_log_dir = tmp_path / "log"
     backup_dir = tmp_path / "images"
-    app.dependency_overrides[get_image_enhancer] = FakeChromaDegradedEnhancer
+    app.dependency_overrides[get_image_enhancer] = FakeInvalidAlphaEnhancer
     app.dependency_overrides[provide_settings] = lambda: Settings(
         _env_file=None,
         app_env="test",
@@ -690,7 +680,7 @@ def test_dynamic_chroma_degradation_persists_exact_reason(
     try:
         response = client.post(
             "/api/v1/conversions",
-            headers={"x-request-id": "req_chroma_degrade"},
+            headers={"x-request-id": "req_native_alpha_invalid"},
             files={"image": ("source.png", make_png_bytes(size=(16, 16)), "image/png")},
             data={
                 "grid_size": "8",
@@ -705,31 +695,17 @@ def test_dynamic_chroma_degradation_persists_exact_reason(
         app.dependency_overrides.pop(provide_settings, None)
 
     assert response.status_code == 200
-    assert response.headers["x-request-id"] == "req_chroma_degrade"
-    paths = list(event_log_dir.glob("*-foreground_degraded.json"))
-    assert len(paths) == 1
-    event = json.loads(paths[0].read_text(encoding="utf-8"))
-    assert event["event"] == "foreground_degraded"
-    assert event["request_id"] == "req_chroma_degrade"
-    assert event["processing"] == "fallback_simplify"
-    assert event["degrade_reason"] == "foreground_low_confidence"
-    assert event["validation_failures"] == [
-        "border_coverage_below_minimum",
-        "edge_count_below_minimum",
-    ]
-    assert event["border_coverage"] < event["min_border_coverage"]
-    assert event["edge_count"] < event["min_edge_count"]
-    metric_paths = list(backup_dir.glob("*-foreground-metrics.json"))
-    assert len(metric_paths) == 1
-    backup_metrics = json.loads(metric_paths[0].read_text(encoding="utf-8"))
-    assert backup_metrics["validation_failures"] == event["validation_failures"]
+    assert response.headers["x-request-id"] == "req_native_alpha_invalid"
+    assert response.json()["meta"]["background_processing"] == "transparent_background"
+    assert not list(event_log_dir.glob("*-foreground_degraded.json"))
+    assert len(list(backup_dir.glob("*-foreground-metrics.json"))) == 1
 
 
 def test_event_log_failure_does_not_fail_conversion(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """诊断落盘故障不得将已完成的降级转换改为 5xx。"""
+    """原生 Alpha 成功路径不触发旧的键色降级事件落盘。"""
     app.dependency_overrides[get_image_enhancer] = FakeSolidEnhancer
     previous_adapter = app.dependency_overrides[get_foreground_mask_adapter]
     app.dependency_overrides[get_foreground_mask_adapter] = ConstantForegroundMaskAdapter
@@ -755,7 +731,38 @@ def test_event_log_failure_does_not_fail_conversion(
         app.dependency_overrides[get_foreground_mask_adapter] = previous_adapter
 
     assert response.status_code == 200
-    assert response.json()["meta"]["background_processing"] == "fallback_simplify"
+    assert response.json()["meta"]["background_processing"] == "transparent_background"
+
+
+def test_ai_upstream_error_is_written_to_event_log(client: TestClient, tmp_path: Path) -> None:
+    event_log_dir = tmp_path / "log"
+    app.dependency_overrides[get_image_enhancer] = FakeUpstreamErrorEnhancer
+    app.dependency_overrides[provide_settings] = lambda: Settings(
+        _env_file=None,
+        app_env="test",
+        image_enhancer="passthrough",
+        event_log_dir=event_log_dir,
+        api_key_hash_pepper="test-hash-pepper",
+    )
+    try:
+        response = client.post(
+            "/api/v1/conversions",
+            headers={"x-request-id": "req_ai_upstream_log"},
+            files={"image": ("source.png", make_png_bytes(), "image/png")},
+            data={"grid_size": "8", "color_set_size": "24", "conversion_style": "original"},
+        )
+    finally:
+        app.dependency_overrides.pop(get_image_enhancer, None)
+        app.dependency_overrides.pop(provide_settings, None)
+
+    assert response.status_code == 502
+    assert response.json()["error"]["code"] == "AI_UPSTREAM_ERROR"
+    events = list(event_log_dir.glob("*-ai_upstream_error.json"))
+    assert len(events) == 1
+    payload = json.loads(events[0].read_text(encoding="utf-8"))
+    assert payload["request_id"] == "req_ai_upstream_log"
+    assert payload["error_code"] == "AI_UPSTREAM_ERROR"
+    assert payload["status_code"] == 502
 
 
 def test_removed_transparent_background_mode_is_rejected(client: TestClient) -> None:

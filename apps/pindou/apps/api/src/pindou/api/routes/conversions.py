@@ -140,6 +140,11 @@ def create_conversion(
 
     # 解码阶段会验证真实图片格式、应用 EXIF 方向并统一转换为 RGBA。
     decoded = decode_image(content, max_pixels=app_settings.upload_max_pixels)
+    try:
+        access_keys.assert_available(api_key)
+    except Exception:
+        decoded.close()
+        raise
     enhanced = decoded
     enhancer_image = None
     # ForegroundPreparer 是背景能力的唯一 seam；路由不感知模型 tensor 或蒙版阈值。
@@ -147,10 +152,6 @@ def create_conversion(
     try:
         # 仅在所有低成本参数和图片校验通过后扣次；条件更新已提交后不因后续
         # AI/量化错误退款，避免并发补偿造成超额使用。
-        quota = access_keys.consume(api_key, request_id=request.state.request_id)
-        response.headers["X-RateLimit-Limit"] = str(quota.initial_uses)
-        response.headers["X-RateLimit-Remaining"] = str(quota.remaining_uses)
-
         enhancement_started = perf_counter()
         try:
             prepared = foreground_preparer.prepare(
@@ -176,6 +177,29 @@ def create_conversion(
                     "error_code": exc.code,
                 },
             )
+            if exc.code == "AI_UPSTREAM_ERROR":
+                try:
+                    write_event_log(
+                        "ai_upstream_error",
+                        {
+                            "request_id": request.state.request_id,
+                            "error_code": exc.code,
+                            "status_code": exc.status_code,
+                            "conversion_style": conversion_style.value,
+                            "background_mode": background_mode.value,
+                            "grid_size": grid_size,
+                            "message": exc.message,
+                            "enhancer": foreground_preparer.enhancer_name,
+                            "ai_duration_ms": (perf_counter() - enhancement_started) * 1_000,
+                        },
+                        directory=app_settings.event_log_dir,
+                    )
+                except Exception:
+                    # 诊断日志不可用时仍保持原有 502 错误契约。
+                    logger.exception(
+                        "Failed to persist AI upstream error event",
+                        extra={"request_id": request.state.request_id},
+                    )
             raise
         ai_duration_ms = (perf_counter() - enhancement_started) * 1_000
         enhanced = prepared.image
@@ -221,9 +245,7 @@ def create_conversion(
                 # ONNX 关闭时最终前景只存在请求内存中，不落盘；Seedream 原始输出
                 # 仍由 enhancer_image 单独备份，避免把降级透明结果误标为 ONNX 阶段。
                 foreground_final=(
-                    enhanced
-                    if app_settings.enable_onnx_matting and background_mode is BackgroundMode.SOLID
-                    else None
+                    enhanced if prepared.processing in {"hybrid_matte", "local_matte"} else None
                 ),
                 metrics={
                     "enhancer": prepared.enhancer_name,
@@ -280,7 +302,7 @@ def create_conversion(
         if prepared.applied_background_mode is BackgroundMode.SOLID
         else RenderBackground(mode="none")
     )
-    return ConversionResponse(
+    conversion_response = ConversionResponse(
         algorithm_version=grid.algorithm_version,
         width=grid.width,
         height=grid.height,
@@ -319,3 +341,7 @@ def create_conversion(
         ),
         stats=ConversionStats(bead_count=grid.bead_count, color_count=grid.color_count),
     )
+    quota = access_keys.consume(api_key, request_id=request.state.request_id)
+    response.headers["X-RateLimit-Limit"] = str(quota.initial_uses)
+    response.headers["X-RateLimit-Remaining"] = str(quota.remaining_uses)
+    return conversion_response

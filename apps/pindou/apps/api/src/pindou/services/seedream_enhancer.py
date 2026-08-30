@@ -5,14 +5,18 @@ from __future__ import annotations
 import base64
 import logging
 from io import BytesIO
+from pathlib import Path
 from threading import BoundedSemaphore
 
 from PIL import Image, ImageOps, UnidentifiedImageError
 
 from pindou.core.errors import ApiError
-from pindou.imaging.chroma_key import ChromaPolicy, format_chroma_key, select_chroma_key
-from pindou.schemas.conversion import ConversionStyle
-from pindou.services.enhancer import BackgroundHint, EnhancementOptions, EnhancementResult
+from pindou.core.ark_errors import map_ark_error
+from pindou.core.event_log import write_event_log
+from pindou.imaging.image_backup import save_seedream_response_bytes
+from pindou.imaging.seedream_input import prepare_transparent_input
+from pindou.schemas.conversion import BackgroundMode, ConversionStyle
+from pindou.services.enhancer import EnhancementOptions, EnhancementResult, NativeAlphaHint
 from pindou.services.seedream_client import SeedreamClient, SeedreamUpstreamError
 from pindou.services.seedream_prompt import SEEDREAM_PROMPT_VERSION, build_seedream_prompt
 
@@ -30,25 +34,32 @@ class SeedreamEnhancer:
         *,
         client: SeedreamClient,
         model: str,
+        model_pro: str | None = None,
+        model_lite: str | None = None,
         input_max_edge: int,
         output_max_pixels: int,
         max_concurrency: int,
         queue_timeout_seconds: float,
         log_prompts: bool = False,
+        image_backup_dir: Path | None = None,
+        event_log_dir: Path | None = None,
     ) -> None:
         self._client = client
         self._model = model
+        self._model_pro = model_pro or model
+        self._model_lite = model_lite or model
         self._input_max_edge = input_max_edge
         self._output_max_pixels = output_max_pixels
         self._semaphore = BoundedSemaphore(max_concurrency)
         self._queue_timeout_seconds = queue_timeout_seconds
         # 仅由开发环境注入；生产环境默认关闭，避免把用户图片上下文记录到日志。
         self._log_prompts = log_prompts
-        self._chroma_policy = ChromaPolicy()
+        self._image_backup_dir = image_backup_dir
+        self._event_log_dir = event_log_dir
 
     @property
     def name(self) -> str:
-        return "seedream-5-lite"
+        return "seedream-5"
 
     @property
     def model(self) -> str:
@@ -72,7 +83,7 @@ class SeedreamEnhancer:
         *,
         options: EnhancementOptions,
     ) -> EnhancementResult:
-        """限制输入尺寸、调用方舟，并记录上游实际返回的 Alpha 状态。"""
+        """限制输入尺寸、调用方舟，并声明上游是否携带原生 Alpha。"""
         if options.conversion_style not in self.supported_styles:
             raise ApiError(
                 503,
@@ -84,42 +95,47 @@ class SeedreamEnhancer:
             raise ApiError(429, "AI_BUSY", "AI 服务忙，请稍后重试")
         try:
             data_url = self._encode_image_data_url(image)
-            chroma_rgb = None
-            if (
-                options.background_mode.value == "solid"
-                and options.background_hint_kind == "chroma_key"
-            ):
-                chroma_rgb = select_chroma_key(image, policy=self._chroma_policy)
-            prompt = build_seedream_prompt(
-                options,
-                chroma_key=format_chroma_key(chroma_rgb) if chroma_rgb is not None else None,
-            )
+            prompt = build_seedream_prompt(options)
             if self._log_prompts:
                 # 开发环境才记录完整提示词，避免生产日志长期保留用户图片上下文。
                 logger.info("Seedream prompt (development):\n%s", prompt)
+            request_model = self._model_pro if options.background_mode is BackgroundMode.SOLID else self._model_lite
             try:
-                result = self._client.edit_image(image_data_url=data_url, prompt=prompt)
-            except SeedreamUpstreamError as exc:
-                raise self._map_upstream_error(exc) from exc
-            # 供应商适配器只做安全解码，不在这里宣称 Alpha 是否可信。完整蒙版验证
-            # 统一由 ForegroundPreparer 完成，避免不同增强器形成不同判断标准。
-            output = self._decode_output(result.image_bytes)
-            hint = (
-                BackgroundHint(
-                    kind="chroma_key",
-                    requested_color=chroma_rgb,
-                    policy_version=self._chroma_policy.version,
+                result = self._client.edit_image(
+                    model=request_model,
+                    image_data_url=data_url,
+                    prompt=prompt,
+                    background=(
+                        "transparent"
+                        if options.background_mode is BackgroundMode.SOLID
+                        else None
+                    ),
                 )
-                if chroma_rgb is not None
+            except SeedreamUpstreamError as exc:
+                self._log_upstream_failure(exc, options=options)
+                raise self._map_upstream_error(exc) from exc
+            # Ark 已返回成功结果即落盘，确保即使后续 PNG 解码或 ONNX 兜底失败，
+            # images/ 中仍保留供应商原始产物用于排查。
+            if self._image_backup_dir is not None:
+                save_seedream_response_bytes(
+                    result.image_bytes,
+                    directory=self._image_backup_dir,
+                )
+            # Solid 只要求上游 PNG 容器携带 Alpha；本版本信任模型透明背景结果，
+            # 不在本地对 Alpha 覆盖率或边缘连通性做质量判定。
+            output, has_native_alpha = self._decode_output(result.image_bytes)
+            hint = (
+                NativeAlphaHint()
+                if options.background_mode is BackgroundMode.SOLID and has_native_alpha
                 else None
             )
-            return EnhancementResult(image=output, background_hint=hint)
+            return EnhancementResult(image=output, background_hint=hint, model=request_model)
         finally:
             self._semaphore.release()
 
     def _encode_image_data_url(self, image: Image.Image) -> str:
-        """用 PNG 保留 Alpha，缩小过大输入并不携带 EXIF/GPS。"""
-        prepared = image.copy()
+        """生成带左上角透明像素的 PNG 数据 URL，不携带 EXIF/GPS。"""
+        prepared = prepare_transparent_input(image, max_edge=self._input_max_edge)
         try:
             prepared.thumbnail(
                 (self._input_max_edge, self._input_max_edge),
@@ -132,16 +148,19 @@ class SeedreamEnhancer:
         finally:
             prepared.close()
 
-    def _decode_output(self, content: bytes) -> Image.Image:
-        """不信任上游声明尺寸，并统一解码为独立 RGBA 图片。"""
+    def _decode_output(self, content: bytes) -> tuple[Image.Image, bool]:
+        """验证实际 PNG、像素上限和原始透明信息，再返回独立 RGBA。"""
         try:
             with Image.open(BytesIO(content)) as source:
+                if source.format != "PNG":
+                    raise ApiError(502, "AI_UPSTREAM_ERROR", "AI 返回图片不是 PNG")
                 if source.width * source.height > self._output_max_pixels:
                     raise ApiError(502, "AI_UPSTREAM_ERROR", "AI 返回图片超过像素限制")
                 source.load()
+                has_native_alpha = "A" in source.getbands() or "transparency" in source.info
                 transposed = ImageOps.exif_transpose(source)
                 output = transposed.convert("RGBA")
-                return output
+                return output, has_native_alpha
         except ApiError:
             raise
         except (Image.DecompressionBombError, UnidentifiedImageError, OSError, ValueError) as exc:
@@ -149,12 +168,30 @@ class SeedreamEnhancer:
 
     @staticmethod
     def _map_upstream_error(exc: SeedreamUpstreamError) -> ApiError:
-        if exc.code == "InputTextSensitiveContentDetected":
-            return ApiError(400, "AI_INPUT_REJECTED", "图片或处理指令未通过内容安全检查")
-        if exc.code == "OutputImageSensitiveContentDetected":
-            return ApiError(422, "AI_OUTPUT_REJECTED", "AI 生成结果未通过内容安全检查")
-        if exc.code == "QuotaExceeded" or exc.status_code == 429:
-            return ApiError(429, "AI_BUSY", "AI 服务忙，请稍后重试")
-        if exc.status_code == 504 or exc.code == "TIMEOUT":
-            return ApiError(504, "AI_TIMEOUT", "AI 处理超时，请稍后手动重试")
-        return ApiError(502, "AI_UPSTREAM_ERROR", "AI 服务暂时不可用")
+        return map_ark_error(exc)
+
+    def _log_upstream_failure(
+        self,
+        exc: SeedreamUpstreamError,
+        *,
+        options: EnhancementOptions,
+    ) -> None:
+        """记录 Ark 原始失败上下文；不写入图片、Prompt 或密钥。"""
+        payload = {
+            "provider": "ark",
+            "model": self._model,
+            "upstream_status_code": exc.status_code,
+            "upstream_code": exc.code,
+            "upstream_request_id": exc.request_id,
+            "upstream_message": exc.message[:1000],
+            "conversion_style": options.conversion_style.value,
+            "background_mode": options.background_mode.value,
+            "grid_size": options.grid_size,
+        }
+        logger.error("Ark Seedream request failed", extra=payload)
+        if self._event_log_dir is None:
+            return
+        try:
+            write_event_log("ark_upstream_failure", payload, directory=self._event_log_dir)
+        except Exception:
+            logger.exception("Failed to persist Ark upstream failure event")

@@ -1,7 +1,7 @@
 # Pindou API
 
 FastAPI service that converts an uploaded image into a square MARD bead grid. It can use
-Seedream 5.0 lite before deterministic MARD quantization and returns grid JSON. 管理员还可以
+Seedream 5.0 Pro before deterministic MARD quantization and returns grid JSON. 管理员还可以
 把完整施工图短期保存为公开交付链接；该目录与 AI 排查备份完全隔离并按 TTL 清理。
 
 ## Setup
@@ -40,14 +40,15 @@ IMAGE_DELIVERY_CLEANUP_INTERVAL_SECONDS=3600
 ```
 
 For local deterministic keep/simplify conversion, `IMAGE_ENHANCER=passthrough` remains available.
-Solid conversion always requires Seedream to generate a dynamic chroma background. Configure the
-server-only key and switch the enhancer:
+Solid conversion uses Seedream 5.0 Pro to return a transparent PNG. The uploaded image is
+converted to RGBA PNG with one transparent pixel at its top-left corner before the Ark SDK call.
+Configure the server-only key and separate China-region Pro/Lite models:
 
 ```dotenv
 IMAGE_ENHANCER=seedream
-ENABLE_ONNX_MATTING=false
 ARK_DOUBAO_API_KEY=<secret>
-ARK_DOUBAO_IMAGE_MODEL=doubao-seedream-5-0-lite-260128
+ARK_DOUBAO_IMAGE_MODEL_PRO=doubao-seedream-5-0-pro-260628
+ARK_DOUBAO_IMAGE_MODEL_LITE=doubao-seedream-5-0-lite-260128
 ```
 
 Never expose the key through a `NEXT_PUBLIC_*` variable. Tests force `passthrough` and never
@@ -141,13 +142,12 @@ Manage source prefixes through the ORM-backed CLI:
 ```
 
 `background_mode` supports `simplify`, `solid`, and `keep`. `solid` defaults to pure white
-`#FFFFFF`; callers may submit another `#RRGGBB` value. Solid always asks Seedream for a dynamic
-chroma background. `ENABLE_ONNX_MATTING=true` runs the bundled local ONNX model on that chroma
-image and uses the validated ONNX mask directly as Alpha; `false` uses the validated chroma mask.
-`FOREGROUND_MODEL_VARIANT=u2net` selects the full default model, while `u2netp` keeps the
-lightweight rollback path without changing application code.
-`fallback_mode=simplify` explicitly authorizes a low-confidence mask to return a degraded result;
-the chroma background is still removed before quantization. Runtime/model failures remain 503.
+`#FFFFFF`; callers may submit another `#RRGGBB` value. Solid sends
+`background=transparent` and `output_format=png`, then validates that the returned PNG carries a
+usable native Alpha channel before quantization. Keep/Simplify omit `background`, so their scene
+semantics remain intact. Invalid, fully transparent, or fully opaque Alpha is rejected with
+`AI_BACKGROUND_SEPARATION_FAILED` and is never silently treated as a successful Solid result.
+Solid requests use Pro; Keep/Simplify requests use Lite. No local ONNX foreground model is loaded.
 Automatic color caps are 30 for 52×52 and 54 for 78×78/104×104 grids.
 
 All returned palette codes are guaranteed to belong to the selected MARD color set.

@@ -191,7 +191,7 @@ def _rgb_to_lab(rgb: np.ndarray) -> np.ndarray:
     )
 
 
-def _delta_e76(rgb: np.ndarray, reference_rgb: tuple[int, int, int]) -> np.ndarray:
+def delta_e76(rgb: np.ndarray, reference_rgb: tuple[int, int, int]) -> np.ndarray:
     reference = _rgb_to_lab(np.asarray(reference_rgb, dtype=np.float32).reshape(1, 1, 3))[0, 0]
     lab = _rgb_to_lab(rgb)
     return np.sqrt(np.sum((lab - reference) ** 2, axis=-1, dtype=np.float32))
@@ -238,7 +238,7 @@ def _estimate_actual_key(
     return min(candidates)[3] if candidates else None
 
 
-def _mark_edge_connected(candidate: np.ndarray) -> np.ndarray:
+def mark_edge_connected(candidate: np.ndarray) -> np.ndarray:
     """只保留与四边连通的键色候选，避免删除主体内部同色区域。"""
     height, width = candidate.shape
     connected = np.zeros_like(candidate, dtype=bool)
@@ -274,11 +274,7 @@ def _mark_edge_connected(candidate: np.ndarray) -> np.ndarray:
                 if candidate[next_y, x] and not connected[next_y, x]:
                     queue.append((x, next_y))
                     x += 1
-                    while (
-                        x <= right
-                        and candidate[next_y, x]
-                        and not connected[next_y, x]
-                    ):
+                    while x <= right and candidate[next_y, x] and not connected[next_y, x]:
                         x += 1
                 else:
                     x += 1
@@ -330,10 +326,10 @@ def validate_chroma_mask(
     # 请求色仅用于诊断；只要实际背景满足边缘覆盖与连通性约束，允许 Seedream
     # 发生较大色漂移，避免把可分离的真实背景误判为失败。
 
-    border_distances = _delta_e76(border_pixels.reshape(1, -1, 3), actual_key).reshape(-1)
+    border_distances = delta_e76(border_pixels.reshape(1, -1, 3), actual_key).reshape(-1)
     border_coverage = float(np.mean(border_distances <= resolved.strict_delta_e76))
     edge_count = sum(
-        float(np.mean(_delta_e76(edge, actual_key) <= resolved.strict_delta_e76))
+        float(np.mean(delta_e76(edge, actual_key) <= resolved.strict_delta_e76))
         >= resolved.min_border_coverage
         for edge in diagnostic_edges
     )
@@ -351,8 +347,9 @@ def validate_chroma_mask(
                     "chroma_policy_version": resolved.version,
                     "requested_key": format_chroma_key(hint.requested_color),
                     "actual_key": format_chroma_key(actual_key),
-                "requested_key_delta_e76": requested_delta,
-                "actual_key_drift_accepted": requested_delta > resolved.max_requested_key_delta_e76,
+                    "requested_key_delta_e76": requested_delta,
+                    "actual_key_drift_accepted": requested_delta
+                    > resolved.max_requested_key_delta_e76,
                     "border_coverage": border_coverage,
                     "min_border_coverage": resolved.min_border_coverage,
                     "edge_count": edge_count,
@@ -372,8 +369,8 @@ def validate_chroma_mask(
                 strip = np.asarray(strip_image, dtype=np.uint8).copy()
             finally:
                 strip_image.close()
-            candidate[top:bottom] = _delta_e76(strip, actual_key) <= resolved.foreground_delta_e76
-        connected = _mark_edge_connected(candidate)
+            candidate[top:bottom] = delta_e76(strip, actual_key) <= resolved.foreground_delta_e76
+        connected = mark_edge_connected(candidate)
         background_coverage = float(np.mean(connected))
         if background_coverage < resolved.min_background_coverage:
             return ChromaValidationOutcome(
@@ -385,7 +382,8 @@ def validate_chroma_mask(
                         "requested_key": format_chroma_key(hint.requested_color),
                         "actual_key": format_chroma_key(actual_key),
                         "requested_key_delta_e76": requested_delta,
-                        "actual_key_drift_accepted": requested_delta > resolved.max_requested_key_delta_e76,
+                        "actual_key_drift_accepted": requested_delta
+                        > resolved.max_requested_key_delta_e76,
                         "border_coverage": border_coverage,
                         "min_border_coverage": resolved.min_border_coverage,
                         "edge_count": edge_count,
@@ -406,7 +404,8 @@ def validate_chroma_mask(
                         "requested_key": format_chroma_key(hint.requested_color),
                         "actual_key": format_chroma_key(actual_key),
                         "requested_key_delta_e76": requested_delta,
-                        "actual_key_drift_accepted": requested_delta > resolved.max_requested_key_delta_e76,
+                        "actual_key_drift_accepted": requested_delta
+                        > resolved.max_requested_key_delta_e76,
                         "border_coverage": border_coverage,
                         "min_border_coverage": resolved.min_border_coverage,
                         "edge_count": edge_count,
@@ -427,7 +426,7 @@ def validate_chroma_mask(
                 strip = np.asarray(strip_image, dtype=np.uint8).copy()
             finally:
                 strip_image.close()
-            distances = _delta_e76(strip, actual_key)
+            distances = delta_e76(strip, actual_key)
             scaled = np.clip(
                 (distances - resolved.background_delta_e76)
                 / (resolved.foreground_delta_e76 - resolved.background_delta_e76),
@@ -452,7 +451,8 @@ def validate_chroma_mask(
                         "requested_key": format_chroma_key(hint.requested_color),
                         "actual_key": format_chroma_key(actual_key),
                         "requested_key_delta_e76": requested_delta,
-                        "actual_key_drift_accepted": requested_delta > resolved.max_requested_key_delta_e76,
+                        "actual_key_drift_accepted": requested_delta
+                        > resolved.max_requested_key_delta_e76,
                         "border_coverage": border_coverage,
                         "min_border_coverage": resolved.min_border_coverage,
                         "edge_count": edge_count,
@@ -539,9 +539,9 @@ def build_conservative_edge_key_mask(
         requested_delta = float(
             np.linalg.norm(
                 _rgb_to_lab(np.asarray(actual_key, dtype=np.float32).reshape(1, 1, 3))[0, 0]
-                - _rgb_to_lab(
-                    np.asarray(hint.requested_color, dtype=np.float32).reshape(1, 1, 3)
-                )[0, 0]
+                - _rgb_to_lab(np.asarray(hint.requested_color, dtype=np.float32).reshape(1, 1, 3))[
+                    0, 0
+                ]
             )
         )
         if requested_delta > resolved.max_requested_key_delta_e76:
@@ -560,8 +560,8 @@ def build_conservative_edge_key_mask(
                 strip = np.asarray(strip_image, dtype=np.uint8).copy()
             finally:
                 strip_image.close()
-            candidate[top:bottom] = _delta_e76(strip, actual_key) <= resolved.foreground_delta_e76
-        connected = _mark_edge_connected(candidate)
+            candidate[top:bottom] = delta_e76(strip, actual_key) <= resolved.foreground_delta_e76
+        connected = mark_edge_connected(candidate)
 
         alpha = np.full((height, width), 255, dtype=np.uint8)
         transition_count = 0
@@ -572,7 +572,7 @@ def build_conservative_edge_key_mask(
                 strip = np.asarray(strip_image, dtype=np.uint8).copy()
             finally:
                 strip_image.close()
-            distances = _delta_e76(strip, actual_key)
+            distances = delta_e76(strip, actual_key)
             scaled = np.clip(
                 (distances - resolved.background_delta_e76)
                 / (resolved.foreground_delta_e76 - resolved.background_delta_e76),
@@ -590,7 +590,7 @@ def build_conservative_edge_key_mask(
         rgb_image.close()
 
     total = max(1, width * height)
-    border_distances = _delta_e76(border_pixels.reshape(1, -1, 3), actual_key).reshape(-1)
+    border_distances = delta_e76(border_pixels.reshape(1, -1, 3), actual_key).reshape(-1)
     border_coverage = float(np.mean(border_distances <= resolved.strict_delta_e76))
     background_coverage = float(np.mean(connected))
     transition_coverage = transition_count / total

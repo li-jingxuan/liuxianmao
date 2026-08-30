@@ -13,11 +13,8 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 
 from pindou.api.dependencies import (
-    ForegroundMaskAdapterDep,
     SessionDep,
-    SettingsDep,
     get_color_chart,
-    get_foreground_mask_adapter,
     get_image_delivery_store,
     get_image_enhancer,
 )
@@ -59,7 +56,6 @@ async def lifespan(_: FastAPI):
     get_color_chart()
     get_engine()
     enhancer = get_image_enhancer()
-    foreground_mask_adapter = get_foreground_mask_adapter()
     delivery_store = get_image_delivery_store()
     delivery_store.prepare()
     delivery_store.delete_expired()
@@ -74,9 +70,6 @@ async def lifespan(_: FastAPI):
         close = getattr(enhancer, "close", None)
         if callable(close):
             close()
-        close_mask_adapter = getattr(foreground_mask_adapter, "close", None)
-        if callable(close_mask_adapter):
-            close_mask_adapter()
         dispose_engine()
 
 
@@ -115,15 +108,16 @@ async def add_request_id(request: Request, call_next):
 @app.exception_handler(ApiError)
 async def handle_api_error(request: Request, exc: ApiError) -> JSONResponse:
     """把领域业务异常映射为稳定、无内部敏感信息的 JSON 结构。"""
+    error = {"code": exc.code, "message": exc.message, "request_id": request.state.request_id}
+    for key in ("provider", "provider_code", "retryable", "category"):
+        value = getattr(exc, key)
+        if value is not None:
+            error[key] = value
     return JSONResponse(
         status_code=exc.status_code,
         headers=exc.headers,
         content={
-            "error": {
-                "code": exc.code,
-                "message": exc.message,
-                "request_id": request.state.request_id,
-            }
+            "error": error
         },
     )
 
@@ -137,16 +131,12 @@ def healthcheck() -> HealthResponse:
 @app.get("/readyz")
 def readiness_check(
     session: SessionDep,
-    foreground_mask_adapter: ForegroundMaskAdapterDep,
-    settings: SettingsDep,
 ) -> HealthResponse:
-    """确认数据库和本地前景模型已就绪，供编排系统决定是否接流量。"""
+    """确认数据库已就绪，供编排系统决定是否接流量。"""
     try:
         check_database(session)
     except SQLAlchemyError as exc:
         raise ApiError(503, "DATABASE_UNAVAILABLE", "数据库暂时不可用，请稍后重试") from exc
-    if settings.enable_onnx_matting and not foreground_mask_adapter.ready:
-        raise ApiError(503, "FOREGROUND_MASK_UNAVAILABLE", "主体识别能力暂时不可用")
     return HealthResponse()
 
 

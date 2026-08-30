@@ -37,6 +37,14 @@ class BackgroundHint:
 
 
 @dataclass(frozen=True, slots=True)
+class NativeAlphaHint:
+    """上游 PNG 确实携带原生透明信息，但 Alpha 质量仍待统一验证。"""
+
+    kind: Literal["native_alpha"] = "native_alpha"
+    container_format: Literal["PNG"] = "PNG"
+
+
+@dataclass(frozen=True, slots=True)
 class EnhancementResult:
     """增强器输出图片。
 
@@ -45,7 +53,8 @@ class EnhancementResult:
     """
 
     image: Image.Image
-    background_hint: BackgroundHint | None = None
+    background_hint: BackgroundHint | NativeAlphaHint | None = None
+    model: str | None = None
 
 
 class ImageEnhancer(Protocol):

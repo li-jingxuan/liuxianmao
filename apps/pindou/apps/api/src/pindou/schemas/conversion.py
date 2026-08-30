@@ -47,7 +47,7 @@ class PaletteColor(BaseModel):
 class ConversionMeta(BaseModel):
     """描述本次量化约束和可复现版本的元数据。"""
 
-    enhancer: Literal["passthrough", "seedream-5-lite"]
+    enhancer: Literal["passthrough", "seedream-5"]
     enhancer_model: str | None = None
     enhancer_prompt_version: str | None = None
     conversion_style: ConversionStyle
@@ -60,6 +60,8 @@ class ConversionMeta(BaseModel):
     )
     background_processing: Literal[
         "none",
+        "transparent_background",
+        "native_alpha",
         "chroma_matte",
         "hybrid_matte",
         "local_matte",

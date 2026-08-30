@@ -9,7 +9,6 @@ from sqlmodel import Session, SQLModel
 
 from pindou.api.dependencies import (
     get_color_chart,
-    get_foreground_mask_adapter,
     get_image_delivery_store,
     get_image_enhancer,
 )
@@ -48,8 +47,6 @@ def isolate_tests_from_external_services(
     """测试使用隔离 SQLite 和 passthrough，不接触生产数据库或付费 API。"""
     monkeypatch.setenv("APP_ENV", "test")
     monkeypatch.setenv("IMAGE_ENHANCER", "passthrough")
-    monkeypatch.setenv("ENABLE_ONNX_MATTING", "true")
-    monkeypatch.setenv("FOREGROUND_MASK_ADAPTER", "unavailable")
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'pindou-test.db'}")
     monkeypatch.setenv("KEY_ISSUER_API_KEY", "test-admin-key")
     monkeypatch.setenv("API_KEY_HASH_PEPPER", "test-hash-pepper")
@@ -62,9 +59,7 @@ def isolate_tests_from_external_services(
     dispose_engine()
     get_color_chart.cache_clear()
     get_image_enhancer.cache_clear()
-    get_foreground_mask_adapter.cache_clear()
     get_image_delivery_store.cache_clear()
-    app.dependency_overrides[get_foreground_mask_adapter] = TestForegroundMaskAdapter
 
     engine = get_engine()
     SQLModel.metadata.create_all(engine)
@@ -78,11 +73,9 @@ def isolate_tests_from_external_services(
     yield issued.key
 
     dispose_engine()
-    app.dependency_overrides.pop(get_foreground_mask_adapter, None)
     get_settings.cache_clear()
     get_color_chart.cache_clear()
     get_image_enhancer.cache_clear()
-    get_foreground_mask_adapter.cache_clear()
     get_image_delivery_store.cache_clear()
 
 

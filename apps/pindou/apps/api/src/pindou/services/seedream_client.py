@@ -1,13 +1,30 @@
-"""火山方舟 Seedream 图片生成 HTTP 客户端。"""
+"""火山方舟 Ark Python SDK 的 Seedream 窄适配层。"""
 
 from __future__ import annotations
 
 import base64
 import binascii
-import json
 from dataclasses import dataclass
+from typing import Protocol
 
-import httpx
+from volcenginesdkarkruntime._exceptions import (
+    ArkAPIConnectionError,
+    ArkAPIError,
+    ArkAPIStatusError,
+    ArkAPITimeoutError,
+)
+
+
+class _ImagesResource(Protocol):
+    def generate(self, **kwargs: object) -> object: ...
+
+
+class ArkClientProtocol(Protocol):
+    """只暴露项目实际使用的 Ark SDK 表面，便于以稳定 fake 测试。"""
+
+    images: _ImagesResource
+
+    def close(self) -> None: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -22,7 +39,7 @@ class SeedreamResult:
 
 
 class SeedreamUpstreamError(Exception):
-    """不包含请求图片和密钥的上游错误。"""
+    """不包含请求图片和密钥的稳定项目异常。"""
 
     def __init__(
         self,
@@ -39,108 +56,124 @@ class SeedreamUpstreamError(Exception):
 
 
 class SeedreamClient:
-    """仅封装项目所需的单参考图、单图输出契约。"""
+    """把官方 Ark SDK 收窄为单参考图、单图 Base64 输出契约。"""
 
     def __init__(
         self,
         *,
-        api_key: str,
-        base_url: str,
+        client: ArkClientProtocol,
         model: str,
         image_size: str,
         watermark: bool,
         max_response_bytes: int,
-        timeout: httpx.Timeout,
-        transport: httpx.BaseTransport | None = None,
     ) -> None:
+        self._client = client
         self._model = model
         self._image_size = image_size
         self._watermark = watermark
         self._max_response_bytes = max_response_bytes
-        self._client = httpx.Client(
-            base_url=base_url.rstrip("/"),
-            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            timeout=timeout,
-            transport=transport,
-        )
+        self._closed = False
 
     def close(self) -> None:
-        """关闭连接池，由 FastAPI lifespan 在进程退出时调用。"""
+        """幂等关闭 SDK 连接池，由 FastAPI lifespan 调用。"""
+        if self._closed:
+            return
         self._client.close()
+        self._closed = True
 
-    def edit_image(self, *, image_data_url: str, prompt: str) -> SeedreamResult:
-        """发起非流式单图编辑，严格验证上游 JSON 和 Base64。"""
-        payload = {
-            "model": self._model,
+    def edit_image(
+        self,
+        *,
+        model: str | None = None,
+        image_data_url: str,
+        prompt: str,
+        background: str | None = None,
+    ) -> SeedreamResult:
+        """通过 Ark SDK 发起非流式单图编辑并严格验证响应对象。"""
+        request: dict[str, object] = {
+            "model": model or self._model,
             "prompt": prompt,
             "image": image_data_url,
             "size": self._image_size,
-            "sequential_image_generation": "disabled",
-            "stream": False,
             "response_format": "b64_json",
+            "output_format": "png",
             "watermark": self._watermark,
         }
+        if background is not None:
+            # SDK 5.0.47 尚未把 background 暴露成命名参数，但官方扩展口会把该字段
+            # 合并进 JSON body。升级到带正式参数的 SDK 后可直接替换，不影响业务层。
+            request["extra_body"] = {"background": background}
 
         try:
-            with self._client.stream("POST", "/images/generations", json=payload) as response:
-                body = bytearray()
-                for chunk in response.iter_bytes():
-                    body.extend(chunk)
-                    if len(body) > self._max_response_bytes:
-                        raise SeedreamUpstreamError(
-                            502, "RESPONSE_TOO_LARGE", "Seedream 响应超过大小限制"
-                        )
-                request_id = response.headers.get("x-request-id") or response.headers.get(
-                    "x-tt-logid"
-                )
-                parsed = self._parse_json(bytes(body), response.status_code, request_id)
-        except SeedreamUpstreamError:
-            raise
-        except httpx.TimeoutException as exc:
-            raise SeedreamUpstreamError(504, "TIMEOUT", "Seedream 请求超时") from exc
-        except httpx.HTTPError as exc:
-            raise SeedreamUpstreamError(502, "NETWORK_ERROR", "Seedream 网络请求失败") from exc
+            response = self._client.images.generate(**request)
+        except ArkAPITimeoutError as exc:
+            raise SeedreamUpstreamError(
+                504,
+                "TIMEOUT",
+                "Seedream 请求超时",
+                getattr(exc, "request_id", None),
+            ) from exc
+        except ArkAPIStatusError as exc:
+            raise SeedreamUpstreamError(
+                exc.status_code,
+                self._extract_error_code(exc),
+                exc.message,
+                exc.request_id,
+            ) from exc
+        except ArkAPIConnectionError as exc:
+            raise SeedreamUpstreamError(
+                502,
+                "NETWORK_ERROR",
+                "Seedream 网络请求失败",
+                getattr(exc, "request_id", None),
+            ) from exc
+        except ArkAPIError as exc:
+            raise SeedreamUpstreamError(
+                502,
+                exc.code or "SDK_ERROR",
+                "Seedream SDK 调用失败",
+                getattr(exc, "request_id", None),
+            ) from exc
+        except Exception as exc:
+            raise SeedreamUpstreamError(502, "SDK_ERROR", "Seedream SDK 调用失败") from exc
 
-        data = parsed.get("data")
-        if not isinstance(data, list) or len(data) != 1 or not isinstance(data[0], dict):
+        data = getattr(response, "data", None)
+        if not isinstance(data, list) or len(data) != 1:
             raise SeedreamUpstreamError(502, "INVALID_RESPONSE", "Seedream 未返回唯一图片")
-        encoded = data[0].get("b64_json")
+        item = data[0]
+        encoded = getattr(item, "b64_json", None)
         if not isinstance(encoded, str) or not encoded:
             raise SeedreamUpstreamError(502, "INVALID_RESPONSE", "Seedream 响应缺少 b64_json")
         try:
             image_bytes = base64.b64decode(encoded, validate=True)
         except (binascii.Error, ValueError) as exc:
             raise SeedreamUpstreamError(502, "INVALID_IMAGE", "Seedream 返回了无效图片") from exc
+        if len(image_bytes) > self._max_response_bytes:
+            raise SeedreamUpstreamError(502, "RESPONSE_TOO_LARGE", "Seedream 图片超过大小限制")
 
-        usage = parsed.get("usage") if isinstance(parsed.get("usage"), dict) else {}
-        generated_images = usage.get("generated_images", 1)
+        usage = getattr(response, "usage", None)
+        generated_images = getattr(usage, "generated_images", 1)
+        model = getattr(response, "model", None)
+        size = getattr(item, "size", None)
+        request_id = getattr(response, "_request_id", None)
         return SeedreamResult(
             image_bytes=image_bytes,
-            model=str(parsed.get("model") or self._model),
-            size=data[0].get("size") if isinstance(data[0].get("size"), str) else None,
+            model=model if isinstance(model, str) and model else self._model,
+            size=size if isinstance(size, str) else None,
             generated_images=generated_images if isinstance(generated_images, int) else 1,
-            upstream_request_id=request_id,
+            upstream_request_id=request_id if isinstance(request_id, str) else None,
         )
 
     @staticmethod
-    def _parse_json(body: bytes, status_code: int, request_id: str | None) -> dict[str, object]:
-        try:
-            parsed = json.loads(body)
-        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
-            raise SeedreamUpstreamError(
-                502, "INVALID_RESPONSE", "Seedream 返回了无效 JSON", request_id
-            ) from exc
-        if not isinstance(parsed, dict):
-            raise SeedreamUpstreamError(
-                502, "INVALID_RESPONSE", "Seedream 返回结构异常", request_id
-            )
-        if status_code >= 400 or isinstance(parsed.get("error"), dict):
-            error = parsed.get("error") if isinstance(parsed.get("error"), dict) else {}
-            code = error.get("code") if isinstance(error.get("code"), str) else "UPSTREAM_ERROR"
-            message = (
-                error.get("message")
-                if isinstance(error.get("message"), str)
-                else "Seedream 上游请求失败"
-            )
-            raise SeedreamUpstreamError(status_code, code, message, request_id)
-        return parsed
+    def _extract_error_code(exc: ArkAPIStatusError) -> str:
+        """兼容 Ark SDK 顶层及标准嵌套 error.code 响应结构。"""
+        if isinstance(exc.code, str) and exc.code:
+            return exc.code
+        body = getattr(exc, "body", None)
+        if isinstance(body, dict):
+            error = body.get("error")
+            if isinstance(error, dict):
+                code = error.get("code")
+                if isinstance(code, str) and code:
+                    return code
+        return "UPSTREAM_ERROR"

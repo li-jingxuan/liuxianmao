@@ -41,16 +41,18 @@ export type BeadGrid = {
     | { mode: "solid"; color: `#${string}` }
     | { mode: "none" };
   meta: {
-    enhancer: "passthrough" | "seedream-5-lite";
+    enhancer: "passthrough" | "seedream-5";
     enhancer_model?: string;
     enhancer_prompt_version?: string;
     conversion_style: ConversionStyle;
     background_mode: BackgroundMode;
     applied_background_mode: BackgroundMode;
     background_color?: `#${string}`;
-    // 后端实际采用且已经通过可信度验证的背景分离路径。
+    // 后端实际采用的背景处理路径。
     background_processing:
       | "none"
+      | "transparent_background"
+      | "native_alpha"
       | "chroma_matte"
       | "hybrid_matte"
       | "local_matte"

@@ -2,13 +2,10 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
-from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from types import MappingProxyType
 
-from pydantic import Field, SecretStr, field_validator, model_validator
+from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -37,34 +34,6 @@ def _default_image_delivery_dir() -> Path:
     return Path(__file__).resolve().parents[1] / "assets" / "image-deliveries"
 
 
-def _foreground_model_root() -> Path:
-    """定位随 API 发布的前景模型目录。"""
-    return Path(__file__).resolve().parents[3] / "models" / "foreground"
-
-
-@dataclass(frozen=True)
-class ForegroundModelArtifact:
-    """绑定一个模型变体及其元数据，防止部署配置交叉配对。"""
-
-    model_path: Path
-    metadata_path: Path
-
-
-_FOREGROUND_MODEL_ROOT = _foreground_model_root()
-FOREGROUND_MODEL_ARTIFACTS: Mapping[str, ForegroundModelArtifact] = MappingProxyType(
-    {
-        "u2net": ForegroundModelArtifact(
-            model_path=_FOREGROUND_MODEL_ROOT / "u2net.onnx",
-            metadata_path=_FOREGROUND_MODEL_ROOT / "u2net.json",
-        ),
-        "u2netp": ForegroundModelArtifact(
-            model_path=_FOREGROUND_MODEL_ROOT / "u2netp.onnx",
-            metadata_path=_FOREGROUND_MODEL_ROOT / "u2netp.json",
-        ),
-    }
-)
-
-
 API_ENV_FILE = Path(__file__).resolve().parents[3] / ".env"
 
 
@@ -90,8 +59,6 @@ class Settings(BaseSettings):
     api_port: int = Field(default=3112, ge=1, le=65535)
     api_reload: bool = True
     image_enhancer: str = "seedream"  # "passthrough"
-    # Solid 模式是否启用本地 ONNX 抠图；关闭时显式使用 Seedream 动态键色。
-    enable_onnx_matting: bool = False
     # 同时限制压缩文件体积和解码后像素量，防止压缩炸弹耗尽内存。
     upload_max_bytes: int = 10 * 1024 * 1024
     upload_max_pixels: int = 25_000_000
@@ -142,7 +109,8 @@ class Settings(BaseSettings):
     # 方舟密钥仅在 seedream 模式下必需，passthrough 可无 Key 运行。
     ark_doubao_api_key: SecretStr | None = None
     ark_doubao_base_url: str = "https://ark.cn-beijing.volces.com/api/v3"
-    ark_doubao_image_model: str = "doubao-seedream-5-0-lite-260128"
+    ark_doubao_image_model_pro: str = "doubao-seedream-5-0-pro-260628"
+    ark_doubao_image_model_lite: str = "doubao-seedream-5-0-lite-260128"
     ark_doubao_image_size: str = "2K"
     ark_doubao_response_format: str = "b64_json"
     ark_doubao_watermark: bool = False  # 水印
@@ -156,24 +124,10 @@ class Settings(BaseSettings):
     seedream_input_max_edge: int = Field(default=2048, ge=256, le=8192)
     seedream_output_max_pixels: int = Field(default=20_000_000, ge=1_000_000)
 
-    # Adapter 只表达推理实现；具体模型由唯一的全局变体开关选择。
-    foreground_mask_adapter: str = "onnx"
-    foreground_model_variant: str = "u2net"
-    foreground_mask_max_concurrency: int = Field(default=1, ge=1, le=8)
-    foreground_mask_queue_timeout_seconds: float = Field(default=3.0, gt=0)
-    foreground_onnx_intra_op_threads: int = Field(default=2, ge=1, le=16)
-    foreground_onnx_allow_spinning: bool = False
-
-    @field_validator("foreground_mask_adapter", "foreground_model_variant", mode="before")
-    @classmethod
-    def normalize_foreground_selection(cls, value: object) -> object:
-        """统一模型相关开关的大小写和首尾空白。"""
-        return value.strip().lower() if isinstance(value, str) else value
-
     @property
-    def foreground_model_artifact(self) -> ForegroundModelArtifact:
-        """返回当前变体绑定的模型资产。"""
-        return FOREGROUND_MODEL_ARTIFACTS[self.foreground_model_variant]
+    def ark_doubao_image_model(self) -> str:
+        """兼容旧调用方；新代码必须按背景模式选择 Pro/Lite。"""
+        return self.ark_doubao_image_model_pro
 
     @model_validator(mode="after")
     def validate_configuration(self) -> Settings:
@@ -196,19 +150,10 @@ class Settings(BaseSettings):
         if self.image_enhancer == "seedream":
             if self.ark_doubao_api_key is None or not self.ark_doubao_api_key.get_secret_value():
                 raise ValueError("IMAGE_ENHANCER=seedream 时必须配置 ARK_DOUBAO_API_KEY")
-            if not self.ark_doubao_image_model.strip():
-                raise ValueError("IMAGE_ENHANCER=seedream 时必须配置 ARK_DOUBAO_IMAGE_MODEL")
+            if not self.ark_doubao_image_model_pro.strip() or not self.ark_doubao_image_model_lite.strip():
+                raise ValueError("IMAGE_ENHANCER=seedream 时必须配置 Pro/Lite 模型")
         if self.ark_doubao_response_format != "b64_json":
             raise ValueError("MVP2 仅支持 ARK_DOUBAO_RESPONSE_FORMAT=b64_json")
-        if self.foreground_mask_adapter not in {"onnx", "unavailable"}:
-            raise ValueError("FOREGROUND_MASK_ADAPTER 仅支持 onnx")
-        if self.foreground_mask_adapter == "unavailable" and self.app_env != "test":
-            raise ValueError("FOREGROUND_MASK_ADAPTER=unavailable 仅允许测试环境使用")
-        if self.foreground_model_variant not in FOREGROUND_MODEL_ARTIFACTS:
-            supported = ", ".join(FOREGROUND_MODEL_ARTIFACTS)
-            raise ValueError(f"FOREGROUND_MODEL_VARIANT 仅支持 {supported}")
-        if not self.enable_onnx_matting and self.image_enhancer == "passthrough":
-            raise ValueError("ENABLE_ONNX_MATTING=false 时 IMAGE_ENHANCER 必须为 seedream")
         if self.app_env == "production" and self.image_enhancer == "passthrough":
             raise ValueError("生产环境 IMAGE_ENHANCER 必须为 seedream")
         return self

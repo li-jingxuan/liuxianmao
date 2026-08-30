@@ -17,7 +17,12 @@ class ApiError(Exception):
     status_code: int
     code: str
     message: str
+    provider_message: str | None = None
     headers: Mapping[str, str] | None = None
+    provider: str | None = None
+    provider_code: str | None = None
+    retryable: bool | None = None
+    category: str | None = None
 
     def __str__(self) -> str:
         return self.message

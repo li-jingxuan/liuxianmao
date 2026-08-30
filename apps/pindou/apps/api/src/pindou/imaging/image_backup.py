@@ -28,6 +28,9 @@ _METRIC_KEYS = frozenset(
         "foreground_uncertain_coverage",
         "max_foreground_uncertain_coverage",
         "foreground_policy_version",
+        "native_alpha_policy_version",
+        "native_alpha_transparent_edge_count",
+        "native_alpha_min_transparent_edge_count",
         "degraded",
         "degrade_reason",
         "ai_duration_ms",
@@ -54,6 +57,20 @@ _METRIC_KEYS = frozenset(
         "unexpected_non_key_coverage",
     }
 )
+
+
+def save_seedream_response_bytes(content: bytes, *, directory: Path) -> Path:
+    """保存 Ark 成功响应的原始图片，即使后续解码或兜底处理失败。"""
+    directory.mkdir(parents=True, exist_ok=True)
+    timestamp_ms = time.time_ns() // 1_000_000
+    while True:
+        path = directory / f"{timestamp_ms}-ark-response.png"
+        try:
+            with path.open("xb") as output:
+                output.write(content)
+            return path
+        except FileExistsError:
+            timestamp_ms += 1
 
 
 def backup_ai_processing_images(

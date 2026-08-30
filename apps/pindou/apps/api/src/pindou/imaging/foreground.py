@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from typing import Literal, Protocol
 
 from PIL import Image
@@ -14,12 +14,17 @@ from pindou.imaging.chroma_key import (
     ChromaPolicy,
     apply_chroma_mask_with_despill,
     build_conservative_edge_key_mask,
-    format_chroma_key,
     validate_chroma_mask,
 )
+from pindou.imaging.seedream_input import prepare_transparent_input
 from pindou.imaging.solid_alpha import compose_solid_alpha
 from pindou.schemas.conversion import BackgroundMode, ConversionStyle, ForegroundFallbackMode
-from pindou.services.enhancer import BackgroundHint, EnhancementOptions, ImageEnhancer
+from pindou.services.enhancer import (
+    BackgroundHint,
+    EnhancementOptions,
+    ImageEnhancer,
+    NativeAlphaHint,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +74,8 @@ class PreparedForeground:
     image: Image.Image
     processing: Literal[
         "none",
+        "transparent_background",
+        "native_alpha",
         "chroma_matte",
         "hybrid_matte",
         "local_matte",
@@ -193,13 +200,6 @@ def _validate_mask(
     )
 
 
-def _apply_mask(image: Image.Image, mask: Image.Image) -> Image.Image:
-    """保留增强图 RGB，并以模型软蒙版作为唯一 Alpha。"""
-    output = image.convert("RGBA")
-    output.putalpha(mask)
-    return output
-
-
 class ForegroundPreparer:
     """隐藏增强、模型推理、质量验证、降级和 Pillow 生命周期的深模块。"""
 
@@ -207,14 +207,13 @@ class ForegroundPreparer:
         self,
         *,
         enhancer: ImageEnhancer,
-        mask_adapter: ForegroundMaskAdapter,
+        mask_adapter: ForegroundMaskAdapter | None = None,
         policy: ForegroundPolicy | None = None,
-        enable_onnx_matting: bool = True,
     ) -> None:
         self._enhancer = enhancer
         self._mask_adapter = mask_adapter
         self._policy = policy or ForegroundPolicy()
-        self._enable_onnx_matting = enable_onnx_matting
+        self._enable_onnx_matting = False
 
     @property
     def supported_styles(self) -> frozenset[ConversionStyle]:
@@ -233,14 +232,10 @@ class ForegroundPreparer:
         options: EnhancementOptions,
         fallback_mode: ForegroundFallbackMode = ForegroundFallbackMode.NONE,
     ) -> PreparedForeground:
-        """增强图片；Solid 始终请求键色，再按配置直接 ONNX 或键色抠图。"""
-        enhancement_options = (
-            replace(options, background_hint_kind="chroma_key")
-            if options.background_mode is BackgroundMode.SOLID
-            else options
-        )
-        enhancement = self._enhancer.enhance(source, options=enhancement_options)
+        """增强图片；Solid 默认直接使用 Seedream 的透明 PNG。"""
+        enhancement = self._enhancer.enhance(source, options=options)
         enhanced = enhancement.image
+        enhancer_model = enhancement.model or self._enhancer.model
         if options.background_mode is not BackgroundMode.SOLID:
             return PreparedForeground(
                 image=enhanced,
@@ -248,38 +243,102 @@ class ForegroundPreparer:
                 confidence=1.0,
                 applied_background_mode=options.background_mode,
                 enhancer_name=self._enhancer.name,
-                enhancer_model=self._enhancer.model,
+                enhancer_model=enhancer_model,
                 enhancer_prompt_version=self._enhancer.prompt_version,
             )
 
         hint = enhancement.background_hint
-        if (
-            hint is None
-            or hint.kind != "chroma_key"
-            or hint.policy_version != ChromaPolicy().version
-        ):
+        if isinstance(hint, NativeAlphaHint):
+            return self._prepare_native_alpha(source, enhanced, hint=hint, enhancer_model=enhancer_model)
+        # ONNX 兜底只针对当前透明 PNG 协议缺失 Alpha 的成功 Ark 响应；历史键色
+        # Hint 不能被误认成此协议，否则会悄悄改变旧增强器的语义。
+        if hint is None:
             if enhanced is not source:
                 enhanced.close()
             raise ApiError(
                 422,
                 "AI_BACKGROUND_SEPARATION_FAILED",
-                "Seedream 未生成有效的动态键色协议，无法执行背景分离",
+                "Seedream 未返回带透明通道的 PNG",
             )
+        if enhanced is not source:
+            enhanced.close()
+        raise ApiError(422, "AI_BACKGROUND_SEPARATION_FAILED", "Seedream 未返回带透明通道的 PNG")
 
-        if not self._enable_onnx_matting:
-            return self._prepare_with_chroma(
-                source,
-                enhanced,
-                hint=hint,
-                fallback_mode=fallback_mode,
-            )
-
-        return self._prepare_with_onnx(
-            source,
-            enhanced,
-            hint=hint,
-            fallback_mode=fallback_mode,
+    def _prepare_native_alpha(
+        self,
+        source: Image.Image,
+        enhanced: Image.Image,
+        *,
+        hint: NativeAlphaHint,
+        enhancer_model: str | None = None,
+    ) -> PreparedForeground:
+        """直接接受 Ark 返回的透明 PNG，不执行 Alpha 质量评分。"""
+        del hint
+        return PreparedForeground(
+            image=enhanced,
+            processing="transparent_background",
+            confidence=1.0,
+            applied_background_mode=BackgroundMode.SOLID,
+            enhancer_image=enhanced,
+            enhancer_name=self._enhancer.name,
+            enhancer_model=enhancer_model or self._enhancer.model,
+            enhancer_prompt_version=self._enhancer.prompt_version,
         )
+
+    def _prepare_with_onnx_fallback(
+        self,
+        source: Image.Image,
+        enhanced: Image.Image,
+    ) -> PreparedForeground:
+        """仅兜底 Ark 已成功但未返回可用透明 PNG 的情况。"""
+        if not self._enable_onnx_matting or not self._mask_adapter.ready:
+            if enhanced is not source:
+                enhanced.close()
+            raise ApiError(
+                422,
+                "AI_BACKGROUND_SEPARATION_FAILED",
+                "Seedream 未返回带透明通道的 PNG，且 ONNX 兜底不可用",
+            )
+
+        fallback_input = prepare_transparent_input(source)
+        raw = None
+        try:
+            raw = self._mask_adapter.generate(fallback_input)
+            validation = _validate_mask(
+                raw,
+                expected_size=fallback_input.size,
+                policy=self._policy,
+            )
+            if validation.validated is None:
+                raise ApiError(
+                    422,
+                    "AI_BACKGROUND_SEPARATION_FAILED",
+                    "ONNX 未能可靠识别主体",
+                )
+            validated = validation.validated
+            try:
+                fallback_input.putalpha(validated.mask)
+            finally:
+                validated.mask.close()
+            return PreparedForeground(
+                image=fallback_input,
+                processing="local_matte",
+                confidence=validated.confidence,
+                applied_background_mode=BackgroundMode.SOLID,
+                enhancer_image=enhanced,
+                foreground_model_version=raw.model_version,
+                enhancer_name=self._enhancer.name,
+                enhancer_model=self._enhancer.model,
+                enhancer_prompt_version=self._enhancer.prompt_version,
+            )
+        except Exception:
+            fallback_input.close()
+            if enhanced is not source:
+                enhanced.close()
+            raise
+        finally:
+            if raw is not None:
+                raw.mask.close()
 
     def _prepare_with_onnx(
         self,
@@ -292,11 +351,13 @@ class ForegroundPreparer:
         """执行 ONNX 边缘辅助；最终 Alpha 始终由键色保护性合成。"""
         raw = None
         try:
-            # ONNX 仅是可选边缘增强；模型不可用时仍应尝试合格的键色路径。
-            try:
+            if self._enable_onnx_matting and self._mask_adapter.ready:
                 raw = self._mask_adapter.generate(enhanced)
-            except Exception:
-                logger.warning("ONNX edge assist unavailable; using protected chroma", exc_info=True)
+            elif self._enable_onnx_matting:
+                logger.warning(
+                    "ONNX edge assist declared unavailable; using protected chroma",
+                    extra={"foreground_model_version": self._mask_adapter.model_version},
+                )
             outcome = compose_solid_alpha(enhanced, hint, raw.mask if raw is not None else None)
         except Exception:
             if enhanced is not source:
@@ -308,28 +369,39 @@ class ForegroundPreparer:
         if outcome.result is not None:
             result = outcome.result
             try:
-                output = _apply_mask(enhanced, result.mask)
+                output = apply_chroma_mask_with_despill(
+                    enhanced,
+                    result.mask,
+                    result.actual_key_rgb,
+                )
             finally:
                 result.mask.close()
             return PreparedForeground(
                 image=output,
-                processing="hybrid_matte" if result.strategy.endswith("onnx_edge") else "chroma_matte",
+                processing="hybrid_matte"
+                if result.strategy.endswith("onnx_edge")
+                else "chroma_matte",
                 confidence=result.confidence,
                 applied_background_mode=BackgroundMode.SOLID,
                 enhancer_image=enhanced,
-                foreground_model_version=self._mask_adapter.model_version,
+                foreground_model_version=raw.model_version if raw is not None else None,
                 enhancer_name=self._enhancer.name,
                 enhancer_model=self._enhancer.model,
                 enhancer_prompt_version=self._enhancer.prompt_version,
                 diagnostics=result.metrics,
             )
         if fallback_mode is ForegroundFallbackMode.SIMPLIFY:
-            if enhanced is not source:
-                enhanced.close()
-            raise ApiError(422, "AI_BACKGROUND_SEPARATION_FAILED", "键色背景无法安全移除")
+            return self._prepare_with_chroma(
+                source,
+                enhanced,
+                hint=hint,
+                fallback_mode=fallback_mode,
+            )
         if enhanced is not source:
             enhanced.close()
-        raise ApiError(422, "AI_BACKGROUND_SEPARATION_FAILED", "未能可靠识别主体，请改用保留/简化背景")
+        raise ApiError(
+            422, "AI_BACKGROUND_SEPARATION_FAILED", "未能可靠识别主体，请改用保留/简化背景"
+        )
 
     def _prepare_with_chroma(
         self,

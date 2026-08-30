@@ -10,7 +10,16 @@ import type {
   ImageDeliveryResponse,
 } from "./types";
 
-type ApiErrorBody = { error?: { code?: string; message?: string; request_id?: string } };
+type ApiErrorBody = {
+  error?: {
+    code?: string;
+    message?: string;
+    request_id?: string;
+    provider_code?: string;
+    retryable?: boolean;
+    category?: string;
+  };
+};
 type ApiRequestOptions = { apiKey?: string; signal?: AbortSignal };
 type AdminApiRequestOptions = { adminApiKey: string; signal?: AbortSignal };
 
@@ -25,6 +34,9 @@ export class PindouApiError extends Error {
     message: string,
     readonly code = "UNKNOWN_ERROR",
     readonly requestId?: string,
+    readonly providerCode?: string,
+    readonly retryable?: boolean,
+    readonly category?: string,
   ) {
     super(message);
     this.name = "PindouApiError";
@@ -33,7 +45,9 @@ export class PindouApiError extends Error {
 
 const ERROR_MESSAGES: Record<string, string> = {
   AI_INPUT_REJECTED: "图片未通过 AI 内容安全检查，请更换图片后重试",
-  AI_OUTPUT_REJECTED: "AI 生成结果未通过内容安全检查，请调整素材后重试",
+  AI_OUTPUT_REJECTED: "AI 生成结果未通过内容安全或版权审核，请更换素材或调整描述后重试",
+  AI_QUOTA_EXCEEDED: "AI 服务额度已用尽，请稍后重试或联系管理员",
+  AI_NETWORK_ERROR: "AI 网络请求失败，请稍后重试",
   AI_BUSY: "AI 服务忙，请稍后重试",
   AI_TIMEOUT: "AI 处理超时，本次未确认成功，请稍后手动重试",
   AI_UPSTREAM_ERROR: "AI 服务暂时不可用，请稍后重试",
@@ -59,7 +73,14 @@ const parseResponse = async <T>(response: Response): Promise<T> => {
   if (!response.ok) {
     const error = (body as ApiErrorBody | null)?.error;
     const code = error?.code ?? "UNKNOWN_ERROR";
-    throw new PindouApiError(ERROR_MESSAGES[code] ?? error?.message ?? "请求失败，请稍后重试", code, error?.request_id);
+    throw new PindouApiError(
+      ERROR_MESSAGES[code] ?? error?.message ?? "请求失败，请稍后重试",
+      code,
+      error?.request_id,
+      error?.provider_code,
+      error?.retryable,
+      error?.category,
+    );
   }
   return body as T;
 };

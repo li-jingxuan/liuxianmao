@@ -1,4 +1,4 @@
-"""Seedream 5.0 lite 的网格与颜色预算感知中文拼豆预处理提示词。"""
+"""Seedream 5.0 Pro 的网格与颜色预算感知中文拼豆预处理提示词。"""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from pindou.services.enhancer import EnhancementOptions
 DEFAULT_SOLID_BACKGROUND_COLOR = "#FFFFFF"
 HEX_COLOR_PATTERN = re.compile(r"#[0-9A-Fa-f]{6}")
 # Prompt 内容与版本号必须在同一模块内同步变更，避免环境变量把实际实现标成旧版。
-SEEDREAM_PROMPT_VERSION = "seedream-pindou-v11-validated-chroma"
+SEEDREAM_PROMPT_VERSION = "seedream-pindou-v13-transparent-background"
 
 BASE_PROMPT = """
 以输入图为唯一内容依据。保留主体身份、类别、数量、姿态、朝向、标志性轮廓、主要配色、关键身份色和整体场景语义，不改变原图的核心内容。
@@ -26,11 +26,18 @@ BASE_PROMPT = """
 """.strip()
 
 CHIBI_STYLE_PROMPT = """
-主体风格：将前景主体转换为清晰、可爱、圆润的 Q 版平面插画表达。
-人物或拟人角色使用约 2–3 头身的大头小身体比例，适度放大最有身份意义的面部特征，
-简化四肢、服饰褶皱和次要配件；非人物主体也使用圆润、紧凑、低细节的可爱化比例。
-保留主体身份、类别、数量、朝向、动作、主要配色、标志性服饰或结构，以及主体之间的关系。
-比例变化不能造成肢体缺失、主体粘连、遮挡关系颠倒或构图重心明显偏移。
+将前景主体转换为明显的 Q 版 / Chibi 平面插画风格，整体要一眼看出是 Q 版，而不是轻度卡通化。
+
+人物或拟人角色统一使用 2–2.5 头身比例，大头、小身体、短手短脚、圆润紧凑；头部明显放大，脸更圆，五官适度集中，并强化最有识别度的面部特征。避免写实身材、长四肢和复杂结构。
+
+简化四肢、服饰褶皱、纹理和次要配件，用低细节、大色块、清晰轮廓、圆润造型表现。非人物主体也要进行可爱化、圆润化、紧凑化处理。
+
+严格遵循原图中主体的可见范围、取景方式和构图关系，以原图已出现的内容为准进行 Q 版化表达，不要主动补全画外区域，不要将半身、特写或局部主体擅自扩展为全身。
+如有必要，仅允许对画面边缘做少量自然补充，用于保证造型完整和视觉协调，但补充范围要小，不能改变原图主体的展示方式。
+
+保留主体的类别、数量、朝向、核心动作、主要配色、标志性服饰/结构，以及主体之间的关系。
+
+调整比例时，确保主体完整、不缺失已可见肢体、不粘连、不遮挡错乱、不明显破坏原有构图重心。
 """.strip()
 
 STICKER_STYLE_PROMPT = """
@@ -149,8 +156,6 @@ OUTPUT_GUARD_PROMPT = """
 
 def _build_background_prompt(
     options: EnhancementOptions,
-    *,
-    chroma_key: str | None = None,
 ) -> str:
     """只选择当前背景模式的唯一片段。"""
     if options.background_mode is BackgroundMode.SIMPLIFY:
@@ -158,25 +163,13 @@ def _build_background_prompt(
     if options.background_mode is BackgroundMode.KEEP:
         return KEEP_BACKGROUND_PROMPT
 
-    if chroma_key is not None:
-        return (
-            "背景处理：完整移除原背景及其中的物体、地面、投影、倒影、纹理和装饰，"
-            "保留所有主要前景主体及其完整自然轮廓、内部结构、配件和主体之间的关系。\n"
-            f"将主体之外的全部画布严格填充为单一颜色 {chroma_key}。该背景必须完全不透明、"
-            "均匀、平坦、无渐变、无纹理、无阴影、无边框、无物体。\n"
-            f"{chroma_key} 只允许出现在主体外背景，不得覆盖、替换、重新着色或删除主体内部"
-            "的任何区域。主体边缘不得出现该颜色的反光、辉光、色溢、描边或抗锯齿色带。\n"
-            "不得删除浅色、白色、细小、低对比的主体部分，不得合并多个主体。"
-        )
-
     return (
-        "背景处理：突出所有主要前景主体及其完整轮廓、内部特征和自然边缘，删除无关小物体、"
-        "复杂纹理和抢占视觉注意力的背景元素。\n"
-        "主体与背景必须有清晰边界，但不要生成键色、透明通道、荧光描边或特殊抠图协议；"
-        "后续程序会使用本地前景模型生成蒙版。\n"
-        "背景应简洁、平坦、低细节，并与主体主要颜色保持足够对比；不要让背景颜色反射、"
-        "辉光或色溢混入主体边缘。\n"
-        "不要生成地平线、边框、投影或渐变，不要删除、裁断或重绘主体结构。"
+        "背景处理：完整移除原背景及其中的物体、地面、投影、倒影、纹理和装饰，"
+        "保留所有主要前景主体及其完整自然轮廓、内部结构、配件和主体之间的关系。\n"
+        "主体以外区域和主体内部真实镂空区域必须使用 PNG 原生透明背景；自然边缘可保留"
+        "必要的半透明抗锯齿。\n"
+        "不得使用白底、纯色键色、棋盘格、阴影或大面积羽化效果，不得删除浅色、"
+        "白色、细小或低对比的主体部分，不得重绘主体或合并多个主体。"
     )
 
 
@@ -191,8 +184,6 @@ def normalize_background_color(value: str | None) -> str:
 
 def build_seedream_prompt(
     options: EnhancementOptions,
-    *,
-    chroma_key: str | None = None,
 ) -> str:
     """按转换类型、网格、颜色预算和背景模式组装 Prompt。"""
     detail_band = classify_grid_detail(options.grid_size)
@@ -216,7 +207,7 @@ def build_seedream_prompt(
         (
             color_budget_context,
             COLOR_BUDGET_PROMPTS[options.color_budget_band],
-            _build_background_prompt(options, chroma_key=chroma_key),
+            _build_background_prompt(options),
             OUTPUT_GUARD_PROMPT,
         )
     )

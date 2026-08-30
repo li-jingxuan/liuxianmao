@@ -8,13 +8,13 @@ dependencies = [
   "fastapi[standard]>=0.115,<1",
   "httpx>=0.28,<1",
   "numpy==2.4.3",
-  "onnxruntime==1.29.0",
   "pillow>=11,<13",
   "pydantic-settings>=2.7,<3",
   "psycopg[binary]>=3.2,<4",
   "python-multipart>=0.0.20,<1",
   "sqlmodel>=0.0.24,<1",
   "uvicorn[standard]>=0.34,<1",
+  "volcengine-python-sdk[ark]>=5.0.47,<6",
 ]
 
 [project.scripts]
