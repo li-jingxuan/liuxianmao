@@ -26,6 +26,7 @@ const createMeasure = (beats: ILXMBeat[]): ILXMMeasure => ({
   timeSignature: { numerator: 4, denominator: 4 },
   barline: "double",
   tuplets: [],
+  lyrics: [],
   chordSymbols: [],
   beats,
 });
@@ -117,9 +118,9 @@ describe("changeMeasureTimeSignature", () => {
     measure.chordSymbols = [
       {
         id: "late-chord",
-        tick: 3000,
-        chordDefinitionId: "c-major",
-        display: "nameAndDiagram",
+        beatId: "rest",
+        chord: { name: "C", diagram: null },
+        display: "name",
       },
     ];
 
@@ -131,7 +132,7 @@ describe("changeMeasureTimeSignature", () => {
       ),
     ).toEqual({
       ok: false,
-      code: "CHORD_SYMBOL_OUTSIDE_TIME_SIGNATURE",
+      code: "MUSIC_TEXT_BLOCKS_TIME_SIGNATURE",
     });
   });
 

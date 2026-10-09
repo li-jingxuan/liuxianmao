@@ -89,6 +89,7 @@ const create = (
               id: "m",
               timeSignature: { numerator: 4, denominator: 4 },
               barline: "single",
+              lyrics: [],
               chordSymbols: [],
               tuplets: [],
               beats: [...beats, ...rests],
@@ -136,7 +137,7 @@ describe("tuplet 时间与严格模型", () => {
   });
   it("旧版本或缺必填字段明确拒绝", () => {
     const doc = create(3);
-    expect(CURRENT_SCHEMA_VERSION).toBe(2);
+    expect(CURRENT_SCHEMA_VERSION).toBe(3);
     expect(
       LXMDocumentSchema.safeParse({ ...doc, schemaVersion: 1 }).success,
     ).toBe(false);

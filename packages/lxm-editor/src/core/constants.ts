@@ -2,7 +2,7 @@
 export const SCORE_DOCUMENT_SCHEMA = "lxm-tab-score" as const;
 
 /** 当前文档版本；项目明确不维护旧版本迁移链。 */
-export const CURRENT_SCHEMA_VERSION = 2 as const;
+export const CURRENT_SCHEMA_VERSION = 3 as const;
 
 /** 可展示在六线谱上的基础节奏类型。 */
 export const LXM_RHYTHM_BASES = [
@@ -37,7 +37,10 @@ export const LXM_TRACK_START_BARLINE_TYPES = ["none", "repeatStart"] as const;
 export const LXM_INSTRUMENT_TYPES = ["guitar"] as const;
 
 /** 和弦标记的展示方式。 */
-export const LXM_CHORD_SYMBOL_DISPLAY_TYPES = ["nameAndDiagram"] as const;
+export const LXM_CHORD_SYMBOL_DISPLAY_TYPES = [
+  "name",
+  "nameAndDiagram",
+] as const;
 
 /** 节拍内容类型；notes 表示真实音符集合。 */
 export const LXM_BEAT_KINDS = ["notes", "rest"] as const;

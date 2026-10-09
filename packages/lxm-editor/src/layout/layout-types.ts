@@ -1,3 +1,9 @@
+import type {
+  ILXMMusicTextMetrics,
+  MusicTextRect,
+  MusicTextGlyph,
+} from "./music-text-metrics";
+import type { LyricLayout, ChordSymbolLayout } from "./music-text-layout";
 /**
  * MVP layout 类型定义模块。
  *
@@ -27,6 +33,7 @@ export interface ILXMColumnWidthContributors {
 
 /** 函数 buildLayout 的可选配置 */
 export interface ILXMLayoutOptions {
+  musicTextMetrics?: ILXMMusicTextMetrics;
   x?: number;
   y?: number;
   measureGap?: number;
@@ -62,6 +69,8 @@ export interface ILXMLayout {
 
 /** 一条谱面行（system）的几何结果。 */
 export interface ILXMSystemLayout {
+  lyricVerseLabels?: MusicTextGlyph[];
+  visualBounds?: MusicTextRect;
   /** 从 0 开始的谱面行顺序，用于稳定渲染和编辑定位。 */
   index: number;
   /** 当前谱面行的左上角逻辑坐标。 */
@@ -130,6 +139,9 @@ export interface ILXMTechniqueSegmentLayout {
 
 /** 小节布局结果，包含弦线、beat slot 和音符坐标。 */
 export interface ILXMMeasureLayout {
+  lyrics?: LyricLayout[];
+  chordSymbols?: ChordSymbolLayout[];
+  visualBounds?: MusicTextRect;
   id: string;
   index: number;
   /** 所属谱面行索引，避免页面层根据坐标反推换行归属。 */
@@ -214,6 +226,14 @@ export interface ILXMMeasureHitBounds {
 
 /** 由 layout 构建的命中索引；当前数据量较小，顺序扫描已足够。 */
 export interface ILXMHitIndex {
+  musicTextBounds?: (MusicTextRect & {
+    trackId: string;
+    measureId: string;
+    beatId: string;
+    id: string;
+    kind: "lyric" | "chord";
+    verse?: import("../core/types").ILXMLyricVerse;
+  })[];
   measureBounds: ILXMMeasureHitBounds[];
   techniqueBounds: ILXMTechniqueHitBounds[];
 }

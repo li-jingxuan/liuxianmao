@@ -25,7 +25,7 @@ import { ILXMDocument } from "../src";
 
 const EXAMPLE_MVP_1: ILXMDocument = {
   schema: "lxm-tab-score",
-  schemaVersion: 2,
+  schemaVersion: 3,
   documentRevision: 1,
   // 乐谱信息
   score: {
@@ -69,12 +69,13 @@ const EXAMPLE_MVP_1: ILXMDocument = {
             barline: "single",
             // 和弦
             tuplets: [],
+            lyrics: [],
             chordSymbols: [
               {
                 id: "chord-symbol-001",
-                tick: 0,
-                chordDefinitionId: "chord-am-open",
-                display: "nameAndDiagram",
+                beatId: "beat-001-00",
+                chord: { name: "Am", diagram: null },
+                display: "name",
               },
             ],
             // 节拍

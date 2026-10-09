@@ -1,3 +1,4 @@
+import { createMeasureRhythmContext } from "./tuplet";
 /**
  * 单小节拍号修改与容量协调模块。
  *
@@ -6,6 +7,8 @@
  * 把“拍号值变化”和“Beat 时间轴恢复合法”封装成一个纯规划动作，页面与 Store
  * 都不需要理解休止符分解或真实内容保护规则。
  */
+import { collectMusicTextBeatIds } from "./music-text";
+import { getFixedPrefixLength } from "./measure-timeline";
 import { createMeasureRestBeats } from "./rest-beats";
 import { getMeasureCapacityTicks } from "./rhythm";
 import type { ILXMMeasure, ILXMTimeSignature } from "./types";
@@ -13,6 +16,7 @@ import type { ILXMMeasure, ILXMTimeSignature } from "./types";
 export type MeasureTimeSignatureChangeErrorCode =
   | "MEASURE_CONTENT_EXCEEDS_TIME_SIGNATURE"
   | "CHORD_SYMBOL_OUTSIDE_TIME_SIGNATURE"
+  | "MUSIC_TEXT_BLOCKS_TIME_SIGNATURE"
   | "RHYTHM_NOT_REPRESENTABLE";
 
 export type MeasureTimeSignatureChangeResult =
@@ -35,16 +39,9 @@ export const changeMeasureTimeSignature = (
 ): MeasureTimeSignatureChangeResult => {
   const capacityTicks = getMeasureCapacityTicks(timeSignature);
 
-  // 和弦标记属于明确的音乐内容。缩容后若落在小节之外，不能静默移动或删除。
-  if (
-    measure.chordSymbols.some(
-      (symbol) => symbol.tick < 0 || symbol.tick >= capacityTicks,
-    )
-  )
-    return { ok: false, code: "CHORD_SYMBOL_OUTSIDE_TIME_SIGNATURE" };
-
   const isAllRest =
     measure.tuplets.length === 0 &&
+    collectMusicTextBeatIds(measure).size === 0 &&
     measure.beats.every((beat) => beat.kind === "rest");
   if (isAllRest) {
     // 空白小节按拍号的单位拍重新拼写：3/4 得到三个四分休止，6/8 得到六个八分
@@ -66,13 +63,27 @@ export const changeMeasureTimeSignature = (
     { ...measure, timeSignature: { ...timeSignature } },
     { createBeatId },
   );
-  if (!result.ok)
+  if (!result.ok) {
+    // 区分真正内容超容与文本锚点阻挡，不自动删除文本来容纳新拍号。
+    const ordinary = { ...measure, lyrics: [], chordSymbols: [] };
+    const prefix = getFixedPrefixLength(ordinary);
+    const context = createMeasureRhythmContext(ordinary);
+    const ordinaryTicks = ordinary.beats
+      .slice(0, prefix)
+      .reduce((sum, beat) => {
+        const duration = context.getBeatDurationTicks(beat);
+        return sum + (duration.ok ? duration.ticks : Infinity);
+      }, 0);
     return {
       ok: false,
       code:
         result.code === "MEASURE_OVERFLOW"
-          ? "MEASURE_CONTENT_EXCEEDS_TIME_SIGNATURE"
+          ? collectMusicTextBeatIds(measure).size > 0 &&
+            ordinaryTicks <= capacityTicks
+            ? "MUSIC_TEXT_BLOCKS_TIME_SIGNATURE"
+            : "MEASURE_CONTENT_EXCEEDS_TIME_SIGNATURE"
           : result.code,
     };
+  }
   return result;
 };

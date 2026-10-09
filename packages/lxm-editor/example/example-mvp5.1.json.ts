@@ -108,6 +108,7 @@ const measures: ILXMMeasure[] = scenarios.map((scenario, index) => {
     id: `${prefix}-measure`,
     timeSignature: { numerator: 4, denominator: 4 },
     barline: index === 7 ? "final" : "single",
+    lyrics: [],
     chordSymbols: [],
     tuplets: [
       {

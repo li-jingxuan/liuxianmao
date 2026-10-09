@@ -442,7 +442,7 @@ const assignLanes = (
   return segmentsBySystem;
 };
 
-const translateBarline = (
+export const translateBarline = (
   barline: ILXMBarlineLayout | null,
   dy: number,
 ): ILXMBarlineLayout | null =>
@@ -463,7 +463,7 @@ const translateBarline = (
  * layout 产物是渲染和命中的唯一坐标来源；若遗漏 Note、beam 或 rest 中任一个子项，
  * 页面就会出现“弦线下移但技巧/选择仍停在旧位置”的隐蔽漂移。
  */
-const translateMeasure = (
+export const translateMeasure = (
   measure: ILXMMeasureLayout,
   dy: number,
 ): ILXMMeasureLayout => ({
@@ -858,10 +858,9 @@ const createNaturalSegmentLayout = (
   });
 };
 
-export const layoutTrackTechniques = (
+export const planTrackTechniques = (
   track: ILXMTrack,
   baseSystems: ILXMSystemLayout[],
-  systemGapY: number,
 ): ILXMSystemLayout[] => {
   if (baseSystems.length === 0) return baseSystems;
   // 建索引也在这里验证所有引用的目标形态，避免 layout 通过数组扫描反复寻找。
@@ -879,7 +878,10 @@ export const layoutTrackTechniques = (
     ]),
   );
   const segmentsBySystem = assignLanes(candidates, naturalPlans, baseAnchors);
-  const systems = translateSystems(baseSystems, segmentsBySystem, systemGapY);
+  const systems = baseSystems.map((system) => ({
+    ...system,
+    techniques: segmentsBySystem.get(system.index) ?? [],
+  }));
   const systemsWithTechniques = systems.map((system) => ({
     ...system,
     techniques: [...system.techniques].sort(
@@ -897,5 +899,19 @@ export const layoutTrackTechniques = (
       track.techniques,
     ),
     getFretSuppressionRanges(track.techniques, baseAnchors),
+  );
+};
+
+/** 原公开门面复用同一规划；新联合布局在文本规划后统一平移。 */
+export const layoutTrackTechniques = (
+  track: ILXMTrack,
+  baseSystems: ILXMSystemLayout[],
+  systemGapY: number,
+) => {
+  const planned = planTrackTechniques(track, baseSystems);
+  return translateSystems(
+    planned,
+    new Map(planned.map((system) => [system.index, system.techniques])),
+    systemGapY,
   );
 };

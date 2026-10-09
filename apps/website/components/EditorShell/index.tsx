@@ -2,8 +2,10 @@
 
 import {
   buildLayout,
+  collectMusicTextMeasureRequests,
   createCollapsedTabCellSelection,
   hitTestLayout,
+  hitTestMusicText,
   hitTestTechniqueTarget,
   layoutTabCellCaret,
   layoutTabCellSelection,
@@ -37,6 +39,9 @@ import {
 } from "./editor-interaction";
 import { TupletToolbar } from "./TupletToolbar";
 import { TechniqueToolbar } from "./TechniqueToolbar";
+import { MusicTextLayer } from "./MusicTextLayer";
+import { MusicTextToolbar, type MusicTextController } from "./MusicTextToolbar";
+import { useMusicTextMetrics } from "./music-text-metrics";
 import styles from "./index.module.scss";
 
 /** A4 纸张扣除左右各 8mm 页边距后的 194mm 内容区逻辑宽度。 */
@@ -120,6 +125,10 @@ export const EditorShell: React.FC = () => {
   const canUndo = useEditorStore((state) => state.canUndo);
   const canRedo = useEditorStore((state) => state.canRedo);
 
+  const musicTextController = useRef<MusicTextController>(null);
+  const [musicTextEditing, setMusicTextEditing] = useState(false);
+  const musicTextMetrics = useMusicTextMetrics(document);
+
   /** 品位草稿是瞬时输入状态，不进入 document 或历史。 */
   const [fretDraft, setFretDraft] = useState("");
   /** 排版密度只影响视觉，不进入文档或撤销历史。 */
@@ -138,16 +147,14 @@ export const EditorShell: React.FC = () => {
   const lxmLayout = useMemo<ILXMLayout | null>(() => {
     if (!document) return null;
 
-    const _layout = buildLayout(document, {
+    return buildLayout(document, {
       x: 0,
       y: 0,
       systemWidth: A4_CONTENT_WIDTH,
       density,
-    })
-
-    console.log('_layout: ', _layout)
-    return _layout;
-  }, [document, density]);
+      musicTextMetrics,
+    });
+  }, [document, density, musicTextMetrics]);
 
   /**
    * 页面只消费核心范围解析结果。
@@ -224,11 +231,12 @@ export const EditorShell: React.FC = () => {
 
   /** selection/layout 改变后只滚动 focus caret，不滚动整个范围的左上角。 */
   useEffect(() => {
+    if (musicTextEditing) return;
     focusCaretRef.current?.scrollIntoView({
       block: "nearest",
       inline: "nearest",
     });
-  }, [focusCaret]);
+  }, [focusCaret, musicTextEditing]);
 
   /** 清理当前品位草稿和对应的延时提交。 */
   const clearFretDraft = () => {
@@ -486,6 +494,27 @@ export const EditorShell: React.FC = () => {
   const handlePointerDown: React.PointerEventHandler<SVGSVGElement> = (
     event,
   ) => {
+    const textPoint = getLayoutPoint(event.currentTarget, event);
+    const textTarget =
+      textPoint && lxmLayout ? hitTestMusicText(lxmLayout, textPoint) : null;
+    if (textTarget) {
+      event.preventDefault();
+      musicTextController.current?.open({
+        trackId: textTarget.trackId,
+        measureId: textTarget.measureId,
+        beatId: textTarget.beatId,
+        string: selection?.focus.string ?? 1,
+        kind: textTarget.kind,
+        verse: textTarget.verse,
+      });
+      return;
+    }
+    if (musicTextEditing) {
+      event.preventDefault();
+      const cell = hitTestPointer(event.currentTarget, event);
+      if (cell) musicTextController.current?.move(cell);
+      return;
+    }
     event.currentTarget.focus();
     clearFretDraft();
 
@@ -576,6 +605,7 @@ export const EditorShell: React.FC = () => {
   const handleScoreKeyDown: React.KeyboardEventHandler<SVGSVGElement> = (
     event,
   ) => {
+    if (musicTextEditing) return;
     const isPrimaryModifier = event.metaKey || event.ctrlKey;
     // 历史快捷键向上冒泡到编辑器根节点统一处理。
     if (isPrimaryModifier) return;
@@ -654,6 +684,7 @@ export const EditorShell: React.FC = () => {
     HTMLDivElement
   > = (event) => {
     const target = event.target;
+    if (musicTextEditing) return;
     if (
       event.shiftKey ||
       (target instanceof Node && scoreSvgRef.current?.contains(target))
@@ -668,7 +699,7 @@ export const EditorShell: React.FC = () => {
   };
 
   if (!document || !lxmLayout)
-    return <p className={styles.errorMessage}>无法加载 MVP v5 示例乐谱。</p>;
+    return <p className={styles.errorMessage}>无法加载 MVP v6 示例乐谱。</p>;
 
   /** 顶栏每个音乐图标都有文字 aria-label，避免只靠符号传达操作含义。 */
   const rhythmButtons: {
@@ -689,6 +720,7 @@ export const EditorShell: React.FC = () => {
       <div className={styles.editorControls}>
         <div
           className={styles.editorToolbar}
+          inert={musicTextEditing}
           role="toolbar"
           aria-label="节奏、小节与历史工具"
         >
@@ -960,6 +992,25 @@ export const EditorShell: React.FC = () => {
             setErrorMessage={setErrorMessage}
           />
         </div>
+        <MusicTextToolbar
+          ref={musicTextController}
+          onOpen={clearFretDraft}
+          onEditingChange={setMusicTextEditing}
+          onClose={() => scoreSvgRef.current?.focus()}
+        />
+        {lxmLayout.width > A4_CONTENT_WIDTH && (
+          <p role="status">
+            当前谱面超过 A4 内容宽度，可横向滚动；尚不保证 A4 打印完整输出。
+          </p>
+        )}
+        {musicTextMetrics &&
+          collectMusicTextMeasureRequests(document).some(
+            (r) => !musicTextMetrics[r.key],
+          ) && (
+            <p role="status">
+              部分文字暂使用保守估算排版，真实字体边界尚未全部确认。
+            </p>
+          )}
         <p className={styles.inputHint}>
           点击或拖动选择，Shift 扩展，方向键导航；输入 0–24 批量设置品位，
           Backspace/Delete 批量删除，R 设为休止，Shift+R 取消休止；技巧可按当前
@@ -982,6 +1033,9 @@ export const EditorShell: React.FC = () => {
             ref={scoreSvgRef}
             className={styles.scoreSvg}
             viewBox={`0 0 ${lxmLayout.width} ${lxmLayout.height}`}
+            style={{
+              width: `${Math.max(1, lxmLayout.width / A4_CONTENT_WIDTH) * 100}%`,
+            }}
             width={lxmLayout.width}
             height={lxmLayout.height}
             tabIndex={0}
@@ -1008,6 +1062,7 @@ export const EditorShell: React.FC = () => {
                 <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" />
               </marker>
             </defs>
+            <MusicTextLayer layout={lxmLayout} />
             {/* 选区层位于音乐元素下方，且永不参与指针命中。 */}
             <g className={styles.selectionLayer} pointerEvents="none">
               {selectionRects.map((rect) => (

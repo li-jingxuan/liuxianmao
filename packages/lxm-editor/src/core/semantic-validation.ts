@@ -17,6 +17,9 @@ export type ILXMSemanticValidationIssueCode =
   | "DUPLICATE_NOTE_STRING"
   | "DUPLICATE_ENTITY_ID"
   | "INVALID_CHORD_TICK"
+  | "MUSIC_TEXT_BEAT_NOT_FOUND"
+  | "MUSIC_TEXT_ORDER_INVALID"
+  | "DUPLICATE_MUSIC_TEXT_TARGET"
   | "INVALID_TECHNIQUE"
   | "TUPLET_BEAT_NOT_FOUND"
   | "TUPLET_MEMBER_COUNT_MISMATCH"
@@ -164,16 +167,39 @@ const validateMeasure = (
       message: `小节结束 tick 为 ${expectedTick}，拍号容量应为 ${capacity}`,
     });
   }
-  measure.chordSymbols.forEach((symbol, index) => {
-    registerId(symbol.id, `${path}.chordSymbols.${index}.id`);
-    if (symbol.tick < 0 || symbol.tick >= capacity) {
-      issues.push({
-        code: "INVALID_CHORD_TICK",
-        path: `${path}.chordSymbols.${index}.tick`,
-        message: "和弦标记 tick 必须位于小节容量内",
-      });
-    }
-  });
+  // 歌词按 Beat/段号、和弦按 Beat 排序，稳定引用不能跨小节。
+  for (const kind of ["lyrics", "chordSymbols"] as const) {
+    let previous = -1;
+    const targets = new Set<string>();
+    measure[kind].forEach((item, index) => {
+      const itemPath = `${path}.${kind}.${index}`;
+      registerId(item.id, `${itemPath}.id`);
+      const position = beatIndexById.get(item.beatId);
+      if (position === undefined)
+        issues.push({
+          code: "MUSIC_TEXT_BEAT_NOT_FOUND",
+          path: `${itemPath}.beatId`,
+          message: "文本目标 Beat 不存在于该小节",
+        });
+      const verse = "verse" in item ? item.verse : 0;
+      const order = (position ?? -1) * 5 + verse;
+      if (order < previous)
+        issues.push({
+          code: "MUSIC_TEXT_ORDER_INVALID",
+          path: itemPath,
+          message: "音乐文本必须按 Beat 和段号排序",
+        });
+      previous = order;
+      const key = `${item.beatId}:${verse}`;
+      if (targets.has(key))
+        issues.push({
+          code: "DUPLICATE_MUSIC_TEXT_TARGET",
+          path: itemPath,
+          message: "同拍同段歌词或和弦重复",
+        });
+      targets.add(key);
+    });
+  }
 };
 
 /** 验证整个文档的 ID 唯一性以及每个小节的音乐语义。 */

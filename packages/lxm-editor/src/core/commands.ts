@@ -1,3 +1,6 @@
+import { editMeasureMusicText } from "./music-text-commands";
+import { cloneChordDiagram } from "./chord-diagram";
+import type { ILXMChordSymbol, ILXMLyricVerse } from "./types";
 /**
  * 乐谱编辑器的纯领域命令。
  *
@@ -37,6 +40,10 @@ import type {
 } from "./types";
 
 export enum LXMScoreCommandEnum {
+  SetLyric = "lyric.set",
+  RemoveLyric = "lyric.remove",
+  SetChordSymbol = "chordSymbol.set",
+  RemoveChordSymbol = "chordSymbol.remove",
   SetNote = "note.set",
   RemoveNote = "note.remove",
   SetNotesInRect = "note.setRect",
@@ -163,7 +170,39 @@ export interface ILXMRemoveTupletCommand extends ILXMScoreCommandBase {
   tupletId: string;
 }
 
+/** 文本 set 按稳定目标覆盖；remove 按实体 ID 定位。 */
+export type ILXMMusicTextCommand =
+  | {
+      type: LXMScoreCommandEnum.SetLyric;
+      trackId: string;
+      measureId: string;
+      beatId: string;
+      verse: ILXMLyricVerse;
+      text: string;
+    }
+  | {
+      type: LXMScoreCommandEnum.RemoveLyric;
+      trackId: string;
+      measureId: string;
+      lyricId: string;
+    }
+  | {
+      type: LXMScoreCommandEnum.SetChordSymbol;
+      trackId: string;
+      measureId: string;
+      beatId: string;
+      display: ILXMChordSymbol["display"];
+      chord: ILXMChordSymbol["chord"];
+    }
+  | {
+      type: LXMScoreCommandEnum.RemoveChordSymbol;
+      trackId: string;
+      measureId: string;
+      chordSymbolId: string;
+    };
+
 export type ILXMScoreCommand =
+  | ILXMMusicTextCommand
   | ILXMSetTupletCommand
   | ILXMRemoveTupletCommand
   | ILXMSetNoteCommand
@@ -183,6 +222,14 @@ export type ILXMScoreCommand =
   | ILXMRemoveTechniqueCommand;
 
 export type ILXMScoreCommandErrorCode =
+  | "LYRIC_NOT_FOUND"
+  | "CHORD_SYMBOL_NOT_FOUND"
+  | "INVALID_LYRIC_VERSE"
+  | "INVALID_LYRIC_TEXT"
+  | "INVALID_CHORD_NAME"
+  | "INVALID_CHORD_DIAGRAM"
+  | "MUSIC_TEXT_BEAT_NOT_FOUND"
+  | "MUSIC_TEXT_BLOCKS_TIME_SIGNATURE"
   | "TUPLET_NOT_FOUND"
   | "TUPLET_RANGE_INVALID"
   | "UNSUPPORTED_TUPLET_RATIO"
@@ -389,6 +436,11 @@ const setTimeSignature = (
         return fail(
           result.code,
           `第 ${index + 1} 小节的真实内容超出新拍号容量，未修改任何小节`,
+        );
+      if (result.code === "MUSIC_TEXT_BLOCKS_TIME_SIGNATURE")
+        return fail(
+          result.code,
+          `第 ${index + 1} 小节的歌词/和弦锚点会被新拍号截断，请先调整文本内容`,
         );
       if (result.code === "CHORD_SYMBOL_OUTSIDE_TIME_SIGNATURE")
         return fail(
@@ -846,6 +898,30 @@ export const applyScoreCommand = (
   command: ILXMScoreCommand,
 ): ILXMApplyScoreCommandResult => {
   if (
+    command.type === LXMScoreCommandEnum.SetLyric ||
+    command.type === LXMScoreCommandEnum.RemoveLyric ||
+    command.type === LXMScoreCommandEnum.SetChordSymbol ||
+    command.type === LXMScoreCommandEnum.RemoveChordSymbol
+  ) {
+    const track = document.score.tracks.find(
+      (item) => item.id === command.trackId,
+    );
+    if (!track) return fail("TRACK_NOT_FOUND", "目标轨道不存在");
+    const measure = track.measures.find(
+      (item) => item.id === command.measureId,
+    );
+    if (!measure) return fail("MEASURE_NOT_FOUND", "目标小节不存在");
+    const result = editMeasureMusicText(
+      measure,
+      command,
+      createDocumentIdFactory(document),
+    );
+    if (!result.ok) return result;
+    return result.changed
+      ? finalize(replaceMeasure(document, track.id, measure.id, result.measure))
+      : unchanged(document);
+  }
+  if (
     command.type === LXMScoreCommandEnum.SetTuplet ||
     command.type === LXMScoreCommandEnum.RemoveTuplet
   ) {
@@ -1058,9 +1134,21 @@ export const applyScoreCommand = (
       })),
       id: factory.createMeasureId(),
       barline: "single",
+      lyrics: copySource.lyrics.map((lyric) => ({
+        ...lyric,
+        id: factory.createLyricId(),
+        beatId: beatIds.get(lyric.beatId)!,
+      })),
       chordSymbols: copySource.chordSymbols.map((symbol) => ({
         ...symbol,
         id: factory.createChordSymbolId(),
+        beatId: beatIds.get(symbol.beatId)!,
+        chord: {
+          ...symbol.chord,
+          diagram: symbol.chord.diagram
+            ? cloneChordDiagram(symbol.chord.diagram)
+            : null,
+        },
       })),
       beats: copiedBeats,
     };
@@ -1076,6 +1164,7 @@ export const applyScoreCommand = (
       timeSignature: { ...source.timeSignature },
       barline: "single",
       chordSymbols: [],
+      lyrics: [],
       tuplets: [],
       beats: rests,
     };

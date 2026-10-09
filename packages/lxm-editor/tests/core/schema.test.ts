@@ -14,6 +14,7 @@ const createValidMeasure = () => ({
   timeSignature: { numerator: 4, denominator: 4 },
   barline: "single",
   tuplets: [],
+  lyrics: [],
   chordSymbols: [],
   beats: [],
 });

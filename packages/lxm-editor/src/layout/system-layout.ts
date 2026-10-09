@@ -1,3 +1,4 @@
+import type { ILXMMusicTextMetrics } from "./music-text-metrics";
 /**
  * 谱面行（system）布局。
  *
@@ -21,6 +22,7 @@ import { layoutSystemHeader } from "./system-header-layout";
 
 /** system 断行所需的已解析配置，避免函数内部读取默认常量。 */
 export interface ILXMSystemLayoutOptions {
+  musicTextMetrics?: ILXMMusicTextMetrics;
   startX: number;
   startY: number;
   measureGap: number;
@@ -198,6 +200,7 @@ export const layoutSystems = (
                 : measure.barline
             : measure.barline;
         const context: ILXMLayoutMeasureContext = {
+          musicTextMetrics: options.musicTextMetrics,
           index,
           systemIndex,
           x: cursorX,
@@ -262,6 +265,7 @@ export const layoutSystems = (
       measure,
       options.density,
       timeSignatureWidth + getLeadingBarlineClearance(index),
+      options.musicTextMetrics,
     );
     const width = spacingSummary.assignedWidth;
     const nextWidth =

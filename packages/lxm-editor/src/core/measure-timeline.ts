@@ -1,6 +1,7 @@
 /** 统一保护明确内容、重排实际 tick，并精确协调尾部容量休止。 */
 import { createMeasureRhythmContext } from "./tuplet";
 import { getMeasureCapacityTicks } from "./rhythm";
+import { collectMusicTextBeatIds } from "./music-text";
 import { createRestBeats } from "./rest-beats";
 import type { ILXMMeasure } from "./types";
 
@@ -10,13 +11,15 @@ export const getFixedPrefixLength = (
   protectedBeatIds: ReadonlySet<string> = new Set(),
 ) => {
   const context = createMeasureRhythmContext(measure);
+  const textIds = collectMusicTextBeatIds(measure);
   let length = measure.beats.length;
   while (length > 0) {
     const beat = measure.beats[length - 1]!;
     if (
       beat.kind !== "rest" ||
       context.tupletByBeatId.has(beat.id) ||
-      protectedBeatIds.has(beat.id)
+      protectedBeatIds.has(beat.id) ||
+      textIds.has(beat.id)
     )
       break;
     length -= 1;

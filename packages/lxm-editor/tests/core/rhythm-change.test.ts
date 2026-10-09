@@ -24,6 +24,7 @@ const measureWithTrailingRest = (): ILXMMeasure => ({
   timeSignature: { numerator: 4, denominator: 4 },
   barline: "single",
   tuplets: [],
+  lyrics: [],
   chordSymbols: [],
   beats: [
     beat("beat-1", 0, "quarter"),
@@ -141,6 +142,7 @@ describe("changeMeasureBeatRhythm", () => {
       timeSignature: { numerator: 6, denominator: 4 },
       barline: "single",
       tuplets: [],
+      lyrics: [],
       chordSymbols: [],
       beats: [
         beat("before", 0, "eighth"),

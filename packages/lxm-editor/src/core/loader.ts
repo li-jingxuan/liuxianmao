@@ -1,3 +1,4 @@
+import { CURRENT_SCHEMA_VERSION, SCORE_DOCUMENT_SCHEMA } from "./constants";
 import type { z } from "zod";
 
 import { LXMDocumentSchema } from "./schema";
@@ -93,6 +94,17 @@ export const loadDocument = (json: string): DocumentLoadResult => {
     };
   }
 
+  if (
+    isRecord(rawDocument) &&
+    rawDocument.schema === SCORE_DOCUMENT_SCHEMA &&
+    rawDocument.schemaVersion !== undefined &&
+    rawDocument.schemaVersion !== CURRENT_SCHEMA_VERSION
+  )
+    return {
+      ok: false,
+      errors: [`不支持的文档版本，当前支持 ${CURRENT_SCHEMA_VERSION}`],
+    };
+
   const parsedDocument = LXMDocumentSchema.safeParse(
     migrateLegacyChordTraversalRanges(rawDocument),
   );
@@ -106,7 +118,12 @@ export const loadDocument = (json: string): DocumentLoadResult => {
 
   const semanticResult = validateDocumentSemantics(parsedDocument.data);
   if (!semanticResult.ok) {
-    return { ok: false, errors: semanticResult.issues.map((issue) => `${issue.path}: ${issue.message}`) };
+    return {
+      ok: false,
+      errors: semanticResult.issues.map(
+        (issue) => `${issue.path}: ${issue.message}`,
+      ),
+    };
   }
 
   return {

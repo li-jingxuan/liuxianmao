@@ -24,6 +24,7 @@ const createMeasure = (beats: ILXMMeasure["beats"]): ILXMMeasure => ({
   timeSignature: { numerator: 4, denominator: 4 },
   barline: "single",
   tuplets: [],
+  lyrics: [],
   chordSymbols: [],
   beats,
 });

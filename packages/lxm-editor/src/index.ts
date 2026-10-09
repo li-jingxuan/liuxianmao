@@ -33,3 +33,9 @@ export * from "./core/measure-timeline";
 export { default as EXAMPLE_MVP_5_1_DOCUMENT } from "../example/example-mvp5.1.json";
 
 export * from "./editing/tuplet-selection";
+
+export * from "./core/music-text";
+export * from "./core/chord-diagram";
+
+export * from "./core/chord-presets";
+export { default as EXAMPLE_MVP_6_DOCUMENT } from "../example/example-mvp6.json";

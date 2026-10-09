@@ -16,7 +16,7 @@ import {
 import { buildHitIndex } from "./hit-test";
 import type { ILXMLayout, ILXMLayoutOptions } from "./layout-types";
 import { layoutSystems } from "./system-layout";
-import { layoutTrackTechniques } from "./technique-layout";
+import { layoutSystemContent } from "./system-content-layout";
 
 /** 没有可布局轨道时返回的空布局，保持调用方无需做 null 判断。 */
 const getDefaultLayout = (options: ILXMLayoutOptions): ILXMLayout => {
@@ -59,8 +59,14 @@ export const buildLayout = (
     systemGapY,
     density: options.density ?? LXM_LAYOUT_DEFAULT_DENSITY,
     startBarline: track.startBarline,
+    musicTextMetrics: options.musicTextMetrics,
   });
-  const systems = layoutTrackTechniques(track, baseSystems, systemGapY);
+  const systems = layoutSystemContent(
+    track,
+    baseSystems,
+    systemGapY,
+    options.musicTextMetrics,
+  );
   const lastSystem = systems[systems.length - 1];
 
   return {
@@ -85,6 +91,7 @@ export const buildLayout = (
 
 export {
   hitTestLayout,
+  hitTestMusicText,
   hitTestTechnique,
   hitTestTechniqueTarget,
 } from "./hit-test";
@@ -94,3 +101,7 @@ export type {
   ILXMTabCellSelectionRect,
 } from "./selection-layout";
 export { layoutSystems } from "./system-layout";
+
+export * from "./music-text-metrics";
+export * from "./chord-diagram-layout";
+export * from "./music-text-layout";

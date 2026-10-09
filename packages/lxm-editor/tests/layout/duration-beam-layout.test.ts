@@ -39,6 +39,7 @@ const createMeasure = (
   timeSignature,
   barline: "single",
   tuplets: [],
+  lyrics: [],
   chordSymbols: [],
   beats,
 });

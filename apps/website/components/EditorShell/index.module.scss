@@ -250,3 +250,44 @@
     gap: 4px;
   }
 }
+
+.musicTextPanel {
+  padding: 8px;
+  border: 1px solid #d8dce3;
+  border-radius: 6px;
+  max-height: 42vh;
+  overflow: auto;
+  button,
+  label {
+    margin: 4px 6px 4px 0;
+  }
+  label {
+    display: inline-flex;
+    gap: 4px;
+    align-items: center;
+  }
+  input:not([type="checkbox"]),
+  select {
+    max-width: 220px;
+    padding: 3px;
+  }
+  table {
+    border-collapse: collapse;
+    display: inline-table;
+    margin: 8px;
+    vertical-align: top;
+  }
+  th,
+  td {
+    padding: 3px 8px;
+    border: 1px solid #ddd;
+  }
+  fieldset {
+    display: inline-block;
+    vertical-align: top;
+    max-width: 350px;
+  }
+  small {
+    display: block;
+  }
+}

@@ -1,3 +1,4 @@
+import type { ILXMMusicTextMetrics } from "./music-text-metrics";
 /**
  * 单小节布局模块。
  *
@@ -28,6 +29,7 @@ import { LXM_TUPLET_BOTTOM_PADDING } from "./layout-constants";
 import { layoutTimeSignature } from "./time-signature-layout";
 
 export interface ILXMLayoutMeasureContext {
+  musicTextMetrics?: ILXMMusicTextMetrics;
   index: number;
   /** 当前小节所属谱面行；由 system-layout 在最终定位时传入。 */
   systemIndex: number;
@@ -132,6 +134,7 @@ export const layoutMeasure = (
       density,
       assignedWidth: requestedAssignedWidth,
       leadingWidth,
+      musicTextMetrics: context.musicTextMetrics,
     },
   );
 
@@ -172,6 +175,8 @@ export const layoutMeasure = (
   );
   return {
     id: measure.id,
+    lyrics: [],
+    chordSymbols: [],
     index,
     systemIndex,
     x,

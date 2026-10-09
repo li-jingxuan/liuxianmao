@@ -25,6 +25,27 @@ export const buildHitIndex = (
   trackId: string,
   systems: ILXMSystemLayout[],
 ): ILXMHitIndex => ({
+  musicTextBounds: systems.flatMap((system) =>
+    system.measures.flatMap((m) => [
+      ...(m.lyrics ?? []).map((l) => ({
+        ...l.bounds,
+        trackId,
+        measureId: m.id,
+        beatId: l.beatId,
+        id: l.id,
+        kind: "lyric" as const,
+        verse: l.verse,
+      })),
+      ...(m.chordSymbols ?? []).map((b) => ({
+        ...b.bounds,
+        trackId,
+        measureId: m.id,
+        beatId: b.beatId,
+        id: b.id,
+        kind: "chord" as const,
+      })),
+    ]),
+  ),
   measureBounds: systems.flatMap((system) =>
     system.measures.map<ILXMMeasureHitBounds>((measure) => ({
       trackId,
@@ -149,3 +170,9 @@ export const hitTestLayout = (
     string: string.index,
   };
 };
+
+/** 文本位于独立区域，先于技巧和 TAB 命中；只返回稳定业务目标。 */
+export const hitTestMusicText = (layout: ILXMLayout, point: ILXMLayoutPoint) =>
+  layout.hitIndex.musicTextBounds?.find((bounds) =>
+    isPointInBounds(point, bounds),
+  ) ?? null;

@@ -6,6 +6,7 @@ export interface ILXMIdFactory {
   createBeatId(): string;
   createNoteId(): string;
   createChordSymbolId(): string;
+  createLyricId(): string;
   createTechniqueId(): string;
   createTupletId(): string;
 }
@@ -21,6 +22,7 @@ const collectEntityIds = (document: ILXMDocument): Set<string> =>
         measure.id,
         ...measure.tuplets.map((group) => group.id),
         ...measure.chordSymbols.map((symbol) => symbol.id),
+        ...measure.lyrics.map((lyric) => lyric.id),
         ...measure.beats.flatMap((beat) => [
           beat.id,
           ...beat.notes.map((note) => note.id),
@@ -52,6 +54,7 @@ export const createDocumentIdFactory = (
     createBeatId: () => create("beat"),
     createNoteId: () => create("note"),
     createChordSymbolId: () => create("chord"),
+    createLyricId: () => create("lyric"),
     createTechniqueId: () => create("technique"),
     createTupletId: () => create("tuplet"),
   };

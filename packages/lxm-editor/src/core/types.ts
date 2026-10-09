@@ -91,6 +91,7 @@ export interface ILXMMeasure {
   /** 该小节之后的结构边界。 */
   barline: ILXMBarlineType;
   chordSymbols: ILXMChordSymbol[];
+  lyrics: ILXMLyric[];
   beats: ILXMBeat[];
   tuplets: ILXMTuplet[];
 }
@@ -109,12 +110,37 @@ export interface ILXMTimeSignature {
  */
 export type ILXMTimeSignatureChangeScope = "measure" | "untilNextChange";
 
-/** 小节内某个 tick 位置上的和弦标记。 */
+/** 音乐文本只引用稳定 Beat，不重复保存会随节奏改变的 tick。 */
 export interface ILXMChordSymbol {
   id: string;
-  tick: number;
-  chordDefinitionId: string;
+  beatId: string;
   display: ILXMChordSymbolDisplayType;
+  chord: { name: string; diagram: ILXMChordDiagram | null };
+}
+
+export type ILXMLyricVerse = 1 | 2 | 3 | 4;
+export interface ILXMLyric {
+  id: string;
+  beatId: string;
+  verse: ILXMLyricVerse;
+  text: string;
+}
+export interface ILXMChordString {
+  string: 1 | 2 | 3 | 4 | 5 | 6;
+  fret: number | "x";
+  finger: 1 | 2 | 3 | 4 | null;
+}
+export interface ILXMChordBarre {
+  fret: number;
+  minString: number;
+  maxString: number;
+  finger: 1 | 2 | 3 | 4;
+}
+export interface ILXMChordDiagram {
+  startFret: number;
+  fretCount: 5;
+  strings: ILXMChordString[];
+  barres: ILXMChordBarre[];
 }
 
 /** 节拍时值描述，dots 表示附点数量。 */

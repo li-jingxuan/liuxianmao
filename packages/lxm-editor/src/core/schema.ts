@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { normalizeMusicText } from "./music-text";
+import { validateChordDiagram } from "./chord-diagram";
 
 import {
   CURRENT_SCHEMA_VERSION,
@@ -70,15 +72,86 @@ export const LXMTimeSignatureSchema = z
   })
   .strict() satisfies z.ZodType<ILXMTimeSignature>;
 
-/** 小节内某个 tick 位置上的和弦标记校验。 */
+/** 文本字段必须已规范化；加载时不静默改变用户数据。 */
+const musicTextSchema = (limit: number) =>
+  z
+    .string()
+    .refine(
+      (text) => normalizeMusicText(text, limit) === text,
+      `文本须为规范化的单行非空文字，最多 ${limit} 个字符`,
+    );
+const fingerSchema = z.union([
+  z.literal(1),
+  z.literal(2),
+  z.literal(3),
+  z.literal(4),
+]);
+export const LXMChordDiagramSchema = z
+  .object({
+    startFret: z.number().int().min(1).max(20),
+    fretCount: z.literal(5),
+    strings: z
+      .array(
+        z
+          .object({
+            string: z.union([
+              z.literal(1),
+              z.literal(2),
+              z.literal(3),
+              z.literal(4),
+              z.literal(5),
+              z.literal(6),
+            ]),
+            fret: z.union([z.literal("x"), z.number().int().min(0).max(24)]),
+            finger: fingerSchema.nullable(),
+          })
+          .strict(),
+      )
+      .length(6),
+    barres: z
+      .array(
+        z
+          .object({
+            fret: z.number().int().min(1).max(24),
+            minString: z.number().int().min(1).max(6),
+            maxString: z.number().int().min(1).max(6),
+            finger: fingerSchema,
+          })
+          .strict(),
+      )
+      .max(4),
+  })
+  .strict()
+  .superRefine((diagram, context) => {
+    const message = validateChordDiagram(diagram);
+    if (message) context.addIssue({ code: z.ZodIssueCode.custom, message });
+  });
+export const LXMLyricSchema = z
+  .object({
+    id: z.string(),
+    beatId: z.string(),
+    verse: fingerSchema,
+    text: musicTextSchema(64),
+  })
+  .strict();
+/** 和弦保存局部名称/图快照，不依赖未定义的外部字典。 */
 export const LXMChordSymbolSchema = z
   .object({
     id: z.string(),
-    tick: z.number().int().min(MIN_NON_NEGATIVE_INTEGER),
-    chordDefinitionId: z.string(),
+    beatId: z.string(),
     display: z.enum(LXM_CHORD_SYMBOL_DISPLAY_TYPES),
+    chord: z
+      .object({
+        name: musicTextSchema(32),
+        diagram: LXMChordDiagramSchema.nullable(),
+      })
+      .strict(),
   })
-  .strict() satisfies z.ZodType<ILXMChordSymbol>;
+  .strict()
+  .refine(
+    (s) => s.display === "name" || s.chord.diagram !== null,
+    "名称加图模式需要指法图",
+  ) satisfies z.ZodType<ILXMChordSymbol>;
 
 /** 节拍时值描述校验，dots 表示附点数量。 */
 export const LXMRhythmSchema = z
@@ -218,6 +291,7 @@ export const LXMMeasureSchema = z
     timeSignature: LXMTimeSignatureSchema,
     barline: z.enum(LXM_BARLINE_TYPES),
     chordSymbols: z.array(LXMChordSymbolSchema),
+    lyrics: z.array(LXMLyricSchema),
     beats: z.array(LXMBeatSchema),
     tuplets: z.array(LXMTupletSchema),
   })

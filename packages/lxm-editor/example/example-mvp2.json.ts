@@ -23,6 +23,7 @@ const createMeasure = (
   timeSignature: { numerator: 4, denominator: 4 },
   barline,
   chordSymbols,
+  lyrics: [],
   tuplets: [],
   beats,
 });
@@ -62,7 +63,7 @@ const beat = (
 /** MVP v2 的默认文档；默认导出供 EXAMPLE_MVP_2.default 使用。 */
 const EXAMPLE_MVP_2: ILXMDocument = {
   schema: "lxm-tab-score",
-  schemaVersion: 2,
+  schemaVersion: 3,
   documentRevision: 1,
   score: {
     id: "mvp2-score",
@@ -122,9 +123,9 @@ const EXAMPLE_MVP_2: ILXMDocument = {
             [
               {
                 id: "mvp2-chord-am",
-                tick: 0,
-                chordDefinitionId: "chord-am-open",
-                display: "nameAndDiagram",
+                beatId: "mvp2-beat-1-1",
+                chord: { name: "Am", diagram: null },
+                display: "name",
               },
             ],
           ),
