@@ -89,9 +89,7 @@ export const TechniqueToolbar = ({
     return "down";
   });
   const [trillFret, setTrillFret] = useState(() =>
-    selectedTechnique?.type === "trill"
-      ? selectedTechnique.auxiliaryFret
-      : 7,
+    selectedTechnique?.type === "trill" ? selectedTechnique.auxiliaryFret : 7,
   );
 
   const buildDraft = (): {
@@ -155,12 +153,21 @@ export const TechniqueToolbar = ({
       type === "slideDown" ||
       type === "tie"
     ) {
-      const anchorNote = findNoteAtCell(document, selection.anchor);
+      // 连接始终按领域时间顺序提交，点击起点或反向框选不会颠倒 from/to。
+      const firstBeat = resolved.range.beats[0]!;
+      const lastBeat = resolved.range.beats.at(-1)!;
+      const anchorNote = findNoteAtCell(document, {
+        ...selection.anchor,
+        ...firstBeat,
+      });
       if (!anchorNote) {
         setErrorMessage("连接技巧的起始单元格必须已有品位音符。");
         return null;
       }
-      const explicitTarget = findNoteAtCell(document, selection.focus);
+      const explicitTarget = findNoteAtCell(document, {
+        ...selection.focus,
+        ...lastBeat,
+      });
       const nextTarget = findNextNoteOnSameStringInTrack(track, anchorNote.id);
       const targetNote =
         explicitTarget && explicitTarget.id !== anchorNote.id
@@ -234,19 +241,18 @@ export const TechniqueToolbar = ({
   const submit = () => {
     const target = buildDraft();
     if (!target) return;
-    const result =
-      selectedTechniqueId
-        ? execute({
-            type: LXMScoreCommandEnum.UpdateTechnique,
-            trackId: target.trackId,
-            techniqueId: selectedTechniqueId,
-            technique: target.draft,
-          })
-        : execute({
-            type: LXMScoreCommandEnum.AddTechnique,
-            trackId: target.trackId,
-            technique: target.draft,
-          });
+    const result = selectedTechniqueId
+      ? execute({
+          type: LXMScoreCommandEnum.UpdateTechnique,
+          trackId: target.trackId,
+          techniqueId: selectedTechniqueId,
+          technique: target.draft,
+        })
+      : execute({
+          type: LXMScoreCommandEnum.AddTechnique,
+          trackId: target.trackId,
+          technique: target.draft,
+        });
     if (result?.ok && result.changed && !selectedTechniqueId) {
       const created = result.document.score.tracks
         .find((track) => track.id === target.trackId)

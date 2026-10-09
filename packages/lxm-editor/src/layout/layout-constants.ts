@@ -22,8 +22,7 @@ export const LXM_SYSTEM_GAP_Y = 36;
 /**
  * system 上方技巧区的确定性尺寸。
  *
- * 每条 lane 容纳一条弧线/文本线；水平区间相交的技巧会被分到不同 lane。额外
- * padding 让最靠近 staff 的 lane 与第一弦之间仍有清晰净空。
+ * lane 表示相对自然音符锚点向上的避让步长；system 扩高由最终几何决定。
  */
 export const LXM_TECHNIQUE_LANE_HEIGHT = 14;
 export const LXM_TECHNIQUE_AREA_PADDING_TOP = 4;
@@ -32,6 +31,22 @@ export const LXM_TECHNIQUE_HORIZONTAL_CLEARANCE = 6;
 export const LXM_TECHNIQUE_TEXT_FONT_SIZE = 10;
 export const LXM_TECHNIQUE_PATH_STROKE_WIDTH = 1.2;
 export const LXM_TECHNIQUE_HIT_PADDING = 4;
+/** 音符局部技巧与目标弦线的自然净空。 */
+export const LXM_TECHNIQUE_NOTE_CLEARANCE_Y = 5;
+export const LXM_TECHNIQUE_FRET_GAP_X = 2;
+export const LXM_TECHNIQUE_CURVE_HEIGHT = 8;
+export const LXM_TECHNIQUE_COLLISION_PADDING = 2;
+/** 品位文字与页面白色描边共用同一尺寸契约。 */
+export const LXM_FRET_TEXT_FONT_SIZE = 12;
+export const LXM_FRET_TEXT_HALO_WIDTH = 2.5;
+export const LXM_FRET_TEXT_BASELINE_OFFSET_Y = 4;
+/** 区间说明的线、标签下缘和结束钩均须高于第一弦品位文字及描边。 */
+export const LXM_TECHNIQUE_STAFF_CLEARANCE_Y =
+  LXM_FRET_TEXT_FONT_SIZE -
+  LXM_FRET_TEXT_BASELINE_OFFSET_Y +
+  LXM_FRET_TEXT_HALO_WIDTH +
+  LXM_TECHNIQUE_AREA_PADDING_BOTTOM +
+  4;
 
 /**
  * 每条谱面行左侧的纵向 TAB 谱号列宽。
@@ -222,3 +237,11 @@ export const LXM_DURATION_MIN_COLUMN_WIDTH = {
   sixteenth: 17,
   thirtySecond: 12,
 } as const;
+
+/** 连音数字、括号与下方图形净空共用同一套尺寸。 */
+export const LXM_TUPLET_FONT_SIZE = 13;
+export const LXM_TUPLET_CLEARANCE = 10;
+export const LXM_TUPLET_HOOK = 5;
+export const LXM_TUPLET_GAP = 6;
+export const LXM_TUPLET_STROKE = 1;
+export const LXM_TUPLET_BOTTOM_PADDING = 12;

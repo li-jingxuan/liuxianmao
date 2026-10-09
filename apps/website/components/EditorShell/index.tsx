@@ -8,6 +8,11 @@ import {
   layoutTabCellCaret,
   layoutTabCellSelection,
   LXM_EDITABLE_TIME_SIGNATURES,
+  LXM_FRET_TEXT_FONT_SIZE,
+  LXM_FRET_TEXT_HALO_WIDTH,
+  LXM_FRET_TEXT_BASELINE_OFFSET_Y,
+  LXM_TECHNIQUE_ARROW_WIDTH,
+  LXM_TECHNIQUE_ARROW_HEIGHT,
   LXMScoreCommandEnum,
   navigateTabCellSelection,
   resolveTabCellSelection,
@@ -16,6 +21,7 @@ import {
   type ILXMBarlineLayout,
   type ILXMBarlineType,
   type ILXMLayout,
+  type ILXMLayoutDensity,
   type ILXMRhythm,
   type ILXMTabCellReference,
   type ILXMTimeSignature,
@@ -29,6 +35,7 @@ import {
   resolveBeatKindShortcut,
   resolveEditorHistoryShortcut,
 } from "./editor-interaction";
+import { TupletToolbar } from "./TupletToolbar";
 import { TechniqueToolbar } from "./TechniqueToolbar";
 import styles from "./index.module.scss";
 
@@ -115,6 +122,8 @@ export const EditorShell: React.FC = () => {
 
   /** 品位草稿是瞬时输入状态，不进入 document 或历史。 */
   const [fretDraft, setFretDraft] = useState("");
+  /** 排版密度只影响视觉，不进入文档或撤销历史。 */
+  const [density, setDensity] = useState<ILXMLayoutDensity>("compact");
   const deferredFretDraftCommit = useMemo(
     () => createDeferredFretDraftCommit(FRET_DRAFT_TIMEOUT_MS),
     [],
@@ -128,15 +137,18 @@ export const EditorShell: React.FC = () => {
   /** document 变化后重新生成 system、命中索引和所有 SVG 几何数据。 */
   const lxmLayout = useMemo<ILXMLayout | null>(() => {
     if (!document) return null;
-    return buildLayout(document, {
+
+    const _layout = buildLayout(document, {
       x: 0,
       y: 0,
       systemWidth: A4_CONTENT_WIDTH,
-      density: "compact",
-    });
-  }, [document]);
+      density,
+    })
 
-  console.log('lxmLayout: ', lxmLayout)
+    console.log('_layout: ', _layout)
+    return _layout;
+  }, [document, density]);
+
   /**
    * 页面只消费核心范围解析结果。
    * 这里不通过 measure/beat 数组下标推导范围，保证重排后仍使用同一业务选区。
@@ -912,6 +924,32 @@ export const EditorShell: React.FC = () => {
           >
             谱首反复
           </button>
+          <label>
+            排版
+            <select
+              aria-label="谱面排版密度"
+              value={density}
+              onChange={(event) =>
+                setDensity(event.target.value as ILXMLayoutDensity)
+              }
+            >
+              <option value="compact">紧凑</option>
+              <option value="comfortable">舒适</option>
+            </select>
+          </label>
+          <button
+            type="button"
+            className={styles.toolbarButton}
+            aria-label="打印乐谱"
+            onClick={() => window.print()}
+          >
+            打印
+          </button>
+          <TupletToolbar
+            document={document}
+            selection={selection}
+            execute={execute}
+          />
           <TechniqueToolbar
             key={selectedTechniqueId ?? "new-technique"}
             document={document}
@@ -962,8 +1000,9 @@ export const EditorShell: React.FC = () => {
                 viewBox="0 0 10 10"
                 refX="8"
                 refY="5"
-                markerWidth="5"
-                markerHeight="5"
+                markerWidth={LXM_TECHNIQUE_ARROW_WIDTH}
+                markerHeight={LXM_TECHNIQUE_ARROW_HEIGHT}
+                markerUnits="userSpaceOnUse"
                 orient="auto-start-reverse"
               >
                 <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" />
@@ -1085,7 +1124,9 @@ export const EditorShell: React.FC = () => {
                           className={styles.fretNoteText}
                           key={note.id}
                           x={note.x}
-                          y={note.y + 4}
+                          y={note.y + LXM_FRET_TEXT_BASELINE_OFFSET_Y}
+                          fontSize={LXM_FRET_TEXT_FONT_SIZE}
+                          strokeWidth={LXM_FRET_TEXT_HALO_WIDTH * 2}
                         >
                           {note.fretText}
                         </text>
@@ -1133,6 +1174,31 @@ export const EditorShell: React.FC = () => {
                               cy={dot.y}
                               r={1}
                               fill="black"
+                            />
+                          ))}
+                        </g>
+                      ))}
+                    </g>
+                    <g pointerEvents="none" aria-label="连音标注">
+                      {measure.tuplets.map((group) => (
+                        <g
+                          key={group.id}
+                          aria-label={`连音标注 ${group.ratio.actual}:${group.ratio.normal}`}
+                        >
+                          <text
+                            x={group.label.x}
+                            y={group.label.y}
+                            fontSize={group.label.fontSize}
+                            textAnchor={group.label.textAnchor}
+                          >
+                            {group.label.text}
+                          </text>
+                          {group.bracket?.lines.map((line, index) => (
+                            <line
+                              key={index}
+                              {...line}
+                              stroke="black"
+                              strokeWidth={group.bracket!.strokeWidth}
                             />
                           ))}
                         </g>

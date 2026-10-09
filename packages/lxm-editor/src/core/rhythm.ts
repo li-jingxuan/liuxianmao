@@ -10,7 +10,7 @@ import {
   LXM_RHYTHM_BASES,
   TICKS_PER_QUARTER,
 } from "./constants";
-import type { ILXMBeat, ILXMRhythm, ILXMTimeSignature } from "./types";
+import type { ILXMRhythm, ILXMTimeSignature } from "./types";
 
 // 基准节奏时值对应 tick 数
 export const BASE_RHYTHM_TICKS = {
@@ -159,14 +159,6 @@ export const getTimeSignatureBeatGroupTicks = (
   if (isSameTimeSignature(timeSignature, { numerator: 6, denominator: 8 }))
     return [TICKS_PER_QUARTER * 1.5, TICKS_PER_QUARTER * 1.5];
   return null;
-};
-
-/** 获取 beat 的结束 tick；调用方可据此构建连续、不重叠的时间轴。 */
-export const getBeatEndTick = (beat: ILXMBeat): RhythmTickResult => {
-  const duration = calculateRhythmTicks(beat.rhythm);
-  return duration.ok
-    ? { ok: true, ticks: beat.tick + duration.ticks }
-    : duration;
 };
 
 /**

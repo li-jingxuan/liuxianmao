@@ -154,10 +154,8 @@
 }
 
 .scoreSvg .fretNoteText {
-  font-size: 12px;
   stroke: #fff;
   stroke-linejoin: round;
-  stroke-width: 5px;
   paint-order: stroke;
   font-weight: 700;
   text-anchor: middle;
@@ -238,5 +236,17 @@
   // selectedTechniqueId 是临时交互状态；打印只保留技巧本身，不输出蓝色焦点色。
   .selectedTechnique {
     color: #1d2025;
+  }
+}
+
+.tupletToolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  button {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
   }
 }

@@ -23,6 +23,7 @@ const measureWithTrailingRest = (): ILXMMeasure => ({
   id: "measure-with-tail-rest",
   timeSignature: { numerator: 4, denominator: 4 },
   barline: "single",
+  tuplets: [],
   chordSymbols: [],
   beats: [
     beat("beat-1", 0, "quarter"),
@@ -139,6 +140,7 @@ describe("changeMeasureBeatRhythm", () => {
       id: "measure-dp-pareto",
       timeSignature: { numerator: 6, denominator: 4 },
       barline: "single",
+      tuplets: [],
       chordSymbols: [],
       beats: [
         beat("before", 0, "eighth"),

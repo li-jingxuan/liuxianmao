@@ -1,5 +1,5 @@
-import { calculateRhythmTicks } from "../core/rhythm";
-import type { ILXMBeat, ILXMMeasure } from "../core/types";
+import { createMeasureRhythmContext } from "../core/tuplet";
+import type { ILXMMeasure } from "../core/types";
 import {
   LXM_DURATION_MIN_COLUMN_WIDTH,
   LXM_DURATION_VISUAL_WEIGHT,
@@ -35,58 +35,68 @@ type ILXMSummarizeMeasureSpacingWidth = Omit<
   contentWidth: number;
 };
 
-/** 计算当前拍的节奏 tick 数量 */
-const getBeatRhythmTicks = (beat: ILXMBeat): number => {
-  const result = calculateRhythmTicks(beat.rhythm);
-
-  if (!result.ok) {
-    throw new Error(`无法把 ${beat.rhythm} 切成合法节奏片段`);
-  }
-
-  return result.ticks;
-};
-
 /** 构建节奏列；同一 tick 的 TAB、歌词、简谱未来会共享这一列。 */
 export const buildRhythmicColumns = (
   measure: ILXMMeasure,
   density: ILXMLayoutDensity = LXM_LAYOUT_DEFAULT_DENSITY,
 ): ILXMRhythmicColumn[] => {
   const profile = LXM_LAYOUT_DENSITY_PROFILES[density];
+  const context = createMeasureRhythmContext(measure);
   // 当前只需要考虑 notes 类型的节拍
   // 数据结构中暂时不考虑相同 tick 存在多个 beat（节拍）的情况：多轨和多声部才可能出现这种情况
-  return (
-    [...measure.beats]
-      // 先复制再排序；layout 是纯计算，绝不能改变调用方的文档 beat 顺序。
-      .sort((left, right) => left.tick - right.tick)
-      .map((beat) => {
-        const rhythmTicks = getBeatRhythmTicks(beat);
-        // 当前节拍的时值权重
-        const durationWeight = LXM_DURATION_VISUAL_WEIGHT[beat.rhythm.base];
-        // 当前节拍的最小宽度限制
-        const durationMinWidth =
-          LXM_DURATION_MIN_COLUMN_WIDTH[beat.rhythm.base];
-        const baseIdealWidth = Math.max(
-          durationMinWidth,
-          durationMinWidth * durationWeight,
-        );
-        const minWidth = profile.minColumnWidth ?? durationMinWidth;
+  const columns = [...measure.beats]
+    // 先复制再排序；layout 是纯计算，绝不能改变调用方的文档 beat 顺序。
+    .sort((left, right) => left.tick - right.tick)
+    .map((beat) => {
+      const duration = context.getBeatDurationTicks(beat);
+      if (!duration.ok) throw new Error(`无效实际时值：${beat.id}`);
+      const rhythmTicks = duration.ticks;
+      // 当前节拍的时值权重
+      const durationWeight = LXM_DURATION_VISUAL_WEIGHT[beat.rhythm.base];
+      // 当前节拍的最小宽度限制
+      const durationMinWidth = LXM_DURATION_MIN_COLUMN_WIDTH[beat.rhythm.base];
+      const baseIdealWidth = Math.max(
+        durationMinWidth,
+        durationMinWidth * durationWeight,
+      );
+      const minWidth = profile.minColumnWidth ?? durationMinWidth;
 
-        return {
-          tick: beat.tick,
-          beatIds: [beat.id],
-          rhythmTicks,
-          durationWeight,
+      return {
+        tick: beat.tick,
+        beatIds: [beat.id],
+        rhythmTicks,
+        durationWeight,
+        minWidth,
+        // 理想宽度 = Max(最小宽度限制, 最小宽度限制 * 时值权重)
+        // thirtySecond 三十二分音符（durationWeight = 0.72）会使用 minWidth 作为理想宽度
+        // TODO 这里应该多种因素来计算小节理想宽度
+        idealWidth: Math.max(
           minWidth,
-          // 理想宽度 = Max(最小宽度限制, 最小宽度限制 * 时值权重)
-          // thirtySecond 三十二分音符（durationWeight = 0.72）会使用 minWidth 作为理想宽度
-          // TODO 这里应该多种因素来计算小节理想宽度
-          idealWidth: Math.max(
-            minWidth,
-            baseIdealWidth * profile.idealColumnScale,
-          ),
-        };
-      })
+          baseIdealWidth * profile.idealColumnScale,
+        ),
+      };
+    });
+  // 数字标注是独立宽度贡献者；仅在组跨度不足时稳定扩宽成员列。
+  const byBeat = new Map(
+    columns.flatMap((column) =>
+      column.beatIds.map((id) => [id, column] as const),
+    ),
   );
+  for (const group of measure.tuplets) {
+    const members = group.beatIds.map((id) => byBeat.get(id)!);
+    const span = members
+      .slice(0, -1)
+      .reduce((sum, column) => sum + column.minWidth, 0);
+    const required = String(group.ratio.actual).length * 8 + 16;
+    if (span < required) {
+      const extra = (required - span) / Math.max(1, members.length - 1);
+      members.slice(0, -1).forEach((column) => {
+        column.minWidth += extra;
+        column.idealWidth = Math.max(column.minWidth, column.idealWidth);
+      });
+    }
+  }
+  return columns;
 };
 
 export const summarizeMeasureSpacingWidth = (

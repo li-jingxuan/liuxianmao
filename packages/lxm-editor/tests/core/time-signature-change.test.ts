@@ -25,6 +25,7 @@ const createMeasure = (beats: ILXMBeat[]): ILXMMeasure => ({
   id: "time-signature-measure",
   timeSignature: { numerator: 4, denominator: 4 },
   barline: "double",
+  tuplets: [],
   chordSymbols: [],
   beats,
 });

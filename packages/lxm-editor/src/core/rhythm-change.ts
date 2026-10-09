@@ -5,7 +5,11 @@
  * 模块内部统一处理尾部休止、后续 beat 精确压缩以及 tick 重排。页面和命令分发层
  * 不需要理解 DP、压缩优先级或小节容量修复规则。
  */
-import { createRestBeats } from "./rest-beats";
+import {
+  getFixedPrefixLength,
+  reconcileMeasureTimeline,
+} from "./measure-timeline";
+import { createMeasureRhythmContext } from "./tuplet";
 import {
   calculateRhythmTicks,
   getMeasureCapacityTicks,
@@ -14,6 +18,7 @@ import {
 import type { ILXMBeat, ILXMMeasure, ILXMRhythm } from "./types";
 
 export type MeasureRhythmChangeErrorCode =
+  | "BEAT_IN_TUPLET"
   | "BEAT_NOT_FOUND"
   | "INVALID_RHYTHM"
   | "FOLLOWING_BEATS_CANNOT_COMPRESS"
@@ -52,38 +57,6 @@ interface CompressionSuccess {
   beats: ILXMBeat[];
   compressedBeatIds: string[];
 }
-
-/** 计算一组 beat 的总时长；任一 rhythm 非法时返回 null，不进行取整或容错。 */
-const sumBeatDurationTicks = (beats: ILXMBeat[]): number | null => {
-  let total = 0;
-  for (const beat of beats) {
-    const duration = calculateRhythmTicks(beat.rhythm);
-    if (!duration.ok) return null;
-    total += duration.ticks;
-  }
-  return total;
-};
-
-/**
- * 找到可以整体重建的尾部休止起点。
- *
- * 扫描条件中的 `firstTrailingRest - 1 > targetIndex` 非常重要：当用户选中的目标
- * 本身是尾部 rest 时，目标必须保留其 ID 和新 rhythm；只有目标之后的 rest 才是
- * 可被整体消费、重新分解的容量缓冲。
- */
-const findFirstTrailingRestIndexAfterTarget = (
-  beats: ILXMBeat[],
-  targetIndex: number,
-): number => {
-  let firstTrailingRest = beats.length;
-  while (
-    firstTrailingRest - 1 > targetIndex &&
-    beats[firstTrailingRest - 1]?.kind === "rest"
-  ) {
-    firstTrailingRest -= 1;
-  }
-  return firstTrailingRest;
-};
 
 /**
  * 对同一累计释放 tick 的两个方案应用确定性排序。
@@ -184,6 +157,7 @@ const applyExactFollowingCompression = (
   fixedBeats: ILXMBeat[],
   targetIndex: number,
   overflowTicks: number,
+  groupedBeatIds: ReadonlySet<string>,
 ): CompressionSuccess | null => {
   const followingBeats = fixedBeats.slice(targetIndex + 1);
   let states: CompressionStates = new Map([
@@ -205,7 +179,9 @@ const applyExactFollowingCompression = (
 
   for (let offset = 0; offset < followingBeats.length; offset += 1) {
     const currentBeat = followingBeats[offset]!;
-    const choices = getBeatCompressionChoices(currentBeat);
+    const choices = groupedBeatIds.has(currentBeat.id)
+      ? [{ rhythm: currentBeat.rhythm, level: 0, releasedTicks: 0 }]
+      : getBeatCompressionChoices(currentBeat);
     if (!choices) return null;
 
     const nextStates: CompressionStates = new Map();
@@ -244,24 +220,6 @@ const applyExactFollowingCompression = (
 };
 
 /**
- * 从 0 开始重新累计 tick，而不是在旧 tick 上反复加减 delta。
- *
- * 这样时间轴连续性只有一个来源；多次编辑不会积累偏移误差。tick 未变化的 beat
- * 直接复用原对象，既保持不可变语义，也减少无关引用变化。
- */
-const reflowBeatTicks = (beats: ILXMBeat[]): ILXMBeat[] | null => {
-  let tick = 0;
-  const result: ILXMBeat[] = [];
-  for (const beat of beats) {
-    const duration = calculateRhythmTicks(beat.rhythm);
-    if (!duration.ok) return null;
-    result.push(beat.tick === tick ? beat : { ...beat, tick });
-    tick += duration.ticks;
-  }
-  return result;
-};
-
-/**
  * 修改一个小节内目标 beat 的 rhythm，并返回容量完整的新小节。
  *
  * 这是纯领域规划：输入 measure 不会被原地修改；失败不创建部分结果。调用者仍需在
@@ -276,6 +234,9 @@ export const changeMeasureBeatRhythm = (
   const targetIndex = measure.beats.findIndex((beat) => beat.id === beatId);
   if (targetIndex < 0) return { ok: false, code: "BEAT_NOT_FOUND" };
 
+  const context = createMeasureRhythmContext(measure);
+  if (context.tupletByBeatId.has(beatId))
+    return { ok: false, code: "BEAT_IN_TUPLET" };
   const target = measure.beats[targetIndex]!;
   const previousDuration = calculateRhythmTicks(target.rhythm);
   const nextDuration = calculateRhythmTicks(rhythm);
@@ -286,43 +247,42 @@ export const changeMeasureBeatRhythm = (
   const candidate = measure.beats.map((beat, index) =>
     index === targetIndex ? { ...beat, rhythm } : beat,
   );
-  const firstTrailingRestIndex = findFirstTrailingRestIndexAfterTarget(
-    candidate,
-    targetIndex,
+  const protectedBeatIds = new Set([beatId]);
+  const candidateMeasure = { ...measure, beats: candidate };
+  const fixedBeats = candidate.slice(
+    0,
+    getFixedPrefixLength(candidateMeasure, protectedBeatIds),
   );
-  const fixedBeats = candidate.slice(0, firstTrailingRestIndex);
-  const fixedEndTicks = sumBeatDurationTicks(fixedBeats);
-  if (fixedEndTicks === null) return { ok: false, code: "INVALID_RHYTHM" };
+  let fixedEndTicks = 0;
+  for (const beat of fixedBeats) {
+    const duration = context.getBeatDurationTicks(beat);
+    if (!duration.ok) return { ok: false, code: "INVALID_RHYTHM" };
+    fixedEndTicks += duration.ticks;
+  }
 
   const capacityTicks = getMeasureCapacityTicks(measure.timeSignature);
   const overflowTicks = Math.max(0, fixedEndTicks - capacityTicks);
   const compression =
     overflowTicks === 0
       ? { beats: fixedBeats, compressedBeatIds: [] }
-      : applyExactFollowingCompression(fixedBeats, targetIndex, overflowTicks);
+      : applyExactFollowingCompression(
+          fixedBeats,
+          targetIndex,
+          overflowTicks,
+          new Set(context.tupletByBeatId.keys()),
+        );
   if (!compression) {
     return { ok: false, code: "FOLLOWING_BEATS_CANNOT_COMPRESS" };
   }
 
-  const reflowedFixedBeats = reflowBeatTicks(compression.beats);
-  if (!reflowedFixedBeats) return { ok: false, code: "INVALID_RHYTHM" };
-  const reflowedFixedTicks = sumBeatDurationTicks(reflowedFixedBeats);
-  if (reflowedFixedTicks === null) return { ok: false, code: "INVALID_RHYTHM" };
-
-  const trailingRestTicks = capacityTicks - reflowedFixedTicks;
-  const trailingRests = createRestBeats(
-    reflowedFixedTicks,
-    trailingRestTicks,
-    createBeatId,
+  const reconciled = reconcileMeasureTimeline(
+    { ...measure, beats: compression.beats },
+    { createBeatId, protectedBeatIds },
   );
-  if (!trailingRests) return { ok: false, code: "RHYTHM_NOT_REPRESENTABLE" };
-
+  if (!reconciled.ok) return { ok: false, code: "RHYTHM_NOT_REPRESENTABLE" };
   return {
     ok: true,
-    measure: {
-      ...measure,
-      beats: [...reflowedFixedBeats, ...trailingRests],
-    },
+    measure: reconciled.measure,
     compressedBeatIds: compression.compressedBeatIds,
   };
 };

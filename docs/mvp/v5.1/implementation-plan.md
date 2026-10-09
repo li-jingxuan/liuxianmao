@@ -1,5 +1,7 @@
 # MVP v5.1 详细实施计划：连音组节奏
 
+> 执行状态（2026-10-09）：步骤 0–11 的工程实现、自动化与桌面交互已完成；系统打印预览仍待人工确认。见 [实施验收记录](./20261009_连音组实施验收.md)。
+
 ## 1. 实施约束
 
 - v5 吉他技巧的模型、命令、layout、页面和全量测试完成后，再合入 v5.1 生产代码；开发期间可以先建立独立 fixture 和纯领域测试。
@@ -52,7 +54,7 @@ store / React 工具 / SVG
 - 确认 v5 技巧已通过 core、layout、website 全量检查；
 - 记录无 tuplet 时的 rhythm tick、measure spacing、beam segments、system 高度与固定桌面截图基线；
 - 新增 `example-mvp5.1` 或等价测试 fixture，至少包含 8 个小节和 2 条 system；
-- fixture 覆盖六种 ratio、notes/rest 混合、同附点成员、数字-only、bracket、尾部容量休止、小节复制和拍号切换；
+- fixture 覆盖六种 ratio、notes/rest 混合、同附点成员、有/无连梁均保留 bracket、尾部容量休止、小节复制和拍号切换；
 - 单独保留一个无 tuplet 的 v5 fixture，作为几何兼容基线；
 - 为所有预期 group、成员和实际 tick 写出表格化测试数据，不从待测 implementation 动态生成期望值。
 
@@ -60,7 +62,7 @@ store / React 工具 / SVG
 
 | 小节 | 场景                        | 预期重点                           |
 | ---- | --------------------------- | ---------------------------------- |
-| 1    | 三个八分音符 `3:2`          | 每个 320 tick，完整连梁只显示 `3`  |
+| 1    | 三个八分音符 `3:2`          | 每个 320 tick，完整连梁仍显示 `3` 和括号  |
 | 2    | 两个八分音符 `2:3`          | 每个 720 tick，消耗尾部容量休止    |
 | 3    | 四个十六分音符 `4:3`        | 每个 180 tick，多层 beam           |
 | 4    | 五个十六分音符 `5:4`        | 每个 192 tick，显示 `5`            |
@@ -428,7 +430,7 @@ reconcileMeasureTimeline(
 - 新增 `layout/tuplet-layout.ts`；
 - label 默认显示 `actual`，领域 ratio 原样保留在 layout 中；
 - label X 使用首末成员节奏锚点的中点；
-- level 1 shared beam 的有序 beatIds 与 group 完全相等时 `bracket: null`；
+- 所有 group 始终输出 bracket，不检查连梁覆盖；
 - 其他情况输出横线、中央文字 gap 和两端短钩；
 - annotation Y 使用目标范围内 beam、flag、rest、dots 的最低视觉 bounds 加净空；
 - 同一 measure group 不重叠，首版复用一个 annotation lane；
@@ -439,10 +441,10 @@ reconcileMeasureTimeline(
 
 ### 测试
 
-- 完整 shared beam 只输出数字；
+- 完整 shared beam 同样输出数字和 bracket；
 - bracket 的 x1/x2、y、hook、gap 与 label 坐标；
 - rest、空 notes、quarter/half 等无完整 beam 场景显示 bracket；
-- 相邻普通 beam 不会错误触发数字-only；
+- 相邻普通 beam 不影响 bracket 是否显示；
 - `5:4`、`5:3` 都显示 `5`，但 layout ratio 不同；
 - 多层 beam、flag、附点与 rest 的净空；
 - 同一 measure 多个不重叠 group 共用 lane 且互不覆盖；
@@ -508,7 +510,7 @@ reconcileMeasureTimeline(
 ### 浏览器验收
 
 - 六种 ratio 在固定桌面页面清晰可读；
-- notes-only 完整连梁只显示数字；
+- notes-only 完整连梁同样显示数字和 bracket；
 - notes/rest 混合、长时值和空 notes 显示 bracket；
 - 同附点 group 的 dot、beam 与数字不碰撞；
 - `5:4`、`5:3` 工具语义明确，谱面均按预期显示 `5`；
@@ -548,7 +550,7 @@ pnpm build
 
 ### Layout 验收
 
-- 完整连梁只显示数字，其他情况显示数字和 bracket；
+- 所有 group 始终显示数字和 bracket，与连梁覆盖无关；
 - group 的 beam seam 不被相邻普通短音符污染；
 - 标注不与 beam、flag、rest、dots、staff 或下一 system 碰撞；
 - 无 tuplet 文档保持 v5 视觉和几何基线；

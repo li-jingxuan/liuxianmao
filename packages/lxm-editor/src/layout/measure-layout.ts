@@ -23,6 +23,8 @@ import {
 import { layoutBarline } from "./barline-layout";
 import { layoutDurationBeams } from "./duration-beam-layout";
 import { layoutRests } from "./rest-layout";
+import { layoutTuplets } from "./tuplet-layout";
+import { LXM_TUPLET_BOTTOM_PADDING } from "./layout-constants";
 import { layoutTimeSignature } from "./time-signature-layout";
 
 export interface ILXMLayoutMeasureContext {
@@ -156,6 +158,18 @@ export const layoutMeasure = (
     strings,
   );
 
+  const tuplets = layoutTuplets(
+    measure,
+    beats,
+    beamSegments,
+    durationMarks,
+    restMarks,
+    strings,
+  );
+  const annotationBottom = Math.max(
+    y,
+    ...tuplets.map((group) => group.label.y + LXM_TUPLET_BOTTOM_PADDING),
+  );
   return {
     id: measure.id,
     index,
@@ -167,7 +181,8 @@ export const layoutMeasure = (
     timeSignature: showTimeSignature
       ? layoutTimeSignature(measure, x, y, leadingBarlineClearance)
       : null,
-    height: calculateMeasureHeight(),
+    height: Math.max(calculateMeasureHeight(), annotationBottom - y),
+    tuplets,
     columns,
     beats,
     strings,

@@ -4,6 +4,7 @@ import {
   CURRENT_SCHEMA_VERSION,
   GUITAR_STRING_COUNT,
   LXM_BARLINE_TYPES,
+  LXM_TUPLET_RATIOS,
   LXM_BEAT_KINDS,
   LXM_CHORD_SYMBOL_DISPLAY_TYPES,
   LXM_INSTRUMENT_TYPES,
@@ -16,6 +17,7 @@ import {
 } from "./constants";
 import {
   type ILXMBeat,
+  type ILXMTuplet,
   type ILXMChordSymbol,
   type ILXMDocument,
   type ILXMMeasure,
@@ -110,11 +112,12 @@ export const LXMTechniqueSchema = z.discriminatedUnion("type", [
       semitones: z.literal(2),
     })
     .strict(),
-  ...(["vibrato", "naturalHarmonic", "artificialHarmonic", "tapping"] as const).map(
-    (type) =>
-      z
-        .object({ id: z.string(), type: z.literal(type), fromNoteId: z.string() })
-        .strict(),
+  ...(
+    ["vibrato", "naturalHarmonic", "artificialHarmonic", "tapping"] as const
+  ).map((type) =>
+    z
+      .object({ id: z.string(), type: z.literal(type), fromNoteId: z.string() })
+      .strict(),
   ),
   z
     .object({
@@ -186,6 +189,28 @@ export const LXMBeatSchema = z
   })
   .strict() satisfies z.ZodType<ILXMBeat>;
 
+/** 严格比例联合，拒绝未支持比例及附加字段。 */
+const ratioSchema = <A extends number, N extends number>(
+  actual: A,
+  normal: N,
+) =>
+  z.object({ actual: z.literal(actual), normal: z.literal(normal) }).strict();
+export const LXMTupletRatioSchema = z.union([
+  ratioSchema(LXM_TUPLET_RATIOS[0].actual, LXM_TUPLET_RATIOS[0].normal),
+  ratioSchema(LXM_TUPLET_RATIOS[1].actual, LXM_TUPLET_RATIOS[1].normal),
+  ratioSchema(LXM_TUPLET_RATIOS[2].actual, LXM_TUPLET_RATIOS[2].normal),
+  ratioSchema(LXM_TUPLET_RATIOS[3].actual, LXM_TUPLET_RATIOS[3].normal),
+  ratioSchema(LXM_TUPLET_RATIOS[4].actual, LXM_TUPLET_RATIOS[4].normal),
+  ratioSchema(LXM_TUPLET_RATIOS[5].actual, LXM_TUPLET_RATIOS[5].normal),
+]) satisfies z.ZodType<ILXMTuplet["ratio"]>;
+export const LXMTupletSchema = z
+  .object({
+    id: z.string(),
+    beatIds: z.array(z.string()),
+    ratio: LXMTupletRatioSchema,
+  })
+  .strict() satisfies z.ZodType<ILXMTuplet>;
+
 /** 一个小节内包含节拍、和弦标记和小节线信息。 */
 export const LXMMeasureSchema = z
   .object({
@@ -194,6 +219,7 @@ export const LXMMeasureSchema = z
     barline: z.enum(LXM_BARLINE_TYPES),
     chordSymbols: z.array(LXMChordSymbolSchema),
     beats: z.array(LXMBeatSchema),
+    tuplets: z.array(LXMTupletSchema),
   })
   .strict() satisfies z.ZodType<ILXMMeasure>;
 

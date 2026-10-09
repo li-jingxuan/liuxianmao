@@ -4,6 +4,8 @@
  * 所有命令只返回新的文档；页面层不拥有 tick 重排、容量修复或实体 ID 分配逻辑，
  * 从而让未来撤销、保存和协作使用同一份确定性的编辑规则。
  */
+import { editMeasureTuplet } from "./tuplet-commands";
+import { createMeasureRhythmContext } from "./tuplet";
 import { GUITAR_STRING_COUNT, MAX_FRET } from "./constants";
 import {
   resolveBeatRange,
@@ -18,12 +20,10 @@ import { isEditableTimeSignature, isSameTimeSignature } from "./rhythm";
 import { LXMDocumentSchema } from "./schema";
 import { validateDocumentSemantics } from "./semantic-validation";
 import { changeMeasureTimeSignature } from "./time-signature-change";
-import {
-  pruneInvalidTechniques,
-  validateTechnique,
-} from "./technique-rules";
+import { pruneInvalidTechniques, validateTechnique } from "./technique-rules";
 import type {
   ILXMBarlineType,
+  ILXMTupletRatio,
   ILXMBeat,
   ILXMDocument,
   ILXMMeasure,
@@ -52,6 +52,8 @@ export enum LXMScoreCommandEnum {
   AddTechnique = "technique.add",
   UpdateTechnique = "technique.update",
   RemoveTechnique = "technique.remove",
+  SetTuplet = "tuplet.set",
+  RemoveTuplet = "tuplet.remove",
 }
 
 export interface ILXMScoreCommandBase {
@@ -148,7 +150,22 @@ export interface ILXMRemoveTechniqueCommand extends ILXMScoreCommandBase {
   techniqueId: string;
 }
 
+export interface ILXMSetTupletCommand extends ILXMScoreCommandBase {
+  type: LXMScoreCommandEnum.SetTuplet;
+  measureId: string;
+  startBeatId: string;
+  endBeatId: string;
+  ratio: ILXMTupletRatio;
+}
+export interface ILXMRemoveTupletCommand extends ILXMScoreCommandBase {
+  type: LXMScoreCommandEnum.RemoveTuplet;
+  measureId: string;
+  tupletId: string;
+}
+
 export type ILXMScoreCommand =
+  | ILXMSetTupletCommand
+  | ILXMRemoveTupletCommand
   | ILXMSetNoteCommand
   | ILXMRemoveNoteCommand
   | ILXMSetNotesInRectCommand
@@ -166,6 +183,14 @@ export type ILXMScoreCommand =
   | ILXMRemoveTechniqueCommand;
 
 export type ILXMScoreCommandErrorCode =
+  | "TUPLET_NOT_FOUND"
+  | "TUPLET_RANGE_INVALID"
+  | "UNSUPPORTED_TUPLET_RATIO"
+  | "TUPLET_MEMBER_COUNT_MISMATCH"
+  | "TUPLET_RHYTHM_MISMATCH"
+  | "TUPLET_OVERLAP"
+  | "NON_INTEGER_TUPLET_TICKS"
+  | "BEAT_IN_TUPLET"
   | "TRACK_NOT_FOUND"
   | "MEASURE_NOT_FOUND"
   | "BEAT_NOT_FOUND"
@@ -422,6 +447,12 @@ const setBeatRhythm = (
 ): ILXMApplyScoreCommandResult => {
   const target = findTarget(document, command);
   if ("ok" in target) return target;
+  if (
+    createMeasureRhythmContext(target.measure).tupletByBeatId.has(
+      target.beat.id,
+    )
+  )
+    return fail("BEAT_IN_TUPLET", "请先删除连音组，再修改单拍时值");
   if (
     target.beat.rhythm.base === command.rhythm.base &&
     target.beat.rhythm.dots === command.rhythm.dots
@@ -780,10 +811,7 @@ const editTechnique = (
   if (!validation.ok)
     return fail(validation.error.code, validation.error.message);
 
-  if (
-    existing &&
-    toTechniqueDraftJson(existing) === commandDraftJson
-  )
+  if (existing && toTechniqueDraftJson(existing) === commandDraftJson)
     return unchanged(document);
 
   const technique = {
@@ -817,6 +845,29 @@ export const applyScoreCommand = (
   document: ILXMDocument,
   command: ILXMScoreCommand,
 ): ILXMApplyScoreCommandResult => {
+  if (
+    command.type === LXMScoreCommandEnum.SetTuplet ||
+    command.type === LXMScoreCommandEnum.RemoveTuplet
+  ) {
+    const track = document.score.tracks.find(
+      (track) => track.id === command.trackId,
+    );
+    if (!track) return fail("TRACK_NOT_FOUND", "目标轨道不存在");
+    const measure = track.measures.find(
+      (measure) => measure.id === command.measureId,
+    );
+    if (!measure) return fail("MEASURE_NOT_FOUND", "目标小节不存在");
+    const result = editMeasureTuplet(
+      measure,
+      command,
+      createDocumentIdFactory(document),
+    );
+    if (!result.ok) return result;
+    if (!result.changed) return unchanged(document);
+    return finalize(
+      replaceMeasure(document, track.id, measure.id, result.measure),
+    );
+  }
   if (
     command.type === LXMScoreCommandEnum.AddTechnique ||
     command.type === LXMScoreCommandEnum.UpdateTechnique ||
@@ -880,8 +931,7 @@ export const applyScoreCommand = (
           track.id === command.trackId &&
           track.techniques.some(
             (technique) =>
-              (technique.type === "strum" ||
-                technique.type === "arpeggio") &&
+              (technique.type === "strum" || technique.type === "arpeggio") &&
               technique.beatId === target.beat.id &&
               command.string >= technique.minString &&
               command.string <= technique.maxString,
@@ -988,22 +1038,31 @@ export const applyScoreCommand = (
   let inserted: ILXMMeasure;
   if (command.type === LXMScoreCommandEnum.CopyMeasure) {
     const copySource = track.measures[sourceIndex]!;
+    const copiedBeats = copySource.beats.map((beat) => ({
+      ...beat,
+      id: factory.createBeatId(),
+      notes: beat.notes.map((note) => ({
+        ...note,
+        id: factory.createNoteId(),
+      })),
+    }));
+    const beatIds = new Map(
+      copySource.beats.map((beat, index) => [beat.id, copiedBeats[index]!.id]),
+    );
     inserted = {
       ...copySource,
+      tuplets: copySource.tuplets.map((group) => ({
+        ...group,
+        id: factory.createTupletId(),
+        beatIds: group.beatIds.map((id) => beatIds.get(id)!),
+      })),
       id: factory.createMeasureId(),
       barline: "single",
       chordSymbols: copySource.chordSymbols.map((symbol) => ({
         ...symbol,
         id: factory.createChordSymbolId(),
       })),
-      beats: copySource.beats.map((beat) => ({
-        ...beat,
-        id: factory.createBeatId(),
-        notes: beat.notes.map((note) => ({
-          ...note,
-          id: factory.createNoteId(),
-        })),
-      })),
+      beats: copiedBeats,
     };
   } else {
     const rests = createMeasureRestBeats(
@@ -1017,6 +1076,7 @@ export const applyScoreCommand = (
       timeSignature: { ...source.timeSignature },
       barline: "single",
       chordSymbols: [],
+      tuplets: [],
       beats: rests,
     };
   }

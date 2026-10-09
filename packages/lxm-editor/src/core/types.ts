@@ -1,6 +1,7 @@
 import type {
   CURRENT_SCHEMA_VERSION,
   LXM_BARLINE_TYPES,
+  LXM_TUPLET_RATIOS,
   LXM_BEAT_KINDS,
   LXM_CHORD_SYMBOL_DISPLAY_TYPES,
   LXM_INSTRUMENT_TYPES,
@@ -29,8 +30,7 @@ export type ILXMChordSymbolDisplayType =
 export type ILXMBeatKind = (typeof LXM_BEAT_KINDS)[number];
 export type ILXMTechniqueType = (typeof LXM_TECHNIQUE_TYPES)[number];
 export type ILXMStrokeDirection = (typeof LXM_STROKE_DIRECTIONS)[number];
-export type ILXMArpeggioDirection =
-  (typeof LXM_ARPEGGIO_DIRECTIONS)[number];
+export type ILXMArpeggioDirection = (typeof LXM_ARPEGGIO_DIRECTIONS)[number];
 
 /** 允许业务方扩展的普通对象元信息。 */
 export type ILXMRecord = Record<string, unknown>;
@@ -92,6 +92,7 @@ export interface ILXMMeasure {
   barline: ILXMBarlineType;
   chordSymbols: ILXMChordSymbol[];
   beats: ILXMBeat[];
+  tuplets: ILXMTuplet[];
 }
 
 /** 小节拍号，例如 4/4。 */
@@ -158,11 +159,7 @@ export type ILXMTechnique =
     }
   | {
       id: string;
-      type:
-        | "vibrato"
-        | "naturalHarmonic"
-        | "artificialHarmonic"
-        | "tapping";
+      type: "vibrato" | "naturalHarmonic" | "artificialHarmonic" | "tapping";
       fromNoteId: string;
     }
   | {
@@ -233,3 +230,11 @@ export interface ILXMDocumentLoadFailure {
 export type DocumentLoadResult =
   | ILXMDocumentLoadSuccess
   | ILXMDocumentLoadFailure;
+
+export type ILXMTupletRatio = (typeof LXM_TUPLET_RATIOS)[number];
+/** 成员按小节时间顺序排列；组不能重叠或跨小节。 */
+export interface ILXMTuplet {
+  id: string;
+  beatIds: string[];
+  ratio: ILXMTupletRatio;
+}

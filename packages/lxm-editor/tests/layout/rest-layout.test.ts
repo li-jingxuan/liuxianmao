@@ -7,6 +7,7 @@ const createMeasure = (): ILXMMeasure => ({
   id: "rest-layout-measure",
   timeSignature: { numerator: 4, denominator: 4 },
   barline: "single",
+  tuplets: [],
   chordSymbols: [],
   beats: [0, 960, 1920, 2880].map((tick, index) => ({
     id: `rest-beat-${index + 1}`,

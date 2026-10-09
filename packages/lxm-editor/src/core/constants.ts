@@ -2,7 +2,7 @@
 export const SCORE_DOCUMENT_SCHEMA = "lxm-tab-score" as const;
 
 /** 当前文档版本；项目明确不维护旧版本迁移链。 */
-export const CURRENT_SCHEMA_VERSION = 1 as const;
+export const CURRENT_SCHEMA_VERSION = 2 as const;
 
 /** 可展示在六线谱上的基础节奏类型。 */
 export const LXM_RHYTHM_BASES = [
@@ -72,10 +72,7 @@ export const LXM_TECHNIQUE_TYPES = [
 export const LXM_STROKE_DIRECTIONS = ["down", "up"] as const;
 
 /** 琶音方向描述音高运动，不与扫弦手部方向混用。 */
-export const LXM_ARPEGGIO_DIRECTIONS = [
-  "ascending",
-  "descending",
-] as const;
+export const LXM_ARPEGGIO_DIRECTIONS = ["ascending", "descending"] as const;
 
 /** 四分音符一拍的 tick 数，兼顾附点与常用二至六连音。 */
 export const TICKS_PER_QUARTER = 960 as const;
@@ -114,4 +111,14 @@ export const STANDARD_GUITAR_TUNING = [
   { index: 4, pitch: "D3", midi: 50 },
   { index: 5, pitch: "A2", midi: 45 },
   { index: 6, pitch: "E2", midi: 40 },
+] as const;
+
+/** 连音组白名单：actual 个书写音符占 normal 个同值音符的时间。 */
+export const LXM_TUPLET_RATIOS = [
+  { actual: 2, normal: 3 },
+  { actual: 3, normal: 2 },
+  { actual: 4, normal: 3 },
+  { actual: 5, normal: 4 },
+  { actual: 5, normal: 3 },
+  { actual: 6, normal: 4 },
 ] as const;

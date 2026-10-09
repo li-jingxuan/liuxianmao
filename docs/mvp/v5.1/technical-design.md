@@ -1,6 +1,8 @@
 # MVP v5.1 技术实现方案：连音组节奏
 
-## 1. 目标与现状
+> 实施状态（2026-10-09）：工程实现已完成；实际接口、测试与打印验收边界见 [实施验收记录](./20261009_连音组实施验收.md)。下文现状描述为实施前基线。
+
+## 1. 目标与实施前现状
 
 MVP v5.1 在 v5 吉他技巧之后补齐 Tuplet（下文统一称“连音组”）的时间模型、编辑和记谱闭环。这里的连音组指二连音、三连音等节奏分组，不是 Tie、Slur 或击弦/勾弦弧线；它属于节奏 Module，不进入 `track.techniques[]`。
 
@@ -368,7 +370,7 @@ export interface ILXMTupletLayout {
   beatIds: string[];
   ratio: ILXMTupletRatio;
   label: ILXMTextLayout;
-  /** 完整连梁已明确覆盖 group 时为 null。 */
+  /** 当前所有连音组均输出范围括号，不按连梁覆盖省略。 */
   bracket: ILXMTupletBracketLayout | null;
 }
 
@@ -396,7 +398,7 @@ layout 输出最终文字、线段、短钩和 bracket 中央避让区；website
 - 拍号拍组边界仍生效，但不能把一个合法 tuplet 从中间拆成两个 beam group；校验和命令应确保 group 的实际范围可作为整体布局；
 - 多层连梁沿用现有 shared/partial 规则。
 
-“只显示数字”的判定必须确定且可测试：所有成员都有 duration mark，且存在一个 level 1 shared beam，其有序 `beatIds` 与 group 的 `beatIds` 完全相等。其他情况一律显示数字和 bracket。这样不会因相邻普通短音符碰巧共用一条更长连梁而丢失 group 范围。
+2026-10-09 用户确认：所有连音组始终显示数字和范围 bracket，不检查连梁覆盖。连梁只按既有节奏规则绘制；其视觉下缘可作为标注避让边界，不决定标注形式。
 
 ### 8.4 数字与 bracket
 
@@ -455,7 +457,7 @@ layout 输出最终文字、线段、短钩和 bracket 中央避让区；website
 - `layout/layout-types.ts`：tuplet 最终几何；
 - `layout/layout-constants.ts`：annotation 常量；
 - `layout/measure-spacing.ts`：实际时长列；
-- `layout/duration-beam-layout.ts`：tuplet seam 与完整连梁判定；
+- `layout/duration-beam-layout.ts`：tuplet seam 与连梁几何；
 - `layout/tuplet-layout.ts`：数字、bracket 和 bounds；
 - `layout/measure-layout.ts`、`layout/layout-helpers.ts`：接入产物与动态高度；
 - `apps/website/app/page.tsx`：函数式工具入口和纯 layout 渲染；
@@ -487,7 +489,7 @@ layout 输出最终文字、线段、短钩和 bracket 中央避让区；website
 
 ### 11.3 Layout
 
-- 完整 shared beam 只显示数字；rest、空 notes、长时值或不完整 beam 显示 bracket；
+- 有无完整 shared beam 均显示数字与 bracket；rest、空 notes 和长时值同样保留完整范围；
 - 相邻普通短音符不会让 group 错误隐藏 bracket；
 - `5:4`、`5:3` 都显示 `5`，但领域 ratio 与工具提示不同；
 - annotation 与多层 beam、flag、rest、附点和小节底部保持净空；
@@ -505,7 +507,7 @@ pnpm lint
 pnpm build
 ```
 
-浏览器至少验收：六种比例、notes/rest 混合 group、数字-only、bracket、撤销重做、小节复制、拍号变化和固定桌面打印视图。
+浏览器至少验收：六种比例、notes/rest 混合 group、统一数字与 bracket、撤销重做、小节复制、拍号变化和固定桌面打印视图。
 
 ## 12. 实施顺序
 
@@ -544,7 +546,7 @@ pnpm build
 - 任一成功结果都保持 Beat 连续且小节容量精确闭合；失败和 no-op 不产生部分修改或历史；
 - group 成员同 measure、连续、rhythm 完全一致，数量等于 actual，且不重叠、不嵌套；
 - 既有 rhythm、拍号、小节复制和删除命令不会破坏 group 或留下悬挂引用；
-- 完整连梁 group 只显示数字，其他 group 显示数字与 bracket；
+- 所有 group 始终显示数字与范围 bracket，不按连梁覆盖省略；
 - 数字和 bracket 不与 rhythm lane 内容碰撞，也不被 system 或 SVG viewBox 裁切；
 - website 不计算比例时长、group 合法性、beam 覆盖或 bracket 几何；
 - 连音组不跨 measure，因此自动换行不会产生跨 system 实体或续接括号；

@@ -23,6 +23,7 @@ const createMeasure = (beats: ILXMMeasure["beats"]): ILXMMeasure => ({
   id: "measure-spacing-test",
   timeSignature: { numerator: 4, denominator: 4 },
   barline: "single",
+  tuplets: [],
   chordSymbols: [],
   beats,
 });

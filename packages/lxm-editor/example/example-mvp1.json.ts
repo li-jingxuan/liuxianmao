@@ -25,7 +25,7 @@ import { ILXMDocument } from "../src";
 
 const EXAMPLE_MVP_1: ILXMDocument = {
   schema: "lxm-tab-score",
-  schemaVersion: 1,
+  schemaVersion: 2,
   documentRevision: 1,
   // 乐谱信息
   score: {
@@ -68,6 +68,7 @@ const EXAMPLE_MVP_1: ILXMDocument = {
             // 小节线
             barline: "single",
             // 和弦
+            tuplets: [],
             chordSymbols: [
               {
                 id: "chord-symbol-001",

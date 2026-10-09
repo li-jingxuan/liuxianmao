@@ -9,6 +9,7 @@ import {
   ILXMNoteLayout,
   ILXMStringLineLayout,
 } from "./layout-types";
+import { createMeasureRhythmContext } from "../core/tuplet";
 import { arraySortByKey } from "./layout-helpers";
 import {
   ILXMBeat,
@@ -17,7 +18,6 @@ import {
   ILXMRhythmBase,
 } from "../core/types";
 import {
-  calculateRhythmTicks,
   getMeasureCapacityTicks,
   getTimeSignatureBeatGroupTicks,
 } from "../core/rhythm";
@@ -131,6 +131,8 @@ export const groupContiguousMarks = (
     return index < 0 ? beatGroupEndTicks.length : index;
   };
 
+  const context = createMeasureRhythmContext(measure);
+  let previousTupletId: string | undefined;
   let currentGroup: ILXMDurationMarkLayout[] = [];
   let previousBeatEndTick: number | null = null;
   let previousBeatEndGroupIndex: number | null = null;
@@ -144,9 +146,10 @@ export const groupContiguousMarks = (
     }
   };
 
-  for (const beat of arraySortByKey<ILXMBeat>(measure.beats, "tick")) {
+  for (const beat of arraySortByKey<ILXMBeat>([...measure.beats], "tick")) {
     const mark = markByBeatId.get(beat.id);
-    const rhythmTicksResult = calculateRhythmTicks(beat.rhythm);
+    const tupletId = context.tupletByBeatId.get(beat.id)?.id;
+    const rhythmTicksResult = context.getBeatDurationTicks(beat);
 
     if (!rhythmTicksResult.ok) {
       throw new Error(`rhythm tick is invalid! beat id: ${beat.id}`);
@@ -168,6 +171,7 @@ export const groupContiguousMarks = (
       previousBeatEndTick = null;
       previousBeatEndGroupIndex = null;
       previousBeatCrossesGroupBoundary = false;
+      previousTupletId = undefined;
       continue;
     }
 
@@ -179,14 +183,17 @@ export const groupContiguousMarks = (
      */
     if (
       previousBeatEndTick !== null &&
-      (previousBeatCrossesGroupBoundary ||
+      (previousTupletId !== tupletId ||
         previousBeatEndTick !== beatStartTick ||
-        previousBeatEndGroupIndex !== beatStartGroupIndex)
+        (!tupletId &&
+          (previousBeatCrossesGroupBoundary ||
+            previousBeatEndGroupIndex !== beatStartGroupIndex)))
     ) {
       flushCurrentGroup();
     }
 
     currentGroup.push(mark);
+    previousTupletId = tupletId;
     previousBeatEndTick = beatEndTick;
     previousBeatEndGroupIndex = beatEndGroupIndex;
     previousBeatCrossesGroupBoundary = beatCrossesGroupBoundary;
@@ -431,7 +438,10 @@ export const layoutDurationBeams = (
 ): ILXMDurationBeamLayoutResult => {
   // 删除某拍最后一个音符后，该 beat 仍保留在时间轴中，但不应生成 -Infinity
   // 坐标的符干；因此只为实际有音符的 beat 计算时值图形。
-  const sourceBeats = arraySortByKey<ILXMBeat>(measure.beats, "tick").filter(
+  const sourceBeats = arraySortByKey<ILXMBeat>(
+    [...measure.beats],
+    "tick",
+  ).filter(
     // 休止符没有 TAB 音头，不能生成符干或连梁；空 notes beat 同样跳过。
     (beat) => beat.kind === "notes" && beat.notes.length > 0,
   );

@@ -13,6 +13,7 @@ const createValidMeasure = () => ({
   id: "measure-schema-test",
   timeSignature: { numerator: 4, denominator: 4 },
   barline: "single",
+  tuplets: [],
   chordSymbols: [],
   beats: [],
 });

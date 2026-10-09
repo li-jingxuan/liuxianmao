@@ -8,6 +8,7 @@
 
 import type {
   ILXMTrack,
+  ILXMTupletRatio,
   ILXMRhythm,
   ILXMBarlineType,
   ILXMTechniqueType,
@@ -109,7 +110,7 @@ export interface ILXMTechniqueSegmentLayout {
   systemIndex: number;
   segmentIndex: number;
   continuation: ILXMTechniqueContinuation;
-  /** -1 表示 staff 内局部记号；非负数表示 system 上方 lane。 */
+  /** -1 表示 staff 内固定记号；非负数表示相对自然锚点向上的避让级别。 */
   lane: number;
   path: ILXMTechniquePathLayout | null;
   /** 琶音等不能依赖 path 末端切线的技巧使用显式箭头。 */
@@ -120,6 +121,10 @@ export interface ILXMTechniqueSegmentLayout {
     end: { x: number; y: number };
   };
   texts: ILXMTextLayout[];
+  /** 可见图元、文字和箭头的保守包围框，坐标已经完成所有平移。 */
+  visualBounds: { x: number; y: number; width: number; height: number };
+  /** 可见范围加净空；二维 lane 分配与回归检查共用此范围。 */
+  collisionBounds: { x: number; y: number; width: number; height: number };
   bounds: { x: number; y: number; width: number; height: number };
 }
 
@@ -162,6 +167,7 @@ export interface ILXMMeasureLayout {
   durationMarks: ILXMDurationMarkLayout[];
   // 连梁布局，供渲染层绘制时值连接线。
   beamSegments: ILXMBeamSegmentLayout[];
+  tuplets: ILXMTupletLayout[];
 
   // 小节的边界框，用于后期做命中检测、框选 等
   // bounds: [],
@@ -395,4 +401,23 @@ export interface ILXMDurationMarkLayout {
   dots: number;
   /** 每个附点的布局中心；无附点时为空数组。 */
   dotAnchors: ILXMDurationDotAnchor[];
+}
+
+/** 已完成坐标计算的连音标注；SVG 只消费最终文字和线段。 */
+export interface ILXMTupletLayout {
+  id: string;
+  measureId: string;
+  beatIds: string[];
+  ratio: ILXMTupletRatio;
+  label: ILXMTextLayout;
+  bracket: null | {
+    x1: number;
+    x2: number;
+    y: number;
+    hookLength: number;
+    gapX1: number;
+    gapX2: number;
+    strokeWidth: number;
+    lines: { x1: number; x2: number; y1: number; y2: number }[];
+  };
 }

@@ -3,7 +3,7 @@
  *
  * 外部只调用 layoutTrackTechniques(track, baseSystems)。Module 内部完成四件事：
  * 1. 把领域技巧解析为当前自动断行下的 system segment；
- * 2. 对上方技巧按水平碰撞区间分配 lane；
+ * 2. 对自然几何按二维碰撞范围分配向上的 lane；
  * 3. 统一下移 staff 正文并重新排列后续 system；
  * 4. 输出页面可直接渲染的 SVG path、文字与命中 bounds。
  *
@@ -13,17 +13,18 @@
 import { buildTechniqueIndex } from "../core/technique-rules";
 import type { ILXMTechnique, ILXMTrack } from "../core/types";
 import {
-  LXM_TECHNIQUE_AREA_PADDING_BOTTOM,
   LXM_TECHNIQUE_AREA_PADDING_TOP,
   LXM_TECHNIQUE_ARROW_HEIGHT,
   LXM_TECHNIQUE_ARROW_WIDTH,
-  LXM_TECHNIQUE_HIT_PADDING,
-  LXM_TECHNIQUE_HORIZONTAL_CLEARANCE,
   LXM_TECHNIQUE_LANE_HEIGHT,
   LXM_TECHNIQUE_PATH_STROKE_WIDTH,
   LXM_TECHNIQUE_TEXT_FONT_SIZE,
   LXM_DURATION_STEM_NOTE_GAP,
   LXM_TECHNIQUE_ARROW_OFFSET_Y,
+  LXM_TECHNIQUE_NOTE_CLEARANCE_Y,
+  LXM_TECHNIQUE_FRET_GAP_X,
+  LXM_TECHNIQUE_CURVE_HEIGHT,
+  LXM_TECHNIQUE_STAFF_CLEARANCE_Y,
 } from "./layout-constants";
 import type {
   ILXMBarlineLayout,
@@ -35,6 +36,13 @@ import type {
   ILXMTextLayout,
 } from "./layout-types";
 
+import {
+  boundsIntersect,
+  getFretTextBounds,
+  translateTechniqueSegment,
+  withTechniqueBounds,
+} from "./technique-geometry";
+
 interface ILXMTechniqueCandidate {
   technique: ILXMTechnique;
   systemIndex: number;
@@ -44,6 +52,8 @@ interface ILXMTechniqueCandidate {
   x2: number;
   /** staffLocal 技巧不占 system 上方 lane。 */
   staffLocal: boolean;
+  /** 当前分段覆盖的稳定 Beat ID，按领域时间顺序保存。 */
+  coveredBeatIds: string[];
 }
 
 interface ILXMAnchorMaps {
@@ -212,9 +222,7 @@ const applyChordTraversalDurationProjection = (
               : 0;
           return Math.max(
             lowestY,
-            stringY +
-              LXM_DURATION_STEM_NOTE_GAP +
-              techniqueBottomOffset,
+            stringY + LXM_DURATION_STEM_NOTE_GAP + techniqueBottomOffset,
           );
         }, mark.stemY1);
         if (stemY1 === mark.stemY1) return mark;
@@ -297,8 +305,13 @@ const createCandidates = (
   track: ILXMTrack,
   systems: ILXMSystemLayout[],
   anchors: ILXMAnchorMaps,
-): ILXMTechniqueCandidate[] =>
-  track.techniques.flatMap((technique) => {
+): ILXMTechniqueCandidate[] => {
+  // 一次建立领域时间顺序，区间分段只读取稳定索引，不按像素或技巧反复扫描谱面。
+  const beatIds = track.measures.flatMap((measure) =>
+    measure.beats.map((beat) => beat.id),
+  );
+  const beatIndexById = new Map(beatIds.map((id, index) => [id, index]));
+  return track.techniques.flatMap((technique) => {
     const endpoints = getTechniqueEndpoints(technique, anchors);
     if (!endpoints) return [];
     if (
@@ -314,6 +327,18 @@ const createCandidates = (
       // buildLayout 是公开函数，不能假设所有调用者都先执行过语义校验。非法整拍
       // 技巧直接跳过，比输出含 Infinity/NaN 的 path 与 bounds 更安全、可预测。
       return [];
+    const rangeStart =
+      "fromBeatId" in technique
+        ? (beatIndexById.get(technique.fromBeatId) ?? -1)
+        : -1;
+    const rangeEnd =
+      "toBeatId" in technique
+        ? (beatIndexById.get(technique.toBeatId) ?? -1)
+        : -1;
+    const coveredBeatIds =
+      rangeStart >= 0 && rangeEnd >= rangeStart
+        ? beatIds.slice(rangeStart, rangeEnd + 1)
+        : [];
     const candidates: ILXMTechniqueCandidate[] = [];
     for (
       let systemIndex = endpoints.startSystem;
@@ -339,45 +364,82 @@ const createCandidates = (
         x1: isFirst ? endpoints.startX : system.header.staffX + 4,
         x2: isLast ? endpoints.endX : getSystemRight(system) - 4,
         staffLocal: isStaffLocal(technique),
+        coveredBeatIds: coveredBeatIds.filter(
+          (id) => anchors.beats.get(id)?.systemIndex === systemIndex,
+        ),
       });
     }
     return candidates;
   });
+};
 
-/** first-fit interval partitioning：稳定、确定且能复用最低空闲 lane。 */
+/** 稳定二维 first-fit；每次向上移动完整自然 plan，直到避开已放置图形和品位文字。 */
 const assignLanes = (
   candidates: ILXMTechniqueCandidate[],
-  systemCount: number,
-): { lanes: Map<ILXMTechniqueCandidate, number>; laneCounts: number[] } => {
-  const lanes = new Map<ILXMTechniqueCandidate, number>();
-  const laneCounts = Array.from({ length: systemCount }, () => 0);
-  for (let systemIndex = 0; systemIndex < systemCount; systemIndex += 1) {
-    const laneEnds: number[] = [];
-    const ordered = candidates
-      .filter(
-        (candidate) =>
-          candidate.systemIndex === systemIndex && !candidate.staffLocal,
-      )
-      .sort(
-        (left, right) =>
-          left.x1 - right.x1 ||
-          left.x2 - right.x2 ||
-          left.technique.id.localeCompare(right.technique.id),
-      );
-    ordered.forEach((candidate) => {
-      const lane = laneEnds.findIndex(
-        (end) => end + LXM_TECHNIQUE_HORIZONTAL_CLEARANCE < candidate.x1,
-      );
-      const assigned = lane < 0 ? laneEnds.length : lane;
-      laneEnds[assigned] = candidate.x2;
-      lanes.set(candidate, assigned);
-    });
-    laneCounts[systemIndex] = laneEnds.length;
-  }
-  candidates
-    .filter((candidate) => candidate.staffLocal)
-    .forEach((candidate) => lanes.set(candidate, -1));
-  return { lanes, laneCounts };
+  naturalPlans: Map<ILXMTechniqueCandidate, ILXMTechniqueSegmentLayout>,
+  anchors: ILXMAnchorMaps,
+): Map<number, ILXMTechniqueSegmentLayout[]> => {
+  const segmentsBySystem = new Map<number, ILXMTechniqueSegmentLayout[]>();
+  const ordered = [...candidates].sort((left, right) => {
+    const a = naturalPlans.get(left)!.collisionBounds;
+    const b = naturalPlans.get(right)!.collisionBounds;
+    return (
+      left.systemIndex - right.systemIndex ||
+      a.x - b.x ||
+      a.x + a.width - b.x - b.width ||
+      left.technique.id.localeCompare(right.technique.id) ||
+      left.segmentIndex - right.segmentIndex
+    );
+  });
+  // 先登记固定的 staffLocal 障碍，避免遍历顺序让后加入的泛音/扫弦撞到局部技巧。
+  [
+    ...ordered.filter((candidate) => candidate.staffLocal),
+    ...ordered.filter((candidate) => !candidate.staffLocal),
+  ].forEach((candidate) => {
+    const natural = naturalPlans.get(candidate)!;
+    const placed = segmentsBySystem.get(candidate.systemIndex) ?? [];
+    const technique = candidate.technique;
+    const ownNoteIds = new Set<string>();
+    if ("fromNoteId" in technique) ownNoteIds.add(technique.fromNoteId);
+    if ("toNoteId" in technique) ownNoteIds.add(technique.toNoteId);
+    if ("beatId" in technique) {
+      anchors.beats
+        .get(technique.beatId)
+        ?.notes.forEach((note) => ownNoteIds.add(note.id));
+    }
+    // 区间说明始终位于 staff 上方；只有音符局部技巧需要避让其它品位文字。
+    const obstacles =
+      candidate.staffLocal || "fromBeatId" in technique
+        ? []
+        : [...anchors.notes.values()]
+            .filter(
+              (note) =>
+                note.systemIndex === candidate.systemIndex &&
+                !ownNoteIds.has(note.layout.id),
+            )
+            .map((note) => getFretTextBounds(note.layout));
+    let lane = candidate.staffLocal ? -1 : 0;
+    let segment = natural;
+    if (!candidate.staffLocal) {
+      while (
+        placed.some((other) =>
+          boundsIntersect(segment.collisionBounds, other.collisionBounds),
+        ) ||
+        obstacles.some((bounds) =>
+          boundsIntersect(segment.collisionBounds, bounds),
+        )
+      ) {
+        lane += 1;
+        segment = translateTechniqueSegment(
+          natural,
+          -lane * LXM_TECHNIQUE_LANE_HEIGHT,
+        );
+      }
+    }
+    placed.push({ ...segment, lane });
+    segmentsBySystem.set(candidate.systemIndex, placed);
+  });
+  return segmentsBySystem;
 };
 
 const translateBarline = (
@@ -432,6 +494,21 @@ const translateMeasure = (
     ...beam,
     y: beam.y + dy,
   })),
+  tuplets: measure.tuplets.map((group) => ({
+    ...group,
+    label: { ...group.label, y: group.label.y + dy },
+    bracket: group.bracket
+      ? {
+          ...group.bracket,
+          y: group.bracket.y + dy,
+          lines: group.bracket.lines.map((line) => ({
+            ...line,
+            y1: line.y1 + dy,
+            y2: line.y2 + dy,
+          })),
+        }
+      : null,
+  })),
   durationMarks: measure.durationMarks.map((mark) => ({
     ...mark,
     head: { ...mark.head, y: mark.head.y + dy },
@@ -449,18 +526,24 @@ const translateMeasure = (
 
 const translateSystems = (
   systems: ILXMSystemLayout[],
-  laneCounts: number[],
+  segmentsBySystem: Map<number, ILXMTechniqueSegmentLayout[]>,
   systemGapY: number,
 ): ILXMSystemLayout[] => {
   let nextTop = systems[0]?.y ?? 0;
   return systems.map((system) => {
-    const laneCount = laneCounts[system.index] ?? 0;
-    const techniqueHeight =
-      laneCount === 0
-        ? 0
-        : LXM_TECHNIQUE_AREA_PADDING_TOP +
-          laneCount * LXM_TECHNIQUE_LANE_HEIGHT +
-          LXM_TECHNIQUE_AREA_PADDING_BOTTOM;
+    const segments = segmentsBySystem.get(system.index) ?? [];
+    const laneCount = Math.max(
+      0,
+      ...segments.map((segment) => segment.lane + 1),
+    );
+    // 从最终图形而非 lane 数量反推扩高，顶部 padding 同时覆盖命中净空。
+    const minVisualY = Math.min(
+      ...segments.map((segment) => segment.visualBounds.y),
+    );
+    const techniqueHeight = Math.max(
+      0,
+      system.y + LXM_TECHNIQUE_AREA_PADDING_TOP - minVisualY,
+    );
     const newTop = nextTop;
     const contentDy = newTop + techniqueHeight - system.y;
     const translated: ILXMSystemLayout = {
@@ -487,7 +570,9 @@ const translateSystems = (
       measures: system.measures.map((measure) =>
         translateMeasure(measure, contentDy),
       ),
-      techniques: [],
+      techniques: segments.map((segment) =>
+        translateTechniqueSegment(segment, contentDy),
+      ),
     };
     nextTop = translated.y + translated.height + systemGapY;
     return translated;
@@ -527,27 +612,44 @@ const verticalWavePath = (x: number, y1: number, y2: number): string => {
   return parts.join(" ");
 };
 
-const getTranslatedAnchorMaps = (systems: ILXMSystemLayout[]) =>
-  buildAnchorMaps(systems);
-
-const createSegmentLayout = (
+/** 以 base system 页面坐标一次生成自然几何，后续阶段只做整体平移。 */
+const createNaturalSegmentLayout = (
   candidate: ILXMTechniqueCandidate,
-  lane: number,
   system: ILXMSystemLayout,
   anchors: ILXMAnchorMaps,
 ): ILXMTechniqueSegmentLayout => {
   const technique = candidate.technique;
+  const anchorNotes: ILXMNoteLayout[] = [];
+  if ("fromNoteId" in technique) {
+    const from = anchors.notes.get(technique.fromNoteId);
+    if (from?.systemIndex === candidate.systemIndex)
+      anchorNotes.push(from.layout);
+  }
+  if ("toNoteId" in technique) {
+    const to = anchors.notes.get(technique.toNoteId);
+    if (to?.systemIndex === candidate.systemIndex) anchorNotes.push(to.layout);
+  }
+  if ("beatId" in technique)
+    anchorNotes.push(...(anchors.beats.get(technique.beatId)?.notes ?? []));
+  const staffTop = system.measures[0]?.strings[0]?.y1 ?? system.y;
+  const staffBaseline = staffTop - LXM_TECHNIQUE_STAFF_CLEARANCE_Y;
+  const rangeNotes = candidate.coveredBeatIds.flatMap(
+    (id) => anchors.beats.get(id)?.notes ?? [],
+  );
   const laneY =
-    system.y +
-    LXM_TECHNIQUE_AREA_PADDING_TOP +
-    (lane + 1) * LXM_TECHNIQUE_LANE_HEIGHT -
-    4;
+    "fromBeatId" in technique
+      ? Math.min(
+          staffBaseline,
+          ...rangeNotes.map((note) => note.y - LXM_TECHNIQUE_NOTE_CLEARANCE_Y),
+        )
+      : anchorNotes.length > 0
+        ? Math.min(...anchorNotes.map((note) => note.y)) -
+          LXM_TECHNIQUE_NOTE_CLEARANCE_Y
+        : staffBaseline;
   let path: ILXMTechniqueSegmentLayout["path"] = null;
   let arrowHead: ILXMTechniqueSegmentLayout["arrowHead"];
   let focusEndpoints: ILXMTechniqueSegmentLayout["focusEndpoints"];
   let texts: ILXMTextLayout[] = [];
-  let minY = laneY - 8;
-  let maxY = laneY + 4;
   let x1 = Math.min(candidate.x1, candidate.x2);
   let x2 = Math.max(candidate.x1, candidate.x2);
 
@@ -559,18 +661,45 @@ const createSegmentLayout = (
       from &&
       to
     ) {
-      x1 = from.x + 6;
-      x2 = to.x - 6;
-      minY = Math.min(from.y, to.y) - 4;
-      maxY = Math.max(from.y, to.y) + 4;
+      const fromIsLocal =
+        anchors.notes.get(technique.fromNoteId)?.systemIndex ===
+        candidate.systemIndex;
+      const toIsLocal =
+        anchors.notes.get(technique.toNoteId)?.systemIndex ===
+        candidate.systemIndex;
+      x1 = fromIsLocal ? from.x + 6 : candidate.x1;
+      x2 = toIsLocal ? to.x - 6 : candidate.x2;
+      const localStringY =
+        system.measures[0]?.strings.find(
+          (string) => string.index === from.string,
+        )?.y1 ?? staffTop;
       path = {
-        d: `M ${x1} ${from.y} L ${x2} ${to.y}`,
+        d: `M ${x1} ${fromIsLocal ? from.y : localStringY} L ${x2} ${toIsLocal ? to.y : localStringY}`,
         strokeWidth: LXM_TECHNIQUE_PATH_STROKE_WIDTH,
       };
     } else {
       const curveY = laneY;
+      // 真实首尾端避开完整品位与白色描边；续接端保持在本行 staff 安全边。
+      const fromBounds = from ? getFretTextBounds(from) : null;
+      const toBounds = to ? getFretTextBounds(to) : null;
+      const startX =
+        candidate.continuation === "none" || candidate.continuation === "toNext"
+          ? fromBounds
+            ? fromBounds.x + fromBounds.width + LXM_TECHNIQUE_FRET_GAP_X
+            : candidate.x1
+          : candidate.x1;
+      const endX =
+        candidate.continuation === "none" ||
+        candidate.continuation === "fromPrevious"
+          ? toBounds
+            ? toBounds.x - LXM_TECHNIQUE_FRET_GAP_X
+            : candidate.x2
+          : candidate.x2;
+      // 极短距离退化为零长安全弧线，不生成方向反转的路径。
+      x1 = startX;
+      x2 = Math.max(startX, endX);
       path = {
-        d: `M ${candidate.x1} ${curveY} Q ${(candidate.x1 + candidate.x2) / 2} ${curveY - 8} ${candidate.x2} ${curveY}`,
+        d: `M ${x1} ${curveY} Q ${(x1 + x2) / 2} ${curveY - LXM_TECHNIQUE_CURVE_HEIGHT} ${x2} ${curveY}`,
         strokeWidth: LXM_TECHNIQUE_PATH_STROKE_WIDTH,
       };
       if (
@@ -580,8 +709,8 @@ const createSegmentLayout = (
         texts = [
           text(
             technique.type === "hammerOn" ? "H" : "P",
-            (candidate.x1 + candidate.x2) / 2,
-            curveY - 5,
+            (x1 + x2) / 2,
+            curveY - LXM_TECHNIQUE_NOTE_CLEARANCE_Y,
           ),
         ];
     }
@@ -601,31 +730,34 @@ const createSegmentLayout = (
     const beat = anchors.beats.get(technique.beatId);
     if (beat) {
       if (technique.type === "pickStroke") {
-        texts = [text(technique.stroke === "down" ? "⌄" : "⌃", beat.x, laneY)];
+        texts = [
+          text(
+            technique.stroke === "down" ? "⌄" : "⌃",
+            beat.notes[0]?.x ?? beat.x,
+            laneY,
+          ),
+        ];
       } else {
         const fromY = beat.stringYByIndex.get(technique.minString);
         const toY = beat.stringYByIndex.get(technique.maxString);
         // createCandidates 已过滤非法范围；这里保留窄化守卫，防止未来 anchor 构建
         // 契约变化时把 undefined 坐标传播到 SVG path。
-        if (fromY === undefined || toY === undefined) return {
+        if (fromY === undefined || toY === undefined) {
+          return withTechniqueBounds({
             techniqueId: technique.id,
             type: technique.type,
             systemIndex: candidate.systemIndex,
             segmentIndex: candidate.segmentIndex,
             continuation: candidate.continuation,
-            lane,
+            lane: -1,
             path: null,
             texts: [],
-            bounds: { x: beat.x, y: 0, width: 0, height: 0 },
-          };
+          });
+        }
         const y1 = Math.min(fromY, toY) - 2;
         const y2 = Math.max(fromY, toY) + 2;
         // 基础品位在投影阶段隐藏，因此记号应与 Beat/Note 的时间中心重合。
         const x = beat.x;
-        x1 = x - 3;
-        x2 = x + 3;
-        minY = y1;
-        maxY = y2;
         const directionStartY =
           technique.type === "arpeggio"
             ? technique.direction === "ascending"
@@ -661,7 +793,10 @@ const createSegmentLayout = (
               };
         if (technique.type === "arpeggio") {
           const direction = technique.direction === "ascending" ? "up" : "down";
-          const offsetTipY = direction === "up" ? -LXM_TECHNIQUE_ARROW_OFFSET_Y : LXM_TECHNIQUE_ARROW_OFFSET_Y;
+          const offsetTipY =
+            direction === "up"
+              ? -LXM_TECHNIQUE_ARROW_OFFSET_Y
+              : LXM_TECHNIQUE_ARROW_OFFSET_Y;
           const tipY = (direction === "up" ? y1 : y2) + offsetTipY;
           const baseY =
             direction === "up"
@@ -675,10 +810,6 @@ const createSegmentLayout = (
               [x + LXM_TECHNIQUE_ARROW_WIDTH / 2, baseY],
             ],
           };
-          minY = Math.min(minY, tipY, baseY);
-          maxY = Math.max(maxY, tipY, baseY);
-          x1 = Math.min(x1, x - LXM_TECHNIQUE_ARROW_WIDTH / 2);
-          x2 = Math.max(x2, x + LXM_TECHNIQUE_ARROW_WIDTH / 2);
         }
       }
     }
@@ -687,12 +818,8 @@ const createSegmentLayout = (
     if (note) {
       if (technique.type === "naturalHarmonic") {
         texts = [text(`<${note.fret}>`, note.x, note.y + 4)];
-        minY = note.y - 8;
-        maxY = note.y + 6;
       } else if (technique.type === "artificialHarmonic") {
         texts = [text(`[${note.fret}]`, note.x, note.y + 4)];
-        minY = note.y - 8;
-        maxY = note.y + 6;
       } else if (technique.type === "vibrato") {
         path = {
           d: wavePath(note.x - 8, note.x + 12, laneY),
@@ -705,7 +832,6 @@ const createSegmentLayout = (
           markerEnd: "arrow",
         };
         texts = [text("Full", note.x + 20, laneY - 5)];
-        x2 = note.x + 36;
       } else if (technique.type === "tapping") {
         texts = [text("T", note.x, laneY)];
       } else if (technique.type === "trill") {
@@ -714,30 +840,22 @@ const createSegmentLayout = (
           d: wavePath(note.x + 10, note.x + 28, laneY - 3),
           strokeWidth: LXM_TECHNIQUE_PATH_STROKE_WIDTH,
         };
-        x2 = note.x + 30;
       }
     }
   }
 
-  const padding = LXM_TECHNIQUE_HIT_PADDING;
-  return {
+  return withTechniqueBounds({
     techniqueId: technique.id,
     type: technique.type,
     systemIndex: candidate.systemIndex,
     segmentIndex: candidate.segmentIndex,
     continuation: candidate.continuation,
-    lane,
+    lane: candidate.staffLocal ? -1 : 0,
     path,
     ...(arrowHead ? { arrowHead } : {}),
     ...(focusEndpoints ? { focusEndpoints } : {}),
     texts,
-    bounds: {
-      x: x1 - padding,
-      y: minY - padding,
-      width: Math.max(8, x2 - x1 + padding * 2),
-      height: Math.max(8, maxY - minY + padding * 2),
-    },
-  };
+  });
 };
 
 export const layoutTrackTechniques = (
@@ -750,28 +868,21 @@ export const layoutTrackTechniques = (
   buildTechniqueIndex(track);
   const baseAnchors = buildAnchorMaps(baseSystems);
   const candidates = createCandidates(track, baseSystems, baseAnchors);
-  const { lanes, laneCounts } = assignLanes(candidates, baseSystems.length);
-  const systems = translateSystems(baseSystems, laneCounts, systemGapY);
-  const anchors = getTranslatedAnchorMaps(systems);
-
-  const segmentsBySystem = new Map<number, ILXMTechniqueSegmentLayout[]>();
-  candidates.forEach((candidate) => {
-    const system = systems[candidate.systemIndex];
-    if (!system) return;
-    const segment = createSegmentLayout(
+  const naturalPlans = new Map(
+    candidates.map((candidate) => [
       candidate,
-      lanes.get(candidate) ?? -1,
-      system,
-      anchors,
-    );
-    const segments = segmentsBySystem.get(candidate.systemIndex) ?? [];
-    segments.push(segment);
-    segmentsBySystem.set(candidate.systemIndex, segments);
-  });
-
+      createNaturalSegmentLayout(
+        candidate,
+        baseSystems[candidate.systemIndex]!,
+        baseAnchors,
+      ),
+    ]),
+  );
+  const segmentsBySystem = assignLanes(candidates, naturalPlans, baseAnchors);
+  const systems = translateSystems(baseSystems, segmentsBySystem, systemGapY);
   const systemsWithTechniques = systems.map((system) => ({
     ...system,
-    techniques: (segmentsBySystem.get(system.index) ?? []).sort(
+    techniques: [...system.techniques].sort(
       (left, right) =>
         left.lane - right.lane ||
         left.bounds.x - right.bounds.x ||
@@ -785,6 +896,6 @@ export const layoutTrackTechniques = (
       systemsWithTechniques,
       track.techniques,
     ),
-    getFretSuppressionRanges(track.techniques, anchors),
+    getFretSuppressionRanges(track.techniques, baseAnchors),
   );
 };
