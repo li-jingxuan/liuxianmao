@@ -19,6 +19,7 @@ import {
 import type { ILXMLayoutDensity, ILXMSystemLayout } from "./layout-types";
 import { shouldShowTimeSignature } from "./time-signature-layout";
 import { layoutSystemHeader } from "./system-header-layout";
+import { alignSystemTuplets } from "./tuplet-layout";
 
 /** system 断行所需的已解析配置，避免函数内部读取默认常量。 */
 export interface ILXMSystemLayoutOptions {
@@ -179,8 +180,7 @@ export const layoutSystems = (
 
     const staffX = options.startX + LXM_SYSTEM_HEADER_WIDTH;
     let cursorX = staffX;
-    let systemHeight = 0;
-    const laidOutMeasures = pendingMeasures.map(
+    const rawMeasures = pendingMeasures.map(
       ({ measure, index }, measureIndex) => {
         const isLastMeasure = measureIndex === pendingMeasures.length - 1;
         // 最后一个小节直接使用目标右边界减去当前游标，吸收小节比例分配、gap
@@ -213,9 +213,13 @@ export const layoutSystems = (
         };
         const layout = layoutMeasure(measure, context);
         cursorX += layout.width + options.measureGap;
-        systemHeight = Math.max(systemHeight, layout.height);
         return layout;
       },
+    );
+    // 小节的局部节奏净空计算完毕后统一连音高度；歌词和技巧消费此最终几何。
+    const laidOutMeasures = alignSystemTuplets(rawMeasures);
+    const systemHeight = Math.max(
+      ...laidOutMeasures.map((measure) => measure.height),
     );
 
     const firstPending = pendingMeasures[0]!;

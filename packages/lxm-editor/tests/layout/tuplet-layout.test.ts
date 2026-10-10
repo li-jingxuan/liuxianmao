@@ -8,9 +8,87 @@ import {
 } from "../../src/core/commands";
 import example from "../../example/example-mvp5.1.json";
 import v5 from "../../example/example-mvp5.json";
+import v6 from "../../example/example-mvp6.json";
+import { alignSystemTuplets } from "../../src/layout/tuplet-layout";
 const measures = example.score.tracks[0]!.measures;
 
 describe("连音布局的最终几何", () => {
+  it.each(["compact", "comfortable"] as const)(
+    "%s 同一谱行中符尾、连梁和休止符不再造成括号端点高低不齐",
+    (density) => {
+      for (const systemWidth of [720, 10000]) {
+        const layout = buildLayout(example, { systemWidth, density });
+        for (const system of layout.systems) {
+          const groups = system.measures.flatMap((measure) => measure.tuplets);
+          expect(new Set(groups.map((group) => group.label.y)).size).toBe(1);
+          expect(new Set(groups.map((group) => group.bracket!.y)).size).toBe(1);
+          for (const group of groups) {
+            const [left, right] = group.bracket!.lines.slice(2);
+            expect(left!.y1).toBe(right!.y1);
+            expect(left!.y2).toBe(right!.y2);
+          }
+        }
+      }
+    },
+  );
+  it("统一标注高度保留水平锚点与净空，且不修改原始小节布局", () => {
+    const raw = [measures[0]!, measures[7]!].map((measure, index) =>
+      layoutMeasure(measure, {
+        index,
+        systemIndex: 0,
+        x: index * 400,
+        y: 30,
+        density: "compact",
+      }),
+    );
+    const before = structuredClone(raw);
+    expect(raw[0]!.tuplets[0]!.label.y).toBeLessThan(
+      raw[1]!.tuplets[0]!.label.y,
+    );
+    const aligned = alignSystemTuplets(raw);
+    expect(raw).toEqual(before);
+    aligned.forEach((measure, index) => {
+      const group = measure.tuplets[0]!;
+      const old = before[index]!.tuplets[0]!;
+      expect(group.label.y).toBe(before[1]!.tuplets[0]!.label.y);
+      expect(group.label.x).toBe(old.label.x);
+      expect(group.bracket!.x1).toBe(old.bracket!.x1);
+      expect(group.bracket!.x2).toBe(old.bracket!.x2);
+      expect(group.bracket!.gapX1).toBe(old.bracket!.gapX1);
+      expect(group.bracket!.gapX2).toBe(old.bracket!.gapX2);
+      expect(group.label.y - group.bracket!.y).toBeCloseTo(
+        old.label.y - old.bracket!.y,
+      );
+      expect(group.label.y + 12).toBeLessThanOrEqual(
+        measure.y + measure.height,
+      );
+    });
+  });
+  it("含歌词与技巧的最终谱行仍对齐括号，并为歌词和下一行保留净空", () => {
+    const layout = buildLayout(v6, { systemWidth: 720, density: "compact" });
+    layout.systems.forEach((system, index) => {
+      const groups = system.measures.flatMap((measure) => measure.tuplets);
+      expect(new Set(groups.map((group) => group.bracket!.y)).size).toBe(1);
+      const annotationBottom = Math.max(
+        ...groups.map((group) => group.label.y + 12),
+      );
+      system.measures.forEach((measure) => {
+        measure.lyrics!.forEach((lyric) =>
+          expect(lyric.bounds.y).toBeGreaterThan(annotationBottom),
+        );
+        measure.durationMarks.forEach((mark) => {
+          if (mark.flag && measure.tuplets.length)
+            expect(measure.tuplets[0]!.bracket!.lines[2]!.y2).toBeGreaterThan(
+              mark.flag.y + 36,
+            );
+        });
+      });
+      if (index > 0)
+        expect(system.y).toBeGreaterThanOrEqual(
+          layout.systems[index - 1]!.y + layout.systems[index - 1]!.height,
+        );
+    });
+  });
   it.each(["compact", "comfortable"] as const)(
     "%s 六种比例实际 ticks 与书写视觉权重",
     (density) => {

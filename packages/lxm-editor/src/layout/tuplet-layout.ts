@@ -7,6 +7,7 @@ import type {
   ILXMRestLayout,
   ILXMStringLineLayout,
   ILXMTupletLayout,
+  ILXMMeasureLayout,
 } from "./layout-types";
 import {
   LXM_DURATION_FLAG_DESCENT,
@@ -15,7 +16,46 @@ import {
   LXM_TUPLET_HOOK,
   LXM_TUPLET_GAP,
   LXM_TUPLET_STROKE,
+  LXM_TUPLET_BOTTOM_PADDING,
 } from "./layout-constants";
+
+/** 同一谱行共用最深的连音标注带；平移完整括号，保留首末 Beat 锚点。 */
+export const alignSystemTuplets = (
+  measures: ILXMMeasureLayout[],
+): ILXMMeasureLayout[] => {
+  const groups = measures.flatMap((measure) => measure.tuplets);
+  if (groups.length === 0) return measures;
+  const labelY = Math.max(...groups.map((group) => group.label.y));
+  return measures.map((measure) => {
+    if (measure.tuplets.length === 0) return measure;
+    return {
+      ...measure,
+      // 先更新小节下缘，再由 System 规划歌词与后续谱行，避免标注被覆盖。
+      height: Math.max(
+        measure.height,
+        labelY + LXM_TUPLET_BOTTOM_PADDING - measure.y,
+      ),
+      tuplets: measure.tuplets.map((group) => {
+        const dy = labelY - group.label.y;
+        return {
+          ...group,
+          label: { ...group.label, y: labelY },
+          bracket: group.bracket
+            ? {
+                ...group.bracket,
+                y: group.bracket.y + dy,
+                lines: group.bracket.lines.map((line) => ({
+                  ...line,
+                  y1: line.y1 + dy,
+                  y2: line.y2 + dy,
+                })),
+              }
+            : null,
+        };
+      }),
+    };
+  });
+};
 
 export const layoutTuplets = (
   measure: ILXMMeasure,
