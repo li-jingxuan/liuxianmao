@@ -186,14 +186,6 @@ export const LXM_DURATION_FLAG_FONT_SIZE = 18;
 export const LXM_DURATION_FLAG_OFFSET_X = 0;
 export const LXM_DURATION_FLAG_OFFSET_Y = 0;
 
-/**
- * Bravura 向下旗帜从 SVG text 原点向下延伸的最大视觉距离。
- *
- * 字体的 glyph bounding box 明显大于 CSS font-size，不能直接拿 18px 字号代替；
- * 此值由目标浏览器中三十二分旗帜的实际包围框向上取整得到。
- */
-export const LXM_DURATION_FLAG_DESCENT = 36;
-
 /** rhythm lane 最下方额外留白，避免字形被 SVG viewBox 裁切。 */
 export const LXM_DURATION_LANE_BOTTOM_PADDING = 12;
 

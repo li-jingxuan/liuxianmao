@@ -27,6 +27,7 @@ import { layoutRests } from "./rest-layout";
 import { layoutTuplets } from "./tuplet-layout";
 import { LXM_TUPLET_BOTTOM_PADDING } from "./layout-constants";
 import { layoutTimeSignature } from "./time-signature-layout";
+import { getRhythmBottom } from "./rhythm-bounds";
 
 export interface ILXMLayoutMeasureContext {
   musicTextMetrics?: ILXMMusicTextMetrics;
@@ -186,7 +187,13 @@ export const layoutMeasure = (
     timeSignature: showTimeSignature
       ? layoutTimeSignature(measure, x, y, leadingBarlineClearance)
       : null,
-    height: Math.max(calculateMeasureHeight(), annotationBottom - y),
+    height: Math.max(
+      calculateMeasureHeight(
+        y,
+        getRhythmBottom(strings, beamSegments, durationMarks, restMarks),
+      ),
+      annotationBottom - y,
+    ),
     tuplets,
     columns,
     beats,

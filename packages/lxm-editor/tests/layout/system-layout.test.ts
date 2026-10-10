@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { getDurationFlagBottom } from "../../src/layout/rhythm-bounds";
 
 import EXAMPLE_MVP_2 from "../../example/example-mvp2.json";
 import { loadDocument } from "../../src/core/loader";
@@ -379,14 +380,13 @@ describe("buildLayout 的 system 自动换行", () => {
     );
   });
 
-  it("小节高度完整容纳固定 rhythm lane 和底部留白", () => {
+  it("小节高度完整容纳实际节奏图形和底部留白", () => {
     const layout = buildLayout(EXAMPLE_MVP_2, { systemWidth: 1380 });
     const durationLaneFits = layout.systems.every((system) =>
       system.measures.every((measure) =>
         measure.durationMarks.every(
           (mark) =>
-            // Bravura down flag 在当前字号下从字形原点向下延伸约 36px。
-            (mark.flag ? mark.flag.y + 36 : mark.stemY2) <=
+            (mark.flag ? getDurationFlagBottom(mark.flag) : mark.stemY2) <=
             measure.y + measure.height - 12,
         ),
       ),

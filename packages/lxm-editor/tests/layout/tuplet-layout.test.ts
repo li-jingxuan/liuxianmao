@@ -10,6 +10,7 @@ import example from "../../example/example-mvp5.1.json";
 import v5 from "../../example/example-mvp5.json";
 import v6 from "../../example/example-mvp6.json";
 import { alignSystemTuplets } from "../../src/layout/tuplet-layout";
+import { getDurationFlagBottom } from "../../src/layout/rhythm-bounds";
 const measures = example.score.tracks[0]!.measures;
 
 describe("连音布局的最终几何", () => {
@@ -42,15 +43,15 @@ describe("连音布局的最终几何", () => {
       }),
     );
     const before = structuredClone(raw);
-    expect(raw[0]!.tuplets[0]!.label.y).toBeLessThan(
-      raw[1]!.tuplets[0]!.label.y,
-    );
+    expect(raw[0]!.tuplets[0]!.label.y).not.toBe(raw[1]!.tuplets[0]!.label.y);
     const aligned = alignSystemTuplets(raw);
     expect(raw).toEqual(before);
     aligned.forEach((measure, index) => {
       const group = measure.tuplets[0]!;
       const old = before[index]!.tuplets[0]!;
-      expect(group.label.y).toBe(before[1]!.tuplets[0]!.label.y);
+      expect(group.label.y).toBe(
+        Math.max(...before.map((m) => m.tuplets[0]!.label.y)),
+      );
       expect(group.label.x).toBe(old.label.x);
       expect(group.bracket!.x1).toBe(old.bracket!.x1);
       expect(group.bracket!.x2).toBe(old.bracket!.x2);
@@ -79,7 +80,7 @@ describe("连音布局的最终几何", () => {
         measure.durationMarks.forEach((mark) => {
           if (mark.flag && measure.tuplets.length)
             expect(measure.tuplets[0]!.bracket!.lines[2]!.y2).toBeGreaterThan(
-              mark.flag.y + 36,
+              getDurationFlagBottom(mark.flag),
             );
         });
       });
@@ -153,7 +154,7 @@ describe("连音布局的最终几何", () => {
           );
           measure.durationMarks.forEach((mark) => {
             expect(group.label.y - group.label.fontSize).toBeGreaterThan(
-              mark.flag ? mark.flag.y + 36 : mark.stemY2,
+              mark.flag ? getDurationFlagBottom(mark.flag) : mark.stemY2,
             );
           });
         }),

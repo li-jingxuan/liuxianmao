@@ -10,7 +10,6 @@ import type {
   ILXMMeasureLayout,
 } from "./layout-types";
 import {
-  LXM_DURATION_FLAG_DESCENT,
   LXM_TUPLET_FONT_SIZE,
   LXM_TUPLET_CLEARANCE,
   LXM_TUPLET_HOOK,
@@ -18,6 +17,7 @@ import {
   LXM_TUPLET_STROKE,
   LXM_TUPLET_BOTTOM_PADDING,
 } from "./layout-constants";
+import { getRhythmBottom } from "./rhythm-bounds";
 
 /** 同一谱行共用最深的连音标注带；平移完整括号，保留首末 Beat 锚点。 */
 export const alignSystemTuplets = (
@@ -66,19 +66,8 @@ export const layoutTuplets = (
   strings: ILXMStringLineLayout[],
 ): ILXMTupletLayout[] => {
   const byBeat = new Map(beats.map((beat) => [beat.id, beat]));
-  // 统一标注 lane 位于目标小节所有节奏图形之下，保守包含旗帜字体下缘。
-  const lowest = Math.max(
-    ...strings.map((line) => line.y1),
-    ...beams.map((beam) => beam.y + beam.thickness / 2),
-    ...marks.map((mark) =>
-      Math.max(
-        mark.stemY2,
-        mark.flag ? mark.flag.y + LXM_DURATION_FLAG_DESCENT : mark.stemY2,
-        ...mark.dotAnchors.map((dot) => dot.y + 2),
-      ),
-    ),
-    ...rests.map((rest) => rest.y + 18),
-  );
+  // 标注带位于实际节奏轮廓之下，不能把字体行框当作符尾墨迹下缘。
+  const lowest = getRhythmBottom(strings, beams, marks, rests);
   const labelY = lowest + LXM_TUPLET_CLEARANCE + LXM_TUPLET_FONT_SIZE;
   return measure.tuplets.map((group) => {
     const first = byBeat.get(group.beatIds[0]!)!;
