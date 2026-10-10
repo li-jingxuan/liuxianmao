@@ -1,3 +1,4 @@
+import { getMeasureContentBottom } from "./rhythm-bounds";
 import type { ILXMTrack } from "../core/types";
 import type { ILXMSystemLayout, ILXMMeasureLayout } from "./layout-types";
 import {
@@ -5,20 +6,65 @@ import {
   translateMeasure,
   translateBarline,
 } from "./technique-layout";
-import { translateTechniqueSegment } from "./technique-geometry";
-import { LXM_TECHNIQUE_AREA_PADDING_TOP } from "./layout-constants";
+import {
+  getFretTextBounds,
+  translateTechniqueSegment,
+} from "./technique-geometry";
+import {
+  LXM_TECHNIQUE_AREA_PADDING_TOP,
+  LXM_CHORD_CONTENT_CLEARANCE_Y,
+  LXM_CHORD_CONTENT_CLEARANCE_X,
+} from "./layout-constants";
 import {
   createChordBlock,
+  chordDiagramGridOffset,
   translateChordBlock,
   translateMusicGlyph,
+  type ChordSymbolLayout,
 } from "./music-text-layout";
 import {
   musicTextGlyph,
   musicTextRequest,
   unionMusicBounds,
   MUSIC_TEXT_LANE_GAP,
+  MUSIC_LYRIC_VERSE_GAP,
+  MUSIC_LYRIC_BOTTOM_GAP,
   type ILXMMusicTextMetrics,
 } from "./music-text-metrics";
+
+/** 各小节实际占位贡献约束，整行取最严格基线；远处标记不额外抬高和弦。 */
+const resolveChordBaseline = (
+  system: ILXMSystemLayout,
+  blocks: readonly ChordSymbolLayout[],
+): number => {
+  if (!blocks.length) return system.y;
+  const staffTop = system.measures[0]!.strings[0]!.y1;
+  const obstacles = [
+    ...system.measures.flatMap((measure) =>
+      measure.notes.map(getFretTextBounds),
+    ),
+    ...system.techniques.map((technique) => technique.visualBounds),
+  ].filter((bounds) => bounds.y < staffTop);
+  return Math.min(
+    ...blocks.map(({ bounds }) => {
+      const obstacleTop = Math.min(
+        staffTop,
+        ...obstacles
+          .filter(
+            (obstacle) =>
+              bounds.x <
+                obstacle.x + obstacle.width + LXM_CHORD_CONTENT_CLEARANCE_X &&
+              bounds.x + bounds.width + LXM_CHORD_CONTENT_CLEARANCE_X >
+                obstacle.x,
+          )
+          .map((obstacle) => obstacle.y),
+      );
+      return (
+        obstacleTop - LXM_CHORD_CONTENT_CLEARANCE_Y - (bounds.y + bounds.height)
+      );
+    }),
+  );
+};
 
 /** 技巧投影后规划文本；所有正文只平移一次，最后才创建 hitIndex。 */
 export const layoutSystemContent = (
@@ -38,15 +84,34 @@ export const layoutSystemContent = (
       0,
       system.y + LXM_TECHNIQUE_AREA_PADDING_TOP - techniqueTop,
     );
-    const allBlocks = system.measures.flatMap((m) =>
-      source.get(m.id)!.chordSymbols.map((s) => createChordBlock(s, metrics)),
+    const symbols = system.measures.flatMap(
+      (m) => source.get(m.id)!.chordSymbols,
     );
-    const chordBaseline =
-      Math.min(system.y, techniqueTop) -
-      MUSIC_TEXT_LANE_GAP -
-      Math.max(0, ...allBlocks.map((b) => b.bounds.y + b.bounds.height));
+    const gridOffsetY = chordDiagramGridOffset(symbols, metrics);
+    // 横坐标先确定，避让才能判断二维重叠；公共 Y 最后统一应用。
+    const blocksByMeasure = new Map(
+      system.measures.map((measure) => {
+        const anchors = new Map(measure.beats.map((beat) => [beat.id, beat.x]));
+        return [
+          measure.id,
+          source
+            .get(measure.id)!
+            .chordSymbols.map((symbol) =>
+              translateChordBlock(
+                createChordBlock(symbol, metrics, gridOffsetY),
+                anchors.get(symbol.beatId)!,
+                0,
+              ),
+            ),
+        ] as const;
+      }),
+    );
+    const chordBaseline = resolveChordBaseline(
+      system,
+      [...blocksByMeasure.values()].flat(),
+    );
     const bottom = Math.max(
-      system.y + system.height,
+      ...system.measures.map(getMeasureContentBottom),
       ...system.techniques.map((t) => t.visualBounds.y + t.visualBounds.height),
     );
     const maxVerse = Math.max(
@@ -67,7 +132,7 @@ export const layoutSystemContent = (
       6,
       ...glyphs.map((g) => g.bounds.y + g.bounds.height),
     );
-    const rowHeight = rowAscent + rowDescent + MUSIC_TEXT_LANE_GAP;
+    const rowHeight = rowAscent + rowDescent + MUSIC_LYRIC_VERSE_GAP;
     const lyricBaseline = bottom + MUSIC_TEXT_LANE_GAP + rowAscent;
     const measures: ILXMMeasureLayout[] = system.measures.map((measure) => {
       const domain = source.get(measure.id)!;
@@ -87,13 +152,9 @@ export const layoutSystemContent = (
           bounds: label.bounds,
         };
       });
-      const chordSymbols = domain.chordSymbols.map((s) =>
-        translateChordBlock(
-          createChordBlock(s, metrics),
-          anchors.get(s.beatId)!,
-          chordBaseline,
-        ),
-      );
+      const chordSymbols = blocksByMeasure
+        .get(measure.id)!
+        .map((block) => translateChordBlock(block, 0, chordBaseline));
       return {
         ...measure,
         lyrics,
@@ -120,8 +181,8 @@ export const layoutSystemContent = (
       ? lyricBaseline +
         (maxVerse - 1) * rowHeight +
         rowDescent +
-        MUSIC_TEXT_LANE_GAP
-      : bottom;
+        MUSIC_LYRIC_BOTTOM_GAP
+      : Math.max(bottom, system.y + system.height);
     const dy = nextTop - originalTop;
     const lyricVerseLabels = Array.from({ length: maxVerse }, (_, i) =>
       musicTextGlyph(

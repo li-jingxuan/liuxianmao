@@ -10,6 +10,7 @@ import {
   ILXMStringLineLayout,
 } from "./layout-types";
 import { createMeasureRhythmContext } from "../core/tuplet";
+import { getDurationFlagTop } from "./rhythm-bounds";
 import { arraySortByKey } from "./layout-helpers";
 import {
   ILXMBeat,
@@ -28,7 +29,10 @@ import {
   LXM_DURATION_DOT_CLEARANCE_Y,
   LXM_DURATION_HEAD_FONT_SIZE,
   LXM_DURATION_HEAD_OFFSET_Y,
-  LXM_DURATION_STEM_LENGTH,
+  LXM_DURATION_MIN_BEAM_OFFSET_Y,
+  LXM_DURATION_BEAM_STAFF_CLEARANCE,
+  LXM_DURATION_FLAG_STAFF_CLEARANCE,
+  LXM_DURATION_DOT_STAFF_CLEARANCE,
   LXM_DURATION_STEM_NOTE_GAP,
   LXM_DURATION_SUSTAIN_HORIZONTAL_PADDING,
   LXM_DURATION_SUSTAIN_MIN_WIDTH,
@@ -464,7 +468,7 @@ export const layoutDurationBeams = (
   }
 
   const headY = lastStringLine.y2 + LXM_DURATION_HEAD_OFFSET_Y;
-  const beamBaseY = headY + LXM_DURATION_STEM_LENGTH;
+  const beamBaseY = lastStringLine.y2 + LXM_DURATION_MIN_BEAM_OFFSET_Y;
   // 直接使用最终弦线布局坐标，确保 System 或谱面整体发生 Y 偏移后，占位线仍
   // 位于六线谱正中间。不能只使用高度差的一半，否则会丢失谱面的起始 Y。
   const staffCenterY = (firstStringLine.y1 + lastStringLine.y1) / 2;
@@ -514,8 +518,58 @@ export const layoutDurationBeams = (
     };
   });
 
+  const result = { beamSegments, durationMarks: marksWithFlags };
+  return translateDurationBaseline(
+    result,
+    resolveDurationBeamOffset(result) - LXM_DURATION_MIN_BEAM_OFFSET_Y,
+  );
+};
+
+/** 根据实际连梁、符尾和附点边界求解第六弦下方所需净空。 */
+export const resolveDurationBeamOffset = ({
+  beamSegments,
+  durationMarks,
+}: ILXMDurationBeamLayoutResult): number => {
+  if (!durationMarks.length) return 0;
+  const baseY = durationMarks[0].beamY;
+  return Math.max(
+    LXM_DURATION_MIN_BEAM_OFFSET_Y,
+    ...beamSegments.map(
+      (beam) =>
+        LXM_DURATION_BEAM_STAFF_CLEARANCE + beam.thickness / 2 + baseY - beam.y,
+    ),
+    ...durationMarks.flatMap((mark) => [
+      ...(mark.flag
+        ? [
+            LXM_DURATION_FLAG_STAFF_CLEARANCE +
+              baseY -
+              getDurationFlagTop(mark.flag),
+          ]
+        : []),
+      ...mark.dotAnchors.map(
+        (dot) => LXM_DURATION_DOT_STAFF_CLEARANCE + 2 + baseY - dot.y,
+      ),
+    ]),
+  );
+};
+
+/** 仅平移节奏区末端，保留连接真实音符的符干起点和谱内延续线。 */
+export const translateDurationBaseline = (
+  result: ILXMDurationBeamLayoutResult,
+  dy: number,
+): ILXMDurationBeamLayoutResult => {
+  if (dy === 0) return result;
   return {
-    beamSegments,
-    durationMarks: marksWithFlags,
+    beamSegments: result.beamSegments.map((beam) => ({
+      ...beam,
+      y: beam.y + dy,
+    })),
+    durationMarks: result.durationMarks.map((mark) => ({
+      ...mark,
+      stemY2: mark.stemY2 + dy,
+      beamY: mark.beamY + dy,
+      flag: mark.flag ? { ...mark.flag, y: mark.flag.y + dy } : null,
+      dotAnchors: mark.dotAnchors.map((dot) => ({ ...dot, y: dot.y + dy })),
+    })),
   };
 };

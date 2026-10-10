@@ -1,6 +1,7 @@
 import { musicTextInsets } from "./music-text-layout";
 import type { ILXMMusicTextMetrics } from "./music-text-metrics";
 import { createMeasureRhythmContext } from "../core/tuplet";
+import { fretHalfWidth, type TechniqueInsets } from "./technique-spacing";
 import type { ILXMMeasure } from "../core/types";
 import {
   LXM_DURATION_MIN_COLUMN_WIDTH,
@@ -31,7 +32,7 @@ interface ILXMMeasureSpacingSummary {
   tailExtra: number;
   slotsByBeatId: Record<string, ILXMBeatLayout>;
 }
-type ILXMSummarizeMeasureSpacingWidth = Omit<
+export type ILXMSummarizeMeasureSpacingWidth = Omit<
   ILXMMeasureSpacingSummary,
   "slotsByBeatId"
 > & {
@@ -109,19 +110,48 @@ export const summarizeMeasureSpacingWidth = (
   /** 拍号等固定前导记号的宽度；它属于小节但不属于可伸展节奏内容。 */
   leadingWidth = 0,
   musicTextMetrics?: ILXMMusicTextMetrics,
+  reserveChordTail = true,
+  techniqueInsets?: ReadonlyMap<string, TechniqueInsets>,
 ): ILXMSummarizeMeasureSpacingWidth => {
   const profile = LXM_LAYOUT_DENSITY_PROFILES[density];
   // 计算每个 beat 节拍列信息
   const columns = buildRhythmicColumns(measure, density);
+  // 当前技巧右缘与下一拍文字左缘共同约束列宽；无技巧的列保留既有节奏间距。
+  columns.forEach((column, index) => {
+    const current = techniqueInsets?.get(column.beatIds[0]!);
+    const nextColumn = columns[index + 1];
+    const next = nextColumn && techniqueInsets?.get(nextColumn.beatIds[0]!);
+    if (!current && !next) return;
+    const noteHalf = (beatIds: string[]) =>
+      Math.max(
+        0,
+        ...measure.beats
+          .filter((b) => beatIds.includes(b.id))
+          .flatMap((b) => b.notes.map((n) => fretHalfWidth(n.fret))),
+      );
+    const right = Math.max(current?.right ?? 0, noteHalf(column.beatIds));
+    const nextLeft = nextColumn
+      ? Math.max(next?.left ?? 0, noteHalf(nextColumn.beatIds))
+      : 0;
+    column.minWidth = Math.max(column.minWidth, right + nextLeft + 4);
+    column.idealWidth = Math.max(column.idealWidth, column.minWidth);
+  });
   // 小节内左右边距
   const measurePaddingX = profile.measurePaddingX * 2;
-  const { leftExtra, tailExtra } = musicTextInsets(
+  const textInsets = musicTextInsets(
     measure,
     columns,
     profile.measurePaddingX,
     leadingWidth,
     musicTextMetrics,
+    reserveChordTail,
   );
+  const firstInset = columns[0] && techniqueInsets?.get(columns[0].beatIds[0]!);
+  const leftExtra = Math.max(
+    textInsets.leftExtra,
+    (firstInset?.left ?? 0) + 2 - profile.measurePaddingX - leadingWidth,
+  );
+  const tailExtra = textInsets.tailExtra;
   columns.forEach((column) => {
     column.idealWidth = Math.max(column.idealWidth, column.minWidth);
   });
@@ -173,6 +203,7 @@ export const layoutMeasureSpacing = (
     /** 当前小节拍号等前导记号占用的固定宽度。 */
     leadingWidth?: number;
     musicTextMetrics?: ILXMMusicTextMetrics;
+    spacingSummary?: ILXMSummarizeMeasureSpacingWidth;
   },
 ): ILXMMeasureSpacingSummary => {
   const density = context.density ?? LXM_LAYOUT_DEFAULT_DENSITY;
@@ -180,12 +211,14 @@ export const layoutMeasureSpacing = (
   const leadingWidth = context.leadingWidth ?? 0;
   // summary 中的 assignedWidth 是仅由节奏内容推导出的固有宽度。为了避免把
   // “固有宽度”和“最终分配宽度”混在一起，下面分别保留两个变量。
-  const summary = summarizeMeasureSpacingWidth(
-    measure,
-    density,
-    leadingWidth,
-    context.musicTextMetrics,
-  );
+  const summary =
+    context.spacingSummary ??
+    summarizeMeasureSpacingWidth(
+      measure,
+      density,
+      leadingWidth,
+      context.musicTextMetrics,
+    );
   const intrinsicWidth = summary.assignedWidth;
   const assignedWidth = context.assignedWidth ?? intrinsicWidth;
 

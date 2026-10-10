@@ -25,6 +25,9 @@ import {
   LXM_TECHNIQUE_FRET_GAP_X,
   LXM_TECHNIQUE_CURVE_HEIGHT,
   LXM_TECHNIQUE_STAFF_CLEARANCE_Y,
+  LXM_FRET_TEXT_FONT_SIZE,
+  LXM_FRET_TEXT_BASELINE_OFFSET_Y,
+  LXM_FRET_TEXT_HALO_WIDTH,
 } from "./layout-constants";
 import type {
   ILXMBarlineLayout,
@@ -39,9 +42,21 @@ import type {
 import {
   boundsIntersect,
   getFretTextBounds,
+  getTextBounds,
+  padBounds,
   translateTechniqueSegment,
   withTechniqueBounds,
 } from "./technique-geometry";
+import {
+  chordTraversalOffset,
+  TECHNIQUE_BEND_RISE,
+  TECHNIQUE_BEND_RUN,
+  TECHNIQUE_LABEL_GAP,
+  TECHNIQUE_WAVE_MAX_WIDTH,
+  TECHNIQUE_WAVE_MIN_WIDTH,
+  techniqueLabelWidth,
+  vibratoStartOffset,
+} from "./technique-spacing";
 
 interface ILXMTechniqueCandidate {
   technique: ILXMTechnique;
@@ -57,6 +72,8 @@ interface ILXMTechniqueCandidate {
 }
 
 interface ILXMAnchorMaps {
+  /** 只关联同一音符上的推弦与揉弦，不改变领域技巧对象。 */
+  bendNoteIds: Set<string>;
   notes: Map<string, { layout: ILXMNoteLayout; systemIndex: number }>;
   beats: Map<
     string,
@@ -110,7 +127,7 @@ const buildAnchorMaps = (systems: ILXMSystemLayout[]): ILXMAnchorMaps => {
       );
     }),
   );
-  return { notes, beats };
+  return { notes, beats, bendNoteIds: new Set() };
 };
 
 /**
@@ -162,7 +179,9 @@ const applyFretVisibilityProjection = (
     let systemChanged = false;
     const measures = system.measures.map((measure) => {
       const notes = measure.notes.filter(
+        // x 是闷音语义，不是可省略的和弦品位，扫弦/琶音不能将其隐藏。
         (note) =>
+          note.fret === "x" ||
           !suppressionRanges.some(
             (range) =>
               range.beatId === note.beatId &&
@@ -241,7 +260,6 @@ const isStaffLocal = (technique: ILXMTechnique): boolean =>
   technique.type === "slideUp" ||
   technique.type === "slideDown" ||
   technique.type === "naturalHarmonic" ||
-  technique.type === "artificialHarmonic" ||
   technique.type === "strum" ||
   technique.type === "arpeggio";
 
@@ -399,6 +417,19 @@ const assignLanes = (
     const natural = naturalPlans.get(candidate)!;
     const placed = segmentsBySystem.get(candidate.systemIndex) ?? [];
     const technique = candidate.technique;
+    const relatedBend =
+      technique.type === "vibrato"
+        ? candidates.find(
+            (c) =>
+              c.systemIndex === candidate.systemIndex &&
+              c.technique.type === "bend" &&
+              c.technique.fromNoteId === technique.fromNoteId,
+          )
+        : undefined;
+    const bendLane = relatedBend
+      ? (placed.find((s) => s.techniqueId === relatedBend.technique.id)?.lane ??
+        0)
+      : 0;
     const ownNoteIds = new Set<string>();
     if ("fromNoteId" in technique) ownNoteIds.add(technique.fromNoteId);
     if ("toNoteId" in technique) ownNoteIds.add(technique.toNoteId);
@@ -418,8 +449,11 @@ const assignLanes = (
                 !ownNoteIds.has(note.layout.id),
             )
             .map((note) => getFretTextBounds(note.layout));
-    let lane = candidate.staffLocal ? -1 : 0;
-    let segment = natural;
+    let lane = candidate.staffLocal ? -1 : bendLane;
+    let segment =
+      lane > 0
+        ? translateTechniqueSegment(natural, -lane * LXM_TECHNIQUE_LANE_HEIGHT)
+        : natural;
     if (!candidate.staffLocal) {
       while (
         placed.some((other) =>
@@ -591,8 +625,10 @@ const wavePath = (x1: number, x2: number, y: number): string => {
   const parts = [`M ${x1} ${y}`];
   for (let x = x1; x < x2; x += 6) {
     const end = Math.min(x + 6, x2);
-    parts.push(`Q ${x + 1.5} ${y - 2} ${x + 3} ${y}`);
-    parts.push(`Q ${x + 4.5} ${y + 2} ${end} ${y}`);
+    // 尾段不足一个周期时按剩余长度缩放，控制点也不能越过右端。
+    const length = end - x;
+    parts.push(`Q ${x + length / 4} ${y - 1.5} ${x + length / 2} ${y}`);
+    parts.push(`Q ${x + (length * 3) / 4} ${y + 1.5} ${end} ${y}`);
   }
   return parts.join(" ");
 };
@@ -667,14 +703,23 @@ const createNaturalSegmentLayout = (
       const toIsLocal =
         anchors.notes.get(technique.toNoteId)?.systemIndex ===
         candidate.systemIndex;
-      x1 = fromIsLocal ? from.x + 6 : candidate.x1;
-      x2 = toIsLocal ? to.x - 6 : candidate.x2;
+      const fromBounds = getFretTextBounds(from);
+      const toBounds = getFretTextBounds(to);
+      x1 = fromIsLocal
+        ? fromBounds.x + fromBounds.width + LXM_TECHNIQUE_FRET_GAP_X
+        : candidate.x1;
+      x2 = Math.max(
+        x1,
+        toIsLocal ? toBounds.x - LXM_TECHNIQUE_FRET_GAP_X : candidate.x2,
+      );
       const localStringY =
         system.measures[0]?.strings.find(
           (string) => string.index === from.string,
         )?.y1 ?? staffTop;
+      // 同弦两音的弦线 Y 相同，必须显式画斜率才能区分上滑与下滑。
+      const slope = technique.type === "slideUp" ? -3 : 3;
       path = {
-        d: `M ${x1} ${fromIsLocal ? from.y : localStringY} L ${x2} ${toIsLocal ? to.y : localStringY}`,
+        d: `M ${x1} ${(fromIsLocal ? from.y : localStringY) - slope} L ${x2} ${(toIsLocal ? to.y : localStringY) + slope}`,
         strokeWidth: LXM_TECHNIQUE_PATH_STROKE_WIDTH,
       };
     } else {
@@ -716,9 +761,14 @@ const createNaturalSegmentLayout = (
     }
   } else if ("fromBeatId" in technique) {
     const label = technique.type === "palmMute" ? "P.M." : "let ring";
-    const labelWidth = technique.type === "palmMute" ? 22 : 38;
+    const labelWidth = techniqueLabelWidth(label);
     const lineStart =
-      candidate.segmentIndex === 0 ? candidate.x1 + labelWidth : candidate.x1;
+      candidate.segmentIndex === 0
+        ? Math.min(
+            candidate.x2,
+            candidate.x1 + labelWidth + TECHNIQUE_LABEL_GAP,
+          )
+        : candidate.x1;
     path = {
       d: `M ${lineStart} ${laneY} L ${candidate.x2} ${laneY} L ${candidate.x2} ${laneY + 4}`,
       strokeWidth: LXM_TECHNIQUE_PATH_STROKE_WIDTH,
@@ -730,13 +780,15 @@ const createNaturalSegmentLayout = (
     const beat = anchors.beats.get(technique.beatId);
     if (beat) {
       if (technique.type === "pickStroke") {
-        texts = [
-          text(
-            technique.stroke === "down" ? "⌄" : "⌃",
-            beat.notes[0]?.x ?? beat.x,
-            laneY,
-          ),
-        ];
+        const x = beat.notes[0]?.x ?? beat.x;
+        // 下拨门形与上拨 V 使用路径，避免系统字体把符号替换成不一致的箭头。
+        path = {
+          d:
+            technique.stroke === "down"
+              ? `M ${x - 3} ${laneY} L ${x - 3} ${laneY - 5} L ${x + 3} ${laneY - 5} L ${x + 3} ${laneY}`
+              : `M ${x - 3} ${laneY - 5} L ${x} ${laneY} L ${x + 3} ${laneY - 5}`,
+          strokeWidth: LXM_TECHNIQUE_PATH_STROKE_WIDTH,
+        };
       } else {
         const fromY = beat.stringYByIndex.get(technique.minString);
         const toY = beat.stringYByIndex.get(technique.maxString);
@@ -756,8 +808,14 @@ const createNaturalSegmentLayout = (
         }
         const y1 = Math.min(fromY, toY) - 2;
         const y2 = Math.max(fromY, toY) + 2;
-        // 基础品位在投影阶段隐藏，因此记号应与 Beat/Note 的时间中心重合。
-        const x = beat.x;
+        // 普通品位沿用拍点中心；范围内的 x 必须保留，并为方向记号留出左侧净空。
+        const x =
+          beat.x -
+          chordTraversalOffset(
+            beat.notes,
+            technique.minString,
+            technique.maxString,
+          );
         const directionStartY =
           technique.type === "arpeggio"
             ? technique.direction === "ascending"
@@ -816,28 +874,87 @@ const createNaturalSegmentLayout = (
   } else {
     const note = anchors.notes.get(technique.fromNoteId)?.layout;
     if (note) {
+      const noteBounds = getFretTextBounds(note);
+      const afterNote =
+        noteBounds.x + noteBounds.width + LXM_TECHNIQUE_FRET_GAP_X;
+      const annotationY = Math.min(laneY, noteBounds.y - 4);
+      // 自适应长度只表达视觉展开，不推断技巧延迟起奏或修改领域时值。
+      const waveWidth = (startX: number) =>
+        Math.max(
+          TECHNIQUE_WAVE_MIN_WIDTH,
+          Math.min(
+            TECHNIQUE_WAVE_MAX_WIDTH,
+            (anchors.beats.get(note.beatId)?.width ?? 0) -
+              (startX - note.x) -
+              4,
+          ),
+        );
       if (technique.type === "naturalHarmonic") {
-        texts = [text(`<${note.fret}>`, note.x, note.y + 4)];
+        const label = {
+          ...text(
+            `<${note.fret}>`,
+            note.x,
+            note.y + LXM_FRET_TEXT_BASELINE_OFFSET_Y,
+          ),
+          fontSize: LXM_FRET_TEXT_FONT_SIZE,
+        };
+        // 泛音替代基础数字，但保留技巧 segment 的 ID、完整描边边界和点击能力。
+        const visualBounds = getTextBounds(label, LXM_FRET_TEXT_HALO_WIDTH);
+        return {
+          ...withTechniqueBounds({
+            techniqueId: technique.id,
+            type: technique.type,
+            systemIndex: candidate.systemIndex,
+            segmentIndex: candidate.segmentIndex,
+            continuation: candidate.continuation,
+            lane: -1,
+            path: null,
+            texts: [label],
+          }),
+          visualBounds,
+          collisionBounds: padBounds(visualBounds, 2),
+          bounds: padBounds(visualBounds, 4),
+        };
       } else if (technique.type === "artificialHarmonic") {
-        texts = [text(`[${note.fret}]`, note.x, note.y + 4)];
+        texts = [text("A.H.", note.x, annotationY)];
       } else if (technique.type === "vibrato") {
+        const bendOnNote = anchors.bendNoteIds.has(technique.fromNoteId);
+        const startX =
+          note.x + vibratoStartOffset(noteBounds.width / 2, bendOnNote);
         path = {
-          d: wavePath(note.x - 8, note.x + 12, laneY),
+          d: wavePath(
+            startX,
+            startX + waveWidth(startX),
+            bendOnNote ? laneY - TECHNIQUE_BEND_RISE : laneY,
+          ),
           strokeWidth: LXM_TECHNIQUE_PATH_STROKE_WIDTH,
         };
       } else if (technique.type === "bend") {
+        const tipX = afterNote + TECHNIQUE_BEND_RUN;
+        const tipY = laneY - TECHNIQUE_BEND_RISE;
         path = {
-          d: `M ${note.x} ${laneY + 3} Q ${note.x + 8} ${laneY - 8} ${note.x + 16} ${laneY - 8}`,
+          // 控制点与终点 X 相同，使末端切线向上；Full 与完整箭头保持独立净空。
+          d: `M ${afterNote} ${laneY + 3} Q ${tipX} ${laneY + 3} ${tipX} ${tipY}`,
           strokeWidth: LXM_TECHNIQUE_PATH_STROKE_WIDTH,
           markerEnd: "arrow",
         };
-        texts = [text("Full", note.x + 20, laneY - 5)];
+        texts = [text("Full", tipX, tipY - 9)];
       } else if (technique.type === "tapping") {
-        texts = [text("T", note.x, laneY)];
+        texts = [text("T", note.x, annotationY)];
       } else if (technique.type === "trill") {
-        texts = [text(`tr ${technique.auxiliaryFret}`, note.x, laneY)];
+        const label = {
+          ...text(`tr ${technique.auxiliaryFret}`, note.x, annotationY),
+          textAnchor: "start" as const,
+        };
+        const waveStart =
+          note.x + techniqueLabelWidth(label.text) + TECHNIQUE_LABEL_GAP;
+        texts = [label];
         path = {
-          d: wavePath(note.x + 10, note.x + 28, laneY - 3),
+          d: wavePath(
+            waveStart,
+            waveStart + waveWidth(waveStart),
+            annotationY - 3,
+          ),
           strokeWidth: LXM_TECHNIQUE_PATH_STROKE_WIDTH,
         };
       }
@@ -865,20 +982,42 @@ export const planTrackTechniques = (
   if (baseSystems.length === 0) return baseSystems;
   // 建索引也在这里验证所有引用的目标形态，避免 layout 通过数组扫描反复寻找。
   buildTechniqueIndex(track);
-  const baseAnchors = buildAnchorMaps(baseSystems);
+  const naturalNoteIds = new Set(
+    track.techniques.flatMap((t) =>
+      t.type === "naturalHarmonic" ? [t.fromNoteId] : [],
+    ),
+  );
+  // 先投影完整泛音字形用于连接端点与其它技巧避让，最终只由技巧层绘制一次。
+  const projectedSystems = naturalNoteIds.size
+    ? baseSystems.map((system) => ({
+        ...system,
+        measures: system.measures.map((measure) => ({
+          ...measure,
+          notes: measure.notes.map((note) =>
+            naturalNoteIds.has(note.id)
+              ? { ...note, fretText: `<${note.fret}>` }
+              : note,
+          ),
+        })),
+      }))
+    : baseSystems;
+  const baseAnchors = buildAnchorMaps(projectedSystems);
+  baseAnchors.bendNoteIds = new Set(
+    track.techniques.flatMap((t) => (t.type === "bend" ? [t.fromNoteId] : [])),
+  );
   const candidates = createCandidates(track, baseSystems, baseAnchors);
   const naturalPlans = new Map(
     candidates.map((candidate) => [
       candidate,
       createNaturalSegmentLayout(
         candidate,
-        baseSystems[candidate.systemIndex]!,
+        projectedSystems[candidate.systemIndex]!,
         baseAnchors,
       ),
     ]),
   );
   const segmentsBySystem = assignLanes(candidates, naturalPlans, baseAnchors);
-  const systems = baseSystems.map((system) => ({
+  const systems = projectedSystems.map((system) => ({
     ...system,
     techniques: segmentsBySystem.get(system.index) ?? [],
   }));
@@ -893,13 +1032,22 @@ export const planTrackTechniques = (
   }));
   // anchors 在投影前由完整 Note layout 建立；技巧跨度、时值符干与其他 Note 技巧
   // 均已消费真实坐标。这里过滤只影响最终 adapter 可见的基础品位文本。
-  return applyFretVisibilityProjection(
+  const visibleSystems = applyFretVisibilityProjection(
     applyChordTraversalDurationProjection(
       systemsWithTechniques,
       track.techniques,
     ),
     getFretSuppressionRanges(track.techniques, baseAnchors),
   );
+  return naturalNoteIds.size
+    ? visibleSystems.map((system) => ({
+        ...system,
+        measures: system.measures.map((measure) => ({
+          ...measure,
+          notes: measure.notes.filter((note) => !naturalNoteIds.has(note.id)),
+        })),
+      }))
+    : visibleSystems;
 };
 
 /** 原公开门面复用同一规划；新联合布局在文本规划后统一平移。 */

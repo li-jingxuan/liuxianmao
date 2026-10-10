@@ -114,7 +114,12 @@ describe("技巧的音符自然锚点", () => {
     });
     expect(offsets[0]).toBeCloseTo(offsets[1]!, 10);
     expect(offsets[0]).toBeGreaterThan(0);
-    expect(offsets[0]).toBeLessThanOrEqual(LXM_TECHNIQUE_NOTE_CLEARANCE_Y + 3);
+    // 文字注释需要避开完整品位字形；线型技巧仍保持原来的自然净空。
+    expect(offsets[0]).toBeLessThanOrEqual(
+      type === "tapping" || type === "trill"
+        ? 18
+        : LXM_TECHNIQUE_NOTE_CLEARANCE_Y + 3,
+    );
   });
 
   it.each([3, 12])("Tie 的 %i 品位端点避开完整文字和描边", (fret) => {
@@ -270,7 +275,7 @@ describe("技巧的音符自然锚点", () => {
     expect(document).toEqual(before);
   });
 
-  it("没有技巧时保持完整的既有 system 几何", () => {
+  it("自然泛音只替代目标数字，保留其它基础几何", () => {
     const document = createDocument();
     const baseline = buildLayout(document);
     document.score.tracks[0]!.techniques = [
@@ -281,7 +286,14 @@ describe("技巧的音符自然锚点", () => {
       ...system,
       techniques: [],
     }));
-    expect(withoutTechniques).toEqual(baseline.systems);
+    const expected = baseline.systems.map((system) => ({
+      ...system,
+      measures: system.measures.map((measure) => ({
+        ...measure,
+        notes: measure.notes.filter((note) => note.id !== "anchor-note-0"),
+      })),
+    }));
+    expect(withoutTechniques).toEqual(expected);
   });
 
   it("推弦避让时路径、Full 标签、箭头范围和命中整体平移", () => {
@@ -344,8 +356,8 @@ describe("技巧的音符自然锚点", () => {
       const stringY = system.measures[0]!.strings.find(
         (string) => string.index === 6,
       )!.y1;
-      expect(coords[1]).toBe(stringY);
-      expect(coords[3]).toBe(stringY);
+      expect(coords[1]).toBe(stringY + 3);
+      expect(coords[3]).toBe(stringY - 3);
       expect(segment.bounds.y).toBeGreaterThan(system.y);
       expect(segment.bounds.y + segment.bounds.height).toBeLessThan(
         system.y + system.height,

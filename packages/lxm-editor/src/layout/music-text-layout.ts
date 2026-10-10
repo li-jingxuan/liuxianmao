@@ -1,6 +1,8 @@
+import { LXM_SCORE_CHORD_DIAGRAM_SCALE } from "./layout-constants";
 import type { ILXMMeasure, ILXMLyricVerse } from "../core/types";
 import {
   layoutChordDiagram,
+  scaleChordDiagram,
   translateChordDiagram,
   type ChordDiagramLayout,
 } from "./chord-diagram-layout";
@@ -9,6 +11,7 @@ import {
   musicTextGlyph,
   unionMusicBounds,
   MUSIC_TEXT_GAP,
+  MUSIC_CHORD_NAME_FONT_SIZE,
   type MusicTextGlyph,
   type MusicTextRect,
   type ILXMMusicTextMetrics,
@@ -29,14 +32,28 @@ export interface ChordSymbolLayout {
   bounds: MusicTextRect;
   description: string;
 }
-/** 文本与图的原点均为所属 Beat；图先按真实 bbox 居中，再与名称组合。 */
+/** 保留原参数契约，名称基线到网格顶线固定为 12，避免调用方版本不一致。 */
+export const chordDiagramGridOffset = (
+  _symbols: readonly ILXMMeasure["chordSymbols"][number][] = [],
+  _metrics?: ILXMMusicTextMetrics,
+): number => 12;
+
+/** 网格左弦线对齐 Beat，名称居中于网格；只显示名称时仍以 Beat 为中心。 */
 export const createChordBlock = (
   symbol: ILXMMeasure["chordSymbols"][number],
   metrics?: ILXMMusicTextMetrics,
+  gridOffsetY?: number,
 ): ChordSymbolLayout => {
+  const hasDiagram =
+    symbol.display === "nameAndDiagram" && !!symbol.chord.diagram;
   const label = musicTextGlyph(
-    musicTextRequest(symbol.chord.name, 13, "middle", 600),
-    0,
+    musicTextRequest(
+      symbol.chord.name,
+      MUSIC_CHORD_NAME_FONT_SIZE,
+      "middle",
+      400,
+    ),
+    hasDiagram ? 22.5 * LXM_SCORE_CHORD_DIAGRAM_SCALE : 0,
     0,
     metrics,
   );
@@ -46,9 +63,9 @@ export const createChordBlock = (
       : null;
   const diagram = raw
     ? translateChordDiagram(
-        raw,
-        -(raw.bounds.x + raw.bounds.width / 2),
-        label.bounds.y + label.bounds.height + 5 - raw.bounds.y,
+        scaleChordDiagram(raw, LXM_SCORE_CHORD_DIAGRAM_SCALE),
+        0,
+        gridOffsetY ?? chordDiagramGridOffset([symbol], metrics),
       )
     : null;
   return {
@@ -108,12 +125,17 @@ export const getMusicTextExtents = (
 /** 首尾额外净空固定，不参与系统剩余宽度的拉伸。 */
 export const musicTextInsets = (
   measure: ILXMMeasure,
-  columns: { beatIds: string[]; minWidth: number }[],
+  columns: { beatIds: string[]; minWidth: number; idealWidth: number }[],
   padding: number,
   leading: number,
   metrics?: ILXMMusicTextMetrics,
+  reserveChordTail = true,
 ) => {
-  const extents = getMusicTextExtents(measure, metrics);
+  // 歌词与和弦在不同高度，歌词间距不能把和弦宽度算进相邻空拍。
+  const extents = getMusicTextExtents(
+    { ...measure, chordSymbols: [] },
+    metrics,
+  );
   for (let i = 0; i < columns.length - 1; i++) {
     const right = extents.get(columns[i]!.beatIds[0]!)?.right ?? 0;
     const left = extents.get(columns[i + 1]!.beatIds[0]!)?.left ?? 0;
@@ -123,17 +145,79 @@ export const musicTextInsets = (
         right + left + MUSIC_TEXT_GAP,
       );
   }
-  const first = extents.get(columns[0]?.beatIds[0] ?? "");
+  columns.forEach((column) => {
+    column.idealWidth = Math.max(column.idealWidth, column.minWidth);
+  });
+  const chords = columns.flatMap((column, index) =>
+    measure.chordSymbols
+      .filter((symbol) => column.beatIds.includes(symbol.beatId))
+      .map((symbol) => ({
+        index,
+        bounds: createChordBlock(symbol, metrics).bounds,
+      })),
+  );
+  // 两块和弦之间可以借用多拍的总空间，只在总跨度不足时扩宽前一列。
+  for (let i = 0; i < chords.length; i++) {
+    const current = chords[i]!;
+    for (const previous of chords.slice(0, i)) {
+      if (previous.index === current.index) continue;
+      const span = columns
+        .slice(previous.index, current.index)
+        .reduce((sum, c) => sum + c.idealWidth, 0);
+      const deficit =
+        previous.bounds.x + previous.bounds.width + 4 - current.bounds.x - span;
+      if (deficit > 0) {
+        const column = columns[current.index - 1]!;
+        column.minWidth = Math.max(
+          column.minWidth,
+          column.idealWidth + deficit,
+        );
+        column.idealWidth = column.minWidth;
+      }
+    }
+  }
+  const allExtents = getMusicTextExtents(measure, metrics);
+  const first = allExtents.get(columns[0]?.beatIds[0] ?? "");
   const last = extents.get(columns.at(-1)?.beatIds[0] ?? "");
+  // 行尾保护检查所有和弦，包括倒数几拍开始但越过末拍的长名称。
+  const chordTail = reserveChordTail
+    ? Math.max(
+        0,
+        ...chords.map(
+          ({ index, bounds }) =>
+            bounds.x +
+            bounds.width +
+            4 -
+            padding -
+            columns.slice(index).reduce((sum, c) => sum + c.idealWidth, 0),
+        ),
+      )
+    : 0;
+  // 非首拍的长名称也可能向左越界，按实际前缀跨度保留必要净空。
+  const chordLeft = Math.max(
+    0,
+    ...chords.map(
+      ({ index, bounds }) =>
+        4 -
+        padding -
+        leading -
+        bounds.x -
+        columns.slice(0, index).reduce((sum, c) => sum + c.idealWidth, 0),
+    ),
+  );
   return {
-    leftExtra: first
-      ? Math.max(0, first.left + MUSIC_TEXT_GAP - padding - leading)
-      : 0,
-    tailExtra: last
-      ? Math.max(
-          0,
-          last.right + MUSIC_TEXT_GAP - (columns.at(-1)!.minWidth + padding),
-        )
-      : 0,
+    leftExtra: Math.max(
+      chordLeft,
+      first ? Math.max(0, first.left + MUSIC_TEXT_GAP - padding - leading) : 0,
+    ),
+    tailExtra: Math.max(
+      chordTail,
+      last
+        ? Math.max(
+            0,
+            last.right + MUSIC_TEXT_GAP - (columns.at(-1)!.minWidth + padding),
+          )
+        : 0,
+    ),
   };
 };

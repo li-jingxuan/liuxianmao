@@ -40,6 +40,7 @@ const MIDI_MAX_VALUE = 127;
 const MIN_TIME_SIGNATURE_DENOMINATOR = 1;
 const MAX_TIME_SIGNATURE_DENOMINATOR = 64;
 const MIN_GUITAR_STRING_INDEX = 1;
+const MAX_CAPO = 12;
 
 /** 可扩展元信息只要求是普通对象，不限制业务侧字段。 */
 export const LXMRecordSchema = z.record(z.unknown());
@@ -56,9 +57,19 @@ export const LXMTuningStringSchema = z
 /** 弦乐器调弦信息校验。 */
 export const LXMTuningSchema = z
   .object({
-    strings: z.array(LXMTuningStringSchema).min(MIN_POSITIVE_INTEGER),
+    strings: z.array(LXMTuningStringSchema).length(GUITAR_STRING_COUNT),
   })
-  .strict() satisfies z.ZodType<ILXMTuning>;
+  .strict()
+  .superRefine((tuning, context) => {
+    tuning.strings.forEach((string, index) => {
+      if (string.index !== index + 1)
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["strings", index, "index"],
+          message: "弦索引必须按 1 到 6 顺序排列",
+        });
+    });
+  }) satisfies z.ZodType<ILXMTuning>;
 
 /** 小节拍号校验，例如 4/4。 */
 export const LXMTimeSignatureSchema = z
@@ -166,7 +177,10 @@ export const LXMNoteSchema = z
   .object({
     id: z.string(),
     string: z.number().int().min(MIN_GUITAR_STRING_INDEX),
-    fret: z.number().int().min(MIN_NON_NEGATIVE_INTEGER).max(MAX_FRET),
+    fret: z.union([
+      z.literal("x"),
+      z.number().int().min(MIN_NON_NEGATIVE_INTEGER).max(MAX_FRET),
+    ]),
   })
   .strict() satisfies z.ZodType<ILXMNote>;
 
@@ -294,6 +308,7 @@ export const LXMMeasureSchema = z
     lyrics: z.array(LXMLyricSchema),
     beats: z.array(LXMBeatSchema),
     tuplets: z.array(LXMTupletSchema),
+    sectionLabel: z.string().max(32).optional(),
   })
   .strict() satisfies z.ZodType<ILXMMeasure>;
 
@@ -304,6 +319,7 @@ export const LXMTrackSchema = z
     name: z.string(),
     instrument: z.enum(LXM_INSTRUMENT_TYPES),
     tuning: LXMTuningSchema,
+    capo: z.number().int().min(0).max(MAX_CAPO),
     startBarline: z.enum(LXM_TRACK_START_BARLINE_TYPES),
     measures: z.array(LXMMeasureSchema),
     techniques: z.array(LXMTechniqueSchema),

@@ -137,7 +137,7 @@ describe("tuplet 时间与严格模型", () => {
   });
   it("旧版本或缺必填字段明确拒绝", () => {
     const doc = create(3);
-    expect(CURRENT_SCHEMA_VERSION).toBe(3);
+    expect(CURRENT_SCHEMA_VERSION).toBe(5);
     expect(
       LXMDocumentSchema.safeParse({ ...doc, schemaVersion: 1 }).success,
     ).toBe(false);

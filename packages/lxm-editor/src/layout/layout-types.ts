@@ -1,3 +1,4 @@
+import type { ILXMFret } from "../core/types";
 import type {
   ILXMMusicTextMetrics,
   MusicTextRect,
@@ -33,6 +34,8 @@ export interface ILXMColumnWidthContributors {
 
 /** 函数 buildLayout 的可选配置 */
 export interface ILXMLayoutOptions {
+  /** 全局指法图显示偏好；省略时沿用单个和弦的旧 display。 */
+  showChordDiagrams?: boolean;
   musicTextMetrics?: ILXMMusicTextMetrics;
   x?: number;
   y?: number;
@@ -296,7 +299,7 @@ export interface ILXMNoteLayout {
   beatId: string;
   measureId: string;
   string: number;
-  fret: number;
+  fret: ILXMFret;
   fretText: string;
   x: number;
   y: number;

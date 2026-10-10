@@ -11,6 +11,34 @@ const ROOT_PATH_LABEL = "document";
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
+/** 显式把 schema 4 文档升级到 schema 5；loader 不会隐式调用此函数。 */
+export const upgradeSchema4To5 = (value: unknown): unknown => {
+  if (!isRecord(value) || value.schema !== SCORE_DOCUMENT_SCHEMA || value.schemaVersion !== 4)
+    return value;
+  const score = isRecord(value.score) ? value.score : null;
+  if (!score || !Array.isArray(score.tracks)) return value;
+  return {
+    ...value,
+    schemaVersion: CURRENT_SCHEMA_VERSION,
+    score: {
+      ...score,
+      tracks: score.tracks.map((track) =>
+        isRecord(track)
+          ? {
+              ...track,
+              capo: track.capo ?? 0,
+              measures: Array.isArray(track.measures)
+                ? track.measures.map((measure) =>
+                    isRecord(measure) ? { ...measure } : measure,
+                  )
+                : track.measures,
+            }
+          : track,
+      ),
+    },
+  };
+};
+
 /**
  * 兼容弦范围字段引入前保存的 v5 文档。
  *

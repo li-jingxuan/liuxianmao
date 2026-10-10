@@ -17,10 +17,14 @@ import {
   resolveTabCellSelection,
   type ILXMApplyScoreCommandResult,
   type ILXMDocument,
+  type DocumentLoadResult,
+  type ILXMCommandEffect,
   type ILXMScoreCommand,
   type ILXMTabCellReference,
   type ILXMTabCellSelection,
 } from "@liuxianmao/lxm-editor";
+import { useContext } from "react";
+import { EditorStoreContext } from "./editor-context";
 import { useStore } from "zustand";
 import { createStore, type StoreApi } from "zustand/vanilla";
 
@@ -31,6 +35,11 @@ interface EditorHistory {
 
 export interface EditorStore {
   document: ILXMDocument | null;
+  /** 仅用于界面实例身份，不持久化到乐谱。 */
+  sessionId: number;
+  sessionVersion: number;
+  effects: ILXMCommandEffect[];
+  replaceDocument: (input: unknown) => DocumentLoadResult;
   selection: ILXMTabCellSelection | null;
   /** 当前点击的技巧仅属于 UI 焦点，不进入文档历史。 */
   selectedTechniqueId: string | null;
@@ -47,7 +56,7 @@ export interface EditorStore {
   redo: () => void;
 }
 
-type EditorStoreState = EditorStore & { history: EditorHistory };
+export type EditorStoreState = EditorStore & { history: EditorHistory };
 
 /** 初始 fixture 也经过正式 loader，避免页面绕过 schema/语义校验。 */
 const loadInitialDocument = (): ILXMDocument | null => {
@@ -210,143 +219,246 @@ const toHistoryState = (history: EditorHistory) => ({
  * 创建独立 store，便于测试和未来多文档标签页复用。
  * 页面使用下方单例；测试传入自己的初始文档，互不污染历史。
  */
+let nextSessionId = 0;
+
 export const createEditorStore = (
   initialDocument: ILXMDocument | null,
+  options: EditorSessionOptions = {},
 ): StoreApi<EditorStoreState> =>
-  createStore<EditorStoreState>((set, get) => ({
-    document: initialDocument,
-    selection: null,
-    selectedTechniqueId: null,
-    errorMessage: initialDocument ? null : "无法加载 MVP v6 示例乐谱。",
-    history: { past: [], future: [] },
-    canUndo: false,
-    canRedo: false,
-    historyDepth: { past: 0, future: 0 },
-
-    execute: (command) => {
-      const state = get();
-      if (!state.document) {
-        set({ errorMessage: "当前没有可编辑的乐谱文档。" });
-        return null;
+  createStore<EditorStoreState>((set, get) => {
+    // 宿主回调位于提交之后；宿主异常不能破坏编辑器历史或向调用方抛出。
+    const reportError = (message: string) => {
+      set({ errorMessage: message });
+      try {
+        options.onError?.({ message });
+      } catch {
+        /* 宿主错误处理异常不递归上报。 */
       }
-
-      const result = applyScoreCommand(state.document, command);
-      if (!result.ok) {
-        set({ errorMessage: result.message });
+    };
+    const notifyChange = (event: EditorChangeEvent) => {
+      try {
+        options.onChange?.(event);
+      } catch {
+        reportError("宿主接收编辑结果失败，编辑结果已保留。");
+      }
+    };
+    return {
+      sessionId: ++nextSessionId,
+      sessionVersion: 0,
+      effects: [],
+      replaceDocument: (input) => {
+        const result = loadEditorDocument(input);
+        if (!result.ok) {
+          reportError(result.errors.join("；"));
+          return result;
+        }
+        // 外部替换即使具有相同文档 ID，也明确开启新会话边界并取消旧草稿。
+        set({
+          document: result.document,
+          selection: null,
+          selectedTechniqueId: null,
+          errorMessage: null,
+          effects: [],
+          sessionVersion: get().sessionVersion + 1,
+          ...toHistoryState({ past: [], future: [] }),
+        });
         return result;
-      }
-      // 成功 no-op 只清理旧错误，不触发 setter 历史语义，也不替换 document。
-      if (!result.changed) {
-        set({ errorMessage: null });
+      },
+      document: initialDocument,
+      selection: null,
+      selectedTechniqueId: null,
+      errorMessage: initialDocument ? null : "无法加载 MVP v6 示例乐谱。",
+      history: { past: [], future: [] },
+      canUndo: false,
+      canRedo: false,
+      historyDepth: { past: 0, future: 0 },
+
+      execute: (command) => {
+        const state = get();
+        if (!state.document) {
+          set({ effects: [] });
+          reportError("当前没有可编辑的乐谱文档。");
+          return null;
+        }
+
+        const result = applyScoreCommand(state.document, command);
+        if (!result.ok) {
+          set({ effects: [] });
+          reportError(result.message);
+          return result;
+        }
+        // 成功 no-op 只清理旧错误，不触发 setter 历史语义，也不替换 document。
+        if (!result.changed) {
+          set({ errorMessage: null, effects: [] });
+          return result;
+        }
+
+        const history: EditorHistory = {
+          past: [...state.history.past, state.document].slice(-HISTORY_LIMIT),
+          future: [],
+        };
+        const selectionCandidate = getSelectionCandidateAfterCommand(
+          state.document,
+          result.document,
+          state.selection,
+          command,
+        );
+        set({
+          effects: result.effects ?? [],
+          document: result.document,
+          selection: reconcileSelection(result.document, selectionCandidate),
+          selectedTechniqueId: result.document.score.tracks.some((track) =>
+            track.techniques.some(
+              (technique) => technique.id === state.selectedTechniqueId,
+            ),
+          )
+            ? state.selectedTechniqueId
+            : null,
+          errorMessage: null,
+          ...toHistoryState(history),
+        });
+        notifyChange({
+          document: result.document,
+          reason: "command",
+          command,
+          effects: result.effects ?? [],
+        });
         return result;
-      }
+      },
 
-      const history: EditorHistory = {
-        past: [...state.history.past, state.document].slice(-HISTORY_LIMIT),
-        future: [],
-      };
-      const selectionCandidate = getSelectionCandidateAfterCommand(
-        state.document,
-        result.document,
-        state.selection,
-        command,
-      );
-      set({
-        document: result.document,
-        selection: reconcileSelection(result.document, selectionCandidate),
-        selectedTechniqueId: result.document.score.tracks.some((track) =>
-          track.techniques.some(
-            (technique) => technique.id === state.selectedTechniqueId,
-          ),
-        )
-          ? state.selectedTechniqueId
-          : null,
-        errorMessage: null,
-        ...toHistoryState(history),
-      });
-      return result;
-    },
-
-    setSelection: (selection) => {
-      const document = get().document;
-      if (!selection || !document) {
+      setSelection: (selection) => {
+        const document = get().document;
+        if (!selection || !document) {
+          set({ selection, errorMessage: null });
+          return;
+        }
+        const resolved = resolveTabCellSelection(document, selection);
+        if (!resolved.ok) {
+          // 指针拖动越界时保留最后一个合法 focus，避免选区突然消失。
+          reportError(resolved.message);
+          return;
+        }
         set({ selection, errorMessage: null });
-        return;
-      }
-      const resolved = resolveTabCellSelection(document, selection);
-      if (!resolved.ok) {
-        // 指针拖动越界时保留最后一个合法 focus，避免选区突然消失。
-        set({ errorMessage: resolved.message });
-        return;
-      }
-      set({ selection, errorMessage: null });
-    },
+      },
 
-    setSelectedTechniqueId: (selectedTechniqueId) => {
-      const document = get().document;
-      const exists = document?.score.tracks.some((track) =>
-        track.techniques.some(
-          (technique) => technique.id === selectedTechniqueId,
-        ),
-      );
-      set({
-        selectedTechniqueId:
-          selectedTechniqueId === null || exists ? selectedTechniqueId : null,
-        errorMessage: null,
-      });
-    },
-
-    setErrorMessage: (errorMessage) => set({ errorMessage }),
-
-    undo: () => {
-      const state = get();
-      const previous = state.history.past.at(-1);
-      if (!state.document || !previous) return;
-      const history: EditorHistory = {
-        past: state.history.past.slice(0, -1),
-        future: [state.document, ...state.history.future],
-      };
-      set({
-        document: previous,
-        selection: reconcileSelection(previous, state.selection),
-        selectedTechniqueId: previous.score.tracks.some((track) =>
+      setSelectedTechniqueId: (selectedTechniqueId) => {
+        const document = get().document;
+        const exists = document?.score.tracks.some((track) =>
           track.techniques.some(
-            (technique) => technique.id === state.selectedTechniqueId,
+            (technique) => technique.id === selectedTechniqueId,
           ),
-        )
-          ? state.selectedTechniqueId
-          : null,
-        errorMessage: null,
-        ...toHistoryState(history),
-      });
-    },
+        );
+        set({
+          selectedTechniqueId:
+            selectedTechniqueId === null || exists ? selectedTechniqueId : null,
+          errorMessage: null,
+        });
+      },
 
-    redo: () => {
-      const state = get();
-      const next = state.history.future[0];
-      if (!state.document || !next) return;
-      const history: EditorHistory = {
-        past: [...state.history.past, state.document].slice(-HISTORY_LIMIT),
-        future: state.history.future.slice(1),
-      };
-      set({
-        document: next,
-        selection: reconcileSelection(next, state.selection),
-        selectedTechniqueId: next.score.tracks.some((track) =>
-          track.techniques.some(
-            (technique) => technique.id === state.selectedTechniqueId,
-          ),
-        )
-          ? state.selectedTechniqueId
-          : null,
-        errorMessage: null,
-        ...toHistoryState(history),
-      });
-    },
-  }));
+      setErrorMessage: (errorMessage) =>
+        errorMessage ? reportError(errorMessage) : set({ errorMessage: null }),
+
+      undo: () => {
+        const state = get();
+        const previous = state.history.past.at(-1);
+        if (!state.document || !previous) return;
+        const history: EditorHistory = {
+          past: state.history.past.slice(0, -1),
+          future: [state.document, ...state.history.future],
+        };
+        set({
+          effects: [],
+          document: previous,
+          selection: reconcileSelection(previous, state.selection),
+          selectedTechniqueId: previous.score.tracks.some((track) =>
+            track.techniques.some(
+              (technique) => technique.id === state.selectedTechniqueId,
+            ),
+          )
+            ? state.selectedTechniqueId
+            : null,
+          errorMessage: null,
+          ...toHistoryState(history),
+        });
+        notifyChange({ document: previous, reason: "undo", effects: [] });
+      },
+
+      redo: () => {
+        const state = get();
+        const next = state.history.future[0];
+        if (!state.document || !next) return;
+        const history: EditorHistory = {
+          past: [...state.history.past, state.document].slice(-HISTORY_LIMIT),
+          future: state.history.future.slice(1),
+        };
+        set({
+          effects: [],
+          document: next,
+          selection: reconcileSelection(next, state.selection),
+          selectedTechniqueId: next.score.tracks.some((track) =>
+            track.techniques.some(
+              (technique) => technique.id === state.selectedTechniqueId,
+            ),
+          )
+            ? state.selectedTechniqueId
+            : null,
+          errorMessage: null,
+          ...toHistoryState(history),
+        });
+        notifyChange({ document: next, reason: "redo", effects: [] });
+      },
+    };
+  });
 
 export const editorStore = createEditorStore(loadInitialDocument());
 
 /** React 适配器保持 selector API，组件只订阅自己需要的字段。 */
 export const useEditorStore = <T>(selector: (state: EditorStore) => T): T =>
-  useStore(editorStore, selector);
+  useStore(useEditorSessionStore(), selector);
+
+/** 会话上下文同时服务 React 订阅和侧栏的命令/订阅入口。 */
+export const useEditorSessionStore = (): StoreApi<EditorStoreState> =>
+  useContext(EditorStoreContext) ?? editorStore;
+
+export interface EditorChangeEvent {
+  document: ILXMDocument;
+  reason: "command" | "undo" | "redo";
+  command?: ILXMScoreCommand;
+  effects: ILXMCommandEffect[];
+}
+export interface EditorSessionOptions {
+  onChange?: (event: EditorChangeEvent) => void;
+  onError?: (event: { message: string }) => void;
+}
+
+/** 宿主输入经过正式加载器，再收紧到本版支持的单轨、非空小节。 */
+export const loadEditorDocument = (input: unknown): DocumentLoadResult => {
+  let result: DocumentLoadResult;
+  try {
+    result = loadDocument(
+      typeof input === "string" ? input : JSON.stringify(input),
+    );
+  } catch {
+    return { ok: false, errors: ["文档无法序列化为 JSON。"] };
+  }
+  if (!result.ok) return result;
+  const tracks = result.document.score.tracks;
+  if (tracks.length !== 1 || tracks[0]!.measures.length === 0)
+    return { ok: false, errors: ["当前编辑器仅支持包含小节的单轨六线谱。"] };
+  return result;
+};
+
+/** 初始化独立会话；无效宿主输入不会退回或覆盖默认示例。 */
+export const createEditorSession = (
+  input: unknown,
+  options: EditorSessionOptions = {},
+) => {
+  // 初始快照直接包含合法文档，确保 Zustand 的 SSR 快照与首次客户端快照一致。
+  const loaded = loadEditorDocument(input);
+  const session = createEditorStore(
+    loaded.ok ? loaded.document : null,
+    options,
+  );
+  if (!loaded.ok) session.getState().replaceDocument(input);
+  return session;
+};

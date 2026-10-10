@@ -1,3 +1,4 @@
+import { getChordDiagramFretCount } from "../core/chord-diagram";
 import type { ILXMChordDiagram } from "../core/types";
 import {
   musicTextGlyph,
@@ -7,6 +8,10 @@ import {
   type MusicTextGlyph,
   type MusicTextRect,
 } from "./music-text-metrics";
+import {
+  LXM_SCORE_CHORD_BARRE_DISPLAY_HEIGHT,
+  LXM_SCORE_CHORD_DIAGRAM_SCALE,
+} from "./layout-constants";
 
 export interface ChordDiagramLayout {
   lines: {
@@ -36,10 +41,21 @@ export const layoutChordDiagram = (
   const circles: ChordDiagramLayout["circles"] = [];
   const roundedRects: ChordDiagramLayout["roundedRects"] = [];
   const texts: MusicTextGlyph[] = [];
+  const fretCount = getChordDiagramFretCount(diagram);
+  const gridHeight = fretCount * 12;
   const stringX = (string: number) => (6 - string) * 9;
   const fretY = (fret: number) => (fret - diagram.startFret + 0.5) * 12;
   for (let i = 0; i < 6; i++) {
-    lines.push({ x1: i * 9, y1: 0, x2: i * 9, y2: 60, strokeWidth: 0.8 });
+    lines.push({
+      x1: i * 9,
+      y1: 0,
+      x2: i * 9,
+      y2: gridHeight,
+      strokeWidth: 0.8,
+    });
+  }
+  // 六条弦线与品格边界分别生成，尾部不再保留未使用的两个品格。
+  for (let i = 0; i <= fretCount; i++) {
     lines.push({
       x1: 0,
       y1: i * 12,
@@ -52,12 +68,15 @@ export const layoutChordDiagram = (
     const left = stringX(b.maxString),
       right = stringX(b.minString),
       y = fretY(b.fret);
+    // 横按最终会随和弦图缩放；这里反推原始厚度，确保页面显示为 4px。
+    const barreHeight =
+      LXM_SCORE_CHORD_BARRE_DISPLAY_HEIGHT / LXM_SCORE_CHORD_DIAGRAM_SCALE;
     roundedRects.push({
       x: left - 4,
-      y: y - 4,
+      y: y - barreHeight / 2,
       width: right - left + 8,
-      height: 8,
-      rx: 4,
+      height: barreHeight,
+      rx: barreHeight / 2,
     });
     texts.push({
       ...musicTextGlyph(
@@ -112,7 +131,7 @@ export const layoutChordDiagram = (
       ),
     );
   const bounds = unionMusicBounds([
-    { x: -1.5, y: -1.5, width: 48, height: 63 },
+    { x: -1.5, y: -1.5, width: 48, height: gridHeight + 3 },
     ...circles.map((c) => ({
       x: c.cx - c.r,
       y: c.cy - c.r,
@@ -147,3 +166,53 @@ export const translateChordDiagram = (
   })),
   bounds: { ...g.bounds, x: g.bounds.x + dx, y: g.bounds.y + dy },
 });
+
+/** 图元与命中外框同步缩放；小字保留 7 号下限，并按字形原点重算外框。 */
+export const scaleChordDiagram = (
+  g: ChordDiagramLayout,
+  scale: number,
+): ChordDiagramLayout => {
+  const bounds = (rect: MusicTextRect): MusicTextRect => ({
+    x: rect.x * scale,
+    y: rect.y * scale,
+    width: rect.width * scale,
+    height: rect.height * scale,
+  });
+  const texts = g.texts.map((t) => {
+    const fontSize = Math.max(7, t.fontSize * scale);
+    const textScale = fontSize / t.fontSize;
+    return {
+      ...t,
+      x: t.x * scale,
+      y: t.y * scale,
+      fontSize,
+      bounds: {
+        x: t.x * scale + (t.bounds.x - t.x) * textScale,
+        y: t.y * scale + (t.bounds.y - t.y) * textScale,
+        width: t.bounds.width * textScale,
+        height: t.bounds.height * textScale,
+      },
+    };
+  });
+  return {
+    lines: g.lines.map((l) => ({
+      ...l,
+      x1: l.x1 * scale,
+      x2: l.x2 * scale,
+      y1: l.y1 * scale,
+      y2: l.y2 * scale,
+      strokeWidth: l.strokeWidth * scale,
+    })),
+    circles: g.circles.map((c) => ({
+      cx: c.cx * scale,
+      cy: c.cy * scale,
+      r: c.r * scale,
+    })),
+    roundedRects: g.roundedRects.map((r) => ({
+      ...bounds(r),
+      rx: r.rx * scale,
+    })),
+    texts,
+    bounds: unionMusicBounds([bounds(g.bounds), ...texts.map((t) => t.bounds)]),
+  };
+};

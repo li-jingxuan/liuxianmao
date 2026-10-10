@@ -84,3 +84,13 @@ export const createDeferredFretDraftCommit = (
 
   return { schedule, cancel };
 };
+
+/** 闷音单键只在谱面入口接管；系统快捷键和输入法组合键保持原行为。 */
+export const resolveMutedNoteShortcut = (
+  input: BeatKindShortcutInput & { isComposing?: boolean },
+): boolean =>
+  !input.metaKey &&
+  !input.ctrlKey &&
+  !input.altKey &&
+  !input.isComposing &&
+  input.key.toLowerCase() === "x";

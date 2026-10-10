@@ -7,6 +7,7 @@ import {
   LXM_TECHNIQUE_ARROW_WIDTH,
   LXM_TECHNIQUE_COLLISION_PADDING,
   LXM_TECHNIQUE_HIT_PADDING,
+  LXM_TECHNIQUE_TEXT_HALO_WIDTH,
 } from "./layout-constants";
 import type {
   ILXMNoteLayout,
@@ -100,7 +101,9 @@ export const getTechniqueVisualBounds = (
   texts: ILXMTextLayout[],
   arrowHead: ILXMTechniqueSegmentLayout["arrowHead"],
 ): Rect => {
-  const rects = texts.map((label) => getTextBounds(label));
+  const rects = texts.map((label) =>
+    getTextBounds(label, LXM_TECHNIQUE_TEXT_HALO_WIDTH),
+  );
   if (path) {
     const points = getPathPoints(path.d);
     rects.push(padBounds(pointsBounds(points), path.strokeWidth / 2));

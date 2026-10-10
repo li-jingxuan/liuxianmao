@@ -100,7 +100,7 @@
 /** TAB 与拍号是乐谱正文，打印时保留；这里只集中设置文字的视觉重量。 */
 .tabLabel {
   font-family: Georgia, "Times New Roman", serif;
-  font-weight: 700;
+  font-weight: 400;
   // 细白描边只清理穿过字形的弦线，仍能看出六线谱在 TAB 谱号区域连续延伸。
   paint-order: stroke fill;
   stroke: #fff;
@@ -109,7 +109,7 @@
 
 .timeSignatureLayer {
   font-family: Georgia, "Times New Roman", serif;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .restLayer {
@@ -124,6 +124,8 @@
 }
 
 .scoreSvg {
+  // 谱面统一正常字重，连音与技巧文字沿用该设置。
+  font-weight: 400;
   display: block;
   width: 100%;
   height: auto;
@@ -157,8 +159,15 @@
   stroke: #fff;
   stroke-linejoin: round;
   paint-order: stroke;
-  font-weight: 700;
+  font-weight: 400;
   text-anchor: middle;
+}
+
+// 技巧文字与弦线交叠时保留白色净空；描边宽度来自核心，碰撞和显示保持一致。
+.techniqueText {
+  stroke: #fff;
+  paint-order: stroke;
+  stroke-linejoin: round;
 }
 
 .selectionRange {
@@ -251,43 +260,497 @@
   }
 }
 
-.musicTextPanel {
-  padding: 8px;
-  border: 1px solid #d8dce3;
-  border-radius: 6px;
-  max-height: 42vh;
+/** 属性侧栏占用视口空间，不改变纸张或核心谱面几何。 */
+.editor {
+  container-type: inline-size;
+  container-name: score-editor;
+  min-height: 0;
+}
+.editorControls {
+  max-height: 35%;
   overflow: auto;
-  button,
-  label {
-    margin: 4px 6px 4px 0;
+}
+.protectedTools {
+  display: contents;
+}
+.editorWorkspace {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  background: var(--panel-muted);
+}
+.musicTextSidebar {
+  flex: 0 0 460px;
+  width: 460px;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  margin: 12px 16px 16px 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow: 0 4px 20px rgb(25 33 61 / 4%);
+  font-size: 14px;
+  &[hidden] {
+    display: none;
   }
-  label {
+  button {
     display: inline-flex;
-    gap: 4px;
     align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 36px;
+    padding: 6px 12px;
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    background: #fff;
+    cursor: pointer;
+    &:hover:not(:disabled) {
+      background: var(--accent-soft);
+    }
+    &:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
   }
-  input:not([type="checkbox"]),
+  button,
+  input,
+  select,
+  summary {
+    &:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+  }
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+    color: #48556b;
+  }
+  input,
   select {
-    max-width: 220px;
-    padding: 3px;
+    width: 100%;
+    min-width: 0;
+    height: 38px;
+    padding: 6px 10px;
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    background: #fff;
+    color: var(--foreground);
+    font: inherit;
+    &:disabled {
+      background: var(--panel-muted);
+      opacity: 0.65;
+    }
   }
-  table {
-    border-collapse: collapse;
-    display: inline-table;
-    margin: 8px;
-    vertical-align: top;
+  small {
+    color: var(--muted);
+    line-height: 1.6;
   }
-  th,
-  td {
-    padding: 3px 8px;
-    border: 1px solid #ddd;
+  h3 {
+    margin: 0 0 16px;
+    font-size: 16px;
+    font-weight: 600;
   }
-  fieldset {
-    display: inline-block;
-    vertical-align: top;
-    max-width: 350px;
+  .primaryButton {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    &:hover:not(:disabled) {
+      background: #2455e6;
+    }
+  }
+  .dangerButton {
+    color: #df2525;
+    border-color: transparent;
+    margin-right: auto;
+    padding-left: 0;
+  }
+  .linkButton {
+    border: 0;
+    color: var(--accent);
+    padding: 0;
+    min-height: 28px;
+    font-size: 12px;
+  }
+  .iconButton {
+    padding: 6px;
+    border: 0;
+    background: transparent;
+  }
+}
+.sidebarHeader {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px 0;
+  border-bottom: 1px solid var(--border);
+  [role="tablist"] {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+  }
+  [role="tab"] {
+    flex: 1;
+    min-height: 48px;
+    border: 0;
+    border-bottom: 3px solid transparent;
+    border-radius: 6px 6px 0 0;
+    color: #48556b;
+    font-weight: 600;
+    &[aria-selected="true"] {
+      border-bottom-color: var(--accent);
+      color: var(--accent);
+      background: var(--accent-soft);
+    }
+  }
+}
+.sidebarBody {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 18px;
+}
+.sidebarTarget {
+  margin: 0 0 18px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.sidebarEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 14px;
+  padding: 45px 12px;
+  color: var(--muted);
+  h3,
+  p {
+    margin: 0;
+  }
+}
+.sidebarSection {
+  & + & {
+    margin-top: 20px;
+    border-top: 1px solid var(--border);
+    padding-top: 20px;
+  }
+  > label {
+    margin-bottom: 16px;
   }
   small {
     display: block;
+    margin: 10px 0;
+  }
+}
+.propertyGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.sectionHeading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  h3 {
+    margin: 0;
+  }
+}
+.fingeringGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 12px;
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  th,
+  td {
+    border: 1px solid var(--border);
+    padding: 5px 3px;
+    text-align: center;
+  }
+  th {
+    background: var(--panel-muted);
+  }
+  select {
+    font-size: 12px;
+    padding: 4px 0;
+    height: 30px;
+    border: 0;
+  }
+}
+.chordPreview {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 6px;
+  overflow-wrap: anywhere;
+  h4 {
+    align-self: flex-start;
+    margin: 0 0 16px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  strong {
+    font-size: 20px;
+    margin-bottom: 6px;
+  }
+  svg {
+    max-width: 100%;
+  }
+  p {
+    font-size: 12px;
+    color: #b42318;
+  }
+}
+.barreSettings {
+  margin-top: 18px;
+  summary {
+    font-weight: 600;
+    cursor: pointer;
+    margin-bottom: 12px;
+  }
+  fieldset {
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  legend {
+    padding: 0 4px;
+    color: var(--muted);
+  }
+}
+.sidebarTip {
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px solid #dbe6ff;
+  border-radius: 6px;
+  background: #f2f6ff;
+  color: #4c6085;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.sidebarFooter {
+  flex: none;
+  padding: 12px 18px 16px;
+  border-top: 1px solid var(--border);
+}
+.sidebarHistory {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  button {
+    min-height: 30px;
+    padding: 3px 8px;
+  }
+  small {
+    margin-left: auto;
+  }
+}
+.sidebarActions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.sidebarError,
+.sidebarMessage {
+  margin: 0 0 10px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.sidebarError {
+  color: #b42318;
+}
+.sidebarMessage {
+  color: var(--accent);
+}
+.draftConfirmation {
+  h3 {
+    margin-bottom: 8px;
+  }
+  p {
+    color: var(--muted);
+    margin: 0 0 12px;
+  }
+  > div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
+
+/** 窄窗口采用上下分区，连续录入时谱面仍然可以点选，切换不卸载草稿。 */
+@container score-editor (width < 1320px) {
+  .editorWorkspace {
+    flex-direction: column;
+  }
+  .musicTextSidebar {
+    flex: 0 0 min(45%, 440px);
+    width: auto;
+    margin: 0 16px 12px;
+  }
+  .sidebarEmpty {
+    padding: 12px;
+  }
+}
+@container score-editor (width < 520px) {
+  .propertyGrid,
+  .fingeringGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sidebarHeader [role="tab"] {
+    padding: 6px;
+    font-size: 12px;
+  }
+  .sidebarFooter {
+    padding: 8px;
+  }
+}
+@media print {
+  .editor {
+    container-type: normal;
+  }
+  .editorControls,
+  .musicTextSidebar {
+    display: none;
+  }
+  .editorWorkspace {
+    display: block;
+    height: auto;
+    overflow: visible;
+  }
+  .pageViewport {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+}
+
+// inert 保留正常禁用语义，同时向用户提示哪些谱面操作暂时暂停。
+.protectedTools[inert] > * {
+  opacity: 0.45;
+}
+
+// 小高度或页面放大时，操作区自身可滚动，避免固定底部挤掉全部表单空间。
+.sidebarFooter {
+  max-height: 45%;
+  overflow: auto;
+}
+@media screen and (max-height: 650px) {
+  @container score-editor (width < 1320px) {
+    .musicTextSidebar {
+      flex-basis: min(60%, 440px);
+    }
+    .sidebarHeader {
+      padding-top: 4px;
+    }
+    .sidebarHeader [role="tab"] {
+      min-height: 34px;
+    }
+    .sidebarBody {
+      padding: 10px 18px;
+    }
+    .sidebarTarget {
+      margin-bottom: 10px;
+    }
+    .sidebarFooter {
+      padding: 8px 12px;
+    }
+  }
+}
+
+/* 歌词视觉焦点独立于核心命中几何，打印不输出编辑状态。 */
+.lyricFocus {
+  fill: rgb(47 101 255 / 12%);
+  stroke: var(--accent);
+  stroke-width: 1;
+}
+.emptyLyricCaret {
+  fill: transparent;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+  pointer-events: none;
+}
+.musicTextSidebar textarea {
+  width: 100%;
+  min-width: 0;
+  resize: vertical;
+  min-height: 90px;
+  padding: 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  font: inherit;
+}
+.musicTextSidebar .overwriteToggle {
+  flex-direction: row;
+  align-items: center;
+  margin: 14px 0;
+  input {
+    width: 16px;
+    height: 16px;
+    flex: none;
+  }
+}
+.sequencePreview {
+  overflow-x: auto;
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  th,
+  td {
+    padding: 6px;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+    overflow-wrap: anywhere;
+  }
+  tr[aria-selected="true"] {
+    background: var(--accent-soft);
+  }
+  td button {
+    font-size: 12px;
+    padding: 4px;
+  }
+}
+@media print {
+  .lyricFocus,
+  .emptyLyricCaret {
+    display: none;
+  }
+}
+
+.impactNotice {
+  margin: 8px 0;
+  padding: 8px 12px;
+  border: 1px solid #d4c7a5;
+  border-radius: 6px;
+  background: #fff9eb;
+  color: #605234;
+  font-size: 12px;
+  summary {
+    cursor: pointer;
+  }
+  ul {
+    margin: 8px 0 0;
+    padding-left: 20px;
   }
 }

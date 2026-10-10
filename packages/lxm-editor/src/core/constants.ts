@@ -2,7 +2,7 @@
 export const SCORE_DOCUMENT_SCHEMA = "lxm-tab-score" as const;
 
 /** 当前文档版本；项目明确不维护旧版本迁移链。 */
-export const CURRENT_SCHEMA_VERSION = 3 as const;
+export const CURRENT_SCHEMA_VERSION = 5 as const;
 
 /** 可展示在六线谱上的基础节奏类型。 */
 export const LXM_RHYTHM_BASES = [

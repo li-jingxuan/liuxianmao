@@ -57,6 +57,8 @@ export interface ILXMTrack {
   name: string;
   instrument: ILXMInstrumentType;
   tuning: ILXMTuning;
+  /** 轨道级变调夹；音符品位仍保存为相对 capo 的谱面品位。 */
+  capo: number;
   /** 第一小节之前的谱首边界；普通谱面使用 none。 */
   startBarline: ILXMTrackStartBarlineType;
   measures: ILXMMeasure[];
@@ -94,6 +96,8 @@ export interface ILXMMeasure {
   lyrics: ILXMLyric[];
   beats: ILXMBeat[];
   tuplets: ILXMTuplet[];
+  /** 可选的小节段落标记，仅用于记谱展示。 */
+  sectionLabel?: string;
 }
 
 /** 小节拍号，例如 4/4。 */
@@ -138,6 +142,7 @@ export interface ILXMChordBarre {
 }
 export interface ILXMChordDiagram {
   startFret: number;
+  /** 最大窗口容量；实际显示 3–5 格，由指法和 startFret 推导。 */
   fretCount: 5;
   strings: ILXMChordString[];
   barres: ILXMChordBarre[];
@@ -158,11 +163,14 @@ export interface ILXMBeat {
   notes: ILXMNote[];
 }
 
-/** 六线谱音符，string 为弦号，fret 为品位。 */
+/** 数值表示有确定音高的品位；x 表示有时值的无音高闷音。 */
+export type ILXMFret = number | "x";
+
+/** 六线谱音符，string 为弦号，fret 为品位或闷音。 */
 export interface ILXMNote {
   id: string;
   string: number;
-  fret: number;
+  fret: ILXMFret;
 }
 
 /**

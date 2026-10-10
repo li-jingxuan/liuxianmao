@@ -13,7 +13,10 @@ import type {
   ILXMMeasureLayout,
   ILXMNoteLayout,
 } from "./layout-types";
-import { layoutMeasureSpacing } from "./measure-spacing";
+import {
+  type ILXMSummarizeMeasureSpacingWidth,
+  layoutMeasureSpacing,
+} from "./measure-spacing";
 import { calculateMeasureHeight } from "./layout-helpers";
 import { STANDARD_GUITAR_TUNING } from "../core/constants";
 import {
@@ -31,6 +34,8 @@ import { getRhythmBottom } from "./rhythm-bounds";
 
 export interface ILXMLayoutMeasureContext {
   musicTextMetrics?: ILXMMusicTextMetrics;
+  /** 正式布局复用候选行已经避让和弦的间距摘要。 */
+  spacingSummary?: ILXMSummarizeMeasureSpacingWidth;
   index: number;
   /** 当前小节所属谱面行；由 system-layout 在最终定位时传入。 */
   systemIndex: number;
@@ -136,6 +141,7 @@ export const layoutMeasure = (
       assignedWidth: requestedAssignedWidth,
       leadingWidth,
       musicTextMetrics: context.musicTextMetrics,
+      spacingSummary: context.spacingSummary,
     },
   );
 

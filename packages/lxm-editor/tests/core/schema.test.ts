@@ -25,8 +25,16 @@ describe("core schema", () => {
     name: "测试吉他",
     instrument: "guitar",
     tuning: {
-      strings: [{ index: 1, pitch: "E4", midi: 64 }],
+      strings: [
+        { index: 1, pitch: "E4", midi: 64 },
+        { index: 2, pitch: "B3", midi: 59 },
+        { index: 3, pitch: "G3", midi: 55 },
+        { index: 4, pitch: "D3", midi: 50 },
+        { index: 5, pitch: "A2", midi: 45 },
+        { index: 6, pitch: "E2", midi: 40 },
+      ],
     },
+    capo: 0,
     startBarline: "none",
     techniques: [],
     measures: [],

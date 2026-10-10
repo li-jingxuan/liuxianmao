@@ -1,3 +1,4 @@
+import styles from "./index.module.scss";
 import type {
   ChordDiagramLayout,
   MusicTextGlyph,
@@ -46,7 +47,15 @@ export const ChordDiagramView = ({
   </g>
 );
 
-export const MusicTextLayer = ({ layout }: { layout: ILXMLayout }) => (
+export const MusicTextLayer = ({
+  layout,
+  lyricFocus,
+}: {
+  layout: ILXMLayout;
+  lyricFocus?: ReturnType<
+    typeof import("./music-text-focus").resolveLyricFocus
+  >;
+}) => (
   <g data-layer="music-text">
     {layout.systems.map((system) => (
       <g key={system.index}>
@@ -57,6 +66,17 @@ export const MusicTextLayer = ({ layout }: { layout: ILXMLayout }) => (
           <g key={measure.id}>
             {measure.lyrics?.map((lyric) => (
               <g key={lyric.id} data-lyric-id={lyric.id}>
+                {lyricFocus?.id === lyric.id && (
+                  <rect
+                    className={styles.lyricFocus}
+                    pointerEvents="none"
+                    x={lyric.bounds.x - 4}
+                    y={lyric.bounds.y - 2}
+                    width={lyric.bounds.width + 8}
+                    height={lyric.bounds.height + 4}
+                    rx={3}
+                  />
+                )}
                 <MusicGlyph glyph={lyric.label} />
               </g>
             ))}

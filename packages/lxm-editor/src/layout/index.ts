@@ -15,8 +15,11 @@ import {
 } from "./layout-constants";
 import { buildHitIndex } from "./hit-test";
 import type { ILXMLayout, ILXMLayoutOptions } from "./layout-types";
+import { chordDisplayTrack } from "./chord-display";
 import { layoutSystems } from "./system-layout";
 import { layoutSystemContent } from "./system-content-layout";
+import { buildTechniqueInsets } from "./technique-spacing";
+export { layoutChordDiagram, translateChordDiagram, scaleChordDiagram } from "./chord-diagram-layout";
 
 /** 没有可布局轨道时返回的空布局，保持调用方无需做 null 判断。 */
 const getDefaultLayout = (options: ILXMLayoutOptions): ILXMLayout => {
@@ -44,8 +47,9 @@ export const buildLayout = (
   document: ILXMDocument,
   options: ILXMLayoutOptions = {},
 ): ILXMLayout => {
-  const track = document.score.tracks[0];
-  if (!track) return getDefaultLayout(options);
+  const sourceTrack = document.score.tracks[0];
+  if (!sourceTrack) return getDefaultLayout(options);
+  const track = chordDisplayTrack(sourceTrack, options.showChordDiagrams);
 
   const x = options.x ?? LXM_LAYOUT_DEFAULT_X;
   const y = options.y ?? LXM_LAYOUT_DEFAULT_Y;
@@ -60,6 +64,7 @@ export const buildLayout = (
     density: options.density ?? LXM_LAYOUT_DEFAULT_DENSITY,
     startBarline: track.startBarline,
     musicTextMetrics: options.musicTextMetrics,
+    techniqueInsets: buildTechniqueInsets(track),
   });
   const systems = layoutSystemContent(
     track,
@@ -105,3 +110,5 @@ export { layoutSystems } from "./system-layout";
 export * from "./music-text-metrics";
 export * from "./chord-diagram-layout";
 export * from "./music-text-layout";
+
+export * from "./chord-display";

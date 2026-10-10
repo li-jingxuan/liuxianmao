@@ -10,6 +10,8 @@ import example from "../../example/example-mvp5.1.json";
 import v5 from "../../example/example-mvp5.json";
 import v6 from "../../example/example-mvp6.json";
 import { alignSystemTuplets } from "../../src/layout/tuplet-layout";
+import { getTextBounds } from "../../src/layout/technique-geometry";
+import { MUSIC_TEXT_LANE_GAP } from "../../src/layout/music-text-metrics";
 import { getDurationFlagBottom } from "../../src/layout/rhythm-bounds";
 const measures = example.score.tracks[0]!.measures;
 
@@ -71,11 +73,17 @@ describe("连音布局的最终几何", () => {
       const groups = system.measures.flatMap((measure) => measure.tuplets);
       expect(new Set(groups.map((group) => group.bracket!.y)).size).toBe(1);
       const annotationBottom = Math.max(
-        ...groups.map((group) => group.label.y + 12),
+        ...groups.map((group) => {
+          // 检查实际字形净空；布局重排后不能用固定 12px 代替字形下缘。
+          const bounds = getTextBounds(group.label, 1);
+          return bounds.y + bounds.height;
+        }),
       );
       system.measures.forEach((measure) => {
         measure.lyrics!.forEach((lyric) =>
-          expect(lyric.bounds.y).toBeGreaterThan(annotationBottom),
+          expect(lyric.bounds.y).toBeGreaterThanOrEqual(
+            annotationBottom + MUSIC_TEXT_LANE_GAP - 1e-9,
+          ),
         );
         measure.durationMarks.forEach((mark) => {
           if (mark.flag && measure.tuplets.length)

@@ -9,8 +9,12 @@ import type { ILXMMusicTextMetrics } from "./music-text-metrics";
 import type { ILXMMeasure, ILXMTrackStartBarlineType } from "../core/types";
 import type { ILXMLayoutMeasureContext } from "./measure-layout";
 import { layoutMeasure } from "./measure-layout";
-import { summarizeMeasureSpacingWidth } from "./measure-spacing";
 import {
+  type ILXMSummarizeMeasureSpacingWidth,
+  summarizeMeasureSpacingWidth,
+} from "./measure-spacing";
+import {
+  LXM_LAYOUT_DENSITY_PROFILES,
   LXM_LEADING_REPEAT_CLEARANCE_WIDTH,
   LXM_SPARSE_SYSTEM_MAX_CONTENT_SCALE,
   LXM_SYSTEM_HEADER_WIDTH,
@@ -19,7 +23,10 @@ import {
 import type { ILXMLayoutDensity, ILXMSystemLayout } from "./layout-types";
 import { shouldShowTimeSignature } from "./time-signature-layout";
 import { layoutSystemHeader } from "./system-header-layout";
+import { alignSystemRhythm } from "./rhythm-lane-layout";
 import { alignSystemTuplets } from "./tuplet-layout";
+import { createChordBlock } from "./music-text-layout";
+import type { TechniqueInsets } from "./technique-spacing";
 
 /** system 断行所需的已解析配置，避免函数内部读取默认常量。 */
 export interface ILXMSystemLayoutOptions {
@@ -32,6 +39,8 @@ export interface ILXMSystemLayoutOptions {
   density: ILXMLayoutDensity;
   /** 第一小节之前的领域边界；只会投影到第一条 system。 */
   startBarline: ILXMTrackStartBarlineType;
+  /** 技巧与拍点共享横向空间，在自动断行前参与最小列宽计算。 */
+  techniqueInsets?: ReadonlyMap<string, TechniqueInsets>;
 }
 
 /**
@@ -45,6 +54,8 @@ interface ILXMPendingMeasure {
   index: number;
   /** 断行阶段得到并缓存的固有宽度，提交 System 时不再重复计算。 */
   intrinsicWidth: number;
+  spacingSummary: ILXMSummarizeMeasureSpacingWidth;
+  leadingWidth: number;
   /** 不包含 density profile 左右 padding 的真实节奏内容宽度。 */
   intrinsicContentWidth: number;
 }
@@ -144,6 +155,123 @@ export const layoutSystems = (
     return startsWithRepeat ? LXM_LEADING_REPEAT_CLEARANCE_WIDTH : 0;
   };
 
+  /** 候选行统一检查跨小节碰撞；只扩宽布局列，不改领域文档。 */
+  const planPending = (
+    entries: { measure: ILXMMeasure; index: number }[],
+  ): ILXMPendingMeasure[] => {
+    const padding =
+      LXM_LAYOUT_DENSITY_PROFILES[options.density].measurePaddingX;
+    const planned = entries.map(({ measure, index }, position) => {
+      const leadingWidth =
+        (shouldShowTimeSignature(measures, index)
+          ? LXM_TIME_SIGNATURE_WIDTH
+          : 0) + getLeadingBarlineClearance(index);
+      const spacingSummary = summarizeMeasureSpacingWidth(
+        measure,
+        options.density,
+        leadingWidth,
+        options.musicTextMetrics,
+        position === entries.length - 1,
+        options.techniqueInsets,
+      );
+      return {
+        measure,
+        index,
+        leadingWidth,
+        spacingSummary,
+        intrinsicWidth: spacingSummary.assignedWidth,
+        intrinsicContentWidth: spacingSummary.contentWidth,
+      };
+    });
+    const columns = planned.flatMap((entry) =>
+      entry.spacingSummary.columns.map((column) => ({ entry, column })),
+    );
+    const chords = columns.flatMap(({ entry, column }, columnIndex) =>
+      entry.measure.chordSymbols
+        .filter((symbol) => column.beatIds.includes(symbol.beatId))
+        .map((symbol) => ({
+          columnIndex,
+          bounds: createChordBlock(symbol, options.musicTextMetrics).bounds,
+        })),
+    );
+    const anchorX = (columnIndex: number) => {
+      let x = 0;
+      for (const entry of planned) {
+        const localIndex = entry.spacingSummary.columns.indexOf(
+          columns[columnIndex]!.column,
+        );
+        if (localIndex >= 0)
+          return (
+            x +
+            padding +
+            entry.leadingWidth +
+            entry.spacingSummary.leftExtra +
+            entry.spacingSummary.columns
+              .slice(0, localIndex)
+              .reduce((sum, column) => sum + column.idealWidth, 0)
+          );
+        x += entry.intrinsicWidth + options.measureGap;
+      }
+      return x;
+    };
+    // 依拍点顺序扩宽当前块之前的列，已完成的前缀不会被移动，因此无需迭代求解。
+    for (let i = 0; i < chords.length; i++) {
+      const current = chords[i]!;
+      for (const previous of chords.slice(0, i)) {
+        if (previous.columnIndex === current.columnIndex) continue;
+        const deficit =
+          anchorX(previous.columnIndex) +
+          previous.bounds.x +
+          previous.bounds.width +
+          4 -
+          anchorX(current.columnIndex) -
+          current.bounds.x;
+        if (deficit <= 0) continue;
+        const { entry, column } = columns[current.columnIndex - 1]!;
+        column.minWidth = Math.max(
+          column.minWidth,
+          column.idealWidth + deficit,
+        );
+        column.idealWidth += deficit;
+        entry.spacingSummary.minWidth = entry.spacingSummary.columns.reduce(
+          (sum, c) => sum + c.minWidth,
+          entry.intrinsicWidth - entry.intrinsicContentWidth,
+        );
+        entry.spacingSummary.idealWidth += deficit;
+        entry.spacingSummary.assignedWidth += deficit;
+        entry.spacingSummary.contentWidth += deficit;
+        entry.intrinsicWidth += deficit;
+        entry.intrinsicContentWidth += deficit;
+      }
+    }
+    // 前一小节的孤立长名称也可跨过后续空小节，最终只在整行尾部补足。
+    const rowWidth = planned.reduce(
+      (sum, entry) => sum + entry.intrinsicWidth,
+      Math.max(0, planned.length - 1) * options.measureGap,
+    );
+    const tailDeficit = Math.max(
+      0,
+      ...chords.map(
+        ({ columnIndex, bounds }) =>
+          anchorX(columnIndex) + bounds.x + bounds.width + 4 - rowWidth,
+      ),
+    );
+    const last = planned.at(-1);
+    if (last && tailDeficit > 0) {
+      last.spacingSummary.tailExtra += tailDeficit;
+      last.spacingSummary.minWidth += tailDeficit;
+      last.spacingSummary.idealWidth += tailDeficit;
+      last.spacingSummary.assignedWidth += tailDeficit;
+      last.intrinsicWidth += tailDeficit;
+    }
+    return planned;
+  };
+  const pendingTotal = (entries: ILXMPendingMeasure[]) =>
+    entries.reduce(
+      (sum, entry) => sum + entry.intrinsicWidth,
+      Math.max(0, entries.length - 1) * options.measureGap,
+    );
+
   /** 将当前待布局小节提交为一条最终坐标确定的谱面行。 */
   const flushSystem = (reason: ILXMSystemFlushReason) => {
     if (pendingMeasures.length === 0) return;
@@ -181,7 +309,7 @@ export const layoutSystems = (
     const staffX = options.startX + LXM_SYSTEM_HEADER_WIDTH;
     let cursorX = staffX;
     const rawMeasures = pendingMeasures.map(
-      ({ measure, index }, measureIndex) => {
+      ({ measure, index, spacingSummary }, measureIndex) => {
         const isLastMeasure = measureIndex === pendingMeasures.length - 1;
         // 最后一个小节直接使用目标右边界减去当前游标，吸收小节比例分配、gap
         // 和 startX 参与运算后的全部浮点残差。这样视觉小节线不会逐节漂移。
@@ -201,6 +329,7 @@ export const layoutSystems = (
             : measure.barline;
         const context: ILXMLayoutMeasureContext = {
           musicTextMetrics: options.musicTextMetrics,
+          spacingSummary,
           index,
           systemIndex,
           x: cursorX,
@@ -217,7 +346,12 @@ export const layoutSystems = (
       },
     );
     // 小节的局部节奏净空计算完毕后统一连音高度；歌词和技巧消费此最终几何。
-    const laidOutMeasures = alignSystemTuplets(rawMeasures);
+    const laidOutMeasures = alignSystemTuplets(
+      alignSystemRhythm(
+        pendingMeasures.map(({ measure }) => measure),
+        rawMeasures,
+      ),
+    );
     const systemHeight = Math.max(
       ...laidOutMeasures.map((measure) => measure.height),
     );
@@ -262,36 +396,17 @@ export const layoutSystems = (
   };
 
   measures.forEach((measure, index) => {
-    const timeSignatureWidth = shouldShowTimeSignature(measures, index)
-      ? LXM_TIME_SIGNATURE_WIDTH
-      : 0;
-    const spacingSummary = summarizeMeasureSpacingWidth(
-      measure,
-      options.density,
-      timeSignatureWidth + getLeadingBarlineClearance(index),
-      options.musicTextMetrics,
-    );
-    const width = spacingSummary.assignedWidth;
-    const nextWidth =
-      pendingMeasures.length === 0
-        ? width
-        : pendingWidth + options.measureGap + width;
-
-    if (pendingMeasures.length > 0 && nextWidth > staffWidthLimit) {
-      // 当前行因为下一个小节放不下而结束，它是正文换行而不是文档末行。
+    const candidate = planPending([...pendingMeasures, { measure, index }]);
+    if (
+      pendingMeasures.length > 0 &&
+      pendingTotal(candidate) > staffWidthLimit
+    ) {
       flushSystem("wrapped");
+      pendingMeasures = planPending([{ measure, index }]);
+    } else {
+      pendingMeasures = candidate;
     }
-
-    pendingWidth =
-      pendingMeasures.length === 0
-        ? width
-        : pendingWidth + options.measureGap + width;
-    pendingMeasures.push({
-      measure,
-      index,
-      intrinsicWidth: width,
-      intrinsicContentWidth: spacingSummary.contentWidth,
-    });
+    pendingWidth = pendingTotal(pendingMeasures);
   });
 
   // 只有遍历完成后仍待提交的这一行才是真正的末行。末行无论包含几个小节，都按

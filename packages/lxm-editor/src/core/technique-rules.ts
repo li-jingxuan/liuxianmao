@@ -198,11 +198,7 @@ export const validateTechnique = (
         "fromNoteId",
       );
     if (!to)
-      return fail(
-        "TECHNIQUE_NOTE_NOT_FOUND",
-        "技巧目标音符不存在",
-        "toNoteId",
-      );
+      return fail("TECHNIQUE_NOTE_NOT_FOUND", "技巧目标音符不存在", "toNoteId");
     if (from.beat.order >= to.beat.order)
       return fail(
         "TECHNIQUE_NOTES_NOT_ORDERED",
@@ -216,6 +212,13 @@ export const validateTechnique = (
         "toNoteId",
       );
 
+    // x 没有确定音高；不能比较高低，也不能将两个 x 误认为同音延音。
+    if (typeof from.note.fret !== "number" || typeof to.note.fret !== "number")
+      return fail(
+        "TECHNIQUE_TARGET_INVALID",
+        "击弦、勾弦、滑音和延音线需要两端都是数值品位，不能连接闷音 x",
+        "toNoteId",
+      );
     if (technique.type === "tie") {
       if (from.note.fret !== to.note.fret)
         return fail(
@@ -255,6 +258,13 @@ export const validateTechnique = (
         "技巧目标音符不存在",
         "fromNoteId",
       );
+    // 当前所有单 Note 技巧均需要有音高/触弦位置的音符。
+    if (target.note.fret === "x")
+      return fail(
+        "TECHNIQUE_TARGET_INVALID",
+        "该技巧需要数值品位，不能作用于闷音 x",
+        "fromNoteId",
+      );
     if (
       technique.type === "trill" &&
       (technique.auxiliaryFret < 0 ||
@@ -269,15 +279,8 @@ export const validateTechnique = (
   } else if (isBeatTechnique(technique)) {
     const target = index.beatsById.get(technique.beatId);
     if (!target)
-      return fail(
-        "TECHNIQUE_BEAT_NOT_FOUND",
-        "技巧目标 Beat 不存在",
-        "beatId",
-      );
-    if (
-      technique.type === "strum" ||
-      technique.type === "arpeggio"
-    ) {
+      return fail("TECHNIQUE_BEAT_NOT_FOUND", "技巧目标 Beat 不存在", "beatId");
+    if (technique.type === "strum" || technique.type === "arpeggio") {
       if (
         !Number.isInteger(technique.minString) ||
         !Number.isInteger(technique.maxString) ||
@@ -291,7 +294,8 @@ export const validateTechnique = (
           "maxString",
         );
     }
-    const noteCount = target.beat.kind === "notes" ? target.beat.notes.length : 0;
+    const noteCount =
+      target.beat.kind === "notes" ? target.beat.notes.length : 0;
     if (technique.type === "pickStroke" && noteCount !== 1)
       return fail(
         "TECHNIQUE_TARGET_INVALID",
@@ -331,7 +335,11 @@ export const validateTechnique = (
   const others = track.techniques.filter(
     (candidate) => candidate.id !== excludeTechniqueId,
   );
-  if (others.some((candidate) => getTechniqueKey(candidate) === getTechniqueKey(technique)))
+  if (
+    others.some(
+      (candidate) => getTechniqueKey(candidate) === getTechniqueKey(technique),
+    )
+  )
     return fail("TECHNIQUE_CONFLICT", "相同目标和参数的技巧已经存在");
 
   for (const existing of others) {
@@ -418,7 +426,8 @@ export const pruneInvalidTechniques = (track: ILXMTrack): ILXMTrack => {
   const techniques: ILXMTechnique[] = [];
   for (const technique of track.techniques) {
     const candidateTrack = { ...track, techniques };
-    if (validateTechnique(candidateTrack, technique).ok) techniques.push(technique);
+    if (validateTechnique(candidateTrack, technique).ok)
+      techniques.push(technique);
   }
   return techniques.length === track.techniques.length
     ? track

@@ -1,3 +1,4 @@
+import { effectiveChordDisplay } from "./chord-display";
 import type { ILXMDocument } from "../core/types";
 
 export interface ILXMMusicTextMeasureRequest {
@@ -34,6 +35,15 @@ export const MUSIC_TEXT_FONT =
   'Arial, "PingFang SC", "Microsoft YaHei", sans-serif';
 export const MUSIC_TEXT_GAP = 6;
 export const MUSIC_TEXT_LANE_GAP = 8;
+/** 段间留白与正文/和弦净空独立，避免压缩歌词时牵动指法图。 */
+export const MUSIC_LYRIC_VERSE_GAP = 3;
+/** 最后一段歌词的收尾留白，与正文到歌词的净空分别控制。 */
+export const MUSIC_LYRIC_BOTTOM_GAP = 4;
+/** 名称下缘与顶部标记之间保留最小净空，实际字形较高时自动扩展。 */
+export const MUSIC_CHORD_NAME_MIN_DESCENT = 3;
+export const MUSIC_CHORD_NAME_MARKER_GAP = 1;
+/** 谱面和弦名称使用独立字号，度量与渲染共同消费。 */
+export const MUSIC_CHORD_NAME_FONT_SIZE = 10;
 
 /** 度量与渲染共同消费字体和 anchor，避免继承样式产生漂移。 */
 export const musicTextRequest = (
@@ -101,20 +111,32 @@ export const musicTextGlyph = (
 /** 请求去重且不读取布局；首次服务端/客户端均使用相同估算。 */
 export const collectMusicTextMeasureRequests = (
   document: ILXMDocument,
+  showChordDiagrams?: boolean,
 ): ILXMMusicTextMeasureRequest[] => {
   const requests: ILXMMusicTextMeasureRequest[] = [];
   for (const measure of document.score.tracks[0]?.measures ?? []) {
     for (const lyric of measure.lyrics) {
       requests.push(
         musicTextRequest(lyric.text),
-        musicTextRequest(`${lyric.verse}.`, 13, "start"),
+        musicTextRequest(`${lyric.verse}.`, 10, "start"),
       );
     }
     for (const symbol of measure.chordSymbols) {
-      requests.push(musicTextRequest(symbol.chord.name, 13, "middle", 600));
+      requests.push(
+        musicTextRequest(
+          symbol.chord.name,
+          MUSIC_CHORD_NAME_FONT_SIZE,
+          "middle",
+          400,
+        ),
+      );
       const diagram =
-        symbol.display === "nameAndDiagram" ? symbol.chord.diagram : null;
+        effectiveChordDisplay(symbol, showChordDiagrams) === "nameAndDiagram"
+          ? symbol.chord.diagram
+          : null;
       if (diagram) {
+        // 公共标记带始终使用同一字形测量，即使 F 等和弦没有空弦或禁奏。
+        requests.push(musicTextRequest("○", 9), musicTextRequest("×", 9));
         if (diagram.startFret > 1)
           requests.push(musicTextRequest(String(diagram.startFret), 9, "end"));
         for (const s of diagram.strings) {

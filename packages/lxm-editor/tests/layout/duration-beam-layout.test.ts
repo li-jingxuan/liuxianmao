@@ -301,8 +301,8 @@ describe("layoutDurationBeams 附点布局", () => {
       dotAnchors: [
         {
           x: 40 + LXM_DURATION_DOT_OFFSET_X,
-          // 第一层连梁 y=108，附点向上避让 5px。
-          y: 103,
+          // 第一层基线 y=92，附点向上避让 5px。
+          y: 87,
         },
       ],
     });
@@ -320,11 +320,11 @@ describe("layoutDurationBeams 附点布局", () => {
       dotAnchors: [
         {
           x: 40 + LXM_DURATION_DOT_OFFSET_X,
-          y: 103,
+          y: 87,
         },
         {
           x: 40 + LXM_DURATION_DOT_OFFSET_X + LXM_DURATION_DOT_GAP_X,
-          y: 103,
+          y: 87,
         },
       ],
     });
@@ -452,7 +452,7 @@ describe("layoutDurationBeams 谱面时值符号", () => {
     }).toEqual({
       stemX: 40,
       stemY1: 74,
-      stemY2: 108,
+      stemY2: 92,
     });
   });
 

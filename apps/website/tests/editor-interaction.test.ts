@@ -87,3 +87,26 @@ describe("editor interaction", () => {
     expect(commit).toHaveBeenCalledWith("12");
   });
 });
+
+// X 不接管系统组合键和输入法候选，大小写键共用闷音语义。
+describe("闷音快捷键", () => {
+  it("仅非组合输入的 x/X 生效", async () => {
+    const { resolveMutedNoteShortcut } =
+      await import("../components/EditorShell/editor-interaction");
+    const input = {
+      key: "x",
+      metaKey: false,
+      ctrlKey: false,
+      altKey: false,
+      shiftKey: false,
+      isComposing: false,
+    };
+    expect(resolveMutedNoteShortcut(input)).toBe(true);
+    expect(
+      resolveMutedNoteShortcut({ ...input, key: "X", shiftKey: true }),
+    ).toBe(true);
+    for (const flag of ["metaKey", "ctrlKey", "altKey", "isComposing"] as const)
+      expect(resolveMutedNoteShortcut({ ...input, [flag]: true })).toBe(false);
+    expect(resolveMutedNoteShortcut({ ...input, key: "r" })).toBe(false);
+  });
+});

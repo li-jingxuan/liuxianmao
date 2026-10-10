@@ -63,7 +63,7 @@ const beat = (
 /** MVP v2 的默认文档；默认导出供 EXAMPLE_MVP_2.default 使用。 */
 const EXAMPLE_MVP_2: ILXMDocument = {
   schema: "lxm-tab-score",
-  schemaVersion: 3,
+  schemaVersion: 5,
   documentRevision: 1,
   score: {
     id: "mvp2-score",
@@ -84,6 +84,7 @@ const EXAMPLE_MVP_2: ILXMDocument = {
             { index: 6, pitch: "E2", midi: 40 },
           ],
         },
+        capo: 0,
         startBarline: "none",
         techniques: [],
         measures: [

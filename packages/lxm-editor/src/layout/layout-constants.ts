@@ -17,24 +17,26 @@ export const LXM_LAYOUT_DEFAULT_Y = 0;
 export const LXM_SYSTEM_DEFAULT_WIDTH = 600;
 
 /** 相邻两条谱面行之间的垂直留白，避免符干、连梁发生视觉重叠。 */
-export const LXM_SYSTEM_GAP_Y = 36;
+export const LXM_SYSTEM_GAP_Y = 12;
 
 /**
  * system 上方技巧区的确定性尺寸。
  *
  * lane 表示相对自然音符锚点向上的避让步长；system 扩高由最终几何决定。
  */
-export const LXM_TECHNIQUE_LANE_HEIGHT = 14;
+export const LXM_TECHNIQUE_LANE_HEIGHT = 12;
 export const LXM_TECHNIQUE_AREA_PADDING_TOP = 4;
 export const LXM_TECHNIQUE_AREA_PADDING_BOTTOM = 6;
 export const LXM_TECHNIQUE_HORIZONTAL_CLEARANCE = 6;
-export const LXM_TECHNIQUE_TEXT_FONT_SIZE = 10;
+export const LXM_TECHNIQUE_TEXT_FONT_SIZE = 9;
+/** 局部文字可能穿过相邻弦线，细白描边保证 T/A.H./tr 的可读性。 */
+export const LXM_TECHNIQUE_TEXT_HALO_WIDTH = 1;
 export const LXM_TECHNIQUE_PATH_STROKE_WIDTH = 1.2;
 export const LXM_TECHNIQUE_HIT_PADDING = 4;
 /** 音符局部技巧与目标弦线的自然净空。 */
 export const LXM_TECHNIQUE_NOTE_CLEARANCE_Y = 5;
 export const LXM_TECHNIQUE_FRET_GAP_X = 2;
-export const LXM_TECHNIQUE_CURVE_HEIGHT = 8;
+export const LXM_TECHNIQUE_CURVE_HEIGHT = 6;
 export const LXM_TECHNIQUE_COLLISION_PADDING = 2;
 /** 品位文字与页面白色描边共用同一尺寸契约。 */
 export const LXM_FRET_TEXT_FONT_SIZE = 12;
@@ -54,7 +56,7 @@ export const LXM_TECHNIQUE_STAFF_CLEARANCE_Y =
  * 这里仍需保留一列很窄的几何宽度，避免拍号和第一拍压住字母；但六根弦线会贯穿
  * 整列，因此它不再表现为六线谱正文之前的一块空白区域。
  */
-export const LXM_SYSTEM_HEADER_WIDTH = 22;
+export const LXM_SYSTEM_HEADER_WIDTH = 18;
 
 /** 纵向 T/A/B 使用同一字号与水平中心，三个基线分别落在六线谱上、中、下部。 */
 export const LXM_TAB_LABEL_FONT_SIZE = 11;
@@ -156,12 +158,15 @@ export const LXM_DURATION_HEAD_FONT_SIZE = 16;
 export const LXM_DURATION_STEM_NOTE_GAP = 6;
 
 /** 显式技巧箭头尺寸；不依赖 SVG marker 的路径切线自动旋转。 */
-export const LXM_TECHNIQUE_ARROW_WIDTH = 6;
-export const LXM_TECHNIQUE_ARROW_HEIGHT = 6;
+export const LXM_TECHNIQUE_ARROW_WIDTH = 4.5;
+export const LXM_TECHNIQUE_ARROW_HEIGHT = 4.5;
 export const LXM_TECHNIQUE_ARROW_OFFSET_Y = 5;
 
-/** 节奏头到连梁/旗帜锚点之间的固定符干长度。 */
-export const LXM_DURATION_STEM_LENGTH = 28;
+/** 基础时值的主梁/符干终点到第六弦最小距离；复杂图形按实际净空扩展。 */
+export const LXM_DURATION_MIN_BEAM_OFFSET_Y = 22;
+export const LXM_DURATION_BEAM_STAFF_CLEARANCE = 14;
+export const LXM_DURATION_FLAG_STAFF_CLEARANCE = 6;
+export const LXM_DURATION_DOT_STAFF_CLEARANCE = 8;
 
 /** 延续占位线的视觉宽度；精确坐标由 beat slot 的四分单位宽度决定。 */
 export const LXM_DURATION_SUSTAIN_WIDTH = 10;
@@ -231,9 +236,20 @@ export const LXM_DURATION_MIN_COLUMN_WIDTH = {
 } as const;
 
 /** 连音数字、括号与下方图形净空共用同一套尺寸。 */
-export const LXM_TUPLET_FONT_SIZE = 13;
-export const LXM_TUPLET_CLEARANCE = 10;
-export const LXM_TUPLET_HOOK = 5;
+export const LXM_TUPLET_FONT_SIZE = 10;
+/** 连音标注靠近实际时值轮廓，净空由原来的 6 减小 5。 */
+export const LXM_TUPLET_CLEARANCE = 1;
+/** 括号两端短竖线收为 3，同行对齐时随完整括号一起平移。 */
+export const LXM_TUPLET_HOOK = 3;
 export const LXM_TUPLET_GAP = 6;
 export const LXM_TUPLET_STROKE = 1;
 export const LXM_TUPLET_BOTTOM_PADDING = 12;
+
+/** 谱面指法图缩小一档；侧栏预览继续使用原始几何。 */
+export const LXM_SCORE_CHORD_DIAGRAM_SCALE = 0.85;
+/** 谱面和弦图横按的最终显示厚度；核心几何会按缩放比例反推原始高度。 */
+export const LXM_SCORE_CHORD_BARRE_DISPLAY_HEIGHT = 4;
+/** 和弦与第一弦上方可见内容的净空，不再叠加小节顶部固定留白。 */
+export const LXM_CHORD_CONTENT_CLEARANCE_Y = 4;
+/** 横向接近的标记也参与避让，避免字形边缘紧贴指法图。 */
+export const LXM_CHORD_CONTENT_CLEARANCE_X = 4;

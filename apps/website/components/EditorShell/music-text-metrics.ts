@@ -8,10 +8,12 @@ import {
 /** 挂载后的真实 SVG 度量快照；核心和 SSR 不接触 DOM。 */
 export const useMusicTextMetrics = (
   score: ILXMDocument | null,
+  showChordDiagrams?: boolean,
 ): ILXMMusicTextMetrics | undefined => {
   const requests = useMemo(
-    () => (score ? collectMusicTextMeasureRequests(score) : []),
-    [score],
+    () =>
+      score ? collectMusicTextMeasureRequests(score, showChordDiagrams) : [],
+    [score, showChordDiagrams],
   );
   const [state, setState] = useState<{
     requests: typeof requests;

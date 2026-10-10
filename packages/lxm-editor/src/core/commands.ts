@@ -1,3 +1,13 @@
+import {
+  collectCommandEffects,
+  type ILXMCommandEffect,
+} from "./command-effects";
+import { copyMeasureTechniques } from "./copy-measure-techniques";
+import {
+  planLyricSequence,
+  type LyricSequenceItem,
+  type LyricSequenceTarget,
+} from "./lyric-sequence";
 import { editMeasureMusicText } from "./music-text-commands";
 import { cloneChordDiagram } from "./chord-diagram";
 import type { ILXMChordSymbol, ILXMLyricVerse } from "./types";
@@ -31,16 +41,19 @@ import type {
   ILXMDocument,
   ILXMMeasure,
   ILXMNote,
+  ILXMFret,
   ILXMRhythm,
   ILXMTimeSignature,
   ILXMTimeSignatureChangeScope,
   ILXMTechniqueDraft,
+  ILXMTechnique,
   ILXMTrack,
   ILXMTrackStartBarlineType,
 } from "./types";
 
 export enum LXMScoreCommandEnum {
   SetLyric = "lyric.set",
+  SetLyricSequence = "lyrics.setSequence",
   RemoveLyric = "lyric.remove",
   SetChordSymbol = "chordSymbol.set",
   RemoveChordSymbol = "chordSymbol.remove",
@@ -53,9 +66,13 @@ export enum LXMScoreCommandEnum {
   SetBeatKindRange = "beat.setKindRange",
   InsertMeasure = "measure.insert",
   CopyMeasure = "measure.copy",
+  CopyMeasureRange = "measure.copyRange",
   RemoveMeasure = "measure.remove",
   SetTimeSignature = "measure.setTimeSignature",
   SetBarlineBoundary = "barline.setBoundary",
+  SetTuning = "track.setTuning",
+  SetCapo = "track.setCapo",
+  SetSectionLabel = "measure.setSectionLabel",
   AddTechnique = "technique.add",
   UpdateTechnique = "technique.update",
   RemoveTechnique = "technique.remove",
@@ -74,7 +91,7 @@ export interface ILXMBeatCommandBase extends ILXMScoreCommandBase {
 export interface ILXMSetNoteCommand extends ILXMBeatCommandBase {
   type: LXMScoreCommandEnum.SetNote;
   string: number;
-  fret: number;
+  fret: ILXMFret;
 }
 export interface ILXMRemoveNoteCommand extends ILXMBeatCommandBase {
   type: LXMScoreCommandEnum.RemoveNote;
@@ -93,7 +110,7 @@ export interface ILXMTabCellRange {
 export interface ILXMSetNotesInRectCommand {
   type: LXMScoreCommandEnum.SetNotesInRect;
   range: ILXMTabCellRange;
-  fret: number;
+  fret: ILXMFret;
 }
 export interface ILXMRemoveNotesInRectCommand {
   type: LXMScoreCommandEnum.RemoveNotesInRect;
@@ -120,6 +137,12 @@ export interface ILXMCopyMeasureCommand extends ILXMScoreCommandBase {
   type: LXMScoreCommandEnum.CopyMeasure;
   measureId: string;
 }
+export interface ILXMCopyMeasureRangeCommand extends ILXMScoreCommandBase {
+  type: LXMScoreCommandEnum.CopyMeasureRange;
+  sourceStartMeasureId: string;
+  sourceEndMeasureId: string;
+  afterMeasureId?: string;
+}
 export interface ILXMRemoveMeasureCommand extends ILXMScoreCommandBase {
   type: LXMScoreCommandEnum.RemoveMeasure;
   measureId: string;
@@ -140,6 +163,19 @@ export interface ILXMSetBarlineBoundaryCommand extends ILXMScoreCommandBase {
   type: LXMScoreCommandEnum.SetBarlineBoundary;
   boundary: ILXMBarlineBoundaryReference;
   barline: ILXMTrackStartBarlineType | ILXMBarlineType;
+}
+export interface ILXMSetTuningCommand extends ILXMScoreCommandBase {
+  type: LXMScoreCommandEnum.SetTuning;
+  tuning: ILXMTrack["tuning"];
+}
+export interface ILXMSetCapoCommand extends ILXMScoreCommandBase {
+  type: LXMScoreCommandEnum.SetCapo;
+  capo: number;
+}
+export interface ILXMSetSectionLabelCommand extends ILXMScoreCommandBase {
+  type: LXMScoreCommandEnum.SetSectionLabel;
+  measureId: string;
+  label: string | null;
 }
 
 /** 技巧新增/修改只接收领域草稿；持久化 ID 统一由核心工厂创建或保留。 */
@@ -201,7 +237,14 @@ export type ILXMMusicTextCommand =
       chordSymbolId: string;
     };
 
+export type ILXMSetLyricSequenceCommand = LyricSequenceTarget & {
+  type: LXMScoreCommandEnum.SetLyricSequence;
+  items: readonly LyricSequenceItem[];
+  allowOverwrite: boolean;
+};
+
 export type ILXMScoreCommand =
+  | ILXMSetLyricSequenceCommand
   | ILXMMusicTextCommand
   | ILXMSetTupletCommand
   | ILXMRemoveTupletCommand
@@ -214,14 +257,19 @@ export type ILXMScoreCommand =
   | ILXMSetBeatKindRangeCommand
   | ILXMInsertMeasureCommand
   | ILXMCopyMeasureCommand
+  | ILXMCopyMeasureRangeCommand
   | ILXMRemoveMeasureCommand
   | ILXMSetTimeSignatureCommand
   | ILXMSetBarlineBoundaryCommand
+  | ILXMSetTuningCommand
+  | ILXMSetCapoCommand
+  | ILXMSetSectionLabelCommand
   | ILXMAddTechniqueCommand
   | ILXMUpdateTechniqueCommand
   | ILXMRemoveTechniqueCommand;
 
 export type ILXMScoreCommandErrorCode =
+  | "INVALID_LYRIC_SEQUENCE"
   | "LYRIC_NOT_FOUND"
   | "CHORD_SYMBOL_NOT_FOUND"
   | "INVALID_LYRIC_VERSE"
@@ -243,6 +291,10 @@ export type ILXMScoreCommandErrorCode =
   | "BEAT_NOT_FOUND"
   | "INVALID_STRING"
   | "INVALID_FRET"
+  | "INVALID_TUNING"
+  | "INVALID_CAPO"
+  | "INVALID_SECTION_LABEL"
+  | "MEASURE_RANGE_INVALID"
   | "INVALID_TAB_CELL_RANGE"
   | "TAB_CELL_RANGE_TOO_LARGE"
   | "INVALID_BEAT_RANGE"
@@ -270,7 +322,12 @@ export type ILXMScoreCommandErrorCode =
   | "DOCUMENT_INVALID"
   | "SEMANTIC_VALIDATION_FAILED";
 export type ILXMApplyScoreCommandResult =
-  | { ok: true; changed: boolean; document: ILXMDocument }
+  | {
+      ok: true;
+      changed: boolean;
+      document: ILXMDocument;
+      effects?: ILXMCommandEffect[];
+    }
   | { ok: false; code: ILXMScoreCommandErrorCode; message: string };
 
 const fail = (
@@ -283,8 +340,33 @@ const fail = (
 });
 const isValidString = (string: number) =>
   Number.isInteger(string) && string >= 1 && string <= GUITAR_STRING_COUNT;
-const isValidFret = (fret: number) =>
-  Number.isInteger(fret) && fret >= 0 && fret <= MAX_FRET;
+/** 所有输入入口使用同一集合，拒绝任意字符串和数值哨兵。 */
+const isValidFret = (fret: ILXMFret) =>
+  fret === "x" ||
+  (typeof fret === "number" &&
+    Number.isInteger(fret) &&
+    fret >= 0 &&
+    fret <= MAX_FRET);
+
+/** 将音名转换为 MIDI，供调弦命令校验 pitch/midi 一致性。 */
+const parsePitchMidi = (pitch: string): number | null => {
+  const match = /^([A-Ga-g])([#b]?)(-?\d+)$/.exec(pitch.trim());
+  if (!match) return null;
+  const semitones: Record<string, number> = {
+    C: 0,
+    D: 2,
+    E: 4,
+    F: 5,
+    G: 7,
+    A: 9,
+    B: 11,
+  };
+  const base = semitones[match[1]!.toUpperCase()];
+  const accidental = match[2] === "#" ? 1 : match[2] === "b" ? -1 : 0;
+  const octave = Number(match[3]);
+  const midi = (octave + 1) * 12 + base + accidental;
+  return Number.isInteger(midi) && midi >= 0 && midi <= 127 ? midi : null;
+};
 
 const TRACK_START_BARLINES = new Set<ILXMTrackStartBarlineType>([
   "none",
@@ -570,7 +652,7 @@ const editNotesInRect = (
     command.type === LXMScoreCommandEnum.SetNotesInRect &&
     !isValidFret(command.fret)
   )
-    return fail("INVALID_FRET", `品位必须在 0 到 ${MAX_FRET} 之间`);
+    return fail("INVALID_FRET", `品位必须是 0 到 ${MAX_FRET} 的整数或闷音 x`);
 
   const resolved = resolveCommandRange(document, command.range);
   if (!resolved.ok) return resolved;
@@ -893,10 +975,51 @@ const editTechnique = (
 };
 
 /** 应用所有领域命令；分发器本身不包含页面状态或历史逻辑。 */
-export const applyScoreCommand = (
+const applyScoreCommandInternal = (
   document: ILXMDocument,
   command: ILXMScoreCommand,
 ): ILXMApplyScoreCommandResult => {
+  // 整批先规划，再使用同一 ID 工厂更新隔离分支；只 finalize 一次、增加一次 revision。
+  if (command.type === LXMScoreCommandEnum.SetLyricSequence) {
+    const plan = planLyricSequence(
+      document,
+      command,
+      command.items,
+      command.allowOverwrite,
+    );
+    if (plan.issue) return fail("INVALID_LYRIC_SEQUENCE", plan.issue);
+    if (!plan.changes) return unchanged(document);
+    const track = document.score.tracks.find((t) => t.id === command.trackId)!;
+    const factory = createDocumentIdFactory(document);
+    const candidates = new Map(track.measures.map((m) => [m.id, m]));
+    for (const row of plan.rows) {
+      if (row.item.kind !== "set" || row.status === "same") continue;
+      const target = row.target!;
+      const result = editMeasureMusicText(
+        candidates.get(target.measureId)!,
+        {
+          type: LXMScoreCommandEnum.SetLyric,
+          ...target,
+          text: row.item.text,
+        },
+        factory,
+      );
+      if (!result.ok) return result;
+      candidates.set(target.measureId, result.measure);
+    }
+    return finalize({
+      ...document,
+      documentRevision: document.documentRevision + 1,
+      score: {
+        ...document.score,
+        tracks: document.score.tracks.map((t) =>
+          t === track
+            ? { ...t, measures: t.measures.map((m) => candidates.get(m.id)!) }
+            : t,
+        ),
+      },
+    });
+  }
   if (
     command.type === LXMScoreCommandEnum.SetLyric ||
     command.type === LXMScoreCommandEnum.RemoveLyric ||
@@ -980,7 +1103,7 @@ export const applyScoreCommand = (
       command.type === LXMScoreCommandEnum.SetNote &&
       !isValidFret(command.fret)
     )
-      return fail("INVALID_FRET", `品位必须在 0 到 ${MAX_FRET} 之间`);
+      return fail("INVALID_FRET", `品位必须是 0 到 ${MAX_FRET} 的整数或闷音 x`);
     const factory = createDocumentIdFactory(document);
     let nextBeat: ILXMBeat;
     if (command.type === LXMScoreCommandEnum.SetBeatKind) {
@@ -1067,11 +1190,136 @@ export const applyScoreCommand = (
     return finalize(nextDocument);
   }
 
+  if (command.type === LXMScoreCommandEnum.SetTuning) {
+    const track = document.score.tracks.find((item) => item.id === command.trackId);
+    if (!track) return fail("TRACK_NOT_FOUND", "目标轨道不存在");
+    if (
+      command.tuning.strings.length !== GUITAR_STRING_COUNT ||
+      command.tuning.strings.some(
+        (string, index) =>
+          string.index !== index + 1 || parsePitchMidi(string.pitch) !== string.midi,
+      )
+    )
+      return fail("INVALID_TUNING", "调弦必须包含按 1 到 6 排列且与 MIDI 一致的六根弦");
+    if (
+      JSON.stringify(track.tuning) === JSON.stringify(command.tuning)
+    )
+      return unchanged(document);
+    return finalize({
+      ...document,
+      documentRevision: document.documentRevision + 1,
+      score: {
+        ...document.score,
+        tracks: document.score.tracks.map((item) =>
+          item.id === track.id
+            ? { ...item, tuning: { strings: command.tuning.strings.map((s) => ({ ...s })) } }
+            : item,
+        ),
+      },
+    });
+  }
+
+  if (command.type === LXMScoreCommandEnum.SetCapo) {
+    const track = document.score.tracks.find((item) => item.id === command.trackId);
+    if (!track) return fail("TRACK_NOT_FOUND", "目标轨道不存在");
+    if (!Number.isInteger(command.capo) || command.capo < 0 || command.capo > 12)
+      return fail("INVALID_CAPO", "变调夹必须是 0 到 12 的整数");
+    if (track.capo === command.capo) return unchanged(document);
+    return finalize({
+      ...document,
+      documentRevision: document.documentRevision + 1,
+      score: {
+        ...document.score,
+        tracks: document.score.tracks.map((item) =>
+          item.id === track.id ? { ...item, capo: command.capo } : item,
+        ),
+      },
+    });
+  }
+
+  if (command.type === LXMScoreCommandEnum.SetSectionLabel) {
+    const track = document.score.tracks.find((item) => item.id === command.trackId);
+    const measure = track?.measures.find((item) => item.id === command.measureId);
+    if (!track) return fail("TRACK_NOT_FOUND", "目标轨道不存在");
+    if (!measure) return fail("MEASURE_NOT_FOUND", "目标小节不存在");
+    const label = command.label?.trim() ?? "";
+    if (label.length > 32) return fail("INVALID_SECTION_LABEL", "段落标记最多 32 个字符");
+    if ((measure.sectionLabel ?? "") === label) return unchanged(document);
+    const nextMeasure = label ? { ...measure, sectionLabel: label } : (() => {
+      const { sectionLabel: _removed, ...rest } = measure;
+      return rest;
+    })();
+    return finalize(replaceMeasure(document, track.id, measure.id, nextMeasure));
+  }
+
   const track = document.score.tracks.find(
     (item) => item.id === command.trackId,
   );
   if (!track) return fail("TRACK_NOT_FOUND", "目标轨道不存在");
   const factory = createDocumentIdFactory(document);
+  if (command.type === LXMScoreCommandEnum.CopyMeasureRange) {
+    const start = track.measures.findIndex((m) => m.id === command.sourceStartMeasureId);
+    const end = track.measures.findIndex((m) => m.id === command.sourceEndMeasureId);
+    if (start < 0 || end < 0 || start > end)
+      return fail("MEASURE_RANGE_INVALID", "复制小节范围必须按谱面顺序连续");
+    const anchor = command.afterMeasureId === undefined
+      ? -1
+      : track.measures.findIndex((m) => m.id === command.afterMeasureId);
+    if (command.afterMeasureId !== undefined && anchor < 0)
+      return fail("MEASURE_NOT_FOUND", "插入位置小节不存在");
+    // 允许把副本紧接源范围之后插入；仅禁止落在源范围内部。
+    if (anchor > start && anchor < end)
+      return fail("MEASURE_RANGE_INVALID", "插入位置不能位于复制源范围内");
+    const sourceMeasures = track.measures.slice(start, end + 1);
+    const copiedMeasures: ILXMMeasure[] = [];
+    const copiedTechniques: ILXMTechnique[] = [];
+    const effects: ILXMCommandEffect[] = [];
+    sourceMeasures.forEach((copySource) => {
+      const copiedBeats = copySource.beats.map((beat) => ({
+        ...beat,
+        id: factory.createBeatId(),
+        notes: beat.notes.map((note) => ({ ...note, id: factory.createNoteId() })),
+      }));
+      const beatIds = new Map(copySource.beats.map((beat, index) => [beat.id, copiedBeats[index]!.id]));
+      copiedMeasures.push({
+        ...copySource,
+        id: factory.createMeasureId(),
+        beats: copiedBeats,
+        barline: copySource.barline,
+        tuplets: copySource.tuplets.map((group) => ({
+          ...group,
+          id: factory.createTupletId(),
+          beatIds: group.beatIds.map((id) => beatIds.get(id)!),
+        })),
+        lyrics: copySource.lyrics.map((lyric) => ({ ...lyric, id: factory.createLyricId(), beatId: beatIds.get(lyric.beatId)! })),
+        chordSymbols: copySource.chordSymbols.map((symbol) => ({
+          ...symbol,
+          id: factory.createChordSymbolId(),
+          beatId: beatIds.get(symbol.beatId)!,
+          chord: { ...symbol.chord, diagram: symbol.chord.diagram ? cloneChordDiagram(symbol.chord.diagram) : null },
+        })),
+      });
+      const copied = copyMeasureTechniques(track, copySource, copiedMeasures.at(-1)!, factory);
+      effects.push(...copied.effects);
+      copiedTechniques.push(...copied.techniques);
+    });
+    const nextMeasures = [...track.measures];
+    nextMeasures.splice(anchor + 1, 0, ...copiedMeasures);
+    const nextDocument = {
+      ...document,
+      documentRevision: document.documentRevision + 1,
+      score: {
+        ...document.score,
+        tracks: document.score.tracks.map((item) => item.id === track.id
+          ? { ...item, measures: nextMeasures, techniques: [...item.techniques, ...copiedTechniques] }
+          : item),
+      },
+    };
+    const result = finalize(nextDocument);
+    return result.ok && result.changed && effects.length > 0
+      ? { ...result, effects }
+      : result;
+  }
   if (command.type === LXMScoreCommandEnum.RemoveMeasure) {
     if (!track.measures.some((measure) => measure.id === command.measureId))
       return fail("MEASURE_NOT_FOUND", "目标小节不存在");
@@ -1169,18 +1417,43 @@ export const applyScoreCommand = (
       beats: rests,
     };
   }
+  const copied =
+    command.type === LXMScoreCommandEnum.CopyMeasure
+      ? copyMeasureTechniques(track, source, inserted, factory)
+      : { techniques: [], effects: [] };
   const nextMeasures = [...track.measures];
   nextMeasures.splice(sourceIndex + 1, 0, inserted);
-  return finalize({
+  const result = finalize({
     ...document,
     documentRevision: document.documentRevision + 1,
     score: {
       ...document.score,
       tracks: document.score.tracks.map((item) =>
         item.id === track.id
-          ? pruneInvalidTechniques({ ...track, measures: nextMeasures })
+          ? pruneInvalidTechniques({
+              ...track,
+              measures: nextMeasures,
+              techniques: [...track.techniques, ...copied.techniques],
+            })
           : item,
       ),
     },
   });
+  return result.ok && result.changed && copied.effects.length > 0
+    ? { ...result, effects: copied.effects }
+    : result;
+};
+
+/** 影响报告和文档提交共享一次命令结果，失败与 no-op 不产生虚假提示。 */
+export const applyScoreCommand = (
+  document: ILXMDocument,
+  command: ILXMScoreCommand,
+): ILXMApplyScoreCommandResult => {
+  const result = applyScoreCommandInternal(document, command);
+  if (!result.ok || !result.changed) return result;
+  const effects = [
+    ...(result.effects ?? []),
+    ...collectCommandEffects(document, result.document, command),
+  ];
+  return effects.length > 0 ? { ...result, effects } : result;
 };
