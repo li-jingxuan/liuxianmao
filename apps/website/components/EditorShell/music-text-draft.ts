@@ -17,11 +17,13 @@ export interface MusicTextDraft {
   allowOverwrite: boolean;
   initial: string;
 }
+export type SidebarTab = "score" | "lyric" | "chord";
 export type SidebarAction =
+  | { type: "settingsTarget"; target: ILXMTabCellReference }
   | { type: "mode"; mode: MusicTextDraft["lyricMode"] }
   | { type: "close" }
   | { type: "target"; target: MusicTextTarget }
-  | { type: "tab"; kind: MusicTextTarget["kind"] };
+  | { type: "tab"; kind: SidebarTab };
 
 /** 只比较正在编辑的字段；谱面弦号不改变音乐文本的业务目标。 */
 export const musicTextDraftValue = (
@@ -67,7 +69,7 @@ export const resolveSidebarRequest = (
 export const readMusicTextDraft = (
   document: ILXMDocument | null,
   target: MusicTextTarget,
-  lyricMode: MusicTextDraft["lyricMode"] = "single",
+  lyricMode: MusicTextDraft["lyricMode"] = "sequence",
 ): MusicTextDraft | null => {
   const measure = document?.score.tracks
     .find((t) => t.id === target.trackId)

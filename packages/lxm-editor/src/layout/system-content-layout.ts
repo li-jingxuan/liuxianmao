@@ -185,16 +185,6 @@ export const layoutSystemContent = (
       : Math.max(bottom, system.y + system.height);
     // 标记独占顶部行，避免与和弦、技巧、歌词共用空间造成碰撞。
     const notation: { text: string; x: number }[] = [];
-    if (system.index === 0) {
-      notation.push({
-        text: `调弦（1→6弦）：${track.tuning.strings.map((s) => s.pitch).join(" / ")}`,
-        x: system.x,
-      });
-      notation.push({
-        text: `Capo ${track.capo} · 品位相对于变调夹`,
-        x: system.x,
-      });
-    }
     system.measures.forEach((m) => {
       const domain = source.get(m.id)!;
       if (domain.sectionLabel)

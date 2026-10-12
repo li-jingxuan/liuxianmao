@@ -139,13 +139,7 @@ export const EditorShell: React.FC = () => {
 
   const musicTextController = useRef<MusicTextController>(null);
   const [musicTextEditing, setMusicTextEditing] = useState(false);
-  const [sidebarVisible, setSidebarVisible] = useState(true);
-  const sidebarToggleRef = useRef<HTMLButtonElement>(null);
   const pageViewportRef = useRef<HTMLDivElement>(null);
-  const returnSidebarFocus = useCallback(
-    () => sidebarToggleRef.current?.focus({ preventScroll: true }),
-    [],
-  );
   const [activeMusicTextTarget, setActiveMusicTextTarget] =
     useState<MusicTextTarget | null>(null);
   const [showChordDiagrams, setShowChordDiagrams] = useState(true);
@@ -351,7 +345,6 @@ export const EditorShell: React.FC = () => {
     return () => observer.disconnect();
   }, [
     focusCaret,
-    sidebarVisible,
     musicTextEditing,
     selection,
     lxmLayout,
@@ -904,21 +897,6 @@ export const EditorShell: React.FC = () => {
           >
             ↷
           </button>
-          <button
-            ref={sidebarToggleRef}
-            type="button"
-            className={styles.toolbarButton}
-            aria-label="属性面板"
-            aria-expanded={sidebarVisible}
-            aria-controls="music-text-sidebar"
-            onClick={() =>
-              sidebarVisible
-                ? musicTextController.current?.requestClose()
-                : musicTextController.current?.requestOpenCurrent()
-            }
-          >
-            属性面板
-          </button>
           <div className={styles.protectedTools} inert={musicTextEditing}>
             <span className={styles.toolbarSeparator} aria-hidden="true" />
             {rhythmButtons.map((button) => (
@@ -1293,6 +1271,19 @@ export const EditorShell: React.FC = () => {
                   />
                 )}
               </g>
+              {lxmLayout.scoreHeader?.map((label, index) => (
+                <text
+                  key={`score-header-${index}`}
+                  x={label.x}
+                  y={label.y}
+                  fontSize={label.fontSize}
+                  fontFamily={label.fontFamily}
+                  fontWeight={400}
+                  textAnchor={label.textAnchor}
+                >
+                  {label.text}
+                </text>
+              ))}
               {lxmLayout.systems.map((system) => (
                 <g key={system.index}>
                   {system.notationLabels?.map((label, index) => (
@@ -1571,12 +1562,9 @@ export const EditorShell: React.FC = () => {
         </div>
         <MusicTextSidebar
           ref={musicTextController}
-          visible={sidebarVisible}
-          onVisibleChange={setSidebarVisible}
           onOpen={clearFretDraft}
           onEditingChange={setMusicTextEditing}
           onTargetChange={setActiveMusicTextTarget}
-          onClose={returnSidebarFocus}
         />
       </div>
     </div>

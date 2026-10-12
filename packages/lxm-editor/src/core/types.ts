@@ -1,5 +1,6 @@
 import type {
   CURRENT_SCHEMA_VERSION,
+  LXM_KEY_SIGNATURES,
   LXM_BARLINE_TYPES,
   LXM_TUPLET_RATIOS,
   LXM_BEAT_KINDS,
@@ -44,9 +45,14 @@ export interface ILXMDocument {
 }
 
 /** 乐谱主体信息。 */
+export type ILXMKeySignature = (typeof LXM_KEY_SIGNATURES)[number];
+
 export interface ILXMScore {
   id: string;
   title: string;
+  /** 编谱作者与调性属于正式记谱信息。 */
+  arranger: string;
+  keySignature: ILXMKeySignature | null;
   meta: ILXMRecord;
   tracks: ILXMTrack[];
 }

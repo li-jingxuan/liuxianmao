@@ -54,6 +54,8 @@ export interface ILXMLayoutOptions {
 
 /** 整首谱面的布局结果；当前版本只处理 score 的第一条轨道。 */
 export interface ILXMLayout {
+  /** 首部信息由核心统一定位。 */
+  scoreHeader?: MusicTextGlyph[];
   trackId: ILXMTrack["id"]; // string
   // x,y 是整谱在页面上的起始坐标
   x: number;

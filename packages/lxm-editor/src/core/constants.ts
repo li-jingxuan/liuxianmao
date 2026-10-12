@@ -2,7 +2,7 @@
 export const SCORE_DOCUMENT_SCHEMA = "lxm-tab-score" as const;
 
 /** 当前文档版本；项目明确不维护旧版本迁移链。 */
-export const CURRENT_SCHEMA_VERSION = 5 as const;
+export const CURRENT_SCHEMA_VERSION = 6 as const;
 
 /** 可展示在六线谱上的基础节奏类型。 */
 export const LXM_RHYTHM_BASES = [
@@ -124,4 +124,20 @@ export const LXM_TUPLET_RATIOS = [
   { actual: 5, normal: 4 },
   { actual: 5, normal: 3 },
   { actual: 6, normal: 4 },
+] as const;
+
+/** 调性只表达数字 1 的音高，不触发转调。 */
+export const LXM_KEY_SIGNATURES = [
+  "C",
+  "Db",
+  "D",
+  "Eb",
+  "E",
+  "F",
+  "Gb",
+  "G",
+  "Ab",
+  "A",
+  "Bb",
+  "B",
 ] as const;

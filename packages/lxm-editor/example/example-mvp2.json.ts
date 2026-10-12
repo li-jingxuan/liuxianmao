@@ -63,9 +63,11 @@ const beat = (
 /** MVP v2 的默认文档；默认导出供 EXAMPLE_MVP_2.default 使用。 */
 const EXAMPLE_MVP_2: ILXMDocument = {
   schema: "lxm-tab-score",
-  schemaVersion: 5,
+  schemaVersion: 6,
   documentRevision: 1,
   score: {
+    arranger: "",
+    keySignature: null,
     id: "mvp2-score",
     title: "MVP v2 多行谱面测试",
     meta: { fixture: "mvp-v2" },

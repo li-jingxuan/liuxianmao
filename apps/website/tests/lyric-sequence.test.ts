@@ -60,7 +60,7 @@ describe("连续填词历史、草稿与歌词焦点", () => {
   });
   it("换模式保护草稿，覆盖许可参与 dirty，换目标重置许可且不会携带输入", () => {
     const { document, track, target } = fixture();
-    const single = readMusicTextDraft(document, target)!;
+    const single = readMusicTextDraft(document, target, "single")!;
     expect(
       resolveSidebarRequest(single, { type: "mode", mode: "sequence" }),
     ).toBe("execute");

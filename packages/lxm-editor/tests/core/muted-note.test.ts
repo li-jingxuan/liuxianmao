@@ -39,7 +39,7 @@ describe("闷音 x 领域闭环", () => {
     const old = loadDocument(JSON.stringify({ ...example, schemaVersion: 3 }));
     expect(old).toEqual({
       ok: false,
-      errors: ["不支持的文档版本，当前支持 5"],
+      errors: ["不支持的文档版本，当前支持 6"],
     });
     expect(
       LXMDocumentSchema.safeParse({ ...example, schemaVersion: 3 }).success,

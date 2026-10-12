@@ -1,3 +1,4 @@
+import { layoutScoreHeader } from "./score-header-layout";
 /**
  * 整谱布局公开门面。
  *
@@ -59,9 +60,17 @@ export const buildLayout = (
   const y = options.y ?? LXM_LAYOUT_DEFAULT_Y;
   const systemWidth = options.systemWidth ?? LXM_SYSTEM_DEFAULT_WIDTH;
   const systemGapY = options.systemGapY ?? LXM_SYSTEM_GAP_Y;
+  const header = layoutScoreHeader(
+    document.score,
+    track,
+    x,
+    y,
+    systemWidth,
+    options.musicTextMetrics,
+  );
   const baseSystems = layoutSystems(track.measures, {
     startX: x,
-    startY: y,
+    startY: y + header.height,
     measureGap: options.measureGap ?? 0,
     systemWidth,
     systemGapY,
@@ -80,6 +89,7 @@ export const buildLayout = (
 
   return {
     trackId: track.id,
+    scoreHeader: header.labels,
     x,
     y,
     // 稀疏末行可以短于 systemWidth，但 SVG 画布不能随之缩窄，否则右侧留白会从

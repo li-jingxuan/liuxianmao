@@ -35,7 +35,7 @@ import { createDocumentIdFactory } from "./id-factory";
 import { createMeasureRestBeats } from "./rest-beats";
 import { changeMeasureBeatRhythm } from "./rhythm-change";
 import { isEditableTimeSignature, isSameTimeSignature } from "./rhythm";
-import { LXMDocumentSchema } from "./schema";
+import { LXMDocumentSchema, LXMScoreSchema } from "./schema";
 import { validateDocumentSemantics } from "./semantic-validation";
 import { changeMeasureTimeSignature } from "./time-signature-change";
 import { pruneInvalidTechniques, validateTechnique } from "./technique-rules";
@@ -56,6 +56,7 @@ import type {
 } from "./types";
 
 export enum LXMScoreCommandEnum {
+  SetNotationInfo = "score.setNotationInfo",
   SetLyric = "lyric.set",
   SetLyricSequence = "lyrics.setSequence",
   RemoveLyric = "lyric.remove",
@@ -247,7 +248,15 @@ export type ILXMSetLyricSequenceCommand = LyricSequenceTarget & {
   allowOverwrite: boolean;
 };
 
+export type ILXMSetNotationInfoCommand = {
+  type: LXMScoreCommandEnum.SetNotationInfo;
+  title: string;
+  arranger: string;
+  keySignature: ILXMDocument["score"]["keySignature"];
+};
+
 export type ILXMScoreCommand =
+  | ILXMSetNotationInfoCommand
   | ILXMSetLyricSequenceCommand
   | ILXMMusicTextCommand
   | ILXMSetTupletCommand
@@ -273,6 +282,7 @@ export type ILXMScoreCommand =
   | ILXMRemoveTechniqueCommand;
 
 export type ILXMScoreCommandErrorCode =
+  | "INVALID_NOTATION_INFO"
   | "INVALID_LYRIC_SEQUENCE"
   | "LYRIC_NOT_FOUND"
   | "CHORD_SYMBOL_NOT_FOUND"
@@ -963,6 +973,38 @@ const applyScoreCommandInternal = (
   document: ILXMDocument,
   command: ILXMScoreCommand,
 ): ILXMApplyScoreCommandResult => {
+  if (command.type === LXMScoreCommandEnum.SetNotationInfo) {
+    // 标题与作者一起规范化并验证，失败不留下部分修改。
+    const text = (value: string, limit: number) =>
+      hasMusicTextControlCharacter(value)
+        ? null
+        : value.trim() === ""
+          ? ""
+          : normalizeMusicText(value, limit);
+    const title = text(command.title, 128),
+      arranger = text(command.arranger, 64);
+    if (title === null || arranger === null)
+      return fail("INVALID_NOTATION_INFO", "歌曲名称或编谱作者格式不合法");
+    const nextScore = {
+      ...document.score,
+      title,
+      arranger,
+      keySignature: command.keySignature,
+    };
+    if (!LXMScoreSchema.safeParse(nextScore).success)
+      return fail("INVALID_NOTATION_INFO", "调性或歌曲信息不合法");
+    if (
+      title === document.score.title &&
+      arranger === document.score.arranger &&
+      command.keySignature === document.score.keySignature
+    )
+      return unchanged(document);
+    return finalize({
+      ...document,
+      documentRevision: document.documentRevision + 1,
+      score: nextScore,
+    });
+  }
   // 整批先规划，再使用同一 ID 工厂更新隔离分支；只 finalize 一次、增加一次 revision。
   if (command.type === LXMScoreCommandEnum.SetLyricSequence) {
     const plan = planLyricSequence(

@@ -5,6 +5,7 @@ import { validateChordDiagram } from "./chord-diagram";
 
 import {
   CURRENT_SCHEMA_VERSION,
+  LXM_KEY_SIGNATURES,
   GUITAR_STRING_COUNT,
   LXM_BARLINE_TYPES,
   LXM_TUPLET_RATIOS,
@@ -329,7 +330,19 @@ export const LXMTrackSchema = z
 export const LXMScoreSchema = z
   .object({
     id: z.string(),
-    title: z.string(),
+    title: z
+      .string()
+      .refine(
+        (t) => t === "" || normalizeMusicText(t, 128) === t,
+        "歌曲名称须为单行文字，最多 128 个字符",
+      ),
+    arranger: z
+      .string()
+      .refine(
+        (t) => t === "" || normalizeMusicText(t, 64) === t,
+        "编谱作者须为单行文字，最多 64 个字符",
+      ),
+    keySignature: z.enum(LXM_KEY_SIGNATURES).nullable(),
     meta: LXMRecordSchema,
     tracks: z.array(LXMTrackSchema),
   })

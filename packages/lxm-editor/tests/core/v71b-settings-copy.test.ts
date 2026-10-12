@@ -58,7 +58,7 @@ describe("MVP7.1-B 单轨设置与多小节复制", () => {
 import {
   createTuningPreset,
   validateTuning,
-  upgradeSchema4To5,
+  upgradeDocumentToCurrent,
   EXAMPLE_TECHNIQUE_RHYTHM_DOCUMENT,
   buildLayout,
   normalizeMusicText,
@@ -150,17 +150,20 @@ describe("v7.1-B 边界与保真", () => {
       unknown
     >;
     old.schemaVersion = 4;
+    const legacyScore = old.score as Record<string, unknown>;
+    delete legacyScore.arranger;
+    delete legacyScore.keySignature;
     const oldScore = old.score as { tracks: { capo?: number }[] };
     oldScore.tracks.forEach((t) => {
       delete t.capo;
     });
     const before = structuredClone(old);
     expect(loadDocument(JSON.stringify(old)).ok).toBe(false);
-    const upgraded = upgradeSchema4To5(old);
+    const upgraded = upgradeDocumentToCurrent(old);
     expect(upgraded.ok).toBe(true);
     expect(old).toEqual(before);
-    expect(upgradeSchema4To5({ ...old, score: {} }).ok).toBe(false);
-    expect(upgradeSchema4To5(EXAMPLE_MVP_6_DOCUMENT).ok).toBe(false);
+    expect(upgradeDocumentToCurrent({ ...old, score: {} }).ok).toBe(false);
+    expect(upgradeDocumentToCurrent(EXAMPLE_MVP_6_DOCUMENT).ok).toBe(false);
   });
   it.each([2, 4, 8, 14])(
     "复制 %s 小节携带技巧、文本、连音与边界且 ID 唯一",

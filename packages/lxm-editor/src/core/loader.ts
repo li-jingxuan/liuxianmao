@@ -16,38 +16,49 @@ const ROOT_PATH_LABEL = "document";
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-/** 显式把 schema 4 文档升级到 schema 5；loader 不会隐式调用此函数。 */
-export const upgradeSchema4To5 = (value: unknown): DocumentLoadResult => {
+/** 显式升级已知旧格式；正常 loader 永不调用迁移入口。 */
+export const upgradeDocumentToCurrent = (
+  value: unknown,
+): DocumentLoadResult => {
   if (
     !isRecord(value) ||
     value.schema !== SCORE_DOCUMENT_SCHEMA ||
-    value.schemaVersion !== 4
+    (value.schemaVersion !== 4 && value.schemaVersion !== 5)
   )
-    return { ok: false, errors: ["升级函数只接受 schema 4 对象"] };
-  // 先按旧字段形状校验，再补默认值；额外的新字段不冒充旧格式。
-  const oldSchema = LXMDocumentSchema.extend({
-    schemaVersion: z.literal(4),
-    score: LXMScoreSchema.extend({
-      tracks: z.array(
-        LXMTrackSchema.omit({ capo: true }).extend({
+    return { ok: false, errors: ["升级入口只接受 schema 4 或 5 对象"] };
+  const version = value.schemaVersion;
+  const trackSchema =
+    version === 4
+      ? LXMTrackSchema.omit({ capo: true }).extend({
           measures: z.array(LXMMeasureSchema.omit({ sectionLabel: true })),
-        }),
-      ),
+        })
+      : LXMTrackSchema;
+  const oldSchema = LXMDocumentSchema.extend({
+    schemaVersion: z.literal(version as 4 | 5),
+    score: LXMScoreSchema.omit({ arranger: true, keySignature: true }).extend({
+      title: z.string(),
+      tracks: z.array(trackSchema),
     }),
   });
   const old = oldSchema.safeParse(value);
   if (!old.success)
     return { ok: false, errors: old.error.issues.map(formatZodIssue) };
-  const upgraded = {
-    ...old.data,
-    schemaVersion: CURRENT_SCHEMA_VERSION,
-    score: {
-      ...old.data.score,
-      tracks: old.data.score.tracks.map((track) => ({ ...track, capo: 0 })),
-    },
-  };
   try {
-    return loadDocument(JSON.stringify(upgraded));
+    return loadDocument(
+      JSON.stringify({
+        ...old.data,
+        schemaVersion: CURRENT_SCHEMA_VERSION,
+        score: {
+          ...old.data.score,
+          arranger: "",
+          keySignature: null,
+          tracks: old.data.score.tracks.map((t) => ({
+            ...t,
+            capo: "capo" in t ? t.capo : 0,
+          })),
+        },
+      }),
+    );
   } catch {
     return { ok: false, errors: ["旧文档无法序列化"] };
   }

@@ -1,3 +1,4 @@
+import { scoreHeaderText } from "./score-header-text";
 import { effectiveChordDisplay } from "./chord-display";
 import type { ILXMDocument } from "../core/types";
 
@@ -116,16 +117,15 @@ export const collectMusicTextMeasureRequests = (
   const requests: ILXMMusicTextMeasureRequest[] = [];
   const track = document.score.tracks[0];
   if (track) {
-    requests.push(
-      musicTextRequest(
-        `调弦（1→6弦）：${track.tuning.strings.map((s) => s.pitch).join(" / ")}`,
-        12,
-        "start",
-      ),
-    );
-    requests.push(
-      musicTextRequest(`Capo ${track.capo} · 品位相对于变调夹`, 12, "start"),
-    );
+    const header = scoreHeaderText(document.score, track);
+    for (const [text, size] of [
+      [header.title, 20],
+      [header.author, 12],
+      [header.info, 12],
+    ] as const) {
+      for (const char of new Set([...text]))
+        requests.push(musicTextRequest(char, size, "start"));
+    }
     track.measures.forEach((m, i) => {
       if (m.sectionLabel)
         requests.push(
