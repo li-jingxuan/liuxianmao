@@ -22,7 +22,7 @@ export type SidebarAction =
   | { type: "settingsTarget"; target: ILXMTabCellReference }
   | { type: "mode"; mode: MusicTextDraft["lyricMode"] }
   | { type: "close" }
-  | { type: "target"; target: MusicTextTarget }
+  | { type: "target"; target: MusicTextTarget; focus?: "score" | "input" }
   | { type: "tab"; kind: SidebarTab };
 
 /** 只比较正在编辑的字段；谱面弦号不改变音乐文本的业务目标。 */

@@ -47,11 +47,13 @@ export const MusicTextSidebar = ({
   onOpen,
   onEditingChange,
   onTargetChange,
+  onScoreFocus,
 }: {
   ref: Ref<MusicTextController>;
   onOpen: () => void;
   onEditingChange: (editing: boolean) => void;
   onTargetChange: (target: MusicTextTarget | null) => void;
+  onScoreFocus: () => void;
 }) => {
   const editorStore = useEditorSessionStore();
   const score = useEditorStore((s) => s.document);
@@ -65,6 +67,9 @@ export const MusicTextSidebar = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const sequenceInputRef = useRef<HTMLTextAreaElement>(null);
   const [inspection, setInspection] = useState(0);
+  const [inputEditing, setInputEditing] = useState(true);
+  const [focusRequest, setFocusRequest] = useState(0);
+  const focusDestination = useRef<"score" | "input">("input");
   const editButtonRef = useRef<HTMLButtonElement>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
   const composing = useRef(false);
@@ -137,12 +142,21 @@ export const MusicTextSidebar = ({
   );
   // 只报告已接受的目标；预览检查行不改变批次起点或持久化 selection。
   useEffect(() => {
-    onTargetChange(active ? { ...active } : null);
-  }, [onTargetChange, active]);
+    onTargetChange(inputEditing && active ? { ...active } : null);
+  }, [onTargetChange, active, inputEditing]);
+
+  /** 编辑目标与焦点意图分开：选拍同步表单，点击文本才进入文字输入。 */
+  const focusTarget = (focus: "score" | "input") => {
+    focusDestination.current = focus;
+    setInputEditing(focus === "input");
+    if (focus === "input") setFocusRequest((value) => value + 1);
+    else onScoreFocus();
+  };
 
   const loadTarget = (
     next: MusicTextTarget,
     mode = draft?.lyricMode ?? "sequence",
+    focus: "score" | "input" = "input",
   ) => {
     const value = readMusicTextDraft(
       editorStore.getState().document,
@@ -156,6 +170,7 @@ export const MusicTextSidebar = ({
     setKind(next.kind);
     baseline.current = editorStore.getState().document;
     if (value) {
+      focusTarget(focus);
       onOpen();
       editorStore.getState().setSelectedTechniqueId(null);
       editorStore
@@ -176,7 +191,7 @@ export const MusicTextSidebar = ({
         .setSelection(createCollapsedTabCellSelection(action.target));
     } else if (action.type === "target") {
       settingsRef.current?.discard();
-      loadTarget(action.target);
+      loadTarget(action.target, draft?.lyricMode, action.focus);
     } else if (action.type === "mode") {
       if (draft) loadTarget(draft.target, action.mode);
     } else {
@@ -209,6 +224,15 @@ export const MusicTextSidebar = ({
       return;
     }
     const decision = resolveSidebarRequest(draft, action);
+    // 同一拍重复点击也可改变焦点意图，但不重载或覆盖当前草稿。
+    if (decision === "ignore" && action.type === "target") {
+      if (action.focus === "score")
+        editorStore
+          .getState()
+          .setSelection(createCollapsedTabCellSelection(action.target));
+      focusTarget(action.focus ?? "input");
+      return;
+    }
     if (decision === "confirm" || settingsRef.current?.dirty)
       setPending(action);
     else if (decision === "execute") perform(action);
@@ -223,6 +247,7 @@ export const MusicTextSidebar = ({
       } else
         request({
           type: "target",
+          focus: "score",
           target: {
             ...next,
             kind,
@@ -259,18 +284,19 @@ export const MusicTextSidebar = ({
     : "";
   // 按业务目标聚焦，不在表单输入或父壳重渲染时抢走指法控件焦点。
   useEffect(() => {
-    if (targetKey)
+    if (targetKey && focusDestination.current === "input")
       (sequence ? sequenceInputRef : inputRef).current?.focus({
         preventScroll: true,
       });
-  }, [targetKey, sequence]);
+  }, [targetKey, sequence, focusRequest]);
   useEffect(() => {
     if (pending) confirmRef.current?.focus({ preventScroll: true });
-    else if (targetKey)
+    else if (targetKey && focusDestination.current === "input")
       (sequence ? sequenceInputRef : inputRef).current?.focus({
         preventScroll: true,
       });
-  }, [pending, targetKey, sequence]);
+    else if (targetKey) onScoreFocus();
+  }, [pending, targetKey, sequence, onScoreFocus]);
 
   /** 提交标记在异常、失败及 no-op 时也释放；失败保留当前草稿。 */
   const commit = (command: ILXMScoreCommand) => {
@@ -485,6 +511,13 @@ export const MusicTextSidebar = ({
         role="tabpanel"
         aria-labelledby={`music-tab-${kind}`}
         inert={!!pending}
+        onFocusCapture={() => {
+          // 用户主动操作表单时再显示歌词焦点，不抢走段号或指法控件的焦点。
+          if (draft && kind !== "score") {
+            focusDestination.current = "input";
+            setInputEditing(true);
+          }
+        }}
       >
         {score && (
           <div hidden={kind !== "score"}>

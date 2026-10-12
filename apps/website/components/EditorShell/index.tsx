@@ -203,6 +203,11 @@ export const EditorShell: React.FC = () => {
     [lxmLayout, activeMusicTextTarget],
   );
   const lyricEditing = activeMusicTextTarget?.kind === "lyric";
+  /** 选拍或草稿确认结束后保留谱面焦点，不触发浏览器默认滚动。 */
+  const focusScore = useCallback(
+    () => scoreSvgRef.current?.focus({ preventScroll: true }),
+    [],
+  );
   const focusCaret = useMemo(
     () =>
       lxmLayout && selection
@@ -293,7 +298,7 @@ export const EditorShell: React.FC = () => {
       const padding = 12;
       let box = caretBox;
       // 空间足够时连同当前拍的歌词/和弦一起显示；过高的组合仍优先显示拍点。
-      if (musicTextEditing && !lyricEditing && matrix && selection) {
+      if (activeMusicTextTarget && !lyricEditing && matrix && selection) {
         const texts =
           lxmLayout?.hitIndex.musicTextBounds?.filter(
             (b) =>
@@ -350,6 +355,7 @@ export const EditorShell: React.FC = () => {
     lxmLayout,
     lyricFocus,
     lyricEditing,
+    activeMusicTextTarget,
   ]);
 
   /** 清理当前品位草稿和对应的延时提交。 */
@@ -1569,6 +1575,7 @@ export const EditorShell: React.FC = () => {
           onOpen={clearFretDraft}
           onEditingChange={setMusicTextEditing}
           onTargetChange={setActiveMusicTextTarget}
+          onScoreFocus={focusScore}
         />
       </div>
     </div>
