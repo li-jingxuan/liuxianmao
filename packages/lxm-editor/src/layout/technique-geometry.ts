@@ -138,6 +138,33 @@ export const withTechniqueBounds = (
     "bounds" | "visualBounds" | "collisionBounds"
   >,
 ): ILXMTechniqueSegmentLayout => {
+  // 末端切线由核心模板最后两个点确定；保留旧 marker 契约供其他宿主兼容。
+  if (segment.path?.markerEnd && !segment.path.arrowPoints) {
+    const points = getPathPoints(segment.path.d);
+    const end = points.at(-1)!;
+    const previous = points.at(-2)!;
+    const angle = Math.atan2(end[1] - previous[1], end[0] - previous[0]);
+    const scale =
+      Math.min(LXM_TECHNIQUE_ARROW_WIDTH, LXM_TECHNIQUE_ARROW_HEIGHT) / 10;
+    segment = {
+      ...segment,
+      path: {
+        ...segment.path,
+        arrowPoints: [
+          [0, 0],
+          [10, 5],
+          [0, 10],
+        ].map(([x, y]): [number, number] => {
+          const dx = (x! - 8) * scale,
+            dy = (y! - 5) * scale;
+          return [
+            end[0] + dx * Math.cos(angle) - dy * Math.sin(angle),
+            end[1] + dx * Math.sin(angle) + dy * Math.cos(angle),
+          ];
+        }),
+      },
+    };
+  }
   const visualBounds = getTechniqueVisualBounds(
     segment.path,
     segment.texts,
@@ -161,7 +188,17 @@ export const translateTechniqueSegment = (
   return {
     ...segment,
     path: segment.path
-      ? { ...segment.path, d: translatePath(segment.path.d, dy) }
+      ? {
+          ...segment.path,
+          d: translatePath(segment.path.d, dy),
+          ...(segment.path.arrowPoints
+            ? {
+                arrowPoints: segment.path.arrowPoints.map(
+                  ([x, y]): [number, number] => [x, y + dy],
+                ),
+              }
+            : {}),
+        }
       : null,
     texts: segment.texts.map((label) => ({ ...label, y: label.y + dy })),
     ...(segment.arrowHead

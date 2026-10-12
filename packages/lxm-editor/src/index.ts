@@ -61,3 +61,4 @@ export {
   EXAMPLE_MVP7C_LONG_DOCUMENT,
   createMvp7cExample,
 } from "../example/example-mvp7c";
+export { createQualityScore } from "../example/quality-score";

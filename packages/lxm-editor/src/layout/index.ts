@@ -1,3 +1,4 @@
+import { unionMusicBounds } from "./music-text-metrics";
 import { layoutScoreHeader } from "./score-header-layout";
 /**
  * 整谱布局公开门面。
@@ -90,6 +91,10 @@ export const buildLayout = (
   return {
     trackId: track.id,
     scoreHeader: header.labels,
+    scoreHeaderHeight: header.height,
+    scoreHeaderBounds: unionMusicBounds(
+      header.labels.map((label) => label.bounds),
+    ),
     x,
     y,
     // 稀疏末行可以短于 systemWidth，但 SVG 画布不能随之缩窄，否则右侧留白会从
@@ -129,3 +134,4 @@ export * from "./music-text-layout";
 export * from "./chord-display";
 
 export * from "./numbered-notation-layout";
+export * from "./page-layout";

@@ -57,6 +57,9 @@ export interface ILXMLayoutOptions {
 export interface ILXMLayout {
   /** 首部信息由核心统一定位。 */
   scoreHeader?: MusicTextGlyph[];
+  /** 谱首完整占位，分页不从首行坐标反推标题高度。 */
+  scoreHeaderHeight?: number;
+  scoreHeaderBounds?: MusicTextRect;
   trackId: ILXMTrack["id"]; // string
   // x,y 是整谱在页面上的起始坐标
   x: number;
@@ -121,6 +124,8 @@ export interface ILXMTechniquePathLayout {
   strokeWidth: number;
   dashArray?: string;
   markerEnd?: "arrow";
+  /** 与 SVG marker 相同的末端箭头几何，Canvas 直接消费。 */
+  arrowPoints?: readonly [number, number][];
 }
 
 /** 页面直接渲染的确定性箭头三角形，点坐标已经位于最终 SVG 坐标系。 */

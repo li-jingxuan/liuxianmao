@@ -811,3 +811,19 @@
     border-bottom: 1px solid var(--border);
   }
 }
+
+/** 键盘用户能够识别当前谱面焦点，状态播报不增加工具栏占位。 */
+.scoreSvg:focus-visible {
+  outline: 2px solid #356cff;
+  outline-offset: 3px;
+}
+.cursorStatus {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
