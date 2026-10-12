@@ -79,12 +79,14 @@ export const layoutScoreHeader = (
           { [request.key]: bbox },
         ),
       );
-      nextY += ascent + descent + 8;
+      // 收紧行间留白，行高仍由实际字形决定，折行文字不会被固定高度裁切。
+      nextY += ascent + descent + 4;
     });
-    nextY += 4;
+    nextY += 2;
   };
   add(texts.title, 20, "middle");
   add(texts.author, 12, "middle");
   add(texts.info, 12, "start");
-  return { labels, height: nextY - y + 8 };
+  // 首条谱行只保留必要尾部净空，其技巧/和弦占位仍由正文布局负责。
+  return { labels, height: nextY - y + 2 };
 };
