@@ -651,10 +651,14 @@ export const EditorShell: React.FC = () => {
       });
       return;
     }
+    // 文本页签负责选拍即编辑，包括尚未选择目标的空面板。
+    const textCell = hitTestPointer(event.currentTarget, event);
+    if (textCell && musicTextController.current?.move(textCell)) {
+      event.preventDefault();
+      return;
+    }
     if (musicTextEditing) {
       event.preventDefault();
-      const cell = hitTestPointer(event.currentTarget, event);
-      if (cell) musicTextController.current?.move(cell);
       return;
     }
     event.currentTarget.focus();

@@ -7,7 +7,7 @@ import {
   useState,
   type Ref,
 } from "react";
-import { FileText, Guitar, Settings, Trash2, Undo2, Redo2 } from "lucide-react";
+import { FileText, Guitar, Settings, Trash2 } from "lucide-react";
 import {
   createCollapsedTabCellSelection,
   LXMScoreCommandEnum,
@@ -38,7 +38,7 @@ import styles from "./index.module.scss";
 
 export interface MusicTextController {
   open: (target: MusicTextTarget) => void;
-  move: (target: ILXMTabCellReference) => void;
+  move: (target: ILXMTabCellReference) => boolean;
 }
 
 /** 常驻三页签与编辑目标分开，切页签、换拍和结束编辑共用草稿保护。 */
@@ -56,8 +56,6 @@ export const MusicTextSidebar = ({
   const editorStore = useEditorSessionStore();
   const score = useEditorStore((s) => s.document);
   const selection = useEditorStore((s) => s.selection);
-  const canUndo = useEditorStore((s) => s.canUndo);
-  const canRedo = useEditorStore((s) => s.canRedo);
   const [kind, setKind] = useState<SidebarTab>("score");
   const settingsRef = useRef<ScoreSettingsController>(null);
   const [settingsDirty, setSettingsDirty] = useState(false);
@@ -182,6 +180,16 @@ export const MusicTextSidebar = ({
     } else if (action.type === "mode") {
       if (draft) loadTarget(draft.target, action.mode);
     } else {
+      // 切入文本页签时直接读取当前选拍，复用目标加载与草稿保护流程。
+      const selected = editorStore.getState().selection?.focus;
+      if (action.kind !== "score" && selected) {
+        loadTarget({
+          ...selected,
+          kind: action.kind,
+          verse: draft?.target.verse ?? 1,
+        });
+        return;
+      }
       setDraft(null);
       setMessage(null);
       setKind(action.kind);
@@ -208,16 +216,20 @@ export const MusicTextSidebar = ({
   useImperativeHandle(ref, () => ({
     open: (next) => request({ type: "target", target: next }),
     move: (next) => {
-      if (kind === "score") request({ type: "settingsTarget", target: next });
-      else if (draft)
+      // 文本页签即使尚无草稿，选拍也立即进入编辑；谱面设置保留普通选区操作。
+      if (kind === "score") {
+        if (!editing) return false;
+        request({ type: "settingsTarget", target: next });
+      } else
         request({
           type: "target",
           target: {
             ...next,
-            kind: draft.target.kind,
-            verse: draft.target.verse,
+            kind,
+            verse: draft?.target.verse ?? 1,
           },
         });
+      return true;
     },
   }));
 
@@ -461,7 +473,7 @@ export const MusicTextSidebar = ({
               {tab === "score"
                 ? "谱面设置"
                 : tab === "lyric"
-                  ? "编辑歌词"
+                  ? "歌词编辑"
                   : "和弦编辑"}
             </button>
           ))}
@@ -713,7 +725,11 @@ export const MusicTextSidebar = ({
           </>
         )}
       </div>
-      <footer className={styles.sidebarFooter}>
+      {/* 无编辑操作或提示时隐藏底栏，避免移除历史按钮后留下空白条。 */}
+      <footer
+        className={styles.sidebarFooter}
+        hidden={!pending && !issue && !message && !draft}
+      >
         {pending ? (
           <div
             role="alertdialog"
@@ -761,27 +777,6 @@ export const MusicTextSidebar = ({
                 {message}
               </p>
             )}
-            <div className={styles.sidebarHistory}>
-              <button
-                disabled={!canUndo}
-                onClick={() => {
-                  if (!composing.current) editorStore.getState().undo();
-                }}
-              >
-                <Undo2 size={16} />
-                撤销
-              </button>
-              <button
-                disabled={!canRedo}
-                onClick={() => {
-                  if (!composing.current) editorStore.getState().redo();
-                }}
-              >
-                <Redo2 size={16} />
-                重做
-              </button>
-              <small>作用于整个乐谱</small>
-            </div>
             {draft && (
               <div className={styles.sidebarActions}>
                 <button
