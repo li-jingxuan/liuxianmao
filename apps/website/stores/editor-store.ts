@@ -1,3 +1,8 @@
+import {
+  createBeatClipboard,
+  type BeatClipboard,
+  type BeatClipboardRange,
+} from "@liuxianmao/lxm-editor";
 /**
  * 网站编辑器状态与受限历史。
  *
@@ -35,6 +40,11 @@ interface EditorHistory {
 
 export interface EditorStore {
   document: ILXMDocument | null;
+  stateVersion: number;
+  clipboardVersion: number;
+  hasBeatClipboard: boolean;
+  getBeatClipboard: () => BeatClipboard | null;
+  copyBeats: (range: BeatClipboardRange) => boolean;
   /** 仅用于界面实例身份，不持久化到乐谱。 */
   sessionId: number;
   sessionVersion: number;
@@ -226,6 +236,7 @@ export const createEditorStore = (
   options: EditorSessionOptions = {},
 ): StoreApi<EditorStoreState> =>
   createStore<EditorStoreState>((set, get) => {
+    let clipboard: BeatClipboard | null = null;
     // 宿主回调位于提交之后；宿主异常不能破坏编辑器历史或向调用方抛出。
     const reportError = (message: string) => {
       set({ errorMessage: message });
@@ -243,6 +254,28 @@ export const createEditorStore = (
       }
     };
     return {
+      stateVersion: 0,
+      clipboardVersion: 0,
+      hasBeatClipboard: false,
+      getBeatClipboard: () => (clipboard ? structuredClone(clipboard) : null),
+      copyBeats: (range) => {
+        const document = get().document;
+        if (!document) return false;
+        const result = createBeatClipboard(document, range);
+        if (!result.ok) {
+          set({ effects: [] });
+          reportError(result.message);
+          return false;
+        }
+        clipboard = structuredClone(result.clipboard);
+        set({
+          hasBeatClipboard: true,
+          clipboardVersion: get().clipboardVersion + 1,
+          errorMessage: null,
+          effects: [...result.clipboard.omissions],
+        });
+        return true;
+      },
       sessionId: ++nextSessionId,
       sessionVersion: 0,
       effects: [],
@@ -252,9 +285,13 @@ export const createEditorStore = (
           reportError(result.errors.join("；"));
           return result;
         }
+        clipboard = null;
         // 外部替换即使具有相同文档 ID，也明确开启新会话边界并取消旧草稿。
         set({
           document: result.document,
+          stateVersion: get().stateVersion + 1,
+          hasBeatClipboard: false,
+          clipboardVersion: get().clipboardVersion + 1,
           selection: null,
           selectedTechniqueId: null,
           errorMessage: null,
@@ -297,15 +334,21 @@ export const createEditorStore = (
           past: [...state.history.past, state.document].slice(-HISTORY_LIMIT),
           future: [],
         };
-        const selectionCandidate = getSelectionCandidateAfterCommand(
-          state.document,
-          result.document,
-          state.selection,
-          command,
-        );
+        const selectionCandidate = result.nextFocus
+          ? createCollapsedTabCellSelection({
+              ...result.nextFocus,
+              string: state.selection?.focus.string ?? 1,
+            })
+          : getSelectionCandidateAfterCommand(
+              state.document,
+              result.document,
+              state.selection,
+              command,
+            );
         set({
           effects: result.effects ?? [],
           document: result.document,
+          stateVersion: get().stateVersion + 1,
           selection: reconcileSelection(result.document, selectionCandidate),
           selectedTechniqueId: result.document.score.tracks.some((track) =>
             track.techniques.some(
@@ -369,6 +412,7 @@ export const createEditorStore = (
         set({
           effects: [],
           document: previous,
+          stateVersion: get().stateVersion + 1,
           selection: reconcileSelection(previous, state.selection),
           selectedTechniqueId: previous.score.tracks.some((track) =>
             track.techniques.some(
@@ -394,6 +438,7 @@ export const createEditorStore = (
         set({
           effects: [],
           document: next,
+          stateVersion: get().stateVersion + 1,
           selection: reconcileSelection(next, state.selection),
           selectedTechniqueId: next.score.tracks.some((track) =>
             track.techniques.some(

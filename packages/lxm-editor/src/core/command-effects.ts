@@ -10,6 +10,16 @@ interface EffectLocation {
 /** 编辑影响只随命令结果返回，不进入 document 或历史快照。 */
 export type ILXMCommandEffect =
   | (EffectLocation & {
+      kind: "beats.structured";
+      operation: "split" | "merge";
+      consumedTieCount: number;
+    })
+  | (EffectLocation & {
+      kind: "beats.pasted";
+      mode: "insert" | "overwrite";
+      count: number;
+    })
+  | (EffectLocation & {
       kind: "measures.copied";
       endMeasureNumber: number;
       afterMeasureNumber: number;
@@ -68,7 +78,8 @@ export const collectCommandEffects = (
         const previousDuration = beforeContext.getBeatDurationTicks(beat);
         const nextDuration = afterContext.getBeatDurationTicks(nextBeat);
         const isRequestedRhythm =
-          command.type === "beat.setRhythm" &&
+          (command.type === "beat.setRhythm" ||
+            command.type === "beat.split") &&
           command.trackId === track.id &&
           command.measureId === measure.id &&
           command.beatId === beat.id;
@@ -99,6 +110,13 @@ export const collectCommandEffects = (
     track.techniques.forEach((technique) => {
       if (
         remaining.has(technique.id) ||
+        (command.type === "beat.mergeRange" &&
+          technique.type === "tie" &&
+          !after.score.tracks
+            .flatMap((t) =>
+              t.measures.flatMap((m) => m.beats.flatMap((b) => b.notes)),
+            )
+            .some((n) => n.id === technique.toNoteId)) ||
         (command.type === "technique.remove" &&
           command.techniqueId === technique.id)
       )

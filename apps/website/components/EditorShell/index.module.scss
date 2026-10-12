@@ -768,3 +768,46 @@
     opacity: 0.6;
   }
 }
+
+// 段落子页签复用侧栏状态，选中内容不改变谱面正式几何。
+.paragraphTabs {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 16px;
+  button {
+    flex: 1;
+    padding: 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: white;
+    &[aria-selected="true"] {
+      color: #3158dc;
+      background: #eef2ff;
+      border-color: #3158dc;
+    }
+  }
+}
+
+// 粘贴确认独占工具区的一行，避免状态摘要挤压谱面工具。
+.beatPastePreview {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  background: #f2f6ff;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.sequenceTable {
+  width: 100%;
+  font-size: 12px;
+  border-collapse: collapse;
+  th,
+  td {
+    padding: 6px 4px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+}

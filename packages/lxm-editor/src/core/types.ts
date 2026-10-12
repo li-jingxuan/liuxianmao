@@ -162,6 +162,8 @@ export interface ILXMRhythm {
 
 /** 节拍内容，tick 表示该节拍在小节中的起始位置。 */
 export interface ILXMBeat {
+  /** 独立的简谱记谱数据，不驱动 TAB 音符与节奏。 */
+  numberedNotation?: { tokens: string[] };
   id: string;
   tick: number;
   rhythm: ILXMRhythm;
@@ -195,7 +197,7 @@ export type ILXMTechnique =
       type: "bend";
       fromNoteId: string;
       /** MVP 首版固定为全音推弦，保留参数便于后续扩展半音等档位。 */
-      semitones: 2;
+      semitones: 1 | 2;
     }
   | {
       id: string;

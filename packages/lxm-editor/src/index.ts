@@ -50,3 +50,14 @@ export * from "./core/command-effects";
 export { default as EXAMPLE_MUTED_NOTE_DOCUMENT } from "../example/example-muted-note";
 
 export * from "./core/tuning";
+
+export * from "./core/numbered-notation";
+
+export * from "./core/beat-clipboard";
+export * from "./core/beat-structure";
+
+export {
+  EXAMPLE_MVP7C_DOCUMENT,
+  EXAMPLE_MVP7C_LONG_DOCUMENT,
+  createMvp7cExample,
+} from "../example/example-mvp7c";

@@ -1,3 +1,4 @@
+import type { NumberedLayout } from "./numbered-notation-layout";
 import type { ILXMFret } from "../core/types";
 import type {
   ILXMMusicTextMetrics,
@@ -74,6 +75,14 @@ export interface ILXMLayout {
 
 /** 一条谱面行（system）的几何结果。 */
 export interface ILXMSystemLayout {
+  /** 谱行最左侧的竖向收边线，从首弦延伸至 system 底部。 */
+  leftEdge?: {
+    x1: number;
+    x2: number;
+    y1: number;
+    y2: number;
+    strokeWidth: number;
+  }[];
   /** 顶部设置和段落标记由核心布局生成，渲染层不推导坐标。 */
   notationLabels?: MusicTextGlyph[];
   lyricVerseLabels?: MusicTextGlyph[];
@@ -146,6 +155,7 @@ export interface ILXMTechniqueSegmentLayout {
 
 /** 小节布局结果，包含弦线、beat slot 和音符坐标。 */
 export interface ILXMMeasureLayout {
+  numberedNotation?: NumberedLayout[];
   lyrics?: LyricLayout[];
   chordSymbols?: ChordSymbolLayout[];
   visualBounds?: MusicTextRect;
@@ -238,7 +248,7 @@ export interface ILXMHitIndex {
     measureId: string;
     beatId: string;
     id: string;
-    kind: "lyric" | "chord";
+    kind: "lyric" | "chord" | "numbered";
     verse?: import("../core/types").ILXMLyricVerse;
   })[];
   measureBounds: ILXMMeasureHitBounds[];

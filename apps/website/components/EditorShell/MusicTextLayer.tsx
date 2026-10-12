@@ -59,11 +59,30 @@ export const MusicTextLayer = ({
   <g data-layer="music-text">
     {layout.systems.map((system) => (
       <g key={system.index}>
+        {system.leftEdge?.map((line, i) => (
+          <line
+            key={`edge-${i}`}
+            data-system-left-edge={system.index}
+            {...line}
+            stroke="currentColor"
+            pointerEvents="none"
+          />
+        ))}
         {system.lyricVerseLabels?.map((glyph) => (
           <MusicGlyph key={glyph.key} glyph={glyph} />
         ))}
         {system.measures.map((measure) => (
           <g key={measure.id}>
+            {measure.numberedNotation?.map((n) => (
+              <g key={n.beatId} data-numbered-beat={n.beatId}>
+                {n.labels.map((g, i) => (
+                  <MusicGlyph key={i} glyph={g} />
+                ))}
+                {n.dots.map((d, i) => (
+                  <circle key={i} {...d} fill="currentColor" />
+                ))}
+              </g>
+            ))}
             {measure.lyrics?.map((lyric) => (
               <g key={lyric.id} data-lyric-id={lyric.id}>
                 {lyricFocus?.id === lyric.id && (

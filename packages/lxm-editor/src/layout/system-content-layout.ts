@@ -1,3 +1,4 @@
+import { layoutNumbered, translateNumbered } from "./numbered-notation-layout";
 import { getMeasureContentBottom } from "./rhythm-bounds";
 import type { ILXMTrack } from "../core/types";
 import type { ILXMSystemLayout, ILXMMeasureLayout } from "./layout-types";
@@ -36,6 +37,12 @@ import {
 const resolveChordBaseline = (
   system: ILXMSystemLayout,
   blocks: readonly ChordSymbolLayout[],
+  numberedBounds: readonly {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }[] = [],
 ): number => {
   if (!blocks.length) return system.y;
   const staffTop = system.measures[0]!.strings[0]!.y1;
@@ -44,6 +51,7 @@ const resolveChordBaseline = (
       measure.notes.map(getFretTextBounds),
     ),
     ...system.techniques.map((technique) => technique.visualBounds),
+    ...numberedBounds,
   ].filter((bounds) => bounds.y < staffTop);
   return Math.min(
     ...blocks.map(({ bounds }) => {
@@ -84,6 +92,41 @@ export const layoutSystemContent = (
       0,
       system.y + LXM_TECHNIQUE_AREA_PADDING_TOP - techniqueTop,
     );
+    // 简谱位于 TAB/技巧自然投影上方，和弦继续放在它的上方。
+    const naturalTop = Math.min(
+      system.y - techniqueHeight,
+      ...system.measures.flatMap((m) =>
+        m.notes.map((n) => getFretTextBounds(n).y),
+      ),
+    );
+    const domains = system.measures.flatMap((m) => source.get(m.id)!.beats);
+    const lowDots = Math.max(
+      0,
+      ...domains.flatMap(
+        (b) =>
+          b.numberedNotation?.tokens.map(
+            (t) => t.match(/\.+$/)?.[0].length ?? 0,
+          ) ?? [],
+      ),
+    );
+    const numberedBaseline = naturalTop - 12 - lowDots * 4;
+    const numberedByMeasure = new Map(
+      system.measures.map((m) => [
+        m.id,
+        source
+          .get(m.id)!
+          .beats.filter((b) => b.numberedNotation)
+          .map((b) =>
+            layoutNumbered(
+              b.id,
+              b.numberedNotation!.tokens,
+              m.beats.find((x) => x.id === b.id)!.x,
+              numberedBaseline,
+              metrics,
+            ),
+          ),
+      ]),
+    );
     const symbols = system.measures.flatMap(
       (m) => source.get(m.id)!.chordSymbols,
     );
@@ -109,6 +152,7 @@ export const layoutSystemContent = (
     const chordBaseline = resolveChordBaseline(
       system,
       [...blocksByMeasure.values()].flat(),
+      [...numberedByMeasure.values()].flat().map((n) => n.bounds),
     );
     const bottom = Math.max(
       ...system.measures.map(getMeasureContentBottom),
@@ -159,6 +203,7 @@ export const layoutSystemContent = (
         ...measure,
         lyrics,
         chordSymbols,
+        numberedNotation: numberedByMeasure.get(measure.id),
         visualBounds: unionMusicBounds([
           {
             x: measure.x,
@@ -167,12 +212,14 @@ export const layoutSystemContent = (
             height: measure.height,
           },
           ...lyrics.map((l) => l.bounds),
+          ...numberedByMeasure.get(measure.id)!.map((n) => n.bounds),
           ...chordSymbols.map((b) => b.bounds),
         ]),
       };
     });
     const musicTop = Math.min(
       system.y - techniqueHeight,
+      ...[...numberedByMeasure.values()].flat().map((n) => n.bounds.y - 2),
       ...measures.flatMap((m) =>
         (m.chordSymbols ?? []).map((b) => b.bounds.y - 2),
       ),
@@ -241,6 +288,9 @@ export const layoutSystemContent = (
       },
       measures: measures.map((m) => ({
         ...translateMeasure(m, dy),
+        numberedNotation: m.numberedNotation?.map((n) =>
+          translateNumbered(n, dy),
+        ),
         lyrics: m.lyrics!.map((l) => ({
           ...l,
           label: translateMusicGlyph(l.label, 0, dy),
@@ -259,6 +309,16 @@ export const layoutSystemContent = (
         height: finalBottom - originalTop,
       },
     };
+    // 竖线位于谱行最左端；描边中心内缩半个线宽，避免 x=0 时被 SVG viewBox 裁切。
+    result.leftEdge = [
+      {
+        x1: result.x + 0.5,
+        x2: result.x + 0.5,
+        y1: result.measures[0]!.strings[0]!.y1,
+        y2: result.y + result.height,
+        strokeWidth: 1,
+      },
+    ];
     nextTop += result.height + gap;
     return result;
   });

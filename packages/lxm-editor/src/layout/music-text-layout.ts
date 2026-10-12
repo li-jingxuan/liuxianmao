@@ -1,3 +1,4 @@
+import { layoutNumbered } from "./numbered-notation-layout";
 import { LXM_SCORE_CHORD_DIAGRAM_SCALE } from "./layout-constants";
 import type { ILXMMeasure, ILXMLyricVerse } from "../core/types";
 import {
@@ -113,6 +114,13 @@ export const getMusicTextExtents = (
       right: Math.max(existing.right, bounds.x + bounds.width),
     });
   };
+  for (const beat of measure.beats)
+    if (beat.numberedNotation)
+      add(
+        beat.id,
+        layoutNumbered(beat.id, beat.numberedNotation.tokens, 0, 0, metrics)
+          .bounds,
+      );
   for (const lyric of measure.lyrics)
     add(
       lyric.beatId,

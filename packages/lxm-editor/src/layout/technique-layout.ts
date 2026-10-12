@@ -938,7 +938,9 @@ const createNaturalSegmentLayout = (
           strokeWidth: LXM_TECHNIQUE_PATH_STROKE_WIDTH,
           markerEnd: "arrow",
         };
-        texts = [text("Full", tipX, tipY - 9)];
+        texts = [
+          text(technique.semitones === 1 ? "1/2" : "Full", tipX, tipY - 9),
+        ];
       } else if (technique.type === "tapping") {
         texts = [text("T", note.x, annotationY)];
       } else if (technique.type === "trill") {

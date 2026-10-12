@@ -230,6 +230,7 @@ export const changeMeasureBeatRhythm = (
   beatId: string,
   rhythm: ILXMRhythm,
   createBeatId: () => string,
+  externalProtectedBeatIds: ReadonlySet<string> = new Set(),
 ): MeasureRhythmChangeResult => {
   const targetIndex = measure.beats.findIndex((beat) => beat.id === beatId);
   if (targetIndex < 0) return { ok: false, code: "BEAT_NOT_FOUND" };
@@ -247,7 +248,7 @@ export const changeMeasureBeatRhythm = (
   const candidate = measure.beats.map((beat, index) =>
     index === targetIndex ? { ...beat, rhythm } : beat,
   );
-  const protectedBeatIds = new Set([beatId]);
+  const protectedBeatIds = new Set([beatId, ...externalProtectedBeatIds]);
   const candidateMeasure = { ...measure, beats: candidate };
   const fixedBeats = candidate.slice(
     0,

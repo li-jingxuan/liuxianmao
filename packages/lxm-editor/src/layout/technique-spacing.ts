@@ -21,7 +21,11 @@ export const TECHNIQUE_LABEL_GAP = 3;
 export const vibratoStartOffset = (half: number, hasBend: boolean): number =>
   half +
   LXM_TECHNIQUE_FRET_GAP_X +
-  (hasBend ? TECHNIQUE_BEND_RUN + techniqueLabelWidth("Full") / 2 + 6 : 0);
+  (hasBend
+    ? TECHNIQUE_BEND_RUN +
+      Math.max(techniqueLabelWidth("Full"), techniqueLabelWidth("1/2")) / 2 +
+      6
+    : 0);
 
 export interface TechniqueInsets {
   left: number;
@@ -141,7 +145,10 @@ export const buildTechniqueInsets = (
         half,
         start +
           TECHNIQUE_BEND_RUN +
-          Math.max(markerRadius, techniqueLabelWidth("Full") / 2) +
+          Math.max(
+            markerRadius,
+            techniqueLabelWidth(t.semitones === 1 ? "1/2" : "Full") / 2,
+          ) +
           1,
       );
     else if (t.type === "vibrato")

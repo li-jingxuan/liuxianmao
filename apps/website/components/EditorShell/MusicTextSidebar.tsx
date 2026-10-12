@@ -1,3 +1,7 @@
+import {
+  NumberedEditor,
+  type NumberedEditorController,
+} from "./NumberedEditor";
 import { ScoreSettings, type ScoreSettingsController } from "./ScoreSettings";
 import {
   useEffect,
@@ -59,6 +63,16 @@ export const MusicTextSidebar = ({
   const score = useEditorStore((s) => s.document);
   const selection = useEditorStore((s) => s.selection);
   const [kind, setKind] = useState<SidebarTab>("score");
+  const stateVersion = useEditorStore((s) => s.stateVersion);
+  const [numberedMode, setNumberedMode] = useState<"single" | "sequence">(
+    "sequence",
+  );
+  const numberedRef = useRef<NumberedEditorController>(null);
+  const [numberedCanApply, setNumberedCanApply] = useState(false);
+  const [numberedDirty, setNumberedDirty] = useState(false);
+  const [numberedInputActive, setNumberedInputActive] = useState(false);
+  const paragraphKind = useRef<"lyric" | "numbered">("lyric");
+  const paragraphVerse = useRef<ILXMLyricVerse>(1);
   const settingsRef = useRef<ScoreSettingsController>(null);
   const [settingsDirty, setSettingsDirty] = useState(false);
   const [draft, setDraft] = useState<MusicTextDraft | null>(null);
@@ -72,12 +86,18 @@ export const MusicTextSidebar = ({
   const focusDestination = useRef<"score" | "input">("input");
   const editButtonRef = useRef<HTMLButtonElement>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
+  const requestedTabFocus = useRef<string | null>(null);
   const composing = useRef(false);
   const compositionEndedAt = useRef(-Infinity);
   const baseline = useRef(score);
   const committing = useRef(false);
   const wasEditing = useRef(false);
-  const editing = !!draft || settingsDirty;
+  const editing =
+    settingsDirty ||
+    numberedDirty ||
+    numberedInputActive ||
+    !!pending ||
+    (!!draft && (inputEditing || musicTextDraftValue(draft) !== draft.initial));
   const target = draft?.target ?? selection?.focus;
   const track = target
     ? score?.score.tracks.find((t) => t.id === target.trackId)
@@ -142,8 +162,8 @@ export const MusicTextSidebar = ({
   );
   // 只报告已接受的目标；预览检查行不改变批次起点或持久化 selection。
   useEffect(() => {
-    onTargetChange(inputEditing && active ? { ...active } : null);
-  }, [onTargetChange, active, inputEditing]);
+    if (kind !== "numbered") onTargetChange(active ? { ...active } : null);
+  }, [onTargetChange, active, kind]);
 
   /** 编辑目标与焦点意图分开：选拍同步表单，点击文本才进入文字输入。 */
   const focusTarget = (focus: "score" | "input") => {
@@ -168,6 +188,10 @@ export const MusicTextSidebar = ({
     setMessage(value ? null : "目标拍已失效，请重新选择。");
     setDraft(value);
     setKind(next.kind);
+    if (next.kind === "lyric") {
+      paragraphKind.current = "lyric";
+      paragraphVerse.current = next.verse ?? 1;
+    }
     baseline.current = editorStore.getState().document;
     if (value) {
       focusTarget(focus);
@@ -179,10 +203,18 @@ export const MusicTextSidebar = ({
     }
   };
   const perform = (action: SidebarAction) => {
+    if (action.type === "tab" && action.focus)
+      requestedTabFocus.current = `${action.focus === "paragraph" ? "paragraph" : "music"}-tab-${action.focus === "main" && action.kind === "numbered" ? "lyric" : action.kind}`;
     setPending(null);
+    if (kind === "numbered") {
+      numberedRef.current?.discard();
+      setNumberedDirty(false);
+      setNumberedInputActive(false);
+    }
     if (action.type === "close") {
       setDraft(null);
       setMessage(null);
+      setNumberedInputActive(false);
       settingsRef.current?.discard();
     } else if (action.type === "settingsTarget") {
       settingsRef.current?.discard();
@@ -191,17 +223,38 @@ export const MusicTextSidebar = ({
         .setSelection(createCollapsedTabCellSelection(action.target));
     } else if (action.type === "target") {
       settingsRef.current?.discard();
-      loadTarget(action.target, draft?.lyricMode, action.focus);
+      if (action.target.kind === "numbered") {
+        setDraft(null);
+        setKind("numbered");
+        paragraphKind.current = "numbered";
+        editorStore
+          .getState()
+          .setSelection(createCollapsedTabCellSelection(action.target));
+        setNumberedInputActive(action.focus !== "score");
+        if (action.focus === "score") onScoreFocus();
+      } else loadTarget(action.target, draft?.lyricMode, action.focus);
+    } else if (action.type === "numberedMode") {
+      setNumberedMode(action.mode);
     } else if (action.type === "mode") {
       if (draft) loadTarget(draft.target, action.mode);
     } else {
       // 切入文本页签时直接读取当前选拍，复用目标加载与草稿保护流程。
+      if (action.kind === "numbered") {
+        setNumberedMode("sequence");
+        setDraft(null);
+        setMessage(null);
+        setKind("numbered");
+        paragraphKind.current = "numbered";
+        setNumberedInputActive(false);
+        return;
+      }
+      if (action.kind === "lyric") paragraphKind.current = "lyric";
       const selected = editorStore.getState().selection?.focus;
       if (action.kind !== "score" && selected) {
         loadTarget({
           ...selected,
           kind: action.kind,
-          verse: draft?.target.verse ?? 1,
+          verse: draft?.target.verse ?? paragraphVerse.current,
         });
         return;
       }
@@ -214,6 +267,7 @@ export const MusicTextSidebar = ({
   const request = (action: SidebarAction) => {
     if (composing.current || pending) return;
     if (action.type === "tab" && action.kind === kind) return;
+    if (action.type === "numberedMode" && action.mode === numberedMode) return;
     if (
       action.type === "settingsTarget" &&
       selection?.focus.measureId === action.target.measureId
@@ -221,6 +275,21 @@ export const MusicTextSidebar = ({
       editorStore
         .getState()
         .setSelection(createCollapsedTabCellSelection(action.target));
+      return;
+    }
+    // 同一简谱拍重复点击只改变焦点意图，不能清空草稿或再次要求确认。
+    const selected = editorStore.getState().selection?.focus;
+    if (
+      kind === "numbered" &&
+      action.type === "target" &&
+      action.target.kind === "numbered" &&
+      selected &&
+      selected.trackId === action.target.trackId &&
+      selected.measureId === action.target.measureId &&
+      selected.beatId === action.target.beatId
+    ) {
+      setNumberedInputActive(action.focus !== "score");
+      if (action.focus === "score") onScoreFocus();
       return;
     }
     const decision = resolveSidebarRequest(draft, action);
@@ -233,7 +302,11 @@ export const MusicTextSidebar = ({
       focusTarget(action.focus ?? "input");
       return;
     }
-    if (decision === "confirm" || settingsRef.current?.dirty)
+    if (
+      decision === "confirm" ||
+      settingsRef.current?.dirty ||
+      numberedRef.current?.dirty
+    )
       setPending(action);
     else if (decision === "execute") perform(action);
   };
@@ -251,7 +324,7 @@ export const MusicTextSidebar = ({
           target: {
             ...next,
             kind,
-            verse: draft?.target.verse ?? 1,
+            verse: draft?.target.verse ?? paragraphVerse.current,
           },
         });
       return true;
@@ -265,13 +338,34 @@ export const MusicTextSidebar = ({
         if (state.document !== baseline.current && !committing.current) {
           setDraft(null);
           setPending(null);
+          setNumberedInputActive(false);
+          setNumberedDirty(false);
           setMessage(
             wasEditing.current ? "谱面已变化，未应用草稿已取消。" : null,
           );
           baseline.current = state.document;
+        } else if (
+          kind === "lyric" &&
+          draft &&
+          !inputEditing &&
+          musicTextDraftValue(draft) === draft.initial &&
+          state.selection
+        ) {
+          const next = state.selection.focus;
+          if (
+            next.beatId !== draft.target.beatId ||
+            next.measureId !== draft.target.measureId
+          )
+            setDraft(
+              readMusicTextDraft(
+                state.document,
+                { ...next, kind: "lyric", verse: draft.target.verse },
+                draft.lyricMode,
+              ),
+            );
         }
       }),
-    [editorStore],
+    [editorStore, kind, draft, inputEditing],
   );
   useEffect(() => {
     onEditingChange(editing);
@@ -297,6 +391,16 @@ export const MusicTextSidebar = ({
       });
     else if (targetKey) onScoreFocus();
   }, [pending, targetKey, sequence, onScoreFocus]);
+
+  // 接受键盘切页签后聚焦对应 TAB，不让表单的目标加载抢走导航焦点。
+  useEffect(() => {
+    if (!pending && requestedTabFocus.current) {
+      document
+        .getElementById(requestedTabFocus.current)
+        ?.focus({ preventScroll: true });
+      requestedTabFocus.current = null;
+    }
+  }, [kind, pending]);
 
   /** 提交标记在异常、失败及 no-op 时也释放；失败保留当前草稿。 */
   const commit = (command: ILXMScoreCommand) => {
@@ -462,10 +566,21 @@ export const MusicTextSidebar = ({
               key={tab}
               id={`music-tab-${tab}`}
               role="tab"
-              aria-selected={kind === tab}
+              aria-selected={
+                kind === tab || (tab === "lyric" && kind === "numbered")
+              }
               aria-controls="music-text-fields"
-              tabIndex={kind === tab ? 0 : -1}
-              onClick={() => request({ type: "tab", kind: tab })}
+              tabIndex={
+                kind === tab || (tab === "lyric" && kind === "numbered")
+                  ? 0
+                  : -1
+              }
+              onClick={() =>
+                request({
+                  type: "tab",
+                  kind: tab === "lyric" ? paragraphKind.current : tab,
+                })
+              }
               onKeyDown={(e) => {
                 if (
                   ["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)
@@ -473,6 +588,7 @@ export const MusicTextSidebar = ({
                   e.preventDefault();
                   request({
                     type: "tab",
+                    focus: "main",
                     kind:
                       e.key === "Home"
                         ? "score"
@@ -499,7 +615,7 @@ export const MusicTextSidebar = ({
               {tab === "score"
                 ? "谱面设置"
                 : tab === "lyric"
-                  ? "歌词编辑"
+                  ? "段落编辑"
                   : "和弦编辑"}
             </button>
           ))}
@@ -509,11 +625,11 @@ export const MusicTextSidebar = ({
         className={styles.sidebarBody}
         id="music-text-fields"
         role="tabpanel"
-        aria-labelledby={`music-tab-${kind}`}
+        aria-labelledby={`music-tab-${kind === "numbered" ? "lyric" : kind}`}
         inert={!!pending}
         onFocusCapture={() => {
           // 用户主动操作表单时再显示歌词焦点，不抢走段号或指法控件的焦点。
-          if (draft && kind !== "score") {
+          if (draft && kind !== "score" && kind !== "numbered") {
             focusDestination.current = "input";
             setInputEditing(true);
           }
@@ -530,8 +646,76 @@ export const MusicTextSidebar = ({
             />
           </div>
         )}
-        {kind !== "score" && (
-          <>
+        {(kind === "lyric" || kind === "numbered") && (
+          <div
+            role="tablist"
+            aria-label="段落内容"
+            className={styles.paragraphTabs}
+          >
+            {(["lyric", "numbered"] as const).map((tab, i) => (
+              <button
+                key={tab}
+                role="tab"
+                id={`paragraph-tab-${tab}`}
+                aria-controls="paragraph-fields"
+                aria-selected={kind === tab}
+                tabIndex={kind === tab ? 0 : -1}
+                onClick={() => request({ type: "tab", kind: tab })}
+                onKeyDown={(e) => {
+                  if (
+                    ["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)
+                  ) {
+                    e.preventDefault();
+                    request({
+                      type: "tab",
+                      focus: "paragraph",
+                      kind:
+                        e.key === "Home"
+                          ? "lyric"
+                          : e.key === "End"
+                            ? "numbered"
+                            : i === 0
+                              ? "numbered"
+                              : "lyric",
+                    });
+                  }
+                }}
+              >
+                {tab === "lyric" ? "歌词" : "简谱"}
+              </button>
+            ))}
+          </div>
+        )}
+        {kind === "numbered" && score && (
+          <div
+            id="paragraph-fields"
+            role="tabpanel"
+            aria-labelledby="paragraph-tab-numbered"
+          >
+            <NumberedEditor
+              key={`${stateVersion}/${numberedMode}/${selection?.focus.trackId}/${selection?.focus.measureId}/${selection?.focus.beatId}`}
+              mode={numberedMode}
+              onModeChange={(mode) => request({ type: "numberedMode", mode })}
+              ref={numberedRef}
+              document={score}
+              target={selection?.focus ?? null}
+              commit={commit}
+              onDirty={setNumberedDirty}
+              onInputActive={setNumberedInputActive}
+              onTargetChange={onTargetChange}
+              onCanApply={setNumberedCanApply}
+              autoFocusInput={numberedInputActive}
+            />
+          </div>
+        )}
+        {kind !== "score" && kind !== "numbered" && (
+          <div
+            id={kind === "lyric" ? "paragraph-fields" : undefined}
+            role={kind === "lyric" ? "tabpanel" : undefined}
+            aria-labelledby={
+              kind === "lyric" ? "paragraph-tab-lyric" : undefined
+            }
+          >
             <p className={styles.sidebarTarget}>
               {validTarget
                 ? `目标：第 ${(track?.measures.findIndex((m) => m.id === validTarget.measureId) ?? 0) + 1} 小节，第 ${(measure?.beats.findIndex((b) => b.id === validTarget.beatId) ?? 0) + 1} 拍`
@@ -755,7 +939,7 @@ export const MusicTextSidebar = ({
                 }
               />
             )}
-          </>
+          </div>
         )}
       </div>
       {/* 无编辑操作或提示时隐藏底栏，避免移除历史按钮后留下空白条。 */}
@@ -774,10 +958,16 @@ export const MusicTextSidebar = ({
             <p>请先处理修改，再继续操作。</p>
             <div>
               <button
-                disabled={!!issue}
+                disabled={!!issue || (kind === "numbered" && !numberedCanApply)}
                 className={styles.primaryButton}
                 onClick={() => {
-                  if (kind === "score" ? settingsRef.current?.apply() : apply())
+                  if (
+                    kind === "score"
+                      ? settingsRef.current?.apply()
+                      : kind === "numbered"
+                        ? numberedRef.current?.apply()
+                        : apply()
+                  )
                     perform(pending);
                 }}
               >

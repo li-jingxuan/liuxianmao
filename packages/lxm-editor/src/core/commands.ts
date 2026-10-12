@@ -1,3 +1,11 @@
+import { planBeatPaste, type BeatClipboard } from "./beat-clipboard";
+import { splitBeat, mergeBeats } from "./beat-structure";
+import { techniqueBeatIds } from "./content-protection";
+import {
+  planNumberedSequence,
+  validNumberedTokens,
+  type NumberedSequenceItem,
+} from "./numbered-notation";
 import { validateTuning } from "./tuning";
 import { normalizeMusicText, hasMusicTextControlCharacter } from "./music-text";
 import {
@@ -56,6 +64,12 @@ import type {
 } from "./types";
 
 export enum LXMScoreCommandEnum {
+  SplitBeat = "beat.split",
+  MergeBeats = "beat.mergeRange",
+  PasteBeats = "beat.paste",
+  SetNumbered = "numberedNotation.set",
+  RemoveNumbered = "numberedNotation.remove",
+  SetNumberedSequence = "numberedNotation.setSequence",
   SetNotationInfo = "score.setNotationInfo",
   SetLyric = "lyric.set",
   SetLyricSequence = "lyrics.setSequence",
@@ -255,7 +269,58 @@ export type ILXMSetNotationInfoCommand = {
   keySignature: ILXMDocument["score"]["keySignature"];
 };
 
+export type ILXMNumberedCommand =
+  | {
+      type: LXMScoreCommandEnum.SetNumbered;
+      trackId: string;
+      measureId: string;
+      beatId: string;
+      tokens: string[];
+    }
+  | {
+      type: LXMScoreCommandEnum.RemoveNumbered;
+      trackId: string;
+      measureId: string;
+      beatId: string;
+    }
+  | {
+      type: LXMScoreCommandEnum.SetNumberedSequence;
+      trackId: string;
+      measureId: string;
+      beatId: string;
+      items: NumberedSequenceItem[];
+      allowOverwrite: boolean;
+    };
+export type ILXMBeatStructureCommand =
+  | {
+      type: LXMScoreCommandEnum.SplitBeat;
+      trackId: string;
+      measureId: string;
+      beatId: string;
+    }
+  | {
+      type: LXMScoreCommandEnum.MergeBeats;
+      trackId: string;
+      measureId: string;
+      startBeatId: string;
+      endBeatId: string;
+    };
+
+export interface ILXMBeatPasteCommand {
+  type: LXMScoreCommandEnum.PasteBeats;
+  trackId: string;
+  measureId: string;
+  beatId: string;
+  mode: "insert" | "overwrite";
+  clipboard: BeatClipboard;
+  allowOverwrite: boolean;
+  expectedConfirmationKey: string;
+}
+
 export type ILXMScoreCommand =
+  | ILXMBeatPasteCommand
+  | ILXMNumberedCommand
+  | ILXMBeatStructureCommand
   | ILXMSetNotationInfoCommand
   | ILXMSetLyricSequenceCommand
   | ILXMMusicTextCommand
@@ -282,6 +347,8 @@ export type ILXMScoreCommand =
   | ILXMRemoveTechniqueCommand;
 
 export type ILXMScoreCommandErrorCode =
+  | "INVALID_BEAT_OPERATION"
+  | "INVALID_NUMBERED_NOTATION"
   | "INVALID_NOTATION_INFO"
   | "INVALID_LYRIC_SEQUENCE"
   | "LYRIC_NOT_FOUND"
@@ -341,6 +408,7 @@ export type ILXMApplyScoreCommandResult =
       changed: boolean;
       document: ILXMDocument;
       effects?: ILXMCommandEffect[];
+      nextFocus?: { trackId: string; measureId: string; beatId: string };
     }
   | { ok: false; code: ILXMScoreCommandErrorCode; message: string };
 
@@ -506,6 +574,7 @@ const setTimeSignature = (
       track.measures[index]!,
       command.timeSignature,
       factory.createBeatId,
+      techniqueBeatIds(track),
     );
     if (!result.ok) {
       if (result.code === "MEASURE_CONTENT_EXCEEDS_TIME_SIGNATURE")
@@ -592,6 +661,7 @@ const setBeatRhythm = (
     target.beat.id,
     command.rhythm,
     factory.createBeatId,
+    techniqueBeatIds(target.track),
   );
 
   if (!rhythmChange.ok) {
@@ -726,6 +796,9 @@ const editNotesInRect = (
       // Map 保留已有 Note 顺序，新建 Note 按目标弦从 1 到 6 稳定追加。
       return {
         ...beat,
+        ...(beat.numberedNotation
+          ? { numberedNotation: { tokens: [...beat.numberedNotation.tokens] } }
+          : {}),
         kind: "notes" as const,
         notes: [...notesByString.values()],
       };
@@ -973,6 +1046,171 @@ const applyScoreCommandInternal = (
   document: ILXMDocument,
   command: ILXMScoreCommand,
 ): ILXMApplyScoreCommandResult => {
+  if (command.type === LXMScoreCommandEnum.PasteBeats) {
+    const plan = planBeatPaste(document, command, command.clipboard);
+    if (!plan.ok) return fail("INVALID_BEAT_OPERATION", plan.message);
+    if (plan.confirmationKey !== command.expectedConfirmationKey)
+      return fail("INVALID_BEAT_OPERATION", "粘贴预览已过期，请重新预览确认。");
+    if (plan.requiresConfirmation && command.allowOverwrite !== true)
+      return fail("INVALID_BEAT_OPERATION", "请先确认覆盖目标音乐内容。");
+    const result = finalize({
+      ...document,
+      documentRevision: document.documentRevision + 1,
+      score: {
+        ...document.score,
+        tracks: document.score.tracks.map((t) =>
+          t.id === command.trackId ? plan.track : t,
+        ),
+      },
+    });
+    return result.ok
+      ? {
+          ...result,
+          nextFocus: plan.nextFocus,
+          effects: [
+            ...plan.effects.filter((e) => e.kind !== "technique.removed"),
+            {
+              kind: "beats.pasted",
+              trackId: command.trackId,
+              measureId: command.measureId,
+              measureNumber:
+                document.score.tracks
+                  .find((t) => t.id === command.trackId)!
+                  .measures.findIndex((m) => m.id === command.measureId) + 1,
+              mode: command.mode,
+              count: plan.count,
+            },
+          ],
+        }
+      : result;
+  }
+  if (
+    command.type === LXMScoreCommandEnum.SplitBeat ||
+    command.type === LXMScoreCommandEnum.MergeBeats
+  ) {
+    const track = document.score.tracks.find((t) => t.id === command.trackId);
+    if (!track) return fail("TRACK_NOT_FOUND", "目标轨道不存在");
+    const result =
+      command.type === LXMScoreCommandEnum.SplitBeat
+        ? splitBeat(
+            track,
+            command.measureId,
+            command.beatId,
+            createDocumentIdFactory(document),
+          )
+        : mergeBeats(
+            track,
+            command.measureId,
+            command.startBeatId,
+            command.endBeatId,
+          );
+    if (!result.ok) return fail("INVALID_BEAT_OPERATION", result.message);
+    const finalized = finalize({
+      ...document,
+      documentRevision: document.documentRevision + 1,
+      score: {
+        ...document.score,
+        tracks: document.score.tracks.map((t) =>
+          t === track ? result.track : t,
+        ),
+      },
+    });
+    if (!finalized.ok) return finalized;
+    return {
+      ...finalized,
+      nextFocus: {
+        trackId: track.id,
+        measureId: command.measureId,
+        beatId: result.focusBeatId,
+      },
+      effects: [
+        {
+          kind: "beats.structured",
+          trackId: track.id,
+          measureId: command.measureId,
+          measureNumber:
+            track.measures.findIndex((m) => m.id === command.measureId) + 1,
+          operation: command.type === "beat.split" ? "split" : "merge",
+          consumedTieCount: result.consumedTieCount,
+        },
+      ],
+    };
+  }
+  if (
+    command.type === LXMScoreCommandEnum.SetNumbered ||
+    command.type === LXMScoreCommandEnum.RemoveNumbered ||
+    command.type === LXMScoreCommandEnum.SetNumberedSequence
+  ) {
+    const track = document.score.tracks.find((t) => t.id === command.trackId);
+    const measure = track?.measures.find((m) => m.id === command.measureId);
+    if (
+      !track ||
+      !measure ||
+      !measure.beats.some((b) => b.id === command.beatId)
+    )
+      return fail("INVALID_NUMBERED_NOTATION", "简谱目标拍不存在");
+    const remove = command.type === LXMScoreCommandEnum.RemoveNumbered;
+    const items =
+      command.type === LXMScoreCommandEnum.SetNumberedSequence
+        ? command.items
+        : remove
+          ? []
+          : [{ kind: "set" as const, tokens: command.tokens }];
+    const plan = remove
+      ? null
+      : planNumberedSequence(
+          document,
+          command,
+          items,
+          command.type !== LXMScoreCommandEnum.SetNumberedSequence ||
+            command.allowOverwrite === true,
+        );
+    if (plan?.issue) return fail("INVALID_NUMBERED_NOTATION", plan.issue);
+    if (
+      !remove &&
+      items.some((i) => i.kind === "set" && !validNumberedTokens(i.tokens))
+    )
+      return fail("INVALID_NUMBERED_NOTATION", "简谱内容无效");
+    const changes = new Map(
+      plan?.rows
+        .filter((r) => r.target && r.item.kind === "set" && r.status !== "same")
+        .map((r) => [
+          r.target!.beatId,
+          r.item.kind === "set" ? r.item.tokens : [],
+        ]) ?? [],
+    );
+    if (
+      (remove &&
+        !measure.beats.find((b) => b.id === command.beatId)!
+          .numberedNotation) ||
+      (!remove && changes.size === 0)
+    )
+      return unchanged(document);
+    const nextTrack = {
+      ...track,
+      measures: track.measures.map((m) => ({
+        ...m,
+        beats: m.beats.map((b) => {
+          if (remove && b.id === command.beatId) {
+            const { numberedNotation: _n, ...rest } = b;
+            return rest;
+          }
+          const tokens = changes.get(b.id);
+          return tokens
+            ? { ...b, numberedNotation: { tokens: [...tokens] } }
+            : b;
+        }),
+      })),
+    };
+    return finalize({
+      ...document,
+      documentRevision: document.documentRevision + 1,
+      score: {
+        ...document.score,
+        tracks: document.score.tracks.map((t) => (t === track ? nextTrack : t)),
+      },
+    });
+  }
   if (command.type === LXMScoreCommandEnum.SetNotationInfo) {
     // 标题与作者一起规范化并验证，失败不留下部分修改。
     const text = (value: string, limit: number) =>
@@ -1086,6 +1324,7 @@ const applyScoreCommandInternal = (
       measure,
       command,
       createDocumentIdFactory(document),
+      techniqueBeatIds(track),
     );
     if (!result.ok) return result;
     if (!result.changed) return unchanged(document);
@@ -1335,6 +1574,9 @@ const applyScoreCommandInternal = (
     sourceMeasures.forEach((copySource) => {
       const copiedBeats = copySource.beats.map((beat) => ({
         ...beat,
+        ...(beat.numberedNotation
+          ? { numberedNotation: { tokens: [...beat.numberedNotation.tokens] } }
+          : {}),
         id: factory.createBeatId(),
         notes: beat.notes.map((note) => ({
           ...note,
@@ -1467,6 +1709,9 @@ const applyScoreCommandInternal = (
     const copySource = track.measures[sourceIndex]!;
     const copiedBeats = copySource.beats.map((beat) => ({
       ...beat,
+      ...(beat.numberedNotation
+        ? { numberedNotation: { tokens: [...beat.numberedNotation.tokens] } }
+        : {}),
       id: factory.createBeatId(),
       notes: beat.notes.map((note) => ({
         ...note,
@@ -1558,5 +1803,8 @@ export const applyScoreCommand = (
     ...(result.effects ?? []),
     ...collectCommandEffects(document, result.document, command),
   ];
-  return effects.length > 0 ? { ...result, effects } : result;
+  const unique = [
+    ...new Map(effects.map((e) => [JSON.stringify(e), e])).values(),
+  ];
+  return unique.length > 0 ? { ...result, effects: unique } : result;
 };

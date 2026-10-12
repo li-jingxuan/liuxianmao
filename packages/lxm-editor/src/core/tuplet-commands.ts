@@ -20,6 +20,7 @@ export const editMeasureTuplet = (
   measure: ILXMMeasure,
   command: ILXMSetTupletCommand | ILXMRemoveTupletCommand,
   factory: ILXMIdFactory,
+  externalProtectedBeatIds: ReadonlySet<string> = new Set(),
 ): Result => {
   const fail = (code: ILXMScoreCommandErrorCode, message: string): Result => ({
     ok: false,
@@ -63,7 +64,7 @@ export const editMeasureTuplet = (
         "TUPLET_RHYTHM_MISMATCH",
         "连音成员的书写时值和附点必须完全相同",
       );
-    const selected = new Set(memberIds);
+    const selected = new Set([...memberIds, ...externalProtectedBeatIds]);
     const overlaps = tuplets.filter((group) =>
       group.beatIds.some((id) => selected.has(id)),
     );
@@ -98,7 +99,7 @@ export const editMeasureTuplet = (
     { ...measure, tuplets },
     {
       createBeatId: factory.createBeatId,
-      protectedBeatIds: new Set(memberIds),
+      protectedBeatIds: new Set([...memberIds, ...externalProtectedBeatIds]),
     },
   );
   if (!result.ok)

@@ -1,3 +1,4 @@
+import { validNumberedTokens } from "./numbered-notation";
 import { validateTuning } from "./tuning";
 import { z } from "zod";
 import { normalizeMusicText } from "./music-text";
@@ -196,7 +197,7 @@ export const LXMTechniqueSchema = z.discriminatedUnion("type", [
       id: z.string(),
       type: z.literal("bend"),
       fromNoteId: z.string(),
-      semitones: z.literal(2),
+      semitones: z.union([z.literal(1), z.literal(2)]),
     })
     .strict(),
   ...(
@@ -266,6 +267,12 @@ export const LXMTechniqueSchema = z.discriminatedUnion("type", [
 ]) satisfies z.ZodType<ILXMTechnique>;
 
 /** 节拍内容校验，tick 表示该节拍在小节中的起始位置。 */
+export const LXMNumberedNotationSchema = z
+  .object({
+    tokens: z.array(z.string()).refine(validNumberedTokens, "简谱 token 无效"),
+  })
+  .strict();
+
 export const LXMBeatSchema = z
   .object({
     id: z.string(),
@@ -273,6 +280,7 @@ export const LXMBeatSchema = z
     rhythm: LXMRhythmSchema,
     kind: z.enum(LXM_BEAT_KINDS),
     notes: z.array(LXMNoteSchema),
+    numberedNotation: LXMNumberedNotationSchema.optional(),
   })
   .strict() satisfies z.ZodType<ILXMBeat>;
 

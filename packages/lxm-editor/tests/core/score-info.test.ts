@@ -89,7 +89,7 @@ describe("基础谱面信息", () => {
       expect(loadDocument(JSON.stringify(old)).ok).toBe(false);
       const result = upgradeDocumentToCurrent(old);
       if (!result.ok) throw new Error(result.errors.join(";"));
-      expect(result.document.schemaVersion).toBe(6);
+      expect(result.document.schemaVersion).toBe(7);
       expect(result.document.score.keySignature).toBeNull();
       expect(result.document.score.arranger).toBe("");
       expect(result.document.score.tracks).toEqual(doc.score.tracks);
@@ -119,7 +119,10 @@ describe("基础谱面信息", () => {
     expect(layout.systems[0]!.y).toBeGreaterThan(headerBottom);
     const measure = layout.systems[0]!.measures[0]!;
     expect(
-      hitTestLayout(layout, { x: measure.beats[0]!.x, y: measure.strings[0]!.y1 }),
+      hitTestLayout(layout, {
+        x: measure.beats[0]!.x,
+        y: measure.strings[0]!.y1,
+      }),
     ).toBeTruthy();
     expect(doc).toEqual(before);
   });

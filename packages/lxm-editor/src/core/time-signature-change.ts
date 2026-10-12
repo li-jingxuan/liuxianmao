@@ -36,11 +36,13 @@ export const changeMeasureTimeSignature = (
   measure: ILXMMeasure,
   timeSignature: ILXMTimeSignature,
   createBeatId: () => string,
+  protectedBeatIds: ReadonlySet<string> = new Set(),
 ): MeasureTimeSignatureChangeResult => {
   const capacityTicks = getMeasureCapacityTicks(timeSignature);
 
   const isAllRest =
     measure.tuplets.length === 0 &&
+    !measure.beats.some((b) => protectedBeatIds.has(b.id)) &&
     collectMusicTextBeatIds(measure).size === 0 &&
     measure.beats.every((beat) => beat.kind === "rest");
   if (isAllRest) {
@@ -61,12 +63,19 @@ export const changeMeasureTimeSignature = (
 
   const result = reconcileMeasureTimeline(
     { ...measure, timeSignature: { ...timeSignature } },
-    { createBeatId },
+    { createBeatId, protectedBeatIds },
   );
   if (!result.ok) {
     // 区分真正内容超容与文本锚点阻挡，不自动删除文本来容纳新拍号。
-    const ordinary = { ...measure, lyrics: [], chordSymbols: [] };
-    const prefix = getFixedPrefixLength(ordinary);
+    const ordinary = {
+      ...measure,
+      lyrics: [],
+      chordSymbols: [],
+      beats: measure.beats.map(
+        ({ numberedNotation: _notation, ...beat }) => beat,
+      ),
+    };
+    const prefix = getFixedPrefixLength(ordinary, protectedBeatIds);
     const context = createMeasureRhythmContext(ordinary);
     const ordinaryTicks = ordinary.beats
       .slice(0, prefix)

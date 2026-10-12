@@ -27,6 +27,14 @@ export const buildHitIndex = (
 ): ILXMHitIndex => ({
   musicTextBounds: systems.flatMap((system) =>
     system.measures.flatMap((m) => [
+      ...(m.numberedNotation ?? []).map((n) => ({
+        ...n.bounds,
+        trackId,
+        measureId: m.id,
+        beatId: n.beatId,
+        id: n.beatId,
+        kind: "numbered" as const,
+      })),
       ...(m.lyrics ?? []).map((l) => ({
         ...l.bounds,
         trackId,

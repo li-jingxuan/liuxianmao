@@ -25,7 +25,7 @@ import { ILXMDocument } from "../src";
 
 const EXAMPLE_MVP_1: ILXMDocument = {
   schema: "lxm-tab-score",
-  schemaVersion: 6,
+  schemaVersion: 7,
   documentRevision: 1,
   // 乐谱信息
   score: {

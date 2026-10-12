@@ -1,4 +1,5 @@
 "use client";
+import { BeatToolbar } from "./BeatToolbar";
 
 import { EditorImpactNotice } from "./EditorImpactNotice";
 
@@ -50,7 +51,7 @@ import { TechniqueToolbar } from "./TechniqueToolbar";
 import { MusicTextLayer } from "./MusicTextLayer";
 import { MusicTextSidebar, type MusicTextController } from "./MusicTextSidebar";
 import type { MusicTextTarget } from "./music-text-draft";
-import { resolveLyricFocus } from "./music-text-focus";
+import { resolveParagraphFocus } from "./music-text-focus";
 import { useMusicTextMetrics } from "./music-text-metrics";
 import styles from "./index.module.scss";
 
@@ -121,6 +122,8 @@ export const EditorShell: React.FC = () => {
   const session = useEditorSessionStore();
   const document = useEditorStore((state) => state.document);
   const selection = useEditorStore((state) => state.selection);
+  const clipboardVersion = useEditorStore((s) => s.clipboardVersion);
+  const stateVersion = useEditorStore((s) => s.stateVersion);
   const effects = useEditorStore((state) => state.effects);
   const errorMessage = useEditorStore((state) => state.errorMessage);
   const execute = useEditorStore((state) => state.execute);
@@ -199,10 +202,12 @@ export const EditorShell: React.FC = () => {
     [lxmLayout, resolvedSelection],
   );
   const lyricFocus = useMemo(
-    () => resolveLyricFocus(lxmLayout, activeMusicTextTarget),
+    () => resolveParagraphFocus(lxmLayout, activeMusicTextTarget),
     [lxmLayout, activeMusicTextTarget],
   );
-  const lyricEditing = activeMusicTextTarget?.kind === "lyric";
+  const lyricEditing =
+    activeMusicTextTarget?.kind === "lyric" ||
+    activeMusicTextTarget?.kind === "numbered";
   /** 选拍或草稿确认结束后保留谱面焦点，不触发浏览器默认滚动。 */
   const focusScore = useCallback(
     () => scoreSvgRef.current?.focus({ preventScroll: true }),
@@ -1144,6 +1149,10 @@ export const EditorShell: React.FC = () => {
               selection={selection}
               execute={execute}
             />
+            <BeatToolbar
+              key={`${stateVersion}/${clipboardVersion}/${selection?.anchor.measureId}/${selection?.anchor.beatId}/${selection?.focus.measureId}/${selection?.focus.beatId}`}
+              beforeAction={clearFretDraft}
+            />
             <TechniqueToolbar
               key={selectedTechniqueId ?? "new-technique"}
               document={document}
@@ -1186,7 +1195,7 @@ export const EditorShell: React.FC = () => {
             打印
           </button>
         </div>
-        {lxmLayout.width > A4_CONTENT_WIDTH && (
+        {lxmLayout.width > A4_CONTENT_WIDTH + 1 && (
           <p role="status">
             当前谱面超过 A4 内容宽度，可横向滚动；尚不保证 A4 打印完整输出。
           </p>
@@ -1254,7 +1263,21 @@ export const EditorShell: React.FC = () => {
                   <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" />
                 </marker>
               </defs>
-              <MusicTextLayer layout={lxmLayout} lyricFocus={lyricFocus} />
+              <MusicTextLayer layout={lxmLayout} />
+              {lyricFocus && (
+                <rect
+                  data-paragraph-focus={lyricFocus.kind}
+                  className={styles.lyricFocus}
+                  {...{
+                    x: lyricFocus.x,
+                    y: lyricFocus.y,
+                    width: lyricFocus.width,
+                    height: lyricFocus.height,
+                  }}
+                  rx={3}
+                  pointerEvents="none"
+                />
+              )}
               {/* 选区层位于音乐元素下方，且永不参与指针命中。 */}
               <g className={styles.selectionLayer} pointerEvents="none">
                 {!lyricEditing &&

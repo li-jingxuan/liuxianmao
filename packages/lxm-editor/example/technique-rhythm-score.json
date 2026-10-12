@@ -1,6 +1,6 @@
 {
   "schema": "lxm-tab-score",
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "documentRevision": 1,
   "score": {
     "id": "technique-rhythm-test",
@@ -1434,11 +1434,7 @@
             "tuplets": [
               {
                 "id": "test-triplet",
-                "beatIds": [
-                  "test-b11-0",
-                  "test-b11-1",
-                  "test-b11-2"
-                ],
+                "beatIds": ["test-b11-0", "test-b11-1", "test-b11-2"],
                 "ratio": {
                   "actual": 3,
                   "normal": 2

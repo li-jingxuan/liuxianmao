@@ -21,7 +21,7 @@ const TECHNIQUE_OPTIONS: { value: ILXMTechniqueType; label: string }[] = [
   { value: "slideUp", label: "上滑音" },
   { value: "slideDown", label: "下滑音" },
   { value: "tie", label: "延音线" },
-  { value: "bend", label: "全音推弦" },
+  { value: "bend", label: "推弦" },
   { value: "vibrato", label: "颤音" },
   { value: "naturalHarmonic", label: "自然泛音" },
   { value: "artificialHarmonic", label: "人工泛音" },
@@ -88,6 +88,9 @@ export const TechniqueToolbar = ({
       return selectedTechnique.stroke;
     return "down";
   });
+  const [semitones, setSemitones] = useState<1 | 2>(
+    selectedTechnique?.type === "bend" ? selectedTechnique.semitones : 2,
+  );
   const [trillFret, setTrillFret] = useState(() =>
     selectedTechnique?.type === "trill" ? selectedTechnique.auxiliaryFret : 7,
   );
@@ -129,7 +132,7 @@ export const TechniqueToolbar = ({
       if (type === "bend")
         return {
           trackId: track.id,
-          draft: { type, fromNoteId: focusNote.id, semitones: 2 },
+          draft: { type, fromNoteId: focusNote.id, semitones },
         };
       if (type === "trill")
         return {
@@ -310,6 +313,19 @@ export const TechniqueToolbar = ({
           >
             <option value="down">{type === "arpeggio" ? "上行" : "下"}</option>
             <option value="up">{type === "arpeggio" ? "下行" : "上"}</option>
+          </select>
+        </label>
+      )}
+      {type === "bend" && (
+        <label>
+          推弦幅度
+          <select
+            aria-label="推弦幅度"
+            value={semitones}
+            onChange={(e) => setSemitones(Number(e.target.value) as 1 | 2)}
+          >
+            <option value={1}>半音</option>
+            <option value={2}>全音</option>
           </select>
         </label>
       )}

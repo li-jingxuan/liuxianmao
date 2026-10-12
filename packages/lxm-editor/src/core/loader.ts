@@ -6,6 +6,8 @@ import {
   LXMScoreSchema,
   LXMTrackSchema,
   LXMMeasureSchema,
+  LXMBeatSchema,
+  LXMTechniqueSchema,
 } from "./schema";
 import { validateDocumentSemantics } from "./semantic-validation";
 import type { DocumentLoadResult } from "./types";
@@ -23,24 +25,42 @@ export const upgradeDocumentToCurrent = (
   if (
     !isRecord(value) ||
     value.schema !== SCORE_DOCUMENT_SCHEMA ||
-    (value.schemaVersion !== 4 && value.schemaVersion !== 5)
+    (value.schemaVersion !== 4 &&
+      value.schemaVersion !== 5 &&
+      value.schemaVersion !== 6)
   )
-    return { ok: false, errors: ["升级入口只接受 schema 4 或 5 对象"] };
+    return { ok: false, errors: ["升级入口只接受 schema 4、5 或 6 对象"] };
   const version = value.schemaVersion;
-  const trackSchema =
-    version === 4
-      ? LXMTrackSchema.omit({ capo: true }).extend({
-          measures: z.array(LXMMeasureSchema.omit({ sectionLabel: true })),
-        })
-      : LXMTrackSchema;
-  const oldSchema = LXMDocumentSchema.extend({
-    schemaVersion: z.literal(version as 4 | 5),
-    score: LXMScoreSchema.omit({ arranger: true, keySignature: true }).extend({
-      title: z.string(),
-      tracks: z.array(trackSchema),
-    }),
+  // 旧格式冻结：不能因当前 schema 扩展而接受旧版本中的半音或简谱。
+  const oldMeasure = LXMMeasureSchema.extend({
+    beats: z.array(LXMBeatSchema.omit({ numberedNotation: true })),
   });
-  const old = oldSchema.safeParse(value);
+  const legacyTechnique = LXMTechniqueSchema.superRefine((t, ctx) => {
+    if (t.type === "bend" && t.semitones !== 2)
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "旧版本只支持全音推弦",
+      });
+  });
+  const trackSchema = (
+    version === 4 ? LXMTrackSchema.omit({ capo: true }) : LXMTrackSchema
+  ).extend({
+    measures: z.array(
+      version === 4 ? oldMeasure.omit({ sectionLabel: true }) : oldMeasure,
+    ),
+    techniques: z.array(legacyTechnique),
+  });
+  const oldScore =
+    version === 6
+      ? LXMScoreSchema
+      : LXMScoreSchema.omit({ arranger: true, keySignature: true }).extend({
+          title: z.string(),
+        });
+  const oldSchema = LXMDocumentSchema.extend({
+    schemaVersion: z.literal(version as 4 | 5 | 6),
+    score: oldScore.extend({ tracks: z.array(trackSchema) }),
+  });
+  const old = oldSchema.safeParse(migrateLegacyChordTraversalRanges(value));
   if (!old.success)
     return { ok: false, errors: old.error.issues.map(formatZodIssue) };
   try {
@@ -50,8 +70,11 @@ export const upgradeDocumentToCurrent = (
         schemaVersion: CURRENT_SCHEMA_VERSION,
         score: {
           ...old.data.score,
-          arranger: "",
-          keySignature: null,
+          arranger: "arranger" in old.data.score ? old.data.score.arranger : "",
+          keySignature:
+            "keySignature" in old.data.score
+              ? old.data.score.keySignature
+              : null,
           tracks: old.data.score.tracks.map((t) => ({
             ...t,
             capo: "capo" in t ? t.capo : 0,

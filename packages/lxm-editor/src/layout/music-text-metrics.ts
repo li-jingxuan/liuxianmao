@@ -134,6 +134,9 @@ export const collectMusicTextMeasureRequests = (
     });
   }
   for (const measure of document.score.tracks[0]?.measures ?? []) {
+    for (const beat of measure.beats)
+      for (const token of beat.numberedNotation?.tokens ?? [])
+        requests.push(musicTextRequest(token.replace(/['.]+$/, ""), 14));
     for (const lyric of measure.lyrics) {
       requests.push(
         musicTextRequest(lyric.text),

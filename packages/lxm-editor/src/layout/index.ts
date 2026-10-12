@@ -103,7 +103,7 @@ export const buildLayout = (
               Math.max(maxWidth, system.width, system.visualBounds?.width ?? 0),
             systemWidth,
           ),
-    height: lastSystem ? lastSystem.y + lastSystem.height - y : 0,
+    height: lastSystem ? lastSystem.y + lastSystem.height - y + 0.5 : 0,
     systems,
     hitIndex: buildHitIndex(track.id, systems),
   };
@@ -127,3 +127,5 @@ export * from "./chord-diagram-layout";
 export * from "./music-text-layout";
 
 export * from "./chord-display";
+
+export * from "./numbered-notation-layout";

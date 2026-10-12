@@ -15,7 +15,13 @@ export const collectMusicTextBeatIds = (
   measure: ILXMMeasure,
 ): ReadonlySet<string> =>
   new Set(
-    [...measure.lyrics, ...measure.chordSymbols].map((item) => item.beatId),
+    [
+      ...measure.lyrics,
+      ...measure.chordSymbols,
+      ...measure.beats
+        .filter((b) => b.numberedNotation)
+        .map((b) => ({ beatId: b.id })),
+    ].map((item) => item.beatId),
   );
 
 /** 空白清除也不能掩盖控制字符，供标记命令与文本规范化共用。 */

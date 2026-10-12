@@ -78,7 +78,7 @@ export const copyMeasureRangeTechniques = (
         kind: "technique.omitted",
         trackId: track.id,
         measureId: source.id,
-        measureNumber: track.measures.indexOf(source) + 1,
+        measureNumber: track.measures.findIndex((m) => m.id === source.id) + 1,
         techniqueId: technique.id,
         techniqueType: technique.type,
       });
