@@ -37,6 +37,8 @@ import {
 import styles from "./index.module.scss";
 
 export interface MusicTextController {
+  /** 输出前只读检查草稿，不自动提交或取消用户输入。 */
+  isOutputBlocked: () => boolean;
   open: (target: MusicTextTarget) => void;
   move: (target: ILXMTabCellReference) => boolean;
 }
@@ -238,6 +240,12 @@ export const MusicTextSidebar = ({
     else if (decision === "execute") perform(action);
   };
   useImperativeHandle(ref, () => ({
+    isOutputBlocked: () =>
+      composing.current ||
+      !!settingsRef.current?.isComposing() ||
+      !!pending ||
+      !!settingsRef.current?.dirty ||
+      (!!draft && musicTextDraftValue(draft) !== draft.initial),
     open: (next) => request({ type: "target", target: next }),
     move: (next) => {
       // 文本页签即使尚无草稿，选拍也立即进入编辑；谱面设置保留普通选区操作。

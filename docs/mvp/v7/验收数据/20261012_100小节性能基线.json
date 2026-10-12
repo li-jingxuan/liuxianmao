@@ -1,0 +1,66 @@
+{
+  "date": "2026-10-12",
+  "runtime": "v24.18.0",
+  "machine": {
+    "cpu": "Apple M5",
+    "cores": 10,
+    "platform": "darwin",
+    "release": "25.6.0",
+    "totalMemory": 17179869184
+  },
+  "fixture": {
+    "measures": 100,
+    "systems": 50,
+    "pages": 10,
+    "density": "compact",
+    "fontMetrics": "fallback (Node)"
+  },
+  "results": {
+    "layout": {
+      "p50Ms": 16.050666999999976,
+      "p95Ms": 23.639374999999745,
+      "samples": 30
+    },
+    "pagination": {
+      "p50Ms": 0.08033400000022084,
+      "p95Ms": 0.16770899999983158,
+      "samples": 30
+    },
+    "scene": {
+      "p50Ms": 0.35095899999987523,
+      "p95Ms": 2.0491250000000036,
+      "samples": 30
+    },
+    "singleEdit": {
+      "p50Ms": 41.37904200000003,
+      "p95Ms": 45.0885830000002,
+      "samples": 30
+    },
+    "copy16": {
+      "p50Ms": 51.741791999999805,
+      "p95Ms": 75.66858299999967,
+      "samples": 30
+    }
+  },
+  "history": {
+    "edits": 100,
+    "undos": 100,
+    "redos": 100,
+    "elapsedMs": 4039.5525829999997,
+    "before": {
+      "rss": 297177088,
+      "heapTotal": 220372992,
+      "heapUsed": 118402704,
+      "external": 4133789,
+      "arrayBuffers": 213208
+    },
+    "after": {
+      "rss": 309948416,
+      "heapTotal": 239509504,
+      "heapUsed": 61016240,
+      "external": 4133829,
+      "arrayBuffers": 213208
+    }
+  },
+  "limitations": "Node 计算与进程内存，不含真实字体度量、React/DOM、浏览器峰值内存或图片编码；不替代桌面性能验收"
+}

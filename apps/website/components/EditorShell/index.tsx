@@ -4,6 +4,7 @@ import { EditorImpactNotice } from "./EditorImpactNotice";
 
 import {
   buildLayout,
+  A4_CONTENT_WIDTH,
   collectMusicTextMeasureRequests,
   createCollapsedTabCellSelection,
   hitTestLayout,
@@ -12,18 +13,11 @@ import {
   layoutTabCellCaret,
   layoutTabCellSelection,
   LXM_EDITABLE_TIME_SIGNATURES,
-  LXM_FRET_TEXT_FONT_SIZE,
-  LXM_FRET_TEXT_HALO_WIDTH,
-  LXM_FRET_TEXT_BASELINE_OFFSET_Y,
-  LXM_TECHNIQUE_ARROW_WIDTH,
-  LXM_TECHNIQUE_ARROW_HEIGHT,
-  LXM_TECHNIQUE_TEXT_HALO_WIDTH,
   LXMScoreCommandEnum,
   navigateTabCellSelection,
   resolveTabCellSelection,
   resolveTechniqueSelection,
   type ILXMHitTarget,
-  type ILXMBarlineLayout,
   type ILXMBarlineType,
   type ILXMLayout,
   type ILXMLayoutDensity,
@@ -47,15 +41,15 @@ import {
 } from "./editor-interaction";
 import { TupletToolbar } from "./TupletToolbar";
 import { TechniqueToolbar } from "./TechniqueToolbar";
-import { MusicTextLayer } from "./MusicTextLayer";
+import { ScoreMusicLayer } from "./ScoreMusicLayer";
+import { buildScoreScene } from "./score-scene";
+import { ScoreImagePreview } from "./ScoreImagePreview";
 import { MusicTextSidebar, type MusicTextController } from "./MusicTextSidebar";
 import type { MusicTextTarget } from "./music-text-draft";
 import { resolveLyricFocus } from "./music-text-focus";
 import { useMusicTextMetrics } from "./music-text-metrics";
 import styles from "./index.module.scss";
 
-/** A4 纸张扣除左右各 8mm 页边距后的 194mm 内容区逻辑宽度。 */
-const A4_CONTENT_WIDTH = 733;
 /** 两位品位输入等待第二个数字的时间，超时后提交一位品位。 */
 const FRET_DRAFT_TIMEOUT_MS = 600;
 
@@ -74,33 +68,6 @@ const formatTimeSignature = ({
   numerator,
   denominator,
 }: ILXMTimeSignature): string => `${numerator}/${denominator}`;
-
-/**
- * 小节线和行首反复线共享同一份核心几何；页面只区分 line/circle 两种基础图元。
- * 抽成纯渲染函数后，跨 system 投影不会在 JSX 中复制一套容易漂移的规则。
- */
-const renderBarlineParts = (barline: ILXMBarlineLayout) =>
-  barline.parts.map((part, index) =>
-    part.kind === "line" ? (
-      <line
-        key={index}
-        x1={part.x}
-        y1={part.y1}
-        x2={part.x}
-        y2={part.y2}
-        stroke="black"
-        strokeWidth={part.strokeWidth}
-      />
-    ) : (
-      <circle
-        key={index}
-        cx={part.cx}
-        cy={part.cy}
-        r={part.radius}
-        fill="black"
-      />
-    ),
-  );
 
 /** layout 命中结果含视觉 systemIndex；selection 只保留稳定业务 ID。 */
 const toCellReference = (target: ILXMHitTarget): ILXMTabCellReference => ({
@@ -137,6 +104,15 @@ export const EditorShell: React.FC = () => {
   const canUndo = useEditorStore((state) => state.canUndo);
   const canRedo = useEditorStore((state) => state.canRedo);
 
+  const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
+  /** 宿主替换或历史变化立即关闭旧输出，晚到回调不能发布旧谱。 */
+  useEffect(
+    () =>
+      session.subscribe((state, previous) => {
+        if (state.document !== previous.document) setImagePreviewOpen(false);
+      }),
+    [session],
+  );
   const musicTextController = useRef<MusicTextController>(null);
   const [musicTextEditing, setMusicTextEditing] = useState(false);
   const pageViewportRef = useRef<HTMLDivElement>(null);
@@ -181,6 +157,12 @@ export const EditorShell: React.FC = () => {
       showChordDiagrams,
     });
   }, [document, density, musicTextMetrics, showChordDiagrams]);
+
+  /** 音乐图元与图片渲染共享，选区变化不重新生成全部音乐。 */
+  const scoreScene = useMemo(
+    () => (lxmLayout ? buildScoreScene(lxmLayout) : null),
+    [lxmLayout],
+  );
 
   /**
    * 页面只消费核心范围解析结果。
@@ -1167,7 +1149,7 @@ export const EditorShell: React.FC = () => {
               <option value="comfortable">舒适</option>
             </select>
           </label>
-          <label title="控制整张谱面的指法图显示，打印同步；隐藏不会删除指法。">
+          <label title="控制整张谱面的指法图显示，图片导出同步；隐藏不会删除指法。">
             <input
               type="checkbox"
               role="switch"
@@ -1180,15 +1162,23 @@ export const EditorShell: React.FC = () => {
           <button
             type="button"
             className={styles.toolbarButton}
-            aria-label="打印乐谱"
-            onClick={() => window.print()}
+            aria-label="导出 A4 图片"
+            onClick={() => {
+              if (fretDraft || musicTextController.current?.isOutputBlocked()) {
+                setErrorMessage(
+                  "请先完成当前输入并应用或取消修改，再导出图片。",
+                );
+                return;
+              }
+              setImagePreviewOpen(true);
+            }}
           >
-            打印
+            导出图片
           </button>
         </div>
         {lxmLayout.width > A4_CONTENT_WIDTH && (
           <p role="status">
-            当前谱面超过 A4 内容宽度，可横向滚动；尚不保证 A4 打印完整输出。
+            当前谱面超过 A4 内容宽度，可横向滚动；请调整内容后再导出 A4 图片。
           </p>
         )}
         {musicTextMetrics &&
@@ -1206,6 +1196,16 @@ export const EditorShell: React.FC = () => {
           或范围添加，点击技巧图形可更新或删除。
           {resolvedSelection && ` 已选择 ${resolvedSelection.cellCount} 格。`}
           {fretDraft && ` 正在输入：${fretDraft}`}
+        </p>
+        <p
+          className={styles.cursorStatus}
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          {selection && focusedMeasureContext
+            ? `当前位置：第 ${focusedMeasureContext.measureIndex + 1} 小节，第 ${focusedMeasureContext.measure.beats.findIndex((beat) => beat.id === selection.focus.beatId) + 1} 拍点，第 ${selection.focus.string} 弦。`
+            : "请在谱面选择编辑位置。"}
         </p>
         <EditorImpactNotice effects={effects} />
         {errorMessage && (
@@ -1239,22 +1239,6 @@ export const EditorShell: React.FC = () => {
               onPointerCancel={finishPointerDrag}
               onKeyDown={handleScoreKeyDown}
             >
-              <defs>
-                {/* 所有方向型技巧共用一个 SVG marker，路径方向由核心 layout 决定。 */}
-                <marker
-                  id="technique-arrow"
-                  viewBox="0 0 10 10"
-                  refX="8"
-                  refY="5"
-                  markerWidth={LXM_TECHNIQUE_ARROW_WIDTH}
-                  markerHeight={LXM_TECHNIQUE_ARROW_HEIGHT}
-                  markerUnits="userSpaceOnUse"
-                  orient="auto-start-reverse"
-                >
-                  <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" />
-                </marker>
-              </defs>
-              <MusicTextLayer layout={lxmLayout} lyricFocus={lyricFocus} />
               {/* 选区层位于音乐元素下方，且永不参与指针命中。 */}
               <g className={styles.selectionLayer} pointerEvents="none">
                 {!lyricEditing &&
@@ -1281,292 +1265,23 @@ export const EditorShell: React.FC = () => {
                   />
                 )}
               </g>
-              {lxmLayout.scoreHeader?.map((label, index) => (
-                <text
-                  key={`score-header-${index}`}
-                  x={label.x}
-                  y={label.y}
-                  fontSize={label.fontSize}
-                  fontFamily={label.fontFamily}
-                  fontWeight={400}
-                  textAnchor={label.textAnchor}
-                >
-                  {label.text}
-                </text>
-              ))}
-              {lxmLayout.systems.map((system) => (
-                <g key={system.index}>
-                  {system.notationLabels?.map((label, index) => (
-                    <text
-                      key={`notation-${index}`}
-                      x={label.x}
-                      y={label.y}
-                      fontSize={label.fontSize}
-                      fontFamily={label.fontFamily}
-                      fontWeight={400}
-                      textAnchor={label.textAnchor}
-                    >
-                      {label.text}
-                    </text>
-                  ))}
-                  {/*
-                  行头先补画六根弦线，再在谱内叠加纵向 T/A/B；这样仍保留必要的
-                  谱号列宽，却不会在第一小节前形成与六线谱割裂的空白块。
-                */}
-                  <g className={styles.systemHeaderLayer} pointerEvents="none">
-                    {system.header.strings.map((string) => (
-                      <line
-                        key={string.index}
-                        x1={string.x1}
-                        y1={string.y1}
-                        x2={string.x2}
-                        y2={string.y2}
-                        stroke="black"
-                        strokeWidth={1}
-                      />
-                    ))}
-                    {system.header.tabLetters.map((letter) => (
-                      <text
-                        key={letter.text}
-                        className={styles.tabLabel}
-                        x={letter.x}
-                        y={letter.y}
-                        fontSize={letter.fontSize}
-                        textAnchor={letter.textAnchor}
-                      >
-                        {letter.text}
-                      </text>
-                    ))}
-                    {system.header.leadingBarline &&
-                      renderBarlineParts(system.header.leadingBarline)}
-                  </g>
-                  {system.measures.map((measure) => (
-                    <g key={measure.id}>
-                      <g>
-                        {measure.strings.map((string) => (
-                          <line
-                            key={string.index}
-                            x1={string.x1}
-                            y1={string.y1}
-                            x2={string.x2}
-                            y2={string.y2}
-                            stroke="black"
-                            strokeWidth={1}
-                          />
-                        ))}
-                      </g>
-                      {measure.timeSignature && (
-                        <g
-                          className={styles.timeSignatureLayer}
-                          pointerEvents="none"
-                        >
-                          <text
-                            x={measure.timeSignature.numerator.x}
-                            y={measure.timeSignature.numerator.y}
-                            fontSize={measure.timeSignature.numerator.fontSize}
-                            textAnchor={
-                              measure.timeSignature.numerator.textAnchor
-                            }
-                          >
-                            {measure.timeSignature.numerator.text}
-                          </text>
-                          <text
-                            x={measure.timeSignature.denominator.x}
-                            y={measure.timeSignature.denominator.y}
-                            fontSize={
-                              measure.timeSignature.denominator.fontSize
-                            }
-                            textAnchor={
-                              measure.timeSignature.denominator.textAnchor
-                            }
-                          >
-                            {measure.timeSignature.denominator.text}
-                          </text>
-                        </g>
-                      )}
-                      <g className={styles.restLayer} pointerEvents="none">
-                        {measure.restMarks.map((rest) => (
-                          <text
-                            key={rest.id}
-                            x={rest.x}
-                            y={rest.y}
-                            textAnchor="middle"
-                          >
-                            {rest.glyph}
-                          </text>
-                        ))}
-                      </g>
-                      <g>
-                        {measure.notes.map((note) => (
-                          <text
-                            className={styles.fretNoteText}
-                            key={note.id}
-                            x={note.x}
-                            y={note.y + LXM_FRET_TEXT_BASELINE_OFFSET_Y}
-                            fontSize={LXM_FRET_TEXT_FONT_SIZE}
-                            strokeWidth={LXM_FRET_TEXT_HALO_WIDTH * 2}
-                          >
-                            {note.fretText}
-                          </text>
-                        ))}
-                      </g>
-                      <g>{renderBarlineParts(measure.barline)}</g>
-                      <g className={styles.durationLayer} pointerEvents="none">
-                        {measure.durationMarks.map((mark) => (
-                          <g key={mark.beatId}>
-                            {mark.stemVisible && (
-                              <line
-                                x1={mark.stemX}
-                                y1={mark.stemY1}
-                                x2={mark.stemX}
-                                y2={mark.stemY2}
-                                stroke="black"
-                                strokeWidth={1}
-                              />
-                            )}
-                            {mark.sustainMarks.map((sustainMark) => (
-                              <line
-                                key={sustainMark.unitIndex}
-                                x1={sustainMark.x1}
-                                y1={sustainMark.y}
-                                x2={sustainMark.x2}
-                                y2={sustainMark.y}
-                                stroke="black"
-                                strokeWidth={sustainMark.thickness}
-                              />
-                            ))}
-                            {mark.flag && (
-                              <text
-                                className={styles.durationGlyph}
-                                x={mark.flag.x}
-                                y={mark.flag.y}
-                                fontSize={mark.flag.fontSize}
-                              >
-                                {mark.flag.glyph}
-                              </text>
-                            )}
-                            {mark.dotAnchors.map((dot, index) => (
-                              <circle
-                                key={index}
-                                cx={dot.x}
-                                cy={dot.y}
-                                r={1}
-                                fill="black"
-                              />
-                            ))}
-                          </g>
-                        ))}
-                      </g>
-                      <g pointerEvents="none" aria-label="连音标注">
-                        {measure.tuplets.map((group) => (
-                          <g
-                            key={group.id}
-                            aria-label={`连音标注 ${group.ratio.actual}:${group.ratio.normal}`}
-                          >
-                            <text
-                              x={group.label.x}
-                              y={group.label.y}
-                              fontSize={group.label.fontSize}
-                              textAnchor={group.label.textAnchor}
-                            >
-                              {group.label.text}
-                            </text>
-                            {group.bracket?.lines.map((line, index) => (
-                              <line
-                                key={index}
-                                {...line}
-                                stroke="black"
-                                strokeWidth={group.bracket!.strokeWidth}
-                              />
-                            ))}
-                          </g>
-                        ))}
-                      </g>
-                      <g pointerEvents="none">
-                        {measure.beamSegments.map((segment, index) => (
-                          <line
-                            key={index}
-                            x1={segment.x1}
-                            y1={segment.y}
-                            x2={segment.x2}
-                            y2={segment.y}
-                            stroke="black"
-                            strokeWidth={segment.thickness}
-                          />
-                        ))}
-                      </g>
-                    </g>
-                  ))}
-                  {/* 技巧层只映射核心产出的 path/text/bounds，不在 React 内计算几何。 */}
-                  <g className={styles.techniqueLayer}>
-                    {system.techniques.map((technique) => (
-                      <g
-                        key={`${technique.techniqueId}-${technique.segmentIndex}`}
-                        className={
-                          technique.techniqueId === selectedTechniqueId
-                            ? styles.selectedTechnique
-                            : styles.techniqueSegment
-                        }
-                        aria-label={`技巧 ${technique.type}`}
-                      >
-                        <rect
-                          className={styles.techniqueHitArea}
-                          x={technique.bounds.x}
-                          y={technique.bounds.y}
-                          width={technique.bounds.width}
-                          height={technique.bounds.height}
-                        />
-                        {technique.path && (
-                          <path
-                            d={technique.path.d}
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth={technique.path.strokeWidth}
-                            strokeDasharray={technique.path.dashArray}
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            markerEnd={
-                              technique.path.markerEnd === "arrow"
-                                ? "url(#technique-arrow)"
-                                : undefined
-                            }
-                          />
-                        )}
-                        {technique.arrowHead && (
-                          <polygon
-                            points={technique.arrowHead.points
-                              .map(([x, y]) => `${x},${y}`)
-                              .join(" ")}
-                            fill="currentColor"
-                          />
-                        )}
-                        {technique.texts.map((item, index) => (
-                          <text
-                            key={`${item.text}-${index}`}
-                            className={
-                              technique.type === "naturalHarmonic"
-                                ? styles.fretNoteText
-                                : styles.techniqueText
-                            }
-                            x={item.x}
-                            y={item.y}
-                            fontSize={item.fontSize}
-                            textAnchor={item.textAnchor}
-                            fill="currentColor"
-                            strokeWidth={
-                              (technique.type === "naturalHarmonic"
-                                ? LXM_FRET_TEXT_HALO_WIDTH
-                                : LXM_TECHNIQUE_TEXT_HALO_WIDTH) * 2
-                            }
-                          >
-                            {item.text}
-                          </text>
-                        ))}
-                      </g>
-                    ))}
-                  </g>
-                </g>
-              ))}
+              {lyricFocus && (
+                <rect
+                  className={styles.lyricFocus}
+                  pointerEvents="none"
+                  x={lyricFocus.x - 4}
+                  y={lyricFocus.y - 2}
+                  width={lyricFocus.width + 8}
+                  height={lyricFocus.height + 4}
+                  rx={3}
+                />
+              )}
+              {scoreScene && (
+                <ScoreMusicLayer
+                  scene={scoreScene}
+                  selectedTechniqueId={selectedTechniqueId}
+                />
+              )}
             </svg>
           </main>
         </div>
@@ -1578,6 +1293,15 @@ export const EditorShell: React.FC = () => {
           onScoreFocus={focusScore}
         />
       </div>
+      {imagePreviewOpen && (
+        <ScoreImagePreview
+          score={document}
+          density={density}
+          showChordDiagrams={showChordDiagrams}
+          onClose={() => setImagePreviewOpen(false)}
+          isCurrent={() => session.getState().document === document}
+        />
+      )}
     </div>
   );
 };

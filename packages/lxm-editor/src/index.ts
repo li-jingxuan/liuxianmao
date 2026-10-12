@@ -50,3 +50,5 @@ export * from "./core/command-effects";
 export { default as EXAMPLE_MUTED_NOTE_DOCUMENT } from "../example/example-muted-note";
 
 export * from "./core/tuning";
+
+export { createQualityScore } from "../example/quality-score";

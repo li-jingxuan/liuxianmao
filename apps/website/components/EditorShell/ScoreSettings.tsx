@@ -1,5 +1,6 @@
 import {
   useState,
+  useRef,
   useImperativeHandle,
   useEffect,
   type Ref,
@@ -25,6 +26,7 @@ import styles from "./index.module.scss";
 
 export interface ScoreSettingsController {
   dirty: boolean;
+  isComposing: () => boolean;
   apply: () => boolean;
   discard: () => void;
 }
@@ -43,6 +45,7 @@ export const ScoreSettings = ({
   commit: (command: ILXMScoreCommand) => ILXMApplyScoreCommandResult | null;
 }) => {
   const store = useEditorSessionStore();
+  const composing = useRef(false);
   const fresh = () => {
     const value = readScoreSettings(document, measureId);
     return { document, measureId, value, initial: value };
@@ -96,6 +99,7 @@ export const ScoreSettings = ({
     return true;
   };
   useImperativeHandle(ref, () => ({
+    isComposing: () => composing.current,
     dirty,
     apply: () => apply(),
     discard: () => setState(fresh()),
@@ -116,7 +120,15 @@ export const ScoreSettings = ({
     [end, setEnd] = useState(first.id),
     [after, setAfter] = useState("");
   return (
-    <div className={`${styles.sidebarSection} ${styles.trackSettings}`}>
+    <div
+      className={`${styles.sidebarSection} ${styles.trackSettings}`}
+      onCompositionStart={() => {
+        composing.current = true;
+      }}
+      onCompositionEnd={() => {
+        composing.current = false;
+      }}
+    >
       <form onSubmit={(e) => submit(e, "info")}>
         <h3>歌曲信息</h3>
         <label>
