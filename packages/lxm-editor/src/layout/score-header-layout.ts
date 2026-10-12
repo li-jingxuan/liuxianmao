@@ -84,7 +84,7 @@ export const layoutScoreHeader = (
     nextY += 4;
   };
   add(texts.title, 20, "middle");
-  add(texts.author, 12, "end");
+  add(texts.author, 12, "middle");
   add(texts.info, 12, "start");
   return { labels, height: nextY - y + 8 };
 };
