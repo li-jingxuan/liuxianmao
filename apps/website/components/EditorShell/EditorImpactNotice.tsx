@@ -31,6 +31,7 @@ export const EditorImpactNotice = ({
     counts.set(effect.kind, (counts.get(effect.kind) ?? 0) + 1),
   );
   const labels = {
+    "measures.copied": "小节范围复制",
     "beat.compressed": "拍时值缩短",
     "beat.retimed": "拍起点调整",
     "technique.removed": "失效技巧移除",
@@ -53,11 +54,13 @@ export const EditorImpactNotice = ({
           <li key={`${effect.kind}-${index}`}>
             编辑前第 {effect.measureNumber} 小节：
             {"beatNumber" in effect ? `第 ${effect.beatNumber} 拍，` : ""}
-            {effect.kind === "beat.compressed"
-              ? "为保持小节容量，时值自动缩短"
-              : effect.kind === "beat.retimed"
-                ? "随节奏变化调整起点"
-                : `${techniqueNames[effect.techniqueType]}：${effect.kind === "technique.omitted" ? "关系跨越复制边界，未复制" : "目标或关系不再有效，已移除"}`}
+            {effect.kind === "measures.copied"
+              ? `复制第 ${effect.measureNumber}–${effect.endMeasureNumber} 小节（${effect.count} 小节）至${effect.afterMeasureNumber === 0 ? "谱首" : `原第 ${effect.afterMeasureNumber} 小节后`}`
+              : effect.kind === "beat.compressed"
+                ? "为保持小节容量，时值自动缩短"
+                : effect.kind === "beat.retimed"
+                  ? "随节奏变化调整起点"
+                  : `${techniqueNames[effect.techniqueType]}：${effect.kind === "technique.omitted" ? "关系跨越复制边界，未复制" : "目标或关系不再有效，已移除"}`}
           </li>
         ))}
       </ul>

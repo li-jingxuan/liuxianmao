@@ -19,7 +19,11 @@ import { chordDisplayTrack } from "./chord-display";
 import { layoutSystems } from "./system-layout";
 import { layoutSystemContent } from "./system-content-layout";
 import { buildTechniqueInsets } from "./technique-spacing";
-export { layoutChordDiagram, translateChordDiagram, scaleChordDiagram } from "./chord-diagram-layout";
+export {
+  layoutChordDiagram,
+  translateChordDiagram,
+  scaleChordDiagram,
+} from "./chord-diagram-layout";
 
 /** 没有可布局轨道时返回的空布局，保持调用方无需做 null 判断。 */
 const getDefaultLayout = (options: ILXMLayoutOptions): ILXMLayout => {
@@ -85,7 +89,8 @@ export const buildLayout = (
       systems.length === 0
         ? 0
         : systems.reduce(
-            (maxWidth, system) => Math.max(maxWidth, system.width),
+            (maxWidth, system) =>
+              Math.max(maxWidth, system.width, system.visualBounds?.width ?? 0),
             systemWidth,
           ),
     height: lastSystem ? lastSystem.y + lastSystem.height - y : 0,

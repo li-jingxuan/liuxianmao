@@ -10,6 +10,12 @@ interface EffectLocation {
 /** 编辑影响只随命令结果返回，不进入 document 或历史快照。 */
 export type ILXMCommandEffect =
   | (EffectLocation & {
+      kind: "measures.copied";
+      endMeasureNumber: number;
+      afterMeasureNumber: number;
+      count: number;
+    })
+  | (EffectLocation & {
       kind: "beat.compressed";
       beatId: string;
       beatNumber: number;

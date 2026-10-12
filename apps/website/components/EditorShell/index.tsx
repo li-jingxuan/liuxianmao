@@ -507,11 +507,18 @@ export const EditorShell: React.FC = () => {
       return;
     }
     const selectedIndexes = selectedTrack.measures
-      .map((measure, index) => (selectedMeasureIds.has(measure.id) ? index : -1))
+      .map((measure, index) =>
+        selectedMeasureIds.has(measure.id) ? index : -1,
+      )
       .filter((index) => index >= 0);
     const start = selectedTrack.measures[selectedIndexes[0]!];
     const end = selectedTrack.measures[selectedIndexes.at(-1)!];
-    if (!start || !end || selectedIndexes.at(-1)! - selectedIndexes[0]! + 1 !== selectedIndexes.length) {
+    if (
+      !start ||
+      !end ||
+      selectedIndexes.at(-1)! - selectedIndexes[0]! + 1 !==
+        selectedIndexes.length
+    ) {
       setErrorMessage("多小节复制需要选择连续的小节。");
       return;
     }
@@ -1018,8 +1025,8 @@ export const EditorShell: React.FC = () => {
             <button
               type="button"
               className={styles.toolbarButton}
-              aria-label="复制当前小节"
-              disabled={!canEditSingleMeasure}
+              aria-label="复制选中小节范围"
+              disabled={selectedMeasureIds.size === 0}
               onClick={() => runImmediateEditorAction(copyActiveMeasure)}
             >
               <MusicAssetIcon
@@ -1288,6 +1295,19 @@ export const EditorShell: React.FC = () => {
               </g>
               {lxmLayout.systems.map((system) => (
                 <g key={system.index}>
+                  {system.notationLabels?.map((label, index) => (
+                    <text
+                      key={`notation-${index}`}
+                      x={label.x}
+                      y={label.y}
+                      fontSize={label.fontSize}
+                      fontFamily={label.fontFamily}
+                      fontWeight={400}
+                      textAnchor={label.textAnchor}
+                    >
+                      {label.text}
+                    </text>
+                  ))}
                   {/*
                   行头先补画六根弦线，再在谱内叠加纵向 T/A/B；这样仍保留必要的
                   谱号列宽，却不会在第一小节前形成与六线谱割裂的空白块。

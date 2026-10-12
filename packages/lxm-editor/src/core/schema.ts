@@ -1,3 +1,4 @@
+import { validateTuning } from "./tuning";
 import { z } from "zod";
 import { normalizeMusicText } from "./music-text";
 import { validateChordDiagram } from "./chord-diagram";
@@ -61,14 +62,12 @@ export const LXMTuningSchema = z
   })
   .strict()
   .superRefine((tuning, context) => {
-    tuning.strings.forEach((string, index) => {
-      if (string.index !== index + 1)
-        context.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["strings", index, "index"],
-          message: "弦索引必须按 1 到 6 顺序排列",
-        });
-    });
+    if (!validateTuning(tuning))
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["strings"],
+        message: "必须是按 1–6 排列且 pitch/MIDI 一致的六弦调弦",
+      });
   }) satisfies z.ZodType<ILXMTuning>;
 
 /** 小节拍号校验，例如 4/4。 */
@@ -308,7 +307,7 @@ export const LXMMeasureSchema = z
     lyrics: z.array(LXMLyricSchema),
     beats: z.array(LXMBeatSchema),
     tuplets: z.array(LXMTupletSchema),
-    sectionLabel: z.string().max(32).optional(),
+    sectionLabel: musicTextSchema(32).optional(),
   })
   .strict() satisfies z.ZodType<ILXMMeasure>;
 

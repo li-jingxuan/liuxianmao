@@ -1,8 +1,13 @@
+import { validateTuning } from "./tuning";
+import { normalizeMusicText, hasMusicTextControlCharacter } from "./music-text";
 import {
   collectCommandEffects,
   type ILXMCommandEffect,
 } from "./command-effects";
-import { copyMeasureTechniques } from "./copy-measure-techniques";
+import {
+  copyMeasureTechniques,
+  copyMeasureRangeTechniques,
+} from "./copy-measure-techniques";
 import {
   planLyricSequence,
   type LyricSequenceItem,
@@ -46,7 +51,6 @@ import type {
   ILXMTimeSignature,
   ILXMTimeSignatureChangeScope,
   ILXMTechniqueDraft,
-  ILXMTechnique,
   ILXMTrack,
   ILXMTrackStartBarlineType,
 } from "./types";
@@ -347,26 +351,6 @@ const isValidFret = (fret: ILXMFret) =>
     Number.isInteger(fret) &&
     fret >= 0 &&
     fret <= MAX_FRET);
-
-/** 将音名转换为 MIDI，供调弦命令校验 pitch/midi 一致性。 */
-const parsePitchMidi = (pitch: string): number | null => {
-  const match = /^([A-Ga-g])([#b]?)(-?\d+)$/.exec(pitch.trim());
-  if (!match) return null;
-  const semitones: Record<string, number> = {
-    C: 0,
-    D: 2,
-    E: 4,
-    F: 5,
-    G: 7,
-    A: 9,
-    B: 11,
-  };
-  const base = semitones[match[1]!.toUpperCase()];
-  const accidental = match[2] === "#" ? 1 : match[2] === "b" ? -1 : 0;
-  const octave = Number(match[3]);
-  const midi = (octave + 1) * 12 + base + accidental;
-  return Number.isInteger(midi) && midi >= 0 && midi <= 127 ? midi : null;
-};
 
 const TRACK_START_BARLINES = new Set<ILXMTrackStartBarlineType>([
   "none",
@@ -1191,19 +1175,16 @@ const applyScoreCommandInternal = (
   }
 
   if (command.type === LXMScoreCommandEnum.SetTuning) {
-    const track = document.score.tracks.find((item) => item.id === command.trackId);
+    const track = document.score.tracks.find(
+      (item) => item.id === command.trackId,
+    );
     if (!track) return fail("TRACK_NOT_FOUND", "目标轨道不存在");
-    if (
-      command.tuning.strings.length !== GUITAR_STRING_COUNT ||
-      command.tuning.strings.some(
-        (string, index) =>
-          string.index !== index + 1 || parsePitchMidi(string.pitch) !== string.midi,
-      )
-    )
-      return fail("INVALID_TUNING", "调弦必须包含按 1 到 6 排列且与 MIDI 一致的六根弦");
-    if (
-      JSON.stringify(track.tuning) === JSON.stringify(command.tuning)
-    )
+    if (!validateTuning(command.tuning))
+      return fail(
+        "INVALID_TUNING",
+        "调弦必须包含按 1 到 6 排列且与 MIDI 一致的六根弦",
+      );
+    if (JSON.stringify(track.tuning) === JSON.stringify(command.tuning))
       return unchanged(document);
     return finalize({
       ...document,
@@ -1212,7 +1193,12 @@ const applyScoreCommandInternal = (
         ...document.score,
         tracks: document.score.tracks.map((item) =>
           item.id === track.id
-            ? { ...item, tuning: { strings: command.tuning.strings.map((s) => ({ ...s })) } }
+            ? {
+                ...item,
+                tuning: {
+                  strings: command.tuning.strings.map((s) => ({ ...s })),
+                },
+              }
             : item,
         ),
       },
@@ -1220,9 +1206,15 @@ const applyScoreCommandInternal = (
   }
 
   if (command.type === LXMScoreCommandEnum.SetCapo) {
-    const track = document.score.tracks.find((item) => item.id === command.trackId);
+    const track = document.score.tracks.find(
+      (item) => item.id === command.trackId,
+    );
     if (!track) return fail("TRACK_NOT_FOUND", "目标轨道不存在");
-    if (!Number.isInteger(command.capo) || command.capo < 0 || command.capo > 12)
+    if (
+      !Number.isInteger(command.capo) ||
+      command.capo < 0 ||
+      command.capo > 12
+    )
       return fail("INVALID_CAPO", "变调夹必须是 0 到 12 的整数");
     if (track.capo === command.capo) return unchanged(document);
     return finalize({
@@ -1238,18 +1230,38 @@ const applyScoreCommandInternal = (
   }
 
   if (command.type === LXMScoreCommandEnum.SetSectionLabel) {
-    const track = document.score.tracks.find((item) => item.id === command.trackId);
-    const measure = track?.measures.find((item) => item.id === command.measureId);
+    const track = document.score.tracks.find(
+      (item) => item.id === command.trackId,
+    );
+    const measure = track?.measures.find(
+      (item) => item.id === command.measureId,
+    );
     if (!track) return fail("TRACK_NOT_FOUND", "目标轨道不存在");
     if (!measure) return fail("MEASURE_NOT_FOUND", "目标小节不存在");
-    const label = command.label?.trim() ?? "";
-    if (label.length > 32) return fail("INVALID_SECTION_LABEL", "段落标记最多 32 个字符");
+    if (command.label !== null && hasMusicTextControlCharacter(command.label))
+      return fail(
+        "INVALID_SECTION_LABEL",
+        "段落标记须为单行文字，最多 32 个字符",
+      );
+    const label =
+      command.label === null || command.label.trim() === ""
+        ? ""
+        : normalizeMusicText(command.label, 32);
+    if (label === null)
+      return fail(
+        "INVALID_SECTION_LABEL",
+        "段落标记须为单行文字，最多 32 个字符",
+      );
     if ((measure.sectionLabel ?? "") === label) return unchanged(document);
-    const nextMeasure = label ? { ...measure, sectionLabel: label } : (() => {
-      const { sectionLabel: _removed, ...rest } = measure;
-      return rest;
-    })();
-    return finalize(replaceMeasure(document, track.id, measure.id, nextMeasure));
+    const nextMeasure = label
+      ? { ...measure, sectionLabel: label }
+      : (() => {
+          const { sectionLabel: _removed, ...rest } = measure;
+          return rest;
+        })();
+    return finalize(
+      replaceMeasure(document, track.id, measure.id, nextMeasure),
+    );
   }
 
   const track = document.score.tracks.find(
@@ -1258,29 +1270,41 @@ const applyScoreCommandInternal = (
   if (!track) return fail("TRACK_NOT_FOUND", "目标轨道不存在");
   const factory = createDocumentIdFactory(document);
   if (command.type === LXMScoreCommandEnum.CopyMeasureRange) {
-    const start = track.measures.findIndex((m) => m.id === command.sourceStartMeasureId);
-    const end = track.measures.findIndex((m) => m.id === command.sourceEndMeasureId);
+    const start = track.measures.findIndex(
+      (m) => m.id === command.sourceStartMeasureId,
+    );
+    const end = track.measures.findIndex(
+      (m) => m.id === command.sourceEndMeasureId,
+    );
     if (start < 0 || end < 0 || start > end)
       return fail("MEASURE_RANGE_INVALID", "复制小节范围必须按谱面顺序连续");
-    const anchor = command.afterMeasureId === undefined
-      ? -1
-      : track.measures.findIndex((m) => m.id === command.afterMeasureId);
+    const anchor =
+      command.afterMeasureId === undefined
+        ? -1
+        : track.measures.findIndex((m) => m.id === command.afterMeasureId);
     if (command.afterMeasureId !== undefined && anchor < 0)
       return fail("MEASURE_NOT_FOUND", "插入位置小节不存在");
     // 允许把副本紧接源范围之后插入；仅禁止落在源范围内部。
-    if (anchor > start && anchor < end)
+    if (anchor >= start && anchor < end)
       return fail("MEASURE_RANGE_INVALID", "插入位置不能位于复制源范围内");
     const sourceMeasures = track.measures.slice(start, end + 1);
     const copiedMeasures: ILXMMeasure[] = [];
-    const copiedTechniques: ILXMTechnique[] = [];
-    const effects: ILXMCommandEffect[] = [];
+
     sourceMeasures.forEach((copySource) => {
       const copiedBeats = copySource.beats.map((beat) => ({
         ...beat,
         id: factory.createBeatId(),
-        notes: beat.notes.map((note) => ({ ...note, id: factory.createNoteId() })),
+        notes: beat.notes.map((note) => ({
+          ...note,
+          id: factory.createNoteId(),
+        })),
       }));
-      const beatIds = new Map(copySource.beats.map((beat, index) => [beat.id, copiedBeats[index]!.id]));
+      const beatIds = new Map(
+        copySource.beats.map((beat, index) => [
+          beat.id,
+          copiedBeats[index]!.id,
+        ]),
+      );
       copiedMeasures.push({
         ...copySource,
         id: factory.createMeasureId(),
@@ -1291,28 +1315,65 @@ const applyScoreCommandInternal = (
           id: factory.createTupletId(),
           beatIds: group.beatIds.map((id) => beatIds.get(id)!),
         })),
-        lyrics: copySource.lyrics.map((lyric) => ({ ...lyric, id: factory.createLyricId(), beatId: beatIds.get(lyric.beatId)! })),
+        lyrics: copySource.lyrics.map((lyric) => ({
+          ...lyric,
+          id: factory.createLyricId(),
+          beatId: beatIds.get(lyric.beatId)!,
+        })),
         chordSymbols: copySource.chordSymbols.map((symbol) => ({
           ...symbol,
           id: factory.createChordSymbolId(),
           beatId: beatIds.get(symbol.beatId)!,
-          chord: { ...symbol.chord, diagram: symbol.chord.diagram ? cloneChordDiagram(symbol.chord.diagram) : null },
+          chord: {
+            ...symbol.chord,
+            diagram: symbol.chord.diagram
+              ? cloneChordDiagram(symbol.chord.diagram)
+              : null,
+          },
         })),
       });
-      const copied = copyMeasureTechniques(track, copySource, copiedMeasures.at(-1)!, factory);
-      effects.push(...copied.effects);
-      copiedTechniques.push(...copied.techniques);
     });
+    // 全范围共享映射，范围内跨小节连接与区间只复制一次。
+    const copied = copyMeasureRangeTechniques(
+      track,
+      sourceMeasures,
+      copiedMeasures,
+      factory,
+    );
+    const effects: ILXMCommandEffect[] = [
+      ...copied.effects,
+      {
+        kind: "measures.copied",
+        trackId: track.id,
+        measureId: sourceMeasures[0]!.id,
+        measureNumber: start + 1,
+        endMeasureNumber: end + 1,
+        afterMeasureNumber: anchor + 1,
+        count: copiedMeasures.length,
+      },
+    ];
     const nextMeasures = [...track.measures];
     nextMeasures.splice(anchor + 1, 0, ...copiedMeasures);
+    const nextTrack = pruneInvalidTechniques({
+      ...track,
+      measures: nextMeasures,
+      techniques: [...track.techniques, ...copied.techniques],
+    });
+    // 新副本不能被清理悄悄吞掉；目标已有区间冲突时整次复制原子拒绝。
+    const retained = new Set(nextTrack.techniques.map((t) => t.id));
+    if (copied.techniques.some((t) => !retained.has(t.id)))
+      return fail(
+        "TECHNIQUE_CONFLICT",
+        "复制技巧与插入位置的现有关系冲突，请更换插入位置",
+      );
     const nextDocument = {
       ...document,
       documentRevision: document.documentRevision + 1,
       score: {
         ...document.score,
-        tracks: document.score.tracks.map((item) => item.id === track.id
-          ? { ...item, measures: nextMeasures, techniques: [...item.techniques, ...copiedTechniques] }
-          : item),
+        tracks: document.score.tracks.map((item) =>
+          item.id === track.id ? nextTrack : item,
+        ),
       },
     };
     const result = finalize(nextDocument);

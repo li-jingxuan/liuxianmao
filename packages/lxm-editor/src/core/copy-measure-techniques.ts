@@ -3,18 +3,21 @@ import type { ILXMMeasure, ILXMTechnique, ILXMTrack } from "./types";
 import type { ILXMCommandEffect } from "./command-effects";
 
 /** 只复制完全包含的技巧；跨边界关系不猜测新终点，并明确报告遗漏。 */
-export const copyMeasureTechniques = (
+export const copyMeasureRangeTechniques = (
   track: ILXMTrack,
-  source: ILXMMeasure,
-  copied: ILXMMeasure,
+  sources: readonly ILXMMeasure[],
+  copies: readonly ILXMMeasure[],
   factory: ILXMIdFactory,
 ): { techniques: ILXMTechnique[]; effects: ILXMCommandEffect[] } => {
+  const source = sources[0]!;
+  const sourceBeats = sources.flatMap((m) => m.beats);
+  const copiedBeats = copies.flatMap((m) => m.beats);
   const beats = new Map(
-    source.beats.map((beat, i) => [beat.id, copied.beats[i]!.id]),
+    sourceBeats.map((beat, i) => [beat.id, copiedBeats[i]!.id]),
   );
   const notes = new Map(
-    source.beats.flatMap((beat, i) =>
-      beat.notes.map((note, j) => [note.id, copied.beats[i]!.notes[j]!.id]),
+    sourceBeats.flatMap((beat, i) =>
+      beat.notes.map((note, j) => [note.id, copiedBeats[i]!.notes[j]!.id]),
     ),
   );
   const ordered = track.measures.flatMap((measure) =>
@@ -24,7 +27,7 @@ export const copyMeasureTechniques = (
   const noteBeat = new Map(
     ordered.flatMap((beat) => beat.notes.map((note) => [note.id, beat.id])),
   );
-  const sourceOrders = source.beats.map((beat) => order.get(beat.id)!);
+  const sourceOrders = sourceBeats.map((beat) => order.get(beat.id)!);
   const first = Math.min(...sourceOrders);
   const last = Math.max(...sourceOrders);
   const techniques: ILXMTechnique[] = [];
@@ -82,3 +85,11 @@ export const copyMeasureTechniques = (
   });
   return { techniques, effects };
 };
+
+/** 单小节复制复用范围算法，保留原有调用契约。 */
+export const copyMeasureTechniques = (
+  track: ILXMTrack,
+  source: ILXMMeasure,
+  copied: ILXMMeasure,
+  factory: ILXMIdFactory,
+) => copyMeasureRangeTechniques(track, [source], [copied], factory);

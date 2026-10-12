@@ -5,18 +5,7 @@ export const normalizeMusicText = (
   text: string,
   limit: number,
 ): string | null => {
-  if (
-    [...text].some((character) => {
-      const code = character.codePointAt(0)!;
-      return (
-        code <= 31 ||
-        (code >= 127 && code <= 159) ||
-        code === 0x2028 ||
-        code === 0x2029
-      );
-    })
-  )
-    return null;
+  if (hasMusicTextControlCharacter(text)) return null;
   const normalized = text.normalize("NFC").trim();
   return normalized && [...normalized].length <= limit ? normalized : null;
 };
@@ -28,3 +17,15 @@ export const collectMusicTextBeatIds = (
   new Set(
     [...measure.lyrics, ...measure.chordSymbols].map((item) => item.beatId),
   );
+
+/** 空白清除也不能掩盖控制字符，供标记命令与文本规范化共用。 */
+export const hasMusicTextControlCharacter = (text: string): boolean =>
+  [...text].some((character) => {
+    const code = character.codePointAt(0)!;
+    return (
+      code <= 31 ||
+      (code >= 127 && code <= 159) ||
+      code === 0x2028 ||
+      code === 0x2029
+    );
+  });

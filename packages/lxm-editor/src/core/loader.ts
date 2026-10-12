@@ -1,7 +1,12 @@
 import { CURRENT_SCHEMA_VERSION, SCORE_DOCUMENT_SCHEMA } from "./constants";
-import type { z } from "zod";
+import { z } from "zod";
 
-import { LXMDocumentSchema } from "./schema";
+import {
+  LXMDocumentSchema,
+  LXMScoreSchema,
+  LXMTrackSchema,
+  LXMMeasureSchema,
+} from "./schema";
 import { validateDocumentSemantics } from "./semantic-validation";
 import type { DocumentLoadResult } from "./types";
 
@@ -12,31 +17,40 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
 /** 显式把 schema 4 文档升级到 schema 5；loader 不会隐式调用此函数。 */
-export const upgradeSchema4To5 = (value: unknown): unknown => {
-  if (!isRecord(value) || value.schema !== SCORE_DOCUMENT_SCHEMA || value.schemaVersion !== 4)
-    return value;
-  const score = isRecord(value.score) ? value.score : null;
-  if (!score || !Array.isArray(score.tracks)) return value;
-  return {
-    ...value,
+export const upgradeSchema4To5 = (value: unknown): DocumentLoadResult => {
+  if (
+    !isRecord(value) ||
+    value.schema !== SCORE_DOCUMENT_SCHEMA ||
+    value.schemaVersion !== 4
+  )
+    return { ok: false, errors: ["升级函数只接受 schema 4 对象"] };
+  // 先按旧字段形状校验，再补默认值；额外的新字段不冒充旧格式。
+  const oldSchema = LXMDocumentSchema.extend({
+    schemaVersion: z.literal(4),
+    score: LXMScoreSchema.extend({
+      tracks: z.array(
+        LXMTrackSchema.omit({ capo: true }).extend({
+          measures: z.array(LXMMeasureSchema.omit({ sectionLabel: true })),
+        }),
+      ),
+    }),
+  });
+  const old = oldSchema.safeParse(value);
+  if (!old.success)
+    return { ok: false, errors: old.error.issues.map(formatZodIssue) };
+  const upgraded = {
+    ...old.data,
     schemaVersion: CURRENT_SCHEMA_VERSION,
     score: {
-      ...score,
-      tracks: score.tracks.map((track) =>
-        isRecord(track)
-          ? {
-              ...track,
-              capo: track.capo ?? 0,
-              measures: Array.isArray(track.measures)
-                ? track.measures.map((measure) =>
-                    isRecord(measure) ? { ...measure } : measure,
-                  )
-                : track.measures,
-            }
-          : track,
-      ),
+      ...old.data.score,
+      tracks: old.data.score.tracks.map((track) => ({ ...track, capo: 0 })),
     },
   };
+  try {
+    return loadDocument(JSON.stringify(upgraded));
+  } catch {
+    return { ok: false, errors: ["旧文档无法序列化"] };
+  }
 };
 
 /**

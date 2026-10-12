@@ -171,7 +171,7 @@ export const layoutSystemContent = (
         ]),
       };
     });
-    const originalTop = Math.min(
+    const musicTop = Math.min(
       system.y - techniqueHeight,
       ...measures.flatMap((m) =>
         (m.chordSymbols ?? []).map((b) => b.bounds.y - 2),
@@ -183,7 +183,41 @@ export const layoutSystemContent = (
         rowDescent +
         MUSIC_LYRIC_BOTTOM_GAP
       : Math.max(bottom, system.y + system.height);
+    // 标记独占顶部行，避免与和弦、技巧、歌词共用空间造成碰撞。
+    const notation: { text: string; x: number }[] = [];
+    if (system.index === 0) {
+      notation.push({
+        text: `调弦（1→6弦）：${track.tuning.strings.map((s) => s.pitch).join(" / ")}`,
+        x: system.x,
+      });
+      notation.push({
+        text: `Capo ${track.capo} · 品位相对于变调夹`,
+        x: system.x,
+      });
+    }
+    system.measures.forEach((m) => {
+      const domain = source.get(m.id)!;
+      if (domain.sectionLabel)
+        notation.push({
+          text: `${track.measures.indexOf(domain) + 1}. ${domain.sectionLabel}`,
+          x: m.x,
+        });
+    });
+    const rowGap = 24;
+    const originalTop = musicTop - notation.length * rowGap;
     const dy = nextTop - originalTop;
+    const notationLabels = notation.map((n, i) =>
+      musicTextGlyph(
+        musicTextRequest(n.text, 12, "start"),
+        n.x,
+        nextTop + 16 + i * rowGap,
+        metrics,
+      ),
+    );
+    const notationWidth = Math.max(
+      system.width,
+      ...notationLabels.map((l) => l.bounds.x + l.bounds.width - system.x),
+    );
     const lyricVerseLabels = Array.from({ length: maxVerse }, (_, i) =>
       musicTextGlyph(
         musicTextRequest(`${i + 1}.`, 13, "start"),
@@ -195,6 +229,7 @@ export const layoutSystemContent = (
     const result: ILXMSystemLayout = {
       ...system,
       y: nextTop,
+      notationLabels,
       height: finalBottom - originalTop,
       techniqueLaneCount: Math.max(
         0,
@@ -230,7 +265,7 @@ export const layoutSystemContent = (
       visualBounds: {
         x: system.x,
         y: nextTop,
-        width: system.width,
+        width: notationWidth,
         height: finalBottom - originalTop,
       },
     };

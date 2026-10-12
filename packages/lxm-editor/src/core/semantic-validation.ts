@@ -1,3 +1,4 @@
+import { validateTuning } from "./tuning";
 /**
  * 乐谱语义校验。
  *
@@ -222,19 +223,12 @@ export const validateDocumentSemantics = (
   document.score.tracks.forEach((track, trackIndex) => {
     const trackPath = `score.tracks.${trackIndex}`;
     registerId(track.id, `${trackPath}.id`);
-    track.tuning.strings.forEach((string, stringIndex) => {
-      const match = /^([A-Ga-g])([#b]?)(-?\d+)$/.exec(string.pitch.trim());
-      const semitones: Record<string, number> = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
-      const midi = match
-        ? (Number(match[3]) + 1) * 12 + semitones[match[1]!.toUpperCase()]! + (match[2] === "#" ? 1 : match[2] === "b" ? -1 : 0)
-        : null;
-      if (string.index !== stringIndex + 1 || midi !== string.midi)
-        issues.push({
-          code: "INVALID_TUNING",
-          path: `${trackPath}.tuning.strings.${stringIndex}`,
-          message: "调弦 pitch 与 MIDI 不一致，且弦索引必须按 1 到 6 排列",
-        });
-    });
+    if (!validateTuning(track.tuning))
+      issues.push({
+        code: "INVALID_TUNING",
+        path: `${trackPath}.tuning`,
+        message: "六弦调弦索引或 pitch/MIDI 不一致",
+      });
     track.measures.forEach((measure, measureIndex) =>
       validateMeasure(
         measure,

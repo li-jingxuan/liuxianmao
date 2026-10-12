@@ -754,3 +754,30 @@
     padding-left: 20px;
   }
 }
+
+.trackSettings {
+  border: 1px solid var(--border, #ddd);
+  border-radius: 8px;
+  margin: 0 0 16px;
+  padding: 12px;
+  min-width: 0;
+  form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  p {
+    font-size: 12px;
+    line-height: 1.6;
+  }
+  button {
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  &:disabled {
+    opacity: 0.6;
+  }
+}

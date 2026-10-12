@@ -114,6 +114,25 @@ export const collectMusicTextMeasureRequests = (
   showChordDiagrams?: boolean,
 ): ILXMMusicTextMeasureRequest[] => {
   const requests: ILXMMusicTextMeasureRequest[] = [];
+  const track = document.score.tracks[0];
+  if (track) {
+    requests.push(
+      musicTextRequest(
+        `调弦（1→6弦）：${track.tuning.strings.map((s) => s.pitch).join(" / ")}`,
+        12,
+        "start",
+      ),
+    );
+    requests.push(
+      musicTextRequest(`Capo ${track.capo} · 品位相对于变调夹`, 12, "start"),
+    );
+    track.measures.forEach((m, i) => {
+      if (m.sectionLabel)
+        requests.push(
+          musicTextRequest(`${i + 1}. ${m.sectionLabel}`, 12, "start"),
+        );
+    });
+  }
   for (const measure of document.score.tracks[0]?.measures ?? []) {
     for (const lyric of measure.lyrics) {
       requests.push(

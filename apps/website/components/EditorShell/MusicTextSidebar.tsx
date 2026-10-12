@@ -1,3 +1,4 @@
+import { TrackSettings } from "./TrackSettings";
 import {
   useEffect,
   useMemo,
@@ -80,7 +81,9 @@ export const MusicTextSidebar = ({
   const wasEditing = useRef(false);
   const editing = !!draft;
   const target = draft?.target ?? selection?.focus;
-  const track = score?.score.tracks.find((t) => t.id === target?.trackId);
+  const track = target
+    ? score?.score.tracks.find((t) => t.id === target.trackId)
+    : score?.score.tracks[0];
   const measure = track?.measures.find((m) => m.id === target?.measureId);
   const validTarget =
     target && measure?.beats.some((b) => b.id === target.beatId)
@@ -332,26 +335,6 @@ export const MusicTextSidebar = ({
       setMessage("已删除，保留当前拍点。");
     }
   };
-  /** 单轨设置和小节标记统一走核心命令，侧栏只负责提交输入。 */
-  const setTrackCapo = (value: string) => {
-    if (!track) return;
-    const result = editorStore.getState().execute({
-      type: LXMScoreCommandEnum.SetCapo,
-      trackId: track.id,
-      capo: Number(value),
-    });
-    if (result?.ok) setMessage("已更新变调夹；品位仍按相对 capo 记谱。");
-  };
-  const setMeasureSectionLabel = (value: string) => {
-    if (!track || !measure) return;
-    const result = editorStore.getState().execute({
-      type: LXMScoreCommandEnum.SetSectionLabel,
-      trackId: track.id,
-      measureId: measure.id,
-      label: value,
-    });
-    if (result?.ok) setMessage(value.trim() ? "已更新段落标记。" : "已清除段落标记。");
-  };
   return (
     <aside
       id="music-text-sidebar"
@@ -479,33 +462,12 @@ export const MusicTextSidebar = ({
             : "请先选择谱面中的一拍"}
         </p>
         {track && (
-          <section className={styles.sidebarSection}>
-            <h3>单轨设置</h3>
-            <label>
-              变调夹（相对品位）
-              <input
-                aria-label="变调夹"
-                type="number"
-                min={0}
-                max={12}
-                defaultValue={track.capo}
-                key={`${track.id}:${track.capo}`}
-                onBlur={(event) => setTrackCapo(event.currentTarget.value)}
-              />
-            </label>
-            {measure && (
-              <label>
-                段落标记
-                <input
-                  aria-label="段落标记"
-                  maxLength={32}
-                  defaultValue={measure.sectionLabel ?? ""}
-                  key={`${measure.id}:${measure.sectionLabel ?? ""}`}
-                  onBlur={(event) => setMeasureSectionLabel(event.currentTarget.value)}
-                />
-              </label>
-            )}
-          </section>
+          <TrackSettings
+            key={`${track.id}:${measure?.id}:${track.capo}:${JSON.stringify(track.tuning)}:${measure?.sectionLabel ?? ""}`}
+            track={track}
+            measureId={measure?.id}
+            disabled={!!draft || !!pending}
+          />
         )}
         {!draft ? (
           <div className={styles.sidebarEmpty}>
