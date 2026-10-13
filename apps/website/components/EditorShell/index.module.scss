@@ -181,6 +181,15 @@
   vector-effect: non-scaling-stroke;
 }
 
+/** 弦格悬停使用较淡底色与虚线，正式选区继续保留实线焦点。 */
+.tabCellHover {
+  fill: rgba(40, 100, 227, 0.05);
+  stroke: #2864e3;
+  stroke-width: 1;
+  stroke-dasharray: 3 2;
+  vector-effect: non-scaling-stroke;
+}
+
 /** 透明 bounds 扩大细线技巧的点击区域；视觉路径仍保持乐谱所需的轻量线宽。 */
 .techniqueSegment,
 .selectedTechnique {
@@ -665,6 +674,17 @@
 }
 
 /* 歌词视觉焦点独立于核心命中几何，打印不输出编辑状态。 */
+.musicTextPlaceholder {
+  fill: transparent;
+  stroke: #cbd5e1;
+  stroke-width: 1;
+}
+.musicTextHover {
+  fill: rgb(47 101 255 / 5%);
+  stroke: var(--accent);
+  stroke-width: 1;
+  stroke-dasharray: 3 2;
+}
 .lyricFocus {
   fill: rgb(47 101 255 / 12%);
   stroke: var(--accent);
@@ -719,6 +739,7 @@
   }
 }
 @media print {
+  .musicTextEditingHints,
   .lyricFocus,
   .emptyLyricCaret {
     display: none;

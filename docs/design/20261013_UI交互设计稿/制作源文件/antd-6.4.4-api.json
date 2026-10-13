@@ -1,0 +1,5512 @@
+{
+  "Button": {
+    "name": "Button",
+    "nameZh": "按钮",
+    "description": "To trigger an operation.",
+    "props": [
+      {
+        "name": "autoInsertSpace",
+        "type": "boolean",
+        "default": "`true`",
+        "since": "5.17.0"
+      },
+      {
+        "name": "block",
+        "type": "boolean",
+        "default": "false",
+        "since": ""
+      },
+      {
+        "name": "classNames",
+        "type": "Record<[SemanticDOM](#semantic-dom), string> | (info: { props })=> Record<[SemanticDOM](#semantic-dom), string>",
+        "default": "-",
+        "since": "6.0.0"
+      },
+      {
+        "name": "color",
+        "type": "`default` | `primary` | `danger` | [PresetColors](#presetcolors)",
+        "default": "`primary` when `variant=\"solid\"`",
+        "since": "`default`, `primary` and `danger`: 5.21.0, `PresetColors`: 5.23.0, `solid` default color: 6.4.0"
+      },
+      {
+        "name": "danger",
+        "type": "boolean",
+        "default": "false",
+        "since": ""
+      },
+      {
+        "name": "disabled",
+        "type": "boolean",
+        "default": "false",
+        "since": ""
+      },
+      {
+        "name": "ghost",
+        "type": "boolean",
+        "default": "false",
+        "since": ""
+      },
+      {
+        "name": "href",
+        "type": "string",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "htmlType",
+        "type": "`submit` | `reset` | `button`",
+        "default": "`button`",
+        "since": ""
+      },
+      {
+        "name": "icon",
+        "type": "ReactNode",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "iconPlacement",
+        "type": "`start` | `end`",
+        "default": "`start`",
+        "since": "-"
+      },
+      {
+        "name": "iconPosition",
+        "type": "`start` | `end`",
+        "default": "`start`",
+        "since": "5.17.0"
+      },
+      {
+        "name": "loading",
+        "type": "boolean | { delay: number, icon: ReactNode }",
+        "default": "false",
+        "since": "icon: 5.23.0"
+      },
+      {
+        "name": "loadingIcon",
+        "type": "ReactNode",
+        "default": "`<LoadingOutlined />`",
+        "since": ""
+      },
+      {
+        "name": "onClick",
+        "type": "(event: React.MouseEvent<HTMLElement, MouseEvent>) => void",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "shape",
+        "type": "`default` | `circle` | `round`",
+        "default": "`default`",
+        "since": ""
+      },
+      {
+        "name": "size",
+        "type": "`large` | `medium` | `small`",
+        "default": "`medium`",
+        "since": ""
+      },
+      {
+        "name": "styles",
+        "type": "Record<[SemanticDOM](#semantic-dom), CSSProperties> | (info: { props })=> Record<[SemanticDOM](#semantic-dom), CSSProperties>",
+        "default": "-",
+        "since": "6.0.0"
+      },
+      {
+        "name": "target",
+        "type": "string",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "type",
+        "type": "`primary` | `dashed` | `link` | `text` | `default`",
+        "default": "`default`",
+        "since": ""
+      },
+      {
+        "name": "variant",
+        "type": "`outlined` | `dashed` | `solid` | `filled` | `text` | `link`",
+        "default": "-",
+        "since": "5.21.0"
+      }
+    ],
+    "commonProps": [
+      {
+        "name": "className",
+        "type": "string",
+        "default": "-",
+        "description": "Additional CSS class",
+        "descriptionZh": "额外的 CSS 类名"
+      },
+      {
+        "name": "style",
+        "type": "CSSProperties",
+        "default": "-",
+        "description": "Additional style",
+        "descriptionZh": "额外的样式"
+      },
+      {
+        "name": "rootClassName",
+        "type": "string",
+        "default": "-",
+        "description": "ClassName on the root element",
+        "descriptionZh": "根元素的类名"
+      }
+    ],
+    "htmlElement": "button"
+  },
+  "Input": {
+    "name": "Input",
+    "nameZh": "输入框",
+    "description": "Through mouse or keyboard input content, it is the most basic form field wrapper.",
+    "props": [
+      {
+        "name": "addonAfter",
+        "type": "ReactNode",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "addonBefore",
+        "type": "ReactNode",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "allowClear",
+        "type": "boolean | { clearIcon: ReactNode, disabled?: boolean }",
+        "default": "-",
+        "since": "disabled: 6.4.0"
+      },
+      {
+        "name": "bordered",
+        "type": "boolean",
+        "default": "true",
+        "since": "4.5.0"
+      },
+      {
+        "name": "classNames",
+        "type": "Record<[SemanticDOM](#semantic-input), string> | (info: { props })=> Record<[SemanticDOM](#semantic-input), string>",
+        "default": "-",
+        "since": "5.4.0"
+      },
+      {
+        "name": "count",
+        "type": "[CountConfig](#countconfig)",
+        "default": "-",
+        "since": "5.10.0"
+      },
+      {
+        "name": "defaultValue",
+        "type": "string",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "disabled",
+        "type": "boolean",
+        "default": "false",
+        "since": "-"
+      },
+      {
+        "name": "id",
+        "type": "string",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "maxLength",
+        "type": "number",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "prefix",
+        "type": "ReactNode",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "showCount",
+        "type": "boolean | { formatter: (info: { value: string, count: number, maxLength?: number }) => ReactNode }",
+        "default": "false",
+        "since": "4.18.0 info.value: 4.23.0"
+      },
+      {
+        "name": "status",
+        "type": "'error' | 'warning'",
+        "default": "-",
+        "since": "4.19.0"
+      },
+      {
+        "name": "styles",
+        "type": "Record<[SemanticDOM](#semantic-input), CSSProperties> | (info: { props })=> Record<[SemanticDOM](#semantic-input), CSSProperties>",
+        "default": "-",
+        "since": "5.4.0"
+      },
+      {
+        "name": "size",
+        "type": "`large` | `medium` | `small`",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "suffix",
+        "type": "ReactNode",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "type",
+        "type": "string",
+        "default": "`text`",
+        "since": ""
+      },
+      {
+        "name": "value",
+        "type": "string",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "variant",
+        "type": "`outlined` | `borderless` | `filled` | `underlined`",
+        "default": "`outlined`",
+        "since": "5.13.0 | `underlined`: 5.24.0"
+      },
+      {
+        "name": "onChange",
+        "type": "function(e)",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "onPressEnter",
+        "type": "function(e)",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "onClear",
+        "type": "() => void",
+        "default": "-",
+        "since": "5.20.0"
+      }
+    ],
+    "subComponentProps": {
+      "Input.TextArea": [
+        {
+          "name": "autoSize",
+          "type": "boolean | object",
+          "default": "false",
+          "since": ""
+        },
+        {
+          "name": "classNames",
+          "type": "Record<[SemanticDOM](#semantic-textarea), string> | (info: { props }) => Record<[SemanticDOM](#semantic-textarea), string>",
+          "default": "-",
+          "since": "5.4.0"
+        },
+        {
+          "name": "styles",
+          "type": "Record<[SemanticDOM](#semantic-textarea), CSSProperties> | (info: { props }) => Record<[SemanticDOM](#semantic-textarea), CSSProperties>",
+          "default": "-",
+          "since": "5.4.0"
+        }
+      ],
+      "Input.Search": [
+        {
+          "name": "classNames",
+          "type": "Record<[SemanticDOM](#semantic-search), string> | (info: { props }) => Record<[SemanticDOM](#semantic-search), string>",
+          "default": "-",
+          "since": "6.0.0"
+        },
+        {
+          "name": "enterButton",
+          "type": "ReactNode",
+          "default": "false",
+          "since": ""
+        },
+        {
+          "name": "loading",
+          "type": "boolean",
+          "default": "false",
+          "since": ""
+        },
+        {
+          "name": "onSearch",
+          "type": "function(value, event, { source: \"input\" | \"clear\" })",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "styles",
+          "type": "Record<[SemanticDOM](#semantic-search), CSSProperties> | (info: { props }) => Record<[SemanticDOM](#semantic-search), CSSProperties>",
+          "default": "-",
+          "since": "6.0.0"
+        },
+        {
+          "name": "searchIcon",
+          "type": "ReactNode",
+          "default": "-",
+          "since": "6.4.0"
+        }
+      ],
+      "Input.Password": [
+        {
+          "name": "classNames",
+          "type": "Record<[SemanticDOM](#semantic-password), string>",
+          "default": "-",
+          "since": "5.4.0"
+        },
+        {
+          "name": "iconRender",
+          "type": "(visible) => ReactNode",
+          "default": "(visible) => (visible ? <EyeOutlined /> : <EyeInvisibleOutlined />)",
+          "since": "4.3.0"
+        },
+        {
+          "name": "styles",
+          "type": "Record<[SemanticDOM](#semantic-password), CSSProperties>",
+          "default": "-",
+          "since": "5.4.0"
+        },
+        {
+          "name": "visibilityToggle",
+          "type": "boolean | [VisibilityToggle](#visibilitytoggle)",
+          "default": "true",
+          "since": ""
+        }
+      ],
+      "Input.OTP": [
+        {
+          "name": "autoComplete",
+          "type": "string",
+          "default": "-",
+          "since": "6.3.0"
+        },
+        {
+          "name": "classNames",
+          "type": "Record<[SemanticDOM](#semantic-otp), string> | (info: { props }) => Record<[SemanticDOM](#semantic-otp), string>",
+          "default": "-",
+          "since": "6.0.0"
+        },
+        {
+          "name": "defaultValue",
+          "type": "string",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "default": "false",
+          "since": ""
+        },
+        {
+          "name": "formatter",
+          "type": "(value: string) => string",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "separator",
+          "type": "ReactNode |((i: number) => ReactNode)",
+          "default": "-",
+          "since": "5.24.0"
+        },
+        {
+          "name": "styles",
+          "type": "Record<[SemanticDOM](#semantic-otp), CSSProperties> | (info: { props }) => Record<[SemanticDOM](#semantic-otp), CSSProperties>",
+          "default": "-",
+          "since": "6.0.0"
+        },
+        {
+          "name": "mask",
+          "type": "boolean | string",
+          "default": "`false`",
+          "since": "`5.17.0`"
+        },
+        {
+          "name": "length",
+          "type": "number",
+          "default": "6",
+          "since": ""
+        },
+        {
+          "name": "status",
+          "type": "'error' | 'warning'",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "size",
+          "type": "`small` | `medium` | `large`",
+          "default": "`medium`",
+          "since": ""
+        },
+        {
+          "name": "variant",
+          "type": "`outlined` | `borderless` | `filled` | `underlined`",
+          "default": "`outlined`",
+          "since": "`underlined`: 5.24.0"
+        },
+        {
+          "name": "value",
+          "type": "string",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "onChange",
+          "type": "(value: string) => void",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "onInput",
+          "type": "(value: string[]) => void",
+          "default": "-",
+          "since": "`5.22.0`"
+        },
+        {
+          "name": "visible",
+          "type": "boolean",
+          "default": "false",
+          "since": "4.24.0"
+        },
+        {
+          "name": "onVisibleChange",
+          "type": "(visible) => void",
+          "default": "-",
+          "since": "4.24.0"
+        },
+        {
+          "name": "blur",
+          "type": "",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "focus",
+          "type": "",
+          "default": "-",
+          "since": "option - 4.10.0"
+        }
+      ]
+    },
+    "commonProps": [
+      {
+        "name": "className",
+        "type": "string",
+        "default": "-",
+        "description": "Additional CSS class",
+        "descriptionZh": "额外的 CSS 类名"
+      },
+      {
+        "name": "style",
+        "type": "CSSProperties",
+        "default": "-",
+        "description": "Additional style",
+        "descriptionZh": "额外的样式"
+      },
+      {
+        "name": "rootClassName",
+        "type": "string",
+        "default": "-",
+        "description": "ClassName on the root element",
+        "descriptionZh": "根元素的类名"
+      }
+    ],
+    "htmlElement": "input"
+  },
+  "InputNumber": {
+    "name": "InputNumber",
+    "nameZh": "数字输入框",
+    "description": "Enter a number within certain range with the mouse or keyboard.",
+    "props": [
+      {
+        "name": "addonAfter",
+        "type": "ReactNode",
+        "default": "-",
+        "since": "4.17.0"
+      },
+      {
+        "name": "addonBefore",
+        "type": "ReactNode",
+        "default": "-",
+        "since": "4.17.0"
+      },
+      {
+        "name": "changeOnBlur",
+        "type": "boolean",
+        "default": "true",
+        "since": "5.11.0"
+      },
+      {
+        "name": "changeOnWheel",
+        "type": "boolean",
+        "default": "-",
+        "since": "5.14.0"
+      },
+      {
+        "name": "classNames",
+        "type": "Record<[SemanticDOM](#semantic-dom), string> | (info: { props })=> Record<[SemanticDOM](#semantic-dom), string>",
+        "default": "-",
+        "since": "6.0.0"
+      },
+      {
+        "name": "controls",
+        "type": "boolean | { upIcon?: React.ReactNode; downIcon?: React.ReactNode; }",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "decimalSeparator",
+        "type": "string",
+        "default": "-",
+        "since": "-"
+      },
+      {
+        "name": "placeholder",
+        "type": "string",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "defaultValue",
+        "type": "number",
+        "default": "-",
+        "since": "-"
+      },
+      {
+        "name": "disabled",
+        "type": "boolean",
+        "default": "false",
+        "since": "-"
+      },
+      {
+        "name": "formatter",
+        "type": "function(value: number | string, info: { userTyping: boolean, input: string }): string",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "keyboard",
+        "type": "boolean",
+        "default": "true",
+        "since": ""
+      },
+      {
+        "name": "max",
+        "type": "number",
+        "default": "[Number.MAX_SAFE_INTEGER](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/MAX_SAFE_INTEGER)",
+        "since": "-"
+      },
+      {
+        "name": "min",
+        "type": "number",
+        "default": "[Number.MIN_SAFE_INTEGER](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/MIN_SAFE_INTEGER)",
+        "since": "-"
+      },
+      {
+        "name": "parser",
+        "type": "function(string): number",
+        "default": "-",
+        "since": "-"
+      },
+      {
+        "name": "precision",
+        "type": "number",
+        "default": "-",
+        "since": "-"
+      },
+      {
+        "name": "readOnly",
+        "type": "boolean",
+        "default": "false",
+        "since": "-"
+      },
+      {
+        "name": "status",
+        "type": "'error' | 'warning'",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "styles",
+        "type": "Record<[SemanticDOM](#semantic-dom), CSSProperties> | (info: { props })=> Record<[SemanticDOM](#semantic-dom), CSSProperties>",
+        "default": "-",
+        "since": "6.0.0"
+      },
+      {
+        "name": "prefix",
+        "type": "ReactNode",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "suffix",
+        "type": "ReactNode",
+        "default": "-",
+        "since": "5.20.0"
+      },
+      {
+        "name": "size",
+        "type": "`large` | `medium` | `small`",
+        "default": "-",
+        "since": "-"
+      },
+      {
+        "name": "step",
+        "type": "number | string",
+        "default": "1",
+        "since": "-"
+      },
+      {
+        "name": "stringMode",
+        "type": "boolean",
+        "default": "false",
+        "since": "4.13.0"
+      },
+      {
+        "name": "mode",
+        "type": "`'input' | 'spinner'`",
+        "default": "`'input'`",
+        "since": ""
+      },
+      {
+        "name": "value",
+        "type": "number",
+        "default": "-",
+        "since": "-"
+      },
+      {
+        "name": "variant",
+        "type": "`outlined` | `borderless` | `filled` | `underlined`",
+        "default": "`outlined`",
+        "since": "5.13.0 | `underlined`: 5.24.0"
+      },
+      {
+        "name": "onChange",
+        "type": "function(value: number | string | null)",
+        "default": "-",
+        "since": "-"
+      },
+      {
+        "name": "onPressEnter",
+        "type": "function(e)",
+        "default": "-",
+        "since": "-"
+      },
+      {
+        "name": "onStep",
+        "type": "(value: number, info: { offset: number, type: 'up' | 'down', emitter: 'handler' | 'keydown' | 'wheel' }) => void",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "bordered",
+        "type": "boolean",
+        "default": "true",
+        "since": "-"
+      }
+    ],
+    "subComponentProps": {
+      "InputNumber.Ref": [
+        {
+          "name": "blur()",
+          "type": "-",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "focus()",
+          "type": "(option?: { preventScroll?: boolean, cursor?: 'start' | 'end' | 'all' })",
+          "default": "-",
+          "since": "cursor - 5.22.0"
+        },
+        {
+          "name": "nativeElement",
+          "type": "-",
+          "default": "-",
+          "since": "5.17.3"
+        }
+      ]
+    },
+    "commonProps": [
+      {
+        "name": "className",
+        "type": "string",
+        "default": "-",
+        "description": "Additional CSS class",
+        "descriptionZh": "额外的 CSS 类名"
+      },
+      {
+        "name": "style",
+        "type": "CSSProperties",
+        "default": "-",
+        "description": "Additional style",
+        "descriptionZh": "额外的样式"
+      },
+      {
+        "name": "rootClassName",
+        "type": "string",
+        "default": "-",
+        "description": "ClassName on the root element",
+        "descriptionZh": "根元素的类名"
+      }
+    ],
+    "htmlElement": "input"
+  },
+  "Select": {
+    "name": "Select",
+    "nameZh": "选择器",
+    "description": "A dropdown menu for displaying choices.",
+    "props": [
+      {
+        "name": "allowClear",
+        "type": "boolean | { clearIcon?: ReactNode }",
+        "default": "false",
+        "since": "5.8.0: Support object type"
+      },
+      {
+        "name": "autoClearSearchValue",
+        "type": "boolean",
+        "default": "true",
+        "since": ""
+      },
+      {
+        "name": "bordered",
+        "type": "boolean",
+        "default": "true",
+        "since": "-"
+      },
+      {
+        "name": "classNames",
+        "type": "Record<[SemanticDOM](#semantic-dom), string> | (info: { props })=> Record<[SemanticDOM](#semantic-dom), string>",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "defaultActiveFirstOption",
+        "type": "boolean",
+        "default": "true",
+        "since": ""
+      },
+      {
+        "name": "defaultOpen",
+        "type": "boolean",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "defaultValue",
+        "type": "string | string[] | <br />number | number[] | <br />LabeledValue | LabeledValue[]",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "disabled",
+        "type": "boolean",
+        "default": "false",
+        "since": ""
+      },
+      {
+        "name": "dropdownClassName",
+        "type": "string",
+        "default": "-",
+        "since": "-"
+      },
+      {
+        "name": "dropdownMatchSelectWidth",
+        "type": "boolean | number",
+        "default": "true",
+        "since": "-"
+      },
+      {
+        "name": "popupClassName",
+        "type": "string",
+        "default": "-",
+        "since": "4.23.0"
+      },
+      {
+        "name": "popupMatchSelectWidth",
+        "type": "boolean | number",
+        "default": "true",
+        "since": "5.5.0"
+      },
+      {
+        "name": "dropdownRender",
+        "type": "(originNode: ReactNode) => ReactNode",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "popupRender",
+        "type": "(originNode: ReactNode) => ReactNode",
+        "default": "-",
+        "since": "5.25.0"
+      },
+      {
+        "name": "dropdownStyle",
+        "type": "CSSProperties",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "fieldNames",
+        "type": "object",
+        "default": "{ label: `label`, value: `value`, options: `options`, groupLabel: `label` }",
+        "since": "4.17.0 (`groupLabel` added in 5.6.0)"
+      },
+      {
+        "name": "filterOption",
+        "type": "boolean | function(inputValue, option)",
+        "default": "true",
+        "since": ""
+      },
+      {
+        "name": "filterSort",
+        "type": "(optionA: Option, optionB: Option, info: { searchValue: string }) => number",
+        "default": "-",
+        "since": "`searchValue`: 5.19.0"
+      },
+      {
+        "name": "getPopupContainer",
+        "type": "function(triggerNode)",
+        "default": "() => document.body",
+        "since": ""
+      },
+      {
+        "name": "labelInValue",
+        "type": "boolean",
+        "default": "false",
+        "since": ""
+      },
+      {
+        "name": "listHeight",
+        "type": "number",
+        "default": "256",
+        "since": ""
+      },
+      {
+        "name": "loading",
+        "type": "boolean",
+        "default": "false",
+        "since": ""
+      },
+      {
+        "name": "loadingIcon",
+        "type": "ReactNode",
+        "default": "`<LoadingOutlined spin />`",
+        "since": "6.4.0"
+      },
+      {
+        "name": "maxCount",
+        "type": "number",
+        "default": "-",
+        "since": "5.13.0"
+      },
+      {
+        "name": "maxTagCount",
+        "type": "number | `responsive`",
+        "default": "-",
+        "since": "responsive: 4.10"
+      },
+      {
+        "name": "maxTagPlaceholder",
+        "type": "ReactNode | function(omittedValues)",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "maxTagTextLength",
+        "type": "number",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "menuItemSelectedIcon",
+        "type": "ReactNode",
+        "default": "`<CheckOutlined />`",
+        "since": ""
+      },
+      {
+        "name": "mode",
+        "type": "`multiple` | `tags`",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "notFoundContent",
+        "type": "ReactNode",
+        "default": "`Not Found`",
+        "since": ""
+      },
+      {
+        "name": "open",
+        "type": "boolean",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "optionFilterProp",
+        "type": "",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "optionLabelProp",
+        "type": "string",
+        "default": "`children`",
+        "since": ""
+      },
+      {
+        "name": "options",
+        "type": "{ label, value }[]",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "optionRender",
+        "type": "(option: FlattenOptionData<BaseOptionType> , info: { index: number }) => React.ReactNode",
+        "default": "-",
+        "since": "5.11.0"
+      },
+      {
+        "name": "placeholder",
+        "type": "ReactNode",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "placement",
+        "type": "`bottomLeft` `bottomRight` `topLeft` `topRight`",
+        "default": "bottomLeft",
+        "since": ""
+      },
+      {
+        "name": "prefix",
+        "type": "ReactNode",
+        "default": "-",
+        "since": "5.22.0"
+      },
+      {
+        "name": "removeIcon",
+        "type": "ReactNode",
+        "default": "`<CloseOutlined />`",
+        "since": ""
+      },
+      {
+        "name": "searchValue",
+        "type": "string",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "showArrow",
+        "type": "boolean",
+        "default": "true",
+        "since": "-"
+      },
+      {
+        "name": "showSearch",
+        "type": "boolean | [Object](#showsearch)",
+        "default": "single: false, multiple: true",
+        "since": "Object: 6.0.0"
+      },
+      {
+        "name": "size",
+        "type": "`large` | `medium` | `small`",
+        "default": "`medium`",
+        "since": ""
+      },
+      {
+        "name": "status",
+        "type": "'error' | 'warning'",
+        "default": "-",
+        "since": "4.19.0"
+      },
+      {
+        "name": "styles",
+        "type": "Record<[SemanticDOM](#semantic-dom), CSSProperties> | (info: { props })=> Record<[SemanticDOM](#semantic-dom), CSSProperties>",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "suffixIcon",
+        "type": "ReactNode",
+        "default": "`<DownOutlined />`",
+        "since": ""
+      },
+      {
+        "name": "tagRender",
+        "type": "(props) => ReactNode",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "labelRender",
+        "type": "(props: LabelInValueType) => ReactNode",
+        "default": "-",
+        "since": "5.15.0"
+      },
+      {
+        "name": "tokenSeparators",
+        "type": "string[]",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "value",
+        "type": "string | string[] | <br />number | number[] | <br />LabeledValue | LabeledValue[]",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "variant",
+        "type": "`outlined` | `borderless` | `filled` | `underlined`",
+        "default": "`outlined`",
+        "since": "5.13.0 | `underlined`: 5.24.0"
+      },
+      {
+        "name": "virtual",
+        "type": "boolean",
+        "default": "true",
+        "since": "4.1.0"
+      },
+      {
+        "name": "onActive",
+        "type": "function(value: string | number | LabeledValue)",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "onBlur",
+        "type": "function",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "onChange",
+        "type": "function(value, option:Option | Array<Option>)",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "onClear",
+        "type": "function",
+        "default": "-",
+        "since": "4.6.0"
+      },
+      {
+        "name": "onDeselect",
+        "type": "function(value: string | number | LabeledValue)",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "onDropdownVisibleChange",
+        "type": "(open: boolean) => void",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "onOpenChange",
+        "type": "(open: boolean) => void",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "onFocus",
+        "type": "(event: FocusEvent) => void",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "onInputKeyDown",
+        "type": "(event: KeyboardEvent) => void",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "onPopupScroll",
+        "type": "(event: UIEvent) => void",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "onSearch",
+        "type": "function(value: string)",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "onSelect",
+        "type": "function(value: string | number | LabeledValue, option: Option)",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "blur()",
+        "type": "",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "focus()",
+        "type": "",
+        "default": "-",
+        "since": ""
+      }
+    ],
+    "subComponentProps": {
+      "Select.showSearch": [
+        {
+          "name": "autoClearSearchValue",
+          "type": "boolean",
+          "default": "true",
+          "since": ""
+        },
+        {
+          "name": "filterOption",
+          "type": "boolean | function(inputValue, option)",
+          "default": "true",
+          "since": ""
+        },
+        {
+          "name": "filterSort",
+          "type": "(optionA: Option, optionB: Option, info: { searchValue: string }) => number",
+          "default": "-",
+          "since": "`searchValue`: 5.19.0"
+        },
+        {
+          "name": "optionFilterProp",
+          "type": "string | string[]",
+          "default": "`value`",
+          "since": "`string[]`: 6.1.0"
+        },
+        {
+          "name": "searchValue",
+          "type": "string",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "onSearch",
+          "type": "function(value: string)",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "searchIcon",
+          "type": "ReactNode",
+          "default": "`<SearchOutlined />`",
+          "since": "6.4.0"
+        }
+      ],
+      "Select.Option props": [
+        {
+          "name": "className",
+          "type": "string",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "default": "false",
+          "since": ""
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "value",
+          "type": "string | number",
+          "default": "-",
+          "since": ""
+        }
+      ],
+      "Select.OptGroup props": [
+        {
+          "name": "key",
+          "type": "string",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "label",
+          "type": "React.ReactNode",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "className",
+          "type": "string",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "default": "-",
+          "since": ""
+        }
+      ]
+    },
+    "commonProps": [
+      {
+        "name": "className",
+        "type": "string",
+        "default": "-",
+        "description": "Additional CSS class",
+        "descriptionZh": "额外的 CSS 类名"
+      },
+      {
+        "name": "style",
+        "type": "CSSProperties",
+        "default": "-",
+        "description": "Additional style",
+        "descriptionZh": "额外的样式"
+      },
+      {
+        "name": "rootClassName",
+        "type": "string",
+        "default": "-",
+        "description": "ClassName on the root element",
+        "descriptionZh": "根元素的类名"
+      }
+    ],
+    "htmlElement": "div"
+  },
+  "Checkbox": {
+    "name": "Checkbox",
+    "nameZh": "多选框",
+    "description": "Collect user's choices.",
+    "props": [
+      {
+        "name": "checked",
+        "type": "boolean",
+        "default": "false",
+        "since": ""
+      },
+      {
+        "name": "classNames",
+        "type": "Record<[SemanticDOM](#semantic-dom), string> | (info: { props })=> Record<[SemanticDOM](#semantic-dom), string>",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "defaultChecked",
+        "type": "boolean",
+        "default": "false",
+        "since": ""
+      },
+      {
+        "name": "disabled",
+        "type": "boolean",
+        "default": "false",
+        "since": ""
+      },
+      {
+        "name": "indeterminate",
+        "type": "boolean",
+        "default": "false",
+        "since": ""
+      },
+      {
+        "name": "onChange",
+        "type": "(e: CheckboxChangeEvent) => void",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "onBlur",
+        "type": "function()",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "onFocus",
+        "type": "function()",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "styles",
+        "type": "Record<[SemanticDOM](#semantic-dom), CSSProperties> | (info: { props })=> Record<[SemanticDOM](#semantic-dom), CSSProperties>",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "defaultValue",
+        "type": "(string | number)[]",
+        "default": "[]",
+        "since": ""
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "options",
+        "type": "string[] | number[] | Option[]",
+        "default": "[]",
+        "since": ""
+      },
+      {
+        "name": "value",
+        "type": "(string | number | boolean)[]",
+        "default": "[]",
+        "since": ""
+      },
+      {
+        "name": "title",
+        "type": "`string`",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "className",
+        "type": "`string`",
+        "default": "-",
+        "since": "5.25.0"
+      },
+      {
+        "name": "style",
+        "type": "`React.CSSProperties`",
+        "default": "-",
+        "since": ""
+      }
+    ],
+    "subComponentProps": {
+      "Checkbox.Methods": [
+        {
+          "name": "blur()",
+          "type": "",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "focus()",
+          "type": "",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "nativeElement",
+          "type": "",
+          "default": "-",
+          "since": "5.17.3"
+        }
+      ]
+    },
+    "commonProps": [
+      {
+        "name": "className",
+        "type": "string",
+        "default": "-",
+        "description": "Additional CSS class",
+        "descriptionZh": "额外的 CSS 类名"
+      },
+      {
+        "name": "style",
+        "type": "CSSProperties",
+        "default": "-",
+        "description": "Additional style",
+        "descriptionZh": "额外的样式"
+      },
+      {
+        "name": "rootClassName",
+        "type": "string",
+        "default": "-",
+        "description": "ClassName on the root element",
+        "descriptionZh": "根元素的类名"
+      }
+    ],
+    "htmlElement": "input"
+  },
+  "Switch": {
+    "name": "Switch",
+    "nameZh": "开关",
+    "description": "Used to toggle between two states.",
+    "props": [
+      {
+        "name": "checked",
+        "type": "boolean",
+        "default": "false",
+        "since": ""
+      },
+      {
+        "name": "checkedChildren",
+        "type": "ReactNode",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "classNames",
+        "type": "Record<[SemanticDOM](#semantic-dom), string> | (info: { props })=> Record<[SemanticDOM](#semantic-dom), string>",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "defaultChecked",
+        "type": "boolean",
+        "default": "false",
+        "since": ""
+      },
+      {
+        "name": "defaultValue",
+        "type": "boolean",
+        "default": "-",
+        "since": "5.12.0"
+      },
+      {
+        "name": "disabled",
+        "type": "boolean",
+        "default": "false",
+        "since": ""
+      },
+      {
+        "name": "loading",
+        "type": "boolean",
+        "default": "false",
+        "since": ""
+      },
+      {
+        "name": "size",
+        "type": "`'medium'` | `'small'`",
+        "default": "`medium`",
+        "since": ""
+      },
+      {
+        "name": "styles",
+        "type": "Record<[SemanticDOM](#semantic-dom), CSSProperties> | (info: { props })=> Record<[SemanticDOM](#semantic-dom), CSSProperties>",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "unCheckedChildren",
+        "type": "ReactNode",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "value",
+        "type": "boolean",
+        "default": "-",
+        "since": "5.12.0"
+      },
+      {
+        "name": "onChange",
+        "type": "function(checked: boolean, event: Event)",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "onClick",
+        "type": "function(checked: boolean, event: Event)",
+        "default": "-",
+        "since": ""
+      }
+    ],
+    "subComponentProps": {
+      "Switch.Methods": [
+        {
+          "name": "blur()",
+          "type": "",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "focus()",
+          "type": "",
+          "default": "-",
+          "since": ""
+        }
+      ]
+    },
+    "commonProps": [
+      {
+        "name": "className",
+        "type": "string",
+        "default": "-",
+        "description": "Additional CSS class",
+        "descriptionZh": "额外的 CSS 类名"
+      },
+      {
+        "name": "style",
+        "type": "CSSProperties",
+        "default": "-",
+        "description": "Additional style",
+        "descriptionZh": "额外的样式"
+      },
+      {
+        "name": "rootClassName",
+        "type": "string",
+        "default": "-",
+        "description": "ClassName on the root element",
+        "descriptionZh": "根元素的类名"
+      }
+    ],
+    "htmlElement": "button"
+  },
+  "Tabs": {
+    "name": "Tabs",
+    "nameZh": "标签页",
+    "description": "Tabs make it easy to explore and switch between different views.",
+    "props": [
+      {
+        "name": "activeKey",
+        "type": "string",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "addIcon",
+        "type": "ReactNode",
+        "default": "`<PlusOutlined />`",
+        "since": "4.4.0"
+      },
+      {
+        "name": "animated",
+        "type": "boolean | { inkBar: boolean, tabPane: boolean }",
+        "default": "{ inkBar: true, tabPane: false }",
+        "since": ""
+      },
+      {
+        "name": "centered",
+        "type": "boolean",
+        "default": "false",
+        "since": "4.4.0"
+      },
+      {
+        "name": "classNames",
+        "type": "Record<[SemanticDOM](#semantic-dom), string> | (info: { props })=> Record<[SemanticDOM](#semantic-dom), string>",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "defaultActiveKey",
+        "type": "string",
+        "default": "`The key of first tab`",
+        "since": ""
+      },
+      {
+        "name": "hideAdd",
+        "type": "boolean",
+        "default": "false",
+        "since": ""
+      },
+      {
+        "name": "indicator",
+        "type": "{ size?: number | (origin: number) => number; align: `start` | `center` | `end`; }",
+        "default": "-",
+        "since": "5.13.0"
+      },
+      {
+        "name": "items",
+        "type": "[TabItemType](#tabitemtype)",
+        "default": "[]",
+        "since": "4.23.0"
+      },
+      {
+        "name": "more",
+        "type": "[MoreProps](#moreprops)",
+        "default": "{ icon: `<EllipsisOutlined />` , trigger: 'hover' }",
+        "since": ""
+      },
+      {
+        "name": "removeIcon",
+        "type": "ReactNode",
+        "default": "`<CloseOutlined />`",
+        "since": "5.15.0"
+      },
+      {
+        "name": "popupClassName",
+        "type": "string",
+        "default": "-",
+        "since": "4.21.0"
+      },
+      {
+        "name": "renderTabBar",
+        "type": "(props: DefaultTabBarProps, DefaultTabBar: React.ComponentClass) => React.ReactElement",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "size",
+        "type": "`large` | `medium` | `small`",
+        "default": "`medium`",
+        "since": ""
+      },
+      {
+        "name": "styles",
+        "type": "Record<[SemanticDOM](#semantic-dom), CSSProperties> | (info: { props })=> Record<[SemanticDOM](#semantic-dom), CSSProperties>",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "tabBarExtraContent",
+        "type": "ReactNode | {left?: ReactNode, right?: ReactNode}",
+        "default": "-",
+        "since": "object: 4.6.0"
+      },
+      {
+        "name": "tabBarGutter",
+        "type": "number",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "tabBarStyle",
+        "type": "CSSProperties",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "tabPlacement",
+        "type": "`top` | `end` | `bottom` | `start`",
+        "default": "`top`",
+        "since": ""
+      },
+      {
+        "name": "tabPosition",
+        "type": "`top` | `right` | `bottom` | `left`, please use `tabPlacement` instead",
+        "default": "`top`",
+        "since": ""
+      },
+      {
+        "name": "destroyInactiveTabPane",
+        "type": "boolean",
+        "default": "false",
+        "since": ""
+      },
+      {
+        "name": "destroyOnHidden",
+        "type": "boolean",
+        "default": "false",
+        "since": "5.25.0"
+      },
+      {
+        "name": "type",
+        "type": "`line` | `card` | `editable-card`",
+        "default": "`line`",
+        "since": ""
+      },
+      {
+        "name": "onChange",
+        "type": "(activeKey: string) => void",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "onEdit",
+        "type": "(action === 'add' ? event : targetKey, action) => void",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "onTabClick",
+        "type": "(key: string, event: MouseEvent) => void",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "onTabScroll",
+        "type": "({ direction: `left` | `right` | `top` | `bottom` }) => void",
+        "default": "-",
+        "since": "4.3.0"
+      }
+    ],
+    "subComponentProps": {
+      "Tabs.TabItemType": [
+        {
+          "name": "closeIcon",
+          "type": "ReactNode",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "destroyInactiveTabPane",
+          "type": "boolean",
+          "default": "false",
+          "since": "5.11.0"
+        },
+        {
+          "name": "destroyOnHidden",
+          "type": "boolean",
+          "default": "false",
+          "since": "5.25.0"
+        },
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "default": "false",
+          "since": ""
+        },
+        {
+          "name": "forceRender",
+          "type": "boolean",
+          "default": "false",
+          "since": ""
+        },
+        {
+          "name": "key",
+          "type": "string",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "label",
+          "type": "ReactNode",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "icon",
+          "type": "ReactNode",
+          "default": "-",
+          "since": "5.12.0"
+        },
+        {
+          "name": "children",
+          "type": "ReactNode",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "closable",
+          "type": "boolean",
+          "default": "true",
+          "since": ""
+        }
+      ],
+      "Tabs.MoreProps": [
+        {
+          "name": "icon",
+          "type": "ReactNode",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "[DropdownProps](/components/dropdown#api)",
+          "type": "",
+          "default": "-",
+          "since": ""
+        }
+      ]
+    },
+    "commonProps": [
+      {
+        "name": "className",
+        "type": "string",
+        "default": "-",
+        "description": "Additional CSS class",
+        "descriptionZh": "额外的 CSS 类名"
+      },
+      {
+        "name": "style",
+        "type": "CSSProperties",
+        "default": "-",
+        "description": "Additional style",
+        "descriptionZh": "额外的样式"
+      },
+      {
+        "name": "rootClassName",
+        "type": "string",
+        "default": "-",
+        "description": "ClassName on the root element",
+        "descriptionZh": "根元素的类名"
+      }
+    ],
+    "htmlElement": "div"
+  },
+  "Segmented": {
+    "name": "Segmented",
+    "nameZh": "分段控制器",
+    "description": "Display multiple options and allow users to select a single option.",
+    "props": [
+      {
+        "name": "block",
+        "type": "boolean",
+        "default": "false",
+        "since": ""
+      },
+      {
+        "name": "classNames",
+        "type": "Record<[SemanticDOM](#semantic-dom), string> | (info: { props }) => Record<[SemanticDOM](#semantic-dom), string>",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "defaultValue",
+        "type": "string | number",
+        "default": "Value of first item in `options`",
+        "since": ""
+      },
+      {
+        "name": "disabled",
+        "type": "boolean",
+        "default": "false",
+        "since": ""
+      },
+      {
+        "name": "onChange",
+        "type": "function(value: string | number)",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "options",
+        "type": "string[] | number[] | SegmentedItemType[]",
+        "default": "[]",
+        "since": ""
+      },
+      {
+        "name": "orientation",
+        "type": "`horizontal` | `vertical`",
+        "default": "`horizontal`",
+        "since": ""
+      },
+      {
+        "name": "size",
+        "type": "`large` | `medium` | `small`",
+        "default": "`medium`",
+        "since": ""
+      },
+      {
+        "name": "styles",
+        "type": "Record<[SemanticDOM](#semantic-dom), CSSProperties> | (info: { props }) => Record<[SemanticDOM](#semantic-dom), CSSProperties>",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "vertical",
+        "type": "boolean",
+        "default": "`false`",
+        "since": "5.21.0"
+      },
+      {
+        "name": "value",
+        "type": "string | number",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "shape",
+        "type": "`default` | `round`",
+        "default": "`default`",
+        "since": "5.24.0"
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "default": "-",
+        "since": "5.23.0"
+      }
+    ],
+    "subComponentProps": {
+      "Segmented.SegmentedItemType": [
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "default": "false",
+          "since": ""
+        },
+        {
+          "name": "className",
+          "type": "string",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "icon",
+          "type": "ReactNode",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "label",
+          "type": "ReactNode",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "tooltip",
+          "type": "string | [TooltipProps](../tooltip/index.en-US.md#api)",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "value",
+          "type": "string | number",
+          "default": "-",
+          "since": ""
+        }
+      ]
+    },
+    "commonProps": [
+      {
+        "name": "className",
+        "type": "string",
+        "default": "-",
+        "description": "Additional CSS class",
+        "descriptionZh": "额外的 CSS 类名"
+      },
+      {
+        "name": "style",
+        "type": "CSSProperties",
+        "default": "-",
+        "description": "Additional style",
+        "descriptionZh": "额外的样式"
+      },
+      {
+        "name": "rootClassName",
+        "type": "string",
+        "default": "-",
+        "description": "ClassName on the root element",
+        "descriptionZh": "根元素的类名"
+      }
+    ],
+    "htmlElement": "div"
+  },
+  "Table": {
+    "name": "Table",
+    "nameZh": "表格",
+    "description": "A table displays rows of data.",
+    "props": [
+      {
+        "name": "bordered",
+        "type": "boolean",
+        "default": "false",
+        "since": ""
+      },
+      {
+        "name": "classNames",
+        "type": "Record<[SemanticDOM](#semantic-dom), string> | (info: { props })=> Record<[SemanticDOM](#semantic-dom), string>",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "column",
+        "type": "Partial<[ColumnType](#column)>",
+        "default": "-",
+        "since": "6.4.0"
+      },
+      {
+        "name": "columns",
+        "type": "[ColumnsType](#column)[]",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "components",
+        "type": "[TableComponents](https://github.com/react-component/table/blob/75ee0064e54a4b3215694505870c9d6c817e9e4a/src/interface.ts#L129)",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "dataSource",
+        "type": "object[]",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "expandable",
+        "type": "[expandable](#expandable)",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "footer",
+        "type": "function(currentPageData)",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "getPopupContainer",
+        "type": "(triggerNode) => HTMLElement",
+        "default": "() => TableHtmlElement",
+        "since": ""
+      },
+      {
+        "name": "loading",
+        "type": "boolean | [Spin Props](/components/spin/#api)",
+        "default": "false",
+        "since": ""
+      },
+      {
+        "name": "locale",
+        "type": "object",
+        "default": "[Default Value](https://github.com/ant-design/ant-design/blob/6dae4a7e18ad1ba193aedd5ab6867e1d823e2aa4/components/locale/en_US.tsx#L19-L37)",
+        "since": ""
+      },
+      {
+        "name": "pagination",
+        "type": "object | `false`",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "rowClassName",
+        "type": "function(record, index): string",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "rowKey",
+        "type": "string | function(record): string",
+        "default": "`key`",
+        "since": ""
+      },
+      {
+        "name": "rowSelection",
+        "type": "object",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "rowHoverable",
+        "type": "boolean",
+        "default": "true",
+        "since": "5.16.0"
+      },
+      {
+        "name": "scroll",
+        "type": "object",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "showHeader",
+        "type": "boolean",
+        "default": "true",
+        "since": ""
+      },
+      {
+        "name": "showSorterTooltip",
+        "type": "boolean | [Tooltip props](/components/tooltip/#api) & `{target?: 'full-header' | 'sorter-icon' }`",
+        "default": "{ target: 'full-header' }",
+        "since": "5.16.0"
+      },
+      {
+        "name": "size",
+        "type": "`large` | `medium` | `small`",
+        "default": "`large`",
+        "since": ""
+      },
+      {
+        "name": "sortDirections",
+        "type": "Array",
+        "default": "[`ascend`, `descend`]",
+        "since": ""
+      },
+      {
+        "name": "sticky",
+        "type": "boolean | `{offsetHeader?: number, offsetScroll?: number, getContainer?: () => HTMLElement}`",
+        "default": "-",
+        "since": "4.6.0 (getContainer: 4.7.0)"
+      },
+      {
+        "name": "styles",
+        "type": "Record<[SemanticDOM](#semantic-dom), CSSProperties> | (info: { props })=> Record<[SemanticDOM](#semantic-dom), CSSProperties>",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "summary",
+        "type": "(currentData) => ReactNode",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "tableLayout",
+        "type": "- | `auto` | `fixed`",
+        "default": "-<hr />`fixed` when header/columns are fixed, or using `column.ellipsis`",
+        "since": ""
+      },
+      {
+        "name": "title",
+        "type": "function(currentPageData)",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "virtual",
+        "type": "boolean",
+        "default": "-",
+        "since": "5.9.0"
+      },
+      {
+        "name": "onChange",
+        "type": "function(pagination, filters, sorter, extra: { currentDataSource: [], action: `paginate` | `sort` | `filter` })",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "onHeaderRow",
+        "type": "function(columns, index)",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "onRow",
+        "type": "function(record, index)",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "onScroll",
+        "type": "function(event)",
+        "default": "-",
+        "since": "5.16.0"
+      },
+      {
+        "name": "nativeElement",
+        "type": "HTMLDivElement",
+        "default": "-",
+        "since": "5.11.0"
+      },
+      {
+        "name": "scrollTo",
+        "type": "(config: { index?: number, key?: React.Key, top?: number, offset?: number, align?: 'start' | 'center' | 'end' | 'nearest' }) => void",
+        "default": "-",
+        "since": "5.11.0"
+      }
+    ],
+    "subComponentProps": {
+      "Table.Column": [
+        {
+          "name": "align",
+          "type": "`left` | `right` | `center`",
+          "default": "`left`",
+          "since": ""
+        },
+        {
+          "name": "className",
+          "type": "string",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "colSpan",
+          "type": "number",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "dataIndex",
+          "type": "string | string[]",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "defaultFilteredValue",
+          "type": "string[]",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "filterResetToDefaultFilteredValue",
+          "type": "boolean",
+          "default": "false",
+          "since": ""
+        },
+        {
+          "name": "defaultSortOrder",
+          "type": "`ascend` | `descend`",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "ellipsis",
+          "type": "boolean | {showTitle?: boolean }",
+          "default": "false",
+          "since": "showTitle: 4.3.0"
+        },
+        {
+          "name": "filterDropdown",
+          "type": "ReactNode | (props: [FilterDropdownProps](https://github.com/ant-design/ant-design/blob/ecc54dda839619e921c0ace530408871f0281c2a/components/table/interface.tsx#L79)) => ReactNode",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "filtered",
+          "type": "boolean",
+          "default": "false",
+          "since": ""
+        },
+        {
+          "name": "filteredValue",
+          "type": "string[]",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "filterIcon",
+          "type": "ReactNode | (filtered: boolean) => ReactNode",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "filterOnClose",
+          "type": "boolean",
+          "default": "true",
+          "since": "5.15.0"
+        },
+        {
+          "name": "filterMultiple",
+          "type": "boolean",
+          "default": "true",
+          "since": ""
+        },
+        {
+          "name": "filterMode",
+          "type": "'menu' | 'tree'",
+          "default": "'menu'",
+          "since": "4.17.0"
+        },
+        {
+          "name": "filterSearch",
+          "type": "boolean | function(input, record):boolean",
+          "default": "false",
+          "since": "boolean:4.17.0 function:4.19.0"
+        },
+        {
+          "name": "filters",
+          "type": "object[]",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "filterDropdownProps",
+          "type": "[DropdownProps](/components/dropdown#api)",
+          "default": "-",
+          "since": "5.22.0"
+        },
+        {
+          "name": "fixed",
+          "type": "boolean | string",
+          "default": "false",
+          "since": ""
+        },
+        {
+          "name": "key",
+          "type": "string",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "render",
+          "type": "(value: V, record: T, index: number): ReactNode",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "responsive",
+          "type": "[Breakpoint](https://github.com/ant-design/ant-design/blob/015109b42b85c63146371b4e32b883cf97b088e8/components/_util/responsiveObserve.ts#L1)[]",
+          "default": "-",
+          "since": "4.2.0"
+        },
+        {
+          "name": "rowScope",
+          "type": "`row` | `rowgroup`",
+          "default": "-",
+          "since": "5.1.0"
+        },
+        {
+          "name": "shouldCellUpdate",
+          "type": "(record, prevRecord) => boolean",
+          "default": "-",
+          "since": "4.3.0"
+        },
+        {
+          "name": "showSorterTooltip",
+          "type": "boolean | [Tooltip props](/components/tooltip/) & `{target?: 'full-header' | 'sorter-icon' }`",
+          "default": "{ target: 'full-header' }",
+          "since": "5.16.0"
+        },
+        {
+          "name": "sortDirections",
+          "type": "Array",
+          "default": "[`ascend`, `descend`]",
+          "since": ""
+        },
+        {
+          "name": "sorter",
+          "type": "function | boolean | { compare: function, multiple: number }",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "sortOrder",
+          "type": "`ascend` | `descend` | null",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "sortIcon",
+          "type": "(props: { sortOrder }) => ReactNode",
+          "default": "-",
+          "since": "5.6.0"
+        },
+        {
+          "name": "title",
+          "type": "ReactNode | ({ sortColumns, filters }) => ReactNode",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "width",
+          "type": "string | number",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "minWidth",
+          "type": "number",
+          "default": "-",
+          "since": "5.21.0"
+        },
+        {
+          "name": "hidden",
+          "type": "boolean",
+          "default": "false",
+          "since": "5.13.0"
+        },
+        {
+          "name": "onCell",
+          "type": "function(record, rowIndex)",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "onFilter",
+          "type": "function(value, record) => boolean",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "onHeaderCell",
+          "type": "function(column)",
+          "default": "-",
+          "since": ""
+        }
+      ],
+      "Table.ColumnGroup": [
+        {
+          "name": "title",
+          "type": "ReactNode",
+          "default": "-",
+          "since": ""
+        }
+      ],
+      "Table.pagination": [
+        {
+          "name": "placement",
+          "type": "Array",
+          "default": "[`bottomEnd`]",
+          "since": ""
+        },
+        {
+          "name": "position",
+          "type": "Array",
+          "default": "[`bottomRight`]",
+          "since": ""
+        }
+      ],
+      "Table.expandable": [
+        {
+          "name": "childrenColumnName",
+          "type": "string",
+          "default": "children",
+          "since": ""
+        },
+        {
+          "name": "columnTitle",
+          "type": "ReactNode",
+          "default": "-",
+          "since": "4.23.0"
+        },
+        {
+          "name": "columnWidth",
+          "type": "string | number",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "defaultExpandAllRows",
+          "type": "boolean",
+          "default": "false",
+          "since": ""
+        },
+        {
+          "name": "defaultExpandedRowKeys",
+          "type": "string[]",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "expandedRowClassName",
+          "type": "string | (record, index, indent) => string",
+          "default": "-",
+          "since": "string: 5.22.0"
+        },
+        {
+          "name": "expandedRowKeys",
+          "type": "string[]",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "expandedRowRender",
+          "type": "function(record, index, indent, expanded): ReactNode",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "expandIcon",
+          "type": "function(props): ReactNode",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "expandRowByClick",
+          "type": "boolean",
+          "default": "false",
+          "since": ""
+        },
+        {
+          "name": "fixed",
+          "type": "boolean | string",
+          "default": "false",
+          "since": "4.16.0"
+        },
+        {
+          "name": "indentSize",
+          "type": "number",
+          "default": "15",
+          "since": ""
+        },
+        {
+          "name": "rowExpandable",
+          "type": "(record) => boolean",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "showExpandColumn",
+          "type": "boolean",
+          "default": "true",
+          "since": "4.18.0"
+        },
+        {
+          "name": "onExpand",
+          "type": "function(expanded, record)",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "onExpandedRowsChange",
+          "type": "function(expandedRows)",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "expandedRowOffset",
+          "type": "number",
+          "default": "-",
+          "since": "5.26.0"
+        }
+      ],
+      "Table.rowSelection": [
+        {
+          "name": "align",
+          "type": "`left` | `right` | `center`",
+          "default": "`left`",
+          "since": "5.25.0"
+        },
+        {
+          "name": "checkStrictly",
+          "type": "boolean",
+          "default": "true",
+          "since": "4.4.0"
+        },
+        {
+          "name": "columnTitle",
+          "type": "ReactNode | (originalNode: ReactNode) => ReactNode",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "columnWidth",
+          "type": "string | number",
+          "default": "`32px`",
+          "since": ""
+        },
+        {
+          "name": "fixed",
+          "type": "boolean",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "getCheckboxProps",
+          "type": "function(record)",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "getTitleCheckboxProps",
+          "type": "function()",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "hideSelectAll",
+          "type": "boolean",
+          "default": "false",
+          "since": "4.3.0"
+        },
+        {
+          "name": "preserveSelectedRowKeys",
+          "type": "boolean",
+          "default": "-",
+          "since": "4.4.0"
+        },
+        {
+          "name": "renderCell",
+          "type": "(checked: boolean, record: T, index: number, originNode: ReactNode): ReactNode",
+          "default": "-",
+          "since": "4.1.0"
+        },
+        {
+          "name": "selectedRowKeys",
+          "type": "string[] | number[]",
+          "default": "[]",
+          "since": ""
+        },
+        {
+          "name": "defaultSelectedRowKeys",
+          "type": "string[] | number[]",
+          "default": "[]",
+          "since": ""
+        },
+        {
+          "name": "selections",
+          "type": "object[] | boolean",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "type",
+          "type": "`checkbox` | `radio`",
+          "default": "`checkbox`",
+          "since": ""
+        },
+        {
+          "name": "onCell",
+          "type": "function(record, rowIndex)",
+          "default": "-",
+          "since": "5.5.0"
+        },
+        {
+          "name": "onChange",
+          "type": "function(selectedRowKeys, selectedRows, info: { type })",
+          "default": "-",
+          "since": "`info.type`: 4.21.0"
+        },
+        {
+          "name": "onSelect",
+          "type": "function(record, selected, selectedRows, nativeEvent)",
+          "default": "-",
+          "since": ""
+        }
+      ],
+      "Table.scroll": [
+        {
+          "name": "scrollToFirstRowOnChange",
+          "type": "boolean",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "x",
+          "type": "string | number | true",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "y",
+          "type": "string | number",
+          "default": "-",
+          "since": ""
+        }
+      ],
+      "Table.selection": [
+        {
+          "name": "key",
+          "type": "string",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "text",
+          "type": "ReactNode",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "onSelect",
+          "type": "function(changeableRowKeys)",
+          "default": "-",
+          "since": ""
+        }
+      ]
+    },
+    "commonProps": [
+      {
+        "name": "className",
+        "type": "string",
+        "default": "-",
+        "description": "Additional CSS class",
+        "descriptionZh": "额外的 CSS 类名"
+      },
+      {
+        "name": "style",
+        "type": "CSSProperties",
+        "default": "-",
+        "description": "Additional style",
+        "descriptionZh": "额外的样式"
+      },
+      {
+        "name": "rootClassName",
+        "type": "string",
+        "default": "-",
+        "description": "ClassName on the root element",
+        "descriptionZh": "根元素的类名"
+      }
+    ],
+    "htmlElement": "div"
+  },
+  "Menu": {
+    "name": "Menu",
+    "nameZh": "导航菜单",
+    "description": "A versatile menu for navigation.",
+    "props": [
+      {
+        "name": "classNames",
+        "type": "Record<[SemanticDOM](#semantic-dom), string> | (info: { props }) => Record<[SemanticDOM](#semantic-dom), string>",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "defaultOpenKeys",
+        "type": "string[]",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "defaultSelectedKeys",
+        "type": "string[]",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "expandIcon",
+        "type": "ReactNode | `(props: SubMenuProps & { isSubMenu: boolean }) => ReactNode`",
+        "default": "-",
+        "since": "4.9.0"
+      },
+      {
+        "name": "forceSubMenuRender",
+        "type": "boolean",
+        "default": "false",
+        "since": ""
+      },
+      {
+        "name": "inlineCollapsed",
+        "type": "boolean",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "inlineIndent",
+        "type": "number",
+        "default": "24",
+        "since": ""
+      },
+      {
+        "name": "items",
+        "type": "[ItemType[]](#itemtype)",
+        "default": "-",
+        "since": "4.20.0"
+      },
+      {
+        "name": "mode",
+        "type": "`vertical` | `horizontal` | `inline`",
+        "default": "`vertical`",
+        "since": ""
+      },
+      {
+        "name": "multiple",
+        "type": "boolean",
+        "default": "false",
+        "since": ""
+      },
+      {
+        "name": "openKeys",
+        "type": "string[]",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "overflowedIndicator",
+        "type": "ReactNode",
+        "default": "`<EllipsisOutlined />`",
+        "since": ""
+      },
+      {
+        "name": "selectable",
+        "type": "boolean",
+        "default": "true",
+        "since": ""
+      },
+      {
+        "name": "selectedKeys",
+        "type": "string[]",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "styles",
+        "type": "Record<[SemanticDOM](#semantic-dom), CSSProperties> | (info: { props }) => Record<[SemanticDOM](#semantic-dom), CSSProperties>",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "subMenuCloseDelay",
+        "type": "number",
+        "default": "0.1",
+        "since": ""
+      },
+      {
+        "name": "subMenuOpenDelay",
+        "type": "number",
+        "default": "0",
+        "since": ""
+      },
+      {
+        "name": "tooltip",
+        "type": "false | TooltipProps",
+        "default": "-",
+        "since": "6.3.0"
+      },
+      {
+        "name": "theme",
+        "type": "`light` | `dark`",
+        "default": "`light`",
+        "since": ""
+      },
+      {
+        "name": "triggerSubMenuAction",
+        "type": "`hover` | `click`",
+        "default": "`hover`",
+        "since": ""
+      },
+      {
+        "name": "onClick",
+        "type": "function({ key, keyPath, domEvent })",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "onDeselect",
+        "type": "function({ key, keyPath, selectedKeys, domEvent })",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "onOpenChange",
+        "type": "function(openKeys: string[])",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "onSelect",
+        "type": "function({ key, keyPath, selectedKeys, domEvent })",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "popupRender",
+        "type": "(node: ReactElement, props: { item: SubMenuProps; keys: string[] }) => ReactElement",
+        "default": "-",
+        "since": ""
+      }
+    ],
+    "subComponentProps": {
+      "Menu.ItemType": [
+        {
+          "name": "danger",
+          "type": "boolean",
+          "default": "false",
+          "since": ""
+        },
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "default": "false",
+          "since": ""
+        },
+        {
+          "name": "extra",
+          "type": "ReactNode",
+          "default": "-",
+          "since": "5.21.0"
+        },
+        {
+          "name": "icon",
+          "type": "ReactNode",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "key",
+          "type": "string",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "label",
+          "type": "ReactNode",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "children",
+          "type": "[ItemType[]](#itemtype)",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "default": "false",
+          "since": ""
+        },
+        {
+          "name": "icon",
+          "type": "ReactNode",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "key",
+          "type": "string",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "label",
+          "type": "ReactNode",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "popupClassName",
+          "type": "string",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "popupOffset",
+          "type": "[number, number]",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "theme",
+          "type": "`light` | `dark`",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "onTitleClick",
+          "type": "function({ key, domEvent })",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "popupRender",
+          "type": "(node: ReactElement, props: { item: SubMenuProps; keys: string[] }) => ReactElement",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "children",
+          "type": "[MenuItemType[]](#menuitemtype)",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "label",
+          "type": "ReactNode",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "dashed",
+          "type": "boolean",
+          "default": "false",
+          "since": ""
+        }
+      ]
+    },
+    "commonProps": [
+      {
+        "name": "className",
+        "type": "string",
+        "default": "-",
+        "description": "Additional CSS class",
+        "descriptionZh": "额外的 CSS 类名"
+      },
+      {
+        "name": "style",
+        "type": "CSSProperties",
+        "default": "-",
+        "description": "Additional style",
+        "descriptionZh": "额外的样式"
+      },
+      {
+        "name": "rootClassName",
+        "type": "string",
+        "default": "-",
+        "description": "ClassName on the root element",
+        "descriptionZh": "根元素的类名"
+      }
+    ],
+    "htmlElement": "div"
+  },
+  "Dropdown": {
+    "name": "Dropdown",
+    "nameZh": "下拉菜单",
+    "description": "A dropdown list.",
+    "props": [
+      {
+        "name": "arrow",
+        "type": "boolean | { pointAtCenter: boolean }",
+        "default": "false",
+        "since": ""
+      },
+      {
+        "name": "autoAdjustOverflow",
+        "type": "boolean",
+        "default": "true",
+        "since": "5.2.0"
+      },
+      {
+        "name": "classNames",
+        "type": "Record<[SemanticDOM](#semantic-dom), string> | (info: { props }) => Record<[SemanticDOM](#semantic-dom), string>",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "disabled",
+        "type": "boolean",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "destroyPopupOnHide",
+        "type": "boolean",
+        "default": "false",
+        "since": ""
+      },
+      {
+        "name": "destroyOnHidden",
+        "type": "boolean",
+        "default": "false",
+        "since": "5.25.0"
+      },
+      {
+        "name": "dropdownRender",
+        "type": "(menus: ReactNode) => ReactNode",
+        "default": "-",
+        "since": "4.24.0"
+      },
+      {
+        "name": "popupRender",
+        "type": "(menus: ReactNode) => ReactNode",
+        "default": "-",
+        "since": "5.25.0"
+      },
+      {
+        "name": "getPopupContainer",
+        "type": "(triggerNode: HTMLElement) => HTMLElement",
+        "default": "() => document.body",
+        "since": ""
+      },
+      {
+        "name": "menu",
+        "type": "[MenuProps](/components/menu/#api)",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "overlayClassName",
+        "type": "string",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "overlayStyle",
+        "type": "CSSProperties",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "placement",
+        "type": "string",
+        "default": "`bottomLeft`",
+        "since": ""
+      },
+      {
+        "name": "styles",
+        "type": "Record<[SemanticDOM](#semantic-dom), CSSProperties> | (info: { props }) => Record<[SemanticDOM](#semantic-dom), CSSProperties>",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "trigger",
+        "type": "Array<`click`|`hover`|`contextMenu`>",
+        "default": "[`hover`]",
+        "since": ""
+      },
+      {
+        "name": "open",
+        "type": "boolean",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "onOpenChange",
+        "type": "(open: boolean, info: { source: 'trigger' | 'menu' }) => void",
+        "default": "-",
+        "since": "`info.source`: 5.11.0"
+      }
+    ],
+    "commonProps": [
+      {
+        "name": "className",
+        "type": "string",
+        "default": "-",
+        "description": "Additional CSS class",
+        "descriptionZh": "额外的 CSS 类名"
+      },
+      {
+        "name": "style",
+        "type": "CSSProperties",
+        "default": "-",
+        "description": "Additional style",
+        "descriptionZh": "额外的样式"
+      },
+      {
+        "name": "rootClassName",
+        "type": "string",
+        "default": "-",
+        "description": "ClassName on the root element",
+        "descriptionZh": "根元素的类名"
+      }
+    ],
+    "htmlElement": "div"
+  },
+  "Modal": {
+    "name": "Modal",
+    "nameZh": "对话框",
+    "description": "Display a modal dialog box, providing a title, content area, and action buttons.",
+    "props": [
+      {
+        "name": "afterClose",
+        "type": "function",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "cancelButtonProps",
+        "type": "[ButtonProps](/components/button/#api)",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "cancelText",
+        "type": "ReactNode",
+        "default": "`Cancel`",
+        "since": ""
+      },
+      {
+        "name": "centered",
+        "type": "boolean",
+        "default": "false",
+        "since": ""
+      },
+      {
+        "name": "classNames",
+        "type": "Record<[SemanticDOM](#semantic-dom), string> | (info: { props }) => Record<[SemanticDOM](#semantic-dom), string>",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "closable",
+        "type": "boolean | [ClosableType](#closabletype)",
+        "default": "true",
+        "since": "-"
+      },
+      {
+        "name": "closeIcon",
+        "type": "ReactNode",
+        "default": "<CloseOutlined />",
+        "since": ""
+      },
+      {
+        "name": "confirmLoading",
+        "type": "boolean",
+        "default": "false",
+        "since": ""
+      },
+      {
+        "name": "destroyOnClose",
+        "type": "boolean",
+        "default": "false",
+        "since": ""
+      },
+      {
+        "name": "destroyOnHidden",
+        "type": "boolean",
+        "default": "false",
+        "since": "5.25.0"
+      },
+      {
+        "name": "focusTriggerAfterClose",
+        "type": "boolean",
+        "default": "true",
+        "since": "4.9.0"
+      },
+      {
+        "name": "footer",
+        "type": "ReactNode | (originNode: ReactNode, extra: { OkBtn: React.FC, CancelBtn: React.FC }) => ReactNode",
+        "default": "(OK and Cancel buttons)",
+        "since": "renderFunction: 5.9.0"
+      },
+      {
+        "name": "forceRender",
+        "type": "boolean",
+        "default": "false",
+        "since": ""
+      },
+      {
+        "name": "focusable",
+        "type": "`{ trap?: boolean, focusTriggerAfterClose?: boolean }`",
+        "default": "-",
+        "since": "6.2.0"
+      },
+      {
+        "name": "getContainer",
+        "type": "HTMLElement | () => HTMLElement | Selectors | false",
+        "default": "document.body",
+        "since": ""
+      },
+      {
+        "name": "keyboard",
+        "type": "boolean",
+        "default": "true",
+        "since": ""
+      },
+      {
+        "name": "mask",
+        "type": "boolean | `{enabled?: boolean, blur?: boolean, closable?: boolean}`",
+        "default": "true",
+        "since": "mask.closable: 6.3.0"
+      },
+      {
+        "name": "maskClosable",
+        "type": "boolean",
+        "default": "true",
+        "since": "-"
+      },
+      {
+        "name": "modalRender",
+        "type": "(node: ReactNode) => ReactNode",
+        "default": "-",
+        "since": "4.7.0"
+      },
+      {
+        "name": "okButtonProps",
+        "type": "[ButtonProps](/components/button/#api)",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "okText",
+        "type": "ReactNode",
+        "default": "`OK`",
+        "since": ""
+      },
+      {
+        "name": "okType",
+        "type": "string",
+        "default": "`primary`",
+        "since": ""
+      },
+      {
+        "name": "style",
+        "type": "CSSProperties",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "styles",
+        "type": "Record<[SemanticDOM](#semantic-dom), CSSProperties> | (info: { props })=> Record<[SemanticDOM](#semantic-dom), CSSProperties>",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "loading",
+        "type": "boolean",
+        "default": "-",
+        "since": "5.18.0"
+      },
+      {
+        "name": "title",
+        "type": "ReactNode",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "open",
+        "type": "boolean",
+        "default": "false",
+        "since": ""
+      },
+      {
+        "name": "width",
+        "type": "string | number | [Breakpoint](/components/grid#col)",
+        "default": "520",
+        "since": "Breakpoint: 5.23.0"
+      },
+      {
+        "name": "wrapClassName",
+        "type": "string",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "zIndex",
+        "type": "number",
+        "default": "1000",
+        "since": ""
+      },
+      {
+        "name": "onCancel",
+        "type": "function(e)",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "onOk",
+        "type": "function(e)",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "afterOpenChange",
+        "type": "(open: boolean) => void",
+        "default": "-",
+        "since": "5.4.0"
+      }
+    ],
+    "subComponentProps": {
+      "Modal.method()": [
+        {
+          "name": "afterClose",
+          "type": "function",
+          "default": "-",
+          "since": "4.9.0"
+        },
+        {
+          "name": "autoFocusButton",
+          "type": "null | `ok` | `cancel`",
+          "default": "`ok`",
+          "since": ""
+        },
+        {
+          "name": "cancelButtonProps",
+          "type": "[ButtonProps](/components/button/#api)",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "cancelText",
+          "type": "string",
+          "default": "`Cancel`",
+          "since": ""
+        },
+        {
+          "name": "centered",
+          "type": "boolean",
+          "default": "false",
+          "since": ""
+        },
+        {
+          "name": "className",
+          "type": "string",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "closable",
+          "type": "boolean | [ClosableType](#closabletype)",
+          "default": "false",
+          "since": "-"
+        },
+        {
+          "name": "closeIcon",
+          "type": "ReactNode",
+          "default": "undefined",
+          "since": "4.9.0"
+        },
+        {
+          "name": "content",
+          "type": "ReactNode",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "focusable.autoFocusButton",
+          "type": "null | `ok` | `cancel`",
+          "default": "`ok`",
+          "since": "6.2.0"
+        },
+        {
+          "name": "footer",
+          "type": "ReactNode | (originNode: ReactNode, extra: { OkBtn: React.FC, CancelBtn: React.FC }) => ReactNode",
+          "default": "-",
+          "since": "renderFunction: 5.9.0"
+        },
+        {
+          "name": "getContainer",
+          "type": "HTMLElement | () => HTMLElement | Selectors | false",
+          "default": "document.body",
+          "since": ""
+        },
+        {
+          "name": "icon",
+          "type": "ReactNode",
+          "default": "<ExclamationCircleFilled />",
+          "since": ""
+        },
+        {
+          "name": "keyboard",
+          "type": "boolean",
+          "default": "true",
+          "since": ""
+        },
+        {
+          "name": "mask",
+          "type": "boolean | `{enabled?: boolean, blur?: boolean, closable?: boolean}`",
+          "default": "true",
+          "since": ""
+        },
+        {
+          "name": "maskClosable",
+          "type": "boolean",
+          "default": "false",
+          "since": "-"
+        },
+        {
+          "name": "okButtonProps",
+          "type": "[ButtonProps](/components/button/#api)",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "okText",
+          "type": "string",
+          "default": "`OK`",
+          "since": ""
+        },
+        {
+          "name": "okType",
+          "type": "string",
+          "default": "`primary`",
+          "since": ""
+        },
+        {
+          "name": "style",
+          "type": "CSSProperties",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "title",
+          "type": "ReactNode",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "width",
+          "type": "string | number",
+          "default": "416",
+          "since": ""
+        },
+        {
+          "name": "wrapClassName",
+          "type": "string",
+          "default": "-",
+          "since": "4.18.0"
+        },
+        {
+          "name": "zIndex",
+          "type": "number",
+          "default": "1000",
+          "since": ""
+        },
+        {
+          "name": "onCancel",
+          "type": "function(close)",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "onOk",
+          "type": "function(close)",
+          "default": "-",
+          "since": ""
+        }
+      ],
+      "Modal.ClosableType": [
+        {
+          "name": "afterClose",
+          "type": "function",
+          "default": "-",
+          "since": "-"
+        },
+        {
+          "name": "closeIcon",
+          "type": "ReactNode",
+          "default": "undefined",
+          "since": "-"
+        },
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "default": "false",
+          "since": "-"
+        },
+        {
+          "name": "onClose",
+          "type": "Function",
+          "default": "undefined",
+          "since": "-"
+        }
+      ]
+    },
+    "commonProps": [
+      {
+        "name": "className",
+        "type": "string",
+        "default": "-",
+        "description": "Additional CSS class",
+        "descriptionZh": "额外的 CSS 类名"
+      },
+      {
+        "name": "style",
+        "type": "CSSProperties",
+        "default": "-",
+        "description": "Additional style",
+        "descriptionZh": "额外的样式"
+      },
+      {
+        "name": "rootClassName",
+        "type": "string",
+        "default": "-",
+        "description": "ClassName on the root element",
+        "descriptionZh": "根元素的类名"
+      }
+    ],
+    "htmlElement": "div"
+  },
+  "Form": {
+    "name": "Form",
+    "nameZh": "表单",
+    "description": "High-performance form component with data domain management. Includes data entry, validation, and corresponding styles.",
+    "props": [
+      {
+        "name": "classNames",
+        "type": "Record<[SemanticDOM](#semantic-dom), string> | (info: { props })=> Record<[SemanticDOM](#semantic-dom), string>",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "colon",
+        "type": "boolean",
+        "default": "true",
+        "since": ""
+      },
+      {
+        "name": "disabled",
+        "type": "boolean",
+        "default": "false",
+        "since": "4.21.0"
+      },
+      {
+        "name": "component",
+        "type": "ComponentType | false",
+        "default": "form",
+        "since": ""
+      },
+      {
+        "name": "fields",
+        "type": "[FieldData](#fielddata)[]",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "form",
+        "type": "[FormInstance](#forminstance)",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "feedbackIcons",
+        "type": "[FeedbackIcons](#feedbackicons)",
+        "default": "-",
+        "since": "5.9.0"
+      },
+      {
+        "name": "initialValues",
+        "type": "object",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "labelAlign",
+        "type": "`left` | `right`",
+        "default": "`right`",
+        "since": ""
+      },
+      {
+        "name": "labelWrap",
+        "type": "boolean",
+        "default": "false",
+        "since": "4.18.0"
+      },
+      {
+        "name": "labelCol",
+        "type": "[object](/components/grid/#col)",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "layout",
+        "type": "`horizontal` | `vertical` | `inline`",
+        "default": "`horizontal`",
+        "since": ""
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "preserve",
+        "type": "boolean",
+        "default": "true",
+        "since": "4.4.0"
+      },
+      {
+        "name": "requiredMark",
+        "type": "boolean | `optional` | ((label: ReactNode, info: { required: boolean }) => ReactNode)",
+        "default": "true",
+        "since": "`renderProps`: 5.9.0"
+      },
+      {
+        "name": "scrollToFirstError",
+        "type": "boolean | [Options](https://github.com/stipsan/scroll-into-view-if-needed/tree/ece40bd9143f48caf4b99503425ecb16b0ad8249#options) | { focus: boolean }",
+        "default": "false",
+        "since": "focus: 5.24.0"
+      },
+      {
+        "name": "size",
+        "type": "`small` | `medium` | `large`",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "styles",
+        "type": "Record<[SemanticDOM](#semantic-dom), CSSProperties> | (info: { props })=> Record<[SemanticDOM](#semantic-dom), CSSProperties>",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "tooltip",
+        "type": "[TooltipProps](/components/tooltip#api) & { icon?: ReactNode }",
+        "default": "-",
+        "since": "6.3.0"
+      },
+      {
+        "name": "validateMessages",
+        "type": "[ValidateMessages](https://github.com/ant-design/ant-design/blob/6234509d18bac1ac60fbb3f92a5b2c6a6361295a/components/locale/en_US.ts#L88-L134)",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "validateTrigger",
+        "type": "string | string[]",
+        "default": "`onChange`",
+        "since": "4.3.0"
+      },
+      {
+        "name": "variant",
+        "type": "`outlined` | `borderless` | `filled` | `underlined`",
+        "default": "`outlined`",
+        "since": "5.13.0 | `underlined`: 5.24.0"
+      },
+      {
+        "name": "wrapperCol",
+        "type": "[object](/components/grid/#col)",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "onFieldsChange",
+        "type": "function(changedFields, allFields)",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "onFinish",
+        "type": "function(values)",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "onFinishFailed",
+        "type": "function({ values, errorFields, outOfDate })",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "onValuesChange",
+        "type": "function(changedValues, allValues)",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "clearOnDestroy",
+        "type": "boolean",
+        "default": "false",
+        "since": "5.18.0"
+      }
+    ],
+    "subComponentProps": {
+      "Form.Item": [
+        {
+          "name": "colon",
+          "type": "boolean",
+          "default": "true",
+          "since": ""
+        },
+        {
+          "name": "dependencies",
+          "type": "[NamePath](#namepath)[]",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "extra",
+          "type": "ReactNode",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "getValueFromEvent",
+          "type": "(..args: any[]) => any",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "getValueProps",
+          "type": "(value: any) => Record<string, any>",
+          "default": "-",
+          "since": "4.2.0"
+        },
+        {
+          "name": "hasFeedback",
+          "type": "boolean | { icons: [FeedbackIcons](#feedbackicons) }",
+          "default": "false",
+          "since": "icons: 5.9.0"
+        },
+        {
+          "name": "help",
+          "type": "ReactNode",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "hidden",
+          "type": "boolean",
+          "default": "false",
+          "since": "4.4.0"
+        },
+        {
+          "name": "htmlFor",
+          "type": "string",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "initialValue",
+          "type": "string",
+          "default": "-",
+          "since": "4.2.0"
+        },
+        {
+          "name": "label",
+          "type": "ReactNode",
+          "default": "-",
+          "since": "null: 5.22.0"
+        },
+        {
+          "name": "labelAlign",
+          "type": "`left` | `right`",
+          "default": "`right`",
+          "since": ""
+        },
+        {
+          "name": "labelCol",
+          "type": "[object](/components/grid/#col)",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "messageVariables",
+          "type": "Record<string, string>",
+          "default": "-",
+          "since": "4.7.0"
+        },
+        {
+          "name": "name",
+          "type": "[NamePath](#namepath)",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "normalize",
+          "type": "(value, prevValue, prevValues) => any",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "noStyle",
+          "type": "boolean",
+          "default": "false",
+          "since": ""
+        },
+        {
+          "name": "preserve",
+          "type": "boolean",
+          "default": "true",
+          "since": "4.4.0"
+        },
+        {
+          "name": "required",
+          "type": "boolean",
+          "default": "false",
+          "since": ""
+        },
+        {
+          "name": "rules",
+          "type": "[Rule](#rule)[]",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "shouldUpdate",
+          "type": "boolean | (prevValue, curValue) => boolean",
+          "default": "false",
+          "since": ""
+        },
+        {
+          "name": "tooltip",
+          "type": "ReactNode | ([TooltipProps](/components/tooltip#api) & { icon?: ReactNode })",
+          "default": "-",
+          "since": "4.7.0"
+        },
+        {
+          "name": "trigger",
+          "type": "string",
+          "default": "`onChange`",
+          "since": ""
+        },
+        {
+          "name": "validateDebounce",
+          "type": "number",
+          "default": "-",
+          "since": "5.9.0"
+        },
+        {
+          "name": "validateFirst",
+          "type": "boolean | `parallel`",
+          "default": "false",
+          "since": "`parallel`: 4.5.0"
+        },
+        {
+          "name": "validateStatus",
+          "type": "string",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "validateTrigger",
+          "type": "string | string[]",
+          "default": "`onChange`",
+          "since": ""
+        },
+        {
+          "name": "valuePropName",
+          "type": "string",
+          "default": "`value`",
+          "since": ""
+        },
+        {
+          "name": "wrapperCol",
+          "type": "[object](/components/grid/#col)",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "layout",
+          "type": "`horizontal` | `vertical`",
+          "default": "-",
+          "since": "5.18.0"
+        }
+      ],
+      "Form.List": [
+        {
+          "name": "children",
+          "type": "(fields: Field[], operation: { add, remove, move }, meta: { errors }) => React.ReactNode",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "initialValue",
+          "type": "any[]",
+          "default": "-",
+          "since": "4.9.0"
+        },
+        {
+          "name": "name",
+          "type": "[NamePath](#namepath)",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "rules",
+          "type": "{ validator, message }[]",
+          "default": "-",
+          "since": "4.7.0"
+        }
+      ],
+      "Form.operation": [
+        {
+          "name": "add",
+          "type": "(defaultValue?: any, insertIndex?: number) => void",
+          "default": "insertIndex",
+          "since": "4.6.0"
+        },
+        {
+          "name": "move",
+          "type": "(from: number, to: number) => void",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "remove",
+          "type": "(index: number | number[]) => void",
+          "default": "number[]",
+          "since": "4.5.0"
+        }
+      ],
+      "Form.ErrorList": [
+        {
+          "name": "errors",
+          "type": "ReactNode[]",
+          "default": "-",
+          "since": ""
+        }
+      ],
+      "Form.Provider": [
+        {
+          "name": "onFormChange",
+          "type": "function(formName: string, info: { changedFields, forms })",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "onFormFinish",
+          "type": "function(formName: string, info: { values, forms })",
+          "default": "-",
+          "since": ""
+        }
+      ],
+      "Form.FormInstance": [
+        {
+          "name": "getFieldError",
+          "type": "(name: [NamePath](#namepath)) => string[]",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "getFieldInstance",
+          "type": "(name: [NamePath](#namepath)) => any",
+          "default": "-",
+          "since": "4.4.0"
+        },
+        {
+          "name": "getFieldsError",
+          "type": "(nameList?: [NamePath](#namepath)[]) => FieldError[]",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "getFieldsValue",
+          "type": "[GetFieldsValue](#getfieldsvalue)",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "getFieldValue",
+          "type": "(name: [NamePath](#namepath)) => any",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "isFieldsTouched",
+          "type": "(nameList?: [NamePath](#namepath)[], allTouched?: boolean) => boolean",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "isFieldTouched",
+          "type": "(name: [NamePath](#namepath)) => boolean",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "isFieldValidating",
+          "type": "(name: [NamePath](#namepath)) => boolean",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "resetFields",
+          "type": "(fields?: [NamePath](#namepath)[]) => void",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "scrollToField",
+          "type": "(name: [NamePath](#namepath), options: [ScrollOptions](https://github.com/stipsan/scroll-into-view-if-needed/tree/ece40bd9143f48caf4b99503425ecb16b0ad8249#options) | { focus: boolean }) => void",
+          "default": "-",
+          "since": "focus: 5.24.0"
+        },
+        {
+          "name": "setFields",
+          "type": "(fields: [FieldData](#fielddata)[]) => void",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "setFieldValue",
+          "type": "(name: [NamePath](#namepath), value: any) => void",
+          "default": "-",
+          "since": "4.22.0"
+        },
+        {
+          "name": "setFieldsValue",
+          "type": "(values) => void",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "submit",
+          "type": "() => void",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "validateFields",
+          "type": "(nameList?: [NamePath](#namepath)[], config?: [ValidateConfig](#validatefields)) => Promise",
+          "default": "-",
+          "since": ""
+        }
+      ],
+      "Form.FieldData": [
+        {
+          "name": "errors",
+          "type": "string[]",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "warnings",
+          "type": "string[]",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "name",
+          "type": "[NamePath](#namepath)[]",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "touched",
+          "type": "boolean",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "validating",
+          "type": "boolean",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "value",
+          "type": "any",
+          "default": "-",
+          "since": ""
+        }
+      ],
+      "Form.Rule": [
+        {
+          "name": "defaultField",
+          "type": "[rule](#rule)",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "enum",
+          "type": "any[]",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "fields",
+          "type": "Record<string, [rule](#rule)>",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "len",
+          "type": "number",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "max",
+          "type": "number",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "message",
+          "type": "string | ReactElement",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "min",
+          "type": "number",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "pattern",
+          "type": "RegExp",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "required",
+          "type": "boolean",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "transform",
+          "type": "(value) => any",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "type",
+          "type": "string",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "validateTrigger",
+          "type": "string | string[]",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "validator",
+          "type": "([rule](#rule), value) => Promise",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "warningOnly",
+          "type": "boolean",
+          "default": "-",
+          "since": "4.17.0"
+        },
+        {
+          "name": "whitespace",
+          "type": "boolean",
+          "default": "-",
+          "since": ""
+        }
+      ],
+      "Form.WatchOptions": [
+        {
+          "name": "form",
+          "type": "FormInstance",
+          "default": "Current form in context",
+          "since": "5.4.0"
+        },
+        {
+          "name": "preserve",
+          "type": "boolean",
+          "default": "false",
+          "since": "5.4.0"
+        }
+      ]
+    },
+    "commonProps": [
+      {
+        "name": "className",
+        "type": "string",
+        "default": "-",
+        "description": "Additional CSS class",
+        "descriptionZh": "额外的 CSS 类名"
+      },
+      {
+        "name": "style",
+        "type": "CSSProperties",
+        "default": "-",
+        "description": "Additional style",
+        "descriptionZh": "额外的样式"
+      },
+      {
+        "name": "rootClassName",
+        "type": "string",
+        "default": "-",
+        "description": "ClassName on the root element",
+        "descriptionZh": "根元素的类名"
+      }
+    ],
+    "htmlElement": "div"
+  },
+  "Alert": {
+    "name": "Alert",
+    "nameZh": "警告提示",
+    "description": "Display warning messages that require attention.",
+    "props": [
+      {
+        "name": "action",
+        "type": "ReactNode",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "afterClose",
+        "type": "() => void",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "banner",
+        "type": "boolean",
+        "default": "false",
+        "since": ""
+      },
+      {
+        "name": "variant",
+        "type": "`outlined` | `filled`",
+        "default": "`outlined`",
+        "since": "6.4.0"
+      },
+      {
+        "name": "classNames",
+        "type": "Record<[SemanticDOM](#semantic-dom), string> | (info: { props }) => Record<[SemanticDOM](#semantic-dom), string>",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "closable",
+        "type": "boolean | [ClosableType](#closabletype) & React.AriaAttributes",
+        "default": "`false`",
+        "since": ""
+      },
+      {
+        "name": "closeIcon",
+        "type": "ReactNode",
+        "default": "-",
+        "since": "×"
+      },
+      {
+        "name": "description",
+        "type": "ReactNode",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "errorIcon",
+        "type": "ReactNode",
+        "default": "-",
+        "since": "×"
+      },
+      {
+        "name": "icon",
+        "type": "ReactNode",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "infoIcon",
+        "type": "ReactNode",
+        "default": "-",
+        "since": "×"
+      },
+      {
+        "name": "message",
+        "type": "ReactNode",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "onClose",
+        "type": "(e: MouseEvent) => void",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "closeText",
+        "type": "ReactNode",
+        "default": "-",
+        "since": "-"
+      },
+      {
+        "name": "showIcon",
+        "type": "boolean",
+        "default": "false, in `banner` mode default is true",
+        "since": ""
+      },
+      {
+        "name": "styles",
+        "type": "Record<[SemanticDOM](#semantic-dom), CSSProperties> | (info: { props }) => Record<[SemanticDOM](#semantic-dom), CSSProperties>",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "successIcon",
+        "type": "ReactNode",
+        "default": "-",
+        "since": "×"
+      },
+      {
+        "name": "title",
+        "type": "ReactNode",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "type",
+        "type": "string",
+        "default": "`info`, in `banner` mode default is `warning`",
+        "since": ""
+      },
+      {
+        "name": "warningIcon",
+        "type": "ReactNode",
+        "default": "-",
+        "since": "×"
+      }
+    ],
+    "subComponentProps": {
+      "Alert.ClosableType": [
+        {
+          "name": "afterClose",
+          "type": "function",
+          "default": "-",
+          "since": "-"
+        },
+        {
+          "name": "closeIcon",
+          "type": "ReactNode",
+          "default": "-",
+          "since": "-"
+        },
+        {
+          "name": "onClose",
+          "type": "(e: MouseEvent) => void",
+          "default": "-",
+          "since": "-"
+        }
+      ],
+      "Alert.ErrorBoundary": [
+        {
+          "name": "description",
+          "type": "ReactNode",
+          "default": "{{ error stack }}",
+          "since": ""
+        },
+        {
+          "name": "message",
+          "type": "ReactNode",
+          "default": "{{ error }}",
+          "since": ""
+        },
+        {
+          "name": "title",
+          "type": "ReactNode",
+          "default": "{{ error }}",
+          "since": ""
+        }
+      ]
+    },
+    "commonProps": [
+      {
+        "name": "className",
+        "type": "string",
+        "default": "-",
+        "description": "Additional CSS class",
+        "descriptionZh": "额外的 CSS 类名"
+      },
+      {
+        "name": "style",
+        "type": "CSSProperties",
+        "default": "-",
+        "description": "Additional style",
+        "descriptionZh": "额外的样式"
+      },
+      {
+        "name": "rootClassName",
+        "type": "string",
+        "default": "-",
+        "description": "ClassName on the root element",
+        "descriptionZh": "根元素的类名"
+      }
+    ],
+    "htmlElement": "div"
+  },
+  "Progress": {
+    "name": "Progress",
+    "nameZh": "进度条",
+    "description": "Display the current progress of the operation.",
+    "props": [
+      {
+        "name": "classNames",
+        "type": "Record<[SemanticDOM](#semantic-dom), string> | (info: { props })=> Record<[SemanticDOM](#semantic-dom), string>",
+        "default": "-",
+        "since": "6.0.0"
+      },
+      {
+        "name": "format",
+        "type": "function(percent, successPercent)",
+        "default": "(percent) => percent + `%`",
+        "since": "-"
+      },
+      {
+        "name": "percent",
+        "type": "number",
+        "default": "0",
+        "since": "-"
+      },
+      {
+        "name": "railColor",
+        "type": "string",
+        "default": "-",
+        "since": "-"
+      },
+      {
+        "name": "showInfo",
+        "type": "boolean",
+        "default": "true",
+        "since": "-"
+      },
+      {
+        "name": "status",
+        "type": "string",
+        "default": "-",
+        "since": "-"
+      },
+      {
+        "name": "strokeColor",
+        "type": "string",
+        "default": "-",
+        "since": "-"
+      },
+      {
+        "name": "strokeLinecap",
+        "type": "`round` | `butt` | `square`, see [stroke-linecap](https://developer.mozilla.org/docs/Web/SVG/Attribute/stroke-linecap)",
+        "default": "`round`",
+        "since": "-"
+      },
+      {
+        "name": "styles",
+        "type": "Record<[SemanticDOM](#semantic-dom), CSSProperties> | (info: { props })=> Record<[SemanticDOM](#semantic-dom), CSSProperties>",
+        "default": "-",
+        "since": "6.0.0"
+      },
+      {
+        "name": "success",
+        "type": "{ percent: number, strokeColor: string }",
+        "default": "-",
+        "since": "-"
+      },
+      {
+        "name": "trailColor",
+        "type": "string",
+        "default": "-",
+        "since": "-"
+      },
+      {
+        "name": "type",
+        "type": "string",
+        "default": "`line`",
+        "since": "-"
+      },
+      {
+        "name": "size",
+        "type": "number | [number | string, number] | { width: number, height: number } | \"small\" | \"medium\"",
+        "default": "\"medium\"",
+        "since": "5.3.0, Object: 5.18.0"
+      }
+    ],
+    "subComponentProps": {
+      "Progress.`type=\"line\"`": [
+        {
+          "name": "steps",
+          "type": "number",
+          "default": "-",
+          "since": "-"
+        },
+        {
+          "name": "rounding",
+          "type": "(step: number) => number",
+          "default": "Math.round",
+          "since": "5.24.0"
+        },
+        {
+          "name": "strokeColor",
+          "type": "string | string[] | { from: string; to: string; direction: string }",
+          "default": "-",
+          "since": "4.21.0: `string[]`"
+        },
+        {
+          "name": "percentPosition",
+          "type": "{ align: string; type: string }",
+          "default": "{ align: \\\"end\\\", type: \\\"outer\\\" }",
+          "since": "5.18.0"
+        }
+      ],
+      "Progress.`type=\"circle\"`": [
+        {
+          "name": "steps",
+          "type": "number | { count: number, gap: number }",
+          "default": "-",
+          "since": "5.16.0"
+        },
+        {
+          "name": "strokeColor",
+          "type": "string | { number%: string }",
+          "default": "-",
+          "since": "-"
+        },
+        {
+          "name": "strokeWidth",
+          "type": "number",
+          "default": "6",
+          "since": "-"
+        }
+      ],
+      "Progress.`type=\"dashboard\"`": [
+        {
+          "name": "steps",
+          "type": "number | { count: number, gap: number }",
+          "default": "-",
+          "since": "5.16.0"
+        },
+        {
+          "name": "gapDegree",
+          "type": "number",
+          "default": "75",
+          "since": "-"
+        },
+        {
+          "name": "gapPlacement",
+          "type": "string",
+          "default": "`bottom`",
+          "since": "-"
+        },
+        {
+          "name": "gapPosition",
+          "type": "string",
+          "default": "`bottom`",
+          "since": "-"
+        },
+        {
+          "name": "strokeWidth",
+          "type": "number",
+          "default": "6",
+          "since": "-"
+        }
+      ]
+    },
+    "commonProps": [
+      {
+        "name": "className",
+        "type": "string",
+        "default": "-",
+        "description": "Additional CSS class",
+        "descriptionZh": "额外的 CSS 类名"
+      },
+      {
+        "name": "style",
+        "type": "CSSProperties",
+        "default": "-",
+        "description": "Additional style",
+        "descriptionZh": "额外的样式"
+      },
+      {
+        "name": "rootClassName",
+        "type": "string",
+        "default": "-",
+        "description": "ClassName on the root element",
+        "descriptionZh": "根元素的类名"
+      }
+    ],
+    "htmlElement": "div"
+  },
+  "Tag": {
+    "name": "Tag",
+    "nameZh": "标签",
+    "description": "Used for marking and categorization.",
+    "props": [
+      {
+        "name": "classNames",
+        "type": "Record<[SemanticDOM](#semantic-dom), string> | (info: { props })=> Record<[SemanticDOM](#semantic-dom), string>",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "closeIcon",
+        "type": "ReactNode",
+        "default": "false",
+        "since": "4.4.0"
+      },
+      {
+        "name": "color",
+        "type": "string",
+        "default": "`default` when `variant=\"solid\"`",
+        "since": "`solid` default color: 6.4.0"
+      },
+      {
+        "name": "disabled",
+        "type": "boolean",
+        "default": "false",
+        "since": "6.0.0"
+      },
+      {
+        "name": "href",
+        "type": "string",
+        "default": "-",
+        "since": "6.0.0"
+      },
+      {
+        "name": "icon",
+        "type": "ReactNode",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "onClose",
+        "type": "(e: React.MouseEvent<HTMLElement, MouseEvent>) => void",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "styles",
+        "type": "Record<[SemanticDOM](#semantic-dom), CSSProperties> | (info: { props })=> Record<[SemanticDOM](#semantic-dom), CSSProperties>",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "target",
+        "type": "string",
+        "default": "-",
+        "since": "6.0.0"
+      },
+      {
+        "name": "variant",
+        "type": "`'filled' | 'solid' | 'outlined'`",
+        "default": "`'filled'`",
+        "since": "6.0.0"
+      },
+      {
+        "name": "bordered",
+        "type": "boolean",
+        "default": "true",
+        "since": "-"
+      }
+    ],
+    "subComponentProps": {
+      "Tag.CheckableTag": [
+        {
+          "name": "checked",
+          "type": "boolean",
+          "default": "false",
+          "since": ""
+        },
+        {
+          "name": "icon",
+          "type": "ReactNode",
+          "default": "-",
+          "since": "5.27.0"
+        },
+        {
+          "name": "onChange",
+          "type": "(checked) => void",
+          "default": "-",
+          "since": ""
+        }
+      ],
+      "Tag.CheckableTagGroup": [
+        {
+          "name": "classNames",
+          "type": "Record<[SemanticDOM](#semantic-group), string> | (info: { props }) => Record<[SemanticDOM](#semantic-group), string>",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "defaultValue",
+          "type": "`string | number | Array<string | number> | null`",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "disabled",
+          "type": "`boolean`",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "multiple",
+          "type": "`boolean`",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "options",
+          "type": "`Array<{ className?: string; label: ReactNode; style?: CSSProperties; value: string | number } | string | number>`",
+          "default": "-",
+          "since": "`className` and `style`: 6.4.0"
+        },
+        {
+          "name": "styles",
+          "type": "Record<[SemanticDOM](#semantic-group), CSSProperties> | (info: { props }) => Record<[SemanticDOM](#semantic-group), CSSProperties>",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "value",
+          "type": "`string | number | Array<string | number> | null`",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "onChange",
+          "type": "`(value: string | number | Array<string | number> | null) => void`",
+          "default": "-",
+          "since": ""
+        }
+      ]
+    },
+    "commonProps": [
+      {
+        "name": "className",
+        "type": "string",
+        "default": "-",
+        "description": "Additional CSS class",
+        "descriptionZh": "额外的 CSS 类名"
+      },
+      {
+        "name": "style",
+        "type": "CSSProperties",
+        "default": "-",
+        "description": "Additional style",
+        "descriptionZh": "额外的样式"
+      },
+      {
+        "name": "rootClassName",
+        "type": "string",
+        "default": "-",
+        "description": "ClassName on the root element",
+        "descriptionZh": "根元素的类名"
+      }
+    ],
+    "htmlElement": "span"
+  },
+  "Tooltip": {
+    "name": "Tooltip",
+    "nameZh": "文字提示",
+    "description": "Simple text popup box.",
+    "props": [
+      {
+        "name": "title",
+        "type": "ReactNode | () => ReactNode",
+        "default": "-",
+        "since": "-"
+      },
+      {
+        "name": "color",
+        "type": "string",
+        "default": "-",
+        "since": "5.27.0"
+      },
+      {
+        "name": "classNames",
+        "type": "Record<[SemanticDOM](#semantic-dom), string> | (info: { props }) => Record<[SemanticDOM](#semantic-dom), string>",
+        "default": "-",
+        "since": "5.23.0"
+      },
+      {
+        "name": "styles",
+        "type": "Record<[SemanticDOM](#semantic-dom), CSSProperties> | (info: { props }) => Record<[SemanticDOM](#semantic-dom), CSSProperties>",
+        "default": "-",
+        "since": "5.23.0"
+      }
+    ],
+    "commonProps": [
+      {
+        "name": "className",
+        "type": "string",
+        "default": "-",
+        "description": "Additional CSS class",
+        "descriptionZh": "额外的 CSS 类名"
+      },
+      {
+        "name": "style",
+        "type": "CSSProperties",
+        "default": "-",
+        "description": "Additional style",
+        "descriptionZh": "额外的样式"
+      },
+      {
+        "name": "rootClassName",
+        "type": "string",
+        "default": "-",
+        "description": "ClassName on the root element",
+        "descriptionZh": "根元素的类名"
+      }
+    ],
+    "htmlElement": "div"
+  },
+  "ConfigProvider": {
+    "name": "ConfigProvider",
+    "nameZh": "全局化配置",
+    "description": "Provide a uniform configuration support for components.",
+    "props": [
+      {
+        "name": "componentDisabled",
+        "type": "boolean",
+        "default": "-",
+        "since": "4.21.0"
+      },
+      {
+        "name": "componentSize",
+        "type": "`small` | `medium` | `large`",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "csp",
+        "type": "{ nonce: string }",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "direction",
+        "type": "`ltr` | `rtl`",
+        "default": "`ltr`",
+        "since": ""
+      },
+      {
+        "name": "getPopupContainer",
+        "type": "`(trigger?: HTMLElement) => HTMLElement | ShadowRoot`",
+        "default": "() => document.body",
+        "since": ""
+      },
+      {
+        "name": "getTargetContainer",
+        "type": "`() => HTMLElement | Window | ShadowRoot`",
+        "default": "() => window",
+        "since": "4.2.0"
+      },
+      {
+        "name": "iconPrefixCls",
+        "type": "string",
+        "default": "`anticon`",
+        "since": "4.11.0"
+      },
+      {
+        "name": "locale",
+        "type": "object",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "popupMatchSelectWidth",
+        "type": "boolean | number",
+        "default": "-",
+        "since": "5.5.0"
+      },
+      {
+        "name": "popupOverflow",
+        "type": "'viewport' | 'scroll' <InlinePopover previewURL=\"https://user-images.githubusercontent.com/5378891/230344474-5b9f7e09-0a5d-49e8-bae8-7d2abed6c837.png\"></InlinePopover>",
+        "default": "'viewport'",
+        "since": "5.5.0"
+      },
+      {
+        "name": "prefixCls",
+        "type": "string",
+        "default": "`ant`",
+        "since": ""
+      },
+      {
+        "name": "renderEmpty",
+        "type": "function(componentName: string): ReactNode",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "theme",
+        "type": "[Theme](/docs/react/customize-theme#theme)",
+        "default": "-",
+        "since": "5.0.0"
+      },
+      {
+        "name": "variant",
+        "type": "`outlined` | `filled` | `borderless`",
+        "default": "-",
+        "since": "5.19.0"
+      },
+      {
+        "name": "virtual",
+        "type": "boolean",
+        "default": "-",
+        "since": "4.3.0"
+      },
+      {
+        "name": "warning",
+        "type": "{ strict: boolean }",
+        "default": "-",
+        "since": "5.10.0"
+      },
+      {
+        "name": "autoInsertSpaceInButton",
+        "type": "boolean",
+        "default": "-",
+        "since": "-"
+      },
+      {
+        "name": "dropdownMatchSelectWidth",
+        "type": "boolean",
+        "default": "-",
+        "since": "-"
+      }
+    ],
+    "subComponentProps": {
+      "ConfigProvider.useConfig()": [
+        {
+          "name": "componentDisabled",
+          "type": "boolean",
+          "default": "-",
+          "since": "5.3.0"
+        },
+        {
+          "name": "componentSize",
+          "type": "`small` | `medium` | `large`",
+          "default": "-",
+          "since": "5.3.0"
+        }
+      ],
+      "ConfigProvider.WaveConfig": [
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "default": "false",
+          "since": ""
+        },
+        {
+          "name": "showEffect",
+          "type": "(node: HTMLElement, info: { className, token, component }) => void",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "triggerType",
+          "type": "`click` | `pointerdown` | `pointerup` | `mousedown` | `mouseup`",
+          "default": "`click`",
+          "since": "6.4.0"
+        }
+      ]
+    }
+  },
+  "App": {
+    "name": "App",
+    "nameZh": "包裹组件",
+    "description": "Application wrapper for some global usages.",
+    "props": [
+      {
+        "name": "component",
+        "type": "ComponentType | false",
+        "default": "div",
+        "since": "5.11.0"
+      },
+      {
+        "name": "message",
+        "type": "[MessageConfig](/components/message/#messageconfig)",
+        "default": "-",
+        "since": "5.3.0"
+      },
+      {
+        "name": "notification",
+        "type": "[NotificationConfig](/components/notification/#notificationconfig)",
+        "default": "-",
+        "since": "5.3.0"
+      }
+    ],
+    "commonProps": [
+      {
+        "name": "className",
+        "type": "string",
+        "default": "-",
+        "description": "Additional CSS class",
+        "descriptionZh": "额外的 CSS 类名"
+      },
+      {
+        "name": "style",
+        "type": "CSSProperties",
+        "default": "-",
+        "description": "Additional style",
+        "descriptionZh": "额外的样式"
+      },
+      {
+        "name": "rootClassName",
+        "type": "string",
+        "default": "-",
+        "description": "ClassName on the root element",
+        "descriptionZh": "根元素的类名"
+      }
+    ],
+    "htmlElement": "div"
+  },
+  "Empty": {
+    "name": "Empty",
+    "nameZh": "空状态",
+    "description": "Empty state placeholder.",
+    "props": [
+      {
+        "name": "classNames",
+        "type": "Record<[SemanticDOM](#semantic-dom), string> | (info: { props })=> Record<[SemanticDOM](#semantic-dom), string>",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "description",
+        "type": "ReactNode",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "image",
+        "type": "ReactNode",
+        "default": "`Empty.PRESENTED_IMAGE_DEFAULT`",
+        "since": ""
+      },
+      {
+        "name": "imageStyle",
+        "type": "CSSProperties",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "styles",
+        "type": "Record<[SemanticDOM](#semantic-dom), CSSProperties> | (info: { props })=> Record<[SemanticDOM](#semantic-dom), CSSProperties>",
+        "default": "-",
+        "since": ""
+      }
+    ],
+    "commonProps": [
+      {
+        "name": "className",
+        "type": "string",
+        "default": "-",
+        "description": "Additional CSS class",
+        "descriptionZh": "额外的 CSS 类名"
+      },
+      {
+        "name": "style",
+        "type": "CSSProperties",
+        "default": "-",
+        "description": "Additional style",
+        "descriptionZh": "额外的样式"
+      },
+      {
+        "name": "rootClassName",
+        "type": "string",
+        "default": "-",
+        "description": "ClassName on the root element",
+        "descriptionZh": "根元素的类名"
+      }
+    ],
+    "htmlElement": "div"
+  },
+  "Card": {
+    "name": "Card",
+    "nameZh": "卡片",
+    "description": "A container for displaying information.",
+    "props": [
+      {
+        "name": "actions",
+        "type": "Array<ReactNode>",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "activeTabKey",
+        "type": "string",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "bordered",
+        "type": "boolean",
+        "default": "true",
+        "since": ""
+      },
+      {
+        "name": "bodyStyle",
+        "type": "CSSProperties",
+        "default": "-",
+        "since": "-"
+      },
+      {
+        "name": "variant",
+        "type": "`outlined` | `borderless`",
+        "default": "`outlined`",
+        "since": "5.24.0"
+      },
+      {
+        "name": "classNames",
+        "type": "Record<[SemanticDOM](#semantic-dom), string> | (info: { props })=> Record<[SemanticDOM](#semantic-dom), string>",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "cover",
+        "type": "ReactNode",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "defaultActiveTabKey",
+        "type": "string",
+        "default": "`The key of first tab`",
+        "since": ""
+      },
+      {
+        "name": "extra",
+        "type": "ReactNode",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "hoverable",
+        "type": "boolean",
+        "default": "false",
+        "since": ""
+      },
+      {
+        "name": "headStyle",
+        "type": "CSSProperties",
+        "default": "-",
+        "since": "-"
+      },
+      {
+        "name": "loading",
+        "type": "boolean",
+        "default": "false",
+        "since": ""
+      },
+      {
+        "name": "size",
+        "type": "`medium` | `small`",
+        "default": "`medium`",
+        "since": ""
+      },
+      {
+        "name": "tabBarExtraContent",
+        "type": "ReactNode",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "tabList",
+        "type": "[TabItemType](/components/tabs#tabitemtype)[]",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "tabProps",
+        "type": "-",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "title",
+        "type": "ReactNode",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "type",
+        "type": "string",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "styles",
+        "type": "Record<[SemanticDOM](#semantic-dom), CSSProperties> | (info: { props })=> Record<[SemanticDOM](#semantic-dom), CSSProperties>",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "onTabChange",
+        "type": "(key) => void",
+        "default": "-",
+        "since": ""
+      }
+    ],
+    "subComponentProps": {
+      "Card.Grid": [
+        {
+          "name": "hoverable",
+          "type": "boolean",
+          "default": "true",
+          "since": ""
+        }
+      ],
+      "Card.Meta": [
+        {
+          "name": "avatar",
+          "type": "ReactNode",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "description",
+          "type": "ReactNode",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "title",
+          "type": "ReactNode",
+          "default": "-",
+          "since": ""
+        }
+      ]
+    },
+    "commonProps": [
+      {
+        "name": "className",
+        "type": "string",
+        "default": "-",
+        "description": "Additional CSS class",
+        "descriptionZh": "额外的 CSS 类名"
+      },
+      {
+        "name": "style",
+        "type": "CSSProperties",
+        "default": "-",
+        "description": "Additional style",
+        "descriptionZh": "额外的样式"
+      },
+      {
+        "name": "rootClassName",
+        "type": "string",
+        "default": "-",
+        "description": "ClassName on the root element",
+        "descriptionZh": "根元素的类名"
+      }
+    ],
+    "htmlElement": "div"
+  },
+  "Collapse": {
+    "name": "Collapse",
+    "nameZh": "折叠面板",
+    "description": "A content area which can be collapsed and expanded.",
+    "props": [
+      {
+        "name": "accordion",
+        "type": "boolean",
+        "default": "false",
+        "since": ""
+      },
+      {
+        "name": "activeKey",
+        "type": "string[] | string <br/> number[] | number",
+        "default": "No default value. In [accordion mode](#collapse-demo-accordion), it's the key of the first panel",
+        "since": ""
+      },
+      {
+        "name": "bordered",
+        "type": "boolean",
+        "default": "true",
+        "since": ""
+      },
+      {
+        "name": "classNames",
+        "type": "Record<[SemanticDOM](#semantic-dom), string> | (info: { props })=> Record<[SemanticDOM](#semantic-dom), string>",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "collapsible",
+        "type": "`header` | `icon` | `disabled`",
+        "default": "-",
+        "since": "4.9.0"
+      },
+      {
+        "name": "defaultActiveKey",
+        "type": "string[] | string <br/> number[] | number",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "destroyInactivePanel",
+        "type": "boolean",
+        "default": "false",
+        "since": ""
+      },
+      {
+        "name": "destroyOnHidden",
+        "type": "boolean",
+        "default": "false",
+        "since": "5.25.0"
+      },
+      {
+        "name": "expandIcon",
+        "type": "(panelProps) => ReactNode",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "expandIconPlacement",
+        "type": "`start` | `end`",
+        "default": "`start`",
+        "since": "-"
+      },
+      {
+        "name": "expandIconPosition",
+        "type": "`start` | `end`",
+        "default": "-",
+        "since": "4.21.0"
+      },
+      {
+        "name": "ghost",
+        "type": "boolean",
+        "default": "false",
+        "since": "4.4.0"
+      },
+      {
+        "name": "size",
+        "type": "`large` | `medium` | `small`",
+        "default": "`medium`",
+        "since": "5.2.0"
+      },
+      {
+        "name": "styles",
+        "type": "Record<[SemanticDOM](#semantic-dom), CSSProperties> | (info: { props })=> Record<[SemanticDOM](#semantic-dom), CSSProperties>",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "onChange",
+        "type": "function",
+        "default": "-",
+        "since": ""
+      },
+      {
+        "name": "items",
+        "type": "[ItemType](#itemtype)",
+        "default": "-",
+        "since": "5.6.0"
+      }
+    ],
+    "subComponentProps": {
+      "Collapse.ItemType": [
+        {
+          "name": "classNames",
+          "type": "[`Record<header | body, string>`](#semantic-dom)",
+          "default": "-",
+          "since": "5.21.0"
+        },
+        {
+          "name": "collapsible",
+          "type": "`header` | `icon` | `disabled`",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "children",
+          "type": "ReactNode",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "extra",
+          "type": "ReactNode",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "forceRender",
+          "type": "boolean",
+          "default": "false",
+          "since": ""
+        },
+        {
+          "name": "key",
+          "type": "string | number",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "label",
+          "type": "ReactNode",
+          "default": "-",
+          "since": "-"
+        },
+        {
+          "name": "showArrow",
+          "type": "boolean",
+          "default": "true",
+          "since": ""
+        },
+        {
+          "name": "styles",
+          "type": "[`Record<header | body, CSSProperties>`](#semantic-dom)",
+          "default": "-",
+          "since": "5.21.0"
+        }
+      ],
+      "Collapse.Panel": [
+        {
+          "name": "collapsible",
+          "type": "`header` | `icon` | `disabled`",
+          "default": "-",
+          "since": "4.9.0 (icon: 4.24.0)"
+        },
+        {
+          "name": "extra",
+          "type": "ReactNode",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "forceRender",
+          "type": "boolean",
+          "default": "false",
+          "since": ""
+        },
+        {
+          "name": "header",
+          "type": "ReactNode",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "key",
+          "type": "string | number",
+          "default": "-",
+          "since": ""
+        },
+        {
+          "name": "showArrow",
+          "type": "boolean",
+          "default": "true",
+          "since": ""
+        }
+      ]
+    },
+    "commonProps": [
+      {
+        "name": "className",
+        "type": "string",
+        "default": "-",
+        "description": "Additional CSS class",
+        "descriptionZh": "额外的 CSS 类名"
+      },
+      {
+        "name": "style",
+        "type": "CSSProperties",
+        "default": "-",
+        "description": "Additional style",
+        "descriptionZh": "额外的样式"
+      },
+      {
+        "name": "rootClassName",
+        "type": "string",
+        "default": "-",
+        "description": "ClassName on the root element",
+        "descriptionZh": "根元素的类名"
+      }
+    ],
+    "htmlElement": "div"
+  }
+}

@@ -29,6 +29,30 @@ const fixture = () => {
 };
 
 describe("无占位歌词和简谱编辑", () => {
+  it("空歌词焦点随拍位宽度伸缩，窄拍保持默认尺寸", () => {
+    const { document, target } = fixture();
+    const layout = buildLayout(document, {
+      paragraphEditing: { ...target, kind: "lyric", verse: 1 },
+    });
+    const beat = layout.systems[0]!.measures[0]!.beats[0]!;
+    const cell = layout.systems[0]!.musicTextCells!.find(
+      (item) => item.beatId === target.beatId && item.kind === "lyric",
+    )!;
+    const focus = () =>
+      layoutParagraphFocus(layout, { ...target, kind: "lyric", verse: 1 })!;
+
+    // 极窄拍仍以音符为中心显示默认框，较长拍位则完整覆盖对应单元。
+    cell.width = 8;
+    expect(focus()).toMatchObject({
+      x: beat.x - 12,
+      width: 24,
+      height: Math.max(18, cell.height),
+    });
+    cell.x = beat.x - 20;
+    cell.width = 80;
+    expect(focus()).toMatchObject({ x: cell.x, width: 80 });
+  });
+
   it.each(["lyric", "numbered"] as const)(
     "空 %s 区域可以命中、提交，且不影响正式导出布局",
     (kind) => {

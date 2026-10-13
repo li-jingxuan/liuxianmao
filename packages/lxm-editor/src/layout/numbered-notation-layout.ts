@@ -2,13 +2,15 @@ import {
   musicTextGlyph,
   musicTextRequest,
   unionMusicBounds,
+  MUSIC_TEXT_LANE_GAP,
+  MUSIC_TEXT_PLACEHOLDER_HEIGHT,
+  MUSIC_TEXT_PLACEHOLDER_WIDTH,
   type ILXMMusicTextMetrics,
   type MusicTextGlyph,
   type MusicTextRect,
 } from "./music-text-metrics";
 import type { ILXMLayout } from "./layout-types";
 import { getMeasureContentBottom } from "./rhythm-bounds";
-import { MUSIC_TEXT_LANE_GAP } from "./music-text-metrics";
 export interface NumberedLayout {
   beatId: string;
   labels: MusicTextGlyph[];
@@ -106,13 +108,16 @@ export const layoutParagraphFocus = (
         r.kind === target.kind &&
         (target.kind !== "lyric" || r.verse === (target.verse ?? 1)),
     );
-    if (existing)
+    if (existing) {
+      // 已有文字同样保留最小编辑宽度；仅扩展视觉焦点，不改变拍点或命中边界。
+      const width = Math.max(MUSIC_TEXT_PLACEHOLDER_WIDTH, existing.width + 8);
       return {
-        x: existing.x - 4,
+        x: existing.x + existing.width / 2 - width / 2,
         y: existing.y - 2,
-        width: existing.width + 8,
+        width,
         height: existing.height + 4,
       };
+    }
     const cell = s.musicTextCells?.find(
       (c) =>
         c.measureId === m.id &&
@@ -120,7 +125,19 @@ export const layoutParagraphFocus = (
         c.kind === target.kind &&
         (target.kind !== "lyric" || c.verse === (target.verse ?? 1)),
     );
-    if (cell) return { x: b.x - 12, y: cell.y, width: 24, height: cell.height };
+    if (cell) {
+      // 空歌词沿用拍位单元的横向范围，窄拍则保留默认尺寸并对齐音符锚点。
+      const width = Math.max(MUSIC_TEXT_PLACEHOLDER_WIDTH, cell.width);
+      return {
+        x:
+          cell.width >= MUSIC_TEXT_PLACEHOLDER_WIDTH
+            ? cell.x
+            : b.x - MUSIC_TEXT_PLACEHOLDER_WIDTH / 2,
+        y: cell.y,
+        width,
+        height: Math.max(MUSIC_TEXT_PLACEHOLDER_HEIGHT, cell.height),
+      };
+    }
     const row =
       target.kind === "numbered"
         ? s.measures
@@ -142,14 +159,17 @@ export const layoutParagraphFocus = (
           ) + MUSIC_TEXT_LANE_GAP
         : Math.min(s.y + s.height - 20, m.strings.at(-1)!.y1 + 22));
     return {
-      x: b.x - 12,
+      x: b.x - MUSIC_TEXT_PLACEHOLDER_WIDTH / 2,
       // 空简谱整行没有正式占位，临时高亮可延伸到正文下方，不能反向夹到 TAB 内。
       y:
         target.kind === "numbered"
           ? y
-          : Math.max(s.y, Math.min(y, s.y + s.height - 18)),
-      width: 24,
-      height: 18,
+          : Math.max(
+              s.y,
+              Math.min(y, s.y + s.height - MUSIC_TEXT_PLACEHOLDER_HEIGHT),
+            ),
+      width: MUSIC_TEXT_PLACEHOLDER_WIDTH,
+      height: MUSIC_TEXT_PLACEHOLDER_HEIGHT,
     };
   }
   return null;

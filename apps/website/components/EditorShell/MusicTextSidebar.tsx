@@ -5,6 +5,7 @@ import {
 import { ScoreSettings, type ScoreSettingsController } from "./ScoreSettings";
 import {
   useEffect,
+  useCallback,
   useMemo,
   useImperativeHandle,
   useRef,
@@ -19,7 +20,7 @@ import {
   parseLyricSequence,
   planLyricSequence,
   validateChordDiagram,
-  type ILXMTabCellReference,
+  type ILXMTabCellSelection,
   type ILXMLyricVerse,
   type ILXMScoreCommand,
 } from "@liuxianmao/lxm-editor";
@@ -38,13 +39,21 @@ import {
   type SidebarAction,
   type SidebarTab,
 } from "./music-text-draft";
+import {
+  isScoreSelectionValid,
+  type SelectionRequestResult,
+} from "./editor-object-selection";
 import styles from "./index.module.scss";
 
 export interface MusicTextController {
   /** 输出前只读检查草稿，不自动提交或取消用户输入。 */
   isOutputBlocked: () => boolean;
   open: (target: MusicTextTarget) => void;
-  move: (target: ILXMTabCellReference) => boolean;
+  select: (
+    selection: ILXMTabCellSelection | null,
+    techniqueId?: string,
+  ) => SelectionRequestResult;
+  returnToScore: () => SelectionRequestResult;
 }
 
 /** 常驻三页签与编辑目标分开，切页签、换拍和结束编辑共用草稿保护。 */
@@ -54,6 +63,7 @@ export const MusicTextSidebar = ({
   onEditingChange,
   onTargetChange,
   onScoreFocus,
+  onScoreSelection,
   getSystemMeasureIds,
 }: {
   ref: Ref<MusicTextController>;
@@ -61,12 +71,25 @@ export const MusicTextSidebar = ({
   onEditingChange: (editing: boolean) => void;
   onTargetChange: (target: MusicTextTarget | null) => void;
   onScoreFocus: () => void;
+  onScoreSelection: (
+    selection: ILXMTabCellSelection | null,
+    techniqueId: string | null,
+  ) => void;
   getSystemMeasureIds: (measureId: string) => string[];
 }) => {
   const editorStore = useEditorSessionStore();
   const score = useEditorStore((s) => s.document);
   const selection = useEditorStore((s) => s.selection);
   const [kind, setKind] = useState<SidebarTab>("score");
+  // 活动对象独立于可见页签；null 表示普通六线谱选择，不表示关闭侧栏。
+  const [activeObject, setActiveObject] = useState<MusicTextTarget | null>(
+    null,
+  );
+  const [numberedTarget, setNumberedTarget] = useState<MusicTextTarget | null>(
+    null,
+  );
+  const [numberedPreview, setNumberedPreview] =
+    useState<MusicTextTarget | null>(null);
   const stateVersion = useEditorStore((s) => s.stateVersion);
   const [numberedMode, setNumberedMode] = useState<"single" | "sequence">(
     "sequence",
@@ -85,18 +108,21 @@ export const MusicTextSidebar = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const sequenceInputRef = useRef<HTMLTextAreaElement>(null);
   const [inspection, setInspection] = useState(0);
-  const [inputEditing, setInputEditing] = useState(true);
+  const [inputEditing, setInputEditing] = useState(false);
   const [focusRequest, setFocusRequest] = useState(0);
   const focusDestination = useRef<"score" | "input">("input");
   const editButtonRef = useRef<HTMLButtonElement>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
+  const lastInputFocus = useRef<HTMLElement | null>(null);
+  const restoreInputFocus = useRef(false);
   const requestedTabFocus = useRef<string | null>(null);
   const composing = useRef(false);
   const compositionEndedAt = useRef(-Infinity);
   const baseline = useRef(score);
   const committing = useRef(false);
-  const wasEditing = useRef(false);
+  // 文字对象即使暂时浏览其他页签，快捷键也不能在文字高亮下误写 TAB 音符。
   const editing =
+    !!activeObject ||
     settingsDirty ||
     numberedDirty ||
     numberedInputActive ||
@@ -155,7 +181,7 @@ export const MusicTextSidebar = ({
           : null
     : null;
   const inspected = plan?.rows[inspection]?.target;
-  const active = useMemo(
+  const lyricPreview = useMemo(
     () =>
       draft?.target
         ? sequence && inspected
@@ -164,10 +190,19 @@ export const MusicTextSidebar = ({
         : null,
     [draft, sequence, inspected],
   );
-  // 只报告已接受的目标；预览检查行不改变批次起点或持久化 selection。
-  useEffect(() => {
-    if (kind !== "numbered") onTargetChange(active ? { ...active } : null);
-  }, [onTargetChange, active, kind]);
+  // 预览只装饰已激活的对象，面板可见和被动重渲染不能把 beat 焦点拉回文字。
+  const active =
+    activeObject?.kind === kind
+      ? kind === "numbered"
+        ? (numberedPreview ?? activeObject)
+        : (lyricPreview ?? activeObject)
+      : activeObject;
+  useEffect(() => onTargetChange(active), [onTargetChange, active]);
+  const reportNumberedPreview = useCallback((next: MusicTextTarget | null) => {
+    setNumberedPreview((previous) =>
+      JSON.stringify(previous) === JSON.stringify(next) ? previous : next,
+    );
+  }, []);
 
   /** 编辑目标与焦点意图分开：选拍同步表单，点击文本才进入文字输入。 */
   const focusTarget = (focus: "score" | "input") => {
@@ -191,6 +226,8 @@ export const MusicTextSidebar = ({
     setPending(null);
     setMessage(value ? null : "目标拍已失效，请重新选择。");
     setDraft(value);
+    setNumberedTarget(null);
+    setActiveObject(value ? value.target : null);
     setKind(next.kind);
     if (next.kind === "lyric") {
       paragraphKind.current = "lyric";
@@ -206,68 +243,86 @@ export const MusicTextSidebar = ({
         .setSelection(createCollapsedTabCellSelection(value.target));
     }
   };
-  const perform = (action: SidebarAction) => {
-    if (action.type === "tab" && action.focus)
-      requestedTabFocus.current = `${action.focus === "paragraph" ? "paragraph" : "music"}-tab-${action.focus === "main" && action.kind === "numbered" ? "lyric" : action.kind}`;
+  /** 接受请求才改变选区和草稿；延迟确认的目标按最新快照验证。 */
+  const perform = (action: SidebarAction): boolean => {
+    const current = editorStore.getState();
+    if (
+      action.type === "selection" &&
+      !isScoreSelectionValid(current.document, action.selection)
+    ) {
+      setPending(null);
+      setMessage("目标拍已失效，请重新选择。");
+      return false;
+    }
+    if (
+      action.type === "target" &&
+      !readMusicTextDraft(current.document, action.target)
+    ) {
+      setPending(null);
+      setMessage("目标拍已失效，请重新选择。");
+      return false;
+    }
+    if (action.type === "tab")
+      requestedTabFocus.current = `${action.focus === "paragraph" ? "paragraph" : "music"}-tab-${action.kind === "numbered" && action.focus !== "paragraph" ? "lyric" : action.kind}`;
     setPending(null);
-    if (kind === "numbered") {
+    restoreInputFocus.current = false;
+    // 非模式请求会结束原简谱草稿，但必须在确认已经被接受之后执行。
+    if (action.type !== "mode") {
       numberedRef.current?.discard();
       setNumberedDirty(false);
       setNumberedInputActive(false);
+      setNumberedPreview(null);
     }
-    if (action.type === "close") {
-      if (kind === "numbered") setKind("score");
+    if (action.type === "selection" || action.type === "close") {
+      const nextSelection =
+        action.type === "selection"
+          ? action.selection
+          : activeObject
+            ? createCollapsedTabCellSelection(activeObject)
+            : current.selection;
       setDraft(null);
+      setNumberedTarget(null);
+      setActiveObject(null);
+      setInputEditing(false);
+      focusDestination.current = "score";
       setMessage(null);
-      setNumberedInputActive(false);
       settingsRef.current?.discard();
-    } else if (action.type === "settingsTarget") {
-      settingsRef.current?.discard();
-      editorStore
-        .getState()
-        .setSelection(createCollapsedTabCellSelection(action.target));
+      onScoreSelection(
+        nextSelection,
+        action.type === "selection" ? (action.techniqueId ?? null) : null,
+      );
     } else if (action.type === "target") {
       settingsRef.current?.discard();
       if (action.target.kind === "numbered") {
         setDraft(null);
+        setMessage(null);
         setKind("numbered");
         paragraphKind.current = "numbered";
-        editorStore
-          .getState()
-          .setSelection(createCollapsedTabCellSelection(action.target));
-        setNumberedInputActive(action.focus !== "score");
-        if (action.focus === "score") onScoreFocus();
+        setNumberedTarget(action.target);
+        setActiveObject(action.target);
+        focusDestination.current = "input";
+        setNumberedInputActive(true);
+        setFocusRequest((value) => value + 1);
+        onOpen();
+        current.setSelectedTechniqueId(null);
+        current.setSelection(createCollapsedTabCellSelection(action.target));
       } else loadTarget(action.target, draft?.lyricMode, action.focus);
     } else if (action.type === "numberedMode") {
       setNumberedMode(action.mode);
     } else if (action.type === "mode") {
       if (draft) loadTarget(draft.target, action.mode);
     } else {
-      // 切入文本页签时直接读取当前选拍，复用目标加载与草稿保护流程。
-      if (action.kind === "numbered") {
-        setNumberedMode("sequence");
-        setDraft(null);
-        setMessage(null);
-        setKind("numbered");
-        paragraphKind.current = "numbered";
-        setNumberedInputActive(false);
-        return;
-      }
-      if (action.kind === "lyric") paragraphKind.current = "lyric";
-      const selected = editorStore.getState().selection?.focus;
-      if (action.kind !== "score" && selected) {
-        loadTarget({
-          ...selected,
-          kind: action.kind,
-          verse: draft?.target.verse ?? paragraphVerse.current,
-        });
-        return;
-      }
+      // 页签只展示工具，保留谱面对象；显式输入／编辑按钮才加载文字草稿。
       setDraft(null);
+      setNumberedTarget(null);
+      setInputEditing(false);
       setMessage(null);
+      focusDestination.current = "score";
       setKind(action.kind);
-      document.getElementById(`music-tab-${action.kind}`)?.focus();
+      if (action.kind === "numbered") paragraphKind.current = "numbered";
+      if (action.kind === "lyric") paragraphKind.current = "lyric";
     }
+    return true;
   };
   /** 新增只打开真实拍点上的编辑区域，首次应用才写入音乐数据。 */
   const addParagraph = (nextKind: "lyric" | "numbered") => {
@@ -303,52 +358,40 @@ export const MusicTextSidebar = ({
       target: { ...next, kind: nextKind, verse: verse ?? 1 },
     });
   };
-  const request = (action: SidebarAction) => {
-    if (composing.current || pending) return;
-    if (action.type === "tab" && action.kind === kind) return;
-    if (action.type === "numberedMode" && action.mode === numberedMode) return;
-    if (
-      action.type === "settingsTarget" &&
-      selection?.focus.measureId === action.target.measureId
-    ) {
-      editorStore
-        .getState()
-        .setSelection(createCollapsedTabCellSelection(action.target));
-      return;
-    }
-    // 同一简谱拍重复点击只改变焦点意图，不能清空草稿或再次要求确认。
-    const selected = editorStore.getState().selection?.focus;
-    if (
-      kind === "numbered" &&
-      action.type === "target" &&
-      action.target.kind === "numbered" &&
-      selected &&
-      selected.trackId === action.target.trackId &&
-      selected.measureId === action.target.measureId &&
-      selected.beatId === action.target.beatId
-    ) {
-      setNumberedInputActive(action.focus !== "score");
-      if (action.focus === "score") onScoreFocus();
-      return;
-    }
-    const decision = resolveSidebarRequest(draft, action);
-    // 同一拍重复点击也可改变焦点意图，但不重载或覆盖当前草稿。
+  /** 所有对象／页签请求通过同一草稿闸门，不提前迁移 selection。 */
+  const request = (action: SidebarAction): SelectionRequestResult => {
+    if (composing.current || settingsRef.current?.isComposing() || pending)
+      return "blocked";
+    if (action.type === "tab" && action.kind === kind) return "accepted";
+    if (action.type === "numberedMode" && action.mode === numberedMode)
+      return "accepted";
+    const decision = resolveSidebarRequest(draft, action, {
+      numberedTarget,
+      numberedDirty: numberedRef.current?.dirty,
+      settingsDirty: settingsRef.current?.dirty,
+    });
     if (decision === "ignore" && action.type === "target") {
-      if (action.focus === "score")
-        editorStore
-          .getState()
-          .setSelection(createCollapsedTabCellSelection(action.target));
-      focusTarget(action.focus ?? "input");
-      return;
+      setActiveObject(action.target);
+      if (action.target.kind === "numbered") {
+        focusDestination.current = "input";
+        setNumberedInputActive(true);
+        setFocusRequest((value) => value + 1);
+      } else focusTarget(action.focus ?? "input");
+      return "accepted";
     }
-    if (
-      decision === "confirm" ||
-      settingsRef.current?.dirty ||
-      numberedRef.current?.dirty
-    )
+    if (decision === "confirm") {
       setPending(action);
-    else if (decision === "execute") perform(action);
+      return "pending";
+    }
+    return decision === "ignore" || perform(action) ? "accepted" : "blocked";
   };
+  const returnToScore = (): SelectionRequestResult =>
+    request({
+      type: "selection",
+      selection: activeObject
+        ? createCollapsedTabCellSelection(activeObject)
+        : editorStore.getState().selection,
+    });
   useImperativeHandle(ref, () => ({
     isOutputBlocked: () =>
       composing.current ||
@@ -358,88 +401,67 @@ export const MusicTextSidebar = ({
       !!numberedRef.current?.dirty ||
       !!settingsRef.current?.dirty ||
       (!!draft && musicTextDraftValue(draft) !== draft.initial),
-    open: (next) => request({ type: "target", target: next }),
-    move: (next) => {
-      // 文本页签即使尚无草稿，选拍也立即进入编辑；谱面设置保留普通选区操作。
-      if (kind === "score") {
-        if (!editing) return false;
-        request({ type: "settingsTarget", target: next });
-      } else
-        request({
-          type: "target",
-          focus: "score",
-          target: {
-            ...next,
-            kind,
-            verse: draft?.target.verse ?? paragraphVerse.current,
-          },
-        });
-      return true;
+    open: (next) => {
+      request({ type: "target", target: next });
     },
+    select: (next, techniqueId) =>
+      request({ type: "selection", selection: next, techniqueId }),
+    returnToScore,
   }));
 
-  // 自身命令的同步 store 通知不清空草稿；外部历史切换总是取消旧目标。
+  // 外部文档变化取消旧目标；自身命令的同步通知不清空原草稿。
   useEffect(
     () =>
       editorStore.subscribe((state) => {
         if (state.document !== baseline.current && !committing.current) {
-          // 历史切换取消简谱临时空行，避免旧目标继续占用编辑空间。
-          if (kind === "numbered") setKind("score");
           setDraft(null);
           setPending(null);
+          setActiveObject(null);
+          setNumberedTarget(null);
+          setNumberedPreview(null);
+          setInputEditing(false);
           setNumberedInputActive(false);
           setNumberedDirty(false);
-          setMessage(
-            wasEditing.current ? "谱面已变化，未应用草稿已取消。" : null,
-          );
+          setMessage(null);
+          focusDestination.current = "score";
           baseline.current = state.document;
-        } else if (
-          kind === "lyric" &&
-          draft &&
-          !inputEditing &&
-          musicTextDraftValue(draft) === draft.initial &&
-          state.selection
-        ) {
-          const next = state.selection.focus;
-          if (
-            next.beatId !== draft.target.beatId ||
-            next.measureId !== draft.target.measureId
-          )
-            setDraft(
-              readMusicTextDraft(
-                state.document,
-                { ...next, kind: "lyric", verse: draft.target.verse },
-                draft.lyricMode,
-              ),
-            );
         }
       }),
-    [editorStore, kind, draft, inputEditing],
+    [editorStore],
   );
-  useEffect(() => {
-    onEditingChange(editing);
-    if (wasEditing.current && !editing && kind !== "score")
-      editButtonRef.current?.focus({ preventScroll: true });
-    wasEditing.current = editing;
-  }, [editing, onEditingChange, kind]);
+  useEffect(() => onEditingChange(editing), [editing, onEditingChange]);
   const targetKey = draft
     ? `${draft.target.trackId}/${draft.target.measureId}/${draft.target.beatId}/${kind}/${draft.target.verse}`
-    : "";
-  // 按业务目标聚焦，不在表单输入或父壳重渲染时抢走指法控件焦点。
-  useEffect(() => {
-    if (targetKey && focusDestination.current === "input")
-      (sequence ? sequenceInputRef : inputRef).current?.focus({
-        preventScroll: true,
-      });
-  }, [targetKey, sequence, focusRequest]);
+    : numberedTarget
+      ? `${numberedTarget.trackId}/${numberedTarget.measureId}/${numberedTarget.beatId}/numbered`
+      : "";
+  /** 取消待切换时恢复原控件，不把设置字段或 checkbox 的焦点统一抢到文字框。 */
+  const continueEditing = () => {
+    restoreInputFocus.current = true;
+    setPending(null);
+  };
+  // 只在明确激活或确认区退出时聚焦；页签浏览和预览更新不能抢输入焦点。
   useEffect(() => {
     if (pending) confirmRef.current?.focus({ preventScroll: true });
-    else if (targetKey && focusDestination.current === "input")
-      (sequence ? sequenceInputRef : inputRef).current?.focus({
-        preventScroll: true,
-      });
-    else if (targetKey) onScoreFocus();
-  }, [pending, targetKey, sequence, onScoreFocus]);
+    else if (restoreInputFocus.current && lastInputFocus.current?.isConnected) {
+      restoreInputFocus.current = false;
+      lastInputFocus.current.focus({ preventScroll: true });
+    } else if (focusDestination.current === "input" && targetKey) {
+      if (kind === "numbered") numberedRef.current?.focus();
+      else
+        (sequence ? sequenceInputRef : inputRef).current?.focus({
+          preventScroll: true,
+        });
+    }
+  }, [
+    pending,
+    targetKey,
+    sequence,
+    focusRequest,
+    kind,
+    numberedMode,
+    stateVersion,
+  ]);
 
   // 接受键盘切页签后聚焦对应 TAB，不让表单的目标加载抢走导航焦点。
   useEffect(() => {
@@ -589,14 +611,14 @@ export const MusicTextSidebar = ({
           }
           if (e.key === "Escape") {
             e.preventDefault();
-            setPending(null);
+            continueEditing();
           }
           return;
         }
         if (e.key === "Escape") {
           e.preventDefault();
           e.stopPropagation();
-          request({ type: "close" });
+          returnToScore();
         }
         if (
           e.key === "Enter" &&
@@ -676,9 +698,20 @@ export const MusicTextSidebar = ({
         role="tabpanel"
         aria-labelledby={`music-tab-${kind === "numbered" ? "lyric" : kind}`}
         inert={!!pending}
-        onFocusCapture={() => {
-          // 用户主动操作表单时再显示歌词焦点，不抢走段号或指法控件的焦点。
-          if (draft && kind !== "score" && kind !== "numbered") {
+        onFocusCapture={(event) => {
+          if (
+            event.target instanceof HTMLInputElement ||
+            event.target instanceof HTMLTextAreaElement ||
+            event.target instanceof HTMLSelectElement
+          )
+            lastInputFocus.current = event.target;
+          // 段落 TAB／导航按钮不激活文字输入；已有表单控件才恢复输入状态。
+          if (
+            draft &&
+            (event.target instanceof HTMLInputElement ||
+              event.target instanceof HTMLTextAreaElement ||
+              event.target instanceof HTMLSelectElement)
+          ) {
             focusDestination.current = "input";
             setInputEditing(true);
           }
@@ -748,19 +781,37 @@ export const MusicTextSidebar = ({
             aria-labelledby="paragraph-tab-numbered"
           >
             <NumberedEditor
-              key={`${stateVersion}/${numberedMode}/${selection?.focus.trackId}/${selection?.focus.measureId}/${selection?.focus.beatId}`}
+              key={`${stateVersion}/${numberedMode}/${(numberedTarget ?? selection?.focus)?.trackId}/${(numberedTarget ?? selection?.focus)?.measureId}/${(numberedTarget ?? selection?.focus)?.beatId}`}
               onCancel={() => request({ type: "close" })}
               mode={numberedMode}
               onModeChange={(mode) => request({ type: "numberedMode", mode })}
               ref={numberedRef}
               document={score}
-              target={selection?.focus ?? null}
+              target={numberedTarget ?? selection?.focus ?? null}
               commit={commit}
               onDirty={setNumberedDirty}
               onInputActive={setNumberedInputActive}
-              onTargetChange={onTargetChange}
+              onPreviewTargetChange={reportNumberedPreview}
+              onActivate={(focusInput = true) => {
+                // 已激活表单内部控件只报告输入状态，不把 checkbox 的焦点抢回 textarea。
+                if (
+                  !focusInput &&
+                  numberedTarget &&
+                  activeObject?.kind === "numbered"
+                ) {
+                  focusDestination.current = "input";
+                  setNumberedInputActive(true);
+                  return;
+                }
+                const next =
+                  numberedTarget ?? editorStore.getState().selection?.focus;
+                if (next)
+                  request({
+                    type: "target",
+                    target: { ...next, kind: "numbered" },
+                  });
+              }}
               onCanApply={setNumberedCanApply}
-              autoFocusInput={numberedInputActive}
             />
           </div>
         )}
@@ -804,7 +855,7 @@ export const MusicTextSidebar = ({
                     })
                   }
                 >
-                  编辑当前拍
+                  {kind === "lyric" ? "从当前拍开始" : "编辑当前拍"}
                 </button>
               </div>
             ) : kind === "lyric" ? (
@@ -1027,7 +1078,7 @@ export const MusicTextSidebar = ({
                     perform(pending);
                 }}
               >
-                应用后继续
+                应用并切换
               </button>
               <button
                 onClick={() => {
@@ -1037,9 +1088,9 @@ export const MusicTextSidebar = ({
                   }
                 }}
               >
-                放弃草稿并继续
+                放弃并切换
               </button>
-              <button ref={confirmRef} onClick={() => setPending(null)}>
+              <button ref={confirmRef} onClick={continueEditing}>
                 继续编辑
               </button>
             </div>

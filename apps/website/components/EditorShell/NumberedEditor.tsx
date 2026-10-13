@@ -23,6 +23,7 @@ export interface NumberedEditorController {
   dirty: boolean;
   apply: () => boolean;
   discard: () => void;
+  focus: () => void;
 }
 /** 简谱表单只管理草稿；映射、校验、覆盖和音乐修改均由核心命令完成。 */
 export const NumberedEditor = ({
@@ -32,9 +33,9 @@ export const NumberedEditor = ({
   commit,
   onDirty,
   onInputActive,
-  onTargetChange,
+  onPreviewTargetChange,
+  onActivate,
   onCanApply,
-  autoFocusInput,
   mode,
   onModeChange,
   onCancel,
@@ -45,9 +46,9 @@ export const NumberedEditor = ({
   commit: (c: ILXMScoreCommand) => ILXMApplyScoreCommandResult | null;
   onDirty: (v: boolean) => void;
   onInputActive: (v: boolean) => void;
-  onTargetChange: (t: MusicTextTarget | null) => void;
+  onPreviewTargetChange: (t: MusicTextTarget | null) => void;
+  onActivate: (focusInput?: boolean) => void;
   onCanApply: (value: boolean) => void;
-  autoFocusInput: boolean;
   mode: "single" | "sequence";
   onModeChange: (mode: "single" | "sequence") => void;
   onCancel: () => void;
@@ -99,18 +100,15 @@ export const NumberedEditor = ({
     setInspection(0);
     setMessage(null);
   };
-  // 图元点击与 TAB 选拍分开：只有明确的输入焦点意图才把键盘送入简谱框。
+  // 输入焦点由已接受的激活动作统一驱动，面板挂载本身不抢焦点。
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  useEffect(() => {
-    if (autoFocusInput) inputRef.current?.focus({ preventScroll: true });
-  }, [autoFocusInput]);
   useEffect(() => onDirty(dirty), [dirty, onDirty]);
   useEffect(() => {
     const inspected = plan?.rows[inspection]?.target;
-    onTargetChange(
+    onPreviewTargetChange(
       target ? { ...target, ...(inspected ?? {}), kind: "numbered" } : null,
     );
-  }, [target, plan, inspection, onTargetChange]);
+  }, [target, plan, inspection, onPreviewTargetChange]);
   const apply = () => {
     if (!target || issue || !parsed.ok) return false;
     const r = commit(
@@ -135,6 +133,7 @@ export const NumberedEditor = ({
     return true;
   };
   useImperativeHandle(ref, () => ({
+    focus: () => inputRef.current?.focus({ preventScroll: true }),
     canApply: !issue,
     dirty,
     apply,
@@ -147,7 +146,14 @@ export const NumberedEditor = ({
   return (
     <section
       className={styles.sidebarSection}
-      onFocusCapture={() => onInputActive(true)}
+      onFocusCapture={(event) => {
+        // 页签浏览、模式切换与预览按钮不激活简谱；实际输入控件才选择业务对象。
+        if (
+          event.target instanceof HTMLTextAreaElement ||
+          event.target instanceof HTMLInputElement
+        )
+          onActivate(false);
+      }}
     >
       <h3>简谱编辑</h3>
       <label>
@@ -161,6 +167,9 @@ export const NumberedEditor = ({
           <option value="single">单拍编辑</option>
         </select>
       </label>
+      <button disabled={!target} onClick={() => onActivate()}>
+        从当前拍开始
+      </button>
       {!target ? (
         <p>请先选择谱面中的一拍</p>
       ) : (
@@ -231,7 +240,7 @@ export const NumberedEditor = ({
               </tbody>
             </table>
           )}
-          {issue && (
+          {issue && (dirty || raw.trim().length > 0) && (
             <p role="status" className={styles.sidebarMessage}>
               {issue}
             </p>
@@ -255,8 +264,6 @@ export const NumberedEditor = ({
             </button>
             <button
               onClick={() => {
-                reset();
-                onInputActive(false);
                 onCancel();
               }}
             >

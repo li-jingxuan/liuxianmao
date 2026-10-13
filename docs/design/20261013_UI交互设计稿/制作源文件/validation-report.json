@@ -1,0 +1,64 @@
+{
+  "screens": 61,
+  "reviewPngs": 71,
+  "categories": {
+    "01_曲谱管理": 10,
+    "02_新建与保存": 11,
+    "03_编辑工作台": 9,
+    "04_歌词简谱与和弦": 11,
+    "05_技巧与小节结构": 12,
+    "06_图片导出与异常": 4,
+    "07_窄窗口适配": 4
+  },
+  "contrastChecks": [
+    {
+      "foreground": "text",
+      "background": "white",
+      "ratio": 14.768
+    },
+    {
+      "foreground": "muted",
+      "background": "white",
+      "ratio": 5.157
+    },
+    {
+      "foreground": "muted",
+      "background": "bg",
+      "ratio": 4.766
+    },
+    {
+      "foreground": "blue",
+      "background": "white",
+      "ratio": 5.733
+    },
+    {
+      "foreground": "white",
+      "background": "blue",
+      "ratio": 5.733
+    },
+    {
+      "foreground": "blue",
+      "background": "soft",
+      "ratio": 5.311
+    },
+    {
+      "foreground": "green",
+      "background": "greenbg",
+      "ratio": 5.285
+    },
+    {
+      "foreground": "red",
+      "background": "redbg",
+      "ratio": 5.082
+    },
+    {
+      "foreground": "amber",
+      "background": "amberbg",
+      "ratio": 5.016
+    }
+  ],
+  "validation": "PNG 编码、尺寸、索引、指定颜色组合通过；未验证应用运行时与全部无障碍行为",
+  "antdVersion": "6.4.4",
+  "officialIconCount": 36,
+  "designBasis": "Ant Design 品牌主题静态稿；非实际 React 控件截图"
+}

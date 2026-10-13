@@ -49,11 +49,12 @@ export interface EditorStore {
   sessionId: number;
   sessionVersion: number;
   effects: ILXMCommandEffect[];
-  replaceDocument: (input: unknown) => DocumentLoadResult;
+  replaceDocument: (input: unknown, source?: "file") => DocumentLoadResult;
   selection: ILXMTabCellSelection | null;
   /** 当前点击的技巧仅属于 UI 焦点，不进入文档历史。 */
   selectedTechniqueId: string | null;
   errorMessage: string | null;
+  loadNotice: string | null;
   canUndo: boolean;
   canRedo: boolean;
   /** 公开深度用于控件和测试观测；快照内容仍是 store 内部实现细节。 */
@@ -279,7 +280,7 @@ export const createEditorStore = (
       sessionId: ++nextSessionId,
       sessionVersion: 0,
       effects: [],
-      replaceDocument: (input) => {
+      replaceDocument: (input, source) => {
         const result = loadEditorDocument(input);
         if (!result.ok) {
           reportError(result.errors.join("；"));
@@ -295,6 +296,9 @@ export const createEditorStore = (
           selection: null,
           selectedTechniqueId: null,
           errorMessage: null,
+          loadNotice: source === "file"
+            ? `已导入「${result.document.score.title || "未命名曲谱"}」。`
+            : null,
           effects: [],
           sessionVersion: get().sessionVersion + 1,
           ...toHistoryState({ past: [], future: [] }),
@@ -305,6 +309,7 @@ export const createEditorStore = (
       selection: null,
       selectedTechniqueId: null,
       errorMessage: initialDocument ? null : "无法加载示例乐谱。",
+      loadNotice: null,
       history: { past: [], future: [] },
       canUndo: false,
       canRedo: false,
@@ -358,6 +363,7 @@ export const createEditorStore = (
             ? state.selectedTechniqueId
             : null,
           errorMessage: null,
+          loadNotice: null,
           ...toHistoryState(history),
         });
         notifyChange({
@@ -422,6 +428,7 @@ export const createEditorStore = (
             ? state.selectedTechniqueId
             : null,
           errorMessage: null,
+          loadNotice: null,
           ...toHistoryState(history),
         });
         notifyChange({ document: previous, reason: "undo", effects: [] });
@@ -448,6 +455,7 @@ export const createEditorStore = (
             ? state.selectedTechniqueId
             : null,
           errorMessage: null,
+          loadNotice: null,
           ...toHistoryState(history),
         });
         notifyChange({ document: next, reason: "redo", effects: [] });

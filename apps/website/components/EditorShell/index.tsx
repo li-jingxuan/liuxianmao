@@ -17,14 +17,15 @@ import {
   LXMScoreCommandEnum,
   navigateTabCellSelection,
   resolveTabCellSelection,
-  resolveTechniqueSelection,
   type ILXMHitTarget,
+  type ILXMHitIndex,
   type ILXMBarlineType,
   type ILXMLayout,
   type ILXMLayoutDensity,
   type ILXMRhythm,
   type ILXMFret,
   type ILXMTabCellReference,
+  type ILXMTabCellSelection,
   type ILXMTimeSignature,
 } from "@liuxianmao/lxm-editor";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -45,10 +46,13 @@ import { TechniqueToolbar } from "./TechniqueToolbar";
 import { ScoreMusicLayer } from "./ScoreMusicLayer";
 import { buildScoreScene } from "./score-scene";
 import { ScoreImagePreview } from "./ScoreImagePreview";
+import { ScoreFileControls } from "./ScoreFileControls";
 import { MusicTextSidebar, type MusicTextController } from "./MusicTextSidebar";
 import type { MusicTextTarget } from "./music-text-draft";
 import { resolveParagraphFocus } from "./music-text-focus";
+import { MusicTextEditingHints } from "./MusicTextEditingHints";
 import { useMusicTextMetrics } from "./music-text-metrics";
+import { resolveScorePointerAction } from "./editor-object-selection";
 import styles from "./index.module.scss";
 
 /** 两位品位输入等待第二个数字的时间，超时后提交一位品位。 */
@@ -93,6 +97,7 @@ export const EditorShell: React.FC = () => {
   const stateVersion = useEditorStore((s) => s.stateVersion);
   const effects = useEditorStore((state) => state.effects);
   const errorMessage = useEditorStore((state) => state.errorMessage);
+  const loadNotice = useEditorStore((state) => state.loadNotice);
   const execute = useEditorStore((state) => state.execute);
   const setSelection = useEditorStore((state) => state.setSelection);
   const selectedTechniqueId = useEditorStore(
@@ -121,6 +126,20 @@ export const EditorShell: React.FC = () => {
   const pageViewportRef = useRef<HTMLDivElement>(null);
   const [activeMusicTextTarget, setActiveMusicTextTarget] =
     useState<MusicTextTarget | null>(null);
+  /** 悬停只属于当前布局快照，换谱或重排后不沿用旧坐标。 */
+  const [hoveredMusicText, setHoveredMusicText] = useState<{
+    layout: ILXMLayout;
+    bounds: NonNullable<ILXMHitIndex["musicTextBounds"]>[number];
+  } | null>(null);
+  /** 弦格悬停独立于实际选区，不改变输入目标、草稿或撤销历史。 */
+  const [hoveredTabCell, setHoveredTabCell] = useState<{
+    layout: ILXMLayout;
+    target: ILXMHitTarget;
+  } | null>(null);
+  const clearHover = useCallback(() => {
+    setHoveredMusicText(null);
+    setHoveredTabCell(null);
+  }, []);
   const [showChordDiagrams, setShowChordDiagrams] = useState(true);
   const musicTextMetrics = useMusicTextMetrics(document, showChordDiagrams);
 
@@ -198,6 +217,38 @@ export const EditorShell: React.FC = () => {
     () => resolveParagraphFocus(lxmLayout, activeMusicTextTarget),
     [lxmLayout, activeMusicTextTarget],
   );
+  const musicTextHoverFocus = useMemo(() => {
+    if (!hoveredMusicText || hoveredMusicText.layout !== lxmLayout) return null;
+    const target = hoveredMusicText.bounds;
+    // 当前对象已有选中框，不再叠加同一对象的悬停描边。
+    if (
+      activeMusicTextTarget?.trackId === target.trackId &&
+      activeMusicTextTarget.measureId === target.measureId &&
+      activeMusicTextTarget.beatId === target.beatId &&
+      activeMusicTextTarget.kind === target.kind &&
+      (target.kind !== "lyric" ||
+        (activeMusicTextTarget.verse ?? 1) === (target.verse ?? 1))
+    )
+      return null;
+    return resolveParagraphFocus(lxmLayout, { ...target, string: 1 });
+  }, [lxmLayout, hoveredMusicText, activeMusicTextTarget]);
+  const tabCellHoverCaret = useMemo(() => {
+    if (!hoveredTabCell || hoveredTabCell.layout !== lxmLayout) return null;
+    const target = hoveredTabCell.target;
+    // 已选范围继续使用正式选区；文字编辑时允许预览切回 TAB 的目标弦格。
+    if (
+      !activeMusicTextTarget &&
+      resolvedSelection &&
+      target.string >= resolvedSelection.startString &&
+      target.string <= resolvedSelection.endString &&
+      resolvedSelection.beats.some(
+        (beat) =>
+          beat.measureId === target.measureId && beat.beatId === target.beatId,
+      )
+    )
+      return null;
+    return layoutTabCellCaret(hoveredTabCell.layout, target);
+  }, [lxmLayout, hoveredTabCell, activeMusicTextTarget, resolvedSelection]);
   const lyricEditing =
     activeMusicTextTarget?.kind === "lyric" ||
     activeMusicTextTarget?.kind === "numbered";
@@ -637,79 +688,64 @@ export const EditorShell: React.FC = () => {
     return target ? toCellReference(target) : null;
   };
 
+  /** 接受对象切换后清理旧输入与 pointer capture，文字激活和 beat 选择共用。 */
+  const clearScoreInteraction = () => {
+    clearFretDraft();
+    clearHover();
+    const svg = scoreSvgRef.current;
+    const pointerId = activePointerIdRef.current;
+    if (svg && pointerId !== null && svg.hasPointerCapture(pointerId))
+      svg.releasePointerCapture(pointerId);
+    dragAnchorRef.current = null;
+    activePointerIdRef.current = null;
+  };
+
+  /** 确认期间不修改选区，只有接受请求后才更新六线谱对象与焦点。 */
+  const acceptScoreSelection = (
+    next: ILXMTabCellSelection | null,
+    techniqueId: string | null,
+  ) => {
+    clearScoreInteraction();
+    setActiveMusicTextTarget(null);
+    setSelection(next);
+    setSelectedTechniqueId(techniqueId);
+    setErrorMessage(
+      techniqueId && !next ? "当前技巧无法映射到可编辑的 TAB 单元格。" : null,
+    );
+    focusScore();
+  };
+
   const handlePointerDown: React.PointerEventHandler<SVGSVGElement> = (
     event,
   ) => {
-    const textPoint = getLayoutPoint(event.currentTarget, event);
-    const textTarget =
-      textPoint && lxmLayout ? hitTestMusicText(lxmLayout, textPoint) : null;
-    if (textTarget) {
-      event.preventDefault();
-      musicTextController.current?.open({
-        trackId: textTarget.trackId,
-        measureId: textTarget.measureId,
-        beatId: textTarget.beatId,
-        string: selection?.focus.string ?? 1,
-        kind: textTarget.kind,
-        verse: textTarget.verse,
-      });
-      return;
-    }
-    // 文本页签负责选拍即编辑，包括尚未选择目标的空面板。
-    const textCell = hitTestPointer(event.currentTarget, event);
-    if (textCell && musicTextController.current?.move(textCell)) {
-      event.preventDefault();
-      return;
-    }
-    if (musicTextEditing) {
-      event.preventDefault();
-      return;
-    }
-    event.currentTarget.focus();
-    clearFretDraft();
-
-    // 技巧可能位于六线谱上方，不能先走 TAB 单元格命中。跨行技巧的所有 segment
-    // 共享同一个 ID，因此点击任意续接段都会选中同一领域对象。
+    clearHover();
+    if (!document || !lxmLayout) return;
     const point = getLayoutPoint(event.currentTarget, event);
-    const techniqueTarget =
-      point && lxmLayout ? hitTestTechniqueTarget(lxmLayout, point) : null;
-    if (techniqueTarget) {
-      dragAnchorRef.current = null;
-      activePointerIdRef.current = null;
-      setSelectedTechniqueId(techniqueTarget.techniqueId);
-      const techniqueSelection = document
-        ? resolveTechniqueSelection(
-            document,
-            techniqueTarget.techniqueId,
-            techniqueTarget.focusEndpoint,
-          )
-        : null;
-      setSelection(techniqueSelection);
-      setErrorMessage(
-        techniqueSelection ? null : "当前技巧无法映射到可编辑的 TAB 单元格。",
-      );
+    if (!point) return;
+    const action = resolveScorePointerAction(
+      document,
+      lxmLayout,
+      point,
+      selection,
+      event.shiftKey,
+    );
+    if (!action) return;
+    event.preventDefault();
+    if (action.type === "target") {
+      musicTextController.current?.open(action.target);
       return;
     }
-
-    const target = hitTestPointer(event.currentTarget, event);
-
-    if (!target) {
-      if (!event.shiftKey) {
-        setSelection(null);
-        setSelectedTechniqueId(null);
-      }
-      setErrorMessage("请点击小节内的弦线和拍点。");
+    if (action.type !== "selection") return;
+    const result = musicTextController.current?.select(
+      action.selection,
+      action.techniqueId,
+    );
+    // 有草稿时只记录待选区，不捕获原 PointerEvent，也不重放已松开的拖动。
+    if (result !== "accepted" || !action.selection || action.techniqueId)
       return;
-    }
-
-    // Shift+pointerdown 延续已有 anchor；普通拖动从当前命中格建立新 anchor。
-    const anchor = event.shiftKey && selection ? selection.anchor : target;
-    dragAnchorRef.current = anchor;
+    dragAnchorRef.current = action.selection.anchor;
     activePointerIdRef.current = event.pointerId;
     event.currentTarget.setPointerCapture(event.pointerId);
-
-    setSelectedTechniqueId(null);
-    setSelection({ anchor, focus: target });
   };
 
   const handlePointerMove: React.PointerEventHandler<SVGSVGElement> = (
@@ -718,8 +754,47 @@ export const EditorShell: React.FC = () => {
     if (
       activePointerIdRef.current !== event.pointerId ||
       !dragAnchorRef.current
-    )
+    ) {
+      // 悬停沿用点击的文字、技巧、弦格优先级，放大的提示框不参与命中。
+      const point = getLayoutPoint(event.currentTarget, event);
+      const bounds =
+        point && lxmLayout ? hitTestMusicText(lxmLayout, point) : null;
+      const next =
+        !event.buttons &&
+        event.pointerType !== "touch" &&
+        bounds &&
+        bounds.kind !== "chord" &&
+        lxmLayout
+          ? { layout: lxmLayout, bounds }
+          : null;
+      setHoveredMusicText((current) =>
+        current?.layout === next?.layout && current?.bounds === next?.bounds
+          ? current
+          : next,
+      );
+      const target =
+        !event.buttons &&
+        event.pointerType !== "touch" &&
+        !bounds &&
+        point &&
+        lxmLayout &&
+        !hitTestTechniqueTarget(lxmLayout, point)
+          ? hitTestLayout(lxmLayout, point)
+          : null;
+      const nextTabCell =
+        target && lxmLayout ? { layout: lxmLayout, target } : null;
+      // 同一弦格内移动复用原状态，避免每个像素都重绘整张谱面。
+      setHoveredTabCell((current) =>
+        current?.layout === nextTabCell?.layout &&
+        current?.target.trackId === nextTabCell?.target.trackId &&
+        current?.target.measureId === nextTabCell?.target.measureId &&
+        current?.target.beatId === nextTabCell?.target.beatId &&
+        current?.target.string === nextTabCell?.target.string
+          ? current
+          : nextTabCell,
+      );
       return;
+    }
     const target = hitTestPointer(event.currentTarget, event);
     // 谱面空白不产生伪坐标，保留最后一个合法 focus。
     if (target) setSelection({ anchor: dragAnchorRef.current, focus: target });
@@ -728,6 +803,7 @@ export const EditorShell: React.FC = () => {
   const finishPointerDrag: React.PointerEventHandler<SVGSVGElement> = (
     event,
   ) => {
+    clearHover();
     if (activePointerIdRef.current !== event.pointerId) return;
     if (event.currentTarget.hasPointerCapture(event.pointerId))
       event.currentTarget.releasePointerCapture(event.pointerId);
@@ -755,12 +831,15 @@ export const EditorShell: React.FC = () => {
   const handleScoreKeyDown: React.KeyboardEventHandler<SVGSVGElement> = (
     event,
   ) => {
-    if (
-      musicTextEditing ||
-      isTextEditingTarget(event.target) ||
-      event.nativeEvent.isComposing
-    )
+    if (isTextEditingTarget(event.target) || event.nativeEvent.isComposing)
       return;
+    // 段落活动对象上的 Esc 也走草稿保护，不能被文字输入锁提前拦住。
+    if (event.key === "Escape" && activeMusicTextTarget) {
+      event.preventDefault();
+      musicTextController.current?.returnToScore();
+      return;
+    }
+    if (musicTextEditing) return;
     const isPrimaryModifier = event.metaKey || event.ctrlKey;
     // 历史快捷键向上冒泡到编辑器根节点统一处理。
     if (isPrimaryModifier || event.altKey) return;
@@ -844,25 +923,29 @@ export const EditorShell: React.FC = () => {
     HTMLDivElement
   > = (event) => {
     const target = event.target;
-    if (musicTextEditing) return;
     if (
       event.shiftKey ||
       (target instanceof Node && scoreSvgRef.current?.contains(target))
     )
       return;
 
-    runImmediateEditorAction(() => {
-      setSelection(null);
-      setSelectedTechniqueId(null);
-      setErrorMessage(null);
-    });
+    musicTextController.current?.select(null);
   };
 
   if (!document || !lxmLayout)
     return (
-      <p className={styles.errorMessage}>
-        {errorMessage ?? "当前没有可编辑的乐谱文档。"}
-      </p>
+      <div className={styles.editorControls}>
+        <ScoreFileControls
+          session={session}
+          className={styles.toolbarButton}
+          isBlocked={() =>
+            !!fretDraft || !!musicTextController.current?.isOutputBlocked()
+          }
+        />
+        <p className={styles.errorMessage} role="alert">
+          {errorMessage ?? "当前没有可编辑的乐谱文档。"}
+        </p>
+      </div>
     );
 
   /** 顶栏每个音乐图标都有文字 aria-label，避免只靠符号传达操作含义。 */
@@ -1179,6 +1262,13 @@ export const EditorShell: React.FC = () => {
             />
             显示和弦指法图
           </label>
+          <ScoreFileControls
+            session={session}
+            className={styles.toolbarButton}
+            isBlocked={() =>
+              !!fretDraft || !!musicTextController.current?.isOutputBlocked()
+            }
+          />
           <button
             type="button"
             className={styles.toolbarButton}
@@ -1196,6 +1286,7 @@ export const EditorShell: React.FC = () => {
             导出图片
           </button>
         </div>
+        {loadNotice && <p role="status">{loadNotice}</p>}
         {lxmLayout.width > A4_CONTENT_WIDTH + 1 && (
           <p role="status">
             当前谱面超过 A4 内容宽度，可横向滚动；请调整内容后再导出 A4 图片。
@@ -1239,6 +1330,7 @@ export const EditorShell: React.FC = () => {
           ref={pageViewportRef}
           className={styles.pageViewport}
           onPointerDown={handleWorkspacePointerDown}
+          onScroll={clearHover}
         >
           <main className={styles.paper} aria-label="A4 乐谱页面">
             <svg
@@ -1255,32 +1347,28 @@ export const EditorShell: React.FC = () => {
               aria-label="六线谱编辑器"
               onPointerDown={handlePointerDown}
               onPointerMove={handlePointerMove}
+              onPointerLeave={clearHover}
               onPointerUp={finishPointerDrag}
               onPointerCancel={finishPointerDrag}
               onKeyDown={handleScoreKeyDown}
             >
-              {/* 空拍编辑提示只存在于编辑 SVG，不进入导出场景。 */}
-              <g pointerEvents="none">
-                {lxmLayout.systems
-                  .flatMap((s) => s.musicTextCells ?? [])
-                  .filter((c) => c.empty)
-                  .map((c) => (
-                    <rect
-                      key={`${c.measureId}/${c.beatId}/${c.kind}/${c.verse}`}
-                      data-paragraph-cell={`${c.kind}/${c.measureId}/${c.beatId}/${c.verse ?? ""}`}
-                      x={c.x + 2}
-                      y={c.y}
-                      width={Math.max(0, c.width - 4)}
-                      height={c.height}
-                      fill="transparent"
-                      stroke="#cbd5e1"
-                      strokeDasharray="3 3"
-                      rx={3}
-                    />
-                  ))}
-              </g>
+              <MusicTextEditingHints
+                layout={lxmLayout}
+                activeFocus={lyricFocus}
+                hoverFocus={musicTextHoverFocus}
+              />
               {/* 选区层位于音乐元素下方，且永不参与指针命中。 */}
               <g className={styles.selectionLayer} pointerEvents="none">
+                {tabCellHoverCaret && (
+                  <rect
+                    data-tab-cell-hover={`${tabCellHoverCaret.measureId}/${tabCellHoverCaret.beatId}/${tabCellHoverCaret.string}`}
+                    className={styles.tabCellHover}
+                    x={tabCellHoverCaret.x}
+                    y={tabCellHoverCaret.y}
+                    width={tabCellHoverCaret.width}
+                    height={tabCellHoverCaret.height}
+                  />
+                )}
                 {!lyricEditing &&
                   selectionRects.map((rect) => (
                     <rect
@@ -1333,10 +1421,11 @@ export const EditorShell: React.FC = () => {
               ?.measures.map((m) => m.id) ?? []
           }
           ref={musicTextController}
-          onOpen={clearFretDraft}
+          onOpen={clearScoreInteraction}
           onEditingChange={setMusicTextEditing}
           onTargetChange={setActiveMusicTextTarget}
           onScoreFocus={focusScore}
+          onScoreSelection={acceptScoreSelection}
         />
       </div>
       {imagePreviewOpen && (

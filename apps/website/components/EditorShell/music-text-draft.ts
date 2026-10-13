@@ -1,6 +1,7 @@
 import type {
   ILXMDocument,
   ILXMTabCellReference,
+  ILXMTabCellSelection,
   ILXMLyricVerse,
 } from "@liuxianmao/lxm-editor";
 import type { ChordDraft } from "./ChordEditor";
@@ -20,7 +21,11 @@ export interface MusicTextDraft {
 export type SidebarTab = "score" | "lyric" | "chord" | "numbered";
 export type SidebarAction =
   | { type: "numberedMode"; mode: "single" | "sequence" }
-  | { type: "settingsTarget"; target: ILXMTabCellReference }
+  | {
+      type: "selection";
+      selection: ILXMTabCellSelection | null;
+      techniqueId?: string;
+    }
   | { type: "mode"; mode: MusicTextDraft["lyricMode"] }
   | { type: "close" }
   | { type: "target"; target: MusicTextTarget; focus?: "score" | "input" }
@@ -44,16 +49,22 @@ export const musicTextDraftValue = (
 export const resolveSidebarRequest = (
   draft: MusicTextDraft | null,
   action: SidebarAction,
+  guards: {
+    numberedTarget?: MusicTextTarget | null;
+    numberedDirty?: boolean;
+    settingsDirty?: boolean;
+  } = {},
 ): "ignore" | "confirm" | "execute" => {
-  if (draft && action.type === "target") {
-    const a = draft.target;
+  // 仅相同文字业务对象可重复激活；同拍六线谱选择也必须经过草稿保护。
+  const current = draft?.target ?? guards.numberedTarget;
+  if (current && action.type === "target") {
     const b = action.target;
     if (
-      a.trackId === b.trackId &&
-      a.measureId === b.measureId &&
-      a.beatId === b.beatId &&
-      a.kind === b.kind &&
-      (a.kind !== "lyric" || (a.verse ?? 1) === (b.verse ?? 1))
+      current.trackId === b.trackId &&
+      current.measureId === b.measureId &&
+      current.beatId === b.beatId &&
+      current.kind === b.kind &&
+      (current.kind !== "lyric" || (current.verse ?? 1) === (b.verse ?? 1))
     )
       return "ignore";
   }
@@ -61,7 +72,9 @@ export const resolveSidebarRequest = (
     return "ignore";
   if (draft && action.type === "tab" && action.kind === draft.target.kind)
     return "ignore";
-  return draft && musicTextDraftValue(draft) !== draft.initial
+  return (draft && musicTextDraftValue(draft) !== draft.initial) ||
+    guards.numberedDirty ||
+    guards.settingsDirty
     ? "confirm"
     : "execute";
 };

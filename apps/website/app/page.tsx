@@ -1,21 +1,18 @@
-import type React from "react";
-import styles from './page.module.scss'
-import { EditorShell } from "../components/EditorShell";
+"use client";
 
-/** 首页只负责装配编辑器壳，领域状态由核心包管理。 */
-const HomePage: React.FC = () => {
+import { EditorSession } from "../components/EditorShell/EditorSession";
+import { editorStore } from "../stores/editor-store";
+import styles from "./page.module.scss";
 
-
-  return (
-    <div className={styles.editorShell}>
-      {/* 编辑器主体 */}
-      <div className={styles.editorContentWrapper}>
-        <div className={styles.editorContentContainer}>
-          <EditorShell />
-        </div>
+/** 首页使用独立会话壳；导入曲谱后重建编辑器，清理旧输入与异步任务。 */
+const HomePage: React.FC = () => (
+  <div className={styles.editorShell}>
+    <div className={styles.editorContentWrapper}>
+      <div className={styles.editorContentContainer}>
+        <EditorSession session={editorStore} />
       </div>
     </div>
-  )
-};
+  </div>
+);
 
 export default HomePage;

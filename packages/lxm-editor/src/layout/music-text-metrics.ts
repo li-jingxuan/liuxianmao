@@ -36,6 +36,9 @@ export const MUSIC_TEXT_FONT =
   'Arial, "PingFang SC", "Microsoft YaHei", sans-serif';
 export const MUSIC_TEXT_GAP = 6;
 export const MUSIC_TEXT_LANE_GAP = 8;
+/** 空歌词占位框的默认尺寸；编辑焦点与占位区域共用，避免两套几何漂移。 */
+export const MUSIC_TEXT_PLACEHOLDER_WIDTH = 24;
+export const MUSIC_TEXT_PLACEHOLDER_HEIGHT = 18;
 /** 段间留白与正文/和弦净空独立，避免压缩歌词时牵动指法图。 */
 export const MUSIC_LYRIC_VERSE_GAP = 3;
 /** 最后一段歌词的收尾留白，与正文到歌词的净空分别控制。 */
