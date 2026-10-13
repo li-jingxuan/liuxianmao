@@ -105,7 +105,6 @@ const systemScene = (s: ILXMSystemLayout): ScorePrimitive[] => {
       line(l.x1, l.y1, l.x2, l.y2, l.strokeWidth),
     ),
   );
-  for (const g of s.lyricVerseLabels ?? []) items.push(glyph(g));
   for (const m of s.measures) {
     for (const notation of m.numberedNotation ?? []) {
       items.push(...notation.labels.map(glyph));
@@ -139,7 +138,6 @@ const systemScene = (s: ILXMSystemLayout): ScorePrimitive[] => {
       }
     }
   }
-  items.push(...(s.notationLabels ?? []).map(glyph));
   items.push(...s.header.strings.map((l) => line(l.x1, l.y1, l.x2, l.y2)));
   items.push(
     ...s.header.tabLetters.map((t) =>

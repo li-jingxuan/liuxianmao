@@ -7,6 +7,8 @@ import {
   type MusicTextRect,
 } from "./music-text-metrics";
 import type { ILXMLayout } from "./layout-types";
+import { getMeasureContentBottom } from "./rhythm-bounds";
+import { MUSIC_TEXT_LANE_GAP } from "./music-text-metrics";
 export interface NumberedLayout {
   beatId: string;
   labels: MusicTextGlyph[];
@@ -80,7 +82,7 @@ export const translateNumbered = (
   dots: n.dots.map((d) => ({ ...d, cy: d.cy + dy })),
   bounds: { ...n.bounds, y: n.bounds.y + dy },
 });
-/** 空内容只生成 overlay；不增添正式 lane，也不反馈到 system 高度或断行。 */
+/** 焦点优先消费文本单元格；未启用编辑区域时兼容旧的临时位置。 */
 export const layoutParagraphFocus = (
   layout: ILXMLayout,
   target: {
@@ -98,6 +100,7 @@ export const layoutParagraphFocus = (
     if (!m || !b) continue;
     const existing = layout.hitIndex.musicTextBounds?.find(
       (r) =>
+        !r.empty &&
         r.measureId === m.id &&
         r.beatId === b.id &&
         r.kind === target.kind &&
@@ -110,20 +113,41 @@ export const layoutParagraphFocus = (
         width: existing.width + 8,
         height: existing.height + 4,
       };
+    const cell = s.musicTextCells?.find(
+      (c) =>
+        c.measureId === m.id &&
+        c.beatId === b.id &&
+        c.kind === target.kind &&
+        (target.kind !== "lyric" || c.verse === (target.verse ?? 1)),
+    );
+    if (cell) return { x: b.x - 12, y: cell.y, width: 24, height: cell.height };
     const row =
       target.kind === "numbered"
-        ? m.numberedNotation?.[0]?.bounds
+        ? s.measures
+            .flatMap((measure) => measure.numberedNotation ?? [])
+            .reduce<
+              MusicTextRect | undefined
+            >((top, n) => (!top || n.bounds.y < top.y ? n.bounds : top), undefined)
         : s.measures
             .flatMap((m) => m.lyrics ?? [])
             .find((l) => l.verse === (target.verse ?? 1))?.bounds;
     const y =
       row?.y ??
       (target.kind === "numbered"
-        ? Math.max(s.y, m.strings[0]!.y1 - 20)
+        ? Math.max(
+            ...s.measures.map(getMeasureContentBottom),
+            ...s.techniques.map(
+              (t) => t.visualBounds.y + t.visualBounds.height,
+            ),
+          ) + MUSIC_TEXT_LANE_GAP
         : Math.min(s.y + s.height - 20, m.strings.at(-1)!.y1 + 22));
     return {
       x: b.x - 12,
-      y: Math.max(s.y, Math.min(y, s.y + s.height - 18)),
+      // 空简谱整行没有正式占位，临时高亮可延伸到正文下方，不能反向夹到 TAB 内。
+      y:
+        target.kind === "numbered"
+          ? y
+          : Math.max(s.y, Math.min(y, s.y + s.height - 18)),
       width: 24,
       height: 18,
     };

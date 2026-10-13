@@ -37,12 +37,6 @@ import {
 const resolveChordBaseline = (
   system: ILXMSystemLayout,
   blocks: readonly ChordSymbolLayout[],
-  numberedBounds: readonly {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  }[] = [],
 ): number => {
   if (!blocks.length) return system.y;
   const staffTop = system.measures[0]!.strings[0]!.y1;
@@ -51,7 +45,6 @@ const resolveChordBaseline = (
       measure.notes.map(getFretTextBounds),
     ),
     ...system.techniques.map((technique) => technique.visualBounds),
-    ...numberedBounds,
   ].filter((bounds) => bounds.y < staffTop);
   return Math.min(
     ...blocks.map(({ bounds }) => {
@@ -80,6 +73,7 @@ export const layoutSystemContent = (
   baseSystems: ILXMSystemLayout[],
   gap: number,
   metrics?: ILXMMusicTextMetrics,
+  editing?: { measureId: string; kind: "lyric" | "numbered"; verse?: number },
 ): ILXMSystemLayout[] => {
   const planned = planTrackTechniques(track, baseSystems);
   const source = new Map(track.measures.map((m) => [m.id, m]));
@@ -92,24 +86,11 @@ export const layoutSystemContent = (
       0,
       system.y + LXM_TECHNIQUE_AREA_PADDING_TOP - techniqueTop,
     );
-    // 简谱位于 TAB/技巧自然投影上方，和弦继续放在它的上方。
-    const naturalTop = Math.min(
-      system.y - techniqueHeight,
-      ...system.measures.flatMap((m) =>
-        m.notes.map((n) => getFretTextBounds(n).y),
-      ),
+    // 简谱放在 TAB、节奏和技巧正文下方；先用零基线测量完整八度点边界。
+    const bottom = Math.max(
+      ...system.measures.map(getMeasureContentBottom),
+      ...system.techniques.map((t) => t.visualBounds.y + t.visualBounds.height),
     );
-    const domains = system.measures.flatMap((m) => source.get(m.id)!.beats);
-    const lowDots = Math.max(
-      0,
-      ...domains.flatMap(
-        (b) =>
-          b.numberedNotation?.tokens.map(
-            (t) => t.match(/\.+$/)?.[0].length ?? 0,
-          ) ?? [],
-      ),
-    );
-    const numberedBaseline = naturalTop - 12 - lowDots * 4;
     const numberedByMeasure = new Map(
       system.measures.map((m) => [
         m.id,
@@ -121,11 +102,35 @@ export const layoutSystemContent = (
               b.id,
               b.numberedNotation!.tokens,
               m.beats.find((x) => x.id === b.id)!.x,
-              numberedBaseline,
+              0,
               metrics,
             ),
           ),
       ]),
+    );
+    const active = system.measures.some((m) => m.id === editing?.measureId)
+      ? editing
+      : undefined;
+    const rawNumbered = [...numberedByMeasure.values()].flat();
+    const numberedDy = rawNumbered.length
+      ? bottom +
+        MUSIC_TEXT_LANE_GAP -
+        Math.min(...rawNumbered.map((n) => n.bounds.y))
+      : 0;
+    for (const [id, numbered] of numberedByMeasure)
+      numberedByMeasure.set(
+        id,
+        numbered.map((n) => translateNumbered(n, numberedDy)),
+      );
+    // 歌词从简谱最低圆点之后起排，无简谱时不预留额外一行。
+    const paragraphBottom = Math.max(
+      bottom +
+        (active?.kind === "numbered" && !rawNumbered.length
+          ? MUSIC_TEXT_LANE_GAP + 18
+          : 0),
+      ...[...numberedByMeasure.values()]
+        .flat()
+        .map((n) => n.bounds.y + n.bounds.height),
     );
     const symbols = system.measures.flatMap(
       (m) => source.get(m.id)!.chordSymbols,
@@ -152,14 +157,9 @@ export const layoutSystemContent = (
     const chordBaseline = resolveChordBaseline(
       system,
       [...blocksByMeasure.values()].flat(),
-      [...numberedByMeasure.values()].flat().map((n) => n.bounds),
-    );
-    const bottom = Math.max(
-      ...system.measures.map(getMeasureContentBottom),
-      ...system.techniques.map((t) => t.visualBounds.y + t.visualBounds.height),
     );
     const maxVerse = Math.max(
-      0,
+      active?.kind === "lyric" ? (active.verse ?? 1) : 0,
       ...system.measures.flatMap((m) =>
         source.get(m.id)!.lyrics.map((l) => l.verse),
       ),
@@ -177,7 +177,7 @@ export const layoutSystemContent = (
       ...glyphs.map((g) => g.bounds.y + g.bounds.height),
     );
     const rowHeight = rowAscent + rowDescent + MUSIC_LYRIC_VERSE_GAP;
-    const lyricBaseline = bottom + MUSIC_TEXT_LANE_GAP + rowAscent;
+    const lyricBaseline = paragraphBottom + MUSIC_TEXT_LANE_GAP + rowAscent;
     const measures: ILXMMeasureLayout[] = system.measures.map((measure) => {
       const domain = source.get(measure.id)!;
       const anchors = new Map(measure.beats.map((b) => [b.id, b.x]));
@@ -219,7 +219,6 @@ export const layoutSystemContent = (
     });
     const musicTop = Math.min(
       system.y - techniqueHeight,
-      ...[...numberedByMeasure.values()].flat().map((n) => n.bounds.y - 2),
       ...measures.flatMap((m) =>
         (m.chordSymbols ?? []).map((b) => b.bounds.y - 2),
       ),
@@ -229,50 +228,77 @@ export const layoutSystemContent = (
         (maxVerse - 1) * rowHeight +
         rowDescent +
         MUSIC_LYRIC_BOTTOM_GAP
-      : Math.max(bottom, system.y + system.height);
-    // 标记独占顶部行，避免与和弦、技巧、歌词共用空间造成碰撞。
-    const notation: { text: string; x: number }[] = [];
-    system.measures.forEach((m) => {
-      const domain = source.get(m.id)!;
-      if (domain.sectionLabel)
-        notation.push({
-          text: `${track.measures.indexOf(domain) + 1}. ${domain.sectionLabel}`,
-          x: m.x,
-        });
-    });
-    const rowGap = 24;
-    const originalTop = musicTop - notation.length * rowGap;
+      : Math.max(
+          paragraphBottom + (rawNumbered.length ? MUSIC_LYRIC_BOTTOM_GAP : 0),
+          system.y + system.height,
+        );
+    // 段落标记仅保存在文档中，不再投影为标签或影响顶部占位。
+    const originalTop = musicTop;
     const dy = nextTop - originalTop;
-    const notationLabels = notation.map((n, i) =>
-      musicTextGlyph(
-        musicTextRequest(n.text, 12, "start"),
-        n.x,
-        nextTop + 16 + i * rowGap,
-        metrics,
-      ),
+    // 空拍按相邻拍的中点划分；真实文字优先命中，避免长词被邻拍抢占。
+    const musicTextCells: NonNullable<ILXMSystemLayout["musicTextCells"]> = [];
+    const numberedTop = rawNumbered.length
+      ? Math.min(
+          ...[...numberedByMeasure.values()].flat().map((n) => n.bounds.y),
+        )
+      : bottom + MUSIC_TEXT_LANE_GAP;
+    const numberedBottom = Math.max(
+      numberedTop + 18,
+      ...[...numberedByMeasure.values()]
+        .flat()
+        .map((n) => n.bounds.y + n.bounds.height),
     );
-    const notationWidth = Math.max(
-      system.width,
-      ...notationLabels.map((l) => l.bounds.x + l.bounds.width - system.x),
-    );
-    const lyricVerseLabels = Array.from({ length: maxVerse }, (_, i) =>
-      musicTextGlyph(
-        musicTextRequest(`${i + 1}.`, 13, "start"),
-        system.x + 2,
-        lyricBaseline + i * rowHeight + dy,
-        metrics,
-      ),
-    );
+    for (const m of measures) {
+      const addRow = (
+        kind: "lyric" | "numbered",
+        y: number,
+        height: number,
+        verse?: import("../core/types").ILXMLyricVerse,
+      ) => {
+        m.beats.forEach((b, i) => {
+          const x = i ? (m.beats[i - 1]!.x + b.x) / 2 : m.x;
+          const right =
+            i + 1 < m.beats.length
+              ? (b.x + m.beats[i + 1]!.x) / 2
+              : m.x + m.width;
+          const exists =
+            kind === "numbered"
+              ? m.numberedNotation?.some((n) => n.beatId === b.id)
+              : m.lyrics?.some((l) => l.beatId === b.id && l.verse === verse);
+          musicTextCells.push({
+            x,
+            y: y + dy,
+            width: right - x,
+            height,
+            trackId: track.id,
+            measureId: m.id,
+            beatId: b.id,
+            id: b.id,
+            kind,
+            verse,
+            empty: !exists,
+          });
+        });
+      };
+      if (rawNumbered.length || active?.kind === "numbered")
+        addRow("numbered", numberedTop, numberedBottom - numberedTop);
+      for (let v = 1; v <= maxVerse; v++)
+        addRow(
+          "lyric",
+          lyricBaseline + (v - 1) * rowHeight - rowAscent,
+          rowAscent + rowDescent,
+          v as import("../core/types").ILXMLyricVerse,
+        );
+    }
     const result: ILXMSystemLayout = {
       ...system,
       y: nextTop,
-      notationLabels,
       height: finalBottom - originalTop,
       techniqueLaneCount: Math.max(
         0,
         ...system.techniques.map((t) => t.lane + 1),
       ),
-      lyricVerseLabels,
+      musicTextCells,
       header: {
         ...system.header,
         tabLetters: system.header.tabLetters.map((t) => ({
@@ -305,17 +331,33 @@ export const layoutSystemContent = (
       visualBounds: {
         x: system.x,
         y: nextTop,
-        width: notationWidth,
+        width: system.width,
         height: finalBottom - originalTop,
       },
     };
+    // 收边只延伸到第一行实际歌词的上缘；同一行取最高字形边界，无歌词时对齐最下层横梁。
+    // 行高仍保留排版净空，不能把歌词底部留白或其他标记的占位用于竖线端点。
+    const lyrics = result.measures.flatMap((m) => m.lyrics ?? []);
+    const firstLyricVerse = Math.min(...lyrics.map((l) => l.verse));
+    const leftEdgeBottom = lyrics.length
+      ? Math.min(
+          ...lyrics
+            .filter((l) => l.verse === firstLyricVerse)
+            .map((l) => l.bounds.y),
+        )
+      : Math.max(
+          ...result.measures.flatMap((m) => [
+            ...m.strings.map((line) => Math.max(line.y1, line.y2)),
+            ...m.beamSegments.map((beam) => beam.y),
+          ]),
+        );
     // 竖线位于谱行最左端；描边中心内缩半个线宽，避免 x=0 时被 SVG viewBox 裁切。
     result.leftEdge = [
       {
         x1: result.x + 0.5,
         x2: result.x + 0.5,
         y1: result.measures[0]!.strings[0]!.y1,
-        y2: result.y + result.height,
+        y2: leftEdgeBottom,
         strokeWidth: 1,
       },
     ];

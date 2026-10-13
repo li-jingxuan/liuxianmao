@@ -1,0 +1,5770 @@
+{
+  "schema": "lxm-tab-score",
+  "schemaVersion": 7,
+  "documentRevision": 1,
+  "score": {
+    "id": "amazing-grace-nice",
+    "title": "Amazing Grace · 奇异恩典",
+    "arranger": "Nice",
+    "keySignature": "G",
+    "meta": {
+      "lyricist": "John Newton",
+      "composer": "传统曲调 NEW BRITAIN",
+      "tempo": 76,
+      "style": "民谣吉他教学编配",
+      "source": "https://hymnary.org/media/fetch/96169",
+      "copyright": "Public Domain",
+      "description": "三段歌词展开，非指定歌手录音复刻；弱起前补休止，适配容量闭合的小节模型。"
+    },
+    "tracks": [
+      {
+        "id": "test-guitar",
+        "name": "标准调弦吉他 · 旋律 + 和弦伴奏",
+        "instrument": "guitar",
+        "tuning": {
+          "strings": [
+            {
+              "index": 1,
+              "pitch": "E4",
+              "midi": 64
+            },
+            {
+              "index": 2,
+              "pitch": "B3",
+              "midi": 59
+            },
+            {
+              "index": 3,
+              "pitch": "G3",
+              "midi": 55
+            },
+            {
+              "index": 4,
+              "pitch": "D3",
+              "midi": 50
+            },
+            {
+              "index": 5,
+              "pitch": "A2",
+              "midi": 45
+            },
+            {
+              "index": 6,
+              "pitch": "E2",
+              "midi": 40
+            }
+          ]
+        },
+        "capo": 0,
+        "startBarline": "none",
+        "measures": [
+          {
+            "id": "grace-m0",
+            "timeSignature": {
+              "numerator": 3,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "grace-b0-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": [],
+                "numberedNotation": {
+                  "tokens": [
+                    "0"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b0-1",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n0-1",
+                    "string": 3,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5."
+                  ]
+                }
+              }
+            ],
+            "lyrics": [
+              {
+                "id": "grace-l0-1",
+                "beatId": "grace-b0-1",
+                "verse": 1,
+                "text": "A-"
+              }
+            ],
+            "tuplets": [],
+            "chordSymbols": [
+              {
+                "id": "grace-c0",
+                "beatId": "grace-b0-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ],
+            "sectionLabel": "第 1 段 · 旋律"
+          },
+          {
+            "id": "grace-m1",
+            "timeSignature": {
+              "numerator": 3,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "grace-b1-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n1-0",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b1-1",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n1-1",
+                    "string": 1,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b1-2",
+                "tick": 2400,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n1-2",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "lyrics": [
+              {
+                "id": "grace-l1-0",
+                "beatId": "grace-b1-0",
+                "verse": 1,
+                "text": "maz-"
+              },
+              {
+                "id": "grace-l1-1",
+                "beatId": "grace-b1-1",
+                "verse": 1,
+                "text": "ing"
+              }
+            ],
+            "tuplets": [],
+            "chordSymbols": [
+              {
+                "id": "grace-c1",
+                "beatId": "grace-b1-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "grace-m2",
+            "timeSignature": {
+              "numerator": 3,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "grace-b2-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n2-0",
+                    "string": 1,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b2-1",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n2-1",
+                    "string": 1,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              }
+            ],
+            "lyrics": [
+              {
+                "id": "grace-l2-0",
+                "beatId": "grace-b2-0",
+                "verse": 1,
+                "text": "grace,"
+              },
+              {
+                "id": "grace-l2-1",
+                "beatId": "grace-b2-1",
+                "verse": 1,
+                "text": "how"
+              }
+            ],
+            "tuplets": [],
+            "chordSymbols": [
+              {
+                "id": "grace-c2",
+                "beatId": "grace-b2-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "grace-m3",
+            "timeSignature": {
+              "numerator": 3,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "grace-b3-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n3-0",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b3-1",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n3-1",
+                    "string": 3,
+                    "fret": 9
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "6."
+                  ]
+                }
+              }
+            ],
+            "lyrics": [
+              {
+                "id": "grace-l3-0",
+                "beatId": "grace-b3-0",
+                "verse": 1,
+                "text": "sweet"
+              },
+              {
+                "id": "grace-l3-1",
+                "beatId": "grace-b3-1",
+                "verse": 1,
+                "text": "the"
+              }
+            ],
+            "tuplets": [],
+            "chordSymbols": [
+              {
+                "id": "grace-c3",
+                "beatId": "grace-b3-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "C",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 5,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "grace-m4",
+            "timeSignature": {
+              "numerator": 3,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "grace-b4-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n4-0",
+                    "string": 3,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5."
+                  ]
+                }
+              },
+              {
+                "id": "grace-b4-1",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n4-1",
+                    "string": 3,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5."
+                  ]
+                }
+              }
+            ],
+            "lyrics": [
+              {
+                "id": "grace-l4-0",
+                "beatId": "grace-b4-0",
+                "verse": 1,
+                "text": "sound,"
+              },
+              {
+                "id": "grace-l4-1",
+                "beatId": "grace-b4-1",
+                "verse": 1,
+                "text": "that"
+              }
+            ],
+            "tuplets": [],
+            "chordSymbols": [
+              {
+                "id": "grace-c4",
+                "beatId": "grace-b4-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "grace-m5",
+            "timeSignature": {
+              "numerator": 3,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "grace-b5-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n5-0",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b5-1",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n5-1",
+                    "string": 1,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b5-2",
+                "tick": 2400,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n5-2",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "lyrics": [
+              {
+                "id": "grace-l5-0",
+                "beatId": "grace-b5-0",
+                "verse": 1,
+                "text": "saved"
+              },
+              {
+                "id": "grace-l5-1",
+                "beatId": "grace-b5-1",
+                "verse": 1,
+                "text": "a"
+              }
+            ],
+            "tuplets": [],
+            "chordSymbols": [
+              {
+                "id": "grace-c5",
+                "beatId": "grace-b5-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "grace-m6",
+            "timeSignature": {
+              "numerator": 3,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "grace-b6-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n6-0",
+                    "string": 1,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b6-1",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n6-1",
+                    "string": 1,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b6-2",
+                "tick": 2400,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n6-2",
+                    "string": 1,
+                    "fret": 10
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5"
+                  ]
+                }
+              }
+            ],
+            "lyrics": [
+              {
+                "id": "grace-l6-0",
+                "beatId": "grace-b6-0",
+                "verse": 1,
+                "text": "wretch"
+              },
+              {
+                "id": "grace-l6-1",
+                "beatId": "grace-b6-1",
+                "verse": 1,
+                "text": "like"
+              }
+            ],
+            "tuplets": [],
+            "chordSymbols": [
+              {
+                "id": "grace-c6",
+                "beatId": "grace-b6-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "grace-m7",
+            "timeSignature": {
+              "numerator": 3,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "grace-b7-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n7-0",
+                    "string": 1,
+                    "fret": 10
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b7-1",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n7-1",
+                    "string": 1,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              }
+            ],
+            "lyrics": [
+              {
+                "id": "grace-l7-0",
+                "beatId": "grace-b7-0",
+                "verse": 1,
+                "text": "me!"
+              },
+              {
+                "id": "grace-l7-1",
+                "beatId": "grace-b7-1",
+                "verse": 1,
+                "text": "I"
+              }
+            ],
+            "tuplets": [],
+            "chordSymbols": [
+              {
+                "id": "grace-c7",
+                "beatId": "grace-b7-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "D",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 2,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 3,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": "x",
+                        "finger": null
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "grace-m8",
+            "timeSignature": {
+              "numerator": 3,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "grace-b8-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 1
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n8-0",
+                    "string": 1,
+                    "fret": 10
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b8-1",
+                "tick": 1440,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n8-1",
+                    "string": 1,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b8-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n8-2",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "lyrics": [
+              {
+                "id": "grace-l8-0",
+                "beatId": "grace-b8-0",
+                "verse": 1,
+                "text": "once"
+              },
+              {
+                "id": "grace-l8-1",
+                "beatId": "grace-b8-1",
+                "verse": 1,
+                "text": "was"
+              }
+            ],
+            "tuplets": [],
+            "chordSymbols": [
+              {
+                "id": "grace-c8",
+                "beatId": "grace-b8-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "grace-m9",
+            "timeSignature": {
+              "numerator": 3,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "grace-b9-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n9-0",
+                    "string": 1,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b9-1",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n9-1",
+                    "string": 1,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              }
+            ],
+            "lyrics": [
+              {
+                "id": "grace-l9-0",
+                "beatId": "grace-b9-0",
+                "verse": 1,
+                "text": "lost,"
+              },
+              {
+                "id": "grace-l9-1",
+                "beatId": "grace-b9-1",
+                "verse": 1,
+                "text": "but"
+              }
+            ],
+            "tuplets": [],
+            "chordSymbols": [
+              {
+                "id": "grace-c9",
+                "beatId": "grace-b9-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "grace-m10",
+            "timeSignature": {
+              "numerator": 3,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "grace-b10-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n10-0",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b10-1",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n10-1",
+                    "string": 3,
+                    "fret": 9
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "6."
+                  ]
+                }
+              }
+            ],
+            "lyrics": [
+              {
+                "id": "grace-l10-0",
+                "beatId": "grace-b10-0",
+                "verse": 1,
+                "text": "now"
+              },
+              {
+                "id": "grace-l10-1",
+                "beatId": "grace-b10-1",
+                "verse": 1,
+                "text": "am"
+              }
+            ],
+            "tuplets": [],
+            "chordSymbols": [
+              {
+                "id": "grace-c10",
+                "beatId": "grace-b10-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "C",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 5,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "grace-m11",
+            "timeSignature": {
+              "numerator": 3,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "grace-b11-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n11-0",
+                    "string": 3,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5."
+                  ]
+                }
+              },
+              {
+                "id": "grace-b11-1",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n11-1",
+                    "string": 3,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5."
+                  ]
+                }
+              }
+            ],
+            "lyrics": [
+              {
+                "id": "grace-l11-0",
+                "beatId": "grace-b11-0",
+                "verse": 1,
+                "text": "found,"
+              },
+              {
+                "id": "grace-l11-1",
+                "beatId": "grace-b11-1",
+                "verse": 1,
+                "text": "was"
+              }
+            ],
+            "tuplets": [],
+            "chordSymbols": [
+              {
+                "id": "grace-c11",
+                "beatId": "grace-b11-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "grace-m12",
+            "timeSignature": {
+              "numerator": 3,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "grace-b12-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n12-0",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b12-1",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n12-1",
+                    "string": 1,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b12-2",
+                "tick": 2400,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n12-2",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "lyrics": [
+              {
+                "id": "grace-l12-0",
+                "beatId": "grace-b12-0",
+                "verse": 1,
+                "text": "blind,"
+              },
+              {
+                "id": "grace-l12-1",
+                "beatId": "grace-b12-1",
+                "verse": 1,
+                "text": "but"
+              }
+            ],
+            "tuplets": [],
+            "chordSymbols": [
+              {
+                "id": "grace-c12",
+                "beatId": "grace-b12-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "grace-m13",
+            "timeSignature": {
+              "numerator": 3,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "grace-b13-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n13-0",
+                    "string": 1,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b13-1",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n13-1",
+                    "string": 1,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              }
+            ],
+            "lyrics": [
+              {
+                "id": "grace-l13-0",
+                "beatId": "grace-b13-0",
+                "verse": 1,
+                "text": "now"
+              },
+              {
+                "id": "grace-l13-1",
+                "beatId": "grace-b13-1",
+                "verse": 1,
+                "text": "I"
+              }
+            ],
+            "tuplets": [],
+            "chordSymbols": [
+              {
+                "id": "grace-c13",
+                "beatId": "grace-b13-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "D",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 2,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 3,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": "x",
+                        "finger": null
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "grace-m14",
+            "timeSignature": {
+              "numerator": 3,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "grace-b14-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n14-0",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b14-1",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n14-1",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "lyrics": [
+              {
+                "id": "grace-l14-0",
+                "beatId": "grace-b14-0",
+                "verse": 1,
+                "text": "see."
+              }
+            ],
+            "tuplets": [],
+            "chordSymbols": [
+              {
+                "id": "grace-c14",
+                "beatId": "grace-b14-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "grace-m15",
+            "timeSignature": {
+              "numerator": 3,
+              "denominator": 4
+            },
+            "barline": "double",
+            "beats": [
+              {
+                "id": "grace-b15-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 1
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n15-0",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "-"
+                  ]
+                }
+              }
+            ],
+            "lyrics": [],
+            "tuplets": [],
+            "chordSymbols": [
+              {
+                "id": "grace-c15",
+                "beatId": "grace-b15-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "grace-m16",
+            "timeSignature": {
+              "numerator": 3,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "grace-b16-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": [],
+                "numberedNotation": {
+                  "tokens": [
+                    "0"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b16-1",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n16-1",
+                    "string": 3,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5."
+                  ]
+                }
+              }
+            ],
+            "lyrics": [
+              {
+                "id": "grace-l16-1",
+                "beatId": "grace-b16-1",
+                "verse": 1,
+                "text": "'Twas"
+              }
+            ],
+            "tuplets": [],
+            "chordSymbols": [
+              {
+                "id": "grace-c16",
+                "beatId": "grace-b16-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ],
+            "sectionLabel": "第 2 段 · 轻柔变化"
+          },
+          {
+            "id": "grace-m17",
+            "timeSignature": {
+              "numerator": 3,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "grace-b17-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n17-0",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b17-1",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n17-1",
+                    "string": 1,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b17-2",
+                "tick": 2400,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n17-2",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "lyrics": [
+              {
+                "id": "grace-l17-0",
+                "beatId": "grace-b17-0",
+                "verse": 1,
+                "text": "grace"
+              },
+              {
+                "id": "grace-l17-1",
+                "beatId": "grace-b17-1",
+                "verse": 1,
+                "text": "that"
+              }
+            ],
+            "tuplets": [],
+            "chordSymbols": [
+              {
+                "id": "grace-c17",
+                "beatId": "grace-b17-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "grace-m18",
+            "timeSignature": {
+              "numerator": 3,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "grace-b18-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n18-0",
+                    "string": 1,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b18-1",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n18-1",
+                    "string": 1,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              }
+            ],
+            "lyrics": [
+              {
+                "id": "grace-l18-0",
+                "beatId": "grace-b18-0",
+                "verse": 1,
+                "text": "taught"
+              },
+              {
+                "id": "grace-l18-1",
+                "beatId": "grace-b18-1",
+                "verse": 1,
+                "text": "my"
+              }
+            ],
+            "tuplets": [],
+            "chordSymbols": [
+              {
+                "id": "grace-c18",
+                "beatId": "grace-b18-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "grace-m19",
+            "timeSignature": {
+              "numerator": 3,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "grace-b19-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n19-0",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b19-1",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n19-1",
+                    "string": 3,
+                    "fret": 9
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "6."
+                  ]
+                }
+              }
+            ],
+            "lyrics": [
+              {
+                "id": "grace-l19-0",
+                "beatId": "grace-b19-0",
+                "verse": 1,
+                "text": "heart"
+              },
+              {
+                "id": "grace-l19-1",
+                "beatId": "grace-b19-1",
+                "verse": 1,
+                "text": "to"
+              }
+            ],
+            "tuplets": [],
+            "chordSymbols": [
+              {
+                "id": "grace-c19",
+                "beatId": "grace-b19-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "C",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 5,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "grace-m20",
+            "timeSignature": {
+              "numerator": 3,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "grace-b20-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n20-0",
+                    "string": 3,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5."
+                  ]
+                }
+              },
+              {
+                "id": "grace-b20-1",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n20-1",
+                    "string": 3,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5."
+                  ]
+                }
+              }
+            ],
+            "lyrics": [
+              {
+                "id": "grace-l20-0",
+                "beatId": "grace-b20-0",
+                "verse": 1,
+                "text": "fear,"
+              },
+              {
+                "id": "grace-l20-1",
+                "beatId": "grace-b20-1",
+                "verse": 1,
+                "text": "and"
+              }
+            ],
+            "tuplets": [],
+            "chordSymbols": [
+              {
+                "id": "grace-c20",
+                "beatId": "grace-b20-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "grace-m21",
+            "timeSignature": {
+              "numerator": 3,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "grace-b21-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n21-0",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b21-1",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n21-1",
+                    "string": 1,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b21-2",
+                "tick": 2400,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n21-2",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "lyrics": [
+              {
+                "id": "grace-l21-0",
+                "beatId": "grace-b21-0",
+                "verse": 1,
+                "text": "grace"
+              },
+              {
+                "id": "grace-l21-1",
+                "beatId": "grace-b21-1",
+                "verse": 1,
+                "text": "my"
+              }
+            ],
+            "tuplets": [],
+            "chordSymbols": [
+              {
+                "id": "grace-c21",
+                "beatId": "grace-b21-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "grace-m22",
+            "timeSignature": {
+              "numerator": 3,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "grace-b22-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n22-0",
+                    "string": 1,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b22-1",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n22-1",
+                    "string": 1,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b22-2",
+                "tick": 2400,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n22-2",
+                    "string": 1,
+                    "fret": 10
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5"
+                  ]
+                }
+              }
+            ],
+            "lyrics": [
+              {
+                "id": "grace-l22-0",
+                "beatId": "grace-b22-0",
+                "verse": 1,
+                "text": "fears"
+              },
+              {
+                "id": "grace-l22-1",
+                "beatId": "grace-b22-1",
+                "verse": 1,
+                "text": "re-"
+              }
+            ],
+            "tuplets": [],
+            "chordSymbols": [
+              {
+                "id": "grace-c22",
+                "beatId": "grace-b22-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "grace-m23",
+            "timeSignature": {
+              "numerator": 3,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "grace-b23-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n23-0",
+                    "string": 1,
+                    "fret": 10
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b23-1",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n23-1",
+                    "string": 1,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              }
+            ],
+            "lyrics": [
+              {
+                "id": "grace-l23-0",
+                "beatId": "grace-b23-0",
+                "verse": 1,
+                "text": "lieved;"
+              },
+              {
+                "id": "grace-l23-1",
+                "beatId": "grace-b23-1",
+                "verse": 1,
+                "text": "How"
+              }
+            ],
+            "tuplets": [],
+            "chordSymbols": [
+              {
+                "id": "grace-c23",
+                "beatId": "grace-b23-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "D",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 2,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 3,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": "x",
+                        "finger": null
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "grace-m24",
+            "timeSignature": {
+              "numerator": 3,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "grace-b24-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 1
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n24-0",
+                    "string": 1,
+                    "fret": 10
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b24-1",
+                "tick": 1440,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n24-1",
+                    "string": 1,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b24-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n24-2",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "lyrics": [
+              {
+                "id": "grace-l24-0",
+                "beatId": "grace-b24-0",
+                "verse": 1,
+                "text": "pre-"
+              },
+              {
+                "id": "grace-l24-1",
+                "beatId": "grace-b24-1",
+                "verse": 1,
+                "text": "cious"
+              }
+            ],
+            "tuplets": [],
+            "chordSymbols": [
+              {
+                "id": "grace-c24",
+                "beatId": "grace-b24-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "grace-m25",
+            "timeSignature": {
+              "numerator": 3,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "grace-b25-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n25-0",
+                    "string": 1,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b25-1",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n25-1",
+                    "string": 1,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              }
+            ],
+            "lyrics": [
+              {
+                "id": "grace-l25-0",
+                "beatId": "grace-b25-0",
+                "verse": 1,
+                "text": "did"
+              },
+              {
+                "id": "grace-l25-1",
+                "beatId": "grace-b25-1",
+                "verse": 1,
+                "text": "that"
+              }
+            ],
+            "tuplets": [],
+            "chordSymbols": [
+              {
+                "id": "grace-c25",
+                "beatId": "grace-b25-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "grace-m26",
+            "timeSignature": {
+              "numerator": 3,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "grace-b26-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n26-0",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b26-1",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n26-1",
+                    "string": 3,
+                    "fret": 9
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "6."
+                  ]
+                }
+              }
+            ],
+            "lyrics": [
+              {
+                "id": "grace-l26-0",
+                "beatId": "grace-b26-0",
+                "verse": 1,
+                "text": "grace"
+              },
+              {
+                "id": "grace-l26-1",
+                "beatId": "grace-b26-1",
+                "verse": 1,
+                "text": "ap-"
+              }
+            ],
+            "tuplets": [],
+            "chordSymbols": [
+              {
+                "id": "grace-c26",
+                "beatId": "grace-b26-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "C",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 5,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "grace-m27",
+            "timeSignature": {
+              "numerator": 3,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "grace-b27-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n27-0",
+                    "string": 3,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5."
+                  ]
+                }
+              },
+              {
+                "id": "grace-b27-1",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n27-1",
+                    "string": 3,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5."
+                  ]
+                }
+              }
+            ],
+            "lyrics": [
+              {
+                "id": "grace-l27-0",
+                "beatId": "grace-b27-0",
+                "verse": 1,
+                "text": "pear"
+              },
+              {
+                "id": "grace-l27-1",
+                "beatId": "grace-b27-1",
+                "verse": 1,
+                "text": "the"
+              }
+            ],
+            "tuplets": [],
+            "chordSymbols": [
+              {
+                "id": "grace-c27",
+                "beatId": "grace-b27-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "grace-m28",
+            "timeSignature": {
+              "numerator": 3,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "grace-b28-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n28-0",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b28-1",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n28-1",
+                    "string": 1,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b28-2",
+                "tick": 2400,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n28-2",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "lyrics": [
+              {
+                "id": "grace-l28-0",
+                "beatId": "grace-b28-0",
+                "verse": 1,
+                "text": "hour"
+              },
+              {
+                "id": "grace-l28-1",
+                "beatId": "grace-b28-1",
+                "verse": 1,
+                "text": "I"
+              }
+            ],
+            "tuplets": [],
+            "chordSymbols": [
+              {
+                "id": "grace-c28",
+                "beatId": "grace-b28-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "grace-m29",
+            "timeSignature": {
+              "numerator": 3,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "grace-b29-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n29-0",
+                    "string": 1,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b29-1",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n29-1",
+                    "string": 1,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              }
+            ],
+            "lyrics": [
+              {
+                "id": "grace-l29-0",
+                "beatId": "grace-b29-0",
+                "verse": 1,
+                "text": "first"
+              },
+              {
+                "id": "grace-l29-1",
+                "beatId": "grace-b29-1",
+                "verse": 1,
+                "text": "be-"
+              }
+            ],
+            "tuplets": [],
+            "chordSymbols": [
+              {
+                "id": "grace-c29",
+                "beatId": "grace-b29-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "D",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 2,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 3,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": "x",
+                        "finger": null
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "grace-m30",
+            "timeSignature": {
+              "numerator": 3,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "grace-b30-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n30-0",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b30-1",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n30-1",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "lyrics": [
+              {
+                "id": "grace-l30-0",
+                "beatId": "grace-b30-0",
+                "verse": 1,
+                "text": "lieved!"
+              }
+            ],
+            "tuplets": [],
+            "chordSymbols": [
+              {
+                "id": "grace-c30",
+                "beatId": "grace-b30-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "grace-m31",
+            "timeSignature": {
+              "numerator": 3,
+              "denominator": 4
+            },
+            "barline": "double",
+            "beats": [
+              {
+                "id": "grace-b31-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 1
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n31-0",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "-"
+                  ]
+                }
+              }
+            ],
+            "lyrics": [],
+            "tuplets": [],
+            "chordSymbols": [
+              {
+                "id": "grace-c31",
+                "beatId": "grace-b31-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "grace-m32",
+            "timeSignature": {
+              "numerator": 3,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "grace-b32-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": [],
+                "numberedNotation": {
+                  "tokens": [
+                    "0"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b32-1",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n32-1",
+                    "string": 3,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5."
+                  ]
+                }
+              }
+            ],
+            "lyrics": [
+              {
+                "id": "grace-l32-1",
+                "beatId": "grace-b32-1",
+                "verse": 1,
+                "text": "Through"
+              }
+            ],
+            "tuplets": [],
+            "chordSymbols": [
+              {
+                "id": "grace-c32",
+                "beatId": "grace-b32-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ],
+            "sectionLabel": "第 3 段 · 渐弱收束"
+          },
+          {
+            "id": "grace-m33",
+            "timeSignature": {
+              "numerator": 3,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "grace-b33-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n33-0",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b33-1",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n33-1",
+                    "string": 1,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b33-2",
+                "tick": 2400,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n33-2",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "lyrics": [
+              {
+                "id": "grace-l33-0",
+                "beatId": "grace-b33-0",
+                "verse": 1,
+                "text": "man-"
+              },
+              {
+                "id": "grace-l33-1",
+                "beatId": "grace-b33-1",
+                "verse": 1,
+                "text": "y"
+              }
+            ],
+            "tuplets": [],
+            "chordSymbols": [
+              {
+                "id": "grace-c33",
+                "beatId": "grace-b33-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "grace-m34",
+            "timeSignature": {
+              "numerator": 3,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "grace-b34-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n34-0",
+                    "string": 1,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b34-1",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n34-1",
+                    "string": 1,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              }
+            ],
+            "lyrics": [
+              {
+                "id": "grace-l34-0",
+                "beatId": "grace-b34-0",
+                "verse": 1,
+                "text": "dan-"
+              },
+              {
+                "id": "grace-l34-1",
+                "beatId": "grace-b34-1",
+                "verse": 1,
+                "text": "gers,"
+              }
+            ],
+            "tuplets": [],
+            "chordSymbols": [
+              {
+                "id": "grace-c34",
+                "beatId": "grace-b34-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "grace-m35",
+            "timeSignature": {
+              "numerator": 3,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "grace-b35-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n35-0",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b35-1",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n35-1",
+                    "string": 3,
+                    "fret": 9
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "6."
+                  ]
+                }
+              }
+            ],
+            "lyrics": [
+              {
+                "id": "grace-l35-0",
+                "beatId": "grace-b35-0",
+                "verse": 1,
+                "text": "toils"
+              },
+              {
+                "id": "grace-l35-1",
+                "beatId": "grace-b35-1",
+                "verse": 1,
+                "text": "and"
+              }
+            ],
+            "tuplets": [],
+            "chordSymbols": [
+              {
+                "id": "grace-c35",
+                "beatId": "grace-b35-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "C",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 5,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "grace-m36",
+            "timeSignature": {
+              "numerator": 3,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "grace-b36-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n36-0",
+                    "string": 3,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5."
+                  ]
+                }
+              },
+              {
+                "id": "grace-b36-1",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n36-1",
+                    "string": 3,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5."
+                  ]
+                }
+              }
+            ],
+            "lyrics": [
+              {
+                "id": "grace-l36-0",
+                "beatId": "grace-b36-0",
+                "verse": 1,
+                "text": "snares,"
+              },
+              {
+                "id": "grace-l36-1",
+                "beatId": "grace-b36-1",
+                "verse": 1,
+                "text": "I"
+              }
+            ],
+            "tuplets": [],
+            "chordSymbols": [
+              {
+                "id": "grace-c36",
+                "beatId": "grace-b36-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "grace-m37",
+            "timeSignature": {
+              "numerator": 3,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "grace-b37-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n37-0",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b37-1",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n37-1",
+                    "string": 1,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b37-2",
+                "tick": 2400,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n37-2",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "lyrics": [
+              {
+                "id": "grace-l37-0",
+                "beatId": "grace-b37-0",
+                "verse": 1,
+                "text": "have"
+              },
+              {
+                "id": "grace-l37-1",
+                "beatId": "grace-b37-1",
+                "verse": 1,
+                "text": "al-"
+              }
+            ],
+            "tuplets": [],
+            "chordSymbols": [
+              {
+                "id": "grace-c37",
+                "beatId": "grace-b37-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "grace-m38",
+            "timeSignature": {
+              "numerator": 3,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "grace-b38-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n38-0",
+                    "string": 1,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b38-1",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n38-1",
+                    "string": 1,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b38-2",
+                "tick": 2400,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n38-2",
+                    "string": 1,
+                    "fret": 10
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5"
+                  ]
+                }
+              }
+            ],
+            "lyrics": [
+              {
+                "id": "grace-l38-0",
+                "beatId": "grace-b38-0",
+                "verse": 1,
+                "text": "rea-"
+              },
+              {
+                "id": "grace-l38-1",
+                "beatId": "grace-b38-1",
+                "verse": 1,
+                "text": "dy"
+              }
+            ],
+            "tuplets": [],
+            "chordSymbols": [
+              {
+                "id": "grace-c38",
+                "beatId": "grace-b38-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "grace-m39",
+            "timeSignature": {
+              "numerator": 3,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "grace-b39-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n39-0",
+                    "string": 1,
+                    "fret": 10
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b39-1",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n39-1",
+                    "string": 1,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              }
+            ],
+            "lyrics": [
+              {
+                "id": "grace-l39-0",
+                "beatId": "grace-b39-0",
+                "verse": 1,
+                "text": "come;"
+              },
+              {
+                "id": "grace-l39-1",
+                "beatId": "grace-b39-1",
+                "verse": 1,
+                "text": "'Tis"
+              }
+            ],
+            "tuplets": [],
+            "chordSymbols": [
+              {
+                "id": "grace-c39",
+                "beatId": "grace-b39-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "D",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 2,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 3,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": "x",
+                        "finger": null
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "grace-m40",
+            "timeSignature": {
+              "numerator": 3,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "grace-b40-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 1
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n40-0",
+                    "string": 1,
+                    "fret": 10
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b40-1",
+                "tick": 1440,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n40-1",
+                    "string": 1,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b40-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n40-2",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "lyrics": [
+              {
+                "id": "grace-l40-0",
+                "beatId": "grace-b40-0",
+                "verse": 1,
+                "text": "grace"
+              },
+              {
+                "id": "grace-l40-1",
+                "beatId": "grace-b40-1",
+                "verse": 1,
+                "text": "hath"
+              }
+            ],
+            "tuplets": [],
+            "chordSymbols": [
+              {
+                "id": "grace-c40",
+                "beatId": "grace-b40-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "grace-m41",
+            "timeSignature": {
+              "numerator": 3,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "grace-b41-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n41-0",
+                    "string": 1,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b41-1",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n41-1",
+                    "string": 1,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              }
+            ],
+            "lyrics": [
+              {
+                "id": "grace-l41-0",
+                "beatId": "grace-b41-0",
+                "verse": 1,
+                "text": "brought"
+              },
+              {
+                "id": "grace-l41-1",
+                "beatId": "grace-b41-1",
+                "verse": 1,
+                "text": "me"
+              }
+            ],
+            "tuplets": [],
+            "chordSymbols": [
+              {
+                "id": "grace-c41",
+                "beatId": "grace-b41-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "grace-m42",
+            "timeSignature": {
+              "numerator": 3,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "grace-b42-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n42-0",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b42-1",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n42-1",
+                    "string": 3,
+                    "fret": 9
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "6."
+                  ]
+                }
+              }
+            ],
+            "lyrics": [
+              {
+                "id": "grace-l42-0",
+                "beatId": "grace-b42-0",
+                "verse": 1,
+                "text": "safe"
+              },
+              {
+                "id": "grace-l42-1",
+                "beatId": "grace-b42-1",
+                "verse": 1,
+                "text": "thus"
+              }
+            ],
+            "tuplets": [],
+            "chordSymbols": [
+              {
+                "id": "grace-c42",
+                "beatId": "grace-b42-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "C",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 5,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "grace-m43",
+            "timeSignature": {
+              "numerator": 3,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "grace-b43-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n43-0",
+                    "string": 3,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5."
+                  ]
+                }
+              },
+              {
+                "id": "grace-b43-1",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n43-1",
+                    "string": 3,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5."
+                  ]
+                }
+              }
+            ],
+            "lyrics": [
+              {
+                "id": "grace-l43-0",
+                "beatId": "grace-b43-0",
+                "verse": 1,
+                "text": "far,"
+              },
+              {
+                "id": "grace-l43-1",
+                "beatId": "grace-b43-1",
+                "verse": 1,
+                "text": "and"
+              }
+            ],
+            "tuplets": [],
+            "chordSymbols": [
+              {
+                "id": "grace-c43",
+                "beatId": "grace-b43-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "grace-m44",
+            "timeSignature": {
+              "numerator": 3,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "grace-b44-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n44-0",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b44-1",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n44-1",
+                    "string": 1,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b44-2",
+                "tick": 2400,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n44-2",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "lyrics": [
+              {
+                "id": "grace-l44-0",
+                "beatId": "grace-b44-0",
+                "verse": 1,
+                "text": "grace"
+              },
+              {
+                "id": "grace-l44-1",
+                "beatId": "grace-b44-1",
+                "verse": 1,
+                "text": "will"
+              }
+            ],
+            "tuplets": [],
+            "chordSymbols": [
+              {
+                "id": "grace-c44",
+                "beatId": "grace-b44-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "grace-m45",
+            "timeSignature": {
+              "numerator": 3,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "grace-b45-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n45-0",
+                    "string": 1,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b45-1",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n45-1",
+                    "string": 1,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              }
+            ],
+            "lyrics": [
+              {
+                "id": "grace-l45-0",
+                "beatId": "grace-b45-0",
+                "verse": 1,
+                "text": "lead"
+              },
+              {
+                "id": "grace-l45-1",
+                "beatId": "grace-b45-1",
+                "verse": 1,
+                "text": "me"
+              }
+            ],
+            "tuplets": [],
+            "chordSymbols": [
+              {
+                "id": "grace-c45",
+                "beatId": "grace-b45-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "D",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 2,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 3,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": "x",
+                        "finger": null
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "grace-m46",
+            "timeSignature": {
+              "numerator": 3,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "grace-b46-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n46-0",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              },
+              {
+                "id": "grace-b46-1",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n46-1",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "lyrics": [
+              {
+                "id": "grace-l46-0",
+                "beatId": "grace-b46-0",
+                "verse": 1,
+                "text": "home."
+              }
+            ],
+            "tuplets": [],
+            "chordSymbols": [
+              {
+                "id": "grace-c46",
+                "beatId": "grace-b46-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "grace-m47",
+            "timeSignature": {
+              "numerator": 3,
+              "denominator": 4
+            },
+            "barline": "final",
+            "beats": [
+              {
+                "id": "grace-b47-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 1
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "grace-n47-0",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "-"
+                  ]
+                }
+              }
+            ],
+            "lyrics": [],
+            "tuplets": [],
+            "chordSymbols": [
+              {
+                "id": "grace-c47",
+                "beatId": "grace-b47-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "techniques": [
+          {
+            "id": "grace-tie0",
+            "type": "tie",
+            "fromNoteId": "grace-n14-0",
+            "toNoteId": "grace-n14-1"
+          },
+          {
+            "id": "grace-tie-end0",
+            "type": "tie",
+            "fromNoteId": "grace-n14-1",
+            "toNoteId": "grace-n15-0"
+          },
+          {
+            "id": "grace-pull0",
+            "type": "pullOff",
+            "fromNoteId": "grace-n8-0",
+            "toNoteId": "grace-n8-1"
+          },
+          {
+            "id": "grace-vib0",
+            "type": "vibrato",
+            "fromNoteId": "grace-n7-0"
+          },
+          {
+            "id": "grace-tie1",
+            "type": "tie",
+            "fromNoteId": "grace-n30-0",
+            "toNoteId": "grace-n30-1"
+          },
+          {
+            "id": "grace-tie-end1",
+            "type": "tie",
+            "fromNoteId": "grace-n30-1",
+            "toNoteId": "grace-n31-0"
+          },
+          {
+            "id": "grace-pull1",
+            "type": "pullOff",
+            "fromNoteId": "grace-n24-0",
+            "toNoteId": "grace-n24-1"
+          },
+          {
+            "id": "grace-vib1",
+            "type": "vibrato",
+            "fromNoteId": "grace-n23-0"
+          },
+          {
+            "id": "grace-tie2",
+            "type": "tie",
+            "fromNoteId": "grace-n46-0",
+            "toNoteId": "grace-n46-1"
+          },
+          {
+            "id": "grace-tie-end2",
+            "type": "tie",
+            "fromNoteId": "grace-n46-1",
+            "toNoteId": "grace-n47-0"
+          },
+          {
+            "id": "grace-pull2",
+            "type": "pullOff",
+            "fromNoteId": "grace-n40-0",
+            "toNoteId": "grace-n40-1"
+          },
+          {
+            "id": "grace-vib2",
+            "type": "vibrato",
+            "fromNoteId": "grace-n39-0"
+          }
+        ]
+      }
+    ]
+  }
+}

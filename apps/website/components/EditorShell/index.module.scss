@@ -812,11 +812,7 @@
   }
 }
 
-/** 键盘用户能够识别当前谱面焦点，状态播报不增加工具栏占位。 */
-.scoreSvg:focus-visible {
-  outline: 2px solid #356cff;
-  outline-offset: 3px;
-}
+/** 谱面焦点由拍点光标与选区提示，不再绘制整页外框；状态播报不增加占位。 */
 .cursorStatus {
   position: absolute;
   width: 1px;

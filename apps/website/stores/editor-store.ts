@@ -14,7 +14,7 @@ import {
   applyScoreCommand,
   buildOrderedBeatIndex,
   createCollapsedTabCellSelection,
-  EXAMPLE_MVP_6_DOCUMENT,
+  EXAMPLE_MVP_7_2_DOCUMENT,
   getFirstTabCellReference,
   HISTORY_LIMIT,
   loadDocument,
@@ -70,7 +70,7 @@ export type EditorStoreState = EditorStore & { history: EditorHistory };
 
 /** 初始 fixture 也经过正式 loader，避免页面绕过 schema/语义校验。 */
 const loadInitialDocument = (): ILXMDocument | null => {
-  const result = loadDocument(JSON.stringify(EXAMPLE_MVP_6_DOCUMENT));
+  const result = loadDocument(JSON.stringify(EXAMPLE_MVP_7_2_DOCUMENT));
   return result.ok ? result.document : null;
 };
 
@@ -304,7 +304,7 @@ export const createEditorStore = (
       document: initialDocument,
       selection: null,
       selectedTechniqueId: null,
-      errorMessage: initialDocument ? null : "无法加载 MVP v6 示例乐谱。",
+      errorMessage: initialDocument ? null : "无法加载示例乐谱。",
       history: { past: [], future: [] },
       canUndo: false,
       canRedo: false,

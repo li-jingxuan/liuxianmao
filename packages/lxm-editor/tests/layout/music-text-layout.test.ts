@@ -9,6 +9,7 @@ import {
   layoutChordDiagram,
   copyChordPreset,
   type ILXMMusicTextMetrics,
+  type ILXMSystemLayout,
 } from "../../src";
 import { getMeasureContentBottom } from "../../src/layout/rhythm-bounds";
 import { getFretTextBounds } from "../../src/layout/technique-geometry";
@@ -31,7 +32,59 @@ const metrics = (): ILXMMusicTextMetrics =>
       },
     ]),
   );
+/** 段号取消后，直接从编辑行的几何验证行距与空槽。 */
+const lyricRows = (system: ILXMSystemLayout) => [
+  ...new Map(
+    (system.musicTextCells ?? [])
+      .filter((c) => c.kind === "lyric")
+      .map((c) => [c.verse, { y: c.y, bounds: c }]),
+  ).values(),
+];
 describe("MVP6 文本联合排版", () => {
+  it("多行歌词时左侧收边停在第一行歌词的上缘", () => {
+    const document = structuredClone(EXAMPLE_MVP_6_DOCUMENT);
+    const measure = document.score.tracks[0]!.measures[0]!;
+    measure.lyrics = [
+      {
+        id: "edge-verse-1",
+        beatId: measure.beats[0]!.id,
+        verse: 1,
+        text: "第一行",
+      },
+      {
+        id: "edge-verse-2",
+        beatId: measure.beats[0]!.id,
+        verse: 2,
+        text: "第二行",
+      },
+    ];
+    const system = buildLayout(document, { systemWidth: 733 }).systems[0]!;
+    const lyrics = system.measures.flatMap((m) => m.lyrics ?? []);
+    expect(system.leftEdge![0]!.y2).toBeCloseTo(
+      Math.min(...lyrics.filter((l) => l.verse === 1).map((l) => l.bounds.y)),
+    );
+    expect(system.leftEdge![0]!.y2).toBeLessThan(
+      Math.min(...lyrics.filter((l) => l.verse === 2).map((l) => l.bounds.y)),
+    );
+    expect(system.leftEdge![0]!.y2).toBeLessThan(system.y + system.height);
+  });
+  it("无歌词时左侧收边对齐最下层横梁，不延伸到节奏区留白", () => {
+    const document = structuredClone(EXAMPLE_MVP_6_DOCUMENT);
+    for (const measure of document.score.tracks[0]!.measures)
+      measure.lyrics = [];
+    const systems = buildLayout(document, { systemWidth: 733 }).systems;
+    const beamedSystems = systems.filter((s) =>
+      s.measures.some((m) => m.beamSegments.length),
+    );
+    expect(beamedSystems.length).toBeGreaterThan(0);
+    for (const system of beamedSystems) {
+      const beams = system.measures.flatMap((m) => m.beamSegments);
+      expect(system.leftEdge![0]!.y2).toBeCloseTo(
+        Math.max(...beams.map((b) => b.y)),
+      );
+      expect(system.leftEdge![0]!.y2).toBeLessThan(system.y + system.height);
+    }
+  });
   it("固定快照确定性，输入文档与快照不被修改", () => {
     const document = structuredClone(EXAMPLE_MVP_6_DOCUMENT);
     const snapshot = metrics();
@@ -118,14 +171,14 @@ describe("MVP6 文本联合排版", () => {
   it("四段共用行距，只有第三段也保留前两行槽位", () => {
     const layout = buildLayout(EXAMPLE_MVP_6_DOCUMENT, { systemWidth: 180 });
     const first = layout.systems[0]!;
-    expect(first.lyricVerseLabels).toHaveLength(4);
+    expect(lyricRows(first)).toHaveLength(4);
     const system = layout.systems.find((s) =>
       s.measures.some((m) => m.id === "mvp51-7-measure"),
     )!;
-    expect(system.lyricVerseLabels).toHaveLength(3);
+    expect(lyricRows(system)).toHaveLength(3);
     const label = system.measures.find((m) => m.id === "mvp51-7-measure")!
       .lyrics![0]!.label;
-    expect(label.y).toBe(system.lyricVerseLabels![2]!.y);
+    expect(label.bounds.y).toBeCloseTo(lyricRows(system)[2]!.y);
   });
   it("相邻长文本预先扩宽并溢出，不缩字号、不裁切", () => {
     const document = structuredClone(EXAMPLE_MVP_6_DOCUMENT);
@@ -238,9 +291,11 @@ describe("MVP6 文本联合排版", () => {
       if (request.fontSize === 13)
         snapshot[request.key] = { x: -6, y: -12, width: 12, height: 15 };
     }
-    const labels = buildLayout(EXAMPLE_MVP_6_DOCUMENT, {
-      musicTextMetrics: snapshot,
-    }).systems[0]!.lyricVerseLabels!;
+    const labels = lyricRows(
+      buildLayout(EXAMPLE_MVP_6_DOCUMENT, {
+        musicTextMetrics: snapshot,
+      }).systems[0]!,
+    );
     expect(labels[1]!.y - labels[0]!.y).toBeCloseTo(24);
     for (const request of collectMusicTextMeasureRequests(
       EXAMPLE_MVP_6_DOCUMENT,
@@ -248,9 +303,11 @@ describe("MVP6 文本联合排版", () => {
       if (request.fontSize === 13)
         snapshot[request.key] = { x: -6, y: -20, width: 12, height: 28 };
     }
-    const tall = buildLayout(EXAMPLE_MVP_6_DOCUMENT, {
-      musicTextMetrics: snapshot,
-    }).systems[0]!.lyricVerseLabels!;
+    const tall = lyricRows(
+      buildLayout(EXAMPLE_MVP_6_DOCUMENT, {
+        musicTextMetrics: snapshot,
+      }).systems[0]!,
+    );
     expect(tall[1]!.y - tall[0]!.y).toBeGreaterThan(24);
     expect(tall[0]!.bounds.y + tall[0]!.bounds.height + 3).toBeLessThanOrEqual(
       tall[1]!.bounds.y + 0.001,

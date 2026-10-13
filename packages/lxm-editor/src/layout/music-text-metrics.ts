@@ -126,22 +126,13 @@ export const collectMusicTextMeasureRequests = (
       for (const char of new Set([...text]))
         requests.push(musicTextRequest(char, size, "start"));
     }
-    track.measures.forEach((m, i) => {
-      if (m.sectionLabel)
-        requests.push(
-          musicTextRequest(`${i + 1}. ${m.sectionLabel}`, 12, "start"),
-        );
-    });
   }
   for (const measure of document.score.tracks[0]?.measures ?? []) {
     for (const beat of measure.beats)
       for (const token of beat.numberedNotation?.tokens ?? [])
         requests.push(musicTextRequest(token.replace(/['.]+$/, ""), 14));
     for (const lyric of measure.lyrics) {
-      requests.push(
-        musicTextRequest(lyric.text),
-        musicTextRequest(`${lyric.verse}.`, 10, "start"),
-      );
+      requests.push(musicTextRequest(lyric.text));
     }
     for (const symbol of measure.chordSymbols) {
       requests.push(
@@ -171,15 +162,6 @@ export const collectMusicTextMeasureRequests = (
       }
     }
   }
-  // 稀疏段号仍会输出之前的空槽标签，度量请求必须覆盖这些实际渲染文字。
-  const maxVerse = Math.max(
-    0,
-    ...(document.score.tracks[0]?.measures ?? []).flatMap((m) =>
-      m.lyrics.map((l) => l.verse),
-    ),
-  );
-  for (let verse = 1; verse <= maxVerse; verse++)
-    requests.push(musicTextRequest(`${verse}.`, 13, "start"));
   return [...new Map(requests.map((r) => [r.key, r])).values()];
 };
 /** 图元包围框的统一合并，供 spacing、高度和命中使用。 */

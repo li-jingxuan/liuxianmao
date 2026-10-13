@@ -158,8 +158,19 @@ export const EditorShell: React.FC = () => {
       density,
       musicTextMetrics,
       showChordDiagrams,
+      paragraphEditing:
+        activeMusicTextTarget?.kind === "lyric" ||
+        activeMusicTextTarget?.kind === "numbered"
+          ? { ...activeMusicTextTarget, kind: activeMusicTextTarget.kind }
+          : undefined,
     });
-  }, [document, density, musicTextMetrics, showChordDiagrams]);
+  }, [
+    document,
+    density,
+    musicTextMetrics,
+    showChordDiagrams,
+    activeMusicTextTarget,
+  ]);
 
   /** 音乐图元与图片渲染共享，选区变化不重新生成全部音乐。 */
   const scoreScene = useMemo(
@@ -1248,6 +1259,26 @@ export const EditorShell: React.FC = () => {
               onPointerCancel={finishPointerDrag}
               onKeyDown={handleScoreKeyDown}
             >
+              {/* 空拍编辑提示只存在于编辑 SVG，不进入导出场景。 */}
+              <g pointerEvents="none">
+                {lxmLayout.systems
+                  .flatMap((s) => s.musicTextCells ?? [])
+                  .filter((c) => c.empty)
+                  .map((c) => (
+                    <rect
+                      key={`${c.measureId}/${c.beatId}/${c.kind}/${c.verse}`}
+                      data-paragraph-cell={`${c.kind}/${c.measureId}/${c.beatId}/${c.verse ?? ""}`}
+                      x={c.x + 2}
+                      y={c.y}
+                      width={Math.max(0, c.width - 4)}
+                      height={c.height}
+                      fill="transparent"
+                      stroke="#cbd5e1"
+                      strokeDasharray="3 3"
+                      rx={3}
+                    />
+                  ))}
+              </g>
               {/* 选区层位于音乐元素下方，且永不参与指针命中。 */}
               <g className={styles.selectionLayer} pointerEvents="none">
                 {!lyricEditing &&
@@ -1296,6 +1327,11 @@ export const EditorShell: React.FC = () => {
           </main>
         </div>
         <MusicTextSidebar
+          getSystemMeasureIds={(measureId) =>
+            lxmLayout.systems
+              .find((s) => s.measures.some((m) => m.id === measureId))
+              ?.measures.map((m) => m.id) ?? []
+          }
           ref={musicTextController}
           onOpen={clearFretDraft}
           onEditingChange={setMusicTextEditing}

@@ -131,9 +131,11 @@ describe("v7.1-B 边界与保真", () => {
     });
     if (!marked.ok) throw new Error("标记失败");
     const layout = buildLayout(marked.document);
-    expect(
-      layout.systems[0]!.notationLabels!.some((l) => l.text.includes("副歌")),
-    ).toBe(true);
+    expect(marked.document.score.tracks[0]!.measures[0]!.sectionLabel).toBe(
+      "副歌",
+    );
+    // 段落标记仍可保存，但不再生成顶部说明或影响谱面几何。
+    expect(layout).toEqual(buildLayout(doc));
     const cleared = applyScoreCommand(marked.document, {
       type: LXMScoreCommandEnum.SetSectionLabel,
       trackId: track.id,
@@ -336,17 +338,11 @@ it("插入打断旧 Tie 时报告清理，闷音复制与长标记外框保持�
     result.document.score.tracks[0]!.measures[1]!.beats[0]!.notes[0]!.fret,
   ).toBe("x");
   const layout = buildLayout(result.document, { systemWidth: 180 });
-  layout.systems.forEach((s) =>
-    s.notationLabels?.forEach((l) => {
-      expect(l.bounds.y).toBeGreaterThanOrEqual(s.y);
-      expect(l.bounds.x + l.bounds.width).toBeLessThanOrEqual(
-        layout.x + layout.width,
-      );
-      expect(l.bounds.y + l.bounds.height).toBeLessThan(
-        s.measures[0]!.strings[0]!.y1,
-      );
-    }),
-  );
+  const unmarked = structuredClone(result.document);
+  unmarked.score.tracks[0]!.measures.forEach((m) => {
+    delete m.sectionLabel;
+  });
+  expect(layout).toEqual(buildLayout(unmarked, { systemWidth: 180 }));
 });
 
 it("插入到已有区间造成副本技巧冲突时拒绝整次复制", () => {

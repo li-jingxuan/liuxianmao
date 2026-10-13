@@ -1,0 +1,3797 @@
+{
+  "schema": "lxm-tab-score",
+  "schemaVersion": 7,
+  "documentRevision": 1,
+  "score": {
+    "id": "500-miles-image-transcription",
+    "title": "500 Miles · 图片第一页转录",
+    "arranger": "Nice",
+    "keySignature": "G",
+    "meta": {
+      "source": "用户提供的曲谱图片第 1 页",
+      "transcriber": "Nice",
+      "originalArtist": "原图未注明",
+      "lyricist": "原图未注明",
+      "composer": "原图未注明",
+      "tempo": "原图未注明",
+      "scope": "原图中的 26 个小节片段，非全曲",
+      "arrangement": "简谱旋律与歌词、和弦按图转录；TAB 为旋律推导，不是原图独立扫弦伴奏复刻",
+      "pickup": "原图弱起两拍；JSON 前补二分休止保持 4/4 容量闭合",
+      "accompaniment": "原图常用扫弦：↓ ↓↑ ↓ ↓↑；前段含闷音与休止，未等同转换为旋律声部"
+    },
+    "tracks": [
+      {
+        "id": "test-guitar",
+        "name": "旋律 TAB · 标准调弦",
+        "instrument": "guitar",
+        "tuning": {
+          "strings": [
+            {
+              "index": 1,
+              "pitch": "E4",
+              "midi": 64
+            },
+            {
+              "index": 2,
+              "pitch": "B3",
+              "midi": 59
+            },
+            {
+              "index": 3,
+              "pitch": "G3",
+              "midi": 55
+            },
+            {
+              "index": 4,
+              "pitch": "D3",
+              "midi": 50
+            },
+            {
+              "index": 5,
+              "pitch": "A2",
+              "midi": 45
+            },
+            {
+              "index": 6,
+              "pitch": "E2",
+              "midi": 40
+            }
+          ]
+        },
+        "capo": 2,
+        "startBarline": "none",
+        "measures": [
+          {
+            "id": "fhm-m0",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "fhm-b0-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": [],
+                "numberedNotation": {
+                  "tokens": [
+                    "0"
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b0-1",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n0-1",
+                    "string": 1,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b0-2",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n0-2",
+                    "string": 1,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [],
+            "chordSymbols": [],
+            "sectionLabel": "原图第一页"
+          },
+          {
+            "id": "fhm-m1",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "fhm-b1-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 1
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n1-0",
+                    "string": 1,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b1-1",
+                "tick": 1440,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n1-1",
+                    "string": 1,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b1-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n1-2",
+                    "string": 1,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b1-3",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n1-3",
+                    "string": 1,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [],
+            "chordSymbols": [
+              {
+                "id": "fhm-c1",
+                "beatId": "fhm-b1-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "fhm-m2",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "fhm-b2-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n2-0",
+                    "string": 1,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b2-1",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n2-1",
+                    "string": 1,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b2-2",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n2-2",
+                    "string": 1,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [],
+            "chordSymbols": [
+              {
+                "id": "fhm-c2",
+                "beatId": "fhm-b2-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "Em",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "finger": 3
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 6,
+                        "fret": 0,
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "fhm-m3",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "fhm-b3-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 1
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n3-0",
+                    "string": 1,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b3-1",
+                "tick": 1440,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n3-1",
+                    "string": 1,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b3-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n3-2",
+                    "string": 1,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b3-3",
+                "tick": 2400,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 1
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n3-3",
+                    "string": 1,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [],
+            "chordSymbols": [
+              {
+                "id": "fhm-c3",
+                "beatId": "fhm-b3-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "Am",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 2,
+                        "finger": 3
+                      },
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 5,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "fhm-m4",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "fhm-b4-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n4-0",
+                    "string": 2,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "6."
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b4-1",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n4-1",
+                    "string": 2,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "6."
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b4-2",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n4-2",
+                    "string": 1,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [],
+            "chordSymbols": [
+              {
+                "id": "fhm-c4",
+                "beatId": "fhm-b4-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "C",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 5,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "fhm-m5",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "fhm-b5-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 1
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n5-0",
+                    "string": 1,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b5-1",
+                "tick": 1440,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n5-1",
+                    "string": 1,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b5-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n5-2",
+                    "string": 1,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b5-3",
+                "tick": 2400,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 1
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n5-3",
+                    "string": 1,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [],
+            "chordSymbols": [
+              {
+                "id": "fhm-c5",
+                "beatId": "fhm-b5-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "Am",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 2,
+                        "finger": 3
+                      },
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 5,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "fhm-m6",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "fhm-b6-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 1
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n6-0",
+                    "string": 2,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5."
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b6-1",
+                "tick": 1440,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n6-1",
+                    "string": 2,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5."
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b6-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n6-2",
+                    "string": 2,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "6."
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b6-3",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n6-3",
+                    "string": 1,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [],
+            "chordSymbols": [
+              {
+                "id": "fhm-c6",
+                "beatId": "fhm-b6-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "D",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 2,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 3,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": "x",
+                        "finger": null
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "fhm-m7",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "fhm-b7-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "whole",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n7-0",
+                    "string": 1,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [],
+            "chordSymbols": [
+              {
+                "id": "fhm-c7",
+                "beatId": "fhm-b7-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "fhm-m8",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "fhm-b8-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": [],
+                "numberedNotation": {
+                  "tokens": [
+                    "0"
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b8-1",
+                "tick": 960,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": [],
+                "numberedNotation": {
+                  "tokens": [
+                    "0"
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b8-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n8-2",
+                    "string": 2,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "6."
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b8-3",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n8-3",
+                    "string": 1,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "fhm-l8-2",
+                "beatId": "fhm-b8-2",
+                "verse": 1,
+                "text": "If"
+              },
+              {
+                "id": "fhm-l8-3",
+                "beatId": "fhm-b8-3",
+                "verse": 1,
+                "text": "you"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "fhm-c8",
+                "beatId": "fhm-b8-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "fhm-m9",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "fhm-b9-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 1
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n9-0",
+                    "string": 1,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b9-1",
+                "tick": 1440,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n9-1",
+                    "string": 1,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b9-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n9-2",
+                    "string": 1,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b9-3",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n9-3",
+                    "string": 1,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "fhm-l9-0",
+                "beatId": "fhm-b9-0",
+                "verse": 1,
+                "text": "miss"
+              },
+              {
+                "id": "fhm-l9-1",
+                "beatId": "fhm-b9-1",
+                "verse": 1,
+                "text": "the"
+              },
+              {
+                "id": "fhm-l9-2",
+                "beatId": "fhm-b9-2",
+                "verse": 1,
+                "text": "train"
+              },
+              {
+                "id": "fhm-l9-3",
+                "beatId": "fhm-b9-3",
+                "verse": 1,
+                "text": "I'm"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "fhm-c9",
+                "beatId": "fhm-b9-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "fhm-m10",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "fhm-b10-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n10-0",
+                    "string": 1,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b10-1",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n10-1",
+                    "string": 1,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b10-2",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n10-2",
+                    "string": 1,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "fhm-l10-0",
+                "beatId": "fhm-b10-0",
+                "verse": 1,
+                "text": "on"
+              },
+              {
+                "id": "fhm-l10-1",
+                "beatId": "fhm-b10-1",
+                "verse": 1,
+                "text": "You"
+              },
+              {
+                "id": "fhm-l10-2",
+                "beatId": "fhm-b10-2",
+                "verse": 1,
+                "text": "will"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "fhm-c10",
+                "beatId": "fhm-b10-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "Em",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "finger": 3
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 6,
+                        "fret": 0,
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "fhm-m11",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "fhm-b11-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 1
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n11-0",
+                    "string": 1,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b11-1",
+                "tick": 1440,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n11-1",
+                    "string": 1,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b11-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n11-2",
+                    "string": 1,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b11-3",
+                "tick": 2400,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 1
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n11-3",
+                    "string": 1,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "fhm-l11-0",
+                "beatId": "fhm-b11-0",
+                "verse": 1,
+                "text": "know"
+              },
+              {
+                "id": "fhm-l11-1",
+                "beatId": "fhm-b11-1",
+                "verse": 1,
+                "text": "that"
+              },
+              {
+                "id": "fhm-l11-2",
+                "beatId": "fhm-b11-2",
+                "verse": 1,
+                "text": "I"
+              },
+              {
+                "id": "fhm-l11-3",
+                "beatId": "fhm-b11-3",
+                "verse": 1,
+                "text": "am"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "fhm-c11",
+                "beatId": "fhm-b11-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "Am",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 2,
+                        "finger": 3
+                      },
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 5,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "fhm-m12",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "fhm-b12-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n12-0",
+                    "string": 2,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "6."
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b12-1",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n12-1",
+                    "string": 2,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "6."
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b12-2",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n12-2",
+                    "string": 1,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "fhm-l12-0",
+                "beatId": "fhm-b12-0",
+                "verse": 1,
+                "text": "gone"
+              },
+              {
+                "id": "fhm-l12-1",
+                "beatId": "fhm-b12-1",
+                "verse": 1,
+                "text": "You"
+              },
+              {
+                "id": "fhm-l12-2",
+                "beatId": "fhm-b12-2",
+                "verse": 1,
+                "text": "can"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "fhm-c12",
+                "beatId": "fhm-b12-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "C",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 5,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "fhm-m13",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "fhm-b13-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 1
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n13-0",
+                    "string": 1,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b13-1",
+                "tick": 1440,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n13-1",
+                    "string": 1,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b13-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n13-2",
+                    "string": 1,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b13-3",
+                "tick": 2400,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 1
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n13-3",
+                    "string": 1,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "fhm-l13-0",
+                "beatId": "fhm-b13-0",
+                "verse": 1,
+                "text": "hear"
+              },
+              {
+                "id": "fhm-l13-1",
+                "beatId": "fhm-b13-1",
+                "verse": 1,
+                "text": "the"
+              },
+              {
+                "id": "fhm-l13-2",
+                "beatId": "fhm-b13-2",
+                "verse": 1,
+                "text": "whis-"
+              },
+              {
+                "id": "fhm-l13-3",
+                "beatId": "fhm-b13-3",
+                "verse": 1,
+                "text": "tle"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "fhm-c13",
+                "beatId": "fhm-b13-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "Am",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 2,
+                        "finger": 3
+                      },
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 5,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "fhm-m14",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "fhm-b14-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 1
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n14-0",
+                    "string": 2,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5."
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b14-1",
+                "tick": 1440,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n14-1",
+                    "string": 2,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5."
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b14-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n14-2",
+                    "string": 2,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "6."
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b14-3",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n14-3",
+                    "string": 1,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "fhm-l14-0",
+                "beatId": "fhm-b14-0",
+                "verse": 1,
+                "text": "blow"
+              },
+              {
+                "id": "fhm-l14-1",
+                "beatId": "fhm-b14-1",
+                "verse": 1,
+                "text": "a"
+              },
+              {
+                "id": "fhm-l14-2",
+                "beatId": "fhm-b14-2",
+                "verse": 1,
+                "text": "hun-"
+              },
+              {
+                "id": "fhm-l14-3",
+                "beatId": "fhm-b14-3",
+                "verse": 1,
+                "text": "dred"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "fhm-c14",
+                "beatId": "fhm-b14-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "D",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 2,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 3,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": "x",
+                        "finger": null
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "fhm-m15",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "fhm-b15-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "whole",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n15-0",
+                    "string": 1,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "fhm-l15-0",
+                "beatId": "fhm-b15-0",
+                "verse": 1,
+                "text": "miles"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "fhm-c15",
+                "beatId": "fhm-b15-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "fhm-m16",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "fhm-b16-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": [],
+                "numberedNotation": {
+                  "tokens": [
+                    "0"
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b16-1",
+                "tick": 960,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": [],
+                "numberedNotation": {
+                  "tokens": [
+                    "0"
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b16-2",
+                "tick": 1440,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n16-2",
+                    "string": 2,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5."
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b16-3",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n16-3",
+                    "string": 2,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "6."
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b16-4",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n16-4",
+                    "string": 1,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "fhm-l16-2",
+                "beatId": "fhm-b16-2",
+                "verse": 1,
+                "text": "Five"
+              },
+              {
+                "id": "fhm-l16-3",
+                "beatId": "fhm-b16-3",
+                "verse": 1,
+                "text": "hun-"
+              },
+              {
+                "id": "fhm-l16-4",
+                "beatId": "fhm-b16-4",
+                "verse": 1,
+                "text": "dred"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "fhm-c16",
+                "beatId": "fhm-b16-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "fhm-m17",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "fhm-b17-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 1
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n17-0",
+                    "string": 1,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b17-1",
+                "tick": 1440,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n17-1",
+                    "string": 1,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b17-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n17-2",
+                    "string": 1,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b17-3",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n17-3",
+                    "string": 1,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "fhm-l17-0",
+                "beatId": "fhm-b17-0",
+                "verse": 1,
+                "text": "miles"
+              },
+              {
+                "id": "fhm-l17-1",
+                "beatId": "fhm-b17-1",
+                "verse": 1,
+                "text": "five"
+              },
+              {
+                "id": "fhm-l17-2",
+                "beatId": "fhm-b17-2",
+                "verse": 1,
+                "text": "hun-"
+              },
+              {
+                "id": "fhm-l17-3",
+                "beatId": "fhm-b17-3",
+                "verse": 1,
+                "text": "dred"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "fhm-c17",
+                "beatId": "fhm-b17-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "fhm-m18",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "fhm-b18-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 1
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n18-0",
+                    "string": 1,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b18-1",
+                "tick": 1440,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n18-1",
+                    "string": 1,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b18-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n18-2",
+                    "string": 1,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b18-3",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n18-3",
+                    "string": 1,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "fhm-l18-0",
+                "beatId": "fhm-b18-0",
+                "verse": 1,
+                "text": "miles"
+              },
+              {
+                "id": "fhm-l18-1",
+                "beatId": "fhm-b18-1",
+                "verse": 1,
+                "text": "Five"
+              },
+              {
+                "id": "fhm-l18-2",
+                "beatId": "fhm-b18-2",
+                "verse": 1,
+                "text": "hun-"
+              },
+              {
+                "id": "fhm-l18-3",
+                "beatId": "fhm-b18-3",
+                "verse": 1,
+                "text": "dred"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "fhm-c18",
+                "beatId": "fhm-b18-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "Em",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "finger": 3
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 6,
+                        "fret": 0,
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "fhm-m19",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "fhm-b19-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 1
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n19-0",
+                    "string": 1,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b19-1",
+                "tick": 1440,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n19-1",
+                    "string": 1,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b19-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n19-2",
+                    "string": 1,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b19-3",
+                "tick": 2400,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 1
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n19-3",
+                    "string": 1,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "fhm-l19-0",
+                "beatId": "fhm-b19-0",
+                "verse": 1,
+                "text": "miles"
+              },
+              {
+                "id": "fhm-l19-1",
+                "beatId": "fhm-b19-1",
+                "verse": 1,
+                "text": "Five"
+              },
+              {
+                "id": "fhm-l19-2",
+                "beatId": "fhm-b19-2",
+                "verse": 1,
+                "text": "hun-"
+              },
+              {
+                "id": "fhm-l19-3",
+                "beatId": "fhm-b19-3",
+                "verse": 1,
+                "text": "dred"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "fhm-c19",
+                "beatId": "fhm-b19-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "Am",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 2,
+                        "finger": 3
+                      },
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 5,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "fhm-m20",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "fhm-b20-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n20-0",
+                    "string": 2,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "6."
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b20-1",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n20-1",
+                    "string": 2,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "6."
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b20-2",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n20-2",
+                    "string": 1,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "fhm-l20-0",
+                "beatId": "fhm-b20-0",
+                "verse": 1,
+                "text": "miles"
+              },
+              {
+                "id": "fhm-l20-1",
+                "beatId": "fhm-b20-1",
+                "verse": 1,
+                "text": "you"
+              },
+              {
+                "id": "fhm-l20-2",
+                "beatId": "fhm-b20-2",
+                "verse": 1,
+                "text": "can"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "fhm-c20",
+                "beatId": "fhm-b20-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "C",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 5,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "fhm-m21",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "fhm-b21-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 1
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n21-0",
+                    "string": 1,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b21-1",
+                "tick": 1440,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n21-1",
+                    "string": 1,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b21-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n21-2",
+                    "string": 1,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b21-3",
+                "tick": 2400,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 1
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n21-3",
+                    "string": 1,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "fhm-l21-0",
+                "beatId": "fhm-b21-0",
+                "verse": 1,
+                "text": "hear"
+              },
+              {
+                "id": "fhm-l21-1",
+                "beatId": "fhm-b21-1",
+                "verse": 1,
+                "text": "the"
+              },
+              {
+                "id": "fhm-l21-2",
+                "beatId": "fhm-b21-2",
+                "verse": 1,
+                "text": "whis-"
+              },
+              {
+                "id": "fhm-l21-3",
+                "beatId": "fhm-b21-3",
+                "verse": 1,
+                "text": "tle"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "fhm-c21",
+                "beatId": "fhm-b21-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "Am",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 2,
+                        "finger": 3
+                      },
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 5,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "fhm-m22",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "fhm-b22-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 1
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n22-0",
+                    "string": 2,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5."
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b22-1",
+                "tick": 1440,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n22-1",
+                    "string": 2,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5."
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b22-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n22-2",
+                    "string": 2,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "6."
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b22-3",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n22-3",
+                    "string": 1,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "fhm-l22-0",
+                "beatId": "fhm-b22-0",
+                "verse": 1,
+                "text": "blow"
+              },
+              {
+                "id": "fhm-l22-1",
+                "beatId": "fhm-b22-1",
+                "verse": 1,
+                "text": "a"
+              },
+              {
+                "id": "fhm-l22-2",
+                "beatId": "fhm-b22-2",
+                "verse": 1,
+                "text": "hun-"
+              },
+              {
+                "id": "fhm-l22-3",
+                "beatId": "fhm-b22-3",
+                "verse": 1,
+                "text": "dred"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "fhm-c22",
+                "beatId": "fhm-b22-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "D",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 2,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 3,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": "x",
+                        "finger": null
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "fhm-m23",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "fhm-b23-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "whole",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n23-0",
+                    "string": 1,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "fhm-l23-0",
+                "beatId": "fhm-b23-0",
+                "verse": 1,
+                "text": "miles"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "fhm-c23",
+                "beatId": "fhm-b23-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "fhm-m24",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "repeatStart",
+            "beats": [
+              {
+                "id": "fhm-b24-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": [],
+                "numberedNotation": {
+                  "tokens": [
+                    "0"
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b24-1",
+                "tick": 960,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": [],
+                "numberedNotation": {
+                  "tokens": [
+                    "0"
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b24-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n24-2",
+                    "string": 2,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "6."
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b24-3",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n24-3",
+                    "string": 1,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "fhm-l24-2",
+                "beatId": "fhm-b24-2",
+                "verse": 1,
+                "text": "Lord"
+              },
+              {
+                "id": "fhm-l24-3",
+                "beatId": "fhm-b24-3",
+                "verse": 1,
+                "text": "I'm"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "fhm-c24",
+                "beatId": "fhm-b24-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "fhm-m25",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "fhm-b25-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 1
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n25-0",
+                    "string": 1,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b25-1",
+                "tick": 1440,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n25-1",
+                    "string": 1,
+                    "fret": 7
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b25-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n25-2",
+                    "string": 1,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              },
+              {
+                "id": "fhm-b25-3",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "fhm-n25-3",
+                    "string": 1,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "fhm-l25-0",
+                "beatId": "fhm-b25-0",
+                "verse": 1,
+                "text": "one"
+              },
+              {
+                "id": "fhm-l-alt-0",
+                "beatId": "fhm-b25-0",
+                "verse": 2,
+                "text": "miss"
+              },
+              {
+                "id": "fhm-l-alt-1",
+                "beatId": "fhm-b25-1",
+                "verse": 2,
+                "text": "the"
+              },
+              {
+                "id": "fhm-l25-2",
+                "beatId": "fhm-b25-2",
+                "verse": 1,
+                "text": "Lord"
+              },
+              {
+                "id": "fhm-l-alt-2",
+                "beatId": "fhm-b25-2",
+                "verse": 2,
+                "text": "train"
+              },
+              {
+                "id": "fhm-l25-3",
+                "beatId": "fhm-b25-3",
+                "verse": 1,
+                "text": "I'm"
+              },
+              {
+                "id": "fhm-l-alt-3",
+                "beatId": "fhm-b25-3",
+                "verse": 2,
+                "text": "I'm"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "fhm-c25",
+                "beatId": "fhm-b25-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "techniques": [
+          {
+            "id": "fhm-tie",
+            "type": "tie",
+            "fromNoteId": "fhm-n25-0",
+            "toNoteId": "fhm-n25-1"
+          }
+        ]
+      }
+    ]
+  }
+}

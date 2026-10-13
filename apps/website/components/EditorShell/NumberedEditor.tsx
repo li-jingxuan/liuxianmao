@@ -37,6 +37,7 @@ export const NumberedEditor = ({
   autoFocusInput,
   mode,
   onModeChange,
+  onCancel,
 }: {
   ref: Ref<NumberedEditorController>;
   document: ILXMDocument;
@@ -49,6 +50,7 @@ export const NumberedEditor = ({
   autoFocusInput: boolean;
   mode: "single" | "sequence";
   onModeChange: (mode: "single" | "sequence") => void;
+  onCancel: () => void;
 }) => {
   const initialValue =
     mode === "single"
@@ -255,6 +257,7 @@ export const NumberedEditor = ({
               onClick={() => {
                 reset();
                 onInputActive(false);
+                onCancel();
               }}
             >
               取消

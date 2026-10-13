@@ -85,6 +85,7 @@ export const buildLayout = (
     baseSystems,
     systemGapY,
     options.musicTextMetrics,
+    options.paragraphEditing,
   );
   const lastSystem = systems[systems.length - 1];
 

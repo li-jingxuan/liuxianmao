@@ -401,7 +401,7 @@ describe("MVP7.1-C 原子结构与记谱", () => {
       ).toBe(true);
     }
   });
-  it("简谱实际点位、多音列宽、命中、空内容高亮与右侧线最终布局一致", () => {
+  it("简谱实际点位、多音列宽、命中、空内容高亮与左侧线最终布局一致", () => {
     const d = fixture(true),
       before = buildLayout(d, { systemWidth: 420 });
     const empty = layoutParagraphFocus(before, { ...target, kind: "numbered" });
@@ -426,7 +426,9 @@ describe("MVP7.1-C 原子结构与记谱", () => {
       const edge = s.leftEdge![0]!;
       expect(edge.x1).toBeCloseTo(s.x + 0.5);
       expect(edge.y1).toBeGreaterThanOrEqual(s.measures[0]!.strings[0]!.y1);
-      expect(edge.y2).toBeCloseTo(s.y + s.height);
+      // 此测试谱没有歌词与横梁，左侧线仍停在末弦，不因下方简谱延伸到行底。
+      expect(edge.y2).toBeCloseTo(s.measures[0]!.strings.at(-1)!.y1);
+      expect(edge.y2).toBeLessThan(s.y + s.height);
     }
     expect(layout.height).toBeGreaterThan(before.height);
   });

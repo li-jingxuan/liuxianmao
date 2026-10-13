@@ -70,7 +70,9 @@ describe("连续填词历史、草稿与歌词焦点", () => {
     ).toBe("confirm");
     const batch = readMusicTextDraft(document, target, "sequence")!;
     expect(batch.text).toBe("");
-    batch.allowOverwrite = true;
+    expect(batch.allowOverwrite).toBe(true);
+    expect(resolveSidebarRequest(batch, { type: "close" })).toBe("execute");
+    batch.allowOverwrite = false;
     expect(resolveSidebarRequest(batch, { type: "close" })).toBe("confirm");
     const next = readMusicTextDraft(
       document,
@@ -81,7 +83,7 @@ describe("连续填词历史、草稿与歌词焦点", () => {
       },
       "sequence",
     )!;
-    expect(next.allowOverwrite).toBe(false);
+    expect(next.allowOverwrite).toBe(true);
     expect(next.text).toBe("");
   });
   it("只定位当前段真实歌词，重排后重新解析；空拍与和弦不产生假歌词框", () => {

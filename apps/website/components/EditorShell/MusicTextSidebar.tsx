@@ -54,12 +54,14 @@ export const MusicTextSidebar = ({
   onEditingChange,
   onTargetChange,
   onScoreFocus,
+  getSystemMeasureIds,
 }: {
   ref: Ref<MusicTextController>;
   onOpen: () => void;
   onEditingChange: (editing: boolean) => void;
   onTargetChange: (target: MusicTextTarget | null) => void;
   onScoreFocus: () => void;
+  getSystemMeasureIds: (measureId: string) => string[];
 }) => {
   const editorStore = useEditorSessionStore();
   const score = useEditorStore((s) => s.document);
@@ -214,6 +216,7 @@ export const MusicTextSidebar = ({
       setNumberedInputActive(false);
     }
     if (action.type === "close") {
+      if (kind === "numbered") setKind("score");
       setDraft(null);
       setMessage(null);
       setNumberedInputActive(false);
@@ -265,6 +268,40 @@ export const MusicTextSidebar = ({
       setKind(action.kind);
       document.getElementById(`music-tab-${action.kind}`)?.focus();
     }
+  };
+  /** 新增只打开真实拍点上的编辑区域，首次应用才写入音乐数据。 */
+  const addParagraph = (nextKind: "lyric" | "numbered") => {
+    const currentTrack = score?.score.tracks[0];
+    const firstMeasure = currentTrack?.measures.find((m) => m.beats.length);
+    const next =
+      validTarget ??
+      (currentTrack && firstMeasure
+        ? {
+            trackId: currentTrack.id,
+            measureId: firstMeasure.id,
+            beatId: firstMeasure.beats[0]!.id,
+            string: 1 as const,
+          }
+        : null);
+    if (!next || !currentTrack) {
+      setMessage("请先添加拍点，再添加歌词或简谱。");
+      return;
+    }
+    const ids = getSystemMeasureIds(next.measureId);
+    const used = new Set(
+      currentTrack.measures
+        .filter((m) => ids.includes(m.id))
+        .flatMap((m) => m.lyrics.map((l) => l.verse)),
+    );
+    const verse = ([1, 2, 3, 4] as const).find((v) => !used.has(v));
+    if (nextKind === "lyric" && !verse) {
+      setMessage("当前谱行已有 4 段歌词，请选择段号编辑已有行。");
+      return;
+    }
+    request({
+      type: "target",
+      target: { ...next, kind: nextKind, verse: verse ?? 1 },
+    });
   };
   const request = (action: SidebarAction) => {
     if (composing.current || pending) return;
@@ -346,6 +383,8 @@ export const MusicTextSidebar = ({
     () =>
       editorStore.subscribe((state) => {
         if (state.document !== baseline.current && !committing.current) {
+          // 历史切换取消简谱临时空行，避免旧目标继续占用编辑空间。
+          if (kind === "numbered") setKind("score");
           setDraft(null);
           setPending(null);
           setNumberedInputActive(false);
@@ -657,6 +696,12 @@ export const MusicTextSidebar = ({
           </div>
         )}
         {(kind === "lyric" || kind === "numbered") && (
+          <div className={styles.sidebarActions}>
+            <button onClick={() => addParagraph("lyric")}>添加歌词行</button>
+            <button onClick={() => addParagraph("numbered")}>添加简谱行</button>
+          </div>
+        )}
+        {(kind === "lyric" || kind === "numbered") && (
           <div
             role="tablist"
             aria-label="段落内容"
@@ -704,6 +749,7 @@ export const MusicTextSidebar = ({
           >
             <NumberedEditor
               key={`${stateVersion}/${numberedMode}/${selection?.focus.trackId}/${selection?.focus.measureId}/${selection?.focus.beatId}`}
+              onCancel={() => request({ type: "close" })}
               mode={numberedMode}
               onModeChange={(mode) => request({ type: "numberedMode", mode })}
               ref={numberedRef}
@@ -834,7 +880,7 @@ export const MusicTextSidebar = ({
                         放在同一拍，请切到单拍编辑。
                       </p>
                       <p>
-                        先核对下方对应预览，再应用全部。已有歌词不会自动覆盖。
+                        先核对下方对应预览，再应用全部。默认允许替换已有歌词，可取消下方勾选以保留原词。
                       </p>
                       <details>
                         <summary>详细规则</summary>

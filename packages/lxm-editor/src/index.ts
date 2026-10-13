@@ -62,3 +62,4 @@ export {
   createMvp7cExample,
 } from "../example/example-mvp7c";
 export { createQualityScore } from "../example/quality-score";
+export { default as EXAMPLE_MVP_7_2_DOCUMENT } from "../example/example-mvp7.2";

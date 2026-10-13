@@ -1,0 +1,5527 @@
+{
+  "schema": "lxm-tab-score",
+  "schemaVersion": 7,
+  "documentRevision": 1,
+  "score": {
+    "id": "v7-demo",
+    "title": "晚风小径 · MVP v7 综合示例",
+    "arranger": "六线猫 · 原创教学示例",
+    "keySignature": "C",
+    "meta": {
+      "fixture": "technique-rhythm-test",
+      "purpose": "notation-regression"
+    },
+    "tracks": [
+      {
+        "id": "test-guitar",
+        "name": "标准调弦吉他",
+        "instrument": "guitar",
+        "tuning": {
+          "strings": [
+            {
+              "index": 1,
+              "pitch": "E4",
+              "midi": 64
+            },
+            {
+              "index": 2,
+              "pitch": "B3",
+              "midi": 59
+            },
+            {
+              "index": 3,
+              "pitch": "G3",
+              "midi": 55
+            },
+            {
+              "index": 4,
+              "pitch": "D3",
+              "midi": 50
+            },
+            {
+              "index": 5,
+              "pitch": "A2",
+              "midi": 45
+            },
+            {
+              "index": 6,
+              "pitch": "E2",
+              "midi": 40
+            }
+          ]
+        },
+        "capo": 0,
+        "startBarline": "none",
+        "measures": [
+          {
+            "id": "demo-m0",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "demo-b0-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n0-0",
+                    "string": 2,
+                    "fret": 1
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b0-1",
+                "tick": 960,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n0-1",
+                    "string": 2,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b0-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n0-2",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b0-3",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n0-3",
+                    "string": 2,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "demo-l0-0",
+                "beatId": "demo-b0-0",
+                "verse": 1,
+                "text": "晚"
+              },
+              {
+                "id": "demo-l0-1",
+                "beatId": "demo-b0-1",
+                "verse": 1,
+                "text": "风"
+              },
+              {
+                "id": "demo-l0-2",
+                "beatId": "demo-b0-2",
+                "verse": 1,
+                "text": "轻"
+              },
+              {
+                "id": "demo-l0-3",
+                "beatId": "demo-b0-3",
+                "verse": 1,
+                "text": "轻"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "demo-c0",
+                "beatId": "demo-b0-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "C",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 5,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ],
+            "sectionLabel": "主歌 A"
+          },
+          {
+            "id": "demo-m1",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "demo-b1-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n1-0",
+                    "string": 2,
+                    "fret": 10
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "6"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b1-1",
+                "tick": 960,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n1-1",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b1-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n1-2",
+                    "string": 2,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b1-3",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n1-3",
+                    "string": 2,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "demo-l1-0",
+                "beatId": "demo-b1-0",
+                "verse": 1,
+                "text": "吹"
+              },
+              {
+                "id": "demo-l1-1",
+                "beatId": "demo-b1-1",
+                "verse": 1,
+                "text": "过"
+              },
+              {
+                "id": "demo-l1-2",
+                "beatId": "demo-b1-2",
+                "verse": 1,
+                "text": "小"
+              },
+              {
+                "id": "demo-l1-3",
+                "beatId": "demo-b1-3",
+                "verse": 1,
+                "text": "径"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "demo-c1",
+                "beatId": "demo-b1-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "Am",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 2,
+                        "finger": 3
+                      },
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 5,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "demo-m2",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "demo-b2-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n2-0",
+                    "string": 2,
+                    "fret": 6
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "4"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b2-1",
+                "tick": 960,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n2-1",
+                    "string": 2,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b2-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n2-2",
+                    "string": 2,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b2-3",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n2-3",
+                    "string": 2,
+                    "fret": 1
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "demo-l2-0",
+                "beatId": "demo-b2-0",
+                "verse": 1,
+                "text": "月"
+              },
+              {
+                "id": "demo-l2-1",
+                "beatId": "demo-b2-1",
+                "verse": 1,
+                "text": "光"
+              },
+              {
+                "id": "demo-l2-2",
+                "beatId": "demo-b2-2",
+                "verse": 1,
+                "text": "落"
+              },
+              {
+                "id": "demo-l2-3",
+                "beatId": "demo-b2-3",
+                "verse": 1,
+                "text": "在"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "demo-c2",
+                "beatId": "demo-b2-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "F",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 4,
+                        "fret": 3,
+                        "finger": 4
+                      },
+                      {
+                        "string": 5,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 6,
+                        "fret": 1,
+                        "finger": 1
+                      }
+                    ],
+                    "barres": [
+                      {
+                        "fret": 1,
+                        "minString": 1,
+                        "maxString": 6,
+                        "finger": 1
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "demo-m3",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "demo-b3-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n3-0",
+                    "string": 2,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b3-1",
+                "tick": 960,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n3-1",
+                    "string": 2,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b3-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n3-2",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b3-3",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n3-3",
+                    "string": 2,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "demo-l3-0",
+                "beatId": "demo-b3-0",
+                "verse": 1,
+                "text": "你"
+              },
+              {
+                "id": "demo-l3-1",
+                "beatId": "demo-b3-1",
+                "verse": 1,
+                "text": "的"
+              },
+              {
+                "id": "demo-l3-2",
+                "beatId": "demo-b3-2",
+                "verse": 1,
+                "text": "掌"
+              },
+              {
+                "id": "demo-l3-3",
+                "beatId": "demo-b3-3",
+                "verse": 1,
+                "text": "心"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "demo-c3",
+                "beatId": "demo-b3-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "demo-m4",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "demo-b4-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n4-0",
+                    "string": 2,
+                    "fret": 1
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b4-1",
+                "tick": 960,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n4-1",
+                    "string": 2,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b4-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n4-2",
+                    "string": 2,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b4-3",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n4-3",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "demo-l4-0",
+                "beatId": "demo-b4-0",
+                "verse": 1,
+                "text": "我"
+              },
+              {
+                "id": "demo-l4-1",
+                "beatId": "demo-b4-1",
+                "verse": 1,
+                "text": "们"
+              },
+              {
+                "id": "demo-l4-2",
+                "beatId": "demo-b4-2",
+                "verse": 1,
+                "text": "沿"
+              },
+              {
+                "id": "demo-l4-3",
+                "beatId": "demo-b4-3",
+                "verse": 1,
+                "text": "着"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "demo-c4",
+                "beatId": "demo-b4-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "C",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 5,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "demo-m5",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "demo-b5-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n5-0",
+                    "string": 2,
+                    "fret": 10
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "6"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b5-1",
+                "tick": 960,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n5-1",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b5-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n5-2",
+                    "string": 2,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b5-3",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n5-3",
+                    "string": 2,
+                    "fret": 1
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "demo-l5-0",
+                "beatId": "demo-b5-0",
+                "verse": 1,
+                "text": "星"
+              },
+              {
+                "id": "demo-l5-1",
+                "beatId": "demo-b5-1",
+                "verse": 1,
+                "text": "光"
+              },
+              {
+                "id": "demo-l5-2",
+                "beatId": "demo-b5-2",
+                "verse": 1,
+                "text": "前"
+              },
+              {
+                "id": "demo-l5-3",
+                "beatId": "demo-b5-3",
+                "verse": 1,
+                "text": "行"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "demo-c5",
+                "beatId": "demo-b5-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "Am",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 2,
+                        "finger": 3
+                      },
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 5,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "demo-m6",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "demo-b6-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n6-0",
+                    "string": 2,
+                    "fret": 6
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "4"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b6-1",
+                "tick": 960,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n6-1",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b6-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n6-2",
+                    "string": 2,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b6-3",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n6-3",
+                    "string": 2,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "demo-l6-0",
+                "beatId": "demo-b6-0",
+                "verse": 1,
+                "text": "把"
+              },
+              {
+                "id": "demo-l6-1",
+                "beatId": "demo-b6-1",
+                "verse": 1,
+                "text": "这"
+              },
+              {
+                "id": "demo-l6-2",
+                "beatId": "demo-b6-2",
+                "verse": 1,
+                "text": "温"
+              },
+              {
+                "id": "demo-l6-3",
+                "beatId": "demo-b6-3",
+                "verse": 1,
+                "text": "柔"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "demo-c6",
+                "beatId": "demo-b6-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "F",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 4,
+                        "fret": 3,
+                        "finger": 4
+                      },
+                      {
+                        "string": 5,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 6,
+                        "fret": 1,
+                        "finger": 1
+                      }
+                    ],
+                    "barres": [
+                      {
+                        "fret": 1,
+                        "minString": 1,
+                        "maxString": 6,
+                        "finger": 1
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "demo-m7",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "double",
+            "beats": [
+              {
+                "id": "demo-b7-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n7-0",
+                    "string": 2,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b7-1",
+                "tick": 960,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n7-1",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b7-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n7-2",
+                    "string": 2,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b7-3",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n7-3",
+                    "string": 2,
+                    "fret": 1
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "demo-l7-0",
+                "beatId": "demo-b7-0",
+                "verse": 1,
+                "text": "唱"
+              },
+              {
+                "id": "demo-l7-1",
+                "beatId": "demo-b7-1",
+                "verse": 1,
+                "text": "给"
+              },
+              {
+                "id": "demo-l7-2",
+                "beatId": "demo-b7-2",
+                "verse": 1,
+                "text": "你"
+              },
+              {
+                "id": "demo-l7-3",
+                "beatId": "demo-b7-3",
+                "verse": 1,
+                "text": "听"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "demo-c7",
+                "beatId": "demo-b7-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "demo-m8",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "demo-b8-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n8-0",
+                    "string": 2,
+                    "fret": 1
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b8-1",
+                "tick": 960,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n8-1",
+                    "string": 2,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b8-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n8-2",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b8-3",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n8-3",
+                    "string": 2,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "demo-l8-0",
+                "beatId": "demo-b8-0",
+                "verse": 1,
+                "text": "树"
+              },
+              {
+                "id": "demo-l8-1",
+                "beatId": "demo-b8-1",
+                "verse": 1,
+                "text": "影"
+              },
+              {
+                "id": "demo-l8-2",
+                "beatId": "demo-b8-2",
+                "verse": 1,
+                "text": "摇"
+              },
+              {
+                "id": "demo-l8-3",
+                "beatId": "demo-b8-3",
+                "verse": 1,
+                "text": "动"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "demo-c8",
+                "beatId": "demo-b8-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "C",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 5,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ],
+            "sectionLabel": "主歌 B"
+          },
+          {
+            "id": "demo-m9",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "demo-b9-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n9-0",
+                    "string": 2,
+                    "fret": 10
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "6"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b9-1",
+                "tick": 960,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n9-1",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b9-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n9-2",
+                    "string": 2,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b9-3",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n9-3",
+                    "string": 2,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "demo-l9-0",
+                "beatId": "demo-b9-0",
+                "verse": 1,
+                "text": "夏"
+              },
+              {
+                "id": "demo-l9-1",
+                "beatId": "demo-b9-1",
+                "verse": 1,
+                "text": "夜"
+              },
+              {
+                "id": "demo-l9-2",
+                "beatId": "demo-b9-2",
+                "verse": 1,
+                "text": "微"
+              },
+              {
+                "id": "demo-l9-3",
+                "beatId": "demo-b9-3",
+                "verse": 1,
+                "text": "凉"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "demo-c9",
+                "beatId": "demo-b9-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "Am",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 2,
+                        "finger": 3
+                      },
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 5,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "demo-m10",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "demo-b10-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n10-0",
+                    "string": 2,
+                    "fret": 6
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "4"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b10-1",
+                "tick": 960,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n10-1",
+                    "string": 2,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b10-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n10-2",
+                    "string": 2,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b10-3",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n10-3",
+                    "string": 2,
+                    "fret": 1
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "demo-l10-0",
+                "beatId": "demo-b10-0",
+                "verse": 1,
+                "text": "远"
+              },
+              {
+                "id": "demo-l10-1",
+                "beatId": "demo-b10-1",
+                "verse": 1,
+                "text": "处"
+              },
+              {
+                "id": "demo-l10-2",
+                "beatId": "demo-b10-2",
+                "verse": 1,
+                "text": "灯"
+              },
+              {
+                "id": "demo-l10-3",
+                "beatId": "demo-b10-3",
+                "verse": 1,
+                "text": "火"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "demo-c10",
+                "beatId": "demo-b10-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "F",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 4,
+                        "fret": 3,
+                        "finger": 4
+                      },
+                      {
+                        "string": 5,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 6,
+                        "fret": 1,
+                        "finger": 1
+                      }
+                    ],
+                    "barres": [
+                      {
+                        "fret": 1,
+                        "minString": 1,
+                        "maxString": 6,
+                        "finger": 1
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "demo-m11",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "demo-b11-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n11-0",
+                    "string": 2,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b11-1",
+                "tick": 960,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n11-1",
+                    "string": 2,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b11-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n11-2",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b11-3",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n11-3",
+                    "string": 2,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "demo-l11-0",
+                "beatId": "demo-b11-0",
+                "verse": 1,
+                "text": "缓"
+              },
+              {
+                "id": "demo-l11-1",
+                "beatId": "demo-b11-1",
+                "verse": 1,
+                "text": "缓"
+              },
+              {
+                "id": "demo-l11-2",
+                "beatId": "demo-b11-2",
+                "verse": 1,
+                "text": "点"
+              },
+              {
+                "id": "demo-l11-3",
+                "beatId": "demo-b11-3",
+                "verse": 1,
+                "text": "亮"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "demo-c11",
+                "beatId": "demo-b11-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "demo-m12",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "demo-b12-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n12-0",
+                    "string": 2,
+                    "fret": 1
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b12-1",
+                "tick": 960,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n12-1",
+                    "string": 2,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b12-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n12-2",
+                    "string": 2,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b12-3",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n12-3",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "demo-l12-0",
+                "beatId": "demo-b12-0",
+                "verse": 1,
+                "text": "记"
+              },
+              {
+                "id": "demo-l12-1",
+                "beatId": "demo-b12-1",
+                "verse": 1,
+                "text": "忆"
+              },
+              {
+                "id": "demo-l12-2",
+                "beatId": "demo-b12-2",
+                "verse": 1,
+                "text": "像"
+              },
+              {
+                "id": "demo-l12-3",
+                "beatId": "demo-b12-3",
+                "verse": 1,
+                "text": "那"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "demo-c12",
+                "beatId": "demo-b12-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "C",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 5,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "demo-m13",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "demo-b13-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n13-0",
+                    "string": 2,
+                    "fret": 10
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "6"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b13-1",
+                "tick": 960,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n13-1",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b13-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n13-2",
+                    "string": 2,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b13-3",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n13-3",
+                    "string": 2,
+                    "fret": 1
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "demo-l13-0",
+                "beatId": "demo-b13-0",
+                "verse": 1,
+                "text": "清"
+              },
+              {
+                "id": "demo-l13-1",
+                "beatId": "demo-b13-1",
+                "verse": 1,
+                "text": "澈"
+              },
+              {
+                "id": "demo-l13-2",
+                "beatId": "demo-b13-2",
+                "verse": 1,
+                "text": "泉"
+              },
+              {
+                "id": "demo-l13-3",
+                "beatId": "demo-b13-3",
+                "verse": 1,
+                "text": "水"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "demo-c13",
+                "beatId": "demo-b13-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "Am",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 2,
+                        "finger": 3
+                      },
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 5,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "demo-m14",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "demo-b14-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n14-0",
+                    "string": 2,
+                    "fret": 6
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "4"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b14-1",
+                "tick": 960,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n14-1",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b14-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n14-2",
+                    "string": 2,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b14-3",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n14-3",
+                    "string": 2,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "demo-l14-0",
+                "beatId": "demo-b14-0",
+                "verse": 1,
+                "text": "流"
+              },
+              {
+                "id": "demo-l14-1",
+                "beatId": "demo-b14-1",
+                "verse": 1,
+                "text": "过"
+              },
+              {
+                "id": "demo-l14-2",
+                "beatId": "demo-b14-2",
+                "verse": 1,
+                "text": "心"
+              },
+              {
+                "id": "demo-l14-3",
+                "beatId": "demo-b14-3",
+                "verse": 1,
+                "text": "底"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "demo-c14",
+                "beatId": "demo-b14-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "F",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 4,
+                        "fret": 3,
+                        "finger": 4
+                      },
+                      {
+                        "string": 5,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 6,
+                        "fret": 1,
+                        "finger": 1
+                      }
+                    ],
+                    "barres": [
+                      {
+                        "fret": 1,
+                        "minString": 1,
+                        "maxString": 6,
+                        "finger": 1
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "demo-m15",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "double",
+            "beats": [
+              {
+                "id": "demo-b15-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n15-0",
+                    "string": 2,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b15-1",
+                "tick": 960,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n15-1",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b15-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n15-2",
+                    "string": 2,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b15-3",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n15-3",
+                    "string": 2,
+                    "fret": 1
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "demo-l15-0",
+                "beatId": "demo-b15-0",
+                "verse": 1,
+                "text": "不"
+              },
+              {
+                "id": "demo-l15-1",
+                "beatId": "demo-b15-1",
+                "verse": 1,
+                "text": "曾"
+              },
+              {
+                "id": "demo-l15-2",
+                "beatId": "demo-b15-2",
+                "verse": 1,
+                "text": "遗"
+              },
+              {
+                "id": "demo-l15-3",
+                "beatId": "demo-b15-3",
+                "verse": 1,
+                "text": "忘"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "demo-c15",
+                "beatId": "demo-b15-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "demo-m16",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "demo-b16-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n16-0",
+                    "string": 2,
+                    "fret": 1
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b16-1",
+                "tick": 960,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n16-1",
+                    "string": 2,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b16-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n16-2",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b16-3",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n16-3",
+                    "string": 2,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "demo-l16-0",
+                "beatId": "demo-b16-0",
+                "verse": 1,
+                "text": "晨"
+              },
+              {
+                "id": "demo-l16-1",
+                "beatId": "demo-b16-1",
+                "verse": 1,
+                "text": "光"
+              },
+              {
+                "id": "demo-l16-2",
+                "beatId": "demo-b16-2",
+                "verse": 1,
+                "text": "穿"
+              },
+              {
+                "id": "demo-l16-3",
+                "beatId": "demo-b16-3",
+                "verse": 1,
+                "text": "过"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "demo-c16",
+                "beatId": "demo-b16-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "C",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 5,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ],
+            "sectionLabel": "副歌"
+          },
+          {
+            "id": "demo-m17",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "demo-b17-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n17-0",
+                    "string": 2,
+                    "fret": 10
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "6"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b17-1",
+                "tick": 960,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n17-1",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b17-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n17-2",
+                    "string": 2,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b17-3",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n17-3",
+                    "string": 2,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "demo-l17-0",
+                "beatId": "demo-b17-0",
+                "verse": 1,
+                "text": "窗"
+              },
+              {
+                "id": "demo-l17-1",
+                "beatId": "demo-b17-1",
+                "verse": 1,
+                "text": "边"
+              },
+              {
+                "id": "demo-l17-2",
+                "beatId": "demo-b17-2",
+                "verse": 1,
+                "text": "花"
+              },
+              {
+                "id": "demo-l17-3",
+                "beatId": "demo-b17-3",
+                "verse": 1,
+                "text": "香"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "demo-c17",
+                "beatId": "demo-b17-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "Am",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 2,
+                        "finger": 3
+                      },
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 5,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "demo-m18",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "demo-b18-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n18-0",
+                    "string": 2,
+                    "fret": 6
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "4"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b18-1",
+                "tick": 960,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n18-1",
+                    "string": 2,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b18-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n18-2",
+                    "string": 2,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b18-3",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n18-3",
+                    "string": 2,
+                    "fret": 1
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "demo-l18-0",
+                "beatId": "demo-b18-0",
+                "verse": 1,
+                "text": "一"
+              },
+              {
+                "id": "demo-l18-1",
+                "beatId": "demo-b18-1",
+                "verse": 1,
+                "text": "段"
+              },
+              {
+                "id": "demo-l18-2",
+                "beatId": "demo-b18-2",
+                "verse": 1,
+                "text": "旋"
+              },
+              {
+                "id": "demo-l18-3",
+                "beatId": "demo-b18-3",
+                "verse": 1,
+                "text": "律"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "demo-c18",
+                "beatId": "demo-b18-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "F",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 4,
+                        "fret": 3,
+                        "finger": 4
+                      },
+                      {
+                        "string": 5,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 6,
+                        "fret": 1,
+                        "finger": 1
+                      }
+                    ],
+                    "barres": [
+                      {
+                        "fret": 1,
+                        "minString": 1,
+                        "maxString": 6,
+                        "finger": 1
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "demo-m19",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "demo-b19-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n19-0",
+                    "string": 2,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b19-1",
+                "tick": 960,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n19-1",
+                    "string": 2,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b19-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n19-2",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b19-3",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n19-3",
+                    "string": 2,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "demo-l19-0",
+                "beatId": "demo-b19-0",
+                "verse": 1,
+                "text": "慢"
+              },
+              {
+                "id": "demo-l19-1",
+                "beatId": "demo-b19-1",
+                "verse": 1,
+                "text": "慢"
+              },
+              {
+                "id": "demo-l19-2",
+                "beatId": "demo-b19-2",
+                "verse": 1,
+                "text": "生"
+              },
+              {
+                "id": "demo-l19-3",
+                "beatId": "demo-b19-3",
+                "verse": 1,
+                "text": "长"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "demo-c19",
+                "beatId": "demo-b19-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "demo-m20",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "demo-b20-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n20-0",
+                    "string": 2,
+                    "fret": 1
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b20-1",
+                "tick": 960,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n20-1",
+                    "string": 2,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b20-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n20-2",
+                    "string": 2,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b20-3",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n20-3",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "demo-l20-0",
+                "beatId": "demo-b20-0",
+                "verse": 1,
+                "text": "愿"
+              },
+              {
+                "id": "demo-l20-1",
+                "beatId": "demo-b20-1",
+                "verse": 1,
+                "text": "你"
+              },
+              {
+                "id": "demo-l20-2",
+                "beatId": "demo-b20-2",
+                "verse": 1,
+                "text": "走"
+              },
+              {
+                "id": "demo-l20-3",
+                "beatId": "demo-b20-3",
+                "verse": 1,
+                "text": "过"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "demo-c20",
+                "beatId": "demo-b20-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "C",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 5,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "demo-m21",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "demo-b21-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n21-0",
+                    "string": 2,
+                    "fret": 10
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "6"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b21-1",
+                "tick": 960,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n21-1",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b21-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n21-2",
+                    "string": 2,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b21-3",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n21-3",
+                    "string": 2,
+                    "fret": 1
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "demo-l21-0",
+                "beatId": "demo-b21-0",
+                "verse": 1,
+                "text": "漫"
+              },
+              {
+                "id": "demo-l21-1",
+                "beatId": "demo-b21-1",
+                "verse": 1,
+                "text": "长"
+              },
+              {
+                "id": "demo-l21-2",
+                "beatId": "demo-b21-2",
+                "verse": 1,
+                "text": "四"
+              },
+              {
+                "id": "demo-l21-3",
+                "beatId": "demo-b21-3",
+                "verse": 1,
+                "text": "季"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "demo-c21",
+                "beatId": "demo-b21-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "Am",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 2,
+                        "finger": 3
+                      },
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 5,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "demo-m22",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "demo-b22-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n22-0",
+                    "string": 2,
+                    "fret": 6
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "4"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b22-1",
+                "tick": 960,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n22-1",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b22-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n22-2",
+                    "string": 2,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b22-3",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n22-3",
+                    "string": 2,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "demo-l22-0",
+                "beatId": "demo-b22-0",
+                "verse": 1,
+                "text": "仍"
+              },
+              {
+                "id": "demo-l22-1",
+                "beatId": "demo-b22-1",
+                "verse": 1,
+                "text": "有"
+              },
+              {
+                "id": "demo-l22-2",
+                "beatId": "demo-b22-2",
+                "verse": 1,
+                "text": "勇"
+              },
+              {
+                "id": "demo-l22-3",
+                "beatId": "demo-b22-3",
+                "verse": 1,
+                "text": "气"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "demo-c22",
+                "beatId": "demo-b22-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "F",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 4,
+                        "fret": 3,
+                        "finger": 4
+                      },
+                      {
+                        "string": 5,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 6,
+                        "fret": 1,
+                        "finger": 1
+                      }
+                    ],
+                    "barres": [
+                      {
+                        "fret": 1,
+                        "minString": 1,
+                        "maxString": 6,
+                        "finger": 1
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "demo-m23",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "double",
+            "beats": [
+              {
+                "id": "demo-b23-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n23-0",
+                    "string": 2,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b23-1",
+                "tick": 960,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n23-1",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b23-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n23-2",
+                    "string": 2,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b23-3",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n23-3",
+                    "string": 2,
+                    "fret": 1
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "demo-l23-0",
+                "beatId": "demo-b23-0",
+                "verse": 1,
+                "text": "追"
+              },
+              {
+                "id": "demo-l23-1",
+                "beatId": "demo-b23-1",
+                "verse": 1,
+                "text": "逐"
+              },
+              {
+                "id": "demo-l23-2",
+                "beatId": "demo-b23-2",
+                "verse": 1,
+                "text": "梦"
+              },
+              {
+                "id": "demo-l23-3",
+                "beatId": "demo-b23-3",
+                "verse": 1,
+                "text": "想"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "demo-c23",
+                "beatId": "demo-b23-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "demo-m24",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "demo-b24-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n24-0",
+                    "string": 2,
+                    "fret": 1
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b24-1",
+                "tick": 960,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n24-1",
+                    "string": 2,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b24-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n24-2",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b24-3",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n24-3",
+                    "string": 2,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "demo-l24-0",
+                "beatId": "demo-b24-0",
+                "verse": 1,
+                "text": "晚"
+              },
+              {
+                "id": "demo-l24-1",
+                "beatId": "demo-b24-1",
+                "verse": 1,
+                "text": "风"
+              },
+              {
+                "id": "demo-l24-2",
+                "beatId": "demo-b24-2",
+                "verse": 1,
+                "text": "轻"
+              },
+              {
+                "id": "demo-l24-3",
+                "beatId": "demo-b24-3",
+                "verse": 1,
+                "text": "轻"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "demo-c24",
+                "beatId": "demo-b24-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "C",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 5,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ],
+            "sectionLabel": "尾声"
+          },
+          {
+            "id": "demo-m25",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "demo-b25-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n25-0",
+                    "string": 2,
+                    "fret": 10
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "6"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b25-1",
+                "tick": 960,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n25-1",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b25-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n25-2",
+                    "string": 2,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b25-3",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n25-3",
+                    "string": 2,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "demo-l25-0",
+                "beatId": "demo-b25-0",
+                "verse": 1,
+                "text": "吹"
+              },
+              {
+                "id": "demo-l25-1",
+                "beatId": "demo-b25-1",
+                "verse": 1,
+                "text": "过"
+              },
+              {
+                "id": "demo-l25-2",
+                "beatId": "demo-b25-2",
+                "verse": 1,
+                "text": "小"
+              },
+              {
+                "id": "demo-l25-3",
+                "beatId": "demo-b25-3",
+                "verse": 1,
+                "text": "径"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "demo-c25",
+                "beatId": "demo-b25-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "Am",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 2,
+                        "finger": 3
+                      },
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 5,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "demo-m26",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "demo-b26-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n26-0",
+                    "string": 2,
+                    "fret": 6
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "4"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b26-1",
+                "tick": 960,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n26-1",
+                    "string": 2,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b26-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n26-2",
+                    "string": 2,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b26-3",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n26-3",
+                    "string": 2,
+                    "fret": 1
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "demo-l26-0",
+                "beatId": "demo-b26-0",
+                "verse": 1,
+                "text": "月"
+              },
+              {
+                "id": "demo-l26-1",
+                "beatId": "demo-b26-1",
+                "verse": 1,
+                "text": "光"
+              },
+              {
+                "id": "demo-l26-2",
+                "beatId": "demo-b26-2",
+                "verse": 1,
+                "text": "落"
+              },
+              {
+                "id": "demo-l26-3",
+                "beatId": "demo-b26-3",
+                "verse": 1,
+                "text": "在"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "demo-c26",
+                "beatId": "demo-b26-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "F",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 4,
+                        "fret": 3,
+                        "finger": 4
+                      },
+                      {
+                        "string": 5,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 6,
+                        "fret": 1,
+                        "finger": 1
+                      }
+                    ],
+                    "barres": [
+                      {
+                        "fret": 1,
+                        "minString": 1,
+                        "maxString": 6,
+                        "finger": 1
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "demo-m27",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "demo-b27-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n27-0",
+                    "string": 2,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b27-1",
+                "tick": 960,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n27-1",
+                    "string": 2,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b27-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n27-2",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b27-3",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n27-3",
+                    "string": 2,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "demo-l27-0",
+                "beatId": "demo-b27-0",
+                "verse": 1,
+                "text": "你"
+              },
+              {
+                "id": "demo-l27-1",
+                "beatId": "demo-b27-1",
+                "verse": 1,
+                "text": "的"
+              },
+              {
+                "id": "demo-l27-2",
+                "beatId": "demo-b27-2",
+                "verse": 1,
+                "text": "掌"
+              },
+              {
+                "id": "demo-l27-3",
+                "beatId": "demo-b27-3",
+                "verse": 1,
+                "text": "心"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "demo-c27",
+                "beatId": "demo-b27-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "demo-m28",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "demo-b28-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n28-0",
+                    "string": 2,
+                    "fret": 1
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b28-1",
+                "tick": 960,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n28-1",
+                    "string": 2,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b28-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n28-2",
+                    "string": 2,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b28-3",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n28-3",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "demo-l28-0",
+                "beatId": "demo-b28-0",
+                "verse": 1,
+                "text": "我"
+              },
+              {
+                "id": "demo-l28-1",
+                "beatId": "demo-b28-1",
+                "verse": 1,
+                "text": "们"
+              },
+              {
+                "id": "demo-l28-2",
+                "beatId": "demo-b28-2",
+                "verse": 1,
+                "text": "沿"
+              },
+              {
+                "id": "demo-l28-3",
+                "beatId": "demo-b28-3",
+                "verse": 1,
+                "text": "着"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "demo-c28",
+                "beatId": "demo-b28-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "C",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 5,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "demo-m29",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "demo-b29-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n29-0",
+                    "string": 2,
+                    "fret": 10
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "6"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b29-1",
+                "tick": 960,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n29-1",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b29-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n29-2",
+                    "string": 2,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b29-3",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n29-3",
+                    "string": 2,
+                    "fret": 1
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "demo-l29-0",
+                "beatId": "demo-b29-0",
+                "verse": 1,
+                "text": "星"
+              },
+              {
+                "id": "demo-l29-1",
+                "beatId": "demo-b29-1",
+                "verse": 1,
+                "text": "光"
+              },
+              {
+                "id": "demo-l29-2",
+                "beatId": "demo-b29-2",
+                "verse": 1,
+                "text": "前"
+              },
+              {
+                "id": "demo-l29-3",
+                "beatId": "demo-b29-3",
+                "verse": 1,
+                "text": "行"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "demo-c29",
+                "beatId": "demo-b29-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "Am",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 2,
+                        "finger": 3
+                      },
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 5,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "demo-m30",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "beats": [
+              {
+                "id": "demo-b30-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n30-0",
+                    "string": 2,
+                    "fret": 6
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "4"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b30-1",
+                "tick": 960,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n30-1",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b30-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n30-2",
+                    "string": 2,
+                    "fret": 5
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "3"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b30-3",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n30-3",
+                    "string": 2,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "demo-l30-0",
+                "beatId": "demo-b30-0",
+                "verse": 1,
+                "text": "把"
+              },
+              {
+                "id": "demo-l30-1",
+                "beatId": "demo-b30-1",
+                "verse": 1,
+                "text": "这"
+              },
+              {
+                "id": "demo-l30-2",
+                "beatId": "demo-b30-2",
+                "verse": 1,
+                "text": "温"
+              },
+              {
+                "id": "demo-l30-3",
+                "beatId": "demo-b30-3",
+                "verse": 1,
+                "text": "柔"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "demo-c30",
+                "beatId": "demo-b30-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "F",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 4,
+                        "fret": 3,
+                        "finger": 4
+                      },
+                      {
+                        "string": 5,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 6,
+                        "fret": 1,
+                        "finger": 1
+                      }
+                    ],
+                    "barres": [
+                      {
+                        "fret": 1,
+                        "minString": 1,
+                        "maxString": 6,
+                        "finger": 1
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "demo-m31",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "final",
+            "beats": [
+              {
+                "id": "demo-b31-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n31-0",
+                    "string": 2,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b31-1",
+                "tick": 960,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n31-1",
+                    "string": 2,
+                    "fret": 8
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "5"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b31-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n31-2",
+                    "string": 2,
+                    "fret": 3
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "2"
+                  ]
+                }
+              },
+              {
+                "id": "demo-b31-3",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "demo-n31-3",
+                    "string": 2,
+                    "fret": 1
+                  }
+                ],
+                "numberedNotation": {
+                  "tokens": [
+                    "1"
+                  ]
+                }
+              }
+            ],
+            "tuplets": [],
+            "lyrics": [
+              {
+                "id": "demo-l31-0",
+                "beatId": "demo-b31-0",
+                "verse": 1,
+                "text": "唱"
+              },
+              {
+                "id": "demo-l31-1",
+                "beatId": "demo-b31-1",
+                "verse": 1,
+                "text": "给"
+              },
+              {
+                "id": "demo-l31-2",
+                "beatId": "demo-b31-2",
+                "verse": 1,
+                "text": "你"
+              },
+              {
+                "id": "demo-l31-3",
+                "beatId": "demo-b31-3",
+                "verse": 1,
+                "text": "听"
+              }
+            ],
+            "chordSymbols": [
+              {
+                "id": "demo-c31",
+                "beatId": "demo-b31-0",
+                "display": "nameAndDiagram",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "techniques": [
+          {
+            "id": "demo-h1",
+            "type": "hammerOn",
+            "fromNoteId": "demo-n4-0",
+            "toNoteId": "demo-n4-1"
+          },
+          {
+            "id": "demo-p1",
+            "type": "pullOff",
+            "fromNoteId": "demo-n5-0",
+            "toNoteId": "demo-n5-1"
+          },
+          {
+            "id": "demo-bend",
+            "type": "bend",
+            "fromNoteId": "demo-n10-0",
+            "semitones": 1
+          },
+          {
+            "id": "demo-vib",
+            "type": "vibrato",
+            "fromNoteId": "demo-n19-2"
+          },
+          {
+            "id": "demo-ring",
+            "type": "letRing",
+            "fromBeatId": "demo-b24-0",
+            "toBeatId": "demo-b24-3"
+          }
+        ]
+      }
+    ]
+  }
+}

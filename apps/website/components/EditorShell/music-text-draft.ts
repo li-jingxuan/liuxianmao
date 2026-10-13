@@ -84,7 +84,8 @@ export const readMusicTextDraft = (
   const value = {
     target: { ...target, verse },
     lyricMode,
-    allowOverwrite: false,
+    // 新歌词草稿默认允许覆盖，实际写入仍需点击应用。
+    allowOverwrite: target.kind === "lyric",
     text: lyricMode === "sequence" ? "" : (lyric?.text ?? ""),
     chord: chord
       ? structuredClone({ display: chord.display, chord: chord.chord })

@@ -25,35 +25,39 @@ export const buildHitIndex = (
   trackId: string,
   systems: ILXMSystemLayout[],
 ): ILXMHitIndex => ({
-  musicTextBounds: systems.flatMap((system) =>
-    system.measures.flatMap((m) => [
-      ...(m.numberedNotation ?? []).map((n) => ({
-        ...n.bounds,
-        trackId,
-        measureId: m.id,
-        beatId: n.beatId,
-        id: n.beatId,
-        kind: "numbered" as const,
-      })),
-      ...(m.lyrics ?? []).map((l) => ({
-        ...l.bounds,
-        trackId,
-        measureId: m.id,
-        beatId: l.beatId,
-        id: l.id,
-        kind: "lyric" as const,
-        verse: l.verse,
-      })),
-      ...(m.chordSymbols ?? []).map((b) => ({
-        ...b.bounds,
-        trackId,
-        measureId: m.id,
-        beatId: b.beatId,
-        id: b.id,
-        kind: "chord" as const,
-      })),
-    ]),
-  ),
+  musicTextBounds: [
+    ...systems.flatMap((system) =>
+      system.measures.flatMap((m) => [
+        ...(m.numberedNotation ?? []).map((n) => ({
+          ...n.bounds,
+          trackId,
+          measureId: m.id,
+          beatId: n.beatId,
+          id: n.beatId,
+          kind: "numbered" as const,
+        })),
+        ...(m.lyrics ?? []).map((l) => ({
+          ...l.bounds,
+          trackId,
+          measureId: m.id,
+          beatId: l.beatId,
+          id: l.id,
+          kind: "lyric" as const,
+          verse: l.verse,
+        })),
+        ...(m.chordSymbols ?? []).map((b) => ({
+          ...b.bounds,
+          trackId,
+          measureId: m.id,
+          beatId: b.beatId,
+          id: b.id,
+          kind: "chord" as const,
+        })),
+      ]),
+    ),
+    ...systems.flatMap((system) => system.musicTextCells ?? []),
+  ],
+  // 真实文字排在空白单元格之前，保持既有图元点击的优先级。
   measureBounds: systems.flatMap((system) =>
     system.measures.map<ILXMMeasureHitBounds>((measure) => ({
       trackId,

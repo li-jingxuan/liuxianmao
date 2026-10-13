@@ -37,6 +37,12 @@ export interface ILXMColumnWidthContributors {
 export interface ILXMLayoutOptions {
   /** 全局指法图显示偏好；省略时沿用单个和弦的旧 display。 */
   showChordDiagrams?: boolean;
+  /** 仅编辑态为目标谱行预留空白文本区域，不进入文档。 */
+  paragraphEditing?: {
+    measureId: string;
+    kind: "lyric" | "numbered";
+    verse?: number;
+  };
   musicTextMetrics?: ILXMMusicTextMetrics;
   x?: number;
   y?: number;
@@ -78,7 +84,7 @@ export interface ILXMLayout {
 
 /** 一条谱面行（system）的几何结果。 */
 export interface ILXMSystemLayout {
-  /** 谱行最左侧的竖向收边线，从首弦延伸至 system 底部。 */
+  /** 谱行最左侧的竖向收边线，从首弦延伸至第一行歌词上缘或最下层横梁。 */
   leftEdge?: {
     x1: number;
     x2: number;
@@ -86,9 +92,8 @@ export interface ILXMSystemLayout {
     y2: number;
     strokeWidth: number;
   }[];
-  /** 顶部设置和段落标记由核心布局生成，渲染层不推导坐标。 */
-  notationLabels?: MusicTextGlyph[];
-  lyricVerseLabels?: MusicTextGlyph[];
+  /** 文本行空拍的可点击单元格，与焦点共享几何。 */
+  musicTextCells?: NonNullable<ILXMHitIndex["musicTextBounds"]>;
   visualBounds?: MusicTextRect;
   /** 从 0 开始的谱面行顺序，用于稳定渲染和编辑定位。 */
   index: number;
@@ -253,6 +258,7 @@ export interface ILXMHitIndex {
     measureId: string;
     beatId: string;
     id: string;
+    empty?: boolean;
     kind: "lyric" | "chord" | "numbered";
     verse?: import("../core/types").ILXMLyricVerse;
   })[];

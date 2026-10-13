@@ -8,6 +8,7 @@ export const resolveLyricFocus = (
   target?.kind === "lyric"
     ? (layout?.hitIndex.musicTextBounds?.find(
         (r) =>
+          !r.empty &&
           r.kind === "lyric" &&
           r.trackId === target.trackId &&
           r.measureId === target.measureId &&

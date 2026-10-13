@@ -68,9 +68,6 @@ export const MusicTextLayer = ({
             pointerEvents="none"
           />
         ))}
-        {system.lyricVerseLabels?.map((glyph) => (
-          <MusicGlyph key={glyph.key} glyph={glyph} />
-        ))}
         {system.measures.map((measure) => (
           <g key={measure.id}>
             {measure.numberedNotation?.map((n) => (
