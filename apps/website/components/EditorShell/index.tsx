@@ -1,4 +1,5 @@
 "use client";
+import type { ILXMScoreCommand, ILXMDocument } from "@liuxianmao/lxm-editor";
 import { BeatToolbar } from "./BeatToolbar";
 
 import { EditorImpactNotice } from "./EditorImpactNotice";
@@ -18,7 +19,6 @@ import {
   navigateTabCellSelection,
   resolveTabCellSelection,
   type ILXMHitTarget,
-  type ILXMHitIndex,
   type ILXMBarlineType,
   type ILXMLayout,
   type ILXMLayoutDensity,
@@ -46,6 +46,7 @@ import { TechniqueToolbar } from "./TechniqueToolbar";
 import { ScoreMusicLayer } from "./ScoreMusicLayer";
 import { buildScoreScene } from "./score-scene";
 import { ScoreImagePreview } from "./ScoreImagePreview";
+import { ScorePrintLayer } from "./ScorePrintLayer";
 import { ScoreFileControls } from "./ScoreFileControls";
 import { MusicTextSidebar, type MusicTextController } from "./MusicTextSidebar";
 import type { MusicTextTarget } from "./music-text-draft";
@@ -53,6 +54,10 @@ import { resolveParagraphFocus } from "./music-text-focus";
 import { MusicTextEditingHints } from "./MusicTextEditingHints";
 import { useMusicTextMetrics } from "./music-text-metrics";
 import { resolveScorePointerAction } from "./editor-object-selection";
+import {
+  resolveMusicTextHoverTarget,
+  sameMusicTextTarget,
+} from "./music-text-hover";
 import styles from "./index.module.scss";
 
 /** 两位品位输入等待第二个数字的时间，超时后提交一位品位。 */
@@ -96,9 +101,43 @@ export const EditorShell: React.FC = () => {
   const clipboardVersion = useEditorStore((s) => s.clipboardVersion);
   const stateVersion = useEditorStore((s) => s.stateVersion);
   const effects = useEditorStore((state) => state.effects);
+  const selectedNumberedMarkId = useEditorStore(
+    (state) => state.selectedNumberedMarkId,
+  );
   const errorMessage = useEditorStore((state) => state.errorMessage);
   const loadNotice = useEditorStore((state) => state.loadNotice);
-  const execute = useEditorStore((state) => state.execute);
+  const executeInStore = useEditorStore((state) => state.execute);
+  const [structureImpact, setStructureImpact] = useState<{
+    command: ILXMScoreCommand;
+    document: ILXMDocument;
+    stateVersion: number;
+    sessionVersion: number;
+    removed: string[];
+  } | null>(null);
+  const structureDialog = useRef<HTMLDialogElement>(null);
+  /** 公共结构确认绑定真实会话快照，不在第一次失败后写任何历史。 */
+  const execute = (command: ILXMScoreCommand) => {
+    const snapshot = session.getState();
+    const result = executeInStore(command);
+    if (
+      result &&
+      !result.ok &&
+      result.code === "NUMBERED_IMPACT_REQUIRED" &&
+      snapshot.document
+    )
+      setStructureImpact({
+        command,
+        document: snapshot.document,
+        stateVersion: snapshot.stateVersion,
+        sessionVersion: snapshot.sessionVersion,
+        removed: result.removedMarkIds ?? [],
+      });
+    return result;
+  };
+  useEffect(() => {
+    if (structureImpact) structureDialog.current?.showModal();
+    else structureDialog.current?.close();
+  }, [structureImpact]);
   const setSelection = useEditorStore((state) => state.setSelection);
   const selectedTechniqueId = useEditorStore(
     (state) => state.selectedTechniqueId,
@@ -129,7 +168,7 @@ export const EditorShell: React.FC = () => {
   /** 悬停只属于当前布局快照，换谱或重排后不沿用旧坐标。 */
   const [hoveredMusicText, setHoveredMusicText] = useState<{
     layout: ILXMLayout;
-    bounds: NonNullable<ILXMHitIndex["musicTextBounds"]>[number];
+    target: MusicTextTarget;
   } | null>(null);
   /** 弦格悬停独立于实际选区，不改变输入目标、草稿或撤销历史。 */
   const [hoveredTabCell, setHoveredTabCell] = useState<{
@@ -171,6 +210,7 @@ export const EditorShell: React.FC = () => {
     if (!document) return null;
 
     return buildLayout(document, {
+      purpose: "editing",
       x: 0,
       y: 0,
       systemWidth: A4_CONTENT_WIDTH,
@@ -219,18 +259,10 @@ export const EditorShell: React.FC = () => {
   );
   const musicTextHoverFocus = useMemo(() => {
     if (!hoveredMusicText || hoveredMusicText.layout !== lxmLayout) return null;
-    const target = hoveredMusicText.bounds;
+    const target = hoveredMusicText.target;
     // 当前对象已有选中框，不再叠加同一对象的悬停描边。
-    if (
-      activeMusicTextTarget?.trackId === target.trackId &&
-      activeMusicTextTarget.measureId === target.measureId &&
-      activeMusicTextTarget.beatId === target.beatId &&
-      activeMusicTextTarget.kind === target.kind &&
-      (target.kind !== "lyric" ||
-        (activeMusicTextTarget.verse ?? 1) === (target.verse ?? 1))
-    )
-      return null;
-    return resolveParagraphFocus(lxmLayout, { ...target, string: 1 });
+    if (sameMusicTextTarget(activeMusicTextTarget, target)) return null;
+    return resolveParagraphFocus(lxmLayout, target);
   }, [lxmLayout, hoveredMusicText, activeMusicTextTarget]);
   const tabCellHoverCaret = useMemo(() => {
     if (!hoveredTabCell || hoveredTabCell.layout !== lxmLayout) return null;
@@ -759,16 +791,20 @@ export const EditorShell: React.FC = () => {
       const point = getLayoutPoint(event.currentTarget, event);
       const bounds =
         point && lxmLayout ? hitTestMusicText(lxmLayout, point) : null;
+      const hoverTarget =
+        point && lxmLayout
+          ? resolveMusicTextHoverTarget(lxmLayout, point)
+          : null;
       const next =
         !event.buttons &&
         event.pointerType !== "touch" &&
-        bounds &&
-        bounds.kind !== "chord" &&
+        hoverTarget &&
         lxmLayout
-          ? { layout: lxmLayout, bounds }
+          ? { layout: lxmLayout, target: hoverTarget }
           : null;
       setHoveredMusicText((current) =>
-        current?.layout === next?.layout && current?.bounds === next?.bounds
+        current?.layout === next?.layout &&
+        sameMusicTextTarget(current?.target ?? null, next?.target ?? null)
           ? current
           : next,
       );
@@ -776,6 +812,7 @@ export const EditorShell: React.FC = () => {
         !event.buttons &&
         event.pointerType !== "touch" &&
         !bounds &&
+        !hoverTarget &&
         point &&
         lxmLayout &&
         !hitTestTechniqueTarget(lxmLayout, point)
@@ -964,6 +1001,40 @@ export const EditorShell: React.FC = () => {
 
   return (
     <div className={styles.editor} onKeyDown={handleEditorKeyDown}>
+      <dialog
+        ref={structureDialog}
+        aria-label="公共结构影响确认"
+        onCancel={() => setStructureImpact(null)}
+      >
+        <p>
+          这次结构修改将删除 {structureImpact?.removed.length ?? 0}{" "}
+          个简谱连接记号。确认后与结构修改一起提交、一起撤销。
+        </p>
+        <button onClick={() => setStructureImpact(null)}>取消</button>
+        <button
+          onClick={() => {
+            if (!structureImpact) return;
+            const current = session.getState();
+            if (
+              current.document !== structureImpact.document ||
+              current.stateVersion !== structureImpact.stateVersion ||
+              current.sessionVersion !== structureImpact.sessionVersion
+            ) {
+              setErrorMessage("结构预览已过期，请重新操作");
+              setStructureImpact(null);
+              return;
+            }
+            const result = executeInStore({
+              ...structureImpact.command,
+              expectedRevision: structureImpact.document.documentRevision,
+              confirmedRemovedMarkIds: structureImpact.removed,
+            });
+            if (result?.ok) setStructureImpact(null);
+          }}
+        >
+          确认修改
+        </button>
+      </dialog>
       <div className={styles.editorControls}>
         <div
           className={styles.editorToolbar}
@@ -1409,6 +1480,7 @@ export const EditorShell: React.FC = () => {
                 <ScoreMusicLayer
                   scene={scoreScene}
                   selectedTechniqueId={selectedTechniqueId}
+                  selectedNumberedMarkId={selectedNumberedMarkId}
                 />
               )}
             </svg>
@@ -1428,6 +1500,11 @@ export const EditorShell: React.FC = () => {
           onScoreSelection={acceptScoreSelection}
         />
       </div>
+      <ScorePrintLayer
+        score={document}
+        density={density}
+        showChordDiagrams={showChordDiagrams}
+      />
       {imagePreviewOpen && (
         <ScoreImagePreview
           score={document}

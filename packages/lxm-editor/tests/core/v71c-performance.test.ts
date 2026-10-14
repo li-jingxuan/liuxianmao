@@ -31,8 +31,10 @@ it("100 小节加载、布局、记谱编辑与复用均保持合法", () => {
     expect(layout.systems.flatMap((s) => s.measures)).toHaveLength(100);
     start = performance.now();
     const r = applyScoreCommand(d, {
-      type: C.SetNumbered,
-      ...target,
+      type: "numbered.event.set",
+      trackId: t.id,
+      measureId: m.id,
+      eventId: m.numberedVoice.events[0]!.id,
       tokens: ["1"],
     });
     const edit = performance.now() - start;

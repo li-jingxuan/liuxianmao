@@ -1,0 +1,22 @@
+.printLayer {
+  display: none;
+}
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+  .printLayer {
+    display: block;
+  }
+  .page {
+    display: block;
+    width: 210mm;
+    height: 297mm;
+    break-after: page;
+    break-inside: avoid;
+    &:last-child {
+      break-after: auto;
+    }
+  }
+}

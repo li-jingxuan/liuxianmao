@@ -1,8 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import type { ILXMDocument, ILXMLayoutDensity } from "@liuxianmao/lxm-editor";
-import { SceneItems } from "./ScoreMusicLayer";
-import { textPrimitive } from "./score-scene";
+import { ScorePresentationPage } from "./ScorePresentationPage";
 import {
   encodeScorePage,
   exportScoreImages,
@@ -219,46 +218,11 @@ export const ScoreImagePreview = ({
                 生成此页图片
               </button>
             </div>
-            <svg
+            <ScorePresentationPage
+              prepared={prepared}
+              page={page}
               className={styles.page}
-              viewBox={`0 0 ${page.width} ${page.height}`}
-              role="img"
-              aria-label={`A4 乐谱第 ${page.index + 1} 页`}
-            >
-              <rect width={page.width} height={page.height} fill="#fff" />
-              {page.scoreHeaderTranslation && (
-                <g
-                  transform={`translate(${page.scoreHeaderTranslation.x} ${page.scoreHeaderTranslation.y})`}
-                >
-                  <SceneItems items={prepared.scene.header} />
-                </g>
-              )}
-              {page.systems.map((p) => (
-                <g
-                  key={p.systemIndex}
-                  transform={`translate(${p.translateX} ${p.translateY})`}
-                >
-                  <SceneItems
-                    items={
-                      prepared.scene.systems.find(
-                        (s) => s.index === p.systemIndex,
-                      )!.items
-                    }
-                  />
-                </g>
-              ))}
-              <SceneItems
-                items={[
-                  textPrimitive(
-                    page.footer.text,
-                    page.footer.x,
-                    page.footer.y,
-                    page.footer.fontSize,
-                    "middle",
-                  ),
-                ]}
-              />
-            </svg>
+            />
           </section>
         ))}
       </div>

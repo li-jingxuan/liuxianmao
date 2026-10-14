@@ -24,6 +24,7 @@ const createMeasure = (
   barline,
   chordSymbols,
   lyrics: [],
+  numberedVoice: { events: [], tuplets: [] },
   tuplets: [],
   beats,
 });
@@ -63,7 +64,7 @@ const beat = (
 /** MVP v2 的默认文档；默认导出供 EXAMPLE_MVP_2.default 使用。 */
 const EXAMPLE_MVP_2: ILXMDocument = {
   schema: "lxm-tab-score",
-  schemaVersion: 7,
+  schemaVersion: 8,
   documentRevision: 1,
   score: {
     arranger: "",
@@ -88,6 +89,7 @@ const EXAMPLE_MVP_2: ILXMDocument = {
         },
         capo: 0,
         startBarline: "none",
+        numberedMarks: [],
         techniques: [],
         measures: [
           // 小节 1：沿用 MVP1 的混合节奏与 Am 标记，覆盖附点和短时值连梁。

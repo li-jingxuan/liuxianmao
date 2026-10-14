@@ -68,12 +68,47 @@ export const MusicTextLayer = ({
             pointerEvents="none"
           />
         ))}
+        {system.numberedMarks?.map((mark) => (
+          <g key={mark.markId} data-numbered-mark={mark.markId}>
+            {mark.path && (
+              <path
+                d={mark.path.d}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={mark.path.strokeWidth}
+              />
+            )}
+            {mark.dots.map((d, i) => (
+              <circle key={i} {...d} fill="currentColor" />
+            ))}
+            {mark.labels.map((g, i) => (
+              <MusicGlyph key={i} glyph={g} />
+            ))}
+          </g>
+        ))}
         {system.measures.map((measure) => (
           <g key={measure.id}>
             {measure.numberedNotation?.map((n) => (
-              <g key={n.beatId} data-numbered-beat={n.beatId}>
+              <g key={n.eventId} data-numbered-event={n.eventId}>
                 {n.labels.map((g, i) => (
                   <MusicGlyph key={i} glyph={g} />
+                ))}
+                {n.lines
+                  ?.filter((l) => l.thickness > 0)
+                  .map((l, i) => (
+                    <line
+                      key={`line-${i}`}
+                      x1={l.x1}
+                      x2={l.x2}
+                      y1={l.y}
+                      y2={l.y}
+                      stroke="currentColor"
+                      strokeWidth={l.thickness}
+                      pointerEvents="none"
+                    />
+                  ))}
+                {n.rhythmDots?.map((d, i) => (
+                  <circle key={`rhythm-dot-${i}`} {...d} fill="currentColor" />
                 ))}
                 {n.dots.map((d, i) => (
                   <circle key={i} {...d} fill="currentColor" />

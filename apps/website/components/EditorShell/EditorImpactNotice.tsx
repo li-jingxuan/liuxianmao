@@ -17,6 +17,11 @@ const techniqueNames = {
   palmMute: "手掌闷音",
   letRing: "持续发音",
 };
+const numberedMarkNames = {
+  tie: "延音线",
+  slur: "连音线",
+  fermata: "延长记号",
+};
 import styles from "./index.module.scss";
 
 /** 可展开的影响详情与本次命令共用一条历史，用户可通过既有撤销恢复。 */
@@ -38,6 +43,12 @@ export const EditorImpactNotice = ({
     "beat.retimed": "拍起点调整",
     "technique.removed": "失效技巧移除",
     "technique.omitted": "边界技巧未复制",
+    "numbered.event.retimed": "简谱起点调整",
+    "numbered.event.resized": "简谱时值调整",
+    "numbered.event.overwritten": "简谱音符覆盖",
+    "numbered.mark.removed": "简谱标记移除",
+    "numbered.mark.migrated": "简谱标记端点迁移",
+    "numbered.mark.omitted": "边界简谱连接未复制",
   };
   return (
     <details className={styles.impactNotice}>
@@ -54,7 +65,7 @@ export const EditorImpactNotice = ({
       <ul>
         {effects.map((effect, index) => (
           <li key={`${effect.kind}-${index}`}>
-            {effect.kind === "technique.omitted" ? "复制源原第" : "编辑前第"}{" "}
+            {effect.kind.endsWith("omitted") ? "复制范围第" : "编辑前第"}{" "}
             {effect.measureNumber} 小节：
             {"beatNumber" in effect ? `第 ${effect.beatNumber} 拍，` : ""}
             {effect.kind === "beats.structured"
@@ -65,9 +76,19 @@ export const EditorImpactNotice = ({
                   ? `复制第 ${effect.measureNumber}–${effect.endMeasureNumber} 小节（${effect.count} 小节）至${effect.afterMeasureNumber === 0 ? "谱首" : `原第 ${effect.afterMeasureNumber} 小节后`}`
                   : effect.kind === "beat.compressed"
                     ? "为保持小节容量，时值自动缩短"
-                    : effect.kind === "beat.retimed"
-                      ? "随节奏变化调整起点"
-                      : `${techniqueNames[effect.techniqueType]}：${effect.kind === "technique.omitted" ? "关系跨越复制边界，未复制" : "目标或关系不再有效，已移除"}`}
+                    : effect.kind === "numbered.event.retimed"
+                      ? "简谱事件随明确的插入操作调整起点"
+                      : effect.kind === "numbered.event.resized"
+                        ? "简谱事件时值已调整"
+                        : effect.kind === "numbered.event.overwritten"
+                          ? "随目标音符时值扩展，已覆盖此音符"
+                          : "markId" in effect
+                            ? `${effect.markType ? numberedMarkNames[effect.markType] : "简谱连接"}：${effect.kind === "numbered.mark.omitted" ? "跨越复制边界，未复制" : effect.kind === "numbered.mark.migrated" ? "随拆合操作迁移端点" : "目标或关系不再有效，已移除"}`
+                            : effect.kind === "beat.retimed"
+                              ? "随节奏变化调整起点"
+                              : "techniqueType" in effect
+                                ? `${techniqueNames[effect.techniqueType]}：${effect.kind === "technique.omitted" ? "关系跨越复制边界，未复制" : "目标或关系不再有效，已移除"}`
+                                : ""}
           </li>
         ))}
       </ul>

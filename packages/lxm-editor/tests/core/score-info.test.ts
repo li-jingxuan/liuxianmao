@@ -1,3 +1,4 @@
+import { asLegacyFixture } from "../helpers/legacy";
 import { describe, it, expect } from "vitest";
 import {
   applyScoreCommand,
@@ -87,15 +88,15 @@ describe("基础谱面信息", () => {
         });
       const before = structuredClone(old);
       expect(loadDocument(JSON.stringify(old)).ok).toBe(false);
-      const result = upgradeDocumentToCurrent(old);
+      const result = upgradeDocumentToCurrent(asLegacyFixture(old));
       if (!result.ok) throw new Error(result.errors.join(";"));
-      expect(result.document.schemaVersion).toBe(7);
+      expect(result.document.schemaVersion).toBe(8);
       expect(result.document.score.keySignature).toBeNull();
       expect(result.document.score.arranger).toBe("");
       expect(result.document.score.tracks).toEqual(doc.score.tracks);
       expect(old).toEqual(before);
       old.score.title = "中".repeat(129);
-      expect(upgradeDocumentToCurrent(old).ok).toBe(false);
+      expect(upgradeDocumentToCurrent(asLegacyFixture(old)).ok).toBe(false);
     },
   );
   it("长标题与作者换行，不改变正文宽度，命中使用最终平移坐标", () => {

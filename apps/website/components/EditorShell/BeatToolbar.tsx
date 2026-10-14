@@ -18,6 +18,7 @@ export const BeatToolbar = ({ beforeAction }: { beforeAction: () => void }) => {
     selection = useEditorStore((s) => s.selection),
     hasClipboard = useEditorStore((s) => s.hasBeatClipboard);
   const [mode, setMode] = useState<"insert" | "overwrite">("insert"),
+    [layers, setLayers] = useState<"tab" | "both">("both"),
     [preview, setPreview] = useState<{
       command: ILXMBeatPasteCommand;
       summary: string;
@@ -60,7 +61,7 @@ export const BeatToolbar = ({ beforeAction }: { beforeAction: () => void }) => {
         expectedConfirmationKey: plan.confirmationKey,
       },
       required: plan.requiresConfirmation,
-      summary: `${mode === "insert" ? "插入" : "覆盖"} ${plan.count} 拍（含全部弦，${plan.durationLabel}）；替换 ${plan.replacedBeats} 拍、${plan.replacedLyrics} 项歌词、${plan.replacedNumbered} 项简谱、${plan.replacedChords} 个和弦，清理 ${plan.removedTechniques} 个技巧。`,
+      summary: `${mode === "insert" ? "插入" : "覆盖"} ${plan.count} 拍（${clipboard.layers === "both" ? "双谱" : "六线谱"}，${plan.durationLabel}）；替换 ${plan.replacedBeats} 拍、${plan.replacedLyrics} 项歌词、${plan.replacedNumbered} 项简谱、${plan.replacedChords} 个和弦，清理 ${plan.removedTechniques} 个六线谱技巧、${plan.removedNumberedMarks} 个简谱标记。`,
     });
   };
   return (
@@ -98,6 +99,18 @@ export const BeatToolbar = ({ beforeAction }: { beforeAction: () => void }) => {
       >
         合并拍点
       </button>
+      <label className={styles.toolbarField}>
+        复制范围
+        <select
+          className={styles.toolbarSelect}
+          aria-label="拍点复制谱层"
+          value={layers}
+          onChange={(e) => setLayers(e.target.value as typeof layers)}
+        >
+          <option value="both">双谱</option>
+          <option value="tab">仅六线谱</option>
+        </select>
+      </label>
       <button
         className={styles.toolbarButton}
         disabled={!sameMeasure || !range}
@@ -111,6 +124,7 @@ export const BeatToolbar = ({ beforeAction }: { beforeAction: () => void }) => {
                 ...target,
                 startBeatId: range.beats[0]!.beatId,
                 endBeatId: range.beats.at(-1)!.beatId,
+                layers,
               })
             )
               setNotice(`已复制 ${range.beats.length} 拍（含全部弦）。`);

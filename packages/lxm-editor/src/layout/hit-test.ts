@@ -25,17 +25,46 @@ export const buildHitIndex = (
   trackId: string,
   systems: ILXMSystemLayout[],
 ): ILXMHitIndex => ({
+  numberedMarkBounds: systems.flatMap((s) =>
+    (s.numberedMarks ?? []).filter((m) => m.target),
+  ),
+  numberedBounds: [
+    ...systems.flatMap((system) =>
+      system.measures.flatMap((m) =>
+        (m.numberedNotation ?? []).flatMap((n) =>
+          (n.itemBounds ?? []).map((i) => ({
+            ...i.bounds,
+            target: {
+              kind: "numberedEvent" as const,
+              trackId,
+              measureId: m.id,
+              eventId: n.eventId,
+              itemId: i.itemId,
+            },
+          })),
+        ),
+      ),
+    ),
+    ...systems.flatMap((system) =>
+      system.measures.flatMap((m) =>
+        (m.numberedNotation ?? []).map((n) => ({
+          ...n.bounds,
+          target: {
+            kind: "numberedEvent" as const,
+            trackId,
+            measureId: m.id,
+            eventId: n.eventId,
+          },
+        })),
+      ),
+    ),
+    ...systems.flatMap((system) =>
+      system.measures.flatMap((m) => m.numberedInputSlots ?? []),
+    ),
+  ],
   musicTextBounds: [
     ...systems.flatMap((system) =>
       system.measures.flatMap((m) => [
-        ...(m.numberedNotation ?? []).map((n) => ({
-          ...n.bounds,
-          trackId,
-          measureId: m.id,
-          beatId: n.beatId,
-          id: n.beatId,
-          kind: "numbered" as const,
-        })),
         ...(m.lyrics ?? []).map((l) => ({
           ...l.bounds,
           trackId,
@@ -55,7 +84,9 @@ export const buildHitIndex = (
         })),
       ]),
     ),
-    ...systems.flatMap((system) => system.musicTextCells ?? []),
+    ...systems.flatMap((system) =>
+      (system.musicTextCells ?? []).filter((c) => c.kind !== "numbered"),
+    ),
   ],
   // 真实文字排在空白单元格之前，保持既有图元点击的优先级。
   measureBounds: systems.flatMap((system) =>
@@ -188,3 +219,83 @@ export const hitTestMusicText = (layout: ILXMLayout, point: ILXMLayoutPoint) =>
   layout.hitIndex.musicTextBounds?.find((bounds) =>
     isPointInBounds(point, bounds),
   ) ?? null;
+
+/** 独立简谱命中不读取 TAB 单元格。 */
+export const hitTestNumbered = (layout: ILXMLayout, point: ILXMLayoutPoint) =>
+  layout.hitIndex.numberedBounds?.find((b) => isPointInBounds(point, b))
+    ?.target ?? null;
+
+/** 曲线用采样线段的真实距离命中，不能让整个弧线矩形抢走音符点击。 */
+export const hitTestNumberedMark = (
+  layout: ILXMLayout,
+  point: ILXMLayoutPoint,
+  tolerance = 5,
+) => {
+  for (const mark of layout.hitIndex.numberedMarkBounds ?? []) {
+    if (
+      !mark.path ||
+      !mark.target ||
+      !isPointInBounds(point, {
+        x: mark.bounds.x - tolerance,
+        y: mark.bounds.y - tolerance,
+        width: mark.bounds.width + tolerance * 2,
+        height: mark.bounds.height + tolerance * 2,
+      })
+    )
+      continue;
+    const values =
+      mark.path.d.match(/-?\d+(?:\.\d+)?(?:e[+-]?\d+)?/gi)?.map(Number) ?? [];
+    const cubic = mark.path.d.includes("C");
+    let previous = { x: values[0]!, y: values[1]! };
+    for (let i = 1; i <= 24; i++) {
+      const t = i / 24,
+        u = 1 - t;
+      const next = cubic
+        ? {
+            x:
+              u * u * u * values[0]! +
+              3 * u * u * t * values[2]! +
+              3 * u * t * t * values[4]! +
+              t * t * t * values[6]!,
+            y:
+              u * u * u * values[1]! +
+              3 * u * u * t * values[3]! +
+              3 * u * t * t * values[5]! +
+              t * t * t * values[7]!,
+          }
+        : {
+            x: u * u * values[0]! + 2 * u * t * values[2]! + t * t * values[4]!,
+            y: u * u * values[1]! + 2 * u * t * values[3]! + t * t * values[5]!,
+          };
+      const dx = next.x - previous.x,
+        dy = next.y - previous.y,
+        length = dx * dx + dy * dy;
+      const f = length
+        ? Math.max(
+            0,
+            Math.min(
+              1,
+              ((point.x - previous.x) * dx + (point.y - previous.y) * dy) /
+                length,
+            ),
+          )
+        : 0;
+      if (
+        Math.hypot(
+          point.x - previous.x - f * dx,
+          point.y - previous.y - f * dy,
+        ) <= tolerance
+      )
+        return {
+          markId: mark.markId,
+          target: {
+            kind: "numberedEvent" as const,
+            trackId: layout.trackId,
+            ...mark.target,
+          },
+        };
+      previous = next;
+    }
+  }
+  return null;
+};

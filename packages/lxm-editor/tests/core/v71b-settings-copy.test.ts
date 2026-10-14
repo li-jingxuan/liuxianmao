@@ -1,3 +1,4 @@
+import { asLegacyFixture } from "../helpers/legacy";
 import { describe, expect, it } from "vitest";
 import {
   applyScoreCommand,
@@ -161,7 +162,7 @@ describe("v7.1-B 边界与保真", () => {
     });
     const before = structuredClone(old);
     expect(loadDocument(JSON.stringify(old)).ok).toBe(false);
-    const upgraded = upgradeDocumentToCurrent(old);
+    const upgraded = upgradeDocumentToCurrent(asLegacyFixture(old));
     expect(upgraded.ok).toBe(true);
     expect(old).toEqual(before);
     expect(upgradeDocumentToCurrent({ ...old, score: {} }).ok).toBe(false);

@@ -1,3 +1,4 @@
+import { asLegacyFixture } from "../helpers/legacy";
 import { describe, it, expect } from "vitest";
 import {
   applyScoreCommand,
@@ -6,7 +7,6 @@ import {
 } from "../../src/core/commands";
 import {
   parseNumberedSequence,
-  planNumberedSequence,
 } from "../../src/core/numbered-notation";
 import {
   createBeatClipboard,
@@ -17,7 +17,7 @@ import { loadDocument, upgradeDocumentToCurrent } from "../../src/core/loader";
 import {
   buildLayout,
   layoutParagraphFocus,
-  hitTestMusicText,
+  hitTestNumbered,
 } from "../../src/layout";
 import EXAMPLE from "../../example/example-mvp6.json";
 import TECHNIQUES from "../../example/example-technique-rhythm";
@@ -33,6 +33,7 @@ const fixture = (notes = false) => {
     barline: "single" as const,
     lyrics: [],
     chordSymbols: [],
+    numberedVoice: { events: [], tuplets: [] },
     tuplets: [],
     beats: Array.from({ length: 4 }, (_, bi) => ({
       id: `b${mi}-${bi}`,
@@ -109,66 +110,60 @@ describe("MVP7.1-C 原子结构与记谱", () => {
   ])("拒绝非法简谱 %s", (raw) =>
     expect(parseNumberedSequence(raw).ok).toBe(false),
   );
-  it("批次跨小节含休止映射，no-op 保留引用，覆盖与超尾原子拒绝", () => {
-    const d = fixture(),
-      parsed = parseNumberedSequence("1 _ 5");
-    if (!parsed.ok) throw Error();
-    const start = { ...target, beatId: "b0-3" };
-    const p = planNumberedSequence(d, start, parsed.items);
-    expect(p.rows.map((r) => r.target?.beatId)).toEqual([
-      "b0-3",
-      "b1-0",
-      "b1-1",
-    ]);
-    const r = execute(d, {
-      type: C.SetNumberedSequence,
-      ...start,
-      items: parsed.items,
+  it("独立范围批次 no-op、覆盖确认和超尾拒绝", () => {
+    const d = fixture();
+    const command = {
+      type: "numbered.range.replace" as const,
+      trackId: target.trackId,
+      measureId: "m0",
+      startTick: 0,
+      endTick: 2880,
+      items: [
+        { kind: "set" as const, tokens: ["1"] },
+        { kind: "skip" as const },
+        { kind: "set" as const, tokens: ["5"] },
+      ],
+      rhythms: Array.from({ length: 3 }, () => ({
+        base: "quarter" as const,
+        dots: 0,
+      })),
       allowOverwrite: false,
-    });
+    };
+    const r = execute(d, command);
+    expect(d.score.tracks[0]!.measures[0]!.numberedVoice.events).toEqual([]);
     expect(
-      d.score.tracks[0]!.measures[0]!.beats[3]!.numberedNotation,
-    ).toBeUndefined();
-    expect(
-      execute(r.document, {
-        type: C.SetNumberedSequence,
-        ...start,
-        items: parsed.items,
-        allowOverwrite: false,
-      }).document,
-    ).toBe(r.document);
+      r.document.score.tracks[0]!.measures[0]!.numberedVoice.events.map(
+        (e) => e.tick,
+      ),
+    ).toEqual([0, 1920]);
+    expect(execute(r.document, command).document).toBe(r.document);
     expect(
       applyScoreCommand(r.document, {
-        type: C.SetNumbered,
-        ...target,
-        tokens: ["8"],
+        ...command,
+        items: [
+          { kind: "set", tokens: ["2"] },
+          { kind: "skip" },
+          { kind: "set", tokens: ["5"] },
+        ],
       }),
     ).toMatchObject({ ok: false });
     expect(
-      applyScoreCommand(r.document, {
-        type: C.SetNumberedSequence,
-        ...start,
-        items: [{ kind: "set", tokens: ["2"] }],
-        allowOverwrite: false,
-      }),
+      applyScoreCommand(d, { ...command, startTick: 2880, endTick: 5760 }),
     ).toMatchObject({ ok: false });
     expect(
-      applyScoreCommand(d, {
-        type: C.SetNumberedSequence,
-        ...target,
-        measureId: "m1",
-        beatId: "b1-3",
-        items: parsed.items,
-        allowOverwrite: false,
-      }),
-    ).toMatchObject({ ok: false });
+      applyScoreCommand(d, { type: C.SetNumbered, ...target, tokens: ["1"] }),
+    ).toMatchObject({ ok: false, code: "NUMBERED_INVALID" });
   });
-  it("带简谱的尾部休止不能被拍号缩容或时值扩大吞掉", () => {
+  it("独立简谱阻止公共容量越界，但不阻塞 TAB 时值重建", () => {
     const d = execute(fixture(), {
-      type: C.SetNumbered,
-      ...target,
-      beatId: "b0-3",
-      tokens: ["5"],
+      type: "numbered.range.replace",
+      trackId: target.trackId,
+      measureId: "m0",
+      startTick: 2880,
+      endTick: 3840,
+      items: [{ kind: "set", tokens: ["5"] }],
+      rhythms: [{ base: "quarter", dots: 0 }],
+      allowOverwrite: false,
     }).document;
     expect(
       applyScoreCommand(d, {
@@ -185,12 +180,23 @@ describe("MVP7.1-C 原子结构与记谱", () => {
         ...target,
         rhythm: { base: "whole", dots: 0 },
       }),
-    ).toMatchObject({ ok: false });
+    ).toMatchObject({ ok: true });
   });
   it("和弦逐弦拆分 Tie 后可无损合并，首拍文本/简谱保留，无压缩误报", () => {
     const d = fixture(true),
       m = d.score.tracks[0]!.measures[0]!;
-    m.beats[0]!.numberedNotation = { tokens: ["1", "3"] };
+    m.numberedVoice.events = [
+      {
+        id: "numbered-first",
+        tick: 0,
+        rhythm: { base: "quarter", dots: 0 },
+        kind: "notes",
+        items: [
+          { id: "num-item-1", token: "1" },
+          { id: "num-item-3", token: "3" },
+        ],
+      },
+    ];
     m.lyrics = [{ id: "ly", beatId: "b0-0", verse: 1, text: "词" }];
     const before = structuredClone(d),
       r = execute(d, { type: C.SplitBeat, ...target });
@@ -199,7 +205,7 @@ describe("MVP7.1-C 原子结构与记谱", () => {
     const t = r.document.score.tracks[0]!,
       beats = t.measures[0]!.beats;
     expect(t.techniques.filter((t) => t.type === "tie")).toHaveLength(2);
-    expect(beats[1]!.numberedNotation).toBeUndefined();
+    expect(t.measures[0]!.numberedVoice).toEqual(m.numberedVoice);
     expect(beats[2]!.tick).toBe(960);
     const merged = execute(r.document, {
       type: C.MergeBeats,
@@ -328,7 +334,13 @@ describe("MVP7.1-C 原子结构与记谱", () => {
           text: "x",
         }),
       (x: typeof c) =>
-        (x.content.beats[0]!.numberedNotation = { tokens: ["8"] }),
+        x.numberedVoice!.events.push({
+          id: "bad-event",
+          tick: 0,
+          rhythm: { base: "quarter", dots: 0 },
+          kind: "notes",
+          items: [{ id: "bad-item", token: "8" }],
+        }),
     ]) {
       const bad = structuredClone(c);
       change(bad);
@@ -344,18 +356,20 @@ describe("MVP7.1-C 原子结构与记谱", () => {
     d.score.arranger = "作者";
     d.score.keySignature = "D";
     const old = { ...structuredClone(d), schemaVersion: 6 };
-    const upgraded = upgradeDocumentToCurrent(old);
+    const upgraded = upgradeDocumentToCurrent(asLegacyFixture(old));
     expect(upgraded).toMatchObject({
       ok: true,
       document: {
-        schemaVersion: 7,
+        schemaVersion: 8,
         score: { arranger: "作者", keySignature: "D" },
       },
     });
-    old.score.tracks[0]!.measures[0]!.beats[0]!.numberedNotation = {
-      tokens: ["1"],
-    };
-    expect(upgradeDocumentToCurrent(old)).toMatchObject({ ok: false });
+    Object.assign(old.score.tracks[0]!.measures[0]!.beats[0]!, {
+      numberedNotation: { tokens: ["1"] },
+    });
+    expect(upgradeDocumentToCurrent(asLegacyFixture(old))).toMatchObject({
+      ok: false,
+    });
     const bend = execute(d, {
       type: C.AddTechnique,
       trackId: target.trackId,
@@ -408,20 +422,25 @@ describe("MVP7.1-C 原子结构与记谱", () => {
     expect(empty).not.toBeNull();
     expect(buildLayout(d, { systemWidth: 420 })).toEqual(before);
     const r = execute(d, {
-      type: C.SetNumbered,
-      ...target,
-      tokens: ["#4'", "6..", "3"],
+      type: "numbered.range.replace",
+      trackId: target.trackId,
+      measureId: target.measureId,
+      startTick: 0,
+      endTick: 960,
+      items: [{ kind: "set", tokens: ["#4'", "6..", "3"] }],
+      rhythms: [{ base: "quarter", dots: 0 }],
+      allowOverwrite: false,
     });
     const layout = buildLayout(r.document, { systemWidth: 420 }),
       m = layout.systems[0]!.measures[0]!,
       n = m.numberedNotation![0]!;
     expect(n.dots).toHaveLength(3);
     expect(
-      hitTestMusicText(layout, {
+      hitTestNumbered(layout, {
         x: n.bounds.x + n.bounds.width / 2,
         y: n.bounds.y + n.bounds.height / 2,
       }),
-    ).toMatchObject({ kind: "numbered", beatId: target.beatId });
+    ).toMatchObject({ kind: "numberedEvent", eventId: n.eventId });
     for (const s of layout.systems) {
       const edge = s.leftEdge![0]!;
       expect(edge.x1).toBeCloseTo(s.x + 0.5);

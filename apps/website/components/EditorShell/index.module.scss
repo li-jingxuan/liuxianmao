@@ -226,6 +226,9 @@
 }
 
 @media print {
+  .editorWorkspace {
+    display: none;
+  }
   .editor {
     height: auto;
   }

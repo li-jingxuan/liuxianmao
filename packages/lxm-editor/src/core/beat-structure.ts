@@ -58,7 +58,7 @@ export const splitBeat = (
     return { ok: false, message: "该时值不能精确等分。" };
   const rhythm = { ...b.rhythm, base },
     first = { ...b, rhythm };
-  const { numberedNotation: _notation, ...body } = b;
+  const body = b;
   const second = {
     ...body,
     id: factory.createBeatId(),
@@ -127,7 +127,6 @@ export const mergeBeats = (
     }
   if (!rhythm) return reject("总时值无法表示为一个合法音符。");
   if (
-    range.slice(1).some((b) => b.numberedNotation) ||
     m.lyrics.some((l) => ids.has(l.beatId) && l.beatId !== first.id) ||
     m.chordSymbols.some((c) => ids.has(c.beatId) && c.beatId !== first.id)
   )

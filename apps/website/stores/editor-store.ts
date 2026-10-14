@@ -22,8 +22,13 @@ import {
   resolveTabCellSelection,
   type ILXMApplyScoreCommandResult,
   type ILXMDocument,
+  type ILXMNumberedTarget,
+  createNumberedClipboard,
+  type NumberedClipboard,
+  type NumberedClipboardRange,
   type DocumentLoadResult,
   type ILXMCommandEffect,
+  collectNumberedOmissionEffects,
   type ILXMScoreCommand,
   type ILXMTabCellReference,
   type ILXMTabCellSelection,
@@ -44,6 +49,8 @@ export interface EditorStore {
   clipboardVersion: number;
   hasBeatClipboard: boolean;
   getBeatClipboard: () => BeatClipboard | null;
+  getNumberedClipboard: () => NumberedClipboard | null;
+  copyNumberedRange: (range: NumberedClipboardRange) => boolean;
   copyBeats: (range: BeatClipboardRange) => boolean;
   /** 仅用于界面实例身份，不持久化到乐谱。 */
   sessionId: number;
@@ -53,6 +60,10 @@ export interface EditorStore {
   selection: ILXMTabCellSelection | null;
   /** 当前点击的技巧仅属于 UI 焦点，不进入文档历史。 */
   selectedTechniqueId: string | null;
+  numberedSelection: ILXMNumberedTarget | null;
+  selectedNumberedMarkId: string | null;
+  setNumberedSelection: (target: ILXMNumberedTarget | null) => void;
+  setSelectedNumberedMarkId: (id: string | null) => void;
   errorMessage: string | null;
   loadNotice: string | null;
   canUndo: boolean;
@@ -73,6 +84,29 @@ export type EditorStoreState = EditorStore & { history: EditorHistory };
 const loadInitialDocument = (): ILXMDocument | null => {
   const result = loadDocument(JSON.stringify(EXAMPLE_MVP_7_2_DOCUMENT));
   return result.ok ? result.document : null;
+};
+
+/** 简谱焦点只验证本谱层身份，不向最近 TAB Beat 偷偷回退。 */
+const reconcileNumberedSelection = (
+  document: ILXMDocument,
+  target: ILXMNumberedTarget | null,
+): ILXMNumberedTarget | null => {
+  if (!target) return null;
+  const measure = document.score.tracks
+    .find((t) => t.id === target.trackId)
+    ?.measures.find((m) => m.id === target.measureId);
+  if (!measure) return null;
+  if (target.kind === "numberedEvent")
+    return measure.numberedVoice.events.some((e) => e.id === target.eventId)
+      ? target
+      : null;
+  return target.tick >= 0 &&
+    target.endTick > target.tick &&
+    target.endTick <=
+      (measure.timeSignature.numerator * 3840) /
+        measure.timeSignature.denominator
+    ? target
+    : null;
 };
 
 /**
@@ -238,6 +272,7 @@ export const createEditorStore = (
 ): StoreApi<EditorStoreState> =>
   createStore<EditorStoreState>((set, get) => {
     let clipboard: BeatClipboard | null = null;
+    let numberedClipboard: NumberedClipboard | null = null;
     // 宿主回调位于提交之后；宿主异常不能破坏编辑器历史或向调用方抛出。
     const reportError = (message: string) => {
       set({ errorMessage: message });
@@ -258,6 +293,29 @@ export const createEditorStore = (
       stateVersion: 0,
       clipboardVersion: 0,
       hasBeatClipboard: false,
+      getNumberedClipboard: () =>
+        numberedClipboard ? structuredClone(numberedClipboard) : null,
+      copyNumberedRange: (range) => {
+        const d = get().document;
+        if (!d) return false;
+        const result = createNumberedClipboard(d, range);
+        if (!result.ok) {
+          reportError(result.message);
+          return false;
+        }
+        numberedClipboard = structuredClone(result.clipboard);
+        set({
+          clipboardVersion: get().clipboardVersion + 1,
+          errorMessage: null,
+          effects: collectNumberedOmissionEffects(
+            d,
+            range.trackId,
+            range.measureId,
+            result.clipboard.omissions,
+          ),
+        });
+        return true;
+      },
       getBeatClipboard: () => (clipboard ? structuredClone(clipboard) : null),
       copyBeats: (range) => {
         const document = get().document;
@@ -273,7 +331,15 @@ export const createEditorStore = (
           hasBeatClipboard: true,
           clipboardVersion: get().clipboardVersion + 1,
           errorMessage: null,
-          effects: [...result.clipboard.omissions],
+          effects: [
+            ...result.clipboard.omissions,
+            ...collectNumberedOmissionEffects(
+              document,
+              range.trackId,
+              range.measureId,
+              result.clipboard.numberedOmissions,
+            ),
+          ],
         });
         return true;
       },
@@ -287,6 +353,7 @@ export const createEditorStore = (
           return result;
         }
         clipboard = null;
+        numberedClipboard = null;
         // 外部替换即使具有相同文档 ID，也明确开启新会话边界并取消旧草稿。
         set({
           document: result.document,
@@ -295,10 +362,13 @@ export const createEditorStore = (
           clipboardVersion: get().clipboardVersion + 1,
           selection: null,
           selectedTechniqueId: null,
+          numberedSelection: null,
+          selectedNumberedMarkId: null,
           errorMessage: null,
-          loadNotice: source === "file"
-            ? `已导入「${result.document.score.title || "未命名曲谱"}」。`
-            : null,
+          loadNotice:
+            source === "file"
+              ? `已导入「${result.document.score.title || "未命名曲谱"}」。`
+              : null,
           effects: [],
           sessionVersion: get().sessionVersion + 1,
           ...toHistoryState({ past: [], future: [] }),
@@ -308,6 +378,8 @@ export const createEditorStore = (
       document: initialDocument,
       selection: null,
       selectedTechniqueId: null,
+      numberedSelection: null,
+      selectedNumberedMarkId: null,
       errorMessage: initialDocument ? null : "无法加载示例乐谱。",
       loadNotice: null,
       history: { past: [], future: [] },
@@ -353,8 +425,21 @@ export const createEditorStore = (
         set({
           effects: result.effects ?? [],
           document: result.document,
+          numberedSelection: result.nextNumberedFocus
+            ? { kind: "numberedEvent", ...result.nextNumberedFocus }
+            : reconcileNumberedSelection(
+                result.document,
+                state.numberedSelection,
+              ),
+          selectedNumberedMarkId: result.document.score.tracks.some((t) =>
+            t.numberedMarks.some((m) => m.id === state.selectedNumberedMarkId),
+          )
+            ? state.selectedNumberedMarkId
+            : null,
           stateVersion: get().stateVersion + 1,
-          selection: reconcileSelection(result.document, selectionCandidate),
+          selection: command.type.startsWith("numbered.")
+            ? state.selection
+            : reconcileSelection(result.document, selectionCandidate),
           selectedTechniqueId: result.document.score.tracks.some((track) =>
             track.techniques.some(
               (technique) => technique.id === state.selectedTechniqueId,
@@ -375,6 +460,20 @@ export const createEditorStore = (
         return result;
       },
 
+      setNumberedSelection: (numberedSelection) =>
+        set({
+          numberedSelection: get().document
+            ? reconcileNumberedSelection(get().document!, numberedSelection)
+            : null,
+        }),
+      setSelectedNumberedMarkId: (selectedNumberedMarkId) =>
+        set({
+          selectedNumberedMarkId: get().document?.score.tracks.some((t) =>
+            t.numberedMarks.some((m) => m.id === selectedNumberedMarkId),
+          )
+            ? selectedNumberedMarkId
+            : null,
+        }),
       setSelection: (selection) => {
         const document = get().document;
         if (!selection || !document) {
@@ -418,8 +517,15 @@ export const createEditorStore = (
         set({
           effects: [],
           document: previous,
+          numberedSelection: reconcileNumberedSelection(
+            previous,
+            state.numberedSelection,
+          ),
+          selectedNumberedMarkId: null,
           stateVersion: get().stateVersion + 1,
-          selection: reconcileSelection(previous, state.selection),
+          selection: state.selection
+            ? reconcileSelection(previous, state.selection)
+            : null,
           selectedTechniqueId: previous.score.tracks.some((track) =>
             track.techniques.some(
               (technique) => technique.id === state.selectedTechniqueId,
@@ -445,8 +551,15 @@ export const createEditorStore = (
         set({
           effects: [],
           document: next,
+          numberedSelection: reconcileNumberedSelection(
+            next,
+            state.numberedSelection,
+          ),
+          selectedNumberedMarkId: null,
           stateVersion: get().stateVersion + 1,
-          selection: reconcileSelection(next, state.selection),
+          selection: state.selection
+            ? reconcileSelection(next, state.selection)
+            : null,
           selectedTechniqueId: next.score.tracks.some((track) =>
             track.techniques.some(
               (technique) => technique.id === state.selectedTechniqueId,

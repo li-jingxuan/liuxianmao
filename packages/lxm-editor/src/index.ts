@@ -63,3 +63,10 @@ export {
 } from "../example/example-mvp7c";
 export { createQualityScore } from "../example/quality-score";
 export { default as EXAMPLE_MVP_7_2_DOCUMENT } from "../example/example-mvp7.2";
+
+export * from "./core/numbered-rhythm";
+export * from "./core/numbered-commands";
+export * from "./core/numbered-marks";
+export * from "./core/numbered-clipboard";
+export { getMeasureCapacityTicks } from "./core/rhythm";
+export * from "./core/numbered-input-ranges";

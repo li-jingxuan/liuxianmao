@@ -280,7 +280,6 @@ export const LXMBeatSchema = z
     rhythm: LXMRhythmSchema,
     kind: z.enum(LXM_BEAT_KINDS),
     notes: z.array(LXMNoteSchema),
-    numberedNotation: LXMNumberedNotationSchema.optional(),
   })
   .strict() satisfies z.ZodType<ILXMBeat>;
 
@@ -306,6 +305,97 @@ export const LXMTupletSchema = z
   })
   .strict() satisfies z.ZodType<ILXMTuplet>;
 
+/** 简谱事件与技巧的结构守卫；引用和实际时间在语义层检查。 */
+const numberedItemSchema = z
+  .object({ id: z.string().min(1), token: z.string() })
+  .strict();
+const numberedFields = {
+  id: z.string().min(1),
+  tick: z.number().int().nonnegative(),
+  rhythm: LXMRhythmSchema,
+};
+export const LXMNumberedEventSchema = z
+  .discriminatedUnion("kind", [
+    z
+      .object({
+        ...numberedFields,
+        kind: z.literal("notes"),
+        items: z.array(numberedItemSchema).min(1).max(8),
+      })
+      .strict(),
+    z
+      .object({
+        ...numberedFields,
+        kind: z.literal("rest"),
+        items: z.array(numberedItemSchema).length(1),
+      })
+      .strict(),
+    z
+      .object({
+        ...numberedFields,
+        kind: z.literal("continuation"),
+        items: z.array(numberedItemSchema).length(1),
+      })
+      .strict(),
+    z
+      .object({ ...numberedFields, kind: z.literal("gap"), items: z.tuple([]) })
+      .strict(),
+  ])
+  .superRefine((event, ctx) => {
+    const tokens = event.items.map((i) => i.token);
+    const valid =
+      event.kind === "gap" ||
+      (event.kind === "notes"
+        ? validNumberedTokens(tokens) &&
+          tokens.every((t) => t !== "0" && t !== "-")
+        : tokens[0] === (event.kind === "rest" ? "0" : "-"));
+    if (!valid)
+      ctx.addIssue({
+        code: "custom",
+        path: ["items"],
+        message: "简谱事件内容与类型不匹配",
+      });
+  });
+export const LXMNumberedVoiceSchema = z
+  .object({
+    events: z.array(LXMNumberedEventSchema),
+    tuplets: z.array(
+      z
+        .object({
+          id: z.string().min(1),
+          eventIds: z.array(z.string()),
+          ratio: LXMTupletRatioSchema,
+        })
+        .strict(),
+    ),
+  })
+  .strict();
+export const LXMNumberedMarkSchema = z.discriminatedUnion("type", [
+  z
+    .object({
+      id: z.string().min(1),
+      type: z.literal("tie"),
+      fromItemId: z.string(),
+      toItemId: z.string(),
+    })
+    .strict(),
+  z
+    .object({
+      id: z.string().min(1),
+      type: z.literal("slur"),
+      fromEventId: z.string(),
+      toEventId: z.string(),
+    })
+    .strict(),
+  z
+    .object({
+      id: z.string().min(1),
+      type: z.literal("fermata"),
+      eventId: z.string(),
+    })
+    .strict(),
+]);
+
 /** 一个小节内包含节拍、和弦标记和小节线信息。 */
 export const LXMMeasureSchema = z
   .object({
@@ -316,6 +406,7 @@ export const LXMMeasureSchema = z
     lyrics: z.array(LXMLyricSchema),
     beats: z.array(LXMBeatSchema),
     tuplets: z.array(LXMTupletSchema),
+    numberedVoice: LXMNumberedVoiceSchema,
     sectionLabel: musicTextSchema(32).optional(),
   })
   .strict() satisfies z.ZodType<ILXMMeasure>;
@@ -331,6 +422,7 @@ export const LXMTrackSchema = z
     startBarline: z.enum(LXM_TRACK_START_BARLINE_TYPES),
     measures: z.array(LXMMeasureSchema),
     techniques: z.array(LXMTechniqueSchema),
+    numberedMarks: z.array(LXMNumberedMarkSchema),
   })
   .strict() satisfies z.ZodType<ILXMTrack>;
 

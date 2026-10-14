@@ -1,7 +1,20 @@
+import { buildNumberedIndex } from "../core/numbered-rhythm";
+import { layoutNumberedInputSlots } from "./numbered-input-layout";
+import { layoutNumberedStructure } from "./numbered-structure-layout";
+import {
+  layoutNumberedMarks,
+  translateNumberedMark,
+} from "./numbered-mark-layout";
+import { layoutNumberedRhythm } from "./numbered-rhythm-layout";
 import { layoutNumbered, translateNumbered } from "./numbered-notation-layout";
 import { getMeasureContentBottom } from "./rhythm-bounds";
 import type { ILXMTrack } from "../core/types";
-import type { ILXMSystemLayout, ILXMMeasureLayout } from "./layout-types";
+import type {
+  ILXMSystemLayout,
+  ILXMMeasureLayout,
+  ILXMLayoutPurpose,
+} from "./layout-types";
+import { numberedLayoutProfile } from "./numbered-layout-profile";
 import {
   planTrackTechniques,
   translateMeasure,
@@ -74,8 +87,11 @@ export const layoutSystemContent = (
   gap: number,
   metrics?: ILXMMusicTextMetrics,
   editing?: { measureId: string; kind: "lyric" | "numbered"; verse?: number },
+  purpose: ILXMLayoutPurpose = "presentation",
 ): ILXMSystemLayout[] => {
+  const profile = numberedLayoutProfile(purpose);
   const planned = planTrackTechniques(track, baseSystems);
+  const numberedIndex = buildNumberedIndex(track);
   const source = new Map(track.measures.map((m) => [m.id, m]));
   let nextTop = planned[0]?.y ?? 0;
   return planned.map((system) => {
@@ -96,27 +112,67 @@ export const layoutSystemContent = (
         m.id,
         source
           .get(m.id)!
-          .beats.filter((b) => b.numberedNotation)
-          .map((b) =>
-            layoutNumbered(
+          .numberedVoice.events.filter((e) => e.kind !== "gap")
+          .map((b) => {
+            const frame = layoutNumbered(
               b.id,
-              b.numberedNotation!.tokens,
-              m.beats.find((x) => x.id === b.id)!.x,
+              b.items.map((i) => i.token),
+              m.numberedSlots.find((x) => x.id === b.id)!.x,
               0,
               metrics,
-            ),
-          ),
+              profile,
+            );
+            const labels = frame.labels.filter(
+              (g) => g.fontFamily !== "Bravura",
+            );
+            frame.itemBounds = b.items.map((item, i) => ({
+              itemId: item.id,
+              bounds: labels[i]!.bounds,
+            }));
+            return frame;
+          }),
       ]),
     );
+    for (const m of system.measures)
+      numberedByMeasure.set(
+        m.id,
+        layoutNumberedRhythm(
+          source.get(m.id)!,
+          m,
+          numberedByMeasure.get(m.id)!,
+        ),
+      );
     const active = system.measures.some((m) => m.id === editing?.measureId)
       ? editing
       : undefined;
     const rawNumbered = [...numberedByMeasure.values()].flat();
-    const numberedDy = rawNumbered.length
-      ? bottom +
-        MUSIC_TEXT_LANE_GAP -
-        Math.min(...rawNumbered.map((n) => n.bounds.y))
-      : 0;
+    const emptyBody = musicTextGlyph(musicTextRequest("0", 14), 0, 0, metrics);
+    const rawNumberedMarks = layoutNumberedMarks(
+      track,
+      system,
+      rawNumbered,
+      metrics,
+      numberedIndex,
+      profile,
+    );
+    if (
+      rawNumbered.length ||
+      rawNumberedMarks.length ||
+      active?.kind === "numbered"
+    )
+      rawNumberedMarks.push(
+        ...layoutNumberedStructure(track, system, rawNumbered, metrics),
+      );
+    const numberedDy =
+      rawNumbered.length || rawNumberedMarks.length
+        ? bottom +
+          profile.staffGap -
+          Math.min(
+            ...rawNumbered.map((n) => n.bounds.y),
+            ...rawNumberedMarks.map((n) => n.bounds.y),
+            ...(rawNumbered.length ? [] : [emptyBody.bounds.y]),
+          )
+        : 0;
     for (const [id, numbered] of numberedByMeasure)
       numberedByMeasure.set(
         id,
@@ -131,6 +187,11 @@ export const layoutSystemContent = (
       ...[...numberedByMeasure.values()]
         .flat()
         .map((n) => n.bounds.y + n.bounds.height),
+      ...rawNumberedMarks.map((n) => n.bounds.y + n.bounds.height + numberedDy),
+      ...(rawNumbered.length ||
+      !(rawNumberedMarks.length || active?.kind === "numbered")
+        ? []
+        : [emptyBody.bounds.y + emptyBody.bounds.height + numberedDy]),
     );
     const symbols = system.measures.flatMap(
       (m) => source.get(m.id)!.chordSymbols,
@@ -237,20 +298,15 @@ export const layoutSystemContent = (
     const dy = nextTop - originalTop;
     // 空拍按相邻拍的中点划分；真实文字优先命中，避免长词被邻拍抢占。
     const musicTextCells: NonNullable<ILXMSystemLayout["musicTextCells"]> = [];
-    const numberedTop = rawNumbered.length
-      ? Math.min(
-          ...[...numberedByMeasure.values()].flat().map((n) => n.bounds.y),
-        )
-      : bottom + MUSIC_TEXT_LANE_GAP;
-    const numberedBottom = Math.max(
-      numberedTop + 18,
-      ...[...numberedByMeasure.values()]
-        .flat()
-        .map((n) => n.bounds.y + n.bounds.height),
-    );
+    // 占位只使用数字正文带，不把高音点、减时线和上方连线当作输入框基线。
+    const body =
+      rawNumbered.flatMap((n) =>
+        n.labels.filter((g) => g.fontFamily !== "Bravura"),
+      )[0] ?? emptyBody;
+    const numberedTop = body.bounds.y + numberedDy;
+    const numberedHeight = Math.max(18, body.bounds.height);
     for (const m of measures) {
       const addRow = (
-        kind: "lyric" | "numbered",
         y: number,
         height: number,
         verse?: import("../core/types").ILXMLyricVerse,
@@ -261,10 +317,9 @@ export const layoutSystemContent = (
             i + 1 < m.beats.length
               ? (b.x + m.beats[i + 1]!.x) / 2
               : m.x + m.width;
-          const exists =
-            kind === "numbered"
-              ? m.numberedNotation?.some((n) => n.beatId === b.id)
-              : m.lyrics?.some((l) => l.beatId === b.id && l.verse === verse);
+          const exists = m.lyrics?.some(
+            (l) => l.beatId === b.id && l.verse === verse,
+          );
           musicTextCells.push({
             x,
             y: y + dy,
@@ -274,17 +329,15 @@ export const layoutSystemContent = (
             measureId: m.id,
             beatId: b.id,
             id: b.id,
-            kind,
+            kind: "lyric",
             verse,
             empty: !exists,
           });
         });
       };
-      if (rawNumbered.length || active?.kind === "numbered")
-        addRow("numbered", numberedTop, numberedBottom - numberedTop);
+
       for (let v = 1; v <= maxVerse; v++)
         addRow(
-          "lyric",
           lyricBaseline + (v - 1) * rowHeight - rowAscent,
           rowAscent + rowDescent,
           v as import("../core/types").ILXMLyricVerse,
@@ -292,6 +345,19 @@ export const layoutSystemContent = (
     }
     const result: ILXMSystemLayout = {
       ...system,
+      ...(rawNumbered.length ||
+      rawNumberedMarks.length ||
+      active?.kind === "numbered"
+        ? {
+            numberedRow: {
+              y: numberedTop + dy,
+              height: numberedHeight,
+            },
+          }
+        : {}),
+      numberedMarks: rawNumberedMarks.map((mark) =>
+        translateNumberedMark(mark, numberedDy + dy),
+      ),
       y: nextTop,
       height: finalBottom - originalTop,
       techniqueLaneCount: Math.max(
@@ -335,6 +401,18 @@ export const layoutSystemContent = (
         height: finalBottom - originalTop,
       },
     };
+    result.measures = result.measures.map((m) => ({
+      ...m,
+      numberedInputSlots:
+        purpose === "editing" && result.numberedRow
+          ? layoutNumberedInputSlots(
+              track.id,
+              source.get(m.id)!,
+              m,
+              result.numberedRow,
+            )
+          : [],
+    }));
     // 收边只延伸到第一行实际歌词的上缘；同一行取最高字形边界，无歌词时对齐最下层横梁。
     // 行高仍保留排版净空，不能把歌词底部留白或其他标记的占位用于竖线端点。
     const lyrics = result.measures.flatMap((m) => m.lyrics ?? []);

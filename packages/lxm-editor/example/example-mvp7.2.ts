@@ -38,9 +38,6 @@ const createMeasure = (
         string,
         fret,
       })),
-      ...(entry.numbered
-        ? { numberedNotation: { tokens: entry.numbered.split("+") } }
-        : {}),
     };
     tick += duration.ticks;
     return beat;
@@ -55,6 +52,31 @@ const createMeasure = (
     barline: number === 8 ? "final" : "single",
     sectionLabel,
     beats,
+    numberedVoice: {
+      events: beats.flatMap((beat, i) => {
+        const tokens = entries[i]!.numbered?.split("+");
+        return tokens
+          ? [
+              {
+                id: `${beat.id}-numbered`,
+                tick: beat.tick,
+                rhythm: { ...beat.rhythm },
+                kind:
+                  tokens[0] === "0"
+                    ? ("rest" as const)
+                    : tokens[0] === "-"
+                      ? ("continuation" as const)
+                      : ("notes" as const),
+                items: tokens.map((token, j) => ({
+                  id: `${beat.id}-numbered-item-${j}`,
+                  token,
+                })),
+              },
+            ]
+          : [];
+      }),
+      tuplets: [],
+    },
     tuplets: [],
     // 按 Beat、段号顺序生成歌词，满足正式 loader 的排序约束；两行歌词验证竖线上缘。
     lyrics: beats.flatMap((beat, index) =>
@@ -107,6 +129,7 @@ const document: ILXMDocument = {
         },
         capo: 0,
         startBarline: "none",
+        numberedMarks: [],
         techniques: [],
         measures: [
           createMeasure(

@@ -38,6 +38,7 @@ const createMeasure = (
   id: "measure-duration-beam-test",
   timeSignature,
   barline: "single",
+  numberedVoice: { events: [], tuplets: [] },
   tuplets: [],
   lyrics: [],
   chordSymbols: [],

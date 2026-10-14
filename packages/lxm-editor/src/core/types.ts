@@ -75,6 +75,8 @@ export interface ILXMTrack {
    * 中把它拆成多个视觉 segment，不会把临时坐标或分段写回文档。
    */
   techniques: ILXMTechnique[];
+  /** 简谱连接独立引用自身事件和音符。 */
+  numberedMarks: ILXMNumberedMark[];
 }
 
 /** 弦乐器调弦信息。 */
@@ -102,6 +104,8 @@ export interface ILXMMeasure {
   lyrics: ILXMLyric[];
   beats: ILXMBeat[];
   tuplets: ILXMTuplet[];
+  /** 简谱与 TAB 共用小节，拥有独立节奏事实。 */
+  numberedVoice: ILXMNumberedVoice;
   /** 可选的小节段落标记，仅用于记谱展示。 */
   sectionLabel?: string;
 }
@@ -162,8 +166,6 @@ export interface ILXMRhythm {
 
 /** 节拍内容，tick 表示该节拍在小节中的起始位置。 */
 export interface ILXMBeat {
-  /** 独立的简谱记谱数据，不驱动 TAB 音符与节奏。 */
-  numberedNotation?: { tokens: string[] };
   id: string;
   tick: number;
   rhythm: ILXMRhythm;
@@ -280,3 +282,47 @@ export interface ILXMTuplet {
   beatIds: string[];
   ratio: ILXMTupletRatio;
 }
+
+/** 简谱单个音符身份稳定，token 是唯一音高编码。 */
+export interface ILXMNumberedItem {
+  id: string;
+  token: string;
+}
+export type ILXMNumberedEvent = {
+  id: string;
+  tick: number;
+  rhythm: ILXMRhythm;
+} & (
+  | { kind: "notes"; items: ILXMNumberedItem[] }
+  | { kind: "rest"; items: ILXMNumberedItem[] }
+  | { kind: "continuation"; items: ILXMNumberedItem[] }
+  | { kind: "gap"; items: [] }
+);
+export interface ILXMNumberedTuplet {
+  id: string;
+  eventIds: string[];
+  ratio: ILXMTupletRatio;
+}
+export interface ILXMNumberedVoice {
+  events: ILXMNumberedEvent[];
+  tuplets: ILXMNumberedTuplet[];
+}
+export type ILXMNumberedMark =
+  | { id: string; type: "tie"; fromItemId: string; toItemId: string }
+  | { id: string; type: "slur"; fromEventId: string; toEventId: string }
+  | { id: string; type: "fermata"; eventId: string };
+export type ILXMNumberedTarget =
+  | {
+      kind: "numberedEvent";
+      trackId: string;
+      measureId: string;
+      eventId: string;
+      itemId?: string;
+    }
+  | {
+      kind: "numberedTime";
+      trackId: string;
+      measureId: string;
+      tick: number;
+      endTick: number;
+    };

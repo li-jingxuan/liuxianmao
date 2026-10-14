@@ -4,14 +4,19 @@ import type { ScorePrimitive, ScoreScene } from "./score-scene";
 export const SceneItems = ({
   items,
   selectedTechniqueId,
+  selectedNumberedMarkId,
 }: {
   items: ScorePrimitive[];
   selectedTechniqueId?: string | null;
+  selectedNumberedMarkId?: string | null;
 }) => (
   <>
     {items.map((p, index) => {
-      const selected = !!p.techniqueId && p.techniqueId === selectedTechniqueId;
+      const selected =
+        (!!p.techniqueId && p.techniqueId === selectedTechniqueId) ||
+        (!!p.numberedMarkId && p.numberedMarkId === selectedNumberedMarkId);
       const style = {
+        "data-numbered-mark": p.numberedMarkId,
         fill: selected && p.fill && p.fill !== "none" ? "#2864e3" : p.fill,
         stroke:
           selected && p.stroke && p.stroke !== "#fff" ? "#2864e3" : p.stroke,
@@ -80,15 +85,21 @@ export const SceneItems = ({
 export const ScoreMusicLayer = ({
   scene,
   selectedTechniqueId,
+  selectedNumberedMarkId,
 }: {
   scene: ScoreScene;
   selectedTechniqueId?: string | null;
+  selectedNumberedMarkId?: string | null;
 }) => (
   <g data-layer="score-music">
     <SceneItems items={scene.header} />
     {scene.systems.map((s) => (
       <g key={s.index} data-system-index={s.index}>
-        <SceneItems items={s.items} selectedTechniqueId={selectedTechniqueId} />
+        <SceneItems
+          items={s.items}
+          selectedTechniqueId={selectedTechniqueId}
+          selectedNumberedMarkId={selectedNumberedMarkId}
+        />
       </g>
     ))}
   </g>

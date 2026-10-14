@@ -1,9 +1,8 @@
+import { buildNumberedIndex } from "./numbered-rhythm";
 import { planBeatPaste, type BeatClipboard } from "./beat-clipboard";
 import { splitBeat, mergeBeats } from "./beat-structure";
 import { techniqueBeatIds } from "./content-protection";
 import {
-  planNumberedSequence,
-  validNumberedTokens,
   type NumberedSequenceItem,
 } from "./numbered-notation";
 import { validateTuning } from "./tuning";
@@ -21,6 +20,12 @@ import {
   type LyricSequenceItem,
   type LyricSequenceTarget,
 } from "./lyric-sequence";
+import {
+  editNumberedTrack,
+  type ILXMNumberedVoiceCommand,
+} from "./numbered-commands";
+import { copyNumberedVoices } from "./numbered-copy";
+import { validateNumberedMarks } from "./numbered-marks";
 import { editMeasureMusicText } from "./music-text-commands";
 import { cloneChordDiagram } from "./chord-diagram";
 import type { ILXMChordSymbol, ILXMLyricVerse } from "./types";
@@ -317,9 +322,10 @@ export interface ILXMBeatPasteCommand {
   expectedConfirmationKey: string;
 }
 
-export type ILXMScoreCommand =
+type ScoreCommandOperation =
   | ILXMBeatPasteCommand
   | ILXMNumberedCommand
+  | ILXMNumberedVoiceCommand
   | ILXMBeatStructureCommand
   | ILXMSetNotationInfoCommand
   | ILXMSetLyricSequenceCommand
@@ -346,7 +352,18 @@ export type ILXMScoreCommand =
   | ILXMUpdateTechniqueCommand
   | ILXMRemoveTechniqueCommand;
 
+export type ILXMScoreCommand = ScoreCommandOperation & {
+  expectedRevision?: number;
+  confirmedRemovedMarkIds?: string[];
+  confirmedChangedMarkIds?: string[];
+};
+
 export type ILXMScoreCommandErrorCode =
+  | "NUMBERED_INVALID"
+  | "NUMBERED_OVERLAP"
+  | "NUMBERED_PARTIAL_RANGE"
+  | "NUMBERED_IMPACT_REQUIRED"
+  | "STALE_NUMBERED_PLAN"
   | "INVALID_BEAT_OPERATION"
   | "INVALID_NUMBERED_NOTATION"
   | "INVALID_NOTATION_INFO"
@@ -409,8 +426,20 @@ export type ILXMApplyScoreCommandResult =
       document: ILXMDocument;
       effects?: ILXMCommandEffect[];
       nextFocus?: { trackId: string; measureId: string; beatId: string };
+      nextNumberedFocus?: {
+        trackId: string;
+        measureId: string;
+        eventId: string;
+        itemId?: string;
+      };
     }
-  | { ok: false; code: ILXMScoreCommandErrorCode; message: string };
+  | {
+      ok: false;
+      code: ILXMScoreCommandErrorCode;
+      message: string;
+      removedMarkIds?: string[];
+      changedMarkIds?: string[];
+    };
 
 const fail = (
   code: ILXMScoreCommandErrorCode,
@@ -476,7 +505,50 @@ const removeChordTraversalTechniquesAtCell = (
 };
 
 /** 对候选文档执行两层守卫，保证命令无法写入结构或音乐语义非法的数据。 */
-const finalize = (document: ILXMDocument): ILXMApplyScoreCommandResult => {
+const finalize = (
+  document: ILXMDocument,
+  previous: ILXMDocument,
+  command: ILXMScoreCommand,
+): ILXMApplyScoreCommandResult => {
+  if (!command.type.startsWith("numbered.")) {
+    const removed: string[] = [];
+    const tracks = document.score.tracks.map((track) => {
+      const old = previous.score.tracks.find((t) => t.id === track.id);
+      const index = buildNumberedIndex(track);
+      const marks = track.numberedMarks.filter(
+        (mark) =>
+          !validateNumberedMarks({ ...track, numberedMarks: [mark] }, index),
+      );
+      if (
+        track.numberedMarks.some(
+          (m) =>
+            !marks.includes(m) &&
+            !old?.numberedMarks.some((o) => o.id === m.id),
+        )
+      )
+        return track;
+      old?.numberedMarks.forEach((m) => {
+        if (!marks.some((n) => n.id === m.id)) removed.push(m.id);
+      });
+      return marks.length === track.numberedMarks.length
+        ? track
+        : { ...track, numberedMarks: marks };
+    });
+    removed.sort();
+    if (
+      removed.length &&
+      JSON.stringify([...(command.confirmedRemovedMarkIds ?? [])].sort()) !==
+        JSON.stringify(removed)
+    )
+      return {
+        ok: false,
+        code: "NUMBERED_IMPACT_REQUIRED",
+        message: `公共结构修改将删除 ${removed.length} 个简谱记号，请确认`,
+        removedMarkIds: removed,
+        changedMarkIds: [],
+      };
+    document = { ...document, score: { ...document.score, tracks } };
+  }
   const parsed = LXMDocumentSchema.safeParse(document);
   if (!parsed.success)
     return fail("DOCUMENT_INVALID", "命令结果不符合乐谱文档格式");
@@ -600,23 +672,27 @@ const setTimeSignature = (
     plannedByIndex.set(index, result.measure);
   }
 
-  return finalize({
-    ...document,
-    documentRevision: document.documentRevision + 1,
-    score: {
-      ...document.score,
-      tracks: document.score.tracks.map((candidate) =>
-        candidate.id === track.id
-          ? {
-              ...track,
-              measures: track.measures.map(
-                (measure, index) => plannedByIndex.get(index) ?? measure,
-              ),
-            }
-          : candidate,
-      ),
+  return finalize(
+    {
+      ...document,
+      documentRevision: document.documentRevision + 1,
+      score: {
+        ...document.score,
+        tracks: document.score.tracks.map((candidate) =>
+          candidate.id === track.id
+            ? {
+                ...track,
+                measures: track.measures.map(
+                  (measure, index) => plannedByIndex.get(index) ?? measure,
+                ),
+              }
+            : candidate,
+        ),
+      },
     },
-  });
+    document,
+    command,
+  );
 };
 
 /** 查找命令目标；统一错误语义，避免各命令遗漏轨道或小节判断。 */
@@ -687,6 +763,8 @@ const setBeatRhythm = (
       command.measureId,
       rhythmChange.measure,
     ),
+    document,
+    command,
   );
 };
 
@@ -796,9 +874,6 @@ const editNotesInRect = (
       // Map 保留已有 Note 顺序，新建 Note 按目标弦从 1 到 6 稳定追加。
       return {
         ...beat,
-        ...(beat.numberedNotation
-          ? { numberedNotation: { tokens: [...beat.numberedNotation.tokens] } }
-          : {}),
         kind: "notes" as const,
         notes: [...notesByString.values()],
       };
@@ -808,21 +883,25 @@ const editNotesInRect = (
 
   if (!changed) return unchanged(document);
 
-  return finalize({
-    ...document,
-    documentRevision: document.documentRevision + 1,
-    score: {
-      ...document.score,
-      tracks: document.score.tracks.map((candidate) =>
-        candidate.id === track.id
-          ? pruneInvalidTechniques({
-              ...trackAfterTechniqueCancellation,
-              measures: nextMeasures,
-            })
-          : candidate,
-      ),
+  return finalize(
+    {
+      ...document,
+      documentRevision: document.documentRevision + 1,
+      score: {
+        ...document.score,
+        tracks: document.score.tracks.map((candidate) =>
+          candidate.id === track.id
+            ? pruneInvalidTechniques({
+                ...trackAfterTechniqueCancellation,
+                measures: nextMeasures,
+              })
+            : candidate,
+        ),
+      },
     },
-  });
+    document,
+    command,
+  );
 };
 
 /** 原子设置连续 Beat 的内容类型；范围中的弦维度不参与休止语义。 */
@@ -865,18 +944,22 @@ const setBeatKindInRange = (
   });
 
   if (!changed) return unchanged(document);
-  return finalize({
-    ...document,
-    documentRevision: document.documentRevision + 1,
-    score: {
-      ...document.score,
-      tracks: document.score.tracks.map((candidate) =>
-        candidate.id === track.id
-          ? pruneInvalidTechniques({ ...track, measures })
-          : candidate,
-      ),
+  return finalize(
+    {
+      ...document,
+      documentRevision: document.documentRevision + 1,
+      score: {
+        ...document.score,
+        tracks: document.score.tracks.map((candidate) =>
+          candidate.id === track.id
+            ? pruneInvalidTechniques({ ...track, measures })
+            : candidate,
+        ),
+      },
     },
-  });
+    document,
+    command,
+  );
 };
 
 /** 原子修改谱首或小节后的结构边界，并隐藏两种持久化位置的差异。 */
@@ -897,18 +980,22 @@ const setBarlineBoundary = (
       );
     const barline = command.barline as ILXMTrackStartBarlineType;
     if (track.startBarline === barline) return unchanged(document);
-    return finalize({
-      ...document,
-      documentRevision: document.documentRevision + 1,
-      score: {
-        ...document.score,
-        tracks: document.score.tracks.map((candidate) =>
-          candidate.id === track.id
-            ? { ...track, startBarline: barline }
-            : candidate,
-        ),
+    return finalize(
+      {
+        ...document,
+        documentRevision: document.documentRevision + 1,
+        score: {
+          ...document.score,
+          tracks: document.score.tracks.map((candidate) =>
+            candidate.id === track.id
+              ? { ...track, startBarline: barline }
+              : candidate,
+          ),
+        },
       },
-    });
+      document,
+      command,
+    );
   }
 
   // 判别联合已经排除 trackStart；把稳定 ID 提取到局部变量，避免闭包回调丢失
@@ -934,6 +1021,8 @@ const setBarlineBoundary = (
   if (measure.barline === barline) return unchanged(document);
   return finalize(
     replaceMeasure(document, track.id, measure.id, { ...measure, barline }),
+    document,
+    command,
   );
 };
 
@@ -958,23 +1047,27 @@ const editTechnique = (
   if (command.type === LXMScoreCommandEnum.RemoveTechnique) {
     if (!track.techniques.some((item) => item.id === command.techniqueId))
       return fail("TECHNIQUE_NOT_FOUND", "目标技巧不存在");
-    return finalize({
-      ...document,
-      documentRevision: document.documentRevision + 1,
-      score: {
-        ...document.score,
-        tracks: document.score.tracks.map((candidate) =>
-          candidate.id === track.id
-            ? {
-                ...track,
-                techniques: track.techniques.filter(
-                  (item) => item.id !== command.techniqueId,
-                ),
-              }
-            : candidate,
-        ),
+    return finalize(
+      {
+        ...document,
+        documentRevision: document.documentRevision + 1,
+        score: {
+          ...document.score,
+          tracks: document.score.tracks.map((candidate) =>
+            candidate.id === track.id
+              ? {
+                  ...track,
+                  techniques: track.techniques.filter(
+                    (item) => item.id !== command.techniqueId,
+                  ),
+                }
+              : candidate,
+          ),
+        },
       },
-    });
+      document,
+      command,
+    );
   }
 
   const existing =
@@ -1029,23 +1122,80 @@ const editTechnique = (
         )
       : [...track.techniques, technique];
 
-  return finalize({
-    ...document,
-    documentRevision: document.documentRevision + 1,
-    score: {
-      ...document.score,
-      tracks: document.score.tracks.map((candidate) =>
-        candidate.id === track.id ? { ...track, techniques } : candidate,
-      ),
+  return finalize(
+    {
+      ...document,
+      documentRevision: document.documentRevision + 1,
+      score: {
+        ...document.score,
+        tracks: document.score.tracks.map((candidate) =>
+          candidate.id === track.id ? { ...track, techniques } : candidate,
+        ),
+      },
     },
-  });
+    document,
+    command,
+  );
 };
 
 /** 应用所有领域命令；分发器本身不包含页面状态或历史逻辑。 */
+const isNumberedVoiceCommand = (
+  command: ILXMScoreCommand,
+): command is ILXMNumberedVoiceCommand => command.type.startsWith("numbered.");
+
 const applyScoreCommandInternal = (
   document: ILXMDocument,
   command: ILXMScoreCommand,
 ): ILXMApplyScoreCommandResult => {
+  if (
+    command.expectedRevision !== undefined &&
+    command.expectedRevision !== document.documentRevision
+  )
+    return fail("STALE_NUMBERED_PLAN", "确认已过期，请重新预览");
+  if (isNumberedVoiceCommand(command)) {
+    const numbered = command as ILXMNumberedVoiceCommand;
+    if (
+      numbered.expectedRevision !== undefined &&
+      numbered.expectedRevision !== document.documentRevision
+    )
+      return fail("STALE_NUMBERED_PLAN", "简谱预览已过期，请重新确认");
+    const track = document.score.tracks.find((t) => t.id === numbered.trackId);
+    if (!track) return fail("TRACK_NOT_FOUND", "轨道不存在");
+    const candidate = editNumberedTrack(
+      track,
+      numbered,
+      createDocumentIdFactory(document),
+    );
+    if (!candidate.ok) return candidate;
+    if (!candidate.changed) return unchanged(document);
+    const result = finalize(
+      {
+        ...document,
+        documentRevision: document.documentRevision + 1,
+        score: {
+          ...document.score,
+          tracks: document.score.tracks.map((t) =>
+            t === track ? candidate.track : t,
+          ),
+        },
+      },
+      document,
+      command,
+    );
+    return result.ok && candidate.focusEventId && candidate.measureId
+      ? {
+          ...result,
+          nextNumberedFocus: {
+            trackId: track.id,
+            measureId: candidate.measureId,
+            eventId: candidate.focusEventId,
+            ...(numbered.type === "numbered.event.set" && numbered.itemId
+              ? { itemId: numbered.itemId }
+              : {}),
+          },
+        }
+      : result;
+  }
   if (command.type === LXMScoreCommandEnum.PasteBeats) {
     const plan = planBeatPaste(document, command, command.clipboard);
     if (!plan.ok) return fail("INVALID_BEAT_OPERATION", plan.message);
@@ -1053,16 +1203,20 @@ const applyScoreCommandInternal = (
       return fail("INVALID_BEAT_OPERATION", "粘贴预览已过期，请重新预览确认。");
     if (plan.requiresConfirmation && command.allowOverwrite !== true)
       return fail("INVALID_BEAT_OPERATION", "请先确认覆盖目标音乐内容。");
-    const result = finalize({
-      ...document,
-      documentRevision: document.documentRevision + 1,
-      score: {
-        ...document.score,
-        tracks: document.score.tracks.map((t) =>
-          t.id === command.trackId ? plan.track : t,
-        ),
+    const result = finalize(
+      {
+        ...document,
+        documentRevision: document.documentRevision + 1,
+        score: {
+          ...document.score,
+          tracks: document.score.tracks.map((t) =>
+            t.id === command.trackId ? plan.track : t,
+          ),
+        },
       },
-    });
+      document,
+      command,
+    );
     return result.ok
       ? {
           ...result,
@@ -1105,16 +1259,20 @@ const applyScoreCommandInternal = (
             command.endBeatId,
           );
     if (!result.ok) return fail("INVALID_BEAT_OPERATION", result.message);
-    const finalized = finalize({
-      ...document,
-      documentRevision: document.documentRevision + 1,
-      score: {
-        ...document.score,
-        tracks: document.score.tracks.map((t) =>
-          t === track ? result.track : t,
-        ),
+    const finalized = finalize(
+      {
+        ...document,
+        documentRevision: document.documentRevision + 1,
+        score: {
+          ...document.score,
+          tracks: document.score.tracks.map((t) =>
+            t === track ? result.track : t,
+          ),
+        },
       },
-    });
+      document,
+      command,
+    );
     if (!finalized.ok) return finalized;
     return {
       ...finalized,
@@ -1140,77 +1298,12 @@ const applyScoreCommandInternal = (
     command.type === LXMScoreCommandEnum.SetNumbered ||
     command.type === LXMScoreCommandEnum.RemoveNumbered ||
     command.type === LXMScoreCommandEnum.SetNumberedSequence
-  ) {
-    const track = document.score.tracks.find((t) => t.id === command.trackId);
-    const measure = track?.measures.find((m) => m.id === command.measureId);
-    if (
-      !track ||
-      !measure ||
-      !measure.beats.some((b) => b.id === command.beatId)
-    )
-      return fail("INVALID_NUMBERED_NOTATION", "简谱目标拍不存在");
-    const remove = command.type === LXMScoreCommandEnum.RemoveNumbered;
-    const items =
-      command.type === LXMScoreCommandEnum.SetNumberedSequence
-        ? command.items
-        : remove
-          ? []
-          : [{ kind: "set" as const, tokens: command.tokens }];
-    const plan = remove
-      ? null
-      : planNumberedSequence(
-          document,
-          command,
-          items,
-          command.type !== LXMScoreCommandEnum.SetNumberedSequence ||
-            command.allowOverwrite === true,
-        );
-    if (plan?.issue) return fail("INVALID_NUMBERED_NOTATION", plan.issue);
-    if (
-      !remove &&
-      items.some((i) => i.kind === "set" && !validNumberedTokens(i.tokens))
-    )
-      return fail("INVALID_NUMBERED_NOTATION", "简谱内容无效");
-    const changes = new Map(
-      plan?.rows
-        .filter((r) => r.target && r.item.kind === "set" && r.status !== "same")
-        .map((r) => [
-          r.target!.beatId,
-          r.item.kind === "set" ? r.item.tokens : [],
-        ]) ?? [],
+  )
+    return fail(
+      "NUMBERED_INVALID",
+      "旧简谱命令已停用，请使用独立简谱事件或时间范围",
     );
-    if (
-      (remove &&
-        !measure.beats.find((b) => b.id === command.beatId)!
-          .numberedNotation) ||
-      (!remove && changes.size === 0)
-    )
-      return unchanged(document);
-    const nextTrack = {
-      ...track,
-      measures: track.measures.map((m) => ({
-        ...m,
-        beats: m.beats.map((b) => {
-          if (remove && b.id === command.beatId) {
-            const { numberedNotation: _n, ...rest } = b;
-            return rest;
-          }
-          const tokens = changes.get(b.id);
-          return tokens
-            ? { ...b, numberedNotation: { tokens: [...tokens] } }
-            : b;
-        }),
-      })),
-    };
-    return finalize({
-      ...document,
-      documentRevision: document.documentRevision + 1,
-      score: {
-        ...document.score,
-        tracks: document.score.tracks.map((t) => (t === track ? nextTrack : t)),
-      },
-    });
-  }
+
   if (command.type === LXMScoreCommandEnum.SetNotationInfo) {
     // 标题与作者一起规范化并验证，失败不留下部分修改。
     const text = (value: string, limit: number) =>
@@ -1237,11 +1330,15 @@ const applyScoreCommandInternal = (
       command.keySignature === document.score.keySignature
     )
       return unchanged(document);
-    return finalize({
-      ...document,
-      documentRevision: document.documentRevision + 1,
-      score: nextScore,
-    });
+    return finalize(
+      {
+        ...document,
+        documentRevision: document.documentRevision + 1,
+        score: nextScore,
+      },
+      document,
+      command,
+    );
   }
   // 整批先规划，再使用同一 ID 工厂更新隔离分支；只 finalize 一次、增加一次 revision。
   if (command.type === LXMScoreCommandEnum.SetLyricSequence) {
@@ -1271,18 +1368,22 @@ const applyScoreCommandInternal = (
       if (!result.ok) return result;
       candidates.set(target.measureId, result.measure);
     }
-    return finalize({
-      ...document,
-      documentRevision: document.documentRevision + 1,
-      score: {
-        ...document.score,
-        tracks: document.score.tracks.map((t) =>
-          t === track
-            ? { ...t, measures: t.measures.map((m) => candidates.get(m.id)!) }
-            : t,
-        ),
+    return finalize(
+      {
+        ...document,
+        documentRevision: document.documentRevision + 1,
+        score: {
+          ...document.score,
+          tracks: document.score.tracks.map((t) =>
+            t === track
+              ? { ...t, measures: t.measures.map((m) => candidates.get(m.id)!) }
+              : t,
+          ),
+        },
       },
-    });
+      document,
+      command,
+    );
   }
   if (
     command.type === LXMScoreCommandEnum.SetLyric ||
@@ -1305,7 +1406,11 @@ const applyScoreCommandInternal = (
     );
     if (!result.ok) return result;
     return result.changed
-      ? finalize(replaceMeasure(document, track.id, measure.id, result.measure))
+      ? finalize(
+          replaceMeasure(document, track.id, measure.id, result.measure),
+          document,
+          command,
+        )
       : unchanged(document);
   }
   if (
@@ -1330,6 +1435,8 @@ const applyScoreCommandInternal = (
     if (!result.changed) return unchanged(document);
     return finalize(
       replaceMeasure(document, track.id, measure.id, result.measure),
+      document,
+      command,
     );
   }
   if (
@@ -1452,7 +1559,7 @@ const applyScoreCommandInternal = (
             },
           }
         : trackWithEditedMeasure;
-    return finalize(nextDocument);
+    return finalize(nextDocument, document, command);
   }
 
   if (command.type === LXMScoreCommandEnum.SetTuning) {
@@ -1467,23 +1574,27 @@ const applyScoreCommandInternal = (
       );
     if (JSON.stringify(track.tuning) === JSON.stringify(command.tuning))
       return unchanged(document);
-    return finalize({
-      ...document,
-      documentRevision: document.documentRevision + 1,
-      score: {
-        ...document.score,
-        tracks: document.score.tracks.map((item) =>
-          item.id === track.id
-            ? {
-                ...item,
-                tuning: {
-                  strings: command.tuning.strings.map((s) => ({ ...s })),
-                },
-              }
-            : item,
-        ),
+    return finalize(
+      {
+        ...document,
+        documentRevision: document.documentRevision + 1,
+        score: {
+          ...document.score,
+          tracks: document.score.tracks.map((item) =>
+            item.id === track.id
+              ? {
+                  ...item,
+                  tuning: {
+                    strings: command.tuning.strings.map((s) => ({ ...s })),
+                  },
+                }
+              : item,
+          ),
+        },
       },
-    });
+      document,
+      command,
+    );
   }
 
   if (command.type === LXMScoreCommandEnum.SetCapo) {
@@ -1498,16 +1609,20 @@ const applyScoreCommandInternal = (
     )
       return fail("INVALID_CAPO", "变调夹必须是 0 到 12 的整数");
     if (track.capo === command.capo) return unchanged(document);
-    return finalize({
-      ...document,
-      documentRevision: document.documentRevision + 1,
-      score: {
-        ...document.score,
-        tracks: document.score.tracks.map((item) =>
-          item.id === track.id ? { ...item, capo: command.capo } : item,
-        ),
+    return finalize(
+      {
+        ...document,
+        documentRevision: document.documentRevision + 1,
+        score: {
+          ...document.score,
+          tracks: document.score.tracks.map((item) =>
+            item.id === track.id ? { ...item, capo: command.capo } : item,
+          ),
+        },
       },
-    });
+      document,
+      command,
+    );
   }
 
   if (command.type === LXMScoreCommandEnum.SetSectionLabel) {
@@ -1542,6 +1657,8 @@ const applyScoreCommandInternal = (
         })();
     return finalize(
       replaceMeasure(document, track.id, measure.id, nextMeasure),
+      document,
+      command,
     );
   }
 
@@ -1570,13 +1687,11 @@ const applyScoreCommandInternal = (
       return fail("MEASURE_RANGE_INVALID", "插入位置不能位于复制源范围内");
     const sourceMeasures = track.measures.slice(start, end + 1);
     const copiedMeasures: ILXMMeasure[] = [];
+    const numberedCopy = copyNumberedVoices(track, sourceMeasures, factory);
 
-    sourceMeasures.forEach((copySource) => {
+    sourceMeasures.forEach((copySource, sourceOffset) => {
       const copiedBeats = copySource.beats.map((beat) => ({
         ...beat,
-        ...(beat.numberedNotation
-          ? { numberedNotation: { tokens: [...beat.numberedNotation.tokens] } }
-          : {}),
         id: factory.createBeatId(),
         notes: beat.notes.map((note) => ({
           ...note,
@@ -1591,6 +1706,7 @@ const applyScoreCommandInternal = (
       );
       copiedMeasures.push({
         ...copySource,
+        numberedVoice: numberedCopy.voices[sourceOffset]!,
         id: factory.createMeasureId(),
         beats: copiedBeats,
         barline: copySource.barline,
@@ -1641,6 +1757,7 @@ const applyScoreCommandInternal = (
     const nextTrack = pruneInvalidTechniques({
       ...track,
       measures: nextMeasures,
+      numberedMarks: [...track.numberedMarks, ...numberedCopy.marks],
       techniques: [...track.techniques, ...copied.techniques],
     });
     // 新副本不能被清理悄悄吞掉；目标已有区间冲突时整次复制原子拒绝。
@@ -1660,7 +1777,7 @@ const applyScoreCommandInternal = (
         ),
       },
     };
-    const result = finalize(nextDocument);
+    const result = finalize(nextDocument, document, command);
     return result.ok && result.changed && effects.length > 0
       ? { ...result, effects }
       : result;
@@ -1673,18 +1790,22 @@ const applyScoreCommandInternal = (
     const next = track.measures.filter(
       (measure) => measure.id !== command.measureId,
     );
-    return finalize({
-      ...document,
-      documentRevision: document.documentRevision + 1,
-      score: {
-        ...document.score,
-        tracks: document.score.tracks.map((item) =>
-          item.id === track.id
-            ? pruneInvalidTechniques({ ...track, measures: next })
-            : item,
-        ),
+    return finalize(
+      {
+        ...document,
+        documentRevision: document.documentRevision + 1,
+        score: {
+          ...document.score,
+          tracks: document.score.tracks.map((item) =>
+            item.id === track.id
+              ? pruneInvalidTechniques({ ...track, measures: next })
+              : item,
+          ),
+        },
       },
-    });
+      document,
+      command,
+    );
   }
   const sourceIndex =
     command.type === LXMScoreCommandEnum.CopyMeasure
@@ -1705,13 +1826,13 @@ const applyScoreCommandInternal = (
   const source = track.measures[Math.max(sourceIndex, 0)];
   if (!source) return fail("MEASURE_NOT_FOUND", "轨道没有可继承拍号的小节");
   let inserted: ILXMMeasure;
+  let numberedCopies: typeof track.numberedMarks = [];
   if (command.type === LXMScoreCommandEnum.CopyMeasure) {
     const copySource = track.measures[sourceIndex]!;
+    const numberedCopy = copyNumberedVoices(track, [copySource], factory);
+    numberedCopies = numberedCopy.marks;
     const copiedBeats = copySource.beats.map((beat) => ({
       ...beat,
-      ...(beat.numberedNotation
-        ? { numberedNotation: { tokens: [...beat.numberedNotation.tokens] } }
-        : {}),
       id: factory.createBeatId(),
       notes: beat.notes.map((note) => ({
         ...note,
@@ -1723,6 +1844,7 @@ const applyScoreCommandInternal = (
     );
     inserted = {
       ...copySource,
+      numberedVoice: numberedCopy.voices[0]!,
       tuplets: copySource.tuplets.map((group) => ({
         ...group,
         id: factory.createTupletId(),
@@ -1762,6 +1884,7 @@ const applyScoreCommandInternal = (
       chordSymbols: [],
       lyrics: [],
       tuplets: [],
+      numberedVoice: { events: [], tuplets: [] },
       beats: rests,
     };
   }
@@ -1771,22 +1894,27 @@ const applyScoreCommandInternal = (
       : { techniques: [], effects: [] };
   const nextMeasures = [...track.measures];
   nextMeasures.splice(sourceIndex + 1, 0, inserted);
-  const result = finalize({
-    ...document,
-    documentRevision: document.documentRevision + 1,
-    score: {
-      ...document.score,
-      tracks: document.score.tracks.map((item) =>
-        item.id === track.id
-          ? pruneInvalidTechniques({
-              ...track,
-              measures: nextMeasures,
-              techniques: [...track.techniques, ...copied.techniques],
-            })
-          : item,
-      ),
+  const result = finalize(
+    {
+      ...document,
+      documentRevision: document.documentRevision + 1,
+      score: {
+        ...document.score,
+        tracks: document.score.tracks.map((item) =>
+          item.id === track.id
+            ? pruneInvalidTechniques({
+                ...track,
+                measures: nextMeasures,
+                numberedMarks: [...track.numberedMarks, ...numberedCopies],
+                techniques: [...track.techniques, ...copied.techniques],
+              })
+            : item,
+        ),
+      },
     },
-  });
+    document,
+    command,
+  );
   return result.ok && result.changed && copied.effects.length > 0
     ? { ...result, effects: copied.effects }
     : result;

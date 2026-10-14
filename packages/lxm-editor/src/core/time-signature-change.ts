@@ -1,3 +1,4 @@
+import { createNumberedRhythmContext } from "./numbered-rhythm";
 import { createMeasureRhythmContext } from "./tuplet";
 /**
  * 单小节拍号修改与容量协调模块。
@@ -39,6 +40,14 @@ export const changeMeasureTimeSignature = (
   protectedBeatIds: ReadonlySet<string> = new Set(),
 ): MeasureTimeSignatureChangeResult => {
   const capacityTicks = getMeasureCapacityTicks(timeSignature);
+  const numbered = createNumberedRhythmContext(measure.numberedVoice);
+  if (
+    measure.numberedVoice.events.some((e) => {
+      const d = numbered.getEventDurationTicks(e);
+      return !d.ok || e.tick + d.ticks > capacityTicks;
+    })
+  )
+    return { ok: false, code: "MEASURE_CONTENT_EXCEEDS_TIME_SIGNATURE" };
 
   const isAllRest =
     measure.tuplets.length === 0 &&
@@ -71,9 +80,7 @@ export const changeMeasureTimeSignature = (
       ...measure,
       lyrics: [],
       chordSymbols: [],
-      beats: measure.beats.map(
-        ({ numberedNotation: _notation, ...beat }) => beat,
-      ),
+      beats: measure.beats,
     };
     const prefix = getFixedPrefixLength(ordinary, protectedBeatIds);
     const context = createMeasureRhythmContext(ordinary);

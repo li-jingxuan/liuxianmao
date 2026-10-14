@@ -16,6 +16,7 @@ const fixture = () => {
       id: "m",
       timeSignature: { numerator: 4, denominator: 4 },
       barline: "single",
+      numberedVoice: { events: [], tuplets: [] },
       tuplets: [],
       lyrics: [],
       chordSymbols: [],
@@ -133,8 +134,24 @@ describe("合并 C 会话契约", () => {
     const next = store.getState().selection!.focus;
     expect(
       store.getState().execute({
-        type: C.SetNumberedSequence,
-        ...next,
+        type: "numbered.range.replace",
+        trackId: next.trackId,
+        measureId: next.measureId,
+        startTick: store
+          .getState()
+          .document!.score.tracks[0]!.measures[0]!.beats.find(
+            (b) => b.id === next.beatId,
+          )!.tick,
+        endTick:
+          store
+            .getState()
+            .document!.score.tracks[0]!.measures[0]!.beats.find(
+              (b) => b.id === next.beatId,
+            )!.tick + 1920,
+        rhythms: [
+          { base: "quarter", dots: 0 },
+          { base: "quarter", dots: 0 },
+        ],
         items: [
           { kind: "set", tokens: ["1"] },
           { kind: "set", tokens: ["3"] },

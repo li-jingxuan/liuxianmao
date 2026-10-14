@@ -13,6 +13,7 @@ const createValidMeasure = () => ({
   id: "measure-schema-test",
   timeSignature: { numerator: 4, denominator: 4 },
   barline: "single",
+  numberedVoice: { events: [], tuplets: [] },
   tuplets: [],
   lyrics: [],
   chordSymbols: [],
@@ -36,6 +37,7 @@ describe("core schema", () => {
     },
     capo: 0,
     startBarline: "none",
+    numberedMarks: [],
     techniques: [],
     measures: [],
   });

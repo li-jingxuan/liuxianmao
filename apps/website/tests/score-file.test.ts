@@ -11,6 +11,7 @@ import {
   getFirstTabCellReference,
 } from "@liuxianmao/lxm-editor";
 import { createEditorSession } from "../stores/editor-store";
+import legacyScore from "../../../packages/lxm-editor/example/technique-rhythm-score.json";
 import {
   decodeScoreFile,
   inspectScoreFile,
@@ -33,9 +34,29 @@ const encode = (text: string) =>
 
 /** 不仅断言 JSON 可解析，还实际走下载字节、载入、布局和编辑命令。 */
 describe("原生曲谱文件往返", () => {
+  it("旧文件只在文件导入预检中显式升级，宿主加载仍严格拒绝旧格式", () => {
+    const session = createEditorSession(EXAMPLE_MVP_7_2_DOCUMENT),
+      previous = session.getState().document;
+    expect(session.getState().replaceDocument(legacyScore).ok).toBe(false);
+    expect(session.getState().document).toBe(previous);
+    const candidate = inspectScoreFile(JSON.stringify(legacyScore));
+    expect(candidate).toMatchObject({
+      ok: true,
+      upgraded: true,
+      sourceVersion: 7,
+      document: { schemaVersion: 8 },
+    });
+    if (candidate.ok)
+      expect(
+        session.getState().replaceDocument(candidate.document, "file").ok,
+      ).toBe(true);
+  });
   it.each(examples)("所有当前标准谱例均可保真导出再导入", (document) => {
     const output = serializeScoreFile(document);
-    expect(output.ok).toBe(true);
+    expect(
+      output.ok,
+      output.ok ? "" : `${document.score.title}: ${output.errors.join("；")}`,
+    ).toBe(true);
     if (!output.ok) return;
     const loaded = decodeScoreFile(encode(output.text));
     expect(loaded.ok).toBe(true);

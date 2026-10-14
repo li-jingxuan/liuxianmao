@@ -131,19 +131,23 @@ export const layoutMeasure = (
     visualBarline = measure.barline,
   } = context;
   const leadingWidth =
+    context.spacingSummary?.leadingWidth ??
     leadingBarlineClearance +
-    (showTimeSignature ? LXM_TIME_SIGNATURE_WIDTH : 0);
-  const { assignedWidth, columns, slotsByBeatId } = layoutMeasureSpacing(
-    measure,
-    {
-      x,
-      density,
-      assignedWidth: requestedAssignedWidth,
-      leadingWidth,
-      musicTextMetrics: context.musicTextMetrics,
-      spacingSummary: context.spacingSummary,
-    },
-  );
+      (showTimeSignature ? LXM_TIME_SIGNATURE_WIDTH : 0);
+  const {
+    assignedWidth,
+    columns,
+    slotsByBeatId,
+    slotsByNumberedEventId,
+    xByTick,
+  } = layoutMeasureSpacing(measure, {
+    x,
+    density,
+    assignedWidth: requestedAssignedWidth,
+    leadingWidth,
+    musicTextMetrics: context.musicTextMetrics,
+    spacingSummary: context.spacingSummary,
+  });
 
   const beats = Object.values(slotsByBeatId);
   const strings = buildStringLines(x, y, assignedWidth);
@@ -159,6 +163,7 @@ export const layoutMeasure = (
     beats,
     notes,
     strings,
+    measure.numberedVoice.events.length ? xByTick : undefined,
   );
   // 休止符同样依赖 beat slot，确保其与后续音符共享唯一的水平时间坐标。
   const restMarks = layoutRests(
@@ -202,6 +207,11 @@ export const layoutMeasure = (
     ),
     tuplets,
     columns,
+    numberedSlots: Object.values(slotsByNumberedEventId),
+    timeAnchors: Object.entries(xByTick).map(([tick, x]) => ({
+      tick: Number(tick),
+      x,
+    })),
     beats,
     strings,
     notes,

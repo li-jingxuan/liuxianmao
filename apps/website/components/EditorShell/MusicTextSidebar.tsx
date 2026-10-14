@@ -1,3 +1,4 @@
+import { resolveNumberedEditorTarget } from "./numbered-editor-target";
 import {
   NumberedEditor,
   type NumberedEditorController,
@@ -80,6 +81,9 @@ export const MusicTextSidebar = ({
   const editorStore = useEditorSessionStore();
   const score = useEditorStore((s) => s.document);
   const selection = useEditorStore((s) => s.selection);
+  const selectedNumberedMarkId = useEditorStore(
+    (s) => s.selectedNumberedMarkId,
+  );
   const [kind, setKind] = useState<SidebarTab>("score");
   // 活动对象独立于可见页签；null 表示普通六线谱选择，不表示关闭侧栏。
   const [activeObject, setActiveObject] = useState<MusicTextTarget | null>(
@@ -256,7 +260,10 @@ export const MusicTextSidebar = ({
     }
     if (
       action.type === "target" &&
-      !readMusicTextDraft(current.document, action.target)
+      !(action.target.kind === "numbered"
+        ? current.document &&
+          resolveNumberedEditorTarget(current.document, action.target)
+        : readMusicTextDraft(current.document, action.target))
     ) {
       setPending(null);
       setMessage("目标拍已失效，请重新选择。");
@@ -277,7 +284,7 @@ export const MusicTextSidebar = ({
       const nextSelection =
         action.type === "selection"
           ? action.selection
-          : activeObject
+          : activeObject && activeObject.kind !== "numbered"
             ? createCollapsedTabCellSelection(activeObject)
             : current.selection;
       setDraft(null);
@@ -305,7 +312,12 @@ export const MusicTextSidebar = ({
         setFocusRequest((value) => value + 1);
         onOpen();
         current.setSelectedTechniqueId(null);
-        current.setSelection(createCollapsedTabCellSelection(action.target));
+        const resolved =
+          current.document &&
+          resolveNumberedEditorTarget(current.document, action.target);
+        current.setNumberedSelection(resolved);
+        current.setSelectedNumberedMarkId(action.numberedMarkId ?? null);
+        if (resolved) setNumberedTarget({ ...resolved, kind: "numbered" });
       } else loadTarget(action.target, draft?.lyricMode, action.focus);
     } else if (action.type === "numberedMode") {
       setNumberedMode(action.mode);
@@ -355,7 +367,10 @@ export const MusicTextSidebar = ({
     }
     request({
       type: "target",
-      target: { ...next, kind: nextKind, verse: verse ?? 1 },
+      target:
+        nextKind === "numbered"
+          ? { ...next, kind: "numbered" }
+          : { ...next, kind: "lyric", verse: verse ?? 1 },
     });
   };
   /** 所有对象／页签请求通过同一草稿闸门，不提前迁移 selection。 */
@@ -388,9 +403,10 @@ export const MusicTextSidebar = ({
   const returnToScore = (): SelectionRequestResult =>
     request({
       type: "selection",
-      selection: activeObject
-        ? createCollapsedTabCellSelection(activeObject)
-        : editorStore.getState().selection,
+      selection:
+        activeObject && activeObject.kind !== "numbered"
+          ? createCollapsedTabCellSelection(activeObject)
+          : editorStore.getState().selection,
     });
   useImperativeHandle(ref, () => ({
     isOutputBlocked: () =>
@@ -481,6 +497,10 @@ export const MusicTextSidebar = ({
       const result = editorStore.getState().execute(command);
       if (result?.ok) {
         baseline.current = result.document;
+        if (result.nextNumberedFocus) {
+          setNumberedTarget({ kind: "numbered", ...result.nextNumberedFocus });
+          setNumberedPreview(null);
+        }
         setMessage(null);
       } else
         setMessage(
@@ -781,12 +801,17 @@ export const MusicTextSidebar = ({
             aria-labelledby="paragraph-tab-numbered"
           >
             <NumberedEditor
-              key={`${stateVersion}/${numberedMode}/${(numberedTarget ?? selection?.focus)?.trackId}/${(numberedTarget ?? selection?.focus)?.measureId}/${(numberedTarget ?? selection?.focus)?.beatId}`}
+              key={`${stateVersion}/${numberedMode}/${numberedTarget?.eventId ?? numberedTarget?.tick ?? (numberedTarget ?? selection?.focus)?.beatId}`}
               onCancel={() => request({ type: "close" })}
               mode={numberedMode}
               onModeChange={(mode) => request({ type: "numberedMode", mode })}
               ref={numberedRef}
+              getClipboard={() => editorStore.getState().getNumberedClipboard()}
+              copyRange={(range) =>
+                editorStore.getState().copyNumberedRange(range)
+              }
               document={score}
+              selectedMarkId={selectedNumberedMarkId}
               target={numberedTarget ?? selection?.focus ?? null}
               commit={commit}
               onDirty={setNumberedDirty}

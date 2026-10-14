@@ -37,16 +37,6 @@ export const createMvp7cExample = (measureCount = 14): ILXMDocument => {
         beats: m.beats.map((b, bi) => ({
           ...structuredClone(b),
           id: beats.get(b.id)!,
-          numberedNotation: {
-            tokens:
-              bi % 5 === 0
-                ? ["#4'", "6..", "3"]
-                : bi % 5 === 1
-                  ? ["0"]
-                  : bi % 5 === 2
-                    ? ["-"]
-                    : [String(((mi + bi) % 7) + 1)],
-          },
           notes: b.notes.map((n) => ({ ...n, id: notes.get(n.id)! })),
         })),
         lyrics: m.lyrics.map((l) => ({
@@ -59,6 +49,38 @@ export const createMvp7cExample = (measureCount = 14): ILXMDocument => {
           id: `${c.id}-c${offset}`,
           beatId: beats.get(c.beatId)!,
         })),
+        numberedVoice: {
+          events: m.beats.map((b, bi) => {
+            const tokens =
+              bi % 5 === 0
+                ? ["#4'", "6..", "3"]
+                : bi % 5 === 1
+                  ? ["0"]
+                  : bi % 5 === 2
+                    ? ["-"]
+                    : [String(((mi + bi) % 7) + 1)];
+            return {
+              id: `${b.id}-numbered-c${offset}`,
+              tick: b.tick,
+              rhythm: { ...b.rhythm },
+              kind:
+                tokens[0] === "0"
+                  ? ("rest" as const)
+                  : tokens[0] === "-"
+                    ? ("continuation" as const)
+                    : ("notes" as const),
+              items: tokens.map((token, i) => ({
+                id: `${b.id}-numbered-item-${i}-c${offset}`,
+                token,
+              })),
+            };
+          }),
+          tuplets: m.tuplets.map((g) => ({
+            id: `${g.id}-numbered-c${offset}`,
+            ratio: { ...g.ratio },
+            eventIds: g.beatIds.map((id) => `${id}-numbered-c${offset}`),
+          })),
+        },
         tuplets: m.tuplets.map((g) => ({
           ...structuredClone(g),
           id: `${g.id}-c${offset}`,

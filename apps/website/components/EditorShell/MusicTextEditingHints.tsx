@@ -80,6 +80,50 @@ export const MusicTextEditingHints = ({
           );
         });
     })}
+    {layout.systems.flatMap((system) =>
+      system.measures.flatMap((measure) =>
+        (measure.numberedInputSlots ?? []).map((slot) => {
+          const nearFocus = [activeFocus, hoverFocus].some(
+            (f) =>
+              f?.kind === "numbered" &&
+              f.x < slot.x + slot.width &&
+              f.x + f.width > slot.x &&
+              f.y < slot.y + slot.height &&
+              f.y + f.height > slot.y,
+          );
+          const props = {
+            "data-paragraph-cell": `numbered/${slot.key}`,
+            className: styles.musicTextPlaceholder,
+            opacity: nearFocus ? 0.15 : 1,
+          };
+          // 窄简谱时间槽沿用歌词短标记，中心始终落在真实可录入起点。
+          return slot.width < PLACEHOLDER_BOX_MIN_WIDTH ? (
+            <line
+              key={slot.key}
+              {...props}
+              data-paragraph-placeholder="marker"
+              x1={slot.anchorX}
+              x2={slot.anchorX}
+              y1={slot.y + slot.height / 2 - 5}
+              y2={slot.y + slot.height / 2 + 5}
+              strokeLinecap="round"
+            />
+          ) : (
+            <rect
+              key={slot.key}
+              {...props}
+              data-paragraph-placeholder="box"
+              x={slot.x}
+              y={slot.y}
+              width={slot.width}
+              height={slot.height}
+              strokeDasharray="3 3"
+              rx={3}
+            />
+          );
+        }),
+      ),
+    )}
     {hoverFocus && (
       <rect
         data-paragraph-hover={hoverFocus.kind}

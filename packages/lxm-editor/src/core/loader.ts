@@ -1,14 +1,16 @@
 import { CURRENT_SCHEMA_VERSION, SCORE_DOCUMENT_SCHEMA } from "./constants";
 import { z } from "zod";
 
+import { LXMDocumentSchema } from "./schema";
 import {
-  LXMDocumentSchema,
-  LXMScoreSchema,
-  LXMTrackSchema,
-  LXMMeasureSchema,
-  LXMBeatSchema,
-  LXMTechniqueSchema,
-} from "./schema";
+  LXMDocumentSchema as LegacyDocumentSchema,
+  LXMScoreSchema as LegacyScoreSchema,
+  LXMTrackSchema as LegacyTrackSchema,
+  LXMMeasureSchema as LegacyMeasureSchema,
+  LXMBeatSchema as LegacyBeatSchema,
+  LXMTechniqueSchema as LegacyTechniqueSchema,
+} from "./legacy-document-schema";
+import { convertLegacyNumbered } from "./numbered-upgrade";
 import { validateDocumentSemantics } from "./semantic-validation";
 import type { DocumentLoadResult } from "./types";
 
@@ -19,71 +21,74 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
 /** 显式升级已知旧格式；正常 loader 永不调用迁移入口。 */
+/** 升级入口冻结旧格式；转换后才使用当前结构和语义守卫。 */
 export const upgradeDocumentToCurrent = (
   value: unknown,
 ): DocumentLoadResult => {
   if (
     !isRecord(value) ||
     value.schema !== SCORE_DOCUMENT_SCHEMA ||
-    (value.schemaVersion !== 4 &&
-      value.schemaVersion !== 5 &&
-      value.schemaVersion !== 6)
+    ![4, 5, 6, 7].includes(value.schemaVersion as number)
   )
-    return { ok: false, errors: ["升级入口只接受 schema 4、5 或 6 对象"] };
-  const version = value.schemaVersion;
-  // 旧格式冻结：不能因当前 schema 扩展而接受旧版本中的半音或简谱。
-  const oldMeasure = LXMMeasureSchema.extend({
-    beats: z.array(LXMBeatSchema.omit({ numberedNotation: true })),
-  });
-  const legacyTechnique = LXMTechniqueSchema.superRefine((t, ctx) => {
-    if (t.type === "bend" && t.semitones !== 2)
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "旧版本只支持全音推弦",
-      });
-  });
-  const trackSchema = (
-    version === 4 ? LXMTrackSchema.omit({ capo: true }) : LXMTrackSchema
+    return { ok: false, errors: ["升级入口只接受 schema 4、5、6 或 7 对象"] };
+  const version = value.schemaVersion as 4 | 5 | 6 | 7;
+  const oldMeasure =
+    version === 7
+      ? LegacyMeasureSchema
+      : LegacyMeasureSchema.extend({
+          beats: z.array(LegacyBeatSchema.omit({ numberedNotation: true })),
+        });
+  const legacyTechnique =
+    version === 7
+      ? LegacyTechniqueSchema
+      : LegacyTechniqueSchema.superRefine((t, ctx) => {
+          if (t.type === "bend" && t.semitones !== 2)
+            ctx.addIssue({ code: "custom", message: "旧版本只支持全音推弦" });
+        });
+  const oldScore =
+    version >= 6
+      ? LegacyScoreSchema
+      : LegacyScoreSchema.omit({ arranger: true, keySignature: true }).extend({
+          title: z.string(),
+        });
+  const track = (
+    version === 4 ? LegacyTrackSchema.omit({ capo: true }) : LegacyTrackSchema
   ).extend({
     measures: z.array(
       version === 4 ? oldMeasure.omit({ sectionLabel: true }) : oldMeasure,
     ),
     techniques: z.array(legacyTechnique),
   });
-  const oldScore =
-    version === 6
-      ? LXMScoreSchema
-      : LXMScoreSchema.omit({ arranger: true, keySignature: true }).extend({
-          title: z.string(),
-        });
-  const oldSchema = LXMDocumentSchema.extend({
-    schemaVersion: z.literal(version as 4 | 5 | 6),
-    score: oldScore.extend({ tracks: z.array(trackSchema) }),
+  const schema = LegacyDocumentSchema.extend({
+    schemaVersion: z.literal(version),
+    score: oldScore.extend({ tracks: z.array(track) }),
   });
-  const old = oldSchema.safeParse(migrateLegacyChordTraversalRanges(value));
-  if (!old.success)
-    return { ok: false, errors: old.error.issues.map(formatZodIssue) };
+  const parsed = schema.safeParse(migrateLegacyChordTraversalRanges(value));
+  if (!parsed.success)
+    return { ok: false, errors: parsed.error.issues.map(formatZodIssue) };
+  const prepared = LegacyDocumentSchema.safeParse({
+    ...parsed.data,
+    schemaVersion: 7,
+    score: {
+      ...parsed.data.score,
+      arranger:
+        "arranger" in parsed.data.score ? parsed.data.score.arranger : "",
+      keySignature:
+        "keySignature" in parsed.data.score
+          ? parsed.data.score.keySignature
+          : null,
+      tracks: parsed.data.score.tracks.map((t) => ({
+        ...t,
+        capo: "capo" in t ? t.capo : 0,
+      })),
+    },
+  });
+  if (!prepared.success)
+    return { ok: false, errors: prepared.error.issues.map(formatZodIssue) };
   try {
-    return loadDocument(
-      JSON.stringify({
-        ...old.data,
-        schemaVersion: CURRENT_SCHEMA_VERSION,
-        score: {
-          ...old.data.score,
-          arranger: "arranger" in old.data.score ? old.data.score.arranger : "",
-          keySignature:
-            "keySignature" in old.data.score
-              ? old.data.score.keySignature
-              : null,
-          tracks: old.data.score.tracks.map((t) => ({
-            ...t,
-            capo: "capo" in t ? t.capo : 0,
-          })),
-        },
-      }),
-    );
+    return loadDocument(JSON.stringify(convertLegacyNumbered(prepared.data)));
   } catch {
-    return { ok: false, errors: ["旧文档无法序列化"] };
+    return { ok: false, errors: ["旧文档无法序列化为 JSON"] };
   }
 };
 

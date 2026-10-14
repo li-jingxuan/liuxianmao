@@ -1,6 +1,8 @@
 import {
   hitTestLayout,
   hitTestMusicText,
+  hitTestNumbered,
+  hitTestNumberedMark,
   hitTestTechniqueTarget,
   resolveTabCellSelection,
   resolveTechniqueSelection,
@@ -18,8 +20,18 @@ export const resolveScorePointerAction = (
   selection: ILXMTabCellSelection | null,
   extend: boolean,
 ): SidebarAction | null => {
+  const numberedMark = hitTestNumberedMark(layout, point);
+  if (numberedMark)
+    return {
+      type: "target",
+      numberedMarkId: numberedMark.markId,
+      target: { ...numberedMark.target, kind: "numbered" },
+    };
+  const numbered = hitTestNumbered(layout, point);
+  if (numbered)
+    return { type: "target", target: { ...numbered, kind: "numbered" } };
   const text = hitTestMusicText(layout, point);
-  if (text)
+  if (text && text.kind !== "numbered")
     return {
       type: "target",
       target: {

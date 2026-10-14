@@ -28,5 +28,11 @@ export const resolveParagraphFocus = (
   )
     return null;
   const bounds = layoutParagraphFocus(layout, { ...target, kind: target.kind });
-  return bounds ? { ...bounds, id: target.beatId, kind: target.kind } : null;
+  return bounds
+    ? {
+        ...bounds,
+        id: target.eventId ?? target.beatId ?? String(target.tick),
+        kind: target.kind,
+      }
+    : null;
 };

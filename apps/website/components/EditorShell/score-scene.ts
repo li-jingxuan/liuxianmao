@@ -42,7 +42,7 @@ export type ScorePrimitive = (
       textAnchor: "start" | "middle" | "end";
     }
 ) &
-  SceneStyle & { techniqueId?: string };
+  SceneStyle & { techniqueId?: string; numberedMarkId?: string };
 export interface ScoreScene {
   header: ScorePrimitive[];
   systems: { index: number; items: ScorePrimitive[] }[];
@@ -105,9 +105,41 @@ const systemScene = (s: ILXMSystemLayout): ScorePrimitive[] => {
       line(l.x1, l.y1, l.x2, l.y2, l.strokeWidth),
     ),
   );
+  for (const mark of s.numberedMarks ?? []) {
+    if (mark.path)
+      items.push({
+        kind: "path",
+        d: mark.path.d,
+        stroke: "#1d2025",
+        strokeWidth: mark.path.strokeWidth,
+        fill: "none",
+        numberedMarkId: mark.markId,
+      });
+    items.push(
+      ...mark.dots.map((d) => ({
+        kind: "circle" as const,
+        ...d,
+        fill: "#1d2025",
+        numberedMarkId: mark.markId,
+      })),
+      ...mark.labels.map((g) => ({ ...glyph(g), numberedMarkId: mark.markId })),
+    );
+  }
   for (const m of s.measures) {
     for (const notation of m.numberedNotation ?? []) {
       items.push(...notation.labels.map(glyph));
+      items.push(
+        ...(notation.lines ?? [])
+          .filter((l) => l.thickness > 0)
+          .map((l) => line(l.x1, l.y, l.x2, l.y, l.thickness)),
+      );
+      items.push(
+        ...(notation.rhythmDots ?? []).map((d) => ({
+          kind: "circle" as const,
+          ...d,
+          fill: "#1d2025",
+        })),
+      );
       items.push(
         ...notation.dots.map((dot) => ({
           kind: "circle" as const,

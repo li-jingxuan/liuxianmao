@@ -340,6 +340,7 @@ const buildDurationSustainMarks = (
   beatLayout: ILXMBeatLayout,
   rhythmBase: ILXMRhythmBase,
   staffCenterY: number,
+  sustainAnchors?: number[],
 ) => {
   const totalQuarterUnits = LXM_RHYTHM_QUARTER_UNIT_COUNT[rhythmBase];
   if (totalQuarterUnits <= 1) return [];
@@ -358,7 +359,8 @@ const buildDurationSustainMarks = (
 
   return Array.from({ length: totalQuarterUnits - 1 }, (_, index) => {
     const unitIndex = index + 1;
-    const unitCenterX = beatLayout.x + unitWidth * (unitIndex + 0.5);
+    const unitCenterX =
+      sustainAnchors?.[index] ?? beatLayout.x + unitWidth * (unitIndex + 0.5);
 
     return {
       unitIndex,
@@ -381,6 +383,7 @@ export const buildDurationMark = (
   sourceBeats: ILXMBeat[],
   beatLayoutMap: Map<string, ILXMBeatLayout>,
   noteLayoutsByBeatId: Map<string, ILXMNoteLayout[]>,
+  sustainByBeatId?: ReadonlyMap<string, number[]>,
 ): ILXMDurationMarkLayout[] =>
   sourceBeats.map((beat) => {
     const currentBeat = beatLayoutMap.get(beat.id);
@@ -420,6 +423,7 @@ export const buildDurationMark = (
         currentBeat,
         beat.rhythm.base,
         staffCenterY,
+        sustainByBeatId?.get(beat.id),
       ),
       // 孤立 flag 在 beamSegments 完成后统一回填；此阶段只构建稳定的基础 mark。
       flag: null,
@@ -439,6 +443,7 @@ export const layoutDurationBeams = (
   beatLayouts: ILXMBeatLayout[],
   noteLayouts: ILXMNoteLayout[],
   strings: ILXMStringLineLayout[],
+  timeAnchors?: Record<number, number>,
 ): ILXMDurationBeamLayoutResult => {
   // 删除某拍最后一个音符后，该 beat 仍保留在时间轴中，但不应生成 -Infinity
   // 坐标的符干；因此只为实际有音符的 beat 计算时值图形。
@@ -480,6 +485,25 @@ export const layoutDurationBeams = (
     sourceBeats,
     beatLayoutMap,
     noteLayoutsByBeatId,
+    timeAnchors
+      ? new Map(
+          sourceBeats.map((b) => {
+            const d =
+              createMeasureRhythmContext(measure).getBeatDurationTicks(b);
+            const count = LXM_RHYTHM_QUARTER_UNIT_COUNT[b.rhythm.base];
+            return [
+              b.id,
+              Array.from(
+                { length: Math.max(0, count - 1) },
+                (_, i) =>
+                  timeAnchors[
+                    b.tick + (d.ok ? (d.ticks / count) * (i + 1) : 0)
+                  ]!,
+              ).filter(Number.isFinite),
+            ];
+          }),
+        )
+      : undefined,
   );
   const markByBeatId = new Map(
     durationMarks.map((mark) => [mark.beatId, mark]),

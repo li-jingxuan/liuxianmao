@@ -32,6 +32,13 @@ export interface MusicTextGlyph extends ILXMMusicTextMeasureRequest {
   bounds: MusicTextRect;
   measured: boolean;
 }
+/** glyph bounds 带有点击/描边保护量；紧凑排版避让应使用实际墨迹边界。 */
+export const musicTextInkBounds = (glyph: MusicTextGlyph): MusicTextRect => ({
+  x: glyph.bounds.x + 2,
+  y: glyph.bounds.y + 2,
+  width: Math.max(0, glyph.bounds.width - 4),
+  height: Math.max(0, glyph.bounds.height - 4),
+});
 export const MUSIC_TEXT_FONT =
   'Arial, "PingFang SC", "Microsoft YaHei", sans-serif';
 export const MUSIC_TEXT_GAP = 6;
@@ -55,23 +62,29 @@ export const musicTextRequest = (
   fontSize = 13,
   textAnchor: ILXMMusicTextMeasureRequest["textAnchor"] = "middle",
   fontWeight = 400,
+  fontFamily = MUSIC_TEXT_FONT,
 ): ILXMMusicTextMeasureRequest => {
-  const values = [
-    text,
-    MUSIC_TEXT_FONT,
-    fontSize,
-    fontWeight,
-    textAnchor,
-  ] as const;
+  const values = [text, fontFamily, fontSize, fontWeight, textAnchor] as const;
   return {
     key: JSON.stringify(values),
     text,
-    fontFamily: MUSIC_TEXT_FONT,
+    fontFamily,
     fontSize,
     fontWeight,
     textAnchor,
   };
 };
+/** 音乐字体请求的 key 必须包含真实字体，不能沿用普通文字的缓存身份。 */
+export const numberedAccidentalMeasureRequest = (prefix: string) =>
+  musicTextRequest(
+    ({ "#": "\uE262", b: "\uE260", n: "\uE261" } as Record<string, string>)[
+      prefix
+    ]!,
+    16,
+    "middle",
+    400,
+    "Bravura",
+  );
 /** 无 DOM 的保守 fallback；真实客户端会注入有限数值的 bbox 快照。 */
 export const musicTextGlyph = (
   request: ILXMMusicTextMeasureRequest,
@@ -117,7 +130,7 @@ export const collectMusicTextMeasureRequests = (
   document: ILXMDocument,
   showChordDiagrams?: boolean,
 ): ILXMMusicTextMeasureRequest[] => {
-  const requests: ILXMMusicTextMeasureRequest[] = [];
+  const requests: ILXMMusicTextMeasureRequest[] = [musicTextRequest("0", 14)];
   const track = document.score.tracks[0];
   if (track) {
     const header = scoreHeaderText(document.score, track);
@@ -131,9 +144,27 @@ export const collectMusicTextMeasureRequests = (
     }
   }
   for (const measure of document.score.tracks[0]?.measures ?? []) {
-    for (const beat of measure.beats)
-      for (const token of beat.numberedNotation?.tokens ?? [])
-        requests.push(musicTextRequest(token.replace(/['.]+$/, ""), 14));
+    for (const event of measure.numberedVoice.events)
+      for (const token of event.items.map((i) => i.token)) {
+        const prefix = token.match(/^[#bn]/)?.[0];
+        requests.push(
+          musicTextRequest(
+            token.replace(/^[#bn]/, "").replace(/['.]+$/, ""),
+            14,
+          ),
+        );
+        if (prefix) requests.push(numberedAccidentalMeasureRequest(prefix));
+      }
+
+    for (const group of measure.numberedVoice.tuplets)
+      requests.push(
+        musicTextRequest(
+          group.ratio.actual === 3 && group.ratio.normal === 2
+            ? "3"
+            : `${group.ratio.actual}:${group.ratio.normal}`,
+          11,
+        ),
+      );
     for (const lyric of measure.lyrics) {
       requests.push(musicTextRequest(lyric.text));
     }

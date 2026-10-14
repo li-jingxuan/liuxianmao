@@ -1,4 +1,3 @@
-import { layoutNumbered } from "./numbered-notation-layout";
 import { LXM_SCORE_CHORD_DIAGRAM_SCALE } from "./layout-constants";
 import type { ILXMMeasure, ILXMLyricVerse } from "../core/types";
 import {
@@ -114,13 +113,6 @@ export const getMusicTextExtents = (
       right: Math.max(existing.right, bounds.x + bounds.width),
     });
   };
-  for (const beat of measure.beats)
-    if (beat.numberedNotation)
-      add(
-        beat.id,
-        layoutNumbered(beat.id, beat.numberedNotation.tokens, 0, 0, metrics)
-          .bounds,
-      );
   for (const lyric of measure.lyrics)
     add(
       lyric.beatId,
@@ -133,7 +125,7 @@ export const getMusicTextExtents = (
 /** 首尾额外净空固定，不参与系统剩余宽度的拉伸。 */
 export const musicTextInsets = (
   measure: ILXMMeasure,
-  columns: { beatIds: string[]; minWidth: number; idealWidth: number }[],
+  columns: { tabBeatIds: string[]; minWidth: number; idealWidth: number }[],
   padding: number,
   leading: number,
   metrics?: ILXMMusicTextMetrics,
@@ -145,8 +137,8 @@ export const musicTextInsets = (
     metrics,
   );
   for (let i = 0; i < columns.length - 1; i++) {
-    const right = extents.get(columns[i]!.beatIds[0]!)?.right ?? 0;
-    const left = extents.get(columns[i + 1]!.beatIds[0]!)?.left ?? 0;
+    const right = extents.get(columns[i]!.tabBeatIds[0]!)?.right ?? 0;
+    const left = extents.get(columns[i + 1]!.tabBeatIds[0]!)?.left ?? 0;
     if (right || left)
       columns[i]!.minWidth = Math.max(
         columns[i]!.minWidth,
@@ -158,7 +150,7 @@ export const musicTextInsets = (
   });
   const chords = columns.flatMap((column, index) =>
     measure.chordSymbols
-      .filter((symbol) => column.beatIds.includes(symbol.beatId))
+      .filter((symbol) => column.tabBeatIds.includes(symbol.beatId))
       .map((symbol) => ({
         index,
         bounds: createChordBlock(symbol, metrics).bounds,
@@ -185,8 +177,8 @@ export const musicTextInsets = (
     }
   }
   const allExtents = getMusicTextExtents(measure, metrics);
-  const first = allExtents.get(columns[0]?.beatIds[0] ?? "");
-  const last = extents.get(columns.at(-1)?.beatIds[0] ?? "");
+  const first = allExtents.get(columns[0]?.tabBeatIds[0] ?? "");
+  const last = extents.get(columns.at(-1)?.tabBeatIds[0] ?? "");
   // 行尾保护检查所有和弦，包括倒数几拍开始但越过末拍的长名称。
   const chordTail = reserveChordTail
     ? Math.max(

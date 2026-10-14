@@ -9,6 +9,10 @@ export interface ILXMIdFactory {
   createLyricId(): string;
   createTechniqueId(): string;
   createTupletId(): string;
+  createNumberedEventId(): string;
+  createNumberedItemId(): string;
+  createNumberedTupletId(): string;
+  createNumberedMarkId(): string;
 }
 
 /** 收集所有可持久化实体 ID；不同实体类型同样禁止重名，便于后续引用。 */
@@ -17,9 +21,15 @@ const collectEntityIds = (document: ILXMDocument): Set<string> =>
     document.score.id,
     ...document.score.tracks.flatMap((track) => [
       track.id,
+      ...track.numberedMarks.map((mark) => mark.id),
       ...track.techniques.map((technique) => technique.id),
       ...track.measures.flatMap((measure) => [
         measure.id,
+        ...measure.numberedVoice.tuplets.map((g) => g.id),
+        ...measure.numberedVoice.events.flatMap((e) => [
+          e.id,
+          ...e.items.map((i) => i.id),
+        ]),
         ...measure.tuplets.map((group) => group.id),
         ...measure.chordSymbols.map((symbol) => symbol.id),
         ...measure.lyrics.map((lyric) => lyric.id),
@@ -57,5 +67,9 @@ export const createDocumentIdFactory = (
     createLyricId: () => create("lyric"),
     createTechniqueId: () => create("technique"),
     createTupletId: () => create("tuplet"),
+    createNumberedEventId: () => create("numbered-event"),
+    createNumberedItemId: () => create("numbered-item"),
+    createNumberedTupletId: () => create("numbered-tuplet"),
+    createNumberedMarkId: () => create("numbered-mark"),
   };
 };

@@ -25,7 +25,7 @@ import { ILXMDocument } from "../src";
 
 const EXAMPLE_MVP_1: ILXMDocument = {
   schema: "lxm-tab-score",
-  schemaVersion: 7,
+  schemaVersion: 8,
   documentRevision: 1,
   // 乐谱信息
   score: {
@@ -60,6 +60,7 @@ const EXAMPLE_MVP_1: ILXMDocument = {
         capo: 0,
         // 谱首不显示额外反复线。
         startBarline: "none",
+        numberedMarks: [],
         techniques: [],
         // 小节集合
         measures: [
@@ -71,6 +72,7 @@ const EXAMPLE_MVP_1: ILXMDocument = {
             // 小节线
             barline: "single",
             // 和弦
+            numberedVoice: { events: [], tuplets: [] },
             tuplets: [],
             lyrics: [],
             chordSymbols: [

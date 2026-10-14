@@ -1,6 +1,12 @@
 import type { ILXMScoreCommand } from "./commands";
-import type { ILXMDocument, ILXMTechniqueType } from "./types";
+import type {
+  ILXMDocument,
+  ILXMTechniqueType,
+  ILXMNumberedMark,
+  ILXMTrack,
+} from "./types";
 import { createMeasureRhythmContext } from "./tuplet";
+import { createNumberedRhythmContext } from "./numbered-rhythm";
 
 interface EffectLocation {
   trackId: string;
@@ -9,6 +15,21 @@ interface EffectLocation {
 }
 /** 编辑影响只随命令结果返回，不进入 document 或历史快照。 */
 export type ILXMCommandEffect =
+  | (EffectLocation & { kind: "numbered.event.overwritten"; eventId: string })
+  | (EffectLocation & {
+      kind: "numbered.event.retimed" | "numbered.event.resized";
+      eventId: string;
+      beforeValue: number;
+      afterValue: number;
+    })
+  | (EffectLocation & {
+      kind:
+        | "numbered.mark.removed"
+        | "numbered.mark.migrated"
+        | "numbered.mark.omitted";
+      markId: string;
+      markType?: ILXMNumberedMark["type"];
+    })
   | (EffectLocation & {
       kind: "beats.structured";
       operation: "split" | "merge";
@@ -45,6 +66,53 @@ export type ILXMCommandEffect =
       techniqueType: ILXMTechniqueType;
     });
 
+/** 关系位置使用编辑前的端点，删除整个小节时仍能说明发生在哪里。 */
+const numberedMarkLocation = (track: ILXMTrack, mark: ILXMNumberedMark) => {
+  const measureIndex = track.measures.findIndex((m) =>
+    m.numberedVoice.events.some((e) =>
+      mark.type === "tie"
+        ? e.items.some((i) => i.id === mark.fromItemId)
+        : e.id === (mark.type === "slur" ? mark.fromEventId : mark.eventId),
+    ),
+  );
+  const measure = track.measures[measureIndex];
+  return measure
+    ? {
+        trackId: track.id,
+        measureId: measure.id,
+        measureNumber: measureIndex + 1,
+      }
+    : null;
+};
+
+/** 剪贴板只记录越界关系 ID；源仍存在时补齐类型与原位置，否则使用当前复制/粘贴范围。 */
+export const collectNumberedOmissionEffects = (
+  document: ILXMDocument,
+  trackId: string,
+  measureId: string,
+  markIds: readonly string[],
+): ILXMCommandEffect[] => {
+  const track = document.score.tracks.find((t) => t.id === trackId);
+  if (!track) return [];
+  const fallback = {
+    trackId,
+    measureId,
+    measureNumber: Math.max(
+      1,
+      track.measures.findIndex((m) => m.id === measureId) + 1,
+    ),
+  };
+  return markIds.map((markId) => {
+    const mark = track.numberedMarks.find((m) => m.id === markId);
+    return {
+      ...(mark ? (numberedMarkLocation(track, mark) ?? fallback) : fallback),
+      kind: "numbered.mark.omitted",
+      markId,
+      ...(mark ? { markType: mark.type } : {}),
+    };
+  });
+};
+
 /** 比较稳定 ID 的前后状态，避免 UI 自行推测领域命令产生的连带变化。 */
 export const collectCommandEffects = (
   before: ILXMDocument,
@@ -54,6 +122,83 @@ export const collectCommandEffects = (
   const effects: ILXMCommandEffect[] = [];
   before.score.tracks.forEach((track) => {
     const nextTrack = after.score.tracks.find((item) => item.id === track.id);
+    // 两谱各自比较稳定身份；简谱变化不从 TAB Beat 的变化反推。
+    track.measures.forEach((measure, measureIndex) => {
+      const nextMeasure = nextTrack?.measures.find((m) => m.id === measure.id);
+      if (!nextMeasure || nextMeasure === measure) return;
+      const previousContext = createNumberedRhythmContext(
+        measure.numberedVoice,
+      );
+      const nextContext = createNumberedRhythmContext(
+        nextMeasure.numberedVoice,
+      );
+      const nextEvents = new Map(
+        nextMeasure.numberedVoice.events.map((e) => [e.id, e]),
+      );
+      const location = {
+        trackId: track.id,
+        measureId: measure.id,
+        measureNumber: measureIndex + 1,
+      };
+      measure.numberedVoice.events.forEach((event) => {
+        const nextEvent = nextEvents.get(event.id);
+        if (!nextEvent) {
+          if (
+            command.type === "numbered.event.setRhythm" &&
+            command.trackId === track.id &&
+            command.measureId === measure.id
+          )
+            effects.push({
+              ...location,
+              kind: "numbered.event.overwritten",
+              eventId: event.id,
+            });
+          return;
+        }
+        if (event.tick !== nextEvent.tick)
+          effects.push({
+            ...location,
+            kind: "numbered.event.retimed",
+            eventId: event.id,
+            beforeValue: event.tick,
+            afterValue: nextEvent.tick,
+          });
+        const previous = previousContext.getEventDurationTicks(event),
+          next = nextContext.getEventDurationTicks(nextEvent);
+        if (previous.ok && next.ok && previous.ticks !== next.ticks)
+          effects.push({
+            ...location,
+            kind: "numbered.event.resized",
+            eventId: event.id,
+            beforeValue: previous.ticks,
+            afterValue: next.ticks,
+          });
+      });
+    });
+    const nextMarks = new Map(
+      nextTrack?.numberedMarks.map((m) => [m.id, m]) ?? [],
+    );
+    track.numberedMarks.forEach((mark) => {
+      if (
+        (command.type === "numbered.mark.remove" ||
+          command.type === "numbered.mark.update") &&
+        command.markId === mark.id
+      )
+        return;
+      const nextMark = nextMarks.get(mark.id);
+      const location = numberedMarkLocation(track, mark);
+      if (
+        !location ||
+        (nextMark && JSON.stringify(mark) === JSON.stringify(nextMark))
+      )
+        return;
+      effects.push({
+        ...location,
+        kind: nextMark ? "numbered.mark.migrated" : "numbered.mark.removed",
+        markId: mark.id,
+        markType: mark.type,
+      });
+    });
     if (!nextTrack || nextTrack === track) return;
     track.measures.forEach((measure, measureIndex) => {
       const nextMeasure = nextTrack.measures.find(
@@ -143,5 +288,14 @@ export const collectCommandEffects = (
         });
     });
   });
+  if (command.type === "numbered.range.paste")
+    effects.push(
+      ...collectNumberedOmissionEffects(
+        before,
+        command.trackId,
+        command.measureId,
+        command.clipboard.omissions,
+      ),
+    );
   return effects;
 };

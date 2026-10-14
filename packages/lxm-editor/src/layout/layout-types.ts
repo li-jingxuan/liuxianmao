@@ -1,3 +1,4 @@
+import type { NumberedMarkLayout } from "./numbered-mark-layout";
 import type { NumberedLayout } from "./numbered-notation-layout";
 import type { ILXMFret } from "../core/types";
 import type {
@@ -24,17 +25,19 @@ import type {
 
 /** 谱面横向排版密度；默认舒适模式保持既有几何，紧凑模式用于纸张排版。 */
 export type ILXMLayoutDensity = "comfortable" | "compact";
+/** 编辑保留有限操作空间；成品用于预览、导出与打印。 */
+export type ILXMLayoutPurpose = "editing" | "presentation";
 
 /** 后续歌词、简谱、和弦等内容通过 beatId 贡献额外列宽。 */
 export interface ILXMColumnWidthContributors {
   // TODO 下面是和弦符号、歌词和简谱预留的 BeatId 对应的宽度，当前版本不靠谱
   chordSymbolWidthByBeatId?: Record<string, number>;
   lyricWidthByBeatId?: Record<string, number>;
-  numberedNotationWidthByBeatId?: Record<string, number>;
 }
 
 /** 函数 buildLayout 的可选配置 */
 export interface ILXMLayoutOptions {
+  purpose?: ILXMLayoutPurpose;
   /** 全局指法图显示偏好；省略时沿用单个和弦的旧 display。 */
   showChordDiagrams?: boolean;
   /** 仅编辑态为目标谱行预留空白文本区域，不进入文档。 */
@@ -84,6 +87,8 @@ export interface ILXMLayout {
 
 /** 一条谱面行（system）的几何结果。 */
 export interface ILXMSystemLayout {
+  numberedMarks?: NumberedMarkLayout[];
+  numberedRow?: { y: number; height: number };
   /** 谱行最左侧的竖向收边线，从首弦延伸至第一行歌词上缘或最下层横梁。 */
   leftEdge?: {
     x1: number;
@@ -165,7 +170,11 @@ export interface ILXMTechniqueSegmentLayout {
 
 /** 小节布局结果，包含弦线、beat slot 和音符坐标。 */
 export interface ILXMMeasureLayout {
+  /** 编辑空位与命中共用，同一窗口不重复存储在谱行和命中索引中。 */
+  numberedInputSlots?: import("./numbered-input-layout").NumberedInputSlot[];
   numberedNotation?: NumberedLayout[];
+  numberedSlots: ILXMBeatLayout[];
+  timeAnchors: { tick: number; x: number }[];
   lyrics?: LyricLayout[];
   chordSymbols?: ChordSymbolLayout[];
   visualBounds?: MusicTextRect;
@@ -253,6 +262,10 @@ export interface ILXMMeasureHitBounds {
 
 /** 由 layout 构建的命中索引；当前数据量较小，顺序扫描已足够。 */
 export interface ILXMHitIndex {
+  numberedMarkBounds?: import("./numbered-mark-layout").NumberedMarkLayout[];
+  numberedBounds?: (MusicTextRect & {
+    target: import("../core/types").ILXMNumberedTarget;
+  })[];
   musicTextBounds?: (MusicTextRect & {
     trackId: string;
     measureId: string;
@@ -290,7 +303,9 @@ export interface ILXMHitTarget {
 /** 小节内部节奏列，是 TAB、歌词、简谱未来共享的横向对齐单位。 */
 export interface ILXMRhythmicColumn {
   tick: number;
-  beatIds: string[];
+  tabBeatIds: string[];
+  numberedEventIds: string[];
+  endTick: number;
   rhythmTicks: number;
   durationWeight: number;
   // 取最大值作为列宽

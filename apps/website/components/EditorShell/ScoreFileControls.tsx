@@ -21,6 +21,8 @@ type Candidate = {
   title: string;
   track: string;
   measures: number;
+  upgraded: boolean;
+  sourceVersion: number;
 };
 
 /** 除文档 ID 外核对真实会话与编辑版本，异步读取或确认期间发生编辑时不能覆盖。 */
@@ -119,6 +121,8 @@ export const ScoreFileControls = ({
         bytes,
         name: file.name,
         token,
+        upgraded: checked.upgraded,
+        sourceVersion: checked.sourceVersion,
         title: checked.document.score.title || "未命名曲谱",
         track: checked.document.score.tracks[0]!.name,
         measures: checked.document.score.tracks[0]!.measures.length,
@@ -268,6 +272,12 @@ export const ScoreFileControls = ({
               <button ref={cancelButtonRef} type="button" onClick={close}>
                 取消
               </button>
+              {candidate?.upgraded && (
+                <p>
+                  此文件将从版本 {candidate.sourceVersion}{" "}
+                  显式升级为独立简谱格式，原文件不会被覆盖。
+                </p>
+              )}
               <button type="button" onClick={confirmImport}>
                 导入并替换
               </button>

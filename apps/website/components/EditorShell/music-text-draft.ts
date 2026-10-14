@@ -6,12 +6,29 @@ import type {
 } from "@liuxianmao/lxm-editor";
 import type { ChordDraft } from "./ChordEditor";
 
-export interface MusicTextTarget extends ILXMTabCellReference {
-  kind: "lyric" | "chord" | "numbered";
-  verse?: ILXMLyricVerse;
-}
+export type MusicTextTarget =
+  | (ILXMTabCellReference & {
+      kind: "lyric" | "chord";
+      verse?: ILXMLyricVerse;
+      eventId?: never;
+      itemId?: never;
+      tick?: never;
+      endTick?: never;
+    })
+  | {
+      kind: "numbered";
+      trackId: string;
+      measureId: string;
+      eventId?: string;
+      itemId?: string;
+      tick?: number;
+      endTick?: number;
+      beatId?: string;
+      string?: number;
+      verse?: never;
+    };
 export interface MusicTextDraft {
-  target: MusicTextTarget;
+  target: Extract<MusicTextTarget, { kind: "lyric" | "chord" }>;
   text: string;
   chord: ChordDraft;
   lyricMode: "single" | "sequence";
@@ -28,7 +45,12 @@ export type SidebarAction =
     }
   | { type: "mode"; mode: MusicTextDraft["lyricMode"] }
   | { type: "close" }
-  | { type: "target"; target: MusicTextTarget; focus?: "score" | "input" }
+  | {
+      type: "target";
+      target: MusicTextTarget;
+      focus?: "score" | "input";
+      numberedMarkId?: string;
+    }
   | { type: "tab"; kind: SidebarTab; focus?: "main" | "paragraph" };
 
 /** 只比较正在编辑的字段；谱面弦号不改变音乐文本的业务目标。 */
@@ -63,6 +85,10 @@ export const resolveSidebarRequest = (
       current.trackId === b.trackId &&
       current.measureId === b.measureId &&
       current.beatId === b.beatId &&
+      current.eventId === b.eventId &&
+      current.itemId === b.itemId &&
+      current.tick === b.tick &&
+      current.endTick === b.endTick &&
       current.kind === b.kind &&
       (current.kind !== "lyric" || (current.verse ?? 1) === (b.verse ?? 1))
     )
@@ -88,7 +114,11 @@ export const readMusicTextDraft = (
   const measure = document?.score.tracks
     .find((t) => t.id === target.trackId)
     ?.measures.find((m) => m.id === target.measureId);
-  if (!measure?.beats.some((b) => b.id === target.beatId)) return null;
+  if (
+    target.kind === "numbered" ||
+    !measure?.beats.some((b) => b.id === target.beatId)
+  )
+    return null;
   const verse = target.verse ?? 1;
   const lyric = measure.lyrics.find(
     (l) => l.beatId === target.beatId && l.verse === verse,

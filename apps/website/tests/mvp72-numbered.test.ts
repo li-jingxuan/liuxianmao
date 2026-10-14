@@ -3,11 +3,9 @@ import {
   A4_CONTENT_WIDTH,
   EXAMPLE_MVP_7_2_DOCUMENT,
   buildLayout,
-  hitTestMusicText,
+  hitTestNumbered,
   loadDocument,
-  LXMScoreCommandEnum as C,
   parseNumberedSequence,
-  planNumberedSequence,
   layoutParagraphFocus,
   collectMusicTextMeasureRequests,
   copyChordPreset,
@@ -24,13 +22,15 @@ describe("MVP v7.2 简谱 mock", () => {
     expect(editorStore.getState().document).toEqual(EXAMPLE_MVP_7_2_DOCUMENT);
     const track = EXAMPLE_MVP_7_2_DOCUMENT.score.tracks[0]!;
     expect(track.measures).toHaveLength(8);
-    const beats = track.measures.flatMap((m) => m.beats);
-    expect(beats.filter((b) => b.numberedNotation)).toHaveLength(29);
-    expect(track.measures[5]!.beats[1]!.numberedNotation).toBeUndefined();
-    expect(track.measures[6]!.beats.every((b) => !b.numberedNotation)).toBe(
-      true,
-    );
-    expect(beats.flatMap((b) => b.numberedNotation?.tokens ?? [])).toEqual(
+    const events = track.measures.flatMap((m) => m.numberedVoice.events);
+    expect(events).toHaveLength(29);
+    expect(
+      track.measures[5]!.numberedVoice.events.some(
+        (e) => e.tick === track.measures[5]!.beats[1]!.tick,
+      ),
+    ).toBe(false);
+    expect(track.measures[6]!.numberedVoice.events.length === 0).toBe(true);
+    expect(events.flatMap((e) => e.items.map((i) => i.token))).toEqual(
       expect.arrayContaining(["0", "-", "#4'", "b7.", "1''", "6..."]),
     );
   });
@@ -72,11 +72,14 @@ describe("MVP v7.2 简谱 mock", () => {
             dotCount += notation.dots.length;
             const bounds = notation.bounds;
             expect(
-              hitTestMusicText(layout, {
+              hitTestNumbered(layout, {
                 x: bounds.x + bounds.width / 2,
                 y: bounds.y + bounds.height / 2,
               }),
-            ).toMatchObject({ kind: "numbered", beatId: notation.beatId });
+            ).toMatchObject({
+              kind: "numberedEvent",
+              eventId: notation.eventId,
+            });
             expect(bounds.y).toBeGreaterThan(tabBottom);
             if (lyrics.length)
               expect(bounds.y + bounds.height).toBeLessThan(
@@ -183,16 +186,14 @@ describe("MVP v7.2 简谱 mock", () => {
     const start = {
       trackId: track.id,
       measureId: track.measures[0]!.id,
-      beatId: track.measures[0]!.beats[3]!.id,
+      eventId: track.measures[0]!.numberedVoice.events[3]!.id,
     };
     const parsed = parseNumberedSequence("6 _ 1+3+5 0 1' -");
     if (!parsed.ok) throw Error(parsed.message);
-    expect(
-      planNumberedSequence(before, start, parsed.items).issue,
-    ).not.toBeNull();
+
     expect(
       session.getState().execute({
-        type: C.SetNumberedSequence,
+        type: "numbered.sequence.set",
         ...start,
         items: parsed.items,
         allowOverwrite: false,
@@ -201,7 +202,7 @@ describe("MVP v7.2 简谱 mock", () => {
     expect(session.getState().document).toBe(before);
     expect(
       session.getState().execute({
-        type: C.SetNumberedSequence,
+        type: "numbered.sequence.set",
         ...start,
         items: parsed.items,
         allowOverwrite: true,
@@ -209,16 +210,18 @@ describe("MVP v7.2 简谱 mock", () => {
     ).toBe(true);
     const after = session.getState().document!;
     expect(
-      after.score.tracks[0]!.measures[1]!.beats[0]!.numberedNotation,
-    ).toEqual({ tokens: ["5"] });
+      after.score.tracks[0]!.measures[1]!.numberedVoice.events[0]!.items.map(
+        (i) => i.token,
+      ),
+    ).toEqual(["5"]);
     expect(
-      after.score.tracks[0]!.measures[1]!.beats[1]!.numberedNotation,
-    ).toEqual({ tokens: ["1", "3", "5"] });
+      after.score.tracks[0]!.measures[1]!.numberedVoice.events[1]!.items.map(
+        (i) => i.token,
+      ),
+    ).toEqual(["1", "3", "5"]);
     // 比较完整拍点去掉简谱后的内容，捕获错误修改 TAB 音符、时值或休止的情况。
     const tabContent = (document: typeof before) =>
-      document.score.tracks[0]!.measures.flatMap((m) =>
-        m.beats.map(({ numberedNotation: _notation, ...beat }) => beat),
-      );
+      document.score.tracks[0]!.measures.flatMap((m) => m.beats);
     expect(tabContent(after)).toEqual(tabContent(before));
     expect(session.getState().historyDepth.past).toBe(1);
     session.getState().undo();
@@ -227,30 +230,51 @@ describe("MVP v7.2 简谱 mock", () => {
     expect(session.getState().document).toEqual(after);
   });
 
-  it("空拍可单拍补录及删除，删除可撤销", () => {
-    const session = createEditorSession(EXAMPLE_MVP_7_2_DOCUMENT);
-    const track = session.getState().document!.score.tracks[0]!;
-    const target = {
-      trackId: track.id,
-      measureId: track.measures[5]!.id,
-      beatId: track.measures[5]!.beats[1]!.id,
-    };
+  it("空白时间补录及删除保持 TAB，并可撤销", () => {
+    const session = createEditorSession(EXAMPLE_MVP_7_2_DOCUMENT),
+      track = session.getState().document!.score.tracks[0]!;
+    const m = track.measures[6]!;
+    const tab = structuredClone(m.beats);
+    const r = session
+      .getState()
+      .execute({
+        type: "numbered.range.replace",
+        trackId: track.id,
+        measureId: m.id,
+        startTick: 0,
+        endTick: 480,
+        items: [{ kind: "set", tokens: ["2"] }],
+        rhythms: [{ base: "eighth", dots: 0 }],
+        allowOverwrite: false,
+      });
+    expect(r?.ok).toBe(true);
+    const event =
+      session.getState().document!.score.tracks[0]!.measures[6]!.numberedVoice
+        .events[0]!;
     expect(
       session
         .getState()
-        .execute({ type: C.SetNumbered, ...target, tokens: ["2"] })?.ok,
+        .execute({
+          type: "numbered.event.remove",
+          trackId: track.id,
+          measureId: m.id,
+          eventId: event.id,
+        })?.ok,
     ).toBe(true);
     expect(
-      session.getState().execute({ type: C.RemoveNumbered, ...target })?.ok,
-    ).toBe(true);
-    expect(
-      session.getState().document!.score.tracks[0]!.measures[5]!.beats[1]!
-        .numberedNotation,
-    ).toBeUndefined();
+      session.getState().document!.score.tracks[0]!.measures[6]!.numberedVoice
+        .events,
+    ).toEqual([]);
     session.getState().undo();
     expect(
-      session.getState().document!.score.tracks[0]!.measures[5]!.beats[1]!
-        .numberedNotation,
-    ).toEqual({ tokens: ["2"] });
+      session
+        .getState()
+        .document!.score.tracks[0]!.measures[6]!.numberedVoice.events[0]!.items.map(
+          (i) => i.token,
+        ),
+    ).toEqual(["2"]);
+    expect(
+      session.getState().document!.score.tracks[0]!.measures[6]!.beats,
+    ).toEqual(tab);
   });
 });

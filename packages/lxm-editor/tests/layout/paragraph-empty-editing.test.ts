@@ -4,6 +4,7 @@ import {
   buildLayout,
   EXAMPLE_MVP_6_DOCUMENT,
   hitTestMusicText,
+  hitTestNumbered,
   layoutParagraphFocus,
   LXMScoreCommandEnum,
 } from "../../src";
@@ -14,7 +15,7 @@ const fixture = () => {
   const track = document.score.tracks[0]!;
   for (const m of track.measures) {
     m.lyrics = [];
-    for (const b of m.beats) delete b.numberedNotation;
+    m.numberedVoice = { events: [], tuplets: [] };
   }
   const m = track.measures[0]!;
   return {
@@ -32,6 +33,7 @@ describe("无占位歌词和简谱编辑", () => {
   it("空歌词焦点随拍位宽度伸缩，窄拍保持默认尺寸", () => {
     const { document, target } = fixture();
     const layout = buildLayout(document, {
+      purpose: "editing",
       paragraphEditing: { ...target, kind: "lyric", verse: 1 },
     });
     const beat = layout.systems[0]!.measures[0]!.beats[0]!;
@@ -61,24 +63,33 @@ describe("无占位歌词和简谱编辑", () => {
       const formal = buildLayout(document, { systemWidth: 180 });
       const editing = buildLayout(document, {
         systemWidth: 180,
+        purpose: "editing",
         paragraphEditing: { ...target, kind, verse: 3 },
       });
-      const cell = editing.systems[0]!.musicTextCells!.find(
-        (c) =>
-          c.beatId === target.beatId &&
-          c.kind === kind &&
-          (kind !== "lyric" || c.verse === 3),
-      )!;
-      expect(cell.empty).toBe(true);
+      const cell =
+        kind === "numbered"
+          ? editing.hitIndex.numberedBounds!.find(
+              (c) => c.target.kind === "numberedTime" && c.target.tick === 0,
+            )!
+          : editing.systems[0]!.musicTextCells!.find(
+              (c) =>
+                c.beatId === target.beatId && c.kind === kind && c.verse === 3,
+            )!;
       expect(
-        hitTestMusicText(editing, {
+        (kind === "numbered" ? hitTestNumbered : hitTestMusicText)(editing, {
           x: cell.x + cell.width / 2,
           y: cell.y + cell.height / 2,
         }),
-      ).toMatchObject({ beatId: target.beatId, kind });
+      ).toMatchObject(
+        kind === "numbered"
+          ? { kind: "numberedTime" }
+          : { beatId: target.beatId, kind },
+      );
       expect(
         layoutParagraphFocus(editing, { ...target, kind, verse: 3 })!.y,
-      ).toBe(cell.y);
+      ).toBeGreaterThanOrEqual(
+        formal.systems[0]!.measures[0]!.strings.at(-1)!.y1,
+      );
       expect(editing.systems[0]!.height).toBeGreaterThan(
         formal.systems[0]!.height,
       );
@@ -100,15 +111,28 @@ describe("无占位歌词和简谱编辑", () => {
               verse: 3,
               text: "新词",
             }
-          : { type: LXMScoreCommandEnum.SetNumbered, ...target, tokens: ["3"] },
+          : {
+              type: "numbered.range.replace",
+              trackId: target.trackId,
+              measureId: target.measureId,
+              startTick: 0,
+              endTick: 480,
+              items: [{ kind: "set", tokens: ["3"] }],
+              rhythms: [{ base: "eighth", dots: 0 }],
+              allowOverwrite: false,
+            },
       );
       expect(result.ok).toBe(true);
       if (!result.ok) return;
       const saved = buildLayout(result.document, { systemWidth: 180 });
       expect(
-        saved.systems[0]!.musicTextCells!.some(
-          (c) => c.kind === kind && !c.empty,
-        ),
+        kind === "numbered"
+          ? saved.hitIndex.numberedBounds!.some(
+              (b) => b.target.kind === "numberedEvent",
+            )
+          : saved.systems[0]!.musicTextCells!.some(
+              (c) => c.kind === kind && !c.empty,
+            ),
       ).toBe(true);
     },
   );
@@ -123,7 +147,15 @@ describe("无占位歌词和简谱编辑", () => {
         text: "这是一段较长的歌词",
       },
     ];
-    m.beats[0]!.numberedNotation = { tokens: ["1"] };
+    m.numberedVoice.events = [
+      {
+        id: "num",
+        tick: 0,
+        rhythm: { base: "eighth", dots: 0 },
+        kind: "notes",
+        items: [{ id: "num-item", token: "1" }],
+      },
+    ];
     const layout = buildLayout(document);
     const lyric = layout.systems[0]!.measures[0]!.lyrics![0]!;
     expect(
@@ -132,7 +164,7 @@ describe("无占位歌词和简谱编辑", () => {
         y: lyric.bounds.y + 1,
       })!.id,
     ).toBe("long-lyric");
-    for (const kind of ["lyric", "numbered"] as const) {
+    for (const kind of ["lyric"] as const) {
       const cell = layout.systems[0]!.musicTextCells!.find(
         (c) => c.beatId === m.beats.at(-1)!.id && c.kind === kind,
       )!;

@@ -56,6 +56,8 @@ export const buildLayout = (
   const sourceTrack = document.score.tracks[0];
   if (!sourceTrack) return getDefaultLayout(options);
   const track = chordDisplayTrack(sourceTrack, options.showChordDiagrams);
+  const purpose = options.purpose ?? "presentation";
+  const editing = purpose === "editing" ? options.paragraphEditing : undefined;
 
   const x = options.x ?? LXM_LAYOUT_DEFAULT_X;
   const y = options.y ?? LXM_LAYOUT_DEFAULT_Y;
@@ -79,13 +81,17 @@ export const buildLayout = (
     startBarline: track.startBarline,
     musicTextMetrics: options.musicTextMetrics,
     techniqueInsets: buildTechniqueInsets(track),
+    purpose,
+    editingNumberedMeasureId:
+      editing?.kind === "numbered" ? editing.measureId : undefined,
   });
   const systems = layoutSystemContent(
     track,
     baseSystems,
     systemGapY,
     options.musicTextMetrics,
-    options.paragraphEditing,
+    editing,
+    purpose,
   );
   const lastSystem = systems[systems.length - 1];
 
@@ -118,6 +124,8 @@ export const buildLayout = (
 export {
   hitTestLayout,
   hitTestMusicText,
+  hitTestNumbered,
+  hitTestNumberedMark,
   hitTestTechnique,
   hitTestTechniqueTarget,
 } from "./hit-test";
@@ -136,3 +144,4 @@ export * from "./chord-display";
 
 export * from "./numbered-notation-layout";
 export * from "./page-layout";
+export * from "./numbered-input-layout";

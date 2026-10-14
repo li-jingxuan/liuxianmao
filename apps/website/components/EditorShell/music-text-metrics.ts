@@ -1,3 +1,4 @@
+import { createMusicTextMetricReader } from "./music-text-metric-reader";
 import { useEffect, useMemo, useState, useRef } from "react";
 import {
   collectMusicTextMeasureRequests,
@@ -33,6 +34,7 @@ export const useMusicTextMetrics = (
       document.body.appendChild(svg);
       const metrics: Record<string, ILXMMusicTextMetrics[string]> = {};
       try {
+        const readMetric = createMusicTextMetricReader(svg);
         for (const request of requests) {
           const found = cache.get(request.key);
           if (found) {
@@ -41,28 +43,10 @@ export const useMusicTextMetrics = (
             metrics[request.key] = found;
             continue;
           }
-          const text = document.createElementNS(
-            "http://www.w3.org/2000/svg",
-            "text",
-          );
-          text.textContent = request.text;
-          for (const [key, value] of Object.entries({
-            x: 0,
-            y: 0,
-            "font-family": request.fontFamily,
-            "font-size": request.fontSize,
-            "font-weight": request.fontWeight,
-            "text-anchor": request.textAnchor,
-            "dominant-baseline": "alphabetic",
-          }))
-            text.setAttribute(key, String(value));
-          text.style.whiteSpace = "pre";
-          svg.appendChild(text);
-          let box: DOMRect;
+          let box: ILXMMusicTextMetrics[string];
           try {
-            box = text.getBBox();
+            box = readMetric(request);
           } catch {
-            text.remove();
             continue;
           }
           if (
@@ -80,7 +64,6 @@ export const useMusicTextMetrics = (
             cache.set(request.key, metric);
             if (cache.size > 2048) cache.delete(cache.keys().next().value!);
           }
-          text.remove();
         }
         if (!cancelled) setState({ requests, metrics });
       } finally {

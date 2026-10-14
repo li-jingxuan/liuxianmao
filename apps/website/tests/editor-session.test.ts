@@ -4,6 +4,7 @@ import {
   LXMScoreCommandEnum,
   createCollapsedTabCellSelection,
   getFirstTabCellReference,
+  EXAMPLE_MVP_7_2_DOCUMENT,
 } from "@liuxianmao/lxm-editor";
 import {
   createEditorSession,
@@ -18,6 +19,48 @@ const copyCommand = {
 };
 
 describe("编辑器宿主会话契约", () => {
+  it("简谱编辑、撤销和重做不建立 TAB 选区，独立焦点在历史切换后可解析", () => {
+    const session = createEditorSession(EXAMPLE_MVP_7_2_DOCUMENT),
+      track = EXAMPLE_MVP_7_2_DOCUMENT.score.tracks[0]!,
+      measure = track.measures[0]!,
+      event = measure.numberedVoice.events[0]!;
+    session
+      .getState()
+      .setNumberedSelection({
+        kind: "numberedEvent",
+        trackId: track.id,
+        measureId: measure.id,
+        eventId: event.id,
+        itemId: event.items[0]!.id,
+      });
+    const result = session
+      .getState()
+      .execute({
+        type: "numbered.event.set",
+        trackId: track.id,
+        measureId: measure.id,
+        eventId: event.id,
+        itemId: event.items[0]!.id,
+        tokens: ["n5'"],
+      });
+    expect(result).toMatchObject({ ok: true, changed: true });
+    for (const action of [
+      () => {},
+      session.getState().undo,
+      session.getState().redo,
+    ]) {
+      action();
+      expect(session.getState().selection).toBeNull();
+      expect(session.getState().numberedSelection).toMatchObject({
+        eventId: event.id,
+        itemId: event.items[0]!.id,
+      });
+    }
+    expect(session.getState().historyDepth.past).toBe(1);
+    expect(
+      session.getState().document!.score.tracks[0]!.measures[0]!.beats,
+    ).toEqual(measure.beats);
+  });
   it("仅命令、撤销与重做提交后通知；替换、选择和 no-op 无回发", () => {
     const events: EditorChangeEvent[] = [];
     const session = createEditorSession(input, {
@@ -82,6 +125,7 @@ describe("编辑器宿主会话契约", () => {
       ...invalid.score.tracks[0]!,
       id: "other-track",
       measures: [],
+      numberedMarks: [],
       techniques: [],
     });
     for (const value of ["{", invalid, undefined]) {

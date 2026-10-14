@@ -20,7 +20,12 @@ import {
   LXM_SYSTEM_HEADER_WIDTH,
   LXM_TIME_SIGNATURE_WIDTH,
 } from "./layout-constants";
-import type { ILXMLayoutDensity, ILXMSystemLayout } from "./layout-types";
+import type {
+  ILXMLayoutDensity,
+  ILXMLayoutPurpose,
+  ILXMSystemLayout,
+} from "./layout-types";
+import { numberedLayoutProfile } from "./numbered-layout-profile";
 import { shouldShowTimeSignature } from "./time-signature-layout";
 import { layoutSystemHeader } from "./system-header-layout";
 import { alignSystemRhythm } from "./rhythm-lane-layout";
@@ -30,6 +35,8 @@ import type { TechniqueInsets } from "./technique-spacing";
 
 /** system 断行所需的已解析配置，避免函数内部读取默认常量。 */
 export interface ILXMSystemLayoutOptions {
+  purpose?: ILXMLayoutPurpose;
+  editingNumberedMeasureId?: string;
   musicTextMetrics?: ILXMMusicTextMetrics;
   startX: number;
   startY: number;
@@ -74,6 +81,7 @@ interface ILXMResolveSystemTargetWidthContext {
   intrinsicSystemWidth: number;
   measures: ILXMPendingMeasure[];
   isFinalSystem: boolean;
+  numberedStretch?: number;
 }
 
 /**
@@ -88,12 +96,14 @@ const resolveSystemTargetWidth = ({
   intrinsicSystemWidth,
   measures,
   isFinalSystem,
+  numberedStretch,
 }: ILXMResolveSystemTargetWidthContext): number => {
   // 贪心断行允许单个超宽小节独占一行。它不能被压缩回 systemWidth，否则节奏列会
   // 低于固有宽度，并破坏 measure-spacing 只扩张、不压缩的契约。
   if (intrinsicSystemWidth >= systemWidth) return intrinsicSystemWidth;
 
-  const shouldLimitStretch = isFinalSystem || measures.length === 1;
+  const shouldLimitStretch =
+    numberedStretch !== undefined || isFinalSystem || measures.length === 1;
   if (!shouldLimitStretch) return systemWidth;
 
   const totalContentWidth = measures.reduce(
@@ -102,7 +112,9 @@ const resolveSystemTargetWidth = ({
   );
   const fixedWidth = intrinsicSystemWidth - totalContentWidth;
   const maxReadableWidth =
-    fixedWidth + totalContentWidth * LXM_SPARSE_SYSTEM_MAX_CONTENT_SCALE;
+    fixedWidth +
+    totalContentWidth *
+      (numberedStretch ?? LXM_SPARSE_SYSTEM_MAX_CONTENT_SCALE);
 
   // 对内容已经足够密集的末行，maxReadableWidth 会自然达到 systemWidth，因此仍可
   // 完整对齐页面右边界；短末行则保留真实的右侧画布留白。
@@ -173,6 +185,10 @@ export const layoutSystems = (
         options.musicTextMetrics,
         position === entries.length - 1,
         options.techniqueInsets,
+        {
+          purpose: options.purpose,
+          active: measure.id === options.editingNumberedMeasureId,
+        },
       );
       return {
         measure,
@@ -188,7 +204,7 @@ export const layoutSystems = (
     );
     const chords = columns.flatMap(({ entry, column }, columnIndex) =>
       entry.measure.chordSymbols
-        .filter((symbol) => column.beatIds.includes(symbol.beatId))
+        .filter((symbol) => column.tabBeatIds.includes(symbol.beatId))
         .map((symbol) => ({
           columnIndex,
           bounds: createChordBlock(symbol, options.musicTextMetrics).bounds,
@@ -284,6 +300,13 @@ export const layoutSystems = (
       intrinsicSystemWidth: pendingWidth,
       measures: pendingMeasures,
       isFinalSystem: reason === "final",
+      numberedStretch: pendingMeasures.some(
+        ({ measure }) =>
+          measure.numberedVoice.events.length ||
+          measure.id === options.editingNumberedMeasureId,
+      )
+        ? numberedLayoutProfile(options.purpose).stretch
+        : undefined,
     });
     const remainingWidth = targetStaffWidth - pendingWidth;
     const flexibleWidths = pendingMeasures.map(

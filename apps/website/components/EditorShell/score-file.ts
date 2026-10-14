@@ -1,6 +1,8 @@
 import {
   A4_CONTENT_WIDTH,
   buildLayout,
+  CURRENT_SCHEMA_VERSION,
+  upgradeDocumentToCurrent,
   type ILXMDocument,
 } from "@liuxianmao/lxm-editor";
 import { loadEditorDocument } from "../../stores/editor-store";
@@ -15,7 +17,12 @@ const MAX_BEATS = 20_000;
 const MAX_TECHNIQUES = 20_000;
 
 type FileResult =
-  | { ok: true; document: ILXMDocument }
+  | {
+      ok: true;
+      document: ILXMDocument;
+      sourceVersion: number;
+      upgraded: boolean;
+    }
   | { ok: false; errors: string[] };
 export type ExportResult =
   | { ok: true; text: string; name: string }
@@ -75,8 +82,8 @@ const inspectStructure = (
         if (
           serializing &&
           child === undefined &&
-          ((key === "numberedNotation" && "notes" in item) ||
-            (key === "sectionLabel" && "beats" in item))
+          key === "sectionLabel" &&
+          "beats" in item
         )
           continue;
         stack.push({ value: child, depth: current.depth + 1 });
@@ -92,10 +99,12 @@ const inspectMusicScale = (document: ILXMDocument): string | null => {
   let beats = 0;
   let techniques = 0;
   for (const track of document.score.tracks) {
-    techniques += track.techniques.length;
+    techniques += track.techniques.length + track.numberedMarks.length;
     for (const measure of track.measures) {
       measures += 1;
-      beats += measure.beats.length;
+      beats += measure.beats.length + measure.numberedVoice.events.length;
+      techniques +=
+        measure.tuplets.length + measure.numberedVoice.tuplets.length;
     }
   }
   if (
@@ -136,10 +145,30 @@ const inspectScene = (document: ILXMDocument): string | null => {
       )
     )
       return "曲谱布局不完整，无法导入";
+    for (const [i, measure] of measures.entries()) {
+      const source = document.score.tracks[0]!.measures[i]!;
+      if (
+        JSON.stringify(measure.numberedSlots.map((e) => e.id)) !==
+          JSON.stringify(source.numberedVoice.events.map((e) => e.id)) ||
+        JSON.stringify(
+          (measure.numberedNotation ?? []).map((e) => e.eventId),
+        ) !==
+          JSON.stringify(
+            source.numberedVoice.events
+              .filter((e) => e.kind !== "gap")
+              .map((e) => e.id),
+          ) ||
+        measure.timeAnchors.some(
+          (a) => !Number.isFinite(a.x) || !Number.isInteger(a.tick),
+        )
+      )
+        return "简谱布局或时间锚点不完整，无法导入";
+    }
     const scene = buildScoreScene(layout);
     if (scene.systems.length !== layout.systems.length)
       return "曲谱场景不完整，无法导入";
-    const error = inspectStructure({ layout, scene });
+    // 两份投影各自受限；不能把同一音乐事实重复投影的节点相加后误拒绝常规长谱。
+    const error = inspectStructure(layout) ?? inspectStructure(scene);
     if (error) return `曲谱布局无效：${error}`;
     return null;
   } catch {
@@ -159,13 +188,27 @@ export const inspectScoreFile = (text: string): FileResult => {
   }
   const structureError = inspectStructure(raw);
   if (structureError) return fail(structureError);
-  const loaded = loadEditorDocument(raw);
+  const sourceVersion =
+    raw &&
+    typeof raw === "object" &&
+    "schemaVersion" in raw &&
+    typeof raw.schemaVersion === "number"
+      ? raw.schemaVersion
+      : 0;
+  const upgraded = [4, 5, 6, 7].includes(sourceVersion);
+  const candidate = upgraded ? upgradeDocumentToCurrent(raw) : null;
+  if (candidate && !candidate.ok) return candidate;
+  const loaded = loadEditorDocument(candidate?.ok ? candidate.document : raw);
   if (!loaded.ok) return loaded;
   const scaleError = inspectMusicScale(loaded.document);
   if (scaleError) return fail(scaleError);
   const sceneError = inspectScene(loaded.document);
   if (sceneError) return fail(sceneError);
-  return loaded;
+  return {
+    ...loaded,
+    sourceVersion: sourceVersion || CURRENT_SCHEMA_VERSION,
+    upgraded,
+  };
 };
 
 /** 使用严格 UTF-8 解码；错误字节不能被替换字符掩盖并写入谱面。 */

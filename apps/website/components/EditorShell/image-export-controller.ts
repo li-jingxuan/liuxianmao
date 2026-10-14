@@ -1,3 +1,4 @@
+import { createMusicTextMetricReader } from "./music-text-metric-reader";
 import {
   buildLayout,
   collectMusicTextMeasureRequests,
@@ -76,24 +77,10 @@ const measureScoreText = (
   document.body.appendChild(svg);
   const metrics: Record<string, ILXMMusicTextMetrics[string]> = {};
   try {
+    const readMetric = createMusicTextMetricReader(svg);
     for (const r of collectMusicTextMeasureRequests(score, showChordDiagrams)) {
       if (!r.text) continue;
-      const text = document.createElementNS(
-        "http://www.w3.org/2000/svg",
-        "text",
-      );
-      text.textContent = r.text;
-      text.style.whiteSpace = "pre";
-      for (const [key, value] of Object.entries({
-        "font-family": r.fontFamily,
-        "font-size": r.fontSize,
-        "font-weight": r.fontWeight,
-        "text-anchor": r.textAnchor,
-        "dominant-baseline": "alphabetic",
-      }))
-        text.setAttribute(key, String(value));
-      svg.appendChild(text);
-      const b = text.getBBox();
+      const b = readMetric(r);
       if (
         ![b.x, b.y, b.width, b.height].every(Number.isFinite) ||
         b.width <= 0 ||
@@ -101,7 +88,6 @@ const measureScoreText = (
       )
         throw new Error("文字度量失败，请重试图片导出");
       metrics[r.key] = { x: b.x, y: b.y, width: b.width, height: b.height };
-      text.remove();
     }
     return metrics;
   } finally {
@@ -110,7 +96,7 @@ const measureScoreText = (
 };
 
 /** 字体就绪后生成快照，不读取旧布局或尚未应用的表单草稿。 */
-export const prepareScoreImages = async (
+export const prepareScorePresentation = async (
   score: ILXMDocument,
   density: ILXMLayoutDensity,
   showChordDiagrams: boolean,
@@ -131,6 +117,7 @@ export const prepareScoreImages = async (
   const metrics = measureScoreText(score, showChordDiagrams);
   checkCancelled(signal);
   const layout = buildLayout(score, {
+    purpose: "presentation",
     systemWidth: A4_CONTENT_WIDTH,
     density,
     showChordDiagrams,
@@ -160,6 +147,8 @@ export const prepareScoreImages = async (
     title: score.score.title,
   };
 };
+/** 兼容图片调用入口；打印与预览使用同一成品准备过程。 */
+export const prepareScoreImages = prepareScorePresentation;
 /** 一页一个画布，图片编码完成后立即释放像素内存。 */
 export const encodeScorePage = async (
   prepared: PreparedScoreImages,

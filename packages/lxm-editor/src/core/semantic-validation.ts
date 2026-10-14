@@ -1,3 +1,5 @@
+import { validateNumberedVoice } from "./numbered-rhythm";
+import { validateNumberedMarks } from "./numbered-marks";
 import { validateTuning } from "./tuning";
 /**
  * 乐谱语义校验。
@@ -11,6 +13,8 @@ import { validateTechnique } from "./technique-rules";
 import type { ILXMDocument, ILXMMeasure } from "./types";
 
 export type ILXMSemanticValidationIssueCode =
+  | "INVALID_NUMBERED_VOICE"
+  | "INVALID_NUMBERED_MARK"
   | "INVALID_RHYTHM"
   | "BEAT_TICK_NOT_CONTIGUOUS"
   | "MEASURE_CAPACITY_MISMATCH"
@@ -237,6 +241,34 @@ export const validateDocumentSemantics = (
         issues,
       ),
     );
+    track.measures.forEach((m, mi) => {
+      const path = `${trackPath}.measures.${mi}.numberedVoice`;
+      m.numberedVoice.events.forEach((e, ei) => {
+        registerId(e.id, `${path}.events.${ei}.id`);
+        e.items.forEach((item, ii) =>
+          registerId(item.id, `${path}.events.${ei}.items.${ii}.id`),
+        );
+      });
+      m.numberedVoice.tuplets.forEach((g, gi) =>
+        registerId(g.id, `${path}.tuplets.${gi}.id`),
+      );
+      const message = validateNumberedVoice(
+        m.numberedVoice,
+        getMeasureCapacityTicks(m.timeSignature),
+      );
+      if (message)
+        issues.push({ code: "INVALID_NUMBERED_VOICE", path, message });
+    });
+    track.numberedMarks.forEach((mark, i) =>
+      registerId(mark.id, `${trackPath}.numberedMarks.${i}.id`),
+    );
+    const numberedError = validateNumberedMarks(track);
+    if (numberedError)
+      issues.push({
+        code: "INVALID_NUMBERED_MARK",
+        path: `${trackPath}.numberedMarks`,
+        message: numberedError,
+      });
     track.techniques.forEach((technique, techniqueIndex) => {
       const techniquePath = `${trackPath}.techniques.${techniqueIndex}`;
       registerId(technique.id, `${techniquePath}.id`);

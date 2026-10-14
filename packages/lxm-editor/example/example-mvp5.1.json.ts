@@ -110,6 +110,7 @@ const measures: ILXMMeasure[] = scenarios.map((scenario, index) => {
     barline: index === 7 ? "final" : "single",
     lyrics: [],
     chordSymbols: [],
+    numberedVoice: { events: [], tuplets: [] },
     tuplets: [
       {
         id: `${prefix}-tuplet`,

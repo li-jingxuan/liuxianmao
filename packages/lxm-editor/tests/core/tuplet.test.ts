@@ -83,6 +83,7 @@ const create = (
       tracks: [
         {
           ...v5.score.tracks[0]!,
+          numberedMarks: [],
           techniques: [],
           measures: [
             {
@@ -91,6 +92,7 @@ const create = (
               barline: "single",
               lyrics: [],
               chordSymbols: [],
+              numberedVoice: { events: [], tuplets: [] },
               tuplets: [],
               beats: [...beats, ...rests],
             },
@@ -137,7 +139,7 @@ describe("tuplet 时间与严格模型", () => {
   });
   it("旧版本或缺必填字段明确拒绝", () => {
     const doc = create(3);
-    expect(CURRENT_SCHEMA_VERSION).toBe(7);
+    expect(CURRENT_SCHEMA_VERSION).toBe(8);
     expect(
       LXMDocumentSchema.safeParse({ ...doc, schemaVersion: 1 }).success,
     ).toBe(false);

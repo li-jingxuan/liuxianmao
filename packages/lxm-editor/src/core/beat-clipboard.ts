@@ -1,6 +1,17 @@
+import { copyNumberedVoices } from "./numbered-copy";
+import {
+  createNumberedRhythmContext,
+  validateNumberedVoice,
+} from "./numbered-rhythm";
+import { validateNumberedMarks } from "./numbered-marks";
 import { TICKS_PER_QUARTER } from "./constants";
 import { z } from "zod";
-import { LXMMeasureSchema, LXMTechniqueSchema } from "./schema";
+import {
+  LXMMeasureSchema,
+  LXMTechniqueSchema,
+  LXMNumberedVoiceSchema,
+  LXMNumberedMarkSchema,
+} from "./schema";
 import { createDocumentIdFactory } from "./id-factory";
 import type { ILXMIdFactory } from "./id-factory";
 import type { ILXMDocument, ILXMMeasure, ILXMTrack } from "./types";
@@ -13,6 +24,7 @@ import {
   reconcileMeasureTimeline,
 } from "./measure-timeline";
 import type { ILXMCommandEffect } from "./command-effects";
+import { collectNumberedOmissionEffects } from "./command-effects";
 const contentSchema = LXMMeasureSchema.pick({
   beats: true,
   lyrics: true,
@@ -22,7 +34,11 @@ const contentSchema = LXMMeasureSchema.pick({
 const clipboardSchema = z
   .object({
     format: z.literal("lxm-beat-clipboard"),
-    version: z.literal(1),
+    version: z.literal(2),
+    layers: z.enum(["tab", "both"]),
+    numberedVoice: LXMNumberedVoiceSchema.nullable(),
+    numberedMarks: z.array(LXMNumberedMarkSchema),
+    numberedOmissions: z.array(z.string()),
     content: contentSchema,
     techniques: z.array(LXMTechniqueSchema),
     totalTicks: z.number().int().positive(),
@@ -64,12 +80,14 @@ export interface BeatClipboardRange {
   measureId: string;
   startBeatId: string;
   endBeatId: string;
+  layers?: "tab" | "both";
 }
 /** 使用局部载荷构造校验上下文，不把部分小节错误地按完整小节容量校验。 */
 const sliceMeasure = (content: BeatClipboard["content"]): ILXMMeasure => ({
   id: "clipboard-measure",
   timeSignature: { numerator: 4, denominator: 4 },
   barline: "single",
+  numberedVoice: { events: [], tuplets: [] },
   ...content,
 });
 export const validateBeatClipboard = (
@@ -94,6 +112,12 @@ export const validateBeatClipboard = (
       ...m.lyrics.map((l) => l.id),
       ...m.chordSymbols.map((s) => s.id),
       ...c.techniques.map((t) => t.id),
+      ...(c.numberedVoice?.events.flatMap((e) => [
+        e.id,
+        ...e.items.map((i) => i.id),
+      ]) ?? []),
+      ...(c.numberedVoice?.tuplets.map((g) => g.id) ?? []),
+      ...c.numberedMarks.map((m) => m.id),
     ];
   const reject = (message: string) => ({ ok: false as const, message });
   if (ids.some((id) => !id) || new Set(ids).size !== ids.length)
@@ -144,7 +168,25 @@ export const validateBeatClipboard = (
     tick += d.ticks;
   }
   if (tick !== c.totalTicks) return reject("快照总时值不一致。");
-  const track = { ...template, measures: [m], techniques: c.techniques };
+  if (
+    (c.layers === "tab" &&
+      (c.numberedVoice !== null || c.numberedMarks.length)) ||
+    (c.layers === "both" && !c.numberedVoice)
+  )
+    return reject("快照所选谱层与内容不一致");
+  const numberedError =
+    c.numberedVoice && validateNumberedVoice(c.numberedVoice, c.totalTicks);
+  if (numberedError) return reject(numberedError);
+  const track = {
+    ...template,
+    measures: [
+      { ...m, numberedVoice: c.numberedVoice ?? { events: [], tuplets: [] } },
+    ],
+    techniques: c.techniques,
+    numberedMarks: c.numberedMarks,
+  };
+  const marksError = validateNumberedMarks(track);
+  if (marksError) return reject(marksError);
   for (const t of c.techniques) {
     const r = validateTechnique(track, t, t.id);
     if (!r.ok) return reject(r.error.message);
@@ -157,8 +199,13 @@ const copyContent = (
   techniques: BeatClipboard["techniques"],
   template: ILXMTrack,
   factory: ILXMIdFactory,
+  numberedVoice: BeatClipboard["numberedVoice"],
+  numberedMarks: BeatClipboard["numberedMarks"],
 ) => {
-  const source = sliceMeasure(content),
+  const source = {
+      ...sliceMeasure(content),
+      numberedVoice: numberedVoice ?? { events: [], tuplets: [] },
+    },
     beatMap = new Map(source.beats.map((b) => [b.id, factory.createBeatId()]));
   const copy = {
     ...source,
@@ -189,7 +236,16 @@ const copyContent = (
     [copy],
     factory,
   ).techniques;
-  return { measure: copy, techniques: mapped };
+  const numbered = copyNumberedVoices(
+    { ...template, numberedMarks },
+    [source],
+    factory,
+  );
+  return {
+    measure: { ...copy, numberedVoice: numbered.voices[0]! },
+    techniques: mapped,
+    numberedMarks: numbered.marks,
+  };
 };
 /** 复制只有临时结果，不改变文档、revision 或宿主通知。 */
 export const createBeatClipboard = (
@@ -243,10 +299,75 @@ export const createBeatClipboard = (
       const d = context.getBeatDurationTicks(b);
       return sum + (d.ok ? d.ticks : Infinity);
     }, 0);
+  const layers = range.layers ?? "both";
+  const startTick = beats[0]!.tick,
+    endTick = startTick + totalTicks;
+  const numberedContext = createNumberedRhythmContext(m.numberedVoice);
+  const selectedEvents = m.numberedVoice.events.filter((e) => {
+    const d = numberedContext.getEventDurationTicks(e);
+    return d.ok && e.tick < endTick && e.tick + d.ticks > startTick;
+  });
+  const selectedIds = new Set(selectedEvents.map((e) => e.id));
+  if (
+    layers === "both" &&
+    (selectedEvents.some((e) => {
+      const d = numberedContext.getEventDurationTicks(e);
+      return e.tick < startTick || !d.ok || e.tick + d.ticks > endTick;
+    }) ||
+      m.numberedVoice.tuplets.some(
+        (g) =>
+          g.eventIds.some((id) => selectedIds.has(id)) &&
+          !g.eventIds.every((id) => selectedIds.has(id)),
+      ))
+  )
+    return {
+      ok: false,
+      message: "复制范围切断简谱事件或连音组，请扩大范围或仅复制六线谱",
+    };
+  const itemIds = new Set(
+    selectedEvents.flatMap((e) => e.items.map((i) => i.id)),
+  );
+  const internal = track.numberedMarks.filter((mark) =>
+    mark.type === "tie"
+      ? itemIds.has(mark.fromItemId) && itemIds.has(mark.toItemId)
+      : mark.type === "slur"
+        ? selectedIds.has(mark.fromEventId) && selectedIds.has(mark.toEventId)
+        : selectedIds.has(mark.eventId),
+  );
+  const numberedVoice =
+    layers === "both"
+      ? {
+          events: selectedEvents.map((e) => ({
+            ...structuredClone(e),
+            tick: e.tick - startTick,
+          })),
+          tuplets: m.numberedVoice.tuplets
+            .filter((g) => g.eventIds.every((id) => selectedIds.has(id)))
+            .map((g) => structuredClone(g)),
+        }
+      : null;
   return validateBeatClipboard(
     {
       format: "lxm-beat-clipboard",
-      version: 1,
+      version: 2,
+      layers,
+      numberedVoice,
+      numberedMarks: layers === "both" ? structuredClone(internal) : [],
+      numberedOmissions:
+        layers === "both"
+          ? track.numberedMarks
+              .filter(
+                (m) =>
+                  !internal.includes(m) &&
+                  (m.type === "tie"
+                    ? itemIds.has(m.fromItemId) || itemIds.has(m.toItemId)
+                    : m.type === "slur"
+                      ? selectedIds.has(m.fromEventId) ||
+                        selectedIds.has(m.toEventId)
+                      : false),
+              )
+              .map((m) => m.id)
+          : [],
       content,
       techniques: mapped.techniques,
       totalTicks,
@@ -274,6 +395,7 @@ export type BeatPastePlan =
       replacedChords: number;
       count: number;
       removedTechniques: number;
+      removedNumberedMarks: number;
       replacedBeats: number;
       effects: ILXMCommandEffect[];
     }
@@ -303,7 +425,14 @@ export const planBeatPaste = (
   if (target.mode === "insert" && group && group.beatIds[0] !== target.beatId)
     return reject("不能插入连音组内部。");
   const factory = createDocumentIdFactory(document),
-    copy = copyContent(c.content, c.techniques, track, factory);
+    copy = copyContent(
+      c.content,
+      c.techniques,
+      track,
+      factory,
+      c.numberedVoice,
+      c.numberedMarks,
+    );
   const removed = new Set<string>();
   let end = index,
     requiresConfirmation = false;
@@ -327,9 +456,7 @@ export const planBeatPaste = (
     )
       return reject("不能覆盖部分连音组。");
     requiresConfirmation =
-      m.beats
-        .slice(index, end)
-        .some((b) => b.kind === "notes" || b.numberedNotation) ||
+      m.beats.slice(index, end).some((b) => b.kind === "notes") ||
       m.lyrics.some((l) => removed.has(l.beatId)) ||
       m.chordSymbols.some((s) => removed.has(s.beatId)) ||
       m.tuplets.some((g) => g.beatIds.some((id) => removed.has(id)));
@@ -389,13 +516,107 @@ export const planBeatPaste = (
   if (!reconciled.ok)
     return reject("小节剩余容量不足或时值无法精确表示，未粘贴。");
   candidate = reconciled.measure;
+  let numberedRemoved = 0;
+  if (c.layers === "both") {
+    const start = m.beats[index]!.tick,
+      end = start + c.totalTicks;
+    const ncontext = createNumberedRhythmContext(m.numberedVoice);
+    const touched = m.numberedVoice.events.filter((e) => {
+      const d = ncontext.getEventDurationTicks(e);
+      return (
+        d.ok &&
+        (target.mode === "insert"
+          ? e.tick < start && e.tick + d.ticks > start
+          : e.tick < end && e.tick + d.ticks > start)
+      );
+    });
+    if (
+      (target.mode === "insert" && touched.length) ||
+      (target.mode === "overwrite" &&
+        touched.some((e) => {
+          const d = ncontext.getEventDurationTicks(e);
+          return e.tick < start || !d.ok || e.tick + d.ticks > end;
+        }))
+    )
+      return reject("目标范围不能切断简谱事件");
+    const ids = new Set(touched.map((e) => e.id));
+    if (
+      m.numberedVoice.tuplets.some(
+        (g) =>
+          g.eventIds.some((id) => ids.has(id)) &&
+          !g.eventIds.every((id) => ids.has(id)),
+      )
+    )
+      return reject("目标范围不能切断简谱连音组");
+    if (
+      target.mode === "insert" &&
+      m.numberedVoice.tuplets.some((g) => {
+        const first = m.numberedVoice.events.find(
+            (e) => e.id === g.eventIds[0],
+          )!,
+          last = m.numberedVoice.events.find(
+            (e) => e.id === g.eventIds.at(-1),
+          )!;
+        const d = ncontext.getEventDurationTicks(last);
+        return d.ok && first.tick < start && last.tick + d.ticks > start;
+      })
+    )
+      return reject("不能插入简谱连音组内部");
+    const kept = m.numberedVoice.events
+      .filter((e) => !ids.has(e.id))
+      .map((e) =>
+        target.mode === "insert" && e.tick >= start
+          ? { ...e, tick: e.tick + c.totalTicks }
+          : e,
+      );
+    candidate = {
+      ...candidate,
+      numberedVoice: {
+        events: [
+          ...kept,
+          ...copy.measure.numberedVoice.events.map((e) => ({
+            ...e,
+            tick: e.tick + start,
+          })),
+        ].sort((a, b) => a.tick - b.tick),
+        tuplets: [
+          ...m.numberedVoice.tuplets.filter(
+            (g) => !g.eventIds.some((id) => ids.has(id)),
+          ),
+          ...copy.measure.numberedVoice.tuplets,
+        ],
+      },
+    };
+    candidate.numberedVoice.tuplets.sort(
+      (a, b) =>
+        candidate.numberedVoice.events.findIndex(
+          (e) => e.id === a.eventIds[0],
+        ) -
+        candidate.numberedVoice.events.findIndex((e) => e.id === b.eventIds[0]),
+    );
+    const error = validateNumberedVoice(
+      candidate.numberedVoice,
+      (m.timeSignature.numerator * 3840) / m.timeSignature.denominator,
+    );
+    if (error) return reject(error);
+    numberedRemoved = touched.length;
+    requiresConfirmation ||= numberedRemoved > 0;
+  }
   const base = {
     ...track,
     measures: track.measures.map((x) => (x.id === m.id ? candidate : x)),
     techniques: track.techniques,
   };
   const kept: typeof track.techniques = [];
-  const effects: ILXMCommandEffect[] = [...c.omissions];
+  const effects: ILXMCommandEffect[] = [
+    ...c.omissions,
+    ...collectNumberedOmissionEffects(
+      document,
+      track.id,
+      m.id,
+      c.numberedOmissions,
+    ),
+  ];
   let removedTechniques = 0;
   // 只清理目标既有的失效关系，副本非法/冲突一律拒绝，不按数组顺序修复。
   for (const t of track.techniques) {
@@ -414,7 +635,20 @@ export const planBeatPaste = (
     }
   }
   if (removedTechniques) requiresConfirmation ||= target.mode === "overwrite";
-  const next = { ...base, techniques: [...kept, ...copy.techniques] };
+  const keptNumbered = track.numberedMarks.filter(
+    (mark) => !validateNumberedMarks({ ...base, numberedMarks: [mark] }),
+  );
+  requiresConfirmation ||= keptNumbered.length !== track.numberedMarks.length;
+  const next = {
+    ...base,
+    techniques: [...kept, ...copy.techniques],
+    numberedMarks: [
+      ...keptNumbered,
+      ...(c.layers === "both" ? copy.numberedMarks : []),
+    ],
+  };
+  const numberedMarksError = validateNumberedMarks(next);
+  if (numberedMarksError) return reject(numberedMarksError);
   for (const t of next.techniques) {
     const result = validateTechnique(next, t, t.id);
     if (!result.ok) return reject(result.error.message);
@@ -434,9 +668,7 @@ export const planBeatPaste = (
     track: next,
     durationLabel: `${numerator}${denominator === 1 ? "" : "/" + denominator} 个四分拍`,
     replacedLyrics: m.lyrics.filter((l) => removed.has(l.beatId)).length,
-    replacedNumbered: m.beats.filter(
-      (b) => removed.has(b.id) && b.numberedNotation,
-    ).length,
+    replacedNumbered: numberedRemoved,
     replacedChords: m.chordSymbols.filter((c) => removed.has(c.beatId)).length,
     nextFocus: {
       trackId: track.id,
@@ -456,6 +688,7 @@ export const planBeatPaste = (
     requiresConfirmation,
     count: c.content.beats.length,
     removedTechniques,
+    removedNumberedMarks: track.numberedMarks.length - keptNumbered.length,
     replacedBeats: removed.size,
     effects,
   };
