@@ -111,4 +111,20 @@ describe("音乐文本侧栏草稿保护", () => {
       }),
     ).toBe("execute");
   });
+  it("连续歌词回填所选拍点，空拍保留跳拍位置", () => {
+    const { document, target, measure } = fixture();
+    measure.lyrics = [
+      { id: "first-word", beatId: measure.beats[0]!.id, verse: 1, text: "春" },
+      { id: "third-word", beatId: measure.beats[2]!.id, verse: 1, text: "风" },
+    ];
+    const focus = { ...target, beatId: measure.beats[2]!.id };
+    const selection = { anchor: target, focus };
+    const draft = readMusicTextDraft(document, focus, "sequence", selection)!;
+    expect(draft.target.beatId).toBe(target.beatId);
+    expect(draft.text).toBe("春 _ 风");
+    expect(draft.initial).toBeDefined();
+    expect(resolveSidebarRequest(draft, { type: "close" })).toBe("execute");
+    expect(readMusicTextDraft(document, target, "sequence")?.text).toBe("春");
+    expect(readMusicTextDraft(document, target, "single")?.text).toBe("春");
+  });
 });

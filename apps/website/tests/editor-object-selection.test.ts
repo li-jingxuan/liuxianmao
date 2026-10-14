@@ -219,6 +219,26 @@ describe("谱面对象选择与文字页签解耦", () => {
       ),
     ).toBe("confirm");
   });
+  it("同拍切换到另一个简谱事件不进入阻断确认", () => {
+    const { target } = fixture();
+    const first = {
+      ...target,
+      kind: "numbered" as const,
+      eventId: "first",
+      itemId: "first-item",
+    };
+    const second = { ...first, eventId: "second", itemId: "second-item" };
+    expect(
+      resolveSidebarRequest(
+        null,
+        { type: "target", target: second },
+        {
+          numberedTarget: first,
+          numberedDirty: true,
+        },
+      ),
+    ).toBe("execute");
+  });
 
   it("待选区按最新文档校验；失效 ID 不按旧像素重选", () => {
     const { document, selection } = fixture();

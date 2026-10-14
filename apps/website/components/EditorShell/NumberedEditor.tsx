@@ -20,6 +20,7 @@ import {
   type ILXMApplyScoreCommandResult,
   type ILXMScoreCommand,
   type ILXMTabCellReference,
+  type ILXMTabCellSelection,
   type ILXMRhythmBase,
   type ILXMNumberedVoiceCommand,
 } from "@liuxianmao/lxm-editor";
@@ -36,6 +37,24 @@ export interface NumberedEditorController {
   apply: () => boolean;
   discard: () => void;
   focus: () => void;
+  snapshot: () => NumberedEditorDraft;
+}
+/** 切换简谱目标时暂存纯 UI 输入，不提前写入曲谱或撤销历史。 */
+export interface NumberedEditorDraft {
+  selectedId: string;
+  start: number;
+  end: number;
+  raw: string;
+  initial: string;
+  overwrite: boolean;
+  base: ILXMRhythmBase;
+  dots: number;
+  template: string;
+  itemId: string;
+  destination: string;
+  customRhythms: { base: ILXMRhythmBase; dots: number }[];
+  ratioIndex: number;
+  itemDraft: string;
 }
 const bases: { value: ILXMRhythmBase; label: string }[] = [
   { value: "whole", label: "全音" },
@@ -50,6 +69,7 @@ export const NumberedEditor = ({
   ref,
   document,
   target,
+  selection,
   commit,
   onDirty,
   onInputActive,
@@ -62,10 +82,13 @@ export const NumberedEditor = ({
   getClipboard,
   copyRange,
   selectedMarkId,
+  savedDraft,
+  onSelectTarget,
 }: {
   ref: Ref<NumberedEditorController>;
   document: ILXMDocument;
   target: MusicTextTarget | ILXMTabCellReference | null;
+  selection?: ILXMTabCellSelection | null;
   commit: (c: ILXMScoreCommand) => ILXMApplyScoreCommandResult | null;
   onDirty: (v: boolean) => void;
   onInputActive: (v: boolean) => void;
@@ -78,6 +101,8 @@ export const NumberedEditor = ({
   onModeChange: (m: "single" | "sequence") => void;
   onCancel: () => void;
   selectedMarkId: string | null;
+  savedDraft?: NumberedEditorDraft;
+  onSelectTarget: (target: MusicTextTarget) => void;
 }) => {
   const resolved = useMemo(
     () => resolveNumberedEditorTarget(document, target),
@@ -85,11 +110,57 @@ export const NumberedEditor = ({
   );
   const track = document.score.tracks.find((t) => t.id === resolved?.trackId);
   const measure = track?.measures.find((m) => m.id === resolved?.measureId);
-  const firstEvent =
+  const targetEvent =
     resolved?.kind === "numberedEvent"
       ? measure?.numberedVoice.events.find((e) => e.id === resolved.eventId)
       : undefined;
-  const [selectedId, setSelectedId] = useState(firstEvent?.id ?? "");
+  const sourceBeat =
+    target && "beatId" in target && target.beatId
+      ? measure?.beats.find((beat) => beat.id === target.beatId)
+      : undefined;
+  const selectedBeats =
+    sourceBeat &&
+    selection &&
+    selection.focus.trackId === track?.id &&
+    selection.focus.measureId === measure?.id &&
+    selection.focus.beatId === sourceBeat.id &&
+    selection.anchor.measureId === measure?.id
+      ? measure?.beats.filter((beat) => {
+          const anchor = measure.beats.find(
+            (item) => item.id === selection.anchor.beatId,
+          );
+          return (
+            anchor &&
+            beat.tick >= Math.min(anchor.tick, sourceBeat.tick) &&
+            beat.tick <= Math.max(anchor.tick, sourceBeat.tick)
+          );
+        })
+      : sourceBeat
+        ? [sourceBeat]
+        : [];
+  const firstBeat = selectedBeats[0];
+  const lastBeat = selectedBeats.at(-1);
+  const lastIndex = lastBeat
+    ? (measure?.beats.findIndex((beat) => beat.id === lastBeat.id) ?? -1)
+    : -1;
+  const selectedEnd =
+    lastIndex >= 0
+      ? (measure?.beats[lastIndex + 1]?.tick ??
+        (measure!.timeSignature.numerator * 3840) /
+          measure!.timeSignature.denominator)
+      : 0;
+  // 从 TAB 选区进入连续简谱时回填其中已有事件，保留各事件原时值。
+  const selectedEvents = firstBeat
+    ? (measure?.numberedVoice.events.filter(
+        (event) => event.tick >= firstBeat.tick && event.tick < selectedEnd,
+      ) ?? [])
+    : targetEvent
+      ? [targetEvent]
+      : [];
+  const firstEvent = selectedEvents[0] ?? targetEvent;
+  const [selectedId, setSelectedId] = useState(
+    savedDraft?.selectedId ?? firstEvent?.id ?? "",
+  );
   const event = measure?.numberedVoice.events.find((e) => e.id === selectedId);
   const window =
     event && measure
@@ -102,32 +173,45 @@ export const NumberedEditor = ({
       : resolved
         ? numberedTargetWindow(document, resolved)
         : { start: 0, end: 960 };
-  const [start, setStart] = useState(window.start),
-    [end, setEnd] = useState(window.end);
+  const [start, setStart] = useState(savedDraft?.start ?? window.start),
+    [end, setEnd] = useState(savedDraft?.end ?? window.end);
   const value =
     mode === "single"
       ? (firstEvent?.items.map((i) => i.token).join("+") ?? "")
-      : "";
-  const [raw, setRaw] = useState(value),
-    [initial, setInitial] = useState(value),
-    [overwrite, setOverwrite] = useState(false);
+      : selectedEvents.some((item) => item.items.length)
+        ? selectedEvents
+            .map((item) =>
+              item.items.length
+                ? item.items.map((note) => note.token).join("+")
+                : "_",
+            )
+            .join(" ")
+        : "";
+  const [raw, setRaw] = useState(savedDraft?.raw ?? value),
+    [initial, setInitial] = useState(savedDraft?.initial ?? value),
+    [overwrite, setOverwrite] = useState(savedDraft?.overwrite ?? false);
   const [base, setBase] = useState<ILXMRhythmBase>(
-      firstEvent?.rhythm.base ??
+      savedDraft?.base ??
+        firstEvent?.rhythm.base ??
         numberedRhythmForTicks(window.end - window.start)?.base ??
         "quarter",
     ),
     [dots, setDots] = useState(
-      firstEvent?.rhythm.dots ??
+      savedDraft?.dots ??
+        firstEvent?.rhythm.dots ??
         numberedRhythmForTicks(window.end - window.start)?.dots ??
         0,
     );
-  const [template, setTemplate] = useState("uniform"),
+  const [template, setTemplate] = useState(savedDraft?.template ?? "uniform"),
     [itemId, setItemId] = useState(
-      resolved?.kind === "numberedEvent"
-        ? (resolved.itemId ?? firstEvent?.items[0]?.id ?? "")
-        : "",
+      savedDraft?.itemId ??
+        (sourceBeat
+          ? (firstEvent?.items[0]?.id ?? "")
+          : resolved?.kind === "numberedEvent"
+            ? (resolved.itemId ?? firstEvent?.items[0]?.id ?? "")
+            : ""),
     ),
-    [destination, setDestination] = useState("");
+    [destination, setDestination] = useState(savedDraft?.destination ?? "");
   const [message, setMessage] = useState<string | null>(null);
   const [pending, setPending] = useState<{
     operation: ILXMNumberedVoiceCommand;
@@ -139,14 +223,15 @@ export const NumberedEditor = ({
   const impactDialog = useRef<HTMLDialogElement>(null);
   const [customRhythms, setCustomRhythms] = useState<
     { base: ILXMRhythmBase; dots: number }[]
-  >([]);
-  const [ratioIndex, setRatioIndex] = useState(1);
+  >(savedDraft?.customRhythms ?? []);
+  const [ratioIndex, setRatioIndex] = useState(savedDraft?.ratioIndex ?? 1);
   const [itemDraft, setItemDraft] = useState(
-    firstEvent?.items.find(
-      (i) =>
-        i.id ===
-        (resolved?.kind === "numberedEvent" ? resolved.itemId : undefined),
-    )?.token ??
+    savedDraft?.itemDraft ??
+      firstEvent?.items.find(
+        (i) =>
+          i.id ===
+          (resolved?.kind === "numberedEvent" ? resolved.itemId : undefined),
+      )?.token ??
       firstEvent?.items[0]?.token ??
       "",
   );
@@ -384,6 +469,22 @@ export const NumberedEditor = ({
     apply,
     discard: reset,
     focus: () => input.current?.focus({ preventScroll: true }),
+    snapshot: () => ({
+      selectedId,
+      start,
+      end,
+      raw,
+      initial,
+      overwrite,
+      base,
+      dots,
+      template,
+      itemId,
+      destination,
+      customRhythms: structuredClone(customRhythms),
+      ratioIndex,
+      itemDraft,
+    }),
   }));
   const markTargets =
     track?.measures.flatMap((m, mi) =>
@@ -427,31 +528,25 @@ export const NumberedEditor = ({
               aria-label="当前简谱事件"
               value={selectedId}
               onChange={(e) => {
-                if (dirty) {
-                  setMessage("请先应用或取消当前草稿，再切换音符");
-                  return;
-                }
                 const next = measure.numberedVoice.events.find(
                   (v) => v.id === e.target.value,
                 );
-                setSelectedId(next?.id ?? "");
-                setItemId(next?.items[0]?.id ?? "");
-                setItemDraft(next?.items[0]?.token ?? "");
                 if (next) {
-                  setBase(next.rhythm.base);
-                  setDots(next.rhythm.dots);
-                }
-                if (next) {
-                  const d = createNumberedRhythmContext(
-                    measure.numberedVoice,
-                  ).getEventDurationTicks(next);
-                  setStart(next.tick);
-                  setEnd(next.tick + (d.ok ? d.ticks : 0));
-                  if (mode === "single") {
-                    const text = next.items.map((i) => i.token).join("+");
-                    setRaw(text);
-                    setInitial(text);
-                  }
+                  onSelectTarget({
+                    kind: "numbered",
+                    trackId: track.id,
+                    measureId: measure.id,
+                    eventId: next.id,
+                    itemId: next.items[0]?.id,
+                  });
+                } else {
+                  onSelectTarget({
+                    kind: "numbered",
+                    trackId: track.id,
+                    measureId: measure.id,
+                    tick: start,
+                    endTick: end,
+                  });
                 }
               }}
             >

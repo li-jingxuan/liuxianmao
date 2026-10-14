@@ -64,7 +64,11 @@ export const layoutNumbered = (
   const width =
     raw.reduce((s, r) => s + r.width, 0) +
     Math.max(0, raw.length - 1) * profile.itemGap;
-  let left = x - width / 2;
+  // 同一时刻的多音组以首个数字为起音锚点，后续数字只向右展开。
+  let left =
+    raw.length > 1
+      ? x - raw[0]!.width / 2 - (raw[0]!.prefix ? 4 : 0)
+      : x - width / 2;
   const labels: MusicTextGlyph[] = [],
     dots: NumberedLayout["dots"] = [];
   for (const r of raw) {
@@ -186,9 +190,40 @@ export const layoutParagraphFocus = (
       target.eventId &&
       m.numberedNotation?.find((n) => n.eventId === target.eventId);
     if (existing) {
-      const bounds =
-        existing.itemBounds?.find((i) => i.itemId === target.itemId)?.bounds ??
-        existing.bounds;
+      const sourceSlot = m.numberedSlots.find((s) => s.id === target.eventId);
+      const tabBeat =
+        sourceSlot &&
+        m.beats.find(
+          (beat) =>
+            sourceSlot.x >= beat.x - 0.001 &&
+            sourceSlot.x < beat.x + beat.width - 0.001,
+        );
+      // 一拍中的多个独立事件共用视觉激活框，命中索引仍保留每个 item 的身份。
+      const grouped = tabBeat
+        ? (m.numberedNotation ?? []).filter((notation) => {
+            const eventSlot = m.numberedSlots.find(
+              (s) => s.id === notation.eventId,
+            );
+            return (
+              eventSlot &&
+              eventSlot.x >= tabBeat.x - 0.001 &&
+              eventSlot.x < tabBeat.x + tabBeat.width - 0.001
+            );
+          })
+        : [];
+      const bounds = grouped.length
+        ? {
+            x: Math.min(...grouped.map((n) => n.bounds.x)),
+            y: Math.min(...grouped.map((n) => n.bounds.y)),
+            width:
+              Math.max(...grouped.map((n) => n.bounds.x + n.bounds.width)) -
+              Math.min(...grouped.map((n) => n.bounds.x)),
+            height:
+              Math.max(...grouped.map((n) => n.bounds.y + n.bounds.height)) -
+              Math.min(...grouped.map((n) => n.bounds.y)),
+          }
+        : (existing.itemBounds?.find((i) => i.itemId === target.itemId)
+            ?.bounds ?? existing.bounds);
       return {
         x: bounds.x - 4,
         y: bounds.y - 2,

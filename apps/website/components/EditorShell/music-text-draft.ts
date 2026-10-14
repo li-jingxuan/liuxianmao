@@ -4,6 +4,7 @@ import type {
   ILXMTabCellSelection,
   ILXMLyricVerse,
 } from "@liuxianmao/lxm-editor";
+import { resolveTabCellSelection } from "@liuxianmao/lxm-editor";
 import type { ChordDraft } from "./ChordEditor";
 
 export type MusicTextTarget =
@@ -98,6 +99,14 @@ export const resolveSidebarRequest = (
     return "ignore";
   if (draft && action.type === "tab" && action.kind === draft.target.kind)
     return "ignore";
+  // 简谱事件之间允许立即切换；未应用输入由侧栏按事件暂存。
+  if (
+    current?.kind === "numbered" &&
+    action.type === "target" &&
+    action.target.kind === "numbered" &&
+    !guards.settingsDirty
+  )
+    return "execute";
   return (draft && musicTextDraftValue(draft) !== draft.initial) ||
     guards.numberedDirty ||
     guards.settingsDirty
@@ -110,10 +119,10 @@ export const readMusicTextDraft = (
   document: ILXMDocument | null,
   target: MusicTextTarget,
   lyricMode: MusicTextDraft["lyricMode"] = "sequence",
+  selection?: ILXMTabCellSelection | null,
 ): MusicTextDraft | null => {
-  const measure = document?.score.tracks
-    .find((t) => t.id === target.trackId)
-    ?.measures.find((m) => m.id === target.measureId);
+  const track = document?.score.tracks.find((t) => t.id === target.trackId);
+  const measure = track?.measures.find((m) => m.id === target.measureId);
   if (
     target.kind === "numbered" ||
     !measure?.beats.some((b) => b.id === target.beatId)
@@ -123,13 +132,43 @@ export const readMusicTextDraft = (
   const lyric = measure.lyrics.find(
     (l) => l.beatId === target.beatId && l.verse === verse,
   );
+  const selectedBeats =
+    target.kind === "lyric" &&
+    lyricMode === "sequence" &&
+    selection &&
+    selection.focus.trackId === target.trackId &&
+    selection.focus.measureId === target.measureId &&
+    selection.focus.beatId === target.beatId
+      ? resolveTabCellSelection(document!, selection)
+      : null;
+  const range = selectedBeats?.ok ? selectedBeats.range.beats : null;
+  const first = range?.[0];
+  // 连续填词回填整段选区；空拍用跳拍符保留原有位置。
+  const selectedWords =
+    range && range.length > 1
+      ? range.map(
+          (beat) =>
+            track?.measures
+              .find((m) => m.id === beat.measureId)
+              ?.lyrics.find(
+                (item) => item.beatId === beat.beatId && item.verse === verse,
+              )?.text ?? "_",
+        )
+      : null;
+  const sequenceText = selectedWords?.some((word) => word !== "_")
+    ? selectedWords.join(" ")
+    : (lyric?.text ?? "");
   const chord = measure.chordSymbols.find((c) => c.beatId === target.beatId);
   const value = {
-    target: { ...target, verse },
+    target: {
+      ...target,
+      ...(first ? { measureId: first.measureId, beatId: first.beatId } : {}),
+      verse,
+    },
     lyricMode,
     // 新歌词草稿默认允许覆盖，实际写入仍需点击应用。
     allowOverwrite: target.kind === "lyric",
-    text: lyricMode === "sequence" ? "" : (lyric?.text ?? ""),
+    text: lyricMode === "sequence" ? sequenceText : (lyric?.text ?? ""),
     chord: chord
       ? structuredClone({ display: chord.display, chord: chord.chord })
       : { display: "name" as const, chord: { name: "", diagram: null } },

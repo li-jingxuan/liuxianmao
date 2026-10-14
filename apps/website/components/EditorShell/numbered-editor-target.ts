@@ -7,6 +7,13 @@ import {
   type ILXMTabCellReference,
 } from "@liuxianmao/lxm-editor";
 import type { MusicTextTarget } from "./music-text-draft";
+/** 草稿按真实简谱事件／时间窗口定位，不能用 TAB beatId 合并不同音。 */
+export const numberedDraftKey = (target: ILXMNumberedTarget): string =>
+  `${target.trackId}/${target.measureId}/${
+    target.kind === "numberedEvent"
+      ? `event/${target.eventId}/${target.itemId ?? ""}`
+      : `time/${target.tick}/${target.endTick}`
+  }`;
 /** 用当前拍号单位显示位置，连音起点使用分数，避免三连音出现循环小数。 */
 export const formatNumberedBeatPosition = (
   tick: number,
@@ -48,9 +55,12 @@ export const resolveNumberedEditorTarget = (
           trackId: target.trackId,
           measureId: target.measureId,
           eventId: target.eventId,
-          ...("itemId" in target && target.itemId
-            ? { itemId: target.itemId }
-            : {}),
+          itemId:
+            "itemId" in target && target.itemId
+              ? target.itemId
+              : measure.numberedVoice.events.find(
+                  (e) => e.id === target.eventId,
+                )!.items[0]?.id,
         }
       : null;
   if (
@@ -86,6 +96,7 @@ export const resolveNumberedEditorTarget = (
       trackId: target.trackId,
       measureId: measure.id,
       eventId: existing.id,
+      itemId: existing.items[0]?.id,
     };
   const duration =
     createMeasureRhythmContext(measure).getBeatDurationTicks(beat);

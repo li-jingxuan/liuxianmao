@@ -3,6 +3,8 @@ import {
   buildLayout,
   EXAMPLE_MVP_7_2_DOCUMENT,
   applyScoreCommand,
+  hitTestNumbered,
+  layoutParagraphFocus,
 } from "../../src";
 
 /** 孤立一小节，避免歌词和指法图成为宽度主导，专门检查简谱几何。 */
@@ -111,6 +113,90 @@ describe("简谱编辑与成品排版", () => {
       expect(result.document).toEqual(before);
     },
   );
+  it("同一 TAB 拍内多事件共用焦点框，命中仍指向各自音符", () => {
+    const { doc, track, m } = fixture();
+    const result = applyScoreCommand(doc, {
+      type: "numbered.range.replace",
+      trackId: track.id,
+      measureId: m.id,
+      startTick: 0,
+      endTick: 960,
+      items: ["1", "1", "2"].map((token) => ({
+        kind: "set" as const,
+        tokens: [token],
+      })),
+      rhythms: [
+        { base: "eighth", dots: 0 },
+        { base: "sixteenth", dots: 0 },
+        { base: "sixteenth", dots: 0 },
+      ],
+      allowOverwrite: true,
+    });
+    if (!result.ok) throw Error(result.message);
+    const layout = buildLayout(result.document, { purpose: "editing" });
+    const measure = layout.systems[0]!.measures[0]!;
+    const events =
+      result.document.score.tracks[0]!.measures[0]!.numberedVoice.events.filter(
+        (event) => event.tick < 960,
+      );
+    const frames = events.map((event) =>
+      layoutParagraphFocus(layout, {
+        kind: "numbered",
+        trackId: track.id,
+        measureId: m.id,
+        eventId: event.id,
+        itemId: event.items[0]!.id,
+      }),
+    );
+    expect(frames[0]).toEqual(frames[1]);
+    expect(frames[1]).toEqual(frames[2]);
+    expect(frames[0]!.x).toBeLessThan(
+      measure.numberedNotation![0]!.labels[0]!.x,
+    );
+    for (let i = 0; i < events.length; i++) {
+      const bounds = measure.numberedNotation![i]!.itemBounds![0]!.bounds;
+      expect(
+        hitTestNumbered(layout, {
+          x: bounds.x + bounds.width / 2,
+          y: bounds.y + bounds.height / 2,
+        }),
+      ).toMatchObject({
+        eventId: events[i]!.id,
+        itemId: events[i]!.items[0]!.id,
+      });
+    }
+  });
+  it("同时多音从首音对齐 TAB 起点", () => {
+    const { doc, m } = fixture();
+    m.numberedVoice.events[0]!.items = ["1", "3"].map((token, i) => ({
+      id: `first-item-${i}`,
+      token,
+    }));
+    const measure = buildLayout(doc).systems[0]!.measures[0]!;
+    expect(measure.numberedNotation![0]!.labels[0]!.x).toBe(
+      measure.beats[0]!.x,
+    );
+    expect(measure.numberedNotation![0]!.labels[1]!.x).toBeGreaterThan(
+      measure.beats[0]!.x,
+    );
+  });
+  it("连续八分 TAB 上的空简谱给每个起点独立窄占位", () => {
+    const doc = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);
+    const source = doc.score.tracks[0]!.measures[6]!;
+    const layout = buildLayout(doc, { purpose: "editing", density: "compact" });
+    const measure = layout.systems
+      .flatMap((system) => system.measures)
+      .find((m) => m.id === source.id)!;
+    const slots = measure.numberedInputSlots!;
+    expect(slots).toHaveLength(8);
+    expect(slots.slice(0, 2).map((s) => [s.startTick, s.endTick])).toEqual([
+      [0, 480],
+      [480, 960],
+    ]);
+    expect(slots[0]!.anchorX).toBe(measure.beats[0]!.x);
+    expect(slots[1]!.anchorX).toBe(measure.beats[1]!.x);
+    expect(slots.slice(0, 2).every((s) => s.width < 24)).toBe(true);
+  });
   it("普通半拍空位可完整显示，成品没有编辑槽或纯编辑空行", () => {
     const { doc, track, m } = fixture();
     const result = applyScoreCommand(doc, {

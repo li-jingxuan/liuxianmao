@@ -31,10 +31,24 @@ export const planNumberedInputRanges = (
   const result: NumberedInputRange[] = [],
     context = createNumberedRhythmContext(measure.numberedVoice);
   const unit = 3840 / measure.timeSignature.denominator;
+  const tabStarts = measure.beats
+    .map((beat) => beat.tick)
+    .sort((a, b) => a - b);
   const appendBlank = (start: number, end: number) => {
     let cursor = start;
     while (cursor < end) {
-      const boundary = Math.min(end, (Math.floor(cursor / unit) + 1) * unit);
+      const beatBoundary = Math.min(
+        end,
+        (Math.floor(cursor / unit) + 1) * unit,
+      );
+      // 空简谱只借用 TAB 起点作为录入提示；时值和事件仍由独立简谱声部决定。
+      const nextTabStart = tabStarts.find(
+        (tick) =>
+          tick > cursor &&
+          tick < beatBoundary &&
+          numberedRhythmForTicks(tick - cursor),
+      );
+      const boundary = nextTabStart ?? beatBoundary;
       const option = rhythms.find((r) => r.ticks <= boundary - cursor);
       const next = option ? cursor + option.ticks : boundary;
       result.push({

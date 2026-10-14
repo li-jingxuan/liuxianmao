@@ -84,7 +84,7 @@ describe("连续填词历史、草稿与歌词焦点", () => {
       "sequence",
     )!;
     expect(next.allowOverwrite).toBe(true);
-    expect(next.text).toBe("");
+    expect(next.text).toBe("Sing");
   });
   it("只定位当前段真实歌词，重排后重新解析；空拍与和弦不产生假歌词框", () => {
     const { document, track, target } = fixture();

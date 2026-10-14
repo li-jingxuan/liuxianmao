@@ -262,8 +262,20 @@ export const EditorShell: React.FC = () => {
     const target = hoveredMusicText.target;
     // 当前对象已有选中框，不再叠加同一对象的悬停描边。
     if (sameMusicTextTarget(activeMusicTextTarget, target)) return null;
-    return resolveParagraphFocus(lxmLayout, target);
-  }, [lxmLayout, hoveredMusicText, activeMusicTextTarget]);
+    const focus = resolveParagraphFocus(lxmLayout, target);
+    // 同拍多个简谱音虽有不同事件 ID，但共享一个激活框。
+    if (
+      focus &&
+      lyricFocus &&
+      focus.kind === lyricFocus.kind &&
+      focus.x === lyricFocus.x &&
+      focus.y === lyricFocus.y &&
+      focus.width === lyricFocus.width &&
+      focus.height === lyricFocus.height
+    )
+      return null;
+    return focus;
+  }, [lxmLayout, hoveredMusicText, activeMusicTextTarget, lyricFocus]);
   const tabCellHoverCaret = useMemo(() => {
     if (!hoveredTabCell || hoveredTabCell.layout !== lxmLayout) return null;
     const target = hoveredTabCell.target;

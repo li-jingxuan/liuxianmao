@@ -1,7 +1,11 @@
-import { resolveNumberedEditorTarget } from "./numbered-editor-target";
+import {
+  numberedDraftKey,
+  resolveNumberedEditorTarget,
+} from "./numbered-editor-target";
 import {
   NumberedEditor,
   type NumberedEditorController,
+  type NumberedEditorDraft,
 } from "./NumberedEditor";
 import { ScoreSettings, type ScoreSettingsController } from "./ScoreSettings";
 import {
@@ -99,6 +103,15 @@ export const MusicTextSidebar = ({
     "sequence",
   );
   const numberedRef = useRef<NumberedEditorController>(null);
+  const numberedDrafts = useRef(new Map<string, NumberedEditorDraft>());
+  const [visibleNumberedDrafts, setVisibleNumberedDrafts] = useState<
+    ReadonlyMap<string, NumberedEditorDraft>
+  >(() => new Map());
+  const savedNumberedCount = visibleNumberedDrafts.size;
+  const [switchNotice, setSwitchNotice] = useState<MusicTextTarget | null>(
+    null,
+  );
+  const [suppressSwitchNotice, setSuppressSwitchNotice] = useState(false);
   const [numberedCanApply, setNumberedCanApply] = useState(false);
   const [numberedDirty, setNumberedDirty] = useState(false);
   const [numberedInputActive, setNumberedInputActive] = useState(false);
@@ -124,6 +137,15 @@ export const MusicTextSidebar = ({
   const compositionEndedAt = useRef(-Infinity);
   const baseline = useRef(score);
   const committing = useRef(false);
+  const activeNumberedDraftKey = score
+    ? (() => {
+        const resolved = resolveNumberedEditorTarget(
+          score,
+          numberedTarget ?? selection?.focus ?? null,
+        );
+        return resolved ? numberedDraftKey(resolved) : null;
+      })()
+    : null;
   // 文字对象即使暂时浏览其他页签，快捷键也不能在文字高亮下误写 TAB 音符。
   const editing =
     !!activeObject ||
@@ -225,6 +247,7 @@ export const MusicTextSidebar = ({
       editorStore.getState().document,
       next,
       mode,
+      editorStore.getState().selection,
     );
     setInspection(0);
     setPending(null);
@@ -248,7 +271,10 @@ export const MusicTextSidebar = ({
     }
   };
   /** 接受请求才改变选区和草稿；延迟确认的目标按最新快照验证。 */
-  const perform = (action: SidebarAction): boolean => {
+  const perform = (
+    action: SidebarAction,
+    preserveNumberedDraft = false,
+  ): boolean => {
     const current = editorStore.getState();
     if (
       action.type === "selection" &&
@@ -269,13 +295,19 @@ export const MusicTextSidebar = ({
       setMessage("目标拍已失效，请重新选择。");
       return false;
     }
-    if (action.type === "tab")
+    if (action.type === "tab" && action.focus)
       requestedTabFocus.current = `${action.focus === "paragraph" ? "paragraph" : "music"}-tab-${action.kind === "numbered" && action.focus !== "paragraph" ? "lyric" : action.kind}`;
     setPending(null);
     restoreInputFocus.current = false;
     // 非模式请求会结束原简谱草稿，但必须在确认已经被接受之后执行。
     if (action.type !== "mode") {
-      numberedRef.current?.discard();
+      if (!preserveNumberedDraft) {
+        numberedRef.current?.discard();
+        if (activeNumberedDraftKey) {
+          numberedDrafts.current.delete(activeNumberedDraftKey);
+          setVisibleNumberedDrafts(new Map(numberedDrafts.current));
+        }
+      }
       setNumberedDirty(false);
       setNumberedInputActive(false);
       setNumberedPreview(null);
@@ -287,17 +319,31 @@ export const MusicTextSidebar = ({
           : activeObject && activeObject.kind !== "numbered"
             ? createCollapsedTabCellSelection(activeObject)
             : current.selection;
-      setDraft(null);
-      setNumberedTarget(null);
-      setActiveObject(null);
-      setInputEditing(false);
-      focusDestination.current = "score";
-      setMessage(null);
+      const chordBeat =
+        action.type === "selection" &&
+        kind === "chord" &&
+        !action.techniqueId &&
+        nextSelection &&
+        nextSelection.anchor.trackId === nextSelection.focus.trackId &&
+        nextSelection.anchor.measureId === nextSelection.focus.measureId &&
+        nextSelection.anchor.beatId === nextSelection.focus.beatId;
       settingsRef.current?.discard();
-      onScoreSelection(
-        nextSelection,
-        action.type === "selection" ? (action.techniqueId ?? null) : null,
-      );
+      if (chordBeat) {
+        // 和弦页签保持打开时，选中一个 Beat 就直接加载该拍表单。
+        onScoreSelection(nextSelection, null);
+        loadTarget({ ...nextSelection.focus, kind: "chord" });
+      } else {
+        setDraft(null);
+        setNumberedTarget(null);
+        setActiveObject(null);
+        setInputEditing(false);
+        focusDestination.current = "score";
+        setMessage(null);
+        onScoreSelection(
+          nextSelection,
+          action.type === "selection" ? (action.techniqueId ?? null) : null,
+        );
+      }
     } else if (action.type === "target") {
       settingsRef.current?.discard();
       if (action.target.kind === "numbered") {
@@ -317,12 +363,22 @@ export const MusicTextSidebar = ({
           resolveNumberedEditorTarget(current.document, action.target);
         current.setNumberedSelection(resolved);
         current.setSelectedNumberedMarkId(action.numberedMarkId ?? null);
-        if (resolved) setNumberedTarget({ ...resolved, kind: "numbered" });
+        if (resolved)
+          setNumberedTarget({
+            ...resolved,
+            kind: "numbered",
+            ...("beatId" in action.target && action.target.beatId
+              ? { beatId: action.target.beatId }
+              : {}),
+          });
       } else loadTarget(action.target, draft?.lyricMode, action.focus);
     } else if (action.type === "numberedMode") {
       setNumberedMode(action.mode);
     } else if (action.type === "mode") {
       if (draft) loadTarget(draft.target, action.mode);
+    } else if (action.kind === "chord" && current.selection?.focus) {
+      // 已选拍点切到和弦页签时直接读取该拍和弦并进入编辑态。
+      loadTarget({ ...current.selection.focus, kind: "chord" });
     } else {
       // 页签只展示工具，保留谱面对象；显式输入／编辑按钮才加载文字草稿。
       setDraft(null);
@@ -377,6 +433,40 @@ export const MusicTextSidebar = ({
   const request = (action: SidebarAction): SelectionRequestResult => {
     if (composing.current || settingsRef.current?.isComposing() || pending)
       return "blocked";
+    if (
+      action.type === "selection" &&
+      kind === "chord" &&
+      draft?.target.kind === "chord" &&
+      action.selection &&
+      !action.techniqueId &&
+      isScoreSelectionValid(score, action.selection) &&
+      action.selection.anchor.trackId === action.selection.focus.trackId &&
+      action.selection.anchor.measureId === action.selection.focus.measureId &&
+      action.selection.anchor.beatId === action.selection.focus.beatId &&
+      draft.target.trackId === action.selection.focus.trackId &&
+      draft.target.measureId === action.selection.focus.measureId &&
+      draft.target.beatId === action.selection.focus.beatId
+    ) {
+      onScoreSelection(action.selection, null);
+      focusTarget("input");
+      return "accepted";
+    }
+    if (
+      action.type === "target" &&
+      action.target.kind === "numbered" &&
+      numberedTarget?.kind === "numbered" &&
+      score &&
+      activeNumberedDraftKey
+    ) {
+      const next = resolveNumberedEditorTarget(score, action.target);
+      // 谱面点击可能省略 itemId；归一后相同目标只恢复焦点，不重复暂存。
+      if (next && numberedDraftKey(next) === activeNumberedDraftKey) {
+        focusDestination.current = "input";
+        setNumberedInputActive(true);
+        setFocusRequest((value) => value + 1);
+        return "accepted";
+      }
+    }
     if (action.type === "tab" && action.kind === kind) return "accepted";
     if (action.type === "numberedMode" && action.mode === numberedMode)
       return "accepted";
@@ -398,6 +488,23 @@ export const MusicTextSidebar = ({
       setPending(action);
       return "pending";
     }
+    if (
+      decision === "execute" &&
+      action.type === "target" &&
+      action.target.kind === "numbered" &&
+      numberedTarget?.kind === "numbered" &&
+      activeNumberedDraftKey
+    ) {
+      const wasDirty = !!numberedRef.current?.dirty;
+      const snapshot = wasDirty ? numberedRef.current?.snapshot() : null;
+      if (!perform(action, wasDirty)) return "blocked";
+      if (snapshot) {
+        numberedDrafts.current.set(activeNumberedDraftKey, snapshot);
+        setVisibleNumberedDrafts(new Map(numberedDrafts.current));
+        if (!suppressSwitchNotice) setSwitchNotice(numberedTarget);
+      } else setSwitchNotice(null);
+      return "accepted";
+    }
     return decision === "ignore" || perform(action) ? "accepted" : "blocked";
   };
   const returnToScore = (): SelectionRequestResult =>
@@ -415,6 +522,7 @@ export const MusicTextSidebar = ({
       !!pending ||
       numberedInputActive ||
       !!numberedRef.current?.dirty ||
+      numberedDrafts.current.size > 0 ||
       !!settingsRef.current?.dirty ||
       (!!draft && musicTextDraftValue(draft) !== draft.initial),
     open: (next) => {
@@ -430,6 +538,10 @@ export const MusicTextSidebar = ({
     () =>
       editorStore.subscribe((state) => {
         if (state.document !== baseline.current && !committing.current) {
+          numberedDrafts.current.clear();
+          setVisibleNumberedDrafts(new Map());
+          setSwitchNotice(null);
+          setSuppressSwitchNotice(false);
           setDraft(null);
           setPending(null);
           setActiveObject(null);
@@ -497,6 +609,11 @@ export const MusicTextSidebar = ({
       const result = editorStore.getState().execute(command);
       if (result?.ok) {
         baseline.current = result.document;
+        if (activeNumberedDraftKey) {
+          numberedDrafts.current.delete(activeNumberedDraftKey);
+          setVisibleNumberedDrafts(new Map(numberedDrafts.current));
+        }
+        setSwitchNotice(null);
         if (result.nextNumberedFocus) {
           setNumberedTarget({ kind: "numbered", ...result.nextNumberedFocus });
           setNumberedPreview(null);
@@ -800,8 +917,13 @@ export const MusicTextSidebar = ({
             role="tabpanel"
             aria-labelledby="paragraph-tab-numbered"
           >
+            {savedNumberedCount > 0 && (
+              <p className={styles.sidebarTip} role="status">
+                有 {savedNumberedCount} 处简谱草稿暂存；点击对应音符可继续编辑。
+              </p>
+            )}
             <NumberedEditor
-              key={`${stateVersion}/${numberedMode}/${numberedTarget?.eventId ?? numberedTarget?.tick ?? (numberedTarget ?? selection?.focus)?.beatId}`}
+              key={`${stateVersion}/${numberedMode}/${activeNumberedDraftKey ?? (numberedTarget ?? selection?.focus)?.beatId}`}
               onCancel={() => request({ type: "close" })}
               mode={numberedMode}
               onModeChange={(mode) => request({ type: "numberedMode", mode })}
@@ -813,6 +935,15 @@ export const MusicTextSidebar = ({
               document={score}
               selectedMarkId={selectedNumberedMarkId}
               target={numberedTarget ?? selection?.focus ?? null}
+              selection={selection}
+              savedDraft={
+                activeNumberedDraftKey
+                  ? visibleNumberedDrafts.get(activeNumberedDraftKey)
+                  : undefined
+              }
+              onSelectTarget={(next) =>
+                request({ type: "target", target: next })
+              }
               commit={commit}
               onDirty={setNumberedDirty}
               onInputActive={setNumberedInputActive}
@@ -1077,7 +1208,7 @@ export const MusicTextSidebar = ({
       {/* 无编辑操作或提示时隐藏底栏，避免移除历史按钮后留下空白条。 */}
       <footer
         className={styles.sidebarFooter}
-        hidden={!pending && !issue && !message && !draft}
+        hidden={!pending && !issue && !message && !draft && !switchNotice}
       >
         {pending ? (
           <div
@@ -1122,6 +1253,28 @@ export const MusicTextSidebar = ({
           </div>
         ) : (
           <>
+            {switchNotice && (
+              <div className={styles.sidebarMessage} role="status">
+                上一处简谱修改已暂存。
+                <div className={styles.sidebarActions}>
+                  <button
+                    onClick={() =>
+                      request({ type: "target", target: switchNotice })
+                    }
+                  >
+                    返回编辑
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSuppressSwitchNotice(true);
+                      setSwitchNotice(null);
+                    }}
+                  >
+                    本次编辑不再提示
+                  </button>
+                </div>
+              </div>
+            )}
             {issue && (
               <p className={styles.sidebarError} role="alert">
                 {issue}
