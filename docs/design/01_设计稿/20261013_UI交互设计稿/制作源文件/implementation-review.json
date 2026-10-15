@@ -1,0 +1,1206 @@
+{
+  "date": "2026-10-15",
+  "commit": "585e705d2db073459ef91417b233a3e7fb45ae98",
+  "schemaVersion": 8,
+  "reviewDocument": "docs/design/02_规范与复审/20261015_最新代码与设计稿落地复审.md",
+  "originalPngsRedrawn": false,
+  "visualInspection": "7 张分类总览及独立简谱/连续录入/草稿保护三张大图；其余以清单、源文件和代码契约核查，不宣称逐像素验收。",
+  "supplementalStates": [
+    "S01",
+    "S02",
+    "S03",
+    "S04",
+    "S05",
+    "S06",
+    "S07"
+  ],
+  "runtimeAcceptance": "632 项测试、类型检查、lint 通过；新增宿主库与新 UI 尚未实现，真实交互仍须验收。",
+  "screens": [
+    {
+      "file": "01_曲谱管理/01_曲谱管理_卡片视图.png",
+      "name": "01_曲谱管理_卡片视图",
+      "implementationStatus": "新增宿主业务层",
+      "codeEvidence": [
+        "apps/website/app/page.tsx",
+        "apps/website/components/EditorShell/EditorSession.tsx",
+        "apps/website/components/EditorShell/score-file.ts"
+      ],
+      "rules": [
+        "R01",
+        "R04",
+        "R09"
+      ],
+      "acceptance": "列表/收藏/最近/分类来自真实库；失败不作空库；校验成功且保护通过才替换会话；库旧记录不隐式升级。",
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+    },
+    {
+      "file": "01_曲谱管理/02_曲谱管理_列表视图.png",
+      "name": "02_曲谱管理_列表视图",
+      "implementationStatus": "新增宿主业务层",
+      "codeEvidence": [
+        "apps/website/app/page.tsx",
+        "apps/website/components/EditorShell/EditorSession.tsx",
+        "apps/website/components/EditorShell/score-file.ts"
+      ],
+      "rules": [
+        "R01",
+        "R04",
+        "R09"
+      ],
+      "acceptance": "列表/收藏/最近/分类来自真实库；失败不作空库；校验成功且保护通过才替换会话；库旧记录不隐式升级。",
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+    },
+    {
+      "file": "01_曲谱管理/03_曲谱管理_空曲谱库.png",
+      "name": "03_曲谱管理_空曲谱库",
+      "implementationStatus": "新增宿主业务层",
+      "codeEvidence": [
+        "apps/website/app/page.tsx",
+        "apps/website/components/EditorShell/EditorSession.tsx",
+        "apps/website/components/EditorShell/score-file.ts"
+      ],
+      "rules": [
+        "R01",
+        "R04",
+        "R09"
+      ],
+      "acceptance": "列表/收藏/最近/分类来自真实库；失败不作空库；校验成功且保护通过才替换会话；库旧记录不隐式升级。",
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+    },
+    {
+      "file": "01_曲谱管理/04_曲谱管理_搜索无结果.png",
+      "name": "04_曲谱管理_搜索无结果",
+      "implementationStatus": "新增宿主业务层",
+      "codeEvidence": [
+        "apps/website/app/page.tsx",
+        "apps/website/components/EditorShell/EditorSession.tsx",
+        "apps/website/components/EditorShell/score-file.ts"
+      ],
+      "rules": [
+        "R01",
+        "R04",
+        "R09"
+      ],
+      "acceptance": "列表/收藏/最近/分类来自真实库；失败不作空库；校验成功且保护通过才替换会话；库旧记录不隐式升级。",
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+    },
+    {
+      "file": "01_曲谱管理/05_曲谱管理_更多操作.png",
+      "name": "05_曲谱管理_更多操作",
+      "implementationStatus": "新增宿主业务层",
+      "codeEvidence": [
+        "apps/website/app/page.tsx",
+        "apps/website/components/EditorShell/EditorSession.tsx",
+        "apps/website/components/EditorShell/score-file.ts"
+      ],
+      "rules": [
+        "R01",
+        "R04",
+        "R09"
+      ],
+      "acceptance": "列表/收藏/最近/分类来自真实库；失败不作空库；校验成功且保护通过才替换会话；库旧记录不隐式升级。",
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+    },
+    {
+      "file": "01_曲谱管理/06_曲谱管理_删除确认.png",
+      "name": "06_曲谱管理_删除确认",
+      "implementationStatus": "新增宿主业务层",
+      "codeEvidence": [
+        "apps/website/app/page.tsx",
+        "apps/website/components/EditorShell/EditorSession.tsx",
+        "apps/website/components/EditorShell/score-file.ts"
+      ],
+      "rules": [
+        "R01",
+        "R04",
+        "R09"
+      ],
+      "acceptance": "列表/收藏/最近/分类来自真实库；失败不作空库；校验成功且保护通过才替换会话；库旧记录不隐式升级。",
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+    },
+    {
+      "file": "01_曲谱管理/07_曲谱管理_复制成功.png",
+      "name": "07_曲谱管理_复制成功",
+      "implementationStatus": "新增宿主业务层",
+      "codeEvidence": [
+        "apps/website/app/page.tsx",
+        "apps/website/components/EditorShell/EditorSession.tsx",
+        "apps/website/components/EditorShell/score-file.ts"
+      ],
+      "rules": [
+        "R01",
+        "R04",
+        "R09"
+      ],
+      "acceptance": "列表/收藏/最近/分类来自真实库；失败不作空库；校验成功且保护通过才替换会话；库旧记录不隐式升级。",
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+    },
+    {
+      "file": "01_曲谱管理/08_曲谱管理_加载失败.png",
+      "name": "08_曲谱管理_加载失败",
+      "implementationStatus": "新增宿主业务层",
+      "codeEvidence": [
+        "apps/website/app/page.tsx",
+        "apps/website/components/EditorShell/EditorSession.tsx",
+        "apps/website/components/EditorShell/score-file.ts"
+      ],
+      "rules": [
+        "R01",
+        "R04",
+        "R09"
+      ],
+      "acceptance": "列表/收藏/最近/分类来自真实库；失败不作空库；校验成功且保护通过才替换会话；库旧记录不隐式升级。",
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+    },
+    {
+      "file": "02_新建与保存/01_新建曲谱.png",
+      "name": "01_新建曲谱",
+      "implementationStatus": "新增宿主业务层",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/MusicTextSidebar.tsx",
+        "apps/website/components/EditorShell/EditorSession.tsx",
+        "apps/website/stores/editor-store.ts",
+        "packages/lxm-editor/src/core/rest-beats.ts"
+      ],
+      "rules": [
+        "R01",
+        "R04",
+        "R09"
+      ],
+      "acceptance": "合法 schema 8 空谱；保存事务成功才更新基线；错误/冲突不导航；全部草稿先处理；下载 JSON 不清库保存 dirty。",
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+    },
+    {
+      "file": "02_新建与保存/02_新曲谱_尚未保存.png",
+      "name": "02_新曲谱_尚未保存",
+      "implementationStatus": "新增宿主业务层",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/MusicTextSidebar.tsx",
+        "apps/website/components/EditorShell/EditorSession.tsx",
+        "apps/website/stores/editor-store.ts",
+        "packages/lxm-editor/src/core/rest-beats.ts"
+      ],
+      "rules": [
+        "R01",
+        "R04",
+        "R09"
+      ],
+      "acceptance": "合法 schema 8 空谱；保存事务成功才更新基线；错误/冲突不导航；全部草稿先处理；下载 JSON 不清库保存 dirty。",
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+    },
+    {
+      "file": "02_新建与保存/03_首次保存曲谱.png",
+      "name": "03_首次保存曲谱",
+      "implementationStatus": "新增宿主业务层",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/MusicTextSidebar.tsx",
+        "apps/website/components/EditorShell/EditorSession.tsx",
+        "apps/website/stores/editor-store.ts",
+        "packages/lxm-editor/src/core/rest-beats.ts"
+      ],
+      "rules": [
+        "R01",
+        "R04",
+        "R09"
+      ],
+      "acceptance": "合法 schema 8 空谱；保存事务成功才更新基线；错误/冲突不导航；全部草稿先处理；下载 JSON 不清库保存 dirty。",
+      "pngOverride": "首次保存名称属于音乐内容；正式方案明确名称命令与持久化成功/失败的次序，不能 Form 直接改文档。"
+    },
+    {
+      "file": "02_新建与保存/04_保存曲谱_名称冲突.png",
+      "name": "04_保存曲谱_名称冲突",
+      "implementationStatus": "新增宿主业务层",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/MusicTextSidebar.tsx",
+        "apps/website/components/EditorShell/EditorSession.tsx",
+        "apps/website/stores/editor-store.ts",
+        "packages/lxm-editor/src/core/rest-beats.ts"
+      ],
+      "rules": [
+        "R01",
+        "R04",
+        "R09"
+      ],
+      "acceptance": "合法 schema 8 空谱；保存事务成功才更新基线；错误/冲突不导航；全部草稿先处理；下载 JSON 不清库保存 dirty。",
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+    },
+    {
+      "file": "02_新建与保存/05_保存成功.png",
+      "name": "05_保存成功",
+      "implementationStatus": "新增宿主业务层",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/MusicTextSidebar.tsx",
+        "apps/website/components/EditorShell/EditorSession.tsx",
+        "apps/website/stores/editor-store.ts",
+        "packages/lxm-editor/src/core/rest-beats.ts"
+      ],
+      "rules": [
+        "R01",
+        "R04",
+        "R09"
+      ],
+      "acceptance": "合法 schema 8 空谱；保存事务成功才更新基线；错误/冲突不导航；全部草稿先处理；下载 JSON 不清库保存 dirty。",
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+    },
+    {
+      "file": "02_新建与保存/06_保存失败_重试.png",
+      "name": "06_保存失败_重试",
+      "implementationStatus": "新增宿主业务层",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/MusicTextSidebar.tsx",
+        "apps/website/components/EditorShell/EditorSession.tsx",
+        "apps/website/stores/editor-store.ts",
+        "packages/lxm-editor/src/core/rest-beats.ts"
+      ],
+      "rules": [
+        "R01",
+        "R04",
+        "R09"
+      ],
+      "acceptance": "合法 schema 8 空谱；保存事务成功才更新基线；错误/冲突不导航；全部草稿先处理；下载 JSON 不清库保存 dirty。",
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+    },
+    {
+      "file": "02_新建与保存/07_未保存离开确认.png",
+      "name": "07_未保存离开确认",
+      "implementationStatus": "新增宿主业务层",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/MusicTextSidebar.tsx",
+        "apps/website/components/EditorShell/EditorSession.tsx",
+        "apps/website/stores/editor-store.ts",
+        "packages/lxm-editor/src/core/rest-beats.ts"
+      ],
+      "rules": [
+        "R01",
+        "R04",
+        "R09"
+      ],
+      "acceptance": "合法 schema 8 空谱；保存事务成功才更新基线；错误/冲突不导航；全部草稿先处理；下载 JSON 不清库保存 dirty。",
+      "pngOverride": "离开先处理全部暂存草稿，再询问已提交音乐是否保存；不卸载后补保护。"
+    },
+    {
+      "file": "02_新建与保存/08_曲谱重命名.png",
+      "name": "08_曲谱重命名",
+      "implementationStatus": "新增宿主业务层",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/MusicTextSidebar.tsx",
+        "apps/website/components/EditorShell/EditorSession.tsx",
+        "apps/website/stores/editor-store.ts",
+        "packages/lxm-editor/src/core/rest-beats.ts"
+      ],
+      "rules": [
+        "R01",
+        "R04",
+        "R09"
+      ],
+      "acceptance": "合法 schema 8 空谱；保存事务成功才更新基线；错误/冲突不导航；全部草稿先处理；下载 JSON 不清库保存 dirty。",
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+    },
+    {
+      "file": "02_新建与保存/09_保存进行中.png",
+      "name": "09_保存进行中",
+      "implementationStatus": "新增宿主业务层",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/MusicTextSidebar.tsx",
+        "apps/website/components/EditorShell/EditorSession.tsx",
+        "apps/website/stores/editor-store.ts",
+        "packages/lxm-editor/src/core/rest-beats.ts"
+      ],
+      "rules": [
+        "R01",
+        "R04",
+        "R09"
+      ],
+      "acceptance": "合法 schema 8 空谱；保存事务成功才更新基线；错误/冲突不导航；全部草稿先处理；下载 JSON 不清库保存 dirty。",
+      "pngOverride": "库写入没有可靠百分比时显示不定进度；保存中锁定重复提交与背景编辑。"
+    },
+    {
+      "file": "03_编辑工作台/01_编辑工作台_默认态.png",
+      "name": "01_编辑工作台_默认态",
+      "implementationStatus": "已有能力重组与宿主接线",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/index.tsx",
+        "apps/website/components/EditorShell/MusicTextSidebar.tsx",
+        "apps/website/components/EditorShell/ScoreSettings.tsx"
+      ],
+      "rules": [
+        "R02",
+        "R03",
+        "R04",
+        "R09",
+        "R10",
+        "R11",
+        "R12"
+      ],
+      "acceptance": "四栏目是待建组织；可见页签/焦点/活动对象/选区分离；文件入口保留；非活动面板与断点变化不丢草稿；音乐来自正式布局。",
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+    },
+    {
+      "file": "03_编辑工作台/02_单格输入_两位品位草稿.png",
+      "name": "02_单格输入_两位品位草稿",
+      "implementationStatus": "已有能力重组与宿主接线",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/index.tsx",
+        "apps/website/components/EditorShell/MusicTextSidebar.tsx",
+        "apps/website/components/EditorShell/ScoreSettings.tsx"
+      ],
+      "rules": [
+        "R02",
+        "R03",
+        "R04",
+        "R09",
+        "R10",
+        "R11",
+        "R12"
+      ],
+      "acceptance": "四栏目是待建组织；可见页签/焦点/活动对象/选区分离；文件入口保留；非活动面板与断点变化不丢草稿；音乐来自正式布局。",
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+    },
+    {
+      "file": "03_编辑工作台/03_范围选择_多弦多拍.png",
+      "name": "03_范围选择_多弦多拍",
+      "implementationStatus": "已有能力重组与宿主接线",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/index.tsx",
+        "apps/website/components/EditorShell/MusicTextSidebar.tsx",
+        "apps/website/components/EditorShell/ScoreSettings.tsx"
+      ],
+      "rules": [
+        "R02",
+        "R03",
+        "R04",
+        "R09",
+        "R10",
+        "R11",
+        "R12"
+      ],
+      "acceptance": "四栏目是待建组织；可见页签/焦点/活动对象/选区分离；文件入口保留；非活动面板与断点变化不丢草稿；音乐来自正式布局。",
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+    },
+    {
+      "file": "03_编辑工作台/04_未应用草稿保护.png",
+      "name": "04_未应用草稿保护",
+      "implementationStatus": "已有能力重组与宿主接线",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/index.tsx",
+        "apps/website/components/EditorShell/MusicTextSidebar.tsx",
+        "apps/website/components/EditorShell/ScoreSettings.tsx"
+      ],
+      "rules": [
+        "R02",
+        "R03",
+        "R04",
+        "R09",
+        "R10",
+        "R11",
+        "R12"
+      ],
+      "acceptance": "四栏目是待建组织；可见页签/焦点/活动对象/选区分离；文件入口保留；非活动面板与断点变化不丢草稿；音乐来自正式布局。",
+      "pngOverride": "三选项不适用于普通简谱 A→B；补充 S01 暂存/返回和 S02 多草稿处理。"
+    },
+    {
+      "file": "03_编辑工作台/05_歌曲设置.png",
+      "name": "05_歌曲设置",
+      "implementationStatus": "已有能力重组与宿主接线",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/index.tsx",
+        "apps/website/components/EditorShell/MusicTextSidebar.tsx",
+        "apps/website/components/EditorShell/ScoreSettings.tsx"
+      ],
+      "rules": [
+        "R02",
+        "R03",
+        "R04",
+        "R09",
+        "R10",
+        "R11",
+        "R12"
+      ],
+      "acceptance": "四栏目是待建组织；可见页签/焦点/活动对象/选区分离；文件入口保留；非活动面板与断点变化不丢草稿；音乐来自正式布局。",
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+    },
+    {
+      "file": "03_编辑工作台/06_视图与排版.png",
+      "name": "06_视图与排版",
+      "implementationStatus": "已有能力重组与宿主接线",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/index.tsx",
+        "apps/website/components/EditorShell/MusicTextSidebar.tsx",
+        "apps/website/components/EditorShell/ScoreSettings.tsx"
+      ],
+      "rules": [
+        "R02",
+        "R03",
+        "R04",
+        "R09",
+        "R10",
+        "R11",
+        "R12"
+      ],
+      "acceptance": "四栏目是待建组织；可见页签/焦点/活动对象/选区分离；文件入口保留；非活动面板与断点变化不丢草稿；音乐来自正式布局。",
+      "pngOverride": "紧凑/舒适为视图偏好；editing/presentation 是内部用途，不新增用户手动选择内部模式的开关。"
+    },
+    {
+      "file": "03_编辑工作台/07_快捷键帮助.png",
+      "name": "07_快捷键帮助",
+      "implementationStatus": "已有能力重组与宿主接线",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/index.tsx",
+        "apps/website/components/EditorShell/MusicTextSidebar.tsx",
+        "apps/website/components/EditorShell/ScoreSettings.tsx"
+      ],
+      "rules": [
+        "R02",
+        "R03",
+        "R04",
+        "R09",
+        "R10",
+        "R11",
+        "R12"
+      ],
+      "acceptance": "四栏目是待建组织；可见页签/焦点/活动对象/选区分离；文件入口保留；非活动面板与断点变化不丢草稿；音乐来自正式布局。",
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+    },
+    {
+      "file": "04_歌词简谱与和弦/01_歌词_单拍编辑.png",
+      "name": "01_歌词_单拍编辑",
+      "implementationStatus": "已有能力迁移及简谱行为修订",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/NumberedEditor.tsx",
+        "apps/website/components/EditorShell/MusicTextSidebar.tsx",
+        "apps/website/components/EditorShell/ChordEditor.tsx",
+        "packages/lxm-editor/src/core/numbered-commands.ts"
+      ],
+      "rules": [
+        "R02",
+        "R03",
+        "R05",
+        "R06",
+        "R07",
+        "R10",
+        "R11",
+        "R12"
+      ],
+      "acceptance": "歌词锚定 Beat，简谱锚定事件/item/时间窗；均匀改已有事件保留时值，模板新增限小节；简谱激活不建立 TAB 选区；全部既有模板和记号入口保留。",
+      "pngOverride": "歌词单拍保留应用及应用并下一拍，Enter/Shift+Enter 与 IME 规则不变。"
+    },
+    {
+      "file": "04_歌词简谱与和弦/02_歌词_连续填词与对应预览.png",
+      "name": "02_歌词_连续填词与对应预览",
+      "implementationStatus": "已有能力迁移及简谱行为修订",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/NumberedEditor.tsx",
+        "apps/website/components/EditorShell/MusicTextSidebar.tsx",
+        "apps/website/components/EditorShell/ChordEditor.tsx",
+        "packages/lxm-editor/src/core/numbered-commands.ts"
+      ],
+      "rules": [
+        "R02",
+        "R03",
+        "R05",
+        "R06",
+        "R07",
+        "R10",
+        "R11",
+        "R12"
+      ],
+      "acceptance": "歌词锚定 Beat，简谱锚定事件/item/时间窗；均匀改已有事件保留时值，模板新增限小节；简谱激活不建立 TAB 选区；全部既有模板和记号入口保留。",
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+    },
+    {
+      "file": "04_歌词简谱与和弦/03_歌词_超出谱尾错误.png",
+      "name": "03_歌词_超出谱尾错误",
+      "implementationStatus": "已有能力迁移及简谱行为修订",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/NumberedEditor.tsx",
+        "apps/website/components/EditorShell/MusicTextSidebar.tsx",
+        "apps/website/components/EditorShell/ChordEditor.tsx",
+        "packages/lxm-editor/src/core/numbered-commands.ts"
+      ],
+      "rules": [
+        "R02",
+        "R03",
+        "R05",
+        "R06",
+        "R07",
+        "R10",
+        "R11",
+        "R12"
+      ],
+      "acceptance": "歌词锚定 Beat，简谱锚定事件/item/时间窗；均匀改已有事件保留时值，模板新增限小节；简谱激活不建立 TAB 选区；全部既有模板和记号入口保留。",
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+    },
+    {
+      "file": "04_歌词简谱与和弦/04_简谱_单拍多音.png",
+      "name": "04_简谱_单拍多音",
+      "implementationStatus": "已有能力迁移及简谱行为修订",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/NumberedEditor.tsx",
+        "apps/website/components/EditorShell/MusicTextSidebar.tsx",
+        "apps/website/components/EditorShell/ChordEditor.tsx",
+        "packages/lxm-editor/src/core/numbered-commands.ts"
+      ],
+      "rules": [
+        "R02",
+        "R03",
+        "R05",
+        "R06",
+        "R07",
+        "R10",
+        "R11",
+        "R12"
+      ],
+      "acceptance": "歌词锚定 Beat，简谱锚定事件/item/时间窗；均匀改已有事件保留时值，模板新增限小节；简谱激活不建立 TAB 选区；全部既有模板和记号入口保留。",
+      "pngOverride": "文件名保留历史单拍称呼；实现是简谱独立音组。整组内容、单 item 音高、时值分别提交；不复制 TAB 蓝框。"
+    },
+    {
+      "file": "04_歌词简谱与和弦/05_简谱_连续录入与覆盖保护.png",
+      "name": "05_简谱_连续录入与覆盖保护",
+      "implementationStatus": "已有能力迁移及简谱行为修订",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/NumberedEditor.tsx",
+        "apps/website/components/EditorShell/MusicTextSidebar.tsx",
+        "apps/website/components/EditorShell/ChordEditor.tsx",
+        "packages/lxm-editor/src/core/numbered-commands.ts"
+      ],
+      "rules": [
+        "R02",
+        "R03",
+        "R05",
+        "R06",
+        "R07",
+        "R10",
+        "R11",
+        "R12"
+      ],
+      "acceptance": "歌词锚定 Beat，简谱锚定事件/item/时间窗；均匀改已有事件保留时值，模板新增限小节；简谱激活不建立 TAB 选区；全部既有模板和记号入口保留。",
+      "pngOverride": "已有事件均匀输入不按默认时值创建音符；新增模板显示范围及成员时值，位置从第1拍起而非 1/0。"
+    },
+    {
+      "file": "04_歌词简谱与和弦/06_和弦_预设与六弦指法编辑.png",
+      "name": "06_和弦_预设与六弦指法编辑",
+      "implementationStatus": "已有能力迁移及简谱行为修订",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/NumberedEditor.tsx",
+        "apps/website/components/EditorShell/MusicTextSidebar.tsx",
+        "apps/website/components/EditorShell/ChordEditor.tsx",
+        "packages/lxm-editor/src/core/numbered-commands.ts"
+      ],
+      "rules": [
+        "R02",
+        "R03",
+        "R05",
+        "R06",
+        "R07",
+        "R10",
+        "R11",
+        "R12"
+      ],
+      "acceptance": "歌词锚定 Beat，简谱锚定事件/item/时间窗；均匀改已有事件保留时值，模板新增限小节；简谱激活不建立 TAB 选区；全部既有模板和记号入口保留。",
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+    },
+    {
+      "file": "04_歌词简谱与和弦/07_和弦_横按设置.png",
+      "name": "07_和弦_横按设置",
+      "implementationStatus": "已有能力迁移及简谱行为修订",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/NumberedEditor.tsx",
+        "apps/website/components/EditorShell/MusicTextSidebar.tsx",
+        "apps/website/components/EditorShell/ChordEditor.tsx",
+        "packages/lxm-editor/src/core/numbered-commands.ts"
+      ],
+      "rules": [
+        "R02",
+        "R03",
+        "R05",
+        "R06",
+        "R07",
+        "R10",
+        "R11",
+        "R12"
+      ],
+      "acceptance": "歌词锚定 Beat，简谱锚定事件/item/时间窗；均匀改已有事件保留时值，模板新增限小节；简谱激活不建立 TAB 选区；全部既有模板和记号入口保留。",
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+    },
+    {
+      "file": "05_技巧与小节结构/01_小节属性与范围复制.png",
+      "name": "01_小节属性与范围复制",
+      "implementationStatus": "已有命令迁移及谱层明确",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/BeatToolbar.tsx",
+        "apps/website/components/EditorShell/TechniqueToolbar.tsx",
+        "apps/website/components/EditorShell/TupletToolbar.tsx",
+        "packages/lxm-editor/src/core/commands.ts"
+      ],
+      "rules": [
+        "R02",
+        "R07",
+        "R08",
+        "R11"
+      ],
+      "acceptance": "TAB 命令不误用于简谱；小节结构为双谱公共约束；复制明确谱层；预览失效重新规划；错误无部分修改；影响与内容一起撤销。",
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+    },
+    {
+      "file": "05_技巧与小节结构/02_拍点覆盖粘贴预览.png",
+      "name": "02_拍点覆盖粘贴预览",
+      "implementationStatus": "已有命令迁移及谱层明确",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/BeatToolbar.tsx",
+        "apps/website/components/EditorShell/TechniqueToolbar.tsx",
+        "apps/website/components/EditorShell/TupletToolbar.tsx",
+        "packages/lxm-editor/src/core/commands.ts"
+      ],
+      "rules": [
+        "R02",
+        "R07",
+        "R08",
+        "R11"
+      ],
+      "acceptance": "TAB 命令不误用于简谱；小节结构为双谱公共约束；复制明确谱层；预览失效重新规划；错误无部分修改；影响与内容一起撤销。",
+      "pngOverride": "粘贴预览显示仅TAB/双谱以及两谱记号影响；独立简谱使用自己的剪贴板；部分事件/Tuplet 拒绝。"
+    },
+    {
+      "file": "05_技巧与小节结构/03_连音组_比例与禁用条件.png",
+      "name": "03_连音组_比例与禁用条件",
+      "implementationStatus": "已有命令迁移及谱层明确",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/BeatToolbar.tsx",
+        "apps/website/components/EditorShell/TechniqueToolbar.tsx",
+        "apps/website/components/EditorShell/TupletToolbar.tsx",
+        "packages/lxm-editor/src/core/commands.ts"
+      ],
+      "rules": [
+        "R02",
+        "R07",
+        "R08",
+        "R11"
+      ],
+      "acceptance": "TAB 命令不误用于简谱；小节结构为双谱公共约束；复制明确谱层；预览失效重新规划；错误无部分修改；影响与内容一起撤销。",
+      "pngOverride": "此图为 TAB 连音组规则；简谱 Tuplet 走 range.replace 的 ratio，不复用 TAB SetTuplet。"
+    },
+    {
+      "file": "05_技巧与小节结构/04_技巧选择器_完整16类.png",
+      "name": "04_技巧选择器_完整16类",
+      "implementationStatus": "已有命令迁移及谱层明确",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/BeatToolbar.tsx",
+        "apps/website/components/EditorShell/TechniqueToolbar.tsx",
+        "apps/website/components/EditorShell/TupletToolbar.tsx",
+        "packages/lxm-editor/src/core/commands.ts"
+      ],
+      "rules": [
+        "R02",
+        "R07",
+        "R08",
+        "R11"
+      ],
+      "acceptance": "TAB 命令不误用于简谱；小节结构为双谱公共约束；复制明确谱层；预览失效重新规划；错误无部分修改；影响与内容一起撤销。",
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+    },
+    {
+      "file": "05_技巧与小节结构/05_技巧属性_半音与全音推弦.png",
+      "name": "05_技巧属性_半音与全音推弦",
+      "implementationStatus": "已有命令迁移及谱层明确",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/BeatToolbar.tsx",
+        "apps/website/components/EditorShell/TechniqueToolbar.tsx",
+        "apps/website/components/EditorShell/TupletToolbar.tsx",
+        "packages/lxm-editor/src/core/commands.ts"
+      ],
+      "rules": [
+        "R02",
+        "R07",
+        "R08",
+        "R11"
+      ],
+      "acceptance": "TAB 命令不误用于简谱；小节结构为双谱公共约束；复制明确谱层；预览失效重新规划；错误无部分修改；影响与内容一起撤销。",
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+    },
+    {
+      "file": "05_技巧与小节结构/06_编辑影响反馈与撤销.png",
+      "name": "06_编辑影响反馈与撤销",
+      "implementationStatus": "已有命令迁移及谱层明确",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/BeatToolbar.tsx",
+        "apps/website/components/EditorShell/TechniqueToolbar.tsx",
+        "apps/website/components/EditorShell/TupletToolbar.tsx",
+        "packages/lxm-editor/src/core/commands.ts"
+      ],
+      "rules": [
+        "R02",
+        "R07",
+        "R08",
+        "R11"
+      ],
+      "acceptance": "TAB 命令不误用于简谱；小节结构为双谱公共约束；复制明确谱层；预览失效重新规划；错误无部分修改；影响与内容一起撤销。",
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+    },
+    {
+      "file": "05_技巧与小节结构/07_关系技巧_目标音符.png",
+      "name": "07_关系技巧_目标音符",
+      "implementationStatus": "已有命令迁移及谱层明确",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/BeatToolbar.tsx",
+        "apps/website/components/EditorShell/TechniqueToolbar.tsx",
+        "apps/website/components/EditorShell/TupletToolbar.tsx",
+        "packages/lxm-editor/src/core/commands.ts"
+      ],
+      "rules": [
+        "R02",
+        "R07",
+        "R08",
+        "R11"
+      ],
+      "acceptance": "TAB 命令不误用于简谱；小节结构为双谱公共约束；复制明确谱层；预览失效重新规划；错误无部分修改；影响与内容一起撤销。",
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+    },
+    {
+      "file": "05_技巧与小节结构/08_范围技巧_起止与语义.png",
+      "name": "08_范围技巧_起止与语义",
+      "implementationStatus": "已有命令迁移及谱层明确",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/BeatToolbar.tsx",
+        "apps/website/components/EditorShell/TechniqueToolbar.tsx",
+        "apps/website/components/EditorShell/TupletToolbar.tsx",
+        "packages/lxm-editor/src/core/commands.ts"
+      ],
+      "rules": [
+        "R02",
+        "R07",
+        "R08",
+        "R11"
+      ],
+      "acceptance": "TAB 命令不误用于简谱；小节结构为双谱公共约束；复制明确谱层；预览失效重新规划；错误无部分修改；影响与内容一起撤销。",
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+    },
+    {
+      "file": "06_图片导出与异常/01_A4多页图片预览.png",
+      "name": "01_A4多页图片预览",
+      "implementationStatus": "已有图片输出能力迁移",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/ScoreImagePreview.tsx",
+        "apps/website/components/EditorShell/image-export-controller.ts",
+        "apps/website/components/EditorShell/ScorePresentationPage.tsx"
+      ],
+      "rules": [
+        "R04",
+        "R09",
+        "R10",
+        "R12"
+      ],
+      "acceptance": "预览/PNG 共用成品 scene；当前及缓存草稿均阻止输出；字体/会话变化取消旧结果；单页 PNG、多页 ZIP；不保留编辑装饰。",
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+    },
+    {
+      "file": "06_图片导出与异常/02_图片生成进度与取消.png",
+      "name": "02_图片生成进度与取消",
+      "implementationStatus": "已有图片输出能力迁移",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/ScoreImagePreview.tsx",
+        "apps/website/components/EditorShell/image-export-controller.ts",
+        "apps/website/components/EditorShell/ScorePresentationPage.tsx"
+      ],
+      "rules": [
+        "R04",
+        "R09",
+        "R10",
+        "R12"
+      ],
+      "acceptance": "预览/PNG 共用成品 scene；当前及缓存草稿均阻止输出；字体/会话变化取消旧结果；单页 PNG、多页 ZIP；不保留编辑装饰。",
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+    },
+    {
+      "file": "06_图片导出与异常/03_图片生成成功与下载.png",
+      "name": "03_图片生成成功与下载",
+      "implementationStatus": "已有图片输出能力迁移",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/ScoreImagePreview.tsx",
+        "apps/website/components/EditorShell/image-export-controller.ts",
+        "apps/website/components/EditorShell/ScorePresentationPage.tsx"
+      ],
+      "rules": [
+        "R04",
+        "R09",
+        "R10",
+        "R12"
+      ],
+      "acceptance": "预览/PNG 共用成品 scene；当前及缓存草稿均阻止输出；字体/会话变化取消旧结果；单页 PNG、多页 ZIP；不保留编辑装饰。",
+      "pngOverride": "仅在编码完成后可下载；生成完成不承诺浏览器已写入磁盘；保存曲谱状态不因图片下载变已保存。"
+    },
+    {
+      "file": "06_图片导出与异常/04_导出失败_字体或超宽.png",
+      "name": "04_导出失败_字体或超宽",
+      "implementationStatus": "已有图片输出能力迁移",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/ScoreImagePreview.tsx",
+        "apps/website/components/EditorShell/image-export-controller.ts",
+        "apps/website/components/EditorShell/ScorePresentationPage.tsx"
+      ],
+      "rules": [
+        "R04",
+        "R09",
+        "R10",
+        "R12"
+      ],
+      "acceptance": "预览/PNG 共用成品 scene；当前及缓存草稿均阻止输出；字体/会话变化取消旧结果；单页 PNG、多页 ZIP；不保留编辑装饰。",
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+    },
+    {
+      "file": "07_窄窗口适配/01_笔记本1280_谱面与属性并列.png",
+      "name": "01_笔记本1280_谱面与属性并列",
+      "implementationStatus": "新增布局重组与运行时验收",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/index.module.scss",
+        "apps/website/components/EditorShell/MusicTextSidebar.tsx",
+        "apps/website/components/EditorShell/index.tsx"
+      ],
+      "rules": [
+        "R02",
+        "R04",
+        "R09",
+        "R10",
+        "R11"
+      ],
+      "acceptance": "1280 并列、1024 上下、768 工具收纳及650高度需真实验证；面板独立滚动；保持草稿 owner；弹层/下拉/键盘可达，不按 PNG 绝对定位。",
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+    },
+    {
+      "file": "07_窄窗口适配/02_窄窗口1024_底部属性分区.png",
+      "name": "02_窄窗口1024_底部属性分区",
+      "implementationStatus": "新增布局重组与运行时验收",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/index.module.scss",
+        "apps/website/components/EditorShell/MusicTextSidebar.tsx",
+        "apps/website/components/EditorShell/index.tsx"
+      ],
+      "rules": [
+        "R02",
+        "R04",
+        "R09",
+        "R10",
+        "R11"
+      ],
+      "acceptance": "1280 并列、1024 上下、768 工具收纳及650高度需真实验证；面板独立滚动；保持草稿 owner；弹层/下拉/键盘可达，不按 PNG 绝对定位。",
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+    },
+    {
+      "file": "01_曲谱管理/09_搜索筛选与固定分类.png",
+      "name": "09_搜索筛选与固定分类",
+      "implementationStatus": "新增宿主业务层",
+      "codeEvidence": [
+        "apps/website/app/page.tsx",
+        "apps/website/components/EditorShell/EditorSession.tsx",
+        "apps/website/components/EditorShell/score-file.ts"
+      ],
+      "rules": [
+        "R01",
+        "R04",
+        "R09"
+      ],
+      "acceptance": "列表/收藏/最近/分类来自真实库；失败不作空库；校验成功且保护通过才替换会话；库旧记录不隐式升级。",
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+    },
+    {
+      "file": "01_曲谱管理/10_曲谱打开失败与版本提示.png",
+      "name": "10_曲谱打开失败与版本提示",
+      "implementationStatus": "新增宿主业务层",
+      "codeEvidence": [
+        "apps/website/app/page.tsx",
+        "apps/website/components/EditorShell/EditorSession.tsx",
+        "apps/website/components/EditorShell/score-file.ts"
+      ],
+      "rules": [
+        "R01",
+        "R04",
+        "R09"
+      ],
+      "acceptance": "列表/收藏/最近/分类来自真实库；失败不作空库；校验成功且保护通过才替换会话；库旧记录不隐式升级。",
+      "pngOverride": "本图只代表库/宿主普通加载失败；文件导入另有显式升级确认，不可一概拒绝所有旧文件。"
+    },
+    {
+      "file": "02_新建与保存/10_新建字段校验与禁用.png",
+      "name": "10_新建字段校验与禁用",
+      "implementationStatus": "新增宿主业务层",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/MusicTextSidebar.tsx",
+        "apps/website/components/EditorShell/EditorSession.tsx",
+        "apps/website/stores/editor-store.ts",
+        "packages/lxm-editor/src/core/rest-beats.ts"
+      ],
+      "rules": [
+        "R01",
+        "R04",
+        "R09"
+      ],
+      "acceptance": "合法 schema 8 空谱；保存事务成功才更新基线；错误/冲突不导航；全部草稿先处理；下载 JSON 不清库保存 dirty。",
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+    },
+    {
+      "file": "02_新建与保存/11_保存版本冲突与另存副本.png",
+      "name": "11_保存版本冲突与另存副本",
+      "implementationStatus": "新增宿主业务层",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/MusicTextSidebar.tsx",
+        "apps/website/components/EditorShell/EditorSession.tsx",
+        "apps/website/stores/editor-store.ts",
+        "packages/lxm-editor/src/core/rest-beats.ts"
+      ],
+      "rules": [
+        "R01",
+        "R04",
+        "R09"
+      ],
+      "acceptance": "合法 schema 8 空谱；保存事务成功才更新基线；错误/冲突不导航；全部草稿先处理；下载 JSON 不清库保存 dirty。",
+      "pngOverride": "冲突使用 storeVersion，不用 documentRevision；副本创建新作品身份且不覆盖另一窗口。"
+    },
+    {
+      "file": "03_编辑工作台/08_休止恢复删除与附点完整入口.png",
+      "name": "08_休止恢复删除与附点完整入口",
+      "implementationStatus": "已有能力重组与宿主接线",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/index.tsx",
+        "apps/website/components/EditorShell/MusicTextSidebar.tsx",
+        "apps/website/components/EditorShell/ScoreSettings.tsx"
+      ],
+      "rules": [
+        "R02",
+        "R03",
+        "R04",
+        "R09",
+        "R10",
+        "R11",
+        "R12"
+      ],
+      "acceptance": "四栏目是待建组织；可见页签/焦点/活动对象/选区分离；文件入口保留；非活动面板与断点变化不丢草稿；音乐来自正式布局。",
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+    },
+    {
+      "file": "04_歌词简谱与和弦/08_添加内容行与无目标状态.png",
+      "name": "08_添加内容行与无目标状态",
+      "implementationStatus": "已有能力迁移及简谱行为修订",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/NumberedEditor.tsx",
+        "apps/website/components/EditorShell/MusicTextSidebar.tsx",
+        "apps/website/components/EditorShell/ChordEditor.tsx",
+        "packages/lxm-editor/src/core/numbered-commands.ts"
+      ],
+      "rules": [
+        "R02",
+        "R03",
+        "R05",
+        "R06",
+        "R07",
+        "R10",
+        "R11",
+        "R12"
+      ],
+      "acceptance": "歌词锚定 Beat，简谱锚定事件/item/时间窗；均匀改已有事件保留时值，模板新增限小节；简谱激活不建立 TAB 选区；全部既有模板和记号入口保留。",
+      "pngOverride": "简谱无目标时可点击独立空位；不为了显示行创建 TAB 音符、假 Beat 或休止事件。"
+    },
+    {
+      "file": "04_歌词简谱与和弦/09_和弦高级操作与错误状态.png",
+      "name": "09_和弦高级操作与错误状态",
+      "implementationStatus": "已有能力迁移及简谱行为修订",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/NumberedEditor.tsx",
+        "apps/website/components/EditorShell/MusicTextSidebar.tsx",
+        "apps/website/components/EditorShell/ChordEditor.tsx",
+        "packages/lxm-editor/src/core/numbered-commands.ts"
+      ],
+      "rules": [
+        "R02",
+        "R03",
+        "R05",
+        "R06",
+        "R07",
+        "R10",
+        "R11",
+        "R12"
+      ],
+      "acceptance": "歌词锚定 Beat，简谱锚定事件/item/时间窗；均匀改已有事件保留时值，模板新增限小节；简谱激活不建立 TAB 选区；全部既有模板和记号入口保留。",
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+    },
+    {
+      "file": "05_技巧与小节结构/09_小节工具展开与段落字段.png",
+      "name": "09_小节工具展开与段落字段",
+      "implementationStatus": "已有命令迁移及谱层明确",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/BeatToolbar.tsx",
+        "apps/website/components/EditorShell/TechniqueToolbar.tsx",
+        "apps/website/components/EditorShell/TupletToolbar.tsx",
+        "packages/lxm-editor/src/core/commands.ts"
+      ],
+      "rules": [
+        "R02",
+        "R07",
+        "R08",
+        "R11"
+      ],
+      "acceptance": "TAB 命令不误用于简谱；小节结构为双谱公共约束；复制明确谱层；预览失效重新规划；错误无部分修改；影响与内容一起撤销。",
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+    },
+    {
+      "file": "05_技巧与小节结构/10_拍点结构菜单与可用条件.png",
+      "name": "10_拍点结构菜单与可用条件",
+      "implementationStatus": "已有命令迁移及谱层明确",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/BeatToolbar.tsx",
+        "apps/website/components/EditorShell/TechniqueToolbar.tsx",
+        "apps/website/components/EditorShell/TupletToolbar.tsx",
+        "packages/lxm-editor/src/core/commands.ts"
+      ],
+      "rules": [
+        "R02",
+        "R07",
+        "R08",
+        "R11"
+      ],
+      "acceptance": "TAB 命令不误用于简谱；小节结构为双谱公共约束；复制明确谱层；预览失效重新规划；错误无部分修改；影响与内容一起撤销。",
+      "pngOverride": "菜单区分 TAB 拍点与简谱时间范围；不能让简谱目标驱动 beat.split/merge。"
+    },
+    {
+      "file": "05_技巧与小节结构/11_六类小节线与谱尾禁用.png",
+      "name": "11_六类小节线与谱尾禁用",
+      "implementationStatus": "已有命令迁移及谱层明确",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/BeatToolbar.tsx",
+        "apps/website/components/EditorShell/TechniqueToolbar.tsx",
+        "apps/website/components/EditorShell/TupletToolbar.tsx",
+        "packages/lxm-editor/src/core/commands.ts"
+      ],
+      "rules": [
+        "R02",
+        "R07",
+        "R08",
+        "R11"
+      ],
+      "acceptance": "TAB 命令不误用于简谱；小节结构为双谱公共约束；复制明确谱层；预览失效重新规划；错误无部分修改；影响与内容一起撤销。",
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+    },
+    {
+      "file": "05_技巧与小节结构/12_技巧方向与辅助品位参数.png",
+      "name": "12_技巧方向与辅助品位参数",
+      "implementationStatus": "已有命令迁移及谱层明确",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/BeatToolbar.tsx",
+        "apps/website/components/EditorShell/TechniqueToolbar.tsx",
+        "apps/website/components/EditorShell/TupletToolbar.tsx",
+        "packages/lxm-editor/src/core/commands.ts"
+      ],
+      "rules": [
+        "R02",
+        "R07",
+        "R08",
+        "R11"
+      ],
+      "acceptance": "TAB 命令不误用于简谱；小节结构为双谱公共约束；复制明确谱层；预览失效重新规划；错误无部分修改；影响与内容一起撤销。",
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+    },
+    {
+      "file": "07_窄窗口适配/03_低高度650_独立滚动与固定动作.png",
+      "name": "03_低高度650_独立滚动与固定动作",
+      "implementationStatus": "新增布局重组与运行时验收",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/index.module.scss",
+        "apps/website/components/EditorShell/MusicTextSidebar.tsx",
+        "apps/website/components/EditorShell/index.tsx"
+      ],
+      "rules": [
+        "R02",
+        "R04",
+        "R09",
+        "R10",
+        "R11"
+      ],
+      "acceptance": "1280 并列、1024 上下、768 工具收纳及650高度需真实验证；面板独立滚动；保持草稿 owner；弹层/下拉/键盘可达，不按 PNG 绝对定位。",
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+    },
+    {
+      "file": "07_窄窗口适配/04_紧凑768_更多工具与底部编辑.png",
+      "name": "04_紧凑768_更多工具与底部编辑",
+      "implementationStatus": "新增布局重组与运行时验收",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/index.module.scss",
+        "apps/website/components/EditorShell/MusicTextSidebar.tsx",
+        "apps/website/components/EditorShell/index.tsx"
+      ],
+      "rules": [
+        "R02",
+        "R04",
+        "R09",
+        "R10",
+        "R11"
+      ],
+      "acceptance": "1280 并列、1024 上下、768 工具收纳及650高度需真实验证；面板独立滚动；保持草稿 owner；弹层/下拉/键盘可达，不按 PNG 绝对定位。",
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+    },
+    {
+      "file": "04_歌词简谱与和弦/10_独立简谱_音高时值与技巧属性.png",
+      "name": "10_独立简谱_音高时值与技巧属性",
+      "implementationStatus": "已有能力迁移及简谱行为修订",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/NumberedEditor.tsx",
+        "apps/website/components/EditorShell/MusicTextSidebar.tsx",
+        "apps/website/components/EditorShell/ChordEditor.tsx",
+        "packages/lxm-editor/src/core/numbered-commands.ts"
+      ],
+      "rules": [
+        "R02",
+        "R03",
+        "R05",
+        "R06",
+        "R07",
+        "R10",
+        "R11",
+        "R12"
+      ],
+      "acceptance": "歌词锚定 Beat，简谱锚定事件/item/时间窗；均匀改已有事件保留时值，模板新增限小节；简谱激活不建立 TAB 选区；全部既有模板和记号入口保留。",
+      "pngOverride": "必须保留前八后十六/前十六后八/连音比例、自定义成员、拆合、记号和范围复用；音高控件先明确 item 选择，不能一个八度隐含修改整组。"
+    },
+    {
+      "file": "04_歌词简谱与和弦/11_简谱常用符号与拍号视觉规范.png",
+      "name": "11_简谱常用符号与拍号视觉规范",
+      "implementationStatus": "已有能力迁移及简谱行为修订",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/NumberedEditor.tsx",
+        "apps/website/components/EditorShell/MusicTextSidebar.tsx",
+        "apps/website/components/EditorShell/ChordEditor.tsx",
+        "packages/lxm-editor/src/core/numbered-commands.ts"
+      ],
+      "rules": [
+        "R02",
+        "R03",
+        "R05",
+        "R06",
+        "R07",
+        "R10",
+        "R11",
+        "R12"
+      ],
+      "acceptance": "歌词锚定 Beat，简谱锚定事件/item/时间窗；均匀改已有事件保留时值，模板新增限小节；简谱激活不建立 TAB 选区；全部既有模板和记号入口保留。",
+      "pngOverride": "图中符号形态作参考；净空、连梁、八度点、跨行连线和同 tick 首音对齐来自最新 layout。"
+    },
+    {
+      "file": "03_编辑工作台/09_TAB对齐与选区细节.png",
+      "name": "09_TAB对齐与选区细节",
+      "implementationStatus": "已有能力重组与宿主接线",
+      "codeEvidence": [
+        "apps/website/components/EditorShell/index.tsx",
+        "apps/website/components/EditorShell/MusicTextSidebar.tsx",
+        "apps/website/components/EditorShell/ScoreSettings.tsx"
+      ],
+      "rules": [
+        "R02",
+        "R03",
+        "R04",
+        "R09",
+        "R10",
+        "R11",
+        "R12"
+      ],
+      "acceptance": "四栏目是待建组织；可见页签/焦点/活动对象/选区分离；文件入口保留；非活动面板与断点变化不丢草稿；音乐来自正式布局。",
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+    }
+  ]
+}

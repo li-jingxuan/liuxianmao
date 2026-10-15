@@ -4,12 +4,8 @@ import {
   useImperativeHandle,
   useEffect,
   type Ref,
-  type FormEvent,
 } from "react";
 import {
-  applyScoreCommand,
-  LXM_KEY_SIGNATURES,
-  LXM_EDITABLE_TIME_SIGNATURES,
   LXMScoreCommandEnum,
   type ILXMDocument,
   type ILXMApplyScoreCommandResult,
@@ -18,11 +14,18 @@ import {
 import { useEditorSessionStore } from "../../stores/editor-store";
 import {
   readScoreSettings,
-  planSettingsCommands,
-  settingsKeys,
+  submitSettingsDraft,
+  rebaseSettingsDraft,
+  type ScoreSettingsDraft,
   type SettingsGroup,
 } from "./score-settings-draft";
-import styles from "./index.module.scss";
+import { ScoreSettingsForm, type SettingsCopyRange } from "./ScoreSettingsForm";
+import { useEditorDraftRecords } from "./EditorSessionRuntime";
+import {
+  captureEditorVersion,
+  sameEditorSession,
+  sameEditorVersion,
+} from "./editor-session-version";
 
 export interface ScoreSettingsController {
   dirty: boolean;
@@ -30,29 +33,45 @@ export interface ScoreSettingsController {
   apply: () => boolean;
   discard: () => void;
 }
-/** 常驻设置实例，自己的提交保留其他字段草稿，外部历史变化重新读取快照。 */
+
+/** 唯一设置草稿 owner；Form、栏目与响应式布局只消费这份受控状态。 */
 export const ScoreSettings = ({
   ref,
   document,
   measureId,
   onDirty,
   commit,
+  onFocusRequest,
 }: {
   ref: Ref<ScoreSettingsController>;
   document: ILXMDocument;
   measureId?: string;
   onDirty: (dirty: boolean) => void;
   commit: (command: ILXMScoreCommand) => ILXMApplyScoreCommandResult | null;
+  onFocusRequest?: () => boolean;
 }) => {
   const store = useEditorSessionStore();
   const composing = useRef(false);
+  const [compositionActive, setCompositionActive] = useState(false);
+  const container = useRef<HTMLDivElement>(null);
+  const [focusRequest, setFocusRequest] = useState(0);
   const fresh = () => {
     const value = readScoreSettings(document, measureId);
     return { document, measureId, value, initial: value };
   };
   const [state, setState] = useState(fresh);
-  if (state.document !== document) setState(fresh());
-  else if (state.measureId !== measureId) {
+  const [issues, setIssues] = useState<
+    Partial<Record<SettingsGroup | "copy" | "all", string>>
+  >({});
+  if (state.document !== document) {
+    setState(fresh());
+    setIssues({});
+  }
+  // 已编辑的局部标记保持原目标；只有干净标记才随 focus 小节切换。
+  else if (
+    state.measureId !== measureId &&
+    state.value.label === state.initial.label
+  ) {
     const next = readScoreSettings(document, measureId);
     setState({
       ...state,
@@ -62,215 +81,160 @@ export const ScoreSettings = ({
     });
   }
   const dirty = JSON.stringify(state.value) !== JSON.stringify(state.initial);
+  const renderVersion = captureEditorVersion({ ...store.getState(), document });
   useEffect(() => onDirty(dirty), [dirty, onDirty]);
-  const update = (key: keyof typeof state.value, value: string | null) =>
-    setState((s) => ({ ...s, value: { ...s.value, [key]: value } }));
-  const apply = (group?: SettingsGroup) => {
-    const commands = planSettingsCommands(
-      document,
-      state.value,
-      state.initial,
-      measureId,
+  useEffect(() => {
+    if (focusRequest)
+      container.current
+        ?.querySelector<HTMLInputElement>("input")
+        ?.focus({ preventScroll: true });
+  }, [focusRequest]);
+  const update = <K extends keyof ScoreSettingsDraft>(
+    key: K,
+    value: ScoreSettingsDraft[K],
+  ) => {
+    setState((previous) => ({
+      ...previous,
+      value: { ...previous.value, [key]: value },
+    }));
+    setIssues({});
+  };
+  const discard = () => {
+    if (composing.current) return;
+    setState(fresh());
+    setIssues({});
+  };
+  const apply = (group?: SettingsGroup): boolean => {
+    if (composing.current) return false;
+    if (!sameEditorVersion(store.getState(), renderVersion)) return false;
+    const result = submitSettingsDraft({
+      getState: store.getState,
+      commit,
+      value: state.value,
+      initial: state.initial,
+      measureId: state.measureId,
       group,
-    );
-    // 先验证所有待提交表单；失败时不把前面的成功表单提前写入历史。
-    let planned = document;
-    for (const command of commands) {
-      const result = applyScoreCommand(planned, command);
-      if (!result.ok) {
-        store.getState().setErrorMessage(result.message);
-        return false;
-      }
-      planned = result.document;
+    });
+    // 旧 owner 的结果不能向新会话写错误或恢复草稿。
+    if (!sameEditorSession(store.getState(), renderVersion)) return false;
+    const nextDocument = store.getState().document;
+    if (
+      nextDocument &&
+      (result.submittedGroups.length || result.status === "stale")
+    ) {
+      const next = readScoreSettings(nextDocument, state.measureId);
+      setState({
+        document: nextDocument,
+        measureId: state.measureId,
+        value: rebaseSettingsDraft(
+          state.value,
+          state.initial,
+          next,
+          result.submittedGroups,
+        ),
+        initial: next,
+      });
     }
-    for (const command of commands) {
-      const result = commit(command);
-      if (!result?.ok) return false;
+    if (result.issue) {
+      setIssues((previous) => ({
+        ...previous,
+        [result.issue!.group ?? "all"]: result.issue!.message,
+      }));
+      store.getState().setErrorMessage(result.issue.message);
+      return false;
     }
-    if (!commands.length) store.getState().setErrorMessage(null);
-    const nextDocument = store.getState().document!;
-    const next = readScoreSettings(nextDocument, measureId);
-    const value = { ...state.value };
-    if (group)
-      for (const key of settingsKeys[group])
-        Object.assign(value, { [key]: next[key] });
-    else Object.assign(value, next);
-    setState({ document: nextDocument, measureId, value, initial: next });
+    setIssues((previous) => {
+      const remaining = { ...previous };
+      delete remaining.all;
+      for (const applied of result.submittedGroups) delete remaining[applied];
+      return remaining;
+    });
+    store.getState().setErrorMessage(null);
     return true;
   };
   useImperativeHandle(ref, () => ({
-    isComposing: () => composing.current,
     dirty,
+    isComposing: () => composing.current,
     apply: () => apply(),
-    discard: () => setState(fresh()),
+    discard,
   }));
-  const submit = (event: FormEvent, group: SettingsGroup) => {
-    event.preventDefault();
-    apply(group);
+  const first = document.score.tracks[0]!.measures[0]!;
+  const [copy, setCopy] = useState<SettingsCopyRange>({
+    start: first.id,
+    end: first.id,
+    after: "",
+  });
+  const copyMeasures = () => {
+    if (composing.current || dirty) return;
+    const current = store.getState().document;
+    if (!current || !sameEditorVersion(store.getState(), renderVersion)) return;
+    const result = commit({
+      type: LXMScoreCommandEnum.CopyMeasureRange,
+      trackId: current.score.tracks[0]!.id,
+      sourceStartMeasureId: copy.start,
+      sourceEndMeasureId: copy.end,
+      afterMeasureId: copy.after || undefined,
+    });
+    if (!sameEditorSession(store.getState(), renderVersion)) return;
+    if (!result?.ok)
+      setIssues((previous) => ({
+        ...previous,
+        copy: result && !result.ok ? result.message : "当前无法复制小节。",
+      }));
+    else setIssues({});
   };
-  const track = document.score.tracks[0]!;
-  const first = track.measures[0]!;
-  const nextChange = track.measures.findIndex(
-    (m, i) =>
-      i > 0 &&
-      (m.timeSignature.numerator !== first.timeSignature.numerator ||
-        m.timeSignature.denominator !== first.timeSignature.denominator),
-  );
-  const [start, setStart] = useState(first.id),
-    [end, setEnd] = useState(first.id),
-    [after, setAfter] = useState("");
+  useEditorDraftRecords([
+    {
+      id: `settings:${store.getState().sessionId}`,
+      kind: "settings",
+      targetKey: String(store.getState().sessionId),
+      label: "歌曲设置",
+      dirty,
+      composing: compositionActive,
+      canApply: dirty && !compositionActive,
+      error: null,
+      version: renderVersion,
+      focus: () => {
+        if (onFocusRequest && !onFocusRequest()) return false;
+        setFocusRequest((value) => value + 1);
+        return true;
+      },
+      apply: ({ isCurrent }) =>
+        isCurrent() ? (apply() ? "applied" : "blocked") : "stale",
+      discard: () => {
+        if (composing.current) return false;
+        discard();
+        return true;
+      },
+    },
+  ]);
   return (
     <div
-      className={`${styles.sidebarSection} ${styles.trackSettings}`}
+      ref={container}
       onCompositionStart={() => {
         composing.current = true;
+        setCompositionActive(true);
       }}
       onCompositionEnd={() => {
         composing.current = false;
+        setCompositionActive(false);
       }}
     >
-      <form onSubmit={(e) => submit(e, "info")}>
-        <h3>歌曲信息</h3>
-        <label>
-          歌曲名称
-          <input
-            aria-label="歌曲名称"
-            value={state.value.title}
-            onChange={(e) => update("title", e.target.value)}
-          />
-        </label>
-        <label>
-          编谱作者
-          <input
-            aria-label="编谱作者"
-            value={state.value.arranger}
-            onChange={(e) => update("arranger", e.target.value)}
-          />
-        </label>
-        <label>
-          调性
-          <select
-            aria-label="调性"
-            value={state.value.keySignature ?? ""}
-            onChange={(e) => update("keySignature", e.target.value || null)}
-          >
-            <option value="">未设置</option>
-            {LXM_KEY_SIGNATURES.map((k) => (
-              <option key={k} value={k}>
-                1={k}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button type="submit">应用歌曲信息</button>
-      </form>
-      <form onSubmit={(e) => submit(e, "signature")}>
-        <label>
-          基础拍号
-          <select
-            aria-label="基础拍号"
-            value={state.value.signature}
-            onChange={(e) => update("signature", e.target.value)}
-          >
-            {!LXM_EDITABLE_TIME_SIGNATURES.some(
-              (t) =>
-                `${t.numerator}/${t.denominator}` === state.value.signature,
-            ) && (
-              <option value={state.value.signature}>
-                {state.value.signature}（当前）
-              </option>
-            )}
-            {LXM_EDITABLE_TIME_SIGNATURES.map((t) => (
-              <option key={`${t.numerator}/${t.denominator}`}>
-                {t.numerator}/{t.denominator}
-              </option>
-            ))}
-          </select>
-        </label>
-        <small>
-          作用于第 1–{nextChange < 0 ? track.measures.length : nextChange} 小节
-        </small>
-        <button type="submit">应用基础拍号</button>
-      </form>
-      <form onSubmit={(e) => submit(e, "capo")}>
-        <label>
-          Capo
-          <input
-            aria-label="Capo"
-            type="number"
-            min="0"
-            max="12"
-            step="1"
-            value={state.value.capo}
-            onChange={(e) => update("capo", e.target.value)}
-          />
-        </label>
-        <button type="submit">应用 Capo</button>
-      </form>
-      <form onSubmit={(e) => submit(e, "label")}>
-        <label>
-          段落标记
-          <input
-            aria-label="段落标记"
-            disabled={!measureId}
-            value={state.value.label}
-            onChange={(e) => update("label", e.target.value)}
-          />
-        </label>
-        {!measureId && <small>请先选择目标小节</small>}
-        <button disabled={!measureId} type="submit">
-          应用段落标记
-        </button>
-      </form>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (dirty) {
-            store
-              .getState()
-              .setErrorMessage("请先应用或放弃设置草稿，再复制小节。");
-            return;
-          }
-          commit({
-            type: LXMScoreCommandEnum.CopyMeasureRange,
-            trackId: track.id,
-            sourceStartMeasureId: start,
-            sourceEndMeasureId: end,
-            afterMeasureId: after || undefined,
-          });
-        }}
-      >
-        <h3>小节复用</h3>
-        {(
-          [
-            ["复制起始小节", start, setStart],
-            ["复制结束小节", end, setEnd],
-            ["插入位置", after, setAfter],
-          ] as const
-        ).map(([name, value, set]) => (
-          <label key={name}>
-            {name}
-            <select
-              aria-label={name}
-              value={value}
-              onChange={(e) => set(e.target.value)}
-            >
-              {name === "插入位置" && <option value="">谱首</option>}
-              {track.measures.map((m, i) => (
-                <option key={m.id} value={m.id}>
-                  第 {i + 1} 小节{name === "插入位置" ? "后" : ""}
-                </option>
-              ))}
-            </select>
-          </label>
-        ))}
-        <button type="submit">复制小节范围</button>
-      </form>
-      {dirty && (
-        <button type="button" onClick={() => setState(fresh())}>
-          放弃设置草稿
-        </button>
-      )}
+      <ScoreSettingsForm
+        document={document}
+        value={state.value}
+        measureId={state.measureId}
+        selectedMeasureId={measureId}
+        dirty={dirty}
+        composing={compositionActive}
+        issues={issues}
+        copy={copy}
+        onChange={update}
+        onApply={apply}
+        onDiscard={discard}
+        onCopyChange={setCopy}
+        onCopy={copyMeasures}
+      />
     </div>
   );
 };

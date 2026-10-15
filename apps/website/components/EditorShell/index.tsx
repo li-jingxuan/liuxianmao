@@ -1,6 +1,5 @@
 "use client";
-import type { ILXMScoreCommand, ILXMDocument } from "@liuxianmao/lxm-editor";
-import { BeatToolbar } from "./BeatToolbar";
+import type { ILXMScoreCommand } from "@liuxianmao/lxm-editor";
 
 import { EditorImpactNotice } from "./EditorImpactNotice";
 
@@ -29,26 +28,17 @@ import {
   type ILXMTimeSignature,
 } from "@liuxianmao/lxm-editor";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Button, Switch } from "antd";
-import {
-  PictureOutlined,
-  RedoOutlined,
-  UndoOutlined,
-} from "@ant-design/icons";
-import type { MusicControlIcon } from "../../assets/svg/svg-assets-manifest";
+import { theme } from "antd";
 import {
   useEditorSessionStore,
   useEditorStore,
 } from "../../stores/editor-store";
-import { MusicAssetIcon } from "../MusicAssetIcon";
 import {
   createDeferredFretDraftCommit,
   resolveBeatKindShortcut,
   resolveMutedNoteShortcut,
   resolveEditorHistoryShortcut,
 } from "./editor-interaction";
-import { TupletToolbar } from "./TupletToolbar";
-import { TechniqueToolbar } from "./TechniqueToolbar";
 import { ScoreMusicLayer } from "./ScoreMusicLayer";
 import { buildScoreScene } from "./score-scene";
 import { ScoreImagePreview } from "./ScoreImagePreview";
@@ -65,19 +55,21 @@ import {
   sameMusicTextTarget,
 } from "./music-text-hover";
 import styles from "./index.module.scss";
+import {
+  useEditorDraftRecords,
+  useEditorRuntime,
+} from "./EditorSessionRuntime";
+import {
+  captureEditorVersion,
+  sameEditorSession,
+} from "./editor-session-version";
+import { EditorStatusBar } from "./EditorStatusBar";
+import { EditorHeader } from "./EditorHeader";
+import { EditorToolbar, type EditorToolbarAction } from "./EditorToolbar";
+import { editorShortcutHelp } from "./editor-shortcuts";
 
 /** 两位品位输入等待第二个数字的时间，超时后提交一位品位。 */
 const FRET_DRAFT_TIMEOUT_MS = 600;
-
-/** 小节线工具完整保留核心已支持的六类领域值，并提供可读中文名称。 */
-const BARLINE_OPTIONS: { value: ILXMBarlineType; label: string }[] = [
-  { value: "single", label: "单小节线" },
-  { value: "double", label: "双小节线" },
-  { value: "final", label: "终止线" },
-  { value: "repeatStart", label: "开始反复线" },
-  { value: "repeatEnd", label: "结束反复线" },
-  { value: "repeatBoth", label: "双向反复线" },
-];
 
 /** 拍号是值对象；页面只把它格式化为 select 的稳定字符串值。 */
 const formatTimeSignature = ({
@@ -102,10 +94,10 @@ const isTextEditingTarget = (target: EventTarget | null): boolean =>
 
 export const EditorShell: React.FC = () => {
   const session = useEditorSessionStore();
+  const { token } = theme.useToken();
+  const { drafts, modals } = useEditorRuntime();
   const document = useEditorStore((state) => state.document);
   const selection = useEditorStore((state) => state.selection);
-  const clipboardVersion = useEditorStore((s) => s.clipboardVersion);
-  const stateVersion = useEditorStore((s) => s.stateVersion);
   const effects = useEditorStore((state) => state.effects);
   const selectedNumberedMarkId = useEditorStore(
     (state) => state.selectedNumberedMarkId,
@@ -113,14 +105,6 @@ export const EditorShell: React.FC = () => {
   const errorMessage = useEditorStore((state) => state.errorMessage);
   const loadNotice = useEditorStore((state) => state.loadNotice);
   const executeInStore = useEditorStore((state) => state.execute);
-  const [structureImpact, setStructureImpact] = useState<{
-    command: ILXMScoreCommand;
-    document: ILXMDocument;
-    stateVersion: number;
-    sessionVersion: number;
-    removed: string[];
-  } | null>(null);
-  const structureDialog = useRef<HTMLDialogElement>(null);
   /** 公共结构确认绑定真实会话快照，不在第一次失败后写任何历史。 */
   const execute = (command: ILXMScoreCommand) => {
     const snapshot = session.getState();
@@ -131,19 +115,29 @@ export const EditorShell: React.FC = () => {
       result.code === "NUMBERED_IMPACT_REQUIRED" &&
       snapshot.document
     )
-      setStructureImpact({
-        command,
-        document: snapshot.document,
-        stateVersion: snapshot.stateVersion,
-        sessionVersion: snapshot.sessionVersion,
-        removed: result.removedMarkIds ?? [],
+      modals.open({
+        kind: "structure-impact",
+        title: "公共结构影响确认",
+        message: `这次结构修改将删除 ${result.removedMarkIds?.length ?? 0} 个简谱连接记号。确认后与结构修改一起提交、一起撤销。`,
+        version: captureEditorVersion(snapshot),
+        confirm: ({ isCurrent }) => {
+          if (!isCurrent()) return false;
+          return !!executeInStore({
+            ...command,
+            expectedRevision: snapshot.document!.documentRevision,
+            confirmedRemovedMarkIds: result.removedMarkIds ?? [],
+          })?.ok;
+        },
+        onClose: (reason) => {
+          if (
+            reason === "stale" &&
+            sameEditorSession(session.getState(), snapshot)
+          )
+            session.getState().setErrorMessage("结构预览已过期，请重新操作。");
+        },
       });
     return result;
   };
-  useEffect(() => {
-    if (structureImpact) structureDialog.current?.showModal();
-    else structureDialog.current?.close();
-  }, [structureImpact]);
   const setSelection = useEditorStore((state) => state.setSelection);
   const selectedTechniqueId = useEditorStore(
     (state) => state.selectedTechniqueId,
@@ -158,6 +152,8 @@ export const EditorShell: React.FC = () => {
   const canRedo = useEditorStore((state) => state.canRedo);
 
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
+  const [fileFeedbackHost, setFileFeedbackHost] =
+    useState<HTMLDivElement | null>(null);
   /** 宿主替换或历史变化立即关闭旧输出，晚到回调不能发布旧谱。 */
   useEffect(
     () =>
@@ -336,9 +332,6 @@ export const EditorShell: React.FC = () => {
     () => new Set(resolvedSelection?.beats.map((beat) => beat.measureId) ?? []),
     [resolvedSelection],
   );
-  const canEditSingleBeat = resolvedSelection?.beats.length === 1;
-  const canEditBeatRange = Boolean(resolvedSelection?.beats.length);
-  const canEditSingleMeasure = selectedMeasureIds.size === 1;
 
   /**
    * 小节线工具跟随 selection.focus，而不是范围的第一个 Beat。
@@ -715,6 +708,40 @@ export const EditorShell: React.FC = () => {
     setSelectedNotes(fret);
   };
 
+  useEditorDraftRecords(
+    fretDraft && selection
+      ? [
+          {
+            id: `fret:${selection.focus.trackId}/${selection.focus.measureId}/${selection.focus.beatId}/${selection.focus.string}`,
+            kind: "fret",
+            targetKey: `${selection.focus.trackId}/${selection.focus.measureId}/${selection.focus.beatId}/${selection.focus.string}`,
+            label: `品位输入 ${fretDraft}`,
+            dirty: true,
+            composing: false,
+            canApply: false,
+            error: null,
+            version: captureEditorVersion(session.getState()),
+            focus: () => {
+              focusScore();
+              return true;
+            },
+            // 品位继续使用既有 600ms 提交器，协调器不另建一条提交路径。
+            apply: () => "blocked",
+            discard: () => {
+              clearFretDraft();
+              return true;
+            },
+          },
+        ]
+      : [],
+  );
+
+  const isOutputBlocked = () =>
+    modals.isOpen() ||
+    drafts.isOutputBlocked() ||
+    !!fretDraft ||
+    !!musicTextController.current?.isOutputBlocked();
+
   /** 使用 SVG CTM 完成 client 坐标到 layout 逻辑坐标的唯一转换。 */
   const getLayoutPoint = (
     svg: SVGSVGElement,
@@ -870,7 +897,13 @@ export const EditorShell: React.FC = () => {
   const handleEditorKeyDown: React.KeyboardEventHandler<HTMLDivElement> = (
     event,
   ) => {
+    if (modals.isOpen()) return;
     if (isTextEditingTarget(event.target)) return;
+    if (
+      event.target instanceof Element &&
+      event.target.closest('dialog, [role="dialog"], [role="alertdialog"]')
+    )
+      return;
 
     const action = resolveEditorHistoryShortcut(event, { canUndo, canRedo });
     if (!action) return;
@@ -886,7 +919,11 @@ export const EditorShell: React.FC = () => {
   const handleScoreKeyDown: React.KeyboardEventHandler<SVGSVGElement> = (
     event,
   ) => {
-    if (isTextEditingTarget(event.target) || event.nativeEvent.isComposing)
+    if (
+      modals.isOpen() ||
+      isTextEditingTarget(event.target) ||
+      event.nativeEvent.isComposing
+    )
       return;
     // 段落活动对象上的 Esc 也走草稿保护，不能被文字输入锁提前拦住。
     if (event.key === "Escape" && activeMusicTextTarget) {
@@ -993,9 +1030,7 @@ export const EditorShell: React.FC = () => {
         <ScoreFileControls
           session={session}
           className={styles.toolbarButton}
-          isBlocked={() =>
-            !!fretDraft || !!musicTextController.current?.isOutputBlocked()
-          }
+          isBlocked={isOutputBlocked}
         />
         <p className={styles.errorMessage} role="alert">
           {errorMessage ?? "当前没有可编辑的乐谱文档。"}
@@ -1003,382 +1038,108 @@ export const EditorShell: React.FC = () => {
       </div>
     );
 
-  /** 顶栏每个音乐图标都有文字 aria-label，避免只靠符号传达操作含义。 */
-  const rhythmButtons: {
-    base: ILXMRhythm["base"];
-    icon: MusicControlIcon;
-    label: string;
-  }[] = [
-    { base: "whole", icon: "noteWhole", label: "全音符" },
-    { base: "half", icon: "noteHalf", label: "二分音符" },
-    { base: "quarter", icon: "noteQuarter", label: "四分音符" },
-    { base: "eighth", icon: "noteEighth", label: "八分音符" },
-    { base: "sixteenth", icon: "noteSixteenth", label: "十六分音符" },
-    { base: "thirtySecond", icon: "noteThirtySecond", label: "三十二分音符" },
-  ];
+  const handleToolbarAction = (action: EditorToolbarAction) => {
+    switch (action.type) {
+      case "undo":
+        undo();
+        break;
+      case "redo":
+        redo();
+        break;
+      case "rhythm":
+        setActiveRhythmBase(action.base);
+        break;
+      case "dots":
+        setActiveDots(action.dots);
+        break;
+      case "muted":
+        setSelectedNotes("x");
+        break;
+      case "removeNotes":
+        removeSelectedNotes();
+        break;
+      case "rest":
+        setSelectedBeatKind("rest");
+        break;
+      case "restore":
+        setSelectedBeatKind("notes");
+        break;
+      case "insertMeasure":
+        insertMeasureAfterActive();
+        break;
+      case "copyMeasures":
+        copyActiveMeasure();
+        break;
+      case "removeMeasure":
+        removeActiveMeasure();
+        break;
+      case "signature":
+        setFocusedMeasureTimeSignature(action.value);
+        break;
+      case "barline":
+        setFocusedMeasureBarline(action.value);
+        break;
+      case "startRepeat":
+        toggleTrackStartRepeat();
+        break;
+    }
+  };
+  const editorVariables = {
+    "--panel": token.colorBgContainer,
+    "--panel-muted": token.colorBgLayout,
+    "--background": token.colorBgLayout,
+    "--foreground": token.colorText,
+    "--muted": token.colorTextSecondary,
+    "--border": token.colorBorderSecondary,
+    "--border-strong": token.colorBorder,
+    "--accent": token.colorPrimary,
+    "--accent-soft": token.colorPrimaryBg,
+  };
 
   return (
-    <div className={styles.editor} onKeyDown={handleEditorKeyDown}>
-      <dialog
-        ref={structureDialog}
-        aria-label="公共结构影响确认"
-        onCancel={() => setStructureImpact(null)}
-      >
-        <p>
-          这次结构修改将删除 {structureImpact?.removed.length ?? 0}{" "}
-          个简谱连接记号。确认后与结构修改一起提交、一起撤销。
-        </p>
-        <button onClick={() => setStructureImpact(null)}>取消</button>
-        <button
-          onClick={() => {
-            if (!structureImpact) return;
-            const current = session.getState();
-            if (
-              current.document !== structureImpact.document ||
-              current.stateVersion !== structureImpact.stateVersion ||
-              current.sessionVersion !== structureImpact.sessionVersion
-            ) {
-              setErrorMessage("结构预览已过期，请重新操作");
-              setStructureImpact(null);
-              return;
-            }
-            const result = executeInStore({
-              ...structureImpact.command,
-              expectedRevision: structureImpact.document.documentRevision,
-              confirmedRemovedMarkIds: structureImpact.removed,
-            });
-            if (result?.ok) setStructureImpact(null);
-          }}
-        >
-          确认修改
-        </button>
-      </dialog>
-      <div className={styles.editorControls}>
-        <div
-          className={styles.editorToolbar}
-          role="toolbar"
-          aria-label="节奏、小节与历史工具"
-        >
-          <Button
-            type="text"
-            size="small"
-            className={styles.toolbarButton}
-            aria-label="撤销"
-            disabled={!canUndo}
-            icon={<UndoOutlined />}
-            onClick={() => runImmediateEditorAction(undo)}
-          />
-          <Button
-            type="text"
-            size="small"
-            className={styles.toolbarButton}
-            aria-label="重做"
-            disabled={!canRedo}
-            icon={<RedoOutlined />}
-            onClick={() => runImmediateEditorAction(redo)}
-          />
-          <div className={styles.protectedTools} inert={musicTextEditing}>
-            <span className={styles.toolbarSeparator} aria-hidden="true" />
-            {rhythmButtons.map((button) => (
-              <button
-                key={button.base}
-                type="button"
-                className={styles.toolbarButton}
-                aria-label={`设置为${button.label}`}
-                disabled={!canEditSingleBeat}
-                onClick={() =>
-                  runImmediateEditorAction(() =>
-                    setActiveRhythmBase(button.base),
-                  )
-                }
-              >
-                <MusicAssetIcon
-                  assetId={button.icon}
-                  className={styles.toolbarIcon}
-                />
-              </button>
-            ))}
-            <button
-              type="button"
-              className={styles.toolbarButton}
-              aria-label="取消附点"
-              disabled={!canEditSingleBeat}
-              onClick={() => runImmediateEditorAction(() => setActiveDots(0))}
-            >
-              无点
-            </button>
-            <button
-              type="button"
-              className={styles.toolbarButton}
-              aria-label="设置单附点"
-              disabled={!canEditSingleBeat}
-              onClick={() => runImmediateEditorAction(() => setActiveDots(1))}
-            >
-              <MusicAssetIcon
-                assetId="noteDot"
-                className={styles.toolbarIcon}
-              />
-            </button>
-            <button
-              type="button"
-              className={styles.toolbarButton}
-              aria-label="设置双附点"
-              disabled={!canEditSingleBeat}
-              onClick={() => runImmediateEditorAction(() => setActiveDots(2))}
-            >
-              <MusicAssetIcon
-                assetId="noteDoubleDotted"
-                className={styles.toolbarIcon}
-              />
-            </button>
-            <button
-              type="button"
-              className={styles.toolbarButton}
-              aria-label="设置为闷音音符 x"
-              title="闷音音符（X）"
-              disabled={!selection}
-              onClick={() =>
-                runImmediateEditorAction(() => setSelectedNotes("x"))
-              }
-            >
-              x
-            </button>
-            <button
-              type="button"
-              className={styles.toolbarButton}
-              aria-label="将选中 Beat 设为休止并清空全部弦音符"
-              title="设为休止（R）"
-              disabled={!canEditBeatRange}
-              onClick={() =>
-                runImmediateEditorAction(() => setSelectedBeatKind("rest"))
-              }
-            >
-              休止
-            </button>
-            <button
-              type="button"
-              className={styles.toolbarButton}
-              aria-label="取消选中 Beat 的休止状态"
-              title="取消休止（Shift+R）"
-              disabled={!canEditBeatRange}
-              onClick={() =>
-                runImmediateEditorAction(() => setSelectedBeatKind("notes"))
-              }
-            >
-              恢复
-            </button>
-            <span className={styles.toolbarSeparator} aria-hidden="true" />
-            <button
-              type="button"
-              className={styles.toolbarButton}
-              aria-label="在当前小节后新增小节"
-              disabled={!canEditSingleMeasure}
-              onClick={() => runImmediateEditorAction(insertMeasureAfterActive)}
-            >
-              <MusicAssetIcon
-                assetId="measureAdd"
-                className={styles.toolbarIcon}
-              />
-            </button>
-            <button
-              type="button"
-              className={styles.toolbarButton}
-              aria-label="复制选中小节范围"
-              disabled={selectedMeasureIds.size === 0}
-              onClick={() => runImmediateEditorAction(copyActiveMeasure)}
-            >
-              <MusicAssetIcon
-                assetId="actionsCopy"
-                className={styles.toolbarIcon}
-              />
-            </button>
-            <button
-              type="button"
-              className={styles.toolbarButton}
-              aria-label="删除当前小节"
-              disabled={!canEditSingleMeasure}
-              onClick={() => runImmediateEditorAction(removeActiveMeasure)}
-            >
-              <MusicAssetIcon
-                assetId="measureRemove"
-                className={styles.toolbarIcon}
-              />
-            </button>
-            <span className={styles.toolbarSeparator} aria-hidden="true" />
-            <label className={styles.toolbarField}>
-              <span>
-                拍号
-                {focusedMeasureContext
-                  ? `（第 ${focusedMeasureContext.measureIndex + 1} 小节）`
-                  : ""}
-              </span>
-              <select
-                className={styles.toolbarSelect}
-                aria-label="设置当前焦点小节的拍号"
-                disabled={!focusedMeasureContext}
-                value={
-                  focusedMeasureContext
-                    ? formatTimeSignature(
-                        focusedMeasureContext.measure.timeSignature,
-                      )
-                    : ""
-                }
-                onChange={(event) =>
-                  runImmediateEditorAction(() =>
-                    setFocusedMeasureTimeSignature(event.currentTarget.value),
-                  )
-                }
-              >
-                {!focusedMeasureContext && (
-                  <option value="" disabled>
-                    未选择小节
-                  </option>
-                )}
-                {focusedMeasureContext &&
-                  !LXM_EDITABLE_TIME_SIGNATURES.some(
-                    (candidate) =>
-                      formatTimeSignature(candidate) ===
-                      formatTimeSignature(
-                        focusedMeasureContext.measure.timeSignature,
-                      ),
-                  ) && (
-                    // 旧文档可能含白名单外拍号：允许查看当前值，但不能由本工具再次写入。
-                    <option
-                      value={formatTimeSignature(
-                        focusedMeasureContext.measure.timeSignature,
-                      )}
-                      disabled
-                    >
-                      {formatTimeSignature(
-                        focusedMeasureContext.measure.timeSignature,
-                      )}
-                      （只读）
-                    </option>
-                  )}
-                {LXM_EDITABLE_TIME_SIGNATURES.map((timeSignature) => {
-                  const value = formatTimeSignature(timeSignature);
-                  return (
-                    <option key={value} value={value}>
-                      {value}
-                    </option>
-                  );
-                })}
-              </select>
-            </label>
-            <span className={styles.toolbarSeparator} aria-hidden="true" />
-            <label className={styles.toolbarField}>
-              <span>右边界</span>
-              <select
-                className={styles.toolbarSelect}
-                aria-label="设置当前焦点小节的右边界"
-                disabled={!focusedMeasureContext}
-                value={focusedMeasureContext?.measure.barline ?? "single"}
-                onChange={(event) =>
-                  runImmediateEditorAction(() =>
-                    setFocusedMeasureBarline(
-                      event.currentTarget.value as ILXMBarlineType,
-                    ),
-                  )
-                }
-              >
-                {BARLINE_OPTIONS.map((option) => (
-                  <option
-                    key={option.value}
-                    value={option.value}
-                    // 谱尾没有下一小节，开始反复和双向反复在领域层也会被拒绝。
-                    disabled={
-                      focusedMeasureContext?.isLastMeasure &&
-                      (option.value === "repeatStart" ||
-                        option.value === "repeatBoth")
-                    }
-                  >
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button
-              type="button"
-              className={styles.toolbarButton}
-              aria-label="切换谱首开始反复线"
-              aria-pressed={
-                focusedMeasureContext?.track.startBarline === "repeatStart"
-              }
-              disabled={!focusedMeasureContext?.isFirstMeasure}
-              onClick={() => runImmediateEditorAction(toggleTrackStartRepeat)}
-            >
-              谱首反复
-            </button>
-            <TupletToolbar
-              document={document}
-              selection={selection}
-              execute={execute}
-            />
-            <BeatToolbar
-              key={`${stateVersion}/${clipboardVersion}/${selection?.anchor.measureId}/${selection?.anchor.beatId}/${selection?.focus.measureId}/${selection?.focus.beatId}`}
-              beforeAction={clearFretDraft}
-            />
-            <TechniqueToolbar
-              key={selectedTechniqueId ?? "new-technique"}
-              document={document}
-              selection={selection}
-              selectedTechniqueId={selectedTechniqueId}
-              execute={execute}
-              setSelectedTechniqueId={setSelectedTechniqueId}
-              setErrorMessage={setErrorMessage}
-            />
-          </div>
-          <label>
-            排版
-            <select
-              aria-label="谱面排版密度"
-              value={density}
-              onChange={(event) =>
-                setDensity(event.target.value as ILXMLayoutDensity)
-              }
-            >
-              <option value="compact">紧凑</option>
-              <option value="comfortable">舒适</option>
-            </select>
-          </label>
-          <label
-            className={styles.toolbarSwitch}
-            title="控制整张谱面的指法图显示，图片导出同步；隐藏不会删除指法。"
-          >
-            <Switch
-              size="small"
-              aria-label="显示和弦指法图"
-              checked={showChordDiagrams}
-              onChange={setShowChordDiagrams}
-            />
-            显示和弦指法图
-          </label>
+    <div
+      className={styles.editor}
+      style={{ ...editorVariables, color: token.colorText }}
+      onKeyDown={handleEditorKeyDown}
+    >
+      <EditorHeader
+        title={document.score.title}
+        density={density}
+        showChordDiagrams={showChordDiagrams}
+        onDensityChange={setDensity}
+        onChordDiagramsChange={setShowChordDiagrams}
+        helpDisabled={!!fretDraft}
+        onHelp={() =>
+          modals.open({
+            kind: "keyboard-help",
+            title: "编辑快捷键",
+            message: editorShortcutHelp(),
+          })
+        }
+        fileControls={
           <ScoreFileControls
             session={session}
-            className={styles.toolbarButton}
-            isBlocked={() =>
-              !!fretDraft || !!musicTextController.current?.isOutputBlocked()
-            }
+            className={styles.headerNativeAction}
+            feedbackContainer={fileFeedbackHost}
+            isBlocked={isOutputBlocked}
           />
-          <Button
-            type="default"
-            size="small"
-            className={styles.toolbarButton}
-            aria-label="导出 A4 图片"
-            icon={<PictureOutlined />}
-            onClick={() => {
-              if (fretDraft || musicTextController.current?.isOutputBlocked()) {
-                setErrorMessage(
-                  "请先完成当前输入并应用或取消修改，再导出图片。",
-                );
-                return;
-              }
-              setImagePreviewOpen(true);
-            }}
-          >
-            导出图片
-          </Button>
-        </div>
+        }
+        onImageExport={() => {
+          if (isOutputBlocked()) {
+            setErrorMessage("请先完成当前输入并应用或取消修改，再导出图片。");
+            return;
+          }
+          setImagePreviewOpen(true);
+        }}
+      />
+      <EditorToolbar
+        blocked={musicTextEditing}
+        onAction={handleToolbarAction}
+        beforeAction={clearFretDraft}
+        execute={execute}
+      />
+      <div className={styles.editorControls}>
+        <div ref={setFileFeedbackHost} />
         {loadNotice && <p role="status">{loadNotice}</p>}
         {lxmLayout.width > A4_CONTENT_WIDTH + 1 && (
           <p role="status">
@@ -1393,24 +1154,6 @@ export const EditorShell: React.FC = () => {
               部分文字暂使用保守估算排版，真实字体边界尚未全部确认。
             </p>
           )}
-        <p className={styles.inputHint}>
-          点击或拖动选择，Shift 扩展，方向键导航；输入 0–24 批量设置品位，X
-          设置闷音音符， Backspace/Delete 批量删除，R 设为休止，Shift+R
-          取消休止；技巧可按当前 Note、Beat
-          或范围添加，点击技巧图形可更新或删除。
-          {resolvedSelection && ` 已选择 ${resolvedSelection.cellCount} 格。`}
-          {fretDraft && ` 正在输入：${fretDraft}`}
-        </p>
-        <p
-          className={styles.cursorStatus}
-          role="status"
-          aria-live="polite"
-          aria-atomic="true"
-        >
-          {selection && focusedMeasureContext
-            ? `当前位置：第 ${focusedMeasureContext.measureIndex + 1} 小节，第 ${focusedMeasureContext.measure.beats.findIndex((beat) => beat.id === selection.focus.beatId) + 1} 拍点，第 ${selection.focus.string} 弦。`
-            : "请在谱面选择编辑位置。"}
-        </p>
         <EditorImpactNotice effects={effects} />
         {errorMessage && (
           <p className={styles.errorMessage} role="alert">
@@ -1522,6 +1265,16 @@ export const EditorShell: React.FC = () => {
           onScoreSelection={acceptScoreSelection}
         />
       </div>
+      <EditorStatusBar
+        position={
+          selection && focusedMeasureContext
+            ? `当前位置：第 ${focusedMeasureContext.measureIndex + 1} 小节，第 ${focusedMeasureContext.measure.beats.findIndex((beat) => beat.id === selection.focus.beatId) + 1} 拍点，第 ${selection.focus.string} 弦。`
+            : "请在谱面选择编辑位置。"
+        }
+        cellCount={resolvedSelection?.cellCount ?? 0}
+        fretDraft={fretDraft}
+        viewLabel={`${density === "compact" ? "紧凑" : "舒适"}排版 · ${showChordDiagrams ? "指法图显示" : "指法图隐藏"}`}
+      />
       <ScorePrintLayer
         score={document}
         density={density}

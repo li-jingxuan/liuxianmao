@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   LXMScoreCommandEnum,
   resolveTabCellSelection,
@@ -11,6 +11,8 @@ import {
   useEditorStore,
 } from "../../stores/editor-store";
 import styles from "./index.module.scss";
+import { useEditorDraftRecords } from "./EditorSessionRuntime";
+import { captureEditorVersion } from "./editor-session-version";
 /** 工具仅把稳定选区转为命令；预览与执行共享核心规划，不在页面计算时值。 */
 export const BeatToolbar = ({ beforeAction }: { beforeAction: () => void }) => {
   const store = useEditorSessionStore(),
@@ -36,6 +38,7 @@ export const BeatToolbar = ({ beforeAction }: { beforeAction: () => void }) => {
     range &&
     range.beats.every((b) => b.measureId === range.beats[0]!.measureId);
   const target = selection?.focus;
+  const previewRef = useRef<HTMLDivElement>(null);
   const action = (run: () => void) => {
     beforeAction();
     run();
@@ -64,6 +67,46 @@ export const BeatToolbar = ({ beforeAction }: { beforeAction: () => void }) => {
       summary: `${mode === "insert" ? "插入" : "覆盖"} ${plan.count} 拍（${clipboard.layers === "both" ? "双谱" : "六线谱"}，${plan.durationLabel}）；替换 ${plan.replacedBeats} 拍、${plan.replacedLyrics} 项歌词、${plan.replacedNumbered} 项简谱、${plan.replacedChords} 个和弦，清理 ${plan.removedTechniques} 个六线谱技巧、${plan.removedNumberedMarks} 个简谱标记。`,
     });
   };
+  const applyPreview = () => {
+    if (!preview || (preview.required && !confirmed)) return false;
+    beforeAction();
+    const result = store
+      .getState()
+      .execute({ ...preview.command, allowOverwrite: confirmed });
+    if (!result?.ok) return false;
+    setPreview(null);
+    setConfirmed(false);
+    setNotice("已粘贴，可撤销。");
+    return true;
+  };
+  useEditorDraftRecords(
+    preview
+      ? [
+          {
+            id: `beatPaste:${preview.command.expectedConfirmationKey}`,
+            kind: "beatPaste",
+            targetKey: preview.command.expectedConfirmationKey ?? "",
+            label: "拍点粘贴预览",
+            dirty: true,
+            composing: false,
+            canApply: !preview.required || confirmed,
+            error: null,
+            version: captureEditorVersion(store.getState()),
+            focus: () => {
+              previewRef.current?.focus();
+              return !!previewRef.current;
+            },
+            apply: ({ isCurrent }) =>
+              isCurrent() ? (applyPreview() ? "applied" : "blocked") : "stale",
+            discard: () => {
+              setPreview(null);
+              setConfirmed(false);
+              return true;
+            },
+          },
+        ]
+      : [],
+  );
   return (
     <div className={styles.techniqueToolbar} aria-label="拍点结构与复用">
       <button
@@ -158,6 +201,8 @@ export const BeatToolbar = ({ beforeAction }: { beforeAction: () => void }) => {
       </button>
       {preview && (
         <div
+          ref={previewRef}
+          tabIndex={-1}
           className={styles.beatPastePreview}
           role="group"
           aria-label="粘贴预览"
@@ -176,18 +221,7 @@ export const BeatToolbar = ({ beforeAction }: { beforeAction: () => void }) => {
           <button
             className={styles.toolbarButton}
             disabled={preview.required && !confirmed}
-            onClick={() =>
-              action(() => {
-                const result = store
-                  .getState()
-                  .execute({ ...preview.command, allowOverwrite: confirmed });
-                if (result?.ok) {
-                  setPreview(null);
-                  setConfirmed(false);
-                  setNotice("已粘贴，可撤销。");
-                }
-              })
-            }
+            onClick={applyPreview}
           >
             应用粘贴
           </button>

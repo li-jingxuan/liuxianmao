@@ -1,9 +1,18 @@
 import {
+  applyScoreCommand,
   LXMScoreCommandEnum,
   type ILXMDocument,
   type ILXMScoreCommand,
   type ILXMKeySignature,
+  type ILXMApplyScoreCommandResult,
 } from "@liuxianmao/lxm-editor";
+import {
+  captureEditorVersion,
+  sameEditorSession,
+  sameEditorVersion,
+  type EditorSessionVersion,
+} from "./editor-session-version";
+
 export interface ScoreSettingsDraft {
   title: string;
   arranger: string;
@@ -59,7 +68,7 @@ export const planSettingsCommands = (
     commands.push({
       type: LXMScoreCommandEnum.SetCapo,
       trackId: track.id,
-      capo: value.capo === "" ? NaN : Number(value.capo),
+      capo: value.capo.trim() === "" ? NaN : Number(value.capo),
     });
   if (changed("signature")) {
     const [numerator, denominator] = value.signature.split("/").map(Number);
@@ -79,4 +88,165 @@ export const planSettingsCommands = (
       label: value.label,
     });
   return commands;
+};
+
+export interface SettingsIssue {
+  group?: SettingsGroup;
+  message: string;
+}
+export interface SettingsSubmissionResult {
+  status: "applied" | "blocked" | "stale";
+  submittedGroups: SettingsGroup[];
+  issue: SettingsIssue | null;
+}
+const commandGroups = new Map<ILXMScoreCommand["type"], SettingsGroup>([
+  [LXMScoreCommandEnum.SetNotationInfo, "info"],
+  [LXMScoreCommandEnum.SetCapo, "capo"],
+  [LXMScoreCommandEnum.SetTimeSignature, "signature"],
+  [LXMScoreCommandEnum.SetSectionLabel, "label"],
+]);
+
+/** 在隔离文档上预验证全部候选；任何失败都不会先提交前面的表单组。 */
+export const prepareSettingsSubmission = (
+  document: ILXMDocument,
+  value: ScoreSettingsDraft,
+  initial: ScoreSettingsDraft,
+  measureId?: string,
+  group?: SettingsGroup,
+):
+  | {
+      ok: true;
+      commands: { command: ILXMScoreCommand; group: SettingsGroup }[];
+    }
+  | { ok: false; issue: SettingsIssue } => {
+  if (
+    (!group || group === "label") &&
+    value.label !== initial.label &&
+    !document.score.tracks[0]!.measures.some(
+      (measure) => measure.id === measureId,
+    )
+  )
+    return {
+      ok: false,
+      issue: {
+        group: "label",
+        message: "段落标记的原目标小节已失效，请重新选择。",
+      },
+    };
+  let planned = document;
+  const commands = planSettingsCommands(
+    document,
+    value,
+    initial,
+    measureId,
+    group,
+  ).map((command) => ({ command, group: commandGroups.get(command.type)! }));
+  for (const entry of commands) {
+    const result = applyScoreCommand(planned, entry.command);
+    if (!result.ok)
+      return {
+        ok: false,
+        issue: { group: entry.group, message: result.message },
+      };
+    planned = result.document;
+  }
+  return { ok: true, commands };
+};
+
+/** 只刷新成功的组；其他原本改动过的字段保留原文，干净字段跟随真实文档。 */
+export const rebaseSettingsDraft = (
+  value: ScoreSettingsDraft,
+  initial: ScoreSettingsDraft,
+  fresh: ScoreSettingsDraft,
+  applied: readonly SettingsGroup[],
+): ScoreSettingsDraft => {
+  const next = { ...fresh };
+  for (const group of Object.keys(settingsKeys) as SettingsGroup[])
+    if (!applied.includes(group))
+      for (const key of settingsKeys[group])
+        if (value[key] !== initial[key])
+          Object.assign(next, { [key]: value[key] });
+  return next;
+};
+
+/** 每条命令前后检查真实版本，宿主同步重入时停止，不回滚其他人的修改。 */
+export const submitSettingsDraft = ({
+  getState,
+  commit,
+  value,
+  initial,
+  measureId,
+  group,
+}: {
+  getState: () => EditorSessionVersion;
+  commit: (command: ILXMScoreCommand) => ILXMApplyScoreCommandResult | null;
+  value: ScoreSettingsDraft;
+  initial: ScoreSettingsDraft;
+  measureId?: string;
+  group?: SettingsGroup;
+}): SettingsSubmissionResult => {
+  let expected = captureEditorVersion(getState());
+  if (!expected.document)
+    return {
+      status: "blocked",
+      submittedGroups: [],
+      issue: { group, message: "当前没有可编辑的乐谱。" },
+    };
+  const plan = prepareSettingsSubmission(
+    expected.document,
+    value,
+    initial,
+    measureId,
+    group,
+  );
+  if (!plan.ok)
+    return { status: "blocked", submittedGroups: [], issue: plan.issue };
+  const submittedGroups: SettingsGroup[] = [];
+  const stale = (): SettingsSubmissionResult => ({
+    status: "stale",
+    submittedGroups,
+    issue: {
+      group,
+      message: "设置提交期间曲谱已变化，剩余草稿已保留，请重新检查。",
+    },
+  });
+  for (const entry of plan.commands) {
+    if (!sameEditorVersion(getState(), expected)) return stale();
+    let result: ILXMApplyScoreCommandResult | null;
+    try {
+      result = commit(entry.command);
+    } catch {
+      return {
+        status: "blocked",
+        submittedGroups,
+        issue: {
+          group: entry.group,
+          message: "设置提交失败，剩余草稿已保留。",
+        },
+      };
+    }
+    if (!result?.ok)
+      return {
+        status: "blocked",
+        submittedGroups,
+        issue: {
+          group: entry.group,
+          message: result && !result.ok ? result.message : "当前无法应用设置。",
+        },
+      };
+    submittedGroups.push(entry.group);
+    const current = getState();
+    if (
+      !sameEditorSession(current, expected) ||
+      current.document !== result.document ||
+      current.stateVersion !== expected.stateVersion + (result.changed ? 1 : 0)
+    )
+      return stale();
+    expected = captureEditorVersion(current);
+  }
+  return {
+    status: "applied",
+    submittedGroups: group && !plan.commands.length ? [group] : submittedGroups,
+    issue: null,
+  };
 };

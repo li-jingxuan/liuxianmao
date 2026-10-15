@@ -1,0 +1,16 @@
+{
+  "testedAt": "2026-10-15T17:10:44.992Z",
+  "metrics": {
+    "innerWidth": 720,
+    "innerHeight": 406,
+    "outerWidth": 1440,
+    "devicePixelRatio": 2,
+    "visualScale": 1
+  },
+  "unobstructed": true,
+  "checks": [
+    "原生浏览器200%页面缩放，1440物理窗口对应720CSS宽度",
+    "最末控件可滚动到达且未遮挡",
+    "Select popup可见，歌曲草稿保持"
+  ]
+}

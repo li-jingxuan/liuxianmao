@@ -7,7 +7,7 @@
 
 .editorControls {
   flex: none;
-  padding: 20px 20px 0;
+  padding: 0 20px;
 }
 
 .editorToolbar {
@@ -15,11 +15,20 @@
   gap: 4px;
   align-items: center;
   flex-wrap: wrap;
-  margin-bottom: 10px;
+  margin-bottom: 0;
+  padding: 8px 20px;
+  min-height: 44px;
+  max-height: 144px;
+  flex: none;
+  overflow: auto;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
 }
 
 .toolbarButton {
-  display: inline-grid;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-width: 30px;
   height: 30px;
   padding: 4px;
@@ -288,36 +297,40 @@
   min-height: 0;
 }
 .editorControls {
-  max-height: 35%;
+  max-height: 20%;
   overflow: auto;
+  &:empty {
+    display: none;
+  }
 }
 .protectedTools {
   display: contents;
 }
 .editorWorkspace {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 344px;
   flex: 1;
   min-width: 0;
   min-height: 0;
   background: var(--panel-muted);
 }
 .musicTextSidebar {
-  flex: 0 0 460px;
-  width: 460px;
+  width: auto;
   min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  margin: 12px 16px 16px 0;
-  border: 1px solid var(--border);
-  border-radius: 12px;
+  margin: 0;
+  border: 0;
+  border-left: 1px solid var(--border);
+  border-radius: 0;
   background: var(--panel);
-  box-shadow: 0 4px 20px rgb(25 33 61 / 4%);
+  box-shadow: none;
   font-size: 14px;
   &[hidden] {
     display: none;
   }
-  button {
+  button:not([class*="ant-"]) {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -345,14 +358,14 @@
       outline-offset: 2px;
     }
   }
-  label {
+  label:not(:where(.settingsForms *)) {
     display: flex;
     flex-direction: column;
     gap: 6px;
     min-width: 0;
     color: #48556b;
   }
-  input,
+  input:not([class*="ant-"]),
   select {
     width: 100%;
     min-width: 0;
@@ -405,23 +418,6 @@
   }
 }
 
-@container score-editor (max-width: 1120px) {
-  .musicTextSidebar {
-    flex-basis: 360px;
-    width: 360px;
-  }
-}
-
-@container score-editor (max-width: 860px) {
-  .editorWorkspace {
-    flex-direction: column;
-  }
-  .musicTextSidebar {
-    flex: 0 0 min(420px, 46%);
-    width: auto;
-    margin: 0 16px 16px;
-  }
-}
 .sidebarHeader {
   flex: none;
   display: flex;
@@ -657,19 +653,7 @@
 }
 
 /** 窄窗口采用上下分区，连续录入时谱面仍然可以点选，切换不卸载草稿。 */
-@container score-editor (width < 1320px) {
-  .editorWorkspace {
-    flex-direction: column;
-  }
-  .musicTextSidebar {
-    flex: 0 0 min(45%, 440px);
-    width: auto;
-    margin: 0 16px 12px;
-  }
-  .sidebarEmpty {
-    padding: 12px;
-  }
-}
+
 @container score-editor (width < 520px) {
   .propertyGrid,
   .fingeringGrid {
@@ -704,7 +688,8 @@
 }
 
 // inert 保留正常禁用语义，同时向用户提示哪些谱面操作暂时暂停。
-.protectedTools[inert] > * {
+.protectedTools[inert] > *,
+.toolbarGroup[inert] > * {
   opacity: 0.45;
 }
 
@@ -712,28 +697,6 @@
 .sidebarFooter {
   max-height: 45%;
   overflow: auto;
-}
-@media screen and (max-height: 650px) {
-  @container score-editor (width < 1320px) {
-    .musicTextSidebar {
-      flex-basis: min(60%, 440px);
-    }
-    .sidebarHeader {
-      padding-top: 4px;
-    }
-    .sidebarHeader [role="tab"] {
-      min-height: 34px;
-    }
-    .sidebarBody {
-      padding: 10px 18px;
-    }
-    .sidebarTarget {
-      margin-bottom: 10px;
-    }
-    .sidebarFooter {
-      padding: 8px 12px;
-    }
-  }
 }
 
 /* 歌词视觉焦点独立于核心命中几何，打印不输出编辑状态。 */
@@ -906,4 +869,315 @@
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
+}
+
+/** 状态带保持紧凑，位置、选区和未应用草稿在窄窗口中自然换行。 */
+.statusBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  min-height: 32px;
+  margin: 8px 0;
+  color: #626e82;
+  font-size: 12px;
+}
+
+/* 阶段 1 工作台：页面分区与音乐场景几何保持分离。 */
+.editorHeader {
+  flex: none;
+  display: grid;
+  grid-template-columns: 140px minmax(120px, 1fr) auto;
+  align-items: center;
+  gap: 20px;
+  min-height: 56px;
+  padding: 12px 24px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+.editorBrand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--accent);
+  font-size: 18px;
+  white-space: nowrap;
+  > span {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    color: white;
+    background: var(--accent);
+    font-size: 22px;
+  }
+}
+.editorHeading {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  > strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 15px;
+    font-weight: 500;
+  }
+  > span {
+    font-size: 11px;
+    color: var(--muted);
+  }
+}
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.headerNativeAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  padding: 4px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--foreground);
+  font-size: 14px;
+  white-space: nowrap;
+  cursor: pointer;
+  &:hover:not(:disabled) {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}
+.toolbarGroup {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding-right: 10px;
+  margin-right: 6px;
+  border-right: 1px solid var(--border);
+  &:last-of-type {
+    border-right: 0;
+    padding-right: 0;
+    margin-right: 0;
+  }
+}
+.toolButtonWrap {
+  display: inline-flex;
+}
+.musicToolButton {
+  min-width: 28px;
+  padding-inline: 6px;
+}
+.toolbarHint {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 11px;
+  max-width: 230px;
+}
+.toolPopover {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  width: min(520px, calc(100vw - 48px));
+  max-height: min(520px, 65vh);
+  overflow: auto;
+  color: #202838;
+  h3 {
+    flex-basis: 100%;
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  :global(.ant-btn) {
+    font-size: 12px;
+  }
+}
+.toolPopoverRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+}
+.viewSettings {
+  display: grid;
+  gap: 18px;
+  width: min(300px, calc(100vw - 48px));
+  color: #202838;
+  h3 {
+    margin: 0;
+    font-size: 15px;
+  }
+  label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  p {
+    margin: 0;
+    color: #626e82;
+    font-size: 12px;
+  }
+}
+.selectionPanel {
+  padding: 10px 0;
+  background: none;
+  border: 0;
+}
+.selectionSteps {
+  list-style: none;
+  counter-reset: editor-step;
+  padding: 0;
+  margin: 28px 0;
+  li {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 20px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  li::before {
+    counter-increment: editor-step;
+    content: "0" counter(editor-step);
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    flex: none;
+    color: var(--accent);
+    background: var(--accent-soft);
+    border-radius: 6px;
+    font-size: 12px;
+  }
+}
+.settingsForms {
+  display: grid;
+  gap: 24px;
+  > form {
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  h3 {
+    margin: 0 0 16px;
+    font-size: 15px;
+    font-weight: 500;
+  }
+  :global(.ant-form-item) {
+    margin-bottom: 16px;
+  }
+  :global(.ant-form-item-label) > label {
+    color: var(--muted);
+    font-size: 13px;
+  }
+  :global(.ant-alert) {
+    margin-block: 10px;
+  }
+}
+.settingsHint {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.settingsActions {
+  position: sticky;
+  bottom: -18px;
+  z-index: 1;
+  padding: 12px 0 18px;
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+}
+.statusBar {
+  flex: none;
+  min-height: 32px;
+  margin: 0;
+  padding: 6px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--muted);
+  :global(.ant-tag) {
+    margin: 0;
+  }
+}
+.statusView {
+  margin-left: auto;
+  color: var(--muted);
+  white-space: nowrap;
+}
+@container score-editor (width < 1200px) {
+  .editorWorkspace {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1.2fr) minmax(0, 1fr);
+  }
+  .musicTextSidebar {
+    width: auto;
+    margin: 0 16px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .pageViewport {
+    padding: 20px;
+  }
+}
+@container score-editor (width < 900px) {
+  .editorHeader {
+    grid-template-columns: 110px minmax(0, 1fr);
+    gap: 8px;
+    padding: 10px 12px;
+  }
+  .headerActions {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+  .editorToolbar {
+    padding: 8px 12px;
+  }
+  .toolbarHint {
+    display: block;
+    flex-basis: 100%;
+    margin-left: 0;
+    max-width: none;
+  }
+  .statusBar {
+    padding-inline: 12px;
+    font-size: 11px;
+  }
+}
+@media (max-height: 600px) {
+  @container score-editor (width < 1200px) {
+    // 页面缩放后可用高度很低时保留可操作区域，由工作区滚动而不是压成零高表单。
+    .editorWorkspace {
+      grid-template-rows: minmax(180px, 1fr) minmax(260px, 1fr);
+      overflow: auto;
+    }
+    .settingsActions {
+      position: static;
+    }
+  }
+}
+@media print {
+  .editorHeader,
+  .editorToolbar,
+  .editorControls,
+  .editorWorkspace,
+  .statusBar {
+    display: none !important;
+  }
+  .editor {
+    display: block;
+    height: auto;
+    container-type: normal;
+  }
 }

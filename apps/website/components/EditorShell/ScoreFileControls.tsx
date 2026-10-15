@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { StoreApi } from "zustand/vanilla";
 import type { EditorStoreState } from "../../stores/editor-store";
 import {
@@ -36,10 +37,12 @@ export const ScoreFileControls = ({
   session,
   isBlocked,
   className,
+  feedbackContainer,
 }: {
   session: StoreApi<EditorStoreState>;
   isBlocked: () => boolean;
   className: string;
+  feedbackContainer?: HTMLElement | null;
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -197,6 +200,26 @@ export const ScoreFileControls = ({
     }
   };
 
+  // 反馈仍由文件控制器持有，按宿主位置渲染，避免长错误把头部动作挤出视口。
+  const feedback = (
+    <>
+      {busy && <span role="status">正在读取曲谱…</span>}
+      {notice && <span role="status">{notice}</span>}
+      {errors.length > 0 && (
+        <div role="alert" className={styles.error}>
+          <p>曲谱文件操作失败（共 {errors.length} 项）：</p>
+          <ul>
+            {errors.slice(0, 5).map((error, index) => (
+              <li key={`${index}:${error}`}>{error}</li>
+            ))}
+          </ul>
+          {errors.length > 5 && (
+            <p>另有 {errors.length - 5} 项错误，请检查曲谱文件。</p>
+          )}
+        </div>
+      )}
+    </>
+  );
   return (
     <>
       <button
@@ -228,21 +251,7 @@ export const ScoreFileControls = ({
       >
         导出曲谱
       </button>
-      {busy && <span role="status">正在读取曲谱…</span>}
-      {notice && <span role="status">{notice}</span>}
-      {errors.length > 0 && (
-        <div role="alert" className={styles.error}>
-          <p>曲谱文件操作失败（共 {errors.length} 项）：</p>
-          <ul>
-            {errors.slice(0, 5).map((error, index) => (
-              <li key={`${index}:${error}`}>{error}</li>
-            ))}
-          </ul>
-          {errors.length > 5 && (
-            <p>另有 {errors.length - 5} 项错误，请检查曲谱文件。</p>
-          )}
-        </div>
-      )}
+      {feedbackContainer ? createPortal(feedback, feedbackContainer) : feedback}
       <dialog
         ref={dialogRef}
         className={styles.dialog}
