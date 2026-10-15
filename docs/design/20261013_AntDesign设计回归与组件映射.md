@@ -2,6 +2,8 @@
 
 日期：2026-10-13。用户已确定通用 UI 使用 Ant Design。已更新 58 张 PNG、分类总览、视觉规范，并新增组件/图标映射 PNG。本轮不修改产品 React 代码或依赖清单。
 
+2026-10-15 复审：本机仍为 antd 6.4.4；当前总清单为 61 张界面/状态、71 张 PNG。独立简谱已实现，迁移时同时遵守[最新代码落地复审](./20261015_最新代码与设计稿落地复审.md)。当前 EditorShell 尚未按 AntD 设计迁移，不能因 package.json 已列出依赖就视为完成。
+
 ## 1. 基准与交付边界
 
 - 项目实际安装 `antd 6.4.4`，依赖声明 `^6.4.4`；通用图标读取其间接依赖 `@ant-design/icons 6.2.5` / `@ant-design/icons-svg 4.4.2`。
@@ -92,6 +94,9 @@ hover/active/background 色通过 Ant Design 的主题算法派生，不复制�
 - 文档或目标发生变化时，先运行已有草稿保护再 `setFieldsValue`；`initialValues` 不负责持续同步已挂载表单。不得重挂载表单来“顺便清草稿”。
 - Switch/Checkbox 绑定 checked；InputNumber 处理 number/null；Select 把数字段号与字符串模型值正确转换。对领域限制使用自定义 validator，不能只依赖 required/min/max。
 - Tabs 首版不销毁未激活内容，且草稿状态保存在稳定上层；需要初始挂载的面板使用相应 forceRender。Modal 的 Form 生命周期与业务草稿丢弃分别控制。
+- Tabs/Segmented 的受控值只有在草稿请求被接受后改变；简谱目标切换遵循暂存/恢复，不统一弹确认。Form preserve 不能代替按事件/item/时间窗保存模板、范围、终点和草稿。切响应式分区不能卸载草稿 owner。
+- 多处暂存草稿需要统一查询与定位界面；现有 `MusicTextController.isOutputBlocked()` 只读闸门不足以完成保存/离开。该接口扩展先入正式方案，不把“应用全部”画成可直接循环调用现有 apply。
+- 简谱字段将音组内容、当前音符时值、单 item 音高分别映射到既有命令。Modal 的影响确认必须携带文档版本与记号影响 ID；背景工具/快捷键锁定，过期确认重新预览。
 - 6.4.4 新代码使用 size="medium"，不用已 deprecated 的 middle；使用 destroyOnHidden 而非 destroyOnClose/destroyInactiveTabPane；Modal 遮罩关闭使用 `mask.closable`。
 - 三选项保护 Modal 使用受控 open 与自定义 footer；应用/保存失败保持打开。保存中关闭/遮罩/Esc 和背景快捷键必须统一阻止；普通取消返回原目标焦点。
 - Select/Dropdown 的 popup 容器需按窗口/滚动区域选择；不要全局无条件返回 trigger.parentElement（部分调用没有 trigger，也可能被 overflow 裁剪）。模态内弹出层层级必须实测。
