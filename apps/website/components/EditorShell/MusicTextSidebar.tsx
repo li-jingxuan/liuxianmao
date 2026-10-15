@@ -17,7 +17,14 @@ import {
   useState,
   type Ref,
 } from "react";
-import { FileText, Guitar, Settings, Trash2 } from "lucide-react";
+import {
+  AimOutlined,
+  CustomerServiceOutlined,
+  DeleteOutlined,
+  FileTextOutlined,
+  SettingOutlined,
+} from "@ant-design/icons";
+import { Tabs, type TabsProps } from "antd";
 import {
   createCollapsedTabCellSelection,
   LXMScoreCommandEnum,
@@ -89,6 +96,9 @@ export const MusicTextSidebar = ({
     (s) => s.selectedNumberedMarkId,
   );
   const [kind, setKind] = useState<SidebarTab>("score");
+  type PropertyTab = "selection" | "paragraph" | "chord" | "song";
+  // 一级栏目只负责组织界面；真实业务目标仍由 kind 和现有草稿闸门维护。
+  const [propertyTab, setPropertyTab] = useState<PropertyTab>("song");
   // 活动对象独立于可见页签；null 表示普通六线谱选择，不表示关闭侧栏。
   const [activeObject, setActiveObject] = useState<MusicTextTarget | null>(
     null,
@@ -256,6 +266,7 @@ export const MusicTextSidebar = ({
     setNumberedTarget(null);
     setActiveObject(value ? value.target : null);
     setKind(next.kind);
+    setPropertyTab(next.kind === "chord" ? "chord" : "paragraph");
     if (next.kind === "lyric") {
       paragraphKind.current = "lyric";
       paragraphVerse.current = next.verse ?? 1;
@@ -350,6 +361,7 @@ export const MusicTextSidebar = ({
         setDraft(null);
         setMessage(null);
         setKind("numbered");
+        setPropertyTab("paragraph");
         paragraphKind.current = "numbered";
         setNumberedTarget(action.target);
         setActiveObject(action.target);
@@ -467,7 +479,17 @@ export const MusicTextSidebar = ({
         return "accepted";
       }
     }
-    if (action.type === "tab" && action.kind === kind) return "accepted";
+    // “选区”和“歌曲”都映射到 score 目标，但歌曲表单仍可能有未应用草稿；
+    // 同一业务 kind 不能成为绕过草稿保护的捷径。
+    if (
+      action.type === "tab" &&
+      action.kind === kind &&
+      !settingsRef.current?.dirty &&
+      !numberedRef.current?.dirty &&
+      numberedDrafts.current.size === 0 &&
+      !(draft && musicTextDraftValue(draft) !== draft.initial)
+    )
+      return "accepted";
     if (action.type === "numberedMode" && action.mode === numberedMode)
       return "accepted";
     const decision = resolveSidebarRequest(draft, action, {
@@ -768,72 +790,58 @@ export const MusicTextSidebar = ({
       }}
     >
       <header className={styles.sidebarHeader} inert={!!pending}>
-        <div role="tablist" aria-label="属性页签">
-          {(["score", "lyric", "chord"] as const).map((tab) => (
-            <button
-              key={tab}
-              id={`music-tab-${tab}`}
-              role="tab"
-              aria-selected={
-                kind === tab || (tab === "lyric" && kind === "numbered")
-              }
-              aria-controls="music-text-fields"
-              tabIndex={
-                kind === tab || (tab === "lyric" && kind === "numbered")
-                  ? 0
-                  : -1
-              }
-              onClick={() =>
-                request({
-                  type: "tab",
-                  kind: tab === "lyric" ? paragraphKind.current : tab,
-                })
-              }
-              onKeyDown={(e) => {
-                if (
-                  ["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)
-                ) {
-                  e.preventDefault();
-                  request({
-                    type: "tab",
-                    focus: "main",
-                    kind:
-                      e.key === "Home"
-                        ? "score"
-                        : e.key === "End"
-                          ? "chord"
-                          : (["score", "lyric", "chord"] as const)[
-                              ((["score", "lyric", "chord"] as const).indexOf(
-                                tab,
-                              ) +
-                                (e.key === "ArrowLeft" ? 2 : 1)) %
-                                3
-                            ]!,
-                  });
-                }
-              }}
-            >
-              {tab === "score" ? (
-                <Settings size={19} />
-              ) : tab === "lyric" ? (
-                <FileText size={19} />
-              ) : (
-                <Guitar size={20} />
-              )}
-              {tab === "score"
-                ? "谱面设置"
-                : tab === "lyric"
-                  ? "段落编辑"
-                  : "和弦编辑"}
-            </button>
-          ))}
-        </div>
+        <Tabs
+          activeKey={propertyTab}
+          onChange={(key) => {
+            const next = key as PropertyTab;
+            const nextKind: SidebarTab =
+              next === "selection" || next === "song"
+                ? "score"
+                : next === "paragraph"
+                  ? paragraphKind.current
+                  : "chord";
+            // 只有草稿闸门接受请求后才更新受控 Tabs，避免视觉状态先于业务状态切换。
+            if (request({ type: "tab", kind: nextKind }) === "accepted")
+              setPropertyTab(next);
+          }}
+          items={
+            [
+              {
+                key: "selection",
+                label: "选区",
+                icon: <AimOutlined />,
+                children: null,
+              },
+              {
+                key: "paragraph",
+                label: "段落",
+                icon: <FileTextOutlined />,
+                children: null,
+              },
+              {
+                key: "chord",
+                label: "和弦",
+                icon: <CustomerServiceOutlined />,
+                children: null,
+              },
+              {
+                key: "song",
+                label: "歌曲",
+                icon: <SettingOutlined />,
+                children: null,
+              },
+            ] satisfies TabsProps["items"]
+          }
+          size="small"
+          tabBarGutter={12}
+          animated={false}
+        />
       </header>
       <div
         className={styles.sidebarBody}
         id="music-text-fields"
         role="tabpanel"
-        aria-labelledby={`music-tab-${kind === "numbered" ? "lyric" : kind}`}
+        aria-label={`${propertyTab} 属性面板`}
         inert={!!pending}
         onFocusCapture={(event) => {
           if (
@@ -855,7 +863,7 @@ export const MusicTextSidebar = ({
         }}
       >
         {score && (
-          <div hidden={kind !== "score"}>
+          <div hidden={propertyTab !== "song"}>
             <ScoreSettings
               ref={settingsRef}
               document={score}
@@ -865,13 +873,29 @@ export const MusicTextSidebar = ({
             />
           </div>
         )}
-        {(kind === "lyric" || kind === "numbered") && (
+        {propertyTab === "selection" && (
+          <section className={styles.selectionPanel} aria-label="当前选区">
+            <div className={styles.selectionPanelHeader}>
+              <strong>当前选区</strong>
+              <span>{selection ? "已定位" : "未选择"}</span>
+            </div>
+            <p>
+              {selection
+                ? `焦点位于第 ${selection.focus.string} 弦，${selection.focus.measureId} / ${selection.focus.beatId}`
+                : "点击或拖动谱面中的 TAB 单元格开始编辑。"}
+            </p>
+            <p className={styles.sidebarTip}>
+              选区只描述当前编辑位置，不会把侧栏浏览状态写入音乐历史。节奏、小节和技巧操作仍从顶栏进入。
+            </p>
+          </section>
+        )}
+        {propertyTab === "paragraph" && (
           <div className={styles.sidebarActions}>
             <button onClick={() => addParagraph("lyric")}>添加歌词行</button>
             <button onClick={() => addParagraph("numbered")}>添加简谱行</button>
           </div>
         )}
-        {(kind === "lyric" || kind === "numbered") && (
+        {propertyTab === "paragraph" && (
           <div
             role="tablist"
             aria-label="段落内容"
@@ -911,7 +935,7 @@ export const MusicTextSidebar = ({
             ))}
           </div>
         )}
-        {kind === "numbered" && score && (
+        {propertyTab === "paragraph" && kind === "numbered" && score && (
           <div
             id="paragraph-fields"
             role="tabpanel"
@@ -971,7 +995,10 @@ export const MusicTextSidebar = ({
             />
           </div>
         )}
-        {kind !== "score" && kind !== "numbered" && (
+        {propertyTab !== "selection" &&
+          propertyTab !== "song" &&
+          kind !== "score" &&
+          kind !== "numbered" && (
           <div
             id={kind === "lyric" ? "paragraph-fields" : undefined}
             role={kind === "lyric" ? "tabpanel" : undefined}
@@ -987,9 +1014,9 @@ export const MusicTextSidebar = ({
             {!draft ? (
               <div className={styles.sidebarEmpty}>
                 {kind === "lyric" ? (
-                  <FileText size={36} />
+                  <FileTextOutlined style={{ fontSize: 36 }} />
                 ) : (
-                  <Guitar size={36} />
+                  <CustomerServiceOutlined style={{ fontSize: 36 }} />
                 )}
                 <h3>{kind === "lyric" ? "连续填词" : "编辑和弦与指法"}</h3>
                 <p>
@@ -1292,7 +1319,7 @@ export const MusicTextSidebar = ({
                   disabled={!existing || sequence}
                   onClick={remove}
                 >
-                  <Trash2 size={16} />
+                  <DeleteOutlined />
                   删除{kind === "lyric" ? "歌词" : "和弦"}
                 </button>
                 <button onClick={() => request({ type: "close" })}>取消</button>

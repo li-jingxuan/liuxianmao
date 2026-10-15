@@ -29,6 +29,12 @@ import {
   type ILXMTimeSignature,
 } from "@liuxianmao/lxm-editor";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Button, Switch } from "antd";
+import {
+  PictureOutlined,
+  RedoOutlined,
+  UndoOutlined,
+} from "@ant-design/icons";
 import type { MusicControlIcon } from "../../assets/svg/svg-assets-manifest";
 import {
   useEditorSessionStore,
@@ -1053,24 +1059,24 @@ export const EditorShell: React.FC = () => {
           role="toolbar"
           aria-label="节奏、小节与历史工具"
         >
-          <button
-            type="button"
+          <Button
+            type="text"
+            size="small"
             className={styles.toolbarButton}
             aria-label="撤销"
             disabled={!canUndo}
+            icon={<UndoOutlined />}
             onClick={() => runImmediateEditorAction(undo)}
-          >
-            ↶
-          </button>
-          <button
-            type="button"
+          />
+          <Button
+            type="text"
+            size="small"
             className={styles.toolbarButton}
             aria-label="重做"
             disabled={!canRedo}
+            icon={<RedoOutlined />}
             onClick={() => runImmediateEditorAction(redo)}
-          >
-            ↷
-          </button>
+          />
           <div className={styles.protectedTools} inert={musicTextEditing}>
             <span className={styles.toolbarSeparator} aria-hidden="true" />
             {rhythmButtons.map((button) => (
@@ -1335,13 +1341,15 @@ export const EditorShell: React.FC = () => {
               <option value="comfortable">舒适</option>
             </select>
           </label>
-          <label title="控制整张谱面的指法图显示，图片导出同步；隐藏不会删除指法。">
-            <input
-              type="checkbox"
-              role="switch"
+          <label
+            className={styles.toolbarSwitch}
+            title="控制整张谱面的指法图显示，图片导出同步；隐藏不会删除指法。"
+          >
+            <Switch
+              size="small"
               aria-label="显示和弦指法图"
               checked={showChordDiagrams}
-              onChange={(event) => setShowChordDiagrams(event.target.checked)}
+              onChange={setShowChordDiagrams}
             />
             显示和弦指法图
           </label>
@@ -1352,10 +1360,12 @@ export const EditorShell: React.FC = () => {
               !!fretDraft || !!musicTextController.current?.isOutputBlocked()
             }
           />
-          <button
-            type="button"
+          <Button
+            type="default"
+            size="small"
             className={styles.toolbarButton}
             aria-label="导出 A4 图片"
+            icon={<PictureOutlined />}
             onClick={() => {
               if (fretDraft || musicTextController.current?.isOutputBlocked()) {
                 setErrorMessage(
@@ -1367,7 +1377,7 @@ export const EditorShell: React.FC = () => {
             }}
           >
             导出图片
-          </button>
+          </Button>
         </div>
         {loadNotice && <p role="status">{loadNotice}</p>}
         {lxmLayout.width > A4_CONTENT_WIDTH + 1 && (

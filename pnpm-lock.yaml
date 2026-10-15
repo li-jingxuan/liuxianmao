@@ -26,6 +26,9 @@ importers:
 
   apps/website:
     dependencies:
+      '@ant-design/icons':
+        specifier: ^6.2.5
+        version: 6.2.5(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@liuxianmao/lxm-editor':
         specifier: workspace:*
         version: link:../../packages/lxm-editor

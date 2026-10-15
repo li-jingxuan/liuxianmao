@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type React from "react";
 import type { ReactNode } from "react";
+import { AppProviders } from "./providers";
 import "./globals.scss";
 
 export const metadata: Metadata = {
@@ -16,7 +17,9 @@ interface RootLayoutProps {
 const RootLayout: React.FC<RootLayoutProps> = ({ children }) => {
   return (
     <html lang="zh-CN">
-      <body>{children}</body>
+      <body>
+        <AppProviders>{children}</AppProviders>
+      </body>
     </html>
   );
 };

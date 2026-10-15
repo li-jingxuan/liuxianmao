@@ -62,6 +62,15 @@
   color: #5b6470;
 }
 
+.toolbarSwitch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #5b6470;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
 .toolbarSelect {
   height: 30px;
   padding: 0 8px;
@@ -395,6 +404,24 @@
     background: transparent;
   }
 }
+
+@container score-editor (max-width: 1120px) {
+  .musicTextSidebar {
+    flex-basis: 360px;
+    width: 360px;
+  }
+}
+
+@container score-editor (max-width: 860px) {
+  .editorWorkspace {
+    flex-direction: column;
+  }
+  .musicTextSidebar {
+    flex: 0 0 min(420px, 46%);
+    width: auto;
+    margin: 0 16px 16px;
+  }
+}
 .sidebarHeader {
   flex: none;
   display: flex;
@@ -402,24 +429,57 @@
   gap: 8px;
   padding: 10px 12px 0;
   border-bottom: 1px solid var(--border);
-  [role="tablist"] {
+  :global(.ant-tabs) {
     display: flex;
     flex: 1;
     min-width: 0;
   }
-  [role="tab"] {
+  :global(.ant-tabs-nav) {
+    width: 100%;
+    margin: 0;
+  }
+  :global(.ant-tabs-tab) {
     flex: 1;
-    min-height: 48px;
-    border: 0;
-    border-bottom: 3px solid transparent;
-    border-radius: 6px 6px 0 0;
-    color: #48556b;
+    justify-content: center;
+    min-height: 40px;
+    padding: 8px 6px;
+    color: var(--muted);
     font-weight: 600;
-    &[aria-selected="true"] {
-      border-bottom-color: var(--accent);
+    &:hover {
       color: var(--accent);
-      background: var(--accent-soft);
     }
+  }
+  :global(.ant-tabs-tab-active) {
+    :global(.ant-tabs-tab-btn) {
+      color: var(--accent);
+    }
+  }
+  :global(.ant-tabs-ink-bar) {
+    height: 3px;
+  }
+}
+
+.selectionPanel {
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-muted);
+  color: var(--foreground);
+  p {
+    margin: 10px 0 0;
+    line-height: 1.6;
+  }
+}
+
+.selectionPanelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--foreground);
+  span {
+    color: var(--muted);
+    font-size: 12px;
   }
 }
 .sidebarBody {

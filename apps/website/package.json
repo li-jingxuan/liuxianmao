@@ -11,6 +11,7 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@ant-design/icons": "^6.2.5",
     "@liuxianmao/lxm-editor": "workspace:*",
     "antd": "^6.4.4",
     "clsx": "^2.1.1",
