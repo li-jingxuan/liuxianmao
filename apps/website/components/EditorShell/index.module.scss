@@ -39,6 +39,24 @@
   }
 }
 
+.learningLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid #c9ced8;
+  border-radius: 4px;
+  background: #fff;
+  color: #285be0;
+  font-size: 12px;
+  text-decoration: none;
+  white-space: nowrap;
+
+  &:hover {
+    background: #edf2ff;
+  }
+}
+
 .toolbarIcon {
   width: 20px;
   height: 20px;

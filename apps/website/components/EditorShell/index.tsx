@@ -29,6 +29,7 @@ import {
   type ILXMTimeSignature,
 } from "@liuxianmao/lxm-editor";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import type { MusicControlIcon } from "../../assets/svg/svg-assets-manifest";
 import {
   useEditorSessionStore,
@@ -1368,6 +1369,9 @@ export const EditorShell: React.FC = () => {
           >
             导出图片
           </button>
+          <Link className={styles.learningLink} href="/guitar-advanced">
+            吉他进阶
+          </Link>
         </div>
         {loadNotice && <p role="status">{loadNotice}</p>}
         {lxmLayout.width > A4_CONTENT_WIDTH + 1 && (

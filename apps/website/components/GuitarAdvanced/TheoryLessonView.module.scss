@@ -1,0 +1,247 @@
+.page {
+  width: min(1140px, 100%);
+  margin: 0 auto;
+}
+
+.backLink,
+.primaryButton,
+.secondaryButton {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  color: #285be0;
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.lessonHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin: 24px 0 30px;
+}
+
+.lessonHeader h1 {
+  margin: 0;
+  color: #15356d;
+  font-size: 27px;
+  font-weight: 600;
+}
+
+.lessonHeader p,
+.contentBlock p,
+.callout p,
+.lessonAside p,
+.scoreExample p {
+  color: #626e82;
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.lessonHeader p {
+  margin: 9px 0 0;
+}
+
+.completedBadge {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  padding: 7px 11px;
+  border-radius: 5px;
+  background: #eaf7f0;
+  color: #19734f;
+  font-size: 12px;
+}
+
+.lessonGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.lessonArticle,
+.lessonAside {
+  border: 1px solid #d9d9d9;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.lessonArticle {
+  padding: 26px;
+}
+
+.objectiveSection {
+  padding-bottom: 24px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.objectiveSection h2,
+.contentBlock h2 {
+  margin: 0 0 14px;
+  color: #202838;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.objectiveSection ul {
+  display: grid;
+  gap: 12px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.objectiveSection li {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  color: #202838;
+  font-size: 13px;
+}
+
+.objectiveSection li svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: #19734f;
+}
+
+.contentBlock {
+  padding: 26px 0 6px;
+}
+
+.contentBlock p {
+  margin: 0;
+}
+
+.callout {
+  display: flex;
+  gap: 12px;
+  margin-top: 22px;
+  padding: 14px 16px;
+  border-radius: 6px;
+  background: #fff6e5;
+  color: #92600c;
+}
+
+.callout[data-tone="info"] {
+  background: #f0f7ff;
+  color: #285be0;
+}
+
+.callout strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.callout p {
+  margin: 5px 0 0;
+}
+
+.scoreExample {
+  margin-top: 22px;
+  max-height: 330px;
+  overflow: hidden;
+  padding: 16px;
+  border-radius: 7px;
+  background: #f0f7ff;
+}
+
+.scoreExample p {
+  margin: 10px 0 0;
+  font-size: 11px;
+}
+
+.scoreSvg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.scoreLoading,
+.scoreError {
+  margin-top: 22px;
+  padding: 26px 16px;
+  border-radius: 7px;
+  background: #f4f6fa;
+  color: #626e82;
+  font-size: 12px;
+}
+
+.scoreError {
+  background: #fff0f2;
+  color: #bc3547;
+}
+
+.lessonAside {
+  display: grid;
+  gap: 12px;
+  padding: 24px;
+}
+
+.eyebrow {
+  color: #626e82;
+  font-size: 12px;
+}
+
+.lessonAside > strong {
+  color: #15356d;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.primaryButton,
+.secondaryButton {
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 6px;
+}
+
+.primaryButton {
+  border: 0;
+  background: #285be0;
+  color: #fff;
+  cursor: pointer;
+}
+
+.secondaryButton {
+  border: 1px solid #d9d9d9;
+  color: #202838;
+}
+
+.localHint {
+  margin: 6px 0 0;
+  color: #a3adbc !important;
+  font-size: 11px !important;
+}
+
+.lessonFooter {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 22px;
+}
+
+@media (max-width: 820px) {
+  .lessonGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .lessonAside {
+    order: -1;
+  }
+}
+
+@media (max-width: 560px) {
+  .lessonHeader,
+  .lessonFooter {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .lessonArticle,
+  .lessonAside {
+    padding: 18px;
+  }
+}

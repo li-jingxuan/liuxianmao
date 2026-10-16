@@ -5,7 +5,7 @@ import "./globals.scss";
 
 export const metadata: Metadata = {
   title: "六线猫",
-  description: "六线谱编辑器静态界面",
+  description: "六线猫吉他学习与曲谱编辑工作台",
 };
 
 interface RootLayoutProps {

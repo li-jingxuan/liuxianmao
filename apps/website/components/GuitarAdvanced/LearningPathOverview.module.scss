@@ -1,0 +1,320 @@
+.page {
+  width: min(1140px, 100%);
+  margin: 0 auto;
+}
+
+.pageHeader,
+.sectionHeading,
+.cardTopline,
+.cardFooter,
+.progressPanel,
+.overallProgress,
+.nextStep {
+  display: flex;
+  align-items: center;
+}
+
+.pageHeader {
+  justify-content: space-between;
+  margin-bottom: 30px;
+}
+
+.pageHeader h1,
+.progressPanel h2,
+.sectionHeading h2,
+.nextStep h2,
+.moduleCard h3 {
+  margin: 0;
+  color: #15356d;
+  font-weight: 600;
+}
+
+.pageHeader h1 {
+  font-size: 28px;
+  letter-spacing: 0;
+}
+
+.pageHeader p,
+.progressPanel p,
+.nextStep p,
+.moduleCard p {
+  margin: 8px 0 0;
+  color: #626e82;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.heroButton,
+.primaryButton,
+.secondaryButton,
+.nextStepButton,
+.disabledButton,
+.resetButton {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  font-size: 12px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.heroButton,
+.primaryButton,
+.nextStepButton {
+  background: #285be0;
+  color: #fff;
+}
+
+.heroButton {
+  min-height: 40px;
+  padding: 0 20px;
+}
+
+.heroComplete {
+  color: #19734f;
+  font-size: 12px;
+}
+
+.progressPanel {
+  justify-content: space-between;
+  min-height: 112px;
+  margin-bottom: 36px;
+  padding: 22px 24px;
+  border: 1px solid #d9d9d9;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.eyebrow {
+  color: #626e82;
+  font-size: 12px;
+}
+
+.progressPanel h2 {
+  margin-top: 8px;
+  font-size: 20px;
+}
+
+.overallProgress {
+  gap: 16px;
+  width: min(560px, 52%);
+}
+
+.progressTrack {
+  flex: 1;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 5px;
+  background: #f0f2f7;
+}
+
+.progressTrack span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #285be0;
+}
+
+.overallProgress strong {
+  color: #285be0;
+  font-size: 13px;
+}
+
+.sectionHeading {
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.sectionHeading h2 {
+  display: inline;
+  color: #202838;
+  font-size: 18px;
+}
+
+.sectionHeading span {
+  margin-left: 18px;
+  color: #626e82;
+  font-size: 12px;
+}
+
+.resetButton {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #626e82;
+  cursor: pointer;
+}
+
+.resetButton:hover {
+  color: #285be0;
+}
+
+.pathGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.moduleCard {
+  min-height: 156px;
+  padding: 18px;
+  border: 1px solid #d9d9d9;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.moduleCard[data-status="即将开放"] {
+  background: #fbfcfe;
+}
+
+.cardTopline,
+.cardFooter {
+  justify-content: space-between;
+}
+
+.statusTag {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  padding: 5px 10px;
+  border-radius: 5px;
+  font-size: 11px;
+}
+
+.statusTag[data-tone="blue"] {
+  background: #f0f7ff;
+  color: #285be0;
+}
+
+.statusTag[data-tone="green"] {
+  background: #eaf7f0;
+  color: #19734f;
+}
+
+.statusTag[data-tone="muted"] {
+  background: #f4f6fa;
+  color: #a3adbc;
+}
+
+.moduleOrder {
+  color: #a3adbc;
+  font-family: Arial, sans-serif;
+  font-size: 11px;
+}
+
+.moduleCard h3 {
+  margin-top: 14px;
+  font-size: 17px;
+}
+
+.moduleCard p {
+  min-height: 42px;
+}
+
+.cardFooter {
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.cardProgress {
+  display: flex;
+  flex: 1;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+.cardProgress .progressTrack {
+  min-width: 40px;
+}
+
+.cardProgress > span {
+  color: #626e82;
+  font-family: Arial, sans-serif;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.primaryButton,
+.secondaryButton,
+.disabledButton {
+  min-height: 32px;
+  padding: 0 12px;
+}
+
+.secondaryButton {
+  border: 1px solid #d9d9d9;
+  color: #202838;
+}
+
+.disabledButton {
+  color: #a3adbc;
+}
+
+.nextStep {
+  gap: 16px;
+  margin-top: 28px;
+  padding: 20px 24px;
+  border-radius: 8px;
+  background: #f0f7ff;
+}
+
+.nextStepIcon {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  place-items: center;
+  border-radius: 8px;
+  background: #fff;
+  color: #285be0;
+}
+
+.nextStep h2 {
+  margin-top: 5px;
+  font-size: 16px;
+}
+
+.nextStepButton {
+  margin-left: auto;
+  padding: 0 18px;
+  min-height: 36px;
+}
+
+@media (max-width: 780px) {
+  .pageHeader,
+  .progressPanel,
+  .sectionHeading,
+  .nextStep {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .heroButton {
+    margin-top: 18px;
+  }
+
+  .overallProgress {
+    width: 100%;
+    margin-top: 18px;
+  }
+
+  .sectionHeading span {
+    display: block;
+    margin: 6px 0 0;
+  }
+
+  .resetButton {
+    margin-top: 12px;
+  }
+
+  .pathGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .nextStepButton {
+    margin: 12px 0 0;
+  }
+}
