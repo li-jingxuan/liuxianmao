@@ -13,6 +13,8 @@ const fixture = () => {
   const track = doc.score.tracks[0]!;
   track.measures = [track.measures[0]!];
   track.numberedMarks = [];
+  // 默认编辑谱例现在包含跨小节技巧；单小节简谱几何回归需隔离这些技巧引用。
+  track.techniques = [];
   const m = track.measures[0]!;
   m.lyrics = [];
   m.chordSymbols = [];

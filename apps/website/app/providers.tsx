@@ -9,6 +9,20 @@ export const AppProviders = ({ children }: { children: ReactNode }) => (
   <ConfigProvider
     locale={zhCN}
     theme={{
+      components: {
+        Radio: {
+          buttonSolidCheckedBg: "#F0F7FF",
+          buttonSolidCheckedColor: "#285BE0",
+          buttonSolidCheckedHoverBg: "#E7F0FE",
+          buttonSolidCheckedActiveBg: "#DFEAFD",
+        },
+        Form: {
+          itemMarginBottom: 16,
+          verticalLabelPadding: "0 0 6px",
+          labelColor: "#626E82",
+          labelFontSize: 13,
+        },
+      },
       token: {
         colorPrimary: "#285BE0",
         colorText: "#202838",

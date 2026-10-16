@@ -1,4 +1,5 @@
 "use client";
+import { Button } from "antd";
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -41,7 +42,7 @@ export const ScoreFileControls = ({
 }: {
   session: StoreApi<EditorStoreState>;
   isBlocked: () => boolean;
-  className: string;
+  className?: string;
   feedbackContainer?: HTMLElement | null;
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -222,15 +223,15 @@ export const ScoreFileControls = ({
   );
   return (
     <>
-      <button
+      <Button
         ref={importButtonRef}
-        type="button"
+        htmlType="button"
         className={className}
         disabled={busy}
         onClick={openFile}
       >
         导入曲谱
-      </button>
+      </Button>
       <input
         ref={inputRef}
         type="file"
@@ -243,14 +244,14 @@ export const ScoreFileControls = ({
           void onFile(file);
         }}
       />
-      <button
-        type="button"
+      <Button
+        htmlType="button"
         className={className}
         onClick={exportFile}
         disabled={!session.getState().document}
       >
         导出曲谱
-      </button>
+      </Button>
       {feedbackContainer ? createPortal(feedback, feedbackContainer) : feedback}
       <dialog
         ref={dialogRef}
@@ -278,18 +279,18 @@ export const ScoreFileControls = ({
               导入将替换当前曲谱并清空撤销历史。需要保留当前曲谱时，请先取消并导出。
             </p>
             <div className={styles.actions}>
-              <button ref={cancelButtonRef} type="button" onClick={close}>
+              <Button ref={cancelButtonRef} htmlType="button" onClick={close}>
                 取消
-              </button>
+              </Button>
               {candidate?.upgraded && (
                 <p>
                   此文件将从版本 {candidate.sourceVersion}{" "}
                   显式升级为独立简谱格式，原文件不会被覆盖。
                 </p>
               )}
-              <button type="button" onClick={confirmImport}>
+              <Button htmlType="button" onClick={confirmImport}>
                 导入并替换
-              </button>
+              </Button>
             </div>
           </>
         )}

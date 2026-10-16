@@ -1,4 +1,6 @@
 "use client";
+import { Button, Checkbox, Form, Input, Select } from "antd";
+
 import {
   useEffect,
   useMemo,
@@ -507,29 +509,39 @@ export const NumberedEditor = ({
       }}
     >
       <h3>简谱编辑</h3>
-      <label>
-        录入方式
-        <select
+      <Form.Item
+        layout="vertical"
+        label="录入方式"
+        htmlFor={"editor-field-" + "简谱录入方式"}
+      >
+        <Select
+          id={"editor-field-" + "简谱录入方式"}
           aria-label="简谱录入方式"
           value={mode}
-          onChange={(e) => onModeChange(e.target.value as typeof mode)}
-        >
-          <option value="sequence">连续录入</option>
-          <option value="single">单音组编辑</option>
-        </select>
-      </label>
+          onChange={(value) => onModeChange(value as typeof mode)}
+          style={{ width: "100%" }}
+          options={[
+            { value: "sequence", label: "连续录入" },
+            { value: "single", label: "单音组编辑" },
+          ]}
+        />
+      </Form.Item>
       {!resolved || !measure || !track ? (
         <p>请选中简谱音符，或从六线谱选拍建立录入窗口</p>
       ) : (
         <>
-          <label>
-            当前简谱事件
-            <select
+          <Form.Item
+            layout="vertical"
+            label="当前简谱事件"
+            htmlFor={"editor-field-" + "当前简谱事件"}
+          >
+            <Select
+              id={"editor-field-" + "当前简谱事件"}
               aria-label="当前简谱事件"
               value={selectedId}
-              onChange={(e) => {
+              onChange={(value) => {
                 const next = measure.numberedVoice.events.find(
-                  (v) => v.id === e.target.value,
+                  (v) => v.id === value,
                 );
                 if (next) {
                   onSelectTarget({
@@ -549,214 +561,270 @@ export const NumberedEditor = ({
                   });
                 }
               }}
-            >
-              <option value="">新增时间范围</option>
-              {measure.numberedVoice.events.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {formatNumberedBeatPosition(
-                    e.tick,
-                    measure.timeSignature.denominator,
-                  )}{" "}
-                  · {e.items.map((i) => i.token).join("+") || "未录入"}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            节奏模板
-            <select
+              style={{ width: "100%" }}
+              options={[
+                { value: "", label: "新增时间范围" },
+                ...measure.numberedVoice.events.map((e) => ({
+                  value: e.id,
+                  label: (
+                    <>
+                      {formatNumberedBeatPosition(
+                        e.tick,
+                        measure.timeSignature.denominator,
+                      )}{" "}
+                      · {e.items.map((i) => i.token).join("+") || "未录入"}
+                    </>
+                  ),
+                })),
+              ]}
+            />
+          </Form.Item>
+          <Form.Item
+            layout="vertical"
+            label="节奏模板"
+            htmlFor={"editor-field-" + "简谱节奏模板"}
+          >
+            <Select
+              id={"editor-field-" + "简谱节奏模板"}
               aria-label="简谱节奏模板"
               value={template}
-              onChange={(e) => {
-                setTemplate(e.target.value);
+              onChange={(value) => {
+                setTemplate(value);
                 setSelectedId("");
                 setEnd(start + 960);
               }}
-            >
-              <option value="uniform">自选时值</option>
-              <option value="front8">前八后十六</option>
-              <option value="back8">前十六后八</option>
-              <option value="triplet">三连音（八分）</option>
-              <option value="custom">自定义成员时值</option>
-              <option value="tuplet">自选节奏连音</option>
-            </select>
-          </label>
+              style={{ width: "100%" }}
+              options={[
+                { value: "uniform", label: "自选时值" },
+                { value: "front8", label: "前八后十六" },
+                { value: "back8", label: "前十六后八" },
+                { value: "triplet", label: "三连音（八分）" },
+                { value: "custom", label: "自定义成员时值" },
+                { value: "tuplet", label: "自选节奏连音" },
+              ]}
+            />
+          </Form.Item>
           {template === "tuplet" && (
-            <label>
-              连音比例
-              <select
+            <Form.Item
+              layout="vertical"
+              label="连音比例"
+              htmlFor={"editor-field-" + "简谱连音比例"}
+            >
+              <Select
+                id={"editor-field-" + "简谱连音比例"}
                 aria-label="简谱连音比例"
                 value={ratioIndex}
-                onChange={(e) => setRatioIndex(Number(e.target.value))}
-              >
-                {LXM_TUPLET_RATIOS.map((r, i) => (
-                  <option key={i} value={i}>
-                    {r.actual}:{r.normal}
-                  </option>
-                ))}
-              </select>
-            </label>
+                onChange={(value) => setRatioIndex(Number(value))}
+                style={{ width: "100%" }}
+                options={[
+                  ...LXM_TUPLET_RATIOS.map((r, i) => ({
+                    value: i,
+                    label: (
+                      <>
+                        {r.actual}:{r.normal}
+                      </>
+                    ),
+                  })),
+                ]}
+              />
+            </Form.Item>
           )}
           {template === "custom" &&
             parsed.ok &&
             parsed.items.map((_, i) => (
-              <label key={i}>
-                第{i + 1}音时值
-                <select
+              <Form.Item
+                key={i}
+                layout="vertical"
+                label={<>第{i + 1}音时值</>}
+                htmlFor={"editor-field-" + `简谱第${i + 1}音时值`}
+              >
+                <Select
+                  id={"editor-field-" + `简谱第${i + 1}音时值`}
                   aria-label={`简谱第${i + 1}音时值`}
                   value={customRhythms[i]?.base ?? base}
-                  onChange={(e) =>
+                  onChange={(value) =>
                     setCustomRhythms(
                       parsed.items.map((_, j) =>
                         j === i
                           ? {
-                              base: e.target.value as ILXMRhythmBase,
+                              base: value as ILXMRhythmBase,
                               dots: customRhythms[i]?.dots ?? 0,
                             }
                           : (customRhythms[j] ?? { base, dots }),
                       ),
                     )
                   }
-                >
-                  {bases.map((b) => (
-                    <option key={b.value} value={b.value}>
-                      {b.label}
-                    </option>
-                  ))}
-                </select>
-                <select
+                  style={{ width: "100%" }}
+                  options={[
+                    ...bases.map((b) => ({ value: b.value, label: b.label })),
+                  ]}
+                />
+                <Select
                   aria-label={`简谱第${i + 1}音附点`}
                   value={customRhythms[i]?.dots ?? dots}
-                  onChange={(e) =>
+                  onChange={(value) =>
                     setCustomRhythms(
                       parsed.items.map((_, j) =>
                         j === i
                           ? {
                               base: customRhythms[i]?.base ?? base,
-                              dots: Number(e.target.value),
+                              dots: Number(value),
                             }
                           : (customRhythms[j] ?? { base, dots }),
                       ),
                     )
                   }
-                >
-                  <option value={0}>无附点</option>
-                  <option value={1}>单附点</option>
-                  <option value={2}>双附点</option>
-                </select>
-              </label>
+                  style={{ width: "100%" }}
+                  options={[
+                    { value: 0, label: "无附点" },
+                    { value: 1, label: "单附点" },
+                    { value: 2, label: "双附点" },
+                  ]}
+                />
+              </Form.Item>
             ))}
-          <label>
-            简谱时值
-            <select
+          <Form.Item
+            layout="vertical"
+            label="简谱时值"
+            htmlFor={"editor-field-" + "简谱时值"}
+          >
+            <Select
+              id={"editor-field-" + "简谱时值"}
               aria-label="简谱时值"
               value={base}
-              onChange={(e) => setBase(e.target.value as ILXMRhythmBase)}
-            >
-              {bases.map((b) => (
-                <option key={b.value} value={b.value}>
-                  {b.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            时值附点
-            <select
+              onChange={(value) => setBase(value as ILXMRhythmBase)}
+              style={{ width: "100%" }}
+              options={[
+                ...bases.map((b) => ({ value: b.value, label: b.label })),
+              ]}
+            />
+          </Form.Item>
+          <Form.Item
+            layout="vertical"
+            label="时值附点"
+            htmlFor={"editor-field-" + "简谱时值附点"}
+          >
+            <Select
+              id={"editor-field-" + "简谱时值附点"}
               aria-label="简谱时值附点"
               value={dots}
-              onChange={(e) => setDots(Number(e.target.value))}
-            >
-              <option value={0}>无</option>
-              <option value={1}>单附点</option>
-              <option value={2}>双附点</option>
-            </select>
-          </label>
-          <label>
-            录入起点
-            <select
+              onChange={(value) => setDots(Number(value))}
+              style={{ width: "100%" }}
+              options={[
+                { value: 0, label: "无" },
+                { value: 1, label: "单附点" },
+                { value: 2, label: "双附点" },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item
+            layout="vertical"
+            label="录入起点"
+            htmlFor={"editor-field-" + "简谱录入起点"}
+          >
+            <Select
+              id={"editor-field-" + "简谱录入起点"}
               aria-label="简谱录入起点"
               value={start}
-              onChange={(e) => {
-                const next = Number(e.target.value);
+              onChange={(value) => {
+                const next = Number(value);
                 setStart(next);
                 setEnd(next + (end - start));
                 setSelectedId("");
               }}
-            >
-              {[
-                ...new Set([
-                  ...Array.from(
-                    {
-                      length: Math.ceil(
-                        (measure.timeSignature.numerator * 3840) /
-                          measure.timeSignature.denominator /
-                          120,
-                      ),
-                    },
-                    (_, i) => i * 120,
-                  ),
-                  ...measure.numberedVoice.events.map((e) => e.tick),
-                  start,
-                ]),
-              ]
-                .sort((a, b) => a - b)
-                .filter(
-                  (t) =>
-                    t <
-                    (measure.timeSignature.numerator * 3840) /
-                      measure.timeSignature.denominator,
-                )
-                .map((t) => (
-                  <option key={t} value={t}>
-                    {formatNumberedBeatPosition(
+              style={{ width: "100%" }}
+              options={[
+                ...[
+                  ...new Set([
+                    ...Array.from(
+                      {
+                        length: Math.ceil(
+                          (measure.timeSignature.numerator * 3840) /
+                            measure.timeSignature.denominator /
+                            120,
+                        ),
+                      },
+                      (_, i) => i * 120,
+                    ),
+                    ...measure.numberedVoice.events.map((e) => e.tick),
+                    start,
+                  ]),
+                ]
+                  .sort((a, b) => a - b)
+                  .filter(
+                    (t) =>
+                      t <
+                      (measure.timeSignature.numerator * 3840) /
+                        measure.timeSignature.denominator,
+                  )
+                  .map((t) => ({
+                    value: t,
+                    label: formatNumberedBeatPosition(
                       t,
                       measure.timeSignature.denominator,
-                    )}
-                  </option>
-                ))}
-            </select>
-          </label>
-          <label>
-            覆盖时长
-            <select
+                    ),
+                  })),
+              ]}
+            />
+          </Form.Item>
+          <Form.Item
+            layout="vertical"
+            label="覆盖时长"
+            htmlFor={"editor-field-" + "简谱覆盖时长"}
+          >
+            <Select
+              id={"editor-field-" + "简谱覆盖时长"}
               aria-label="简谱覆盖时长"
               value={end - start}
-              onChange={(e) => {
-                setEnd(start + Number(e.target.value));
+              onChange={(value) => {
+                setEnd(start + Number(value));
                 setSelectedId("");
               }}
-            >
-              <option value={end - start}>当前范围</option>
-              <option value={480}>半个四分拍</option>
-              <option value={960}>一个四分拍</option>
-              <option value={1920}>两个四分拍</option>
-              <option value={3840}>四个四分拍</option>
-            </select>
-          </label>
-          <label>
-            {mode === "sequence" ? "连续简谱" : "单音组简谱"}
-            <textarea
-              ref={input}
+              style={{ width: "100%" }}
+              options={[
+                { value: end - start, label: "当前范围" },
+                ...[
+                  { value: 480, label: "半个四分拍" },
+                  { value: 960, label: "一个四分拍" },
+                  { value: 1920, label: "两个四分拍" },
+                  { value: 3840, label: "四个四分拍" },
+                ].filter((option) => option.value !== end - start),
+              ]}
+            />
+          </Form.Item>
+          <Form.Item
+            layout="vertical"
+            label={mode === "sequence" ? "连续简谱" : "单音组简谱"}
+            htmlFor={
+              "editor-field-" +
+              (mode === "sequence" ? "连续简谱" : "单音组简谱")
+            }
+          >
+            <Input.TextArea
+              id={
+                "editor-field-" +
+                (mode === "sequence" ? "连续简谱" : "单音组简谱")
+              }
+              ref={(control) => {
+                input.current = control?.resizableTextArea?.textArea ?? null;
+              }}
               aria-label={mode === "sequence" ? "连续简谱" : "单音组简谱"}
               rows={4}
               value={raw}
               onChange={(e) => setRaw(e.target.value)}
               placeholder="1 2 3；同时多音用 1+3+5"
             />
-          </label>
+          </Form.Item>
           <p className={styles.sidebarTip}>
             空格分先后音，+ 表示同时发音。时值与技巧独立于六线谱；高音用
             &apos;，低音用 .，还原号用 n。
           </p>
-          <label>
-            <input
-              type="checkbox"
-              checked={overwrite}
-              onChange={(e) => setOverwrite(e.target.checked)}
-            />
+          <Checkbox
+            checked={overwrite}
+            onChange={(e) => setOverwrite(e.target.checked)}
+          >
             允许覆盖此时间范围的简谱
-          </label>
+          </Checkbox>
           {plan?.ok && (
             <p>
               预览：
@@ -774,7 +842,7 @@ export const NumberedEditor = ({
           )}
           {issue && raw.trim() && <p role="status">{issue}</p>}
           <div className={styles.sidebarActions}>
-            <button
+            <Button
               disabled={!event}
               onClick={() =>
                 event &&
@@ -787,15 +855,15 @@ export const NumberedEditor = ({
               }
             >
               删除简谱
-            </button>
-            <button onClick={onCancel}>取消</button>
-            <button
-              className={styles.primaryButton}
+            </Button>
+            <Button onClick={onCancel}>取消</Button>
+            <Button
+              type="primary"
               disabled={!!issue || !operation}
               onClick={apply}
             >
               应用
-            </button>
+            </Button>
           </div>
           {event && (
             <fieldset>
@@ -815,13 +883,13 @@ export const NumberedEditor = ({
               {rhythmPlan && !rhythmPlan.ok && (
                 <p role="status">{rhythmPlan.message}</p>
               )}
-              <button
+              <Button
                 disabled={!rhythmPlan?.ok}
                 onClick={() => rhythmOperation && submit(rhythmOperation)}
               >
                 应用当前音符时值
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={() =>
                   submit({
                     type: "numbered.event.split",
@@ -832,39 +900,51 @@ export const NumberedEditor = ({
                 }
               >
                 等分持续音
-              </button>
-              <label>
-                起始音符
-                <select
+              </Button>
+              <Form.Item
+                layout="vertical"
+                label="起始音符"
+                htmlFor={"editor-field-" + "简谱技巧起始音符"}
+              >
+                <Select
+                  id={"editor-field-" + "简谱技巧起始音符"}
                   aria-label="简谱技巧起始音符"
                   value={itemId}
-                  onChange={(e) => {
-                    setItemId(e.target.value);
+                  onChange={(value) => {
+                    setItemId(value);
                     setItemDraft(
-                      event.items.find((i) => i.id === e.target.value)?.token ??
-                        "",
+                      event.items.find((i) => i.id === value)?.token ?? "",
                     );
                   }}
-                >
-                  {event.items.map((i, j) => (
-                    <option key={i.id} value={i.id}>
-                      {j + 1}：{i.token}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  style={{ width: "100%" }}
+                  options={[
+                    ...event.items.map((i, j) => ({
+                      value: i.id,
+                      label: (
+                        <>
+                          {j + 1}：{i.token}
+                        </>
+                      ),
+                    })),
+                  ]}
+                />
+              </Form.Item>
               {event.kind === "notes" && (
                 <>
-                  <label>
-                    单音符音高
-                    <input
+                  <Form.Item
+                    layout="vertical"
+                    label="单音符音高"
+                    htmlFor={"editor-field-" + "简谱单音符音高"}
+                  >
+                    <Input
+                      id={"editor-field-" + "简谱单音符音高"}
                       aria-label="简谱单音符音高"
                       value={itemDraft}
                       onChange={(e) => setItemDraft(e.target.value)}
                     />
-                  </label>
+                  </Form.Item>
                   {(["#", "b", "n"] as const).map((prefix) => (
-                    <button
+                    <Button
                       key={prefix}
                       onClick={() =>
                         setItemDraft(
@@ -877,10 +957,10 @@ export const NumberedEditor = ({
                         : prefix === "b"
                           ? "降音"
                           : "还原"}
-                    </button>
+                    </Button>
                   ))}
                   {([-1, 1] as const).map((direction) => (
-                    <button
+                    <Button
                       key={direction}
                       onClick={() => {
                         const suffix = itemDraft.match(/['.]+$/)?.[0] ?? "";
@@ -899,9 +979,9 @@ export const NumberedEditor = ({
                       }}
                     >
                       {direction > 0 ? "高一八度" : "低一八度"}
-                    </button>
+                    </Button>
                   ))}
-                  <button
+                  <Button
                     onClick={() => {
                       const p = parseNumberedSequence(itemDraft);
                       if (
@@ -924,27 +1004,36 @@ export const NumberedEditor = ({
                     }}
                   >
                     应用单音符音高
-                  </button>
+                  </Button>
                 </>
               )}
-              <label>
-                连接终点
-                <select
+              <Form.Item
+                layout="vertical"
+                label="连接终点"
+                htmlFor={"editor-field-" + "简谱技巧终点"}
+              >
+                <Select
+                  id={"editor-field-" + "简谱技巧终点"}
                   aria-label="简谱技巧终点"
                   value={destination}
-                  onChange={(e) => setDestination(e.target.value)}
-                >
-                  <option value="">请选择</option>
-                  {markTargets.flatMap(({ e, label }) =>
-                    e.items.map((i, j) => (
-                      <option key={i.id} value={i.id}>
-                        {label} · 音{j + 1}
-                      </option>
-                    )),
-                  )}
-                </select>
-              </label>
-              <button
+                  onChange={(value) => setDestination(value)}
+                  style={{ width: "100%" }}
+                  options={[
+                    { value: "", label: "请选择" },
+                    ...markTargets.flatMap(({ e, label }) =>
+                      e.items.map((i, j) => ({
+                        value: i.id,
+                        label: (
+                          <>
+                            {label}· 音{j + 1}
+                          </>
+                        ),
+                      })),
+                    ),
+                  ]}
+                />
+              </Form.Item>
+              <Button
                 disabled={!itemId || !destination}
                 onClick={() =>
                   submit({
@@ -959,8 +1048,8 @@ export const NumberedEditor = ({
                 }
               >
                 添加延音线
-              </button>
-              <button
+              </Button>
+              <Button
                 disabled={!destination}
                 onClick={() => {
                   const to = markTargets.find(({ e }) =>
@@ -979,8 +1068,8 @@ export const NumberedEditor = ({
                 }}
               >
                 添加连音线
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={() => {
                   const old = track.numberedMarks.find(
                     (m) => m.type === "fermata" && m.eventId === event.id,
@@ -1001,11 +1090,11 @@ export const NumberedEditor = ({
                 }}
               >
                 切换延长记号
-              </button>
+              </Button>
             </fieldset>
           )}
           <div className={styles.sidebarActions}>
-            <button
+            <Button
               onClick={() => {
                 if (
                   copyRange({
@@ -1021,9 +1110,9 @@ export const NumberedEditor = ({
               }}
             >
               复制简谱范围
-            </button>
+            </Button>
             {(["overwrite", "insert"] as const).map((pasteMode) => (
-              <button
+              <Button
                 key={pasteMode}
                 onClick={() => {
                   const clipboard = getClipboard();
@@ -1043,10 +1132,10 @@ export const NumberedEditor = ({
                 }}
               >
                 {pasteMode === "insert" ? "插入简谱" : "覆盖简谱"}
-              </button>
+              </Button>
             ))}
             {event && (
-              <button
+              <Button
                 onClick={() => {
                   const to = markTargets.find(({ e }) =>
                     e.items.some((i) => i.id === destination),
@@ -1073,13 +1162,13 @@ export const NumberedEditor = ({
                 }}
               >
                 合并至终点
-              </button>
+              </Button>
             )}
             {event &&
               measure.numberedVoice.tuplets
                 .filter((g) => g.eventIds.includes(event.id))
                 .map((g) => (
-                  <button
+                  <Button
                     key={g.id}
                     onClick={() =>
                       submit({
@@ -1091,7 +1180,7 @@ export const NumberedEditor = ({
                     }
                   >
                     移除简谱连音组
-                  </button>
+                  </Button>
                 ))}
           </div>
           {track.numberedMarks
@@ -1115,7 +1204,7 @@ export const NumberedEditor = ({
                   : m.type === "slur"
                     ? "连音线"
                     : "延长记号"}
-                <button
+                <Button
                   disabled={!event || (m.type !== "fermata" && !destination)}
                   onClick={() => {
                     if (!event) return;
@@ -1148,8 +1237,8 @@ export const NumberedEditor = ({
                   }}
                 >
                   更新记号端点
-                </button>
-                <button
+                </Button>
+                <Button
                   onClick={() =>
                     submit({
                       type: "numbered.mark.remove",
@@ -1159,7 +1248,7 @@ export const NumberedEditor = ({
                   }
                 >
                   删除记号
-                </button>
+                </Button>
               </p>
             ))}
         </>
@@ -1175,8 +1264,8 @@ export const NumberedEditor = ({
               将删除 {pending.removed.length} 个记号，迁移{" "}
               {pending.changed.length} 个记号。此操作与内容修改一起撤销。
             </p>
-            <button onClick={() => setPending(null)}>取消</button>
-            <button
+            <Button onClick={() => setPending(null)}>取消</Button>
+            <Button
               onClick={() => {
                 if (pending.document !== document) {
                   setPending(null);
@@ -1193,7 +1282,7 @@ export const NumberedEditor = ({
               }}
             >
               确认修改
-            </button>
+            </Button>
           </>
         )}
       </dialog>

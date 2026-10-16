@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import {
   EXAMPLE_MVP_7_2_DOCUMENT,
   LXMScoreCommandEnum,
+  createCollapsedTabCellSelection,
+  getFirstTabCellReference,
 } from "@liuxianmao/lxm-editor";
 import { createEditorSession } from "../stores/editor-store";
 import {
@@ -16,7 +18,12 @@ const setup = () => {
   const capture = vi.fn(() => restore);
   const modals = createEditorModalController(session.getState, capture);
   const request = (
-    overrides: Partial<EditorModalRequest> = {},
+    overrides: Partial<
+      Extract<
+        EditorModalRequest,
+        { kind: "keyboard-help" | "structure-impact" }
+      >
+    > = {},
   ): EditorModalRequest => ({
     kind: "structure-impact",
     title: "结构影响",
@@ -87,14 +94,12 @@ describe("统一弹层宿主控制器", () => {
       onClose = vi.fn();
     const id = modals.open(request({ confirm, onClose }))!;
     const unsubscribe = session.subscribe(modals.invalidate);
-    session
-      .getState()
-      .execute({
-        type: LXMScoreCommandEnum.SetNotationInfo,
-        title: "外部修改",
-        arranger: "",
-        keySignature: "C",
-      });
+    session.getState().execute({
+      type: LXMScoreCommandEnum.SetNotationInfo,
+      title: "外部修改",
+      arranger: "",
+      keySignature: "C",
+    });
     expect(modals.getSnapshot()).toBeNull();
     expect(onClose).toHaveBeenCalledWith("stale");
     expect(await modals.confirm(id)).toBe(false);
@@ -112,14 +117,12 @@ describe("统一弹层宿主控制器", () => {
         onClose,
         confirm: ({ isCurrent }) => {
           if (!isCurrent()) return false;
-          return !!session
-            .getState()
-            .execute({
-              type: LXMScoreCommandEnum.SetNotationInfo,
-              title: "确认成功",
-              arranger: "",
-              keySignature: "C",
-            })?.ok;
+          return !!session.getState().execute({
+            type: LXMScoreCommandEnum.SetNotationInfo,
+            title: "确认成功",
+            arranger: "",
+            keySignature: "C",
+          })?.ok;
         },
       }),
     )!;
@@ -182,5 +185,37 @@ describe("统一弹层宿主控制器", () => {
     modals.invalidate();
     expect(modals.getSnapshot()?.id).toBe(help);
     expect(await modals.confirm(help)).toBe(false);
+  });
+  it("选区条件改变立即作废类型请求，旧下一步不再交接", () => {
+    const { session, modals, request } = setup();
+    const before = JSON.stringify(session.getState().selection);
+    const id = modals.open(
+      request({
+        isValid: () => JSON.stringify(session.getState().selection) === before,
+      }),
+    )!;
+    const unsubscribe = session.subscribe(modals.invalidate);
+    session
+      .getState()
+      .setSelection(
+        createCollapsedTabCellSelection(
+          getFirstTabCellReference(session.getState().document!)!,
+        ),
+      );
+    expect(modals.getSnapshot()).toBeNull();
+    expect(modals.close(id, "cancel")).toBe(false);
+    unsubscribe();
+  });
+
+  it("下一步交接只在动画结束后一次执行，优先于背景焦点恢复", async () => {
+    const { modals, restore, request } = setup();
+    const handoff = vi.fn(() => true);
+    const id = modals.open(request({ afterClose: handoff }))!;
+    expect(await modals.confirm(id)).toBe(true);
+    expect(handoff).not.toHaveBeenCalled();
+    modals.restoreFocus();
+    modals.restoreFocus();
+    expect(handoff).toHaveBeenCalledOnce();
+    expect(restore).not.toHaveBeenCalled();
   });
 });

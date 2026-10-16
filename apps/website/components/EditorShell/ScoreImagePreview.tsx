@@ -1,4 +1,6 @@
 "use client";
+import { Button } from "antd";
+
 import { useEffect, useRef, useState } from "react";
 import type { ILXMDocument, ILXMLayoutDensity } from "@liuxianmao/lxm-editor";
 import { ScorePresentationPage } from "./ScorePresentationPage";
@@ -155,29 +157,29 @@ export const ScoreImagePreview = ({
     >
       <div className={styles.toolbar}>
         <h2 id="image-preview-title">A4 图片预览</h2>
-        <button type="button" onClick={() => closeRef.current()}>
+        <Button htmlType="button" onClick={() => closeRef.current()}>
           关闭
-        </button>
+        </Button>
       </div>
       <p>
         A4 纵向 · 300 DPI · 2480 × 3508 像素 · 白底 PNG。多页下载为 ZIP 图片包。
       </p>
       <div className={styles.actions}>
-        <button
-          type="button"
+        <Button
+          htmlType="button"
           disabled={busy || !prepared}
           onClick={() => void generate()}
         >
           生成全部图片
-        </button>
+        </Button>
         {busy && prepared && (
-          <button type="button" onClick={cancel}>
+          <Button htmlType="button" onClick={cancel}>
             取消生成
-          </button>
+          </Button>
         )}
         {download && (
-          <a
-            className={styles.download}
+          <Button
+            type="primary"
             href={download.url}
             download={download.name}
             onClick={(event) => {
@@ -188,7 +190,7 @@ export const ScoreImagePreview = ({
             }}
           >
             下载图片{download.name.endsWith(".zip") ? "包" : ""}
-          </a>
+          </Button>
         )}
       </div>
       <p role="status">
@@ -210,13 +212,13 @@ export const ScoreImagePreview = ({
           <section key={page.index} aria-label={`第 ${page.index + 1} 页`}>
             <div className={styles.pageHeader}>
               <span>第 {page.index + 1} 页</span>
-              <button
-                type="button"
+              <Button
+                htmlType="button"
                 disabled={busy}
                 onClick={() => void generate(page.index)}
               >
                 生成此页图片
-              </button>
+              </Button>
             </div>
             <ScorePresentationPage
               prepared={prepared}

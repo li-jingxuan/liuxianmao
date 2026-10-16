@@ -18,34 +18,11 @@
   margin-bottom: 0;
   padding: 8px 20px;
   min-height: 44px;
-  max-height: 144px;
+  max-height: 176px;
   flex: none;
   overflow: auto;
   border-bottom: 1px solid var(--border);
   background: var(--panel);
-}
-
-.toolbarButton {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 30px;
-  height: 30px;
-  padding: 4px;
-  place-items: center;
-  border: 1px solid #c9ced8;
-  border-radius: 4px;
-  background: #fff;
-  color: #1d2025;
-  cursor: pointer;
-
-  &:hover:not(:disabled) {
-    background: #edf2ff;
-  }
-  &:disabled {
-    cursor: not-allowed;
-    opacity: 0.45;
-  }
 }
 
 .toolbarIcon {
@@ -55,20 +32,12 @@
   mask: var(--music-icon-url) center / contain no-repeat;
 }
 
-.toolbarSeparator {
-  width: 1px;
-  height: 22px;
-  margin: 0 4px;
-  background: #d8dde6;
-}
-
-/** 小节线下拉框保留完整中文名称，避免只用相似图标区分六种边界。 */
 .toolbarField {
   display: inline-flex;
   gap: 6px;
   align-items: center;
-  font-size: 12px;
-  color: #5b6470;
+  font-size: 14px;
+  color: #626e82;
 }
 
 .toolbarSwitch {
@@ -78,32 +47,6 @@
   color: #5b6470;
   font-size: 12px;
   white-space: nowrap;
-}
-
-.toolbarSelect {
-  height: 30px;
-  padding: 0 8px;
-  border: 1px solid #c9ced8;
-  border-radius: 4px;
-  background: #fff;
-  color: #1d2025;
-
-  &:disabled {
-    opacity: 0.45;
-  }
-}
-
-/** 技巧工具使用 display: contents 接入既有可换行工具栏，不额外制造嵌套行。 */
-.techniqueToolbar {
-  display: contents;
-}
-
-.toolbarNumberInput {
-  width: 56px;
-  height: 30px;
-  padding: 0 6px;
-  border: 1px solid #c9ced8;
-  border-radius: 4px;
 }
 
 .techniqueSelectionLabel {
@@ -278,18 +221,6 @@
   }
 }
 
-.tupletToolbar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-  button {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-  }
-}
-
 /** 属性侧栏占用视口空间，不改变纸张或核心谱面几何。 */
 .editor {
   container-type: inline-size;
@@ -308,7 +239,7 @@
 }
 .editorWorkspace {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 344px;
+  grid-template-columns: minmax(0, 1fr) 440px;
   flex: 1;
   min-width: 0;
   min-height: 0;
@@ -330,57 +261,7 @@
   &[hidden] {
     display: none;
   }
-  button:not([class*="ant-"]) {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    min-height: 36px;
-    padding: 6px 12px;
-    border: 1px solid var(--border-strong);
-    border-radius: 6px;
-    background: #fff;
-    cursor: pointer;
-    &:hover:not(:disabled) {
-      background: var(--accent-soft);
-    }
-    &:disabled {
-      opacity: 0.45;
-      cursor: not-allowed;
-    }
-  }
-  button,
-  input,
-  select,
-  summary {
-    &:focus-visible {
-      outline: 2px solid var(--accent);
-      outline-offset: 2px;
-    }
-  }
-  label:not(:where(.settingsForms *)) {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    min-width: 0;
-    color: #48556b;
-  }
-  input:not([class*="ant-"]),
-  select {
-    width: 100%;
-    min-width: 0;
-    height: 38px;
-    padding: 6px 10px;
-    border: 1px solid var(--border-strong);
-    border-radius: 6px;
-    background: #fff;
-    color: var(--foreground);
-    font: inherit;
-    &:disabled {
-      background: var(--panel-muted);
-      opacity: 0.65;
-    }
-  }
+
   small {
     color: var(--muted);
     line-height: 1.6;
@@ -389,32 +270,6 @@
     margin: 0 0 16px;
     font-size: 16px;
     font-weight: 600;
-  }
-  .primaryButton {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: #fff;
-    &:hover:not(:disabled) {
-      background: #2455e6;
-    }
-  }
-  .dangerButton {
-    color: #df2525;
-    border-color: transparent;
-    margin-right: auto;
-    padding-left: 0;
-  }
-  .linkButton {
-    border: 0;
-    color: var(--accent);
-    padding: 0;
-    min-height: 28px;
-    font-size: 12px;
-  }
-  .iconButton {
-    padding: 6px;
-    border: 0;
-    background: transparent;
   }
 }
 
@@ -508,9 +363,6 @@
     border-top: 1px solid var(--border);
     padding-top: 20px;
   }
-  > label {
-    margin-bottom: 16px;
-  }
   small {
     display: block;
     margin: 10px 0;
@@ -519,7 +371,7 @@
 .propertyGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+  column-gap: 16px;
 }
 .sectionHeading {
   display: flex;
@@ -531,31 +383,32 @@
   }
 }
 .fingeringGrid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
-  gap: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
   table {
     width: 100%;
     border-collapse: collapse;
+    table-layout: fixed;
     font-size: 13px;
   }
   th,
   td {
-    border: 1px solid var(--border);
-    padding: 5px 3px;
+    padding: 3px 4px;
     text-align: center;
   }
   th {
-    background: var(--panel-muted);
+    color: var(--muted);
+    font-weight: 400;
   }
-  select {
-    font-size: 12px;
-    padding: 4px 0;
-    height: 30px;
-    border: 0;
+  th:first-child {
+    width: 32px;
   }
 }
 .chordPreview {
+  // 指法预览位于六弦表格上方，顺序与设计稿一致。
+  order: -1;
+  background: var(--panel-muted);
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -655,8 +508,7 @@
 /** 窄窗口采用上下分区，连续录入时谱面仍然可以点选，切换不卸载草稿。 */
 
 @container score-editor (width < 520px) {
-  .propertyGrid,
-  .fingeringGrid {
+  .propertyGrid {
     grid-template-columns: minmax(0, 1fr);
   }
   .sidebarHeader [role="tab"] {
@@ -723,26 +575,7 @@
   stroke-dasharray: 4 3;
   pointer-events: none;
 }
-.musicTextSidebar textarea {
-  width: 100%;
-  min-width: 0;
-  resize: vertical;
-  min-height: 90px;
-  padding: 10px;
-  border: 1px solid var(--border-strong);
-  border-radius: 6px;
-  font: inherit;
-}
-.musicTextSidebar .overwriteToggle {
-  flex-direction: row;
-  align-items: center;
-  margin: 14px 0;
-  input {
-    width: 16px;
-    height: 16px;
-    flex: none;
-  }
-}
+
 .sequencePreview {
   overflow-x: auto;
   table {
@@ -758,10 +591,6 @@
   }
   tr[aria-selected="true"] {
     background: var(--accent-soft);
-  }
-  td button {
-    font-size: 12px;
-    padding: 4px;
   }
 }
 @media print {
@@ -789,64 +618,11 @@
   }
 }
 
-.trackSettings {
-  border: 1px solid var(--border, #ddd);
-  border-radius: 8px;
-  margin: 0 0 16px;
-  padding: 12px;
-  min-width: 0;
-  form {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin-bottom: 16px;
-  }
-  p {
-    font-size: 12px;
-    line-height: 1.6;
-  }
-  button {
-    padding: 8px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    cursor: pointer;
-  }
-  &:disabled {
-    opacity: 0.6;
-  }
-}
-
 // 段落子页签复用侧栏状态，选中内容不改变谱面正式几何。
 .paragraphTabs {
-  display: flex;
-  gap: 8px;
   margin: 0 0 16px;
-  button {
-    flex: 1;
-    padding: 8px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    background: white;
-    &[aria-selected="true"] {
-      color: #3158dc;
-      background: #eef2ff;
-      border-color: #3158dc;
-    }
-  }
 }
 
-// 粘贴确认独占工具区的一行，避免状态摘要挤压谱面工具。
-.beatPastePreview {
-  flex-basis: 100%;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  padding: 8px;
-  background: #f2f6ff;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-}
 .sequenceTable {
   width: 100%;
   font-size: 12px;
@@ -975,7 +751,7 @@
   display: inline-flex;
 }
 .musicToolButton {
-  min-width: 28px;
+  min-width: 32px;
   padding-inline: 6px;
 }
 .toolbarHint {
@@ -983,31 +759,6 @@
   color: var(--muted);
   font-size: 11px;
   max-width: 230px;
-}
-.toolPopover {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
-  width: min(520px, calc(100vw - 48px));
-  max-height: min(520px, 65vh);
-  overflow: auto;
-  color: #202838;
-  h3 {
-    flex-basis: 100%;
-    margin: 0;
-    font-size: 14px;
-    font-weight: 600;
-  }
-  :global(.ant-btn) {
-    font-size: 12px;
-  }
-}
-.toolPopoverRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  width: 100%;
 }
 .viewSettings {
   display: grid;
@@ -1072,13 +823,6 @@
     margin: 0 0 16px;
     font-size: 15px;
     font-weight: 500;
-  }
-  :global(.ant-form-item) {
-    margin-bottom: 16px;
-  }
-  :global(.ant-form-item-label) > label {
-    color: var(--muted);
-    font-size: 13px;
   }
   :global(.ant-alert) {
     margin-block: 10px;
@@ -1180,4 +924,81 @@
     height: auto;
     container-type: normal;
   }
+}
+
+/** 工具只重排入口；参数内容和草稿 owner 始终保留同一实例。 */
+.advancedToolTriggers {
+  --editor-tools-mode: wide;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+.compactToolTrigger { display: none; }
+.toolPanelHost {
+  width: min(345px, calc(100vw - 56px));
+  max-height: min(660px, calc(100dvh - 160px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px;
+  h3 { margin: 0 0 16px; font-size: 16px; font-weight: 500; }
+}
+.toolMenu {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  > span, > label { width: 100%; }
+}
+.toolTarget {
+  padding: 6px 10px;
+  background: #f0f7ff;
+  color: #285be0;
+  border-radius: 6px;
+  font-size: 13px;
+}
+.toolSearch { margin-bottom: 12px; }
+.toolSearchResults {
+  display: grid;
+  gap: 4px;
+  margin-top: 8px;
+  button { white-space: normal; height: auto; min-height: 32px; text-align: left; }
+}
+.toolDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  h3 { font-size: 16px; font-weight: 500; margin: 8px 0 0; }
+  p { margin: 0; }
+}
+.barlineOptions { display: grid; gap: 14px; }
+.tupletRatioGrid, .techniqueTypeGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  > span { min-width: 0; }
+}
+.techniqueTypeGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.techniquePicker {
+  display: flex; flex-direction: column; gap: 28px;
+  h3 { color: #626e82; font-size: 14px; font-weight: 400; margin: 0 0 16px; }
+}
+.pastePreview { display: flex; flex-direction: column; gap: 24px; outline: none; }
+.toolbarNotice { flex-basis: 100%; padding-block: 4px; font-size: 12px; }
+@container score-editor (width < 900px) {
+  .advancedToolTriggers { --editor-tools-mode: compact; }
+  .wideToolTrigger { display: none; }
+  .compactToolTrigger { display: inline-flex; }
+}
+@media (max-width: 600px) {
+  .techniqueTypeGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 380px) {
+  .techniqueTypeGrid { grid-template-columns: minmax(0, 1fr); }
+}
+
+.toolChoiceCard {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; min-height: 40px; height: auto;
+  white-space: normal;
 }

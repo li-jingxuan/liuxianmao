@@ -24,7 +24,16 @@ import {
   FileTextOutlined,
   SettingOutlined,
 } from "@ant-design/icons";
-import { Tabs, type TabsProps } from "antd";
+import {
+  Button,
+  Checkbox,
+  Form,
+  Input,
+  Segmented,
+  Select,
+  Tabs,
+  type TabsProps,
+} from "antd";
 import {
   createCollapsedTabCellSelection,
   LXMScoreCommandEnum,
@@ -60,7 +69,15 @@ import { useEditorDraftRecords } from "./EditorSessionRuntime";
 import { captureEditorVersion } from "./editor-session-version";
 import type { EditorDraftRecord } from "./editor-draft-coordinator";
 
+import type { ToolNavigation } from "./editor-tool-catalog";
+import type { ToolActionHandler, MeasureToolTarget } from "./editor-tool-actions";
+import type { EditorCommandAdapter } from "./editor-command-adapter";
+import { NoteToolDetails } from "./NoteToolDetails";
+import { MeasureToolDetails } from "./MeasureToolDetails";
+import { TupletToolDetails } from "./TupletToolDetails";
+
 export interface MusicTextController {
+  navigateTool: (destination: ToolNavigation) => SelectionRequestResult;
   /** 输出前只读检查草稿，不自动提交或取消用户输入。 */
   isOutputBlocked: () => boolean;
   open: (target: MusicTextTarget) => void;
@@ -80,8 +97,12 @@ export const MusicTextSidebar = ({
   onScoreFocus,
   onScoreSelection,
   getSystemMeasureIds,
+  onToolAction,
+  executeTool,
 }: {
   ref: Ref<MusicTextController>;
+  onToolAction?: ToolActionHandler;
+  executeTool?: EditorCommandAdapter;
   onOpen: () => void;
   onEditingChange: (editing: boolean) => void;
   onTargetChange: (target: MusicTextTarget | null) => void;
@@ -102,6 +123,11 @@ export const MusicTextSidebar = ({
   type PropertyTab = "selection" | "paragraph" | "chord" | "song";
   // 一级栏目只负责组织界面；真实业务目标仍由 kind 和现有草稿闸门维护。
   const [propertyTab, setPropertyTab] = useState<PropertyTab>("selection");
+  const [selectionDetail, setSelectionDetail] = useState<ToolNavigation>("note");
+  const [detailTarget, setDetailTarget] = useState<MeasureToolTarget>();
+  const [detailFocus, setDetailFocus] = useState(0);
+  const detailRegion = useRef<HTMLDivElement>(null);
+  const settingsFieldRequest = useRef<"label" | "copy" | null>(null);
   // 活动对象独立于可见页签；null 表示普通六线谱选择，不表示关闭侧栏。
   const [activeObject, setActiveObject] = useState<MusicTextTarget | null>(
     null,
@@ -292,6 +318,9 @@ export const MusicTextSidebar = ({
     preserveNumberedDraft = false,
   ): boolean => {
     const current = editorStore.getState();
+    if (action.type === "tool" && (current.sessionId !== action.sessionId || current.sessionVersion !== action.sessionVersion || (action.target && !current.document?.score.tracks.find((track) => track.id === action.target!.trackId)?.measures.some((measure) => measure.id === action.target!.measureId)))) {
+      setPending(null); setMessage("工具导航目标已失效，请重新选择。"); return false;
+    }
     if (
       action.type === "selection" &&
       !isScoreSelectionValid(current.document, action.selection)
@@ -328,7 +357,17 @@ export const MusicTextSidebar = ({
       setNumberedInputActive(false);
       setNumberedPreview(null);
     }
-    if (action.type === "selection" || action.type === "close") {
+    if (action.type === "tool") {
+      setDraft(null); setNumberedTarget(null); setActiveObject(null); setInputEditing(false);
+      setKind("score"); setMessage(null); focusDestination.current = "score";
+      setDetailTarget(action.target);
+      if (action.destination === "section" || action.destination === "copy") {
+        setPropertyTab("song"); settingsFieldRequest.current = action.destination === "section" ? "label" : "copy";
+      } else { setPropertyTab("selection"); setSelectionDetail(action.destination); }
+      setDetailFocus((value) => value + 1);
+      onOpen();
+    } else if (action.type === "selection" || action.type === "close") {
+      setDetailTarget(undefined);
       const nextSelection =
         action.type === "selection"
           ? action.selection
@@ -562,7 +601,21 @@ export const MusicTextSidebar = ({
     select: (next, techniqueId) =>
       request({ type: "selection", selection: next, techniqueId }),
     returnToScore,
+    navigateTool: (destination) => {
+      const current = editorStore.getState();
+      const source = activeObject ?? current.selection?.focus;
+      return request({ type: "tool", kind: "score", destination, sessionId: current.sessionId, sessionVersion: current.sessionVersion,
+        target: source ? { trackId: source.trackId, measureId: source.measureId } : undefined });
+    },
   }));
+  // 只有受保护请求真正完成且布局已提交，才定位可见详情或原歌曲字段。
+  useEffect(() => {
+    if (!detailFocus || pending) return;
+    if (settingsFieldRequest.current) {
+      const field = settingsFieldRequest.current;
+      if (settingsRef.current?.focusField(field)) settingsFieldRequest.current = null;
+    } else detailRegion.current?.querySelector<HTMLElement>(`[data-selection-detail="${selectionDetail}"] h3`)?.focus({ preventScroll: true });
+  }, [detailFocus, pending, propertyTab, selectionDetail]);
 
   // 外部文档变化取消旧目标；自身命令的同步通知不清空原草稿。
   useEffect(
@@ -626,9 +679,10 @@ export const MusicTextSidebar = ({
   // 接受键盘切页签后聚焦对应 TAB，不让表单的目标加载抢走导航焦点。
   useEffect(() => {
     if (!pending && requestedTabFocus.current) {
-      document
-        .getElementById(requestedTabFocus.current)
-        ?.focus({ preventScroll: true });
+      const target = document.getElementById(requestedTabFocus.current);
+      const control =
+        target?.closest("label")?.querySelector("input") ?? target;
+      control?.focus({ preventScroll: true });
       requestedTabFocus.current = null;
     }
   }, [kind, pending]);
@@ -829,9 +883,17 @@ export const MusicTextSidebar = ({
     }
     return records;
   });
-  const selectionTrack = score?.score.tracks.find((track) => track.id === selection?.focus.trackId);
-  const selectionMeasureIndex = selectionTrack?.measures.findIndex((measure) => measure.id === selection?.focus.measureId) ?? -1;
-  const selectionBeatIndex = selectionTrack?.measures[selectionMeasureIndex]?.beats.findIndex((beat) => beat.id === selection?.focus.beatId) ?? -1;
+  const selectionTrack = score?.score.tracks.find(
+    (track) => track.id === selection?.focus.trackId,
+  );
+  const selectionMeasureIndex =
+    selectionTrack?.measures.findIndex(
+      (measure) => measure.id === selection?.focus.measureId,
+    ) ?? -1;
+  const selectionBeatIndex =
+    selectionTrack?.measures[selectionMeasureIndex]?.beats.findIndex(
+      (beat) => beat.id === selection?.focus.beatId,
+    ) ?? -1;
   return (
     <aside
       id="music-text-sidebar"
@@ -853,6 +915,14 @@ export const MusicTextSidebar = ({
         }
       }}
       onKeyDown={(e) => {
+        // Select 自己处理方向键、Enter 和 Esc，不能把关闭下拉框解释成退出编辑。
+        if (
+          e.target instanceof Element &&
+          e.target.closest(".ant-select, .ant-select-dropdown")
+        ) {
+          e.stopPropagation();
+          return;
+        }
         if (
           shouldIgnoreMusicTextKey(
             e.nativeEvent,
@@ -961,6 +1031,11 @@ export const MusicTextSidebar = ({
         inert={!!pending}
         onFocusCapture={(event) => {
           if (
+            event.target instanceof Element &&
+            event.target.closest("[data-editor-paragraph-switch]")
+          )
+            return;
+          if (
             event.target instanceof HTMLInputElement ||
             event.target instanceof HTMLTextAreaElement ||
             event.target instanceof HTMLSelectElement
@@ -983,7 +1058,7 @@ export const MusicTextSidebar = ({
             <ScoreSettings
               ref={settingsRef}
               document={score}
-              measureId={selection?.focus.measureId}
+              measureId={propertyTab === "song" && detailTarget ? detailTarget.measureId : selection?.focus.measureId}
               onDirty={setSettingsDirty}
               commit={commit}
               onFocusRequest={() => {
@@ -998,65 +1073,88 @@ export const MusicTextSidebar = ({
             />
           </div>
         )}
-        {propertyTab === "selection" && (
-          <section className={styles.selectionPanel} aria-label="当前选区">
-            {selection ? <>
-              <div className={styles.selectionPanelHeader}><strong>当前选区</strong><span>已定位</span></div>
-              <p>第 {selectionMeasureIndex + 1} 小节 · 第 {selectionBeatIndex + 1} 拍点 · 第 {selection.focus.string} 弦</p>
-              <p className={styles.sidebarTip}>时值、休止、小节与技巧操作位于顶部工具带。</p>
-            </> : <>
-              <h3>开始编写你的曲谱</h3>
-              <p>点击六线谱中的位置，输入品位。拖动可选择多个拍点与弦。</p>
-              <ol className={styles.selectionSteps}><li>选择音符位置</li><li>输入品位与节奏</li><li>添加歌词、简谱或和弦</li></ol>
-              <p className={styles.sidebarTip}>在头部“视图”中随时查看快捷键。</p>
-            </>}
-          </section>
-        )}
+        <div ref={detailRegion} hidden={propertyTab !== "selection"} inert={propertyTab !== "selection"}>
+          {score && onToolAction && executeTool ? <>
+            <div data-selection-detail="note" hidden={selectionDetail !== "note"}><NoteToolDetails document={score} selection={selection} blocked={editing || savedNumberedCount > 0} onAction={onToolAction} /></div>
+            <div data-selection-detail={selectionDetail === "barline" ? "barline" : "measure"} hidden={selectionDetail !== "measure" && selectionDetail !== "barline"}><MeasureToolDetails document={score} selection={selection} target={detailTarget} blocked={editing || savedNumberedCount > 0} boundaryOnly={selectionDetail === "barline"} onAction={onToolAction} navigate={(destination) => request({ type: "tool", kind: "score", destination, target: detailTarget ?? (selection?.focus ? { trackId: selection.focus.trackId, measureId: selection.focus.measureId } : undefined), sessionId: editorStore.getState().sessionId, sessionVersion: editorStore.getState().sessionVersion })} /></div>
+            <div data-selection-detail="tuplet" hidden={selectionDetail !== "tuplet"}><TupletToolDetails document={score} selection={selection} blocked={editing || savedNumberedCount > 0} execute={executeTool} /></div>
+          </> : propertyTab === "selection" && <section className={styles.selectionPanel} aria-label="当前选区">
+            {selection ? (
+              <>
+                <div className={styles.selectionPanelHeader}>
+                  <strong>当前选区</strong>
+                  <span>已定位</span>
+                </div>
+                <p>
+                  第 {selectionMeasureIndex + 1} 小节 · 第{" "}
+                  {selectionBeatIndex + 1} 拍点 · 第 {selection.focus.string} 弦
+                </p>
+                <p className={styles.sidebarTip}>
+                  时值、休止、小节与技巧操作位于顶部工具带。
+                </p>
+              </>
+            ) : (
+              <>
+                <h3>开始编写你的曲谱</h3>
+                <p>点击六线谱中的位置，输入品位。拖动可选择多个拍点与弦。</p>
+                <ol className={styles.selectionSteps}>
+                  <li>选择音符位置</li>
+                  <li>输入品位与节奏</li>
+                  <li>添加歌词、简谱或和弦</li>
+                </ol>
+                <p className={styles.sidebarTip}>
+                  在头部“视图”中随时查看快捷键。
+                </p>
+              </>
+            )}
+          </section>}
+        </div>
         {propertyTab === "paragraph" && (
           <div className={styles.sidebarActions}>
-            <button onClick={() => addParagraph("lyric")}>添加歌词行</button>
-            <button onClick={() => addParagraph("numbered")}>添加简谱行</button>
+            <Button onClick={() => addParagraph("lyric")}>添加歌词行</Button>
+            <Button onClick={() => addParagraph("numbered")}>添加简谱行</Button>
           </div>
         )}
         {propertyTab === "paragraph" && (
-          <div
-            role="tablist"
+          <Segmented
+            block
             aria-label="段落内容"
+            data-editor-paragraph-switch
             className={styles.paragraphTabs}
-          >
-            {(["lyric", "numbered"] as const).map((tab, i) => (
-              <button
-                key={tab}
-                role="tab"
-                id={`paragraph-tab-${tab}`}
-                aria-controls="paragraph-fields"
-                aria-selected={kind === tab}
-                tabIndex={kind === tab ? 0 : -1}
-                onClick={() => request({ type: "tab", kind: tab })}
-                onKeyDown={(e) => {
-                  if (
-                    ["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)
-                  ) {
-                    e.preventDefault();
-                    request({
-                      type: "tab",
-                      focus: "paragraph",
-                      kind:
-                        e.key === "Home"
-                          ? "lyric"
-                          : e.key === "End"
-                            ? "numbered"
-                            : i === 0
-                              ? "numbered"
-                              : "lyric",
-                    });
-                  }
-                }}
-              >
-                {tab === "lyric" ? "歌词" : "简谱"}
-              </button>
-            ))}
-          </div>
+            value={kind === "numbered" ? "numbered" : "lyric"}
+            options={(["lyric", "numbered"] as const).map((tab) => ({
+              value: tab,
+              label: (
+                <span id={`paragraph-tab-${tab}`}>
+                  {tab === "lyric" ? "歌词" : "简谱"}
+                </span>
+              ),
+            }))}
+            onChange={(value) =>
+              request({ type: "tab", kind: value as "lyric" | "numbered" })
+            }
+            onKeyDown={(event) => {
+              // 页签切换仍经草稿闸门；原生方向键和首尾键共用同一请求入口。
+              if (
+                ["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)
+              ) {
+                event.preventDefault();
+                event.stopPropagation();
+                request({
+                  type: "tab",
+                  focus: "paragraph",
+                  kind:
+                    event.key === "Home"
+                      ? "lyric"
+                      : event.key === "End"
+                        ? "numbered"
+                        : kind === "lyric"
+                          ? "numbered"
+                          : "lyric",
+                });
+              }
+            }}
+          />
         )}
         {propertyTab === "paragraph" && kind === "numbered" && score && (
           <div
@@ -1122,136 +1220,152 @@ export const MusicTextSidebar = ({
           propertyTab !== "song" &&
           kind !== "score" &&
           kind !== "numbered" && (
-          <div
-            id={kind === "lyric" ? "paragraph-fields" : undefined}
-            role={kind === "lyric" ? "tabpanel" : undefined}
-            aria-labelledby={
-              kind === "lyric" ? "paragraph-tab-lyric" : undefined
-            }
-          >
-            <p className={styles.sidebarTarget}>
-              {validTarget
-                ? `目标：第 ${(track?.measures.findIndex((m) => m.id === validTarget.measureId) ?? 0) + 1} 小节，第 ${(measure?.beats.findIndex((b) => b.id === validTarget.beatId) ?? 0) + 1} 拍`
-                : "请先选择谱面中的一拍"}
-            </p>
-            {!draft ? (
-              <div className={styles.sidebarEmpty}>
-                {kind === "lyric" ? (
-                  <FileTextOutlined style={{ fontSize: 36 }} />
-                ) : (
-                  <CustomerServiceOutlined style={{ fontSize: 36 }} />
-                )}
-                <h3>{kind === "lyric" ? "连续填词" : "编辑和弦与指法"}</h3>
-                <p>
-                  选择目标拍后，开始编辑{kind === "lyric" ? "歌词" : "和弦"}。
-                </p>
-                <button
-                  ref={editButtonRef}
-                  disabled={!validTarget}
-                  className={styles.primaryButton}
-                  onClick={() =>
-                    validTarget &&
-                    request({
-                      type: "target",
-                      target: {
-                        ...validTarget,
-                        kind: kind === "chord" ? "chord" : "lyric",
-                        verse: 1,
-                      },
-                    })
-                  }
-                >
-                  {kind === "lyric" ? "从当前拍开始" : "编辑当前拍"}
-                </button>
-              </div>
-            ) : kind === "lyric" ? (
-              <section className={styles.sidebarSection}>
-                <h3>歌词设置</h3>
-                <label>
-                  录入方式
-                  <select
-                    aria-label="歌词录入方式"
-                    value={draft.lyricMode}
-                    onChange={(e) =>
-                      request({
-                        type: "mode",
-                        mode: e.target.value as MusicTextDraft["lyricMode"],
-                      })
-                    }
-                  >
-                    <option value="single">单拍编辑</option>
-                    <option value="sequence">连续填词</option>
-                  </select>
-                </label>
-                <label>
-                  段号
-                  <select
-                    aria-label="歌词段号"
-                    value={draft.target.verse}
-                    onChange={(e) =>
+            <div
+              id={kind === "lyric" ? "paragraph-fields" : undefined}
+              role={kind === "lyric" ? "tabpanel" : undefined}
+              aria-labelledby={
+                kind === "lyric" ? "paragraph-tab-lyric" : undefined
+              }
+            >
+              <p className={styles.sidebarTarget}>
+                {validTarget
+                  ? `目标：第 ${(track?.measures.findIndex((m) => m.id === validTarget.measureId) ?? 0) + 1} 小节，第 ${(measure?.beats.findIndex((b) => b.id === validTarget.beatId) ?? 0) + 1} 拍`
+                  : "请先选择谱面中的一拍"}
+              </p>
+              {!draft ? (
+                <div className={styles.sidebarEmpty}>
+                  {kind === "lyric" ? (
+                    <FileTextOutlined style={{ fontSize: 36 }} />
+                  ) : (
+                    <CustomerServiceOutlined style={{ fontSize: 36 }} />
+                  )}
+                  <h3>{kind === "lyric" ? "连续填词" : "编辑和弦与指法"}</h3>
+                  <p>
+                    选择目标拍后，开始编辑{kind === "lyric" ? "歌词" : "和弦"}。
+                  </p>
+                  <Button
+                    ref={editButtonRef}
+                    disabled={!validTarget}
+                    type="primary"
+                    onClick={() =>
+                      validTarget &&
                       request({
                         type: "target",
                         target: {
-                          ...draft.target,
-                          verse: Number(e.target.value) as ILXMLyricVerse,
+                          ...validTarget,
+                          kind: kind === "chord" ? "chord" : "lyric",
+                          verse: 1,
                         },
                       })
                     }
                   >
-                    {[1, 2, 3, 4].map((v) => (
-                      <option key={v} value={v}>
-                        第 {v} 段
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                {sequence ? (
-                  <>
-                    <label>
-                      连续歌词
-                      <textarea
-                        ref={sequenceInputRef}
-                        aria-label="连续歌词"
-                        aria-describedby="lyric-sequence-tips"
-                        rows={4}
-                        placeholder="例如：风 吹 _ 过 山 谷"
-                        value={draft.text}
-                        onChange={(e) => {
-                          setDraft({ ...draft, text: e.target.value });
-                          setInspection(0);
-                          setMessage(null);
-                        }}
+                    {kind === "lyric" ? "从当前拍开始" : "编辑当前拍"}
+                  </Button>
+                </div>
+              ) : kind === "lyric" ? (
+                <section className={styles.sidebarSection}>
+                  <h3>歌词设置</h3>
+                  <div className={styles.propertyGrid}>
+                    <Form.Item
+                      layout="vertical"
+                      label="录入方式"
+                      htmlFor={"editor-field-" + "歌词录入方式"}
+                    >
+                      <Select
+                        id={"editor-field-" + "歌词录入方式"}
+                        aria-label="歌词录入方式"
+                        value={draft.lyricMode}
+                        onChange={(value) =>
+                          request({
+                            type: "mode",
+                            mode: value as MusicTextDraft["lyricMode"],
+                          })
+                        }
+                        style={{ width: "100%" }}
+                        options={[
+                          { value: "single", label: "单拍编辑" },
+                          { value: "sequence", label: "连续填词" },
+                        ]}
                       />
-                    </label>
+                    </Form.Item>
+                    <Form.Item
+                      layout="vertical"
+                      label="段号"
+                      htmlFor={"editor-field-" + "歌词段号"}
+                    >
+                      <Select
+                        id={"editor-field-" + "歌词段号"}
+                        aria-label="歌词段号"
+                        value={draft.target.verse}
+                        onChange={(value) =>
+                          request({
+                            type: "target",
+                            target: {
+                              ...draft.target,
+                              verse: value as ILXMLyricVerse,
+                            },
+                          })
+                        }
+                        style={{ width: "100%" }}
+                        options={[1, 2, 3, 4].map((value) => ({
+                          value,
+                          label: `第 ${value} 段`,
+                        }))}
+                      />
+                    </Form.Item>
+                  </div>
+                  {sequence ? (
+                    <>
+                      <Form.Item
+                        layout="vertical"
+                        label="连续歌词"
+                        htmlFor={"editor-field-" + "连续歌词"}
+                      >
+                        <Input.TextArea
+                          id={"editor-field-" + "连续歌词"}
+                          ref={(control) => {
+                            sequenceInputRef.current =
+                              control?.resizableTextArea?.textArea ?? null;
+                          }}
+                          aria-label="连续歌词"
+                          aria-describedby="lyric-sequence-tips"
+                          rows={4}
+                          placeholder="例如：风 吹 _ 过 山 谷"
+                          value={draft.text}
+                          onChange={(e) => {
+                            setDraft({ ...draft, text: e.target.value });
+                            setInspection(0);
+                            setMessage(null);
+                          }}
+                        />
+                      </Form.Item>
                       <div
                         id="lyric-sequence-tips"
                         className={styles.sidebarTip}
                       >
-                      <strong>连续填词规则</strong>
-                      <p>
-                        用空格分词，每项依次对应一拍，休止拍也占一格。多个空格按一个分隔处理。
-                      </p>
-                      <p>
-                        用 <code>_</code> 跳过一拍并保留原歌词，例如{" "}
-                        <code>风 _ 过</code>。
-                      </p>
-                      <p>
-                        英文短句按空格拆词；要把 <code>a song</code>{" "}
-                        放在同一拍，请切到单拍编辑。
-                      </p>
-                      <p>
-                        先核对下方对应预览，再应用全部。默认允许替换已有歌词，可取消下方勾选以保留原词。
-                      </p>
-                      <details>
-                        <summary>详细规则</summary>
-                        半角与全角空格均可分隔，首尾空格忽略；仅独立 _
-                        表示跳过。每项最多 64 字，每批最多 256 拍。
-                        不接受换行或制表符；谱尾位置不足时整批拒绝；整批可一次撤销。
-                      </details>
-                    </div>
-                    <label className={styles.overwriteToggle}>
-                      <input
-                        type="checkbox"
+                        <strong>连续填词规则</strong>
+                        <p>
+                          用空格分词，每项依次对应一拍，休止拍也占一格。多个空格按一个分隔处理。
+                        </p>
+                        <p>
+                          用 <code>_</code> 跳过一拍并保留原歌词，例如{" "}
+                          <code>风 _ 过</code>。
+                        </p>
+                        <p>
+                          英文短句按空格拆词；要把 <code>a song</code>{" "}
+                          放在同一拍，请切到单拍编辑。
+                        </p>
+                        <p>
+                          先核对下方对应预览，再应用全部。默认允许替换已有歌词，可取消下方勾选以保留原词。
+                        </p>
+                        <details>
+                          <summary>详细规则</summary>
+                          半角与全角空格均可分隔，首尾空格忽略；仅独立 _
+                          表示跳过。每项最多 64 字，每批最多 256 拍。
+                          不接受换行或制表符；谱尾位置不足时整批拒绝；整批可一次撤销。
+                        </details>
+                      </div>
+                      <Checkbox
                         checked={draft.allowOverwrite}
                         onChange={(e) =>
                           setDraft({
@@ -1259,105 +1373,113 @@ export const MusicTextSidebar = ({
                             allowOverwrite: e.target.checked,
                           })
                         }
-                      />
+                      >
                         允许替换预览中标记的已有歌词（{plan?.overwrites ?? 0}{" "}
                         项）
-                    </label>
-                    {plan && (
-                      <div className={styles.sequencePreview}>
-                        <h4>对应预览 · 写入 {plan.changes} 项</h4>
-                        <table>
-                          <thead>
-                            <tr>
-                              <th>位置</th>
-                              <th>原词 → 新词</th>
-                              <th>操作</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {plan.rows.map((row) => (
-                              <tr
-                                key={row.index}
-                                aria-selected={inspection === row.index}
-                              >
-                                <td>
-                                  <button
-                                    disabled={!row.target}
-                                    onClick={() => setInspection(row.index)}
-                                  >
-                                    {row.target
-                                      ? `${row.measureNumber} 小节 / ${row.beatNumber} 拍${row.rest ? "（休止）" : ""}`
-                                      : `第 ${row.index + 1} 项（超出谱尾）`}
-                                  </button>
-                                </td>
-                                <td>
-                                  {row.previous ?? "空"} →{" "}
-                                  {row.item.kind === "skip"
-                                    ? "保留原词"
-                                    : row.item.text}
-                                </td>
-                                <td>
-                                  {
-                                    {
-                                      add: "新增",
-                                      change: "覆盖",
-                                      same: "未变化",
-                                      skip: "跳过",
-                                      error: "错误",
-                                    }[row.status]
-                                  }
-                                </td>
+                      </Checkbox>
+                      {plan && (
+                        <div className={styles.sequencePreview}>
+                          <h4>对应预览 · 写入 {plan.changes} 项</h4>
+                          <table>
+                            <thead>
+                              <tr>
+                                <th>位置</th>
+                                <th>原词 → 新词</th>
+                                <th>操作</th>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                            </thead>
+                            <tbody>
+                              {plan.rows.map((row) => (
+                                <tr
+                                  key={row.index}
+                                  aria-selected={inspection === row.index}
+                                >
+                                  <td>
+                                    <Button
+                                      disabled={!row.target}
+                                      onClick={() => setInspection(row.index)}
+                                    >
+                                      {row.target
+                                        ? `${row.measureNumber} 小节 / ${row.beatNumber} 拍${row.rest ? "（休止）" : ""}`
+                                        : `第 ${row.index + 1} 项（超出谱尾）`}
+                                    </Button>
+                                  </td>
+                                  <td>
+                                    {row.previous ?? "空"} →{" "}
+                                    {row.item.kind === "skip"
+                                      ? "保留原词"
+                                      : row.item.text}
+                                  </td>
+                                  <td>
+                                    {
+                                      {
+                                        add: "新增",
+                                        change: "覆盖",
+                                        same: "未变化",
+                                        skip: "跳过",
+                                        error: "错误",
+                                      }[row.status]
+                                    }
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <Form.Item
+                        layout="vertical"
+                        label="歌词"
+                        htmlFor={"editor-field-" + "歌词文本"}
+                      >
+                        <Input
+                          id={"editor-field-" + "歌词文本"}
+                          ref={(control) => {
+                            inputRef.current = control?.input ?? null;
+                          }}
+                          aria-label="歌词文本"
+                          value={draft.text}
+                          onChange={(e) => {
+                            setDraft({ ...draft, text: e.target.value });
+                            setMessage(null);
+                          }}
+                        />
+                      </Form.Item>
+                      {existing ? (
+                        <small>将修改已有歌词。</small>
+                      ) : (
+                        <small>此拍暂无第 {draft.target.verse} 段歌词。</small>
+                      )}
+                      <div className={styles.sidebarTip}>
+                        Enter 应用并下一拍；Shift+Enter 仅应用。
+                        <br />
+                        每拍单行，支持第 1–4 段歌词。
                       </div>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <label>
-                      歌词
-                      <input
-                        ref={inputRef}
-                        aria-label="歌词文本"
-                        value={draft.text}
-                        onChange={(e) => {
-                          setDraft({ ...draft, text: e.target.value });
-                          setMessage(null);
-                        }}
-                      />
-                    </label>
-                    {existing ? (
-                      <small>将修改已有歌词。</small>
-                    ) : (
-                      <small>此拍暂无第 {draft.target.verse} 段歌词。</small>
-                    )}
-                    <div className={styles.sidebarTip}>
-                      Enter 应用并下一拍；Shift+Enter 仅应用。
-                      <br />
-                      每拍单行，支持第 1–4 段歌词。
-                    </div>
-                  </>
-                )}
-              </section>
-            ) : (
-              <ChordEditor
-                inputRef={inputRef}
-                draft={draft.chord}
-                onChange={(chord) => {
-                  setDraft({ ...draft, chord });
-                  setMessage(null);
-                }}
-                presetsEnabled={
-                  !!track &&
-                  JSON.stringify(track.tuning.strings.map((s) => s.pitch)) ===
-                    JSON.stringify(["E4", "B3", "G3", "D3", "A2", "E2"])
-                }
-              />
-            )}
-          </div>
-        )}
+                    </>
+                  )}
+                </section>
+              ) : (
+                <ChordEditor
+                  inputRef={(element) => {
+                    inputRef.current = element;
+                  }}
+                  draft={draft.chord}
+                  onChange={(chord) => {
+                    setDraft({ ...draft, chord });
+                    setMessage(null);
+                  }}
+                  presetsEnabled={
+                    !!track &&
+                    JSON.stringify(track.tuning.strings.map((s) => s.pitch)) ===
+                      JSON.stringify(["E4", "B3", "G3", "D3", "A2", "E2"])
+                  }
+                />
+              )}
+            </div>
+          )}
       </div>
       {/* 无编辑操作或提示时隐藏底栏，避免移除历史按钮后留下空白条。 */}
       <footer
@@ -1374,9 +1496,9 @@ export const MusicTextSidebar = ({
             <h3 id="draft-confirm-title">当前草稿尚未应用</h3>
             <p>请先处理修改，再继续操作。</p>
             <div>
-              <button
+              <Button
                 disabled={!!issue || (kind === "numbered" && !numberedCanApply)}
-                className={styles.primaryButton}
+                type="primary"
                 onClick={() => {
                   if (
                     kind === "score"
@@ -1389,8 +1511,8 @@ export const MusicTextSidebar = ({
                 }}
               >
                 应用并切换
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={() => {
                   if (!composing.current) {
                     settingsRef.current?.discard();
@@ -1399,10 +1521,10 @@ export const MusicTextSidebar = ({
                 }}
               >
                 放弃并切换
-              </button>
-              <button ref={confirmRef} onClick={continueEditing}>
+              </Button>
+              <Button ref={confirmRef} onClick={continueEditing}>
                 继续编辑
-              </button>
+              </Button>
             </div>
           </div>
         ) : (
@@ -1411,21 +1533,21 @@ export const MusicTextSidebar = ({
               <div className={styles.sidebarMessage} role="status">
                 上一处简谱修改已暂存。
                 <div className={styles.sidebarActions}>
-                  <button
+                  <Button
                     onClick={() =>
                       request({ type: "target", target: switchNotice })
                     }
                   >
                     返回编辑
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     onClick={() => {
                       setSuppressSwitchNotice(true);
                       setSwitchNotice(null);
                     }}
                   >
                     本次编辑不再提示
-                  </button>
+                  </Button>
                 </div>
               </div>
             )}
@@ -1441,32 +1563,32 @@ export const MusicTextSidebar = ({
             )}
             {draft && (
               <div className={styles.sidebarActions}>
-                <button
-                  className={styles.dangerButton}
+                <Button
+                  danger
                   disabled={!existing || sequence}
                   onClick={remove}
                 >
                   <DeleteOutlined />
                   删除{kind === "lyric" ? "歌词" : "和弦"}
-                </button>
-                <button onClick={() => request({ type: "close" })}>取消</button>
-                <button
+                </Button>
+                <Button onClick={() => request({ type: "close" })}>取消</Button>
+                <Button
                   disabled={!!issue}
-                  className={styles.primaryButton}
+                  type={kind === "chord" || sequence ? "primary" : "default"}
                   onClick={() => apply()}
                 >
                   {sequence
                     ? `应用全部${draft.allowOverwrite && plan?.overwrites ? `（覆盖 ${plan.overwrites} 项）` : ""}`
                     : "应用"}
-                </button>
+                </Button>
                 {kind === "lyric" && !sequence && (
-                  <button
+                  <Button
                     disabled={!!issue}
-                    className={styles.primaryButton}
+                    type="primary"
                     onClick={() => apply(true)}
                   >
                     应用并下一拍
-                  </button>
+                  </Button>
                 )}
               </div>
             )}

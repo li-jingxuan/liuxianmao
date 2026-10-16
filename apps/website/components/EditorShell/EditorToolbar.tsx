@@ -1,21 +1,25 @@
 "use client";
-
-import { useRef, useState, type ReactNode } from "react";
-import { Button, Popover, Tooltip } from "antd";
 import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
+import { Alert, Button, Tooltip } from "antd";
+import {
+  CopyOutlined,
   DeleteOutlined,
-  DownOutlined,
   RedoOutlined,
   UndoOutlined,
 } from "@ant-design/icons";
+import type { ILXMRhythm } from "@liuxianmao/lxm-editor";
 import {
-  LXM_EDITABLE_TIME_SIGNATURES,
-  type ILXMApplyScoreCommandResult,
-  type ILXMBarlineType,
-  type ILXMRhythm,
-  type ILXMScoreCommand,
-} from "@liuxianmao/lxm-editor";
-import { useEditorStore } from "../../stores/editor-store";
+  useEditorSessionStore,
+  useEditorStore,
+} from "../../stores/editor-store";
 import { MusicAssetIcon } from "../MusicAssetIcon";
 import type { MusicControlIcon } from "../../assets/svg/svg-assets-manifest";
 import {
@@ -26,26 +30,18 @@ import { editorShortcutLabel } from "./editor-shortcuts";
 import { BeatToolbar } from "./BeatToolbar";
 import { TupletToolbar } from "./TupletToolbar";
 import { TechniqueToolbar } from "./TechniqueToolbar";
+import {
+  EditorToolPanelHost,
+  type EditorToolPanelController,
+} from "./EditorToolPanelHost";
+import { createBeatPasteController } from "./beat-paste-controller";
+import { useEditorRuntime } from "./EditorSessionRuntime";
+import type { EditorCommandAdapter } from "./editor-command-adapter";
+import type { ToolActionHandler } from "./editor-tool-actions";
+import type { ToolNavigation } from "./editor-tool-catalog";
+import type { SelectionRequestResult } from "./editor-object-selection";
 import styles from "./index.module.scss";
-
-export type EditorToolbarAction =
-  | {
-      type:
-        | "undo"
-        | "redo"
-        | "muted"
-        | "removeNotes"
-        | "rest"
-        | "restore"
-        | "insertMeasure"
-        | "copyMeasures"
-        | "removeMeasure"
-        | "startRepeat";
-    }
-  | { type: "rhythm"; base: ILXMRhythm["base"] }
-  | { type: "dots"; dots: 0 | 1 | 2 }
-  | { type: "signature"; value: string }
-  | { type: "barline"; value: ILXMBarlineType };
+export type { EditorToolbarAction } from "./editor-tool-actions";
 
 const RHYTHMS: {
   base: ILXMRhythm["base"];
@@ -59,15 +55,6 @@ const RHYTHMS: {
   { base: "sixteenth", icon: "noteSixteenth", label: "十六分音符" },
   { base: "thirtySecond", icon: "noteThirtySecond", label: "三十二分音符" },
 ];
-const BARLINES: { value: ILXMBarlineType; label: string }[] = [
-  { value: "single", label: "单小节线" },
-  { value: "double", label: "双小节线" },
-  { value: "final", label: "终止线" },
-  { value: "repeatStart", label: "开始反复线" },
-  { value: "repeatEnd", label: "结束反复线" },
-  { value: "repeatBoth", label: "双向反复线" },
-];
-
 const ToolButton = ({
   label,
   availability,
@@ -84,13 +71,18 @@ const ToolButton = ({
   title?: string;
 }) => (
   <Tooltip title={availability.reason || title || label}>
-    <span className={styles.toolButtonWrap}>
+    <span
+      className={styles.toolButtonWrap}
+      tabIndex={!availability.enabled ? 0 : undefined}
+      aria-label={!availability.enabled ? availability.reason : undefined}
+    >
       <Button
-        size="small"
         aria-label={label}
         aria-pressed={pressed}
         disabled={!availability.enabled}
         onClick={onClick}
+        color={pressed ? "primary" : "default"}
+        variant={pressed ? "filled" : "text"}
         className={styles.musicToolButton}
       >
         {children}
@@ -99,114 +91,110 @@ const ToolButton = ({
   </Tooltip>
 );
 
-/** 各高级组始终属于同一个 Popover，首次打开后保留内容，断点不换 owner。 */
-const ToolGroup = ({
-  label,
-  blocked,
-  children,
-}: {
-  label: string;
-  blocked: boolean;
-  children: ReactNode;
-}) => {
-  const [open, setOpen] = useState(false);
-  const trigger = useRef<HTMLButtonElement>(null);
-  const content = useRef<HTMLDivElement>(null);
-  return (
-    <Popover
-      trigger="click"
-      placement="bottomLeft"
-      open={open && !blocked}
-      onOpenChange={(next) => {
-        setOpen(!blocked && next);
-        // 预览取消会移除当前按钮；此时 Esc 由 portal 接收，也要恢复可见触发器。
-        const active = document.activeElement;
-        if (
-          !next &&
-          (active === document.body || content.current?.contains(active))
-        )
-          trigger.current?.focus();
-      }}
-      destroyOnHidden={false}
-      content={
-        <div
-          ref={content}
-          className={styles.toolPopover}
-          inert={blocked}
-          onKeyDown={(event) => {
-            if (event.key === "Escape") {
-              event.stopPropagation();
-              setOpen(false);
-              trigger.current?.focus();
-            }
-          }}
-        >
-          <h3>{label}</h3>
-          {children}
-        </div>
-      }
-    >
-      <Button
-        ref={trigger}
-        size="small"
-        disabled={blocked}
-        aria-label={`${label}工具`}
-        aria-expanded={open && !blocked}
-      >
-        {label}
-        <DownOutlined />
-      </Button>
-    </Popover>
-  );
-};
-
-/** 入口条件来自文档与核心解析；命令回调复用谱面已有实现。 */
+/** 菜单和更多工具只改变入口；预览控制器随会话存活，不再按版本/选区 key 重建。 */
 export const EditorToolbar = ({
   blocked,
   onAction,
   beforeAction,
   execute,
+  onNavigate,
 }: {
   blocked: boolean;
-  onAction: (action: EditorToolbarAction) => void;
+  onAction: ToolActionHandler;
   beforeAction: () => void;
-  execute: (command: ILXMScoreCommand) => ILXMApplyScoreCommandResult | null;
+  execute: EditorCommandAdapter;
+  onNavigate: (destination: ToolNavigation) => SelectionRequestResult;
 }) => {
-  const document = useEditorStore((state) => state.document);
-  const selection = useEditorStore((state) => state.selection);
-  const stateVersion = useEditorStore((state) => state.stateVersion);
-  const clipboardVersion = useEditorStore((state) => state.clipboardVersion);
+  const session = useEditorSessionStore();
+  const { drafts, modals } = useEditorRuntime();
+  const document = useEditorStore((state) => state.document),
+    selection = useEditorStore((state) => state.selection);
   const canUndo = useEditorStore((state) => state.canUndo),
     canRedo = useEditorStore((state) => state.canRedo);
   const selectedTechniqueId = useEditorStore(
     (state) => state.selectedTechniqueId,
   );
   const setSelectedTechniqueId = useEditorStore(
-    (state) => state.setSelectedTechniqueId,
+      (state) => state.setSelectedTechniqueId,
+    ),
+    setErrorMessage = useEditorStore((state) => state.setErrorMessage);
+  const modal = useSyncExternalStore(
+    modals.subscribe,
+    modals.getSnapshot,
+    () => null,
   );
-  const setErrorMessage = useEditorStore((state) => state.setErrorMessage);
+  useSyncExternalStore(
+    drafts.subscribe,
+    drafts.getSnapshot,
+    drafts.getSnapshot,
+  );
+  const host = useRef<EditorToolPanelController>(null);
+  const protectedDraft = drafts
+    .inspect()
+    .pending.some((item) => item.kind !== "beatPaste" && item.kind !== "fret");
+  const editingBlocked = blocked || protectedDraft;
+  const live = useRef({ editingBlocked, beforeAction, execute });
+  const executeLatest: EditorCommandAdapter = useCallback(
+    (command, impact) => live.current.execute(command, impact),
+    [],
+  );
+  const beforeLatest = useCallback(() => live.current.beforeAction(), []);
+  const blockedReason = useCallback(
+    () => (live.current.editingBlocked ? "先完成属性编辑，再修改 TAB。" : null),
+    [],
+  );
+  const restorePaste = useCallback(() => host.current?.restore("beat"), []);
+  // 构造函数只保存以下延迟回调，不会在 render 中读取 ref；读取发生于用户意图或订阅通知。
+  // eslint-disable-next-line react-hooks/refs
+  const [paste] = useState(() =>
+    createBeatPasteController({
+      session,
+      drafts,
+      modals,
+      execute: executeLatest,
+      beforeAction: beforeLatest,
+      getBlockedReason: blockedReason,
+      restoreFocus: restorePaste,
+    }),
+  );
+  useEffect(() => paste.start(), [paste]);
+  useLayoutEffect(() => {
+    live.current = { editingBlocked, beforeAction, execute };
+    paste.invalidate();
+  }, [paste, editingBlocked, beforeAction, execute]);
+  useEffect(() => {
+    if (modal) host.current?.close();
+  }, [modal]);
   if (!document) return null;
   const tools = deriveEditorToolState(document, selection);
-  const run = (action: EditorToolbarAction) => {
+  const reason = editingBlocked
+    ? "先完成属性编辑，再修改 TAB；可继续浏览工具说明。"
+    : null;
+  const available = (value: ToolAvailability): ToolAvailability =>
+    modal || editingBlocked
+      ? { enabled: false, reason: modal ? "请先完成当前弹层操作。" : reason! }
+      : value;
+  const run: ToolActionHandler = async (action) => {
     beforeAction();
-    onAction(action);
+    if (
+      action.type !== "undo" &&
+      action.type !== "redo" &&
+      live.current.editingBlocked
+    )
+      return false;
+    const success = await onAction(action);
+    if (success) host.current?.close(true);
+    return success;
   };
-  const commit = (command: ILXMScoreCommand) => {
-    beforeAction();
-    return execute(command);
+  const navigate = (destination: ToolNavigation) => {
+    const result = onNavigate(destination);
+    if (result !== "blocked") host.current?.close();
   };
-  const focus = tools.focused;
-  const currentSignature = focus
-    ? `${focus.measure.timeSignature.numerator}/${focus.measure.timeSignature.denominator}`
-    : "";
-  const activeBeat =
+  const beat =
     tools.range?.beats.length === 1
-      ? document.score.tracks
-          .find((track) => track.id === tools.range!.trackId)
-          ?.measures.find(
-            (measure) => measure.id === tools.range!.beats[0]!.measureId,
-          )
-          ?.beats.find((beat) => beat.id === tools.range!.beats[0]!.beatId)
+      ? tools.focused?.measure.beats.find(
+          (item) => item.id === tools.range!.beats[0]!.beatId,
+        )
       : null;
   return (
     <div
@@ -220,10 +208,14 @@ export const EditorToolbar = ({
           label="撤销"
           title={editorShortcutLabel("undo")}
           availability={{
-            enabled: canUndo,
-            reason: canUndo ? "" : "没有可撤销的修改。",
+            enabled: canUndo && !modal,
+            reason: modal
+              ? "请先完成当前弹层操作。"
+              : canUndo
+                ? ""
+                : "没有可撤销的修改。",
           }}
-          onClick={() => run({ type: "undo" })}
+          onClick={() => void run({ type: "undo" })}
         >
           <UndoOutlined />
         </ToolButton>
@@ -231,27 +223,26 @@ export const EditorToolbar = ({
           label="重做"
           title={editorShortcutLabel("redo")}
           availability={{
-            enabled: canRedo,
-            reason: canRedo ? "" : "没有可重做的修改。",
+            enabled: canRedo && !modal,
+            reason: modal
+              ? "请先完成当前弹层操作。"
+              : canRedo
+                ? ""
+                : "没有可重做的修改。",
           }}
-          onClick={() => run({ type: "redo" })}
+          onClick={() => void run({ type: "redo" })}
         >
           <RedoOutlined />
         </ToolButton>
       </div>
-      <div
-        className={styles.toolbarGroup}
-        role="group"
-        aria-label="音符与节奏"
-        inert={blocked}
-      >
+      <div className={styles.toolbarGroup} role="group" aria-label="音符与节奏">
         {RHYTHMS.map((rhythm) => (
           <ToolButton
             key={rhythm.base}
             label={`设置为${rhythm.label}`}
-            availability={tools.rhythm}
-            pressed={activeBeat?.rhythm.base === rhythm.base}
-            onClick={() => run({ type: "rhythm", base: rhythm.base })}
+            availability={available(tools.rhythm)}
+            pressed={beat?.rhythm.base === rhythm.base}
+            onClick={() => void run({ type: "rhythm", base: rhythm.base })}
           >
             <MusicAssetIcon
               assetId={rhythm.icon}
@@ -259,189 +250,197 @@ export const EditorToolbar = ({
             />
           </ToolButton>
         ))}
-        <ToolButton
-          label="取消附点"
-          availability={tools.rhythm}
-          pressed={activeBeat?.rhythm.dots === 0}
-          onClick={() => run({ type: "dots", dots: 0 })}
-        >
-          无点
-        </ToolButton>
-        <ToolButton
-          label="设置单附点"
-          availability={tools.rhythm}
-          pressed={activeBeat?.rhythm.dots === 1}
-          onClick={() => run({ type: "dots", dots: 1 })}
-        >
-          ·
-        </ToolButton>
-        <ToolButton
-          label="设置双附点"
-          availability={tools.rhythm}
-          pressed={activeBeat?.rhythm.dots === 2}
-          onClick={() => run({ type: "dots", dots: 2 })}
-        >
-          ··
-        </ToolButton>
+        {([0, 1, 2] as const).map((dots) => (
+          <ToolButton
+            key={dots}
+            label={
+              dots === 0 ? "取消附点" : dots === 1 ? "设置单附点" : "设置双附点"
+            }
+            availability={available(tools.rhythm)}
+            pressed={beat?.rhythm.dots === dots}
+            onClick={() => void run({ type: "dots", dots })}
+          >
+            {dots === 0 ? "无点" : dots === 1 ? "·" : "··"}
+          </ToolButton>
+        ))}
         <ToolButton
           label="设置为闷音音符 x"
           title={editorShortcutLabel("muted")}
-          availability={tools.note}
-          onClick={() => run({ type: "muted" })}
+          availability={available(tools.note)}
+          onClick={() => void run({ type: "muted" })}
         >
           X
         </ToolButton>
         <ToolButton
           label="将选中 Beat 设为休止并清空全部弦音符"
           title={editorShortcutLabel("rest")}
-          availability={tools.beatRange}
-          onClick={() => run({ type: "rest" })}
+          availability={available(tools.beatRange)}
+          onClick={() => void run({ type: "rest" })}
         >
           休止
         </ToolButton>
         <ToolButton
           label="取消选中 Beat 的休止状态"
           title={editorShortcutLabel("restore")}
-          availability={tools.beatRange}
-          onClick={() => run({ type: "restore" })}
+          availability={available(tools.beatRange)}
+          onClick={() => void run({ type: "restore" })}
         >
           恢复
         </ToolButton>
         <ToolButton
           label="删除所选音符"
           title={editorShortcutLabel("remove")}
-          availability={tools.note}
-          onClick={() => run({ type: "removeNotes" })}
+          availability={available(tools.note)}
+          onClick={() => void run({ type: "removeNotes" })}
         >
           <DeleteOutlined />
         </ToolButton>
+        <Button
+          type="text"
+          aria-label="音符与休止详情"
+          disabled={!!modal}
+          onClick={() => navigate("note")}
+        >
+          详情
+        </Button>
       </div>
-      <div
-        className={styles.toolbarGroup}
-        role="group"
-        aria-label="小节、拍点、连音与技巧"
+      <EditorToolPanelHost
+        ref={host}
+        beforeOpen={beforeAction}
+        blocked={!!modal}
+        reason={reason}
       >
-        <ToolGroup label="小节" blocked={blocked}>
-          <div className={styles.toolPopoverRow}>
-            <ToolButton
-              label="在当前小节后新增小节"
-              availability={tools.singleMeasure}
-              onClick={() => run({ type: "insertMeasure" })}
-            >
-              新增
-            </ToolButton>
-            <ToolButton
-              label="复制选中小节范围"
-              availability={tools.copyMeasures}
-              onClick={() => run({ type: "copyMeasures" })}
-            >
-              复制范围
-            </ToolButton>
-            <ToolButton
-              label="删除当前小节"
-              availability={tools.removeMeasure}
-              onClick={() => run({ type: "removeMeasure" })}
-            >
-              删除小节
-            </ToolButton>
-          </div>
-          <label className={styles.toolbarField}>
-            当前小节拍号
-            <select
-              className={styles.toolbarSelect}
-              aria-label="设置当前焦点小节的拍号"
-              disabled={!focus}
-              value={currentSignature}
-              onChange={(event) =>
-                run({ type: "signature", value: event.currentTarget.value })
+        {{
+          measure: (
+            <div className={styles.toolMenu} aria-label="小节工具菜单">
+              <div className={styles.toolTarget}>
+                {tools.focused
+                  ? `目标：第 ${tools.focused.index + 1} 小节`
+                  : "尚未选择目标小节"}
+              </div>
+              <Button
+                data-tool-action="measure-actions"
+                block
+                disabled={!available(tools.singleMeasure).enabled}
+                onClick={() => void run({ type: "insertMeasure" })}
+              >
+                在当前小节后新增
+              </Button>
+              <Button
+                block
+                icon={<CopyOutlined />}
+                disabled={!available(tools.copyMeasures).enabled}
+                onClick={() => void run({ type: "copyMeasures" })}
+              >
+                {new Set(tools.range?.beats.map((item) => item.measureId))
+                  .size > 1
+                  ? "直接复制所选连续小节范围"
+                  : "复制当前小节"}
+              </Button>
+              <p className={styles.settingsHint}>
+                新副本插入到所选范围末小节之后。
+              </p>
+              <Button block onClick={() => navigate("copy")}>
+                配置小节范围复制…
+              </Button>
+              <Button
+                block
+                danger
+                icon={<DeleteOutlined />}
+                disabled={!available(tools.removeMeasure).enabled}
+                onClick={() => void run({ type: "removeMeasure" })}
+              >
+                删除当前小节
+              </Button>
+              {!tools.removeMeasure.enabled && (
+                <p className={styles.settingsHint}>
+                  {tools.removeMeasure.reason}
+                </p>
+              )}
+              <Button
+                data-tool-action="measure-properties"
+                block
+                onClick={() => navigate("measure")}
+              >
+                小节属性…
+              </Button>
+              <Button block onClick={() => navigate("barline")}>
+                六类小节线…
+              </Button>
+              <Button block onClick={() => navigate("section")}>
+                段落标记（仅元数据）…
+              </Button>
+              <p className={styles.settingsHint}>
+                当前段落：{tools.focused?.measure.sectionLabel || "未设置"}
+              </p>
+            </div>
+          ),
+          beat: (
+            <BeatToolbar
+              controller={paste}
+              beforeAction={beforeAction}
+              execute={execute}
+              blocked={editingBlocked}
+              onSuccess={() => host.current?.close(true)}
+            />
+          ),
+          tuplet: (
+            <div className={styles.toolMenu}>
+              <TupletToolbar
+                document={document}
+                selection={selection}
+                execute={execute}
+                blocked={editingBlocked}
+                onSuccess={() => host.current?.close(true)}
+              />
+              <Button block onClick={() => navigate("tuplet")}>
+                连音比例与选区详情…
+              </Button>
+            </div>
+          ),
+          technique: (
+            <TechniqueToolbar
+              document={document}
+              selection={selection}
+              selectedTechniqueId={selectedTechniqueId}
+              execute={execute}
+              blocked={editingBlocked}
+              setSelectedTechniqueId={setSelectedTechniqueId}
+              setErrorMessage={setErrorMessage}
+              onShowParameters={() =>
+                host.current?.open(
+                  "technique",
+                  '[data-technique-parameters] input, [data-technique-parameters] button, [data-technique-parameters] [role="combobox"]',
+                )
               }
-            >
-              {!focus && <option value="">未选择小节</option>}
-              {focus &&
-                !LXM_EDITABLE_TIME_SIGNATURES.some(
-                  (time) =>
-                    `${time.numerator}/${time.denominator}` ===
-                    currentSignature,
-                ) && (
-                  <option value={currentSignature} disabled>
-                    {currentSignature}（只读）
-                  </option>
-                )}
-              {LXM_EDITABLE_TIME_SIGNATURES.map((time) => (
-                <option key={`${time.numerator}/${time.denominator}`}>
-                  {time.numerator}/{time.denominator}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className={styles.toolbarField}>
-            右边界
-            <select
-              className={styles.toolbarSelect}
-              aria-label="设置当前焦点小节的右边界"
-              disabled={!focus}
-              value={focus?.measure.barline ?? "single"}
-              onChange={(event) =>
-                run({
-                  type: "barline",
-                  value: event.currentTarget.value as ILXMBarlineType,
-                })
-              }
-            >
-              {BARLINES.map((barline) => (
-                <option
-                  key={barline.value}
-                  value={barline.value}
-                  disabled={
-                    focus?.isLast &&
-                    (barline.value === "repeatStart" ||
-                      barline.value === "repeatBoth")
-                  }
-                >
-                  {barline.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <ToolButton
-            label="切换谱首开始反复线"
-            availability={tools.startRepeat}
-            pressed={focus?.track.startBarline === "repeatStart"}
-            onClick={() => run({ type: "startRepeat" })}
-          >
-            谱首反复
-          </ToolButton>
-        </ToolGroup>
-        <ToolGroup label="拍点" blocked={blocked}>
-          <BeatToolbar
-            key={`${stateVersion}/${clipboardVersion}/${selection?.anchor.measureId}/${selection?.anchor.beatId}/${selection?.focus.measureId}/${selection?.focus.beatId}`}
-            beforeAction={beforeAction}
-          />
-        </ToolGroup>
-        <ToolGroup label="连音" blocked={blocked}>
-          <TupletToolbar
-            document={document}
-            selection={selection}
-            execute={commit}
-          />
-        </ToolGroup>
-        <ToolGroup label="技巧" blocked={blocked}>
-          <TechniqueToolbar
-            key={selectedTechniqueId ?? "new-technique"}
-            document={document}
-            selection={selection}
-            selectedTechniqueId={selectedTechniqueId}
-            execute={commit}
-            setSelectedTechniqueId={setSelectedTechniqueId}
-            setErrorMessage={setErrorMessage}
-          />
-        </ToolGroup>
-      </div>
+              onSuccess={() => host.current?.close(true)}
+            />
+          ),
+        }}
+      </EditorToolPanelHost>
       <span id="editor-tool-reason" className={styles.toolbarHint}>
-        {blocked
-          ? "先完成属性编辑，再修改 TAB。"
-          : tools.rhythm.reason || "当前选区可编辑音符与节奏。"}
+        {reason || tools.rhythm.reason || "当前选区可编辑音符与节奏。"}
       </span>
+      <PasteNotice controller={paste} />
     </div>
   );
+};
+const PasteNotice = ({
+  controller,
+}: {
+  controller: ReturnType<typeof createBeatPasteController>;
+}) => {
+  const state = useSyncExternalStore(
+    controller.subscribe,
+    controller.getSnapshot,
+    controller.getSnapshot,
+  );
+  return state.notice ? (
+    <Alert
+      className={styles.toolbarNotice}
+      type={state.phase === "stale" ? "warning" : "info"}
+      title={state.notice}
+      showIcon
+    />
+  ) : null;
 };

@@ -91,7 +91,10 @@ describe("简谱目标草稿", () => {
       }),
     );
     expect(html).toContain("1 2 3</textarea>");
-    expect(html).toContain('value="front8" selected=""');
+    // Ant Design Select 以可见选中内容呈现草稿模板，不再生成原生 option。
+    expect(html).toContain('title="前八后十六"');
+    expect(html).toContain('aria-label="简谱节奏模板"');
+    expect(html).toContain('role="combobox"');
   });
 
   it("连续简谱回填选中拍点内的已有音符", () => {

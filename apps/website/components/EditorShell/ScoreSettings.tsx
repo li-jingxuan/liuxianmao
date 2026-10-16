@@ -32,6 +32,7 @@ export interface ScoreSettingsController {
   isComposing: () => boolean;
   apply: () => boolean;
   discard: () => void;
+  focusField: (field: "label" | "copy") => boolean;
 }
 
 /** 唯一设置草稿 owner；Form、栏目与响应式布局只消费这份受控状态。 */
@@ -157,6 +158,13 @@ export const ScoreSettings = ({
     isComposing: () => composing.current,
     apply: () => apply(),
     discard,
+    focusField: (field) => {
+      const element = container.current?.querySelector<HTMLElement>(field === "label" ? "#settings-label" : "#settings-copy-start");
+      if (!element || !element.getClientRects().length) return false;
+      element.scrollIntoView({ block: "nearest" });
+      element.focus({ preventScroll: true });
+      return true;
+    },
   }));
   const first = document.score.tracks[0]!.measures[0]!;
   const [copy, setCopy] = useState<SettingsCopyRange>({

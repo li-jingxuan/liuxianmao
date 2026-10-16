@@ -9,26 +9,6 @@
   &::backdrop {
     background: rgb(0 0 0 / 40%);
   }
-  button,
-  a {
-    padding: 8px 12px;
-    border: 1px solid #c9ced8;
-    border-radius: 6px;
-    background: #fff;
-    color: #1d2025;
-  }
-  button:disabled {
-    opacity: 0.5;
-  }
-  button:not(:disabled),
-  a {
-    cursor: pointer;
-  }
-  button:focus-visible,
-  a:focus-visible {
-    outline: 2px solid #356cff;
-    outline-offset: 3px;
-  }
 }
 .toolbar,
 .actions,
@@ -62,10 +42,6 @@
 }
 .error {
   color: #b42318;
-}
-.download {
-  text-decoration: none;
-  font-weight: 600;
 }
 
 @media print {

@@ -1,3 +1,4 @@
+import { Button, Form, Input, InputNumber, Select } from "antd";
 import {
   CHORD_PRESETS,
   copyChordPreset,
@@ -8,7 +9,7 @@ import {
   type ILXMChordDiagram,
   type ILXMChordString,
 } from "@liuxianmao/lxm-editor";
-import type { Ref } from "react";
+import type { RefCallback } from "react";
 import { ChordDiagramView } from "./MusicTextLayer";
 import styles from "./index.module.scss";
 
@@ -33,11 +34,12 @@ export const ChordEditor = ({
   onChange,
   presetsEnabled,
 }: {
-  inputRef: Ref<HTMLInputElement>;
+  inputRef: RefCallback<HTMLInputElement>;
   draft: ChordDraft;
   onChange: (draft: ChordDraft) => void;
   presetsEnabled: boolean;
 }) => {
+  // InputNumber 清空时以 NaN 保留非法草稿，统一校验阻止提交，不把空值转成 0。
   const diagram = draft.chord.diagram;
   const updateDiagram = (value: ILXMChordDiagram) =>
     onChange({ ...draft, chord: { ...draft.chord, diagram: value } });
@@ -54,10 +56,16 @@ export const ChordEditor = ({
       <section className={styles.sidebarSection}>
         <h3>基本设置</h3>
         <div className={styles.propertyGrid}>
-          <label>
-            和弦名称{" "}
-            <input
-              ref={inputRef}
+          <Form.Item
+            layout="vertical"
+            label="和弦名称"
+            htmlFor={"editor-field-" + "和弦名称"}
+          >
+            <Input
+              id={"editor-field-" + "和弦名称"}
+              ref={(control) => {
+                inputRef(control?.input ?? null);
+              }}
               aria-label="和弦名称"
               value={draft.chord.name}
               onChange={(e) =>
@@ -67,37 +75,50 @@ export const ChordEditor = ({
                 })
               }
             />
-          </label>
-          <label>
-            常用预设{" "}
-            <select
+          </Form.Item>
+          <Form.Item
+            layout="vertical"
+            label="常用预设"
+            htmlFor={"editor-field-" + "常用和弦预设"}
+          >
+            <Select
+              id={"editor-field-" + "常用和弦预设"}
               aria-label="常用和弦预设"
               disabled={!presetsEnabled}
               value={preset?.name ?? ""}
-              onChange={(e) => {
-                const chord = copyChordPreset(e.target.value);
+              onChange={(value) => {
+                const chord = copyChordPreset(value);
                 if (chord) onChange({ display: "nameAndDiagram", chord });
               }}
-            >
-              <option value="">自定义</option>
-              {CHORD_PRESETS.map((p) => (
-                <option key={p.name}>{p.name}</option>
-              ))}
-            </select>
-          </label>
-          <label>
-            起始品位{" "}
-            <input
-              type="number"
+              style={{ width: "100%" }}
+              options={[
+                { value: "", label: "自定义" },
+                ...CHORD_PRESETS.map((p) => ({ value: p.name, label: p.name })),
+              ]}
+            />
+          </Form.Item>
+          <Form.Item
+            layout="vertical"
+            label="起始品位"
+            htmlFor={"editor-field-" + "起始品位"}
+          >
+            <InputNumber
+              id={"editor-field-" + "起始品位"}
               aria-label="起始品位"
               min={1}
               max={20}
               disabled={!diagram}
-              value={diagram?.startFret ?? 1}
-              onChange={(e) =>
-                diagram &&
-                updateDiagram({ ...diagram, startFret: Number(e.target.value) })
+              value={
+                Number.isFinite(diagram?.startFret ?? 1)
+                  ? (diagram?.startFret ?? 1)
+                  : null
               }
+              onChange={(value) =>
+                diagram &&
+                updateDiagram({ ...diagram, startFret: value ?? Number.NaN })
+              }
+              changeOnBlur={false}
+              style={{ width: "100%" }}
             />
             <small>
               按指法显示 3–5 个品格
@@ -106,29 +127,29 @@ export const ChordEditor = ({
                 : ""}
               ；起始品位不改变实际按弦品位。
             </small>
-          </label>
+          </Form.Item>
         </div>
         <small>
           名称与指法由你确认。{!presetsEnabled && "当前调弦仅支持自定义指法。"}
         </small>
         {!diagram && (
-          <button onClick={() => updateDiagram(emptyDiagram())}>
+          <Button onClick={() => updateDiagram(emptyDiagram())}>
             创建指法图
-          </button>
+          </Button>
         )}
       </section>
       {diagram && (
         <section className={styles.sidebarSection}>
           <div className={styles.sectionHeading}>
             <h3>指法设置</h3>
-            <button
-              className={styles.linkButton}
+            <Button
+              type="link"
               onClick={() =>
                 onChange({ ...draft, chord: { ...draft.chord, diagram: null } })
               }
             >
               清除指法图
-            </button>
+            </Button>
           </div>
           <div className={styles.fingeringGrid}>
             <table>
@@ -144,14 +165,11 @@ export const ChordEditor = ({
                   <tr key={s.string}>
                     <td>{s.string}</td>
                     <td>
-                      <select
+                      <Select
                         aria-label={`${s.string}弦品位`}
                         value={s.fret}
-                        onChange={(e) => {
-                          const fret =
-                            e.target.value === "x"
-                              ? "x"
-                              : Number(e.target.value);
+                        onChange={(value) => {
+                          const fret = value === "x" ? "x" : Number(value);
                           updateDiagram({
                             ...diagram,
                             strings: diagram.strings.map((item) =>
@@ -168,31 +186,32 @@ export const ChordEditor = ({
                             ),
                           });
                         }}
-                      >
-                        <option value="x">× 禁奏</option>
-                        <option value={0}>○ 空弦</option>
-                        {Array.from({ length: 24 }, (_, i) => (
-                          <option key={i + 1} value={i + 1}>
-                            {i + 1}
-                          </option>
-                        ))}
-                      </select>
+                        style={{ width: "100%" }}
+                        options={[
+                          { value: "x", label: "× 禁奏" },
+                          { value: 0, label: "○ 空弦" },
+                          ...Array.from({ length: 24 }, (_, i) => ({
+                            value: i + 1,
+                            label: i + 1,
+                          })),
+                        ]}
+                      />
                     </td>
                     <td>
-                      <select
+                      <Select
                         aria-label={`${s.string}弦手指`}
                         disabled={s.fret === "x" || s.fret === 0}
                         value={s.finger ?? ""}
-                        onChange={(e) =>
+                        onChange={(value) =>
                           updateDiagram({
                             ...diagram,
                             strings: diagram.strings.map((item) =>
                               item.string === s.string
                                 ? {
                                     ...s,
-                                    finger: e.target.value
+                                    finger: value
                                       ? (Number(
-                                          e.target.value,
+                                          value,
                                         ) as ILXMChordString["finger"])
                                       : null,
                                   }
@@ -200,12 +219,12 @@ export const ChordEditor = ({
                             ),
                           })
                         }
-                      >
-                        <option value="">未指定</option>
-                        {[1, 2, 3, 4].map((i) => (
-                          <option key={i}>{i}</option>
-                        ))}
-                      </select>
+                        style={{ width: "100%" }}
+                        options={[
+                          { value: "", label: "未指定" },
+                          ...[1, 2, 3, 4].map((i) => ({ value: i, label: i })),
+                        ]}
+                      />
                     </td>
                   </tr>
                 ))}
@@ -237,36 +256,46 @@ export const ChordEditor = ({
                 <legend>横按 {i + 1}</legend>
                 {(["fret", "minString", "maxString", "finger"] as const).map(
                   (field) => (
-                    <label key={field}>
-                      {
-                        {
-                          fret: "品位",
-                          minString: "起弦",
-                          maxString: "止弦",
-                          finger: "手指",
-                        }[field]
-                      }{" "}
-                      <input
-                        type="number"
+                    <Form.Item
+                      key={field}
+                      layout="vertical"
+                      label={
+                        <>
+                          {
+                            {
+                              fret: "品位",
+                              minString: "起弦",
+                              maxString: "止弦",
+                              finger: "手指",
+                            }[field]
+                          }{" "}
+                        </>
+                      }
+                      htmlFor={"editor-field-" + `横按${i + 1}${field}`}
+                    >
+                      <InputNumber
+                        id={"editor-field-" + `横按${i + 1}${field}`}
                         aria-label={`横按${i + 1}${field}`}
                         min={1}
                         max={field === "fret" ? 24 : field === "finger" ? 4 : 6}
-                        value={b[field]}
-                        onChange={(e) =>
+                        value={Number.isFinite(b[field]) ? b[field] : null}
+                        onChange={(value) =>
                           updateDiagram({
                             ...diagram,
                             barres: diagram.barres.map((item, j) =>
                               j === i
-                                ? { ...b, [field]: Number(e.target.value) }
+                                ? { ...b, [field]: value ?? Number.NaN }
                                 : item,
                             ),
                           })
                         }
+                        changeOnBlur={false}
+                        style={{ width: "100%" }}
                       />
-                    </label>
+                    </Form.Item>
                   ),
                 )}
-                <button
+                <Button
                   onClick={() =>
                     updateDiagram({
                       ...diagram,
@@ -275,10 +304,10 @@ export const ChordEditor = ({
                   }
                 >
                   删除横按 {i + 1}
-                </button>
+                </Button>
               </fieldset>
             ))}
-            <button
+            <Button
               disabled={diagram.barres.length >= 4}
               onClick={() =>
                 updateDiagram({
@@ -296,7 +325,7 @@ export const ChordEditor = ({
               }
             >
               新增横按
-            </button>
+            </Button>
           </details>
           <div className={styles.sidebarTip}>
             通过表格选择品位和手指，横按设置可折叠。

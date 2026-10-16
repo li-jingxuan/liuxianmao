@@ -27,8 +27,10 @@ import styles from "./index.module.scss";
 /** 可展开的影响详情与本次命令共用一条历史，用户可通过既有撤销恢复。 */
 export const EditorImpactNotice = ({
   effects,
+  preview = false,
 }: {
   effects: ILXMCommandEffect[];
+  preview?: boolean;
 }) => {
   if (effects.length === 0) return null;
   const counts = new Map<string, number>();
@@ -53,14 +55,14 @@ export const EditorImpactNotice = ({
   return (
     <details className={styles.impactNotice}>
       <summary>
-        本次编辑影响：
+        {preview ? "本次预览影响：" : "本次编辑影响："}
         {[...counts]
           .map(
             ([kind, count]) =>
               `${labels[kind as keyof typeof labels]} ${count} 项`,
           )
           .join("，")}
-        （可撤销）
+        {preview ? "（确认后一起提交）" : "（可撤销）"}
       </summary>
       <ul>
         {effects.map((effect, index) => (
@@ -79,15 +81,19 @@ export const EditorImpactNotice = ({
                     : effect.kind === "numbered.event.retimed"
                       ? "简谱事件随明确的插入操作调整起点"
                       : effect.kind === "numbered.event.resized"
-                        ? "简谱事件时值已调整"
+                        ? preview
+                          ? "简谱事件时值将调整"
+                          : "简谱事件时值已调整"
                         : effect.kind === "numbered.event.overwritten"
-                          ? "随目标音符时值扩展，已覆盖此音符"
+                          ? preview
+                            ? "随目标音符时值扩展，将覆盖此音符"
+                            : "随目标音符时值扩展，已覆盖此音符"
                           : "markId" in effect
-                            ? `${effect.markType ? numberedMarkNames[effect.markType] : "简谱连接"}：${effect.kind === "numbered.mark.omitted" ? "跨越复制边界，未复制" : effect.kind === "numbered.mark.migrated" ? "随拆合操作迁移端点" : "目标或关系不再有效，已移除"}`
+                            ? `${effect.markType ? numberedMarkNames[effect.markType] : "简谱连接"}：${effect.kind === "numbered.mark.omitted" ? "跨越复制边界，未复制" : effect.kind === "numbered.mark.migrated" ? "随拆合操作迁移端点" : preview ? "目标或关系将失效，将移除" : "目标或关系不再有效，已移除"}`
                             : effect.kind === "beat.retimed"
                               ? "随节奏变化调整起点"
                               : "techniqueType" in effect
-                                ? `${techniqueNames[effect.techniqueType]}：${effect.kind === "technique.omitted" ? "关系跨越复制边界，未复制" : "目标或关系不再有效，已移除"}`
+                                ? `${techniqueNames[effect.techniqueType]}：${effect.kind === "technique.omitted" ? "关系跨越复制边界，未复制" : preview ? "目标或关系将失效，将移除" : "目标或关系不再有效，已移除"}`
                                 : ""}
           </li>
         ))}

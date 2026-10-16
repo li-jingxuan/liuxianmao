@@ -13,19 +13,15 @@ import {
   hitTestTechniqueTarget,
   layoutTabCellCaret,
   layoutTabCellSelection,
-  LXM_EDITABLE_TIME_SIGNATURES,
   LXMScoreCommandEnum,
   navigateTabCellSelection,
   resolveTabCellSelection,
   type ILXMHitTarget,
-  type ILXMBarlineType,
   type ILXMLayout,
   type ILXMLayoutDensity,
-  type ILXMRhythm,
   type ILXMFret,
   type ILXMTabCellReference,
   type ILXMTabCellSelection,
-  type ILXMTimeSignature,
 } from "@liuxianmao/lxm-editor";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { theme } from "antd";
@@ -66,16 +62,12 @@ import {
 import { EditorStatusBar } from "./EditorStatusBar";
 import { EditorHeader } from "./EditorHeader";
 import { EditorToolbar, type EditorToolbarAction } from "./EditorToolbar";
+import { createEditorCommandAdapter, type EditorCommandAdapter } from "./editor-command-adapter";
+import { buildEditorToolCommand } from "./editor-tool-actions";
 import { editorShortcutHelp } from "./editor-shortcuts";
 
 /** 两位品位输入等待第二个数字的时间，超时后提交一位品位。 */
 const FRET_DRAFT_TIMEOUT_MS = 600;
-
-/** 拍号是值对象；页面只把它格式化为 select 的稳定字符串值。 */
-const formatTimeSignature = ({
-  numerator,
-  denominator,
-}: ILXMTimeSignature): string => `${numerator}/${denominator}`;
 
 /** layout 命中结果含视觉 systemIndex；selection 只保留稳定业务 ID。 */
 const toCellReference = (target: ILXMHitTarget): ILXMTabCellReference => ({
@@ -90,12 +82,17 @@ const isTextEditingTarget = (target: EventTarget | null): boolean =>
   target instanceof HTMLInputElement ||
   target instanceof HTMLTextAreaElement ||
   target instanceof HTMLSelectElement ||
-  (target instanceof HTMLElement && target.isContentEditable);
+  (target instanceof HTMLElement &&
+    (target.isContentEditable ||
+      !!target.closest(
+        '[role="combobox"], [role="listbox"], .ant-select-dropdown',
+      )));
 
 export const EditorShell: React.FC = () => {
   const session = useEditorSessionStore();
   const { token } = theme.useToken();
   const { drafts, modals } = useEditorRuntime();
+  const toolExecute = useMemo(() => createEditorCommandAdapter(session, modals), [session, modals]);
   const document = useEditorStore((state) => state.document);
   const selection = useEditorStore((state) => state.selection);
   const effects = useEditorStore((state) => state.effects);
@@ -316,23 +313,6 @@ export const EditorShell: React.FC = () => {
     [lxmLayout, selection, activeMusicTextTarget],
   );
 
-  /** 单 Beat 工具读取领域 Beat；layout 只负责坐标，不能成为 rhythm 数据源。 */
-  const activeBeat = useMemo(() => {
-    if (!document || !resolvedSelection || resolvedSelection.beats.length !== 1)
-      return null;
-    const target = resolvedSelection.beats[0]!;
-    return (
-      document.score.tracks
-        .find((track) => track.id === target.trackId)
-        ?.measures.find((measure) => measure.id === target.measureId)
-        ?.beats.find((beat) => beat.id === target.beatId) ?? null
-    );
-  }, [document, resolvedSelection]);
-  const selectedMeasureIds = useMemo(
-    () => new Set(resolvedSelection?.beats.map((beat) => beat.measureId) ?? []),
-    [resolvedSelection],
-  );
-
   /**
    * 小节线工具跟随 selection.focus，而不是范围的第一个 Beat。
    * 用户反向拖动或跨小节扩展时，focus 才代表当前正在操作的业务位置。
@@ -511,40 +491,6 @@ export const EditorShell: React.FC = () => {
     });
   };
 
-  /** 单 Beat 工具在跨 Beat 选区中不构造命令，避免静默修改 focus。 */
-  const getSingleBeatTarget = () => {
-    const target = resolvedSelection?.beats[0];
-    if (!target || resolvedSelection?.beats.length !== 1) {
-      setErrorMessage("节奏与休止工具只支持单个 Beat 选区。");
-      return null;
-    }
-    return {
-      trackId: target.trackId,
-      measureId: target.measureId,
-      beatId: target.beatId,
-    };
-  };
-
-  const setActiveRhythmBase = (base: ILXMRhythm["base"]) => {
-    const target = getSingleBeatTarget();
-    if (!target || !activeBeat) return;
-    execute({
-      type: LXMScoreCommandEnum.SetBeatRhythm,
-      ...target,
-      rhythm: { base, dots: activeBeat.rhythm.dots },
-    });
-  };
-
-  const setActiveDots = (dots: 0 | 1 | 2) => {
-    const target = getSingleBeatTarget();
-    if (!target || !activeBeat) return;
-    execute({
-      type: LXMScoreCommandEnum.SetBeatRhythm,
-      ...target,
-      rhythm: { ...activeBeat.rhythm, dots },
-    });
-  };
-
   /** 休止属于完整 Beat；框选的弦范围不会缩窄该命令的作用域。 */
   const setSelectedBeatKind = (kind: "notes" | "rest") => {
     if (!selection || !resolvedSelection?.beats.length) {
@@ -565,134 +511,6 @@ export const EditorShell: React.FC = () => {
         },
       },
       kind,
-    });
-  };
-
-  /** 小节工具只接受唯一 measure；跨小节选区时按钮禁用。 */
-  const getSingleMeasureTarget = () => {
-    const target = resolvedSelection?.beats[0];
-    if (!target || selectedMeasureIds.size !== 1) {
-      setErrorMessage("小节工具只支持位于同一小节内的选区。");
-      return null;
-    }
-    return { trackId: target.trackId, measureId: target.measureId };
-  };
-
-  const insertMeasureAfterActive = () => {
-    const target = getSingleMeasureTarget();
-    if (!target) return;
-    execute({
-      type: LXMScoreCommandEnum.InsertMeasure,
-      trackId: target.trackId,
-      afterMeasureId: target.measureId,
-    });
-  };
-
-  const copyActiveMeasure = () => {
-    const target = resolvedSelection?.beats[0];
-    const selectedTrack = target
-      ? document?.score.tracks.find((track) => track.id === target.trackId)
-      : null;
-    if (!target || !selectedTrack || selectedMeasureIds.size === 0) {
-      setErrorMessage("请先选择需要复制的小节。");
-      return;
-    }
-    const selectedIndexes = selectedTrack.measures
-      .map((measure, index) =>
-        selectedMeasureIds.has(measure.id) ? index : -1,
-      )
-      .filter((index) => index >= 0);
-    const start = selectedTrack.measures[selectedIndexes[0]!];
-    const end = selectedTrack.measures[selectedIndexes.at(-1)!];
-    if (
-      !start ||
-      !end ||
-      selectedIndexes.at(-1)! - selectedIndexes[0]! + 1 !==
-        selectedIndexes.length
-    ) {
-      setErrorMessage("多小节复制需要选择连续的小节。");
-      return;
-    }
-    execute({
-      type: LXMScoreCommandEnum.CopyMeasureRange,
-      trackId: target.trackId,
-      sourceStartMeasureId: start.id,
-      sourceEndMeasureId: end.id,
-      afterMeasureId: end.id,
-    });
-  };
-
-  const removeActiveMeasure = () => {
-    const target = getSingleMeasureTarget();
-    if (!target) return;
-    execute({ type: LXMScoreCommandEnum.RemoveMeasure, ...target });
-  };
-
-  /**
-   * 下拉框只表达“focus 小节之后的边界”。字段定位、谱尾合法性、no-op 和 revision
-   * 都由核心 barline.setBoundary 命令处理，页面不直接写 ILXMDocument。
-   */
-  const setFocusedMeasureBarline = (barline: ILXMBarlineType) => {
-    if (!focusedMeasureContext) {
-      setErrorMessage("请先选择需要设置右边界的小节。");
-      return;
-    }
-    execute({
-      type: LXMScoreCommandEnum.SetBarlineBoundary,
-      trackId: focusedMeasureContext.track.id,
-      boundary: {
-        kind: "afterMeasure",
-        measureId: focusedMeasureContext.measure.id,
-      },
-      barline,
-    });
-  };
-
-  /** 谱首没有前一个 measure，因此通过独立的 trackStart 边界命令开关反复线。 */
-  const toggleTrackStartRepeat = () => {
-    if (!focusedMeasureContext?.isFirstMeasure) {
-      setErrorMessage("谱首反复线只能在选中第一小节时设置。");
-      return;
-    }
-    execute({
-      type: LXMScoreCommandEnum.SetBarlineBoundary,
-      trackId: focusedMeasureContext.track.id,
-      boundary: { kind: "trackStart" },
-      barline:
-        focusedMeasureContext.track.startBarline === "repeatStart"
-          ? "none"
-          : "repeatStart",
-    });
-  };
-
-  /**
-   * 页面只提交“目标小节、目标拍号、作用范围”。容量、尾部休止、受影响小节列表
-   * 和原子失败均由核心 measure.setTimeSignature 命令处理，避免 React 根据可能已经
-   * 过期的 document 快照自行展开范围。
-   */
-  const setFocusedMeasureTimeSignature = (value: string) => {
-    if (!focusedMeasureContext) {
-      setErrorMessage("请先选择需要设置拍号的小节。");
-      return;
-    }
-    const timeSignature = LXM_EDITABLE_TIME_SIGNATURES.find(
-      (candidate) => formatTimeSignature(candidate) === value,
-    );
-    if (!timeSignature) {
-      setErrorMessage("当前只支持 2/4、3/4、4/4 和 6/8 拍号。");
-      return;
-    }
-    execute({
-      type: LXMScoreCommandEnum.SetTimeSignature,
-      trackId: focusedMeasureContext.track.id,
-      measureId: focusedMeasureContext.measure.id,
-      timeSignature: { ...timeSignature },
-      /*
-       * 页面固定采用乐谱中最常见的持续拍号语义：新拍号从当前小节生效，并持续到
-       * 下一个已经存在的拍号变化点。若只需要临时改变一个小节，用户可在下一小节
-       * 再设置回原拍号；核心命令仍保留 measure scope 供测试和未来高级工具使用。
-       */
-      scope: "untilNextChange",
     });
   };
 
@@ -1027,62 +845,40 @@ export const EditorShell: React.FC = () => {
   if (!document || !lxmLayout)
     return (
       <div className={styles.editorControls}>
-        <ScoreFileControls
-          session={session}
-          className={styles.toolbarButton}
-          isBlocked={isOutputBlocked}
-        />
+        <ScoreFileControls session={session} isBlocked={isOutputBlocked} />
         <p className={styles.errorMessage} role="alert">
           {errorMessage ?? "当前没有可编辑的乐谱文档。"}
         </p>
       </div>
     );
 
-  const handleToolbarAction = (action: EditorToolbarAction) => {
-    switch (action.type) {
-      case "undo":
-        undo();
-        break;
-      case "redo":
-        redo();
-        break;
-      case "rhythm":
-        setActiveRhythmBase(action.base);
-        break;
-      case "dots":
-        setActiveDots(action.dots);
-        break;
-      case "muted":
-        setSelectedNotes("x");
-        break;
-      case "removeNotes":
-        removeSelectedNotes();
-        break;
-      case "rest":
-        setSelectedBeatKind("rest");
-        break;
-      case "restore":
-        setSelectedBeatKind("notes");
-        break;
-      case "insertMeasure":
-        insertMeasureAfterActive();
-        break;
-      case "copyMeasures":
-        copyActiveMeasure();
-        break;
-      case "removeMeasure":
-        removeActiveMeasure();
-        break;
-      case "signature":
-        setFocusedMeasureTimeSignature(action.value);
-        break;
-      case "barline":
-        setFocusedMeasureBarline(action.value);
-        break;
-      case "startRepeat":
-        toggleTrackStartRepeat();
-        break;
+  /** 所有工具提交都先清计时草稿并核对属性保护；粘贴允许自己的 Modal。 */
+  const executeTool: EditorCommandAdapter = async (command, impact = "modal") => {
+    clearFretDraft();
+    if (musicTextController.current?.isOutputBlocked()) return { status: "blocked", message: "请先应用或取消属性草稿，再修改音乐。" };
+    const modal = modals.getSnapshot();
+    if (modal && !(impact === "caller" && modal.request.kind === "beat-paste")) return { status: "blocked", message: "请先完成当前弹层操作。" };
+    return toolExecute(command, impact);
+  };
+  /** 菜单/详情共享最新目标和最终确认结果，不捕获旧 render 的音乐对象。 */
+  const handleToolbarAction = async (action: EditorToolbarAction): Promise<boolean> => {
+    if (modals.isOpen()) return false;
+    clearFretDraft();
+    if (action.type === "undo" || action.type === "redo") {
+      const now = session.getState();
+      if (action.type === "undo") now.undo(); else now.redo();
+      return true;
     }
+    if (musicTextController.current?.isOutputBlocked()) {
+      setErrorMessage("请先应用或取消属性草稿，再修改音乐。");
+      return false;
+    }
+    const now = session.getState();
+    if (!now.document) return false;
+    const command = buildEditorToolCommand(now.document, now.selection, action);
+    if (!command) { setErrorMessage("当前目标不适用此操作，请重新选择。"); return false; }
+    const result = await executeTool(command);
+    return result.status === "applied" || result.status === "noop";
   };
   const editorVariables = {
     "--panel": token.colorBgContainer,
@@ -1136,7 +932,8 @@ export const EditorShell: React.FC = () => {
         blocked={musicTextEditing}
         onAction={handleToolbarAction}
         beforeAction={clearFretDraft}
-        execute={execute}
+        execute={executeTool}
+        onNavigate={(destination) => musicTextController.current?.navigateTool(destination) ?? "blocked"}
       />
       <div className={styles.editorControls}>
         <div ref={setFileFeedbackHost} />
@@ -1258,6 +1055,8 @@ export const EditorShell: React.FC = () => {
               ?.measures.map((m) => m.id) ?? []
           }
           ref={musicTextController}
+          onToolAction={handleToolbarAction}
+          executeTool={executeTool}
           onOpen={clearScoreInteraction}
           onEditingChange={setMusicTextEditing}
           onTargetChange={setActiveMusicTextTarget}

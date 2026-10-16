@@ -1,3 +1,5 @@
+import type { ToolNavigation } from "./editor-tool-catalog";
+import type { MeasureToolTarget } from "./editor-tool-actions";
 import type {
   ILXMDocument,
   ILXMTabCellReference,
@@ -38,6 +40,7 @@ export interface MusicTextDraft {
 }
 export type SidebarTab = "score" | "lyric" | "chord" | "numbered";
 export type SidebarAction =
+  | { type: "tool"; kind: "score"; destination: ToolNavigation; target?: MeasureToolTarget; sessionId: number; sessionVersion: number }
   | { type: "numberedMode"; mode: "single" | "sequence" }
   | {
       type: "selection";

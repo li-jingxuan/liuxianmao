@@ -1,3 +1,5 @@
+import type { BeatPasteController } from "./beat-paste-controller";
+import type { TechniqueTypeController } from "./technique-type-controller";
 import {
   sameEditorSession,
   sameEditorVersion,
@@ -5,16 +7,26 @@ import {
 } from "./editor-session-version";
 
 type CloseReason = "cancel" | "resolved" | "stale";
-export interface EditorModalRequest {
-  kind: "keyboard-help" | "structure-impact";
+interface EditorModalBase {
   title: string;
   message: string;
   version?: EditorSessionVersion;
+  /** 选区等不进入文档版本的请求条件也必须显式核验。 */
+  isValid?: () => boolean;
   confirm?: (context: {
     isCurrent: () => boolean;
   }) => boolean | Promise<boolean>;
   onClose?: (reason: CloseReason) => void;
+  restoreFocus?: () => void;
+  /** 已完成的参数交接优先于普通触发器焦点恢复。 */
+  afterClose?: () => boolean;
 }
+export type EditorModalRequest = EditorModalBase &
+  (
+    | { kind: "keyboard-help" | "structure-impact" }
+    | { kind: "beat-paste"; preview: BeatPasteController }
+    | { kind: "technique-type"; picker: TechniqueTypeController }
+  );
 export interface EditorModalState {
   id: number;
   request: EditorModalRequest;
@@ -30,6 +42,7 @@ export const createEditorModalController = (
   let current: EditorModalState | null = null;
   let sequence = 0;
   let restoreFocus: (() => void) | null = null;
+  let afterClose: (() => boolean) | undefined;
   const listeners = new Set<() => void>();
   const publish = () => listeners.forEach((listener) => listener());
   const close = (id: number, reason: CloseReason): boolean => {
@@ -37,19 +50,23 @@ export const createEditorModalController = (
       return false;
     const previous = current;
     current = null;
+    afterClose =
+      reason === "resolved" ? previous.request.afterClose : undefined;
     publish();
     previous.request.onClose?.(reason);
     return true;
   };
   const isCurrent = (state: EditorModalState) =>
     current?.id === state.id &&
+    (!state.request.isValid || state.request.isValid()) &&
     (!state.request.version ||
       sameEditorVersion(getVersion(), state.request.version));
   return {
     open(request: EditorModalRequest): number | null {
       // 一次只展示一个请求，不能覆盖另一个工具仍等待确认的操作。
       if (current) return null;
-      restoreFocus = captureFocus();
+      restoreFocus = request.restoreFocus ?? captureFocus();
+      afterClose = undefined;
       current = { id: ++sequence, request, busy: false, error: null };
       publish();
       return current.id;
@@ -112,7 +129,9 @@ export const createEditorModalController = (
       if (current) return;
       const restore = restoreFocus;
       restoreFocus = null;
-      restore?.();
+      const handoff = afterClose;
+      afterClose = undefined;
+      if (!handoff?.()) restore?.();
     },
     isOpen: () => current !== null,
     getSnapshot: () => current,

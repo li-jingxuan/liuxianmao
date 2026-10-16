@@ -124,14 +124,24 @@ describe("MVP v7.2 简谱 mock", () => {
     },
   );
 
-  it("三处 C 指法图与名称匹配且快照独立，显示开关只改变布局", () => {
+  it("完整示例的和弦名称与指法图匹配且快照独立，显示开关只改变布局", () => {
     const chords = EXAMPLE_MVP_7_2_DOCUMENT.score.tracks[0]!.measures.flatMap(
       (m) => m.chordSymbols,
     );
-    expect(chords).toHaveLength(3);
+    expect(chords).toHaveLength(8);
+    expect(chords.map((symbol) => symbol.chord.name)).toEqual([
+      "C",
+      "G",
+      "Am",
+      "C",
+      "F",
+      "G",
+      "Am",
+      "C",
+    ]);
     for (const symbol of chords) {
       expect(symbol.display).toBe("nameAndDiagram");
-      expect(symbol.chord).toEqual(copyChordPreset("C"));
+      expect(symbol.chord).toEqual(copyChordPreset(symbol.chord.name));
     }
     expect(chords[0]!.chord.diagram).not.toBe(chords[1]!.chord.diagram);
     const visible = buildLayout(EXAMPLE_MVP_7_2_DOCUMENT, {

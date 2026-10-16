@@ -20,9 +20,26 @@ const createRuntime = (session: StoreApi<EditorStoreState>) => ({
   drafts: createEditorDraftCoordinator(session.getState),
   modals: createEditorModalController(session.getState, () => {
     const trigger = document.activeElement;
+    const group =
+      trigger instanceof HTMLElement
+        ? trigger.closest<HTMLElement>("[data-tool-panel]")?.dataset.toolPanel
+        : undefined;
     return () => {
-      if (trigger instanceof HTMLElement && trigger.isConnected)
+      const visible = (element: HTMLElement | null): element is HTMLElement =>
+        !!element &&
+        element.isConnected &&
+        element.getClientRects().length > 0 &&
+        !element.closest("[hidden],[inert]");
+      const equivalent = group
+        ? Array.from(
+            document.querySelectorAll<HTMLElement>(
+              `[data-tool-trigger="${group}"],[data-tool-trigger="more"]`,
+            ),
+          ).find(visible)
+        : null;
+      if (trigger instanceof HTMLElement && visible(trigger))
         trigger.focus({ preventScroll: true });
+      else if (equivalent) equivalent.focus({ preventScroll: true });
       else
         document
           .querySelector<SVGSVGElement>('svg[aria-label="六线谱编辑器"]')

@@ -15,6 +15,8 @@ const scoreWithToken = (token: string) => {
   const document = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);
   const track = document.score.tracks[0]!;
   track.numberedMarks = [];
+  // 默认编辑谱例现在包含跨小节技巧；单小节简谱几何回归需隔离这些技巧引用。
+  track.techniques = [];
   track.measures = [track.measures[0]!];
   const measure = track.measures[0]!;
   measure.chordSymbols = [];
