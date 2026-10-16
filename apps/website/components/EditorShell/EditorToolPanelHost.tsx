@@ -158,7 +158,13 @@ export const EditorToolPanelHost = ({
       open={open && !blocked}
       destroyOnHidden={false}
       styles={{ container: { padding: 16 } }}
-      align={{ offset: [offset, 6] }}
+      align={{
+        offset: [0, 0],
+        // 移动目标锚点而非弹层偏移；后者会在视口平移后再次保留间距，造成边缘溢出。
+        targetOffset: [-offset, -6],
+        // 角落定位默认只翻转；低高度/页面缩放时还需平移，确保整个菜单留在视口内。
+        overflow: { adjustX: true, adjustY: true, shiftX: true, shiftY: true },
+      }}
       onOpenChange={(next) => {
         if (!next) close();
       }}
