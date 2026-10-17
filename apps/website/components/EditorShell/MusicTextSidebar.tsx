@@ -75,6 +75,10 @@ import type { EditorCommandAdapter } from "./editor-command-adapter";
 import { NoteToolDetails } from "./NoteToolDetails";
 import { MeasureToolDetails } from "./MeasureToolDetails";
 import { TupletToolDetails } from "./TupletToolDetails";
+import {
+  resolveParagraphInsertionTarget,
+  resolveSystemMeasureIds,
+} from "./music-text-target";
 
 export interface MusicTextController {
   navigateTool: (destination: ToolNavigation) => SelectionRequestResult;
@@ -137,7 +141,6 @@ export const MusicTextSidebar = ({
   );
   const [numberedPreview, setNumberedPreview] =
     useState<MusicTextTarget | null>(null);
-  const stateVersion = useEditorStore((s) => s.stateVersion);
   const [numberedMode, setNumberedMode] = useState<"single" | "sequence">(
     "sequence",
   );
@@ -187,6 +190,10 @@ export const MusicTextSidebar = ({
         return resolved ? numberedDraftKey(resolved) : null;
       })()
     : null;
+  const activeNumberedDraft = activeNumberedDraftKey
+    ? visibleNumberedDrafts.get(activeNumberedDraftKey)
+    : undefined;
+  const activeNumberedMode = activeNumberedDraft?.mode ?? numberedMode;
   // 文字对象即使暂时浏览其他页签，快捷键也不能在文字高亮下误写 TAB 音符。
   const editing =
     !!activeObject ||
@@ -450,23 +457,15 @@ export const MusicTextSidebar = ({
   };
   /** 新增只打开真实拍点上的编辑区域，首次应用才写入音乐数据。 */
   const addParagraph = (nextKind: "lyric" | "numbered") => {
-    const currentTrack = score?.score.tracks[0];
-    const firstMeasure = currentTrack?.measures.find((m) => m.beats.length);
-    const next =
-      validTarget ??
-      (currentTrack && firstMeasure
-        ? {
-            trackId: currentTrack.id,
-            measureId: firstMeasure.id,
-            beatId: firstMeasure.beats[0]!.id,
-            string: 1 as const,
-          }
-        : null);
+    const next = resolveParagraphInsertionTarget(score, validTarget);
+    const currentTrack = next
+      ? score?.score.tracks.find((item) => item.id === next.trackId)
+      : undefined;
     if (!next || !currentTrack) {
       setMessage("请先添加拍点，再添加歌词或简谱。");
       return;
     }
-    const ids = getSystemMeasureIds(next.measureId);
+    const ids = resolveSystemMeasureIds(next.measureId, getSystemMeasureIds);
     const used = new Set(
       currentTrack.measures
         .filter((m) => ids.includes(m.id))
@@ -673,7 +672,7 @@ export const MusicTextSidebar = ({
     focusRequest,
     kind,
     numberedMode,
-    stateVersion,
+    activeNumberedMode,
   ]);
 
   // 接受键盘切页签后聚焦对应 TAB，不让表单的目标加载抢走导航焦点。
@@ -1168,9 +1167,10 @@ export const MusicTextSidebar = ({
               </p>
             )}
             <NumberedEditor
-              key={`${stateVersion}/${numberedMode}/${activeNumberedDraftKey ?? (numberedTarget ?? selection?.focus)?.beatId}`}
+              // 不再把 stateVersion 放进 key：自身提交后保持同一输入 owner，避免其他分组被重挂载清空。
+              key={`${activeNumberedMode}/${activeNumberedDraftKey ?? (numberedTarget ?? selection?.focus)?.beatId}`}
               onCancel={() => request({ type: "close" })}
-              mode={numberedMode}
+              mode={activeNumberedMode}
               onModeChange={(mode) => request({ type: "numberedMode", mode })}
               ref={numberedRef}
               getClipboard={() => editorStore.getState().getNumberedClipboard()}
