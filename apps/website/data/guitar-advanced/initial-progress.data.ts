@@ -1,11 +1,14 @@
-import type { GuitarProgressV1 } from "../../lib/guitar-advanced/model";
-
-/** 默认进度保持为纯 JSON；运行时 store 必须复制后再写入。 */
+import type { GuitarProgressV4 } from "../../lib/guitar-advanced/model";
 export const GUITAR_ADVANCED_INITIAL_PROGRESS = {
-  schemaVersion: 1,
+  schemaVersion: 4,
   completedLessonIds: [],
   completedExerciseIds: [],
   exerciseResults: {},
+  wrongExerciseIds: [],
+  reviewedExerciseIds: [],
   lastVisited: null,
   updatedAt: null,
-} as const satisfies GuitarProgressV1;
+  examAttempts: [],
+  activeExamAttemptId: null,
+  examQuestionReviews: {},
+} as const satisfies GuitarProgressV4;

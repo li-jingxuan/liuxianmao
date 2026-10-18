@@ -1,170 +1,192 @@
 "use client";
-
-import {
-  ArrowLeft,
-  ArrowRight,
-  BookOpen,
-  CheckCircle2,
-  CircleAlert,
-  RotateCcw,
-} from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import type { Exercise } from "../../lib/guitar-advanced/model";
+import { Alert, Button } from "antd";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type {
+  Exercise,
+  GuitarAdvancedData,
+} from "../../lib/guitar-advanced/model";
+import {
+  formatExerciseAnswer,
+  gradeExercise,
+} from "../../lib/guitar-advanced/grading";
+import { getNextTarget } from "../../lib/guitar-advanced/progress";
 import { useGuitarAdvancedStore } from "../../stores/guitar-advanced-store";
-import styles from "./PracticeQuestion.module.scss";
-
-/** 单选练习的临时答案留在组件内，提交后的结果才进入持久化进度。 */
-export const PracticeQuestion = ({ exercise }: { exercise: Exercise }) => {
-  const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
-  const result = useGuitarAdvancedStore(
-    (state) => state.progress.exerciseResults[exercise.id],
-  );
-  const submitExercise = useGuitarAdvancedStore(
-    (state) => state.submitExercise,
-  );
-  const resetExerciseAttempt = useGuitarAdvancedStore(
-    (state) => state.resetExerciseAttempt,
-  );
-  const setLastVisited = useGuitarAdvancedStore(
-    (state) => state.setLastVisited,
-  );
-
+import { prepareExerciseMaterials } from "./score-presentation";
+import { PreparedScoreView } from "./GuitarScoreExample";
+import {
+  ExerciseAnswerInput,
+  initialExerciseAnswer,
+} from "./ExerciseAnswerInput";
+import styles from "./LearningUi.module.scss";
+/** 草稿仅在组件内；store 成功接受提交后才展示答案和解析。 */
+export const PracticeQuestion = ({
+  exercise,
+  data,
+}: {
+  exercise: Exercise;
+  data: GuitarAdvancedData;
+}) => {
+  const [draft, setDraft] = useState(() => initialExerciseAnswer(exercise));
+  const [error, setError] = useState<string | null>(null),
+    [retry, setRetry] = useState(0);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const progress = useGuitarAdvancedStore((s) => s.progress),
+    submit = useGuitarAdvancedStore((s) => s.submitExercise),
+    reset = useGuitarAdvancedStore((s) => s.resetExerciseAttempt),
+    visit = useGuitarAdvancedStore((s) => s.setLastVisited);
   useEffect(() => {
-    setLastVisited({ kind: "exercise", id: exercise.id });
-  }, [exercise.id, setLastVisited]);
-
-  const submitted = Boolean(result);
-  const answerSelected = result?.selectedOptionId ?? selectedOptionId;
+    visit({ kind: "exercise", id: exercise.id });
+  }, [exercise.id, visit]);
+  const materials = useMemo(() => {
+    void retry;
+    return prepareExerciseMaterials(exercise, data);
+  }, [exercise, data, retry]);
+  const result = progress.exerciseResults[exercise.id],
+    answer = result?.answer ?? draft;
+  const canSubmit =
+    materials.ready && gradeExercise(exercise, draft, "validation").ok;
+  const moduleItem = data.modules.find((m) => m.id === exercise.moduleId)!;
+  const next = getNextTarget(data, progress, {
+    kind: "exercise",
+    id: exercise.id,
+  });
+  const stimulus = exercise.stimulusId
+    ? materials.scores[exercise.stimulusId]
+    : null;
   return (
     <div className={styles.page}>
       <Link
-        className={styles.backLink}
-        href={`/guitar-advanced/theory/${exercise.relatedLessonId}`}
+        className={styles.back}
+        href={`/guitar-advanced/modules/${moduleItem.id}`}
       >
-        <ArrowLeft aria-hidden="true" size={15} />
-        返回理论
+        ← {moduleItem.title}
       </Link>
       <header className={styles.header}>
         <div>
-          <span>节奏与拍点 / 练习 01</span>
+          <span className={styles.muted}>
+            练习 {data.exercises.findIndex((e) => e.id === exercise.id) + 1}/6 ·{" "}
+            {moduleItem.title}
+          </span>
           <h1>{exercise.title}</h1>
-          <p>第 1 题 · 单选题</p>
+          <p>提交后保存结果；未提交的答案刷新后会重置。</p>
         </div>
-        <div className={styles.practiceProgress}>
-          <span>本版本练习进度</span>
-          <strong>{submitted ? "1 / 1" : "0 / 1"}</strong>
-        </div>
+        <span>已完成 {progress.completedExerciseIds.length}/6 个练习</span>
       </header>
-
       <div className={styles.grid}>
         <section
-          className={styles.questionCard}
+          className={styles.panel}
           aria-labelledby="practice-question-title"
         >
-          <h2 id="practice-question-title">{exercise.prompt}</h2>
-          <div
-            className={styles.options}
-            role="radiogroup"
-            aria-label="练习选项"
-          >
-            {exercise.options.map((option) => {
-              const selected = answerSelected === option.id;
-              const correct =
-                submitted && option.id === exercise.answer.optionId;
-              const wrong = submitted && selected && !correct;
-              return (
-                <label
-                  className={styles.option}
-                  data-selected={selected}
-                  data-correct={correct}
-                  data-wrong={wrong}
-                  data-disabled={submitted}
-                  key={option.id}
-                >
-                  <input
-                    className={styles.radioInput}
-                    type="radio"
-                    name={exercise.id}
-                    value={option.id}
-                    checked={selected}
-                    disabled={submitted}
-                    onChange={() => setSelectedOptionId(option.id)}
-                  />
-                  <span className={styles.radioDot} aria-hidden="true" />
-                  <span>{option.label}</span>
-                  {correct ? (
-                    <CheckCircle2 aria-label="正确答案" size={17} />
-                  ) : null}
-                </label>
-              );
-            })}
-          </div>
-          {submitted ? (
-            <div
-              className={styles.feedback}
-              data-correct={result?.isCorrect}
-              role="status"
-            >
-              {result?.isCorrect ? (
-                <CheckCircle2 aria-hidden="true" size={18} />
-              ) : (
-                <CircleAlert aria-hidden="true" size={18} />
-              )}
-              <div>
-                <strong>{result?.isCorrect ? "回答正确" : "还需要复习"}</strong>
-                <p>
-                  {result?.isCorrect
-                    ? "你已经识别出一拍两次的八分音符节奏。"
-                    : "正确答案是“每拍两次”，可以回到理论页复习时值关系。"}
-                </p>
-              </div>
+          <h2 id="practice-question-title" ref={heading} tabIndex={-1}>
+            {exercise.prompt}
+          </h2>
+          {!materials.ready && (
+            <Alert
+              type="error"
+              title="题目素材加载失败，暂不能提交"
+              description={materials.errors.join("；")}
+              action={
+                <Button onClick={() => setRetry((v) => v + 1)}>重试素材</Button>
+              }
+            />
+          )}
+          {stimulus && (
+            <PreparedScoreView
+              prepared={stimulus.prepared}
+              title={stimulus.reference.title}
+              caption={stimulus.caption}
+            />
+          )}
+          <ExerciseAnswerInput
+            exercise={exercise}
+            data={data}
+            answer={answer}
+            disabled={!!result}
+            onChange={setDraft}
+            materials={materials}
+          />
+          {error && <Alert type="error" title={error} />}
+          {result && (
+            <div role="status" aria-live="polite" style={{ marginTop: 20 }}>
+              <Alert
+                showIcon
+                type={result.isCorrect ? "success" : "warning"}
+                title={result.isCorrect ? "回答正确" : "回答有误，仍可继续学习"}
+                description={
+                  <>
+                    <p>
+                      你的答案：{formatExerciseAnswer(exercise, result.answer)}
+                    </p>
+                    <p>
+                      正确答案：
+                      {formatExerciseAnswer(exercise, exercise.answer)}
+                    </p>
+                  </>
+                }
+              />
             </div>
-          ) : null}
+          )}
           <div className={styles.actions}>
-            {submitted ? (
-              <button
-                className={styles.secondaryButton}
-                type="button"
+            {result ? (
+              <Button
                 onClick={() => {
-                  resetExerciseAttempt(exercise.id);
-                  setSelectedOptionId(null);
+                  const action = reset(exercise.id);
+                  if (action.ok) {
+                    setDraft(initialExerciseAnswer(exercise));
+                    setError(null);
+                    heading.current?.focus();
+                  }
                 }}
               >
-                <RotateCcw aria-hidden="true" size={15} />
                 重新练习
-              </button>
+              </Button>
             ) : (
-              <button
-                className={styles.primaryButton}
-                type="button"
-                disabled={!selectedOptionId}
-                onClick={() => submitExercise(exercise.id, selectedOptionId)}
+              <Button
+                type="primary"
+                disabled={!canSubmit}
+                onClick={() => {
+                  const action = submit(exercise.id, draft);
+                  setError(
+                    action.ok
+                      ? null
+                      : action.reason === "alreadySubmitted"
+                        ? "当前题已提交，请先重新练习。"
+                        : "答案无效，请重新选择。",
+                  );
+                }}
               >
                 提交答案
-              </button>
+              </Button>
             )}
-            <Link className={styles.secondaryButton} href="/guitar-advanced">
-              返回学习路径
-              <ArrowRight aria-hidden="true" size={15} />
-            </Link>
+            {result && (
+              <Button type="primary" href={next?.href ?? "/guitar-advanced"}>
+                {next ? `下一步：${next.title}` : "返回学习路径"}
+              </Button>
+            )}
+            <Button href={`/guitar-advanced/modules/${moduleItem.id}`}>
+              返回模块
+            </Button>
           </div>
         </section>
-
-        <aside className={styles.explanation}>
-          <span className={styles.eyebrow}>解析</span>
-          <h2>为什么是“每拍两次”？</h2>
-          <p>{exercise.explanation}</p>
-          <Link
-            className={styles.relatedLink}
-            href={`/guitar-advanced/theory/${exercise.relatedLessonId}`}
-          >
-            <BookOpen aria-hidden="true" size={16} />
-            回到理论小节复习
-          </Link>
-          <p className={styles.localHint}>
-            练习答错后仍可继续学习，结果会保存在当前浏览器。
+        <aside className={`${styles.panel} ${styles.sticky}`}>
+          <h2>{result ? "答案解析" : "作答说明"}</h2>
+          <p>
+            {result
+              ? exercise.explanation
+              : "按题干要求完成选择或排序，提交后查看正确答案与解析。答错也会记录完成，可以重做复习。"}
           </p>
+          <h3>相关理论</h3>
+          <ul className={styles.list}>
+            {exercise.reviewLessonIds.map((id) => (
+              <li key={id}>
+                <Link href={`/guitar-advanced/theory/${id}`}>
+                  {data.lessons.find((l) => l.id === id)?.title}
+                </Link>
+              </li>
+            ))}
+          </ul>
+          <p className={styles.muted}>记录仅保存在当前浏览器。</p>
         </aside>
       </div>
     </div>

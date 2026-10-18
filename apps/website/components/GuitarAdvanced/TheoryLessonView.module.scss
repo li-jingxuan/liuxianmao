@@ -32,7 +32,8 @@
 .contentBlock p,
 .callout p,
 .lessonAside p,
-.scoreExample p {
+.scoreExample p,
+.scoreExample figcaption {
   color: #626e82;
   font-size: 13px;
   line-height: 1.8;
@@ -140,14 +141,14 @@
 
 .scoreExample {
   margin-top: 22px;
-  max-height: 330px;
-  overflow: hidden;
+  margin-inline: 0;
   padding: 16px;
   border-radius: 7px;
   background: #f0f7ff;
 }
 
-.scoreExample p {
+.scoreExample p,
+.scoreExample figcaption {
   margin: 10px 0 0;
   font-size: 11px;
 }

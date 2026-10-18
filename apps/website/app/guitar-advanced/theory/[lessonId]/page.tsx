@@ -11,7 +11,13 @@ const TheoryLessonPage = async ({
   const { lessonId } = await params;
   const lesson = findLesson(GUITAR_ADVANCED_DATA, lessonId);
   if (!lesson) notFound();
-  return <TheoryLessonView lesson={lesson} />;
+  return (
+    <TheoryLessonView
+      key={lesson.id}
+      lesson={lesson}
+      data={GUITAR_ADVANCED_DATA}
+    />
+  );
 };
 
 export default TheoryLessonPage;

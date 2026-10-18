@@ -1,147 +1,143 @@
 "use client";
-
-import {
-  AlertTriangle,
-  ArrowLeft,
-  ArrowRight,
-  CheckCircle2,
-} from "lucide-react";
 import Link from "next/link";
+import { Alert, Button, Tag } from "antd";
 import { useEffect } from "react";
-import type { Lesson } from "../../lib/guitar-advanced/model";
-import { GUITAR_ADVANCED_SCORE_EXAMPLES } from "../../data/guitar-advanced";
+import type {
+  GuitarAdvancedData,
+  Lesson,
+} from "../../lib/guitar-advanced/model";
 import { useGuitarAdvancedStore } from "../../stores/guitar-advanced-store";
 import { GuitarScoreExample } from "./GuitarScoreExample";
-import styles from "./TheoryLessonView.module.scss";
-
-/** 理论页只负责渲染数据块和触发 store 动作，内容本身不写在组件里。 */
-export const TheoryLessonView = ({ lesson }: { lesson: Lesson }) => {
-  const completed = useGuitarAdvancedStore((state) =>
-    state.progress.completedLessonIds.includes(lesson.id),
+import { FretboardDiagram } from "./FretboardDiagram";
+import styles from "./LearningUi.module.scss";
+/** 页面注入完整目录；理论展示不读取数据文件，不操作曲谱编辑状态。 */
+export const TheoryLessonView = ({
+  lesson,
+  data,
+}: {
+  lesson: Lesson;
+  data: GuitarAdvancedData;
+}) => {
+  const completed = useGuitarAdvancedStore((s) =>
+    s.progress.completedLessonIds.includes(lesson.id),
   );
-  const markLessonComplete = useGuitarAdvancedStore(
-    (state) => state.markLessonComplete,
-  );
-  const setLastVisited = useGuitarAdvancedStore(
-    (state) => state.setLastVisited,
-  );
-
+  const markComplete = useGuitarAdvancedStore((s) => s.markLessonComplete),
+    visit = useGuitarAdvancedStore((s) => s.setLastVisited);
   useEffect(() => {
-    setLastVisited({ kind: "lesson", id: lesson.id });
-  }, [lesson.id, setLastVisited]);
-
-  const exerciseId = lesson.exerciseIds[0];
+    visit({ kind: "lesson", id: lesson.id });
+  }, [lesson.id, visit]);
+  const moduleItem = data.modules.find((m) => m.id === lesson.moduleId)!;
   return (
     <div className={styles.page}>
-      <Link className={styles.backLink} href="/guitar-advanced">
-        <ArrowLeft aria-hidden="true" size={15} />
-        节奏与拍点
+      <Link
+        className={styles.back}
+        href={`/guitar-advanced/modules/${moduleItem.id}`}
+      >
+        ← {moduleItem.title}
       </Link>
-      <header className={styles.lessonHeader}>
+      <header className={styles.header}>
         <div>
           <h1>{lesson.title}</h1>
           <p>
-            理论 {String(lesson.order).padStart(2, "0")} · 预计学习{" "}
-            {lesson.durationMinutes} 分钟
+            理论 {lesson.order}/2 · 预计 {lesson.durationMinutes} 分钟 ·{" "}
+            {moduleItem.title}
           </p>
         </div>
-        {completed ? (
-          <span className={styles.completedBadge}>
-            <CheckCircle2 aria-hidden="true" size={15} />
-            已完成
-          </span>
-        ) : null}
+        {completed && <Tag color="success">已完成</Tag>}
       </header>
-
-      <div className={styles.lessonGrid}>
-        <article className={styles.lessonArticle}>
-          <section className={styles.objectiveSection}>
-            <h2>本节目标</h2>
-            <ul>
-              {lesson.objectives.map((objective) => (
-                <li key={objective}>
-                  <CheckCircle2 aria-hidden="true" size={15} />
-                  <span>{objective}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
-          {lesson.blocks.map((block, index) => {
+      <div className={styles.grid}>
+        <article className={styles.panel}>
+          <h2>本节目标</h2>
+          <ul>
+            {lesson.objectives.map((o) => (
+              <li key={o}>{o}</li>
+            ))}
+          </ul>
+          {lesson.blocks.map((block, i) => {
             if (block.type === "paragraph")
               return (
-                <section
-                  className={styles.contentBlock}
-                  key={`${block.type}-${index}`}
-                >
-                  {block.title ? <h2>{block.title}</h2> : null}
+                <section key={i} className={styles.theoryBlock}>
+                  <h3>{block.title}</h3>
                   <p>{block.content}</p>
                 </section>
               );
             if (block.type === "callout")
               return (
-                <aside
-                  className={styles.callout}
-                  data-tone={block.tone}
-                  key={`${block.type}-${index}`}
-                >
-                  <AlertTriangle aria-hidden="true" size={17} />
-                  <div>
-                    <strong>{block.title}</strong>
-                    <p>{block.content}</p>
-                  </div>
-                </aside>
+                <Alert
+                  key={i}
+                  title={block.title}
+                  description={block.content}
+                  type={block.tone === "warning" ? "warning" : "info"}
+                  showIcon
+                />
               );
-            const reference = GUITAR_ADVANCED_SCORE_EXAMPLES.find(
-              (item) => item.id === block.documentId,
+            if (block.type === "diagram") {
+              const diagram = data.diagrams.find(
+                (d) => d.id === block.diagramId,
+              );
+              return diagram ? (
+                <figure key={i}>
+                  <FretboardDiagram diagram={diagram} />
+                  <figcaption>{block.caption}</figcaption>
+                </figure>
+              ) : (
+                <Alert key={i} type="error" title="指板暂时无法加载" />
+              );
+            }
+            const reference = data.scoreExamples.find(
+              (r) => r.id === block.documentId,
             );
             return reference ? (
               <GuitarScoreExample
-                key={`${block.type}-${index}`}
+                key={i}
                 reference={reference}
+                documents={data.teachingDocuments}
+                caption={block.caption}
               />
-            ) : null;
+            ) : (
+              <Alert key={i} type="error" title="谱例不存在" />
+            );
           })}
+          <div className={styles.actions}>
+            <Button type="primary" onClick={() => markComplete(lesson.id)}>
+              {completed ? "本节已完成" : "完成本节"}
+            </Button>
+            {lesson.exerciseIds.map((id) => (
+              <Button key={id} href={`/guitar-advanced/practice/${id}`}>
+                进入练习
+              </Button>
+            ))}
+          </div>
         </article>
-
-        <aside className={styles.lessonAside}>
-          <span className={styles.eyebrow}>本节状态</span>
-          <strong>{completed ? "理论已完成" : "理论学习中"}</strong>
-          <p>完成后可以随时回来复习，不会影响练习记录。</p>
-          <button
-            className={styles.primaryButton}
-            type="button"
-            onClick={() => markLessonComplete(lesson.id)}
-          >
-            <CheckCircle2 aria-hidden="true" size={16} />
+        <aside className={`${styles.panel} ${styles.sticky}`}>
+          <h2>{completed ? "理论已完成" : "理论学习中"}</h2>
+          <p className={styles.muted}>
+            完成本节后可以随时复习，练习答错也能继续下一节。
+          </p>
+          <Button onClick={() => markComplete(lesson.id)}>
             {completed ? "已标记完成" : "标记本节完成"}
-          </button>
-          {exerciseId ? (
-            <Link
-              className={styles.secondaryButton}
-              href={`/guitar-advanced/practice/${exerciseId}`}
-            >
-              进入节奏练习
-              <ArrowRight aria-hidden="true" size={16} />
-            </Link>
-          ) : null}
-          <p className={styles.localHint}>学习记录保存在当前浏览器。</p>
+          </Button>
+          <p className={styles.muted}>学习记录保存在当前浏览器。</p>
+          <Link href={`/guitar-advanced/modules/${moduleItem.id}`}>
+            查看模块内容
+          </Link>
         </aside>
       </div>
-
-      <footer className={styles.lessonFooter}>
-        <Link className={styles.secondaryButton} href="/guitar-advanced">
-          返回学习路径
-        </Link>
-        {exerciseId ? (
-          <Link
-            className={styles.primaryButton}
-            href={`/guitar-advanced/practice/${exerciseId}`}
-          >
-            进入练习
-            <ArrowRight aria-hidden="true" size={16} />
-          </Link>
-        ) : null}
-      </footer>
+      <nav className={styles.actions} aria-label="理论前后节">
+        {lesson.previousLessonId && (
+          <Button href={`/guitar-advanced/theory/${lesson.previousLessonId}`}>
+            上一节：
+            {data.lessons.find((l) => l.id === lesson.previousLessonId)?.title}
+          </Button>
+        )}
+        {lesson.nextLessonId && (
+          <Button href={`/guitar-advanced/theory/${lesson.nextLessonId}`}>
+            下一节：
+            {data.lessons.find((l) => l.id === lesson.nextLessonId)?.title}
+          </Button>
+        )}
+        <Button href="/guitar-advanced">返回学习路径</Button>
+      </nav>
     </div>
   );
 };

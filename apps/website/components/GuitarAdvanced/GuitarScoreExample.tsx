@@ -1,58 +1,64 @@
 "use client";
-
 import { useMemo } from "react";
-import { buildLayout, type ILXMLayout } from "@liuxianmao/lxm-editor";
-import type { ScoreExampleRef } from "../../lib/guitar-advanced/model";
-import { resolveScoreExample } from "../../lib/guitar-advanced/score-example-adapter";
+import type {
+  GuitarAdvancedData,
+  ScoreExampleRef,
+} from "../../lib/guitar-advanced/model";
 import { ScoreMusicLayer } from "../EditorShell/ScoreMusicLayer";
-import { buildScoreScene } from "../EditorShell/score-scene";
+import { prepareScore, type PreparedScore } from "./score-presentation";
 import styles from "./TheoryLessonView.module.scss";
-
-/** 理论谱例只准备成品 SVG，不创建 EditorSession，避免污染编辑器状态。 */
-export const GuitarScoreExample = ({
-  reference,
+export const PreparedScoreView = ({
+  prepared,
+  title,
+  caption,
 }: {
-  reference: ScoreExampleRef;
-}) => {
-  const resolved = useMemo(() => resolveScoreExample(reference), [reference]);
-  const layout = useMemo<ILXMLayout | null>(
-    () =>
-      resolved.ok
-        ? buildLayout(resolved.document, {
-            purpose: "presentation",
-            systemWidth: 720,
-            density: "compact",
-            showChordDiagrams: false,
-          })
-        : null,
-    [resolved],
-  );
-  const scene = useMemo(
-    () => (layout ? buildScoreScene(layout) : null),
-    [layout],
-  );
-
-  if (!resolved.ok)
-    return (
-      <div className={styles.scoreError}>
-        谱例暂时无法加载：{resolved.error}
-      </div>
-    );
-  if (!layout || !scene)
-    return <div className={styles.scoreError}>谱例布局暂时无法生成。</div>;
-
-  return (
-    <div className={styles.scoreExample} aria-label={reference.title}>
+  prepared: PreparedScore;
+  title: string;
+  caption: string;
+}) =>
+  prepared.ok ? (
+    <figure className={styles.scoreExample}>
       <svg
         className={styles.scoreSvg}
-        viewBox={`0 0 ${layout.width} ${layout.height}`}
+        viewBox={`0 0 ${prepared.layout.width} ${prepared.layout.height}`}
         role="img"
-        aria-label={reference.title}
+        aria-label={title}
       >
-        <rect width={layout.width} height={layout.height} fill="#fff" />
-        <ScoreMusicLayer scene={scene} />
+        <title>{title}</title>
+        <desc>{caption}</desc>
+        <rect
+          width={prepared.layout.width}
+          height={prepared.layout.height}
+          fill="#fff"
+        />
+        <ScoreMusicLayer scene={prepared.scene} />
       </svg>
-      <p>{reference.caption}</p>
+      <figcaption>{caption}</figcaption>
+    </figure>
+  ) : (
+    <div className={styles.scoreError} role="alert">
+      谱例暂时无法加载：{prepared.error}
     </div>
+  );
+/** 只读素材不创建 EditorSession，字幕可按理论上下文覆盖。 */
+export const GuitarScoreExample = ({
+  reference,
+  documents,
+  caption,
+}: {
+  reference: ScoreExampleRef;
+  documents: GuitarAdvancedData["teachingDocuments"];
+  caption?: string;
+}) => {
+  const prepared = useMemo(
+    () => prepareScore(reference, documents),
+    [reference, documents],
+  );
+  return (
+    <PreparedScoreView
+      prepared={prepared}
+      title={reference.title}
+      caption={caption ?? reference.caption}
+    />
   );
 };

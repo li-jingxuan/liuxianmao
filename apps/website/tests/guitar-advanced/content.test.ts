@@ -1,56 +1,83 @@
 import { describe, expect, it } from "vitest";
-import {
-  GUITAR_ADVANCED_DATA,
-  GUITAR_ADVANCED_INITIAL_PROGRESS,
-  GUITAR_ADVANCED_SCORE_EXAMPLES,
-} from "../../data/guitar-advanced";
+import { GUITAR_ADVANCED_DATA as data } from "../../data/guitar-advanced";
 import { validateGuitarAdvancedData } from "../../lib/guitar-advanced/catalog";
 import { resolveScoreExample } from "../../lib/guitar-advanced/score-example-adapter";
-
-describe("guitar advanced content", () => {
-  it("keeps all v1 content JSON serializable and internally consistent", () => {
-    expect(() =>
-      JSON.parse(JSON.stringify(GUITAR_ADVANCED_DATA)),
-    ).not.toThrow();
-    expect(validateGuitarAdvancedData(GUITAR_ADVANCED_DATA)).toEqual([]);
-  });
-
-  it("opens one module with one theory lesson and one exercise", () => {
-    const available = GUITAR_ADVANCED_DATA.modules.filter(
-      (module) => module.availability === "available",
-    );
-    expect(available).toHaveLength(1);
-    expect(available[0]?.lessonIds).toHaveLength(1);
-    expect(available[0]?.exerciseIds).toHaveLength(1);
-  });
-
-  it("keeps default progress empty and JSON-shaped", () => {
+import {
+  prepareExerciseMaterials,
+  prepareScore,
+} from "../../components/GuitarAdvanced/score-presentation";
+describe("guitar v2 content", () => {
+  it("publishes the complete JSON catalog with bidirectional references", () => {
+    expect(JSON.parse(JSON.stringify(data))).toEqual(data);
+    expect(validateGuitarAdvancedData(data)).toEqual([]);
     expect(
-      JSON.parse(JSON.stringify(GUITAR_ADVANCED_INITIAL_PROGRESS)),
-    ).toEqual({
-      schemaVersion: 1,
-      completedLessonIds: [],
-      completedExerciseIds: [],
-      exerciseResults: {},
-      lastVisited: null,
-      updatedAt: null,
-    });
+      data.modules.every(
+        (m) => m.availability === "available" && m.lessonIds.length === 2,
+      ),
+    ).toBe(true);
   });
-
-  it("resolves teaching score references through the official document loader", () => {
-    for (const reference of GUITAR_ADVANCED_SCORE_EXAMPLES) {
-      const result = resolveScoreExample(reference);
-      expect(result.ok).toBe(true);
-      if (result.ok) {
-        const measures = result.document.score.tracks.flatMap(
-          (track) => track.measures,
+  it("validates and lays out distinct teaching scores through the official loader", () => {
+    const counts: number[] = [];
+    for (const ref of data.scoreExamples) {
+      const resolved = resolveScoreExample(ref, data.teachingDocuments);
+      expect(resolved.ok, JSON.stringify(resolved)).toBe(true);
+      if (resolved.ok)
+        counts.push(
+          resolved.document.score.tracks[0]!.measures[0]!.beats.length,
         );
-        expect(measures).toHaveLength(1);
-        expect(measures[0]?.beats).toHaveLength(8);
-        expect(
-          measures[0]?.beats.every((beat) => beat.rhythm.base === "eighth"),
-        ).toBe(true);
-      }
+      const ready = prepareScore(ref, data.teachingDocuments);
+      expect(ready.ok, JSON.stringify(ready)).toBe(true);
     }
+    expect(counts.slice(0, 4)).toEqual([4, 8, 16, 6]);
+  });
+  it("keeps every exercise's required media ready and blocks missing documents/targets", () => {
+    for (const exercise of data.exercises)
+      expect(prepareExerciseMaterials(exercise, data).errors).toEqual([]);
+    expect(
+      prepareExerciseMaterials(data.exercises[0]!, {
+        ...data,
+        teachingDocuments: {},
+      }).ready,
+    ).toBe(false);
+    expect(
+      prepareExerciseMaterials(data.exercises[4]!, { ...data, diagrams: [] })
+        .ready,
+    ).toBe(false);
+    expect(
+      prepareExerciseMaterials(data.exercises[1]!, { ...data, stimuli: [] })
+        .ready,
+    ).toBe(false);
+  });
+  it("detects dangling course, answer, ordering and media references", () => {
+    const broken = structuredClone(data);
+    const changed = {
+      ...broken,
+      lessons: broken.lessons.map((l, i) =>
+        i === 0
+          ? { ...l, nextLessonId: "missing", exerciseIds: ["missing"] }
+          : l,
+      ),
+      stimuli: [],
+    };
+    expect(validateGuitarAdvancedData(changed).length).toBeGreaterThan(3);
+  });
+  it("freezes the independent pentatonic target set and roots", () => {
+    const exercise = data.exercises[4]!;
+    expect(exercise.answer).toEqual({
+      type: "targetSelection",
+      targetIds: [
+        "string-6-fret-0",
+        "string-6-fret-3",
+        "string-6-fret-5",
+        "string-5-fret-0",
+        "string-5-fret-3",
+        "string-5-fret-5",
+      ],
+    });
+    expect(
+      data.diagrams[0]!.positions.filter((p) => p.noteName === "A").map(
+        (p) => p.id,
+      ),
+    ).toEqual(["string-6-fret-5", "string-5-fret-0"]);
   });
 });

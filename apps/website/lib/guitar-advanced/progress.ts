@@ -1,115 +1,133 @@
+import { findTarget, getLearningSequence } from "./catalog";
 import type {
-  Exercise,
   ExerciseResult,
+  GuitarAdvancedData,
   GuitarModule,
-  GuitarProgressV1,
+  GuitarProgressV2,
+  GuitarProgressV3,
+  GuitarProgressV4,
   LastVisitedContent,
-  Lesson,
 } from "./model";
-
-const unique = (values: readonly string[]): string[] => [...new Set(values)];
-
-/** 返回新状态，避免页面动作或测试意外修改默认 JSON 数据。 */
-export const markLessonComplete = (
-  progress: GuitarProgressV1,
-  lessonId: string,
-  updatedAt: string,
-): GuitarProgressV1 => ({
-  ...progress,
-  completedLessonIds: unique([...progress.completedLessonIds, lessonId]),
-  updatedAt,
-});
-
-export const addExerciseResult = (
-  progress: GuitarProgressV1,
+const unique = (ids: readonly string[]) => [...new Set(ids)];
+type LearningProgress = GuitarProgressV2 | GuitarProgressV3 | GuitarProgressV4;
+export const markLessonComplete = <T extends LearningProgress>(
+  p: T,
+  id: string,
+  time: string,
+): T =>
+  p.completedLessonIds.includes(id)
+    ? p
+    : {
+        ...p,
+        completedLessonIds: unique([...p.completedLessonIds, id]),
+        updatedAt: time,
+      } as T;
+/** 完成与正确性分离；错题历史保留，再答对只标记已复习。 */
+export const addExerciseResult = <T extends LearningProgress>(
+  p: T,
   result: ExerciseResult,
-  updatedAt: string,
-): GuitarProgressV1 => ({
-  ...progress,
-  completedExerciseIds: unique([
-    ...progress.completedExerciseIds,
-    result.exerciseId,
-  ]),
-  exerciseResults: {
-    ...progress.exerciseResults,
-    [result.exerciseId]: result,
-  },
-  updatedAt,
-});
-
-export const setLastVisited = (
-  progress: GuitarProgressV1,
-  lastVisited: LastVisitedContent,
-  updatedAt: string,
-): GuitarProgressV1 => ({ ...progress, lastVisited, updatedAt });
-
-export const isLessonComplete = (
-  progress: GuitarProgressV1,
-  lessonId: string,
-): boolean => progress.completedLessonIds.includes(lessonId);
-
-export const isExerciseComplete = (
-  progress: GuitarProgressV1,
-  exerciseId: string,
-): boolean => progress.completedExerciseIds.includes(exerciseId);
-
-export const getModuleProgress = (
-  module: GuitarModule,
-  progress: GuitarProgressV1,
-): { completed: number; total: number; ratio: number } => {
-  const total = module.lessonIds.length + module.exerciseIds.length;
-  const completed =
-    module.lessonIds.filter((id) => isLessonComplete(progress, id)).length +
-    module.exerciseIds.filter((id) => isExerciseComplete(progress, id)).length;
-  return { completed, total, ratio: total === 0 ? 0 : completed / total };
+  time: string,
+): T => {
+  const wrong = result.isCorrect
+    ? p.wrongExerciseIds
+    : unique([...p.wrongExerciseIds, result.exerciseId]);
+  const reviewed = !result.isCorrect
+    ? p.reviewedExerciseIds.filter((id) => id !== result.exerciseId)
+    : wrong.includes(result.exerciseId)
+      ? unique([...p.reviewedExerciseIds, result.exerciseId])
+      : p.reviewedExerciseIds;
+  return {
+    ...p,
+    completedExerciseIds: unique([
+      ...p.completedExerciseIds,
+      result.exerciseId,
+    ]),
+    exerciseResults: { ...p.exerciseResults, [result.exerciseId]: result },
+    wrongExerciseIds: wrong,
+    reviewedExerciseIds: reviewed,
+    updatedAt: time,
+  } as T;
 };
-
+export const setLastVisited = <T extends LearningProgress>(
+  p: T,
+  target: LastVisitedContent,
+  time: string,
+): T => ({
+  ...p,
+  lastVisited: { kind: target.kind, id: target.id },
+  updatedAt: time,
+}) as T;
+export const isLessonComplete = (p: Pick<LearningProgress, "completedLessonIds">, id: string) =>
+  p.completedLessonIds.includes(id);
+export const isExerciseComplete = (p: Pick<LearningProgress, "completedExerciseIds">, id: string) =>
+  p.completedExerciseIds.includes(id);
+export const isTargetComplete = (
+  p: Pick<LearningProgress, "completedLessonIds" | "completedExerciseIds">,
+  target: LastVisitedContent,
+) =>
+  target.kind === "lesson"
+    ? isLessonComplete(p, target.id)
+    : isExerciseComplete(p, target.id);
+export const getModuleProgress = (
+  m: GuitarModule,
+  p: Pick<LearningProgress, "completedLessonIds" | "completedExerciseIds">,
+) => {
+  const ids = [...new Set(m.lessonIds)];
+  const exercises = [...new Set(m.exerciseIds)];
+  const total = ids.length + exercises.length;
+  const completed =
+    ids.filter((id) => isLessonComplete(p, id)).length +
+    exercises.filter((id) => isExerciseComplete(p, id)).length;
+  return { completed, total, ratio: total ? completed / total : 0 };
+};
 export const getOverallProgress = (
   modules: readonly GuitarModule[],
-  progress: GuitarProgressV1,
-): { completed: number; total: number; ratio: number } => {
-  const available = modules.filter(
-    (module) => module.availability === "available",
-  );
-  const completed = available.reduce(
-    (sum, module) => sum + getModuleProgress(module, progress).completed,
-    0,
-  );
-  const total = available.reduce(
-    (sum, module) => sum + getModuleProgress(module, progress).total,
-    0,
-  );
-  return { completed, total, ratio: total === 0 ? 0 : completed / total };
+  p: Pick<LearningProgress, "completedLessonIds" | "completedExerciseIds">,
+) => {
+  const all = modules.filter((m) => m.availability === "available");
+  const total =
+    new Set(all.flatMap((m) => m.lessonIds)).size +
+    new Set(all.flatMap((m) => m.exerciseIds)).size;
+  const completed =
+    new Set(
+      all.flatMap((m) => m.lessonIds).filter((id) => isLessonComplete(p, id)),
+    ).size +
+    new Set(
+      all
+        .flatMap((m) => m.exerciseIds)
+        .filter((id) => isExerciseComplete(p, id)),
+    ).size;
+  return { completed, total, ratio: total ? completed / total : 0 };
 };
-
 export const getContinueTarget = (
-  modules: readonly GuitarModule[],
-  lessons: readonly Lesson[],
-  exercises: readonly Exercise[],
-  progress: GuitarProgressV1,
-): LastVisitedContent | null => {
-  const last = progress.lastVisited;
-  if (last) {
-    const lastLesson = lessons.find((lesson) => lesson.id === last.id);
-    const lastExercise = exercises.find((exercise) => exercise.id === last.id);
-    if (lastLesson && !isLessonComplete(progress, lastLesson.id)) return last;
-    if (lastExercise && !isExerciseComplete(progress, lastExercise.id))
-      return last;
-  }
-  for (const moduleItem of modules.filter(
-    (item) => item.availability === "available",
-  )) {
-    const lesson = lessons.find(
-      (item) =>
-        item.moduleId === moduleItem.id && !isLessonComplete(progress, item.id),
-    );
-    if (lesson) return { kind: "lesson", id: lesson.id };
-    const exercise = exercises.find(
-      (item) =>
-        item.moduleId === moduleItem.id &&
-        !isExerciseComplete(progress, item.id),
-    );
-    if (exercise) return { kind: "exercise", id: exercise.id };
-  }
-  return null;
+  data: GuitarAdvancedData,
+  p: Pick<LearningProgress, "completedLessonIds" | "completedExerciseIds" | "lastVisited">,
+  moduleId?: string,
+) => {
+  const last = p.lastVisited ? findTarget(data, p.lastVisited) : null;
+  if (
+    last &&
+    (!moduleId || last.moduleId === moduleId) &&
+    !isTargetComplete(p, last)
+  )
+    return last;
+  return (
+    getLearningSequence(data).find(
+      (t) => (!moduleId || t.moduleId === moduleId) && !isTargetComplete(p, t),
+    ) ?? null
+  );
+};
+export const getNextTarget = (
+  data: GuitarAdvancedData,
+  p: Pick<LearningProgress, "completedLessonIds" | "completedExerciseIds" | "lastVisited">,
+  current: LastVisitedContent,
+) => {
+  const sequence = getLearningSequence(data);
+  const i = sequence.findIndex(
+    (t) => t.id === current.id && t.kind === current.kind,
+  );
+  return (
+    sequence.slice(i + 1).find((t) => !isTargetComplete(p, t)) ??
+    getContinueTarget(data, p)
+  );
 };

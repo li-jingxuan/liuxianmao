@@ -1,163 +1,114 @@
 "use client";
-
-import { ArrowRight, BookOpen, RotateCcw } from "lucide-react";
 import Link from "next/link";
-import { useMemo } from "react";
-import type {
-  GuitarAdvancedData,
-  GuitarModule,
-} from "../../lib/guitar-advanced/model";
+import { Button, Progress, Tag } from "antd";
+import type { GuitarAdvancedData } from "../../lib/guitar-advanced/model";
 import {
   getContinueTarget,
   getModuleProgress,
   getOverallProgress,
 } from "../../lib/guitar-advanced/progress";
 import { useGuitarAdvancedStore } from "../../stores/guitar-advanced-store";
-import { ModuleCard } from "./ModuleCard";
-import styles from "./LearningPathOverview.module.scss";
-
-const toHref = (target: { kind: "lesson" | "exercise"; id: string } | null) => {
-  if (!target) return null;
-  return target.kind === "lesson"
-    ? `/guitar-advanced/theory/${target.id}`
-    : `/guitar-advanced/practice/${target.id}`;
-};
-
-const getModuleStatus = (
-  module: GuitarModule,
-  completed: number,
-  total: number,
-): "学习中" | "已完成" | "未开始" | "即将开放" => {
-  if (module.availability === "comingSoon") return "即将开放";
-  if (total > 0 && completed === total) return "已完成";
-  if (completed > 0) return "学习中";
-  return "未开始";
-};
-
-/** 学习总览把内容目录和运行时进度合并为页面所需的只读模型。 */
+import { ExamProgressCard } from "./ExamProgressCard";
+import type { GuitarAdvancedExam } from "../../lib/guitar-advanced/model";
+import styles from "./LearningUi.module.scss";
 export const LearningPathOverview = ({
   data,
+  exam,
 }: {
   data: GuitarAdvancedData;
+  exam: GuitarAdvancedExam;
 }) => {
-  const progress = useGuitarAdvancedStore((state) => state.progress);
-  const clearProgress = useGuitarAdvancedStore((state) => state.clearProgress);
-  const overall = useMemo(
-    () => getOverallProgress(data.modules, progress),
-    [data.modules, progress],
-  );
-  const continueTarget = useMemo(
-    () =>
-      getContinueTarget(data.modules, data.lessons, data.exercises, progress),
-    [data.modules, data.lessons, data.exercises, progress],
-  );
-  const continueHref = toHref(continueTarget);
-  const currentLesson = data.lessons.find(
-    (lesson) => lesson.id === continueTarget?.id,
-  );
-
+  const progress = useGuitarAdvancedStore((s) => s.progress);
+  const overall = getOverallProgress(data.modules, progress),
+    next = getContinueTarget(data, progress);
   return (
     <div className={styles.page}>
-      <header className={styles.pageHeader}>
+      <header className={styles.header}>
         <div>
+          <span className={styles.muted}>进阶基础 · 当前浏览器保存</span>
           <h1>吉他进阶</h1>
-          <p>从读懂节奏，到能把知识用在一段真正的演奏里。</p>
+          <p>读懂节奏，理解和弦，把音阶与技巧连接起来。</p>
         </div>
-        {continueHref ? (
-          <Link className={styles.heroButton} href={continueHref}>
-            继续学习
-            <ArrowRight aria-hidden="true" size={16} />
-          </Link>
-        ) : (
-          <span className={styles.heroComplete}>本版本内容已完成</span>
+        {next && (
+          <Button type="primary" href={next.href}>
+            {next.kind === "exercise" ? "继续练习" : "继续学习"}
+          </Button>
         )}
       </header>
-
       <section
-        className={styles.progressPanel}
-        aria-labelledby="overall-progress-title"
+        className={`${styles.panel} ${styles.summary}`}
+        aria-label="总体学习进度"
       >
-        <div>
-          <span className={styles.eyebrow}>当前阶段 · 进阶基础</span>
-          <h2 id="overall-progress-title">学习进度</h2>
+        <h2>学习进度</h2>
+        <p>
+          已完成 {overall.completed} / {overall.total} 项内容 · 理论{" "}
+          {progress.completedLessonIds.length}/8 · 练习{" "}
+          {progress.completedExerciseIds.length}/6
+        </p>
+        <Progress percent={Math.round(overall.ratio * 100)} />
+        {next ? (
           <p>
-            已完成 {overall.completed} / {overall.total} 项内容
-            {currentLesson ? ` · 下一步：${currentLesson.title}` : ""}
+            下一步：<Link href={next.href}>{next.title}</Link>
           </p>
-        </div>
-        <div className={styles.overallProgress}>
-          <div className={styles.progressTrack}>
-            <span style={{ width: `${overall.ratio * 100}%` }} />
-          </div>
-          <strong>{Math.round(overall.ratio * 100)}%</strong>
-        </div>
-      </section>
-
-      <div className={styles.sectionHeading}>
-        <div>
-          <h2>学习路径</h2>
-          <span>先完成开放模块，再逐步解锁后续内容</span>
-        </div>
-        <button
-          className={styles.resetButton}
-          type="button"
-          onClick={() => {
-            if (
-              window.confirm("清除当前浏览器中的吉他进阶学习记录并重新开始？")
-            )
-              clearProgress();
-          }}
-        >
-          <RotateCcw aria-hidden="true" size={14} />
-          清除本地进度
-        </button>
-      </div>
-
-      <section className={styles.pathGrid} aria-label="学习模块">
-        {data.modules.map((module) => {
-          const moduleProgress = getModuleProgress(module, progress);
-          const status = getModuleStatus(
-            module,
-            moduleProgress.completed,
-            moduleProgress.total,
-          );
-          const firstLesson = data.lessons.find(
-            (lesson) => lesson.moduleId === module.id,
-          );
-          return (
-            <ModuleCard
-              key={module.id}
-              module={module}
-              completed={moduleProgress.completed}
-              total={moduleProgress.total}
-              status={status}
-              targetHref={
-                firstLesson ? `/guitar-advanced/theory/${firstLesson.id}` : null
-              }
-            />
-          );
-        })}
-      </section>
-
-      <aside className={styles.nextStep} aria-label="下一步学习">
-        <div className={styles.nextStepIcon}>
-          <BookOpen aria-hidden="true" size={20} />
-        </div>
-        <div>
-          <span className={styles.eyebrow}>下一步</span>
-          <h2>{currentLesson?.title ?? "完成本版本学习"}</h2>
+        ) : (
           <p>
-            {currentLesson
-              ? "掌握基本时值关系，再进入对应练习。"
-              : "你已经完成当前开放内容，可以等待下一阶段更新。"}
+            理论与练习已完成，可以进入综合考试或从下面的模块重新复习。
           </p>
-        </div>
-        {continueHref ? (
-          <Link className={styles.nextStepButton} href={continueHref}>
-            打开理论
-          </Link>
-        ) : null}
-      </aside>
+        )}
+      </section>
+      <ExamProgressCard data={data} exam={exam} />
+      <h2 id="learning-modules">学习路径</h2>
+      <p className={styles.muted}>四个模块均可自由进入，建议按顺序学习。</p>
+      <section className={styles.cards} aria-label="学习模块">
+        {[...data.modules]
+          .sort((a, b) => a.order - b.order)
+          .map((m) => {
+            const p = getModuleProgress(m, progress);
+            return (
+              <article className={styles.panel} key={m.id}>
+                <div className={styles.row}>
+                  <Tag
+                    color={
+                      p.completed === p.total
+                        ? "success"
+                        : p.completed
+                          ? "processing"
+                          : "default"
+                    }
+                  >
+                    {p.completed === p.total
+                      ? "已完成"
+                      : p.completed
+                        ? "学习中"
+                        : "未开始"}
+                  </Tag>
+                  <span className={styles.muted}>0{m.order}</span>
+                </div>
+                <h2 style={{ marginTop: 16 }}>{m.title}</h2>
+                <p className={styles.muted}>{m.summary}</p>
+                <p>
+                  理论{" "}
+                  {
+                    m.lessonIds.filter((id) =>
+                      progress.completedLessonIds.includes(id),
+                    ).length
+                  }
+                  /{m.lessonIds.length} · 练习{" "}
+                  {
+                    m.exerciseIds.filter((id) =>
+                      progress.completedExerciseIds.includes(id),
+                    ).length
+                  }
+                  /{m.exerciseIds.length}
+                </p>
+                <Progress percent={Math.round(p.ratio * 100)} size="small" />
+                <Button href={`/guitar-advanced/modules/${m.id}`}>
+                  {p.completed === p.total ? "查看复习" : "查看模块"}
+                </Button>
+              </article>
+            );
+          })}
+      </section>
     </div>
   );
 };

@@ -1,5 +1,7 @@
 .shell {
   min-height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
   background: #f4f6fa;
   color: #202838;
 }
@@ -63,14 +65,16 @@
 
 .body {
   display: flex;
-  min-height: calc(100vh - 66px);
+  height: calc(100dvh - 66px);
+  min-height: 0;
 }
 
 .sidebar {
   display: flex;
   flex: 0 0 214px;
   flex-direction: column;
-  min-height: calc(100vh - 66px);
+  min-height: 0;
+  overflow: auto;
   padding: 36px 16px 24px;
   background: #fff;
   border-right: 1px solid #edf0f5;
@@ -122,12 +126,17 @@
 
 .sidebarFooter {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   align-items: flex-start;
   margin-top: auto;
   padding: 14px 8px 0;
   color: #15356d;
   border-top: 1px solid #f0f0f0;
+}
+
+.sidebarFooter > button {
+  width: 100%;
 }
 
 .sidebarFooter div {
@@ -148,9 +157,10 @@
 .main {
   flex: 1;
   min-width: 0;
-  min-height: calc(100vh - 66px);
+  min-height: 0;
   overflow: auto;
-  padding: 42px 50px 64px;
+  scroll-padding-top: 220px;
+  padding: 0 50px 64px;
 }
 
 .storageNotice {
@@ -200,6 +210,11 @@
     display: none;
   }
 
+  .resetLabel,
+  .sidebarFooter > svg {
+    display: none;
+  }
+
   .navigationItem,
   .navigationDisabled {
     justify-content: center;
@@ -213,7 +228,7 @@
   }
 
   .main {
-    padding: 32px 28px 84px;
+    padding: 0 28px 84px;
   }
 }
 

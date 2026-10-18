@@ -11,7 +11,13 @@ const PracticePage = async ({
   const { exerciseId } = await params;
   const exercise = findExercise(GUITAR_ADVANCED_DATA, exerciseId);
   if (!exercise) notFound();
-  return <PracticeQuestion exercise={exercise} />;
+  return (
+    <PracticeQuestion
+      key={exercise.id}
+      exercise={exercise}
+      data={GUITAR_ADVANCED_DATA}
+    />
+  );
 };
 
 export default PracticePage;
