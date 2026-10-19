@@ -1,6 +1,10 @@
 "use client";
-import { Alert, Button, Segmented } from "antd";
-import { DeleteOutlined } from "@ant-design/icons";
+import { Button, Segmented } from "antd";
+import {
+  DeleteOutlined,
+  InfoCircleOutlined,
+  ExclamationCircleOutlined,
+} from "@ant-design/icons";
 import type {
   ILXMDocument,
   ILXMTabCellSelection,
@@ -51,12 +55,11 @@ export const NoteToolDetails = ({
           ? `第 ${tools.focused.index + 1} 小节 · 已选 ${beats.length} 拍`
           : "尚未选择 TAB 拍点"}
       </div>
-      <Alert
-        variant="filled"
-        showIcon
-        type="info"
-        title={
-          !beats.length
+      {/* 选区说明采用紧凑图文，保留状态与操作影响，避免提示卡片挤占操作空间。 */}
+      <p className={styles.selectionTip}>
+        <InfoCircleOutlined aria-hidden="true" />
+        <span>
+          {!beats.length
             ? "尚未选择拍点"
             : rests && rests === beats.length
               ? "当前拍为休止"
@@ -64,10 +67,10 @@ export const NoteToolDetails = ({
                 ? "选区为混合状态"
                 : mixedNotes
                   ? "选区含普通音符与闷音的混合状态"
-                  : "当前拍为音符"
-        }
-        description="休止属于整拍；取消休止不会恢复已清空的原音符。"
-      />
+                  : "当前拍为音符"}
+          。休止属于整拍；取消休止不会恢复已清空的原音符。
+        </span>
+      </p>
       <Button
         type="primary"
         block
@@ -124,13 +127,10 @@ export const NoteToolDetails = ({
       {!tools.rhythm.enabled && (
         <p className={styles.settingsHint}>{tools.rhythm.reason}</p>
       )}
-      <Alert
-        variant="filled"
-        type="warning"
-        showIcon
-        title="从原内容恢复请使用撤销"
-        description="删除只清所选弦；休止清整拍全部弦，取消休止不会恢复原音符。"
-      />
+      <p className={styles.selectionTip}>
+        <ExclamationCircleOutlined aria-hidden="true" />
+        <span>删除只清所选弦；休止清整拍全部弦。恢复原内容请使用撤销。</span>
+      </p>
     </section>
   );
 };

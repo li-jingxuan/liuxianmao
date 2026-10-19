@@ -295,14 +295,6 @@ export const EditorToolbar = ({
         >
           <DeleteOutlined />
         </ToolButton>
-        <Button
-          type="text"
-          aria-label="音符与休止详情"
-          disabled={!!modal}
-          onClick={() => navigate("note")}
-        >
-          详情
-        </Button>
       </div>
       <EditorToolPanelHost
         ref={host}

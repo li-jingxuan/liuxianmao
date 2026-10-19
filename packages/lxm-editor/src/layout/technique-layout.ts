@@ -24,6 +24,7 @@ import {
   LXM_TECHNIQUE_NOTE_CLEARANCE_Y,
   LXM_TECHNIQUE_FRET_GAP_X,
   LXM_TECHNIQUE_CURVE_HEIGHT,
+  LXM_TECHNIQUE_CURVE_FRET_GAP_Y,
   LXM_TECHNIQUE_STAFF_CLEARANCE_Y,
   LXM_FRET_TEXT_FONT_SIZE,
   LXM_FRET_TEXT_BASELINE_OFFSET_Y,
@@ -723,24 +724,27 @@ const createNaturalSegmentLayout = (
         strokeWidth: LXM_TECHNIQUE_PATH_STROKE_WIDTH,
       };
     } else {
-      const curveY = laneY;
-      // 真实首尾端避开完整品位与白色描边；续接端保持在本行 staff 安全边。
-      const fromBounds = from ? getFretTextBounds(from) : null;
-      const toBounds = to ? getFretTextBounds(to) : null;
+      // 弧线在数字中心上方起落；连同线宽避开品位描边，紧凑短音也保留完整跨度。
+      // 只读取本行锚点的上缘，跨行续接继续使用各自谱行的坐标与安全边。
+      const curveY = Math.min(
+        laneY,
+        ...anchorNotes.map(
+          (note) =>
+            getFretTextBounds(note).y -
+            LXM_TECHNIQUE_CURVE_FRET_GAP_Y -
+            LXM_TECHNIQUE_PATH_STROKE_WIDTH / 2,
+        ),
+      );
       const startX =
         candidate.continuation === "none" || candidate.continuation === "toNext"
-          ? fromBounds
-            ? fromBounds.x + fromBounds.width + LXM_TECHNIQUE_FRET_GAP_X
-            : candidate.x1
+          ? (from?.x ?? candidate.x1)
           : candidate.x1;
       const endX =
         candidate.continuation === "none" ||
         candidate.continuation === "fromPrevious"
-          ? toBounds
-            ? toBounds.x - LXM_TECHNIQUE_FRET_GAP_X
-            : candidate.x2
+          ? (to?.x ?? candidate.x2)
           : candidate.x2;
-      // 极短距离退化为零长安全弧线，不生成方向反转的路径。
+      // 非法或重合坐标仍不生成反向路径；合法短音不再被两端字形宽度压成零宽。
       x1 = startX;
       x2 = Math.max(startX, endX);
       path = {
@@ -755,7 +759,10 @@ const createNaturalSegmentLayout = (
           text(
             technique.type === "hammerOn" ? "H" : "P",
             (x1 + x2) / 2,
-            curveY - LXM_TECHNIQUE_NOTE_CLEARANCE_Y,
+            // 标签整体高于曲线控制点及其描边，避免 H/P 的白色描边盖住弧顶。
+            curveY -
+              LXM_TECHNIQUE_CURVE_HEIGHT -
+              LXM_TECHNIQUE_NOTE_CLEARANCE_Y,
           ),
         ];
     }

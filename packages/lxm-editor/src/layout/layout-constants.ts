@@ -37,6 +37,8 @@ export const LXM_TECHNIQUE_HIT_PADDING = 4;
 export const LXM_TECHNIQUE_NOTE_CLEARANCE_Y = 5;
 export const LXM_TECHNIQUE_FRET_GAP_X = 2;
 export const LXM_TECHNIQUE_CURVE_HEIGHT = 6;
+/** 中心锚点弧线与品位完整描边之间的纵向间隔，不侵占音符间的横向空间。 */
+export const LXM_TECHNIQUE_CURVE_FRET_GAP_Y = 2;
 export const LXM_TECHNIQUE_COLLISION_PADDING = 2;
 /** 品位文字与页面白色描边共用同一尺寸契约。 */
 export const LXM_FRET_TEXT_FONT_SIZE = 12;

@@ -5,7 +5,6 @@ import type { ILXMTechnique } from "../../src/core/types";
 import { buildLayout, hitTestTechnique } from "../../src/layout";
 import {
   LXM_TECHNIQUE_CURVE_HEIGHT,
-  LXM_TECHNIQUE_FRET_GAP_X,
   LXM_TECHNIQUE_LANE_HEIGHT,
   LXM_TECHNIQUE_NOTE_CLEARANCE_Y,
 } from "../../src/layout/layout-constants";
@@ -114,15 +113,17 @@ describe("技巧的音符自然锚点", () => {
     });
     expect(offsets[0]).toBeCloseTo(offsets[1]!, 10);
     expect(offsets[0]).toBeGreaterThan(0);
-    // 文字注释需要避开完整品位字形；线型技巧仍保持原来的自然净空。
+    // 中心锚点弧线与文字注释都需高于完整品位字形，其余线型技巧保持自然净空。
     expect(offsets[0]).toBeLessThanOrEqual(
-      type === "tapping" || type === "trill"
+      type === "tapping" ||
+        type === "trill" ||
+        ["tie", "hammerOn", "pullOff"].includes(type)
         ? 18
         : LXM_TECHNIQUE_NOTE_CLEARANCE_Y + 3,
     );
   });
 
-  it.each([3, 12])("Tie 的 %i 品位端点避开完整文字和描边", (fret) => {
+  it.each([3, 12])("Tie 的 %i 品位端点对齐数字中心并高于完整描边", (fret) => {
     const document = createDocument();
     document.score.tracks[0]!.measures[0]!.beats.forEach((beat) =>
       beat.notes.forEach((note) => {
@@ -135,12 +136,11 @@ describe("技巧的音符自然锚点", () => {
     const from = getFretTextBounds(notes[0]!);
     const to = getFretTextBounds(notes[1]!);
     const points = pathCoordinates(layout.systems[0]!.techniques[0]!);
-    expect(points[0]).toBeCloseTo(
-      from.x + from.width + LXM_TECHNIQUE_FRET_GAP_X,
-      10,
-    );
-    expect(points[4]).toBeCloseTo(to.x - LXM_TECHNIQUE_FRET_GAP_X, 10);
-    expect(points[1]).toBe(notes[0]!.y - LXM_TECHNIQUE_NOTE_CLEARANCE_Y);
+    expect(points[0]).toBeCloseTo(notes[0]!.x, 10);
+    expect(points[4]).toBeCloseTo(notes[1]!.x, 10);
+    const halfStroke = layout.systems[0]!.techniques[0]!.path!.strokeWidth / 2;
+    expect(points[1]! + halfStroke).toBeLessThan(from.y);
+    expect(points[5]! + halfStroke).toBeLessThan(to.y);
     expect(points[3]).toBe(points[1]! - LXM_TECHNIQUE_CURVE_HEIGHT);
   });
 
@@ -230,12 +230,14 @@ describe("技巧的音符自然锚点", () => {
             ? "mvp2-note-4-6-6"
             : "mvp2-note-5-1-6";
         const note = notes.find((candidate) => candidate.id === noteId)!;
-        expect(getAnchorY(segment)).toBeCloseTo(
-          note.y -
-            LXM_TECHNIQUE_NOTE_CLEARANCE_Y -
-            segment.lane * LXM_TECHNIQUE_LANE_HEIGHT,
+        const points = pathCoordinates(segment);
+        expect(points[segment.continuation === "toNext" ? 0 : 4]).toBeCloseTo(
+          note.x,
           10,
         );
+        expect(
+          getAnchorY(segment) + segment.path!.strokeWidth / 2,
+        ).toBeLessThan(getFretTextBounds(note).y);
         expect(
           hitTestTechnique(layout, {
             x: segment.bounds.x + segment.bounds.width / 2,

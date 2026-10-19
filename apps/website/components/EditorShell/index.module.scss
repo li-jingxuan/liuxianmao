@@ -971,6 +971,19 @@
   h3 { font-size: 16px; font-weight: 500; margin: 8px 0 0; }
   p { margin: 0; }
 }
+// 图标与首行文字对齐，长提示自然换行，不再使用带背景和内边距的提示卡片。
+.selectionTip {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+  > :global(.anticon) {
+    flex: none;
+    margin-top: 3px;
+  }
+}
 .barlineOptions { display: grid; gap: 14px; }
 .tupletRatioGrid, .techniqueTypeGrid {
   display: grid;
