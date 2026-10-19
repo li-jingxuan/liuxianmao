@@ -139,8 +139,8 @@ describe("技巧的音符自然锚点", () => {
     expect(points[0]).toBeCloseTo(notes[0]!.x, 10);
     expect(points[4]).toBeCloseTo(notes[1]!.x, 10);
     const halfStroke = layout.systems[0]!.techniques[0]!.path!.strokeWidth / 2;
-    expect(points[1]! + halfStroke).toBeLessThan(from.y);
-    expect(points[5]! + halfStroke).toBeLessThan(to.y);
+    expect(points[1]! + halfStroke).toBeCloseTo(from.y, 10);
+    expect(points[5]! + halfStroke).toBeCloseTo(to.y, 10);
     expect(points[3]).toBe(points[1]! - LXM_TECHNIQUE_CURVE_HEIGHT);
   });
 
@@ -231,13 +231,14 @@ describe("技巧的音符自然锚点", () => {
             : "mvp2-note-5-1-6";
         const note = notes.find((candidate) => candidate.id === noteId)!;
         const points = pathCoordinates(segment);
-        expect(points[segment.continuation === "toNext" ? 0 : 4]).toBeCloseTo(
-          note.x,
-          10,
+        const endpoint = points[segment.continuation === "toNext" ? 0 : 4]!;
+        // 中心被相邻弦字形占据时只允许局部内收，仍贴近原音符并保持原弦高度。
+        expect(Math.abs(endpoint - note.x)).toBeLessThanOrEqual(
+          getFretTextBounds(note).width / 2 + 1.6 + 1e-9,
         );
         expect(
           getAnchorY(segment) + segment.path!.strokeWidth / 2,
-        ).toBeLessThan(getFretTextBounds(note).y);
+        ).toBeLessThanOrEqual(getFretTextBounds(note).y + 1e-10);
         expect(
           hitTestTechnique(layout, {
             x: segment.bounds.x + segment.bounds.width / 2,

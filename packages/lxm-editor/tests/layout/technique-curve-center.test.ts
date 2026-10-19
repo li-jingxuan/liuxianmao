@@ -106,7 +106,7 @@ const points = (segment: ILXMTechniqueSegmentLayout): number[] =>
 
 describe("技巧弧线中心锚点", () => {
   it.each(curveTypes)(
-    "%s 跨行只将真实端点对齐数字中心，续接端保留谱行安全边",
+    "%s 跨行端点局部避让相邻弦，续接端保留谱行安全边",
     (type) => {
       const document = structuredClone(source);
       const track = document.score.tracks[0]!;
@@ -146,10 +146,13 @@ describe("技巧弧线中心锚点", () => {
             )!;
           const p = points(segment);
           const trueEndpoint = segment.continuation === "toNext" ? 0 : 4;
-          expect(p[trueEndpoint]).toBeCloseTo(note.x, 10);
+          // 相邻弦占住中心时端点可内收，但不能脱离本拍字形附近，更不能改变弦归属。
+          expect(Math.abs(p[trueEndpoint]! - note.x)).toBeLessThanOrEqual(
+            getFretTextBounds(note).width / 2 + 1.6 + 1e-9,
+          );
           expect(p[4]! - p[0]!).toBeGreaterThan(0);
-          expect(p[1]! + segment.path!.strokeWidth / 2).toBeLessThan(
-            getFretTextBounds(note).y,
+          expect(p[1]! + segment.path!.strokeWidth / 2).toBeLessThanOrEqual(
+            getFretTextBounds(note).y + 1e-10,
           );
           if (trueEndpoint === 0) {
             expect(p[4]).toBeCloseTo(
@@ -177,8 +180,8 @@ describe("技巧弧线中心锚点", () => {
     },
   );
 
-  it("中心锚点不会改变音符横坐标、小节宽度或断行", () => {
-    const document = createDocument("hammerOn", "eighth", 12, 1, 8);
+  it("无标签且无相邻弦障碍的延音线不增加横向占位", () => {
+    const document = createDocument("tie", "eighth", 12, 1, 8);
     const withoutTechnique = structuredClone(document);
     withoutTechnique.score.tracks[0]!.techniques = [];
     const horizontal = (input: ILXMDocument) =>
@@ -234,9 +237,11 @@ describe("技巧弧线中心锚点", () => {
               expect(p[0]).toBeCloseTo(from!.x, 10);
               expect(p[4]).toBeCloseTo(to!.x, 10);
               for (const note of [from!, to!]) {
-                expect(p[1]! + segment.path!.strokeWidth / 2).toBeLessThan(
-                  getFretTextBounds(note).y,
-                );
+                const gap =
+                  getFretTextBounds(note).y -
+                  (p[1]! + segment.path!.strokeWidth / 2);
+                expect(gap).toBeGreaterThanOrEqual(-1e-10);
+                if (segment.lane === 0) expect(gap).toBeCloseTo(0, 10);
               }
               // H/P 文字连同白色描边须完整高于弧线控制点包围框。
               if (type !== "tie") {

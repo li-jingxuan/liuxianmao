@@ -22,6 +22,7 @@ import {
   CustomerServiceOutlined,
   DeleteOutlined,
   FileTextOutlined,
+  PlusOutlined,
   SettingOutlined,
 } from "@ant-design/icons";
 import {
@@ -80,6 +81,7 @@ export interface MusicTextController {
   navigateTool: (destination: ToolNavigation) => SelectionRequestResult;
   /** 输出前只读检查草稿，不自动提交或取消用户输入。 */
   isOutputBlocked: () => boolean;
+  isNumberedActionBlocked: () => boolean;
   open: (target: MusicTextTarget) => void;
   select: (
     selection: ILXMTabCellSelection | null,
@@ -93,6 +95,7 @@ export const MusicTextSidebar = ({
   ref,
   onOpen,
   onEditingChange,
+  onNumberedActionBlockedChange,
   onTargetChange,
   onScoreFocus,
   onScoreSelection,
@@ -105,6 +108,7 @@ export const MusicTextSidebar = ({
   executeTool?: EditorCommandAdapter;
   onOpen: () => void;
   onEditingChange: (editing: boolean) => void;
+  onNumberedActionBlockedChange: (blocked: boolean) => void;
   onTargetChange: (target: MusicTextTarget | null) => void;
   onScoreFocus: () => void;
   onScoreSelection: (
@@ -195,6 +199,15 @@ export const MusicTextSidebar = ({
     numberedInputActive ||
     !!pending ||
     (!!draft && (inputEditing || musicTextDraftValue(draft) !== draft.initial));
+  const numberedActionBlocked =
+    numberedDirty ||
+    visibleNumberedDrafts.size > 0 ||
+    !!pending ||
+    settingsDirty ||
+    (!!draft && musicTextDraftValue(draft) !== draft.initial);
+  useEffect(() => {
+    onNumberedActionBlockedChange(numberedActionBlocked);
+  }, [numberedActionBlocked, onNumberedActionBlockedChange]);
   const target = draft?.target ?? selection?.focus;
   const track = target
     ? score?.score.tracks.find((t) => t.id === target.trackId)
@@ -388,6 +401,7 @@ export const MusicTextSidebar = ({
         onScoreSelection(nextSelection, null);
         loadTarget({ ...nextSelection.focus, kind: "chord" });
       } else {
+        current.setNumberedSelection(null);
         setDraft(null);
         setNumberedTarget(null);
         setActiveObject(null);
@@ -427,13 +441,17 @@ export const MusicTextSidebar = ({
               ? { beatId: action.target.beatId }
               : {}),
           });
-      } else loadTarget(action.target, draft?.lyricMode, action.focus);
+      } else {
+        current.setNumberedSelection(null);
+        loadTarget(action.target, draft?.lyricMode, action.focus);
+      }
     } else if (action.type === "numberedMode") {
       setNumberedMode(action.mode);
     } else if (action.type === "mode") {
       if (draft) loadTarget(draft.target, action.mode);
     } else if (action.kind === "chord" && current.selection?.focus) {
       // 已选拍点切到和弦页签时直接读取该拍和弦并进入编辑态。
+      current.setNumberedSelection(null);
       loadTarget({ ...current.selection.focus, kind: "chord" });
     } else {
       // 页签只展示工具，保留谱面对象；显式输入／编辑按钮才加载文字草稿。
@@ -444,7 +462,10 @@ export const MusicTextSidebar = ({
       focusDestination.current = "score";
       setKind(action.kind);
       if (action.kind === "numbered") paragraphKind.current = "numbered";
-      if (action.kind === "lyric") paragraphKind.current = "lyric";
+      if (action.kind === "lyric") {
+        paragraphKind.current = "lyric";
+        current.setNumberedSelection(null);
+      }
     }
     return true;
   };
@@ -586,6 +607,12 @@ export const MusicTextSidebar = ({
           : editorStore.getState().selection,
     });
   useImperativeHandle(ref, () => ({
+    isNumberedActionBlocked: () =>
+      !!pending ||
+      !!numberedRef.current?.dirty ||
+      numberedDrafts.current.size > 0 ||
+      !!settingsRef.current?.dirty ||
+      (!!draft && musicTextDraftValue(draft) !== draft.initial),
     isOutputBlocked: () =>
       composing.current ||
       !!settingsRef.current?.isComposing() ||
@@ -1110,12 +1137,6 @@ export const MusicTextSidebar = ({
           </section>}
         </div>
         {propertyTab === "paragraph" && (
-          <div className={styles.sidebarActions}>
-            <Button onClick={() => addParagraph("lyric")}>添加歌词行</Button>
-            <Button onClick={() => addParagraph("numbered")}>添加简谱行</Button>
-          </div>
-        )}
-        {propertyTab === "paragraph" && (
           <Segmented
             block
             aria-label="段落内容"
@@ -1264,7 +1285,29 @@ export const MusicTextSidebar = ({
                 </div>
               ) : kind === "lyric" ? (
                 <section className={styles.sidebarSection}>
-                  <h3>歌词设置</h3>
+                  <div className={styles.sectionHeading}>
+                    <h3>歌词设置</h3>
+                    <Button
+                      type="text"
+                      shape="circle"
+                      icon={<PlusOutlined />}
+                      aria-label="添加歌词行"
+                      title="添加歌词行"
+                      onClick={() => addParagraph("lyric")}
+                    />
+                  </div>
+                  <Checkbox
+                    checked={draft.allowOverwrite}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        allowOverwrite: e.target.checked,
+                      })
+                    }
+                  >
+                    允许替换预览中标记的已有歌词（{plan?.overwrites ?? 0}{" "}
+                    项）
+                  </Checkbox>
                   <div className={styles.propertyGrid}>
                     <Form.Item
                       layout="vertical"
@@ -1339,47 +1382,8 @@ export const MusicTextSidebar = ({
                           }}
                         />
                       </Form.Item>
-                      <div
-                        id="lyric-sequence-tips"
-                        className={styles.sidebarTip}
-                      >
-                        <strong>连续填词规则</strong>
-                        <p>
-                          用空格分词，每项依次对应一拍，休止拍也占一格。多个空格按一个分隔处理。
-                        </p>
-                        <p>
-                          用 <code>_</code> 跳过一拍并保留原歌词，例如{" "}
-                          <code>风 _ 过</code>。
-                        </p>
-                        <p>
-                          英文短句按空格拆词；要把 <code>a song</code>{" "}
-                          放在同一拍，请切到单拍编辑。
-                        </p>
-                        <p>
-                          先核对下方对应预览，再应用全部。默认允许替换已有歌词，可取消下方勾选以保留原词。
-                        </p>
-                        <details>
-                          <summary>详细规则</summary>
-                          半角与全角空格均可分隔，首尾空格忽略；仅独立 _
-                          表示跳过。每项最多 64 字，每批最多 256 拍。
-                          不接受换行或制表符；谱尾位置不足时整批拒绝；整批可一次撤销。
-                        </details>
-                      </div>
-                      <Checkbox
-                        checked={draft.allowOverwrite}
-                        onChange={(e) =>
-                          setDraft({
-                            ...draft,
-                            allowOverwrite: e.target.checked,
-                          })
-                        }
-                      >
-                        允许替换预览中标记的已有歌词（{plan?.overwrites ?? 0}{" "}
-                        项）
-                      </Checkbox>
                       {plan && (
                         <div className={styles.sequencePreview}>
-                          <h4>对应预览 · 写入 {plan.changes} 项</h4>
                           <table>
                             <thead>
                               <tr>
@@ -1427,6 +1431,33 @@ export const MusicTextSidebar = ({
                           </table>
                         </div>
                       )}
+
+                      <div
+                        id="lyric-sequence-tips"
+                        className={styles.sidebarTip}
+                      >
+                        <strong>连续填词规则</strong>
+                        <p>
+                          用空格分词，每项依次对应一拍，休止拍也占一格。多个空格按一个分隔处理。
+                        </p>
+                        <p>
+                          用 <code>_</code> 跳过一拍并保留原歌词，例如{" "}
+                          <code>风 _ 过</code>。
+                        </p>
+                        <p>
+                          英文短句按空格拆词；要把 <code>a song</code>{" "}
+                          放在同一拍，请切到单拍编辑。
+                        </p>
+                        <p>
+                          先核对下方对应预览，再应用全部。默认允许替换已有歌词，可取消下方勾选以保留原词。
+                        </p>
+                        <details>
+                          <summary>详细规则</summary>
+                          半角与全角空格均可分隔，首尾空格忽略；仅独立 _
+                          表示跳过。每项最多 64 字，每批最多 256 拍。
+                          不接受换行或制表符；谱尾位置不足时整批拒绝；整批可一次撤销。
+                        </details>
+                      </div>
                     </>
                   ) : (
                     <>

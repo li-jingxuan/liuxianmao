@@ -3,7 +3,7 @@
  *
  * 外部只调用 layoutTrackTechniques(track, baseSystems)。Module 内部完成四件事：
  * 1. 把领域技巧解析为当前自动断行下的 system segment；
- * 2. 对自然几何按二维碰撞范围分配向上的 lane；
+ * 2. 弧线保留目标弦位，其他技巧按二维碰撞范围分配向上的 lane；
  * 3. 统一下移 staff 正文并重新排列后续 system；
  * 4. 输出页面可直接渲染的 SVG path、文字与命中 bounds。
  *
@@ -48,6 +48,11 @@ import {
   translateTechniqueSegment,
   withTechniqueBounds,
 } from "./technique-geometry";
+import {
+  isAnchoredCurve,
+  placeAnchoredCurve,
+  techniqueInkIntersects,
+} from "./technique-curve-placement";
 import {
   chordTraversalOffset,
   TECHNIQUE_BEND_RISE,
@@ -392,7 +397,7 @@ const createCandidates = (
   });
 };
 
-/** 稳定二维 first-fit；每次向上移动完整自然 plan，直到避开已放置图形和品位文字。 */
+/** 弧线固定端点并局部避让；其它技巧使用稳定二维 first-fit 分配向上 lane。 */
 const assignLanes = (
   candidates: ILXMTechniqueCandidate[],
   naturalPlans: Map<ILXMTechniqueCandidate, ILXMTechniqueSegmentLayout>,
@@ -410,10 +415,23 @@ const assignLanes = (
       left.segmentIndex - right.segmentIndex
     );
   });
+  // 以路径真实端点 Y 排序，不能用含 H/P 标签的包围框上缘推断弦位。
+  const curveY = (candidate: ILXMTechniqueCandidate) =>
+    Number(naturalPlans.get(candidate)!.path!.d.split(" ")[2]);
   // 先登记固定的 staffLocal 障碍，避免遍历顺序让后加入的泛音/扫弦撞到局部技巧。
   [
     ...ordered.filter((candidate) => candidate.staffLocal),
-    ...ordered.filter((candidate) => !candidate.staffLocal),
+    // 弧线优先按弦的自然 Y 从上到下放置，避免技巧 ID/添加顺序决定互相抬升。
+    ...ordered
+      .filter(
+        (candidate) =>
+          !candidate.staffLocal && isAnchoredCurve(candidate.technique),
+      )
+      .sort((a, b) => curveY(a) - curveY(b) || a.x1 - b.x1),
+    ...ordered.filter(
+      (candidate) =>
+        !candidate.staffLocal && !isAnchoredCurve(candidate.technique),
+    ),
   ].forEach((candidate) => {
     const natural = naturalPlans.get(candidate)!;
     const placed = segmentsBySystem.get(candidate.systemIndex) ?? [];
@@ -455,11 +473,12 @@ const assignLanes = (
       lane > 0
         ? translateTechniqueSegment(natural, -lane * LXM_TECHNIQUE_LANE_HEIGHT)
         : natural;
-    if (!candidate.staffLocal) {
+    if (isAnchoredCurve(technique)) {
+      segment = placeAnchoredCurve(natural, obstacles, placed);
+      lane = 0;
+    } else if (!candidate.staffLocal) {
       while (
-        placed.some((other) =>
-          boundsIntersect(segment.collisionBounds, other.collisionBounds),
-        ) ||
+        placed.some((other) => techniqueInkIntersects(segment, other)) ||
         obstacles.some((bounds) =>
           boundsIntersect(segment.collisionBounds, bounds),
         )

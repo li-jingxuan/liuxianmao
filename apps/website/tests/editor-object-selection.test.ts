@@ -126,6 +126,8 @@ describe("谱面对象选择与文字页签解耦", () => {
     document.score.tracks[0]!.measures[0]!.lyrics = [];
     const layout = buildLayout(document, {
       systemWidth: A4_CONTENT_WIDTH,
+      // 空位属于编辑态，不能依赖恰好同谱行的其它小节歌词撑出占位。
+      purpose: "editing",
       paragraphEditing: { ...target, kind: "lyric", verse: 1 },
     });
     const bounds = layout.systems[0]!.musicTextCells!.find(

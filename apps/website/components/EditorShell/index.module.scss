@@ -370,6 +370,7 @@
 }
 .propertyGrid {
   display: grid;
+  margin-top: 12px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   column-gap: 16px;
 }
@@ -582,6 +583,9 @@
     width: 100%;
     border-collapse: collapse;
   }
+  h3{
+    font-weight: 600;
+  }
   th,
   td {
     padding: 6px;
@@ -758,7 +762,7 @@
   margin-left: auto;
   color: var(--muted);
   font-size: 11px;
-  max-width: 230px;
+  max-width: 250px;
 }
 .viewSettings {
   display: grid;
@@ -1014,4 +1018,122 @@
   display: flex; align-items: center; justify-content: center;
   width: 100%; min-height: 40px; height: auto;
   white-space: normal;
+}
+
+/** 简谱编辑紧凑表单：优先并列短字段，狭窄容器自动回到单列。 */
+.numberedLocationGrid,
+.numberedRangeGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 8px;
+  min-width: 0;
+  > * {
+    min-width: 0;
+  }
+}
+.numberedReuseScope {
+  margin: 10px 0 6px;
+  padding: 7px 10px;
+  border-radius: 5px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  font-size: 12px;
+  line-height: 18px;
+}
+.numberedDisclosure {
+  margin: 8px 0 12px;
+  border-radius: 6px;
+  background: var(--panel-muted);
+  summary {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 9px 12px;
+    color: var(--text);
+    cursor: pointer;
+    font-weight: 500;
+    list-style-position: inside;
+    span {
+      overflow: hidden;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 400;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    &:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
+    }
+  }
+  > fieldset,
+  > .sidebarActions {
+    margin: 10px 12px 12px;
+  }
+}
+.numberedInputLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.numberedHelpTrigger {
+  display: inline-grid;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  &:hover,
+  &:focus-visible,
+  &[aria-expanded="true"] {
+    color: var(--primary);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 1px;
+  }
+}
+.numberedHelp {
+  max-width: 280px;
+  p {
+    margin: 0 0 8px;
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+}
+.numberedInlineTip {
+  margin: -4px 0 10px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+@container score-editor (width < 600px) {
+  .numberedLocationGrid,
+  .numberedRangeGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.numberedRhythmGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+.numberedCustomRhythm {
+  :global(.ant-form-item-control-input-content) {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+}
+@container score-editor (width < 600px) {
+  .numberedRhythmGrid,
+  .numberedCustomRhythm :global(.ant-form-item-control-input-content) {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

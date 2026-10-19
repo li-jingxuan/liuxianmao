@@ -7,6 +7,9 @@ import {
   LXM_TECHNIQUE_ARROW_WIDTH,
   LXM_TECHNIQUE_FRET_GAP_X,
   LXM_TECHNIQUE_TEXT_FONT_SIZE,
+  LXM_TECHNIQUE_TEXT_HALO_WIDTH,
+  LXM_TECHNIQUE_CURVE_WING_WIDTH,
+  LXM_TECHNIQUE_CURVE_INK_GAP,
 } from "./layout-constants";
 import { getTextBounds } from "./technique-geometry";
 
@@ -53,6 +56,10 @@ export const techniqueLabelWidth = (label: string): number =>
     fontSize: LXM_TECHNIQUE_TEXT_FONT_SIZE,
     textAnchor: "start",
   }).width;
+
+/** 击/勾弦标签与最终 SVG 共用字号和描边，断行前就预留完整可见宽度。 */
+export const curveLabelWidth = (label: "H" | "P"): number =>
+  techniqueLabelWidth(label) + LXM_TECHNIQUE_TEXT_HALO_WIDTH * 2;
 
 /** 范围内有 x 时，将扫弦/琶音放在字形左侧，尺寸与断行占位共用。 */
 export const chordTraversalOffset = (
@@ -135,6 +142,45 @@ export const buildTechniqueInsets = (
       naturalNotes.has(target.note.id),
     );
     const start = half + LXM_TECHNIQUE_FRET_GAP_X;
+    if (t.type === "hammerOn" || t.type === "pullOff" || t.type === "tie") {
+      const end = notes.get(t.toNoteId);
+      if (!end) continue;
+      // 标签位于两音中心；两侧都必须容纳同拍最宽品位，不能只测目标弦。
+      const beatHalf = (beatId: string) =>
+        Math.max(
+          0,
+          ...(beats.get(beatId)?.notes ?? []).map((note) =>
+            fretHalfWidth(note.fret, naturalNotes.has(note.id)),
+          ),
+        );
+      const labelWidth =
+        t.type === "tie"
+          ? 0
+          : curveLabelWidth(t.type === "hammerOn" ? "H" : "P");
+      const crowded = [target, end].some(({ note, beatId }) =>
+        beats.get(beatId)?.notes.some((n) => n.string === note.string - 1),
+      );
+      if (t.type === "tie" && !crowded) continue;
+      // 相邻弦已有数字时，弧线端点局部内收；预留标签及两段弧翼的真实空间。
+      const labelHalf = crowded
+        ? (labelWidth +
+            2 * LXM_TECHNIQUE_CURVE_WING_WIDTH +
+            2 * LXM_TECHNIQUE_CURVE_INK_GAP -
+            4) /
+          2
+        : labelWidth / 2;
+      reserve(
+        target.beatId,
+        beatHalf(target.beatId),
+        beatHalf(target.beatId) + labelHalf,
+      );
+      reserve(
+        end.beatId,
+        beatHalf(end.beatId) + labelHalf,
+        beatHalf(end.beatId),
+      );
+      continue;
+    }
     const markerRadius = Math.max(
       LXM_TECHNIQUE_ARROW_WIDTH,
       LXM_TECHNIQUE_ARROW_HEIGHT,

@@ -1,5 +1,6 @@
 "use client";
-import { Button, Checkbox, Form, Input, Select } from "antd";
+import { Button, Checkbox, Form, Input, Popover, Select } from "antd";
+import { QuestionCircleOutlined } from "@ant-design/icons";
 
 import {
   useEffect,
@@ -215,6 +216,17 @@ export const NumberedEditor = ({
     ),
     [destination, setDestination] = useState(savedDraft?.destination ?? "");
   const [message, setMessage] = useState<string | null>(null);
+  // 折叠与帮助开关是纯界面状态，不进入简谱草稿或曲谱文档。
+  const [rangeState, setRangeState] = useState<{
+    targetId: string;
+    expanded: boolean;
+  } | null>(null);
+  const rangeExpanded = rangeState?.targetId === selectedId
+    ? rangeState.expanded
+    : !selectedId;
+  const [advancedExpanded, setAdvancedExpanded] = useState(false);
+  const [reuseExpanded, setReuseExpanded] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [pending, setPending] = useState<{
     operation: ILXMNumberedVoiceCommand;
     document: ILXMDocument;
@@ -509,27 +521,24 @@ export const NumberedEditor = ({
       }}
     >
       <h3>简谱编辑</h3>
-      <Form.Item
-        layout="vertical"
-        label="录入方式"
-        htmlFor={"editor-field-" + "简谱录入方式"}
-      >
-        <Select
-          id={"editor-field-" + "简谱录入方式"}
-          aria-label="简谱录入方式"
-          value={mode}
-          onChange={(value) => onModeChange(value as typeof mode)}
-          style={{ width: "100%" }}
-          options={[
-            { value: "sequence", label: "连续录入" },
-            { value: "single", label: "单音组编辑" },
-          ]}
-        />
-      </Form.Item>
       {!resolved || !measure || !track ? (
-        <p>请选中简谱音符，或从六线谱选拍建立录入窗口</p>
+        <>
+          <p>请选中简谱音符，或从六线谱选拍建立录入窗口</p>
+          <Form.Item layout="vertical" label="录入方式">
+            <Select
+              aria-label="简谱录入方式"
+              value={mode}
+              onChange={(value) => onModeChange(value as typeof mode)}
+              options={[
+                { value: "sequence", label: "连续录入" },
+                { value: "single", label: "单音组编辑" },
+              ]}
+            />
+          </Form.Item>
+        </>
       ) : (
         <>
+          <div className={styles.numberedLocationGrid}>
           <Form.Item
             layout="vertical"
             label="当前简谱事件"
@@ -579,6 +588,78 @@ export const NumberedEditor = ({
               ]}
             />
           </Form.Item>
+          <Form.Item
+            layout="vertical"
+            label="录入方式"
+            htmlFor="editor-field-简谱录入方式"
+          >
+            <Select
+              id="editor-field-简谱录入方式"
+              aria-label="简谱录入方式"
+              value={mode}
+              onChange={(value) => onModeChange(value as typeof mode)}
+              options={[
+                { value: "sequence", label: "连续录入" },
+                { value: "single", label: "单音组编辑" },
+              ]}
+            />
+          </Form.Item>
+          </div>
+          <Form.Item
+            layout="vertical"
+            label={
+              <span className={styles.numberedInputLabel}>
+                {mode === "sequence" ? "连续简谱" : "单音组简谱"}
+                <Popover
+                  open={helpOpen}
+                  onOpenChange={setHelpOpen}
+                  trigger="click"
+                  placement="left"
+                  content={
+                    <div className={styles.numberedHelp}>
+                      <p>空格分隔先后音，+ 表示同时发音；休止拍可用 _ 表示。</p>
+                      <p>高音用 &apos;，低音用 .，还原号用 n。简谱时值与技巧独立于六线谱。</p>
+                      <p>先检查预览；覆盖默认关闭，窗口不合法时需修正输入后再应用。</p>
+                    </div>
+                  }
+                >
+                  <button
+                    type="button"
+                    className={styles.numberedHelpTrigger}
+                    aria-label="简谱输入规则"
+                    aria-expanded={helpOpen}
+                    onKeyDown={(event) => {
+                      if (event.key === "Escape") setHelpOpen(false);
+                    }}
+                  >
+                    <QuestionCircleOutlined />
+                  </button>
+                </Popover>
+              </span>
+            }
+            htmlFor={
+              "editor-field-" +
+              (mode === "sequence" ? "连续简谱" : "单音组简谱")
+            }
+          >
+            <Input.TextArea
+              id={
+                "editor-field-" +
+                (mode === "sequence" ? "连续简谱" : "单音组简谱")
+              }
+              ref={(control) => {
+                input.current = control?.resizableTextArea?.textArea ?? null;
+              }}
+              aria-label={mode === "sequence" ? "连续简谱" : "单音组简谱"}
+              rows={2}
+              value={raw}
+              onChange={(e) => setRaw(e.target.value)}
+              placeholder="1 2 3；同时多音用 1+3+5"
+            />
+          </Form.Item>
+          <p className={styles.numberedInlineTip}>
+            空格分先后音，+ 同时发音 · &apos;高音 · .低音 · n还原
+          </p>
           <Form.Item
             layout="vertical"
             label="节奏模板"
@@ -634,8 +715,9 @@ export const NumberedEditor = ({
             parsed.items.map((_, i) => (
               <Form.Item
                 key={i}
+                className={styles.numberedCustomRhythm}
                 layout="vertical"
-                label={<>第{i + 1}音时值</>}
+                label={<>第{i + 1} 音时值</>}
                 htmlFor={"editor-field-" + `简谱第${i + 1}音时值`}
               >
                 <Select
@@ -683,6 +765,7 @@ export const NumberedEditor = ({
                 />
               </Form.Item>
             ))}
+          <div className={styles.numberedRhythmGrid}>
           <Form.Item
             layout="vertical"
             label="简谱时值"
@@ -717,6 +800,16 @@ export const NumberedEditor = ({
               ]}
             />
           </Form.Item>
+          </div>
+          <details
+            className={styles.numberedDisclosure}
+            open={rangeExpanded}
+            onToggle={(event) => setRangeState({ targetId: selectedId, expanded: event.currentTarget.open })}
+          >
+            <summary>
+              录入范围 <span>起点 {formatNumberedBeatPosition(start, measure.timeSignature.denominator)} · 当前窗口</span>
+            </summary>
+          <div className={styles.numberedRangeGrid}>
           <Form.Item
             layout="vertical"
             label="录入起点"
@@ -792,33 +885,8 @@ export const NumberedEditor = ({
               ]}
             />
           </Form.Item>
-          <Form.Item
-            layout="vertical"
-            label={mode === "sequence" ? "连续简谱" : "单音组简谱"}
-            htmlFor={
-              "editor-field-" +
-              (mode === "sequence" ? "连续简谱" : "单音组简谱")
-            }
-          >
-            <Input.TextArea
-              id={
-                "editor-field-" +
-                (mode === "sequence" ? "连续简谱" : "单音组简谱")
-              }
-              ref={(control) => {
-                input.current = control?.resizableTextArea?.textArea ?? null;
-              }}
-              aria-label={mode === "sequence" ? "连续简谱" : "单音组简谱"}
-              rows={4}
-              value={raw}
-              onChange={(e) => setRaw(e.target.value)}
-              placeholder="1 2 3；同时多音用 1+3+5"
-            />
-          </Form.Item>
-          <p className={styles.sidebarTip}>
-            空格分先后音，+ 表示同时发音。时值与技巧独立于六线谱；高音用
-            &apos;，低音用 .，还原号用 n。
-          </p>
+          </div>
+          </details>
           <Checkbox
             checked={overwrite}
             onChange={(e) => setOverwrite(e.target.checked)}
@@ -840,7 +908,7 @@ export const NumberedEditor = ({
                 .join(" · ")}
             </p>
           )}
-          {issue && raw.trim() && <p role="status">{issue}</p>}
+          {issue && <p role="status">{issue}</p>}
           <div className={styles.sidebarActions}>
             <Button
               disabled={!event}
@@ -865,9 +933,16 @@ export const NumberedEditor = ({
               应用
             </Button>
           </div>
+          <details
+            className={styles.numberedDisclosure}
+            open={advancedExpanded}
+            onToggle={(toggleEvent) => setAdvancedExpanded(toggleEvent.currentTarget.open)}
+          >
+            <summary>
+              音符技巧 <span>时值、音高、连接</span>
+            </summary>
           {event && (
             <fieldset>
-              <legend>简谱时值与技巧</legend>
               {rhythmPlan?.ok &&
                 (base !== event.rhythm.base || dots !== event.rhythm.dots) && (
                   <p>
@@ -1093,6 +1168,20 @@ export const NumberedEditor = ({
               </Button>
             </fieldset>
           )}
+          </details>
+          <details
+            className={styles.numberedDisclosure}
+            open={reuseExpanded}
+            onToggle={(toggleEvent) => setReuseExpanded(toggleEvent.currentTarget.open)}
+          >
+            <summary>
+              范围复用 <span>复制、覆盖、插入、合并</span>
+            </summary>
+          <div className={styles.numberedReuseScope} role="status">
+            作用范围：{formatNumberedBeatPosition(start, measure.timeSignature.denominator)} – {formatNumberedBeatPosition(end, measure.timeSignature.denominator)} · {measure.numberedVoice.events.filter((candidate) => candidate.kind === "notes" && candidate.tick >= start && candidate.tick < end).length} 个音符
+          </div>
+          {!getClipboard() && <p className={styles.settingsHint}>请先复制一个简谱范围，之后可覆盖或插入到当前起点。</p>}
+          {getClipboard() && <p className={styles.settingsHint}>剪贴板时长：{getClipboard()!.totalTicks} tick</p>}
           <div className={styles.sidebarActions}>
             <Button
               onClick={() => {
@@ -1114,6 +1203,7 @@ export const NumberedEditor = ({
             {(["overwrite", "insert"] as const).map((pasteMode) => (
               <Button
                 key={pasteMode}
+                disabled={!getClipboard() || (pasteMode === "overwrite" && !overwrite)}
                 onClick={() => {
                   const clipboard = getClipboard();
                   if (!clipboard) {
@@ -1251,6 +1341,7 @@ export const NumberedEditor = ({
                 </Button>
               </p>
             ))}
+          </details>
         </>
       )}
       <dialog

@@ -75,6 +75,63 @@ const getPathPoints = (d: string): [number, number][] => {
   return points;
 };
 
+/** 弧线逐段使用子曲线控制点凸包，避免把控制点和标签间的空白算成墨迹。 */
+export const getTechniqueInkBounds = (
+  segment: Pick<ILXMTechniqueSegmentLayout, "path" | "texts" | "arrowHead">,
+): Rect[] => {
+  const rects = segment.texts.map((label) =>
+    getTextBounds(label, LXM_TECHNIQUE_TEXT_HALO_WIDTH),
+  );
+  if (!segment.path) {
+    if (segment.arrowHead) rects.push(pointsBounds(segment.arrowHead.points));
+    return rects;
+  }
+  if (segment.path.markerEnd || segment.arrowHead) {
+    rects.push(getTechniqueVisualBounds(segment.path, [], segment.arrowHead));
+    return rects;
+  }
+  const tokens = pathTokens(segment.path.d);
+  let point: [number, number] = [0, 0];
+  for (let i = 0; i < tokens.length; ) {
+    const command = tokens[i++]!;
+    const end: [number, number] = [Number(tokens[i++]), Number(tokens[i++])];
+    if (command === "Q") {
+      const control = end;
+      const last: [number, number] = [Number(tokens[i++]), Number(tokens[i++])];
+      const at = (t: number): [number, number] => [
+        (1 - t) ** 2 * point[0] +
+          2 * t * (1 - t) * control[0] +
+          t * t * last[0],
+        (1 - t) ** 2 * point[1] +
+          2 * t * (1 - t) * control[1] +
+          t * t * last[1],
+      ];
+      for (let step = 0; step < 16; step++) {
+        const t0 = step / 16,
+          t1 = (step + 1) / 16;
+        const a = at(t0),
+          b = at(t1),
+          middle = at((t0 + t1) / 2);
+        const c: [number, number] = [
+          2 * middle[0] - (a[0] + b[0]) / 2,
+          2 * middle[1] - (a[1] + b[1]) / 2,
+        ];
+        rects.push(
+          padBounds(pointsBounds([a, c, b]), segment.path.strokeWidth / 2),
+        );
+      }
+      point = last;
+    } else {
+      if (command === "L")
+        rects.push(
+          padBounds(pointsBounds([point, end]), segment.path.strokeWidth / 2),
+        );
+      point = end;
+    }
+  }
+  return rects;
+};
+
 /** 只平移已生成路径中的 Y，避免扩高后重新执行模板而产生不同锚点。 */
 const translatePath = (d: string, dy: number): string => {
   let coordinateIndex = 0;

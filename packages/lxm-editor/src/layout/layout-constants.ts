@@ -37,8 +37,13 @@ export const LXM_TECHNIQUE_HIT_PADDING = 4;
 export const LXM_TECHNIQUE_NOTE_CLEARANCE_Y = 5;
 export const LXM_TECHNIQUE_FRET_GAP_X = 2;
 export const LXM_TECHNIQUE_CURVE_HEIGHT = 6;
-/** 中心锚点弧线与品位完整描边之间的纵向间隔，不侵占音符间的横向空间。 */
-export const LXM_TECHNIQUE_CURVE_FRET_GAP_Y = 2;
+/** 弧线垂直净空调节处：0 表示外缘贴近品位白色描边上缘；增大此值会抬高弧线。 */
+export const LXM_TECHNIQUE_CURVE_FRET_GAP_Y = 0;
+/** 密集和弦内嵌 H/P 时使用 8px，使字形连同描边可容纳于 12px 弦距。 */
+export const LXM_TECHNIQUE_INLINE_TEXT_FONT_SIZE = 8;
+/** 内嵌标签左右仍保留可辨认的弧线，不将整段弧线压缩成文字。 */
+export const LXM_TECHNIQUE_CURVE_WING_WIDTH = 4;
+export const LXM_TECHNIQUE_CURVE_INK_GAP = 1;
 export const LXM_TECHNIQUE_COLLISION_PADDING = 2;
 /** 品位文字与页面白色描边共用同一尺寸契约。 */
 export const LXM_FRET_TEXT_FONT_SIZE = 12;
