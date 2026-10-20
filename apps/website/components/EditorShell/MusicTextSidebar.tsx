@@ -22,16 +22,11 @@ import {
   CustomerServiceOutlined,
   DeleteOutlined,
   FileTextOutlined,
-  PlusOutlined,
   SettingOutlined,
 } from "@ant-design/icons";
 import {
   Button,
-  Checkbox,
-  Form,
-  Input,
   Segmented,
-  Select,
   Tabs,
   type TabsProps,
 } from "antd";
@@ -51,6 +46,7 @@ import {
   useEditorStore,
 } from "../../stores/editor-store";
 import { ChordEditor } from "./ChordEditor";
+import { LyricFormView, type LyricDraft } from "./LyricFormView";
 import { shouldIgnoreMusicTextKey } from "./music-text-interaction";
 import {
   readMusicTextDraft,
@@ -67,7 +63,10 @@ import {
 } from "./editor-object-selection";
 import styles from "./index.module.scss";
 import { useEditorDraftRecords } from "./EditorSessionRuntime";
-import { captureEditorVersion } from "./editor-session-version";
+import {
+  captureEditorVersion,
+  type EditorSessionVersion,
+} from "./editor-session-version";
 import type { EditorDraftRecord } from "./editor-draft-coordinator";
 
 import type { ToolNavigation } from "./editor-tool-catalog";
@@ -150,6 +149,10 @@ export const MusicTextSidebar = ({
   );
   const numberedRef = useRef<NumberedEditorController>(null);
   const numberedDrafts = useRef(new Map<string, NumberedEditorDraft>());
+  // 每个暂存目标绑定创建时的会话版本；普通重渲染或其他分组提交不能刷新它。
+  const numberedDraftVersions = useRef(
+    new Map<string, EditorSessionVersion>(),
+  );
   const numberedDraftTargets = useRef(new Map<string, MusicTextTarget>());
   const [visibleNumberedDrafts, setVisibleNumberedDrafts] = useState<
     ReadonlyMap<string, NumberedEditorDraft>
@@ -167,6 +170,7 @@ export const MusicTextSidebar = ({
   const settingsRef = useRef<ScoreSettingsController>(null);
   const [settingsDirty, setSettingsDirty] = useState(false);
   const [draft, setDraft] = useState<MusicTextDraft | null>(null);
+  const draftVersion = useRef<EditorSessionVersion | null>(null);
   const [pending, setPending] = useState<SidebarAction | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -304,6 +308,7 @@ export const MusicTextSidebar = ({
     mode = draft?.lyricMode ?? "sequence",
     focus: "score" | "input" = "input",
   ) => {
+    const nextVersion = captureEditorVersion(editorStore.getState());
     const value = readMusicTextDraft(
       editorStore.getState().document,
       next,
@@ -314,6 +319,8 @@ export const MusicTextSidebar = ({
     setPending(null);
     setMessage(value ? null : "目标拍已失效，请重新选择。");
     setDraft(value);
+    // 歌词/和弦草稿的基线固定在进入目标的快照，不随其他分组的提交移动。
+    draftVersion.current = value ? nextVersion : null;
     setNumberedTarget(null);
     setActiveObject(value ? value.target : null);
     setKind(next.kind);
@@ -370,6 +377,7 @@ export const MusicTextSidebar = ({
         numberedRef.current?.discard();
         if (activeNumberedDraftKey) {
           numberedDrafts.current.delete(activeNumberedDraftKey);
+          numberedDraftVersions.current.delete(activeNumberedDraftKey);
           setVisibleNumberedDrafts(new Map(numberedDrafts.current));
         }
       }
@@ -378,7 +386,9 @@ export const MusicTextSidebar = ({
       setNumberedPreview(null);
     }
     if (action.type === "tool") {
-      setDraft(null); setNumberedTarget(null); setActiveObject(null); setInputEditing(false);
+      setDraft(null);
+      draftVersion.current = null;
+      setNumberedTarget(null); setActiveObject(null); setInputEditing(false);
       setKind("score"); setMessage(null); focusDestination.current = "score";
       setDetailTarget(action.target);
       if (action.destination === "section" || action.destination === "copy") {
@@ -410,6 +420,7 @@ export const MusicTextSidebar = ({
       } else {
         current.setNumberedSelection(null);
         setDraft(null);
+        draftVersion.current = null;
         setNumberedTarget(null);
         setActiveObject(null);
         setInputEditing(false);
@@ -424,6 +435,7 @@ export const MusicTextSidebar = ({
       settingsRef.current?.discard();
       if (action.target.kind === "numbered") {
         setDraft(null);
+        draftVersion.current = null;
         setMessage(null);
         setKind("numbered");
         setPropertyTab("paragraph");
@@ -440,7 +452,13 @@ export const MusicTextSidebar = ({
           resolveNumberedEditorTarget(current.document, action.target);
         current.setNumberedSelection(resolved);
         current.setSelectedNumberedMarkId(action.numberedMarkId ?? null);
-        if (resolved)
+        if (resolved) {
+          const key = numberedDraftKey(resolved);
+          if (!numberedDraftVersions.current.has(key))
+            numberedDraftVersions.current.set(
+              key,
+              captureEditorVersion(current),
+            );
           setNumberedTarget({
             ...resolved,
             kind: "numbered",
@@ -448,6 +466,7 @@ export const MusicTextSidebar = ({
               ? { beatId: action.target.beatId }
               : {}),
           });
+        }
       } else {
         current.setNumberedSelection(null);
         loadTarget(action.target, draft?.lyricMode, action.focus);
@@ -463,6 +482,7 @@ export const MusicTextSidebar = ({
     } else {
       // 页签只展示工具，保留谱面对象；显式输入／编辑按钮才加载文字草稿。
       setDraft(null);
+      draftVersion.current = null;
       setNumberedTarget(null);
       setInputEditing(false);
       setMessage(null);
@@ -590,6 +610,10 @@ export const MusicTextSidebar = ({
           numberedTarget,
         );
         numberedDrafts.current.set(activeNumberedDraftKey, snapshot);
+        numberedDraftVersions.current.set(
+          activeNumberedDraftKey,
+          captureEditorVersion(editorStore.getState()),
+        );
         setVisibleNumberedDrafts(new Map(numberedDrafts.current));
         if (!suppressSwitchNotice) setSwitchNotice(numberedTarget);
       } else setSwitchNotice(null);
@@ -649,11 +673,13 @@ export const MusicTextSidebar = ({
       editorStore.subscribe((state) => {
         if (state.document !== baseline.current && !committing.current) {
           numberedDrafts.current.clear();
+          numberedDraftVersions.current.clear();
           numberedDraftTargets.current.clear();
           setVisibleNumberedDrafts(new Map());
           setSwitchNotice(null);
           setSuppressSwitchNotice(false);
           setDraft(null);
+          draftVersion.current = null;
           setPending(null);
           setActiveObject(null);
           setNumberedTarget(null);
@@ -721,10 +747,13 @@ export const MusicTextSidebar = ({
       const result = editorStore.getState().execute(command);
       if (result?.ok) {
         baseline.current = result.document;
-        if (activeNumberedDraftKey) {
-          numberedDrafts.current.delete(activeNumberedDraftKey);
-          setVisibleNumberedDrafts(new Map(numberedDrafts.current));
-        }
+        // 只有当前 owner 的成功提交才推进它的版本；其他分组的草稿保持原基线。
+        if (command.type.startsWith("numbered.") && activeNumberedDraftKey)
+          numberedDraftVersions.current.set(
+            activeNumberedDraftKey,
+            captureEditorVersion(editorStore.getState()),
+          );
+        else draftVersion.current = captureEditorVersion(editorStore.getState());
         setSwitchNotice(null);
         if (result.nextNumberedFocus) {
           setNumberedTarget({ kind: "numbered", ...result.nextNumberedFocus });
@@ -811,7 +840,8 @@ export const MusicTextSidebar = ({
   // 每个简谱草稿按独立目标登记；暂存草稿只能回原编辑器处理，不能批量自动应用。
   useEditorDraftRecords(() => {
     const records: EditorDraftRecord[] = [];
-    const version = captureEditorVersion(editorStore.getState());
+    const currentVersion = captureEditorVersion(editorStore.getState());
+    const version = draftVersion.current ?? currentVersion;
     if (
       draft &&
       (musicTextDraftValue(draft) !== draft.initial ||
@@ -842,6 +872,7 @@ export const MusicTextSidebar = ({
               draft.lyricMode,
             ),
           );
+          draftVersion.current = captureEditorVersion(editorStore.getState());
           return true;
         },
       });
@@ -861,7 +892,9 @@ export const MusicTextSidebar = ({
         composing: compositionActive,
         canApply: numberedCanApply && !pending,
         error: null,
-        version,
+        version:
+          numberedDraftVersions.current.get(activeNumberedDraftKey) ??
+          currentVersion,
         focus: () => {
           numberedRef.current?.focus();
           return !!numberedRef.current;
@@ -876,6 +909,7 @@ export const MusicTextSidebar = ({
           if (composing.current || pending) return false;
           numberedRef.current?.discard();
           numberedDrafts.current.delete(activeNumberedDraftKey);
+          numberedDraftVersions.current.delete(activeNumberedDraftKey);
           numberedDraftTargets.current.delete(activeNumberedDraftKey);
           setVisibleNumberedDrafts(new Map(numberedDrafts.current));
           return true;
@@ -894,13 +928,15 @@ export const MusicTextSidebar = ({
         composing: false,
         canApply: false,
         error: null,
-        version,
+        version:
+          numberedDraftVersions.current.get(key) ?? currentVersion,
         focus: () =>
           !!savedTarget &&
           request({ type: "target", target: savedTarget }) === "accepted",
         apply: () => "blocked",
         discard: () => {
           numberedDrafts.current.delete(key);
+          numberedDraftVersions.current.delete(key);
           numberedDraftTargets.current.delete(key);
           setVisibleNumberedDrafts(new Map(numberedDrafts.current));
           return true;
@@ -1234,6 +1270,20 @@ export const MusicTextSidebar = ({
                   });
               }}
               onCanApply={setNumberedCanApply}
+              onApplied={() => {
+                if (activeNumberedDraftKey)
+                  numberedDraftVersions.current.set(
+                    activeNumberedDraftKey,
+                    captureEditorVersion(editorStore.getState()),
+                  );
+              }}
+              onDiscarded={() => {
+                if (activeNumberedDraftKey)
+                  numberedDraftVersions.current.set(
+                    activeNumberedDraftKey,
+                    captureEditorVersion(editorStore.getState()),
+                  );
+              }}
             />
           </div>
         )}
@@ -1284,214 +1334,38 @@ export const MusicTextSidebar = ({
                   </Button>
                 </div>
               ) : kind === "lyric" ? (
-                <section className={styles.sidebarSection}>
-                  <div className={styles.sectionHeading}>
-                    <h3>歌词设置</h3>
-                    <Button
-                      type="text"
-                      shape="circle"
-                      icon={<PlusOutlined />}
-                      aria-label="添加歌词行"
-                      title="添加歌词行"
-                      onClick={() => addParagraph("lyric")}
-                    />
-                  </div>
-                  <Checkbox
-                    checked={draft.allowOverwrite}
-                    onChange={(e) =>
-                      setDraft({
-                        ...draft,
-                        allowOverwrite: e.target.checked,
-                      })
-                    }
-                  >
-                    允许替换预览中标记的已有歌词（{plan?.overwrites ?? 0}{" "}
-                    项）
-                  </Checkbox>
-                  <div className={styles.propertyGrid}>
-                    <Form.Item
-                      layout="vertical"
-                      label="录入方式"
-                      htmlFor={"editor-field-" + "歌词录入方式"}
-                    >
-                      <Select
-                        id={"editor-field-" + "歌词录入方式"}
-                        aria-label="歌词录入方式"
-                        value={draft.lyricMode}
-                        onChange={(value) =>
-                          request({
-                            type: "mode",
-                            mode: value as MusicTextDraft["lyricMode"],
-                          })
-                        }
-                        style={{ width: "100%" }}
-                        options={[
-                          { value: "single", label: "单拍编辑" },
-                          { value: "sequence", label: "连续填词" },
-                        ]}
-                      />
-                    </Form.Item>
-                    <Form.Item
-                      layout="vertical"
-                      label="段号"
-                      htmlFor={"editor-field-" + "歌词段号"}
-                    >
-                      <Select
-                        id={"editor-field-" + "歌词段号"}
-                        aria-label="歌词段号"
-                        value={draft.target.verse}
-                        onChange={(value) =>
-                          request({
-                            type: "target",
-                            target: {
-                              ...draft.target,
-                              verse: value as ILXMLyricVerse,
-                            },
-                          })
-                        }
-                        style={{ width: "100%" }}
-                        options={[1, 2, 3, 4].map((value) => ({
-                          value,
-                          label: `第 ${value} 段`,
-                        }))}
-                      />
-                    </Form.Item>
-                  </div>
-                  {sequence ? (
-                    <>
-                      <Form.Item
-                        layout="vertical"
-                        label="连续歌词"
-                        htmlFor={"editor-field-" + "连续歌词"}
-                      >
-                        <Input.TextArea
-                          id={"editor-field-" + "连续歌词"}
-                          ref={(control) => {
-                            sequenceInputRef.current =
-                              control?.resizableTextArea?.textArea ?? null;
-                          }}
-                          aria-label="连续歌词"
-                          aria-describedby="lyric-sequence-tips"
-                          rows={4}
-                          placeholder="例如：风 吹 _ 过 山 谷"
-                          value={draft.text}
-                          onChange={(e) => {
-                            setDraft({ ...draft, text: e.target.value });
-                            setInspection(0);
-                            setMessage(null);
-                          }}
-                        />
-                      </Form.Item>
-                      {plan && (
-                        <div className={styles.sequencePreview}>
-                          <table>
-                            <thead>
-                              <tr>
-                                <th>位置</th>
-                                <th>原词 → 新词</th>
-                                <th>操作</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {plan.rows.map((row) => (
-                                <tr
-                                  key={row.index}
-                                  aria-selected={inspection === row.index}
-                                >
-                                  <td>
-                                    <Button
-                                      disabled={!row.target}
-                                      onClick={() => setInspection(row.index)}
-                                    >
-                                      {row.target
-                                        ? `${row.measureNumber} 小节 / ${row.beatNumber} 拍${row.rest ? "（休止）" : ""}`
-                                        : `第 ${row.index + 1} 项（超出谱尾）`}
-                                    </Button>
-                                  </td>
-                                  <td>
-                                    {row.previous ?? "空"} →{" "}
-                                    {row.item.kind === "skip"
-                                      ? "保留原词"
-                                      : row.item.text}
-                                  </td>
-                                  <td>
-                                    {
-                                      {
-                                        add: "新增",
-                                        change: "覆盖",
-                                        same: "未变化",
-                                        skip: "跳过",
-                                        error: "错误",
-                                      }[row.status]
-                                    }
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-
-                      <div
-                        id="lyric-sequence-tips"
-                        className={styles.sidebarTip}
-                      >
-                        <strong>连续填词规则</strong>
-                        <p>
-                          用空格分词，每项依次对应一拍，休止拍也占一格。多个空格按一个分隔处理。
-                        </p>
-                        <p>
-                          用 <code>_</code> 跳过一拍并保留原歌词，例如{" "}
-                          <code>风 _ 过</code>。
-                        </p>
-                        <p>
-                          英文短句按空格拆词；要把 <code>a song</code>{" "}
-                          放在同一拍，请切到单拍编辑。
-                        </p>
-                        <p>
-                          先核对下方对应预览，再应用全部。默认允许替换已有歌词，可取消下方勾选以保留原词。
-                        </p>
-                        <details>
-                          <summary>详细规则</summary>
-                          半角与全角空格均可分隔，首尾空格忽略；仅独立 _
-                          表示跳过。每项最多 64 字，每批最多 256 拍。
-                          不接受换行或制表符；谱尾位置不足时整批拒绝；整批可一次撤销。
-                        </details>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <Form.Item
-                        layout="vertical"
-                        label="歌词"
-                        htmlFor={"editor-field-" + "歌词文本"}
-                      >
-                        <Input
-                          id={"editor-field-" + "歌词文本"}
-                          ref={(control) => {
-                            inputRef.current = control?.input ?? null;
-                          }}
-                          aria-label="歌词文本"
-                          value={draft.text}
-                          onChange={(e) => {
-                            setDraft({ ...draft, text: e.target.value });
-                            setMessage(null);
-                          }}
-                        />
-                      </Form.Item>
-                      {existing ? (
-                        <small>将修改已有歌词。</small>
-                      ) : (
-                        <small>此拍暂无第 {draft.target.verse} 段歌词。</small>
-                      )}
-                      <div className={styles.sidebarTip}>
-                        Enter 应用并下一拍；Shift+Enter 仅应用。
-                        <br />
-                        每拍单行，支持第 1–4 段歌词。
-                      </div>
-                    </>
-                  )}
-                </section>
+                <LyricFormView
+                  draft={draft as LyricDraft}
+                  sequence={sequence}
+                  plan={plan}
+                  issue={issue}
+                  inspection={inspection}
+                  existing={existing}
+                  inputRef={(control) => {
+                    inputRef.current = control?.input ?? null;
+                  }}
+                  sequenceInputRef={(control) => {
+                    sequenceInputRef.current =
+                      control?.resizableTextArea?.textArea ?? null;
+                  }}
+                  onTextChange={(text) => {
+                    setDraft({ ...draft, text });
+                    setInspection(0);
+                    setMessage(null);
+                  }}
+                  onModeChange={(mode) => request({ type: "mode", mode })}
+                  onVerseChange={(verse) =>
+                    request({
+                      type: "target",
+                      target: { ...draft.target, verse },
+                    })
+                  }
+                  onAllowOverwriteChange={(allowOverwrite) =>
+                    setDraft({ ...draft, allowOverwrite })
+                  }
+                  onInspectionChange={setInspection}
+                  onAddParagraph={() => addParagraph("lyric")}
+                />
               ) : (
                 <ChordEditor
                   inputRef={(element) => {

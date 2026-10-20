@@ -92,6 +92,8 @@ export const NumberedEditor = ({
   onPreviewTargetChange,
   onActivate,
   onCanApply,
+  onApplied,
+  onDiscarded,
   mode,
   onModeChange,
   onCancel,
@@ -111,6 +113,9 @@ export const NumberedEditor = ({
   onPreviewTargetChange: (t: MusicTextTarget | null) => void;
   onActivate: (focusInput?: boolean) => void;
   onCanApply: (v: boolean) => void;
+  /** 成功/取消后由外层推进该目标的会话版本，不刷新其他分组草稿。 */
+  onApplied?: () => void;
+  onDiscarded?: () => void;
   getClipboard: () => NumberedClipboard | null;
   copyRange: (range: NumberedClipboardRange) => boolean;
   mode: "single" | "sequence";
@@ -490,6 +495,7 @@ export const NumberedEditor = ({
         message: r?.message ?? "当前无法应用简谱修改。",
       };
     acknowledgeGroup(group, op);
+    onApplied?.();
     setMessage(r.changed ? "已应用" : "内容未变化");
     return { status: r.changed ? "applied" : "noop", group };
   };
@@ -628,6 +634,7 @@ export const NumberedEditor = ({
     setRatioIndex(1);
     setItemDraft(event?.items.find((i) => i.id === itemId)?.token ?? "");
     onInputActive(false);
+    onDiscarded?.();
   };
   useImperativeHandle(ref, () => ({
     canApply:
@@ -1544,6 +1551,7 @@ export const NumberedEditor = ({
                 });
                 if (result?.ok) {
                   acknowledgeGroup(pending.group, pending.operation);
+                  onApplied?.();
                   setPending(null);
                   setMessage(result.changed ? "已应用" : "内容未变化");
                 }
