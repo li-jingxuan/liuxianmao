@@ -1,0 +1,21 @@
+{
+  "recordedDate": "2026-10-17",
+  "cases": [
+    {
+      "name": "200% 原生缩放更多工具溢出",
+      "repro": "node artifacts/ui-phase2-20261017/zoom-smoke.mts",
+      "viewport": { "width": 720, "height": 406 },
+      "originalPopup": { "top": 186, "bottom": 464.5 },
+      "shiftOnlyPopup": { "top": 133, "bottom": 411.5 },
+      "cause": "bottomLeft 默认不纵向平移；正向 popup offset 在平移后仍保留边距。",
+      "fix": "公开 align overflow 开启平移；使用 targetOffset 定位真实入口，popup offset 保持0。"
+    },
+    {
+      "name": "粘贴弹层 Tab 焦点逃逸",
+      "repro": "browser-smoke.mts 粘贴预览跨768/1440后连续Tab",
+      "observedActiveElement": "BODY",
+      "cause": "末控件的原生Tab可进入浏览器工具栏而不触发页面focusin，不能只依赖框架focusin恢复。",
+      "fix": "Modal可见控件首尾主动处理Tab/Shift+Tab，其余控件键盘行为保持。"
+    }
+  ]
+}

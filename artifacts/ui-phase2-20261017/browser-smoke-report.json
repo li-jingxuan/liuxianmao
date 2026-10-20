@@ -1,0 +1,162 @@
+{
+  "testedAt": "2026-10-16T17:31:38.532Z",
+  "url": "http://127.0.0.1:3103/",
+  "checks": [
+    {
+      "name": "音符、休止、闷音、删除与附点经真实入口提交并撤销",
+      "details": true
+    },
+    {
+      "name": "六类边界、谱尾禁用、边界提交与撤销",
+      "details": true
+    },
+    {
+      "name": "粘贴Modal跨宽窄窗口保留确认，Tab焦点始终受约束",
+      "details": true
+    },
+    {
+      "name": "复制实际谱层、源连接遗漏、取消零修改与覆盖影响一次撤销",
+      "details": true
+    },
+    {
+      "name": "完整三连音选区、候选选择零提交及删除撤销",
+      "details": true
+    },
+    {
+      "name": "5:4与5:3真实比例切换，选择候选零修改",
+      "details": true
+    },
+    {
+      "name": "连音容量失败保留完整文档且零历史",
+      "details": true
+    },
+    {
+      "name": "16类选择取消/交接零修改，参数与DOM跨断点保持",
+      "details": true
+    },
+    {
+      "name": "更多搜索/空态/Enter定位/Esc及合成IME隔离，品位计时输入被取消",
+      "details": true
+    },
+    {
+      "name": "Select Esc只关候选，第二次Esc关闭工具",
+      "details": true
+    },
+    {
+      "name": "07-01_1280并列",
+      "details": {
+        "x": 789,
+        "y": 114,
+        "right": 1083,
+        "bottom": 624.34375,
+        "w": 1280,
+        "h": 800
+      }
+    },
+    {
+      "name": "07-02_1024上下分区",
+      "details": {
+        "x": 20,
+        "y": 150,
+        "right": 314,
+        "bottom": 660.34375,
+        "w": 1024,
+        "h": 768
+      }
+    },
+    {
+      "name": "07-03_650低高度",
+      "details": {
+        "x": 703,
+        "y": 114,
+        "right": 997,
+        "bottom": 624.34375,
+        "w": 1280,
+        "h": 650
+      }
+    },
+    {
+      "name": "打开Select时跨899/900和1199/1200，候选及唯一工具宿主保持",
+      "details": true
+    },
+    {
+      "name": "编辑器容器899/900与1199/1200边界",
+      "details": [
+        {
+          "width": 899,
+          "measured": 899,
+          "rect": {
+            "x": 695,
+            "y": 150,
+            "right": 1040,
+            "bottom": 460,
+            "w": 1440,
+            "h": 900
+          }
+        },
+        {
+          "width": 900,
+          "measured": 900,
+          "rect": {
+            "x": 278,
+            "y": 150,
+            "right": 670,
+            "bottom": 395.140625,
+            "w": 1440,
+            "h": 900
+          }
+        },
+        {
+          "width": 1199,
+          "measured": 1199,
+          "rect": {
+            "x": 961,
+            "y": 114,
+            "right": 1353,
+            "bottom": 359.140625,
+            "w": 1440,
+            "h": 900
+          }
+        },
+        {
+          "width": 1200,
+          "measured": 1200,
+          "rect": {
+            "x": 961,
+            "y": 114,
+            "right": 1353,
+            "bottom": 359.140625,
+            "w": 1440,
+            "h": 900
+          }
+        }
+      ]
+    },
+    {
+      "name": "保护导航继续/放弃/应用三分支及原歌曲字段可见聚焦",
+      "details": true
+    },
+    {
+      "name": "技巧添加/更新/删除及推弦、辅助品位、方向参数实际提交",
+      "details": true
+    },
+    {
+      "name": "简谱A/B草稿恢复、TAB专用工具隔离及文件/图片输出阻断",
+      "details": true
+    },
+    {
+      "name": "歌词连续提交、和弦预设、文件往返及A4 PNG生成下载烟测",
+      "details": true
+    },
+    {
+      "name": "浏览器pageerror为0",
+      "details": true
+    }
+  ],
+  "errors": [],
+  "consoleIssues": [],
+  "ignoredConsoleIssues": [
+    "http://127.0.0.1:3103/favicon.ico: Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ],
+  "browser": "155.0.8059.80"
+}

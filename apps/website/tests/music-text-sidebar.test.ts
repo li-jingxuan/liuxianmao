@@ -8,6 +8,10 @@ import {
   resolveSidebarRequest,
   type MusicTextTarget,
 } from "../components/EditorShell/music-text-draft";
+import {
+  resolveParagraphInsertionTarget,
+  resolveSystemMeasureIds,
+} from "../components/EditorShell/music-text-target";
 
 const fixture = () => {
   const document = structuredClone(EXAMPLE_MVP_6_DOCUMENT);
@@ -126,5 +130,40 @@ describe("音乐文本侧栏草稿保护", () => {
     expect(resolveSidebarRequest(draft, { type: "close" })).toBe("execute");
     expect(readMusicTextDraft(document, target, "sequence")?.text).toBe("春");
     expect(readMusicTextDraft(document, target, "single")?.text).toBe("春");
+  });
+});
+
+describe("内容行入口目标解析", () => {
+  it("优先使用其他轨道上的有效目标，不错误回退到首轨", () => {
+    const { document } = fixture();
+    const secondTrack = structuredClone(document.score.tracks[0]!);
+    secondTrack.id = "track-2";
+    secondTrack.measures[0]!.id = "measure-2";
+    secondTrack.measures[0]!.beats[0]!.id = "beat-2";
+    document.score.tracks.push(secondTrack);
+    const target = resolveParagraphInsertionTarget(document, {
+      trackId: "track-2",
+      measureId: "measure-2",
+      beatId: "beat-2",
+      string: 4,
+      kind: "lyric",
+      verse: 1,
+    });
+    expect(target).toEqual({
+      trackId: "track-2",
+      measureId: "measure-2",
+      beatId: "beat-2",
+      string: 4,
+    });
+  });
+
+  it("系统测量列表为空或缺少目标小节时保留目标小节", () => {
+    expect(resolveSystemMeasureIds("measure-2", () => [])).toEqual([
+      "measure-2",
+    ]);
+    expect(resolveSystemMeasureIds("measure-2", () => ["measure-1"])).toEqual([
+      "measure-2",
+      "measure-1",
+    ]);
   });
 });

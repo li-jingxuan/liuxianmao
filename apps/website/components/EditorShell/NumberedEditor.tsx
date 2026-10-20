@@ -34,16 +34,29 @@ import {
   formatNumberedBeatPosition,
 } from "./numbered-editor-target";
 import styles from "./index.module.scss";
+import {
+  buildNumberedPreviewRows,
+  type NumberedPreviewRow,
+} from "./numbered-preview";
 export interface NumberedEditorController {
   canApply: boolean;
   dirty: boolean;
+  /** 简谱属性按内容、时值和单 item 音高分组，避免一个 boolean 掩盖未提交字段。 */
+  dirtyGroups: readonly NumberedDraftGroup[];
   apply: () => boolean;
+  applyGroup: (group: NumberedDraftGroup) => NumberedPropertyApplyResult;
   discard: () => void;
   focus: () => void;
   snapshot: () => NumberedEditorDraft;
 }
+export type NumberedDraftGroup = "content" | "rhythm" | "itemPitch";
+export type NumberedPropertyApplyResult =
+  | { status: "applied" | "noop"; group: NumberedDraftGroup }
+  | { status: "blocked" | "pending"; group: NumberedDraftGroup; message: string };
 /** 切换简谱目标时暂存纯 UI 输入，不提前写入曲谱或撤销历史。 */
 export interface NumberedEditorDraft {
+  /** 暂存草稿自己的录入方式，不能被全局当前模式覆盖。 */
+  mode?: "single" | "sequence";
   selectedId: string;
   start: number;
   end: number;
@@ -229,6 +242,7 @@ export const NumberedEditor = ({
   const [helpOpen, setHelpOpen] = useState(false);
   const [pending, setPending] = useState<{
     operation: ILXMNumberedVoiceCommand;
+    group: NumberedDraftGroup;
     document: ILXMDocument;
     removed: string[];
     changed: string[];
@@ -362,6 +376,13 @@ export const NumberedEditor = ({
         : null,
     [document, track, operation],
   );
+  const previewRows = useMemo<NumberedPreviewRow[]>(
+    () =>
+      plan?.ok && track && operation
+        ? buildNumberedPreviewRows(track, plan, operation)
+        : [],
+    [track, plan, operation],
+  );
   const issue = !parsed.ok
     ? parsed.message
     : mode === "single" && parsed.items.length !== 1
@@ -369,11 +390,15 @@ export const NumberedEditor = ({
       : plan && !plan.ok
         ? plan.message
         : null;
+  const contentDirty =
+    raw !== initial ||
+    overwrite ||
+    template !== "uniform" ||
+    start !== window.start ||
+    end !== window.end ||
+    customRhythms.length > 0 ||
+    ratioIndex !== 1;
   useEffect(() => onDirty(dirty || !!pending), [dirty, pending, onDirty]);
-  useEffect(
-    () => onCanApply(!!operation && !issue),
-    [operation, issue, onCanApply],
-  );
   useEffect(
     () =>
       onPreviewTargetChange(
@@ -398,8 +423,38 @@ export const NumberedEditor = ({
     [resolved, event, itemId, start, end, onPreviewTargetChange],
   );
   /** 影响确认与动作一同提交，不能先删除技巧再写音符。 */
-  const submit = (op: ILXMNumberedVoiceCommand): boolean => {
-    if (!track) return false;
+  const inferGroup = (
+    op: ILXMNumberedVoiceCommand,
+  ): NumberedDraftGroup => {
+    if (op.type === "numbered.event.setRhythm") return "rhythm";
+    if (op.type === "numbered.event.set" && "itemId" in op && op.itemId)
+      return "itemPitch";
+    return "content";
+  };
+  const acknowledgeGroup = (
+    group: NumberedDraftGroup,
+    op?: ILXMNumberedVoiceCommand,
+  ) => {
+    // 自身命令成功后只推进实际提交分组的基线，避免稳定 owner 保留旧 dirty 状态。
+    if (group === "content") {
+      setInitial(raw);
+      setOverwrite(false);
+      // 模板、比例和自定义时值是一次提交的准备态，提交后回到干净默认值。
+      setTemplate("uniform");
+      setCustomRhythms([]);
+      setRatioIndex(1);
+      if (op?.type === "numbered.range.replace") {
+        setStart(op.startTick);
+        setEnd(op.endTick);
+      }
+    }
+  };
+  const submit = (
+    op: ILXMNumberedVoiceCommand,
+    group = inferGroup(op),
+  ): NumberedPropertyApplyResult => {
+    if (!track)
+      return { status: "blocked", group, message: "当前简谱目标已失效。" };
     const candidate = editNumberedTrack(
       track,
       op,
@@ -408,7 +463,7 @@ export const NumberedEditor = ({
     );
     if (!candidate.ok) {
       setMessage(candidate.message);
-      return false;
+      return { status: "blocked", group, message: candidate.message };
     }
     if (
       op.type !== "numbered.mark.remove" &&
@@ -416,20 +471,28 @@ export const NumberedEditor = ({
     ) {
       setPending({
         operation: op,
+        group,
         document,
         removed: candidate.removedMarkIds,
         changed: candidate.changedMarkIds,
       });
-      return false;
+      return {
+        status: "pending",
+        group,
+        message: "等待确认简谱技巧影响。",
+      };
     }
     const r = commit({ ...op, expectedRevision: document.documentRevision });
-    if (!r?.ok) return false;
-    setInitial(raw);
-    setOverwrite(false);
+    if (!r?.ok)
+      return {
+        status: "blocked",
+        group,
+        message: r?.message ?? "当前无法应用简谱修改。",
+      };
+    acknowledgeGroup(group, op);
     setMessage(r.changed ? "已应用" : "内容未变化");
-    return true;
+    return { status: r.changed ? "applied" : "noop", group };
   };
-  const apply = () => !!operation && !issue && submit(operation);
   const rhythmOperation = useMemo<ILXMNumberedVoiceCommand | null>(
     () =>
       event && track && measure
@@ -455,6 +518,95 @@ export const NumberedEditor = ({
         : null,
     [rhythmOperation, track, document],
   );
+  const rhythmDirty =
+    !!event &&
+    (base !== event.rhythm.base || dots !== event.rhythm.dots);
+  const itemPitchValue = event?.items.find((item) => item.id === itemId)?.token ?? "";
+  const itemPitchDirty = !!event && !!itemId && itemDraft !== itemPitchValue;
+  const itemPitchOperation = useMemo<ILXMNumberedVoiceCommand | null>(() => {
+    if (!track || !measure || !event || !itemId) return null;
+    const parsedItem = parseNumberedSequence(itemDraft);
+    if (
+      !parsedItem.ok ||
+      parsedItem.items.length !== 1 ||
+      parsedItem.items[0]?.kind !== "set" ||
+      parsedItem.items[0].tokens.length !== 1
+    )
+      return null;
+    return {
+      type: "numbered.event.set",
+      trackId: track.id,
+      measureId: measure.id,
+      eventId: event.id,
+      itemId,
+      tokens: parsedItem.items[0].tokens,
+    };
+  }, [track, measure, event, itemId, itemDraft]);
+  const itemPitchIssue = itemPitchDirty && !itemPitchOperation
+    ? "请选择一个合法简谱音高"
+    : null;
+  const dirtyGroups = useMemo<readonly NumberedDraftGroup[]>(
+    () => [
+      ...(contentDirty ? (["content"] as const) : []),
+      ...(rhythmDirty ? (["rhythm"] as const) : []),
+      ...(itemPitchDirty ? (["itemPitch"] as const) : []),
+    ],
+    [contentDirty, rhythmDirty, itemPitchDirty],
+  );
+  const canApplyByGroup = useMemo<Record<NumberedDraftGroup, boolean>>(
+    () => ({
+      content: contentDirty && !!operation && !issue,
+      rhythm: rhythmDirty && !!rhythmOperation && !!rhythmPlan?.ok,
+      itemPitch: itemPitchDirty && !!itemPitchOperation && !itemPitchIssue,
+    }),
+    [
+      contentDirty,
+      operation,
+      issue,
+      rhythmDirty,
+      rhythmOperation,
+      rhythmPlan,
+      itemPitchDirty,
+      itemPitchOperation,
+      itemPitchIssue,
+    ],
+  );
+  const applyGroup = (group: NumberedDraftGroup): NumberedPropertyApplyResult => {
+    if (!dirtyGroups.includes(group)) return { status: "noop", group };
+    if (group === "content") {
+      if (issue || !operation)
+        return { status: "blocked", group, message: issue ?? "当前内容无法应用。" };
+      return submit(operation, group);
+    }
+    if (group === "rhythm") {
+      if (!rhythmPlan?.ok || !rhythmOperation)
+        return {
+          status: "blocked",
+          group,
+          message:
+            rhythmPlan && "message" in rhythmPlan
+              ? rhythmPlan.message
+              : "当前时值无法应用。",
+        };
+      return submit(rhythmOperation, group);
+    }
+    if (!itemPitchOperation)
+      return { status: "blocked", group, message: itemPitchIssue ?? "当前音高无法应用。" };
+    return submit(itemPitchOperation, group);
+  };
+  const apply = () => {
+    const applicable = dirtyGroups.filter((group) => canApplyByGroup[group]);
+    if (applicable.length !== 1) return false;
+    const result = applyGroup(applicable[0]!);
+    return result.status === "applied" || result.status === "noop";
+  };
+  useEffect(
+    () =>
+      onCanApply(
+        dirtyGroups.filter((group) => canApplyByGroup[group]).length === 1,
+      ),
+    [dirtyGroups, canApplyByGroup, onCanApply],
+  );
   const reset = () => {
     setRaw(initial);
     setBase(
@@ -478,12 +630,16 @@ export const NumberedEditor = ({
     onInputActive(false);
   };
   useImperativeHandle(ref, () => ({
-    canApply: !!operation && !issue,
+    canApply:
+      dirtyGroups.filter((group) => canApplyByGroup[group]).length === 1,
     dirty,
+    dirtyGroups,
     apply,
+    applyGroup,
     discard: reset,
     focus: () => input.current?.focus({ preventScroll: true }),
     snapshot: () => ({
+      mode,
       selectedId,
       start,
       end,
@@ -894,19 +1050,34 @@ export const NumberedEditor = ({
             允许覆盖此时间范围的简谱
           </Checkbox>
           {plan?.ok && (
-            <p>
-              预览：
-              {plan.track.measures
-                .find((m) => m.id === measure.id)!
-                .numberedVoice.events.filter(
-                  (e) => e.tick >= start && e.tick < end,
-                )
-                .map(
-                  (e) =>
-                    `${e.items.map((i) => i.token).join("+") || "空白"}（${bases.find((b) => b.value === e.rhythm.base)?.label}）`,
-                )
-                .join(" · ")}
-            </p>
+            <div className={styles.sequencePreview} aria-label="简谱修改预览">
+              <h4>修改预览 · {previewRows.length} 项</h4>
+              <table>
+                <thead>
+                  <tr>
+                    <th>位置</th>
+                    <th>原值 → 新值</th>
+                    <th>状态</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {previewRows.map((row) => (
+                    <tr key={row.key}>
+                      <td>{row.measureNumber} 小节 · {row.startTick} tick</td>
+                      <td>{row.before} → {row.after}</td>
+                      <td>
+                        {{
+                          add: "新增",
+                          change: row.impact === "overwrite" ? "覆盖" : "修改",
+                          same: "未变化",
+                          remove: row.impact === "release" ? "释放" : "删除",
+                        }[row.status]}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
           {issue && <p role="status">{issue}</p>}
           <div className={styles.sidebarActions}>
@@ -927,8 +1098,10 @@ export const NumberedEditor = ({
             <Button onClick={onCancel}>取消</Button>
             <Button
               type="primary"
-              disabled={!!issue || !operation}
-              onClick={apply}
+              disabled={!canApplyByGroup.content}
+              onClick={() => {
+                applyGroup("content");
+              }}
             >
               应用
             </Button>
@@ -1369,7 +1542,11 @@ export const NumberedEditor = ({
                   confirmedRemovedMarkIds: pending.removed,
                   confirmedChangedMarkIds: pending.changed,
                 });
-                if (result?.ok) setPending(null);
+                if (result?.ok) {
+                  acknowledgeGroup(pending.group, pending.operation);
+                  setPending(null);
+                  setMessage(result.changed ? "已应用" : "内容未变化");
+                }
               }}
             >
               确认修改

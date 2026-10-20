@@ -1,0 +1,587 @@
+{
+  "schema": "lxm-tab-score",
+  "schemaVersion": 8,
+  "documentRevision": 19,
+  "score": {
+    "id": "mvp72-numbered-mock",
+    "title": "阶段2固定验收谱",
+    "arranger": "六线猫",
+    "keySignature": "C",
+    "meta": {
+      "fixture": "mvp-v7.2-numbered",
+      "purpose": "简谱编辑与布局验收"
+    },
+    "tracks": [
+      {
+        "id": "mvp72-track-guitar",
+        "name": "标准调弦吉他",
+        "instrument": "guitar",
+        "tuning": {
+          "strings": [
+            {
+              "index": 1,
+              "pitch": "E4",
+              "midi": 64
+            },
+            {
+              "index": 2,
+              "pitch": "B3",
+              "midi": 59
+            },
+            {
+              "index": 3,
+              "pitch": "G3",
+              "midi": 55
+            },
+            {
+              "index": 4,
+              "pitch": "D3",
+              "midi": 50
+            },
+            {
+              "index": 5,
+              "pitch": "A2",
+              "midi": 45
+            },
+            {
+              "index": 6,
+              "pitch": "E2",
+              "midi": 40
+            }
+          ]
+        },
+        "capo": 0,
+        "startBarline": "none",
+        "measures": [
+          {
+            "id": "p2-m0",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "chordSymbols": [],
+            "lyrics": [
+              {
+                "id": "p2-l0",
+                "beatId": "p2-b0-0",
+                "verse": 1,
+                "text": "验"
+              }
+            ],
+            "beats": [
+              {
+                "id": "p2-b0-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "p2-n0-0-1",
+                    "string": 1,
+                    "fret": 1
+                  },
+                  {
+                    "id": "p2-n0-0-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "p2-b0-1",
+                "tick": 960,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "p2-n0-1-1",
+                    "string": 1,
+                    "fret": 3
+                  },
+                  {
+                    "id": "p2-n0-1-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "p2-b0-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "p2-n0-2-1",
+                    "string": 1,
+                    "fret": 5
+                  },
+                  {
+                    "id": "p2-n0-2-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "p2-b0-3",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "p2-n0-3-1",
+                    "string": 1,
+                    "fret": 7
+                  },
+                  {
+                    "id": "p2-n0-3-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              }
+            ],
+            "tuplets": [],
+            "numberedVoice": {
+              "events": [
+                {
+                  "id": "p2-e0-0",
+                  "tick": 0,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "p2-i0-0",
+                      "token": "1"
+                    }
+                  ]
+                },
+                {
+                  "id": "p2-e0-1",
+                  "tick": 960,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "p2-i0-1",
+                      "token": "3"
+                    }
+                  ]
+                },
+                {
+                  "id": "p2-e0-2",
+                  "tick": 1920,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "p2-i0-2",
+                      "token": "5"
+                    }
+                  ]
+                },
+                {
+                  "id": "p2-e0-3",
+                  "tick": 2880,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "p2-i0-3",
+                      "token": "6"
+                    }
+                  ]
+                }
+              ],
+              "tuplets": []
+            },
+            "sectionLabel": "段落1"
+          },
+          {
+            "id": "p2-m1",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "chordSymbols": [],
+            "lyrics": [],
+            "beats": [
+              {
+                "id": "p2-tb0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "p2-tn0",
+                    "string": 1,
+                    "fret": 9
+                  }
+                ]
+              },
+              {
+                "id": "p2-tb1",
+                "tick": 320,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "p2-tn1",
+                    "string": 1,
+                    "fret": 11
+                  }
+                ]
+              },
+              {
+                "id": "p2-tb2",
+                "tick": 640,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "p2-tn2",
+                    "string": 1,
+                    "fret": 13
+                  }
+                ]
+              },
+              {
+                "id": "p2-tb3",
+                "tick": 960,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "p2-tn3",
+                    "string": 1,
+                    "fret": 15
+                  }
+                ]
+              },
+              {
+                "id": "p2-tb4",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "half",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "p2-overflow-note",
+                    "string": 1,
+                    "fret": 17
+                  }
+                ]
+              }
+            ],
+            "tuplets": [
+              {
+                "id": "p2-triplet",
+                "beatIds": [
+                  "p2-tb0",
+                  "p2-tb1",
+                  "p2-tb2"
+                ],
+                "ratio": {
+                  "actual": 3,
+                  "normal": 2
+                }
+              }
+            ],
+            "numberedVoice": {
+              "events": [
+                {
+                  "id": "p2-e1-0",
+                  "tick": 0,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "p2-i1-0",
+                      "token": "1"
+                    }
+                  ]
+                },
+                {
+                  "id": "p2-e1-1",
+                  "tick": 960,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "p2-i1-1",
+                      "token": "3"
+                    }
+                  ]
+                },
+                {
+                  "id": "p2-e1-2",
+                  "tick": 1920,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "p2-i1-2",
+                      "token": "5"
+                    }
+                  ]
+                },
+                {
+                  "id": "p2-e1-3",
+                  "tick": 2880,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "p2-i1-3",
+                      "token": "6"
+                    }
+                  ]
+                }
+              ],
+              "tuplets": []
+            },
+            "sectionLabel": "段落2"
+          },
+          {
+            "id": "p2-m2",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "final",
+            "chordSymbols": [],
+            "lyrics": [
+              {
+                "id": "p2-l2",
+                "beatId": "p2-b2-0",
+                "verse": 1,
+                "text": "验"
+              }
+            ],
+            "beats": [
+              {
+                "id": "p2-b2-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "p2-n2-0-1",
+                    "string": 1,
+                    "fret": 17
+                  },
+                  {
+                    "id": "p2-n2-0-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "p2-b2-1",
+                "tick": 960,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "p2-n2-1-1",
+                    "string": 1,
+                    "fret": 19
+                  },
+                  {
+                    "id": "p2-n2-1-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "p2-b2-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "p2-n2-2-1",
+                    "string": 1,
+                    "fret": 21
+                  },
+                  {
+                    "id": "p2-n2-2-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "p2-b2-3",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "p2-n2-3-1",
+                    "string": 1,
+                    "fret": 23
+                  },
+                  {
+                    "id": "p2-n2-3-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              }
+            ],
+            "tuplets": [],
+            "numberedVoice": {
+              "events": [
+                {
+                  "id": "p2-e2-0",
+                  "tick": 0,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "p2-i2-0",
+                      "token": "1"
+                    }
+                  ]
+                },
+                {
+                  "id": "p2-e2-1",
+                  "tick": 960,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "p2-i2-1",
+                      "token": "3"
+                    }
+                  ]
+                },
+                {
+                  "id": "p2-e2-2",
+                  "tick": 1920,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "p2-i2-2",
+                      "token": "5"
+                    }
+                  ]
+                },
+                {
+                  "id": "p2-e2-3",
+                  "tick": 2880,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "p2-i2-3",
+                      "token": "6"
+                    }
+                  ]
+                }
+              ],
+              "tuplets": []
+            },
+            "sectionLabel": "段落3"
+          }
+        ],
+        "techniques": [
+          {
+            "id": "p2-hammer",
+            "type": "hammerOn",
+            "fromNoteId": "p2-n0-0-1",
+            "toNoteId": "p2-n0-1-1"
+          }
+        ],
+        "numberedMarks": [
+          {
+            "id": "p2-mark",
+            "type": "fermata",
+            "eventId": "p2-e0-1"
+          }
+        ]
+      }
+    ]
+  }
+}

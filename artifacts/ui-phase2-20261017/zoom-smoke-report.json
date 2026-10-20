@@ -1,0 +1,25 @@
+{
+  "testedAt": "2026-10-16T17:16:36.613Z",
+  "metrics": {
+    "width": 720,
+    "height": 406,
+    "outerWidth": 1440,
+    "devicePixelRatio": 2,
+    "visualScale": 1
+  },
+  "rect": {
+    "left": 12,
+    "right": 357,
+    "top": 127,
+    "bottom": 405.5,
+    "width": 720,
+    "height": 406
+  },
+  "unobstructed": true,
+  "checks": [
+    "Chrome原生200%缩放",
+    "长影响预览正文可滚动，取消底栏位于视口且未遮挡",
+    "取消零音乐修改，焦点恢复至可见更多入口",
+    "缩放后工具重新对齐，Select候选和父层Esc隔离"
+  ]
+}

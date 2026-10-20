@@ -98,6 +98,65 @@ const setup = (marked = false) => {
 };
 
 describe("稳定拍点粘贴预览", () => {
+  it.each(["undo", "redo"] as const)(
+    "%s 历史切换直接使已准备候选失效，不能按回退后的 revision 继续应用",
+    async (action) => {
+      const s = setup();
+      s.session.getState().execute({
+        type: C.SetNotationInfo,
+        title: "历史候选基线",
+        arranger: "",
+        keySignature: "C",
+      });
+      if (action === "redo") s.session.getState().undo();
+      await s.controller.request({ type: "prepare", mode: "overwrite" });
+      expect(s.controller.getSnapshot().candidate).not.toBeNull();
+      s.session.getState()[action]();
+      expect(s.controller.getSnapshot().candidate).toBeNull();
+      expect(s.drafts.isOutputBlocked()).toBe(false);
+      expect(await s.controller.request({ type: "apply" })).toBe(false);
+      expect(s.execute).not.toHaveBeenCalled();
+      s.dispose();
+    },
+  );
+
+  it("StrictMode 式启动/清理/重启仅保留当前草稿登记", async () => {
+    const s = setup();
+    s.dispose();
+    const release = s.controller.start();
+    await s.controller.request({ type: "prepare", mode: "overwrite" });
+    expect(s.drafts.inspect().pending).toHaveLength(1);
+    release();
+    expect(s.drafts.inspect().pending).toHaveLength(0);
+    expect(s.modals.isOpen()).toBe(false);
+    const nextRelease = s.controller.start();
+    await s.controller.request({ type: "prepare", mode: "overwrite" });
+    expect(s.drafts.inspect().pending).toHaveLength(1);
+    nextRelease();
+    expect(s.drafts.isOutputBlocked()).toBe(false);
+  });
+
+  it("Modal 确认与协调器应用同时触发时共享同一次提交", async () => {
+    const s = setup();
+    const originalExecute = s.execute.getMockImplementation()!;
+    // 延后真正写入，确保第二入口命中提交中的锁，而不是提交后的版本失效。
+    s.execute.mockImplementation(async (...args) => {
+      await Promise.resolve();
+      return originalExecute(...args);
+    });
+    await s.controller.request({ type: "prepare", mode: "overwrite" });
+    await s.controller.request({ type: "confirm", checked: true });
+    const record = s.drafts.inspect().pending[0]!;
+    const first = s.modals.confirm(s.modals.getSnapshot()!.id);
+    const second = s.drafts.request({ type: "apply", id: record.id });
+    expect(await first).toBe(true);
+    expect(await second).toMatchObject({ status: "blocked" });
+    expect(s.execute).toHaveBeenCalledTimes(1);
+    expect(s.session.getState().historyDepth.past).toBe(1);
+    expect(s.drafts.isOutputBlocked()).toBe(false);
+    s.dispose();
+  });
+
   it("prepare 同步登记草稿；无确认不写入，取消保留剪贴板且零历史", async () => {
     const s = setup(),
       original = s.session.getState().document;
@@ -209,6 +268,26 @@ describe("稳定拍点粘贴预览", () => {
     s.session.getState().setErrorMessage("无关通知");
     expect(s.controller.getSnapshot().candidate).toBe(candidate);
     expect(candidate?.clipboard.layers).toBe("both");
+    s.dispose();
+  });
+  it("失败复制保留旧载荷与剪贴板版本，不使已有合法预览失效", async () => {
+    const s = setup();
+    await s.controller.request({ type: "prepare", mode: "overwrite" });
+    const candidate = s.controller.getSnapshot().candidate;
+    const clipboard = s.session.getState().getBeatClipboard();
+    const version = s.session.getState().clipboardVersion;
+    expect(
+      s.session.getState().copyBeats({
+        ...s.target,
+        startBeatId: "missing",
+        endBeatId: "b1",
+        layers: "tab",
+      }),
+    ).toBe(false);
+    expect(s.session.getState().getBeatClipboard()).toEqual(clipboard);
+    expect(s.session.getState().clipboardVersion).toBe(version);
+    expect(s.controller.getSnapshot().candidate).toBe(candidate);
+    expect(s.session.getState().historyDepth.past).toBe(0);
     s.dispose();
   });
   it("追加简谱记号影响仍在同一 Modal，重新确认后一次提交", async () => {

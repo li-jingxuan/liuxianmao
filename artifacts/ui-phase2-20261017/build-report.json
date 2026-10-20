@@ -1,0 +1,7 @@
+{
+  "testedAt": "2026-10-16T17:14:49.648Z",
+  "source": "/Volumes/D/projects/liuxianmao/apps/website",
+  "target": "/var/folders/jq/50kwz10x2l33fp5w6z31c3p00000gp/T/lxm-ui-phase2-build-nkkc7J",
+  "exitCode": 0,
+  "reason": "项目挂载目录 access(W_OK) 返回 EPERM，但实际写入成功；隔离产物避免修改产品配置或依赖。"
+}
