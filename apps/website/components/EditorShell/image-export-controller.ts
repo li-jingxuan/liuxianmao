@@ -12,12 +12,52 @@ import {
 import { buildScoreScene, type ScoreScene } from "./score-scene";
 import { renderPageCanvas } from "./score-canvas-renderer";
 import { setPngResolution } from "./png-resolution";
+import type { EditorSessionVersion } from "./editor-session-version";
 
 export interface PreparedScoreImages {
   scene: ScoreScene;
   pages: ILXMPageLayout[];
   title: string;
 }
+/** 打开预览时锁定已提交内容；版本包含文档身份、状态版本和会话边界。 */
+export interface ImageExportSnapshot {
+  version: EditorSessionVersion;
+  document: ILXMDocument;
+  density: ILXMLayoutDensity;
+  showChordDiagrams: boolean;
+}
+export type ImageExportErrorCode =
+  | "font-unavailable"
+  | "font-timeout"
+  | "text-measure"
+  | "layout-empty"
+  | "layout-geometry"
+  | "layout-header-overflow"
+  | "layout-system-too-wide"
+  | "layout-system-too-tall"
+  | "layout-first-page-overflow"
+  | "encode-failed"
+  | "encode-timeout"
+  | "zip-too-many-pages"
+  | "zip-too-large"
+  | "zip-failed";
+export class ImageExportError extends Error {
+  constructor(
+    readonly code: ImageExportErrorCode,
+    message: string,
+  ) {
+    super(message);
+    this.name = "ImageExportError";
+  }
+}
+/** 未知异常不猜测宽高原因，只保留可读消息并归入通用编码失败。 */
+export const toImageExportError = (error: unknown): ImageExportError =>
+  error instanceof ImageExportError
+    ? error
+    : new ImageExportError(
+        "encode-failed",
+        error instanceof Error ? error.message : "图片处理失败，请重试",
+      );
 export const MAX_IMAGE_PAGES = 100;
 export const MAX_IMAGE_BYTES = 200 * 1024 * 1024;
 /** Windows 和 macOS 均可读的文件名，避免标题变成路径。 */
@@ -36,7 +76,7 @@ const bounded = <T>(
   task: Promise<T>,
   signal: AbortSignal,
   ms: number,
-  message: string,
+  timeout: ImageExportError,
 ): Promise<T> =>
   new Promise((resolve, reject) => {
     checkCancelled(signal);
@@ -46,7 +86,7 @@ const bounded = <T>(
     };
     const timer = setTimeout(() => {
       cleanup();
-      reject(new Error(message));
+      reject(timeout);
     }, ms);
     const cleanup = () => {
       clearTimeout(timer);
@@ -86,7 +126,10 @@ const measureScoreText = (
         b.width <= 0 ||
         b.height <= 0
       )
-        throw new Error("文字度量失败，请重试图片导出");
+        throw new ImageExportError(
+          "text-measure",
+          "文字度量失败，请重试图片导出",
+        );
       metrics[r.key] = { x: b.x, y: b.y, width: b.width, height: b.height };
     }
     return metrics;
@@ -109,11 +152,14 @@ export const prepareScorePresentation = async (
     ]),
     signal,
     10000,
-    "字体准备超时，请重试",
+    new ImageExportError("font-timeout", "字体准备超时，请重试"),
   );
   checkCancelled(signal);
   if (!fonts[0].length || !document.fonts.check("22px Bravura", "\uE4E5\uE240"))
-    throw new Error("音乐字体加载失败，无法导出清晰乐谱");
+    throw new ImageExportError(
+      "font-unavailable",
+      "音乐字体加载失败，无法导出清晰乐谱",
+    );
   const metrics = measureScoreText(score, showChordDiagrams);
   checkCancelled(signal);
   const layout = buildLayout(score, {
@@ -133,11 +179,20 @@ export const prepareScorePresentation = async (
       "system-too-wide": "谱行超过 A4 宽度",
       "system-too-tall": "谱行超过 A4 高度",
       "first-page-overflow": "标题和首行无法完整放入 A4 首页",
-    };
+    } satisfies Record<typeof d.code, string>;
+    const codes = {
+      "empty-score": "layout-empty",
+      "invalid-geometry": "layout-geometry",
+      "header-overflow": "layout-header-overflow",
+      "system-too-wide": "layout-system-too-wide",
+      "system-too-tall": "layout-system-too-tall",
+      "first-page-overflow": "layout-first-page-overflow",
+    } satisfies Record<typeof d.code, ImageExportErrorCode>;
     const measure = score.score.tracks[0]?.measures.findIndex(
       (m) => m.id === d.measureIds[0],
     );
-    throw new Error(
+    throw new ImageExportError(
+      codes[d.code],
       `${names[d.code]}${measure !== undefined && measure >= 0 ? `（第 ${measure + 1} 小节）` : ""}，请调整内容后重试`,
     );
   }
@@ -157,20 +212,25 @@ export const encodeScorePage = async (
 ): Promise<Blob> => {
   checkCancelled(signal);
   const page = prepared.pages[index];
-  if (!page) throw new Error("页面不存在");
+  if (!page)
+    throw new ImageExportError("layout-geometry", "页面不存在，请重新准备预览");
   const canvas = renderPageCanvas(prepared.scene, page);
   try {
     const png = await bounded(
       new Promise<Blob>((resolve, reject) =>
         canvas.toBlob(
           (blob) =>
-            blob ? resolve(blob) : reject(new Error("图片编码失败，请重试")),
+            blob
+              ? resolve(blob)
+              : reject(
+                  new ImageExportError("encode-failed", "图片编码失败，请重试"),
+                ),
           "image/png",
         ),
       ),
       signal,
       15000,
-      "图片编码超时，请重试",
+      new ImageExportError("encode-timeout", "图片编码超时，请重试"),
     );
     checkCancelled(signal);
     const bytes = new Uint8Array(await png.arrayBuffer());
@@ -197,7 +257,10 @@ export const exportScoreImages = async (
     };
   }
   if (prepared.pages.length > MAX_IMAGE_PAGES)
-    throw new Error("超过 100 页，请在预览中按页下载");
+    throw new ImageExportError(
+      "zip-too-many-pages",
+      "超过 100 页，请在预览中按页下载",
+    );
   const { Zip, ZipPassThrough } = await import("fflate");
   checkCancelled(signal);
   const chunks: ArrayBuffer[] = [];
@@ -207,6 +270,11 @@ export const exportScoreImages = async (
     if (error) zipError = error;
     else chunks.push(data.slice().buffer as ArrayBuffer);
   });
+  const failZip = () =>
+    new ImageExportError(
+      "zip-failed",
+      `ZIP 打包失败：${zipError?.message ?? "未知错误"}`,
+    );
   try {
     for (let i = 0; i < prepared.pages.length; i++) {
       checkCancelled(signal);
@@ -214,18 +282,21 @@ export const exportScoreImages = async (
       const blob = await encodeScorePage(prepared, i, signal);
       total += blob.size;
       if (total > MAX_IMAGE_BYTES)
-        throw new Error("图片总大小超过 200MiB，请按页下载");
+        throw new ImageExportError(
+          "zip-too-large",
+          "图片总大小超过 200MiB，请按页下载",
+        );
       const bytes = new Uint8Array(await blob.arrayBuffer());
       checkCancelled(signal);
       const entry = new ZipPassThrough(pageImageName(prepared.title, i));
       zip.add(entry);
       entry.push(bytes, true);
-      if (zipError) throw zipError;
+      if (zipError) throw failZip();
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
     }
     checkCancelled(signal);
     zip.end();
-    if (zipError) throw zipError;
+    if (zipError) throw failZip();
     return {
       blob: new Blob(chunks, { type: "application/zip" }),
       name: `${imageBasename(prepared.title)}_A4图片.zip`,

@@ -1,0 +1,97 @@
+{
+  "success": true,
+  "testedAt": "2026-10-21T17:35:33.405Z",
+  "url": "http://127.0.0.1:3110/",
+  "checks": [
+    {
+      "name": "04-01 四段独立、Shift+Enter仅应用、Enter下一拍",
+      "details": true
+    },
+    {
+      "name": "04-02 跨小节、跳拍、覆盖计数和整批一次撤销",
+      "details": true
+    },
+    {
+      "name": "歌词关闭覆盖许可后阻断并保留输入",
+      "details": true
+    },
+    {
+      "name": "04-03 超谱尾整批拒绝、15行预览保留且零历史",
+      "details": true
+    },
+    {
+      "name": "04-08 无目标添加歌词只打开编辑，零历史",
+      "details": true
+    },
+    {
+      "name": "已有四段禁止新增第五段",
+      "details": true
+    },
+    {
+      "name": "空voice可打开独立时间窗，未制造假Beat或休止",
+      "details": true
+    },
+    {
+      "name": "04-04/10 同时多音与单item音高分别提交，其他成员保持",
+      "details": true
+    },
+    {
+      "name": "04-05 跨小节均匀内容完整预览、跳拍、保留时值和一次撤销",
+      "details": true
+    },
+    {
+      "name": "前八后十六模板按0/480/720落位，分数拍位正确",
+      "details": true
+    },
+    {
+      "name": "六比例、自定义成员/附点及旧高级入口完整；恢复后停用参数不产生永久dirty",
+      "details": true
+    },
+    {
+      "name": "A暂存后B改模式并应用无关命令，返回A恢复原模式和raw且输出仍阻断",
+      "details": true
+    },
+    {
+      "name": "影响确认Tab双向循环、Esc取消零历史、异步导航成功及内容记号一起撤销",
+      "details": true
+    },
+    {
+      "name": "04-06/07 预设应用、非法数字空值保留、横按折叠保持和取消零写入",
+      "details": true
+    },
+    {
+      "name": "清图保留名称；取消可恢复，统一应用才提交",
+      "details": true
+    },
+    {
+      "name": "04-09 非标准调弦禁预设保留自定义；起始品位空白校验",
+      "details": true
+    },
+    {
+      "name": "五组窗口尺寸下同一输入owner、raw保持，分组动作可达",
+      "details": true
+    },
+    {
+      "name": "实测899/900/1199/1200容器边界，Select保持打开、草稿与owner保持",
+      "details": true
+    },
+    {
+      "name": "合成composition期间Enter/Esc不提交音乐或迁移目标；真实系统IME另列人工项",
+      "details": true
+    },
+    {
+      "name": "04-11 成品图片单页生成下载与输出烟测",
+      "details": true
+    },
+    {
+      "name": "生产浏览器pageerror及功能console错误为零",
+      "details": true
+    }
+  ],
+  "errors": [],
+  "consoleIssues": [],
+  "ignoredConsoleIssues": [
+    "http://127.0.0.1:3110/favicon.ico: Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ],
+  "browser": "156.0.8078.48"
+}

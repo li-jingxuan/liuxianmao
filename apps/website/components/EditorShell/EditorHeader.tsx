@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode, type RefObject } from "react";
 import { Button, Popover, Segmented, Switch } from "antd";
 import {
   EyeOutlined,
@@ -19,6 +19,7 @@ export const EditorHeader = ({
   onChordDiagramsChange,
   fileControls,
   onImageExport,
+  imageExportButtonRef,
   onHelp,
   helpDisabled,
 }: {
@@ -29,6 +30,7 @@ export const EditorHeader = ({
   onChordDiagramsChange: (visible: boolean) => void;
   fileControls: ReactNode;
   onImageExport: () => void;
+  imageExportButtonRef: RefObject<HTMLButtonElement | null>;
   onHelp: () => void;
   helpDisabled: boolean;
 }) => {
@@ -107,6 +109,7 @@ export const EditorHeader = ({
         </Popover>
         {fileControls}
         <Button
+          ref={imageExportButtonRef}
           type="primary"
           icon={<PictureOutlined />}
           aria-label="导出 A4 图片"

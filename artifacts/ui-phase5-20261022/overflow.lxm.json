@@ -1,0 +1,2398 @@
+{
+  "schema": "lxm-tab-score",
+  "schemaVersion": 8,
+  "documentRevision": 4,
+  "score": {
+    "id": "mvp72-numbered-mock",
+    "title": "阶段5超宽验收谱",
+    "arranger": "六线猫",
+    "keySignature": "C",
+    "meta": {
+      "fixture": "mvp-v7.2-numbered",
+      "purpose": "简谱编辑与布局验收"
+    },
+    "tracks": [
+      {
+        "id": "mvp72-track-guitar",
+        "name": "标准调弦吉他",
+        "instrument": "guitar",
+        "tuning": {
+          "strings": [
+            {
+              "index": 1,
+              "pitch": "E4",
+              "midi": 64
+            },
+            {
+              "index": 2,
+              "pitch": "B3",
+              "midi": 59
+            },
+            {
+              "index": 3,
+              "pitch": "G3",
+              "midi": 55
+            },
+            {
+              "index": 4,
+              "pitch": "D3",
+              "midi": 50
+            },
+            {
+              "index": 5,
+              "pitch": "A2",
+              "midi": 45
+            },
+            {
+              "index": 6,
+              "pitch": "E2",
+              "midi": 40
+            }
+          ]
+        },
+        "capo": 0,
+        "startBarline": "none",
+        "measures": [
+          {
+            "id": "p2-m0",
+            "timeSignature": {
+              "numerator": 48,
+              "denominator": 4
+            },
+            "barline": "single",
+            "chordSymbols": [],
+            "lyrics": [
+              {
+                "id": "p2-l0",
+                "beatId": "p2-b0-0",
+                "verse": 1,
+                "text": "验"
+              },
+              {
+                "id": "ov-1-p2-l0",
+                "beatId": "ov-1-p2-b0-0",
+                "verse": 1,
+                "text": "验"
+              },
+              {
+                "id": "ov-2-p2-l0",
+                "beatId": "ov-2-p2-b0-0",
+                "verse": 1,
+                "text": "验"
+              },
+              {
+                "id": "ov-3-p2-l0",
+                "beatId": "ov-3-p2-b0-0",
+                "verse": 1,
+                "text": "验"
+              },
+              {
+                "id": "ov-4-p2-l0",
+                "beatId": "ov-4-p2-b0-0",
+                "verse": 1,
+                "text": "验"
+              },
+              {
+                "id": "ov-5-p2-l0",
+                "beatId": "ov-5-p2-b0-0",
+                "verse": 1,
+                "text": "验"
+              },
+              {
+                "id": "ov-6-p2-l0",
+                "beatId": "ov-6-p2-b0-0",
+                "verse": 1,
+                "text": "验"
+              },
+              {
+                "id": "ov-7-p2-l0",
+                "beatId": "ov-7-p2-b0-0",
+                "verse": 1,
+                "text": "验"
+              },
+              {
+                "id": "ov-8-p2-l0",
+                "beatId": "ov-8-p2-b0-0",
+                "verse": 1,
+                "text": "验"
+              },
+              {
+                "id": "ov-9-p2-l0",
+                "beatId": "ov-9-p2-b0-0",
+                "verse": 1,
+                "text": "验"
+              },
+              {
+                "id": "ov-10-p2-l0",
+                "beatId": "ov-10-p2-b0-0",
+                "verse": 1,
+                "text": "验"
+              },
+              {
+                "id": "ov-11-p2-l0",
+                "beatId": "ov-11-p2-b0-0",
+                "verse": 1,
+                "text": "验"
+              }
+            ],
+            "beats": [
+              {
+                "id": "p2-b0-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "p2-n0-0-1",
+                    "string": 1,
+                    "fret": 1
+                  },
+                  {
+                    "id": "p2-n0-0-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "p2-b0-1",
+                "tick": 960,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "p2-n0-1-1",
+                    "string": 1,
+                    "fret": 3
+                  },
+                  {
+                    "id": "p2-n0-1-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "p2-b0-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "p2-n0-2-1",
+                    "string": 1,
+                    "fret": 5
+                  },
+                  {
+                    "id": "p2-n0-2-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "p2-b0-3",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "p2-n0-3-1",
+                    "string": 1,
+                    "fret": 7
+                  },
+                  {
+                    "id": "p2-n0-3-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "ov-1-p2-b0-0",
+                "tick": 3840,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "ov-1-p2-n0-0-1",
+                    "string": 1,
+                    "fret": 1
+                  },
+                  {
+                    "id": "ov-1-p2-n0-0-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "ov-1-p2-b0-1",
+                "tick": 4800,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "ov-1-p2-n0-1-1",
+                    "string": 1,
+                    "fret": 3
+                  },
+                  {
+                    "id": "ov-1-p2-n0-1-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "ov-1-p2-b0-2",
+                "tick": 5760,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "ov-1-p2-n0-2-1",
+                    "string": 1,
+                    "fret": 5
+                  },
+                  {
+                    "id": "ov-1-p2-n0-2-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "ov-1-p2-b0-3",
+                "tick": 6720,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "ov-1-p2-n0-3-1",
+                    "string": 1,
+                    "fret": 7
+                  },
+                  {
+                    "id": "ov-1-p2-n0-3-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "ov-2-p2-b0-0",
+                "tick": 7680,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "ov-2-p2-n0-0-1",
+                    "string": 1,
+                    "fret": 1
+                  },
+                  {
+                    "id": "ov-2-p2-n0-0-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "ov-2-p2-b0-1",
+                "tick": 8640,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "ov-2-p2-n0-1-1",
+                    "string": 1,
+                    "fret": 3
+                  },
+                  {
+                    "id": "ov-2-p2-n0-1-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "ov-2-p2-b0-2",
+                "tick": 9600,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "ov-2-p2-n0-2-1",
+                    "string": 1,
+                    "fret": 5
+                  },
+                  {
+                    "id": "ov-2-p2-n0-2-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "ov-2-p2-b0-3",
+                "tick": 10560,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "ov-2-p2-n0-3-1",
+                    "string": 1,
+                    "fret": 7
+                  },
+                  {
+                    "id": "ov-2-p2-n0-3-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "ov-3-p2-b0-0",
+                "tick": 11520,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "ov-3-p2-n0-0-1",
+                    "string": 1,
+                    "fret": 1
+                  },
+                  {
+                    "id": "ov-3-p2-n0-0-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "ov-3-p2-b0-1",
+                "tick": 12480,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "ov-3-p2-n0-1-1",
+                    "string": 1,
+                    "fret": 3
+                  },
+                  {
+                    "id": "ov-3-p2-n0-1-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "ov-3-p2-b0-2",
+                "tick": 13440,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "ov-3-p2-n0-2-1",
+                    "string": 1,
+                    "fret": 5
+                  },
+                  {
+                    "id": "ov-3-p2-n0-2-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "ov-3-p2-b0-3",
+                "tick": 14400,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "ov-3-p2-n0-3-1",
+                    "string": 1,
+                    "fret": 7
+                  },
+                  {
+                    "id": "ov-3-p2-n0-3-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "ov-4-p2-b0-0",
+                "tick": 15360,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "ov-4-p2-n0-0-1",
+                    "string": 1,
+                    "fret": 1
+                  },
+                  {
+                    "id": "ov-4-p2-n0-0-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "ov-4-p2-b0-1",
+                "tick": 16320,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "ov-4-p2-n0-1-1",
+                    "string": 1,
+                    "fret": 3
+                  },
+                  {
+                    "id": "ov-4-p2-n0-1-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "ov-4-p2-b0-2",
+                "tick": 17280,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "ov-4-p2-n0-2-1",
+                    "string": 1,
+                    "fret": 5
+                  },
+                  {
+                    "id": "ov-4-p2-n0-2-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "ov-4-p2-b0-3",
+                "tick": 18240,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "ov-4-p2-n0-3-1",
+                    "string": 1,
+                    "fret": 7
+                  },
+                  {
+                    "id": "ov-4-p2-n0-3-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "ov-5-p2-b0-0",
+                "tick": 19200,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "ov-5-p2-n0-0-1",
+                    "string": 1,
+                    "fret": 1
+                  },
+                  {
+                    "id": "ov-5-p2-n0-0-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "ov-5-p2-b0-1",
+                "tick": 20160,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "ov-5-p2-n0-1-1",
+                    "string": 1,
+                    "fret": 3
+                  },
+                  {
+                    "id": "ov-5-p2-n0-1-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "ov-5-p2-b0-2",
+                "tick": 21120,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "ov-5-p2-n0-2-1",
+                    "string": 1,
+                    "fret": 5
+                  },
+                  {
+                    "id": "ov-5-p2-n0-2-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "ov-5-p2-b0-3",
+                "tick": 22080,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "ov-5-p2-n0-3-1",
+                    "string": 1,
+                    "fret": 7
+                  },
+                  {
+                    "id": "ov-5-p2-n0-3-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "ov-6-p2-b0-0",
+                "tick": 23040,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "ov-6-p2-n0-0-1",
+                    "string": 1,
+                    "fret": 1
+                  },
+                  {
+                    "id": "ov-6-p2-n0-0-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "ov-6-p2-b0-1",
+                "tick": 24000,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "ov-6-p2-n0-1-1",
+                    "string": 1,
+                    "fret": 3
+                  },
+                  {
+                    "id": "ov-6-p2-n0-1-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "ov-6-p2-b0-2",
+                "tick": 24960,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "ov-6-p2-n0-2-1",
+                    "string": 1,
+                    "fret": 5
+                  },
+                  {
+                    "id": "ov-6-p2-n0-2-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "ov-6-p2-b0-3",
+                "tick": 25920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "ov-6-p2-n0-3-1",
+                    "string": 1,
+                    "fret": 7
+                  },
+                  {
+                    "id": "ov-6-p2-n0-3-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "ov-7-p2-b0-0",
+                "tick": 26880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "ov-7-p2-n0-0-1",
+                    "string": 1,
+                    "fret": 1
+                  },
+                  {
+                    "id": "ov-7-p2-n0-0-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "ov-7-p2-b0-1",
+                "tick": 27840,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "ov-7-p2-n0-1-1",
+                    "string": 1,
+                    "fret": 3
+                  },
+                  {
+                    "id": "ov-7-p2-n0-1-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "ov-7-p2-b0-2",
+                "tick": 28800,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "ov-7-p2-n0-2-1",
+                    "string": 1,
+                    "fret": 5
+                  },
+                  {
+                    "id": "ov-7-p2-n0-2-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "ov-7-p2-b0-3",
+                "tick": 29760,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "ov-7-p2-n0-3-1",
+                    "string": 1,
+                    "fret": 7
+                  },
+                  {
+                    "id": "ov-7-p2-n0-3-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "ov-8-p2-b0-0",
+                "tick": 30720,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "ov-8-p2-n0-0-1",
+                    "string": 1,
+                    "fret": 1
+                  },
+                  {
+                    "id": "ov-8-p2-n0-0-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "ov-8-p2-b0-1",
+                "tick": 31680,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "ov-8-p2-n0-1-1",
+                    "string": 1,
+                    "fret": 3
+                  },
+                  {
+                    "id": "ov-8-p2-n0-1-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "ov-8-p2-b0-2",
+                "tick": 32640,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "ov-8-p2-n0-2-1",
+                    "string": 1,
+                    "fret": 5
+                  },
+                  {
+                    "id": "ov-8-p2-n0-2-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "ov-8-p2-b0-3",
+                "tick": 33600,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "ov-8-p2-n0-3-1",
+                    "string": 1,
+                    "fret": 7
+                  },
+                  {
+                    "id": "ov-8-p2-n0-3-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "ov-9-p2-b0-0",
+                "tick": 34560,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "ov-9-p2-n0-0-1",
+                    "string": 1,
+                    "fret": 1
+                  },
+                  {
+                    "id": "ov-9-p2-n0-0-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "ov-9-p2-b0-1",
+                "tick": 35520,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "ov-9-p2-n0-1-1",
+                    "string": 1,
+                    "fret": 3
+                  },
+                  {
+                    "id": "ov-9-p2-n0-1-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "ov-9-p2-b0-2",
+                "tick": 36480,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "ov-9-p2-n0-2-1",
+                    "string": 1,
+                    "fret": 5
+                  },
+                  {
+                    "id": "ov-9-p2-n0-2-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "ov-9-p2-b0-3",
+                "tick": 37440,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "ov-9-p2-n0-3-1",
+                    "string": 1,
+                    "fret": 7
+                  },
+                  {
+                    "id": "ov-9-p2-n0-3-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "ov-10-p2-b0-0",
+                "tick": 38400,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "ov-10-p2-n0-0-1",
+                    "string": 1,
+                    "fret": 1
+                  },
+                  {
+                    "id": "ov-10-p2-n0-0-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "ov-10-p2-b0-1",
+                "tick": 39360,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "ov-10-p2-n0-1-1",
+                    "string": 1,
+                    "fret": 3
+                  },
+                  {
+                    "id": "ov-10-p2-n0-1-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "ov-10-p2-b0-2",
+                "tick": 40320,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "ov-10-p2-n0-2-1",
+                    "string": 1,
+                    "fret": 5
+                  },
+                  {
+                    "id": "ov-10-p2-n0-2-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "ov-10-p2-b0-3",
+                "tick": 41280,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "ov-10-p2-n0-3-1",
+                    "string": 1,
+                    "fret": 7
+                  },
+                  {
+                    "id": "ov-10-p2-n0-3-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "ov-11-p2-b0-0",
+                "tick": 42240,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "ov-11-p2-n0-0-1",
+                    "string": 1,
+                    "fret": 1
+                  },
+                  {
+                    "id": "ov-11-p2-n0-0-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "ov-11-p2-b0-1",
+                "tick": 43200,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "ov-11-p2-n0-1-1",
+                    "string": 1,
+                    "fret": 3
+                  },
+                  {
+                    "id": "ov-11-p2-n0-1-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "ov-11-p2-b0-2",
+                "tick": 44160,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "ov-11-p2-n0-2-1",
+                    "string": 1,
+                    "fret": 5
+                  },
+                  {
+                    "id": "ov-11-p2-n0-2-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "ov-11-p2-b0-3",
+                "tick": 45120,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "ov-11-p2-n0-3-1",
+                    "string": 1,
+                    "fret": 7
+                  },
+                  {
+                    "id": "ov-11-p2-n0-3-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              }
+            ],
+            "tuplets": [],
+            "numberedVoice": {
+              "events": [
+                {
+                  "id": "p2-e0-0",
+                  "tick": 0,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "p2-i0-0",
+                      "token": "1"
+                    }
+                  ]
+                },
+                {
+                  "id": "p2-e0-1",
+                  "tick": 960,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "p2-i0-1",
+                      "token": "3"
+                    }
+                  ]
+                },
+                {
+                  "id": "p2-e0-2",
+                  "tick": 1920,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "p2-i0-2",
+                      "token": "5"
+                    }
+                  ]
+                },
+                {
+                  "id": "p2-e0-3",
+                  "tick": 2880,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "p2-i0-3",
+                      "token": "6"
+                    }
+                  ]
+                },
+                {
+                  "id": "ov-1-p2-e0-0",
+                  "tick": 3840,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "ov-1-p2-i0-0",
+                      "token": "1"
+                    }
+                  ]
+                },
+                {
+                  "id": "ov-1-p2-e0-1",
+                  "tick": 4800,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "ov-1-p2-i0-1",
+                      "token": "3"
+                    }
+                  ]
+                },
+                {
+                  "id": "ov-1-p2-e0-2",
+                  "tick": 5760,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "ov-1-p2-i0-2",
+                      "token": "5"
+                    }
+                  ]
+                },
+                {
+                  "id": "ov-1-p2-e0-3",
+                  "tick": 6720,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "ov-1-p2-i0-3",
+                      "token": "6"
+                    }
+                  ]
+                },
+                {
+                  "id": "ov-2-p2-e0-0",
+                  "tick": 7680,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "ov-2-p2-i0-0",
+                      "token": "1"
+                    }
+                  ]
+                },
+                {
+                  "id": "ov-2-p2-e0-1",
+                  "tick": 8640,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "ov-2-p2-i0-1",
+                      "token": "3"
+                    }
+                  ]
+                },
+                {
+                  "id": "ov-2-p2-e0-2",
+                  "tick": 9600,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "ov-2-p2-i0-2",
+                      "token": "5"
+                    }
+                  ]
+                },
+                {
+                  "id": "ov-2-p2-e0-3",
+                  "tick": 10560,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "ov-2-p2-i0-3",
+                      "token": "6"
+                    }
+                  ]
+                },
+                {
+                  "id": "ov-3-p2-e0-0",
+                  "tick": 11520,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "ov-3-p2-i0-0",
+                      "token": "1"
+                    }
+                  ]
+                },
+                {
+                  "id": "ov-3-p2-e0-1",
+                  "tick": 12480,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "ov-3-p2-i0-1",
+                      "token": "3"
+                    }
+                  ]
+                },
+                {
+                  "id": "ov-3-p2-e0-2",
+                  "tick": 13440,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "ov-3-p2-i0-2",
+                      "token": "5"
+                    }
+                  ]
+                },
+                {
+                  "id": "ov-3-p2-e0-3",
+                  "tick": 14400,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "ov-3-p2-i0-3",
+                      "token": "6"
+                    }
+                  ]
+                },
+                {
+                  "id": "ov-4-p2-e0-0",
+                  "tick": 15360,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "ov-4-p2-i0-0",
+                      "token": "1"
+                    }
+                  ]
+                },
+                {
+                  "id": "ov-4-p2-e0-1",
+                  "tick": 16320,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "ov-4-p2-i0-1",
+                      "token": "3"
+                    }
+                  ]
+                },
+                {
+                  "id": "ov-4-p2-e0-2",
+                  "tick": 17280,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "ov-4-p2-i0-2",
+                      "token": "5"
+                    }
+                  ]
+                },
+                {
+                  "id": "ov-4-p2-e0-3",
+                  "tick": 18240,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "ov-4-p2-i0-3",
+                      "token": "6"
+                    }
+                  ]
+                },
+                {
+                  "id": "ov-5-p2-e0-0",
+                  "tick": 19200,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "ov-5-p2-i0-0",
+                      "token": "1"
+                    }
+                  ]
+                },
+                {
+                  "id": "ov-5-p2-e0-1",
+                  "tick": 20160,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "ov-5-p2-i0-1",
+                      "token": "3"
+                    }
+                  ]
+                },
+                {
+                  "id": "ov-5-p2-e0-2",
+                  "tick": 21120,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "ov-5-p2-i0-2",
+                      "token": "5"
+                    }
+                  ]
+                },
+                {
+                  "id": "ov-5-p2-e0-3",
+                  "tick": 22080,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "ov-5-p2-i0-3",
+                      "token": "6"
+                    }
+                  ]
+                },
+                {
+                  "id": "ov-6-p2-e0-0",
+                  "tick": 23040,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "ov-6-p2-i0-0",
+                      "token": "1"
+                    }
+                  ]
+                },
+                {
+                  "id": "ov-6-p2-e0-1",
+                  "tick": 24000,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "ov-6-p2-i0-1",
+                      "token": "3"
+                    }
+                  ]
+                },
+                {
+                  "id": "ov-6-p2-e0-2",
+                  "tick": 24960,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "ov-6-p2-i0-2",
+                      "token": "5"
+                    }
+                  ]
+                },
+                {
+                  "id": "ov-6-p2-e0-3",
+                  "tick": 25920,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "ov-6-p2-i0-3",
+                      "token": "6"
+                    }
+                  ]
+                },
+                {
+                  "id": "ov-7-p2-e0-0",
+                  "tick": 26880,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "ov-7-p2-i0-0",
+                      "token": "1"
+                    }
+                  ]
+                },
+                {
+                  "id": "ov-7-p2-e0-1",
+                  "tick": 27840,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "ov-7-p2-i0-1",
+                      "token": "3"
+                    }
+                  ]
+                },
+                {
+                  "id": "ov-7-p2-e0-2",
+                  "tick": 28800,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "ov-7-p2-i0-2",
+                      "token": "5"
+                    }
+                  ]
+                },
+                {
+                  "id": "ov-7-p2-e0-3",
+                  "tick": 29760,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "ov-7-p2-i0-3",
+                      "token": "6"
+                    }
+                  ]
+                },
+                {
+                  "id": "ov-8-p2-e0-0",
+                  "tick": 30720,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "ov-8-p2-i0-0",
+                      "token": "1"
+                    }
+                  ]
+                },
+                {
+                  "id": "ov-8-p2-e0-1",
+                  "tick": 31680,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "ov-8-p2-i0-1",
+                      "token": "3"
+                    }
+                  ]
+                },
+                {
+                  "id": "ov-8-p2-e0-2",
+                  "tick": 32640,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "ov-8-p2-i0-2",
+                      "token": "5"
+                    }
+                  ]
+                },
+                {
+                  "id": "ov-8-p2-e0-3",
+                  "tick": 33600,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "ov-8-p2-i0-3",
+                      "token": "6"
+                    }
+                  ]
+                },
+                {
+                  "id": "ov-9-p2-e0-0",
+                  "tick": 34560,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "ov-9-p2-i0-0",
+                      "token": "1"
+                    }
+                  ]
+                },
+                {
+                  "id": "ov-9-p2-e0-1",
+                  "tick": 35520,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "ov-9-p2-i0-1",
+                      "token": "3"
+                    }
+                  ]
+                },
+                {
+                  "id": "ov-9-p2-e0-2",
+                  "tick": 36480,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "ov-9-p2-i0-2",
+                      "token": "5"
+                    }
+                  ]
+                },
+                {
+                  "id": "ov-9-p2-e0-3",
+                  "tick": 37440,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "ov-9-p2-i0-3",
+                      "token": "6"
+                    }
+                  ]
+                },
+                {
+                  "id": "ov-10-p2-e0-0",
+                  "tick": 38400,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "ov-10-p2-i0-0",
+                      "token": "1"
+                    }
+                  ]
+                },
+                {
+                  "id": "ov-10-p2-e0-1",
+                  "tick": 39360,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "ov-10-p2-i0-1",
+                      "token": "3"
+                    }
+                  ]
+                },
+                {
+                  "id": "ov-10-p2-e0-2",
+                  "tick": 40320,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "ov-10-p2-i0-2",
+                      "token": "5"
+                    }
+                  ]
+                },
+                {
+                  "id": "ov-10-p2-e0-3",
+                  "tick": 41280,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "ov-10-p2-i0-3",
+                      "token": "6"
+                    }
+                  ]
+                },
+                {
+                  "id": "ov-11-p2-e0-0",
+                  "tick": 42240,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "ov-11-p2-i0-0",
+                      "token": "1"
+                    }
+                  ]
+                },
+                {
+                  "id": "ov-11-p2-e0-1",
+                  "tick": 43200,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "ov-11-p2-i0-1",
+                      "token": "3"
+                    }
+                  ]
+                },
+                {
+                  "id": "ov-11-p2-e0-2",
+                  "tick": 44160,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "ov-11-p2-i0-2",
+                      "token": "5"
+                    }
+                  ]
+                },
+                {
+                  "id": "ov-11-p2-e0-3",
+                  "tick": 45120,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "ov-11-p2-i0-3",
+                      "token": "6"
+                    }
+                  ]
+                }
+              ],
+              "tuplets": []
+            },
+            "sectionLabel": "段落1"
+          },
+          {
+            "id": "p5-1-p2-m1",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "chordSymbols": [],
+            "lyrics": [
+              {
+                "id": "p5-1-p2-l1",
+                "beatId": "p5-1-p2-b1-0",
+                "verse": 1,
+                "text": "验"
+              }
+            ],
+            "beats": [
+              {
+                "id": "p5-1-p2-b1-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "p5-1-p2-n1-0-1",
+                    "string": 1,
+                    "fret": 9
+                  },
+                  {
+                    "id": "p5-1-p2-n1-0-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "p5-1-p2-b1-1",
+                "tick": 960,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "p5-1-p2-n1-1-1",
+                    "string": 1,
+                    "fret": 11
+                  },
+                  {
+                    "id": "p5-1-p2-n1-1-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "p5-1-p2-b1-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "p5-1-p2-n1-2-1",
+                    "string": 1,
+                    "fret": 13
+                  },
+                  {
+                    "id": "p5-1-p2-n1-2-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "p5-1-p2-b1-3",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "p5-1-p2-n1-3-1",
+                    "string": 1,
+                    "fret": 15
+                  },
+                  {
+                    "id": "p5-1-p2-n1-3-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              }
+            ],
+            "tuplets": [],
+            "numberedVoice": {
+              "events": [
+                {
+                  "id": "p5-1-p2-e1-0",
+                  "tick": 0,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "p5-1-p2-i1-0",
+                      "token": "1"
+                    }
+                  ]
+                },
+                {
+                  "id": "p5-1-p2-e1-1",
+                  "tick": 960,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "p5-1-p2-i1-1",
+                      "token": "3"
+                    }
+                  ]
+                },
+                {
+                  "id": "p5-1-p2-e1-2",
+                  "tick": 1920,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "p5-1-p2-i1-2",
+                      "token": "5"
+                    }
+                  ]
+                },
+                {
+                  "id": "p5-1-p2-e1-3",
+                  "tick": 2880,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "p5-1-p2-i1-3",
+                      "token": "6"
+                    }
+                  ]
+                }
+              ],
+              "tuplets": []
+            },
+            "sectionLabel": "段落2"
+          },
+          {
+            "id": "p5-2-p2-m2",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "final",
+            "chordSymbols": [],
+            "lyrics": [
+              {
+                "id": "p5-2-p2-l2",
+                "beatId": "p5-2-p2-b2-0",
+                "verse": 1,
+                "text": "验"
+              }
+            ],
+            "beats": [
+              {
+                "id": "p5-2-p2-b2-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "p5-2-p2-n2-0-1",
+                    "string": 1,
+                    "fret": 17
+                  },
+                  {
+                    "id": "p5-2-p2-n2-0-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "p5-2-p2-b2-1",
+                "tick": 960,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "p5-2-p2-n2-1-1",
+                    "string": 1,
+                    "fret": 19
+                  },
+                  {
+                    "id": "p5-2-p2-n2-1-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "p5-2-p2-b2-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "p5-2-p2-n2-2-1",
+                    "string": 1,
+                    "fret": 21
+                  },
+                  {
+                    "id": "p5-2-p2-n2-2-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "p5-2-p2-b2-3",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "p5-2-p2-n2-3-1",
+                    "string": 1,
+                    "fret": 23
+                  },
+                  {
+                    "id": "p5-2-p2-n2-3-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              }
+            ],
+            "tuplets": [],
+            "numberedVoice": {
+              "events": [
+                {
+                  "id": "p5-2-p2-e2-0",
+                  "tick": 0,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "p5-2-p2-i2-0",
+                      "token": "1"
+                    }
+                  ]
+                },
+                {
+                  "id": "p5-2-p2-e2-1",
+                  "tick": 960,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "p5-2-p2-i2-1",
+                      "token": "3"
+                    }
+                  ]
+                },
+                {
+                  "id": "p5-2-p2-e2-2",
+                  "tick": 1920,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "p5-2-p2-i2-2",
+                      "token": "5"
+                    }
+                  ]
+                },
+                {
+                  "id": "p5-2-p2-e2-3",
+                  "tick": 2880,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "p5-2-p2-i2-3",
+                      "token": "6"
+                    }
+                  ]
+                }
+              ],
+              "tuplets": []
+            },
+            "sectionLabel": "段落3"
+          },
+          {
+            "id": "p5-3-p2-m0",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "chordSymbols": [],
+            "lyrics": [
+              {
+                "id": "p5-3-p2-l0",
+                "beatId": "p5-3-p2-b0-0",
+                "verse": 1,
+                "text": "验"
+              }
+            ],
+            "beats": [
+              {
+                "id": "p5-3-p2-b0-0",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "p5-3-p2-n0-0-1",
+                    "string": 1,
+                    "fret": 1
+                  },
+                  {
+                    "id": "p5-3-p2-n0-0-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "p5-3-p2-b0-1",
+                "tick": 960,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "p5-3-p2-n0-1-1",
+                    "string": 1,
+                    "fret": 3
+                  },
+                  {
+                    "id": "p5-3-p2-n0-1-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "p5-3-p2-b0-2",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "p5-3-p2-n0-2-1",
+                    "string": 1,
+                    "fret": 5
+                  },
+                  {
+                    "id": "p5-3-p2-n0-2-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              },
+              {
+                "id": "p5-3-p2-b0-3",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "p5-3-p2-n0-3-1",
+                    "string": 1,
+                    "fret": 7
+                  },
+                  {
+                    "id": "p5-3-p2-n0-3-2",
+                    "string": 2,
+                    "fret": 2
+                  }
+                ]
+              }
+            ],
+            "tuplets": [],
+            "numberedVoice": {
+              "events": [
+                {
+                  "id": "p5-3-p2-e0-0",
+                  "tick": 0,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "p5-3-p2-i0-0",
+                      "token": "1"
+                    }
+                  ]
+                },
+                {
+                  "id": "p5-3-p2-e0-1",
+                  "tick": 960,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "p5-3-p2-i0-1",
+                      "token": "3"
+                    }
+                  ]
+                },
+                {
+                  "id": "p5-3-p2-e0-2",
+                  "tick": 1920,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "p5-3-p2-i0-2",
+                      "token": "5"
+                    }
+                  ]
+                },
+                {
+                  "id": "p5-3-p2-e0-3",
+                  "tick": 2880,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "p5-3-p2-i0-3",
+                      "token": "6"
+                    }
+                  ]
+                }
+              ],
+              "tuplets": []
+            },
+            "sectionLabel": "段落1"
+          }
+        ],
+        "techniques": [],
+        "numberedMarks": [
+          {
+            "id": "p2-mark",
+            "type": "fermata",
+            "eventId": "p2-e0-1"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -17,6 +17,8 @@ import {
   prepareScoreImages,
   encodeScorePage,
   exportScoreImages,
+  ImageExportError,
+  toImageExportError,
   type PreparedScoreImages,
 } from "../components/EditorShell/image-export-controller";
 import { renderPageCanvas } from "../components/EditorShell/score-canvas-renderer";
@@ -113,7 +115,7 @@ describe("A4 图片文件与图元", () => {
     );
     await expect(
       encodeScorePage(prepared, 0, new AbortController().signal),
-    ).rejects.toThrow(/编码失败/);
+    ).rejects.toMatchObject({ code: "encode-failed" });
     expect(failed.width).toBe(1);
     let callback: BlobCallback | undefined;
     const pending = {
@@ -180,7 +182,26 @@ describe("A4 图片文件与图元", () => {
         new AbortController().signal,
         () => {},
       ),
-    ).rejects.toThrow(/100 页/);
+    ).rejects.toMatchObject({
+      code: "zip-too-many-pages",
+      message: expect.stringMatching(/100 页/),
+    });
+  });
+
+  it("错误码保留真实消息，未知异常只回落通用编码失败", () => {
+    const coded = new ImageExportError(
+      "layout-system-too-wide",
+      "谱行超过 A4 宽度",
+    );
+    expect(toImageExportError(coded)).toBe(coded);
+    expect(toImageExportError(new Error("未知失败"))).toMatchObject({
+      code: "encode-failed",
+      message: "未知失败",
+    });
+    expect(toImageExportError("非错误输入")).toMatchObject({
+      code: "encode-failed",
+      message: "图片处理失败，请重试",
+    });
   });
 
   it("新增/替换 DPI 不修改像素数据，密度唯一且位于 IDAT 前", () => {
@@ -250,7 +271,10 @@ describe("A4 图片文件与图元", () => {
         true,
         new AbortController().signal,
       ),
-    ).rejects.toThrow(/音乐字体/);
+    ).rejects.toMatchObject({
+      code: "font-unavailable",
+      message: expect.stringMatching(/音乐字体/),
+    });
     const cancelled = new AbortController();
     cancelled.abort();
     await expect(

@@ -52,9 +52,28 @@ describe("会话草稿协调器", () => {
       "invalid",
       "ime",
     ]);
+    expect(coordinator.inspect().pending[0]?.location).toBeUndefined();
     expect(coordinator.inspect().composing).toBe(true);
     expect(coordinator.isOutputBlocked()).toBe(true);
     expect(session.getState().historyDepth.past).toBe(0);
+  });
+
+  it("草稿位置只用于呈现，不影响版本判断和放弃确认", async () => {
+    const { coordinator, record } = setup();
+    coordinator.register(record({ location: "第 2 小节 · 第 3 拍" }));
+    expect(coordinator.inspect().pending[0]).toMatchObject({
+      location: "第 2 小节 · 第 3 拍",
+      version: expect.any(Object),
+    });
+    const first = await coordinator.request({ type: "discardAll" });
+    expect(first.status).toBe("needs-confirmation");
+    if (first.status !== "needs-confirmation") throw new Error("缺少确认");
+    await expect(
+      coordinator.request({
+        type: "discardAll",
+        confirmation: first.confirmation,
+      }),
+    ).resolves.toEqual({ status: "accepted", discarded: 1 });
   });
 
   it("同 ID 更新后，旧登记清理不能删除新的 owner", () => {

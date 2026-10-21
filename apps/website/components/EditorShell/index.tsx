@@ -37,7 +37,9 @@ import {
 } from "./editor-interaction";
 import { ScoreMusicLayer } from "./ScoreMusicLayer";
 import { buildScoreScene } from "./score-scene";
-import { ScoreImagePreview } from "./ScoreImagePreview";
+import { OutputBlockedModal } from "./OutputBlockedModal";
+import { ImageExportModal } from "./ImageExportModal";
+import type { ImageExportSnapshot } from "./image-export-controller";
 import { ScorePrintLayer } from "./ScorePrintLayer";
 import { ScoreFileControls } from "./ScoreFileControls";
 import { MusicTextSidebar, type MusicTextController } from "./MusicTextSidebar";
@@ -58,11 +60,15 @@ import {
 import {
   captureEditorVersion,
   sameEditorSession,
+  sameEditorVersion,
 } from "./editor-session-version";
 import { EditorStatusBar } from "./EditorStatusBar";
 import { EditorHeader } from "./EditorHeader";
 import { EditorToolbar, type EditorToolbarAction } from "./EditorToolbar";
-import { createEditorCommandAdapter, type EditorCommandAdapter } from "./editor-command-adapter";
+import {
+  createEditorCommandAdapter,
+  type EditorCommandAdapter,
+} from "./editor-command-adapter";
 import { buildEditorToolCommand } from "./editor-tool-actions";
 import { editorShortcutHelp } from "./editor-shortcuts";
 
@@ -92,7 +98,10 @@ export const EditorShell: React.FC = () => {
   const session = useEditorSessionStore();
   const { token } = theme.useToken();
   const { drafts, modals } = useEditorRuntime();
-  const toolExecute = useMemo(() => createEditorCommandAdapter(session, modals), [session, modals]);
+  const toolExecute = useMemo(
+    () => createEditorCommandAdapter(session, modals),
+    [session, modals],
+  );
   const document = useEditorStore((state) => state.document);
   const selection = useEditorStore((state) => state.selection);
   const effects = useEditorStore((state) => state.effects);
@@ -148,14 +157,21 @@ export const EditorShell: React.FC = () => {
   const canUndo = useEditorStore((state) => state.canUndo);
   const canRedo = useEditorStore((state) => state.canRedo);
 
-  const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
+  const [imageExportSnapshot, setImageExportSnapshot] =
+    useState<ImageExportSnapshot | null>(null);
+  const [outputBlockedOpen, setOutputBlockedOpen] = useState(false);
   const [fileFeedbackHost, setFileFeedbackHost] =
     useState<HTMLDivElement | null>(null);
-  /** 宿主替换或历史变化立即关闭旧输出，晚到回调不能发布旧谱。 */
+  /** 文档、状态版本或会话任一变化立即关闭旧输出，晚到回调不能发布旧谱。 */
   useEffect(
     () =>
-      session.subscribe((state, previous) => {
-        if (state.document !== previous.document) setImagePreviewOpen(false);
+      session.subscribe((state) => {
+        setImageExportSnapshot((current) =>
+          current &&
+          !sameEditorVersion(captureEditorVersion(state), current.version)
+            ? null
+            : current,
+        );
       }),
     [session],
   );
@@ -204,6 +220,7 @@ export const EditorShell: React.FC = () => {
   const activePointerIdRef = useRef<number | null>(null);
   const focusCaretRef = useRef<SVGRectElement | null>(null);
   const scoreSvgRef = useRef<SVGSVGElement | null>(null);
+  const imageExportButtonRef = useRef<HTMLButtonElement | null>(null);
 
   /** document 变化后重新生成 system、命中索引和所有 SVG 几何数据。 */
   const lxmLayout = useMemo<ILXMLayout | null>(() => {
@@ -527,6 +544,25 @@ export const EditorShell: React.FC = () => {
     setSelectedNotes(fret);
   };
 
+  const fretDraftLocation = (() => {
+    if (!selection || !document) return undefined;
+    const track = document.score.tracks.find(
+      (item) => item.id === selection.focus.trackId,
+    );
+    const measureIndex =
+      track?.measures.findIndex(
+        (item) => item.id === selection.focus.measureId,
+      ) ?? -1;
+    if (!track || measureIndex < 0) return undefined;
+    const beatIndex = track.measures[measureIndex]!.beats.findIndex(
+      (beat) => beat.id === selection.focus.beatId,
+    );
+    return [
+      `第 ${measureIndex + 1} 小节`,
+      ...(beatIndex >= 0 ? [`第 ${beatIndex + 1} 拍`] : []),
+      `第 ${selection.focus.string} 弦`,
+    ].join(" · ");
+  })();
   useEditorDraftRecords(
     fretDraft && selection
       ? [
@@ -535,6 +571,7 @@ export const EditorShell: React.FC = () => {
             kind: "fret",
             targetKey: `${selection.focus.trackId}/${selection.focus.measureId}/${selection.focus.beatId}/${selection.focus.string}`,
             label: `品位输入 ${fretDraft}`,
+            location: fretDraftLocation,
             dirty: true,
             composing: false,
             canApply: false,
@@ -556,6 +593,7 @@ export const EditorShell: React.FC = () => {
   );
 
   const isOutputBlocked = () =>
+    !!imageExportSnapshot ||
     modals.isOpen() ||
     drafts.isOutputBlocked() ||
     !!fretDraft ||
@@ -854,20 +892,31 @@ export const EditorShell: React.FC = () => {
     );
 
   /** 所有工具提交都先清计时草稿并核对属性保护；粘贴允许自己的 Modal。 */
-  const executeTool: EditorCommandAdapter = async (command, impact = "modal") => {
+  const executeTool: EditorCommandAdapter = async (
+    command,
+    impact = "modal",
+  ) => {
     clearFretDraft();
-    if (musicTextController.current?.isOutputBlocked()) return { status: "blocked", message: "请先应用或取消属性草稿，再修改音乐。" };
+    if (musicTextController.current?.isOutputBlocked())
+      return {
+        status: "blocked",
+        message: "请先应用或取消属性草稿，再修改音乐。",
+      };
     const modal = modals.getSnapshot();
-    if (modal && !(impact === "caller" && modal.request.kind === "beat-paste")) return { status: "blocked", message: "请先完成当前弹层操作。" };
+    if (modal && !(impact === "caller" && modal.request.kind === "beat-paste"))
+      return { status: "blocked", message: "请先完成当前弹层操作。" };
     return toolExecute(command, impact);
   };
   /** 菜单/详情共享最新目标和最终确认结果，不捕获旧 render 的音乐对象。 */
-  const handleToolbarAction = async (action: EditorToolbarAction): Promise<boolean> => {
+  const handleToolbarAction = async (
+    action: EditorToolbarAction,
+  ): Promise<boolean> => {
     if (modals.isOpen()) return false;
     clearFretDraft();
     if (action.type === "undo" || action.type === "redo") {
       const now = session.getState();
-      if (action.type === "undo") now.undo(); else now.redo();
+      if (action.type === "undo") now.undo();
+      else now.redo();
       return true;
     }
     if (musicTextController.current?.isOutputBlocked()) {
@@ -877,7 +926,10 @@ export const EditorShell: React.FC = () => {
     const now = session.getState();
     if (!now.document) return false;
     const command = buildEditorToolCommand(now.document, now.selection, action);
-    if (!command) { setErrorMessage("当前目标不适用此操作，请重新选择。"); return false; }
+    if (!command) {
+      setErrorMessage("当前目标不适用此操作，请重新选择。");
+      return false;
+    }
     const result = await executeTool(command);
     return result.status === "applied" || result.status === "noop";
   };
@@ -921,12 +973,26 @@ export const EditorShell: React.FC = () => {
             isBlocked={isOutputBlocked}
           />
         }
+        imageExportButtonRef={imageExportButtonRef}
         onImageExport={() => {
-          if (isOutputBlocked()) {
-            setErrorMessage("请先完成当前输入并应用或取消修改，再导出图片。");
+          if (modals.isOpen()) {
+            setErrorMessage("请先完成当前弹层操作，再导出图片。");
             return;
           }
-          setImagePreviewOpen(true);
+          if (isOutputBlocked()) {
+            if (drafts.inspect().pending.length) setOutputBlockedOpen(true);
+            else
+              setErrorMessage("请先完成当前输入并应用或取消修改，再导出图片。");
+            return;
+          }
+          const state = session.getState();
+          if (!state.document) return;
+          setImageExportSnapshot({
+            version: captureEditorVersion(state),
+            document: state.document,
+            density,
+            showChordDiagrams,
+          });
         }}
       />
       <EditorToolbar
@@ -936,7 +1002,9 @@ export const EditorShell: React.FC = () => {
         onAction={handleToolbarAction}
         beforeAction={clearFretDraft}
         execute={executeTool}
-        onNavigate={(destination) => musicTextController.current?.navigateTool(destination) ?? "blocked"}
+        onNavigate={(destination) =>
+          musicTextController.current?.navigateTool(destination) ?? "blocked"
+        }
       />
       <div className={styles.editorControls}>
         <div ref={setFileFeedbackHost} />
@@ -1083,13 +1151,23 @@ export const EditorShell: React.FC = () => {
         density={density}
         showChordDiagrams={showChordDiagrams}
       />
-      {imagePreviewOpen && (
-        <ScoreImagePreview
-          score={document}
-          density={density}
-          showChordDiagrams={showChordDiagrams}
-          onClose={() => setImagePreviewOpen(false)}
-          isCurrent={() => session.getState().document === document}
+      <OutputBlockedModal
+        open={outputBlockedOpen}
+        drafts={drafts}
+        onClose={() => setOutputBlockedOpen(false)}
+        onBlocked={setErrorMessage}
+      />
+      {imageExportSnapshot && (
+        <ImageExportModal
+          snapshot={imageExportSnapshot}
+          returnFocus={imageExportButtonRef}
+          onClose={() => setImageExportSnapshot(null)}
+          isCurrent={() =>
+            sameEditorVersion(
+              captureEditorVersion(session.getState()),
+              imageExportSnapshot.version,
+            )
+          }
         />
       )}
     </div>

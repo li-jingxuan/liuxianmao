@@ -1,0 +1,41 @@
+{
+  "success": true,
+  "testedAt": "2026-10-21T17:36:26.802Z",
+  "url": "http://127.0.0.1:3110/",
+  "checks": [
+    {
+      "name": "S02 草稿位置列表、返回编辑并恢复原输入",
+      "details": true
+    },
+    {
+      "name": "S02 放弃全部需二次确认且不自动打开图片预览",
+      "details": true
+    },
+    {
+      "name": "06-01 缩略图只改预览页，单页范围生成与下载文件名正确",
+      "details": true
+    },
+    {
+      "name": "06-03 全部页 ZIP 成功态与下载",
+      "details": true
+    },
+    {
+      "name": "06-02 取消中止任务、清空进度且迟到结果不发布下载",
+      "details": true
+    },
+    {
+      "name": "字体变化使预览失效，重新准备恢复可用页数据",
+      "details": true
+    },
+    {
+      "name": "06-04 A4 布局诊断来自 controller，失败无下载并可返回编辑",
+      "details": true
+    }
+  ],
+  "errors": [],
+  "consoleIssues": [],
+  "ignoredConsoleIssues": [
+    "http://127.0.0.1:3110/favicon.ico: Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ],
+  "browser": "156.0.8078.48"
+}

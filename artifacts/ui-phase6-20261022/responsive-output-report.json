@@ -1,0 +1,33 @@
+{
+  "success": true,
+  "testedAt": "2026-10-21T17:34:08.256Z",
+  "url": "http://127.0.0.1:3110/",
+  "checks": [
+    {
+      "name": "五组视口下工作区与图片预览可达，≤900 视口图片 Modal 单列堆叠",
+      "details": true
+    },
+    {
+      "name": "图片 Modal Tab 首尾循环、Esc 关闭并恢复触发按钮焦点",
+      "details": true
+    },
+    {
+      "name": "100 小节长谱 4 页全部生成，ZIP 条目完整且均为 PNG（2324ms）",
+      "details": {
+        "pageCount": 4,
+        "entries": [
+          "阶段5固定验收谱_001.png",
+          "阶段5固定验收谱_002.png",
+          "阶段5固定验收谱_003.png",
+          "阶段5固定验收谱_004.png"
+        ]
+      }
+    }
+  ],
+  "errors": [],
+  "consoleIssues": [],
+  "ignoredConsoleIssues": [
+    "http://127.0.0.1:3110/favicon.ico: Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ],
+  "browser": "156.0.8078.48"
+}
