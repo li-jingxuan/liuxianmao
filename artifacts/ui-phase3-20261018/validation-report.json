@@ -1,0 +1,28 @@
+{
+  "date": "2026-10-18",
+  "timezone": "Asia/Shanghai",
+  "gitBaseline": "e81015c96258566716b002c5d4feec4bf57eef6b",
+  "testFiles": 79,
+  "testsPassed": 718,
+  "testsFailed": 0,
+  "typeCheck": "passed",
+  "lint": "passed",
+  "productionBuild": "passed",
+  "browser": {
+    "url": "http://127.0.0.1:3111/",
+    "groups": {
+      "s3A": 4,
+      "formsLayoutOutput": 21,
+      "native200Percent": 4
+    },
+    "pageErrors": 0,
+    "consoleIssues": 0
+  },
+  "verifiedSourceHashes": 182,
+  "localMarkdownLinks": 108,
+  "gitDiffCheck": "passed",
+  "manualItems": [
+    "真实系统中文IME候选和结束组合后的系统按键"
+  ],
+  "scope": "S3-A～E 本轮实现及自动化/Chrome浏览器验收"
+}

@@ -10,6 +10,7 @@ import {
 } from "../components/EditorShell/music-text-draft";
 import {
   resolveParagraphInsertionTarget,
+  resolveParagraphNumberedTarget,
   resolveSystemMeasureIds,
 } from "../components/EditorShell/music-text-target";
 
@@ -157,13 +158,45 @@ describe("内容行入口目标解析", () => {
     });
   });
 
-  it("系统测量列表为空或缺少目标小节时保留目标小节", () => {
-    expect(resolveSystemMeasureIds("measure-2", () => [])).toEqual([
-      "measure-2",
-    ]);
-    expect(resolveSystemMeasureIds("measure-2", () => ["measure-1"])).toEqual([
-      "measure-2",
-      "measure-1",
-    ]);
+  it("谱行布局未就绪不能猜测目标谱行", () => {
+    expect(resolveSystemMeasureIds("measure-2", () => [])).toBeNull();
+    expect(
+      resolveSystemMeasureIds("measure-2", () => ["measure-1"]),
+    ).toBeNull();
+    expect(
+      resolveSystemMeasureIds("measure-2", () => ["measure-1", "measure-2"]),
+    ).toEqual(["measure-1", "measure-2"]);
+  });
+
+  it("合法独立简谱事件与空白时间窗不依赖TAB拍点", () => {
+    const { document } = fixture();
+    const track = document.score.tracks[0]!;
+    const measure = track.measures[0]!;
+    measure.beats = [];
+    measure.numberedVoice.events = [
+      {
+        id: "independent",
+        tick: 0,
+        rhythm: { base: "quarter", dots: 0 },
+        kind: "notes",
+        items: [{ id: "independent-item", token: "1" }],
+      },
+    ];
+    const event = measure.numberedVoice.events[0]!;
+    const target = {
+      kind: "numbered" as const,
+      trackId: track.id,
+      measureId: measure.id,
+      eventId: event.id,
+    };
+    expect(resolveParagraphNumberedTarget(document, target)).toMatchObject({
+      eventId: event.id,
+    });
+    measure.numberedVoice.events = [];
+    measure.numberedVoice.tuplets = [];
+    expect(resolveParagraphNumberedTarget(document, null)).toMatchObject({
+      tick: 0,
+      endTick: 960,
+    });
   });
 });

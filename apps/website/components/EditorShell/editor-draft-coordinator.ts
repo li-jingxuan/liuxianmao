@@ -23,6 +23,8 @@ export interface EditorDraftRecord {
   canApply: boolean;
   error: string | null;
   version: EditorSessionVersion;
+  /** 同一 owner 的实际输入身份；仅重新登记不使等待中的确认过期。 */
+  inputKey?: string;
   focus: () => boolean;
   /** 异步准备完成后、真正写入前必须再次检查 isCurrent。 */
   apply: (context: {
@@ -126,7 +128,13 @@ export const createEditorDraftCoordinator = (
     try {
       const result = await record.apply({
         isCurrent: () =>
-          records.get(record.id) === record &&
+          (records.get(record.id) === record ||
+            (record.inputKey !== undefined &&
+              records.get(record.id)?.inputKey === record.inputKey &&
+              sameEditorVersion(
+                records.get(record.id)!.version,
+                record.version,
+              ))) &&
           sameEditorVersion(getVersion(), record.version),
       });
       // 成功提交本来就会改变文档版本；这里只阻止旧会话的迟到结果。

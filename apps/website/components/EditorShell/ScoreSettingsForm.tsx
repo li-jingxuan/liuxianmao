@@ -31,7 +31,7 @@ interface ScoreSettingsFormProps {
   onApply: (group: SettingsGroup) => void;
   onDiscard: () => void;
   onCopyChange: (value: SettingsCopyRange) => void;
-  onCopy: () => void;
+  onCopy: () => void | Promise<void>;
 }
 
 /** 只渲染受控草稿；Form 不以 name/initialValues 再维护另一份音乐内容。 */

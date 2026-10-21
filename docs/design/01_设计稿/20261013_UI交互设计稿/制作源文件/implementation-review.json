@@ -5,7 +5,15 @@
   "reviewDocument": "docs/design/02_规范与复审/20261015_最新代码与设计稿落地复审.md",
   "originalPngsRedrawn": true,
   "visualInspection": "7 张分类总览及独立简谱/连续录入/草稿保护三张大图；其余以清单、源文件和代码契约核查，不宣称逐像素验收。",
-  "supplementalStates": ["S01", "S02", "S03", "S04", "S05", "S06", "S07"],
+  "supplementalStates": [
+    "S01",
+    "S02",
+    "S03",
+    "S04",
+    "S05",
+    "S06",
+    "S07"
+  ],
   "runtimeAcceptance": "632 项测试、类型检查、lint 通过；新增宿主库与新 UI 尚未实现，真实交互仍须验收。",
   "screens": [
     {
@@ -17,7 +25,11 @@
         "apps/website/components/EditorShell/EditorSession.tsx",
         "apps/website/components/EditorShell/score-file.ts"
       ],
-      "rules": ["R01", "R04", "R09"],
+      "rules": [
+        "R01",
+        "R04",
+        "R09"
+      ],
       "acceptance": "列表/收藏/最近/分类来自真实库；失败不作空库；校验成功且保护通过才替换会话；库旧记录不隐式升级。",
       "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
     },
@@ -30,7 +42,11 @@
         "apps/website/components/EditorShell/EditorSession.tsx",
         "apps/website/components/EditorShell/score-file.ts"
       ],
-      "rules": ["R01", "R04", "R09"],
+      "rules": [
+        "R01",
+        "R04",
+        "R09"
+      ],
       "acceptance": "列表/收藏/最近/分类来自真实库；失败不作空库；校验成功且保护通过才替换会话；库旧记录不隐式升级。",
       "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
     },
@@ -43,7 +59,11 @@
         "apps/website/components/EditorShell/EditorSession.tsx",
         "apps/website/components/EditorShell/score-file.ts"
       ],
-      "rules": ["R01", "R04", "R09"],
+      "rules": [
+        "R01",
+        "R04",
+        "R09"
+      ],
       "acceptance": "列表/收藏/最近/分类来自真实库；失败不作空库；校验成功且保护通过才替换会话；库旧记录不隐式升级。",
       "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
     },
@@ -56,7 +76,11 @@
         "apps/website/components/EditorShell/EditorSession.tsx",
         "apps/website/components/EditorShell/score-file.ts"
       ],
-      "rules": ["R01", "R04", "R09"],
+      "rules": [
+        "R01",
+        "R04",
+        "R09"
+      ],
       "acceptance": "列表/收藏/最近/分类来自真实库；失败不作空库；校验成功且保护通过才替换会话；库旧记录不隐式升级。",
       "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
     },
@@ -69,7 +93,11 @@
         "apps/website/components/EditorShell/EditorSession.tsx",
         "apps/website/components/EditorShell/score-file.ts"
       ],
-      "rules": ["R01", "R04", "R09"],
+      "rules": [
+        "R01",
+        "R04",
+        "R09"
+      ],
       "acceptance": "列表/收藏/最近/分类来自真实库；失败不作空库；校验成功且保护通过才替换会话；库旧记录不隐式升级。",
       "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
     },
@@ -82,7 +110,11 @@
         "apps/website/components/EditorShell/EditorSession.tsx",
         "apps/website/components/EditorShell/score-file.ts"
       ],
-      "rules": ["R01", "R04", "R09"],
+      "rules": [
+        "R01",
+        "R04",
+        "R09"
+      ],
       "acceptance": "列表/收藏/最近/分类来自真实库；失败不作空库；校验成功且保护通过才替换会话；库旧记录不隐式升级。",
       "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
     },
@@ -95,7 +127,11 @@
         "apps/website/components/EditorShell/EditorSession.tsx",
         "apps/website/components/EditorShell/score-file.ts"
       ],
-      "rules": ["R01", "R04", "R09"],
+      "rules": [
+        "R01",
+        "R04",
+        "R09"
+      ],
       "acceptance": "列表/收藏/最近/分类来自真实库；失败不作空库；校验成功且保护通过才替换会话；库旧记录不隐式升级。",
       "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
     },
@@ -108,7 +144,11 @@
         "apps/website/components/EditorShell/EditorSession.tsx",
         "apps/website/components/EditorShell/score-file.ts"
       ],
-      "rules": ["R01", "R04", "R09"],
+      "rules": [
+        "R01",
+        "R04",
+        "R09"
+      ],
       "acceptance": "列表/收藏/最近/分类来自真实库；失败不作空库；校验成功且保护通过才替换会话；库旧记录不隐式升级。",
       "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
     },
@@ -122,7 +162,11 @@
         "apps/website/stores/editor-store.ts",
         "packages/lxm-editor/src/core/rest-beats.ts"
       ],
-      "rules": ["R01", "R04", "R09"],
+      "rules": [
+        "R01",
+        "R04",
+        "R09"
+      ],
       "acceptance": "合法 schema 8 空谱；保存事务成功才更新基线；错误/冲突不导航；全部草稿先处理；下载 JSON 不清库保存 dirty。",
       "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
     },
@@ -136,7 +180,11 @@
         "apps/website/stores/editor-store.ts",
         "packages/lxm-editor/src/core/rest-beats.ts"
       ],
-      "rules": ["R01", "R04", "R09"],
+      "rules": [
+        "R01",
+        "R04",
+        "R09"
+      ],
       "acceptance": "合法 schema 8 空谱；保存事务成功才更新基线；错误/冲突不导航；全部草稿先处理；下载 JSON 不清库保存 dirty。",
       "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
     },
@@ -150,7 +198,11 @@
         "apps/website/stores/editor-store.ts",
         "packages/lxm-editor/src/core/rest-beats.ts"
       ],
-      "rules": ["R01", "R04", "R09"],
+      "rules": [
+        "R01",
+        "R04",
+        "R09"
+      ],
       "acceptance": "合法 schema 8 空谱；保存事务成功才更新基线；错误/冲突不导航；全部草稿先处理；下载 JSON 不清库保存 dirty。",
       "pngOverride": "首次保存名称属于音乐内容；正式方案明确名称命令与持久化成功/失败的次序，不能 Form 直接改文档。"
     },
@@ -164,7 +216,11 @@
         "apps/website/stores/editor-store.ts",
         "packages/lxm-editor/src/core/rest-beats.ts"
       ],
-      "rules": ["R01", "R04", "R09"],
+      "rules": [
+        "R01",
+        "R04",
+        "R09"
+      ],
       "acceptance": "合法 schema 8 空谱；保存事务成功才更新基线；错误/冲突不导航；全部草稿先处理；下载 JSON 不清库保存 dirty。",
       "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
     },
@@ -178,7 +234,11 @@
         "apps/website/stores/editor-store.ts",
         "packages/lxm-editor/src/core/rest-beats.ts"
       ],
-      "rules": ["R01", "R04", "R09"],
+      "rules": [
+        "R01",
+        "R04",
+        "R09"
+      ],
       "acceptance": "合法 schema 8 空谱；保存事务成功才更新基线；错误/冲突不导航；全部草稿先处理；下载 JSON 不清库保存 dirty。",
       "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
     },
@@ -192,7 +252,11 @@
         "apps/website/stores/editor-store.ts",
         "packages/lxm-editor/src/core/rest-beats.ts"
       ],
-      "rules": ["R01", "R04", "R09"],
+      "rules": [
+        "R01",
+        "R04",
+        "R09"
+      ],
       "acceptance": "合法 schema 8 空谱；保存事务成功才更新基线；错误/冲突不导航；全部草稿先处理；下载 JSON 不清库保存 dirty。",
       "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
     },
@@ -206,7 +270,11 @@
         "apps/website/stores/editor-store.ts",
         "packages/lxm-editor/src/core/rest-beats.ts"
       ],
-      "rules": ["R01", "R04", "R09"],
+      "rules": [
+        "R01",
+        "R04",
+        "R09"
+      ],
       "acceptance": "合法 schema 8 空谱；保存事务成功才更新基线；错误/冲突不导航；全部草稿先处理；下载 JSON 不清库保存 dirty。",
       "pngOverride": "离开先处理全部暂存草稿，再询问已提交音乐是否保存；不卸载后补保护。"
     },
@@ -220,7 +288,11 @@
         "apps/website/stores/editor-store.ts",
         "packages/lxm-editor/src/core/rest-beats.ts"
       ],
-      "rules": ["R01", "R04", "R09"],
+      "rules": [
+        "R01",
+        "R04",
+        "R09"
+      ],
       "acceptance": "合法 schema 8 空谱；保存事务成功才更新基线；错误/冲突不导航；全部草稿先处理；下载 JSON 不清库保存 dirty。",
       "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
     },
@@ -234,7 +306,11 @@
         "apps/website/stores/editor-store.ts",
         "packages/lxm-editor/src/core/rest-beats.ts"
       ],
-      "rules": ["R01", "R04", "R09"],
+      "rules": [
+        "R01",
+        "R04",
+        "R09"
+      ],
       "acceptance": "合法 schema 8 空谱；保存事务成功才更新基线；错误/冲突不导航；全部草稿先处理；下载 JSON 不清库保存 dirty。",
       "pngOverride": "库写入没有可靠百分比时显示不定进度；保存中锁定重复提交与背景编辑。"
     },
@@ -247,7 +323,15 @@
         "apps/website/components/EditorShell/MusicTextSidebar.tsx",
         "apps/website/components/EditorShell/ScoreSettings.tsx"
       ],
-      "rules": ["R02", "R03", "R04", "R09", "R10", "R11", "R12"],
+      "rules": [
+        "R02",
+        "R03",
+        "R04",
+        "R09",
+        "R10",
+        "R11",
+        "R12"
+      ],
       "acceptance": "四栏目是待建组织；可见页签/焦点/活动对象/选区分离；文件入口保留；非活动面板与断点变化不丢草稿；音乐来自正式布局。",
       "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
     },
@@ -260,7 +344,15 @@
         "apps/website/components/EditorShell/MusicTextSidebar.tsx",
         "apps/website/components/EditorShell/ScoreSettings.tsx"
       ],
-      "rules": ["R02", "R03", "R04", "R09", "R10", "R11", "R12"],
+      "rules": [
+        "R02",
+        "R03",
+        "R04",
+        "R09",
+        "R10",
+        "R11",
+        "R12"
+      ],
       "acceptance": "四栏目是待建组织；可见页签/焦点/活动对象/选区分离；文件入口保留；非活动面板与断点变化不丢草稿；音乐来自正式布局。",
       "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
     },
@@ -273,7 +365,15 @@
         "apps/website/components/EditorShell/MusicTextSidebar.tsx",
         "apps/website/components/EditorShell/ScoreSettings.tsx"
       ],
-      "rules": ["R02", "R03", "R04", "R09", "R10", "R11", "R12"],
+      "rules": [
+        "R02",
+        "R03",
+        "R04",
+        "R09",
+        "R10",
+        "R11",
+        "R12"
+      ],
       "acceptance": "四栏目是待建组织；可见页签/焦点/活动对象/选区分离；文件入口保留；非活动面板与断点变化不丢草稿；音乐来自正式布局。",
       "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
     },
@@ -286,7 +386,15 @@
         "apps/website/components/EditorShell/MusicTextSidebar.tsx",
         "apps/website/components/EditorShell/ScoreSettings.tsx"
       ],
-      "rules": ["R02", "R03", "R04", "R09", "R10", "R11", "R12"],
+      "rules": [
+        "R02",
+        "R03",
+        "R04",
+        "R09",
+        "R10",
+        "R11",
+        "R12"
+      ],
       "acceptance": "四栏目是待建组织；可见页签/焦点/活动对象/选区分离；文件入口保留；非活动面板与断点变化不丢草稿；音乐来自正式布局。",
       "pngOverride": "三选项不适用于普通简谱 A→B；补充 S01 暂存/返回和 S02 多草稿处理。"
     },
@@ -299,7 +407,15 @@
         "apps/website/components/EditorShell/MusicTextSidebar.tsx",
         "apps/website/components/EditorShell/ScoreSettings.tsx"
       ],
-      "rules": ["R02", "R03", "R04", "R09", "R10", "R11", "R12"],
+      "rules": [
+        "R02",
+        "R03",
+        "R04",
+        "R09",
+        "R10",
+        "R11",
+        "R12"
+      ],
       "acceptance": "四栏目是待建组织；可见页签/焦点/活动对象/选区分离；文件入口保留；非活动面板与断点变化不丢草稿；音乐来自正式布局。",
       "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
     },
@@ -312,7 +428,15 @@
         "apps/website/components/EditorShell/MusicTextSidebar.tsx",
         "apps/website/components/EditorShell/ScoreSettings.tsx"
       ],
-      "rules": ["R02", "R03", "R04", "R09", "R10", "R11", "R12"],
+      "rules": [
+        "R02",
+        "R03",
+        "R04",
+        "R09",
+        "R10",
+        "R11",
+        "R12"
+      ],
       "acceptance": "四栏目是待建组织；可见页签/焦点/活动对象/选区分离；文件入口保留；非活动面板与断点变化不丢草稿；音乐来自正式布局。",
       "pngOverride": "紧凑/舒适为视图偏好；editing/presentation 是内部用途，不新增用户手动选择内部模式的开关。"
     },
@@ -325,7 +449,15 @@
         "apps/website/components/EditorShell/MusicTextSidebar.tsx",
         "apps/website/components/EditorShell/ScoreSettings.tsx"
       ],
-      "rules": ["R02", "R03", "R04", "R09", "R10", "R11", "R12"],
+      "rules": [
+        "R02",
+        "R03",
+        "R04",
+        "R09",
+        "R10",
+        "R11",
+        "R12"
+      ],
       "acceptance": "四栏目是待建组织；可见页签/焦点/活动对象/选区分离；文件入口保留；非活动面板与断点变化不丢草稿；音乐来自正式布局。",
       "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
     },
@@ -339,10 +471,25 @@
         "apps/website/components/EditorShell/ChordEditor.tsx",
         "packages/lxm-editor/src/core/numbered-commands.ts"
       ],
-      "rules": ["R02", "R03", "R05", "R06", "R07", "R10", "R11", "R12"],
+      "rules": [
+        "R02",
+        "R03",
+        "R05",
+        "R06",
+        "R07",
+        "R10",
+        "R11",
+        "R12"
+      ],
       "acceptance": "歌词锚定 Beat，简谱锚定事件/item/时间窗；均匀改已有事件保留时值，模板新增限小节；简谱激活不建立 TAB 选区；全部既有模板和记号入口保留。",
-      "pngOverride": "歌词单拍保留应用及应用并下一拍，Enter/Shift+Enter 与 IME 规则不变。",
-      "designRevision": "2026-10-19：补齐并排添加歌词行/添加简谱行入口，保持底部动作可见。"
+      "pngOverride": "歌词单拍保留应用及应用并下一拍，Enter/Shift+Enter 与 IME 规则不变。 2026-10-17 补充 UI-D09：单拍继续使用单行 Input，保留单行校验，不将原稿高文本框解释为多行承诺；连续模式使用 TextArea。既有控件迁移不等于阶段 3 全部画面通过。",
+      "designRevision": "2026-10-19：补齐并排添加歌词行/添加简谱行入口，保持底部动作可见。",
+      "phase3Delivery": {
+        "date": "2026-10-18",
+        "status": "本轮实现与自动化/Chrome浏览器验收通过；真实系统IME单列人工项",
+        "acceptanceDocument": "docs/design/04_实施验收/20261018_UI阶段3歌词简谱与和弦属性表单实施验收.md",
+        "screenshot": "docs/design/04_实施验收/验收截图/20261018_阶段3属性表单/04-01_单拍歌词与四段独立.png"
+      }
     },
     {
       "file": "04_歌词简谱与和弦/02_歌词_连续填词与对应预览.png",
@@ -354,10 +501,25 @@
         "apps/website/components/EditorShell/ChordEditor.tsx",
         "packages/lxm-editor/src/core/numbered-commands.ts"
       ],
-      "rules": ["R02", "R03", "R05", "R06", "R07", "R10", "R11", "R12"],
+      "rules": [
+        "R02",
+        "R03",
+        "R05",
+        "R06",
+        "R07",
+        "R10",
+        "R11",
+        "R12"
+      ],
       "acceptance": "歌词锚定 Beat，简谱锚定事件/item/时间窗；均匀改已有事件保留时值，模板新增限小节；简谱激活不建立 TAB 选区；全部既有模板和记号入口保留。",
       "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。",
-      "designRevision": "2026-10-19：补齐并排添加歌词行/添加简谱行入口，保持底部动作可见。连续歌词标签右侧增加问号规则入口。"
+      "designRevision": "2026-10-19：补齐并排添加歌词行/添加简谱行入口，保持底部动作可见。连续歌词标签右侧增加问号规则入口。",
+      "phase3Delivery": {
+        "date": "2026-10-18",
+        "status": "本轮实现与自动化/Chrome浏览器验收通过；真实系统IME单列人工项",
+        "acceptanceDocument": "docs/design/04_实施验收/20261018_UI阶段3歌词简谱与和弦属性表单实施验收.md",
+        "screenshot": "docs/design/04_实施验收/验收截图/20261018_阶段3属性表单/04-02_连续歌词跨小节对应预览.png"
+      }
     },
     {
       "file": "04_歌词简谱与和弦/03_歌词_超出谱尾错误.png",
@@ -369,10 +531,25 @@
         "apps/website/components/EditorShell/ChordEditor.tsx",
         "packages/lxm-editor/src/core/numbered-commands.ts"
       ],
-      "rules": ["R02", "R03", "R05", "R06", "R07", "R10", "R11", "R12"],
+      "rules": [
+        "R02",
+        "R03",
+        "R05",
+        "R06",
+        "R07",
+        "R10",
+        "R11",
+        "R12"
+      ],
       "acceptance": "歌词锚定 Beat，简谱锚定事件/item/时间窗；均匀改已有事件保留时值，模板新增限小节；简谱激活不建立 TAB 选区；全部既有模板和记号入口保留。",
       "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。",
-      "designRevision": "2026-10-19：补齐并排添加歌词行/添加简谱行入口，保持底部动作可见。连续歌词标签右侧增加问号规则入口。"
+      "designRevision": "2026-10-19：补齐并排添加歌词行/添加简谱行入口，保持底部动作可见。连续歌词标签右侧增加问号规则入口。",
+      "phase3Delivery": {
+        "date": "2026-10-18",
+        "status": "本轮实现与自动化/Chrome浏览器验收通过；真实系统IME单列人工项",
+        "acceptanceDocument": "docs/design/04_实施验收/20261018_UI阶段3歌词简谱与和弦属性表单实施验收.md",
+        "screenshot": "docs/design/04_实施验收/验收截图/20261018_阶段3属性表单/04-03_谱尾错误保留全部预览.png"
+      }
     },
     {
       "file": "04_歌词简谱与和弦/04_简谱_单拍多音.png",
@@ -384,11 +561,26 @@
         "apps/website/components/EditorShell/ChordEditor.tsx",
         "packages/lxm-editor/src/core/numbered-commands.ts"
       ],
-      "rules": ["R02", "R03", "R05", "R06", "R07", "R10", "R11", "R12"],
+      "rules": [
+        "R02",
+        "R03",
+        "R05",
+        "R06",
+        "R07",
+        "R10",
+        "R11",
+        "R12"
+      ],
       "acceptance": "歌词锚定 Beat，简谱锚定事件/item/时间窗；均匀改已有事件保留时值，模板新增限小节；简谱激活不建立 TAB 选区；全部既有模板和记号入口保留。",
-      "pngOverride": "紧凑单音组首屏：事件与模式两列，文本前置，节奏随后；已有事件范围及高级操作默认收起，独立应用语义保留。",
+      "pngOverride": "文件名保留历史单拍称呼；实现是简谱独立音组。整组内容、单 item 音高、时值分别提交；不复制 TAB 蓝框。",
       "designRevision": "2026-10-19：依据 localhost:3000 段落—简谱实界修订，使用 440px 单列滚动面板；简谱自身焦点独立于 TAB。",
-      "compactRevision": "2026-10-19：用户确认按重要程度重排，仅设计改动。紧凑单音组首屏：事件与模式两列，文本前置，节奏随后；已有事件范围及高级操作默认收起，独立应用语义保留。"
+      "compactRevision": "2026-10-19：用户确认按重要程度重排，仅设计改动。紧凑单音组首屏：事件与模式两列，文本前置，节奏随后；已有事件范围及高级操作默认收起，独立应用语义保留。",
+      "phase3Delivery": {
+        "date": "2026-10-18",
+        "status": "本轮实现与自动化/Chrome浏览器验收通过；真实系统IME单列人工项",
+        "acceptanceDocument": "docs/design/04_实施验收/20261018_UI阶段3歌词简谱与和弦属性表单实施验收.md",
+        "screenshot": "docs/design/04_实施验收/验收截图/20261018_阶段3属性表单/04-04_独立多音组内容预览.png"
+      }
     },
     {
       "file": "04_歌词简谱与和弦/05_简谱_连续录入与覆盖保护.png",
@@ -400,11 +592,26 @@
         "apps/website/components/EditorShell/ChordEditor.tsx",
         "packages/lxm-editor/src/core/numbered-commands.ts"
       ],
-      "rules": ["R02", "R03", "R05", "R06", "R07", "R10", "R11", "R12"],
+      "rules": [
+        "R02",
+        "R03",
+        "R05",
+        "R06",
+        "R07",
+        "R10",
+        "R11",
+        "R12"
+      ],
       "acceptance": "歌词锚定 Beat，简谱锚定事件/item/时间窗；均匀改已有事件保留时值，模板新增限小节；简谱激活不建立 TAB 选区；全部既有模板和记号入口保留。",
-      "pngOverride": "紧凑连续录入首屏：定位、输入、节奏、预览与提交按优先级排列；范围与高级操作可展开，草稿不清空。",
+      "pngOverride": "已有事件均匀输入不按默认时值创建音符；新增模板显示范围及成员时值，位置从第1拍起而非 1/0。",
       "designRevision": "2026-10-19：依据 localhost:3000 段落—简谱实界修订，使用 440px 单列滚动面板；简谱自身焦点独立于 TAB。",
-      "compactRevision": "2026-10-19：用户确认按重要程度重排，仅设计改动。紧凑连续录入首屏：定位、输入、节奏、预览与提交按优先级排列；范围与高级操作可展开，草稿不清空。"
+      "compactRevision": "2026-10-19：用户确认按重要程度重排，仅设计改动。紧凑连续录入首屏：定位、输入、节奏、预览与提交按优先级排列；范围与高级操作可展开，草稿不清空。",
+      "phase3Delivery": {
+        "date": "2026-10-18",
+        "status": "本轮实现与自动化/Chrome浏览器验收通过；真实系统IME单列人工项",
+        "acceptanceDocument": "docs/design/04_实施验收/20261018_UI阶段3歌词简谱与和弦属性表单实施验收.md",
+        "screenshot": "docs/design/04_实施验收/验收截图/20261018_阶段3属性表单/04-05_连续简谱跨小节覆盖预览.png"
+      }
     },
     {
       "file": "04_歌词简谱与和弦/06_和弦_预设与六弦指法编辑.png",
@@ -416,9 +623,24 @@
         "apps/website/components/EditorShell/ChordEditor.tsx",
         "packages/lxm-editor/src/core/numbered-commands.ts"
       ],
-      "rules": ["R02", "R03", "R05", "R06", "R07", "R10", "R11", "R12"],
+      "rules": [
+        "R02",
+        "R03",
+        "R05",
+        "R06",
+        "R07",
+        "R10",
+        "R11",
+        "R12"
+      ],
       "acceptance": "歌词锚定 Beat，简谱锚定事件/item/时间窗；均匀改已有事件保留时值，模板新增限小节；简谱激活不建立 TAB 选区；全部既有模板和记号入口保留。",
-      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。",
+      "phase3Delivery": {
+        "date": "2026-10-18",
+        "status": "本轮实现与自动化/Chrome浏览器验收通过；真实系统IME单列人工项",
+        "acceptanceDocument": "docs/design/04_实施验收/20261018_UI阶段3歌词简谱与和弦属性表单实施验收.md",
+        "screenshot": "docs/design/04_实施验收/验收截图/20261018_阶段3属性表单/04-06_和弦真实预览与六弦编辑.png"
+      }
     },
     {
       "file": "04_歌词简谱与和弦/07_和弦_横按设置.png",
@@ -430,9 +652,24 @@
         "apps/website/components/EditorShell/ChordEditor.tsx",
         "packages/lxm-editor/src/core/numbered-commands.ts"
       ],
-      "rules": ["R02", "R03", "R05", "R06", "R07", "R10", "R11", "R12"],
+      "rules": [
+        "R02",
+        "R03",
+        "R05",
+        "R06",
+        "R07",
+        "R10",
+        "R11",
+        "R12"
+      ],
       "acceptance": "歌词锚定 Beat，简谱锚定事件/item/时间窗；均匀改已有事件保留时值，模板新增限小节；简谱激活不建立 TAB 选区；全部既有模板和记号入口保留。",
-      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。",
+      "phase3Delivery": {
+        "date": "2026-10-18",
+        "status": "本轮实现与自动化/Chrome浏览器验收通过；真实系统IME单列人工项",
+        "acceptanceDocument": "docs/design/04_实施验收/20261018_UI阶段3歌词简谱与和弦属性表单实施验收.md",
+        "screenshot": "docs/design/04_实施验收/验收截图/20261018_阶段3属性表单/04-07_横按四字段与错误.png"
+      }
     },
     {
       "file": "05_技巧与小节结构/01_小节属性与范围复制.png",
@@ -444,9 +681,20 @@
         "apps/website/components/EditorShell/TupletToolbar.tsx",
         "packages/lxm-editor/src/core/commands.ts"
       ],
-      "rules": ["R02", "R07", "R08", "R11"],
+      "rules": [
+        "R02",
+        "R07",
+        "R08",
+        "R11"
+      ],
       "acceptance": "TAB 命令不误用于简谱；小节结构为双谱公共约束；复制明确谱层；预览失效重新规划；错误无部分修改；影响与内容一起撤销。",
-      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。 2026-10-17 进度补充 UI-D08：段落标记与可配置范围复制通过原保护流程定位歌曲 Form，菜单/详情显示摘要，不另建字段草稿；直接复制保留。原字段定位与保护导航三分支已在阶段 2 本轮浏览器验收通过，真实系统 IME 仍待人工复核，见 currentProgressDocument。"
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。 2026-10-17 进度补充 UI-D08：段落标记与可配置范围复制通过原保护流程定位歌曲 Form，菜单/详情显示摘要，不另建字段草稿；直接复制保留。原字段定位与保护导航三分支已在阶段 2 本轮浏览器验收通过，真实系统 IME 仍待人工复核，见 currentProgressDocument。",
+      "phase4Delivery": {
+        "date": "2026-10-18",
+        "status": "S4-A～E功能实现、自动化与Chrome逐画面证据通过；真实系统IME单列人工项，多浏览器归阶段6",
+        "acceptanceDocument": "docs/design/04_实施验收/20261018_UI阶段4技巧与小节结构实施验收.md",
+        "screenshot": "docs/design/04_实施验收/验收截图/20261018_阶段4技巧与小节结构/05-01_小节属性与范围复制.png"
+      }
     },
     {
       "file": "05_技巧与小节结构/02_拍点覆盖粘贴预览.png",
@@ -458,9 +706,20 @@
         "apps/website/components/EditorShell/TupletToolbar.tsx",
         "packages/lxm-editor/src/core/commands.ts"
       ],
-      "rules": ["R02", "R07", "R08", "R11"],
+      "rules": [
+        "R02",
+        "R07",
+        "R08",
+        "R11"
+      ],
       "acceptance": "TAB 命令不误用于简谱；小节结构为双谱公共约束；复制明确谱层；预览失效重新规划；错误无部分修改；影响与内容一起撤销。",
-      "pngOverride": "粘贴预览显示仅TAB/双谱以及两谱记号影响；独立简谱使用自己的剪贴板；部分事件/Tuplet 拒绝。"
+      "pngOverride": "粘贴预览显示仅TAB/双谱以及两谱记号影响；独立简谱使用自己的剪贴板；部分事件/Tuplet 拒绝。",
+      "phase4Delivery": {
+        "date": "2026-10-18",
+        "status": "S4-A～E功能实现、自动化与Chrome逐画面证据通过；真实系统IME单列人工项，多浏览器归阶段6",
+        "acceptanceDocument": "docs/design/04_实施验收/20261018_UI阶段4技巧与小节结构实施验收.md",
+        "screenshot": "docs/design/04_实施验收/验收截图/20261018_阶段4技巧与小节结构/05-02_拍点覆盖粘贴预览.png"
+      }
     },
     {
       "file": "05_技巧与小节结构/03_连音组_比例与禁用条件.png",
@@ -472,9 +731,20 @@
         "apps/website/components/EditorShell/TupletToolbar.tsx",
         "packages/lxm-editor/src/core/commands.ts"
       ],
-      "rules": ["R02", "R07", "R08", "R11"],
+      "rules": [
+        "R02",
+        "R07",
+        "R08",
+        "R11"
+      ],
       "acceptance": "TAB 命令不误用于简谱；小节结构为双谱公共约束；复制明确谱层；预览失效重新规划；错误无部分修改；影响与内容一起撤销。",
-      "pngOverride": "此图为 TAB 连音组规则；简谱 Tuplet 走 range.replace 的 ratio，不复用 TAB SetTuplet。"
+      "pngOverride": "此图为 TAB 连音组规则；简谱 Tuplet 走 range.replace 的 ratio，不复用 TAB SetTuplet。",
+      "phase4Delivery": {
+        "date": "2026-10-18",
+        "status": "S4-A～E功能实现、自动化与Chrome逐画面证据通过；真实系统IME单列人工项，多浏览器归阶段6",
+        "acceptanceDocument": "docs/design/04_实施验收/20261018_UI阶段4技巧与小节结构实施验收.md",
+        "screenshot": "docs/design/04_实施验收/验收截图/20261018_阶段4技巧与小节结构/05-03_连音组比例与禁用条件.png"
+      }
     },
     {
       "file": "05_技巧与小节结构/04_技巧选择器_完整16类.png",
@@ -486,9 +756,20 @@
         "apps/website/components/EditorShell/TupletToolbar.tsx",
         "packages/lxm-editor/src/core/commands.ts"
       ],
-      "rules": ["R02", "R07", "R08", "R11"],
+      "rules": [
+        "R02",
+        "R07",
+        "R08",
+        "R11"
+      ],
       "acceptance": "TAB 命令不误用于简谱；小节结构为双谱公共约束；复制明确谱层；预览失效重新规划；错误无部分修改；影响与内容一起撤销。",
-      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。",
+      "phase4Delivery": {
+        "date": "2026-10-18",
+        "status": "S4-A～E功能实现、自动化与Chrome逐画面证据通过；真实系统IME单列人工项，多浏览器归阶段6",
+        "acceptanceDocument": "docs/design/04_实施验收/20261018_UI阶段4技巧与小节结构实施验收.md",
+        "screenshot": "docs/design/04_实施验收/验收截图/20261018_阶段4技巧与小节结构/05-04_完整16类技巧选择器.png"
+      }
     },
     {
       "file": "05_技巧与小节结构/05_技巧属性_半音与全音推弦.png",
@@ -500,9 +781,20 @@
         "apps/website/components/EditorShell/TupletToolbar.tsx",
         "packages/lxm-editor/src/core/commands.ts"
       ],
-      "rules": ["R02", "R07", "R08", "R11"],
+      "rules": [
+        "R02",
+        "R07",
+        "R08",
+        "R11"
+      ],
       "acceptance": "TAB 命令不误用于简谱；小节结构为双谱公共约束；复制明确谱层；预览失效重新规划；错误无部分修改；影响与内容一起撤销。",
-      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。",
+      "phase4Delivery": {
+        "date": "2026-10-18",
+        "status": "S4-A～E功能实现、自动化与Chrome逐画面证据通过；真实系统IME单列人工项，多浏览器归阶段6",
+        "acceptanceDocument": "docs/design/04_实施验收/20261018_UI阶段4技巧与小节结构实施验收.md",
+        "screenshot": "docs/design/04_实施验收/验收截图/20261018_阶段4技巧与小节结构/05-05_推弦半音全音参数.png"
+      }
     },
     {
       "file": "05_技巧与小节结构/06_编辑影响反馈与撤销.png",
@@ -514,9 +806,20 @@
         "apps/website/components/EditorShell/TupletToolbar.tsx",
         "packages/lxm-editor/src/core/commands.ts"
       ],
-      "rules": ["R02", "R07", "R08", "R11"],
+      "rules": [
+        "R02",
+        "R07",
+        "R08",
+        "R11"
+      ],
       "acceptance": "TAB 命令不误用于简谱；小节结构为双谱公共约束；复制明确谱层；预览失效重新规划；错误无部分修改；影响与内容一起撤销。",
-      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。",
+      "phase4Delivery": {
+        "date": "2026-10-18",
+        "status": "S4-A～E功能实现、自动化与Chrome逐画面证据通过；真实系统IME单列人工项，多浏览器归阶段6",
+        "acceptanceDocument": "docs/design/04_实施验收/20261018_UI阶段4技巧与小节结构实施验收.md",
+        "screenshot": "docs/design/04_实施验收/验收截图/20261018_阶段4技巧与小节结构/05-06_统一影响确认与撤销.png"
+      }
     },
     {
       "file": "05_技巧与小节结构/07_关系技巧_目标音符.png",
@@ -528,9 +831,20 @@
         "apps/website/components/EditorShell/TupletToolbar.tsx",
         "packages/lxm-editor/src/core/commands.ts"
       ],
-      "rules": ["R02", "R07", "R08", "R11"],
+      "rules": [
+        "R02",
+        "R07",
+        "R08",
+        "R11"
+      ],
       "acceptance": "TAB 命令不误用于简谱；小节结构为双谱公共约束；复制明确谱层；预览失效重新规划；错误无部分修改；影响与内容一起撤销。",
-      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。",
+      "phase4Delivery": {
+        "date": "2026-10-18",
+        "status": "S4-A～E功能实现、自动化与Chrome逐画面证据通过；真实系统IME单列人工项，多浏览器归阶段6",
+        "acceptanceDocument": "docs/design/04_实施验收/20261018_UI阶段4技巧与小节结构实施验收.md",
+        "screenshot": "docs/design/04_实施验收/验收截图/20261018_阶段4技巧与小节结构/05-07_关系技巧目标音符.png"
+      }
     },
     {
       "file": "05_技巧与小节结构/08_范围技巧_起止与语义.png",
@@ -542,9 +856,20 @@
         "apps/website/components/EditorShell/TupletToolbar.tsx",
         "packages/lxm-editor/src/core/commands.ts"
       ],
-      "rules": ["R02", "R07", "R08", "R11"],
+      "rules": [
+        "R02",
+        "R07",
+        "R08",
+        "R11"
+      ],
       "acceptance": "TAB 命令不误用于简谱；小节结构为双谱公共约束；复制明确谱层；预览失效重新规划；错误无部分修改；影响与内容一起撤销。",
-      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。",
+      "phase4Delivery": {
+        "date": "2026-10-18",
+        "status": "S4-A～E功能实现、自动化与Chrome逐画面证据通过；真实系统IME单列人工项，多浏览器归阶段6",
+        "acceptanceDocument": "docs/design/04_实施验收/20261018_UI阶段4技巧与小节结构实施验收.md",
+        "screenshot": "docs/design/04_实施验收/验收截图/20261018_阶段4技巧与小节结构/05-08_范围技巧起止与语义.png"
+      }
     },
     {
       "file": "06_图片导出与异常/01_A4多页图片预览.png",
@@ -555,7 +880,12 @@
         "apps/website/components/EditorShell/image-export-controller.ts",
         "apps/website/components/EditorShell/ScorePresentationPage.tsx"
       ],
-      "rules": ["R04", "R09", "R10", "R12"],
+      "rules": [
+        "R04",
+        "R09",
+        "R10",
+        "R12"
+      ],
       "acceptance": "预览/PNG 共用成品 scene；当前及缓存草稿均阻止输出；字体/会话变化取消旧结果；单页 PNG、多页 ZIP；不保留编辑装饰。",
       "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
     },
@@ -568,7 +898,12 @@
         "apps/website/components/EditorShell/image-export-controller.ts",
         "apps/website/components/EditorShell/ScorePresentationPage.tsx"
       ],
-      "rules": ["R04", "R09", "R10", "R12"],
+      "rules": [
+        "R04",
+        "R09",
+        "R10",
+        "R12"
+      ],
       "acceptance": "预览/PNG 共用成品 scene；当前及缓存草稿均阻止输出；字体/会话变化取消旧结果；单页 PNG、多页 ZIP；不保留编辑装饰。",
       "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
     },
@@ -581,7 +916,12 @@
         "apps/website/components/EditorShell/image-export-controller.ts",
         "apps/website/components/EditorShell/ScorePresentationPage.tsx"
       ],
-      "rules": ["R04", "R09", "R10", "R12"],
+      "rules": [
+        "R04",
+        "R09",
+        "R10",
+        "R12"
+      ],
       "acceptance": "预览/PNG 共用成品 scene；当前及缓存草稿均阻止输出；字体/会话变化取消旧结果；单页 PNG、多页 ZIP；不保留编辑装饰。",
       "pngOverride": "仅在编码完成后可下载；生成完成不承诺浏览器已写入磁盘；保存曲谱状态不因图片下载变已保存。"
     },
@@ -594,7 +934,12 @@
         "apps/website/components/EditorShell/image-export-controller.ts",
         "apps/website/components/EditorShell/ScorePresentationPage.tsx"
       ],
-      "rules": ["R04", "R09", "R10", "R12"],
+      "rules": [
+        "R04",
+        "R09",
+        "R10",
+        "R12"
+      ],
       "acceptance": "预览/PNG 共用成品 scene；当前及缓存草稿均阻止输出；字体/会话变化取消旧结果；单页 PNG、多页 ZIP；不保留编辑装饰。",
       "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
     },
@@ -607,7 +952,13 @@
         "apps/website/components/EditorShell/MusicTextSidebar.tsx",
         "apps/website/components/EditorShell/index.tsx"
       ],
-      "rules": ["R02", "R04", "R09", "R10", "R11"],
+      "rules": [
+        "R02",
+        "R04",
+        "R09",
+        "R10",
+        "R11"
+      ],
       "acceptance": "1280 并列、1024 上下、768 工具收纳及650高度需真实验证；面板独立滚动；保持草稿 owner；弹层/下拉/键盘可达，不按 PNG 绝对定位。",
       "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。",
       "designRevision": "2026-10-19：补齐并排添加歌词行/添加简谱行入口，保持底部动作可见。"
@@ -621,7 +972,13 @@
         "apps/website/components/EditorShell/MusicTextSidebar.tsx",
         "apps/website/components/EditorShell/index.tsx"
       ],
-      "rules": ["R02", "R04", "R09", "R10", "R11"],
+      "rules": [
+        "R02",
+        "R04",
+        "R09",
+        "R10",
+        "R11"
+      ],
       "acceptance": "1280 并列、1024 上下、768 工具收纳及650高度需真实验证；面板独立滚动；保持草稿 owner；弹层/下拉/键盘可达，不按 PNG 绝对定位。",
       "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。",
       "designRevision": "2026-10-19：补齐并排添加歌词行/添加简谱行入口，保持底部动作可见。"
@@ -635,7 +992,11 @@
         "apps/website/components/EditorShell/EditorSession.tsx",
         "apps/website/components/EditorShell/score-file.ts"
       ],
-      "rules": ["R01", "R04", "R09"],
+      "rules": [
+        "R01",
+        "R04",
+        "R09"
+      ],
       "acceptance": "列表/收藏/最近/分类来自真实库；失败不作空库；校验成功且保护通过才替换会话；库旧记录不隐式升级。",
       "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
     },
@@ -648,7 +1009,11 @@
         "apps/website/components/EditorShell/EditorSession.tsx",
         "apps/website/components/EditorShell/score-file.ts"
       ],
-      "rules": ["R01", "R04", "R09"],
+      "rules": [
+        "R01",
+        "R04",
+        "R09"
+      ],
       "acceptance": "列表/收藏/最近/分类来自真实库；失败不作空库；校验成功且保护通过才替换会话；库旧记录不隐式升级。",
       "pngOverride": "本图只代表库/宿主普通加载失败；文件导入另有显式升级确认，不可一概拒绝所有旧文件。"
     },
@@ -662,7 +1027,11 @@
         "apps/website/stores/editor-store.ts",
         "packages/lxm-editor/src/core/rest-beats.ts"
       ],
-      "rules": ["R01", "R04", "R09"],
+      "rules": [
+        "R01",
+        "R04",
+        "R09"
+      ],
       "acceptance": "合法 schema 8 空谱；保存事务成功才更新基线；错误/冲突不导航；全部草稿先处理；下载 JSON 不清库保存 dirty。",
       "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
     },
@@ -676,7 +1045,11 @@
         "apps/website/stores/editor-store.ts",
         "packages/lxm-editor/src/core/rest-beats.ts"
       ],
-      "rules": ["R01", "R04", "R09"],
+      "rules": [
+        "R01",
+        "R04",
+        "R09"
+      ],
       "acceptance": "合法 schema 8 空谱；保存事务成功才更新基线；错误/冲突不导航；全部草稿先处理；下载 JSON 不清库保存 dirty。",
       "pngOverride": "冲突使用 storeVersion，不用 documentRevision；副本创建新作品身份且不覆盖另一窗口。"
     },
@@ -689,7 +1062,15 @@
         "apps/website/components/EditorShell/MusicTextSidebar.tsx",
         "apps/website/components/EditorShell/ScoreSettings.tsx"
       ],
-      "rules": ["R02", "R03", "R04", "R09", "R10", "R11", "R12"],
+      "rules": [
+        "R02",
+        "R03",
+        "R04",
+        "R09",
+        "R10",
+        "R11",
+        "R12"
+      ],
       "acceptance": "四栏目是待建组织；可见页签/焦点/活动对象/选区分离；文件入口保留；非活动面板与断点变化不丢草稿；音乐来自正式布局。",
       "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
     },
@@ -703,10 +1084,25 @@
         "apps/website/components/EditorShell/ChordEditor.tsx",
         "packages/lxm-editor/src/core/numbered-commands.ts"
       ],
-      "rules": ["R02", "R03", "R05", "R06", "R07", "R10", "R11", "R12"],
+      "rules": [
+        "R02",
+        "R03",
+        "R05",
+        "R06",
+        "R07",
+        "R10",
+        "R11",
+        "R12"
+      ],
       "acceptance": "歌词锚定 Beat，简谱锚定事件/item/时间窗；均匀改已有事件保留时值，模板新增限小节；简谱激活不建立 TAB 选区；全部既有模板和记号入口保留。",
       "pngOverride": "简谱无目标时可点击独立空位；不为了显示行创建 TAB 音符、假 Beat 或休止事件。",
-      "designRevision": "2026-10-19：补齐并排添加歌词行/添加简谱行入口，保持底部动作可见。"
+      "designRevision": "2026-10-19：补齐并排添加歌词行/添加简谱行入口，保持底部动作可见。",
+      "phase3Delivery": {
+        "date": "2026-10-18",
+        "status": "本轮实现与自动化/Chrome浏览器验收通过；真实系统IME单列人工项",
+        "acceptanceDocument": "docs/design/04_实施验收/20261018_UI阶段3歌词简谱与和弦属性表单实施验收.md",
+        "screenshot": "docs/design/04_实施验收/验收截图/20261018_阶段3属性表单/04-08_无目标与添加内容行.png"
+      }
     },
     {
       "file": "04_歌词简谱与和弦/09_和弦高级操作与错误状态.png",
@@ -718,9 +1114,24 @@
         "apps/website/components/EditorShell/ChordEditor.tsx",
         "packages/lxm-editor/src/core/numbered-commands.ts"
       ],
-      "rules": ["R02", "R03", "R05", "R06", "R07", "R10", "R11", "R12"],
+      "rules": [
+        "R02",
+        "R03",
+        "R05",
+        "R06",
+        "R07",
+        "R10",
+        "R11",
+        "R12"
+      ],
       "acceptance": "歌词锚定 Beat，简谱锚定事件/item/时间窗；均匀改已有事件保留时值，模板新增限小节；简谱激活不建立 TAB 选区；全部既有模板和记号入口保留。",
-      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。",
+      "phase3Delivery": {
+        "date": "2026-10-18",
+        "status": "本轮实现与自动化/Chrome浏览器验收通过；真实系统IME单列人工项",
+        "acceptanceDocument": "docs/design/04_实施验收/20261018_UI阶段3歌词简谱与和弦属性表单实施验收.md",
+        "screenshot": "docs/design/04_实施验收/验收截图/20261018_阶段3属性表单/04-09_非标准调弦与高级错误.png"
+      }
     },
     {
       "file": "05_技巧与小节结构/09_小节工具展开与段落字段.png",
@@ -732,9 +1143,20 @@
         "apps/website/components/EditorShell/TupletToolbar.tsx",
         "packages/lxm-editor/src/core/commands.ts"
       ],
-      "rules": ["R02", "R07", "R08", "R11"],
+      "rules": [
+        "R02",
+        "R07",
+        "R08",
+        "R11"
+      ],
       "acceptance": "TAB 命令不误用于简谱；小节结构为双谱公共约束；复制明确谱层；预览失效重新规划；错误无部分修改；影响与内容一起撤销。",
-      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。 2026-10-17 进度补充 UI-D08：段落标记与可配置范围复制通过原保护流程定位歌曲 Form，菜单/详情显示摘要，不另建字段草稿；直接复制保留。原字段定位与保护导航三分支已在阶段 2 本轮浏览器验收通过，真实系统 IME 仍待人工复核，见 currentProgressDocument。"
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。 2026-10-17 进度补充 UI-D08：段落标记与可配置范围复制通过原保护流程定位歌曲 Form，菜单/详情显示摘要，不另建字段草稿；直接复制保留。原字段定位与保护导航三分支已在阶段 2 本轮浏览器验收通过，真实系统 IME 仍待人工复核，见 currentProgressDocument。",
+      "phase4Delivery": {
+        "date": "2026-10-18",
+        "status": "S4-A～E功能实现、自动化与Chrome逐画面证据通过；真实系统IME单列人工项，多浏览器归阶段6",
+        "acceptanceDocument": "docs/design/04_实施验收/20261018_UI阶段4技巧与小节结构实施验收.md",
+        "screenshot": "docs/design/04_实施验收/验收截图/20261018_阶段4技巧与小节结构/05-09_小节工具与段落字段.png"
+      }
     },
     {
       "file": "05_技巧与小节结构/10_拍点结构菜单与可用条件.png",
@@ -746,9 +1168,20 @@
         "apps/website/components/EditorShell/TupletToolbar.tsx",
         "packages/lxm-editor/src/core/commands.ts"
       ],
-      "rules": ["R02", "R07", "R08", "R11"],
+      "rules": [
+        "R02",
+        "R07",
+        "R08",
+        "R11"
+      ],
       "acceptance": "TAB 命令不误用于简谱；小节结构为双谱公共约束；复制明确谱层；预览失效重新规划；错误无部分修改；影响与内容一起撤销。",
-      "pngOverride": "菜单区分 TAB 拍点与简谱时间范围；不能让简谱目标驱动 beat.split/merge。"
+      "pngOverride": "菜单区分 TAB 拍点与简谱时间范围；不能让简谱目标驱动 beat.split/merge。",
+      "phase4Delivery": {
+        "date": "2026-10-18",
+        "status": "S4-A～E功能实现、自动化与Chrome逐画面证据通过；真实系统IME单列人工项，多浏览器归阶段6",
+        "acceptanceDocument": "docs/design/04_实施验收/20261018_UI阶段4技巧与小节结构实施验收.md",
+        "screenshot": "docs/design/04_实施验收/验收截图/20261018_阶段4技巧与小节结构/05-10_拍点结构菜单与可用条件.png"
+      }
     },
     {
       "file": "05_技巧与小节结构/11_六类小节线与谱尾禁用.png",
@@ -760,9 +1193,20 @@
         "apps/website/components/EditorShell/TupletToolbar.tsx",
         "packages/lxm-editor/src/core/commands.ts"
       ],
-      "rules": ["R02", "R07", "R08", "R11"],
+      "rules": [
+        "R02",
+        "R07",
+        "R08",
+        "R11"
+      ],
       "acceptance": "TAB 命令不误用于简谱；小节结构为双谱公共约束；复制明确谱层；预览失效重新规划；错误无部分修改；影响与内容一起撤销。",
-      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。",
+      "phase4Delivery": {
+        "date": "2026-10-18",
+        "status": "S4-A～E功能实现、自动化与Chrome逐画面证据通过；真实系统IME单列人工项，多浏览器归阶段6",
+        "acceptanceDocument": "docs/design/04_实施验收/20261018_UI阶段4技巧与小节结构实施验收.md",
+        "screenshot": "docs/design/04_实施验收/验收截图/20261018_阶段4技巧与小节结构/05-11_六类小节线与谱尾禁用.png"
+      }
     },
     {
       "file": "05_技巧与小节结构/12_技巧方向与辅助品位参数.png",
@@ -774,9 +1218,20 @@
         "apps/website/components/EditorShell/TupletToolbar.tsx",
         "packages/lxm-editor/src/core/commands.ts"
       ],
-      "rules": ["R02", "R07", "R08", "R11"],
+      "rules": [
+        "R02",
+        "R07",
+        "R08",
+        "R11"
+      ],
       "acceptance": "TAB 命令不误用于简谱；小节结构为双谱公共约束；复制明确谱层；预览失效重新规划；错误无部分修改；影响与内容一起撤销。",
-      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
+      "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。",
+      "phase4Delivery": {
+        "date": "2026-10-18",
+        "status": "S4-A～E功能实现、自动化与Chrome逐画面证据通过；真实系统IME单列人工项，多浏览器归阶段6",
+        "acceptanceDocument": "docs/design/04_实施验收/20261018_UI阶段4技巧与小节结构实施验收.md",
+        "screenshot": "docs/design/04_实施验收/验收截图/20261018_阶段4技巧与小节结构/05-12_技巧方向与辅助品位参数.png"
+      }
     },
     {
       "file": "07_窄窗口适配/03_低高度650_独立滚动与固定动作.png",
@@ -787,7 +1242,13 @@
         "apps/website/components/EditorShell/MusicTextSidebar.tsx",
         "apps/website/components/EditorShell/index.tsx"
       ],
-      "rules": ["R02", "R04", "R09", "R10", "R11"],
+      "rules": [
+        "R02",
+        "R04",
+        "R09",
+        "R10",
+        "R11"
+      ],
       "acceptance": "1280 并列、1024 上下、768 工具收纳及650高度需真实验证；面板独立滚动；保持草稿 owner；弹层/下拉/键盘可达，不按 PNG 绝对定位。",
       "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。",
       "designRevision": "2026-10-19：补齐并排添加歌词行/添加简谱行入口，保持底部动作可见。连续歌词标签右侧增加问号规则入口。"
@@ -801,7 +1262,13 @@
         "apps/website/components/EditorShell/MusicTextSidebar.tsx",
         "apps/website/components/EditorShell/index.tsx"
       ],
-      "rules": ["R02", "R04", "R09", "R10", "R11"],
+      "rules": [
+        "R02",
+        "R04",
+        "R09",
+        "R10",
+        "R11"
+      ],
       "acceptance": "1280 并列、1024 上下、768 工具收纳及650高度需真实验证；面板独立滚动；保持草稿 owner；弹层/下拉/键盘可达，不按 PNG 绝对定位。",
       "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。",
       "designRevision": "2026-10-19：补齐并排添加歌词行/添加简谱行入口，保持底部动作可见。"
@@ -816,11 +1283,26 @@
         "apps/website/components/EditorShell/ChordEditor.tsx",
         "packages/lxm-editor/src/core/numbered-commands.ts"
       ],
-      "rules": ["R02", "R03", "R05", "R06", "R07", "R10", "R11", "R12"],
+      "rules": [
+        "R02",
+        "R03",
+        "R05",
+        "R06",
+        "R07",
+        "R10",
+        "R11",
+        "R12"
+      ],
       "acceptance": "歌词锚定 Beat，简谱锚定事件/item/时间窗；均匀改已有事件保留时值，模板新增限小节；简谱激活不建立 TAB 选区；全部既有模板和记号入口保留。",
-      "pngOverride": "音符技巧与范围复用展开态；时值和音高独立应用，连线无终点禁用，已有连音组与记号保留移除/更新入口。",
+      "pngOverride": "必须保留前八后十六/前十六后八/连音比例、自定义成员、拆合、记号和范围复用；音高控件先明确 item 选择，不能一个八度隐含修改整组。",
       "designRevision": "2026-10-19：依据 localhost:3000 段落—简谱实界修订，使用 440px 单列滚动面板；简谱自身焦点独立于 TAB。",
-      "compactRevision": "2026-10-19：用户确认按重要程度重排，仅设计改动。音符技巧与范围复用展开态；时值和音高独立应用，连线无终点禁用，已有连音组与记号保留移除/更新入口。"
+      "compactRevision": "2026-10-19：用户确认按重要程度重排，仅设计改动。音符技巧与范围复用展开态；时值和音高独立应用，连线无终点禁用，已有连音组与记号保留移除/更新入口。",
+      "phase3Delivery": {
+        "date": "2026-10-18",
+        "status": "本轮实现与自动化/Chrome浏览器验收通过；真实系统IME单列人工项",
+        "acceptanceDocument": "docs/design/04_实施验收/20261018_UI阶段3歌词简谱与和弦属性表单实施验收.md",
+        "screenshot": "docs/design/04_实施验收/验收截图/20261018_阶段3属性表单/04-10_单item音高时值与技巧.png"
+      }
     },
     {
       "file": "04_歌词简谱与和弦/11_简谱常用符号与拍号视觉规范.png",
@@ -832,9 +1314,24 @@
         "apps/website/components/EditorShell/ChordEditor.tsx",
         "packages/lxm-editor/src/core/numbered-commands.ts"
       ],
-      "rules": ["R02", "R03", "R05", "R06", "R07", "R10", "R11", "R12"],
+      "rules": [
+        "R02",
+        "R03",
+        "R05",
+        "R06",
+        "R07",
+        "R10",
+        "R11",
+        "R12"
+      ],
       "acceptance": "歌词锚定 Beat，简谱锚定事件/item/时间窗；均匀改已有事件保留时值，模板新增限小节；简谱激活不建立 TAB 选区；全部既有模板和记号入口保留。",
-      "pngOverride": "图中符号形态作参考；净空、连梁、八度点、跨行连线和同 tick 首音对齐来自最新 layout。"
+      "pngOverride": "图中符号形态作参考；净空、连梁、八度点、跨行连线和同 tick 首音对齐来自最新 layout。",
+      "phase3Delivery": {
+        "date": "2026-10-18",
+        "status": "本轮实现与自动化/Chrome浏览器验收通过；真实系统IME单列人工项",
+        "acceptanceDocument": "docs/design/04_实施验收/20261018_UI阶段3歌词简谱与和弦属性表单实施验收.md",
+        "screenshot": "docs/design/04_实施验收/验收截图/20261018_阶段3属性表单/04-11_核心符号与成品回归.png"
+      }
     },
     {
       "file": "03_编辑工作台/09_TAB对齐与选区细节.png",
@@ -845,7 +1342,15 @@
         "apps/website/components/EditorShell/MusicTextSidebar.tsx",
         "apps/website/components/EditorShell/ScoreSettings.tsx"
       ],
-      "rules": ["R02", "R03", "R04", "R09", "R10", "R11", "R12"],
+      "rules": [
+        "R02",
+        "R03",
+        "R04",
+        "R09",
+        "R10",
+        "R11",
+        "R12"
+      ],
       "acceptance": "四栏目是待建组织；可见页签/焦点/活动对象/选区分离；文件入口保留；非活动面板与断点变化不丢草稿；音乐来自正式布局。",
       "pngOverride": "沿用布局；适用最新复审中的本组规则，原图不作为领域算法或保存能力已存在的证据。"
     },
@@ -967,6 +1472,10 @@
       "compactRevision": "2026-10-19：拆出独立范围复用展开图；覆盖/插入按范围成组，合并/移除按选区上下文显示。"
     }
   ],
+  "progressNote": "2026-10-22 更新：阶段 1、2 已有验收；S3-A～E 实现及自动化/Chrome 浏览器验收通过；S4-A～E 功能实现、自动化和 Chrome 逐画面验收通过（阶段4汇总见 acceptance 文档）。真实系统中文 IME 人工复核继续单列；多浏览器全量矩阵归阶段6。",
+  "currentProgressDocument": "docs/design/04_实施验收/20261018_UI阶段3歌词简谱与和弦属性表单实施验收.md",
+  "phase3PlanDocument": "docs/design/03_技术方案/20261017_UI阶段3歌词简谱与和弦属性表单实施技术方案.md",
+  "phase4PlanDocument": "docs/design/03_技术方案/20261018_UI阶段4技巧与小节结构实施技术方案.md",
   "designRevision": {
     "date": "2026-10-19",
     "scope": "仅静态设计及其索引；不变更产品实现或历史运行时验收结论",

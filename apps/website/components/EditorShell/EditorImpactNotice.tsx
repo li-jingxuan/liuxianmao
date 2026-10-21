@@ -40,6 +40,7 @@ export const EditorImpactNotice = ({
   const labels = {
     "beats.structured": "拍点结构编辑",
     "beats.pasted": "拍点粘贴",
+    "tuplets.structured": "连音组结构",
     "measures.copied": "小节范围复制",
     "beat.compressed": "拍时值缩短",
     "beat.retimed": "拍起点调整",

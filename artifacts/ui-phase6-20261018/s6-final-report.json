@@ -1,0 +1,41 @@
+{
+  "phase": "S6",
+  "date": "2026-10-18",
+  "status": "partial-complete-with-explicit-environment-blockers",
+  "automatic": {
+    "chrome": {
+      "comprehensiveChecks": 21,
+      "toolStructureChecks": 17,
+      "zoomChecks": 4,
+      "pageErrors": 0,
+      "functionalConsoleErrors": 0,
+      "status": "passed"
+    }
+  },
+  "blocked": [
+    {
+      "browser": "Edge",
+      "reason": "browser not installed"
+    },
+    {
+      "browser": "Firefox",
+      "reason": "browser not installed"
+    }
+  ],
+  "manual": [
+    {
+      "browser": "Safari",
+      "reason": "real Safari and IME candidate-window behavior require manual run"
+    },
+    {
+      "feature": "real Chinese IME",
+      "reason": "composition events do not prove system candidate-window behavior"
+    }
+  ],
+  "artifacts": [
+    "matrix.json",
+    "chrome-browser-baseline-report.json",
+    "chrome-zoom-baseline-report.json"
+  ],
+  "remaining": "Install/run Edge and Firefox, manually run Safari and real IME, then close the matrix."
+}

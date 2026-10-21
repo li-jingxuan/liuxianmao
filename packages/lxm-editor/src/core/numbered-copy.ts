@@ -35,38 +35,50 @@ export const copyNumberedVoices = (
       })),
     };
   });
+  const omittedMarks: ILXMNumberedMark[] = [];
   const marks = track.numberedMarks.flatMap((m): ILXMNumberedMark[] => {
-    if (m.type === "tie")
-      return ids.has(m.fromItemId) && ids.has(m.toItemId)
-        ? [
-            {
-              ...m,
-              id: factory.createNumberedMarkId(),
-              fromItemId: ids.get(m.fromItemId)!,
-              toItemId: ids.get(m.toItemId)!,
-            },
-          ]
-        : [];
-    if (m.type === "slur")
-      return ids.has(m.fromEventId) && ids.has(m.toEventId)
-        ? [
-            {
-              ...m,
-              id: factory.createNumberedMarkId(),
-              fromEventId: ids.get(m.fromEventId)!,
-              toEventId: ids.get(m.toEventId)!,
-            },
-          ]
-        : [];
-    return ids.has(m.eventId)
-      ? [
-          {
-            ...m,
-            id: factory.createNumberedMarkId(),
-            eventId: ids.get(m.eventId)!,
-          },
-        ]
-      : [];
+    if (m.type === "tie") {
+      const hasFrom = ids.has(m.fromItemId);
+      const hasTo = ids.has(m.toItemId);
+      if (!hasFrom && !hasTo) return [];
+      if (!hasFrom || !hasTo) {
+        omittedMarks.push(m);
+        return [];
+      }
+      return [
+        {
+          ...m,
+          id: factory.createNumberedMarkId(),
+          fromItemId: ids.get(m.fromItemId)!,
+          toItemId: ids.get(m.toItemId)!,
+        },
+      ];
+    }
+    if (m.type === "slur") {
+      const hasFrom = ids.has(m.fromEventId);
+      const hasTo = ids.has(m.toEventId);
+      if (!hasFrom && !hasTo) return [];
+      if (!hasFrom || !hasTo) {
+        omittedMarks.push(m);
+        return [];
+      }
+      return [
+        {
+          ...m,
+          id: factory.createNumberedMarkId(),
+          fromEventId: ids.get(m.fromEventId)!,
+          toEventId: ids.get(m.toEventId)!,
+        },
+      ];
+    }
+    if (!ids.has(m.eventId)) return [];
+    return [
+      {
+        ...m,
+        id: factory.createNumberedMarkId(),
+        eventId: ids.get(m.eventId)!,
+      },
+    ];
   });
-  return { voices, marks };
+  return { voices, marks, omittedMarks };
 };
