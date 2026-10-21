@@ -1,4 +1,4 @@
-import { Button, Form, Input, InputNumber, Select } from "antd";
+import { Alert, Button, Form, Input, InputNumber, Select } from "antd";
 import {
   CHORD_PRESETS,
   copyChordPreset,
@@ -97,41 +97,16 @@ export const ChordEditor = ({
               ]}
             />
           </Form.Item>
-          <Form.Item
-            layout="vertical"
-            label="起始品位"
-            htmlFor={"editor-field-" + "起始品位"}
-          >
-            <InputNumber
-              id={"editor-field-" + "起始品位"}
-              aria-label="起始品位"
-              min={1}
-              max={20}
-              disabled={!diagram}
-              value={
-                Number.isFinite(diagram?.startFret ?? 1)
-                  ? (diagram?.startFret ?? 1)
-                  : null
-              }
-              onChange={(value) =>
-                diagram &&
-                updateDiagram({ ...diagram, startFret: value ?? Number.NaN })
-              }
-              changeOnBlur={false}
-              style={{ width: "100%" }}
-            />
-            <small>
-              按指法显示 3–5 个品格
-              {diagram && !issue
-                ? `，当前 ${getChordDiagramFretCount(diagram)} 格`
-                : ""}
-              ；起始品位不改变实际按弦品位。
-            </small>
-          </Form.Item>
         </div>
-        <small>
-          名称与指法由你确认。{!presetsEnabled && "当前调弦仅支持自定义指法。"}
-        </small>
+        <small>名称与指法由你确认，应用后才写入曲谱。</small>
+        {!presetsEnabled && (
+          <Alert
+            type="info"
+            showIcon
+            title="当前调弦仅支持自定义指法"
+            description="常用预设基于标准调弦，已暂停使用；仍可编辑六弦与横按，已有指法不会自动转置。"
+          />
+        )}
         {!diagram && (
           <Button onClick={() => updateDiagram(emptyDiagram())}>
             创建指法图
@@ -327,11 +302,56 @@ export const ChordEditor = ({
               新增横按
             </Button>
           </details>
-          <div className={styles.sidebarTip}>
-            通过表格选择品位和手指，横按设置可折叠。
-            <br />
-            起始品位只调整观察窗口，不会自动转调。
-          </div>
+          <p className={styles.sidebarTip}>
+            通过六弦表格选择品位和手指；横按设置可折叠，折叠后保留当前输入。
+          </p>
+        </section>
+      )}
+      {diagram && (
+        <section className={styles.sidebarSection} aria-label="和弦高级设置">
+          <h3>高级设置</h3>
+          <Form.Item
+            layout="vertical"
+            label="起始品位"
+            htmlFor={"editor-field-" + "起始品位"}
+          >
+            <InputNumber
+              id={"editor-field-" + "起始品位"}
+              aria-label="起始品位"
+              min={1}
+              max={20}
+              disabled={!diagram}
+              value={
+                Number.isFinite(diagram?.startFret ?? 1)
+                  ? (diagram?.startFret ?? 1)
+                  : null
+              }
+              onChange={(value) =>
+                diagram &&
+                updateDiagram({ ...diagram, startFret: value ?? Number.NaN })
+              }
+              changeOnBlur={false}
+              style={{ width: "100%" }}
+            />
+            <small>
+              按指法显示 3–5 个品格
+              {diagram && !issue
+                ? `，当前 ${getChordDiagramFretCount(diagram)} 格`
+                : ""}
+              ；起始品位不改变实际按弦品位。
+            </small>
+          </Form.Item>
+          {issue && (
+            <Alert
+              type="error"
+              showIcon
+              title="指法尚未应用"
+              description={issue}
+            />
+          )}
+          <p className={styles.sidebarTip}>
+            起始品位只调整观察窗口，不转调。清除指法图保留名称；取消可放弃当前草稿。
+          </p>
         </section>
       )}
     </>

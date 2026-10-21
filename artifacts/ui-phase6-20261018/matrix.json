@@ -1,0 +1,95 @@
+{
+  "phase": "S6",
+  "date": "2026-10-18",
+  "source": "current working tree after phase4",
+  "server": "http://127.0.0.1:3111/",
+  "browsers": [
+    {
+      "id": "B-CH",
+      "browser": "Chrome",
+      "status": "passed",
+      "version": "Chrome current production run",
+      "reports": [
+        "chrome-browser-baseline-report.json",
+        "chrome-zoom-baseline-report.json"
+      ],
+      "pageErrors": 0,
+      "consoleErrors": 0,
+      "browserChecks": 21,
+      "zoomChecks": 4
+    },
+    {
+      "id": "B-ED",
+      "browser": "Edge",
+      "status": "blocked",
+      "reason": "/Applications/Microsoft Edge.app not installed; no Edge executable found",
+      "checks": 0
+    },
+    {
+      "id": "B-FF",
+      "browser": "Firefox",
+      "status": "blocked",
+      "reason": "/Applications/Firefox.app not installed; no Firefox executable found",
+      "checks": 0
+    },
+    {
+      "id": "B-SA",
+      "browser": "Safari",
+      "status": "manual",
+      "reason": "Safari binary exists, but this run cannot automate WebKit/Safari UI or prove real IME candidate-window behavior",
+      "checks": 0
+    }
+  ],
+  "viewports": [
+    {
+      "id": "V-1440",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "id": "V-1280",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "id": "V-1024",
+      "width": 1024,
+      "height": 768
+    },
+    {
+      "id": "V-768",
+      "width": 768,
+      "height": 900
+    },
+    {
+      "id": "V-650",
+      "width": 1280,
+      "height": 650
+    },
+    {
+      "id": "V-200",
+      "width": 720,
+      "height": 406,
+      "devicePixelRatio": 2,
+      "pageZoom": 2
+    }
+  ],
+  "groups": [
+    "workspace-and-navigation",
+    "lyrics-and-ime",
+    "numbered-drafts-and-marks",
+    "chord-and-technique-forms",
+    "measure-beat-tuplet-and-paste",
+    "json-roundtrip",
+    "single-and-multipage-png",
+    "long-score-and-scroll",
+    "keyboard-focus-and-modal-boundaries"
+  ],
+  "status": "S6-A-E-chrome-complete-with-environment-blockers",
+  "finalNotes": [
+    "Chrome automatic matrix passed",
+    "Edge/Firefox blocked by missing browser installations",
+    "Safari and real IME require manual environment run",
+    "Stage 5 export path is covered by current Chrome smoke but remains a separate implementation milestone"
+  ]
+}

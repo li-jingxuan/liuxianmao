@@ -379,3 +379,68 @@ it("插入到已有区间造成副本技巧冲突时拒绝整次复制", () => {
   expect(result.ok).toBe(false);
   expect(doc).toEqual(before);
 });
+
+it("整小节复制报告跨边界简谱连接遗漏但不改变复制结果", () => {
+  const document = structuredClone(EXAMPLE_MVP_6_DOCUMENT);
+  const track = document.score.tracks[0]!;
+  const first = track.measures[0]!;
+  const second = track.measures[1]!;
+  const firstItemId = "copy-numbered-first-item";
+  const secondItemId = "copy-numbered-second-item";
+  first.numberedVoice = {
+    events: [
+      {
+        id: "copy-numbered-first-event",
+        kind: "notes",
+        tick: 0,
+        rhythm: { base: "quarter", dots: 0 },
+        items: [{ id: firstItemId, token: "1" }],
+      },
+    ],
+    tuplets: [],
+  };
+  second.numberedVoice = {
+    events: [
+      {
+        id: "copy-numbered-second-event",
+        kind: "notes",
+        tick: 0,
+        rhythm: { base: "quarter", dots: 0 },
+        items: [{ id: secondItemId, token: "2" }],
+      },
+    ],
+    tuplets: [],
+  };
+  track.numberedMarks = [
+    {
+      id: "copy-numbered-cross-boundary-tie",
+      type: "tie",
+      fromItemId: firstItemId,
+      toItemId: secondItemId,
+    },
+  ];
+
+  const result = applyScoreCommand(document, {
+    type: LXMScoreCommandEnum.CopyMeasureRange,
+    trackId: track.id,
+    sourceStartMeasureId: first.id,
+    sourceEndMeasureId: first.id,
+    confirmedRemovedMarkIds: ["copy-numbered-cross-boundary-tie"],
+  });
+
+  expect(result.ok).toBe(true);
+  if (!result.ok) return;
+  expect(result.document.score.tracks[0]!.measures).toHaveLength(
+    track.measures.length + 1,
+  );
+  expect(
+    result.effects?.some(
+      (effect) =>
+        effect.kind === "numbered.mark.omitted" &&
+        effect.markId === "copy-numbered-cross-boundary-tie" &&
+        effect.markType === "tie" &&
+        effect.measureNumber === 1,
+    ),
+  ).toBe(true);
+  expect(result.document.score.tracks[0]!.numberedMarks).toHaveLength(0);
+});

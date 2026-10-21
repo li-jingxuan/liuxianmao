@@ -12,6 +12,7 @@ import {
   type ILXMScoreCommand,
 } from "@liuxianmao/lxm-editor";
 import { useEditorSessionStore } from "../../stores/editor-store";
+import type { EditorCommandAdapter } from "./editor-command-adapter";
 import {
   readScoreSettings,
   submitSettingsDraft,
@@ -42,6 +43,7 @@ export const ScoreSettings = ({
   measureId,
   onDirty,
   commit,
+  executeTool,
   onFocusRequest,
 }: {
   ref: Ref<ScoreSettingsController>;
@@ -49,6 +51,8 @@ export const ScoreSettings = ({
   measureId?: string;
   onDirty: (dirty: boolean) => void;
   commit: (command: ILXMScoreCommand) => ILXMApplyScoreCommandResult | null;
+  /** 结构复制需要先经过异步预检/影响确认，沿用统一 command adapter。 */
+  executeTool?: EditorCommandAdapter;
   onFocusRequest?: () => boolean;
 }) => {
   const store = useEditorSessionStore();
@@ -159,7 +163,9 @@ export const ScoreSettings = ({
     apply: () => apply(),
     discard,
     focusField: (field) => {
-      const element = container.current?.querySelector<HTMLElement>(field === "label" ? "#settings-label" : "#settings-copy-start");
+      const element = container.current?.querySelector<HTMLElement>(
+        field === "label" ? "#settings-label" : "#settings-copy-start",
+      );
       if (!element || !element.getClientRects().length) return false;
       element.scrollIntoView({ block: "nearest" });
       element.focus({ preventScroll: true });
@@ -172,17 +178,33 @@ export const ScoreSettings = ({
     end: first.id,
     after: "",
   });
-  const copyMeasures = () => {
+  const copyMeasures = async () => {
     if (composing.current || dirty) return;
     const current = store.getState().document;
     if (!current || !sameEditorVersion(store.getState(), renderVersion)) return;
-    const result = commit({
+    const command: ILXMScoreCommand = {
       type: LXMScoreCommandEnum.CopyMeasureRange,
       trackId: current.score.tracks[0]!.id,
       sourceStartMeasureId: copy.start,
       sourceEndMeasureId: copy.end,
       afterMeasureId: copy.after || undefined,
-    });
+    };
+    if (executeTool) {
+      const outcome = await executeTool(command);
+      if (!sameEditorSession(store.getState(), renderVersion)) return;
+      if (outcome.status === "applied" || outcome.status === "noop")
+        setIssues({});
+      else
+        setIssues((previous) => ({
+          ...previous,
+          copy:
+            outcome.status === "needs-impact"
+              ? outcome.result.message
+              : outcome.message,
+        }));
+      return;
+    }
+    const result = commit(command);
     if (!sameEditorSession(store.getState(), renderVersion)) return;
     if (!result?.ok)
       setIssues((previous) => ({

@@ -3,6 +3,7 @@ import type {
   ILXMDocument,
   ILXMTechniqueType,
   ILXMNumberedMark,
+  ILXMTupletRatio,
   ILXMTrack,
 } from "./types";
 import { createMeasureRhythmContext } from "./tuplet";
@@ -38,6 +39,12 @@ export type ILXMCommandEffect =
   | (EffectLocation & {
       kind: "beats.pasted";
       mode: "insert" | "overwrite";
+      count: number;
+    })
+  | (EffectLocation & {
+      kind: "tuplets.structured";
+      operation: "set" | "remove";
+      ratio: ILXMTupletRatio;
       count: number;
     })
   | (EffectLocation & {
@@ -86,6 +93,31 @@ const numberedMarkLocation = (track: ILXMTrack, mark: ILXMNumberedMark) => {
 };
 
 /** 剪贴板只记录越界关系 ID；源仍存在时补齐类型与原位置，否则使用当前复制/粘贴范围。 */
+/** 复制整小节时报告未能完整映射的简谱连接，位置使用源 mark 起点。 */
+export const collectNumberedMarkOmissionEffects = (
+  document: ILXMDocument,
+  trackId: string,
+  fallbackMeasureId: string,
+  marks: readonly ILXMNumberedMark[],
+): ILXMCommandEffect[] => {
+  const track = document.score.tracks.find((item) => item.id === trackId);
+  if (!track) return [];
+  const fallback = {
+    trackId,
+    measureId: fallbackMeasureId,
+    measureNumber: Math.max(
+      1,
+      track.measures.findIndex((m) => m.id === fallbackMeasureId) + 1,
+    ),
+  };
+  return marks.map((mark) => ({
+    ...(numberedMarkLocation(track, mark) ?? fallback),
+    kind: "numbered.mark.omitted" as const,
+    markId: mark.id,
+    markType: mark.type,
+  }));
+};
+
 export const collectNumberedOmissionEffects = (
   document: ILXMDocument,
   trackId: string,
@@ -126,6 +158,36 @@ export const collectCommandEffects = (
     track.measures.forEach((measure, measureIndex) => {
       const nextMeasure = nextTrack?.measures.find((m) => m.id === measure.id);
       if (!nextMeasure || nextMeasure === measure) return;
+      if (
+        (command.type === "tuplet.set" || command.type === "tuplet.remove") &&
+        command.trackId === track.id &&
+        command.measureId === measure.id
+      ) {
+        const beforeGroup =
+          command.type === "tuplet.remove"
+            ? measure.tuplets.find((group) => group.id === command.tupletId)
+            : undefined;
+        const afterGroup =
+          command.type === "tuplet.set"
+            ? nextMeasure.tuplets.find(
+                (group) =>
+                  group.beatIds.includes(command.startBeatId) &&
+                  group.beatIds.includes(command.endBeatId),
+              )
+            : undefined;
+        const group = afterGroup ?? beforeGroup;
+        if (group) {
+          effects.push({
+            trackId: track.id,
+            measureId: measure.id,
+            measureNumber: measureIndex + 1,
+            kind: "tuplets.structured",
+            operation: command.type === "tuplet.set" ? "set" : "remove",
+            ratio: group.ratio,
+            count: group.beatIds.length,
+          });
+        }
+      }
       const previousContext = createNumberedRhythmContext(
         measure.numberedVoice,
       );

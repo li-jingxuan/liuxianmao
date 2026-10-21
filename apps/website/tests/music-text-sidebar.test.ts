@@ -8,6 +8,11 @@ import {
   resolveSidebarRequest,
   type MusicTextTarget,
 } from "../components/EditorShell/music-text-draft";
+import {
+  resolveParagraphInsertionTarget,
+  resolveParagraphNumberedTarget,
+  resolveSystemMeasureIds,
+} from "../components/EditorShell/music-text-target";
 
 const fixture = () => {
   const document = structuredClone(EXAMPLE_MVP_6_DOCUMENT);
@@ -126,5 +131,72 @@ describe("音乐文本侧栏草稿保护", () => {
     expect(resolveSidebarRequest(draft, { type: "close" })).toBe("execute");
     expect(readMusicTextDraft(document, target, "sequence")?.text).toBe("春");
     expect(readMusicTextDraft(document, target, "single")?.text).toBe("春");
+  });
+});
+
+describe("内容行入口目标解析", () => {
+  it("优先使用其他轨道上的有效目标，不错误回退到首轨", () => {
+    const { document } = fixture();
+    const secondTrack = structuredClone(document.score.tracks[0]!);
+    secondTrack.id = "track-2";
+    secondTrack.measures[0]!.id = "measure-2";
+    secondTrack.measures[0]!.beats[0]!.id = "beat-2";
+    document.score.tracks.push(secondTrack);
+    const target = resolveParagraphInsertionTarget(document, {
+      trackId: "track-2",
+      measureId: "measure-2",
+      beatId: "beat-2",
+      string: 4,
+      kind: "lyric",
+      verse: 1,
+    });
+    expect(target).toEqual({
+      trackId: "track-2",
+      measureId: "measure-2",
+      beatId: "beat-2",
+      string: 4,
+    });
+  });
+
+  it("谱行布局未就绪不能猜测目标谱行", () => {
+    expect(resolveSystemMeasureIds("measure-2", () => [])).toBeNull();
+    expect(
+      resolveSystemMeasureIds("measure-2", () => ["measure-1"]),
+    ).toBeNull();
+    expect(
+      resolveSystemMeasureIds("measure-2", () => ["measure-1", "measure-2"]),
+    ).toEqual(["measure-1", "measure-2"]);
+  });
+
+  it("合法独立简谱事件与空白时间窗不依赖TAB拍点", () => {
+    const { document } = fixture();
+    const track = document.score.tracks[0]!;
+    const measure = track.measures[0]!;
+    measure.beats = [];
+    measure.numberedVoice.events = [
+      {
+        id: "independent",
+        tick: 0,
+        rhythm: { base: "quarter", dots: 0 },
+        kind: "notes",
+        items: [{ id: "independent-item", token: "1" }],
+      },
+    ];
+    const event = measure.numberedVoice.events[0]!;
+    const target = {
+      kind: "numbered" as const,
+      trackId: track.id,
+      measureId: measure.id,
+      eventId: event.id,
+    };
+    expect(resolveParagraphNumberedTarget(document, target)).toMatchObject({
+      eventId: event.id,
+    });
+    measure.numberedVoice.events = [];
+    measure.numberedVoice.tuplets = [];
+    expect(resolveParagraphNumberedTarget(document, null)).toMatchObject({
+      tick: 0,
+      endTick: 960,
+    });
   });
 });

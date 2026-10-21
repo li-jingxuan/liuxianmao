@@ -1,0 +1,28 @@
+{
+  "testedAt": "2026-10-17T19:11:14.641Z",
+  "url": "http://127.0.0.1:3111/",
+  "checks": [
+    {
+      "name": "时值单独应用保留raw、owner身份及输出保护",
+      "details": true
+    },
+    {
+      "name": "仅item草稿经正确组应用并切换",
+      "details": true
+    },
+    {
+      "name": "多分组导航禁用并保留所有输入",
+      "details": true
+    },
+    {
+      "name": "B操作影响缓存A时阻断，返回A恢复全部输入",
+      "details": true
+    }
+  ],
+  "errors": [],
+  "consoleIssues": [],
+  "ignoredConsoleIssues": [
+    "http://127.0.0.1:3111/favicon.ico: Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ],
+  "browser": "155.0.8059.80"
+}

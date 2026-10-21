@@ -1,6 +1,6 @@
 {
-  "testedAt": "2026-10-16T17:31:38.532Z",
-  "url": "http://127.0.0.1:3103/",
+  "testedAt": "2026-10-17T19:12:24.787Z",
+  "url": "http://127.0.0.1:3111/",
   "checks": [
     {
       "name": "音符、休止、闷音、删除与附点经真实入口提交并撤销",
@@ -156,7 +156,7 @@
   "errors": [],
   "consoleIssues": [],
   "ignoredConsoleIssues": [
-    "http://127.0.0.1:3103/favicon.ico: Failed to load resource: the server responded with a status of 404 (Not Found)"
+    "http://127.0.0.1:3111/favicon.ico: Failed to load resource: the server responded with a status of 404 (Not Found)"
   ],
   "browser": "155.0.8059.80"
 }

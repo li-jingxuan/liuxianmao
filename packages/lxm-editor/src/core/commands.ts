@@ -2,13 +2,12 @@ import { buildNumberedIndex } from "./numbered-rhythm";
 import { planBeatPaste, type BeatClipboard } from "./beat-clipboard";
 import { splitBeat, mergeBeats } from "./beat-structure";
 import { techniqueBeatIds } from "./content-protection";
-import {
-  type NumberedSequenceItem,
-} from "./numbered-notation";
+import { type NumberedSequenceItem } from "./numbered-notation";
 import { validateTuning } from "./tuning";
 import { normalizeMusicText, hasMusicTextControlCharacter } from "./music-text";
 import {
   collectCommandEffects,
+  collectNumberedMarkOmissionEffects,
   type ILXMCommandEffect,
 } from "./command-effects";
 import {
@@ -1741,6 +1740,12 @@ const applyScoreCommandInternal = (
       factory,
     );
     const effects: ILXMCommandEffect[] = [
+      ...collectNumberedMarkOmissionEffects(
+        document,
+        track.id,
+        sourceMeasures[0]!.id,
+        numberedCopy.omittedMarks,
+      ),
       ...copied.effects,
       {
         kind: "measures.copied",
@@ -1827,10 +1832,12 @@ const applyScoreCommandInternal = (
   if (!source) return fail("MEASURE_NOT_FOUND", "轨道没有可继承拍号的小节");
   let inserted: ILXMMeasure;
   let numberedCopies: typeof track.numberedMarks = [];
+  let numberedOmittedMarks: typeof track.numberedMarks = [];
   if (command.type === LXMScoreCommandEnum.CopyMeasure) {
     const copySource = track.measures[sourceIndex]!;
     const numberedCopy = copyNumberedVoices(track, [copySource], factory);
     numberedCopies = numberedCopy.marks;
+    numberedOmittedMarks = numberedCopy.omittedMarks;
     const copiedBeats = copySource.beats.map((beat) => ({
       ...beat,
       id: factory.createBeatId(),
@@ -1892,6 +1899,12 @@ const applyScoreCommandInternal = (
     command.type === LXMScoreCommandEnum.CopyMeasure
       ? copyMeasureTechniques(track, source, inserted, factory)
       : { techniques: [], effects: [] };
+  const numberedOmissionEffects = collectNumberedMarkOmissionEffects(
+    document,
+    track.id,
+    source.id,
+    numberedOmittedMarks,
+  );
   const nextMeasures = [...track.measures];
   nextMeasures.splice(sourceIndex + 1, 0, inserted);
   const result = finalize(

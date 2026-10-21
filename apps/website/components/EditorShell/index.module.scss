@@ -934,21 +934,30 @@
   gap: 4px;
   align-items: center;
 }
-.compactToolTrigger { display: none; }
+.compactToolTrigger {
+  display: none;
+}
 .toolPanelHost {
   width: min(345px, calc(100vw - 56px));
   max-height: min(660px, calc(100dvh - 160px));
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 4px;
-  h3 { margin: 0 0 16px; font-size: 16px; font-weight: 500; }
+  h3 {
+    margin: 0 0 16px;
+    font-size: 16px;
+    font-weight: 500;
+  }
 }
 .toolMenu {
   display: flex;
   flex-direction: column;
   gap: 12px;
   min-width: 0;
-  > span, > label { width: 100%; }
+  > span,
+  > label {
+    width: 100%;
+  }
 }
 .toolTarget {
   padding: 6px 10px;
@@ -957,48 +966,164 @@
   border-radius: 6px;
   font-size: 13px;
 }
-.toolSearch { margin-bottom: 12px; }
+.toolSearch {
+  margin-bottom: 12px;
+}
 .toolSearchResults {
   display: grid;
   gap: 4px;
   margin-top: 8px;
-  button { white-space: normal; height: auto; min-height: 32px; text-align: left; }
+  button {
+    white-space: normal;
+    height: auto;
+    min-height: 32px;
+    text-align: left;
+  }
 }
 .toolDetails {
   display: flex;
   flex-direction: column;
   gap: 20px;
-  h3 { font-size: 16px; font-weight: 500; margin: 8px 0 0; }
-  p { margin: 0; }
+  h3 {
+    font-size: 16px;
+    font-weight: 500;
+    margin: 8px 0 0;
+  }
+  p {
+    margin: 0;
+  }
 }
-.barlineOptions { display: grid; gap: 14px; }
-.tupletRatioGrid, .techniqueTypeGrid {
+.barlineOptions {
+  display: grid;
+  gap: 14px;
+}
+.tupletRatioGrid,
+.techniqueTypeGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
-  > span { min-width: 0; }
+  > span {
+    min-width: 0;
+  }
 }
-.techniqueTypeGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.techniqueTypeGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
 .techniquePicker {
-  display: flex; flex-direction: column; gap: 28px;
-  h3 { color: #626e82; font-size: 14px; font-weight: 400; margin: 0 0 16px; }
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  h3 {
+    color: #626e82;
+    font-size: 14px;
+    font-weight: 400;
+    margin: 0 0 16px;
+  }
 }
-.pastePreview { display: flex; flex-direction: column; gap: 24px; outline: none; }
-.toolbarNotice { flex-basis: 100%; padding-block: 4px; font-size: 12px; }
+.pastePreview {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  outline: none;
+}
+.toolbarNotice {
+  flex-basis: 100%;
+  padding-block: 4px;
+  font-size: 12px;
+}
 @container score-editor (width < 900px) {
-  .advancedToolTriggers { --editor-tools-mode: compact; }
-  .wideToolTrigger { display: none; }
-  .compactToolTrigger { display: inline-flex; }
+  .advancedToolTriggers {
+    --editor-tools-mode: compact;
+  }
+  .wideToolTrigger {
+    display: none;
+  }
+  .compactToolTrigger {
+    display: inline-flex;
+  }
 }
 @media (max-width: 600px) {
-  .techniqueTypeGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .techniqueTypeGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 @media (max-width: 380px) {
-  .techniqueTypeGrid { grid-template-columns: minmax(0, 1fr); }
+  .techniqueTypeGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .toolChoiceCard {
-  display: flex; align-items: center; justify-content: center;
-  width: 100%; min-height: 40px; height: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 40px;
+  height: auto;
   white-space: normal;
+}
+
+// 属性分组只组织受控视图，不通过断点或折叠重建草稿 owner。
+.propertyFieldset {
+  min-inline-size: 0;
+  margin: 16px 0;
+  padding: 16px 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+  > legend {
+    padding-right: 8px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  :global(.ant-select) {
+    width: 100%;
+  }
+  > button {
+    margin: 4px 6px 4px 0;
+  }
+  dialog {
+    max-width: min(480px, calc(100vw - 32px));
+  }
+}
+.sidebarBody dialog {
+  max-width: min(480px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--foreground);
+  background: var(--panel);
+  &::backdrop {
+    background: rgb(15 23 42 / 35%);
+  }
+  button + button {
+    margin-left: 8px;
+  }
+}
+.sequencePreview {
+  overflow: auto;
+  table {
+    min-width: 320px;
+  }
+  small {
+    display: block;
+    font-size: 11px;
+    color: var(--muted);
+  }
+}
+@container score-editor (width < 900px) {
+  .propertyFieldset {
+    margin-block: 12px;
+  }
+}
+
+.numberedAdvanced {
+  margin: 16px 0;
+  summary {
+    cursor: pointer;
+    color: var(--muted);
+    font-weight: 500;
+    margin-bottom: 16px;
+  }
 }

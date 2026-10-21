@@ -97,4 +97,52 @@ describe("结构化编辑影响", () => {
     expect(failed.ok).toBe(false);
     expect(failed).not.toHaveProperty("effects");
   });
+  it("连音组建立和删除返回统一结构 effect", () => {
+    const document = structuredClone(example);
+    const track = document.score.tracks[0]!;
+    const measure = track.measures[0]!;
+    measure.beats.forEach((beat) => {
+      beat.rhythm = { base: "eighth", dots: 0 };
+      beat.kind = "rest";
+      beat.notes = [];
+    });
+    const set = applyScoreCommand(document, {
+      type: LXMScoreCommandEnum.SetTuplet,
+      trackId: track.id,
+      measureId: measure.id,
+      startBeatId: measure.beats[0]!.id,
+      endBeatId: measure.beats[2]!.id,
+      ratio: { actual: 3, normal: 2 },
+    });
+    expect(set.ok).toBe(true);
+    if (!set.ok) return;
+    expect(set.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "tuplets.structured",
+          operation: "set",
+          ratio: { actual: 3, normal: 2 },
+          count: 3,
+        }),
+      ]),
+    );
+    const group = set.document.score.tracks[0]!.measures[0]!.tuplets[0]!;
+    const removed = applyScoreCommand(set.document, {
+      type: LXMScoreCommandEnum.RemoveTuplet,
+      trackId: track.id,
+      measureId: measure.id,
+      tupletId: group.id,
+    });
+    expect(removed.ok).toBe(true);
+    expect(removed.effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "tuplets.structured",
+          operation: "remove",
+          ratio: { actual: 3, normal: 2 },
+          count: 3,
+        }),
+      ]),
+    );
+  });
 });

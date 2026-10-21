@@ -1,0 +1,37 @@
+{
+  "date": "2026-10-18",
+  "phase": "S4-D/E",
+  "status": "implementation-and-browser-regression-passed",
+  "browser": "Chrome",
+  "screenshots": 12,
+  "screenshotDirectory": "docs/design/04_实施验收/验收截图/20261018_阶段4技巧与小节结构",
+  "checks": {
+    "websiteVitestFiles": 28,
+    "websiteVitestTests": 189,
+    "coreVitestFiles": 49,
+    "coreVitestTests": 527,
+    "typecheck": true,
+    "lint": true,
+    "productionBuild": true,
+    "phase2ToolSmokeChecks": 17,
+    "phase2ZoomChecks": 4,
+    "pageErrors": 0,
+    "nonFaviconConsoleErrors": 0,
+    "adapterTests": 2
+  },
+  "s4d": [
+    "连音组建立/删除统一 tuplets.structured effect",
+    "拍点拆分/合并保留 beats.structured effect",
+    "拍点粘贴预览与应用沿用同一计划、确认 key 和覆盖许可",
+    "影响摘要显示 core effects，取消零历史，Undo 恢复文档并清空临时 effects"
+  ],
+  "s4e": [
+    "05-01–05-12 逐画面截图索引已生成",
+    "阶段2工具/技巧/小节真实 Chrome 回归脚本在当前构建通过",
+    "当前构建原生 200%/低高度焦点回归通过"
+  ],
+  "manualItems": [
+    "真实系统中文 IME 仍由用户后续人工复核",
+    "多浏览器全量矩阵仍属于阶段6"
+  ]
+}
