@@ -1899,12 +1899,15 @@ const applyScoreCommandInternal = (
     command.type === LXMScoreCommandEnum.CopyMeasure
       ? copyMeasureTechniques(track, source, inserted, factory)
       : { techniques: [], effects: [] };
-  const numberedOmissionEffects = collectNumberedMarkOmissionEffects(
-    document,
-    track.id,
-    source.id,
-    numberedOmittedMarks,
-  );
+  const effects = [
+    ...collectNumberedMarkOmissionEffects(
+      document,
+      track.id,
+      source.id,
+      numberedOmittedMarks,
+    ),
+    ...copied.effects,
+  ];
   const nextMeasures = [...track.measures];
   nextMeasures.splice(sourceIndex + 1, 0, inserted);
   const result = finalize(
@@ -1928,8 +1931,8 @@ const applyScoreCommandInternal = (
     document,
     command,
   );
-  return result.ok && result.changed && copied.effects.length > 0
-    ? { ...result, effects: copied.effects }
+  return result.ok && result.changed && effects.length > 0
+    ? { ...result, effects }
     : result;
 };
 

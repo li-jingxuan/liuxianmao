@@ -85,6 +85,7 @@ export interface MusicTextController {
   navigateTool: (destination: ToolNavigation) => SelectionRequestResult;
   /** 输出前只读检查草稿，不自动提交或取消用户输入。 */
   isOutputBlocked: () => boolean;
+  isNumberedActionBlocked: () => boolean;
   open: (target: MusicTextTarget) => void;
   select: (
     selection: ILXMTabCellSelection | null,
@@ -98,6 +99,7 @@ export const MusicTextSidebar = ({
   ref,
   onOpen,
   onEditingChange,
+  onNumberedActionBlockedChange,
   onTargetChange,
   onScoreFocus,
   onScoreSelection,
@@ -110,6 +112,7 @@ export const MusicTextSidebar = ({
   executeTool?: EditorCommandAdapter;
   onOpen: () => void;
   onEditingChange: (editing: boolean) => void;
+  onNumberedActionBlockedChange: (blocked: boolean) => void;
   onTargetChange: (target: MusicTextTarget | null) => void;
   onScoreFocus: () => void;
   onScoreSelection: (
@@ -209,6 +212,15 @@ export const MusicTextSidebar = ({
     numberedInputActive ||
     !!pending ||
     (!!draft && (inputEditing || musicTextDraftValue(draft) !== draft.initial));
+  const numberedActionBlocked =
+    numberedDirty ||
+    visibleNumberedDrafts.size > 0 ||
+    !!pending ||
+    settingsDirty ||
+    (!!draft && musicTextDraftValue(draft) !== draft.initial);
+  useEffect(() => {
+    onNumberedActionBlockedChange(numberedActionBlocked);
+  }, [numberedActionBlocked, onNumberedActionBlockedChange]);
   const target = draft?.target ?? selection?.focus;
   const track = target
     ? score?.score.tracks.find((t) => t.id === target.trackId)
@@ -424,6 +436,7 @@ export const MusicTextSidebar = ({
         onScoreSelection(nextSelection, null);
         loadTarget({ ...nextSelection.focus, kind: "chord" });
       } else {
+        current.setNumberedSelection(null);
         setDraft(null);
         setNumberedTarget(null);
         setActiveObject(null);
@@ -467,7 +480,10 @@ export const MusicTextSidebar = ({
               ? { beatId: action.target.beatId }
               : {}),
           });
-      } else loadTarget(action.target, draft?.lyricMode, action.focus);
+      } else {
+        current.setNumberedSelection(null);
+        loadTarget(action.target, draft?.lyricMode, action.focus);
+      }
     } else if (action.type === "numberedMode") {
       if (activeNumberedDraftKey) {
         numberedDrafts.current.delete(activeNumberedDraftKey);
@@ -479,6 +495,7 @@ export const MusicTextSidebar = ({
       if (draft) loadTarget(draft.target, action.mode);
     } else if (action.kind === "chord" && current.selection?.focus) {
       // 已选拍点切到和弦页签时直接读取该拍和弦并进入编辑态。
+      current.setNumberedSelection(null);
       loadTarget({ ...current.selection.focus, kind: "chord" });
     } else {
       // 页签只展示工具，保留谱面对象；显式输入／编辑按钮才加载文字草稿。
@@ -489,7 +506,10 @@ export const MusicTextSidebar = ({
       focusDestination.current = "score";
       setKind(action.kind);
       if (action.kind === "numbered") paragraphKind.current = "numbered";
-      if (action.kind === "lyric") paragraphKind.current = "lyric";
+      if (action.kind === "lyric") {
+        paragraphKind.current = "lyric";
+        current.setNumberedSelection(null);
+      }
     }
     return true;
   };
@@ -651,6 +671,12 @@ export const MusicTextSidebar = ({
       !!settingsRef.current?.isComposing() ||
       !!pending ||
       numberedInputActive ||
+      !!numberedRef.current?.dirty ||
+      numberedDrafts.current.size > 0 ||
+      !!settingsRef.current?.dirty ||
+      (!!draft && musicTextDraftValue(draft) !== draft.initial),
+    isNumberedActionBlocked: () =>
+      !!pending ||
       !!numberedRef.current?.dirty ||
       numberedDrafts.current.size > 0 ||
       !!settingsRef.current?.dirty ||

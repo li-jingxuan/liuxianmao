@@ -3,19 +3,22 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
   type ReactNode,
 } from "react";
-import { Alert, Button, Tooltip } from "antd";
+import { Alert, Button, Popover, Select, Tooltip } from "antd";
 import {
   CopyOutlined,
+  LinkOutlined,
+  PauseOutlined,
   DeleteOutlined,
   RedoOutlined,
   UndoOutlined,
 } from "@ant-design/icons";
-import type { ILXMRhythm } from "@liuxianmao/lxm-editor";
+import { createNumberedRhythmContext, getMeasureCapacityTicks, type ILXMRhythm, type ILXMNumberedTarget, type ILXMDocument } from "@liuxianmao/lxm-editor";
 import {
   useEditorSessionStore,
   useEditorStore,
@@ -35,6 +38,7 @@ import {
   type EditorToolPanelController,
 } from "./EditorToolPanelHost";
 import { createBeatPasteController } from "./beat-paste-controller";
+import { formatNumberedBeatPosition } from "./numbered-editor-target";
 import { useEditorRuntime } from "./EditorSessionRuntime";
 import type { EditorCommandAdapter } from "./editor-command-adapter";
 import type { ToolActionHandler } from "./editor-tool-actions";
@@ -91,15 +95,159 @@ const ToolButton = ({
   </Tooltip>
 );
 
+/** 简谱快捷技巧只提供显式端点选择；音乐规则继续由核心 numbered command 校验。 */
+const NumberedQuickTechniques = ({
+  document,
+  target,
+  blocked,
+  getBlocked,
+  execute,
+}: {
+  document: ILXMDocument;
+  target: ILXMNumberedTarget | null;
+  blocked: boolean;
+  getBlocked: () => boolean;
+  execute: EditorCommandAdapter;
+}) => {
+  const session = useEditorSessionStore();
+  const [kind, setKind] = useState<"tie" | "slur" | null>(null);
+  const [destination, setDestination] = useState<string>();
+  const resolved = useMemo(() => {
+    if (!target) return null;
+    const track = document.score.tracks.find((item) => item.id === target.trackId);
+    if (!track) return null;
+    const measure = track.measures.find((item) => item.id === target.measureId);
+    if (!measure) return null;
+    const event = target.kind === "numberedEvent"
+      ? measure.numberedVoice.events.find((item) => item.id === target.eventId)
+      : measure.numberedVoice.events.find((item) => item.tick <= target.tick && item.tick < target.endTick);
+    if (!event || event.kind !== "notes") return null;
+    const item = target.kind === "numberedEvent" && target.itemId
+      ? event.items.find((candidate) => candidate.id === target.itemId) ?? event.items[0]
+      : event.items[0];
+    return { track, measure, event, item };
+  }, [document, target]);
+  const blockedReason = blocked ? "先完成当前简谱草稿或确认操作。" : !resolved ? "请先选择简谱音符。" : "";
+  const enabled = !!resolved && !blocked;
+  const options = useMemo(() => {
+    if (!resolved || !kind) return [];
+    if (kind === "tie") {
+      const orderedItems = resolved.track.measures.flatMap((measure, measureIndex) => {
+        const measureOffset = resolved.track.measures
+          .slice(0, measureIndex)
+          .reduce((sum, previous) => sum + getMeasureCapacityTicks(previous.timeSignature), 0);
+        const rhythm = createNumberedRhythmContext(measure.numberedVoice);
+        const items = measure.numberedVoice.events.flatMap((event) => {
+          const duration = rhythm.getEventDurationTicks(event);
+          return event.kind === "notes" && duration.ok
+            ? event.items.map((item) => ({
+                value: item.id,
+                label: `${measureIndex + 1}小节 · ${formatNumberedBeatPosition(event.tick, measure.timeSignature.denominator)} · ${item.token}`,
+                token: item.token,
+                start: measureOffset + event.tick,
+                end: measureOffset + event.tick + duration.ticks,
+              }))
+            : [];
+        });
+        return items;
+      });
+      const origin = orderedItems.find((item) => item.value === resolved.item.id);
+      return origin
+        ? orderedItems
+            .filter((candidate) => candidate.start === origin.end && candidate.token.replace(/^n/, "") === resolved.item.token.replace(/^n/, ""))
+            .map(({ value, label }) => ({ value, label }))
+        : [];
+    }
+    const originMeasureIndex = resolved.track.measures.indexOf(resolved.measure);
+    const originOrder = resolved.measure.numberedVoice.events.indexOf(resolved.event);
+    return resolved.track.measures.flatMap((measure, measureIndex) =>
+      measure.numberedVoice.events
+        .filter((event) => event.kind === "notes" && (measureIndex > originMeasureIndex || measureIndex === originMeasureIndex && measure.numberedVoice.events.indexOf(event) > originOrder))
+        .map((event) => ({ value: event.id, label: `${measureIndex + 1}小节 · ${formatNumberedBeatPosition(event.tick, measure.timeSignature.denominator)} · ${event.items.map((item) => item.token).join("+")}` })),
+    );
+  }, [kind, resolved]);
+  const choose = (next: "tie" | "slur") => {
+    setDestination(undefined);
+    setKind(next);
+  };
+  const apply = async () => {
+    if (!resolved || !kind || !destination || getBlocked()) return;
+    const liveTarget = session.getState().numberedSelection;
+    if (JSON.stringify(liveTarget) !== JSON.stringify(target)) {
+      setKind(null);
+      return;
+    }
+    const result = await execute({
+      type: "numbered.mark.add",
+      trackId: resolved.track.id,
+      mark: kind === "tie"
+        ? { type: "tie", fromItemId: resolved.item.id, toItemId: destination }
+        : { type: "slur", fromEventId: resolved.event.id, toEventId: destination },
+    });
+    if (result.status === "applied" || result.status === "noop") setKind(null);
+  };
+  const popover = (type: "tie" | "slur") => (
+    <div className={styles.toolMenu} aria-label={type === "tie" ? "添加简谱延音线" : "添加简谱连音线"}>
+      <div className={styles.toolTarget}>起点：{resolved ? `${resolved.event.items.map((item) => item.token).join("+")} · ${resolved.item.token}` : "未选择简谱音符"}</div>
+      <label className={styles.toolbarField}>
+        <span>连接终点</span>
+        <Select
+          aria-label={type === "tie" ? "简谱延音线终点" : "简谱连音线终点"}
+          value={kind === type ? destination : undefined}
+          onChange={setDestination}
+          style={{ width: 230 }}
+          options={options}
+          placeholder="请选择后续音符"
+          disabled={!enabled || kind !== type}
+        />
+      </label>
+      <Button type="primary" disabled={!enabled || kind !== type || !destination} onClick={() => void apply()}>
+        添加{type === "tie" ? "延音线" : "连音线"}
+      </Button>
+    </div>
+  );
+  const toggleFermata = async () => {
+    if (!resolved || !enabled || getBlocked()) return;
+    const liveTarget = session.getState().numberedSelection;
+    if (JSON.stringify(liveTarget) !== JSON.stringify(target)) return;
+    const existing = resolved.track.numberedMarks.find((mark) => mark.type === "fermata" && mark.eventId === resolved.event.id);
+    await execute(existing
+      ? { type: "numbered.mark.remove", trackId: resolved.track.id, markId: existing.id }
+      : { type: "numbered.mark.add", trackId: resolved.track.id, mark: { type: "fermata", eventId: resolved.event.id } });
+  };
+  if (!target) return null;
+  const hasFermata = !!resolved?.track.numberedMarks.some((mark) => mark.type === "fermata" && mark.eventId === resolved.event.id);
+  return (
+    <div className={styles.toolbarGroup} role="group" aria-label="简谱技巧快捷操作">
+      {(["tie", "slur"] as const).map((type) => (
+        <Popover key={type} trigger="click" open={kind === type} onOpenChange={(open) => setKind(open ? type : null)} content={popover(type)}>
+          <span>
+            <ToolButton label={type === "tie" ? "添加简谱延音线" : "添加简谱连音线"} availability={{ enabled, reason: blockedReason }} onClick={() => choose(type)}>
+              <LinkOutlined />{type === "tie" ? " 延音" : " 连音"}
+            </ToolButton>
+          </span>
+        </Popover>
+      ))}
+      <ToolButton label={hasFermata ? "移除简谱延长记号" : "添加简谱延长记号"} pressed={hasFermata} availability={{ enabled, reason: blockedReason }} onClick={() => void toggleFermata()}>
+        <PauseOutlined /> 延长
+      </ToolButton>
+    </div>
+  );
+};
+
 /** 菜单和更多工具只改变入口；预览控制器随会话存活，不再按版本/选区 key 重建。 */
 export const EditorToolbar = ({
   blocked,
+  numberedBlocked,
+  getNumberedBlocked,
   onAction,
   beforeAction,
   execute,
   onNavigate,
 }: {
   blocked: boolean;
+  numberedBlocked: boolean;
+  getNumberedBlocked: () => boolean;
   onAction: ToolActionHandler;
   beforeAction: () => void;
   execute: EditorCommandAdapter;
@@ -108,7 +256,8 @@ export const EditorToolbar = ({
   const session = useEditorSessionStore();
   const { drafts, modals } = useEditorRuntime();
   const document = useEditorStore((state) => state.document),
-    selection = useEditorStore((state) => state.selection);
+    selection = useEditorStore((state) => state.selection),
+    numberedSelection = useEditorStore((state) => state.numberedSelection);
   const canUndo = useEditorStore((state) => state.canUndo),
     canRedo = useEditorStore((state) => state.canRedo);
   const selectedTechniqueId = useEditorStore(
@@ -295,15 +444,14 @@ export const EditorToolbar = ({
         >
           <DeleteOutlined />
         </ToolButton>
-        <Button
-          type="text"
-          aria-label="音符与休止详情"
-          disabled={!!modal}
-          onClick={() => navigate("note")}
-        >
-          详情
-        </Button>
       </div>
+      <NumberedQuickTechniques
+        document={document}
+        target={numberedSelection}
+        blocked={numberedBlocked || !!modal}
+        getBlocked={getNumberedBlocked}
+        execute={executeLatest}
+      />
       <EditorToolPanelHost
         ref={host}
         beforeOpen={beforeAction}

@@ -1,0 +1,41 @@
+[
+  {
+    "name": "full-compact",
+    "lane": 3,
+    "distance": 16.418784637752083,
+    "labelWidth": 7.8500000000000005,
+    "visibleGap": 3.618784637752082,
+    "labelHits": [
+      "3",
+      "1"
+    ],
+    "otherTechniquesOverlap": false
+  },
+  {
+    "name": "full-comfortable",
+    "lane": 0,
+    "distance": 40.01999999999998,
+    "labelWidth": 7.8500000000000005,
+    "visibleGap": 27.21999999999998,
+    "labelHits": [],
+    "otherTechniquesOverlap": false
+  },
+  {
+    "name": "isolated-compact",
+    "lane": 0,
+    "distance": 24,
+    "labelWidth": 7.8500000000000005,
+    "visibleGap": 11.2,
+    "labelHits": [],
+    "otherTechniquesOverlap": false
+  },
+  {
+    "name": "local-spacing-probe",
+    "lane": 0,
+    "distance": 26.3434185455734,
+    "labelWidth": 7.8500000000000005,
+    "visibleGap": 13.543418545573399,
+    "labelHits": [],
+    "otherTechniquesOverlap": false
+  }
+]

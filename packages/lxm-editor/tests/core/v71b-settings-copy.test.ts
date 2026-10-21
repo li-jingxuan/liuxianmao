@@ -444,3 +444,66 @@ it("整小节复制报告跨边界简谱连接遗漏但不改变复制结果", (
   ).toBe(true);
   expect(result.document.score.tracks[0]!.numberedMarks).toHaveLength(0);
 });
+
+it("单小节复制同样报告跨边界简谱连接遗漏", () => {
+  const document = structuredClone(EXAMPLE_MVP_6_DOCUMENT);
+  const track = document.score.tracks[0]!;
+  const first = track.measures[0]!;
+  const second = track.measures[1]!;
+  const firstItemId = "single-copy-first-item";
+  const secondItemId = "single-copy-second-item";
+  first.numberedVoice = {
+    events: [
+      {
+        id: "single-copy-first-event",
+        kind: "notes",
+        tick: 0,
+        rhythm: { base: "quarter", dots: 0 },
+        items: [{ id: firstItemId, token: "1" }],
+      },
+    ],
+    tuplets: [],
+  };
+  second.numberedVoice = {
+    events: [
+      {
+        id: "single-copy-second-event",
+        kind: "notes",
+        tick: 0,
+        rhythm: { base: "quarter", dots: 0 },
+        items: [{ id: secondItemId, token: "2" }],
+      },
+    ],
+    tuplets: [],
+  };
+  track.numberedMarks = [
+    {
+      id: "single-copy-cross-boundary-tie",
+      type: "tie",
+      fromItemId: firstItemId,
+      toItemId: secondItemId,
+    },
+  ];
+  const result = applyScoreCommand(document, {
+    type: LXMScoreCommandEnum.CopyMeasure,
+    trackId: track.id,
+    measureId: first.id,
+    confirmedRemovedMarkIds: ["single-copy-cross-boundary-tie"],
+  });
+  expect(result.ok).toBe(true);
+  if (!result.ok) return;
+  expect(result.document.score.tracks[0]!.measures).toHaveLength(
+    track.measures.length + 1,
+  );
+  expect(result.effects).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        kind: "numbered.mark.omitted",
+        markId: "single-copy-cross-boundary-tie",
+        markType: "tie",
+        measureNumber: 1,
+      }),
+    ]),
+  );
+  expect(result.document.score.tracks[0]!.numberedMarks).toHaveLength(0);
+});

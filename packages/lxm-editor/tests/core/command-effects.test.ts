@@ -134,6 +134,7 @@ describe("结构化编辑影响", () => {
       tupletId: group.id,
     });
     expect(removed.ok).toBe(true);
+    if (!removed.ok) return;
     expect(removed.effects).toEqual(
       expect.arrayContaining([
         expect.objectContaining({

@@ -161,6 +161,7 @@ export const EditorShell: React.FC = () => {
   );
   const musicTextController = useRef<MusicTextController>(null);
   const [musicTextEditing, setMusicTextEditing] = useState(false);
+  const [numberedActionBlocked, setNumberedActionBlocked] = useState(true);
   const pageViewportRef = useRef<HTMLDivElement>(null);
   const [activeMusicTextTarget, setActiveMusicTextTarget] =
     useState<MusicTextTarget | null>(null);
@@ -930,6 +931,8 @@ export const EditorShell: React.FC = () => {
       />
       <EditorToolbar
         blocked={musicTextEditing}
+        numberedBlocked={numberedActionBlocked}
+        getNumberedBlocked={() => numberedActionBlocked}
         onAction={handleToolbarAction}
         beforeAction={clearFretDraft}
         execute={executeTool}
@@ -1059,6 +1062,7 @@ export const EditorShell: React.FC = () => {
           executeTool={executeTool}
           onOpen={clearScoreInteraction}
           onEditingChange={setMusicTextEditing}
+          onNumberedActionBlockedChange={setNumberedActionBlocked}
           onTargetChange={setActiveMusicTextTarget}
           onScoreFocus={focusScore}
           onScoreSelection={acceptScoreSelection}

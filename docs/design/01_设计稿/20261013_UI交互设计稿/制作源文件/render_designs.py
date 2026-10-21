@@ -7,6 +7,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
 ROOT = Path(__file__).resolve().parents[1]
 S = 2
+RENDER_CATEGORIES = None
 C = dict(bg='#F4F6FA', white='#FFFFFF', text='#202838', muted='#626E82', subtle='#A3ADBC', border='#D9D9D9', divider='#F0F0F0', blue='#285BE0', soft='#F0F7FF', navy='#15356D', green='#19734F', greenbg='#EAF7F0', red='#BC3547', redbg='#FFF0F2', amber='#92600C', amberbg='#FFF6E5')
 FONT = '/System/Library/Fonts/Hiragino Sans GB.ttc'
 LATIN = '/System/Library/Fonts/Supplemental/Arial.ttf'
@@ -219,6 +220,10 @@ def score(c,x,y,w=770,selected=False,range_=False,blank=False,compact=False,page
             if not blank:
                 from notation_design import draw_numbered_measure
                 draw_numbered_measure(c,xx,yy+104,mw,variant=(row*4+m)%4,meter=3 if row*4+m>=5 else 4)
+                if getattr(c,'numbered_focus',False) and row==0 and m==0:
+                    # 简谱目标只在自己的音符上显示焦点，不借用 TAB 单元格蓝框。
+                    c.box(xx+6,yy+99,20,24,None,3,'blue')
+                    c.score_txt(xx+11,yy+104,'1',12,'blue',latin=True)
         if range_ and row==0:
             score_selection(c,(first_axis+third_axis)/2,yy+25,third_axis-first_axis+20,42,True)
             score_selection(c,first_axis,yy+10)
@@ -291,13 +296,17 @@ def editor(c,state='default',panel='selection',blank=False,saved=False):
     if c.w<=900:c.button(624,67,112,'更多工具 ⌄','ghost',32)
     else:
         for i,l in enumerate(['小节 ⌄','拍点 ⌄','连音 ⌄','技巧 ⌄']):c.button(624+i*84,67,76,l,'selected' if state in ['measure','paste','tuplet','technique'] and i==['measure','paste','tuplet','technique'].index(state) else 'ghost',32)
+        if panel=='numbered' and state!='default':
+            # 简谱选中稳定音符时，将最高频的连接/延长操作放到工具栏；其余操作保留在技巧菜单。
+            for tx,label in [(970,'⌒ 延音'),(1035,'⌒ 连音'),(1100,'𝄐 延长')]:c.button(tx,67,62,label,'secondary',32)
     if c.w>1200:c.txt(c.w-224,79,'当前编辑：简谱 · 时值独立' if panel=='numbered' else '当前编辑：六线谱 · 品位输入',11,'muted')
     narrow=c.w<=1024
-    pw=344 if not narrow else c.w-48
-    px=c.w-344 if not narrow else 24
+    pw=(440 if panel=='numbered' else 344) if not narrow else c.w-48
+    px=c.w-pw if not narrow else 24
     py=112 if not narrow else 493
+    c.numbered_focus=panel=='numbered' and state!='default'
     if narrow:score(c,113,130,min(c.w-220,770),state!='default',range_=state=='range',compact=True)
-    else:score(c,(c.w-344-800)/2+15,140,770,'tail' if state=='tail' else state not in ['default','song','view'],state=='range',blank,measure_count=8 if blank else 12)
+    else:score(c,(c.w-pw-800)/2+15,140,770,False if panel=='numbered' else 'tail' if state=='tail' else state not in ['default','song','view'],state=='range',blank,measure_count=8 if blank else 12)
     c.box(px,py,pw,c.h-py-29,'white',0 if not narrow else 12,'border')
     for i,l in enumerate(['选区','段落','和弦','歌曲']):
         tx=px+16+i*(pw-32)/4
@@ -308,8 +317,8 @@ def editor(c,state='default',panel='selection',blank=False,saved=False):
         if active:c.line(tx+4,py+58,tx+(pw-38)/4-4,py+58,'blue',2)
     c.line(px+16,py+59,px+pw-16,py+59)
     c.box(0,c.h-28,c.w,28,'white');c.line(0,c.h-28,c.w,c.h-28)
-    c.txt(20,c.h-19,'第 12 小节 / 第 3 拍 / 第 2 弦' if state=='tail' else '第 1 小节 / 第 1 拍 / 第 2 弦' if state!='default' else '点击谱面，选择一个编辑位置',10,'muted')
-    if c.w>900:c.txt(360,c.h-19,'已选 12 格 · 3 拍' if state=='range' else '数字输入品位 · 方向键移动 · Shift 扩展',10,'muted')
+    c.txt(20,c.h-19,('简谱 · 第 1 小节 / 第 1 拍' if state!='default' else '请选择简谱音符或录入窗口') if panel=='numbered' else '第 12 小节 / 第 3 拍 / 第 2 弦' if state=='tail' else '第 1 小节 / 第 1 拍 / 第 2 弦' if state!='default' else '点击谱面，选择一个编辑位置',10,'muted')
+    if c.w>900:c.txt(360,c.h-19,'简谱音符与时值独立编辑' if panel=='numbered' else '已选 12 格 · 3 拍' if state=='range' else '数字输入品位 · 方向键移动 · Shift 扩展',10,'muted')
     c.txt(c.w-212,c.h-19,'紧凑排版  ·  指法图显示',10,'muted')
     return px+20,py+80,pw-40,c.h-61
 
@@ -320,6 +329,39 @@ def panel_tabs(c,x,y,w,first='歌词'):
         xx=x+2+i*w/2
         if label==first:c.box(xx,y+2,w/2-4,28,'white',4)
         c.txt(xx+w/4-16,y+9,label,14,'text' if label==first else 'muted')
+
+def content_row_actions(c,x,y,w,lyrics_full=False,numbered_exists=False):
+    # 两个添加入口始终并排；歌词满段时禁用新增，已有简谱行时复用该行。
+    bw=(w-8)/2
+    c.button(x,y,bw,'＋ 添加歌词行','disabled' if lyrics_full else 'secondary')
+    c.button(x+bw+8,y,bw,'＋ 添加简谱行','selected' if numbered_exists else 'secondary')
+
+def lyric_label(c,x,y,active=False):
+    # 帮助图标紧随字段标签，24px 热区支持点击与键盘聚焦，展开态保持蓝色。
+    c.txt(x,y,'连续歌词',12,'muted')
+    if active:c.box(x+54,y-5,24,24,'soft',4)
+    c.icon('QuestionCircleOutlined',x+59,y,14,'blue' if active else 'muted')
+
+def lyric_rules_popover(c,x,y,w):
+    # 浮层向谱面侧展开，不遮挡文本框、对应预览及底部提交操作。
+    pw=352;px=x-pw-28;py=y-14
+    c.shadow(px,py,pw,420);c.box(px,py,pw,420,'white',8,'border')
+    c.d.polygon([((px+pw)*S,(py+12)*S),((px+pw+9)*S,(py+21)*S),((px+pw)*S,(py+30)*S)],fill=C['white'])
+    c.line(px+pw,py+12,px+pw+9,py+21,'border');c.line(px+pw+9,py+21,px+pw,py+30,'border')
+    c.icon('QuestionCircleOutlined',px+18,py+18,16,'blue')
+    c.txt(px+42,py+18,'连续填词规则',15,'text',True);c.icon('CloseOutlined',px+pw-32,py+19,14,'muted')
+    c.line(px+16,py+52,px+pw-16,py+52)
+    yy=py+68
+    for title,detail in [
+        ('空格分拍','每项对应一拍，休止拍也占一格；连续空格合并，首尾空格忽略。'),
+        ('下划线跳过','独立的 _ 跳过一拍并保留原歌词，例如：风 _ 过。'),
+        ('同拍短句','英文按空格拆词；同一拍放 a song 时，切到单拍编辑。'),
+        ('先预览，再应用','默认允许替换已有歌词；取消勾选可保留原词。超出谱尾时整批不写入。'),
+    ]:
+        c.txt(px+18,yy,title,12,'text',True)
+        yy=c.wrap(px+18,yy+22,detail,pw-36,12,'muted',19)+14
+    c.line(px+16,py+376,px+pw-16,py+376)
+    c.txt(px+18,py+391,'点击外部 / Esc 关闭，输入草稿保留。',11,'muted')
 
 def selection_panel(c,x,y,w,bottom,mode='default'):
     c.section(x,y,'当前选区' if mode!='default' else '开始编写你的曲谱')
@@ -342,43 +384,45 @@ def selection_panel(c,x,y,w,bottom,mode='default'):
     for i,l in enumerate(['歌词 / 简谱  →','和弦标记  →','弹奏技巧  →']):c.button(x,y+419+i*44,w,l,'ghost')
     c.notice(x,y+571,w,'作用范围','休止影响所选 3 拍的全部弦音符。' if mode=='range' else '休止会清空当前拍的全部弦音符。','amber')
 
-def preview_table(c,x,y,w,numbered=False,error=False):
+def preview_table(c,x,y,w,numbered=False,error=False,compact=False):
     c.txt(x,y,'对应预览',13,'text',True);c.pill(x+w-106,y-5,'整批未写入' if error else '待写入 5 项','red' if error else 'blue',104)
-    c.box(x,y+31,w,190,'white',7,'border');c.box(x+1,y+32,w-2,30,'bg',5)
+    c.box(x,y+31,w,176 if compact else 190,'white',7,'border');c.box(x+1,y+32,w-2,30,'bg',5)
     c.txt(x+10,y+42,'位置',10,'muted');c.txt(x+87,y+42,'原内容 → 新内容',10,'muted');c.txt(x+w-47,y+42,'操作',10,'muted')
     vals=['1 → 2','空 → 3',"空 → 5'",'6 → 保留','空 → 1+3+5','空 → 0'] if numbered else ['风 → 轻','空 → 轻','空 → 唱','过 → 保留','空 → 山','空 → 谷']
     for i,val in enumerate(vals):
-        yy=y+68+i*23
+        yy=y+68+i*(22 if compact else 23)
         if i==0:c.box(x+2,yy-4,w-4,23,'soft')
         c.txt(x+10,yy,('12 / 3' if i==0 else '12 / 4' if i==1 else '超出谱尾') if error else f'1 / {i+1}' if i<4 else f'2 / {i-3}',10,'red' if error and i>1 else 'muted',latin=not(error and i>1))
         c.txt(x+87,yy,('无目标 → '+['唱','保留','山','谷'][i-2]) if error and i>1 else val,11,'text');c.txt(x+w-47,yy,'错误' if error and i>1 else '覆盖' if i==0 else '跳过' if i==3 else '新增',10,'red' if error and i>1 else 'amber' if i==0 else 'muted')
         c.line(x+9,yy+18,x+w-9,yy+18)
     if error:
-        c.line(x+w-4,y+65,x+w-4,y+210,'border',2);c.line(x+w-4,y+65,x+w-4,y+165,'muted',2)
+        c.line(x+w-4,y+65,x+w-4,y+(200 if compact else 210),'border',2);c.line(x+w-4,y+65,x+w-4,y+165,'muted',2)
 
-def text_panel(c,x,y,w,bottom,numbered=False,single=False,error=False):
+def text_panel(c,x,y,w,bottom,numbered=False,single=False,error=False,rules_open=False):
     if numbered:
         from notation_design import numbered_panel
-        numbered_panel(c,x,y,w,bottom,single)
+        numbered_panel(c,x,y,w,bottom,single,view='form' if single else 'input')
         return
-    panel_tabs(c,x,y,w,'简谱' if numbered else '歌词');yy=y+54
+    panel_tabs(c,x,y,w,'歌词');content_row_actions(c,x,y+44,w);yy=y+96
     c.pill(x,yy,'起点 · 第 12 小节 / 第 3 拍' if error else '起点 · 第 1 小节 / 第 1 拍','blue',w)
-    c.field(x,yy+43,w/2-6,'录入方式','单拍编辑' if single else '连续录入',select=True)
-    c.field(x+w/2+6,yy+43,w/2-6,'内容行' if numbered else '歌词段号','唯一简谱行' if numbered else '第 1 段',select=not numbered)
-    c.txt(x,yy+133,'单拍简谱' if numbered and single else '歌词文本' if single else '连续简谱' if numbered else '连续歌词',12,'muted')
-    c.box(x,yy+155,w,72,'white',7,'blue' if not error else 'red')
-    c.wrap(x+12,yy+172,('1+3+5' if single else "2 3 5' _ 1+3+5 0") if numbered else '风' if single else '轻 轻 唱 _ 山 谷 风' if error else '轻 轻 唱 _ 山 谷',w-24,14,'text',24)
-    c.txt(x,yy+242,'第 3 项起超出谱尾，整批未写入。' if error else "+ 多音 · 高音用 ASCII ' · 低音用 ." if numbered else 'Enter 应用并下一拍 · Shift+Enter 仅应用' if single else '空格分拍 · _ 跳过一拍 · 休止拍占一格',11,'red' if error else 'muted',maxw=w)
+    c.field(x,yy+36,w/2-6,'录入方式','单拍编辑' if single else '连续录入',select=True)
+    c.field(x+w/2+6,yy+36,w/2-6,'歌词段号','第 1 段',select=True)
+    if single:c.txt(x,yy+110,'歌词文本',12,'muted')
+    else:lyric_label(c,x,yy+110,rules_open)
+    c.box(x,yy+130,w,64,'white',7,'blue' if not error else 'red')
+    c.wrap(x+12,yy+147,'风' if single else '轻 轻 唱 _ 山 谷 风' if error else '轻 轻 唱 _ 山 谷',w-24,14,'text',24)
+    c.txt(x,yy+208,'第 3 项起超出谱尾，整批未写入。' if error else 'Enter 应用并下一拍 · Shift+Enter 仅应用' if single else '空格分拍 · _ 跳过一拍 · 休止拍占一格',11,'red' if error else 'muted',maxw=w)
     if not single:
-        c.txt(x,yy+268,'□ 允许替换已有简谱（1 项）' if numbered else '☑ 允许替换已有歌词（1 项）',12,'amber')
-        preview_table(c,x,yy+305,w,numbered,error)
+        c.txt(x,yy+236,'☑ 允许替换已有歌词（1 项）',12,'amber')
+        preview_table(c,x,yy+266,w,error=error,compact=True)
     else:
-        c.notice(x,yy+292,w,'仅修改当前拍','简谱不会改变 TAB 音符和时值。' if numbered else '单拍可以输入包含空格的短句。')
-        c.button(x,yy+389,w,'删除当前简谱' if numbered else '删除当前歌词','danger')
+        c.notice(x,yy+242,w,'仅修改当前拍','单拍可以输入包含空格的短句。')
+        c.button(x,yy+326,w,'删除当前歌词','danger')
     c.line(x-20,bottom-65,x+w+20,bottom-65)
     if single and not numbered:
         c.button(x,bottom-49,58,'取消');c.button(x+66,bottom-49,58,'应用');c.button(x+132,bottom-49,w-132,'应用并下一拍','primary')
     else:c.button(x,bottom-49,74,'取消');c.button(x+84,bottom-49,w-84,'应用全部' if not single else '应用','disabled' if error or numbered and not single else 'primary')
+    if rules_open:lyric_rules_popover(c,x,yy+110,w)
 
 def modal(c,title,subtitle='',w=560,h=500):
     # 模态遮罩只作用于背景，弹窗标题、内容与底部操作保持明确层级。
@@ -391,7 +435,8 @@ def modal(c,title,subtitle='',w=560,h=500):
 SCREENS=[]
 def save(c,category,name,desc,flow):
     folder=ROOT/category;folder.mkdir(exist_ok=True,parents=True)
-    path=folder/(name+'.png');c.im.save(path,optimize=True)
+    path=folder/(name+'.png')
+    if RENDER_CATEGORIES is None or category in RENDER_CATEGORIES:c.im.save(path,optimize=True)
     SCREENS.append(dict(category=category,name=name,file=str(path.relative_to(ROOT)),description=desc,flow=flow,width=c.w*S,height=c.h*S))
 
 def build():
@@ -460,8 +505,11 @@ def build():
     save(c,cat,'07_快捷键帮助','集中帮助替代常驻长段说明','工作台 → 帮助 → 回到编辑位置')
     cat='04_歌词简谱与和弦'
     for numbered,single,error,name in [(False,True,False,'01_歌词_单拍编辑'),(False,False,False,'02_歌词_连续填词与对应预览'),(False,False,True,'03_歌词_超出谱尾错误'),(True,True,False,'04_简谱_单拍多音'),(True,False,False,'05_简谱_连续录入与覆盖保护')]:
-        c=Canvas();x,y,w,b=editor(c,'tail' if error else 'single',panel='numbered' if numbered else 'lyric');text_panel(c,x,y,w,b,numbered,single,error)
-        save(c,cat,name,'输入 → 逐拍预览 → 应用；保留各自覆盖默认规则','选拍 → 段落 → 输入 → 预览定位 → 应用')
+        # 紧凑简谱表单恢复标准窗口，主流程在首屏呈现，高级操作按需展开。
+        c=Canvas()
+        x,y,w,b=editor(c,'tail' if error else 'single',panel='numbered' if numbered else 'lyric');text_panel(c,x,y,w,b,numbered,single,error)
+        desc=('紧凑单音组：定位、内容、节奏、预览与提交' if single else '紧凑连续录入：高频表单前置，范围与高级操作按需展开') if numbered else '输入 → 逐拍预览 → 应用；保留各自覆盖默认规则'
+        save(c,cat,name,desc,'简谱音符或窗口 → 段落 → 简谱 → 输入与预览 → 应用' if numbered else '选拍 → 段落 → 输入 → 预览定位 → 应用')
     c=Canvas();x,y,w,b=editor(c,'single',panel='chord');c.section(x,y,'和弦编辑');c.pill(x,y+35,'第 1 小节 · 第 1 拍','blue',w)
     c.field(x,y+79,w/2-6,'和弦名称','C');c.field(x+w/2+6,y+79,w/2-6,'常用预设','C',select=True)
     c.box(x,y+167,w,142,'bg',8);chord(c,x+w/2-30,y+212,1.22,'C');c.txt(x+13,y+278,'起始品位 1 · 自动显示 3 格',11,'muted')
@@ -475,6 +523,8 @@ def build():
     c.field(x,y+196,w/3-10,'起弦','1',select=True);c.field(x+w/3+3,y+196,w/3-10,'止弦','6',select=True);c.field(x+2*w/3+6,y+196,w/3-10,'手指','1',select=True)
     c.button(x,b-37,102,'删除横按','danger');c.button(x+w-102,b-37,102,'完成设置','primary')
     save(c,cat,'07_和弦_横按设置','横按作为渐进展开的指法属性','和弦 → 横按 → 完成 → 应用')
+    c=Canvas();x,y,w,b=editor(c,'single',panel='lyric');text_panel(c,x,y,w,b,rules_open=True)
+    save(c,cat,'12_歌词_连续填词规则浮层','连续歌词标签右侧问号入口；点击展开规则，保留草稿和预览','连续歌词 → 问号图标 → 查看规则 → 关闭继续编辑')
     cat='05_技巧与小节结构'
     c=Canvas();x,y,w,b=editor(c,'measure');c.section(x,y,'小节属性');c.pill(x,y+35,'第 1 小节','blue',w)
     c.field(x,y+84,w,'当前小节拍号','4/4',select=True);c.field(x,y+179,w,'右边界','单小节线',select=True)
@@ -537,6 +587,7 @@ def build():
     cat='07_窄窗口适配'
     c=Canvas(1280,800);x,y,w,b=editor(c,'single',panel='lyric');text_panel(c,x,y,w,b,single=True);save(c,cat,'01_笔记本1280_谱面与属性并列','常规笔记本保留右侧属性，谱面区域可滚动','笔记本 → 编辑 → 应用')
     c=Canvas(1024,768);x,y,w,b=editor(c,'single',panel='lyric');c.section(x,y,'歌词 · 单拍编辑');c.pill(x+198,y-4,'第 1 小节 / 第 1 拍','blue',179)
+    content_row_actions(c,x+w-304,y-4,304)
     c.field(x,y+49,570,'歌词文本','风吹过山谷');c.button(x+594,y+73,106,'取消');c.button(x+712,y+73,222,'应用并下一拍','primary',40);c.txt(x,y+145,'底部属性分区 · 谱面与字段同时可见 · 可独立滚动',12,'muted')
     save(c,cat,'02_窄窗口1024_底部属性分区','窄窗口切上下分区，避免属性遮挡全部谱面','窄窗口 → 选拍 → 底部编辑')
 
@@ -545,8 +596,10 @@ def overview():
     groups={}
     for item in SCREENS:groups.setdefault(item['category'],[]).append(item)
     for cat,items in groups.items():
+        if RENDER_CATEGORIES is not None and cat not in RENDER_CATEGORIES:continue
+        items=sorted(items,key=lambda item:item['name'])
         cols=3;rows=math.ceil(len(items)/cols);c=Canvas(1440,126+rows*298)
-        c.txt(36,29,'六线猫 / '+cat.replace('_',' · '),28,'navy',True);c.txt(36,77,'视觉与交互评审稿 · 2026.10.13 · 2× PNG',13,'muted')
+        c.txt(36,29,'六线猫 / '+cat.replace('_',' · '),28,'navy',True);c.txt(36,77,'视觉与交互评审稿 · 2026.10.19 修订 · 2× PNG',13,'muted')
         for i,it in enumerate(items):
             x=36+i%cols*468;y=124+i//cols*298
             image=Image.open(ROOT/it['file']);image.thumbnail((438*S,240*S),Image.Resampling.LANCZOS)
@@ -562,6 +615,7 @@ def overview():
     c.txt(1010,659,'内容优先的工作台',21,'navy',True);c.wrap(1010,709,'固定高频输入工具，按选区呈现属性；输入、预览、提交形成一致的视觉顺序。',350,15,'muted',28)
     c.txt(1010,843,'交互规则与实现边界',17,'navy',True);c.wrap(1010,881,'这些是静态评审稿。曲谱保存介质、自动保存与云同步不作实现承诺。',350,13,'muted',24)
     c.im.save(ROOT/'00_设计稿总览.png',optimize=True)
+    if RENDER_CATEGORIES is not None:return
     c=Canvas(1440,980);c.box(0,0,1440,980,'white');c.txt(40,38,'视觉规范 / 编辑器工作台',30,'navy',True);c.txt(40,92,'Ant Design 6.4.4 · 品牌 token · 官方 Icons · 通用控件优先复用',14,'muted')
     for i,(label,key) in enumerate([('主操作','blue'),('主文字','text'),('次级文字','muted'),('背景','bg'),('边框','border'),('成功','green'),('警告','amber'),('危险','red')]):
         xx=40+i*170;c.box(xx,155,148,72,key,10);c.txt(xx,244,label,13);c.txt(xx,270,C[key],12,'muted',latin=True)
@@ -611,8 +665,18 @@ def build_precision_sheet():
     save(c,'03_编辑工作台','09_TAB对齐与选区细节','数字与符干居中、单格/范围/悬停/键盘焦点和导出边界','放大对齐与选区视觉参考')
 
 if __name__=='__main__':
+    import argparse
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--category',action='append',help='仅重绘指定分类及全局封面；清单仍包含全部画面')
+    args=parser.parse_args()
+    RENDER_CATEGORIES=set(args.category) if args.category else None
+    # 保留既有交付清单的顺序，新增状态追加，避免定向修订重排历史资料。
+    manifest_path=ROOT/'制作源文件/manifest.json'
+    existing_items=json.loads(manifest_path.read_text()) if manifest_path.exists() else []
+    existing_order={item['file']:index for index,item in enumerate(existing_items)}
     from review_additions import build_review
     from notation_design import build_notation_sheets
     build();build_review(globals());build_notation_sheets(globals());build_precision_sheet();overview()
-    (ROOT/'制作源文件/manifest.json').write_text(json.dumps(SCREENS,ensure_ascii=False,indent=2))
+    SCREENS.sort(key=lambda item:existing_order.get(item['file'],len(existing_order)))
+    manifest_path.write_text(json.dumps(SCREENS,ensure_ascii=False,indent=2))
     print(json.dumps({'screens':len(SCREENS),'categories':len(set(i['category'] for i in SCREENS)),'root':str(ROOT)},ensure_ascii=False))

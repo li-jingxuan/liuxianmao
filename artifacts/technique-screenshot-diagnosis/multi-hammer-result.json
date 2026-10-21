@@ -1,0 +1,59 @@
+[
+  {
+    "type": "hammerOn",
+    "string": 5,
+    "fromNoteId": "note-20-1",
+    "path": {
+      "d": "M 575.0972537936618 531.05 Q 588.0459292105397 525.05 600.9946046274177 531.05",
+      "strokeWidth": 1.2
+    },
+    "label": [
+      {
+        "text": "H",
+        "x": 588.0459292105397,
+        "y": 520.05,
+        "fontSize": 9,
+        "textAnchor": "middle"
+      }
+    ],
+    "lane": 0
+  },
+  {
+    "type": "hammerOn",
+    "string": 2,
+    "fromNoteId": "mvp72-beat-7-1-note-2",
+    "path": {
+      "d": "M 575.0972537936618 495.04999999999995 Q 588.0459292105397 489.04999999999995 600.9946046274177 495.04999999999995",
+      "strokeWidth": 1.2
+    },
+    "label": [
+      {
+        "text": "H",
+        "x": 588.0459292105397,
+        "y": 484.04999999999995,
+        "fontSize": 9,
+        "textAnchor": "middle"
+      }
+    ],
+    "lane": 0
+  },
+  {
+    "type": "hammerOn",
+    "string": 5,
+    "fromNoteId": "note-22-1",
+    "path": {
+      "d": "M 618.644726088152 531.05 Q 631.59340150503 525.05 644.5420769219079 531.05",
+      "strokeWidth": 1.2
+    },
+    "label": [
+      {
+        "text": "H",
+        "x": 631.59340150503,
+        "y": 520.05,
+        "fontSize": 9,
+        "textAnchor": "middle"
+      }
+    ],
+    "lane": 0
+  }
+]

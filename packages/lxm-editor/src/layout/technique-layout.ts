@@ -3,7 +3,7 @@
  *
  * 外部只调用 layoutTrackTechniques(track, baseSystems)。Module 内部完成四件事：
  * 1. 把领域技巧解析为当前自动断行下的 system segment；
- * 2. 对自然几何按二维碰撞范围分配向上的 lane；
+ * 2. 弧线保留目标弦位，其他技巧按二维碰撞范围分配向上的 lane；
  * 3. 统一下移 staff 正文并重新排列后续 system；
  * 4. 输出页面可直接渲染的 SVG path、文字与命中 bounds。
  *
@@ -24,6 +24,7 @@ import {
   LXM_TECHNIQUE_NOTE_CLEARANCE_Y,
   LXM_TECHNIQUE_FRET_GAP_X,
   LXM_TECHNIQUE_CURVE_HEIGHT,
+  LXM_TECHNIQUE_CURVE_FRET_GAP_Y,
   LXM_TECHNIQUE_STAFF_CLEARANCE_Y,
   LXM_FRET_TEXT_FONT_SIZE,
   LXM_FRET_TEXT_BASELINE_OFFSET_Y,
@@ -47,6 +48,11 @@ import {
   translateTechniqueSegment,
   withTechniqueBounds,
 } from "./technique-geometry";
+import {
+  isAnchoredCurve,
+  placeAnchoredCurve,
+  techniqueInkIntersects,
+} from "./technique-curve-placement";
 import {
   chordTraversalOffset,
   TECHNIQUE_BEND_RISE,
@@ -391,7 +397,7 @@ const createCandidates = (
   });
 };
 
-/** 稳定二维 first-fit；每次向上移动完整自然 plan，直到避开已放置图形和品位文字。 */
+/** 弧线固定端点并局部避让；其它技巧使用稳定二维 first-fit 分配向上 lane。 */
 const assignLanes = (
   candidates: ILXMTechniqueCandidate[],
   naturalPlans: Map<ILXMTechniqueCandidate, ILXMTechniqueSegmentLayout>,
@@ -409,10 +415,23 @@ const assignLanes = (
       left.segmentIndex - right.segmentIndex
     );
   });
+  // 以路径真实端点 Y 排序，不能用含 H/P 标签的包围框上缘推断弦位。
+  const curveY = (candidate: ILXMTechniqueCandidate) =>
+    Number(naturalPlans.get(candidate)!.path!.d.split(" ")[2]);
   // 先登记固定的 staffLocal 障碍，避免遍历顺序让后加入的泛音/扫弦撞到局部技巧。
   [
     ...ordered.filter((candidate) => candidate.staffLocal),
-    ...ordered.filter((candidate) => !candidate.staffLocal),
+    // 弧线优先按弦的自然 Y 从上到下放置，避免技巧 ID/添加顺序决定互相抬升。
+    ...ordered
+      .filter(
+        (candidate) =>
+          !candidate.staffLocal && isAnchoredCurve(candidate.technique),
+      )
+      .sort((a, b) => curveY(a) - curveY(b) || a.x1 - b.x1),
+    ...ordered.filter(
+      (candidate) =>
+        !candidate.staffLocal && !isAnchoredCurve(candidate.technique),
+    ),
   ].forEach((candidate) => {
     const natural = naturalPlans.get(candidate)!;
     const placed = segmentsBySystem.get(candidate.systemIndex) ?? [];
@@ -454,11 +473,12 @@ const assignLanes = (
       lane > 0
         ? translateTechniqueSegment(natural, -lane * LXM_TECHNIQUE_LANE_HEIGHT)
         : natural;
-    if (!candidate.staffLocal) {
+    if (isAnchoredCurve(technique)) {
+      segment = placeAnchoredCurve(natural, obstacles, placed);
+      lane = 0;
+    } else if (!candidate.staffLocal) {
       while (
-        placed.some((other) =>
-          boundsIntersect(segment.collisionBounds, other.collisionBounds),
-        ) ||
+        placed.some((other) => techniqueInkIntersects(segment, other)) ||
         obstacles.some((bounds) =>
           boundsIntersect(segment.collisionBounds, bounds),
         )
@@ -723,24 +743,27 @@ const createNaturalSegmentLayout = (
         strokeWidth: LXM_TECHNIQUE_PATH_STROKE_WIDTH,
       };
     } else {
-      const curveY = laneY;
-      // 真实首尾端避开完整品位与白色描边；续接端保持在本行 staff 安全边。
-      const fromBounds = from ? getFretTextBounds(from) : null;
-      const toBounds = to ? getFretTextBounds(to) : null;
+      // 弧线在数字中心上方起落；连同线宽避开品位描边，紧凑短音也保留完整跨度。
+      // 只读取本行锚点的上缘，跨行续接继续使用各自谱行的坐标与安全边。
+      const curveY = Math.min(
+        laneY,
+        ...anchorNotes.map(
+          (note) =>
+            getFretTextBounds(note).y -
+            LXM_TECHNIQUE_CURVE_FRET_GAP_Y -
+            LXM_TECHNIQUE_PATH_STROKE_WIDTH / 2,
+        ),
+      );
       const startX =
         candidate.continuation === "none" || candidate.continuation === "toNext"
-          ? fromBounds
-            ? fromBounds.x + fromBounds.width + LXM_TECHNIQUE_FRET_GAP_X
-            : candidate.x1
+          ? (from?.x ?? candidate.x1)
           : candidate.x1;
       const endX =
         candidate.continuation === "none" ||
         candidate.continuation === "fromPrevious"
-          ? toBounds
-            ? toBounds.x - LXM_TECHNIQUE_FRET_GAP_X
-            : candidate.x2
+          ? (to?.x ?? candidate.x2)
           : candidate.x2;
-      // 极短距离退化为零长安全弧线，不生成方向反转的路径。
+      // 非法或重合坐标仍不生成反向路径；合法短音不再被两端字形宽度压成零宽。
       x1 = startX;
       x2 = Math.max(startX, endX);
       path = {
@@ -755,7 +778,10 @@ const createNaturalSegmentLayout = (
           text(
             technique.type === "hammerOn" ? "H" : "P",
             (x1 + x2) / 2,
-            curveY - LXM_TECHNIQUE_NOTE_CLEARANCE_Y,
+            // 标签整体高于曲线控制点及其描边，避免 H/P 的白色描边盖住弧顶。
+            curveY -
+              LXM_TECHNIQUE_CURVE_HEIGHT -
+              LXM_TECHNIQUE_NOTE_CLEARANCE_Y,
           ),
         ];
     }

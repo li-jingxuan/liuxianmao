@@ -1245,7 +1245,7 @@ export const NumberedEditor = ({
                 </table>
               </div>
             )}
-            {issue && raw.trim() && <p role="status">{issue}</p>}
+            {issue && <p role="status">{issue}</p>}
             <div className={styles.sidebarActions}>
               <Button
                 disabled={!event}
