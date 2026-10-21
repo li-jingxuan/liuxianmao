@@ -1,0 +1,918 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#fbf5e8" />
+    <title>Lumi 开心英语 · 儿童英语学习演示</title>
+    <meta
+      name="description"
+      content="Lumi 是一个用颜色冒险、主题课程和字母小游戏陪孩子认识英语的本地演示学习空间。所有进度只保存在当前浏览器。"
+    />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='14' fill='%23FFD15B'/%3E%3Cpath d='M24 6l5.1 11.2 12.3 1.6-9 8.5 2.3 12.1L24 33.6l-10.7 5.8 2.3-12.1-9-8.5 12.3-1.6z' fill='%23FFB33D' stroke='%2334264A' stroke-width='2.3' stroke-linejoin='round'/%3E%3Ccircle cx='20' cy='23' r='1.6' fill='%2334264A'/%3E%3Ccircle cx='28' cy='23' r='1.6' fill='%2334264A'/%3E%3Cpath d='M20.5 27.5c1.2 1.4 2.3 2 3.5 2s2.3-.6 3.5-2' fill='none' stroke='%2334264A' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="./app.js" charset="utf-8" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">跳到主要内容</a>
+
+    <div class="site-shell">
+      <aside class="sidebar" aria-label="学习导航">
+        <div class="sidebar-top">
+          <a class="brand" href="#main-content" aria-label="Lumi 学习空间首页">
+            <span class="brand-mark" aria-hidden="true">
+              <svg viewBox="0 0 48 48" focusable="false">
+                <path
+                  d="M24 5.5c1.8 0 2.4 1.5 2.9 2.8l4.4 9.8 10.6 1.2c3.2.4 4 2.5 1.7 4.5l-8 7 2.3 10.6c.6 3-1.1 4.2-3.8 2.8L24 38.7l-10.1 5.5c-2.7 1.4-4.4.2-3.8-2.8l2.3-10.6-8-7c-2.3-2-1.5-4.1 1.7-4.5l10.6-1.2 4.4-9.8c.5-1.3 1.1-2.8 2.9-2.8Z"
+                  fill="#FFD15B"
+                  stroke="#34264A"
+                  stroke-width="2.6"
+                  stroke-linejoin="round"
+                />
+                <circle cx="19.5" cy="23" r="1.7" fill="#34264A" />
+                <circle cx="28.5" cy="23" r="1.7" fill="#34264A" />
+                <path
+                  d="M20.3 27.4c1.1 1.3 2.3 1.9 3.7 1.9s2.6-.6 3.7-1.9"
+                  fill="none"
+                  stroke="#34264A"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                />
+              </svg>
+            </span>
+            <span class="brand-copy">
+              <strong>Lumi</strong>
+              <small>开心英语探险</small>
+            </span>
+          </a>
+          <span class="demo-chip"><span class="demo-dot"></span>演示空间</span>
+        </div>
+
+        <nav class="primary-nav" aria-label="学习区块">
+          <div class="nav-group">
+            <p class="nav-heading">探索学习</p>
+            <ul>
+              <li>
+                <a class="nav-link is-active" href="#daily" data-nav="daily" aria-current="location">
+                  <span class="nav-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="8.5" />
+                      <path d="m15.6 8.4-2.1 5.1-5.1 2.1 2.1-5.1z" />
+                    </svg>
+                  </span>
+                  <span>今日冒险</span>
+                </a>
+              </li>
+              <li>
+                <a class="nav-link" href="#courses" data-nav="courses">
+                  <span class="nav-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M4.5 5.5c3.2-.9 5.7-.2 7.5 1.6v12c-1.8-1.8-4.3-2.5-7.5-1.6z" />
+                      <path d="M19.5 5.5c-3.2-.9-5.7-.2-7.5 1.6v12c1.8-1.8 4.3-2.5 7.5-1.6z" />
+                    </svg>
+                  </span>
+                  <span>主题课程</span>
+                </a>
+              </li>
+              <li>
+                <a class="nav-link" href="#word" data-nav="word">
+                  <span class="nav-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M5 5.5h14a1.5 1.5 0 0 1 1.5 1.5v8a1.5 1.5 0 0 1-1.5 1.5h-8l-4 3v-3H5A1.5 1.5 0 0 1 3.5 15V7A1.5 1.5 0 0 1 5 5.5Z" />
+                      <path d="M8 9.5h8M8 12.5h5" />
+                    </svg>
+                  </span>
+                  <span>每日单词</span>
+                </a>
+              </li>
+              <li>
+                <a class="nav-link" href="#letters" data-nav="letters">
+                  <span class="nav-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="4" y="4" width="7" height="7" rx="2" />
+                      <rect x="13" y="4" width="7" height="7" rx="2" />
+                      <rect x="4" y="13" width="7" height="7" rx="2" />
+                      <path d="M16.5 13.5v7M13.5 17h6" />
+                    </svg>
+                  </span>
+                  <span>字母小游戏</span>
+                </a>
+              </li>
+            </ul>
+          </div>
+          <div class="nav-group">
+            <p class="nav-heading">我的进度</p>
+            <ul>
+              <li>
+                <a class="nav-link" href="#stars" data-nav="stars">
+                  <span class="nav-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="m12 3.7 2.6 5.3 5.9.9-4.3 4.2 1 5.9-5.2-2.8-5.2 2.8 1-5.9-4.3-4.2 5.9-.9z" />
+                    </svg>
+                  </span>
+                  <span>星星奖励</span>
+                  <span class="nav-count" data-star-count>0</span>
+                </a>
+              </li>
+            </ul>
+          </div>
+        </nav>
+
+        <div class="sidebar-note">
+          <span class="note-mark" aria-hidden="true">
+            <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M16 4.5 18.8 11l7 .8-5.2 4.7 1.5 6.9-6.1-3.5-6.1 3.5 1.5-6.9-5.2-4.7 7-.8z" />
+            </svg>
+          </span>
+          <p><strong>给小探险家</strong>答错没关系，再试一次就好。</p>
+        </div>
+
+        <div class="sidebar-footer">
+          <p data-storage-note>进度只保存在这台设备</p>
+          <button class="text-button" type="button" data-open-reset>重置本地进度</button>
+        </div>
+      </aside>
+
+      <header class="topbar">
+        <div class="greeting">
+          <div class="avatar" role="img" aria-label="演示学员头像：一颗微笑的小星星">
+            <svg viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+              <path
+                d="M24 5.5c1.8 0 2.4 1.5 2.9 2.8l4.4 9.8 10.6 1.2c3.2.4 4 2.5 1.7 4.5l-8 7 2.3 10.6c.6 3-1.1 4.2-3.8 2.8L24 38.7l-10.1 5.5c-2.7 1.4-4.4.2-3.8-2.8l2.3-10.6-8-7c-2.3-2-1.5-4.1 1.7-4.5l10.6-1.2 4.4-9.8c.5-1.3 1.1-2.8 2.9-2.8Z"
+                fill="#FFD15B"
+                stroke="#34264A"
+                stroke-width="2.4"
+                stroke-linejoin="round"
+              />
+              <circle cx="19.5" cy="23" r="1.7" fill="#34264A" />
+              <circle cx="28.5" cy="23" r="1.7" fill="#34264A" />
+              <path
+                d="M20.3 27.4c1.1 1.3 2.3 1.9 3.7 1.9s2.6-.6 3.7-1.9"
+                fill="none"
+                stroke="#34264A"
+                stroke-width="1.8"
+                stroke-linecap="round"
+              />
+            </svg>
+            <span class="avatar-spark avatar-spark--one" aria-hidden="true"></span>
+            <span class="avatar-spark avatar-spark--two" aria-hidden="true"></span>
+          </div>
+          <div class="greeting-copy">
+            <p class="eyebrow">LUMI · 演示学习空间</p>
+            <h1>小小探险家，今天想点亮哪颗星？</h1>
+            <p class="greeting-sub">选一个学习区块，和 Lumi 一起边玩边学。</p>
+          </div>
+        </div>
+
+        <div class="topbar-actions">
+          <div class="stat-row">
+            <div class="stat-pill stat-pill--streak" id="streak-pill" aria-label="连续学习 1 天">
+              <span class="stat-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M13.2 3.5c.7 3.6-1.3 4.8-2.5 6.4-1 1.4-1.6 2.8-.7 4.4.7-2 2-3.2 3.5-4.2 2.6 2.1 4.3 4.5 3.7 8-1 4-4.2 6.1-7.6 5.4-3-.6-5-2.9-5.1-5.9-.1-3.1 1.5-5.7 3.4-8.1 1.5-2 3.4-3.2 5.3-6Z" />
+                </svg>
+              </span>
+              <span class="stat-copy">连续学习</span>
+              <strong data-streak>1</strong>
+              <span class="stat-unit">天</span>
+            </div>
+            <div class="stat-pill stat-pill--stars">
+              <span class="stat-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                  <path d="m12 2.8 2.8 5.8 6.4 1-4.7 4.5 1.1 6.4-5.6-3-5.6 3 1.1-6.4-4.7-4.5 6.4-1z" />
+                </svg>
+              </span>
+              <span class="stat-copy">星星口袋</span>
+              <strong data-star-count>0</strong>
+            </div>
+          </div>
+          <form class="course-search" role="search" aria-label="搜索主题课程">
+            <label class="sr-only" for="course-search">搜索主题课程</label>
+            <span class="search-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <circle cx="10.5" cy="10.5" r="6.5" />
+                <path d="m15.5 15.5 4.5 4.5" />
+              </svg>
+            </span>
+            <input
+              id="course-search"
+              name="course-search"
+              type="search"
+              placeholder="搜索主题课程"
+              autocomplete="off"
+              spellcheck="false"
+              aria-controls="course-grid"
+              aria-describedby="search-help"
+            />
+            <button class="search-clear" type="button" data-clear-search aria-label="清除课程搜索" hidden>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                <path d="m7 7 10 10M17 7 7 17" />
+              </svg>
+            </button>
+          </form>
+          <p class="sr-only" id="search-help">输入中文或英文关键词，筛选下方四门主题课程。</p>
+        </div>
+      </header>
+
+      <main id="main-content" class="main-content" tabindex="-1">
+        <section class="hero" id="daily" aria-labelledby="hero-title">
+          <div class="hero-copy">
+            <p class="hero-kicker">
+              <span class="kicker-dot" aria-hidden="true"></span>
+              今日冒险 · 颜色星球
+            </p>
+            <h2 id="hero-title">帮米米点亮<br /><span class="hero-highlight">彩虹桥</span></h2>
+            <p class="hero-lead">
+              听一听颜色单词，选出正确的色块。三道小题，每答对一题就能收集一颗星。
+            </p>
+            <ul class="hero-meta" aria-label="冒险信息">
+              <li>3 道小题</li>
+              <li>约 2 分钟</li>
+              <li>最多 3 颗星</li>
+            </ul>
+            <div class="hero-action-row">
+              <button class="button button--primary" type="button" data-open-adventure>
+                <span id="adventure-cta-label">开始冒险</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M4 12h15M13 6l6 6-6 6" />
+                </svg>
+              </button>
+              <p class="hero-note" id="hero-progress-note">
+                <svg viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
+                  <path d="m12 2.8 2.8 5.8 6.4 1-4.7 4.5 1.1 6.4-5.6-3-5.6 3 1.1-6.4-4.7-4.5 6.4-1z" />
+                </svg>
+                <span data-hero-note-text>答对 1 题就点亮 1 颗星</span>
+              </p>
+            </div>
+          </div>
+
+          <div class="hero-art" aria-hidden="true">
+            <svg class="hero-illustration" viewBox="0 0 520 390" focusable="false">
+              <g class="hero-rainbow" fill="none" stroke-linecap="round">
+                <path d="M24 224a122 122 0 0 1 244 0" stroke="#FFF9EC" stroke-width="22" opacity=".45" />
+                <path d="M50 224a96 96 0 0 1 192 0" stroke="#F98AA7" stroke-width="17" />
+                <path d="M76 224a70 70 0 0 1 140 0" stroke="#63D0BE" stroke-width="17" />
+              </g>
+
+              <g class="hero-planet">
+                <circle cx="382" cy="238" r="112" fill="#5B3C83" stroke="#35244D" stroke-width="5" />
+                <ellipse
+                  cx="382"
+                  cy="238"
+                  rx="164"
+                  ry="44"
+                  transform="rotate(-14 382 238)"
+                  fill="none"
+                  stroke="#FFE49B"
+                  stroke-width="14"
+                  opacity=".9"
+                />
+                <circle cx="342" cy="197" r="17" fill="#F58FA8" stroke="#35244D" stroke-width="4" />
+                <circle cx="421" cy="280" r="25" fill="#5BCBB7" stroke="#35244D" stroke-width="4" />
+                <circle cx="428" cy="188" r="10" fill="#FFD05B" stroke="#35244D" stroke-width="4" />
+                <path d="M330 306c17 6 35 9 53 8" fill="none" stroke="#35244D" stroke-width="4" stroke-linecap="round" opacity=".35" />
+              </g>
+
+              <g class="hero-balloon-strings" fill="none" stroke="#35244D" stroke-width="4" stroke-linecap="round">
+                <path d="M292 226c26 2 39-15 53-41 12-23 27-38 44-47" />
+                <path d="M298 232c34 12 66 6 97-17" />
+                <path d="M286 220c-4-45-2-79 20-116" />
+              </g>
+
+              <g class="hero-balloons">
+                <g class="balloon balloon--blue">
+                  <circle cx="394" cy="118" r="41" fill="#4D96E8" stroke="#35244D" stroke-width="5" />
+                  <ellipse cx="380" cy="101" rx="9" ry="14" fill="#FFF8E9" opacity=".36" transform="rotate(-24 380 101)" />
+                  <path d="m388 158 6 10 6-10" fill="#4D96E8" stroke="#35244D" stroke-width="4" stroke-linejoin="round" />
+                </g>
+                <g class="balloon balloon--pink">
+                  <circle cx="447" cy="209" r="31" fill="#F78FAC" stroke="#35244D" stroke-width="5" />
+                  <ellipse cx="437" cy="198" rx="7" ry="11" fill="#FFF8E9" opacity=".36" transform="rotate(-24 437 198)" />
+                  <path d="m442 239 5 8 5-8" fill="#F78FAC" stroke="#35244D" stroke-width="4" stroke-linejoin="round" />
+                </g>
+                <g class="balloon balloon--mint">
+                  <circle cx="326" cy="83" r="27" fill="#65CEBB" stroke="#35244D" stroke-width="5" />
+                  <ellipse cx="316" cy="73" rx="6" ry="10" fill="#FFF8E9" opacity=".4" transform="rotate(-24 316 73)" />
+                  <path d="m321 109 5 8 5-8" fill="#65CEBB" stroke="#35244D" stroke-width="4" stroke-linejoin="round" />
+                </g>
+              </g>
+
+              <g class="hero-star" transform="translate(92 102)">
+                <path
+                  d="M120 16c4 0 6 3 8 8l16 40 43 5c10 1 12 6 5 13l-32 28 9 43c2 10-4 13-12 8l-37-22-37 22c-8 5-14 2-12-8l9-43-32-28c-7-7-5-12 5-13l43-5 16-40c2-5 4-8 8-8Z"
+                  fill="#FFD15B"
+                  stroke="#35244D"
+                  stroke-width="6"
+                  stroke-linejoin="round"
+                />
+                <path d="M178 131c17 4 30-3 39-15" fill="none" stroke="#35244D" stroke-width="6" stroke-linecap="round" />
+                <path d="M63 131c-15 2-25-2-34-12" fill="none" stroke="#35244D" stroke-width="6" stroke-linecap="round" />
+                <circle cx="103" cy="100" r="4" fill="#35244D" />
+                <circle cx="137" cy="100" r="4" fill="#35244D" />
+                <circle cx="91" cy="112" r="7" fill="#F68DA4" opacity=".72" />
+                <circle cx="149" cy="112" r="7" fill="#F68DA4" opacity=".72" />
+                <path d="M108 111c4 7 8 10 12 10s8-3 12-10" fill="none" stroke="#35244D" stroke-width="4.5" stroke-linecap="round" />
+                <path d="m120 148 12 12-12 12-12-12z" fill="#F78FAC" stroke="#35244D" stroke-width="4" stroke-linejoin="round" />
+                <circle cx="217" cy="116" r="7" fill="#FFD15B" stroke="#35244D" stroke-width="4" />
+              </g>
+
+              <g fill="#FFF9EC">
+                <path d="m56 76 4 11 11 4-11 4-4 11-4-11-11-4 11-4z" opacity=".85" />
+                <path d="m474 55 3 8 8 3-8 3-3 8-3-8-8-3 8-3z" opacity=".65" />
+                <circle cx="485" cy="302" r="6" opacity=".55" />
+                <circle cx="42" cy="335" r="4" opacity=".55" />
+              </g>
+
+              <g transform="translate(30 296) rotate(-6)">
+                <rect width="108" height="44" rx="14" fill="#FFF9EC" stroke="#35244D" stroke-width="3.5" />
+                <text x="54" y="29" text-anchor="middle" fill="#35244D" font-size="19" font-weight="800" font-family="Trebuchet MS, sans-serif">ABC</text>
+              </g>
+            </svg>
+          </div>
+        </section>
+
+        <section class="courses-section" id="courses" aria-labelledby="courses-title">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">主题课程 · LEARNING TRAILS</p>
+              <h2 id="courses-title">四个小世界，等你来探索</h2>
+              <p class="section-subtitle">每完成一小节，进度和星星口袋都会更新。</p>
+            </div>
+            <span class="count-badge" id="course-count">4 门主题课</span>
+          </div>
+
+          <div class="course-grid" id="course-grid">
+            <article class="course-card course-card--mint" data-course-card="colors" aria-labelledby="course-colors-title">
+              <div class="course-art" aria-hidden="true">
+                <svg viewBox="0 0 280 120" focusable="false">
+                  <path d="M34 92c-14-19-2-47 24-53 14-3 22 4 33 4 18 0 27-20 49-14 20 5 29 24 23 42-7 21-30 32-62 34H66c-14 0-25-5-32-13Z" fill="#FFF9ED" opacity=".62" />
+                  <circle cx="101" cy="67" r="33" fill="#FFD15B" stroke="#284E49" stroke-width="4" />
+                  <circle cx="91" cy="62" r="2.5" fill="#284E49" />
+                  <circle cx="111" cy="62" r="2.5" fill="#284E49" />
+                  <path d="M93 71c2.5 3.2 5 4.8 8 4.8s5.5-1.6 8-4.8" fill="none" stroke="#284E49" stroke-width="2.8" stroke-linecap="round" />
+                  <path d="m166 29 34 66h-67z" fill="#EF91AE" stroke="#284E49" stroke-width="4" stroke-linejoin="round" />
+                  <circle cx="207" cy="61" r="22" fill="#64D0BF" stroke="#284E49" stroke-width="4" />
+                  <path d="m216 81 5 11 12 1-9 8 3 12-11-6-11 6 3-12-9-8 12-1z" fill="#8D73E8" stroke="#284E49" stroke-width="3" stroke-linejoin="round" />
+                  <path d="m236 35 3 7 8 3-8 3-3 7-3-7-8-3 8-3z" fill="#FFF9ED" />
+                  <circle cx="51" cy="38" r="4" fill="#EF91AE" />
+                </svg>
+              </div>
+              <p class="course-kicker">COLORS &amp; SHAPES</p>
+              <h3 id="course-colors-title">颜色与形状</h3>
+              <p class="course-desc">用 red、blue 认识身边圆圆的、尖尖的形状。</p>
+              <div class="course-progress">
+                <div class="course-progress-row">
+                  <span>课程进度</span>
+                  <strong data-course-count>0 / 4 节</strong>
+                </div>
+                <div
+                  class="progress-track"
+                  role="progressbar"
+                  aria-label="颜色与形状课程进度"
+                  aria-valuemin="0"
+                  aria-valuemax="4"
+                  aria-valuenow="0"
+                >
+                  <span class="progress-fill" data-course-bar></span>
+                </div>
+              </div>
+              <button class="course-button" type="button" data-course-action>
+                <span data-course-label>完成第 1 节</span>
+                <span class="course-star" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="m12 2.8 2.8 5.8 6.4 1-4.7 4.5 1.1 6.4-5.6-3-5.6 3 1.1-6.4-4.7-4.5 6.4-1z" />
+                  </svg>
+                  +1 星
+                </span>
+              </button>
+            </article>
+
+            <article class="course-card course-card--lavender" data-course-card="animals" aria-labelledby="course-animals-title">
+              <div class="course-art" aria-hidden="true">
+                <svg viewBox="0 0 280 120" focusable="false">
+                  <path d="M35 91c-13-20 1-46 26-52 17-4 28 3 42 2 20-1 38-17 61-7 22 9 27 33 15 49-11 15-34 23-65 23H69c-16 0-27-5-34-15Z" fill="#FFF9EE" opacity=".55" />
+                  <path d="M101 38C87 24 82 10 91 6c8-3 20 11 26 28" fill="#FFF5DF" stroke="#3D3352" stroke-width="4" stroke-linejoin="round" />
+                  <path d="M155 38c14-14 19-28 10-32-8-3-20 11-26 28" fill="#FFF5DF" stroke="#3D3352" stroke-width="4" stroke-linejoin="round" />
+                  <path d="M101 35c-7-8-11-16-8-21 4-1 10 6 15 17" fill="#F6A3BC" />
+                  <path d="M155 35c7-8 11-16 8-21-4-1-10 6-15 17" fill="#F6A3BC" />
+                  <ellipse cx="128" cy="70" rx="44" ry="41" fill="#FFF8E8" stroke="#3D3352" stroke-width="4" />
+                  <circle cx="113" cy="65" r="3.5" fill="#3D3352" />
+                  <circle cx="143" cy="65" r="3.5" fill="#3D3352" />
+                  <circle cx="101" cy="76" r="6" fill="#F6A3BC" opacity=".62" />
+                  <circle cx="155" cy="76" r="6" fill="#F6A3BC" opacity=".62" />
+                  <path d="m124 76 4 4 4-4" fill="#F6A3BC" stroke="#3D3352" stroke-width="2.5" stroke-linejoin="round" />
+                  <path d="M128 80v4M120 87c2.5 2.2 5 3.2 8 3.2s5.5-1 8-3.2" fill="none" stroke="#3D3352" stroke-width="2.6" stroke-linecap="round" />
+                  <path d="M84 72 64 68M85 80 64 82M172 72l20-4M171 80l21 2" fill="none" stroke="#3D3352" stroke-width="2.2" stroke-linecap="round" opacity=".7" />
+                  <path d="M48 79c-9-16 3-28 15-25 12 3 13 18 4 26" fill="#9DDB70" stroke="#3D3352" stroke-width="3" />
+                  <path d="M217 50c10-9 19-3 19 6 0 8-10 14-18 9" fill="#8FD366" stroke="#3D3352" stroke-width="3" />
+                  <path d="m222 32 3 7 8 3-8 3-3 7-3-7-8-3 8-3z" fill="#FFF8E8" />
+                </svg>
+              </div>
+              <p class="course-kicker">ANIMAL FRIENDS</p>
+              <h3 id="course-animals-title">动物朋友</h3>
+              <p class="course-desc">认识 cat、dog、rabbit，和动物朋友打个招呼。</p>
+              <div class="course-progress">
+                <div class="course-progress-row">
+                  <span>课程进度</span>
+                  <strong data-course-count>0 / 5 节</strong>
+                </div>
+                <div
+                  class="progress-track"
+                  role="progressbar"
+                  aria-label="动物朋友课程进度"
+                  aria-valuemin="0"
+                  aria-valuemax="5"
+                  aria-valuenow="0"
+                >
+                  <span class="progress-fill" data-course-bar></span>
+                </div>
+              </div>
+              <button class="course-button" type="button" data-course-action>
+                <span data-course-label>完成第 1 节</span>
+                <span class="course-star" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="m12 2.8 2.8 5.8 6.4 1-4.7 4.5 1.1 6.4-5.6-3-5.6 3 1.1-6.4-4.7-4.5 6.4-1z" />
+                  </svg>
+                  +1 星
+                </span>
+              </button>
+            </article>
+
+            <article class="course-card course-card--pink" data-course-card="family" aria-labelledby="course-family-title">
+              <div class="course-art" aria-hidden="true">
+                <svg viewBox="0 0 280 120" focusable="false">
+                  <path d="M35 91c-13-20 1-46 26-52 17-4 28 3 42 2 20-1 38-17 61-7 22 9 27 33 15 49-11 15-34 23-65 23H69c-16 0-27-5-34-15Z" fill="#FFF9EE" opacity=".58" />
+                  <circle cx="221" cy="32" r="18" fill="#FFD15B" stroke="#51323E" stroke-width="4" />
+                  <path d="m121 25 44 30H77z" fill="#C976A5" stroke="#51323E" stroke-width="4" stroke-linejoin="round" />
+                  <rect x="88" y="52" width="66" height="47" rx="5" fill="#FFF8E8" stroke="#51323E" stroke-width="4" />
+                  <rect x="108" y="72" width="22" height="27" rx="4" fill="#8D73E8" stroke="#51323E" stroke-width="3.5" />
+                  <circle cx="124" cy="85" r="1.8" fill="#FFF8E8" />
+                  <rect x="96" y="61" width="15" height="14" rx="3" fill="#78D0C2" stroke="#51323E" stroke-width="3" />
+                  <path d="M103.5 61v14M96 68h15" stroke="#51323E" stroke-width="2" />
+                  <path d="M158 41h13v21" fill="none" stroke="#51323E" stroke-width="4" />
+                  <path d="M146 28c-5-9 3-17 10-12 6-6 16 2 10 11-2 3-10 9-10 9s-8-6-10-8Z" fill="#EF6A78" stroke="#51323E" stroke-width="3" stroke-linejoin="round" />
+                  <path d="M164 30c4-5 8-8 12-10M164 35c5-1 9 0 13 2" fill="none" stroke="#51323E" stroke-width="2.4" stroke-linecap="round" opacity=".45" />
+                  <path d="M60 97h154" stroke="#51323E" stroke-width="4" stroke-linecap="round" />
+                  <circle cx="55" cy="42" r="4" fill="#EF91AE" />
+                  <path d="m237 76 3 7 8 3-8 3-3 7-3-7-8-3 8-3z" fill="#FFF8E8" />
+                </svg>
+              </div>
+              <p class="course-kicker">MY FAMILY</p>
+              <h3 id="course-family-title">我的家人</h3>
+              <p class="course-desc">学会 mother、father，说说温暖的家。</p>
+              <div class="course-progress">
+                <div class="course-progress-row">
+                  <span>课程进度</span>
+                  <strong data-course-count>0 / 4 节</strong>
+                </div>
+                <div
+                  class="progress-track"
+                  role="progressbar"
+                  aria-label="我的家人课程进度"
+                  aria-valuemin="0"
+                  aria-valuemax="4"
+                  aria-valuenow="0"
+                >
+                  <span class="progress-fill" data-course-bar></span>
+                </div>
+              </div>
+              <button class="course-button" type="button" data-course-action>
+                <span data-course-label>完成第 1 节</span>
+                <span class="course-star" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="m12 2.8 2.8 5.8 6.4 1-4.7 4.5 1.1 6.4-5.6-3-5.6 3 1.1-6.4-4.7-4.5 6.4-1z" />
+                  </svg>
+                  +1 星
+                </span>
+              </button>
+            </article>
+
+            <article class="course-card course-card--pear" data-course-card="food" aria-labelledby="course-food-title">
+              <div class="course-art" aria-hidden="true">
+                <svg viewBox="0 0 280 120" focusable="false">
+                  <path d="M35 91c-13-20 1-46 26-52 17-4 28 3 42 2 20-1 38-17 61-7 22 9 27 33 15 49-11 15-34 23-65 23H69c-16 0-27-5-34-15Z" fill="#FFF9EE" opacity=".58" />
+                  <path d="M119 44c-9-15-29-10-32 7-4 21 4 46 22 46 19 0 27-25 23-46-4-17-22-22-31-7Z" fill="#EF6A78" stroke="#35472B" stroke-width="4" stroke-linejoin="round" />
+                  <path d="M122 45c-6-11-5-19 4-25" fill="none" stroke="#35472B" stroke-width="4" stroke-linecap="round" />
+                  <path d="M126 27c10-8 19-6 23 2-8 5-16 5-23-2Z" fill="#79BF52" stroke="#35472B" stroke-width="3" stroke-linejoin="round" />
+                  <path d="M168 82c-9 0-15-8-12-19 3-10 10-12 10-23 0-6 5-11 11-11 8 0 13 6 13 14 0 12 7 17 7 27 0 12-12 22-29 12Z" fill="#A9D66D" stroke="#35472B" stroke-width="4" stroke-linejoin="round" />
+                  <path d="M177 29c-2-9 4-15 12-16 2 9-2 15-12 16Z" fill="#79BF52" stroke="#35472B" stroke-width="3" stroke-linejoin="round" />
+                  <circle cx="215" cy="84" r="25" fill="#FFB94D" stroke="#35472B" stroke-width="4" />
+                  <path d="M215 59c-2-9 3-14 10-15" fill="none" stroke="#35472B" stroke-width="3.5" stroke-linecap="round" />
+                  <path d="M209 50c8-5 15-3 18 3-6 4-12 4-18-3Z" fill="#79BF52" stroke="#35472B" stroke-width="3" stroke-linejoin="round" />
+                  <path d="m88 38 3 7 8 3-8 3-3 7-3-7-8-3 8-3z" fill="#FFF8E8" />
+                  <circle cx="238" cy="42" r="4" fill="#EF91AE" />
+                  <path d="M66 96c7-5 14-5 21 0" fill="none" stroke="#35472B" stroke-width="2.6" stroke-linecap="round" opacity=".45" />
+                </svg>
+              </div>
+              <p class="course-kicker">YUMMY FOOD</p>
+              <h3 id="course-food-title">美味食物</h3>
+              <p class="course-desc">把 apple、bread、milk 放进今天的野餐篮。</p>
+              <div class="course-progress">
+                <div class="course-progress-row">
+                  <span>课程进度</span>
+                  <strong data-course-count>0 / 5 节</strong>
+                </div>
+                <div
+                  class="progress-track"
+                  role="progressbar"
+                  aria-label="美味食物课程进度"
+                  aria-valuemin="0"
+                  aria-valuemax="5"
+                  aria-valuenow="0"
+                >
+                  <span class="progress-fill" data-course-bar></span>
+                </div>
+              </div>
+              <button class="course-button" type="button" data-course-action>
+                <span data-course-label>完成第 1 节</span>
+                <span class="course-star" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="m12 2.8 2.8 5.8 6.4 1-4.7 4.5 1.1 6.4-5.6-3-5.6 3 1.1-6.4-4.7-4.5 6.4-1z" />
+                  </svg>
+                  +1 星
+                </span>
+              </button>
+            </article>
+          </div>
+
+          <div class="empty-state" id="courses-empty" hidden>
+            <span class="empty-icon" aria-hidden="true">
+              <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="21" cy="21" r="12" />
+                <path d="m30 30 8 8M16 21h10" />
+              </svg>
+            </span>
+            <h3>这顶帐篷里还没有课程</h3>
+            <p>换一个词试试，比如“颜色”“动物”或“food”。</p>
+            <button class="button button--soft" type="button" data-clear-search>清除搜索</button>
+          </div>
+          <p class="sr-only" id="search-status" role="status" aria-live="polite" aria-atomic="true"></p>
+        </section>
+
+        <div class="learning-grid">
+          <section class="word-panel" id="word" aria-labelledby="word-title">
+            <div class="word-topline">
+              <p class="word-kicker">每日单词 · WORD OF THE DAY</p>
+              <span class="word-stamp" aria-hidden="true">
+                <svg viewBox="0 0 48 48" focusable="false">
+                  <path
+                    d="M24 5.5c1.8 0 2.4 1.5 2.9 2.8l4.4 9.8 10.6 1.2c3.2.4 4 2.5 1.7 4.5l-8 7 2.3 10.6c.6 3-1.1 4.2-3.8 2.8L24 38.7l-10.1 5.5c-2.7 1.4-4.4.2-3.8-2.8l2.3-10.6-8-7c-2.3-2-1.5-4.1 1.7-4.5l10.6-1.2 4.4-9.8c.5-1.3 1.1-2.8 2.9-2.8Z"
+                    fill="#FFD15B"
+                    stroke="#2C1B43"
+                    stroke-width="2.4"
+                    stroke-linejoin="round"
+                  />
+                  <circle cx="19.5" cy="23" r="1.6" fill="#2C1B43" />
+                  <circle cx="28.5" cy="23" r="1.6" fill="#2C1B43" />
+                  <path d="M20.3 27.4c1.1 1.3 2.3 1.9 3.7 1.9s2.6-.6 3.7-1.9" fill="none" stroke="#2C1B43" stroke-width="1.8" stroke-linecap="round" />
+                </svg>
+              </span>
+            </div>
+
+            <div class="word-main">
+              <div class="word-heading-row">
+                <div>
+                  <h2 id="word-title" lang="en">brave</h2>
+                  <p class="word-pronunciation"><span lang="en">/breɪv/</span><span aria-hidden="true">·</span><span>勇敢的</span></p>
+                </div>
+                <span class="word-badge">形容词</span>
+              </div>
+
+              <div class="word-example">
+                <p class="word-sentence" lang="en">You are <strong>brave</strong> when you try.</p>
+                <p class="word-translation">愿意尝试，就是一种勇敢。</p>
+              </div>
+            </div>
+
+            <div class="audio-row word-audio">
+              <button
+                class="sound-button"
+                type="button"
+                data-speak="brave"
+                data-audio-fallback="发音提示：brave /breɪv/，发音时上齿轻轻碰到下唇。"
+              >
+                <span class="sound-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 9.5h3.2L12 5.6v12.8L7.2 14.5H4z" />
+                    <path d="M15.2 8.6a5 5 0 0 1 0 6.8M18 6a8.5 8.5 0 0 1 0 12" />
+                  </svg>
+                </span>
+                听一听 brave
+              </button>
+              <p class="audio-hint" data-audio-hint role="status" aria-live="polite"></p>
+            </div>
+            <p class="word-footnote">点按按钮才会播放声音</p>
+          </section>
+
+          <section class="letter-card" id="letters" aria-labelledby="letters-title">
+            <div class="letter-heading">
+              <div>
+                <p class="eyebrow">字母小游戏 · LETTER HUNT</p>
+                <h2 id="letters-title">字母躲猫猫</h2>
+                <p class="letter-subtitle">找到大写字母的小写朋友，每答对一题收集 1 颗星。</p>
+              </div>
+              <span class="letter-score">本机找到 <strong data-letters-solved>0</strong> 个</span>
+            </div>
+
+            <div class="letter-stage" id="letter-stage">
+              <div class="letter-game-view" data-letter-game>
+                <div class="letter-round-line">
+                  <span>第 <strong data-letter-round>1</strong> / <span data-letter-total>4</span> 题</span>
+                  <span class="round-dots" data-round-dots aria-hidden="true">
+                    <i class="is-current"></i><i></i><i></i><i></i>
+                  </span>
+                </div>
+
+                <div class="letter-question">
+                  <div class="letter-badge" aria-hidden="true"><span data-letter-upper>B</span></div>
+                  <div class="letter-question-copy">
+                    <p id="letter-prompt" tabindex="-1">找到大写 <strong data-letter-target>B</strong> 的小写朋友</p>
+                    <div class="audio-row">
+                      <button
+                        class="sound-button sound-button--small"
+                        type="button"
+                        data-speak="B"
+                        data-audio-fallback="发音提示：字母 B 读作 /biː/。"
+                      >
+                        <span class="sound-icon" aria-hidden="true">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M4 9.5h3.2L12 5.6v12.8L7.2 14.5H4z" />
+                            <path d="M15.2 8.6a5 5 0 0 1 0 6.8M18 6a8.5 8.5 0 0 1 0 12" />
+                          </svg>
+                        </span>
+                        听字母
+                      </button>
+                      <p class="audio-hint" data-audio-hint role="status" aria-live="polite"></p>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="letter-options" role="group" aria-labelledby="letter-prompt">
+                  <button class="letter-option" type="button" data-letter-option aria-label="小写字母 b">b</button>
+                  <button class="letter-option" type="button" data-letter-option aria-label="小写字母 d">d</button>
+                  <button class="letter-option" type="button" data-letter-option aria-label="小写字母 p">p</button>
+                </div>
+
+                <p class="letter-feedback" data-letter-feedback role="status" aria-live="polite" aria-atomic="true">选一个字母试试看。</p>
+                <button class="button button--soft button--next" type="button" data-letter-next hidden>下一题</button>
+              </div>
+
+              <div class="letter-complete" data-letter-complete hidden>
+                <span class="complete-mark" aria-hidden="true">
+                  <svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="28" cy="28" r="22" />
+                    <path d="m18 29 7 7 14-15" />
+                  </svg>
+                </span>
+                <h3 tabindex="-1" data-letter-complete-title>这一组字母都找到啦！</h3>
+                <p>四个字母都配上了自己的小写朋友。你随时可以再玩一组。</p>
+                <button class="button button--soft" type="button" data-letter-restart>再玩一组</button>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <section class="stars-panel" id="stars" aria-labelledby="stars-title">
+          <div class="stars-summary">
+            <div class="star-orb" aria-hidden="true">
+              <svg viewBox="0 0 48 48" focusable="false">
+                <path
+                  d="M24 5.5c1.8 0 2.4 1.5 2.9 2.8l4.4 9.8 10.6 1.2c3.2.4 4 2.5 1.7 4.5l-8 7 2.3 10.6c.6 3-1.1 4.2-3.8 2.8L24 38.7l-10.1 5.5c-2.7 1.4-4.4.2-3.8-2.8l2.3-10.6-8-7c-2.3-2-1.5-4.1 1.7-4.5l10.6-1.2 4.4-9.8c.5-1.3 1.1-2.8 2.9-2.8Z"
+                  fill="#FFD15B"
+                  stroke="#35244D"
+                  stroke-width="2.4"
+                  stroke-linejoin="round"
+                />
+                <circle cx="19.5" cy="23" r="1.7" fill="#35244D" />
+                <circle cx="28.5" cy="23" r="1.7" fill="#35244D" />
+                <path d="M20.3 27.4c1.1 1.3 2.3 1.9 3.7 1.9s2.6-.6 3.7-1.9" fill="none" stroke="#35244D" stroke-width="1.8" stroke-linecap="round" />
+              </svg>
+            </div>
+            <div>
+              <p class="eyebrow">星星奖励 · STAR POCKET</p>
+              <h2 id="stars-title">我的星星口袋</h2>
+              <p class="stars-lede">完成冒险、课程和字母小游戏，都会在这里留下亮光。</p>
+              <p class="star-balance"><strong data-star-count>0</strong><span>颗星，本机累计</span></p>
+            </div>
+          </div>
+
+          <div class="stars-content">
+            <div class="star-meter-wrap">
+              <div class="star-meter-label">
+                <span>星光收集进度</span>
+                <strong data-star-meter-label>0 / 15</strong>
+              </div>
+              <div
+                class="star-meter"
+                role="progressbar"
+                aria-label="星星奖励收集进度"
+                aria-valuemin="0"
+                aria-valuemax="15"
+                aria-valuenow="0"
+                data-star-meter
+              >
+                <span data-star-meter-fill></span>
+              </div>
+            </div>
+
+            <div class="reward-list">
+              <article class="reward-card" data-reward-threshold="3">
+                <div class="reward-icon reward-icon--rainbow" aria-hidden="true">
+                  <svg viewBox="0 0 64 64" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M11 42a21 21 0 0 1 42 0" stroke="#EF6A78" stroke-width="6" />
+                    <path d="M18 42a14 14 0 0 1 28 0" stroke="#FFD15B" stroke-width="6" />
+                    <path d="M25 42a7 7 0 0 1 14 0" stroke="#5BCBB7" stroke-width="6" />
+                    <path d="M10 48c0-4 3-6 7-6 2-4 8-4 10 0 4 0 6 2 6 6" fill="#FFF8E8" stroke="#35244D" stroke-width="3" />
+                    <path d="M32 48c0-4 3-6 7-6 2-4 8-4 10 0 4 0 6 2 6 6" fill="#FFF8E8" stroke="#35244D" stroke-width="3" />
+                  </svg>
+                </div>
+                <div class="reward-copy">
+                  <h3>彩虹贴纸</h3>
+                  <p data-reward-state>还差 3 颗星</p>
+                </div>
+                <span class="reward-lock" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                    <rect x="5" y="10" width="14" height="10" rx="3" />
+                    <path d="M8.5 10V8a3.5 3.5 0 0 1 7 0v2" />
+                  </svg>
+                </span>
+              </article>
+
+              <article class="reward-card" data-reward-threshold="8">
+                <div class="reward-icon reward-icon--moon" aria-hidden="true">
+                  <svg viewBox="0 0 64 64" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M39 9c-12 2-20 12-18 24 2 11 11 18 22 17-5 7-14 11-23 8-11-3-18-14-15-26C8 21 22 11 34 9c2 0 4 0 5 0Z" fill="#FFD15B" stroke="#35244D" stroke-width="3" />
+                    <path d="m46 17 3.5 7.3 8 1.1-5.8 5.7 1.4 8-7.1-3.7-7.1 3.7 1.4-8-5.8-5.7 8-1.1z" fill="#FFF8E8" stroke="#35244D" stroke-width="3" />
+                  </svg>
+                </div>
+                <div class="reward-copy">
+                  <h3>月亮徽章</h3>
+                  <p data-reward-state>还差 8 颗星</p>
+                </div>
+                <span class="reward-lock" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                    <rect x="5" y="10" width="14" height="10" rx="3" />
+                    <path d="M8.5 10V8a3.5 3.5 0 0 1 7 0v2" />
+                  </svg>
+                </span>
+              </article>
+
+              <article class="reward-card" data-reward-threshold="15">
+                <div class="reward-icon reward-icon--medal" aria-hidden="true">
+                  <svg viewBox="0 0 64 64" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="m22 7 9 18-8 5-9-18zM42 7l-9 18 8 5 9-18z" fill="#F78FAC" stroke="#35244D" stroke-width="3" />
+                    <circle cx="32" cy="38" r="18" fill="#FFD15B" stroke="#35244D" stroke-width="3" />
+                    <path d="m32 26 3.5 7.2 7.9 1.1-5.7 5.6 1.3 7.9-7-3.7-7 3.7 1.3-7.9-5.7-5.6 7.9-1.1z" fill="#FFF8E8" stroke="#35244D" stroke-width="2.5" />
+                  </svg>
+                </div>
+                <div class="reward-copy">
+                  <h3>星光探险家</h3>
+                  <p data-reward-state>还差 15 颗星</p>
+                </div>
+                <span class="reward-lock" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                    <rect x="5" y="10" width="14" height="10" rx="3" />
+                    <path d="M8.5 10V8a3.5 3.5 0 0 1 7 0v2" />
+                  </svg>
+                </span>
+              </article>
+            </div>
+
+            <div class="star-notes">
+              <ul class="earn-list" aria-label="获得星星的方法">
+                <li><span aria-hidden="true">+1</span>冒险答对一题</li>
+                <li><span aria-hidden="true">+1</span>课程完成一节</li>
+                <li><span aria-hidden="true">+1</span>字母配对成功</li>
+              </ul>
+              <p>这些是保存在本机的演示贴纸，不会兑换真实物品。</p>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer class="site-footer">
+        <div>
+          <p class="footer-title">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="m12 2.8 2.8 5.8 6.4 1-4.7 4.5 1.1 6.4-5.6-3-5.6 3 1.1-6.4-4.7-4.5 6.4-1z" />
+            </svg>
+            Lumi 演示学习空间
+          </p>
+          <p>这是本地演示内容，不收集儿童个人信息。课程、单词与奖励均为演示，不提供登录、社交或付费功能。声音只在你点按后播放，进度仅保存在当前浏览器。</p>
+        </div>
+        <button class="text-button text-button--footer" type="button" data-open-reset>重置本地进度</button>
+      </footer>
+    </div>
+
+    <dialog
+      class="adventure-dialog"
+      id="adventure-dialog"
+      aria-labelledby="adventure-title"
+      aria-describedby="adventure-desc"
+    >
+      <div class="dialog-card quiz-card">
+        <div class="quiz-topline">
+          <div>
+            <p class="quiz-kicker">颜色星球 · 第 <span data-quiz-current>1</span> / <span data-quiz-total>3</span> 题</p>
+            <div class="quiz-progress" data-quiz-progress aria-hidden="true">
+              <span class="is-current"></span><span></span><span></span>
+            </div>
+          </div>
+          <div class="quiz-top-actions">
+            <span class="quiz-stars">本轮 <strong data-quiz-earned>0</strong> 星</span>
+            <button class="icon-button" type="button" data-close-adventure aria-label="关闭颜色冒险">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+                <path d="m7 7 10 10M17 7 7 17" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="quiz-content" data-quiz-content>
+          <p class="sr-only" id="adventure-desc">选择与英文颜色单词相符的色块。答对一题获得一颗星星，不会自动播放声音。</p>
+          <h2 class="quiz-question" id="adventure-title" tabindex="-1">哪一个是 <span class="quiz-word" data-quiz-word lang="en">blue</span>？</h2>
+          <h3 class="quiz-zh" data-quiz-zh>蓝色</h3>
+
+          <div class="audio-row quiz-audio">
+            <button class="sound-button" type="button" data-speak="blue" data-audio-fallback="发音提示：blue /bluː/，像晴空一样的蓝色。">
+              <span class="sound-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 9.5h3.2L12 5.6v12.8L7.2 14.5H4z" />
+                  <path d="M15.2 8.6a5 5 0 0 1 0 6.8M18 6a8.5 8.5 0 0 1 0 12" />
+                </svg>
+              </span>
+              听一听这个单词
+            </button>
+            <p class="audio-hint" data-audio-hint role="status" aria-live="polite"></p>
+          </div>
+
+          <div class="color-options" data-color-options role="group" aria-label="选择颜色"></div>
+
+          <p class="quiz-feedback" data-quiz-feedback role="status" aria-live="polite" aria-atomic="true"></p>
+
+          <div class="quiz-footer">
+            <p class="quiz-hint">答对一题，收集 1 颗星。</p>
+            <button class="button button--primary button--small" type="button" data-quiz-next hidden>下一题</button>
+          </div>
+        </div>
+
+        <div class="quiz-complete" data-quiz-complete hidden>
+          <div class="quiz-trophy" aria-hidden="true">
+            <svg viewBox="0 0 64 64" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 8h24v12c0 8-5 13-12 13s-12-5-12-13z" fill="#FFD15B" stroke="#35244D" stroke-width="3.5" />
+              <path d="M20 12H11v4c0 6 4 9 10 9M44 12h9v4c0 6-4 9-10 9" fill="none" stroke="#35244D" stroke-width="3.5" />
+              <path d="M32 33v9M23 50h18M27 50l1-8h8l1 8" fill="none" stroke="#35244D" stroke-width="3.5" />
+              <path d="m54 32 2.3 4.7 5.2.7-3.8 3.6.9 5.2-4.6-2.5-4.6 2.5.9-5.2-3.8-3.6 5.2-.7z" fill="#F78FAC" stroke="#35244D" stroke-width="2" />
+            </svg>
+          </div>
+          <p class="quiz-kicker">冒险完成</p>
+          <h2 id="quiz-complete-title" tabindex="-1">彩虹桥修好啦！</h2>
+          <p>这一轮你收集了 <strong data-quiz-complete-stars>3</strong> 颗星。米米已经找到回家的路，谢谢你！</p>
+          <div class="complete-stats">
+            <span>本机星星口袋</span>
+            <strong data-star-count>0</strong>
+          </div>
+          <div class="dialog-actions">
+            <button class="button button--soft" type="button" data-restart-quiz>再玩一次</button>
+            <button class="button button--primary button--small" type="button" data-close-adventure>回到学习地图</button>
+          </div>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog class="reset-dialog" id="reset-dialog" aria-labelledby="reset-title" aria-describedby="reset-desc">
+      <div class="dialog-card reset-card">
+        <button class="icon-button reset-close" type="button" data-close-reset aria-label="关闭重置确认">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+            <path d="m7 7 10 10M17 7 7 17" />
+          </svg>
+        </button>
+        <div class="reset-icon" aria-hidden="true">
+          <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M38 23a14 14 0 1 1-3.8-9.5" />
+            <path d="M38 9v10H28" />
+          </svg>
+        </div>
+        <h2 id="reset-title">要重置本地进度吗？</h2>
+        <p id="reset-desc">星星、课程进度、字母游戏记录和今天的冒险状态都会从当前浏览器清除。此操作无法撤销。</p>
+        <div class="dialog-actions">
+          <button class="button button--soft" type="button" data-close-reset>保留进度</button>
+          <button class="button button--danger" type="button" data-confirm-reset>确认重置</button>
+        </div>
+      </div>
+    </dialog>
+
+    <div class="toast" id="toast" aria-hidden="true">
+      <span class="toast-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="m12 2.8 2.8 5.8 6.4 1-4.7 4.5 1.1 6.4-5.6-3-5.6 3 1.1-6.4-4.7-4.5 6.4-1z" />
+        </svg>
+      </span>
+      <p data-toast-text></p>
+    </div>
+    <p class="sr-only" id="global-status" role="status" aria-live="polite" aria-atomic="true"></p>
+  </body>
+</html>
