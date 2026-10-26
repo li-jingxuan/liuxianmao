@@ -18,6 +18,8 @@ export interface EditorDraftRecord {
   kind: EditorDraftKind;
   targetKey: string;
   label: string;
+  /** 只用于输出闸门定位；不参与版本、确认 token 或协调行为。 */
+  location?: string;
   dirty: boolean;
   composing: boolean;
   canApply: boolean;

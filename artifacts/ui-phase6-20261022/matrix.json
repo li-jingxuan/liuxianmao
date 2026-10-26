@@ -1,0 +1,156 @@
+{
+  "phase": "S6",
+  "date": "2026-10-22",
+  "source": "codex/ui-6 final working tree after phase 5 implementation and stage 6 fixes",
+  "server": "http://127.0.0.1:3110/",
+  "platform": {
+    "os": "macOS 27.0.1 (26A434)",
+    "arch": "arm64",
+    "playwright": "1.62.1"
+  },
+  "browsers": [
+    {
+      "id": "B-CH",
+      "browser": "Chrome",
+      "version": "156.0.8078.48",
+      "mode": "headless via Playwright, /Applications/Google Chrome.app",
+      "status": "passed",
+      "reports": [
+        "browser-regression-report.json",
+        "responsive-output-report.json",
+        "zoom-regression-report.json",
+        "../ui-phase5-20261022/phase5-browser-report.json"
+      ],
+      "checks": {
+        "browserRegression": 21,
+        "responsiveAndLongScore": 3,
+        "nativeZoom200": 6,
+        "stage5ImageExportSmoke": 7
+      },
+      "pageErrors": 0,
+      "functionalConsoleErrors": 0,
+      "ignoredConsoleIssues": ["http://127.0.0.1:3110/favicon.ico 404"]
+    },
+    {
+      "id": "B-ED",
+      "browser": "Edge",
+      "status": "blocked",
+      "reason": "/Applications/Microsoft Edge.app 不存在，未安装可执行文件",
+      "checks": 0
+    },
+    {
+      "id": "B-FF",
+      "browser": "Firefox",
+      "status": "blocked",
+      "reason": "/Applications/Firefox.app 不存在，未安装可执行文件",
+      "checks": 0
+    },
+    {
+      "id": "B-SA",
+      "browser": "Safari",
+      "status": "manual",
+      "reason": "Safari 可执行文件存在，但本机未启用 Safari WebDriver 远程自动化；真实 Safari UI、下载和系统输入法候选窗需人工确认",
+      "checks": 0
+    }
+  ],
+  "viewports": [
+    {
+      "id": "V-1440",
+      "width": 1440,
+      "height": 900,
+      "evidence": "07-00_1440默认工作区.png, 07-00m_1440图片预览.png"
+    },
+    {
+      "id": "V-1280",
+      "width": 1280,
+      "height": 800,
+      "evidence": "07-01_笔记本1280_谱面与属性并列.png, 07-01m_1280图片预览.png"
+    },
+    {
+      "id": "V-1024",
+      "width": 1024,
+      "height": 768,
+      "evidence": "07-02_窄窗口1024_底部属性分区.png, 07-02m_1024图片预览三栏.png"
+    },
+    {
+      "id": "V-768",
+      "width": 768,
+      "height": 900,
+      "evidence": "07-04_紧凑768_更多工具与底部编辑.png, 07-04m_768图片预览堆叠.png"
+    },
+    {
+      "id": "V-650",
+      "width": 1280,
+      "height": 650,
+      "evidence": "07-03_低高度650_独立滚动与固定动作.png, 07-03m_650图片预览.png"
+    },
+    {
+      "id": "V-200",
+      "width": 720,
+      "height": 406,
+      "devicePixelRatio": 2,
+      "pageZoom": 2,
+      "evidence": "07_原生200%缩放_属性影响确认.png, 07_原生200%缩放_图片预览.png"
+    }
+  ],
+  "groups": [
+    "workspace-and-navigation",
+    "lyrics-and-ime",
+    "numbered-drafts-and-marks",
+    "chord-and-technique-forms",
+    "measure-beat-tuplet-and-paste",
+    "json-roundtrip",
+    "single-and-multipage-png",
+    "long-score-and-scroll",
+    "keyboard-focus-and-modal-boundaries",
+    "stage5-draft-output-gate-and-errors"
+  ],
+  "longScore": {
+    "fixture": "../ui-phase5-20261022/long-score.lxm.json",
+    "measures": 100,
+    "pages": 4,
+    "zipEntries": [
+      "阶段5固定验收谱_001.png",
+      "阶段5固定验收谱_002.png",
+      "阶段5固定验收谱_003.png",
+      "阶段5固定验收谱_004.png"
+    ],
+    "allEntriesPngSignature": true,
+    "elapsedMs": 2324
+  },
+  "fixes": [
+    "图片 Modal 的 Esc 焦点还原会被 StrictMode 模拟卸载提前置位并被入场焦点覆盖；改为卸载后延迟还原，且已有新对话框时不抢占焦点",
+    "≤900 堆叠布局下工作区与设置栏形成双层滚动，200% 时生成按钮被裁切约 4px；改为工作区单一滚动",
+    "200% 用例在导出前放弃悬置草稿，覆盖 S02 输出闸门",
+    "修正检查描述：1024 为三栏，仅 ≤900 视口堆叠"
+  ],
+  "manualItems": [
+    {
+      "id": "M-IME",
+      "name": "真实系统中中文 IME 组合输入",
+      "status": "manual",
+      "reason": "自动 composition 事件不能证明系统候选窗、候选确认 Enter/Escape 和 Safari 输入法行为",
+      "requiredEvidence": "输入法名称与版本、系统版本、浏览器、操作步骤、截图或录屏"
+    },
+    {
+      "id": "M-SA",
+      "name": "Safari UI、字体、下载与滚动",
+      "status": "manual",
+      "reason": "Safari WebDriver 远程自动化未启用，不能用 Chromium 结果替代"
+    }
+  ],
+  "commands": [
+    "node --experimental-strip-types artifacts/ui-phase6-20261022/browser-regression.mts",
+    "node --experimental-strip-types artifacts/ui-phase6-20261022/responsive-output-smoke.mts",
+    "node --experimental-strip-types artifacts/ui-phase6-20261022/zoom-regression.mts",
+    "node --experimental-strip-types artifacts/ui-phase5-20261022/phase5-smoke.mts"
+  ],
+  "status": "S6-A-E-chrome-passed-with-environment-and-ime-boundaries",
+  "finalNotes": [
+    "Chrome 自动化矩阵全部通过：浏览器 21 组、响应式/长谱 3 组、原生 200% 6 组、阶段 5 图片导出 7 组",
+    "100 小节长谱生成 4 页 ZIP，4 个条目均为 PNG 签名",
+    "Edge/Firefox 未安装，保持 blocked",
+    "Safari 和真实中文 IME 保持 manual，未记为通过",
+    "类型检查、lint、网站 193 项测试、core 641 项测试和生产构建通过"
+  ]
+}

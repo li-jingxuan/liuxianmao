@@ -219,6 +219,7 @@ export const ScoreSettings = ({
       kind: "settings",
       targetKey: String(store.getState().sessionId),
       label: "歌曲设置",
+      location: "歌曲设置",
       dirty,
       composing: compositionActive,
       canApply: dirty && !compositionActive,

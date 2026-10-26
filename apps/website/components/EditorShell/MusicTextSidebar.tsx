@@ -230,6 +230,34 @@ export const MusicTextSidebar = ({
     target && measure?.beats.some((b) => b.id === target.beatId)
       ? target
       : null;
+  /** 输出闸门只展示可解析位置；无法定位时保留 label，不猜测邻近小节。 */
+  const draftLocation = (
+    value: {
+      trackId: string;
+      measureId: string;
+      beatId?: string;
+    } | null | undefined,
+    prefix?: string,
+  ) => {
+    if (!score || !value) return prefix;
+    const valueTrack = score.score.tracks.find(
+      (item) => item.id === value.trackId,
+    );
+    const measureIndex =
+      valueTrack?.measures.findIndex((item) => item.id === value.measureId) ??
+      -1;
+    if (!valueTrack || measureIndex < 0) return prefix;
+    const beatIndex = value.beatId
+      ? valueTrack.measures[measureIndex]!.beats.findIndex(
+          (beat) => beat.id === value.beatId,
+        )
+      : -1;
+    return [
+      ...(prefix ? [prefix] : []),
+      `第 ${measureIndex + 1} 小节`,
+      ...(beatIndex >= 0 ? [`第 ${beatIndex + 1} 拍`] : []),
+    ].join(" · ");
+  };
   const existing =
     draft?.target.kind === "lyric"
       ? measure?.lyrics.find(
@@ -972,6 +1000,7 @@ export const MusicTextSidebar = ({
         kind: draft.target.kind,
         targetKey,
         label: draft.target.kind === "lyric" ? "歌词输入" : "和弦编辑",
+        location: draftLocation(draft.target),
         dirty: musicTextDraftValue(draft) !== draft.initial,
         composing: compositionActive,
         canApply: !issue && !pending,
@@ -1009,6 +1038,7 @@ export const MusicTextSidebar = ({
         kind: "numbered",
         targetKey: activeNumberedDraftKey,
         label: "当前简谱输入",
+        location: draftLocation(numberedTarget ?? selection?.focus),
         dirty: numberedDirty || numberedInputActive,
         composing: compositionActive,
         canApply: numberedCanApply && !pending,
@@ -1043,6 +1073,7 @@ export const MusicTextSidebar = ({
         kind: "numbered",
         targetKey: key,
         label: "暂存简谱输入",
+        location: draftLocation(savedTarget, "暂存目标"),
         dirty: true,
         composing: false,
         canApply: false,
