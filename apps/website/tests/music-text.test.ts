@@ -18,30 +18,34 @@ describe("音乐文本网站边界", () => {
       measureId: measure.id,
       beatId: measure.beats[0]!.id,
     };
+    const lyricTarget = {
+      trackId: track.id,
+      measureId: measure.id,
+      eventId: measure.numberedVoice.events[0]!.id,
+    };
     store
       .getState()
-      .execute({ type: C.SetLyric, ...target, verse: 1, text: "新歌词" });
-    store
-      .getState()
-      .execute({
-        type: C.SetChordSymbol,
-        ...target,
-        display: "nameAndDiagram",
-        chord: copyChordPreset("F")!,
-      });
+      .execute({ type: C.SetLyric, ...lyricTarget, verse: 1, text: "新歌词" });
+    store.getState().execute({
+      type: C.SetChordSymbol,
+      ...target,
+      display: "nameAndDiagram",
+      chord: copyChordPreset("F")!,
+    });
     const saved = store.getState().document;
+    store.getState().execute({
+      type: C.SetLyric,
+      ...lyricTarget,
+      verse: 1,
+      text: " 新歌词 ",
+    });
     store
       .getState()
-      .execute({ type: C.SetLyric, ...target, verse: 1, text: " 新歌词 " });
-    store
-      .getState()
-      .execute({ type: C.SetLyric, ...target, verse: 1, text: "a\nb" });
-    store
-      .getState()
-      .setSelection({
-        anchor: { ...target, string: 1 },
-        focus: { ...target, string: 1 },
-      });
+      .execute({ type: C.SetLyric, ...lyricTarget, verse: 1, text: "a\nb" });
+    store.getState().setSelection({
+      anchor: { ...target, string: 1 },
+      focus: { ...target, string: 1 },
+    });
     expect(store.getState().historyDepth).toEqual({ past: 2, future: 0 });
     store.getState().undo();
     store.getState().undo();

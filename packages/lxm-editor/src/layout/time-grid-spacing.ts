@@ -167,10 +167,11 @@ export const summarizeTimeGrid = (
     measure.numberedVoice.events.map((e) => [e.id, e]),
   );
   for (const l of measure.lyrics) {
-    const b = tabById.get(l.beatId)!;
+    const event = numberedById.get(l.eventId);
+    if (!event) continue;
     const g = musicTextGlyph(musicTextRequest(l.text), 0, 0, metrics);
     extents.push({
-      tick: b.tick,
+      tick: event.tick,
       left: -g.bounds.x,
       right: g.bounds.x + g.bounds.width,
       lane: `lyric-${l.verse}`,

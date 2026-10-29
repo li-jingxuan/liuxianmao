@@ -44,34 +44,43 @@ export const editMeasureMusicText = (
       },
     };
   }
-  if (!measure.beats.some((beat) => beat.id === command.beatId))
-    return fail("MUSIC_TEXT_BEAT_NOT_FOUND", "文本目标 Beat 不存在于该小节");
-  const byBeat = new Map(measure.beats.map((beat, index) => [beat.id, index]));
   if (command.type === "lyric.set") {
+    const event = measure.numberedVoice.events.find(
+      (event) => event.id === command.eventId,
+    );
+    if (!event || event.kind !== "notes")
+      return fail("MUSIC_TEXT_BEAT_NOT_FOUND", "歌词目标简谱音符不存在");
     if (![1, 2, 3, 4].includes(command.verse))
       return fail("INVALID_LYRIC_VERSE", "歌词段号应为 1–4");
     const text = normalizeMusicText(command.text, 64);
     if (text === null)
       return fail("INVALID_LYRIC_TEXT", "歌词须为单行非空文字，最多 64 个字符");
     const existing = measure.lyrics.find(
-      (item) => item.beatId === command.beatId && item.verse === command.verse,
+      (item) =>
+        item.eventId === command.eventId && item.verse === command.verse,
     );
     if (existing?.text === text) return { ok: true, changed: false, measure };
     const item: ILXMLyric = {
       id: existing?.id ?? factory.createLyricId(),
-      beatId: command.beatId,
+      eventId: command.eventId,
       verse: command.verse,
       text,
     };
+    const byEvent = new Map(
+      measure.numberedVoice.events.map((event) => [event.id, event.tick]),
+    );
     const lyrics = [
       ...measure.lyrics.filter((other) => other !== existing),
       item,
     ].sort(
       (a, b) =>
-        byBeat.get(a.beatId)! - byBeat.get(b.beatId)! || a.verse - b.verse,
+        byEvent.get(a.eventId)! - byEvent.get(b.eventId)! || a.verse - b.verse,
     );
     return { ok: true, changed: true, measure: { ...measure, lyrics } };
   }
+  if (!measure.beats.some((beat) => beat.id === command.beatId))
+    return fail("MUSIC_TEXT_BEAT_NOT_FOUND", "文本目标 Beat 不存在于该小节");
+  const byBeat = new Map(measure.beats.map((beat, index) => [beat.id, index]));
   const name = normalizeMusicText(command.chord.name, 32);
   if (name === null)
     return fail("INVALID_CHORD_NAME", "和弦名须为单行非空文字，最多 32 个字符");

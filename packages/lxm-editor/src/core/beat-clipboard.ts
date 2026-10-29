@@ -123,13 +123,18 @@ export const validateBeatClipboard = (
   if (ids.some((id) => !id) || new Set(ids).size !== ids.length)
     return reject("拍点快照 ID 重复或为空。");
   const beatIds = new Set(m.beats.map((b) => b.id));
+  const lyricEventIds = new Set(
+    c.numberedVoice?.events
+      .filter((event) => event.kind === "notes")
+      .map((event) => event.id),
+  );
   if (
-    m.lyrics.some((l) => !beatIds.has(l.beatId)) ||
+    m.lyrics.some((l) => !lyricEventIds.has(l.eventId)) ||
     m.chordSymbols.some((s) => !beatIds.has(s.beatId))
   )
     return reject("快照文本引用不存在。");
   if (
-    new Set(m.lyrics.map((l) => `${l.beatId}:${l.verse}`)).size !==
+    new Set(m.lyrics.map((l) => `${l.eventId}:${l.verse}`)).size !==
       m.lyrics.length ||
     new Set(m.chordSymbols.map((s) => s.beatId)).size !== m.chordSymbols.length
   )
@@ -214,11 +219,6 @@ const copyContent = (
       id: beatMap.get(b.id)!,
       notes: b.notes.map((n) => ({ ...n, id: factory.createNoteId() })),
     })),
-    lyrics: source.lyrics.map((l) => ({
-      ...l,
-      id: factory.createLyricId(),
-      beatId: beatMap.get(l.beatId)!,
-    })),
     chordSymbols: source.chordSymbols.map((s) => ({
       ...structuredClone(s),
       id: factory.createChordSymbolId(),
@@ -242,7 +242,15 @@ const copyContent = (
     factory,
   );
   return {
-    measure: { ...copy, numberedVoice: numbered.voices[0]! },
+    measure: {
+      ...copy,
+      numberedVoice: numbered.voices[0]!,
+      lyrics: source.lyrics.map((lyric) => ({
+        ...lyric,
+        id: factory.createLyricId(),
+        eventId: numbered.ids.get(lyric.eventId)!,
+      })),
+    },
     techniques: mapped,
     numberedMarks: numbered.marks,
   };
@@ -279,9 +287,7 @@ export const createBeatClipboard = (
     tuplets: m.tuplets
       .filter((g) => g.beatIds.every((id) => ids.has(id)))
       .map((g) => structuredClone(g)),
-    lyrics: m.lyrics
-      .filter((l) => ids.has(l.beatId))
-      .map((l) => structuredClone(l)),
+    lyrics: [] as ILXMMeasure["lyrics"],
     chordSymbols: m.chordSymbols
       .filter((s) => ids.has(s.beatId))
       .map((s) => structuredClone(s)),
@@ -308,6 +314,10 @@ export const createBeatClipboard = (
     return d.ok && e.tick < endTick && e.tick + d.ticks > startTick;
   });
   const selectedIds = new Set(selectedEvents.map((e) => e.id));
+  if (layers === "both")
+    content.lyrics = structuredClone(
+      m.lyrics.filter((lyric) => selectedIds.has(lyric.eventId)),
+    );
   if (
     layers === "both" &&
     (selectedEvents.some((e) => {
@@ -457,7 +467,6 @@ export const planBeatPaste = (
       return reject("不能覆盖部分连音组。");
     requiresConfirmation =
       m.beats.slice(index, end).some((b) => b.kind === "notes") ||
-      m.lyrics.some((l) => removed.has(l.beatId)) ||
       m.chordSymbols.some((s) => removed.has(s.beatId)) ||
       m.tuplets.some((g) => g.beatIds.some((id) => removed.has(id)));
   }
@@ -467,10 +476,6 @@ export const planBeatPaste = (
       ...m.beats.slice(0, index),
       ...copy.measure.beats,
       ...m.beats.slice(end),
-    ],
-    lyrics: [
-      ...m.lyrics.filter((l) => !removed.has(l.beatId)),
-      ...copy.measure.lyrics,
     ],
     chordSymbols: [
       ...m.chordSymbols.filter((s) => !removed.has(s.beatId)),
@@ -484,10 +489,6 @@ export const planBeatPaste = (
   const order = new Map(candidate.beats.map((b, i) => [b.id, i]));
   candidate = {
     ...candidate,
-    lyrics: candidate.lyrics.sort(
-      (a, b) =>
-        order.get(a.beatId)! - order.get(b.beatId)! || a.verse - b.verse,
-    ),
     chordSymbols: candidate.chordSymbols.sort(
       (a, b) => order.get(a.beatId)! - order.get(b.beatId)!,
     ),
@@ -517,6 +518,7 @@ export const planBeatPaste = (
     return reject("小节剩余容量不足或时值无法精确表示，未粘贴。");
   candidate = reconciled.measure;
   let numberedRemoved = 0;
+  let replacedLyrics = 0;
   if (c.layers === "both") {
     const start = m.beats[index]!.tick,
       end = start + c.totalTicks;
@@ -540,6 +542,7 @@ export const planBeatPaste = (
     )
       return reject("目标范围不能切断简谱事件");
     const ids = new Set(touched.map((e) => e.id));
+    replacedLyrics = m.lyrics.filter((lyric) => ids.has(lyric.eventId)).length;
     if (
       m.numberedVoice.tuplets.some(
         (g) =>
@@ -571,6 +574,10 @@ export const planBeatPaste = (
       );
     candidate = {
       ...candidate,
+      lyrics: [
+        ...m.lyrics.filter((lyric) => !ids.has(lyric.eventId)),
+        ...copy.measure.lyrics,
+      ],
       numberedVoice: {
         events: [
           ...kept,
@@ -593,6 +600,14 @@ export const planBeatPaste = (
           (e) => e.id === a.eventIds[0],
         ) -
         candidate.numberedVoice.events.findIndex((e) => e.id === b.eventIds[0]),
+    );
+    const lyricOrder = new Map(
+      candidate.numberedVoice.events.map((event) => [event.id, event.tick]),
+    );
+    candidate.lyrics.sort(
+      (a, b) =>
+        lyricOrder.get(a.eventId)! - lyricOrder.get(b.eventId)! ||
+        a.verse - b.verse,
     );
     const error = validateNumberedVoice(
       candidate.numberedVoice,
@@ -667,7 +682,7 @@ export const planBeatPaste = (
     ok: true,
     track: next,
     durationLabel: `${numerator}${denominator === 1 ? "" : "/" + denominator} 个四分拍`,
-    replacedLyrics: m.lyrics.filter((l) => removed.has(l.beatId)).length,
+    replacedLyrics,
     replacedNumbered: numberedRemoved,
     replacedChords: m.chordSymbols.filter((c) => removed.has(c.beatId)).length,
     nextFocus: {

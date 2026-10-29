@@ -15,12 +15,27 @@ const fixture = () => {
   const track = document.score.tracks[0]!;
   track.measures.forEach((m) => {
     m.lyrics = [];
+    m.numberedVoice = {
+      events: m.beats.map((beat) => ({
+        id: `event-${beat.id}`,
+        tick: beat.tick,
+        rhythm: { ...beat.rhythm },
+        kind: "notes",
+        items: [{ id: `item-${beat.id}`, token: "1" }],
+      })),
+      tuplets: m.tuplets.map((group) => ({
+        id: `numbered-${group.id}`,
+        ratio: { ...group.ratio },
+        eventIds: group.beatIds.map((beatId) => `event-${beatId}`),
+      })),
+    };
   });
+  track.numberedMarks = [];
   const m = track.measures[0]!;
   const target = {
     trackId: track.id,
     measureId: m.id,
-    beatId: m.beats.at(-1)!.id,
+    eventId: m.numberedVoice.events.at(-1)!.id,
     verse: 2 as const,
   };
   return { document, track, target };
@@ -68,13 +83,18 @@ describe("连续填词语法与原子领域命令", () => {
   ])("拒绝无效或超限输入 %j", (raw) => {
     expect(parseLyricSequence(raw).ok).toBe(false);
   });
-  it("跨小节含休止和跳拍，保持其他段与节奏，ID 唯一，一次 revision，规范 loader 往返", () => {
+  it("跨小节跳过歌词位置，保持其他段与节奏，ID 唯一，一次 revision，规范 loader 往返", () => {
     const { document, track, target } = fixture();
     const m2 = track.measures[1]!;
-    const skipBeat = m2.beats[0]!;
+    const skipEvent = m2.numberedVoice.events[0]!;
     m2.lyrics = [
-      { id: "skip-existing", beatId: skipBeat.id, verse: 2, text: "保留" },
-      { id: "other-verse", beatId: m2.beats[1]!.id, verse: 1, text: "另一段" },
+      { id: "skip-existing", eventId: skipEvent.id, verse: 2, text: "保留" },
+      {
+        id: "other-verse",
+        eventId: m2.numberedVoice.events[1]!.id,
+        verse: 1,
+        text: "另一段",
+      },
     ];
     const before = JSON.stringify(document);
     const sequence = items("风 _ 过 山");
@@ -87,7 +107,7 @@ describe("连续填词语法与原子领域命令", () => {
       [2, 3],
     ]);
     expect(plan.rows[1]).toMatchObject({
-      rest: skipBeat.kind === "rest",
+      rest: false,
       status: "skip",
       previous: "保留",
     });
@@ -124,7 +144,7 @@ describe("连续填词语法与原子领域命令", () => {
     track.measures[1]!.lyrics = [
       {
         id: "existing-id",
-        beatId: track.measures[1]!.beats[0]!.id,
+        eventId: track.measures[1]!.numberedVoice.events[0]!.id,
         verse: 2,
         text: "旧词",
       },
@@ -155,9 +175,9 @@ describe("连续填词语法与原子领域命令", () => {
       },
       {
         measureId: track.measures.at(-1)!.id,
-        beatId: track.measures.at(-1)!.beats.at(-1)!.id,
+        eventId: track.measures.at(-1)!.numberedVoice.events.at(-1)!.id,
       },
-      { beatId: "missing" },
+      { eventId: "missing" },
       { verse: 5 as 2 },
       { items: [{ kind: "skip" }] as LyricSequenceItem[] },
       {
@@ -178,12 +198,16 @@ describe("连续填词语法与原子领域命令", () => {
     const last = track.measures.at(-1)!;
     const plan = planLyricSequence(
       document,
-      { ...target, measureId: last.id, beatId: last.beats.at(-1)!.id },
+      {
+        ...target,
+        measureId: last.id,
+        eventId: last.numberedVoice.events.at(-1)!.id,
+      },
       items("_ 词"),
     );
     expect(plan.rows).toHaveLength(2);
     expect(plan.rows[0]!.status).toBe("skip");
     expect(plan.rows[1]).toMatchObject({ target: null, status: "error" });
-    expect(plan.issue).toContain("还缺 1 拍");
+    expect(plan.issue).toContain("还缺 1 个简谱音符");
   });
 });

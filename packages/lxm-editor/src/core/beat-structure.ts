@@ -126,11 +126,8 @@ export const mergeBeats = (
       if (d.ok && d.ticks === ticks) rhythm ??= r;
     }
   if (!rhythm) return reject("总时值无法表示为一个合法音符。");
-  if (
-    m.lyrics.some((l) => ids.has(l.beatId) && l.beatId !== first.id) ||
-    m.chordSymbols.some((c) => ids.has(c.beatId) && c.beatId !== first.id)
-  )
-    return reject("后续拍有歌词、简谱或和弦，不能合并丢失内容。");
+  if (m.chordSymbols.some((c) => ids.has(c.beatId) && c.beatId !== first.id))
+    return reject("后续拍有和弦，不能合并丢失内容。");
   const key = (b: typeof first) =>
     JSON.stringify(
       [...b.notes]

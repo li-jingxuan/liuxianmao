@@ -12,6 +12,7 @@ import {
  */
 import {
   applyScoreCommand,
+  createNumberedRhythmContext,
   buildOrderedBeatIndex,
   createCollapsedTabCellSelection,
   EXAMPLE_MVP_7_2_DOCUMENT,
@@ -23,6 +24,7 @@ import {
   type ILXMApplyScoreCommandResult,
   type ILXMDocument,
   type ILXMNumberedTarget,
+  type ILXMRhythm,
   createNumberedClipboard,
   type NumberedClipboard,
   type NumberedClipboardRange,
@@ -61,6 +63,9 @@ export interface EditorStore {
   /** 当前点击的技巧仅属于 UI 焦点，不进入文档历史。 */
   selectedTechniqueId: string | null;
   numberedSelection: ILXMNumberedTarget | null;
+  numberedInputRhythm: ILXMRhythm;
+  numberedInputRhythmExplicit: boolean;
+  setNumberedInputRhythm: (rhythm: ILXMRhythm) => void;
   selectedNumberedMarkId: string | null;
   setNumberedSelection: (target: ILXMNumberedTarget | null) => void;
   setSelectedNumberedMarkId: (id: string | null) => void;
@@ -104,7 +109,17 @@ const reconcileNumberedSelection = (
     target.endTick > target.tick &&
     target.endTick <=
       (measure.timeSignature.numerator * 3840) /
-        measure.timeSignature.denominator
+        measure.timeSignature.denominator &&
+    !measure.numberedVoice.events.some((event) => {
+      const duration = createNumberedRhythmContext(
+        measure.numberedVoice,
+      ).getEventDurationTicks(event);
+      return (
+        !duration.ok ||
+        (event.tick < target.endTick &&
+          event.tick + duration.ticks > target.tick)
+      );
+    })
     ? target
     : null;
 };
@@ -363,6 +378,8 @@ export const createEditorStore = (
           selection: null,
           selectedTechniqueId: null,
           numberedSelection: null,
+          numberedInputRhythm: { base: "quarter", dots: 0 },
+          numberedInputRhythmExplicit: false,
           selectedNumberedMarkId: null,
           errorMessage: null,
           loadNotice:
@@ -379,6 +396,13 @@ export const createEditorStore = (
       selection: null,
       selectedTechniqueId: null,
       numberedSelection: null,
+      numberedInputRhythm: { base: "quarter", dots: 0 },
+      numberedInputRhythmExplicit: false,
+      setNumberedInputRhythm: (rhythm) =>
+        set({
+          numberedInputRhythm: { ...rhythm },
+          numberedInputRhythmExplicit: true,
+        }),
       selectedNumberedMarkId: null,
       errorMessage: initialDocument ? null : "无法加载示例乐谱。",
       loadNotice: null,
@@ -426,7 +450,15 @@ export const createEditorStore = (
           effects: result.effects ?? [],
           document: result.document,
           numberedSelection: result.nextNumberedFocus
-            ? { kind: "numberedEvent", ...result.nextNumberedFocus }
+            ? result.nextNumberedFocus.eventId
+              ? { kind: "numberedEvent", ...result.nextNumberedFocus }
+              : {
+                  kind: "numberedTime",
+                  trackId: result.nextNumberedFocus.trackId,
+                  measureId: result.nextNumberedFocus.measureId,
+                  tick: result.nextNumberedFocus.tick!,
+                  endTick: result.nextNumberedFocus.endTick!,
+                }
             : reconcileNumberedSelection(
                 result.document,
                 state.numberedSelection,

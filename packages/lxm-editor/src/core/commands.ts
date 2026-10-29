@@ -235,7 +235,7 @@ export type ILXMMusicTextCommand =
       type: LXMScoreCommandEnum.SetLyric;
       trackId: string;
       measureId: string;
-      beatId: string;
+      eventId: string;
       verse: ILXMLyricVerse;
       text: string;
     }
@@ -428,9 +428,10 @@ export type ILXMApplyScoreCommandResult =
       nextNumberedFocus?: {
         trackId: string;
         measureId: string;
-        eventId: string;
-        itemId?: string;
-      };
+      } & (
+        | { eventId: string; itemId?: string; tick?: never; endTick?: never }
+        | { tick: number; endTick: number; eventId?: never; itemId?: never }
+      );
     }
   | {
       ok: false;
@@ -1181,16 +1182,25 @@ const applyScoreCommandInternal = (
       document,
       command,
     );
-    return result.ok && candidate.focusEventId && candidate.measureId
+    const focus =
+      candidate.nextFocus ??
+      (candidate.focusEventId
+        ? { eventId: candidate.focusEventId }
+        : undefined);
+    return result.ok && focus && candidate.measureId
       ? {
           ...result,
           nextNumberedFocus: {
             trackId: track.id,
             measureId: candidate.measureId,
-            eventId: candidate.focusEventId,
-            ...(numbered.type === "numbered.event.set" && numbered.itemId
-              ? { itemId: numbered.itemId }
-              : {}),
+            ...("eventId" in focus
+              ? {
+                  eventId: focus.eventId,
+                  ...(numbered.type === "numbered.event.set" && numbered.itemId
+                    ? { itemId: numbered.itemId }
+                    : {}),
+                }
+              : focus),
           },
         }
       : result;
@@ -1717,7 +1727,7 @@ const applyScoreCommandInternal = (
         lyrics: copySource.lyrics.map((lyric) => ({
           ...lyric,
           id: factory.createLyricId(),
-          beatId: beatIds.get(lyric.beatId)!,
+          eventId: numberedCopy.ids.get(lyric.eventId)!,
         })),
         chordSymbols: copySource.chordSymbols.map((symbol) => ({
           ...symbol,
@@ -1862,7 +1872,7 @@ const applyScoreCommandInternal = (
       lyrics: copySource.lyrics.map((lyric) => ({
         ...lyric,
         id: factory.createLyricId(),
-        beatId: beatIds.get(lyric.beatId)!,
+        eventId: numberedCopy.ids.get(lyric.eventId)!,
       })),
       chordSymbols: copySource.chordSymbols.map((symbol) => ({
         ...symbol,

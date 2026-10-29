@@ -31,14 +31,25 @@ export const resolveScorePointerAction = (
   if (numbered)
     return { type: "target", target: { ...numbered, kind: "numbered" } };
   const text = hitTestMusicText(layout, point);
-  if (text && text.kind !== "numbered")
+  if (text?.kind === "chord" && text.beatId)
     return {
       type: "target",
       target: {
         trackId: text.trackId,
         measureId: text.measureId,
         beatId: text.beatId,
-        kind: text.kind,
+        kind: "chord",
+        string: selection?.focus.string ?? 1,
+      },
+    };
+  if (text?.kind === "lyric" && text.eventId)
+    return {
+      type: "target",
+      target: {
+        trackId: text.trackId,
+        measureId: text.measureId,
+        eventId: text.eventId,
+        kind: "lyric",
         verse: text.verse,
         string: selection?.focus.string ?? 1,
       },

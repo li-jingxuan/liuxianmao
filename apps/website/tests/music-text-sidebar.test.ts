@@ -6,7 +6,6 @@ import {
 import {
   readMusicTextDraft,
   resolveSidebarRequest,
-  type MusicTextTarget,
 } from "../components/EditorShell/music-text-draft";
 import {
   resolveParagraphInsertionTarget,
@@ -18,15 +17,22 @@ const fixture = () => {
   const document = structuredClone(EXAMPLE_MVP_6_DOCUMENT);
   const track = document.score.tracks[0]!;
   const measure = track.measures[0]!;
-  const target: MusicTextTarget = {
+  const target = {
+    trackId: track.id,
+    measureId: measure.id,
+    eventId: measure.numberedVoice.events[0]!.id,
+    string: 1,
+    kind: "lyric" as const,
+    verse: 1 as const,
+  };
+  const chordTarget = {
+    kind: "chord" as const,
     trackId: track.id,
     measureId: measure.id,
     beatId: measure.beats[0]!.id,
     string: 1,
-    kind: "lyric",
-    verse: 1,
   };
-  return { document, track, measure, target };
+  return { document, track, measure, target, chordTarget };
 };
 
 describe("音乐文本侧栏草稿保护", () => {
@@ -37,7 +43,7 @@ describe("音乐文本侧栏草稿保护", () => {
     );
     expect(readMusicTextDraft(null, target)).toBeNull();
     expect(
-      readMusicTextDraft(document, { ...target, beatId: "deleted" }),
+      readMusicTextDraft(document, { ...target, eventId: "deleted" }),
     ).toBeNull();
     expect(readMusicTextDraft(document, target)?.target).toEqual(target);
   });
@@ -58,7 +64,7 @@ describe("音乐文本侧栏草稿保护", () => {
     expect(
       resolveSidebarRequest(draft, {
         type: "target",
-        target: { ...target, beatId: measure.beats[1]!.id },
+        target: { ...target, eventId: measure.numberedVoice.events[1]!.id },
       }),
     ).toBe("confirm");
   });
@@ -78,8 +84,8 @@ describe("音乐文本侧栏草稿保护", () => {
     expect(draft.text).toBe("未提交的词");
   });
   it("干净草稿可切换；和弦的图和名称修改均触发保护", () => {
-    const { document, target } = fixture();
-    const draft = readMusicTextDraft(document, { ...target, kind: "chord" })!;
+    const { document, chordTarget } = fixture();
+    const draft = readMusicTextDraft(document, chordTarget)!;
     expect(resolveSidebarRequest(draft, { type: "close" })).toBe("execute");
     for (const chord of [
       { ...draft.chord, chord: { ...draft.chord.chord, name: "新名称" } },
@@ -90,8 +96,8 @@ describe("音乐文本侧栏草稿保护", () => {
       ).toBe("confirm");
   });
   it("每次换拍独立预填歌词与和弦，不能携带上一拍快照", () => {
-    const { document, target, measure } = fixture();
-    const second = { ...target, beatId: measure.beats[1]!.id };
+    const { document, chordTarget, measure } = fixture();
+    const second = { ...chordTarget, beatId: measure.beats[1]!.id };
     const chord = copyChordPreset("F")!;
     measure.chordSymbols = [
       {
@@ -101,14 +107,13 @@ describe("音乐文本侧栏草稿保护", () => {
         chord,
       },
     ];
-    const next = readMusicTextDraft(document, { ...second, kind: "chord" })!;
+    const next = readMusicTextDraft(document, second)!;
     next.chord.chord.diagram!.strings[0]!.fret = 20;
     expect(measure.chordSymbols[0]!.chord.diagram!.strings[0]!.fret).not.toBe(
       20,
     );
     expect(
-      readMusicTextDraft(document, { ...target, kind: "chord" })!.chord.chord
-        .diagram,
+      readMusicTextDraft(document, chordTarget)!.chord.chord.diagram,
     ).toBeNull();
     expect(
       resolveSidebarRequest(readMusicTextDraft(document, second), {
@@ -116,17 +121,31 @@ describe("音乐文本侧栏草稿保护", () => {
       }),
     ).toBe("execute");
   });
-  it("连续歌词回填所选拍点，空拍保留跳拍位置", () => {
-    const { document, target, measure } = fixture();
+  it("歌词只回填所选简谱事件，TAB 范围不会改变起点或拼接歌词", () => {
+    const { document, target, chordTarget, measure } = fixture();
     measure.lyrics = [
-      { id: "first-word", beatId: measure.beats[0]!.id, verse: 1, text: "春" },
-      { id: "third-word", beatId: measure.beats[2]!.id, verse: 1, text: "风" },
+      {
+        id: "first-word",
+        eventId: measure.numberedVoice.events[0]!.id,
+        verse: 1,
+        text: "春",
+      },
+      {
+        id: "third-word",
+        eventId: measure.numberedVoice.events[2]!.id,
+        verse: 1,
+        text: "风",
+      },
     ];
-    const focus = { ...target, beatId: measure.beats[2]!.id };
-    const selection = { anchor: target, focus };
+    const focus = { ...target, eventId: measure.numberedVoice.events[2]!.id };
+    const selection = {
+      anchor: chordTarget,
+      focus: { ...chordTarget, beatId: measure.beats[2]!.id },
+    };
     const draft = readMusicTextDraft(document, focus, "sequence", selection)!;
-    expect(draft.target.beatId).toBe(target.beatId);
-    expect(draft.text).toBe("春 _ 风");
+    expect(draft.target.eventId).toBe(focus.eventId);
+    expect(draft.target.beatId).toBeUndefined();
+    expect(draft.text).toBe("风");
     expect(draft.initial).toBeDefined();
     expect(resolveSidebarRequest(draft, { type: "close" })).toBe("execute");
     expect(readMusicTextDraft(document, target, "sequence")?.text).toBe("春");
@@ -140,12 +159,12 @@ describe("内容行入口目标解析", () => {
     const secondTrack = structuredClone(document.score.tracks[0]!);
     secondTrack.id = "track-2";
     secondTrack.measures[0]!.id = "measure-2";
-    secondTrack.measures[0]!.beats[0]!.id = "beat-2";
+    secondTrack.measures[0]!.numberedVoice.events[0]!.id = "event-2";
     document.score.tracks.push(secondTrack);
     const target = resolveParagraphInsertionTarget(document, {
       trackId: "track-2",
       measureId: "measure-2",
-      beatId: "beat-2",
+      eventId: "event-2",
       string: 4,
       kind: "lyric",
       verse: 1,
@@ -153,9 +172,55 @@ describe("内容行入口目标解析", () => {
     expect(target).toEqual({
       trackId: "track-2",
       measureId: "measure-2",
-      beatId: "beat-2",
-      string: 4,
+      eventId: "event-2",
     });
+  });
+
+  it("拒绝无选区、TAB、失效事件、休止与空白窗口，不回退到首轨", () => {
+    const { document, target, chordTarget, measure } = fixture();
+    expect(resolveParagraphInsertionTarget(document, null)).toBeNull();
+    expect(resolveParagraphInsertionTarget(document, chordTarget)).toBeNull();
+    expect(
+      resolveParagraphInsertionTarget(document, {
+        ...target,
+        eventId: "missing",
+      }),
+    ).toBeNull();
+    expect(
+      resolveParagraphInsertionTarget(document, {
+        kind: "numbered",
+        trackId: target.trackId,
+        measureId: target.measureId,
+        tick: 0,
+        endTick: 960,
+      }),
+    ).toBeNull();
+    measure.numberedVoice.events[0]!.kind = "rest";
+    measure.numberedVoice.events[0]!.items = [];
+    expect(resolveParagraphInsertionTarget(document, target)).toBeNull();
+    expect(readMusicTextDraft(document, target)).toBeNull();
+  });
+
+  it("歌词草稿与入口不依赖 TAB，重复目标按 eventId 与段号判断", () => {
+    const { document, target, measure } = fixture();
+    measure.beats = [];
+    const draft = readMusicTextDraft(document, target)!;
+    expect(draft.text).toBe("风");
+    expect(resolveParagraphInsertionTarget(document, target)).toEqual({
+      trackId: target.trackId,
+      measureId: target.measureId,
+      eventId: target.eventId,
+    });
+    draft.text = "未保存";
+    expect(resolveSidebarRequest(draft, { type: "target", target })).toBe(
+      "ignore",
+    );
+    expect(
+      resolveSidebarRequest(draft, {
+        type: "target",
+        target: { ...target, eventId: measure.numberedVoice.events[1]!.id },
+      }),
+    ).toBe("confirm");
   });
 
   it("谱行布局未就绪不能猜测目标谱行", () => {

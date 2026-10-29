@@ -5,9 +5,7 @@ import {
   LXMScoreCommandEnum as C,
   type ILXMScoreCommand,
 } from "../../src/core/commands";
-import {
-  parseNumberedSequence,
-} from "../../src/core/numbered-notation";
+import { parseNumberedSequence } from "../../src/core/numbered-notation";
 import {
   createBeatClipboard,
   planBeatPaste,
@@ -197,7 +195,7 @@ describe("MVP7.1-C 原子结构与记谱", () => {
         ],
       },
     ];
-    m.lyrics = [{ id: "ly", beatId: "b0-0", verse: 1, text: "词" }];
+    m.lyrics = [{ id: "ly", eventId: "numbered-first", verse: 1, text: "词" }];
     const before = structuredClone(d),
       r = execute(d, { type: C.SplitBeat, ...target });
     expect(r.nextFocus?.beatId).toBe("b0-0");
@@ -219,7 +217,7 @@ describe("MVP7.1-C 原子结构与记谱", () => {
     ).toHaveLength(0);
     expect(d).toEqual(before);
   });
-  it("拒绝未 Tie 起音、x、连音、后续歌词及部分时长技巧", () => {
+  it("拒绝未 Tie 起音、x、连音、后续和弦及部分时长技巧", () => {
     const d = fixture(true),
       m = d.score.tracks[0]!.measures[0]!;
     m.beats[1] = {
@@ -247,7 +245,12 @@ describe("MVP7.1-C 原子结构与记谱", () => {
         ...target,
       }).document,
       sm = split.score.tracks[0]!.measures[0]!;
-    sm.lyrics.push({ id: "l2", beatId: sm.beats[1]!.id, verse: 1, text: "后" });
+    sm.chordSymbols.push({
+      id: "c2",
+      beatId: sm.beats[1]!.id,
+      display: "name",
+      chord: { name: "C", diagram: null },
+    });
     expect(
       applyScoreCommand(split, {
         type: C.MergeBeats,
@@ -256,7 +259,7 @@ describe("MVP7.1-C 原子结构与记谱", () => {
         endBeatId: sm.beats[1]!.id,
       }),
     ).toMatchObject({ ok: false });
-    sm.lyrics = [];
+    sm.chordSymbols = [];
     split.score.tracks[0]!.techniques.push({
       id: "pm",
       type: "palmMute",
@@ -329,7 +332,7 @@ describe("MVP7.1-C 原子结构与记谱", () => {
       (x: typeof c) =>
         x.content.lyrics.push({
           id: "bad",
-          beatId: "missing",
+          eventId: "missing",
           verse: 1,
           text: "x",
         }),

@@ -42,7 +42,8 @@ export const createMvp7cExample = (measureCount = 14): ILXMDocument => {
         lyrics: m.lyrics.map((l) => ({
           ...l,
           id: `${l.id}-c${offset}`,
-          beatId: beats.get(l.beatId)!,
+          // 此谱例重新生成旋律；标签始终附在每小节首个 notes 事件。
+          eventId: `${m.beats[0]!.id}-numbered-c${offset}`,
         })),
         chordSymbols: m.chordSymbols.map((c) => ({
           ...structuredClone(c),

@@ -18,6 +18,24 @@ const words = [
   ["最", "后", "拍"],
 ];
 track.measures.forEach((measure, index) => {
+  // 歌词谱例显式提供旋律事件；TAB 与简谱仅在本 fixture 中采用相同节奏。
+  measure.numberedVoice = {
+    events: measure.beats.map((beat, i) => ({
+      id: `mvp6-event-${index}-${i}`,
+      tick: beat.tick,
+      rhythm: { ...beat.rhythm },
+      kind: "notes",
+      items: [{ id: `mvp6-item-${index}-${i}`, token: String((i % 7) + 1) }],
+    })),
+    tuplets: measure.tuplets.map((group, i) => ({
+      id: `mvp6-numbered-tuplet-${index}-${i}`,
+      eventIds: group.beatIds.map(
+        (beatId) =>
+          `mvp6-event-${index}-${measure.beats.findIndex((beat) => beat.id === beatId)}`,
+      ),
+      ratio: { ...group.ratio },
+    })),
+  };
   measure.chordSymbols = [
     {
       id: `mvp6-chord-${index}`,
@@ -28,7 +46,7 @@ track.measures.forEach((measure, index) => {
   ];
   measure.lyrics = words[index]!.map((text, i) => ({
     id: `mvp6-lyric-${index}-${i}`,
-    beatId: measure.beats[i]!.id,
+    eventId: measure.numberedVoice.events[i]!.id,
     verse: index === 6 ? 3 : 1,
     text,
   }));
@@ -36,15 +54,18 @@ track.measures.forEach((measure, index) => {
     for (const verse of [2, 3, 4] as const)
       measure.lyrics.push({
         id: `mvp6-verse-${verse}`,
-        beatId: measure.beats[0]!.id,
+        eventId: measure.numberedVoice.events[0]!.id,
         verse,
         text: `第${verse}段`,
       });
   measure.lyrics.sort(
     (a, b) =>
-      measure.beats.findIndex((beat) => beat.id === a.beatId) -
-        measure.beats.findIndex((beat) => beat.id === b.beatId) ||
-      a.verse - b.verse,
+      measure.numberedVoice.events.findIndex(
+        (event) => event.id === a.eventId,
+      ) -
+        measure.numberedVoice.events.findIndex(
+          (event) => event.id === b.eventId,
+        ) || a.verse - b.verse,
   );
 });
 // 跨小节延音覆盖的尾部拍点改为真实发声，避免技巧穿过容量休止。

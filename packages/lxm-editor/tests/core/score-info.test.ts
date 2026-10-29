@@ -78,6 +78,13 @@ describe("基础谱面信息", () => {
     "显式升级 schema %s 保持音乐事实，loader 不隐式接收",
     (version) => {
       const doc = fixture();
+      // 旧版本没有独立简谱歌词，不把当前版本的 eventId 锚点伪装成旧文件。
+      doc.score.tracks.forEach((track) =>
+        track.measures.forEach((measure) => {
+          measure.lyrics = [];
+          measure.numberedVoice = { events: [], tuplets: [] };
+        }),
+      );
       const old = JSON.parse(JSON.stringify(doc));
       old.schemaVersion = version;
       delete old.score.arranger;

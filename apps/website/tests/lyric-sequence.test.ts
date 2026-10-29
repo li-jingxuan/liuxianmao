@@ -19,7 +19,7 @@ const fixture = () => {
   const target = {
     trackId: track.id,
     measureId: m.id,
-    beatId: m.beats.at(-1)!.id,
+    eventId: m.numberedVoice.events.at(-1)!.id,
     verse: 1 as const,
     kind: "lyric" as const,
     string: 1,
@@ -50,7 +50,7 @@ describe("连续填词历史、草稿与歌词焦点", () => {
       changed: false,
     });
     expect(
-      store.getState().execute({ ...permitted, beatId: "missing" })?.ok,
+      store.getState().execute({ ...permitted, eventId: "missing" })?.ok,
     ).toBe(false);
     expect(store.getState().historyDepth.past).toBe(1);
     store.getState().undo();
@@ -79,7 +79,7 @@ describe("连续填词历史、草稿与歌词焦点", () => {
       {
         ...target,
         measureId: track.measures[1]!.id,
-        beatId: track.measures[1]!.beats[0]!.id,
+        eventId: track.measures[1]!.numberedVoice.events[0]!.id,
       },
       "sequence",
     )!;
@@ -91,7 +91,7 @@ describe("连续填词历史、草稿与歌词焦点", () => {
     const m = track.measures[0]!;
     m.lyrics = [1, 2, 3, 4].map((verse) => ({
       id: `verse-${verse}`,
-      beatId: target.beatId,
+      eventId: target.eventId,
       verse: verse as 1,
       text: `第${verse}段`,
     }));
@@ -111,10 +111,19 @@ describe("连续填词历史、草稿与歌词焦点", () => {
         });
         expect(new Set(ys).size).toBe(4);
         expect(
-          resolveLyricFocus(layout, { ...target, beatId: m.beats[0]!.id }),
+          resolveLyricFocus(layout, {
+            ...target,
+            eventId: m.numberedVoice.events[0]!.id,
+          }),
         ).toBeNull();
         expect(
-          resolveLyricFocus(layout, { ...target, kind: "chord" }),
+          resolveLyricFocus(layout, {
+            kind: "chord",
+            trackId: track.id,
+            measureId: m.id,
+            beatId: m.beats[0]!.id,
+            string: 1,
+          }),
         ).toBeNull();
         expect(resolveLyricFocus(layout, null)).toBeNull();
       }

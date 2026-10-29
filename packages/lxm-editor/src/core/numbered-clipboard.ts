@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { LXMNumberedVoiceSchema, LXMNumberedMarkSchema } from "./schema";
+import {
+  LXMNumberedVoiceSchema,
+  LXMNumberedMarkSchema,
+  LXMLyricSchema,
+} from "./schema";
 import {
   createNumberedRhythmContext,
   validateNumberedVoice,
@@ -14,6 +18,7 @@ const schema = z
     tab: z.null(),
     voice: LXMNumberedVoiceSchema,
     marks: z.array(LXMNumberedMarkSchema),
+    lyrics: z.array(LXMLyricSchema),
     totalTicks: z.number().int().positive(),
     omissions: z.array(z.string()),
   })
@@ -35,9 +40,19 @@ export const validateNumberedClipboard = (input: unknown, track: ILXMTrack) => {
     ...c.voice.events.flatMap((e) => [e.id, ...e.items.map((i) => i.id)]),
     ...c.voice.tuplets.map((g) => g.id),
     ...c.marks.map((m) => m.id),
+    ...c.lyrics.map((lyric) => lyric.id),
   ];
   if (new Set(ids).size !== ids.length)
     return { ok: false as const, message: "简谱快照 ID 重复" };
+  const notes = new Set(
+    c.voice.events.filter((e) => e.kind === "notes").map((e) => e.id),
+  );
+  if (
+    c.lyrics.some((lyric) => !notes.has(lyric.eventId)) ||
+    new Set(c.lyrics.map((lyric) => `${lyric.eventId}:${lyric.verse}`)).size !==
+      c.lyrics.length
+  )
+    return { ok: false as const, message: "简谱快照歌词引用无效或重复" };
   const error =
     validateNumberedVoice(c.voice, c.totalTicks) ||
     validateNumberedMarks({
@@ -112,6 +127,9 @@ export const createNumberedClipboard = (
           .map((g) => structuredClone(g)),
       },
       marks: structuredClone(marks),
+      lyrics: structuredClone(
+        m.lyrics.filter((lyric) => ids.has(lyric.eventId)),
+      ),
       totalTicks: range.endTick - range.startTick,
       omissions: track.numberedMarks
         .filter(

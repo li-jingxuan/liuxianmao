@@ -44,7 +44,7 @@ export const LyricFormView = ({
             value={draft.lyricMode}
             onChange={onModeChange}
             options={[
-              { value: "single", label: "单拍编辑" },
+              { value: "single", label: "单音符编辑" },
               { value: "sequence", label: "连续填词" },
             ]}
           />
@@ -97,15 +97,15 @@ export const LyricFormView = ({
           <div id="lyric-sequence-tips" className={styles.sidebarTip}>
             <strong>连续填词规则</strong>
             <p>
-              用空格分词，每项依次对应一拍，休止拍也占一格。用 <code>_</code>{" "}
-              跳过一拍并保留原词。
+              用空格分词，每项依次对应一个简谱音符，自动跳过休止。用{" "}
+              <code>_</code> 跳过一个音符并保留原词。
             </p>
             <p>
               默认允许替换已有歌词。先核对对应预览，再应用全部；整批可一次撤销。
             </p>
             <details>
               <summary>详细规则</summary>
-              半角与全角空格均可分隔，首尾空格忽略。每项最多64字，每批最多256拍；不接受换行或制表符，超出谱尾整批拒绝。英文空格也会拆词，同一拍的短句请用单拍编辑。
+              半角与全角空格均可分隔，首尾空格忽略。每项最多64字，每批最多256个音符；不接受换行或制表符，超出谱尾整批拒绝。英文空格也会拆词，同一音符的短句请用单音符编辑。
             </details>
           </div>
           <Checkbox
@@ -150,7 +150,7 @@ export const LyricFormView = ({
                         >
                           {row.index + 1} ·{" "}
                           {row.target
-                            ? `${row.measureNumber} 小节 / ${row.beatNumber} 拍${row.rest ? "（休止）" : ""}`
+                            ? `${row.measureNumber} 小节 / 简谱位置 ${row.beatNumber}`
                             : "超出谱尾"}
                         </Button>
                       </td>
@@ -179,10 +179,12 @@ export const LyricFormView = ({
       ) : (
         <>
           <p className={styles.sidebarTip}>
-            原词：{existingText ?? `此拍暂无第 ${draft.target.verse} 段歌词。`}
+            原词：
+            {existingText ?? `此音符暂无第 ${draft.target.verse} 段歌词。`}
           </p>
           <p className={styles.sidebarTip}>
-            Enter 应用并下一拍；Shift+Enter 仅应用。每拍单行，支持第1–4段歌词。
+            Enter 应用并移到下一个简谱音符；Shift+Enter
+            仅应用。每个音符单行，支持第1–4段歌词。
           </p>
         </>
       )}

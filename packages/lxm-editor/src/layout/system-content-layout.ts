@@ -241,17 +241,19 @@ export const layoutSystemContent = (
     const lyricBaseline = paragraphBottom + MUSIC_TEXT_LANE_GAP + rowAscent;
     const measures: ILXMMeasureLayout[] = system.measures.map((measure) => {
       const domain = source.get(measure.id)!;
-      const anchors = new Map(measure.beats.map((b) => [b.id, b.x]));
+      const anchors = new Map(
+        measure.numberedSlots.map((slot) => [slot.id, slot.x]),
+      );
       const lyrics = domain.lyrics.map((l) => {
         const label = musicTextGlyph(
           musicTextRequest(l.text),
-          anchors.get(l.beatId)!,
+          anchors.get(l.eventId)!,
           lyricBaseline + (l.verse - 1) * rowHeight,
           metrics,
         );
         return {
           id: l.id,
-          beatId: l.beatId,
+          eventId: l.eventId,
           verse: l.verse,
           label,
           bounds: label.bounds,
@@ -296,7 +298,7 @@ export const layoutSystemContent = (
     // 段落标记仅保存在文档中，不再投影为标签或影响顶部占位。
     const originalTop = musicTop;
     const dy = nextTop - originalTop;
-    // 空拍按相邻拍的中点划分；真实文字优先命中，避免长词被邻拍抢占。
+    // 歌词单元格按简谱事件的中点划分；真实文字优先命中。
     const musicTextCells: NonNullable<ILXMSystemLayout["musicTextCells"]> = [];
     // 占位只使用数字正文带，不把高音点、减时线和上方连线当作输入框基线。
     const body =
@@ -306,19 +308,22 @@ export const layoutSystemContent = (
     const numberedTop = body.bounds.y + numberedDy;
     const numberedHeight = Math.max(18, body.bounds.height);
     for (const m of measures) {
+      const slots = m.numberedSlots
+        .filter((slot) => slot.kind === "notes")
+        .sort((a, b) => a.tick - b.tick);
       const addRow = (
         y: number,
         height: number,
         verse?: import("../core/types").ILXMLyricVerse,
       ) => {
-        m.beats.forEach((b, i) => {
-          const x = i ? (m.beats[i - 1]!.x + b.x) / 2 : m.x;
+        slots.forEach((slot, i) => {
+          const x = i ? (slots[i - 1]!.x + slot.x) / 2 : m.x;
           const right =
-            i + 1 < m.beats.length
-              ? (b.x + m.beats[i + 1]!.x) / 2
+            i + 1 < slots.length
+              ? (slot.x + slots[i + 1]!.x) / 2
               : m.x + m.width;
           const exists = m.lyrics?.some(
-            (l) => l.beatId === b.id && l.verse === verse,
+            (l) => l.eventId === slot.id && l.verse === verse,
           );
           musicTextCells.push({
             x,
@@ -327,8 +332,8 @@ export const layoutSystemContent = (
             height,
             trackId: track.id,
             measureId: m.id,
-            beatId: b.id,
-            id: b.id,
+            eventId: slot.id,
+            id: slot.id,
             kind: "lyric",
             verse,
             empty: !exists,

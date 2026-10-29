@@ -249,13 +249,15 @@ export const layoutParagraphFocus = (
 
   for (const s of layout.systems) {
     const m = s.measures.find((m) => m.id === target.measureId),
-      b = m?.beats.find((b) => b.id === target.beatId);
-    if (!m || !b) continue;
+      slot = m?.numberedSlots.find(
+        (slot) => slot.id === target.eventId && slot.kind === "notes",
+      );
+    if (!m || !slot) continue;
     const existing = layout.hitIndex.musicTextBounds?.find(
       (r) =>
         !r.empty &&
         r.measureId === m.id &&
-        r.beatId === b.id &&
+        r.eventId === slot.id &&
         r.kind === target.kind &&
         (target.kind !== "lyric" || r.verse === (target.verse ?? 1)),
     );
@@ -272,7 +274,7 @@ export const layoutParagraphFocus = (
     const cell = s.musicTextCells?.find(
       (c) =>
         c.measureId === m.id &&
-        c.beatId === b.id &&
+        c.eventId === slot.id &&
         c.kind === target.kind &&
         (target.kind !== "lyric" || c.verse === (target.verse ?? 1)),
     );
@@ -283,7 +285,7 @@ export const layoutParagraphFocus = (
         x:
           cell.width >= MUSIC_TEXT_PLACEHOLDER_WIDTH
             ? cell.x
-            : b.x - MUSIC_TEXT_PLACEHOLDER_WIDTH / 2,
+            : slot.x - MUSIC_TEXT_PLACEHOLDER_WIDTH / 2,
         y: cell.y,
         width,
         height: Math.max(MUSIC_TEXT_PLACEHOLDER_HEIGHT, cell.height),
@@ -295,7 +297,7 @@ export const layoutParagraphFocus = (
     const y =
       row?.y ?? Math.min(s.y + s.height - 20, m.strings.at(-1)!.y1 + 22);
     return {
-      x: b.x - MUSIC_TEXT_PLACEHOLDER_WIDTH / 2,
+      x: slot.x - MUSIC_TEXT_PLACEHOLDER_WIDTH / 2,
       y: Math.max(
         s.y,
         Math.min(y, s.y + s.height - MUSIC_TEXT_PLACEHOLDER_HEIGHT),

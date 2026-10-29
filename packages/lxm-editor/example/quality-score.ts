@@ -29,12 +29,12 @@ export const createQualityScore = (count: 16 | 100): ILXMDocument => {
   const track = document.score.tracks[0]!;
   const first = track.measures[0]!;
   for (const verse of [1, 2, 3, 4] as const)
-    for (const [index, beat] of first.beats.entries())
+    for (const [index, event] of first.numberedVoice.events.entries())
       run({
         type: LXMScoreCommandEnum.SetLyric,
         trackId: track.id,
         measureId: first.id,
-        beatId: beat.id,
+        eventId: event.id,
         verse,
         text: ["春", "风", "又", "绿"][index % 4]!,
       });

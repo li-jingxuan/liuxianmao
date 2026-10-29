@@ -6,18 +6,29 @@ import type {
   ILXMTabCellSelection,
   ILXMLyricVerse,
 } from "@liuxianmao/lxm-editor";
-import { resolveTabCellSelection } from "@liuxianmao/lxm-editor";
 import type { ChordDraft } from "./ChordEditor";
 
 export type MusicTextTarget =
   | (ILXMTabCellReference & {
-      kind: "lyric" | "chord";
+      kind: "chord";
       verse?: ILXMLyricVerse;
       eventId?: never;
       itemId?: never;
       tick?: never;
       endTick?: never;
     })
+  | {
+      kind: "lyric";
+      trackId: string;
+      measureId: string;
+      eventId: string;
+      verse?: ILXMLyricVerse;
+      string?: number;
+      beatId?: never;
+      itemId?: never;
+      tick?: never;
+      endTick?: never;
+    }
   | {
       kind: "numbered";
       trackId: string;
@@ -40,7 +51,14 @@ export interface MusicTextDraft {
 }
 export type SidebarTab = "score" | "lyric" | "chord" | "numbered";
 export type SidebarAction =
-  | { type: "tool"; kind: "score"; destination: ToolNavigation; target?: MeasureToolTarget; sessionId: number; sessionVersion: number }
+  | {
+      type: "tool";
+      kind: "score";
+      destination: ToolNavigation;
+      target?: MeasureToolTarget;
+      sessionId: number;
+      sessionVersion: number;
+    }
   | { type: "numberedMode"; mode: "single" | "sequence" }
   | {
       type: "selection";
@@ -117,61 +135,40 @@ export const resolveSidebarRequest = (
     : "execute";
 };
 
-/** 每次从当前快照读取独立值对象，换拍后不携带上一拍的和弦或歌词。 */
+/** 每次从当前快照读取独立值对象，歌词只按事件读取，TAB 选区不改变起点。 */
 export const readMusicTextDraft = (
   document: ILXMDocument | null,
   target: MusicTextTarget,
   lyricMode: MusicTextDraft["lyricMode"] = "sequence",
   selection?: ILXMTabCellSelection | null,
 ): MusicTextDraft | null => {
+  void selection;
   const track = document?.score.tracks.find((t) => t.id === target.trackId);
   const measure = track?.measures.find((m) => m.id === target.measureId);
   if (
     target.kind === "numbered" ||
-    !measure?.beats.some((b) => b.id === target.beatId)
+    !measure ||
+    (target.kind === "lyric"
+      ? !measure.numberedVoice.events.some(
+          (event) => event.id === target.eventId && event.kind === "notes",
+        )
+      : !measure.beats.some((beat) => beat.id === target.beatId))
   )
     return null;
   const verse = target.verse ?? 1;
   const lyric = measure.lyrics.find(
-    (l) => l.beatId === target.beatId && l.verse === verse,
+    (l) => l.eventId === target.eventId && l.verse === verse,
   );
-  const selectedBeats =
-    target.kind === "lyric" &&
-    lyricMode === "sequence" &&
-    selection &&
-    selection.focus.trackId === target.trackId &&
-    selection.focus.measureId === target.measureId &&
-    selection.focus.beatId === target.beatId
-      ? resolveTabCellSelection(document!, selection)
-      : null;
-  const range = selectedBeats?.ok ? selectedBeats.range.beats : null;
-  const first = range?.[0];
-  // 连续填词回填整段选区；空拍用跳拍符保留原有位置。
-  const selectedWords =
-    range && range.length > 1
-      ? range.map(
-          (beat) =>
-            track?.measures
-              .find((m) => m.id === beat.measureId)
-              ?.lyrics.find(
-                (item) => item.beatId === beat.beatId && item.verse === verse,
-              )?.text ?? "_",
-        )
-      : null;
-  const sequenceText = selectedWords?.some((word) => word !== "_")
-    ? selectedWords.join(" ")
-    : (lyric?.text ?? "");
   const chord = measure.chordSymbols.find((c) => c.beatId === target.beatId);
   const value = {
     target: {
       ...target,
-      ...(first ? { measureId: first.measureId, beatId: first.beatId } : {}),
       verse,
     },
     lyricMode,
     // 新歌词草稿默认允许覆盖，实际写入仍需点击应用。
     allowOverwrite: target.kind === "lyric",
-    text: lyricMode === "sequence" ? sequenceText : (lyric?.text ?? ""),
+    text: lyric?.text ?? "",
     chord: chord
       ? structuredClone({ display: chord.display, chord: chord.chord })
       : { display: "name" as const, chord: { name: "", diagram: null } },

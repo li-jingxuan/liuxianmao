@@ -80,5 +80,5 @@ export const copyNumberedVoices = (
       },
     ];
   });
-  return { voices, marks, omittedMarks };
+  return { voices, marks, omittedMarks, ids };
 };

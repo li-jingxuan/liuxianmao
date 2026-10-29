@@ -21,9 +21,9 @@ export const MusicTextEditingHints = ({
 }) => (
   <g className={styles.musicTextEditingHints} pointerEvents="none">
     {layout.systems.flatMap((system) => {
-      const beatX = new Map(
+      const eventX = new Map(
         system.measures.flatMap((measure) =>
-          measure.beats.map((beat) => [beat.id, beat.x] as const),
+          measure.numberedSlots.map((event) => [event.id, event.x] as const),
         ),
       );
       return (system.musicTextCells ?? [])
@@ -41,14 +41,14 @@ export const MusicTextEditingHints = ({
               focus.y + focus.height > cell.y,
           );
           const props = {
-            "data-paragraph-cell": `${cell.kind}/${cell.measureId}/${cell.beatId}/${cell.verse ?? ""}`,
+            "data-paragraph-cell": `${cell.kind}/${cell.measureId}/${cell.eventId}/${cell.verse ?? ""}`,
             className: styles.musicTextPlaceholder,
             opacity: nearFocus ? 0.15 : 1,
           };
           const key = props["data-paragraph-cell"];
           if (width < PLACEHOLDER_BOX_MIN_WIDTH) {
             // 中点划分的单元格可能不对称，短标记必须落在真实音符锚点上。
-            const x = beatX.get(cell.beatId)!;
+            const x = eventX.get(cell.eventId!) ?? cell.x + cell.width / 2;
             const middleY = cell.y + cell.height / 2;
             const halfHeight =
               Math.min(PLACEHOLDER_MARK_HEIGHT, cell.height) / 2;

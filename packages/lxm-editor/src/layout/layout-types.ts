@@ -21,6 +21,7 @@ import type {
   ILXMRhythm,
   ILXMBarlineType,
   ILXMTechniqueType,
+  ILXMNumberedEvent,
 } from "../core/types";
 
 /** 谱面横向排版密度；默认舒适模式保持既有几何，紧凑模式用于纸张排版。 */
@@ -28,11 +29,11 @@ export type ILXMLayoutDensity = "comfortable" | "compact";
 /** 编辑保留有限操作空间；成品用于预览、导出与打印。 */
 export type ILXMLayoutPurpose = "editing" | "presentation";
 
-/** 后续歌词、简谱、和弦等内容通过 beatId 贡献额外列宽。 */
+/** 各声部通过自己的锚点 ID 贡献额外列宽。 */
 export interface ILXMColumnWidthContributors {
-  // TODO 下面是和弦符号、歌词和简谱预留的 BeatId 对应的宽度，当前版本不靠谱
+  // TODO 预留宽度尚未参与联合时间网格。
   chordSymbolWidthByBeatId?: Record<string, number>;
-  lyricWidthByBeatId?: Record<string, number>;
+  lyricWidthByEventId?: Record<string, number>;
 }
 
 /** 函数 buildLayout 的可选配置 */
@@ -173,7 +174,7 @@ export interface ILXMMeasureLayout {
   /** 编辑空位与命中共用，同一窗口不重复存储在谱行和命中索引中。 */
   numberedInputSlots?: import("./numbered-input-layout").NumberedInputSlot[];
   numberedNotation?: NumberedLayout[];
-  numberedSlots: ILXMBeatLayout[];
+  numberedSlots: ILXMNumberedSlotLayout[];
   timeAnchors: { tick: number; x: number }[];
   lyrics?: LyricLayout[];
   chordSymbols?: ChordSymbolLayout[];
@@ -269,7 +270,8 @@ export interface ILXMHitIndex {
   musicTextBounds?: (MusicTextRect & {
     trackId: string;
     measureId: string;
-    beatId: string;
+    beatId?: string;
+    eventId?: string;
     id: string;
     empty?: boolean;
     kind: "lyric" | "chord" | "numbered";
@@ -314,6 +316,10 @@ export interface ILXMRhythmicColumn {
 }
 
 /** beat slot 是一个真实 beat 在小节中的最终水平位置。 */
+export interface ILXMNumberedSlotLayout extends ILXMBeatLayout {
+  kind: ILXMNumberedEvent["kind"];
+}
+
 export interface ILXMBeatLayout {
   id: string;
   measureId: string;

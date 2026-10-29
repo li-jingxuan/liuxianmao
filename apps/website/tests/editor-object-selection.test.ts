@@ -32,6 +32,13 @@ const fixture = () => {
     layout,
     measure,
     target,
+    lyricTarget: {
+      kind: "lyric" as const,
+      trackId: target.trackId,
+      measureId: target.measureId,
+      eventId: measure.numberedNotation![0]!.eventId,
+      verse: 1 as const,
+    },
     selection: createCollapsedTabCellSelection(target),
   };
 };
@@ -40,7 +47,8 @@ describe("谱面对象选择与文字页签解耦", () => {
   it.each(["lyric", "numbered", "chord"] as const)(
     "%s 草稿下点击同拍弦格仍是六线谱选择",
     (kind) => {
-      const { document, layout, measure, target, selection } = fixture();
+      const { document, layout, measure, target, lyricTarget, selection } =
+        fixture();
       const action = resolveScorePointerAction(
         document,
         layout,
@@ -55,7 +63,10 @@ describe("谱面对象选择与文字页签解耦", () => {
       const draft =
         kind === "numbered"
           ? null
-          : readMusicTextDraft(document, { ...target, kind });
+          : readMusicTextDraft(
+              document,
+              kind === "lyric" ? lyricTarget : { ...target, kind },
+            );
       expect(resolveSidebarRequest(draft, action)).toBe("execute");
       if (draft) {
         if (kind === "lyric") draft.text = "待应用";
@@ -69,14 +80,16 @@ describe("谱面对象选择与文字页签解耦", () => {
     },
   );
 
-  it.each(["lyric", "numbered"] as const)(
+  it.each(["lyric", "numbered", "chord"] as const)(
     "点击真实 %s 对象不受六线谱选区限制",
     (kind) => {
       const { document, layout, measure, selection } = fixture();
       const bounds =
         kind === "lyric"
           ? measure.lyrics![0]!.bounds
-          : measure.numberedNotation![0]!.bounds;
+          : kind === "chord"
+            ? measure.chordSymbols![0]!.bounds
+            : measure.numberedNotation![0]!.bounds;
       const action = resolveScorePointerAction(
         document,
         layout,
@@ -122,13 +135,13 @@ describe("谱面对象选择与文字页签解耦", () => {
   });
 
   it("空编辑位仍是文字对象，退出时的空白区域则清空六线谱选区", () => {
-    const { document, target, selection } = fixture();
+    const { document, lyricTarget, selection } = fixture();
     document.score.tracks[0]!.measures[0]!.lyrics = [];
     const layout = buildLayout(document, {
       systemWidth: A4_CONTENT_WIDTH,
       // 空位属于编辑态，不能依赖恰好同谱行的其它小节歌词撑出占位。
       purpose: "editing",
-      paragraphEditing: { ...target, kind: "lyric", verse: 1 },
+      paragraphEditing: lyricTarget,
     });
     const bounds = layout.systems[0]!.musicTextCells!.find(
       (c) => c.kind === "lyric" && c.empty,
@@ -143,7 +156,7 @@ describe("谱面对象选择与文字页签解耦", () => {
       ),
     ).toMatchObject({
       type: "target",
-      target: { kind: "lyric", beatId: bounds.beatId },
+      target: { kind: "lyric", eventId: bounds.eventId },
     });
     expect(
       resolveScorePointerAction(
@@ -190,7 +203,7 @@ describe("谱面对象选择与文字页签解耦", () => {
   });
 
   it("简谱重复激活不丢草稿；同拍转 beat 或换歌词仍需确认", () => {
-    const { target, selection } = fixture();
+    const { target, lyricTarget, selection } = fixture();
     const numberedTarget = { ...target, kind: "numbered" as const };
     const guards = { numberedTarget, numberedDirty: true };
     expect(
@@ -206,7 +219,7 @@ describe("谱面对象选择与文字页签解耦", () => {
     expect(
       resolveSidebarRequest(
         null,
-        { type: "target", target: { ...target, kind: "lyric", verse: 1 } },
+        { type: "target", target: lyricTarget },
         guards,
       ),
     ).toBe("confirm");

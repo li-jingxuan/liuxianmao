@@ -1,6 +1,8 @@
 import type { StoreApi } from "zustand/vanilla";
 import {
   applyScoreCommand,
+  editNumberedTrack,
+  createDocumentIdFactory,
   LXMScoreCommandEnum,
   type ILXMApplyScoreCommandResult,
   type ILXMScoreCommand,
@@ -11,6 +13,10 @@ import {
   captureEditorVersion,
   sameEditorSession,
 } from "./editor-session-version";
+import { formatNumberedBeatPosition } from "./numbered-editor-target";
+
+const rhythmName = (rhythm: { base: string; dots: number }) =>
+  `${({ whole: "全音符", half: "二分", quarter: "四分", eighth: "八分", sixteenth: "十六分", thirtySecond: "三十二分" } as Record<string, string>)[rhythm.base]}${rhythm.dots === 1 ? "附点" : rhythm.dots === 2 ? "双附点" : ""}`;
 
 export type EditorCommandResult =
   | {
@@ -45,6 +51,89 @@ export const createEditorCommandAdapter =
     );
     if (!snapshot.document)
       return { status: "blocked", message: "当前没有可编辑的乐谱。" };
+
+    if (
+      command.type === "numbered.event.setRhythm" &&
+      command.timeline === "editTimeline"
+    ) {
+      const track = snapshot.document.score.tracks.find(
+        (item) => item.id === command.trackId,
+      );
+      if (!track) return { status: "blocked", message: "简谱轨道已失效。" };
+      const candidate = editNumberedTrack(
+        track,
+        command,
+        createDocumentIdFactory(snapshot.document),
+        true,
+      );
+      if (!candidate.ok)
+        return { status: "blocked", message: candidate.message };
+      if (
+        candidate.resizedEventIds.length ||
+        candidate.removedMarkIds.length ||
+        candidate.changedMarkIds.length
+      ) {
+        const measure = track.measures.find(
+          (item) => item.id === command.measureId,
+        )!;
+        const updated = candidate.track.measures.find(
+          (item) => item.id === command.measureId,
+        )!;
+        const changes = [
+          ...new Set([
+            ...candidate.movedEventIds,
+            ...candidate.resizedEventIds,
+          ]),
+        ].map((id) => {
+          const before = measure.numberedVoice.events.find(
+            (event) => event.id === id,
+          )!;
+          const after = updated.numberedVoice.events.find(
+            (event) => event.id === id,
+          )!;
+          const label = before.items.map((item) => item.token).join("+");
+          return `${label}：${formatNumberedBeatPosition(before.tick, measure.timeSignature.denominator)} → ${formatNumberedBeatPosition(after.tick, measure.timeSignature.denominator)}，${rhythmName(before.rhythm)} → ${rhythmName(after.rhythm)}`;
+        });
+        return new Promise<EditorCommandResult>((resolve) => {
+          let outcome: EditorCommandResult | null = null;
+          const id = modals.open({
+            kind: "structure-impact",
+            title: "简谱时值影响确认",
+            message: `将顺移 ${candidate.movedEventIds.length} 个后续事件，压缩 ${candidate.resizedEventIds.length} 个后续事件；歌词随事件移动。${changes.join("；")}。删除 ${candidate.removedMarkIds.length} 个、调整 ${candidate.changedMarkIds.length} 个连接记号。`,
+            version: snapshot,
+            isValid: () =>
+              capturedSelection ===
+                JSON.stringify(session.getState().selection) &&
+              capturedNumbered ===
+                JSON.stringify(session.getState().numberedSelection),
+            confirm: ({ isCurrent }) => {
+              if (!isCurrent()) return false;
+              const result = session.getState().execute({
+                ...command,
+                expectedRevision: snapshot.document!.documentRevision,
+                confirmedRemovedMarkIds: candidate.removedMarkIds,
+                confirmedChangedMarkIds: candidate.changedMarkIds,
+              });
+              if (!result?.ok) return false;
+              outcome = { status: result.changed ? "applied" : "noop", result };
+              return true;
+            },
+            onClose: (reason) =>
+              resolve(
+                outcome ?? {
+                  status: reason === "stale" ? "stale" : "cancelled",
+                  message:
+                    reason === "stale"
+                      ? "预览已过期，请重新操作。"
+                      : "已取消修改。",
+                },
+              ),
+          });
+          if (id === null)
+            resolve({ status: "blocked", message: "请先完成当前弹层操作。" });
+        });
+      }
+    }
 
     // 小节删除与整小节复制先走纯 core 预检，避免“先写文档、再弹影响确认”的半成品事务。
     const requiresStructurePreview =

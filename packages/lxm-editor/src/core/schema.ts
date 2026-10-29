@@ -141,7 +141,7 @@ export const LXMChordDiagramSchema = z
 export const LXMLyricSchema = z
   .object({
     id: z.string(),
-    beatId: z.string(),
+    eventId: z.string(),
     verse: fingerSchema,
     text: musicTextSchema(64),
   })

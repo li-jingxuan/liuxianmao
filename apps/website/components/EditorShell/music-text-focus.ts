@@ -12,8 +12,8 @@ export const resolveLyricFocus = (
           r.kind === "lyric" &&
           r.trackId === target.trackId &&
           r.measureId === target.measureId &&
-          r.beatId === target.beatId &&
-          r.verse === target.verse,
+          r.eventId === target.eventId &&
+          r.verse === (target.verse ?? 1),
       ) ?? null)
     : null;
 /** 子 TAB 使用扩展入口，空内容高亮仅为临时 overlay。 */
@@ -31,7 +31,7 @@ export const resolveParagraphFocus = (
   return bounds
     ? {
         ...bounds,
-        id: target.eventId ?? target.beatId ?? String(target.tick),
+        id: target.eventId ?? String(target.tick),
         kind: target.kind,
       }
     : null;

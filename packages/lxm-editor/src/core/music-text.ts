@@ -10,13 +10,15 @@ export const normalizeMusicText = (
   return normalized && [...normalized].length <= limit ? normalized : null;
 };
 
-/** 带文本的休止拍属于明确内容，不能被容量重建吞掉。 */
+/** 和弦绑定 TAB Beat；歌词绑定简谱事件，不参与 TAB 容量保护。 */
 export const collectMusicTextBeatIds = (
   measure: ILXMMeasure,
 ): ReadonlySet<string> =>
-  new Set(
-    [...measure.lyrics, ...measure.chordSymbols].map((item) => item.beatId),
-  );
+  new Set(measure.chordSymbols.map((item) => item.beatId));
+
+export const collectLyricEventIds = (
+  measure: ILXMMeasure,
+): ReadonlySet<string> => new Set(measure.lyrics.map((item) => item.eventId));
 
 /** 空白清除也不能掩盖控制字符，供标记命令与文本规范化共用。 */
 export const hasMusicTextControlCharacter = (text: string): boolean =>

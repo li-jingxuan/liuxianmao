@@ -173,12 +173,12 @@ const validateMeasure = (
       message: `小节结束 tick 为 ${expectedTick}，拍号容量应为 ${capacity}`,
     });
   }
-  // 歌词按 Beat/段号、和弦按 Beat 排序，稳定引用不能跨小节。
-  for (const kind of ["lyrics", "chordSymbols"] as const) {
+  // 和弦按 Beat 排序，稳定引用不能跨小节。
+  {
     let previous = -1;
     const targets = new Set<string>();
-    measure[kind].forEach((item, index) => {
-      const itemPath = `${path}.${kind}.${index}`;
+    measure.chordSymbols.forEach((item, index) => {
+      const itemPath = `${path}.chordSymbols.${index}`;
       registerId(item.id, `${itemPath}.id`);
       const position = beatIndexById.get(item.beatId);
       if (position === undefined)
@@ -187,21 +187,58 @@ const validateMeasure = (
           path: `${itemPath}.beatId`,
           message: "文本目标 Beat 不存在于该小节",
         });
-      const verse = "verse" in item ? item.verse : 0;
-      const order = (position ?? -1) * 5 + verse;
+      const order = position ?? -1;
       if (order < previous)
         issues.push({
           code: "MUSIC_TEXT_ORDER_INVALID",
           path: itemPath,
-          message: "音乐文本必须按 Beat 和段号排序",
+          message: "和弦必须按 Beat 排序",
         });
       previous = order;
-      const key = `${item.beatId}:${verse}`;
+      const key = item.beatId;
       if (targets.has(key))
         issues.push({
           code: "DUPLICATE_MUSIC_TEXT_TARGET",
           path: itemPath,
-          message: "同拍同段歌词或和弦重复",
+          message: "同拍和弦重复",
+        });
+      targets.add(key);
+    });
+  }
+  // 歌词按简谱事件/段号排序，只能绑定普通简谱音符。
+  {
+    let previous = -1;
+    const targets = new Set<string>();
+    const eventIndexById = new Map(
+      measure.numberedVoice.events
+        .slice()
+        .sort((a, b) => a.tick - b.tick)
+        .map((event, index) => [event.id, { event, index }] as const),
+    );
+    measure.lyrics.forEach((lyric, index) => {
+      const itemPath = `${path}.lyrics.${index}`;
+      registerId(lyric.id, `${itemPath}.id`);
+      const entry = eventIndexById.get(lyric.eventId);
+      if (!entry || entry.event.kind !== "notes")
+        issues.push({
+          code: "MUSIC_TEXT_BEAT_NOT_FOUND",
+          path: `${itemPath}.eventId`,
+          message: "歌词目标简谱音符不存在于该小节",
+        });
+      const order = (entry?.index ?? -1) * 5 + lyric.verse;
+      if (order < previous)
+        issues.push({
+          code: "MUSIC_TEXT_ORDER_INVALID",
+          path: itemPath,
+          message: "歌词必须按简谱事件和段号排序",
+        });
+      previous = order;
+      const key = `${lyric.eventId}:${lyric.verse}`;
+      if (targets.has(key))
+        issues.push({
+          code: "DUPLICATE_MUSIC_TEXT_TARGET",
+          path: itemPath,
+          message: "同一简谱音符同一段歌词重复",
         });
       targets.add(key);
     });

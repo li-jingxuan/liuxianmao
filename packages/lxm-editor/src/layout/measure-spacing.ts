@@ -13,6 +13,7 @@ import {
 } from "./layout-constants";
 import type {
   ILXMBeatLayout,
+  ILXMNumberedSlotLayout,
   ILXMLayoutDensity,
   ILXMLayoutPurpose,
   ILXMRhythmicColumn,
@@ -35,7 +36,7 @@ interface ILXMMeasureSpacingSummary {
   leftExtra: number;
   tailExtra: number;
   slotsByBeatId: Record<string, ILXMBeatLayout>;
-  slotsByNumberedEventId: Record<string, ILXMBeatLayout>;
+  slotsByNumberedEventId: Record<string, ILXMNumberedSlotLayout>;
   xByTick: Record<number, number>;
 }
 export type ILXMSummarizeMeasureSpacingWidth = Omit<
@@ -266,7 +267,7 @@ export const layoutMeasureSpacing = (
 
   // 计算每个 beat 节拍的x坐标信息
   const slotsByBeatId: Record<string, ILXMBeatLayout> = {};
-  const slotsByNumberedEventId: Record<string, ILXMBeatLayout> = {};
+  const slotsByNumberedEventId: Record<string, ILXMNumberedSlotLayout> = {};
   const xByTick: Record<number, number> = {};
   // 当前 x 游标位置
   // 弦线仍从 measure.x 开始，但第一个 beat 必须越过左 padding 和拍号前导区。
@@ -295,6 +296,7 @@ export const layoutMeasureSpacing = (
       const event = sourceEvents.get(eventId)!;
       slotsByNumberedEventId[eventId] = {
         id: eventId,
+        kind: event.kind,
         measureId: measure.id,
         tick: event.tick,
         x: cursorX,

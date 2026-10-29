@@ -83,14 +83,14 @@ const createMeasure = (
       tuplets: [],
     },
     tuplets: [],
-    // 按 Beat、段号顺序生成歌词，满足正式 loader 的排序约束；两行歌词验证竖线上缘。
+    // 此谱例的旋律与 TAB 同节奏，按事件、段号生成歌词；两行歌词验证竖线上缘。
     lyrics: beats.flatMap((beat, index) =>
       verses.flatMap((words, verseIndex) =>
         words[index]
           ? [
               {
                 id: `mvp72-lyric-${number}-${verseIndex + 1}-${index + 1}`,
-                beatId: beat.id,
+                eventId: `${beat.id}-numbered`,
                 verse: (verseIndex + 1) as 1 | 2,
                 text: words[index]!,
               },
@@ -358,12 +358,20 @@ const createCompleteEditorExample = (initial: ILXMDocument): ILXMDocument => {
   addTechnique({
     type: LXMScoreCommandEnum.AddTechnique,
     trackId: track().id,
-    technique: { type: "hammerOn", fromNoteId: firstNote, toNoteId: secondNote },
+    technique: {
+      type: "hammerOn",
+      fromNoteId: firstNote,
+      toNoteId: secondNote,
+    },
   });
   addTechnique({
     type: LXMScoreCommandEnum.AddTechnique,
     trackId: track().id,
-    technique: { type: "slideUp", fromNoteId: eighthNoteA, toNoteId: eighthNoteB },
+    technique: {
+      type: "slideUp",
+      fromNoteId: eighthNoteA,
+      toNoteId: eighthNoteB,
+    },
   });
   addTechnique({
     type: LXMScoreCommandEnum.AddTechnique,
@@ -394,17 +402,31 @@ const createCompleteEditorExample = (initial: ILXMDocument): ILXMDocument => {
   addTechnique({
     type: LXMScoreCommandEnum.AddTechnique,
     trackId: track().id,
-    technique: { type: "strum", beatId: beat(3, 1).id, minString: 1, maxString: 3, stroke: "down" },
+    technique: {
+      type: "strum",
+      beatId: beat(3, 1).id,
+      minString: 1,
+      maxString: 3,
+      stroke: "down",
+    },
   });
   addTechnique({
     type: LXMScoreCommandEnum.AddTechnique,
     trackId: track().id,
-    technique: { type: "palmMute", fromBeatId: beat(1, 0).id, toBeatId: beat(1, 2).id },
+    technique: {
+      type: "palmMute",
+      fromBeatId: beat(1, 0).id,
+      toBeatId: beat(1, 2).id,
+    },
   });
   addTechnique({
     type: LXMScoreCommandEnum.AddTechnique,
     trackId: track().id,
-    technique: { type: "letRing", fromBeatId: beat(3, 0).id, toBeatId: beat(3, 3).id },
+    technique: {
+      type: "letRing",
+      fromBeatId: beat(3, 0).id,
+      toBeatId: beat(3, 3).id,
+    },
   });
 
   return document;

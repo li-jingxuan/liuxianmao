@@ -11,7 +11,6 @@ import {
   getFirstTabCellReference,
 } from "@liuxianmao/lxm-editor";
 import { createEditorSession } from "../stores/editor-store";
-import legacyScore from "../../../packages/lxm-editor/example/technique-rhythm-score.json";
 import {
   decodeScoreFile,
   inspectScoreFile,
@@ -35,6 +34,24 @@ const encode = (text: string) =>
 /** 不仅断言 JSON 可解析，还实际走下载字节、载入、布局和编辑命令。 */
 describe("原生曲谱文件往返", () => {
   it("旧文件只在文件导入预检中显式升级，宿主加载仍严格拒绝旧格式", () => {
+    const legacyScore = {
+      ...structuredClone(EXAMPLE_MVP_7_2_DOCUMENT),
+      schemaVersion: 7,
+      score: {
+        ...structuredClone(EXAMPLE_MVP_7_2_DOCUMENT.score),
+        tracks: EXAMPLE_MVP_7_2_DOCUMENT.score.tracks.map(
+          ({ numberedMarks: _marks, ...track }) => ({
+            ...track,
+            measures: track.measures.map(
+              ({ numberedVoice: _voice, ...measure }) => ({
+                ...measure,
+                lyrics: [],
+              }),
+            ),
+          }),
+        ),
+      },
+    };
     const session = createEditorSession(EXAMPLE_MVP_7_2_DOCUMENT),
       previous = session.getState().document;
     expect(session.getState().replaceDocument(legacyScore).ok).toBe(false);
@@ -129,7 +146,7 @@ describe("原生曲谱文件往返", () => {
       (candidate) => candidate.lyrics.length,
     );
     if (measure) {
-      measure.lyrics[0]!.beatId = "missing-beat";
+      measure.lyrics[0]!.eventId = "missing-event";
       expect(inspectScoreFile(JSON.stringify(missing)).ok).toBe(false);
     }
   });

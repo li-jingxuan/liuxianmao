@@ -18,7 +18,13 @@ import {
   RedoOutlined,
   UndoOutlined,
 } from "@ant-design/icons";
-import { createNumberedRhythmContext, getMeasureCapacityTicks, type ILXMRhythm, type ILXMNumberedTarget, type ILXMDocument } from "@liuxianmao/lxm-editor";
+import {
+  createNumberedRhythmContext,
+  getMeasureCapacityTicks,
+  type ILXMRhythm,
+  type ILXMNumberedTarget,
+  type ILXMDocument,
+} from "@liuxianmao/lxm-editor";
 import {
   useEditorSessionStore,
   useEditorStore,
@@ -45,6 +51,8 @@ import type { ToolActionHandler } from "./editor-tool-actions";
 import type { ToolNavigation } from "./editor-tool-catalog";
 import type { SelectionRequestResult } from "./editor-object-selection";
 import styles from "./index.module.scss";
+import type { MusicTextTarget } from "./music-text-draft";
+import { resolveEditorRhythmTarget } from "./editor-rhythm-target";
 export type { EditorToolbarAction } from "./editor-tool-actions";
 
 const RHYTHMS: {
@@ -114,56 +122,95 @@ const NumberedQuickTechniques = ({
   const [destination, setDestination] = useState<string>();
   const resolved = useMemo(() => {
     if (!target) return null;
-    const track = document.score.tracks.find((item) => item.id === target.trackId);
+    const track = document.score.tracks.find(
+      (item) => item.id === target.trackId,
+    );
     if (!track) return null;
     const measure = track.measures.find((item) => item.id === target.measureId);
     if (!measure) return null;
-    const event = target.kind === "numberedEvent"
-      ? measure.numberedVoice.events.find((item) => item.id === target.eventId)
-      : measure.numberedVoice.events.find((item) => item.tick <= target.tick && item.tick < target.endTick);
+    const event =
+      target.kind === "numberedEvent"
+        ? measure.numberedVoice.events.find(
+            (item) => item.id === target.eventId,
+          )
+        : measure.numberedVoice.events.find(
+            (item) => item.tick <= target.tick && item.tick < target.endTick,
+          );
     if (!event || event.kind !== "notes") return null;
-    const item = target.kind === "numberedEvent" && target.itemId
-      ? event.items.find((candidate) => candidate.id === target.itemId) ?? event.items[0]
-      : event.items[0];
+    const item =
+      target.kind === "numberedEvent" && target.itemId
+        ? (event.items.find((candidate) => candidate.id === target.itemId) ??
+          event.items[0])
+        : event.items[0];
     return { track, measure, event, item };
   }, [document, target]);
-  const blockedReason = blocked ? "先完成当前简谱草稿或确认操作。" : !resolved ? "请先选择简谱音符。" : "";
+  const blockedReason = blocked
+    ? "先完成当前简谱草稿或确认操作。"
+    : !resolved
+      ? "请先选择简谱音符。"
+      : "";
   const enabled = !!resolved && !blocked;
   const options = useMemo(() => {
     if (!resolved || !kind) return [];
     if (kind === "tie") {
-      const orderedItems = resolved.track.measures.flatMap((measure, measureIndex) => {
-        const measureOffset = resolved.track.measures
-          .slice(0, measureIndex)
-          .reduce((sum, previous) => sum + getMeasureCapacityTicks(previous.timeSignature), 0);
-        const rhythm = createNumberedRhythmContext(measure.numberedVoice);
-        const items = measure.numberedVoice.events.flatMap((event) => {
-          const duration = rhythm.getEventDurationTicks(event);
-          return event.kind === "notes" && duration.ok
-            ? event.items.map((item) => ({
-                value: item.id,
-                label: `${measureIndex + 1}小节 · ${formatNumberedBeatPosition(event.tick, measure.timeSignature.denominator)} · ${item.token}`,
-                token: item.token,
-                start: measureOffset + event.tick,
-                end: measureOffset + event.tick + duration.ticks,
-              }))
-            : [];
-        });
-        return items;
-      });
-      const origin = orderedItems.find((item) => item.value === resolved.item.id);
+      const orderedItems = resolved.track.measures.flatMap(
+        (measure, measureIndex) => {
+          const measureOffset = resolved.track.measures
+            .slice(0, measureIndex)
+            .reduce(
+              (sum, previous) =>
+                sum + getMeasureCapacityTicks(previous.timeSignature),
+              0,
+            );
+          const rhythm = createNumberedRhythmContext(measure.numberedVoice);
+          const items = measure.numberedVoice.events.flatMap((event) => {
+            const duration = rhythm.getEventDurationTicks(event);
+            return event.kind === "notes" && duration.ok
+              ? event.items.map((item) => ({
+                  value: item.id,
+                  label: `${measureIndex + 1}小节 · ${formatNumberedBeatPosition(event.tick, measure.timeSignature.denominator)} · ${item.token}`,
+                  token: item.token,
+                  start: measureOffset + event.tick,
+                  end: measureOffset + event.tick + duration.ticks,
+                }))
+              : [];
+          });
+          return items;
+        },
+      );
+      const origin = orderedItems.find(
+        (item) => item.value === resolved.item.id,
+      );
       return origin
         ? orderedItems
-            .filter((candidate) => candidate.start === origin.end && candidate.token.replace(/^n/, "") === resolved.item.token.replace(/^n/, ""))
+            .filter(
+              (candidate) =>
+                candidate.start === origin.end &&
+                candidate.token.replace(/^n/, "") ===
+                  resolved.item.token.replace(/^n/, ""),
+            )
             .map(({ value, label }) => ({ value, label }))
         : [];
     }
-    const originMeasureIndex = resolved.track.measures.indexOf(resolved.measure);
-    const originOrder = resolved.measure.numberedVoice.events.indexOf(resolved.event);
+    const originMeasureIndex = resolved.track.measures.indexOf(
+      resolved.measure,
+    );
+    const originOrder = resolved.measure.numberedVoice.events.indexOf(
+      resolved.event,
+    );
     return resolved.track.measures.flatMap((measure, measureIndex) =>
       measure.numberedVoice.events
-        .filter((event) => event.kind === "notes" && (measureIndex > originMeasureIndex || measureIndex === originMeasureIndex && measure.numberedVoice.events.indexOf(event) > originOrder))
-        .map((event) => ({ value: event.id, label: `${measureIndex + 1}小节 · ${formatNumberedBeatPosition(event.tick, measure.timeSignature.denominator)} · ${event.items.map((item) => item.token).join("+")}` })),
+        .filter(
+          (event) =>
+            event.kind === "notes" &&
+            (measureIndex > originMeasureIndex ||
+              (measureIndex === originMeasureIndex &&
+                measure.numberedVoice.events.indexOf(event) > originOrder)),
+        )
+        .map((event) => ({
+          value: event.id,
+          label: `${measureIndex + 1}小节 · ${formatNumberedBeatPosition(event.tick, measure.timeSignature.denominator)} · ${event.items.map((item) => item.token).join("+")}`,
+        })),
     );
   }, [kind, resolved]);
   const choose = (next: "tie" | "slur") => {
@@ -180,15 +227,28 @@ const NumberedQuickTechniques = ({
     const result = await execute({
       type: "numbered.mark.add",
       trackId: resolved.track.id,
-      mark: kind === "tie"
-        ? { type: "tie", fromItemId: resolved.item.id, toItemId: destination }
-        : { type: "slur", fromEventId: resolved.event.id, toEventId: destination },
+      mark:
+        kind === "tie"
+          ? { type: "tie", fromItemId: resolved.item.id, toItemId: destination }
+          : {
+              type: "slur",
+              fromEventId: resolved.event.id,
+              toEventId: destination,
+            },
     });
     if (result.status === "applied" || result.status === "noop") setKind(null);
   };
   const popover = (type: "tie" | "slur") => (
-    <div className={styles.toolMenu} aria-label={type === "tie" ? "添加简谱延音线" : "添加简谱连音线"}>
-      <div className={styles.toolTarget}>起点：{resolved ? `${resolved.event.items.map((item) => item.token).join("+")} · ${resolved.item.token}` : "未选择简谱音符"}</div>
+    <div
+      className={styles.toolMenu}
+      aria-label={type === "tie" ? "添加简谱延音线" : "添加简谱连音线"}
+    >
+      <div className={styles.toolTarget}>
+        起点：
+        {resolved
+          ? `${resolved.event.items.map((item) => item.token).join("+")} · ${resolved.item.token}`
+          : "未选择简谱音符"}
+      </div>
       <label className={styles.toolbarField}>
         <span>连接终点</span>
         <Select
@@ -201,7 +261,11 @@ const NumberedQuickTechniques = ({
           disabled={!enabled || kind !== type}
         />
       </label>
-      <Button type="primary" disabled={!enabled || kind !== type || !destination} onClick={() => void apply()}>
+      <Button
+        type="primary"
+        disabled={!enabled || kind !== type || !destination}
+        onClick={() => void apply()}
+      >
         添加{type === "tie" ? "延音线" : "连音线"}
       </Button>
     </div>
@@ -210,25 +274,59 @@ const NumberedQuickTechniques = ({
     if (!resolved || !enabled || getBlocked()) return;
     const liveTarget = session.getState().numberedSelection;
     if (JSON.stringify(liveTarget) !== JSON.stringify(target)) return;
-    const existing = resolved.track.numberedMarks.find((mark) => mark.type === "fermata" && mark.eventId === resolved.event.id);
-    await execute(existing
-      ? { type: "numbered.mark.remove", trackId: resolved.track.id, markId: existing.id }
-      : { type: "numbered.mark.add", trackId: resolved.track.id, mark: { type: "fermata", eventId: resolved.event.id } });
+    const existing = resolved.track.numberedMarks.find(
+      (mark) => mark.type === "fermata" && mark.eventId === resolved.event.id,
+    );
+    await execute(
+      existing
+        ? {
+            type: "numbered.mark.remove",
+            trackId: resolved.track.id,
+            markId: existing.id,
+          }
+        : {
+            type: "numbered.mark.add",
+            trackId: resolved.track.id,
+            mark: { type: "fermata", eventId: resolved.event.id },
+          },
+    );
   };
   if (!target) return null;
-  const hasFermata = !!resolved?.track.numberedMarks.some((mark) => mark.type === "fermata" && mark.eventId === resolved.event.id);
+  const hasFermata = !!resolved?.track.numberedMarks.some(
+    (mark) => mark.type === "fermata" && mark.eventId === resolved.event.id,
+  );
   return (
-    <div className={styles.toolbarGroup} role="group" aria-label="简谱技巧快捷操作">
+    <div
+      className={styles.toolbarGroup}
+      role="group"
+      aria-label="简谱技巧快捷操作"
+    >
       {(["tie", "slur"] as const).map((type) => (
-        <Popover key={type} trigger="click" open={kind === type} onOpenChange={(open) => setKind(open ? type : null)} content={popover(type)}>
+        <Popover
+          key={type}
+          trigger="click"
+          open={kind === type}
+          onOpenChange={(open) => setKind(open ? type : null)}
+          content={popover(type)}
+        >
           <span>
-            <ToolButton label={type === "tie" ? "添加简谱延音线" : "添加简谱连音线"} availability={{ enabled, reason: blockedReason }} onClick={() => choose(type)}>
-              <LinkOutlined />{type === "tie" ? " 延音" : " 连音"}
+            <ToolButton
+              label={type === "tie" ? "添加简谱延音线" : "添加简谱连音线"}
+              availability={{ enabled, reason: blockedReason }}
+              onClick={() => choose(type)}
+            >
+              <LinkOutlined />
+              {type === "tie" ? " 延音" : " 连音"}
             </ToolButton>
           </span>
         </Popover>
       ))}
-      <ToolButton label={hasFermata ? "移除简谱延长记号" : "添加简谱延长记号"} pressed={hasFermata} availability={{ enabled, reason: blockedReason }} onClick={() => void toggleFermata()}>
+      <ToolButton
+        label={hasFermata ? "移除简谱延长记号" : "添加简谱延长记号"}
+        pressed={hasFermata}
+        availability={{ enabled, reason: blockedReason }}
+        onClick={() => void toggleFermata()}
+      >
         <PauseOutlined /> 延长
       </ToolButton>
     </div>
@@ -237,6 +335,7 @@ const NumberedQuickTechniques = ({
 
 /** 菜单和更多工具只改变入口；预览控制器随会话存活，不再按版本/选区 key 重建。 */
 export const EditorToolbar = ({
+  activeTarget,
   blocked,
   numberedBlocked,
   getNumberedBlocked,
@@ -245,6 +344,7 @@ export const EditorToolbar = ({
   execute,
   onNavigate,
 }: {
+  activeTarget: MusicTextTarget | null;
   blocked: boolean;
   numberedBlocked: boolean;
   getNumberedBlocked: () => boolean;
@@ -260,6 +360,10 @@ export const EditorToolbar = ({
     numberedSelection = useEditorStore((state) => state.numberedSelection);
   const canUndo = useEditorStore((state) => state.canUndo),
     canRedo = useEditorStore((state) => state.canRedo);
+  const inputRhythm = useEditorStore((state) => state.numberedInputRhythm);
+  const inputRhythmExplicit = useEditorStore(
+    (state) => state.numberedInputRhythmExplicit,
+  );
   const selectedTechniqueId = useEditorStore(
     (state) => state.selectedTechniqueId,
   );
@@ -339,12 +443,23 @@ export const EditorToolbar = ({
     const result = onNavigate(destination);
     if (result !== "blocked") host.current?.close();
   };
-  const beat =
-    tools.range?.beats.length === 1
-      ? tools.focused?.measure.beats.find(
-          (item) => item.id === tools.range!.beats[0]!.beatId,
-        )
-      : null;
+  const rhythmTarget = resolveEditorRhythmTarget(
+    document,
+    selection,
+    activeTarget,
+    inputRhythm,
+    inputRhythmExplicit,
+  );
+  const rhythmAvailability: ToolAvailability =
+    modal ||
+    (rhythmTarget.kind === "numbered" ? numberedBlocked : editingBlocked)
+      ? { enabled: false, reason: "请先完成当前草稿或确认操作。" }
+      : { enabled: rhythmTarget.enabled, reason: rhythmTarget.reason };
+  const runRhythm: ToolActionHandler = async (action) => {
+    beforeAction();
+    if (!rhythmAvailability.enabled) return false;
+    return onAction(action);
+  };
   return (
     <div
       className={styles.editorToolbar}
@@ -385,13 +500,18 @@ export const EditorToolbar = ({
         </ToolButton>
       </div>
       <div className={styles.toolbarGroup} role="group" aria-label="音符与节奏">
+        <span>
+          {rhythmTarget.kind === "numbered" ? "简谱时值" : "六线谱时值"}
+        </span>
         {RHYTHMS.map((rhythm) => (
           <ToolButton
             key={rhythm.base}
             label={`设置为${rhythm.label}`}
-            availability={available(tools.rhythm)}
-            pressed={beat?.rhythm.base === rhythm.base}
-            onClick={() => void run({ type: "rhythm", base: rhythm.base })}
+            availability={rhythmAvailability}
+            pressed={rhythmTarget.rhythm?.base === rhythm.base}
+            onClick={() =>
+              void runRhythm({ type: "rhythm", base: rhythm.base })
+            }
           >
             <MusicAssetIcon
               assetId={rhythm.icon}
@@ -405,9 +525,9 @@ export const EditorToolbar = ({
             label={
               dots === 0 ? "取消附点" : dots === 1 ? "设置单附点" : "设置双附点"
             }
-            availability={available(tools.rhythm)}
-            pressed={beat?.rhythm.dots === dots}
-            onClick={() => void run({ type: "dots", dots })}
+            availability={rhythmAvailability}
+            pressed={rhythmTarget.rhythm?.dots === dots}
+            onClick={() => void runRhythm({ type: "dots", dots })}
           >
             {dots === 0 ? "无点" : dots === 1 ? "·" : "··"}
           </ToolButton>

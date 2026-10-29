@@ -19,7 +19,7 @@ import {
 
 export interface LyricLayout {
   id: string;
-  beatId: string;
+  eventId: string;
   verse: ILXMLyricVerse;
   label: MusicTextGlyph;
   bounds: MusicTextRect;
@@ -106,16 +106,16 @@ export const getMusicTextExtents = (
   metrics?: ILXMMusicTextMetrics,
 ): Map<string, { left: number; right: number }> => {
   const result = new Map<string, { left: number; right: number }>();
-  const add = (beatId: string, bounds: MusicTextRect) => {
-    const existing = result.get(beatId) ?? { left: 0, right: 0 };
-    result.set(beatId, {
+  const add = (id: string, bounds: MusicTextRect) => {
+    const existing = result.get(id) ?? { left: 0, right: 0 };
+    result.set(id, {
       left: Math.max(existing.left, -bounds.x),
       right: Math.max(existing.right, bounds.x + bounds.width),
     });
   };
   for (const lyric of measure.lyrics)
     add(
-      lyric.beatId,
+      lyric.eventId,
       musicTextGlyph(musicTextRequest(lyric.text), 0, 0, metrics).bounds,
     );
   for (const symbol of measure.chordSymbols)
@@ -125,7 +125,12 @@ export const getMusicTextExtents = (
 /** 首尾额外净空固定，不参与系统剩余宽度的拉伸。 */
 export const musicTextInsets = (
   measure: ILXMMeasure,
-  columns: { tabBeatIds: string[]; minWidth: number; idealWidth: number }[],
+  columns: {
+    tabBeatIds: string[];
+    numberedEventIds: string[];
+    minWidth: number;
+    idealWidth: number;
+  }[],
   padding: number,
   leading: number,
   metrics?: ILXMMusicTextMetrics,
@@ -136,9 +141,14 @@ export const musicTextInsets = (
     { ...measure, chordSymbols: [] },
     metrics,
   );
+  const extent = (
+    ids: readonly string[],
+    side: "left" | "right",
+    values = extents,
+  ) => Math.max(0, ...ids.map((id) => values.get(id)?.[side] ?? 0));
   for (let i = 0; i < columns.length - 1; i++) {
-    const right = extents.get(columns[i]!.tabBeatIds[0]!)?.right ?? 0;
-    const left = extents.get(columns[i + 1]!.tabBeatIds[0]!)?.left ?? 0;
+    const right = extent(columns[i]!.numberedEventIds, "right");
+    const left = extent(columns[i + 1]!.numberedEventIds, "left");
     if (right || left)
       columns[i]!.minWidth = Math.max(
         columns[i]!.minWidth,
@@ -177,8 +187,16 @@ export const musicTextInsets = (
     }
   }
   const allExtents = getMusicTextExtents(measure, metrics);
-  const first = allExtents.get(columns[0]?.tabBeatIds[0] ?? "");
-  const last = extents.get(columns.at(-1)?.tabBeatIds[0] ?? "");
+  const first = columns[0];
+  const last = columns.at(-1);
+  const firstLeft = first
+    ? extent(
+        [...first.tabBeatIds, ...first.numberedEventIds],
+        "left",
+        allExtents,
+      )
+    : 0;
+  const lastRight = last ? extent(last.numberedEventIds, "right") : 0;
   // 行尾保护检查所有和弦，包括倒数几拍开始但越过末拍的长名称。
   const chordTail = reserveChordTail
     ? Math.max(
@@ -208,15 +226,12 @@ export const musicTextInsets = (
   return {
     leftExtra: Math.max(
       chordLeft,
-      first ? Math.max(0, first.left + MUSIC_TEXT_GAP - padding - leading) : 0,
+      first ? Math.max(0, firstLeft + MUSIC_TEXT_GAP - padding - leading) : 0,
     ),
     tailExtra: Math.max(
       chordTail,
       last
-        ? Math.max(
-            0,
-            last.right + MUSIC_TEXT_GAP - (columns.at(-1)!.minWidth + padding),
-          )
+        ? Math.max(0, lastRight + MUSIC_TEXT_GAP - (last.minWidth + padding))
         : 0,
     ),
   };

@@ -174,8 +174,11 @@ export const createNumberedSubmission = (options: {
           resolve,
         };
         if (
-          frozen.type !== "numbered.mark.remove" &&
-          (candidate.removedMarkIds.length || candidate.changedMarkIds.length)
+          candidate.movedEventIds.length ||
+          candidate.resizedEventIds.length ||
+          (frozen.type !== "numbered.mark.remove" &&
+            (candidate.removedMarkIds.length ||
+              candidate.changedMarkIds.length))
         )
           options.onPending(candidate);
         else confirm();

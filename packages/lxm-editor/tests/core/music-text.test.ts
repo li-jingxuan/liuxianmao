@@ -12,11 +12,24 @@ import {
   EXAMPLE_MVP_6_DOCUMENT,
 } from "../../src";
 import source from "../../example/example-mvp2.json";
-const fresh = () => structuredClone(source);
+const fresh = (): ILXMDocument => {
+  const document: ILXMDocument = structuredClone(source);
+  document.score.tracks[0]!.measures.forEach((measure) => {
+    measure.numberedVoice.events = measure.beats.map((beat) => ({
+      id: `event-${beat.id}`,
+      tick: beat.tick,
+      kind: "notes",
+      rhythm: { ...beat.rhythm },
+      items: [{ id: `item-${beat.id}`, token: "1" }],
+    }));
+  });
+  return document;
+};
 const target = {
   trackId: source.score.tracks[0]!.id,
   measureId: source.score.tracks[0]!.measures[0]!.id,
   beatId: source.score.tracks[0]!.measures[0]!.beats[0]!.id,
+  eventId: `event-${source.score.tracks[0]!.measures[0]!.beats[0]!.id}`,
 };
 /** 使用真实命令和正式 loader 校验，失败时立即暴露领域错误。 */
 const run = (document: ILXMDocument, command: ILXMScoreCommand) => {
@@ -103,7 +116,7 @@ describe("MVP6 音乐文本领域", () => {
       applyScoreCommand(d, {
         type: C.SetLyric,
         ...target,
-        beatId: d.score.tracks[0]!.measures[1]!.beats[0]!.id,
+        eventId: d.score.tracks[0]!.measures[1]!.numberedVoice.events[0]!.id,
         verse: 1,
         text: "词",
       }).ok,
@@ -153,7 +166,8 @@ describe("MVP6 音乐文本领域", () => {
     });
     const [a, b] = copied.score.tracks[0]!.measures;
     expect(b!.lyrics[0]!.id).not.toBe(a!.lyrics[0]!.id);
-    expect(b!.lyrics[0]!.beatId).toBe(b!.beats[0]!.id);
+    expect(b!.lyrics[0]!.eventId).toBe(b!.numberedVoice.events[0]!.id);
+    expect(b!.lyrics[0]!.eventId).not.toBe(a!.lyrics[0]!.eventId);
     expect(b!.chordSymbols[0]!.beatId).toBe(b!.beats[0]!.id);
     expect(b!.chordSymbols[0]!.chord.diagram!.barres).not.toBe(
       a!.chordSymbols[0]!.chord.diagram!.barres,
@@ -172,10 +186,10 @@ describe("MVP6 音乐文本领域", () => {
       false,
     );
     const invalid = structuredClone(d);
-    invalid.score.tracks[0]!.measures[0]!.lyrics[0]!.beatId = "absent";
+    invalid.score.tracks[0]!.measures[0]!.lyrics[0]!.eventId = "absent";
     expect(loadDocument(JSON.stringify(invalid)).ok).toBe(false);
   });
-  it("文本随节奏重排保留稳定 Beat，不使用旧 tick", () => {
+  it("TAB 节奏重排不改变歌词及简谱锚点", () => {
     const d = run(fresh(), {
       type: C.SetLyric,
       ...target,
@@ -187,11 +201,12 @@ describe("MVP6 音乐文本领域", () => {
       ...target,
       rhythm: { base: "eighth", dots: 0 },
     });
-    expect(changed.score.tracks[0]!.measures[0]!.lyrics[0]!.beatId).toBe(
-      target.beatId,
-    );
+    const before = d.score.tracks[0]!.measures[0]!;
+    const after = changed.score.tracks[0]!.measures[0]!;
+    expect(after.lyrics).toBe(before.lyrics);
+    expect(after.numberedVoice).toBe(before.numberedVoice);
   });
-  it("文本覆盖的尾部休止不能被扩容节奏吞掉", () => {
+  it("歌词不保护 TAB 尾部休止，TAB 扩容保留简谱及歌词", () => {
     const d = fresh();
     const m = d.score.tracks[0]!.measures[0]!;
     m.chordSymbols = [];
@@ -200,16 +215,22 @@ describe("MVP6 音乐文本领域", () => {
       b.notes = [];
     });
     m.lyrics = [
-      { id: "protected", beatId: m.beats.at(-1)!.id, verse: 1, text: "保留" },
+      {
+        id: "protected",
+        eventId: m.numberedVoice.events.at(-1)!.id,
+        verse: 1,
+        text: "保留",
+      },
     ];
-    expect(
-      applyScoreCommand(d, {
-        type: C.SetBeatRhythm,
-        ...target,
-        rhythm: { base: "whole", dots: 0 },
-      }).ok,
-    ).toBe(false);
-    expect(m.lyrics[0]!.text).toBe("保留");
+    const changed = run(d, {
+      type: C.SetBeatRhythm,
+      ...target,
+      rhythm: { base: "whole", dots: 0 },
+    });
+    const after = changed.score.tracks[0]!.measures[0]!;
+    expect(after.beats).toHaveLength(1);
+    expect(after.lyrics).toEqual(m.lyrics);
+    expect(after.numberedVoice).toEqual(m.numberedVoice);
   });
   it.each([
     "allMuted",

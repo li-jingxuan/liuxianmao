@@ -1,10 +1,12 @@
 {
   "schema": "lxm-tab-score",
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "documentRevision": 1,
   "score": {
     "id": "technique-rhythm-test",
     "title": "常用技巧与时值测试谱",
+    "arranger": "",
+    "keySignature": null,
     "meta": {
       "fixture": "technique-rhythm-test",
       "purpose": "notation-regression"
@@ -50,9 +52,22 @@
         },
         "capo": 0,
         "startBarline": "none",
+        "numberedMarks": [],
         "measures": [
           {
             "id": "test-m1",
+            "numberedVoice": {
+              "events": [
+                {
+                  "id": "test-numbered-1",
+                  "tick": 0,
+                  "rhythm": { "base": "quarter", "dots": 0 },
+                  "kind": "notes",
+                  "items": [{ "id": "test-numbered-item-1", "token": "1" }]
+                }
+              ],
+              "tuplets": []
+            },
             "timeSignature": {
               "numerator": 4,
               "denominator": 4
@@ -62,7 +77,7 @@
             "lyrics": [
               {
                 "id": "test-label1",
-                "beatId": "test-b1-0",
+                "eventId": "test-numbered-1",
                 "verse": 1,
                 "text": "全音符：推弦＋揉弦"
               }
@@ -89,6 +104,18 @@
           },
           {
             "id": "test-m2",
+            "numberedVoice": {
+              "events": [
+                {
+                  "id": "test-numbered-2",
+                  "tick": 0,
+                  "rhythm": { "base": "quarter", "dots": 0 },
+                  "kind": "notes",
+                  "items": [{ "id": "test-numbered-item-2", "token": "1" }]
+                }
+              ],
+              "tuplets": []
+            },
             "timeSignature": {
               "numerator": 4,
               "denominator": 4
@@ -98,7 +125,7 @@
             "lyrics": [
               {
                 "id": "test-label2",
-                "beatId": "test-b2-0",
+                "eventId": "test-numbered-2",
                 "verse": 1,
                 "text": "二分音符：揉弦、点弦"
               }
@@ -141,6 +168,18 @@
           },
           {
             "id": "test-m3",
+            "numberedVoice": {
+              "events": [
+                {
+                  "id": "test-numbered-3",
+                  "tick": 0,
+                  "rhythm": { "base": "quarter", "dots": 0 },
+                  "kind": "notes",
+                  "items": [{ "id": "test-numbered-item-3", "token": "1" }]
+                }
+              ],
+              "tuplets": []
+            },
             "timeSignature": {
               "numerator": 4,
               "denominator": 4
@@ -150,7 +189,7 @@
             "lyrics": [
               {
                 "id": "test-label3",
-                "beatId": "test-b3-0",
+                "eventId": "test-numbered-3",
                 "verse": 1,
                 "text": "四分音符：击弦、勾弦"
               }
@@ -225,6 +264,18 @@
           },
           {
             "id": "test-m4",
+            "numberedVoice": {
+              "events": [
+                {
+                  "id": "test-numbered-4",
+                  "tick": 0,
+                  "rhythm": { "base": "quarter", "dots": 0 },
+                  "kind": "notes",
+                  "items": [{ "id": "test-numbered-item-4", "token": "1" }]
+                }
+              ],
+              "tuplets": []
+            },
             "timeSignature": {
               "numerator": 4,
               "denominator": 4
@@ -234,7 +285,7 @@
             "lyrics": [
               {
                 "id": "test-label4",
-                "beatId": "test-b4-0",
+                "eventId": "test-numbered-4",
                 "verse": 1,
                 "text": "四分音符：上滑、下滑"
               }
@@ -309,6 +360,18 @@
           },
           {
             "id": "test-m5",
+            "numberedVoice": {
+              "events": [
+                {
+                  "id": "test-numbered-5",
+                  "tick": 0,
+                  "rhythm": { "base": "quarter", "dots": 0 },
+                  "kind": "notes",
+                  "items": [{ "id": "test-numbered-item-5", "token": "1" }]
+                }
+              ],
+              "tuplets": []
+            },
             "timeSignature": {
               "numerator": 4,
               "denominator": 4
@@ -318,7 +381,7 @@
             "lyrics": [
               {
                 "id": "test-label5",
-                "beatId": "test-b5-0",
+                "eventId": "test-numbered-5",
                 "verse": 1,
                 "text": "延音线、自然/人工泛音"
               }
@@ -393,6 +456,18 @@
           },
           {
             "id": "test-m6",
+            "numberedVoice": {
+              "events": [
+                {
+                  "id": "test-numbered-6",
+                  "tick": 0,
+                  "rhythm": { "base": "quarter", "dots": 0 },
+                  "kind": "notes",
+                  "items": [{ "id": "test-numbered-item-6", "token": "1" }]
+                }
+              ],
+              "tuplets": []
+            },
             "timeSignature": {
               "numerator": 4,
               "denominator": 4
@@ -402,7 +477,7 @@
             "lyrics": [
               {
                 "id": "test-label6",
-                "beatId": "test-b6-0",
+                "eventId": "test-numbered-6",
                 "verse": 1,
                 "text": "八分音符：拨片、颤音、推弦"
               }
@@ -541,6 +616,18 @@
           },
           {
             "id": "test-m7",
+            "numberedVoice": {
+              "events": [
+                {
+                  "id": "test-numbered-7",
+                  "tick": 0,
+                  "rhythm": { "base": "quarter", "dots": 0 },
+                  "kind": "notes",
+                  "items": [{ "id": "test-numbered-item-7", "token": "1" }]
+                }
+              ],
+              "tuplets": []
+            },
             "timeSignature": {
               "numerator": 4,
               "denominator": 4
@@ -550,7 +637,7 @@
             "lyrics": [
               {
                 "id": "test-label7",
-                "beatId": "test-b7-0",
+                "eventId": "test-numbered-7",
                 "verse": 1,
                 "text": "十六分音符：密集技巧"
               }
@@ -817,6 +904,18 @@
           },
           {
             "id": "test-m8",
+            "numberedVoice": {
+              "events": [
+                {
+                  "id": "test-numbered-8",
+                  "tick": 0,
+                  "rhythm": { "base": "quarter", "dots": 0 },
+                  "kind": "notes",
+                  "items": [{ "id": "test-numbered-item-8", "token": "1" }]
+                }
+              ],
+              "tuplets": []
+            },
             "timeSignature": {
               "numerator": 4,
               "denominator": 4
@@ -826,7 +925,7 @@
             "lyrics": [
               {
                 "id": "test-label8",
-                "beatId": "test-b8-0",
+                "eventId": "test-numbered-8",
                 "verse": 1,
                 "text": "三十二分混合时值与休止"
               }
@@ -1103,6 +1202,18 @@
           },
           {
             "id": "test-m9",
+            "numberedVoice": {
+              "events": [
+                {
+                  "id": "test-numbered-9",
+                  "tick": 0,
+                  "rhythm": { "base": "quarter", "dots": 0 },
+                  "kind": "notes",
+                  "items": [{ "id": "test-numbered-item-9", "token": "1" }]
+                }
+              ],
+              "tuplets": []
+            },
             "timeSignature": {
               "numerator": 4,
               "denominator": 4
@@ -1112,7 +1223,7 @@
             "lyrics": [
               {
                 "id": "test-label9",
-                "beatId": "test-b9-0",
+                "eventId": "test-numbered-9",
                 "verse": 1,
                 "text": "单附点：手掌闷音"
               }
@@ -1251,6 +1362,18 @@
           },
           {
             "id": "test-m10",
+            "numberedVoice": {
+              "events": [
+                {
+                  "id": "test-numbered-10",
+                  "tick": 0,
+                  "rhythm": { "base": "quarter", "dots": 0 },
+                  "kind": "notes",
+                  "items": [{ "id": "test-numbered-item-10", "token": "1" }]
+                }
+              ],
+              "tuplets": []
+            },
             "timeSignature": {
               "numerator": 4,
               "denominator": 4
@@ -1260,7 +1383,7 @@
             "lyrics": [
               {
                 "id": "test-label10",
-                "beatId": "test-b10-0",
+                "eventId": "test-numbered-10",
                 "verse": 1,
                 "text": "双附点：持续发声"
               }
@@ -1319,6 +1442,18 @@
           },
           {
             "id": "test-m11",
+            "numberedVoice": {
+              "events": [
+                {
+                  "id": "test-numbered-11",
+                  "tick": 0,
+                  "rhythm": { "base": "quarter", "dots": 0 },
+                  "kind": "notes",
+                  "items": [{ "id": "test-numbered-item-11", "token": "1" }]
+                }
+              ],
+              "tuplets": []
+            },
             "timeSignature": {
               "numerator": 4,
               "denominator": 4
@@ -1328,7 +1463,7 @@
             "lyrics": [
               {
                 "id": "test-label11",
-                "beatId": "test-b11-0",
+                "eventId": "test-numbered-11",
                 "verse": 1,
                 "text": "三连音与四分音符"
               }
@@ -1444,6 +1579,18 @@
           },
           {
             "id": "test-m12",
+            "numberedVoice": {
+              "events": [
+                {
+                  "id": "test-numbered-12",
+                  "tick": 0,
+                  "rhythm": { "base": "quarter", "dots": 0 },
+                  "kind": "notes",
+                  "items": [{ "id": "test-numbered-item-12", "token": "1" }]
+                }
+              ],
+              "tuplets": []
+            },
             "timeSignature": {
               "numerator": 4,
               "denominator": 4
@@ -1453,7 +1600,7 @@
             "lyrics": [
               {
                 "id": "test-label12",
-                "beatId": "test-b12-0",
+                "eventId": "test-numbered-12",
                 "verse": 1,
                 "text": "扫弦与琶音方向"
               }
@@ -1608,6 +1755,18 @@
           },
           {
             "id": "test-m13",
+            "numberedVoice": {
+              "events": [
+                {
+                  "id": "test-numbered-13",
+                  "tick": 0,
+                  "rhythm": { "base": "quarter", "dots": 0 },
+                  "kind": "notes",
+                  "items": [{ "id": "test-numbered-item-13", "token": "1" }]
+                }
+              ],
+              "tuplets": []
+            },
             "timeSignature": {
               "numerator": 4,
               "denominator": 4
@@ -1617,7 +1776,7 @@
             "lyrics": [
               {
                 "id": "test-label13",
-                "beatId": "test-b13-0",
+                "eventId": "test-numbered-13",
                 "verse": 1,
                 "text": "跨小节连接起点"
               }
@@ -1692,6 +1851,18 @@
           },
           {
             "id": "test-m14",
+            "numberedVoice": {
+              "events": [
+                {
+                  "id": "test-numbered-14",
+                  "tick": 0,
+                  "rhythm": { "base": "quarter", "dots": 0 },
+                  "kind": "notes",
+                  "items": [{ "id": "test-numbered-item-14", "token": "1" }]
+                }
+              ],
+              "tuplets": []
+            },
             "timeSignature": {
               "numerator": 4,
               "denominator": 4
@@ -1701,7 +1872,7 @@
             "lyrics": [
               {
                 "id": "test-label14",
-                "beatId": "test-b14-0",
+                "eventId": "test-numbered-14",
                 "verse": 1,
                 "text": "跨小节连接终点"
               }

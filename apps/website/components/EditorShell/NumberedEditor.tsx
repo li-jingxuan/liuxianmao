@@ -2,6 +2,7 @@
 import { Alert, Button, Checkbox, Form, Input, Select } from "antd";
 
 import {
+  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -25,6 +26,7 @@ import {
   type ILXMTabCellReference,
   type ILXMTabCellSelection,
   type ILXMRhythmBase,
+  type ILXMRhythm,
   type ILXMNumberedVoiceCommand,
 } from "@liuxianmao/lxm-editor";
 import type { MusicTextTarget } from "./music-text-draft";
@@ -39,7 +41,10 @@ import {
   type NumberedPreviewRow,
 } from "./numbered-preview";
 import { numberedContentDependency } from "./numbered-draft-dependencies";
-import { useEditorSessionStore } from "../../stores/editor-store";
+import {
+  useEditorSessionStore,
+  useEditorStore,
+} from "../../stores/editor-store";
 import {
   createNumberedSubmission,
   type NumberedDraftGroup,
@@ -51,6 +56,7 @@ export type {
   NumberedPropertyApplyResult,
 } from "./numbered-submission";
 import type { EditorSessionVersion } from "./editor-session-version";
+import { numberedInputRhythmForWindow } from "./editor-rhythm-target";
 
 export interface NumberedEditorController {
   canApply: boolean;
@@ -65,6 +71,7 @@ export interface NumberedEditorController {
   discard: () => void;
   focus: () => void;
   snapshot: () => NumberedEditorDraft;
+  setRhythm: (rhythm: ILXMRhythm) => Promise<NumberedPropertyApplyResult>;
 }
 /** 切换简谱目标时暂存纯 UI 输入，不提前写入曲谱或撤销历史。 */
 export interface NumberedEditorDraft {
@@ -73,6 +80,7 @@ export interface NumberedEditorDraft {
   contentBaseline?: string;
   templateBase?: ILXMRhythmBase;
   templateDots?: number;
+  fixedRange?: boolean;
   baselineVersion?: EditorSessionVersion;
   dependency?: string;
   selectedId: string;
@@ -145,6 +153,10 @@ export const NumberedEditor = ({
   onSelectTarget: (target: MusicTextTarget) => void;
 }) => {
   const editorStore = useEditorSessionStore();
+  const preference = useEditorStore((state) => state.numberedInputRhythm);
+  const preferenceExplicit = useEditorStore(
+    (state) => state.numberedInputRhythmExplicit,
+  );
   const resolved = useMemo(
     () => resolveNumberedEditorTarget(document, target),
     [document, target],
@@ -216,6 +228,7 @@ export const NumberedEditor = ({
         : { start: 0, end: 960 };
   const [start, setStart] = useState(savedDraft?.start ?? window.start),
     [end, setEnd] = useState(savedDraft?.end ?? window.end);
+  const [fixedRange, setFixedRange] = useState(savedDraft?.fixedRange ?? false);
   const value =
     mode === "single"
       ? (firstEvent?.items.map((i) => i.token).join("+") ?? "")
@@ -230,7 +243,7 @@ export const NumberedEditor = ({
         : "";
   const [raw, setRaw] = useState(savedDraft?.raw ?? value),
     [initial, setInitial] = useState(savedDraft?.initial ?? value),
-    [overwrite, setOverwrite] = useState(savedDraft?.overwrite ?? false);
+    [overwrite, setOverwrite] = useState(savedDraft?.overwrite ?? true);
   const [base, setBase] = useState<ILXMRhythmBase>(
       savedDraft?.base ??
         firstEvent?.rhythm.base ??
@@ -255,6 +268,7 @@ export const NumberedEditor = ({
     [destination, setDestination] = useState(savedDraft?.destination ?? "");
   const [message, setMessage] = useState<string | null>(null);
   const [pending, setPending] = useState<NumberedImpact | null>(null);
+  const [nextTarget, setNextTarget] = useState<MusicTextTarget | null>(null);
   const input = useRef<HTMLTextAreaElement>(null);
   const impactDialog = useRef<HTMLDialogElement>(null);
   const [customRhythms, setCustomRhythms] = useState<
@@ -278,15 +292,59 @@ export const NumberedEditor = ({
   }, [pending]);
   const parsed = useMemo(() => parseNumberedSequence(raw), [raw]);
   const [templateBase, setTemplateBase] = useState<ILXMRhythmBase>(
-    savedDraft?.templateBase ?? "quarter",
+    savedDraft?.templateBase ??
+      numberedInputRhythmForWindow(
+        preference,
+        preferenceExplicit,
+        window.end - window.start,
+      ).base,
   );
   const [templateDots, setTemplateDots] = useState(
-    savedDraft?.templateDots ?? 0,
+    savedDraft?.templateDots ??
+      numberedInputRhythmForWindow(
+        preference,
+        preferenceExplicit,
+        window.end - window.start,
+      ).dots,
   );
   // 创建模板与已有事件时值分别保存；停用的比例/成员参数只作为录入偏好。
-  const contentValue = (
-    text: string,
-    config = {
+  const contentValue = useCallback(
+    (
+      text: string,
+      config = {
+        template,
+        start,
+        end,
+        overwrite,
+        templateBase,
+        templateDots,
+        customRhythms,
+        ratioIndex,
+        fixedRange,
+      },
+    ) =>
+      JSON.stringify({
+        raw: text,
+        template: config.template,
+        fixedRange: config.fixedRange,
+        ...(event && config.template === "uniform" && !config.fixedRange
+          ? {}
+          : {
+              start: config.start,
+              end: config.end,
+              ...(config.template === "uniform" || config.template === "tuplet"
+                ? { base: config.templateBase, dots: config.templateDots }
+                : {}),
+              ...(config.template === "custom"
+                ? { rhythms: config.customRhythms }
+                : {}),
+              ...(config.template === "tuplet"
+                ? { ratio: config.ratioIndex }
+                : {}),
+            }),
+        overwrite: config.overwrite,
+      }),
+    [
       template,
       start,
       end,
@@ -295,28 +353,10 @@ export const NumberedEditor = ({
       templateDots,
       customRhythms,
       ratioIndex,
-    },
-  ) =>
-    JSON.stringify({
-      raw: text,
-      template: config.template,
-      ...(event && config.template === "uniform"
-        ? {}
-        : {
-            start: config.start,
-            end: config.end,
-            ...(config.template === "uniform" || config.template === "tuplet"
-              ? { base: config.templateBase, dots: config.templateDots }
-              : {}),
-            ...(config.template === "custom"
-              ? { rhythms: config.customRhythms }
-              : {}),
-            ...(config.template === "tuplet"
-              ? { ratio: config.ratioIndex }
-              : {}),
-          }),
-      overwrite: config.overwrite,
-    });
+      fixedRange,
+      event,
+    ],
+  );
   const [contentBaseline, setContentBaseline] = useState(
     () => savedDraft?.contentBaseline ?? contentValue(initial),
   );
@@ -326,6 +366,7 @@ export const NumberedEditor = ({
     if (
       mode === "single" &&
       template === "uniform" &&
+      !fixedRange &&
       event &&
       parsed.items.length === 1 &&
       parsed.items[0]?.kind === "set"
@@ -337,7 +378,7 @@ export const NumberedEditor = ({
         eventId: event.id,
         tokens: parsed.items[0].tokens,
       };
-    if (mode === "sequence" && event && template === "uniform")
+    if (mode === "sequence" && event && template === "uniform" && !fixedRange)
       return {
         type: "numbered.sequence.set",
         trackId: track.id,
@@ -363,6 +404,16 @@ export const NumberedEditor = ({
         { base: "sixteenth", dots: 0 },
         { base: "eighth", dots: 0 },
       ];
+    if (!event && template === "uniform" && !fixedRange)
+      return {
+        type: "numbered.sequence.insert",
+        trackId: track.id,
+        measureId: measure.id,
+        startTick: start,
+        endTick: end,
+        items: parsed.items,
+        rhythms,
+      };
     return {
       type: "numbered.range.replace",
       trackId: track.id,
@@ -399,6 +450,7 @@ export const NumberedEditor = ({
     overwrite,
     customRhythms,
     ratioIndex,
+    fixedRange,
   ]);
   const plan = useMemo(
     () =>
@@ -428,6 +480,57 @@ export const NumberedEditor = ({
         : null;
   const contentDirty =
     contentFingerprint !== contentBaseline && (raw !== initial || !!raw.trim());
+
+  useEffect(() => {
+    // 外部时值偏好只同步干净模板，已输入的内容和缓存草稿保留自己的时值。
+    if (contentDirty || pending) return;
+    const rhythm = numberedInputRhythmForWindow(
+      preference,
+      preferenceExplicit,
+      window.end - window.start,
+    );
+    if (rhythm.base === templateBase && rhythm.dots === templateDots) return;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setTemplateBase(rhythm.base);
+      setTemplateDots(rhythm.dots);
+      setContentBaseline(
+        contentValue(initial, {
+          template,
+          start,
+          end,
+          overwrite,
+          customRhythms,
+          ratioIndex,
+          fixedRange,
+          templateBase: rhythm.base,
+          templateDots: rhythm.dots,
+        }),
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    preference,
+    preferenceExplicit,
+    window.end,
+    window.start,
+    contentDirty,
+    pending,
+    templateBase,
+    templateDots,
+    initial,
+    template,
+    start,
+    end,
+    overwrite,
+    customRhythms,
+    ratioIndex,
+    fixedRange,
+    contentValue,
+  ]);
 
   useEffect(
     () =>
@@ -468,6 +571,7 @@ export const NumberedEditor = ({
             measureId: measure.id,
             eventId: event.id,
             rhythm: { base, dots },
+            timeline: "editTimeline",
           }
         : null,
     [event, track, measure, base, dots],
@@ -486,6 +590,13 @@ export const NumberedEditor = ({
   );
   const rhythmDirty =
     !!event && (base !== event.rhythm.base || dots !== event.rhythm.dots);
+  const rhythmPreviewRows = useMemo(
+    () =>
+      rhythmPlan?.ok && track && rhythmOperation
+        ? buildNumberedPreviewRows(track, rhythmPlan, rhythmOperation)
+        : [],
+    [track, rhythmPlan, rhythmOperation],
+  );
   const itemPitchValue =
     event?.items.find((item) => item.id === itemId)?.token ?? "";
   const itemPitchDirty = !!event && !!itemId && itemDraft !== itemPitchValue;
@@ -681,6 +792,10 @@ export const NumberedEditor = ({
           }
         }
         setMessage(result.changed ? "已应用" : "内容未变化");
+        const focus = result.nextNumberedFocus;
+        if (focus) {
+          setNextTarget({ kind: "numbered", ...focus });
+        }
       },
     });
     submissionRef.current = submission;
@@ -749,23 +864,38 @@ export const NumberedEditor = ({
   useEffect(() => onGroupsChange?.(dirtyGroups), [onGroupsChange, dirtyGroups]);
   useEffect(() => onDirty(dirty || !!pending), [dirty, pending, onDirty]);
   useEffect(() => onCanApply(canApply), [canApply, onCanApply]);
+  useEffect(() => {
+    if (!nextTarget || pending) return;
+    // 先发布已清理的草稿和释放确认锁，再通过父级目标保护器移动焦点。
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setNextTarget(null);
+      onSelectTarget(nextTarget);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [nextTarget, pending, onSelectTarget]);
   const restoreGroup = (group: NumberedDraftGroup) => {
     if (submissionRef.current?.isBusy()) return;
     if (group === "content") {
       setRaw(initial);
-      setOverwrite(false);
+      setOverwrite(true);
       setTemplate("uniform");
+      setFixedRange(false);
       setStart(window.start);
       setEnd(window.end);
       const config = {
         template: "uniform",
         start: window.start,
         end: window.end,
-        overwrite: false,
+        overwrite: true,
         templateBase,
         templateDots,
         customRhythms,
         ratioIndex,
+        fixedRange: false,
       };
       setContentBaseline(contentValue(initial, config));
     } else if (group === "rhythm" && event) {
@@ -791,7 +921,7 @@ export const NumberedEditor = ({
     setTemplate("uniform");
     setStart(window.start);
     setEnd(window.end);
-    setOverwrite(false);
+    setOverwrite(true);
     submissionRef.current?.cancel();
     setCustomRhythms([]);
     setRatioIndex(1);
@@ -804,6 +934,24 @@ export const NumberedEditor = ({
     dirtyGroups,
     apply,
     applyGroup,
+    setRhythm: (rhythm) =>
+      event && track && measure
+        ? submit(
+            {
+              type: "numbered.event.setRhythm",
+              trackId: track.id,
+              measureId: measure.id,
+              eventId: event.id,
+              rhythm,
+              timeline: "editTimeline",
+            },
+            "rhythm",
+          )
+        : Promise.resolve({
+            status: "blocked",
+            group: "rhythm",
+            message: "请先选择简谱事件。",
+          }),
     discard: reset,
     focus: () => input.current?.focus({ preventScroll: true }),
     snapshot: () => ({
@@ -811,6 +959,7 @@ export const NumberedEditor = ({
       contentBaseline,
       templateBase,
       templateDots,
+      fixedRange,
       selectedId,
       start,
       end,
@@ -976,7 +1125,10 @@ export const NumberedEditor = ({
                     value={template}
                     onChange={(value) => {
                       setTemplate(value);
-                      if (value !== "uniform") setEnd(start + 960);
+                      if (value !== "uniform") {
+                        setFixedRange(true);
+                        setEnd(start + 960);
+                      }
                     }}
                     style={{ width: "100%" }}
                     options={[
@@ -1087,9 +1239,13 @@ export const NumberedEditor = ({
                     id={"editor-field-" + "模板成员时值"}
                     aria-label="模板成员时值"
                     value={templateBase}
-                    onChange={(value) =>
-                      setTemplateBase(value as ILXMRhythmBase)
-                    }
+                    onChange={(value) => {
+                      setTemplateBase(value as ILXMRhythmBase);
+                      editorStore.getState().setNumberedInputRhythm({
+                        base: value as ILXMRhythmBase,
+                        dots: templateDots,
+                      });
+                    }}
                     style={{ width: "100%" }}
                     options={[
                       ...bases.map((b) => ({ value: b.value, label: b.label })),
@@ -1105,7 +1261,13 @@ export const NumberedEditor = ({
                     id={"editor-field-" + "模板成员附点"}
                     aria-label="模板成员附点"
                     value={templateDots}
-                    onChange={(value) => setTemplateDots(Number(value))}
+                    onChange={(value) => {
+                      setTemplateDots(Number(value));
+                      editorStore.getState().setNumberedInputRhythm({
+                        base: templateBase,
+                        dots: Number(value),
+                      });
+                    }}
                     style={{ width: "100%" }}
                     options={[
                       { value: 0, label: "无" },
@@ -1128,6 +1290,7 @@ export const NumberedEditor = ({
                       setStart(next);
                       setEnd(next + (end - start));
                       setSelectedId("");
+                      setFixedRange(true);
                     }}
                     style={{ width: "100%" }}
                     options={[
@@ -1176,6 +1339,7 @@ export const NumberedEditor = ({
                     onChange={(value) => {
                       setEnd(start + Number(value));
                       setSelectedId("");
+                      setFixedRange(true);
                     }}
                     style={{ width: "100%" }}
                     options={[
@@ -1190,13 +1354,25 @@ export const NumberedEditor = ({
                   />
                 </Form.Item>
               </div>
+              {template === "uniform" && (
+                <Checkbox
+                  checked={fixedRange}
+                  onChange={(e) => setFixedRange(e.target.checked)}
+                >
+                  固定范围替换（高级）
+                </Checkbox>
+              )}
             </details>
-            <Checkbox
-              checked={overwrite}
-              onChange={(e) => setOverwrite(e.target.checked)}
-            >
-              允许覆盖此时间范围的简谱
-            </Checkbox>
+            {(fixedRange ||
+              template !== "uniform" ||
+              operation?.type === "numbered.sequence.set") && (
+              <Checkbox
+                checked={overwrite}
+                onChange={(e) => setOverwrite(e.target.checked)}
+              >
+                允许覆盖此时间范围的简谱
+              </Checkbox>
+            )}
             {plan?.ok && (
               <div className={styles.sequencePreview} aria-label="简谱修改预览">
                 <h4>修改预览 · {previewRows.length} 项</h4>
@@ -1313,15 +1489,25 @@ export const NumberedEditor = ({
                 {rhythmPlan?.ok &&
                   (base !== event.rhythm.base ||
                     dots !== event.rhythm.dots) && (
-                    <p>
-                      时值预览：保留当前音符，
-                      {rhythmPlan.overwrittenEventIds.length
-                        ? `覆盖 ${rhythmPlan.overwrittenEventIds.length} 个后续音符`
-                        : rhythmPlan.releasedRange
-                          ? "在后方释放一个可录入范围"
-                          : "扩展到后方空白"}
-                      。
-                    </p>
+                    <div aria-label="简谱时值修改预览">
+                      <p>
+                        时值预览：保留当前音符，
+                        {rhythmPlan.movedEventIds.length ||
+                        rhythmPlan.resizedEventIds.length
+                          ? `移动 ${rhythmPlan.movedEventIds.length} 个后续事件，缩短 ${rhythmPlan.resizedEventIds.length} 个后续事件；应用前需确认`
+                          : rhythmPlan.releasedRange
+                            ? "在后方释放一个可录入范围"
+                            : "扩展到后方空白"}
+                        。
+                      </p>
+                      <ul>
+                        {rhythmPreviewRows.map((row) => (
+                          <li key={row.key}>
+                            {row.position} · {row.after} · {row.rhythm}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   )}
                 {rhythmPlan && !rhythmPlan.ok && (
                   <p role="status">{rhythmPlan.message}</p>
@@ -1696,7 +1882,7 @@ export const NumberedEditor = ({
       </fieldset>
       <dialog
         ref={impactDialog}
-        aria-label="确认简谱技巧影响"
+        aria-label="确认简谱修改影响"
         onCancel={(event) => {
           event.preventDefault();
           submissionRef.current?.cancel();
@@ -1731,7 +1917,43 @@ export const NumberedEditor = ({
       >
         {pending && (
           <>
-            <h3>确认简谱技巧影响</h3>
+            <h3>确认简谱修改影响</h3>
+            {(pending.movedEventIds.length > 0 ||
+              pending.resizedEventIds.length > 0) && (
+              <>
+                <p>
+                  将移动 {pending.movedEventIds.length} 个后续事件，缩短{" "}
+                  {pending.resizedEventIds.length} 个后续事件，保留其音符内容。
+                </p>
+                <ul aria-label="后续事件调整">
+                  {[
+                    ...new Set([
+                      ...pending.movedEventIds,
+                      ...pending.resizedEventIds,
+                    ]),
+                  ].map((id) => {
+                    const beforeMeasure = track?.measures.find((m) =>
+                      m.numberedVoice.events.some((e) => e.id === id),
+                    );
+                    const before = beforeMeasure?.numberedVoice.events.find(
+                      (e) => e.id === id,
+                    );
+                    const after = pending.track.measures
+                      .flatMap((m) => m.numberedVoice.events)
+                      .find((e) => e.id === id);
+                    if (!before || !after || !beforeMeasure) return null;
+                    const describe = (e: typeof before) =>
+                      `${formatNumberedBeatPosition(e.tick, beforeMeasure.timeSignature.denominator)} · ${bases.find((b) => b.value === e.rhythm.base)?.label}${e.rhythm.dots ? ` · ${e.rhythm.dots} 附点` : ""}`;
+                    return (
+                      <li key={id}>
+                        {before.items.map((i) => i.token).join("+") || "空白"}：
+                        {describe(before)} → {describe(after)}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </>
+            )}
             <p>
               将删除 {pending.removedMarkIds.length} 个记号，迁移{" "}
               {pending.changedMarkIds.length} 个记号。此操作与内容修改一起撤销。

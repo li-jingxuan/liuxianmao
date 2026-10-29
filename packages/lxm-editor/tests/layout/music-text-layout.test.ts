@@ -47,13 +47,13 @@ describe("MVP6 文本联合排版", () => {
     measure.lyrics = [
       {
         id: "edge-verse-1",
-        beatId: measure.beats[0]!.id,
+        eventId: measure.numberedVoice.events[0]!.id,
         verse: 1,
         text: "第一行",
       },
       {
         id: "edge-verse-2",
-        beatId: measure.beats[0]!.id,
+        eventId: measure.numberedVoice.events[0]!.id,
         verse: 2,
         text: "第二行",
       },
@@ -110,7 +110,7 @@ describe("MVP6 文本联合排版", () => {
     ).toBe(false);
   });
   it.each([733, 420, 180])(
-    "宽度 %i 下文本沿 Beat anchor，命中使用最终几何",
+    "宽度 %i 下歌词沿简谱事件，和弦沿 Beat，命中使用最终几何",
     (systemWidth) => {
       const layout = buildLayout(EXAMPLE_MVP_6_DOCUMENT, {
         systemWidth,
@@ -120,7 +120,8 @@ describe("MVP6 文本联合排版", () => {
         for (const measure of system.measures) {
           for (const lyric of measure.lyrics!) {
             expect(lyric.label.x).toBe(
-              measure.beats.find((b) => b.id === lyric.beatId)!.x,
+              measure.numberedSlots.find((slot) => slot.id === lyric.eventId)!
+                .x,
             );
             const b = lyric.bounds;
             expect(
@@ -130,7 +131,7 @@ describe("MVP6 文本联合排版", () => {
               }),
             ).toMatchObject({
               id: lyric.id,
-              beatId: lyric.beatId,
+              eventId: lyric.eventId,
               kind: "lyric",
             });
             expect(b.y).toBeGreaterThanOrEqual(
@@ -187,12 +188,14 @@ describe("MVP6 文本联合排版", () => {
     ];
     document.score.tracks[0]!.techniques = [];
     const measure = document.score.tracks[0]!.measures[0]!;
-    measure.lyrics = measure.beats.slice(0, 2).map((b, i) => ({
-      id: `long-${i}`,
-      beatId: b.id,
-      verse: 1,
-      text: "超长中文歌词".repeat(8),
-    }));
+    measure.lyrics = measure.numberedVoice.events
+      .slice(0, 2)
+      .map((event, i) => ({
+        id: `long-${i}`,
+        eventId: event.id,
+        verse: 1,
+        text: "超长中文歌词".repeat(8),
+      }));
     const layout = buildLayout(document, { systemWidth: 180 });
     const [a, b] = layout.systems[0]!.measures[0]!.lyrics!;
     expect(layout.width).toBeGreaterThan(180);

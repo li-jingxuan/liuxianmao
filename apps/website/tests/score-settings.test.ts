@@ -67,7 +67,7 @@ describe("谱面设置与连续填词默认", () => {
     const target = {
       trackId: track.id,
       measureId: m.id,
-      beatId: m.beats[0]!.id,
+      eventId: m.numberedVoice.events[0]!.id,
       string: 1,
       kind: "lyric" as const,
       verse: 1 as const,
@@ -89,10 +89,12 @@ it("基础拍号合法协调与已有变化点保留，首小节删除后从新�
   const track = doc.score.tracks[0]!;
   // 空白容量休止允许调整拍号，避免测试借助非法节奏数据。
   track.techniques = [];
+  track.numberedMarks = [];
   track.measures.forEach((m) => {
     m.lyrics = [];
     m.chordSymbols = [];
     m.tuplets = [];
+    m.numberedVoice = { events: [], tuplets: [] };
     m.timeSignature = { numerator: 4, denominator: 4 };
     m.beats = Array.from({ length: 4 }, (_, i) => ({
       id: `empty-${m.id}-${i}`,

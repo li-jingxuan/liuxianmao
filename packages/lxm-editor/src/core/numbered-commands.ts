@@ -15,6 +15,7 @@ import {
   validateNumberedVoice,
 } from "./numbered-rhythm";
 import { validateNumberedMarks } from "./numbered-marks";
+import { planNumberedEventRhythm } from "./numbered-timeline";
 import type { ILXMIdFactory } from "./id-factory";
 import type {
   ILXMNumberedEvent,
@@ -38,6 +39,14 @@ export type ILXMNumberedVoiceCommand = Base &
         eventId: string;
         items: NumberedSequenceItem[];
         allowOverwrite: boolean;
+      }
+    | {
+        type: "numbered.sequence.insert";
+        measureId: string;
+        startTick: number;
+        endTick: number;
+        items: NumberedSequenceItem[];
+        rhythms: ILXMRhythm[];
       }
     | {
         type: "numbered.event.set";
@@ -69,6 +78,7 @@ export type ILXMNumberedVoiceCommand = Base &
         measureId: string;
         eventId: string;
         rhythm: ILXMRhythm;
+        timeline?: "preservePositions" | "editTimeline";
       }
     | {
         type: "numbered.event.remove" | "numbered.event.split";
@@ -96,7 +106,10 @@ export type NumberedCandidate =
       focusEventId?: string;
       measureId?: string;
       overwrittenEventIds: string[];
+      movedEventIds: string[];
+      resizedEventIds: string[];
       releasedRange?: { startTick: number; endTick: number };
+      nextFocus?: { eventId: string } | { tick: number; endTick: number };
     }
   | {
       ok: false;
@@ -133,7 +146,10 @@ export const editNumberedTrack = (
   let focusEventId: string | undefined;
   let measureId: string | undefined;
   let overwrittenEventIds: string[] = [];
+  let movedEventIds: string[] = [];
+  let resizedEventIds: string[] = [];
   let releasedRange: { startTick: number; endTick: number } | undefined;
+  let nextFocus: Extract<NumberedCandidate, { ok: true }>["nextFocus"];
   if (command.type.startsWith("numbered.mark.")) {
     if (!("markId" in command) && !("mark" in command))
       return failure("简谱标记命令无效");
@@ -213,6 +229,7 @@ export const editNumberedTrack = (
     const measure = track.measures.find((m) => m.id === measureId);
     if (!measure) return failure("简谱小节不存在");
     let events = measure.numberedVoice.events;
+    let lyrics = measure.lyrics;
     let tuplets = measure.numberedVoice.tuplets;
     const context = createNumberedRhythmContext(measure.numberedVoice);
     const grouped = (id: string) => context.tupletByEventId.has(id);
@@ -221,7 +238,69 @@ export const editNumberedTrack = (
         ? events.find((e) => e.id === command.eventId)
         : undefined;
     if ("eventId" in command && !event) return failure("简谱事件不存在");
-    if (command.type === "numbered.event.set") {
+    if (command.type === "numbered.sequence.insert") {
+      const { startTick, endTick, items, rhythms } = command;
+      if (
+        !Number.isInteger(startTick) ||
+        !Number.isInteger(endTick) ||
+        startTick < 0 ||
+        endTick <= startTick ||
+        endTick > getMeasureCapacityTicks(measure.timeSignature) ||
+        !items.length ||
+        items.length > 256 ||
+        rhythms.length !== items.length
+      )
+        return failure("简谱空白窗口或录入时值无效");
+      let cursor = startTick;
+      const created: ILXMNumberedEvent[] = [];
+      for (const [index, item] of items.entries()) {
+        const rhythm = rhythms[index]!;
+        const duration = calculateRhythmTicks(rhythm);
+        if (!duration.ok) return failure("简谱时值无效");
+        if (cursor + duration.ticks > endTick)
+          return failure(
+            "录入超出空白窗口，请缩短时值或减少内容",
+            "NUMBERED_OVERLAP",
+          );
+        if (
+          events.some((event) => {
+            const d = context.getEventDurationTicks(event);
+            return (
+              !d.ok ||
+              (event.tick < cursor + duration.ticks &&
+                event.tick + d.ticks > cursor)
+            );
+          })
+        )
+          return failure(
+            "连续录入遇到已有简谱，请在空白范围内录入",
+            "NUMBERED_OVERLAP",
+          );
+        if (item.kind === "set") {
+          if (!validNumberedTokens(item.tokens)) return failure("简谱内容无效");
+          created.push({
+            id: factory.createNumberedEventId(),
+            tick: cursor,
+            rhythm: { ...rhythm },
+            ...content(item.tokens, factory),
+          });
+        }
+        cursor += duration.ticks;
+      }
+      events = [...events, ...created].sort((a, b) => a.tick - b.tick);
+      focusEventId = created.at(-1)?.id;
+      const following = events.find((event) => event.tick >= cursor);
+      if (following?.tick === cursor) nextFocus = { eventId: following.id };
+      else if (cursor < getMeasureCapacityTicks(measure.timeSignature)) {
+        nextFocus = {
+          tick: cursor,
+          endTick: Math.min(
+            endTick > cursor ? endTick : Infinity,
+            following?.tick ?? getMeasureCapacityTicks(measure.timeSignature),
+          ),
+        };
+      }
+    } else if (command.type === "numbered.event.set") {
       if (!validNumberedTokens(command.tokens)) return failure("简谱音高无效");
       if (command.itemId) {
         if (
@@ -254,44 +333,60 @@ export const editNumberedTrack = (
       focusEventId = event!.id;
     } else if (command.type === "numbered.event.setRhythm") {
       if (grouped(event!.id)) return failure("连音成员须整组修改时值");
-      const previous = context.getEventDurationTicks(event!),
-        duration = calculateRhythmTicks(command.rhythm);
-      if (!previous.ok || !duration.ok) return failure("简谱时值无效");
-      const endTick = event!.tick + duration.ticks;
-      if (endTick > getMeasureCapacityTicks(measure.timeSignature))
-        return failure("简谱时值超出小节容量", "NUMBERED_OVERLAP");
-      const covered = events.filter(
-        (e) => e !== event && e.tick >= event!.tick && e.tick < endTick,
-      );
-      if (
-        covered.some((e) => {
-          const d = context.getEventDurationTicks(e);
-          return !d.ok || e.tick + d.ticks > endTick;
-        })
-      )
-        return failure(
-          "新时值终点切断后续音符，请调整范围",
-          "NUMBERED_PARTIAL_RANGE",
+      if (command.timeline === "editTimeline") {
+        const planned = planNumberedEventRhythm(
+          measure,
+          event!.id,
+          command.rhythm,
         );
-      if (covered.some((e) => grouped(e.id)))
-        return failure(
-          "时值扩展不能覆盖连音组，请使用整组窗口编辑",
-          "NUMBERED_PARTIAL_RANGE",
+        if (!planned.ok) return failure(planned.message, "NUMBERED_OVERLAP");
+        events = planned.voice.events;
+        movedEventIds = planned.movedEventIds;
+        resizedEventIds = planned.resizedEventIds.filter(
+          (id) => id !== event!.id,
         );
-      overwrittenEventIds = covered.map((e) => e.id);
-      if (duration.ticks < previous.ticks)
-        releasedRange = {
-          startTick: endTick,
-          endTick: event!.tick + previous.ticks,
-        };
-      const removed = new Set(overwrittenEventIds);
-      // 保留当前音符身份与起点；完整覆盖后续事件，不推移其后的音乐时间。
-      events = events
-        .filter((e) => !removed.has(e.id))
-        .map((e) =>
-          e !== event ? e : { ...e, rhythm: { ...command.rhythm } },
+        releasedRange = planned.releasedRange;
+        focusEventId = event!.id;
+      } else {
+        const previous = context.getEventDurationTicks(event!),
+          duration = calculateRhythmTicks(command.rhythm);
+        if (!previous.ok || !duration.ok) return failure("简谱时值无效");
+        const endTick = event!.tick + duration.ticks;
+        if (endTick > getMeasureCapacityTicks(measure.timeSignature))
+          return failure("简谱时值超出小节容量", "NUMBERED_OVERLAP");
+        const covered = events.filter(
+          (e) => e !== event && e.tick >= event!.tick && e.tick < endTick,
         );
-      focusEventId = event!.id;
+        if (
+          covered.some((e) => {
+            const d = context.getEventDurationTicks(e);
+            return !d.ok || e.tick + d.ticks > endTick;
+          })
+        )
+          return failure(
+            "新时值终点切断后续音符，请调整范围",
+            "NUMBERED_PARTIAL_RANGE",
+          );
+        if (covered.some((e) => grouped(e.id)))
+          return failure(
+            "时值扩展不能覆盖连音组，请使用整组窗口编辑",
+            "NUMBERED_PARTIAL_RANGE",
+          );
+        overwrittenEventIds = covered.map((e) => e.id);
+        if (duration.ticks < previous.ticks)
+          releasedRange = {
+            startTick: endTick,
+            endTick: event!.tick + previous.ticks,
+          };
+        const removed = new Set(overwrittenEventIds);
+        // 保留当前音符身份与起点；完整覆盖后续事件，不推移其后的音乐时间。
+        events = events
+          .filter((e) => !removed.has(e.id))
+          .map((e) =>
+            e !== event ? e : { ...e, rhythm: { ...command.rhythm } },
+          );
+        focusEventId = event!.id;
+      }
     } else if (command.type === "numbered.event.remove") {
       events = grouped(event!.id)
         ? events.map((e) =>
@@ -465,6 +560,14 @@ export const editNumberedTrack = (
         factory,
       );
       const voice = copied.voices[0]!;
+      lyrics = [
+        ...lyrics.filter((lyric) => !ids.has(lyric.eventId)),
+        ...c.lyrics.map((lyric) => ({
+          ...lyric,
+          id: factory.createLyricId(),
+          eventId: copied.ids.get(lyric.eventId)!,
+        })),
+      ];
       events = [
         ...events
           .filter((e) => !ids.has(e.id))
@@ -655,12 +758,34 @@ export const editNumberedTrack = (
     next = {
       ...next,
       measures: track.measures.map((m) =>
-        m !== measure ? m : { ...m, numberedVoice: voice },
+        m !== measure
+          ? m
+          : {
+              ...m,
+              numberedVoice: voice,
+              lyrics: [...lyrics].sort(
+                (a, b) =>
+                  events.findIndex((event) => event.id === a.eventId) -
+                    events.findIndex((event) => event.id === b.eventId) ||
+                  a.verse - b.verse,
+              ),
+            },
       ),
     };
   }
   // 仅清理因内容改变失效的旧关系，新增关系冲突不能悄悄删除旧关系。
   if (!command.type.startsWith("numbered.mark.")) {
+    next = {
+      ...next,
+      measures: next.measures.map((measure) => ({
+        ...measure,
+        lyrics: measure.lyrics.filter((lyric) =>
+          measure.numberedVoice.events.some(
+            (event) => event.id === lyric.eventId && event.kind === "notes",
+          ),
+        ),
+      })),
+    };
     const index = buildNumberedIndex(next);
     const oldMarkIds = new Set(track.numberedMarks.map((m) => m.id));
     // 粘贴副本属于新关系，非法时拒绝整笔动作，不能当成旧关系静默清理。
@@ -719,6 +844,9 @@ export const editNumberedTrack = (
     focusEventId,
     measureId,
     overwrittenEventIds,
+    movedEventIds,
+    resizedEventIds,
     releasedRange,
+    nextFocus,
   };
 };

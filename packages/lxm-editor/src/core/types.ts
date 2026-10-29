@@ -124,7 +124,7 @@ export interface ILXMTimeSignature {
  */
 export type ILXMTimeSignatureChangeScope = "measure" | "untilNextChange";
 
-/** 音乐文本只引用稳定 Beat，不重复保存会随节奏改变的 tick。 */
+/** 和弦仍引用稳定 Beat；歌词绑定独立简谱事件。 */
 export interface ILXMChordSymbol {
   id: string;
   beatId: string;
@@ -135,7 +135,7 @@ export interface ILXMChordSymbol {
 export type ILXMLyricVerse = 1 | 2 | 3 | 4;
 export interface ILXMLyric {
   id: string;
-  beatId: string;
+  eventId: string;
   verse: ILXMLyricVerse;
   text: string;
 }

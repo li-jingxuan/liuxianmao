@@ -70,6 +70,7 @@ import {
   type EditorCommandAdapter,
 } from "./editor-command-adapter";
 import { buildEditorToolCommand } from "./editor-tool-actions";
+import { resolveEditorRhythmTarget } from "./editor-rhythm-target";
 import { editorShortcutHelp } from "./editor-shortcuts";
 
 /** 两位品位输入等待第二个数字的时间，超时后提交一位品位。 */
@@ -321,14 +322,9 @@ export const EditorShell: React.FC = () => {
   const focusCaret = useMemo(
     () =>
       lxmLayout && selection
-        ? layoutTabCellCaret(
-            lxmLayout,
-            activeMusicTextTarget?.kind === "lyric"
-              ? activeMusicTextTarget
-              : selection.focus,
-          )
+        ? layoutTabCellCaret(lxmLayout, selection.focus)
         : null,
-    [lxmLayout, selection, activeMusicTextTarget],
+    [lxmLayout, selection],
   );
 
   /**
@@ -897,7 +893,11 @@ export const EditorShell: React.FC = () => {
     impact = "modal",
   ) => {
     clearFretDraft();
-    if (musicTextController.current?.isOutputBlocked())
+    if (
+      command.type === "numbered.event.setRhythm"
+        ? musicTextController.current?.isNumberedActionBlocked()
+        : musicTextController.current?.isOutputBlocked()
+    )
       return {
         status: "blocked",
         message: "请先应用或取消属性草稿，再修改音乐。",
@@ -918,6 +918,41 @@ export const EditorShell: React.FC = () => {
       if (action.type === "undo") now.undo();
       else now.redo();
       return true;
+    }
+    if (action.type === "rhythm" || action.type === "dots") {
+      const now = session.getState();
+      if (!now.document) return false;
+      const target = resolveEditorRhythmTarget(
+        now.document,
+        now.selection,
+        activeMusicTextTarget,
+        now.numberedInputRhythm,
+        now.numberedInputRhythmExplicit,
+      );
+      if (!target.enabled || !target.rhythm) return false;
+      if (target.kind === "numbered" && target.target) {
+        if (musicTextController.current?.isNumberedActionBlocked()) {
+          setErrorMessage("请先应用或取消当前草稿。");
+          return false;
+        }
+        const rhythm =
+          action.type === "rhythm"
+            ? { ...target.rhythm, base: action.base }
+            : { ...target.rhythm, dots: action.dots };
+        if (target.target.kind === "numberedTime") {
+          now.setNumberedInputRhythm(rhythm);
+          return true;
+        }
+        const result = await executeTool({
+          type: "numbered.event.setRhythm",
+          trackId: target.target.trackId,
+          measureId: target.target.measureId,
+          eventId: target.target.eventId,
+          rhythm,
+          timeline: "editTimeline",
+        });
+        return result.status === "applied" || result.status === "noop";
+      }
     }
     if (musicTextController.current?.isOutputBlocked()) {
       setErrorMessage("请先应用或取消属性草稿，再修改音乐。");
@@ -996,6 +1031,7 @@ export const EditorShell: React.FC = () => {
         }}
       />
       <EditorToolbar
+        activeTarget={activeMusicTextTarget}
         blocked={musicTextEditing}
         numberedBlocked={numberedActionBlocked}
         getNumberedBlocked={() => numberedActionBlocked}

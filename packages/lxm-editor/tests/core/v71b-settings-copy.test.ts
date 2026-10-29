@@ -148,10 +148,13 @@ describe("v7.1-B 边界与保真", () => {
     ).toBeUndefined();
   });
   it("显式升级经过校验，loader 拒绝 schema 4，输入不变", () => {
-    const old = structuredClone(EXAMPLE_MVP_6_DOCUMENT) as unknown as Record<
-      string,
-      unknown
-    >;
+    const source = structuredClone(EXAMPLE_MVP_6_DOCUMENT);
+    source.score.tracks.forEach((track) =>
+      track.measures.forEach((measure) => {
+        measure.lyrics = [];
+      }),
+    );
+    const old = source as unknown as Record<string, unknown>;
     old.schemaVersion = 4;
     const legacyScore = old.score as Record<string, unknown>;
     delete legacyScore.arranger;
@@ -387,6 +390,8 @@ it("整小节复制报告跨边界简谱连接遗漏但不改变复制结果", (
   const second = track.measures[1]!;
   const firstItemId = "copy-numbered-first-item";
   const secondItemId = "copy-numbered-second-item";
+  first.lyrics = [];
+  second.lyrics = [];
   first.numberedVoice = {
     events: [
       {
@@ -452,6 +457,8 @@ it("单小节复制同样报告跨边界简谱连接遗漏", () => {
   const second = track.measures[1]!;
   const firstItemId = "single-copy-first-item";
   const secondItemId = "single-copy-second-item";
+  first.lyrics = [];
+  second.lyrics = [];
   first.numberedVoice = {
     events: [
       {

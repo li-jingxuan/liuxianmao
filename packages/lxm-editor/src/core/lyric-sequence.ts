@@ -7,7 +7,7 @@ export type LyricSequenceItem =
 export interface LyricSequenceTarget {
   trackId: string;
   measureId: string;
-  beatId: string;
+  eventId: string;
   verse: ILXMLyricVerse;
 }
 export interface LyricSequenceRow {
@@ -63,7 +63,7 @@ export const parseLyricSequence = (
   return { ok: true, items };
 };
 
-/** 预览与提交共用映射，按真实 Beat 顺序含休止跨小节分配；失败不产生候选文档。 */
+/** 预览与提交共用映射，按真实简谱事件顺序跨小节分配；失败不产生候选文档。 */
 export const planLyricSequence = (
   document: ILXMDocument,
   start: LyricSequenceTarget,
@@ -86,19 +86,23 @@ export const planLyricSequence = (
     return invalid("每批须包含 1–256 个位置。");
   const track = document.score.tracks.find((t) => t.id === start.trackId);
   if (!track) return invalid("目标轨道不存在。");
-  const beats = track.measures.flatMap((m, mi) =>
-    m.beats.map((b, bi) => ({ m, b, mi, bi })),
+  const events = track.measures.flatMap((m, mi) =>
+    m.numberedVoice.events
+      .slice()
+      .sort((a, b) => a.tick - b.tick)
+      .map((event, ei) => ({ m, event, mi, ei }))
+      .filter(({ event }) => event.kind === "notes"),
   );
-  const offset = beats.findIndex(
-    ({ m, b }) => m.id === start.measureId && b.id === start.beatId,
+  const offset = events.findIndex(
+    ({ m, event }) => m.id === start.measureId && event.id === start.eventId,
   );
-  if (offset < 0) return invalid("起始拍已失效，请重新选择。");
+  if (offset < 0) return invalid("起始简谱音符已失效，请重新选择。");
   let issue: string | null = null;
   let changes = 0;
   let overwrites = 0;
   let sets = 0;
   const rows = items.map((item, index): LyricSequenceRow => {
-    const beat = beats[offset + index];
+    const targetEvent = events[offset + index];
     const text =
       item.kind === "set" && typeof item.text === "string"
         ? normalizeMusicText(item.text, 64)
@@ -108,11 +112,11 @@ export const planLyricSequence = (
     if (item.kind === "set") sets++;
     if (!valid && !issue) issue = `第 ${index + 1} 项歌词无效。`;
     const previous =
-      beat?.m.lyrics.find(
-        (l) => l.beatId === beat.b.id && l.verse === start.verse,
+      targetEvent?.m.lyrics.find(
+        (l) => l.eventId === targetEvent.event.id && l.verse === start.verse,
       )?.text ?? null;
     const status =
-      !beat || !valid
+      !targetEvent || !valid
         ? "error"
         : item.kind === "skip"
           ? "skip"
@@ -126,24 +130,24 @@ export const planLyricSequence = (
     return {
       index,
       item: item.kind === "set" && text ? { kind: "set", text } : { ...item },
-      target: beat
+      target: targetEvent
         ? {
             trackId: start.trackId,
             verse: start.verse,
-            measureId: beat.m.id,
-            beatId: beat.b.id,
+            measureId: targetEvent.m.id,
+            eventId: targetEvent.event.id,
           }
         : null,
-      measureNumber: beat ? beat.mi + 1 : null,
-      beatNumber: beat ? beat.bi + 1 : null,
-      rest: beat?.b.kind === "rest",
+      measureNumber: targetEvent ? targetEvent.mi + 1 : null,
+      beatNumber: targetEvent ? targetEvent.ei + 1 : null,
+      rest: targetEvent?.event.kind !== "notes",
       previous,
       status,
     };
   });
   if (!sets) issue ??= "请至少输入一项有效歌词，不能全部跳过。";
-  if (offset + items.length > beats.length)
-    issue ??= `谱尾位置不足，还缺 ${offset + items.length - beats.length} 拍；整批未应用。`;
+  if (offset + items.length > events.length)
+    issue ??= `谱尾位置不足，还缺 ${offset + items.length - events.length} 个简谱音符；整批未应用。`;
   if (overwrites && !allowOverwrite)
     issue ??= `将替换 ${overwrites} 项已有歌词，请先确认允许覆盖。`;
   return { rows, issue, changes, overwrites };

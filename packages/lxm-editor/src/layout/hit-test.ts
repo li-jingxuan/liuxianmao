@@ -69,7 +69,7 @@ export const buildHitIndex = (
           ...l.bounds,
           trackId,
           measureId: m.id,
-          beatId: l.beatId,
+          eventId: l.eventId,
           id: l.id,
           kind: "lyric" as const,
           verse: l.verse,

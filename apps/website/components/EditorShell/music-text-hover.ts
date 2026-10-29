@@ -16,7 +16,15 @@ export const resolveMusicTextHoverTarget = (
   const numbered = hitTestNumbered(layout, point);
   if (numbered) return { ...numbered, kind: "numbered" };
   const text = hitTestMusicText(layout, point);
-  return text?.kind === "lyric" ? { ...text, kind: "lyric", string: 1 } : null;
+  return text?.kind === "lyric" && text.eventId
+    ? {
+        kind: "lyric",
+        trackId: text.trackId,
+        measureId: text.measureId,
+        eventId: text.eventId,
+        verse: text.verse,
+      }
+    : null;
 };
 
 /** 简谱比较真实事件或完整时间窗口，不能用两个 undefined beatId 判定为同一目标。 */
@@ -35,8 +43,7 @@ export const sameMusicTextTarget = (
     return a.eventId || b.eventId
       ? a.eventId === b.eventId && a.itemId === b.itemId
       : a.tick === b.tick && a.endTick === b.endTick;
-  return (
-    a.beatId === b.beatId &&
-    (a.kind !== "lyric" || (a.verse ?? 1) === (b.verse ?? 1))
-  );
+  if (a.kind === "lyric" && b.kind === "lyric")
+    return a.eventId === b.eventId && (a.verse ?? 1) === (b.verse ?? 1);
+  return a.kind === "chord" && b.kind === "chord" && a.beatId === b.beatId;
 };

@@ -132,14 +132,8 @@ export const LXMChordDiagramSchema = z
     const message = validateChordDiagram(diagram);
     if (message) context.addIssue({ code: z.ZodIssueCode.custom, message });
   });
-export const LXMLyricSchema = z
-  .object({
-    id: z.string(),
-    beatId: z.string(),
-    verse: fingerSchema,
-    text: musicTextSchema(64),
-  })
-  .strict();
+// 旧歌词没有独立简谱事件锚点；不接受旧绑定，也不在运行时猜测迁移。
+export const LXMLyricSchema = z.never();
 /** 和弦保存局部名称/图快照，不依赖未定义的外部字典。 */
 export const LXMChordSymbolSchema = z
   .object({

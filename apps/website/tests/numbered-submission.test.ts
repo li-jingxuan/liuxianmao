@@ -2,6 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 import {
   EXAMPLE_MVP_7_2_DOCUMENT,
   LXMScoreCommandEnum,
+  createDocumentIdFactory,
+  editNumberedTrack,
+  type ILXMDocument,
   type ILXMNumberedVoiceCommand,
 } from "@liuxianmao/lxm-editor";
 import { createEditorSession } from "../stores/editor-store";
@@ -12,7 +15,7 @@ import {
 } from "../components/EditorShell/editor-draft-coordinator";
 import { captureEditorVersion } from "../components/EditorShell/editor-session-version";
 
-const setup = () => {
+const setup = (prepare?: (document: ILXMDocument) => void) => {
   const document = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);
   const track = document.score.tracks[0]!;
   const measure = track.measures[0]!;
@@ -20,6 +23,7 @@ const setup = () => {
   track.numberedMarks = [
     { id: "s3-fermata", type: "fermata", eventId: event.id },
   ];
+  prepare?.(document);
   const session = createEditorSession(document);
   const onPending = vi.fn(),
     onSuccess = vi.fn();
@@ -56,6 +60,175 @@ const setup = () => {
 };
 
 describe("S3 简谱提交终态", () => {
+  it("压缩后续事件即使无技巧影响也先确认，提交与核心预览一致并可一次撤销", async () => {
+    const { owner, session, track, measure, event, commit, onPending } =
+      setup();
+    const original = session.getState().document!;
+    const operation: ILXMNumberedVoiceCommand = {
+      type: "numbered.event.setRhythm",
+      trackId: track.id,
+      measureId: measure.id,
+      eventId: event.id,
+      rhythm: { base: "half", dots: 0 },
+      timeline: "editTimeline",
+    };
+    const candidate = editNumberedTrack(
+      track,
+      operation,
+      createDocumentIdFactory(original),
+      true,
+    );
+    expect(candidate.ok).toBe(true);
+    if (!candidate.ok) return;
+    expect(candidate.removedMarkIds).toEqual([]);
+    expect(candidate.changedMarkIds).toEqual([]);
+    expect(candidate.movedEventIds.length).toBeGreaterThan(0);
+    expect(candidate.resizedEventIds.length).toBeGreaterThan(0);
+    expect(candidate.resizedEventIds).not.toContain(event.id);
+    expect(candidate.overwrittenEventIds).toEqual([]);
+    const result = owner.request(operation, "rhythm");
+    expect(onPending).toHaveBeenCalledWith(candidate);
+    expect(commit).not.toHaveBeenCalled();
+    expect(session.getState().document).toEqual(original);
+    expect(session.getState().historyDepth.past).toBe(0);
+    owner.confirm();
+    expect(await result).toMatchObject({ status: "applied" });
+    const after = session.getState().document!.score.tracks[0]!;
+    expect(after).toEqual(candidate.track);
+    expect(after.measures[0]!.numberedVoice.events.map((e) => e.items)).toEqual(
+      measure.numberedVoice.events.map((e) => e.items),
+    );
+    expect(after.measures[0]!.lyrics).toEqual(measure.lyrics);
+    expect(after.measures[0]!.beats).toEqual(measure.beats);
+    session.getState().undo();
+    expect(session.getState().document).toEqual(original);
+  });
+
+  it("取消后续压缩确认保留原文档和历史", async () => {
+    const { owner, session, track, measure, event, commit } = setup();
+    const original = session.getState().document;
+    const result = owner.request(
+      {
+        type: "numbered.event.setRhythm",
+        trackId: track.id,
+        measureId: measure.id,
+        eventId: event.id,
+        rhythm: { base: "half", dots: 0 },
+        timeline: "editTimeline",
+      },
+      "rhythm",
+    );
+    expect(owner.isBusy()).toBe(true);
+    owner.cancel();
+    expect(await result).toMatchObject({ status: "cancelled" });
+    expect(commit).not.toHaveBeenCalled();
+    expect(session.getState().document).toEqual(original);
+    expect(session.getState().historyDepth.past).toBe(0);
+  });
+
+  it("缩短事件直接释放空白，不要求无影响确认", async () => {
+    const { owner, track, measure, event, onPending, onSuccess } = setup();
+    expect(
+      await owner.request(
+        {
+          type: "numbered.event.setRhythm",
+          trackId: track.id,
+          measureId: measure.id,
+          eventId: event.id,
+          rhythm: { base: "eighth", dots: 0 },
+          timeline: "editTimeline",
+        },
+        "rhythm",
+      ),
+    ).toMatchObject({ status: "applied" });
+    expect(
+      onPending.mock.calls.every(([candidate]) => candidate === null),
+    ).toBe(true);
+    expect(onSuccess).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    { base: "sixteenth" as const, next: { tick: 720, endTick: 960 } },
+    { base: "eighth" as const, next: { eventId: "mvp72-beat-1-2-numbered" } },
+  ])(
+    "空位部分或完整录入后将核心 nextNumberedFocus 传给成功回调：$base",
+    async ({ base, next }) => {
+      const { owner, session, track, measure, onSuccess, commit } = setup(
+        (document) => {
+          document.score.tracks[0]!.measures[0]!.numberedVoice.events[0]!.rhythm =
+            { base: "eighth", dots: 0 };
+        },
+      );
+      const before = session.getState().document!;
+      const existing = structuredClone(measure.numberedVoice.events);
+      expect(
+        await owner.request(
+          {
+            type: "numbered.sequence.insert",
+            trackId: track.id,
+            measureId: measure.id,
+            startTick: 480,
+            endTick: 960,
+            items: [{ kind: "set", tokens: ["6"] }],
+            rhythms: [{ base, dots: 0 }],
+          },
+          "content",
+        ),
+      ).toMatchObject({ status: "applied" });
+      expect(commit).toHaveBeenCalledOnce();
+      expect(onSuccess.mock.calls[0]?.[2]).toMatchObject({
+        nextNumberedFocus: {
+          trackId: track.id,
+          measureId: measure.id,
+          ...next,
+        },
+      });
+      const after = session.getState().document!.score.tracks[0]!.measures[0]!;
+      expect(
+        after.numberedVoice.events.filter((e) =>
+          existing.some((old) => old.id === e.id),
+        ),
+      ).toEqual(existing);
+      expect(after.lyrics).toEqual(measure.lyrics);
+      expect(after.beats).toEqual(measure.beats);
+      session.getState().undo();
+      expect(session.getState().document).toEqual(before);
+    },
+  );
+
+  it("普通录入遇已有事件拒绝整次提交，即使范围包含空位也不覆盖", async () => {
+    const { owner, session, track, measure, commit } = setup((document) => {
+      document.score.tracks[0]!.measures[0]!.numberedVoice.events[0]!.rhythm = {
+        base: "eighth",
+        dots: 0,
+      };
+    });
+    const before = session.getState().document;
+    expect(
+      await owner.request(
+        {
+          type: "numbered.sequence.insert",
+          trackId: track.id,
+          measureId: measure.id,
+          startTick: 480,
+          endTick: 1920,
+          items: [
+            { kind: "set", tokens: ["6"] },
+            { kind: "set", tokens: ["7"] },
+          ],
+          rhythms: [
+            { base: "eighth", dots: 0 },
+            { base: "eighth", dots: 0 },
+          ],
+        },
+        "content",
+      ),
+    ).toMatchObject({ status: "blocked" });
+    expect(commit).not.toHaveBeenCalled();
+    expect(session.getState().document).toEqual(before);
+    expect(session.getState().historyDepth.past).toBe(0);
+  });
+
   it("影响确认前零写入，确认成功才结束 Promise，一次撤销恢复内容和记号", async () => {
     const { owner, session, remove, commit, onSuccess } = setup();
     const original = session.getState().document;
@@ -104,14 +277,12 @@ describe("S3 简谱提交终态", () => {
       if (change === "replace")
         session.getState().replaceDocument(EXAMPLE_MVP_7_2_DOCUMENT);
       else {
-        session
-          .getState()
-          .execute({
-            type: LXMScoreCommandEnum.SetNotationInfo,
-            title: "changed",
-            arranger: "",
-            keySignature: "C",
-          });
+        session.getState().execute({
+          type: LXMScoreCommandEnum.SetNotationInfo,
+          title: "changed",
+          arranger: "",
+          keySignature: "C",
+        });
         session.getState().undo();
       }
       expect(await result).toMatchObject({ status: "stale" });

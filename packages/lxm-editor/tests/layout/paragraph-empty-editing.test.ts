@@ -9,23 +9,25 @@ import {
   LXMScoreCommandEnum,
 } from "../../src";
 
-/** 保留真实拍点，移除全部文本，复现没有预先占位的曲谱。 */
-const fixture = () => {
+/** 歌词只能从真实简谱音符录入；简谱空白录入单独使用无事件声部。 */
+const fixture = (kind: "lyric" | "numbered" = "lyric") => {
   const document = structuredClone(EXAMPLE_MVP_6_DOCUMENT);
   const track = document.score.tracks[0]!;
   for (const m of track.measures) {
     m.lyrics = [];
-    m.numberedVoice = { events: [], tuplets: [] };
+    if (kind === "numbered") m.numberedVoice = { events: [], tuplets: [] };
   }
   const m = track.measures[0]!;
+  const target: Omit<Parameters<typeof layoutParagraphFocus>[1], "kind"> = {
+    trackId: track.id,
+    measureId: m.id,
+    ...(kind === "lyric"
+      ? { eventId: m.numberedVoice.events[0]!.id }
+      : { tick: 0, endTick: 480 }),
+  };
   return {
     document,
-    target: {
-      trackId: track.id,
-      measureId: m.id,
-      beatId: m.beats[0]!.id,
-      string: 1 as const,
-    },
+    target,
   };
 };
 
@@ -36,9 +38,9 @@ describe("无占位歌词和简谱编辑", () => {
       purpose: "editing",
       paragraphEditing: { ...target, kind: "lyric", verse: 1 },
     });
-    const beat = layout.systems[0]!.measures[0]!.beats[0]!;
+    const slot = layout.systems[0]!.measures[0]!.numberedSlots[0]!;
     const cell = layout.systems[0]!.musicTextCells!.find(
-      (item) => item.beatId === target.beatId && item.kind === "lyric",
+      (item) => item.eventId === target.eventId && item.kind === "lyric",
     )!;
     const focus = () =>
       layoutParagraphFocus(layout, { ...target, kind: "lyric", verse: 1 })!;
@@ -46,11 +48,11 @@ describe("无占位歌词和简谱编辑", () => {
     // 极窄拍仍以音符为中心显示默认框，较长拍位则完整覆盖对应单元。
     cell.width = 8;
     expect(focus()).toMatchObject({
-      x: beat.x - 12,
+      x: slot.x - 12,
       width: 24,
       height: Math.max(18, cell.height),
     });
-    cell.x = beat.x - 20;
+    cell.x = slot.x - 20;
     cell.width = 80;
     expect(focus()).toMatchObject({ x: cell.x, width: 80 });
   });
@@ -58,7 +60,7 @@ describe("无占位歌词和简谱编辑", () => {
   it.each(["lyric", "numbered"] as const)(
     "空 %s 区域可以命中、提交，且不影响正式导出布局",
     (kind) => {
-      const { document, target } = fixture();
+      const { document, target } = fixture(kind);
       const before = structuredClone(document);
       const formal = buildLayout(document, { systemWidth: 180 });
       const editing = buildLayout(document, {
@@ -73,7 +75,9 @@ describe("无占位歌词和简谱编辑", () => {
             )!
           : editing.systems[0]!.musicTextCells!.find(
               (c) =>
-                c.beatId === target.beatId && c.kind === kind && c.verse === 3,
+                c.eventId === target.eventId &&
+                c.kind === kind &&
+                c.verse === 3,
             )!;
       expect(
         (kind === "numbered" ? hitTestNumbered : hitTestMusicText)(editing, {
@@ -83,7 +87,7 @@ describe("无占位歌词和简谱编辑", () => {
       ).toMatchObject(
         kind === "numbered"
           ? { kind: "numberedTime" }
-          : { beatId: target.beatId, kind },
+          : { eventId: target.eventId, kind },
       );
       expect(
         layoutParagraphFocus(editing, { ...target, kind, verse: 3 })!.y,
@@ -108,6 +112,7 @@ describe("无占位歌词和简谱编辑", () => {
           ? {
               type: LXMScoreCommandEnum.SetLyric,
               ...target,
+              eventId: target.eventId!,
               verse: 3,
               text: "新词",
             }
@@ -142,18 +147,9 @@ describe("无占位歌词和简谱编辑", () => {
     m.lyrics = [
       {
         id: "long-lyric",
-        beatId: target.beatId,
+        eventId: target.eventId!,
         verse: 1,
         text: "这是一段较长的歌词",
-      },
-    ];
-    m.numberedVoice.events = [
-      {
-        id: "num",
-        tick: 0,
-        rhythm: { base: "eighth", dots: 0 },
-        kind: "notes",
-        items: [{ id: "num-item", token: "1" }],
       },
     ];
     const layout = buildLayout(document);
@@ -166,11 +162,12 @@ describe("无占位歌词和简谱编辑", () => {
     ).toBe("long-lyric");
     for (const kind of ["lyric"] as const) {
       const cell = layout.systems[0]!.musicTextCells!.find(
-        (c) => c.beatId === m.beats.at(-1)!.id && c.kind === kind,
+        (c) =>
+          c.eventId === m.numberedVoice.events.at(-1)!.id && c.kind === kind,
       )!;
       expect(
         hitTestMusicText(layout, { x: cell.x + cell.width / 2, y: cell.y + 1 }),
-      ).toMatchObject({ kind, beatId: cell.beatId });
+      ).toMatchObject({ kind, eventId: cell.eventId });
     }
     expect(collectLabels(layout)).not.toContain("1.");
   });
