@@ -10,7 +10,16 @@ import {
 import { deriveEditorToolState } from "./editor-tool-state";
 export type MeasureToolTarget = { trackId: string; measureId: string };
 export type EditorToolbarAction =
-  | { type: "undo" | "redo" | "muted" | "removeNotes" | "rest" | "restore" }
+  | {
+      type:
+        | "undo"
+        | "redo"
+        | "muted"
+        | "removeNotes"
+        | "rest"
+        | "restore"
+        | "sustain";
+    }
   | {
       type: "insertMeasure" | "copyMeasures" | "removeMeasure" | "startRepeat";
       target?: MeasureToolTarget;
@@ -99,6 +108,15 @@ export const buildEditorToolCommand = (
       : null;
   }
   if (!selection || !tools.range || !focus) return null;
+  if (action.type === "sustain") {
+    if (!tools.sustain.enabled || !tools.sustainBeatId) return null;
+    return {
+      type: C.ExtendBeat,
+      trackId: focus.track.id,
+      measureId: focus.measure.id,
+      beatId: tools.sustainBeatId,
+    };
+  }
   if (action.type === "rhythm" || action.type === "dots") {
     if (!tools.rhythm.enabled) return null;
     const beat = focus.measure.beats.find(

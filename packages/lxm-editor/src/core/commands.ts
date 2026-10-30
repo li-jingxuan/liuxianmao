@@ -1,6 +1,7 @@
 import { buildNumberedIndex } from "./numbered-rhythm";
 import { planBeatPaste, type BeatClipboard } from "./beat-clipboard";
 import { splitBeat, mergeBeats } from "./beat-structure";
+import { extendBeat } from "./beat-sustain";
 import { techniqueBeatIds } from "./content-protection";
 import { type NumberedSequenceItem } from "./numbered-notation";
 import { validateTuning } from "./tuning";
@@ -69,6 +70,7 @@ import type {
 
 export enum LXMScoreCommandEnum {
   SplitBeat = "beat.split",
+  ExtendBeat = "beat.sustain",
   MergeBeats = "beat.mergeRange",
   PasteBeats = "beat.paste",
   SetNumbered = "numberedNotation.set",
@@ -142,6 +144,9 @@ export interface ILXMRemoveNotesInRectCommand {
 export interface ILXMSetBeatRhythmCommand extends ILXMBeatCommandBase {
   type: LXMScoreCommandEnum.SetBeatRhythm;
   rhythm: ILXMRhythm;
+}
+export interface ILXMExtendBeatCommand extends ILXMBeatCommandBase {
+  type: LXMScoreCommandEnum.ExtendBeat;
 }
 export interface ILXMSetBeatKindCommand extends ILXMBeatCommandBase {
   type: LXMScoreCommandEnum.SetBeatKind;
@@ -322,6 +327,7 @@ export interface ILXMBeatPasteCommand {
 }
 
 type ScoreCommandOperation =
+  | ILXMExtendBeatCommand
   | ILXMBeatPasteCommand
   | ILXMNumberedCommand
   | ILXMNumberedVoiceCommand
@@ -1247,6 +1253,42 @@ const applyScoreCommandInternal = (
         }
       : result;
   }
+  if (command.type === LXMScoreCommandEnum.ExtendBeat) {
+    const track = document.score.tracks.find((t) => t.id === command.trackId);
+    if (!track) return fail("TRACK_NOT_FOUND", "目标轨道不存在");
+    const result = extendBeat(
+      track,
+      command.measureId,
+      command.beatId,
+      createDocumentIdFactory(document),
+    );
+    if (!result.ok) return fail(result.code, result.message);
+    if (!result.changed) return unchanged(document);
+    const finalized = finalize(
+      {
+        ...document,
+        documentRevision: document.documentRevision + 1,
+        score: {
+          ...document.score,
+          tracks: document.score.tracks.map((t) =>
+            t === track ? result.track : t,
+          ),
+        },
+      },
+      document,
+      command,
+    );
+    return finalized.ok
+      ? {
+          ...finalized,
+          nextFocus: {
+            trackId: track.id,
+            measureId: command.measureId,
+            beatId: result.focusBeatId,
+          },
+        }
+      : finalized;
+  }
   if (
     command.type === LXMScoreCommandEnum.SplitBeat ||
     command.type === LXMScoreCommandEnum.MergeBeats
@@ -1955,7 +1997,12 @@ export const applyScoreCommand = (
   if (!result.ok || !result.changed) return result;
   const effects = [
     ...(result.effects ?? []),
-    ...collectCommandEffects(document, result.document, command),
+    ...collectCommandEffects(document, result.document, command).filter(
+      // 延续命令把长休止拆出一拍，并未压缩后续音乐时长。
+      (effect) =>
+        command.type !== LXMScoreCommandEnum.ExtendBeat ||
+        effect.kind !== "beat.compressed",
+    ),
   ];
   const unique = [
     ...new Map(effects.map((e) => [JSON.stringify(e), e])).values(),

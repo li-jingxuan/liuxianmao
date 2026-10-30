@@ -47,6 +47,46 @@ export const createRestBeats = (
   });
 };
 
+/** 自动补空在单位拍边界处分段；不跨拍合并成更长的休止。 */
+export const createBeatAlignedRestBeats = (
+  startTick: number,
+  ticks: number,
+  timeSignature: ILXMTimeSignature,
+  createBeatId: () => string,
+): ILXMBeat[] | null => {
+  const unitTicks = (TICKS_PER_QUARTER * 4) / timeSignature.denominator;
+  if (
+    !Number.isInteger(startTick) ||
+    startTick < 0 ||
+    !Number.isInteger(ticks) ||
+    ticks < 0 ||
+    !Number.isInteger(unitTicks) ||
+    unitTicks <= 0
+  )
+    return null;
+  const rhythms: { tick: number; rhythm: ILXMRhythm }[] = [];
+  const end = startTick + ticks;
+  let cursor = startTick;
+  while (cursor < end) {
+    const boundary = (Math.floor(cursor / unitTicks) + 1) * unitTicks;
+    const segment = createRestRhythmsForTicks(Math.min(end, boundary) - cursor);
+    if (!segment.ok) return null;
+    for (const rhythm of segment.rhythms) {
+      const duration = calculateRhythmTicks(rhythm);
+      if (!duration.ok) return null;
+      rhythms.push({ tick: cursor, rhythm });
+      cursor += duration.ticks;
+    }
+  }
+  return rhythms.map(({ tick, rhythm }) => ({
+    id: createBeatId(),
+    tick,
+    rhythm,
+    kind: "rest",
+    notes: [],
+  }));
+};
+
 /**
  * 按拍号的单位拍创建空白小节。
  *

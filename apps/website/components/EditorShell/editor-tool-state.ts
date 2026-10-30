@@ -50,9 +50,37 @@ export const deriveEditorToolState = (
   const contiguous =
     indexes.length > 0 && indexes.at(-1)! - indexes[0]! + 1 === indexes.length;
   const tuplet = resolveTupletSelection(document, selection);
+  const selectedIndex =
+    focused && selection && range?.beats.length === 1
+      ? focused.measure.beats.findIndex(
+          (beat) => beat.id === selection.focus.beatId,
+        )
+      : -1;
+  const selectedBeat =
+    selectedIndex >= 0 ? focused!.measure.beats[selectedIndex] : undefined;
+  // 可选中起音向后延续，也可选中空拍延续紧邻的前音。
+  const sustainSource =
+    selectedBeat?.kind === "rest"
+      ? focused?.measure.beats[selectedIndex - 1]
+      : selectedBeat;
+  const sustainReason =
+    range?.beats.length !== 1
+      ? "请先选择一个起音或紧随其后的空拍。"
+      : focused?.measure.timeSignature.denominator !== 4
+        ? "延续一拍目前用于以四分音符为单位拍的拍号。"
+        : !sustainSource?.notes.length ||
+            sustainSource.notes.some((note) => typeof note.fret !== "number")
+          ? "请选择有品位的起音，或紧随其后的空拍；闷音不能延续。"
+          : focused.measure.tuplets.some((group) =>
+                group.beatIds.includes(sustainSource.id),
+              )
+            ? "连音组请使用整组编辑。"
+            : "";
   return {
     range,
     focused,
+    sustain: available(!sustainReason, sustainReason),
+    sustainBeatId: sustainSource?.id,
     note: available(!!range, "请先选择 TAB 单元格。"),
     rhythm: available(
       range?.beats.length === 1,

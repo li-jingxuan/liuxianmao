@@ -55,6 +55,7 @@ export * from "./core/numbered-notation";
 
 export * from "./core/beat-clipboard";
 export * from "./core/beat-structure";
+export * from "./core/beat-sustain";
 
 export {
   EXAMPLE_MVP7C_DOCUMENT,
