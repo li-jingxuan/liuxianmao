@@ -2,7 +2,7 @@
 import { createMeasureRhythmContext } from "./tuplet";
 import { getMeasureCapacityTicks } from "./rhythm";
 import { collectMusicTextBeatIds } from "./music-text";
-import { createRestBeats } from "./rest-beats";
+import { createBeatAlignedRestBeats } from "./rest-beats";
 import type { ILXMMeasure } from "./types";
 
 /** 分组休止和被编辑的休止也属于明确内容，只消费其后的普通尾部休止。 */
@@ -60,7 +60,12 @@ export const reconcileMeasureTimeline = (
     }) && expected === capacity;
   const rests = unchangedTail
     ? tail
-    : createRestBeats(tick, capacity - tick, options.createBeatId);
+    : createBeatAlignedRestBeats(
+        tick,
+        capacity - tick,
+        measure.timeSignature,
+        options.createBeatId,
+      );
   if (!rests) return { ok: false, code: "RHYTHM_NOT_REPRESENTABLE" };
   return { ok: true, measure: { ...measure, beats: [...prefix, ...rests] } };
 };

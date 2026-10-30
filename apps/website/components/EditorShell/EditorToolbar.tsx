@@ -48,6 +48,7 @@ import { formatNumberedBeatPosition } from "./numbered-editor-target";
 import { useEditorRuntime } from "./EditorSessionRuntime";
 import type { EditorCommandAdapter } from "./editor-command-adapter";
 import type { ToolActionHandler } from "./editor-tool-actions";
+import { buildEditorToolCommand } from "./editor-tool-actions";
 import type { ToolNavigation } from "./editor-tool-catalog";
 import type { SelectionRequestResult } from "./editor-object-selection";
 import styles from "./index.module.scss";
@@ -435,6 +436,20 @@ export const EditorToolbar = ({
       live.current.editingBlocked
     )
       return false;
+    if (action.type === "sustain") {
+      const now = session.getState();
+      if (!now.document || now.numberedSelection || modals.isOpen()) return false;
+      const command = buildEditorToolCommand(now.document, now.selection, action);
+      if (!command) {
+        setErrorMessage("请选择六线谱起音或紧随其后的空拍。");
+        return false;
+      }
+      const result = await executeLatest(command);
+      const success = result.status === "applied" || result.status === "noop";
+      if (success) setErrorMessage(null);
+      else if ("message" in result) setErrorMessage(result.message);
+      return success;
+    }
     const success = await onAction(action);
     if (success) host.current?.close(true);
     return success;
@@ -555,6 +570,18 @@ export const EditorToolbar = ({
           onClick={() => void run({ type: "restore" })}
         >
           恢复
+        </ToolButton>
+        <ToolButton
+          label="延续一拍"
+          title="延续前音一个四分音符，不重新拨弦；后方须有空白。"
+          availability={available(
+            numberedSelection
+              ? { enabled: false, reason: "请先选择六线谱起音或空拍。" }
+              : tools.sustain,
+          )}
+          onClick={() => void run({ type: "sustain" })}
+        >
+          <LinkOutlined /> 延续一拍
         </ToolButton>
         <ToolButton
           label="删除所选音符"
