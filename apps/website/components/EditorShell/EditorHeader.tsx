@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, type ReactNode, type RefObject } from "react";
+import Link from "next/link";
 import { Button, Popover, Segmented, Switch } from "antd";
 import {
   EyeOutlined,
@@ -47,6 +48,12 @@ export const EditorHeader = ({
         <span>编辑工作区</span>
       </div>
       <div className={styles.headerActions}>
+        <Link
+          className={`${styles.headerNativeAction} ${styles.learningLink}`}
+          href="/guitar-advanced"
+        >
+          吉他进阶
+        </Link>
         <Popover
           trigger="click"
           placement="bottomRight"
