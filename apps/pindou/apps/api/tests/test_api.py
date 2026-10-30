@@ -10,21 +10,21 @@ from PIL import Image
 
 from pindou.api.dependencies import (
     get_color_chart,
-    get_foreground_mask_adapter,
     get_image_enhancer,
+    provide_foreground_preparer,
     provide_settings,
 )
 from pindou.api.routes import conversions as conversions_route
 from pindou.core.config import Settings
 from pindou.imaging.color_budget import ColorBudgetBand
-from pindou.imaging.foreground import RawForegroundMask
+from pindou.imaging.foreground import ForegroundPreparer, RawForegroundMask
 from pindou.main import app
 from pindou.schemas.conversion import BackgroundMode, ConversionStyle
 from pindou.services.enhancer import EnhancementOptions, EnhancementResult, NativeAlphaHint
 
 
 class FakeAiEnhancer:
-    name = "seedream-5-pro"
+    name = "seedream-5"
     model = "fake-model"
     prompt_version = "fake-prompt"
     last_options: EnhancementOptions | None = None
@@ -50,7 +50,7 @@ class FakeAiEnhancer:
 class FakeSolidEnhancer:
     """模拟 Seedream 返回通过覆盖率和边缘连通验证的原生透明 PNG。"""
 
-    name = "seedream-5-pro"
+    name = "seedream-5"
     model = "test-model"
     prompt_version = "test-native-alpha"
     supported_styles = frozenset(ConversionStyle)
@@ -67,7 +67,7 @@ class FakeSolidEnhancer:
 class FakeInvalidAlphaEnhancer:
     """模拟携带 Alpha band 但全不透明的无效 Seedream 输出。"""
 
-    name = "seedream-5-pro"
+    name = "seedream-5"
     model = "test-model"
     prompt_version = "test-chroma"
     supported_styles = frozenset(ConversionStyle)
@@ -79,7 +79,7 @@ class FakeInvalidAlphaEnhancer:
 
 
 class FakeUpstreamErrorEnhancer:
-    name = "seedream-5-pro"
+    name = "seedream-5"
     model = "test-model"
     prompt_version = "test-prompt"
     supported_styles = frozenset(ConversionStyle)
@@ -91,17 +91,13 @@ class FakeUpstreamErrorEnhancer:
         raise ApiError(502, "AI_UPSTREAM_ERROR", "AI 服务暂时不可用")
 
 
-class ConstantForegroundMaskAdapter:
-    name = "test-constant"
+class ExplodingForegroundMaskAdapter:
+    name = "must-not-run"
     model_version = "test-v1"
     ready = True
 
     def generate(self, image: Image.Image) -> RawForegroundMask:
-        return RawForegroundMask(
-            Image.new("L", image.size, 255),
-            self.name,
-            self.model_version,
-        )
+        raise AssertionError("原生透明背景转换不应调用本地蒙版模型")
 
 
 def test_healthcheck(client: TestClient) -> None:
@@ -626,12 +622,13 @@ def test_solid_native_alpha_does_not_depend_on_onnx_confidence(
         _env_file=None,
         app_env="test",
         image_enhancer="passthrough",
-        enable_onnx_matting=True,
         event_log_dir=event_log_dir,
         api_key_hash_pepper="test-hash-pepper",
     )
-    previous_adapter = app.dependency_overrides[get_foreground_mask_adapter]
-    app.dependency_overrides[get_foreground_mask_adapter] = ConstantForegroundMaskAdapter
+    app.dependency_overrides[provide_foreground_preparer] = lambda: ForegroundPreparer(
+        enhancer=FakeSolidEnhancer(),
+        mask_adapter=ExplodingForegroundMaskAdapter(),
+    )
     try:
         response = client.post(
             "/api/v1/conversions",
@@ -647,7 +644,7 @@ def test_solid_native_alpha_does_not_depend_on_onnx_confidence(
     finally:
         app.dependency_overrides.pop(get_image_enhancer, None)
         app.dependency_overrides.pop(provide_settings, None)
-        app.dependency_overrides[get_foreground_mask_adapter] = previous_adapter
+        app.dependency_overrides.pop(provide_foreground_preparer, None)
 
     assert response.status_code == 200
     payload = response.json()
@@ -672,7 +669,6 @@ def test_solid_accepts_opaque_alpha_without_simplify_fallback(
         app_env="test",
         image_enhancer="seedream",
         ark_doubao_api_key="test-key",
-        enable_onnx_matting=False,
         image_backup_dir=backup_dir,
         event_log_dir=event_log_dir,
         api_key_hash_pepper="test-hash-pepper",
@@ -701,14 +697,12 @@ def test_solid_accepts_opaque_alpha_without_simplify_fallback(
     assert len(list(backup_dir.glob("*-foreground-metrics.json"))) == 1
 
 
-def test_event_log_failure_does_not_fail_conversion(
+def test_event_log_failure_preserves_upstream_error(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """原生 Alpha 成功路径不触发旧的键色降级事件落盘。"""
-    app.dependency_overrides[get_image_enhancer] = FakeSolidEnhancer
-    previous_adapter = app.dependency_overrides[get_foreground_mask_adapter]
-    app.dependency_overrides[get_foreground_mask_adapter] = ConstantForegroundMaskAdapter
+    """诊断日志写入失败仍保留上游错误的 HTTP 和业务错误契约。"""
+    app.dependency_overrides[get_image_enhancer] = FakeUpstreamErrorEnhancer
 
     def fail_to_write(*_args, **_kwargs) -> None:
         raise OSError("disk unavailable")
@@ -728,10 +722,10 @@ def test_event_log_failure_does_not_fail_conversion(
         )
     finally:
         app.dependency_overrides.pop(get_image_enhancer, None)
-        app.dependency_overrides[get_foreground_mask_adapter] = previous_adapter
 
-    assert response.status_code == 200
-    assert response.json()["meta"]["background_processing"] == "transparent_background"
+    assert response.status_code == 502
+    assert response.json()["error"]["code"] == "AI_UPSTREAM_ERROR"
+    assert response.json()["error"]["request_id"] == response.headers["x-request-id"]
 
 
 def test_ai_upstream_error_is_written_to_event_log(client: TestClient, tmp_path: Path) -> None:

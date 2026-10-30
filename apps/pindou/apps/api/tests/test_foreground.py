@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 from PIL import Image
 
+from pindou.core.errors import ApiError
 from pindou.imaging.color_budget import ColorBudgetBand
 from pindou.imaging.foreground import ForegroundPreparer, RawForegroundMask
 from pindou.schemas.conversion import BackgroundMode, ConversionStyle
@@ -44,23 +45,6 @@ class _ExplodingMaskAdapter:
         raise AssertionError("原生 Alpha 主路径不应调用 ONNX")
 
 
-class _ValidMaskAdapter:
-    name = "test-onnx"
-    model_version = "test-onnx-v1"
-    ready = True
-
-    def __init__(self) -> None:
-        self.input_pixel: tuple[int, int, int, int] | None = None
-
-    def generate(self, image: Image.Image) -> RawForegroundMask:
-        self.input_pixel = image.getpixel((0, 0))
-        mask = Image.new("L", image.size, 0)
-        for x in range(2, image.width - 2):
-            for y in range(2, image.height - 2):
-                mask.putpixel((x, y), 255)
-        return RawForegroundMask(mask, self.name, self.model_version)
-
-
 def _options(mode: BackgroundMode = BackgroundMode.SOLID) -> EnhancementOptions:
     return EnhancementOptions(
         grid_size=52,
@@ -76,7 +60,6 @@ def test_solid_accepts_valid_native_alpha_without_calling_onnx() -> None:
     preparer = ForegroundPreparer(
         enhancer=_NativeAlphaEnhancer(),
         mask_adapter=_ExplodingMaskAdapter(),
-        enable_onnx_matting=True,
     )
     try:
         prepared = preparer.prepare(source, options=_options())
@@ -106,21 +89,19 @@ def test_solid_accepts_any_alpha_shape_without_quality_scoring(alpha: int) -> No
         prepared.image.close()
     finally:
         source.close()
-def test_solid_uses_onnx_fallback_when_native_alpha_is_missing() -> None:
+
+
+def test_solid_rejects_missing_native_alpha_without_calling_onnx() -> None:
     source = Image.new("RGBA", (12, 12), (255, 255, 255, 255))
-    adapter = _ValidMaskAdapter()
     preparer = ForegroundPreparer(
         enhancer=_NativeAlphaEnhancer(hint=False),
-        mask_adapter=adapter,
+        mask_adapter=_ExplodingMaskAdapter(),
     )
     try:
-        prepared = preparer.prepare(source, options=_options())
-        try:
-            assert prepared.processing == "local_matte"
-            assert prepared.foreground_model_version == "test-onnx-v1"
-            assert adapter.input_pixel == (0, 0, 0, 0)
-        finally:
-            prepared.image.close()
+        with pytest.raises(ApiError) as caught:
+            preparer.prepare(source, options=_options())
+        assert caught.value.status_code == 422
+        assert caught.value.code == "AI_BACKGROUND_SEPARATION_FAILED"
     finally:
         source.close()
 

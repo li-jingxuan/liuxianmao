@@ -10,8 +10,8 @@ from threading import BoundedSemaphore
 
 from PIL import Image, ImageOps, UnidentifiedImageError
 
-from pindou.core.errors import ApiError
 from pindou.core.ark_errors import map_ark_error
+from pindou.core.errors import ApiError
 from pindou.core.event_log import write_event_log
 from pindou.imaging.image_backup import save_seedream_response_bytes
 from pindou.imaging.seedream_input import prepare_transparent_input
@@ -99,7 +99,11 @@ class SeedreamEnhancer:
             if self._log_prompts:
                 # 开发环境才记录完整提示词，避免生产日志长期保留用户图片上下文。
                 logger.info("Seedream prompt (development):\n%s", prompt)
-            request_model = self._model_pro if options.background_mode is BackgroundMode.SOLID else self._model_lite
+            request_model = (
+                self._model_pro
+                if options.background_mode is BackgroundMode.SOLID
+                else self._model_lite
+            )
             try:
                 result = self._client.edit_image(
                     model=request_model,

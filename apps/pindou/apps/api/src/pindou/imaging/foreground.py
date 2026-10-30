@@ -249,7 +249,9 @@ class ForegroundPreparer:
 
         hint = enhancement.background_hint
         if isinstance(hint, NativeAlphaHint):
-            return self._prepare_native_alpha(source, enhanced, hint=hint, enhancer_model=enhancer_model)
+            return self._prepare_native_alpha(
+                source, enhanced, hint=hint, enhancer_model=enhancer_model
+            )
         # ONNX 兜底只针对当前透明 PNG 协议缺失 Alpha 的成功 Ark 响应；历史键色
         # Hint 不能被误认成此协议，否则会悄悄改变旧增强器的语义。
         if hint is None:

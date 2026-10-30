@@ -58,4 +58,5 @@ def test_env_example_can_be_loaded_as_settings(monkeypatch: pytest.MonkeyPatch) 
 
     assert settings.app_env == "development"
     assert settings.image_enhancer == "seedream"
-    assert settings.foreground_model_variant == "u2net"
+    assert settings.ark_doubao_image_model_pro == "doubao-seedream-5-0-pro-260628"
+    assert settings.ark_doubao_image_model_lite == "doubao-seedream-5-0-lite-260128"

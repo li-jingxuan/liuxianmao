@@ -150,7 +150,10 @@ class Settings(BaseSettings):
         if self.image_enhancer == "seedream":
             if self.ark_doubao_api_key is None or not self.ark_doubao_api_key.get_secret_value():
                 raise ValueError("IMAGE_ENHANCER=seedream 时必须配置 ARK_DOUBAO_API_KEY")
-            if not self.ark_doubao_image_model_pro.strip() or not self.ark_doubao_image_model_lite.strip():
+            if (
+                not self.ark_doubao_image_model_pro.strip()
+                or not self.ark_doubao_image_model_lite.strip()
+            ):
                 raise ValueError("IMAGE_ENHANCER=seedream 时必须配置 Pro/Lite 模型")
         if self.ark_doubao_response_format != "b64_json":
             raise ValueError("MVP2 仅支持 ARK_DOUBAO_RESPONSE_FORMAT=b64_json")

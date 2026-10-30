@@ -1,6 +1,7 @@
-from PIL import Image
-from io import BytesIO
 from pathlib import Path
+
+from PIL import Image
+
 
 def prepare_seedream_transparent_input(input_path: str, output_path: str):
     img = Image.open(input_path).convert("RGBA")
