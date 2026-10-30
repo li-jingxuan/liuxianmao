@@ -291,6 +291,13 @@ export const NumberedEditor = ({
     else if (!pending) impactDialog.current?.close();
   }, [pending]);
   const parsed = useMemo(() => parseNumberedSequence(raw), [raw]);
+  // 单音留空只清除已有事件的内容，保留该事件占用的时间。
+  const clearSingleEvent =
+    mode === "single" &&
+    !raw.trim() &&
+    !!event &&
+    template === "uniform" &&
+    !fixedRange;
   const [templateBase, setTemplateBase] = useState<ILXMRhythmBase>(
     savedDraft?.templateBase ??
       numberedInputRhythmForWindow(
@@ -362,7 +369,16 @@ export const NumberedEditor = ({
   );
   const contentFingerprint = contentValue(raw);
   const operation = useMemo<ILXMNumberedVoiceCommand | null>(() => {
-    if (!track || !measure || !parsed.ok) return null;
+    if (!track || !measure) return null;
+    if (clearSingleEvent && event)
+      return {
+        type: "numbered.event.set",
+        trackId: track.id,
+        measureId: measure.id,
+        eventId: event.id,
+        tokens: [],
+      };
+    if (!parsed.ok) return null;
     if (
       mode === "single" &&
       template === "uniform" &&
@@ -451,6 +467,7 @@ export const NumberedEditor = ({
     customRhythms,
     ratioIndex,
     fixedRange,
+    clearSingleEvent,
   ]);
   const plan = useMemo(
     () =>
@@ -471,15 +488,18 @@ export const NumberedEditor = ({
         : [],
     [track, plan, operation],
   );
-  const issue = !parsed.ok
-    ? parsed.message
-    : mode === "single" && parsed.items.length !== 1
-      ? "单音组只接受一项；先后音请使用节奏模板"
-      : plan && !plan.ok
-        ? plan.message
-        : null;
+  const issue =
+    !parsed.ok && !clearSingleEvent
+      ? parsed.message
+      : mode === "single" && parsed.ok && parsed.items.length !== 1
+        ? "单音组只接受一项；先后音请使用节奏模板"
+        : plan && !plan.ok
+          ? plan.message
+          : null;
   const contentDirty =
-    contentFingerprint !== contentBaseline && (raw !== initial || !!raw.trim());
+    !(clearSingleEvent && event?.kind === "gap") &&
+    contentFingerprint !== contentBaseline &&
+    (raw !== initial || !!raw.trim());
 
   useEffect(() => {
     // 外部时值偏好只同步干净模板，已输入的内容和缓存草稿保留自己的时值。

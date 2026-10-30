@@ -44,11 +44,13 @@ export const validateNumberedClipboard = (input: unknown, track: ILXMTrack) => {
   ];
   if (new Set(ids).size !== ids.length)
     return { ok: false as const, message: "简谱快照 ID 重复" };
-  const notes = new Set(
-    c.voice.events.filter((e) => e.kind === "notes").map((e) => e.id),
+  const lyricEventIds = new Set(
+    c.voice.events
+      .filter((e) => e.kind === "notes" || e.kind === "gap")
+      .map((e) => e.id),
   );
   if (
-    c.lyrics.some((lyric) => !notes.has(lyric.eventId)) ||
+    c.lyrics.some((lyric) => !lyricEventIds.has(lyric.eventId)) ||
     new Set(c.lyrics.map((lyric) => `${lyric.eventId}:${lyric.verse}`)).size !==
       c.lyrics.length
   )

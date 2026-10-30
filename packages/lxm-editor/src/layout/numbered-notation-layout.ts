@@ -14,6 +14,7 @@ import {
 import type { ILXMLayout } from "./layout-types";
 import { getMeasureContentBottom } from "./rhythm-bounds";
 import { numberedXAtTick } from "./numbered-input-layout";
+import { layoutLyricPlaceholder } from "./lyric-placeholder-layout";
 import {
   numberedLayoutProfile,
   type NumberedLayoutProfile,
@@ -248,10 +249,36 @@ export const layoutParagraphFocus = (
   }
 
   for (const s of layout.systems) {
-    const m = s.measures.find((m) => m.id === target.measureId),
-      slot = m?.numberedSlots.find(
-        (slot) => slot.id === target.eventId && slot.kind === "notes",
+    const m = s.measures.find((m) => m.id === target.measureId);
+    if (!m) continue;
+    if (!target.eventId) {
+      const cell = s.musicTextCells?.find(
+        (cell) =>
+          cell.measureId === m.id &&
+          cell.kind === "lyric" &&
+          cell.tick === target.tick &&
+          cell.endTick === target.endTick &&
+          cell.verse === (target.verse ?? 1),
       );
+      if (!cell) return null;
+      if (cell.eventId)
+        return layoutParagraphFocus(layout, {
+          ...target,
+          eventId: cell.eventId,
+        });
+      const anchorX = cell.anchorX ?? numberedXAtTick(m, target.tick!);
+      return {
+        x: anchorX - MUSIC_TEXT_PLACEHOLDER_WIDTH / 2,
+        y: cell.y,
+        width: MUSIC_TEXT_PLACEHOLDER_WIDTH,
+        height: Math.max(MUSIC_TEXT_PLACEHOLDER_HEIGHT, cell.height),
+      };
+    }
+    const slot = m?.numberedSlots.find(
+      (slot) =>
+        slot.id === target.eventId &&
+        (slot.kind === "notes" || slot.kind === "gap"),
+    );
     if (!m || !slot) continue;
     const existing = layout.hitIndex.musicTextBounds?.find(
       (r) =>
@@ -279,13 +306,11 @@ export const layoutParagraphFocus = (
         (target.kind !== "lyric" || c.verse === (target.verse ?? 1)),
     );
     if (cell) {
-      // 空歌词沿用拍位单元的横向范围，窄拍则保留默认尺寸并对齐音符锚点。
-      const width = Math.max(MUSIC_TEXT_PLACEHOLDER_WIDTH, cell.width);
+      // 焦点与空占位共用音符中心；窄格仅扩展视觉焦点，不扩展命中范围。
+      const placeholder = layoutLyricPlaceholder(cell, slot.x);
+      const width = Math.max(MUSIC_TEXT_PLACEHOLDER_WIDTH, placeholder.width);
       return {
-        x:
-          cell.width >= MUSIC_TEXT_PLACEHOLDER_WIDTH
-            ? cell.x
-            : slot.x - MUSIC_TEXT_PLACEHOLDER_WIDTH / 2,
+        x: slot.x - width / 2,
         y: cell.y,
         width,
         height: Math.max(MUSIC_TEXT_PLACEHOLDER_HEIGHT, cell.height),

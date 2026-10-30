@@ -127,14 +127,16 @@ const failure = (
   code: Extract<NumberedCandidate, { ok: false }>["code"] = "NUMBERED_INVALID",
 ): NumberedCandidate => ({ ok: false, code, message });
 /** 将输入种类规范化为简谱事件，不从 TAB 读取节奏。 */
-const content = (tokens: string[], factory: ILXMIdFactory) => ({
-  kind: (tokens[0] === "0"
-    ? "rest"
-    : tokens[0] === "-"
-      ? "continuation"
-      : "notes") as "notes" | "rest" | "continuation",
-  items: tokens.map((token) => ({ id: factory.createNumberedItemId(), token })),
-});
+const content = (tokens: string[], factory: ILXMIdFactory) => {
+  if (!tokens.length) return { kind: "gap" as const, items: [] as [] };
+  const items = tokens.map((token) => ({
+    id: factory.createNumberedItemId(),
+    token,
+  }));
+  if (tokens[0] === "0") return { kind: "rest" as const, items };
+  if (tokens[0] === "-") return { kind: "continuation" as const, items };
+  return { kind: "notes" as const, items };
+};
 /** 候选修改与技巧维护一次完成；preview 模式返回同一影响列表。 */
 export const editNumberedTrack = (
   track: ILXMTrack,
@@ -201,7 +203,8 @@ export const editNumberedTrack = (
     const updates = new Map<string, ILXMNumberedEvent>();
     for (const [i, item] of command.items.entries()) {
       if (item.kind === "skip") continue;
-      if (!validNumberedTokens(item.tokens)) return failure("简谱内容无效");
+      if (item.tokens.length && !validNumberedTokens(item.tokens))
+        return failure("简谱内容无效");
       const e = rows[start + i]!.e;
       if (
         JSON.stringify(e.items.map((x) => x.token)) ===
@@ -277,7 +280,8 @@ export const editNumberedTrack = (
             "NUMBERED_OVERLAP",
           );
         if (item.kind === "set") {
-          if (!validNumberedTokens(item.tokens)) return failure("简谱内容无效");
+          if (item.tokens.length && !validNumberedTokens(item.tokens))
+            return failure("简谱内容无效");
           created.push({
             id: factory.createNumberedEventId(),
             tick: cursor,
@@ -301,7 +305,8 @@ export const editNumberedTrack = (
         };
       }
     } else if (command.type === "numbered.event.set") {
-      if (!validNumberedTokens(command.tokens)) return failure("简谱音高无效");
+      if (command.tokens.length && !validNumberedTokens(command.tokens))
+        return failure("简谱音高无效");
       if (command.itemId) {
         if (
           command.tokens.length !== 1 ||
@@ -781,7 +786,9 @@ export const editNumberedTrack = (
         ...measure,
         lyrics: measure.lyrics.filter((lyric) =>
           measure.numberedVoice.events.some(
-            (event) => event.id === lyric.eventId && event.kind === "notes",
+            (event) =>
+              event.id === lyric.eventId &&
+              (event.kind === "notes" || event.kind === "gap"),
           ),
         ),
       })),

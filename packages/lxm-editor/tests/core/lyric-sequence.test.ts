@@ -208,6 +208,6 @@ describe("连续填词语法与原子领域命令", () => {
     expect(plan.rows).toHaveLength(2);
     expect(plan.rows[0]!.status).toBe("skip");
     expect(plan.rows[1]).toMatchObject({ target: null, status: "error" });
-    expect(plan.issue).toContain("还缺 1 个简谱音符");
+    expect(plan.issue).toContain("还缺 1 个歌词位置");
   });
 });

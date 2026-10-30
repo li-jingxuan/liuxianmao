@@ -97,15 +97,15 @@ export const LyricFormView = ({
           <div id="lyric-sequence-tips" className={styles.sidebarTip}>
             <strong>连续填词规则</strong>
             <p>
-              用空格分词，每项依次对应一个简谱音符，自动跳过休止。用{" "}
-              <code>_</code> 跳过一个音符并保留原词。
+              用空格分词，每项依次对应一个音符或空白位置，自动跳过休止。用{" "}
+              <code>_</code> 跳过一个位置并保留原词。
             </p>
             <p>
               默认允许替换已有歌词。先核对对应预览，再应用全部；整批可一次撤销。
             </p>
             <details>
               <summary>详细规则</summary>
-              半角与全角空格均可分隔，首尾空格忽略。每项最多64字，每批最多256个音符；不接受换行或制表符，超出谱尾整批拒绝。英文空格也会拆词，同一音符的短句请用单音符编辑。
+              半角与全角空格均可分隔，首尾空格忽略。每项最多64字，每批最多256个位置；不接受换行或制表符，超出谱尾整批拒绝。英文空格也会拆词，同一位置的短句请用单音符编辑。
             </details>
           </div>
           <Checkbox
@@ -183,7 +183,7 @@ export const LyricFormView = ({
             {existingText ?? `此音符暂无第 ${draft.target.verse} 段歌词。`}
           </p>
           <p className={styles.sidebarTip}>
-            Enter 应用并移到下一个简谱音符；Shift+Enter
+            Enter 应用并移到下一个歌词位置；Shift+Enter
             仅应用。每个音符单行，支持第1–4段歌词。
           </p>
         </>

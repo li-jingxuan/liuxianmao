@@ -273,6 +273,9 @@ export interface ILXMHitIndex {
     beatId?: string;
     eventId?: string;
     id: string;
+    tick?: number;
+    endTick?: number;
+    anchorX?: number;
     empty?: boolean;
     kind: "lyric" | "chord" | "numbered";
     verse?: import("../core/types").ILXMLyricVerse;

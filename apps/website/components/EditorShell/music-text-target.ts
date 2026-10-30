@@ -1,5 +1,7 @@
 import {
   getMeasureCapacityTicks,
+  planLyricPositions,
+  resolveLyricPosition,
   type ILXMDocument,
   type ILXMTabCellReference,
 } from "@liuxianmao/lxm-editor";
@@ -9,32 +11,38 @@ import { resolveNumberedEditorTarget } from "./numbered-editor-target";
 export type ParagraphInsertionTarget = {
   trackId: string;
   measureId: string;
-  eventId: string;
+  eventId?: string;
+  tick?: number;
+  endTick?: number;
 };
 
-/** 歌词只能从当前选中的简谱音符事件开始，不能由 TAB 或空白窗口推断。 */
+/** 从选中的音符或空时间窗开始；首次添加时可使用当前小节的第一个歌词位置。 */
 export const resolveParagraphInsertionTarget = (
   document: ILXMDocument | null,
   preferred: MusicTextTarget | ILXMTabCellReference | null,
 ): ParagraphInsertionTarget | null => {
-  if (
-    !document ||
-    !preferred ||
-    !("eventId" in preferred) ||
-    !preferred.eventId
-  )
-    return null;
-  const track = document.score.tracks.find(
-    (item) => item.id === preferred.trackId,
-  );
-  const measure = track?.measures.find(
-    (item) => item.id === preferred.measureId,
-  );
-  const event = measure?.numberedVoice.events.find(
-    (item) => item.id === preferred.eventId,
-  );
-  if (track && measure && event?.kind === "notes")
-    return { trackId: track.id, measureId: measure.id, eventId: event.id };
+  if (!document) return null;
+  const track =
+    document.score.tracks.find((item) => item.id === preferred?.trackId) ??
+    (!preferred ? document.score.tracks[0] : undefined);
+  const measure =
+    track?.measures.find((item) => item.id === preferred?.measureId) ??
+    (!preferred ? track?.measures[0] : undefined);
+  if (!track || !measure) return null;
+  const position =
+    preferred &&
+    (("eventId" in preferred && preferred.eventId) ||
+      ("tick" in preferred && preferred.tick !== undefined))
+      ? resolveLyricPosition(measure, preferred)
+      : planLyricPositions(measure)[0];
+  if (position)
+    return {
+      trackId: track.id,
+      measureId: measure.id,
+      ...(position.eventId
+        ? { eventId: position.eventId }
+        : { tick: position.tick, endTick: position.endTick }),
+    };
   return null;
 };
 
@@ -46,20 +54,31 @@ export const resolveNextLyricTarget = (
   const track = document.score.tracks.find(
     (item) => item.id === target.trackId,
   );
-  const events =
+  const events: Omit<ParagraphInsertionTarget, "trackId">[] =
     track?.measures.flatMap((measure) =>
-      measure.numberedVoice.events
-        .filter((event) => event.kind === "notes")
-        .slice()
-        .sort((a, b) => a.tick - b.tick)
-        .map((event) => ({ measureId: measure.id, eventId: event.id })),
+      planLyricPositions(measure).map((position) => ({
+        measureId: measure.id,
+        ...(position.eventId
+          ? { eventId: position.eventId }
+          : { tick: position.tick, endTick: position.endTick }),
+      })),
     ) ?? [];
+  const measure = track?.measures.find(
+    (measure) => measure.id === target.measureId,
+  );
+  const position = measure && resolveLyricPosition(measure, target);
   const index = events.findIndex(
     (event) =>
-      event.measureId === target.measureId && event.eventId === target.eventId,
+      event.measureId === target.measureId &&
+      position &&
+      (position.eventId
+        ? event.eventId === position.eventId
+        : event.tick === position.tick),
   );
   const next = index >= 0 ? events[index + 1] : undefined;
-  return next ? { ...target, ...next } : null;
+  return next
+    ? { kind: "lyric", trackId: target.trackId, verse: target.verse, ...next }
+    : null;
 };
 
 /** 布局未就绪不能猜测谱行；返回 null 由入口解释，避免误建第五段。 */

@@ -176,10 +176,14 @@ describe("内容行入口目标解析", () => {
     });
   });
 
-  it("拒绝无选区、TAB、失效事件、休止与空白窗口，不回退到首轨", () => {
+  it("无选区可从首位置开始，拒绝失效事件和休止", () => {
     const { document, target, chordTarget, measure } = fixture();
-    expect(resolveParagraphInsertionTarget(document, null)).toBeNull();
-    expect(resolveParagraphInsertionTarget(document, chordTarget)).toBeNull();
+    expect(resolveParagraphInsertionTarget(document, null)).toMatchObject({
+      eventId: target.eventId,
+    });
+    expect(
+      resolveParagraphInsertionTarget(document, chordTarget),
+    ).toMatchObject({ eventId: target.eventId });
     expect(
       resolveParagraphInsertionTarget(document, {
         ...target,

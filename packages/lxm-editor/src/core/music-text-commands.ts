@@ -1,6 +1,8 @@
 import { normalizeMusicText } from "./music-text";
 import { cloneChordDiagram } from "./chord-diagram";
 import { LXMChordSymbolSchema } from "./schema";
+import { resolveLyricPosition } from "./lyric-positions";
+import { numberedRhythmForTicks } from "./numbered-input-ranges";
 import type { ILXMIdFactory } from "./id-factory";
 import type {
   ILXMMusicTextCommand,
@@ -45,24 +47,44 @@ export const editMeasureMusicText = (
     };
   }
   if (command.type === "lyric.set") {
-    const event = measure.numberedVoice.events.find(
-      (event) => event.id === command.eventId,
-    );
-    if (!event || event.kind !== "notes")
-      return fail("MUSIC_TEXT_BEAT_NOT_FOUND", "歌词目标简谱音符不存在");
+    const position = resolveLyricPosition(measure, command);
+    if (!position)
+      return fail("MUSIC_TEXT_BEAT_NOT_FOUND", "歌词目标时间位置不存在");
     if (![1, 2, 3, 4].includes(command.verse))
       return fail("INVALID_LYRIC_VERSE", "歌词段号应为 1–4");
     const text = normalizeMusicText(command.text, 64);
     if (text === null)
       return fail("INVALID_LYRIC_TEXT", "歌词须为单行非空文字，最多 64 个字符");
+    let eventId = position.eventId;
+    if (!eventId) {
+      const rhythm = numberedRhythmForTicks(position.endTick - position.tick);
+      if (!rhythm)
+        return fail("MUSIC_TEXT_BEAT_NOT_FOUND", "当前时间位置无法保存时值");
+      eventId = factory.createNumberedEventId();
+      measure = {
+        ...measure,
+        numberedVoice: {
+          ...measure.numberedVoice,
+          events: [
+            ...measure.numberedVoice.events,
+            {
+              id: eventId,
+              tick: position.tick,
+              rhythm: { ...rhythm },
+              kind: "gap" as const,
+              items: [] as [],
+            },
+          ].sort((a, b) => a.tick - b.tick),
+        },
+      };
+    }
     const existing = measure.lyrics.find(
-      (item) =>
-        item.eventId === command.eventId && item.verse === command.verse,
+      (item) => item.eventId === eventId && item.verse === command.verse,
     );
     if (existing?.text === text) return { ok: true, changed: false, measure };
     const item: ILXMLyric = {
       id: existing?.id ?? factory.createLyricId(),
-      eventId: command.eventId,
+      eventId,
       verse: command.verse,
       text,
     };

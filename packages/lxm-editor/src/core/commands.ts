@@ -235,7 +235,9 @@ export type ILXMMusicTextCommand =
       type: LXMScoreCommandEnum.SetLyric;
       trackId: string;
       measureId: string;
-      eventId: string;
+      eventId?: string;
+      tick?: number;
+      endTick?: number;
       verse: ILXMLyricVerse;
       text: string;
     }

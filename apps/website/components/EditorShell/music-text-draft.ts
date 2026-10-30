@@ -7,6 +7,7 @@ import type {
   ILXMLyricVerse,
 } from "@liuxianmao/lxm-editor";
 import type { ChordDraft } from "./ChordEditor";
+import { resolveLyricPosition } from "@liuxianmao/lxm-editor";
 
 export type MusicTextTarget =
   | (ILXMTabCellReference & {
@@ -21,13 +22,13 @@ export type MusicTextTarget =
       kind: "lyric";
       trackId: string;
       measureId: string;
-      eventId: string;
+      eventId?: string;
       verse?: ILXMLyricVerse;
       string?: number;
       beatId?: never;
       itemId?: never;
-      tick?: never;
-      endTick?: never;
+      tick?: number;
+      endTick?: number;
     }
   | {
       kind: "numbered";
@@ -149,13 +150,20 @@ export const readMusicTextDraft = (
     target.kind === "numbered" ||
     !measure ||
     (target.kind === "lyric"
-      ? !measure.numberedVoice.events.some(
-          (event) => event.id === target.eventId && event.kind === "notes",
-        )
+      ? !resolveLyricPosition(measure, target)
       : !measure.beats.some((beat) => beat.id === target.beatId))
   )
     return null;
   const verse = target.verse ?? 1;
+  const position =
+    target.kind === "lyric" ? resolveLyricPosition(measure, target) : undefined;
+  if (target.kind === "lyric" && position?.eventId)
+    target = {
+      ...target,
+      eventId: position.eventId,
+      tick: undefined,
+      endTick: undefined,
+    };
   const lyric = measure.lyrics.find(
     (l) => l.eventId === target.eventId && l.verse === verse,
   );

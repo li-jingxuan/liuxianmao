@@ -1,5 +1,9 @@
 import { buildNumberedIndex } from "../core/numbered-rhythm";
-import { layoutNumberedInputSlots } from "./numbered-input-layout";
+import { planLyricPositions } from "../core/lyric-positions";
+import {
+  layoutNumberedInputSlots,
+  numberedXAtTick,
+} from "./numbered-input-layout";
 import { layoutNumberedStructure } from "./numbered-structure-layout";
 import {
   layoutNumberedMarks,
@@ -146,6 +150,10 @@ export const layoutSystemContent = (
       ? editing
       : undefined;
     const rawNumbered = [...numberedByMeasure.values()].flat();
+    const showNumberedInput =
+      purpose === "editing" &&
+      (!!active ||
+        system.measures.some((m) => source.get(m.id)!.lyrics.length > 0));
     const emptyBody = musicTextGlyph(musicTextRequest("0", 14), 0, 0, metrics);
     const rawNumberedMarks = layoutNumberedMarks(
       track,
@@ -155,16 +163,12 @@ export const layoutSystemContent = (
       numberedIndex,
       profile,
     );
-    if (
-      rawNumbered.length ||
-      rawNumberedMarks.length ||
-      active?.kind === "numbered"
-    )
+    if (rawNumbered.length || rawNumberedMarks.length || showNumberedInput)
       rawNumberedMarks.push(
         ...layoutNumberedStructure(track, system, rawNumbered, metrics),
       );
     const numberedDy =
-      rawNumbered.length || rawNumberedMarks.length
+      rawNumbered.length || rawNumberedMarks.length || showNumberedInput
         ? bottom +
           profile.staffGap -
           Math.min(
@@ -180,16 +184,12 @@ export const layoutSystemContent = (
       );
     // 歌词从简谱最低圆点之后起排，无简谱时不预留额外一行。
     const paragraphBottom = Math.max(
-      bottom +
-        (active?.kind === "numbered" && !rawNumbered.length
-          ? MUSIC_TEXT_LANE_GAP + 18
-          : 0),
+      bottom,
       ...[...numberedByMeasure.values()]
         .flat()
         .map((n) => n.bounds.y + n.bounds.height),
       ...rawNumberedMarks.map((n) => n.bounds.y + n.bounds.height + numberedDy),
-      ...(rawNumbered.length ||
-      !(rawNumberedMarks.length || active?.kind === "numbered")
+      ...(rawNumbered.length || !(rawNumberedMarks.length || showNumberedInput)
         ? []
         : [emptyBody.bounds.y + emptyBody.bounds.height + numberedDy]),
     );
@@ -220,6 +220,7 @@ export const layoutSystemContent = (
       [...blocksByMeasure.values()].flat(),
     );
     const maxVerse = Math.max(
+      active ? 1 : 0,
       active?.kind === "lyric" ? (active.verse ?? 1) : 0,
       ...system.measures.flatMap((m) =>
         source.get(m.id)!.lyrics.map((l) => l.verse),
@@ -298,7 +299,7 @@ export const layoutSystemContent = (
     // 段落标记仅保存在文档中，不再投影为标签或影响顶部占位。
     const originalTop = musicTop;
     const dy = nextTop - originalTop;
-    // 歌词单元格按简谱事件的中点划分；真实文字优先命中。
+    // 全部简谱事件参与中点划分，只有音符生成歌词入口；真实文字优先命中。
     const musicTextCells: NonNullable<ILXMSystemLayout["musicTextCells"]> = [];
     // 占位只使用数字正文带，不把高音点、减时线和上方连线当作输入框基线。
     const body =
@@ -308,23 +309,38 @@ export const layoutSystemContent = (
     const numberedTop = body.bounds.y + numberedDy;
     const numberedHeight = Math.max(18, body.bounds.height);
     for (const m of measures) {
-      const slots = m.numberedSlots
-        .filter((slot) => slot.kind === "notes")
-        .sort((a, b) => a.tick - b.tick);
+      const positions = planLyricPositions(source.get(m.id)!);
+      const slots = [
+        ...m.numberedSlots.map((slot) => ({
+          ...slot,
+          endTick: positions.find((position) => position.eventId === slot.id)
+            ?.endTick,
+        })),
+        ...positions
+          .filter((position) => !position.eventId)
+          .map((position) => ({
+            id: undefined,
+            kind: "gap" as const,
+            tick: position.tick,
+            endTick: position.endTick,
+            x: numberedXAtTick(m, position.tick),
+          })),
+      ].sort((a, b) => a.tick - b.tick);
       const addRow = (
         y: number,
         height: number,
         verse?: import("../core/types").ILXMLyricVerse,
       ) => {
         slots.forEach((slot, i) => {
+          if (slot.kind !== "notes" && slot.kind !== "gap") return;
           const x = i ? (slots[i - 1]!.x + slot.x) / 2 : m.x;
           const right =
             i + 1 < slots.length
               ? (slot.x + slots[i + 1]!.x) / 2
               : m.x + m.width;
-          const exists = m.lyrics?.some(
-            (l) => l.eventId === slot.id && l.verse === verse,
-          );
+          const exists =
+            !!slot.id &&
+            m.lyrics?.some((l) => l.eventId === slot.id && l.verse === verse);
           musicTextCells.push({
             x,
             y: y + dy,
@@ -333,7 +349,10 @@ export const layoutSystemContent = (
             trackId: track.id,
             measureId: m.id,
             eventId: slot.id,
-            id: slot.id,
+            tick: slot.tick,
+            endTick: slot.endTick,
+            anchorX: slot.x,
+            id: slot.id ?? `time-${slot.tick}-${slot.endTick}`,
             kind: "lyric",
             verse,
             empty: !exists,
@@ -350,9 +369,7 @@ export const layoutSystemContent = (
     }
     const result: ILXMSystemLayout = {
       ...system,
-      ...(rawNumbered.length ||
-      rawNumberedMarks.length ||
-      active?.kind === "numbered"
+      ...(rawNumbered.length || rawNumberedMarks.length || showNumberedInput
         ? {
             numberedRow: {
               y: numberedTop + dy,

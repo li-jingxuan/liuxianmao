@@ -42,6 +42,7 @@ export * from "./core/chord-presets";
 export { default as EXAMPLE_MVP_6_DOCUMENT } from "../example/example-mvp6.json";
 
 export * from "./core/lyric-sequence";
+export * from "./core/lyric-positions";
 
 export { default as EXAMPLE_TECHNIQUE_RHYTHM_DOCUMENT } from "../example/example-technique-rhythm";
 

@@ -72,7 +72,7 @@ const clipboard = (
 };
 
 describe("独立简谱歌词复制与 TAB 隔离", () => {
-  it("歌词只接受本小节普通音符 eventId，拒绝 Beat、休止与空白锚点", () => {
+  it("歌词拒绝 Beat、休止与延续锚点", () => {
     const { document, target, measure } = fixture();
     for (const eventId of ["tab-0", "missing"]) {
       expect(
@@ -86,17 +86,12 @@ describe("独立简谱歌词复制与 TAB 隔离", () => {
       ).toBe(false);
     }
     const event = measure.numberedVoice.events[0]!;
-    for (const kind of ["rest", "continuation", "gap"] as const) {
-      measure.numberedVoice.events[0] =
-        kind === "gap"
-          ? { ...event, kind, items: [] }
-          : {
-              ...event,
-              kind,
-              items: [
-                { id: "special-item", token: kind === "rest" ? "0" : "-" },
-              ],
-            };
+    for (const kind of ["rest", "continuation"] as const) {
+      measure.numberedVoice.events[0] = {
+        ...event,
+        kind,
+        items: [{ id: "special-item", token: kind === "rest" ? "0" : "-" }],
+      };
       expect(
         applyScoreCommand(document, {
           type: C.SetLyric,
@@ -134,7 +129,7 @@ describe("独立简谱歌词复制与 TAB 隔离", () => {
     ).toBe(false);
   });
 
-  it("连续填词跨过简谱休止和空白，只消耗普通音符位置", () => {
+  it("连续填词跨过简谱休止并接受 gap 位置", () => {
     const { document, target, measure } = fixture();
     const first = measure.numberedVoice.events[0]!;
     first.rhythm = { base: "eighth", dots: 0 };
@@ -176,7 +171,7 @@ describe("独立简谱歌词复制与 TAB 隔离", () => {
     expect(plan.issue).toBeNull();
     expect(plan.rows.map((row) => row.target?.eventId)).toEqual([
       first.id,
-      second.id,
+      "gap",
     ]);
     const result = run(document, {
       type: C.SetLyricSequence,
@@ -193,7 +188,7 @@ describe("独立简谱歌词复制与 TAB 隔离", () => {
       result.document.score.tracks[0]!.measures[0]!.lyrics.map(
         (lyric) => lyric.eventId,
       ),
-    ).toEqual([first.id, second.id]);
+    ).toEqual([first.id, "gap"]);
   });
 
   it("简谱快照只携带范围内各段歌词，深复制并拒绝旧 Beat 锚点及无效事件引用", () => {

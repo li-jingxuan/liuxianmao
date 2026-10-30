@@ -1,4 +1,7 @@
-import type { ILXMLayout } from "@liuxianmao/lxm-editor";
+import {
+  layoutLyricPlaceholder,
+  type ILXMLayout,
+} from "@liuxianmao/lxm-editor";
 import type { resolveParagraphFocus } from "./music-text-focus";
 import styles from "./index.module.scss";
 
@@ -6,7 +9,6 @@ type ParagraphFocus = NonNullable<ReturnType<typeof resolveParagraphFocus>>;
 
 /** 窄拍位仅提示录入位置；最小编辑宽度由核心焦点计算统一提供。 */
 const PLACEHOLDER_BOX_MIN_WIDTH = 24;
-const PLACEHOLDER_INSET = 2;
 const PLACEHOLDER_MARK_HEIGHT = 10;
 
 /** 只绘制临时提示，不扩展核心单元格，也不参与指针命中或图片导出。 */
@@ -29,7 +31,11 @@ export const MusicTextEditingHints = ({
       return (system.musicTextCells ?? [])
         .filter((cell) => cell.empty)
         .map((cell) => {
-          const width = Math.max(0, cell.width - PLACEHOLDER_INSET * 2);
+          const anchorX =
+            cell.anchorX ??
+            eventX.get(cell.eventId!) ??
+            cell.x + cell.width / 2;
+          const placeholder = layoutLyricPlaceholder(cell, anchorX);
           // 展开的定位框附近降低空占位对比度，防止密集拍点出现多重边框。
           const nearFocus = [activeFocus, hoverFocus].some(
             (focus) =>
@@ -41,14 +47,13 @@ export const MusicTextEditingHints = ({
               focus.y + focus.height > cell.y,
           );
           const props = {
-            "data-paragraph-cell": `${cell.kind}/${cell.measureId}/${cell.eventId}/${cell.verse ?? ""}`,
+            "data-paragraph-cell": `${cell.kind}/${cell.measureId}/${cell.eventId ?? cell.id}/${cell.verse ?? ""}`,
             className: styles.musicTextPlaceholder,
             opacity: nearFocus ? 0.15 : 1,
           };
           const key = props["data-paragraph-cell"];
-          if (width < PLACEHOLDER_BOX_MIN_WIDTH) {
+          if (placeholder.width < PLACEHOLDER_BOX_MIN_WIDTH) {
             // 中点划分的单元格可能不对称，短标记必须落在真实音符锚点上。
-            const x = eventX.get(cell.eventId!) ?? cell.x + cell.width / 2;
             const middleY = cell.y + cell.height / 2;
             const halfHeight =
               Math.min(PLACEHOLDER_MARK_HEIGHT, cell.height) / 2;
@@ -57,8 +62,8 @@ export const MusicTextEditingHints = ({
                 key={key}
                 {...props}
                 data-paragraph-placeholder="marker"
-                x1={x}
-                x2={x}
+                x1={anchorX}
+                x2={anchorX}
                 y1={middleY - halfHeight}
                 y2={middleY + halfHeight}
                 strokeLinecap="round"
@@ -70,9 +75,9 @@ export const MusicTextEditingHints = ({
               key={key}
               {...props}
               data-paragraph-placeholder="box"
-              x={cell.x + PLACEHOLDER_INSET}
+              x={placeholder.x}
               y={cell.y}
-              width={width}
+              width={placeholder.width}
               height={cell.height}
               strokeDasharray="3 3"
               rx={3}

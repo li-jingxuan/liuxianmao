@@ -20,7 +20,7 @@ export const createNumberedRhythmContext = (voice: ILXMNumberedVoice) => {
   return { tupletByEventId, getEventDurationTicks };
 };
 
-/** 稀疏声部允许空白，但禁止重叠、越界和孤立 gap。 */
+/** 稀疏声部允许空白和独立 gap，但禁止重叠与越界。 */
 export const validateNumberedVoice = (
   voice: ILXMNumberedVoice,
   capacity: number,
@@ -55,12 +55,12 @@ export const validateNumberedVoice = (
   }
   let end = 0;
   for (const event of voice.events) {
+    if (event.kind === "gap" && event.items.length)
+      return "简谱 gap 内容不符合类型";
     const duration = context.getEventDurationTicks(event);
     if (!duration.ok) return "简谱实际时值无法表示为整数 tick";
     if (event.tick < end) return "简谱事件重叠或顺序无效";
     if (event.tick + duration.ticks > capacity) return "简谱事件超出小节容量";
-    if (event.kind === "gap" && !members.has(event.id))
-      return "简谱 gap 必须归属一个连音组";
     end = event.tick + duration.ticks;
   }
   return null;

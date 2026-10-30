@@ -125,7 +125,7 @@ export const validateBeatClipboard = (
   const beatIds = new Set(m.beats.map((b) => b.id));
   const lyricEventIds = new Set(
     c.numberedVoice?.events
-      .filter((event) => event.kind === "notes")
+      .filter((event) => event.kind === "notes" || event.kind === "gap")
       .map((event) => event.id),
   );
   if (

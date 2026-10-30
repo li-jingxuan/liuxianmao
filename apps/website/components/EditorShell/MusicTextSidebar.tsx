@@ -31,6 +31,7 @@ import {
   normalizeMusicText,
   parseLyricSequence,
   planLyricSequence,
+  resolveLyricPosition,
   validateChordDiagram,
   type ILXMTabCellSelection,
   type ILXMLyricVerse,
@@ -241,10 +242,8 @@ export const MusicTextSidebar = ({
   const measure = track?.measures.find((m) => m.id === target?.measureId);
   const validTarget =
     target &&
-    ("eventId" in target && target.eventId
-      ? measure?.numberedVoice.events.some(
-          (event) => event.id === target.eventId && event.kind === "notes",
-        )
+    ("kind" in target && target.kind === "lyric"
+      ? measure && resolveLyricPosition(measure, target)
       : measure?.beats.some((b) => b.id === target.beatId))
       ? target
       : null;
@@ -335,7 +334,7 @@ export const MusicTextSidebar = ({
     () =>
       draft?.target
         ? sequence && inspected && draft.target.kind === "lyric"
-          ? { ...draft.target, ...inspected }
+          ? { kind: "lyric" as const, ...inspected }
           : draft.target
         : null,
     [draft, sequence, inspected],
@@ -587,7 +586,7 @@ export const MusicTextSidebar = ({
       ? score?.score.tracks.find((item) => item.id === next.trackId)
       : undefined;
     if (!next || !currentTrack) {
-      setMessage("请先选择一个简谱音符，再添加歌词。");
+      setMessage("当前没有可用的歌词位置，请先添加小节。");
       return;
     }
     const ids = resolveSystemMeasureIds(next.measureId, getSystemMeasureIds);
@@ -848,7 +847,7 @@ export const MusicTextSidebar = ({
   );
   useEffect(() => onEditingChange(editing), [editing, onEditingChange]);
   const targetKey = draft
-    ? `${draft.target.trackId}/${draft.target.measureId}/${draft.target.kind === "lyric" ? draft.target.eventId : draft.target.beatId}/${kind}/${draft.target.verse}`
+    ? `${draft.target.trackId}/${draft.target.measureId}/${draft.target.kind === "lyric" ? (draft.target.eventId ?? `${draft.target.tick}-${draft.target.endTick}`) : draft.target.beatId}/${kind}/${draft.target.verse}`
     : numberedTarget
       ? `${numberedTarget.trackId}/${numberedTarget.measureId}/${numberedTarget.eventId ?? numberedTarget.tick}/numbered`
       : "";
@@ -1022,14 +1021,23 @@ export const MusicTextSidebar = ({
     );
     if (!result?.ok) return false;
     if (sequence) {
-      setDraft({ ...draft, initial: musicTextDraftValue(draft) });
+      const saved = readMusicTextDraft(
+        result.document,
+        target,
+        draft.lyricMode,
+      );
+      setDraft({
+        ...draft,
+        target: saved?.target ?? target,
+        initial: musicTextDraftValue(draft),
+      });
     } else
       setDraft(readMusicTextDraft(result.document, target, draft.lyricMode));
     setMessage(result.changed ? "已应用" : "内容未变化");
     if (advance && target.kind === "lyric" && !sequence) {
       const next = resolveNextLyricTarget(result.document, target);
       if (next) loadTarget(next);
-      else setMessage("已应用，已到最后一个简谱音符。");
+      else setMessage("已应用，已到最后一个歌词位置。");
     }
     return true;
   };
@@ -1600,7 +1608,7 @@ export const MusicTextSidebar = ({
                 {validTarget
                   ? draftLocation(validTarget, "目标")
                   : kind === "lyric"
-                    ? "请先选择一个简谱音符"
+                    ? "当前没有可用的歌词位置"
                     : "请先选择谱面中的一拍"}
               </p>
               {!draft ? (
@@ -1613,7 +1621,7 @@ export const MusicTextSidebar = ({
                   <h3>{kind === "lyric" ? "连续填词" : "编辑和弦与指法"}</h3>
                   <p>
                     {kind === "lyric"
-                      ? "选择简谱音符后，开始编辑歌词。"
+                      ? "选择音符或空白位置，开始编辑歌词。"
                       : "选择目标拍后，开始编辑和弦。"}
                   </p>
                   <Button

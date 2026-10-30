@@ -116,7 +116,7 @@ describe("歌词以简谱事件定位", () => {
     expect(rendered.lyrics![0]!.label.x).toBe(anchor.x);
   });
 
-  it("只有 notes 事件提供空歌词格和焦点，TAB 拍点与其他简谱种类不能回退", () => {
+  it("音符和空事件提供歌词入口，休止、延续和失效事件不能回退", () => {
     const { document, measure, target } = fixture();
     measure.lyrics = [];
     const kinds = ["notes", "rest", "continuation", "gap"] as const;
@@ -145,12 +145,17 @@ describe("歌词以简谱事件定位", () => {
     const cells = layout.systems[0]!.musicTextCells!;
     expect(cells.map((cell) => [cell.eventId, cell.verse])).toEqual([
       ["event-0", 1],
+      ["event-3", 1],
       ["event-0", 2],
+      ["event-3", 2],
     ]);
     expect(
       layoutParagraphFocus(layout, { ...target, eventId: "event-0" }),
     ).not.toBeNull();
-    for (const eventId of ["event-1", "event-2", "event-3", "missing"])
+    expect(
+      layoutParagraphFocus(layout, { ...target, eventId: "event-3" }),
+    ).not.toBeNull();
+    for (const eventId of ["event-1", "event-2", "missing"])
       expect(layoutParagraphFocus(layout, { ...target, eventId })).toBeNull();
     expect(
       layoutParagraphFocus(layout, {
@@ -164,11 +169,16 @@ describe("歌词以简谱事件定位", () => {
       purpose: "editing",
       paragraphEditing: target,
     });
-    expect(empty.systems[0]!.musicTextCells).toEqual([]);
+    expect(empty.systems[0]!.musicTextCells!.length).toBeGreaterThan(0);
+    expect(
+      empty.systems[0]!.musicTextCells!.every(
+        (cell) => cell.tick !== undefined,
+      ),
+    ).toBe(true);
     expect(layoutParagraphFocus(empty, target)).toBeNull();
   });
 
-  it("缩短只释放简谱空位，原歌词保留且空位没有歌词入口", () => {
+  it("缩短释放的空位可填词，原歌词保留", () => {
     const { document, track, measure, target } = fixture();
     const result = applyScoreCommand(document, {
       type: "numbered.event.setRhythm",
@@ -186,7 +196,9 @@ describe("歌词以简谱事件定位", () => {
     )!;
     expect(released.target.kind).toBe("numberedTime");
     expect(
-      editing.systems[0]!.musicTextCells!.every((cell) => cell.eventId),
+      editing.systems[0]!.musicTextCells!.some(
+        (cell) => cell.tick === 720 && cell.endTick === 960,
+      ),
     ).toBe(true);
     expect(result.document.score.tracks[0]!.measures[0]!.lyrics).toEqual(
       measure.lyrics,

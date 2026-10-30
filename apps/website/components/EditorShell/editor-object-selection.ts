@@ -42,13 +42,15 @@ export const resolveScorePointerAction = (
         string: selection?.focus.string ?? 1,
       },
     };
-  if (text?.kind === "lyric" && text.eventId)
+  if (text?.kind === "lyric" && (text.eventId || text.tick !== undefined))
     return {
       type: "target",
       target: {
         trackId: text.trackId,
         measureId: text.measureId,
-        eventId: text.eventId,
+        ...(text.eventId
+          ? { eventId: text.eventId }
+          : { tick: text.tick, endTick: text.endTick }),
         kind: "lyric",
         verse: text.verse,
         string: selection?.focus.string ?? 1,

@@ -205,7 +205,7 @@ const validateMeasure = (
       targets.add(key);
     });
   }
-  // 歌词按简谱事件/段号排序，只能绑定普通简谱音符。
+  // 歌词按简谱事件/段号排序，绑定普通简谱音符或保留时间的 gap。
   {
     let previous = -1;
     const targets = new Set<string>();
@@ -219,11 +219,14 @@ const validateMeasure = (
       const itemPath = `${path}.lyrics.${index}`;
       registerId(lyric.id, `${itemPath}.id`);
       const entry = eventIndexById.get(lyric.eventId);
-      if (!entry || entry.event.kind !== "notes")
+      if (
+        !entry ||
+        (entry.event.kind !== "notes" && entry.event.kind !== "gap")
+      )
         issues.push({
           code: "MUSIC_TEXT_BEAT_NOT_FOUND",
           path: `${itemPath}.eventId`,
-          message: "歌词目标简谱音符不存在于该小节",
+          message: "歌词目标简谱音符或空白不存在于该小节",
         });
       const order = (entry?.index ?? -1) * 5 + lyric.verse;
       if (order < previous)

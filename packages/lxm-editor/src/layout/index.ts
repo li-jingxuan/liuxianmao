@@ -145,3 +145,4 @@ export * from "./chord-display";
 export * from "./numbered-notation-layout";
 export * from "./page-layout";
 export * from "./numbered-input-layout";
+export * from "./lyric-placeholder-layout";

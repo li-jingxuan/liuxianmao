@@ -102,7 +102,7 @@ describe("歌词的独立简谱事件目标", () => {
     expect(markup).toContain(`x1="${anchor}" x2="${anchor}"`);
   });
 
-  it("单音符前进跳过休止、按 tick 排序并跨小节，失效目标不回退", () => {
+  it("填词前进跳过休止、按 tick 排序进入空位并跨小节，失效目标不回退", () => {
     const { document, track, measure, target } = fixture();
     const [first, second, third] = measure.numberedVoice.events;
     second!.kind = "rest";
@@ -112,8 +112,17 @@ describe("歌词的独立简谱事件目标", () => {
       ...target,
       eventId: third!.id,
     });
+    const blank = resolveNextLyricTarget(document, {
+      ...target,
+      eventId: third!.id,
+    })!;
+    expect(blank).toMatchObject({
+      measureId: measure.id,
+      tick: 960,
+      endTick: 1920,
+    });
     expect(
-      resolveNextLyricTarget(document, { ...target, eventId: third!.id }),
+      resolveNextLyricTarget(document, { ...blank, tick: 2880, endTick: 3840 }),
     ).toEqual({
       ...target,
       measureId: track.measures[1]!.id,

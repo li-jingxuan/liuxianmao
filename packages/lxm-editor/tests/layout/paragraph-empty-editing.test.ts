@@ -32,7 +32,7 @@ const fixture = (kind: "lyric" | "numbered" = "lyric") => {
 };
 
 describe("无占位歌词和简谱编辑", () => {
-  it("空歌词焦点随拍位宽度伸缩，窄拍保持默认尺寸", () => {
+  it("空歌词焦点围绕起音，点击范围变宽也不扩展显示框", () => {
     const { document, target } = fixture();
     const layout = buildLayout(document, {
       purpose: "editing",
@@ -45,7 +45,7 @@ describe("无占位歌词和简谱编辑", () => {
     const focus = () =>
       layoutParagraphFocus(layout, { ...target, kind: "lyric", verse: 1 })!;
 
-    // 极窄拍仍以音符为中心显示默认框，较长拍位则完整覆盖对应单元。
+    // 点击范围与显示框分离，宽窄拍都以音符为中心显示默认框。
     cell.width = 8;
     expect(focus()).toMatchObject({
       x: slot.x - 12,
@@ -54,7 +54,7 @@ describe("无占位歌词和简谱编辑", () => {
     });
     cell.x = slot.x - 20;
     cell.width = 80;
-    expect(focus()).toMatchObject({ x: cell.x, width: 80 });
+    expect(focus()).toMatchObject({ x: slot.x - 12, width: 24 });
   });
 
   it.each(["lyric", "numbered"] as const)(

@@ -16,12 +16,14 @@ export const resolveMusicTextHoverTarget = (
   const numbered = hitTestNumbered(layout, point);
   if (numbered) return { ...numbered, kind: "numbered" };
   const text = hitTestMusicText(layout, point);
-  return text?.kind === "lyric" && text.eventId
+  return text?.kind === "lyric" && (text.eventId || text.tick !== undefined)
     ? {
         kind: "lyric",
         trackId: text.trackId,
         measureId: text.measureId,
-        eventId: text.eventId,
+        ...(text.eventId
+          ? { eventId: text.eventId }
+          : { tick: text.tick, endTick: text.endTick }),
         verse: text.verse,
       }
     : null;
@@ -44,6 +46,11 @@ export const sameMusicTextTarget = (
       ? a.eventId === b.eventId && a.itemId === b.itemId
       : a.tick === b.tick && a.endTick === b.endTick;
   if (a.kind === "lyric" && b.kind === "lyric")
-    return a.eventId === b.eventId && (a.verse ?? 1) === (b.verse ?? 1);
+    return (
+      (a.eventId || b.eventId
+        ? a.eventId === b.eventId
+        : a.tick === b.tick && a.endTick === b.endTick) &&
+      (a.verse ?? 1) === (b.verse ?? 1)
+    );
   return a.kind === "chord" && b.kind === "chord" && a.beatId === b.beatId;
 };
