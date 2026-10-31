@@ -59,3 +59,6 @@ pnpm build
 ```
 
 更多说明见 [Web 文档](apps/pindou/apps/web/README.md)、[API 文档](apps/pindou/apps/api/README.md) 和 [部署文档](apps/pindou/deploy/README.md)。
+
+飞牛应用中心 Docker 安装包及官方 `/app/pindou` 网关接入见
+[飞牛应用包说明](apps/pindou/deploy/fnos/README.md)。

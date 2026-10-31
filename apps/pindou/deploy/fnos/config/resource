@@ -1,0 +1,5 @@
+{
+  "docker-project": {
+    "projects": [{"name": "pindou-fnos", "path": "docker"}]
+  }
+}

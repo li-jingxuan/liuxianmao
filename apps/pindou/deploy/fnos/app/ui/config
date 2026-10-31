@@ -1,0 +1,14 @@
+{
+  ".url": {
+    "pindou.main": {
+      "title": "拼豆",
+      "icon": "images/icon_{0}.png",
+      "type": "iframe",
+      "protocol": "",
+      "gatewayPrefix": "/app/pindou",
+      "gatewaySocket": "pindou.sock",
+      "url": "/app/pindou",
+      "allUsers": true
+    }
+  }
+}

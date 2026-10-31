@@ -1,0 +1,27 @@
+#!/bin/sh
+set -eu
+case "${1:-}" in
+    start|stop)
+        # Docker project resources own the complete Compose lifecycle.
+        exit 0
+        ;;
+    status)
+        # Select by Compose labels instead of assuming generated container names.
+        # All four services must be healthy; an existing but broken socket is insufficient.
+        for service in postgres api web proxy; do
+            ids=$(docker ps -aq --filter label=com.docker.compose.project=pindou-fnos \
+                --filter "label=com.docker.compose.service=$service" \
+                --filter label=com.docker.compose.oneoff=False 2>/dev/null) || exit 3
+            [ -n "$ids" ] || exit 3
+            for id in $ids; do
+                state=$(docker inspect --format '{{.State.Status}} {{if .State.Health}}{{.State.Health.Status}}{{end}}' "$id" 2>/dev/null) || exit 3
+                [ "$state" = 'running healthy' ] || exit 3
+            done
+        done
+        exit 0
+        ;;
+    *)
+        if [ -n "${TRIM_TEMP_LOGFILE:-}" ]; then printf '%s\n' '不支持的拼豆运行命令。' > "$TRIM_TEMP_LOGFILE"; fi
+        exit 1
+        ;;
+esac

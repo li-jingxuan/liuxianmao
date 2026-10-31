@@ -1,0 +1,12 @@
+[
+  {
+    "stepTitle": "更新方舟密钥",
+    "items": [
+      {"type": "tips", "helpText": "留空保留已有方舟密钥。保存后请从应用中心停止并重新启动拼豆，使容器重新读取配置。数据库密码、管理密钥和哈希 Pepper 不会被轮换。"},
+      {
+        "type": "password", "field": "wizard_ark_api_key", "label": "新的方舟 API Key（可选）",
+        "rules": [{"pattern": "^$|^[A-Za-z0-9_.:-]{8,512}$", "message": "请输入有效的方舟 API Key，或留空保留"}]
+      }
+    ]
+  }
+]

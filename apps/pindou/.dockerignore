@@ -29,3 +29,9 @@ build
 deploy/backups
 deploy/data
 apps/api/src/pindou/assets/images/*
+apps/api/src/pindou/assets/image-deliveries/*
+log
+**/*.ses
+.npm-cache
+deploy/fnos/dist
+deploy/fnos/.tools

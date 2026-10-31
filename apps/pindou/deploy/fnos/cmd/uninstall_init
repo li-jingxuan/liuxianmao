@@ -1,0 +1,3 @@
+#!/bin/sh
+# No rm, volume prune, or database deletion. Back up before platform uninstall.
+exit 0

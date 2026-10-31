@@ -1,8 +1,15 @@
 import type { NextConfig } from "next";
 
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+if (basePath && !/^\/[a-zA-Z0-9_-]+(?:\/[a-zA-Z0-9_-]+)*$/.test(basePath)) {
+  throw new Error("NEXT_PUBLIC_BASE_PATH 必须为无末尾斜杠的绝对路径前缀");
+}
+
 const nextConfig: NextConfig = {
   // 生产镜像使用 standalone server，减少运行时镜像体积
   output: "standalone",
+  basePath,
+  trailingSlash: true,
   allowedDevOrigins: ["192.168.124.31", "192.168.124.12"],
   async headers() {
     return [
@@ -14,6 +21,7 @@ const nextConfig: NextConfig = {
             key: "Referrer-Policy",
             value: "no-referrer",
           },
+          { key: "Cache-Control", value: "private, no-store" },
         ],
       },
     ];

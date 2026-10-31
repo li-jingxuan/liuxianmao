@@ -36,6 +36,7 @@ import { countForegroundBeads } from "@/lib/bead-grid";
 import { drawBeadGrid } from "@/lib/canvas";
 import { cropImageToFile } from "@/lib/image-crop";
 import { exportPatternSheet } from "@/lib/pattern-sheet-export";
+import { deliveryShareUrl } from "@/lib/paths";
 import type {
   BackgroundMode,
   BeadGrid,
@@ -575,10 +576,7 @@ export function PindouConverter({
       const blob = await getPatternSheetBlob();
       const response = await createImageDelivery(blob, { adminApiKey: deliveryAdminKey });
       setDelivery({
-        previewUrl: new URL(
-          `/delivery/${encodeURIComponent(response.token)}`,
-          window.location.origin,
-        ).toString(),
+        previewUrl: deliveryShareUrl(window.location.origin, response.token),
         expiresAt: response.expires_at,
       });
     } catch (cause) {

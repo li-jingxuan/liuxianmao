@@ -1,0 +1,16 @@
+[
+  {
+    "stepTitle": "拼豆初始化",
+    "items": [
+      {"type": "tips", "helpText": "应用通过 /app/pindou 访问，需先登录飞牛。首次安装自动生成独立的数据库密码及管理密钥。方舟服务可能产生费用；请先确认账户和模型可用。"},
+      {
+        "type": "password", "field": "wizard_ark_api_key", "label": "方舟 API Key",
+        "rules": [
+          {"required": true, "message": "生产环境需要方舟 API Key"},
+          {"pattern": "^[A-Za-z0-9_.:-]{8,512}$", "message": "请输入有效的方舟 API Key"}
+        ]
+      },
+      {"type": "tips", "helpText": "管理密钥保存在应用配置目录 api.env 中，仅管理员可读取。首次启动自动迁移数据库并创建 fnos 来源前缀。升级与卸载前请同时备份应用配置和数据。"}
+    ]
+  }
+]

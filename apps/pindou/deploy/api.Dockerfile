@@ -25,8 +25,9 @@ ARG U2NET_MODEL_URL=https://github.com/danielgatis/rembg/releases/download/v0.0.
 #     --url "${U2NET_MODEL_URL}"
 
 # AI 排查备份、事件日志与对外交付图分目录，后者会按 TTL 自动清理。
-RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir /app/apps/api \
+ARG PIP_INDEX_URL=https://pypi.org/simple
+RUN pip install --no-cache-dir --index-url "${PIP_INDEX_URL}" --upgrade pip \
+    && pip install --no-cache-dir --index-url "${PIP_INDEX_URL}" /app/apps/api \
     && mkdir -p /var/lib/pindou/images /var/lib/pindou/log /var/lib/pindou/image-deliveries \
     && chown -R pindou:pindou /app /var/lib/pindou
 

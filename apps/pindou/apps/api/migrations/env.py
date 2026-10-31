@@ -18,7 +18,8 @@ if config.config_file_name is not None:
 configured_url = get_settings().database_url
 if configured_url is None:
     raise RuntimeError("DATABASE_URL is required")
-config.set_main_option("sqlalchemy.url", configured_url.get_secret_value())
+# ConfigParser 使用 % 插值；URL 编码的特殊字符须先转义，读取时恢复原 URL。
+config.set_main_option("sqlalchemy.url", configured_url.get_secret_value().replace("%", "%%"))
 target_metadata = SQLModel.metadata
 
 
@@ -54,4 +55,3 @@ if context.is_offline_mode():
     run_migrations_offline()
 else:
     run_migrations_online()
-

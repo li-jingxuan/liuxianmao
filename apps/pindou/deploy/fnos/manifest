@@ -1,0 +1,13 @@
+appname=pindou
+version=0.1.0
+display_name=拼豆
+desc=将图片转换为拼豆图纸，通过飞牛统一网关访问。
+source=thirdparty
+platform=x86
+maintainer=Pindou contributors
+distributor=Pindou contributors
+desktop_uidir=ui
+desktop_applaunchname=pindou.main
+checkport=false
+ctl_stop=true
+disable_authorization_path=true

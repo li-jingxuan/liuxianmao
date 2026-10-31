@@ -249,6 +249,14 @@ describe("image delivery", () => {
 });
 
 describe("getColorCatalog", () => {
+  it("explains an expired NAS session when the gateway returns login HTML", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("<html>登录</html>", {
+      status: 200,
+      headers: { "Content-Type": "text/html; charset=utf-8" },
+    })));
+    await expect(getColorCatalog()).rejects.toMatchObject({ code: "GATEWAY_SESSION_REQUIRED" });
+  });
+
   it("loads the complete color catalog and forwards the abort signal", async () => {
     const payload: ColorCatalogResponse = {
       brand: "MARD",

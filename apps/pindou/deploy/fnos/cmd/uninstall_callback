@@ -1,0 +1,3 @@
+#!/bin/sh
+# fnOS owns package removal; this script makes no data retention guarantees.
+exit 0

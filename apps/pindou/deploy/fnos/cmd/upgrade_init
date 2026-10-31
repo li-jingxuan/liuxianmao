@@ -1,0 +1,3 @@
+#!/bin/sh
+# Never migrate a live database or reset its credentials here.
+exit 0

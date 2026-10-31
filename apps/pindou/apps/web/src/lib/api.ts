@@ -9,6 +9,7 @@ import type {
   ConversionResult,
   ImageDeliveryResponse,
 } from "./types";
+import { apiPath } from "./paths";
 
 type ApiErrorBody = {
   error?: {
@@ -23,8 +24,6 @@ type ApiErrorBody = {
 type ApiRequestOptions = { apiKey?: string; signal?: AbortSignal };
 type AdminApiRequestOptions = { adminApiKey: string; signal?: AbortSignal };
 
-// Web 端统一访问公网 API，仍允许通过环境变量覆盖以便联调。
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://tppixel-api.cpolar.top";
 /**
  * 保留后端稳定错误码和 request id 的业务异常。
  * UI 默认展示 message；排查线上问题时可进一步记录 code 和 requestId。
@@ -69,6 +68,10 @@ const ERROR_MESSAGES: Record<string, string> = {
  * 会安全降级为通用提示，而不会把 SyntaxError 泄漏给用户。
  */
 const parseResponse = async <T>(response: Response): Promise<T> => {
+  // NAS 会话过期时网关可能返回登录 HTML（有时跳转后为 200）。
+  if (response.headers.get("content-type")?.includes("text/html")) {
+    throw new PindouApiError("登录状态已失效或网关返回了登录页面，请重新登录 NAS 后刷新", "GATEWAY_SESSION_REQUIRED");
+  }
   const body = (await response.json().catch(() => null)) as T | ApiErrorBody | null;
   if (!response.ok) {
     const error = (body as ApiErrorBody | null)?.error;
@@ -178,7 +181,7 @@ const parseBeadGrid = (value: unknown): BeadGrid => {
 
 /** 加载后端实际可用的 MARD 颜色组，前端不维护重复的硬编码列表。 */
 export const getColorSets = async (signal?: AbortSignal): Promise<ColorSetsResponse> => {
-  const response = await fetch(`${BASE_URL}/api/v1/color-sets`, { signal });
+  const response = await fetch(apiPath("/api/v1/color-sets"), { signal });
   return parseResponse<ColorSetsResponse>(response);
 };
 
@@ -186,7 +189,7 @@ export const getColorSets = async (signal?: AbortSignal): Promise<ColorSetsRespo
 export const getColorCatalog = async (
   signal?: AbortSignal,
 ): Promise<ColorCatalogResponse> => {
-  const response = await fetch(`${BASE_URL}/api/v1/colors`, { signal });
+  const response = await fetch(apiPath("/api/v1/colors"), { signal });
   return parseResponse<ColorCatalogResponse>(response);
 };
 
@@ -210,7 +213,7 @@ export const createConversion = async (
   }
 
   const headers = apiKey ? { "X-API-Key": apiKey } : undefined;
-  const response = await fetch(`${BASE_URL}/api/v1/conversions`, {
+  const response = await fetch(apiPath("/api/v1/conversions"), {
     method: "POST",
     body: form,
     headers,
@@ -238,7 +241,7 @@ export const getAccessKeyQuota = async (
   apiKey: string,
   signal?: AbortSignal,
 ): Promise<AccessKeyQuotaResponse> => {
-  const response = await fetch(`${BASE_URL}/api/v1/access-keys/quota`, {
+  const response = await fetch(apiPath("/api/v1/access-keys/quota"), {
     headers: { "X-API-Key": apiKey },
     cache: "no-store",
     signal,
@@ -251,7 +254,7 @@ export const createAccessKey = async (
   input: AccessKeyCreateInput,
   { adminApiKey, signal }: AdminApiRequestOptions,
 ): Promise<AccessKeyCreateResponse> => {
-  const response = await fetch(`${BASE_URL}/api/v1/access-keys`, {
+  const response = await fetch(apiPath("/api/v1/access-keys"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -273,7 +276,7 @@ export const createImageDelivery = async (
 ): Promise<ImageDeliveryResponse> => {
   const form = new FormData();
   form.set("file", blob, "pindou-pattern.png");
-  const response = await fetch(`${BASE_URL}/api/v1/image-deliveries`, {
+  const response = await fetch(apiPath("/api/v1/image-deliveries"), {
     method: "POST",
     headers: { "X-Admin-API-Key": adminApiKey },
     body: form,
@@ -288,12 +291,11 @@ export const getImageDelivery = async (
   signal?: AbortSignal,
 ): Promise<ImageDeliveryResponse> => {
   const response = await fetch(
-    `${BASE_URL}/api/v1/image-deliveries/${encodeURIComponent(token)}`,
+    apiPath(`/api/v1/image-deliveries/${encodeURIComponent(token)}`),
     { cache: "no-store", signal },
   );
   return parseResponse<ImageDeliveryResponse>(response);
 };
 
-/** 把 API 返回的相对路径转换成浏览器可直接加载的完整地址。 */
-export const resolveApiUrl = (path: string): string =>
-  new URL(path, `${BASE_URL.replace(/\/$/, "")}/`).toString();
+/** API 文件与请求采用同一挂载前缀，支持同源路径与显式外部 API。 */
+export const resolveApiUrl = apiPath;

@@ -1,0 +1,5 @@
+#!/bin/sh
+set -eu
+# fnOS creates Compose containers before install_callback. Populate their complete
+# environment now; empty placeholders leave already-created containers unusable.
+exec "$(dirname "$0")/configure"

@@ -1,0 +1,29 @@
+#!/bin/sh
+set -eu
+fail() {
+    message='拼豆初始化失败：请检查 Docker 是否可用、发布镜像能否拉取及应用配置权限。已有配置与数据库不会被重置。'
+    if [ -n "${TRIM_TEMP_LOGFILE:-}" ]; then printf '%s\n' "$message" > "$TRIM_TEMP_LOGFILE"; fi
+    printf '%s\n' "$message" >&2
+    exit 1
+}
+: "${TRIM_APPDEST:?}" "${TRIM_PKGETC:?}" "${TRIM_PKGVAR:?}"
+# cmd is available before the app payload is installed. stage.py copies the
+# initializer and image reference here so install_init can configure Compose.
+bootstrap=$(CDPATH= cd -- "$(dirname "$0")/bootstrap" && pwd)
+image=$(cat "$bootstrap/api-image")
+case "$image" in ''|example.invalid/*) fail ;; esac
+mkdir -p "$TRIM_PKGETC" "$TRIM_PKGVAR"
+# Use Python already shipped in the API image: fnOS host Python is not required.
+# This one-shot helper does not start or stop the fnOS-managed Compose project.
+# Pass the wizard variable by NAME so its value is not placed in process arguments.
+export wizard_ark_api_key="${wizard_ark_api_key:-}"
+if ! docker run --rm --network none --read-only --user 0:0 \
+    --cpus 0.25 --memory 256m --memory-swap 256m --pids-limit 64 \
+    --tmpfs /tmp:rw,nosuid,noexec,size=16m \
+    --env wizard_ark_api_key \
+    --mount "type=bind,src=$bootstrap,dst=/bootstrap,readonly" \
+    --mount "type=bind,src=$TRIM_PKGETC,dst=/config" \
+    --mount "type=bind,src=$TRIM_PKGVAR,dst=/data" \
+    --entrypoint python "$image" /bootstrap/initialize.py; then
+    fail
+fi

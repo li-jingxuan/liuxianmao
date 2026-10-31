@@ -1,0 +1,102 @@
+# Image references are rendered into a staging directory by scripts/build.sh.
+# example.invalid is intentionally unpublishable; do not install the source tree.
+services:
+  postgres:
+    image: postgres:17-alpine
+    cpus: 0.5
+    mem_limit: 256m
+    restart: unless-stopped
+    env_file:
+      - "${TRIM_PKGETC:?}/postgres.env"
+    volumes:
+      - "${TRIM_PKGVAR:?}/postgres:/var/lib/postgresql/data"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    logging: &logging
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+    networks: [backend]
+
+  api:
+    image: example.invalid/pindou/api:0.1.0-fnos
+    cpus: 1.0
+    mem_limit: 1g
+    restart: unless-stopped
+    env_file:
+      - "${TRIM_PKGETC:?}/api.env"
+    environment:
+      APP_ENV: production
+      API_HOST: 0.0.0.0
+      API_PORT: "3112"
+      API_RELOAD: "false"
+      # The proxy removes /app/pindou; FastAPI retains its ordinary /api/v1 routes.
+      MARD_COLOR_CHART_PATH: /app/docs/MARD_色卡.json
+      IMAGE_BACKUP_DIR: /var/lib/pindou/images
+      EVENT_LOG_DIR: /var/lib/pindou/log
+      IMAGE_DELIVERY_DIR: /var/lib/pindou/image-deliveries
+    command: ["python", "/opt/fnos/api-start.py"]
+    volumes:
+      - "${TRIM_APPDEST:?}/docker/api-start.py:/opt/fnos/api-start.py:ro"
+      - "${TRIM_PKGVAR:?}/api-images:/var/lib/pindou/images"
+      - "${TRIM_PKGVAR:?}/api-logs:/var/lib/pindou/log"
+      - "${TRIM_PKGVAR:?}/image-deliveries:/var/lib/pindou/image-deliveries"
+    depends_on:
+      postgres: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:3112/readyz', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    logging: *logging
+    networks: [backend]
+
+  web:
+    image: example.invalid/pindou/web:0.1.0-fnos
+    cpus: 0.5
+    mem_limit: 256m
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "3111"
+      HOSTNAME: 0.0.0.0
+    depends_on:
+      api: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3111/app/pindou/',r=>{r.resume();process.exit(r.statusCode===200?0:1)}).on('error',()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging: *logging
+    networks: [backend]
+
+  proxy:
+    image: example.invalid/pindou/proxy:0.1.0-fnos
+    cpus: 0.25
+    mem_limit: 64m
+    restart: unless-stopped
+    # fnOS connects to ${TRIM_APPDEST}/pindou.sock; no host TCP ports are exposed.
+    volumes:
+      - "${TRIM_APPDEST:?}:/gateway:rw"
+    depends_on:
+      api: {condition: service_healthy}
+      web: {condition: service_healthy}
+    read_only: true
+    tmpfs: ["/tmp:rw,nosuid,noexec,size=64m"]
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "--show-error", "--max-time", "4", "--unix-socket", "/gateway/pindou.sock", "http://localhost/app/pindou/readyz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    logging: *logging
+    networks: [backend]
+
+networks:
+  backend:
+    driver: bridge
