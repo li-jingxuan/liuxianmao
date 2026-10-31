@@ -314,6 +314,54 @@ export const EditorShell: React.FC = () => {
   const lyricEditing =
     activeMusicTextTarget?.kind === "lyric" ||
     activeMusicTextTarget?.kind === "numbered";
+  const getFloatingAnchor = useCallback(
+    (target: MusicTextTarget | null) => {
+      const focus = resolveParagraphFocus(lxmLayout, target);
+      if (!focus || !scoreSvgRef.current) return null;
+      const matrix = scoreSvgRef.current.getScreenCTM();
+      if (!matrix) return null;
+      const start = new DOMPoint(focus.x, focus.y).matrixTransform(matrix);
+      const end = new DOMPoint(
+        focus.x + focus.width,
+        focus.y + focus.height,
+      ).matrixTransform(matrix);
+      return {
+        left: start.x,
+        top: start.y,
+        right: end.x,
+        bottom: end.y,
+      };
+    },
+    [lxmLayout],
+  );
+  const getFloatingViewport = useCallback(() => {
+    const visible = window.visualViewport;
+    const left = visible?.offsetLeft ?? 0;
+    const top = visible?.offsetTop ?? 0;
+    const right = left + (visible?.width ?? window.innerWidth);
+    const bottom = top + (visible?.height ?? window.innerHeight);
+    const scoreArea = pageViewportRef.current?.getBoundingClientRect();
+    if (!scoreArea) return { left, top, right, bottom };
+    return {
+      left: Math.max(left, scoreArea.left),
+      top: Math.max(top, scoreArea.top),
+      right: Math.min(right, scoreArea.right),
+      bottom: Math.min(bottom, scoreArea.bottom),
+    };
+  }, []);
+  const revealFloatingTarget = useCallback(
+    (target: MusicTextTarget | null) => {
+      const anchor = getFloatingAnchor(target);
+      const viewport = pageViewportRef.current;
+      if (!anchor || !viewport) return;
+      const view = viewport.getBoundingClientRect();
+      viewport.scrollBy({
+        left: (anchor.left + anchor.right - view.left - view.right) / 2,
+        top: (anchor.top + anchor.bottom - view.top - view.bottom) / 2,
+      });
+    },
+    [getFloatingAnchor],
+  );
   /** 选拍或草稿确认结束后保留谱面焦点，不触发浏览器默认滚动。 */
   const focusScore = useCallback(
     () => scoreSvgRef.current?.focus({ preventScroll: true }),
@@ -1170,6 +1218,9 @@ export const EditorShell: React.FC = () => {
           onTargetChange={setActiveMusicTextTarget}
           onScoreFocus={focusScore}
           onScoreSelection={acceptScoreSelection}
+          getFloatingAnchor={getFloatingAnchor}
+          getFloatingViewport={getFloatingViewport}
+          revealFloatingTarget={revealFloatingTarget}
         />
       </div>
       <EditorStatusBar

@@ -11,6 +11,7 @@ export const LyricFormView = ({
   issue,
   inspection,
   existingText,
+  nextLocation,
   inputRef,
   sequenceInputRef,
   onModeChange,
@@ -24,6 +25,7 @@ export const LyricFormView = ({
   issue: string | null;
   inspection: number;
   existingText?: string;
+  nextLocation?: string;
   inputRef: RefCallback<HTMLInputElement>;
   sequenceInputRef: RefCallback<HTMLTextAreaElement>;
   onModeChange: (mode: MusicTextDraft["lyricMode"]) => void;
@@ -35,7 +37,6 @@ export const LyricFormView = ({
   const sequence = draft.lyricMode === "sequence";
   return (
     <section className={styles.sidebarSection} aria-label="歌词属性表单">
-      <h3>歌词设置</h3>
       <div className={styles.propertyGrid}>
         <Form.Item layout="vertical" label="录入方式" htmlFor="lyric-mode">
           <Select
@@ -74,7 +75,7 @@ export const LyricFormView = ({
             id="lyric-body"
             aria-label="连续歌词"
             aria-describedby="lyric-sequence-tips"
-            rows={4}
+            rows={2}
             ref={(control) =>
               sequenceInputRef(control?.resizableTextArea?.textArea ?? null)
             }
@@ -95,13 +96,9 @@ export const LyricFormView = ({
       {sequence ? (
         <>
           <div id="lyric-sequence-tips" className={styles.sidebarTip}>
-            <strong>连续填词规则</strong>
             <p>
               用空格分词，每项依次对应一个音符或空白位置，自动跳过休止。用{" "}
               <code>_</code> 跳过一个位置并保留原词。
-            </p>
-            <p>
-              默认允许替换已有歌词。先核对对应预览，再应用全部；整批可一次撤销。
             </p>
             <details>
               <summary>详细规则</summary>
@@ -124,60 +121,68 @@ export const LyricFormView = ({
           )}
           {plan && (
             <div className={styles.sequencePreview} aria-label="歌词对应预览">
-              <h4>
+              <p role="status">
                 对应预览 · 写入 {plan.changes} 项 · 覆盖 {plan.overwrites} 项
-              </h4>
-              <table>
-                <thead>
-                  <tr>
-                    <th>序号 / 位置</th>
-                    <th>原词 → 新词</th>
-                    <th>操作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {plan.rows.map((row) => (
-                    <tr
-                      key={row.index}
-                      aria-selected={inspection === row.index}
-                    >
-                      <td>
-                        <Button
-                          size="small"
-                          type="text"
-                          disabled={!row.target}
-                          onClick={() => onInspect(row.index)}
-                        >
-                          {row.index + 1} ·{" "}
-                          {row.target
-                            ? `${row.measureNumber} 小节 / 简谱位置 ${row.beatNumber}`
-                            : "超出谱尾"}
-                        </Button>
-                      </td>
-                      <td>
-                        {row.previous ?? "空"} →{" "}
-                        {row.item.kind === "skip" ? "保留原词" : row.item.text}
-                      </td>
-                      <td>
-                        {
-                          {
-                            add: "新增",
-                            change: "覆盖",
-                            same: "未变化",
-                            skip: "跳过",
-                            error: "错误",
-                          }[row.status]
-                        }
-                      </td>
+              </p>
+              <details>
+                <summary>查看歌词与位置映射 · {plan.rows.length} 项</summary>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>序号 / 位置</th>
+                      <th>原词 → 新词</th>
+                      <th>操作</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {plan.rows.map((row) => (
+                      <tr
+                        key={row.index}
+                        aria-selected={inspection === row.index}
+                      >
+                        <td>
+                          <Button
+                            size="small"
+                            type="text"
+                            disabled={!row.target}
+                            onClick={() => onInspect(row.index)}
+                          >
+                            {row.index + 1} ·{" "}
+                            {row.target
+                              ? `${row.measureNumber} 小节 / 简谱位置 ${row.beatNumber}`
+                              : "超出谱尾"}
+                          </Button>
+                        </td>
+                        <td>
+                          {row.previous ?? "空"} →{" "}
+                          {row.item.kind === "skip"
+                            ? "保留原词"
+                            : row.item.text}
+                        </td>
+                        <td>
+                          {
+                            {
+                              add: "新增",
+                              change: "覆盖",
+                              same: "未变化",
+                              skip: "跳过",
+                              error: "错误",
+                            }[row.status]
+                          }
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </details>
             </div>
           )}
         </>
       ) : (
         <>
+          <p className={styles.sidebarTip}>
+            下一歌词位置：{nextLocation ?? "已到最后一个歌词位置"}
+          </p>
           <p className={styles.sidebarTip}>
             原词：
             {existingText ?? `此音符暂无第 ${draft.target.verse} 段歌词。`}

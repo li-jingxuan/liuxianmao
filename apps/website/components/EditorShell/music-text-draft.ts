@@ -73,8 +73,14 @@ export type SidebarAction =
       target: MusicTextTarget;
       focus?: "score" | "input";
       numberedMarkId?: string;
+      keepFloatingPosition?: boolean;
     }
-  | { type: "tab"; kind: SidebarTab; focus?: "main" | "paragraph" };
+  | {
+      type: "tab";
+      kind: SidebarTab;
+      focus?: "main" | "paragraph";
+      propertyTab?: "selection" | "paragraph" | "chord" | "song";
+    };
 
 /** 只比较正在编辑的字段；谱面弦号不改变音乐文本的业务目标。 */
 export const musicTextDraftValue = (

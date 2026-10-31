@@ -27,12 +27,18 @@ import {
   sameEditorSession,
   sameEditorVersion,
 } from "./editor-session-version";
+import { createScoreSettingsComposition } from "./score-settings-composition";
 
 export interface ScoreSettingsController {
+  /** 保留属性供旧调用方使用；共同切换仲裁优先调用 isDirty。 */
   dirty: boolean;
+  isDirty: () => boolean;
   isComposing: () => boolean;
   apply: () => boolean;
-  discard: () => void;
+  /** IME 保护期间返回 false，调用方不得继续切换或卸载表单。 */
+  discard: () => boolean;
+  /** 经 owner 的受保护打开路径展示歌曲设置，DOM 提交后恢复输入焦点。 */
+  focus: () => boolean;
   focusField: (field: "label" | "copy") => boolean;
 }
 
@@ -56,9 +62,13 @@ export const ScoreSettings = ({
   onFocusRequest?: () => boolean;
 }) => {
   const store = useEditorSessionStore();
-  const composing = useRef(false);
   const [compositionActive, setCompositionActive] = useState(false);
+  const [composition] = useState(() =>
+    createScoreSettingsComposition(setCompositionActive),
+  );
+  useEffect(() => () => composition.dispose(), [composition]);
   const container = useRef<HTMLDivElement>(null);
+  const lastFocusedControl = useRef<HTMLElement | null>(null);
   const [focusRequest, setFocusRequest] = useState(0);
   const fresh = () => {
     const value = readScoreSettings(document, measureId);
@@ -89,11 +99,21 @@ export const ScoreSettings = ({
   const renderVersion = captureEditorVersion({ ...store.getState(), document });
   useEffect(() => onDirty(dirty), [dirty, onDirty]);
   useEffect(() => {
-    if (focusRequest)
-      container.current
-        ?.querySelector<HTMLInputElement>("input")
-        ?.focus({ preventScroll: true });
+    if (!focusRequest) return;
+    const previous = lastFocusedControl.current;
+    const control =
+      previous &&
+      container.current?.contains(previous) &&
+      previous.getClientRects().length
+        ? previous
+        : container.current?.querySelector<HTMLInputElement>("input");
+    control?.focus({ preventScroll: true });
   }, [focusRequest]);
+  const focus = () => {
+    if (onFocusRequest && !onFocusRequest()) return false;
+    setFocusRequest((value) => value + 1);
+    return true;
+  };
   const update = <K extends keyof ScoreSettingsDraft>(
     key: K,
     value: ScoreSettingsDraft[K],
@@ -105,12 +125,13 @@ export const ScoreSettings = ({
     setIssues({});
   };
   const discard = () => {
-    if (composing.current) return;
+    if (composition.isComposing()) return false;
     setState(fresh());
     setIssues({});
+    return true;
   };
   const apply = (group?: SettingsGroup): boolean => {
-    if (composing.current) return false;
+    if (composition.isComposing()) return false;
     if (!sameEditorVersion(store.getState(), renderVersion)) return false;
     const result = submitSettingsDraft({
       getState: store.getState,
@@ -159,9 +180,11 @@ export const ScoreSettings = ({
   };
   useImperativeHandle(ref, () => ({
     dirty,
-    isComposing: () => composing.current,
+    isDirty: () => dirty,
+    isComposing: composition.isComposing,
     apply: () => apply(),
     discard,
+    focus,
     focusField: (field) => {
       const element = container.current?.querySelector<HTMLElement>(
         field === "label" ? "#settings-label" : "#settings-copy-start",
@@ -179,7 +202,7 @@ export const ScoreSettings = ({
     after: "",
   });
   const copyMeasures = async () => {
-    if (composing.current || dirty) return;
+    if (composition.isComposing() || dirty) return;
     const current = store.getState().document;
     if (!current || !sameEditorVersion(store.getState(), renderVersion)) return;
     const command: ILXMScoreCommand = {
@@ -225,30 +248,23 @@ export const ScoreSettings = ({
       canApply: dirty && !compositionActive,
       error: null,
       version: renderVersion,
-      focus: () => {
-        if (onFocusRequest && !onFocusRequest()) return false;
-        setFocusRequest((value) => value + 1);
-        return true;
-      },
+      focus,
       apply: ({ isCurrent }) =>
         isCurrent() ? (apply() ? "applied" : "blocked") : "stale",
-      discard: () => {
-        if (composing.current) return false;
-        discard();
-        return true;
-      },
+      discard,
     },
   ]);
   return (
     <div
       ref={container}
-      onCompositionStart={() => {
-        composing.current = true;
-        setCompositionActive(true);
+      onCompositionStart={composition.start}
+      onCompositionEnd={composition.end}
+      onKeyDownCapture={(event) => composition.observeKey(event.nativeEvent)}
+      onKeyDown={(event) => {
+        if (composition.isComposing()) event.stopPropagation();
       }}
-      onCompositionEnd={() => {
-        composing.current = false;
-        setCompositionActive(false);
+      onFocusCapture={(event) => {
+        lastFocusedControl.current = event.target;
       }}
     >
       <ScoreSettingsForm
