@@ -21,6 +21,57 @@
   gap: 18px;
 }
 
+.returnButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 22px;
+  padding: 8px 0;
+  border: 0;
+  color: var(--primary);
+  background: transparent;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.returnButton svg {
+  width: 18px;
+  height: 18px;
+}
+
+.returnButton:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.autoConfigured {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 13px;
+  color: #225d4b;
+  background: rgba(21, 189, 134, 0.06);
+}
+
+.autoConfigured svg {
+  flex: 0 0 auto;
+  width: 19px;
+  height: 19px;
+}
+
+.autoConfigured p {
+  margin: 0 0 5px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.autoConfigured small {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .headerIcon {
   display: grid;
   flex: 0 0 auto;
@@ -162,12 +213,19 @@
   height: 19px;
 }
 
+.useKeyButton {
+  width: 100%;
+  height: auto;
+  min-height: 52px;
+  margin-top: 16px;
+  padding: 12px;
+}
+
 .spinner {
   animation: spin 750ms linear infinite;
 }
 
 .result {
-  margin-top: 26px;
   padding: 18px;
   border: 1px solid rgba(21, 189, 134, 0.24);
   border-radius: 17px;

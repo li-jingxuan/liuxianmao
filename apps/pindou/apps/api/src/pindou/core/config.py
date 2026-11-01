@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -98,6 +99,11 @@ class Settings(BaseSettings):
     # 每 3 * 24 小时清理一次过期图片
     image_delivery_cleanup_interval_seconds: int = Field(default=3 * 24 * 60 * 60, ge=60)
 
+    # 仅 fnOS 部署开启；上游地址只能由服务端环境配置，不能接受客户端覆盖。
+    nas_album_enabled: bool = False
+    nas_album_base_url: str = "http://host.docker.internal:5666"
+    nas_album_id: int = Field(default=25, ge=1)
+
     # PostgreSQL 与 API Key 配置不提供可误用的生产默认值。测试环境会显式注入
     # 隔离数据库和假密钥，其他环境缺失时在启动阶段失败。
     database_url: SecretStr | None = None
@@ -132,6 +138,20 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def validate_configuration(self) -> Settings:
         """在启动期拒绝不完整的数据库、密钥和 AI 配置。"""
+        nas_url = urlsplit(self.nas_album_base_url)
+        if (
+            nas_url.scheme not in {"http", "https"}
+            or not nas_url.hostname
+            or nas_url.username is not None
+            or nas_url.password is not None
+            or nas_url.path not in {"", "/"}
+            or nas_url.query
+            or nas_url.fragment
+            or (nas_url.port is not None and nas_url.port < 1)
+            or "\\" in self.nas_album_base_url
+            or any(char.isspace() for char in self.nas_album_base_url)
+        ):
+            raise ValueError("NAS_ALBUM_BASE_URL 必须是不含凭据和路径的 HTTP(S) 服务地址")
         if self.app_env != "test":
             required_secrets = {
                 "DATABASE_URL": self.database_url,

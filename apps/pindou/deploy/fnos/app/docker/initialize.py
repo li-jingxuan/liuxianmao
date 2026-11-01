@@ -33,6 +33,44 @@ def read_env(path):
     return values
 
 
+def write_private(path, content):
+    # Preserve the inode on unchanged callbacks: a running proxy may already have
+    # this file bind-mounted. Changed credentials require proxy recreation.
+    if path.is_file() and path.read_text(encoding="utf-8") == content:
+        path.chmod(0o600)
+        return
+    descriptor, temporary = tempfile.mkstemp(prefix=".pindou-", dir=path.parent)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+            os.fchmod(stream.fileno(), 0o600)
+            stream.write(content)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+
+
+def proxy_admin_auth(key):
+    if not key or any(ord(character) < 32 or ord(character) == 127 for character in key):
+        raise ValueError("管理密钥不可为空或含控制字符")
+    # geo stores a literal string, unlike set/map/proxy_set_header values that
+    # compile '$' as nginx variables even inside quotes. Only nginx's token
+    # delimiters need escaping here; literal dollars must remain literal.
+    escaped = key.replace("\\", "\\\\").replace('"', '\\"')
+    return (
+        "# Managed by Pindou fnOS; private server-side credential.\n"
+        "geo $pindou_admin_secret {\n"
+        f'    default "{escaped}";\n'
+        "}\n"
+        "map $request_method $pindou_admin_api_key {\n"
+        "    default $http_x_admin_api_key;\n"
+        "    POST $pindou_admin_secret;\n"
+        "}\n"
+    )
+
+
 def write_env(path, values):
     lines = ['# Managed by Pindou fnOS; JSON double quotes, literal $ as $$; never source.\n']
     for key, value in values.items():
@@ -40,17 +78,7 @@ def write_env(path, values):
             raise ValueError("配置值不可包含换行或 NUL")
         escaped = json.dumps(value.replace("$", "$$"), ensure_ascii=False)
         lines.append(f"{key}={escaped}\n")
-    descriptor, temporary = tempfile.mkstemp(prefix=".pindou-", dir=path.parent)
-    try:
-        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
-            os.fchmod(stream.fileno(), 0o600)
-            stream.writelines(lines)
-            stream.flush()
-            os.fsync(stream.fileno())
-        os.replace(temporary, path)
-    finally:
-        if os.path.exists(temporary):
-            os.unlink(temporary)
+    write_private(path, "".join(lines))
 
 
 def database_url(postgres):
@@ -116,12 +144,14 @@ def initialize(config_dir, data_dir, wizard_key="", validate=None, owner=(10001,
         raise ValueError("请在安装向导中填写方舟 API Key")
     if validate:
         validate(api)
+    proxy_auth = proxy_admin_auth(api["KEY_ISSUER_API_KEY"])
     # Validate everything before replacing files. If interrupted after the first
     # write, the next invocation reuses its database password.
     if not has_postgres_config:
         write_env(postgres_path, postgres)
     if not has_api_config or read_env(api_path) != api:
         write_env(api_path, api)
+    write_private(config_dir / "proxy-admin-auth.conf", proxy_auth)
     for path in (postgres_path, api_path):
         path.chmod(0o600)
     for name in ("api-images", "api-logs", "image-deliveries"):

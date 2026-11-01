@@ -55,6 +55,7 @@ def isolate_tests_from_external_services(
     # 事件日志同样按用例隔离，禁止测试数据写入仓库的 log/。
     monkeypatch.setenv("EVENT_LOG_DIR", str(tmp_path / "event-log"))
     monkeypatch.setenv("IMAGE_DELIVERY_TTL_SECONDS", "3600")
+    monkeypatch.setenv("NAS_ALBUM_ENABLED", "false")
     get_settings.cache_clear()
     dispose_engine()
     get_color_chart.cache_clear()

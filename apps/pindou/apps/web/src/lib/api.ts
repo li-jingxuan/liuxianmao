@@ -22,7 +22,8 @@ type ApiErrorBody = {
   };
 };
 type ApiRequestOptions = { apiKey?: string; signal?: AbortSignal };
-type AdminApiRequestOptions = { adminApiKey: string; signal?: AbortSignal };
+// 飞牛同源代理补充管理凭证，浏览器不持有管理密钥。
+type AdminApiRequestOptions = { adminApiKey?: string; signal?: AbortSignal };
 
 /**
  * 保留后端稳定错误码和 request id 的业务异常。
@@ -55,7 +56,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   BACKGROUND_COLOR_INVALID: "纯色背景颜色无效，请重新选择",
   API_KEY_INVALID: "当前访问链接无效",
   API_KEY_INVALID_OR_EXHAUSTED: "当前访问链接无效或转换次数已用完",
-  ADMIN_API_KEY_INVALID: "当前链接没有图纸上传权限",
+  ADMIN_API_KEY_INVALID: "管理密钥无效，请使用当前部署的 X-Admin-API-Key",
   DELIVERY_IMAGE_INVALID: "生成的图纸格式无效，请重新导出",
   DELIVERY_IMAGE_TOO_LARGE: "图纸尺寸过大，请降低网格尺寸后重试",
   DELIVERY_STORAGE_UNAVAILABLE: "图纸存储暂时不可用，请稍后重试",
@@ -252,13 +253,13 @@ export const getAccessKeyQuota = async (
 /** 使用管理密钥为路由中的来源前缀签发消费密钥。 */
 export const createAccessKey = async (
   input: AccessKeyCreateInput,
-  { adminApiKey, signal }: AdminApiRequestOptions,
+  { adminApiKey, signal }: AdminApiRequestOptions = {},
 ): Promise<AccessKeyCreateResponse> => {
   const response = await fetch(apiPath("/api/v1/access-keys"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-Admin-API-Key": adminApiKey,
+      ...(adminApiKey ? { "X-Admin-API-Key": adminApiKey } : {}),
     },
     body: JSON.stringify({
       prefix: input.prefix,
@@ -272,13 +273,27 @@ export const createAccessKey = async (
 /** 使用固定管理密钥上传完整 PNG，上传属于交付动作，不消耗转换次数。 */
 export const createImageDelivery = async (
   blob: Blob,
-  { adminApiKey, signal }: AdminApiRequestOptions,
+  { adminApiKey, signal, fnos }: AdminApiRequestOptions & { fnos?: boolean } = {},
 ): Promise<ImageDeliveryResponse> => {
   const form = new FormData();
   form.set("file", blob, "pindou-pattern.png");
+  const headers: Record<string, string> = adminApiKey ? { "X-Admin-API-Key": adminApiKey } : {};
+  if (fnos) {
+    // NAS 的会话密钥只随本次同源上传发送，Cookie 由浏览器自动附带。
+    // 手机宿主可能不提供该值，由服务端返回可操作的登录提示。
+    try {
+      const secret = window.localStorage.getItem("fnos-Secret");
+      if (secret) headers["X-Fnos-Secret"] = secret;
+      const token = document.cookie.split("; ").find((entry) => entry.startsWith("fnos-token="));
+      if (token) headers["X-Fnos-Token"] = decodeURIComponent(token.slice("fnos-token=".length));
+    } catch {
+      throw new Error("无法读取飞牛登录状态，请在飞牛网页端重新登录后重试");
+    }
+  }
   const response = await fetch(apiPath("/api/v1/image-deliveries"), {
     method: "POST",
-    headers: { "X-Admin-API-Key": adminApiKey },
+    headers: Object.keys(headers).length ? headers : undefined,
+    ...(fnos ? { credentials: "same-origin" as const } : {}),
     body: form,
     signal,
   });

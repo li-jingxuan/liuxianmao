@@ -132,6 +132,90 @@
   stroke-width: 2;
 }
 
+/* ===== 飞牛转换密钥 ===== */
+.key-settings {
+  margin-top: 20px;
+  padding: 16px;
+  border-radius: 16px;
+  background: #f5f4ff;
+
+  > label {
+    display: block;
+    margin-bottom: 10px;
+    font-size: 14px;
+    font-weight: 650;
+  }
+
+  button {
+    min-height: 40px;
+    padding: 8px 12px;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: #fff;
+    color: var(--ink);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  :focus-visible {
+    outline: 2px solid #8151ff;
+    outline-offset: 2px;
+  }
+}
+
+.key-controls {
+  position: relative;
+
+  input {
+    min-width: 0;
+    width: 100%;
+    padding: 10px 44px 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: #fff;
+    color: var(--ink);
+    font-size: 16px;
+  }
+
+  .key-clear {
+    position: absolute;
+    top: 50%;
+    right: 4px;
+    transform: translateY(-50%);
+    display: grid;
+    place-items: center;
+    width: 36px;
+    min-height: 36px;
+    padding: 8px;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--muted);
+
+    &:hover { background: #eeecf8; }
+    svg { width: 16px; height: 16px; }
+  }
+}
+
+.key-help {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 12px;
+
+  button {
+    color: #7043cc;
+  }
+}
+
 /* ===== 上传文件摘要与空状态 ===== */
 .file-summary,
 .upload-trigger {

@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { FnosKeyProvider } from "@/components/fnos-key-provider";
 import "./globals.css";
 
 // App Router 的静态页面元信息，在服务端构建阶段写入 head。
@@ -18,7 +19,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="zh-CN">
-      <body>{children}</body>
+      <body><FnosKeyProvider>{children}</FnosKeyProvider></body>
     </html>
   );
 }

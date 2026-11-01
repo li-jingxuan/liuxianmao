@@ -1,3 +1,5 @@
 #!/bin/sh
-# Never migrate a live database or reset its credentials here.
-exit 0
+set -eu
+# Backfill the private proxy credential before fnOS parses the new Compose file.
+# The initializer preserves existing keys and never migrates the live database.
+exec "$(dirname "$0")/configure"

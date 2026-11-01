@@ -15,6 +15,7 @@ import {
   UploadCloud,
   X,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import {
   ChangeEvent,
   useCallback,
@@ -47,6 +48,7 @@ import { validateImage } from "@/lib/validation";
 
 import styles from "./pindou-converter.module.scss";
 import { ImageCropModal } from "./image-crop-modal";
+import { useFnosKey } from "./fnos-key-provider";
 
 // 快捷尺寸来自 MVP1 设计稿；自定义尺寸与后端共用同一范围约束。
 const GRID_SIZES = [52, 78, 104] as const;
@@ -205,13 +207,43 @@ function ResultCanvas({ grid }: { grid: BeadGrid }) {
   return <canvas ref={canvasRef} aria-label="拼豆图纸预览" />;
 }
 
-export function PindouConverter({
-  apiKey,
-  deliveryAdminKey,
-}: {
+type ConverterProps = {
   apiKey?: string;
   deliveryAdminKey?: string;
-}) {
+  isFnos?: boolean;
+};
+
+type KeyControl = ReturnType<typeof useFnosKey> & { openIssuer: () => void };
+
+export function PindouConverter(props: ConverterProps) {
+  return props.isFnos ? <FnosConverter {...props} /> : <Converter {...props} />;
+}
+
+function FnosConverter(props: ConverterProps) {
+  const key = useFnosKey(props.apiKey?.trim());
+  const router = useRouter();
+  return (
+    <Converter
+      {...props}
+      apiKey={key.appliedKey}
+      deliveryAdminKey={undefined}
+      keyControl={{
+        ...key,
+        openIssuer: () => {
+          key.remember();
+          router.push("/gk/fnos");
+        },
+      }}
+    />
+  );
+}
+
+function Converter({
+  apiKey,
+  deliveryAdminKey,
+  keyControl,
+}: ConverterProps & { keyControl?: KeyControl }) {
+  const quotaQueryDelay = keyControl ? 350 : 0;
   // DOM 引用：文件选择器由定制按钮触发；结果引用用于转换后平滑定位。
   const inputRef = useRef<HTMLInputElement>(null);
   const resultRef = useRef<HTMLElement>(null);
@@ -240,7 +272,17 @@ export function PindouConverter({
     useState<ConversionStyle>("chibi");
   const [backgroundColor] = useState("#FFFFFF");
   // const [allowSimplifyFallback, setAllowSimplifyFallback] = useState(false);
-  const [quotaState, setQuotaState] = useState<QuotaState>({ status: "loading" });
+  const [quotaSnapshot, setQuotaSnapshot] = useState<{ apiKey?: string; state: QuotaState }>({
+    apiKey,
+    state: { status: "loading" },
+  });
+  // 密钥变更的第一次渲染即隐藏旧额度，不等待 effect 清理旧请求。
+  const quotaState: QuotaState = quotaSnapshot.apiKey === apiKey
+    ? quotaSnapshot.state
+    : { status: apiKey ? "loading" : "invalid" };
+  const setQuotaState = useCallback((state: QuotaState) => {
+    setQuotaSnapshot({ apiKey, state });
+  }, [apiKey]);
 
   // 转换流程状态。result 只在 complete 时展示，错误后回到 idle 允许直接重试。
   const [status, setStatus] = useState<Status>("idle");
@@ -282,7 +324,7 @@ export function PindouConverter({
         );
       }
     },
-    [apiKey],
+    [apiKey, setQuotaState],
   );
 
   useEffect(() => {
@@ -297,7 +339,8 @@ export function PindouConverter({
       });
       return () => controller.abort();
     }
-    void getAccessKeyQuota(apiKey, controller.signal)
+    // 输入立即生效，额度查询稍作防抖，避免连续键入逐字请求。
+    const timer = window.setTimeout(() => { void getAccessKeyQuota(apiKey, controller.signal)
       .then((quota) => {
         if (requestId !== quotaRequestIdRef.current) return;
         setQuotaState({
@@ -314,9 +357,9 @@ export function PindouConverter({
             ? { status: "invalid" }
             : { status: "error" },
         );
-      });
-    return () => controller.abort();
-  }, [apiKey]);
+      }); }, quotaQueryDelay);
+    return () => { window.clearTimeout(timer); controller.abort(); };
+  }, [apiKey, setQuotaState, quotaQueryDelay]);
 
   // 首次挂载时从后端加载颜色组；卸载时中止请求，防止更新已销毁组件。
   useEffect(() => {
@@ -465,6 +508,10 @@ export function PindouConverter({
 
   /** 提交一次真实同步转换；processing 只表示等待，不声称服务端精确进度。 */
   const convert = async () => {
+    if (keyControl && !apiKey) {
+      setError("请先输入转换密钥");
+      return;
+    }
     if (customGridSize && !isValidCustomGridSize) {
       setError(`自定义网格大小请输入 ${MIN_GRID_SIZE}–${MAX_GRID_SIZE} 的整数`);
       return;
@@ -518,7 +565,9 @@ export function PindouConverter({
       setStatus("complete");
     } catch (cause) {
       setStatus("idle");
-      setError(cause instanceof Error ? cause.message : "转换失败，请稍后重试");
+      setError(keyControl && cause instanceof PindouApiError && cause.code === "API_KEY_INVALID_OR_EXHAUSTED"
+        ? "转换密钥无效或转换次数已用完"
+        : cause instanceof Error ? cause.message : "转换失败，请稍后重试");
     } finally {
       // 转换在 AI/量化失败前也可能已经扣次，成功和失败都重新校准额度。
       void refreshQuota();
@@ -568,19 +617,24 @@ export function PindouConverter({
 
   /** 管理员把当前完整施工图上传为短期交付文件，并生成用户预览链接。 */
   const uploadDelivery = async () => {
-    if (!deliveryAdminKey || !result || !file || !details || isUploadingDelivery) return;
+    if ((!keyControl && !deliveryAdminKey) || !result || !file || !details || isUploadingDelivery) return;
     setError(null);
     setIsUploadingDelivery(true);
     setIsDeliveryCopied(false);
     try {
       const blob = await getPatternSheetBlob();
-      const response = await createImageDelivery(blob, { adminApiKey: deliveryAdminKey });
+      const response = await createImageDelivery(blob, keyControl ? { fnos: true } : { adminApiKey: deliveryAdminKey });
+      if (keyControl && !response.share_url) {
+        throw new Error("飞牛相册分享尚未配置，请检查应用的相册分享设置");
+      }
       setDelivery({
-        previewUrl: deliveryShareUrl(window.location.origin, response.token),
+        previewUrl: response.share_url || deliveryShareUrl(window.location.origin, response.token),
         expiresAt: response.expires_at,
       });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "图纸上传失败，请稍后重试");
+      setError(keyControl && cause instanceof PindouApiError && cause.code === "ADMIN_API_KEY_INVALID"
+        ? "NAS 管理授权失败，请检查应用配置"
+        : cause instanceof Error ? cause.message : "图纸上传失败，请稍后重试");
     } finally {
       setIsUploadingDelivery(false);
     }
@@ -590,7 +644,24 @@ export function PindouConverter({
   const copyDeliveryLink = async () => {
     if (!delivery) return;
     try {
-      await navigator.clipboard.writeText(delivery.previewUrl);
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(delivery.previewUrl);
+      } else {
+        // 局域网 HTTP 没有 Clipboard API，保留点击触发的复制能力。
+        const textarea = document.createElement("textarea");
+        textarea.value = delivery.previewUrl;
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        const focused = document.activeElement;
+        try {
+          textarea.select();
+          if (!document.execCommand("copy")) throw new Error("Copy failed");
+        } finally {
+          textarea.remove();
+          if (focused instanceof HTMLElement) focused.focus();
+        }
+      }
       setIsDeliveryCopied(true);
       window.setTimeout(() => setIsDeliveryCopied(false), 1800);
     } catch {
@@ -667,6 +738,50 @@ export function PindouConverter({
           <Settings />
           参数设置
         </h2>
+
+        {keyControl && (
+          <div className={cx("key-settings")}>
+            <label htmlFor="conversion-api-key">转换密钥</label>
+            <div className={cx("key-controls")}>
+              <input
+                id="conversion-api-key"
+                type="password"
+                autoComplete="off"
+                autoCapitalize="none"
+                spellCheck={false}
+                placeholder="请输入转换密钥"
+                value={keyControl.draft}
+                disabled={status === "processing" || isUploadingDelivery}
+                onChange={(event) => { keyControl.setDraft(event.target.value); setError(null); }}
+                aria-describedby="conversion-key-help"
+              />
+              {keyControl.draft && (
+                <button
+                  className={cx("key-clear")}
+                  type="button"
+                  aria-label="清空转换密钥"
+                  title="清空转换密钥"
+                  disabled={status === "processing" || isUploadingDelivery}
+                  onClick={() => { keyControl.clear(); setError(null); document.getElementById("conversion-api-key")?.focus(); }}
+                >
+                  <X aria-hidden="true" />
+                </button>
+              )}
+            </div>
+            <div className={cx("key-help")} id="conversion-key-help">
+              <span>密钥仅在当前页面会话使用，刷新后需重新填写。</span>
+              <button type="button" disabled={status === "processing" || isUploadingDelivery} onClick={keyControl.openIssuer}>
+                签发密钥
+              </button>
+              {quotaState.status === "error" && (
+                <button type="button" disabled={status === "processing" || isUploadingDelivery} onClick={() => {
+                  setQuotaState({ status: "loading" });
+                  void refreshQuota();
+                }}>重试查询</button>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className={cx("form-row")}>
           <div className={cx("field-label")}>
@@ -894,7 +1009,7 @@ export function PindouConverter({
           {quotaState.status === "ready" &&
             quotaState.remainingUses === 0 &&
             "转换次数已用完"}
-          {quotaState.status === "invalid" && "当前访问链接无效"}
+          {quotaState.status === "invalid" && (keyControl ? (apiKey ? "转换密钥无效" : "请先输入转换密钥") : "当前访问链接无效")}
           {quotaState.status === "error" && "剩余次数暂时无法获取"}
         </div>
         <button
@@ -943,7 +1058,7 @@ export function PindouConverter({
               <span className={cx("status-chip", "processing")}>处理中…</span>
             ) : (
               <div className={cx("result-heading-actions")}>
-                {deliveryAdminKey && (
+                {(keyControl || deliveryAdminKey) && (
                   <button
                     className={cx("delivery-upload-button")}
                     type="button"

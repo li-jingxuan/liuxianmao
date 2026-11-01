@@ -1,4 +1,5 @@
 import { PindouConverter } from "@/components/pindou-converter";
+import { IS_FNOS } from "@/lib/paths";
 
 type HomeProps = {
   searchParams: Promise<{
@@ -13,7 +14,7 @@ export default async function Home({ searchParams }: HomeProps) {
   const apiKey = Array.isArray(k) ? k[0] : k;
   const user = Array.isArray(suppliedUser) ? suppliedUser[0] : suppliedUser;
   // Web 只根据 user 是否非空展示按钮，并把原值交给 API 做最终密钥校验。
-  const deliveryAdminKey = user?.trim() ? user : undefined;
+  const deliveryAdminKey = !IS_FNOS && user?.trim() ? user : undefined;
 
-  return <PindouConverter apiKey={apiKey} deliveryAdminKey={deliveryAdminKey} />;
+  return <PindouConverter apiKey={apiKey} deliveryAdminKey={deliveryAdminKey} isFnos={IS_FNOS} />;
 }

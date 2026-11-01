@@ -1,6 +1,9 @@
 /** Web 前缀在 Next 构建阶段固化；普通部署默认使用根路径。 */
 export const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
+/** 飞牛镜像固定使用此部署前缀；该值仅控制界面，授权由专用代理完成。 */
+export const IS_FNOS = BASE_PATH === "/app/pindou";
+
 // 显式配置外部 API 仅供普通部署/本地开发；NAS 镜像传空值使用同源网关。
 const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || BASE_PATH).replace(/\/$/, "");
 

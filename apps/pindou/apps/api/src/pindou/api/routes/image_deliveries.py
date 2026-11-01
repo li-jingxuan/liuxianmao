@@ -5,12 +5,14 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, File, Response, UploadFile, status
+from fastapi import APIRouter, File, Request, Response, UploadFile, status
 from fastapi.responses import FileResponse
 
 from pindou.api.dependencies import AdminApiKeyDep, ImageDeliveryStoreDep
+from pindou.core.config import get_settings
 from pindou.core.errors import ApiError
 from pindou.schemas.image_delivery import ImageDeliveryResponse
+from pindou.services.fnos_album import FnosAlbumClient
 from pindou.services.image_deliveries import (
     DeliveryImageInvalidError,
     DeliveryImageTooLargeError,
@@ -23,6 +25,7 @@ router = APIRouter(prefix="/image-deliveries", tags=["image-deliveries"])
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 def create_image_delivery(
+    request: Request,
     response: Response,
     file: Annotated[UploadFile, File()],
     store: ImageDeliveryStoreDep,
@@ -43,7 +46,20 @@ def create_image_delivery(
         raise ApiError(507, "DELIVERY_STORAGE_UNAVAILABLE", "图纸存储暂时不可用") from exc
 
     response.headers["Cache-Control"] = "no-store"
-    return _to_response(delivery)
+    result = _to_response(delivery)
+    settings = get_settings()
+    if settings.nas_album_enabled:
+        share = FnosAlbumClient(
+            base_url=settings.nas_album_base_url, album_id=settings.nas_album_id,
+        ).upload_and_share(
+            delivery.path,
+            ost=request.cookies.get("ost"),
+            secret=request.headers.get("X-Fnos-Secret"),
+            token=request.headers.get("X-Fnos-Token"),
+        )
+        result.share_url = share.url
+        result.expires_at = share.expires_at
+    return result
 
 
 @router.get("/{token}")

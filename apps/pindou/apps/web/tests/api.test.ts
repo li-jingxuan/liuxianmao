@@ -246,6 +246,33 @@ describe("image delivery", () => {
       { cache: "no-store", signal: controller.signal },
     );
   });
+
+  it("sends the current NAS upload secret only for NAS deliveries", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(delivery), { status: 201 }));
+    vi.stubGlobal("fetch", fetchMock);
+    window.localStorage.setItem("fnos-Secret", "test-session-secret");
+    try {
+      await createImageDelivery(new Blob(["png"]), { fnos: true });
+      const nasRequest = fetchMock.mock.calls[0][1] as RequestInit;
+      expect(new Headers(nasRequest.headers).get("X-Fnos-Secret")).toBe("test-session-secret");
+      expect(new Headers(nasRequest.headers).has("X-Admin-API-Key")).toBe(false);
+      expect(nasRequest.credentials).toBe("same-origin");
+      await createImageDelivery(new Blob(["png"]), { adminApiKey: "web-admin" });
+      const webRequest = fetchMock.mock.calls[1][1] as RequestInit;
+      expect(new Headers(webRequest.headers).has("X-Fnos-Secret")).toBe(false);
+    } finally {
+      window.localStorage.removeItem("fnos-Secret");
+    }
+  });
+
+  it("lets the NAS proxy authorize an upload without a browser management credential", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(delivery), { status: 201 }));
+    vi.stubGlobal("fetch", fetchMock);
+    await createImageDelivery(new Blob(["png"], { type: "image/png" }));
+    const [, request] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(new Headers(request.headers).has("X-Admin-API-Key")).toBe(false);
+    expect((request.body as FormData).get("file")).toBeInstanceOf(Blob);
+  });
 });
 
 describe("getColorCatalog", () => {
@@ -319,6 +346,33 @@ describe("getColorCatalog", () => {
 });
 
 describe("createAccessKey", () => {
+  it("submits NAS issuance parameters without putting a management credential in the browser request", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ key: "fnos-issued-key" }), { status: 201 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const controller = new AbortController();
+    await createAccessKey({ prefix: "fnos", allowedUses: 3 }, { signal: controller.signal });
+    const [, request] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(new Headers(request.headers).has("X-Admin-API-Key")).toBe(false);
+    expect(new Headers(request.headers).get("Content-Type")).toBe("application/json");
+    expect(JSON.parse(request.body as string)).toEqual({ prefix: "fnos", allowed_uses: 3 });
+    expect(request.signal).toBe(controller.signal);
+  });
+
+  it("reports an invalid management key rather than an upload permission error", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      error: { code: "ADMIN_API_KEY_INVALID", message: "签发管理密钥无效", request_id: "req_issuer" },
+    }), { status: 401 })));
+
+    await expect(createAccessKey(
+      { prefix: "nice", allowedUses: 1 },
+      { adminApiKey: "wrong-deployment-key" },
+    )).rejects.toMatchObject({
+      code: "ADMIN_API_KEY_INVALID",
+      message: "管理密钥无效，请使用当前部署的 X-Admin-API-Key",
+      requestId: "req_issuer",
+    });
+  });
+
   it("submits the route prefix, allowed uses and admin API key", async () => {
     const payload: AccessKeyCreateResponse = {
       key: "gk_demo_secret",

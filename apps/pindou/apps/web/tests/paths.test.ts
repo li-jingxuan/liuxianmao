@@ -13,6 +13,13 @@ const loadPaths = async (prefix: string, api = "") => {
 };
 
 describe("deployment paths", () => {
+  it.each([["/app/pindou", true], ["", false], ["/app/pindou-other", false], ["/other", false]])(
+    "enables NAS controls only for its configured application prefix %s", async (prefix, isFnos) => {
+      const paths = await loadPaths(prefix as string);
+      expect(paths.IS_FNOS).toBe(isFnos);
+    },
+  );
+
   it.each(["", "/app/pindou"])("keeps requests, image URLs and shares under %s", async (prefix) => {
     const paths = await loadPaths(prefix);
     expect(paths.apiPath("/api/v1/colors")).toBe(`${prefix}/api/v1/colors`);

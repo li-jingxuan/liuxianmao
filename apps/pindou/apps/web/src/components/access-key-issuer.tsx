@@ -1,12 +1,14 @@
 "use client";
 
-import { Check, Clipboard, KeyRound, LoaderCircle, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Check, Clipboard, KeyRound, LoaderCircle, ShieldCheck } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useRef, useState } from "react";
 
 import { createAccessKey } from "@/lib/api";
 import type { AccessKeyCreateResponse } from "@/lib/types";
 
 import styles from "./access-key-issuer.module.scss";
+import { useFnosKey } from "./fnos-key-provider";
 
 const MIN_ALLOWED_USES = 1;
 const MAX_ALLOWED_USES = 1_000_000;
@@ -44,12 +46,41 @@ export const copyText = async (value: string): Promise<void> => {
 
 type AccessKeyIssuerProps = {
   prefix: string;
+  isFnos?: boolean;
 };
 
 type CopyState = "idle" | "copied" | "failed";
 
 /** 管理员消费密钥签发页的全部客户端交互。 */
-export function AccessKeyIssuer({ prefix }: AccessKeyIssuerProps) {
+export function AccessKeyIssuer({ prefix, isFnos = false }: AccessKeyIssuerProps) {
+  return isFnos ? <FnosAccessKeyIssuer prefix={prefix} /> : <AccessKeyIssuerForm prefix={prefix} />;
+}
+
+function FnosAccessKeyIssuer({ prefix }: { prefix: string }) {
+  const router = useRouter();
+  const { selectIssuedKey } = useFnosKey();
+  // App Router 的 push 会添加构建时的 basePath，不能再次传入完整 NAS 前缀。
+  const returnToConverter = () => router.push("/");
+
+  return (
+    <AccessKeyIssuerForm
+      prefix={prefix}
+      isFnos
+      onReturn={returnToConverter}
+      onUseKey={(key) => {
+        selectIssuedKey(key);
+        returnToConverter();
+      }}
+    />
+  );
+}
+
+type AccessKeyIssuerFormProps = AccessKeyIssuerProps & {
+  onReturn?: () => void;
+  onUseKey?: (key: string) => void;
+};
+
+function AccessKeyIssuerForm({ prefix, isFnos = false, onReturn, onUseKey }: AccessKeyIssuerFormProps) {
   const [adminApiKey, setAdminApiKey] = useState("");
   const [allowedUses, setAllowedUses] = useState("1");
   const [result, setResult] = useState<AccessKeyCreateResponse | null>(null);
@@ -65,7 +96,7 @@ export function AccessKeyIssuer({ prefix }: AccessKeyIssuerProps) {
 
     const normalizedAdminApiKey = adminApiKey.trim();
     const normalizedAllowedUses = parseAllowedUses(allowedUses);
-    if (!normalizedAdminApiKey) {
+    if (!isFnos && !normalizedAdminApiKey) {
       setError("请输入 X-Admin-API-Key");
       return;
     }
@@ -85,7 +116,9 @@ export function AccessKeyIssuer({ prefix }: AccessKeyIssuerProps) {
     try {
       const response = await createAccessKey(
         { prefix, allowedUses: normalizedAllowedUses },
-        { adminApiKey: normalizedAdminApiKey, signal: controller.signal },
+        isFnos
+          ? { signal: controller.signal }
+          : { adminApiKey: normalizedAdminApiKey, signal: controller.signal },
       );
       setResult(response);
     } catch (cause: unknown) {
@@ -113,6 +146,12 @@ export function AccessKeyIssuer({ prefix }: AccessKeyIssuerProps) {
   return (
     <main className={styles.page}>
       <section className={styles.card} aria-labelledby="access-key-title">
+        {isFnos && (
+          <button className={styles.returnButton} type="button" onClick={onReturn} disabled={isSubmitting}>
+            <ArrowLeft aria-hidden="true" />
+            返回生成界面
+          </button>
+        )}
         <header className={styles.header}>
           <span className={styles.headerIcon} aria-hidden="true">
             <KeyRound />
@@ -120,7 +159,9 @@ export function AccessKeyIssuer({ prefix }: AccessKeyIssuerProps) {
           <div>
             <p className={styles.eyebrow}>Access Key Issuer</p>
             <h1 id="access-key-title">签发访问密钥</h1>
-            <p className={styles.description}>填写管理密钥和使用次数，为当前来源生成消费密钥。</p>
+            <p className={styles.description}>
+              {isFnos ? "设置使用次数，为当前来源生成消费密钥。" : "填写管理密钥和使用次数，为当前来源生成消费密钥。"}
+            </p>
           </div>
         </header>
 
@@ -130,19 +171,29 @@ export function AccessKeyIssuer({ prefix }: AccessKeyIssuerProps) {
         </div>
 
         <form className={styles.form} onSubmit={submit} noValidate>
-          <div className={styles.field}>
-            <label htmlFor="admin-api-key">X-Admin-API-Key</label>
-            <input
-              id="admin-api-key"
-              type="password"
-              value={adminApiKey}
-              onChange={(event) => setAdminApiKey(event.target.value)}
-              placeholder="请输入管理 API Key"
-              autoComplete="off"
-              disabled={isSubmitting}
-              required
-            />
-          </div>
+          {isFnos ? (
+            <div className={styles.autoConfigured}>
+              <ShieldCheck aria-hidden="true" />
+              <div>
+                <p>管理密钥：已自动配置</p>
+                <small>由 NAS 应用提供授权，签发结果以服务端校验为准。</small>
+              </div>
+            </div>
+          ) : (
+            <div className={styles.field}>
+              <label htmlFor="admin-api-key">X-Admin-API-Key</label>
+              <input
+                id="admin-api-key"
+                type="password"
+                value={adminApiKey}
+                onChange={(event) => setAdminApiKey(event.target.value)}
+                placeholder="请输入管理 API Key"
+                autoComplete="off"
+                disabled={isSubmitting}
+                required
+              />
+            </div>
+          )}
 
           <div className={styles.field}>
             <label htmlFor="allowed-uses">allowed_uses</label>
@@ -168,6 +219,38 @@ export function AccessKeyIssuer({ prefix }: AccessKeyIssuerProps) {
             </p>
           )}
 
+          {result && (
+            <section className={styles.result} aria-live="polite" aria-label="签发结果">
+              <div className={styles.resultHeading}>
+                <div>
+                  <span>签发成功</span>
+                  <small>剩余可用次数：{result.remaining_uses.toLocaleString("zh-CN")}</small>
+                </div>
+                <Check aria-hidden="true" />
+              </div>
+              <div className={styles.keyRow}>
+                <code>{result.key}</code>
+                <button type="button" onClick={copyKey} aria-label="复制访问密钥">
+                  {copyState === "copied" ? <Check aria-hidden="true" /> : <Clipboard aria-hidden="true" />}
+                  {copyState === "copied" ? "已复制" : "复制"}
+                </button>
+              </div>
+              {copyState === "failed" && (
+                <p className={styles.copyError} role="alert">复制失败，请手动选择 key 复制。</p>
+              )}
+              {isFnos && (
+                <button
+                  className={`${styles.submitButton} ${styles.useKeyButton}`}
+                  type="button"
+                  onClick={() => onUseKey?.(result.key)}
+                  disabled={isSubmitting}
+                >
+                  使用此密钥生成图纸
+                </button>
+              )}
+            </section>
+          )}
+
           <button className={styles.submitButton} type="submit" disabled={isSubmitting}>
             {isSubmitting ? (
               <>
@@ -182,28 +265,6 @@ export function AccessKeyIssuer({ prefix }: AccessKeyIssuerProps) {
             )}
           </button>
         </form>
-
-        {result && (
-          <section className={styles.result} aria-live="polite" aria-label="签发结果">
-            <div className={styles.resultHeading}>
-              <div>
-                <span>签发成功</span>
-                <small>剩余可用次数：{result.remaining_uses.toLocaleString("zh-CN")}</small>
-              </div>
-              <Check aria-hidden="true" />
-            </div>
-            <div className={styles.keyRow}>
-              <code>{result.key}</code>
-              <button type="button" onClick={copyKey} aria-label="复制访问密钥">
-                {copyState === "copied" ? <Check aria-hidden="true" /> : <Clipboard aria-hidden="true" />}
-                {copyState === "copied" ? "已复制" : "复制"}
-              </button>
-            </div>
-            {copyState === "failed" && (
-              <p className={styles.copyError} role="alert">复制失败，请手动选择 key 复制。</p>
-            )}
-          </section>
-        )}
       </section>
     </main>
   );

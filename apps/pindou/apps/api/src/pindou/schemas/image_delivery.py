@@ -14,3 +14,4 @@ class ImageDeliveryResponse(BaseModel):
     image_url: str
     download_url: str
     expires_at: datetime
+    share_url: str | None = None

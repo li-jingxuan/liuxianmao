@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { AccessKeyIssuer } from "@/components/access-key-issuer";
+import { IS_FNOS } from "@/lib/paths";
 
 export const metadata: Metadata = {
   title: "签发访问密钥 | 拼豆图片转换器",
@@ -14,5 +15,5 @@ type AccessKeyPageProps = {
 /** prefix 由 /gk/[prefix] 路由段提供，不允许在表单中临时修改。 */
 export default async function AccessKeyPage({ params }: AccessKeyPageProps) {
   const { prefix } = await params;
-  return <AccessKeyIssuer prefix={prefix} />;
+  return <AccessKeyIssuer prefix={prefix} isFnos={IS_FNOS} />;
 }

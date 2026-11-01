@@ -38,6 +38,9 @@ services:
       IMAGE_BACKUP_DIR: /var/lib/pindou/images
       EVENT_LOG_DIR: /var/lib/pindou/log
       IMAGE_DELIVERY_DIR: /var/lib/pindou/image-deliveries
+      NAS_ALBUM_ENABLED: "true"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     command: ["python", "/opt/fnos/api-start.py"]
     volumes:
       - "${TRIM_APPDEST:?}/docker/api-start.py:/opt/fnos/api-start.py:ro"
@@ -83,6 +86,12 @@ services:
     # fnOS connects to ${TRIM_APPDEST}/pindou.sock; no host TCP ports are exposed.
     volumes:
       - "${TRIM_APPDEST:?}:/gateway:rw"
+      - type: bind
+        source: "${TRIM_PKGETC:?}/proxy-admin-auth.conf"
+        target: /etc/nginx/proxy-admin-auth.conf
+        read_only: true
+        bind:
+          create_host_path: false
     depends_on:
       api: {condition: service_healthy}
       web: {condition: service_healthy}

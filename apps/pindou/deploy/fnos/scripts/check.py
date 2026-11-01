@@ -11,7 +11,11 @@ import shutil
 import stat
 import struct
 import subprocess
+import sys
 import tempfile
+
+sys.dont_write_bytecode = True
+from check_proxy import check_proxy
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -63,11 +67,16 @@ def main():
         run = lambda key="": initializer.initialize(config, data, key, owner=None)
         expect_error(run)
         assert not (config / "api.env").exists()
+        assert not (config / "proxy-admin-auth.conf").exists()
         run("offline-dummy-key")
-        before = {name: (config / name).read_bytes() for name in ("postgres.env", "api.env")}
+        before = {name: (config / name).read_bytes() for name in ("postgres.env", "api.env", "proxy-admin-auth.conf")}
+        proxy_path = config / "proxy-admin-auth.conf"
+        proxy_inode = proxy_path.stat().st_ino
         run()
         assert before == {name: (config / name).read_bytes() for name in before}
+        assert proxy_path.stat().st_ino == proxy_inode
         api = initializer.read_env(config / "api.env")
+        assert proxy_path.read_text() == initializer.proxy_admin_auth(api["KEY_ISSUER_API_KEY"])
         first_secrets = {key: api[key] for key in ("KEY_ISSUER_API_KEY", "API_KEY_HASH_PEPPER")}
         run("offline-updated-key")
         updated = initializer.read_env(config / "api.env")
@@ -75,6 +84,15 @@ def main():
         assert all(updated[key] == value for key, value in first_secrets.items())
         assert (config / "postgres.env").read_bytes() == before["postgres.env"]
         assert all(stat.S_IMODE((config / name).stat().st_mode) == 0o600 for name in before)
+        # Upgrade a previous installation with env files but no proxy credential.
+        proxy_path.unlink()
+        run()
+        assert proxy_path.read_bytes() == before["proxy-admin-auth.conf"]
+        assert stat.S_IMODE(proxy_path.stat().st_mode) == 0o600
+        proxy_path.chmod(0o644)
+        run()
+        assert stat.S_IMODE(proxy_path.stat().st_mode) == 0o600
+        assert not list(config.glob(".pindou-*"))
         # Recover empty placeholders left by an interrupted older package install.
         placeholder = base / "placeholder"
         placeholder_data = base / "placeholder-data"
@@ -108,11 +126,18 @@ def main():
         postgres["POSTGRES_PASSWORD"] = "dummy$pa:ss/@%#'\\word"
         initializer.write_env(config / "postgres.env", postgres)
         updated["DATABASE_URL"] = initializer.database_url(postgres)
+        # Literal nginx metacharacters must not become variables or directives.
+        updated["KEY_ISSUER_API_KEY"] = 'offline-$unknown-${host}-"; } # \\end'
         initializer.write_env(config / "api.env", updated)
         assert initializer.read_env(config / "postgres.env") == postgres
         assert "%24" in updated["DATABASE_URL"] and "%40" in updated["DATABASE_URL"]
         run()
         assert initializer.read_env(config / "api.env") == updated
+        assert proxy_path.read_text() == initializer.proxy_admin_auth(updated["KEY_ISSUER_API_KEY"])
+        assert proxy_path.read_bytes() != before["proxy-admin-auth.conf"]
+        for invalid in ("", "bad\nkey", "bad\rkey", "bad\x00key", "bad\tkey", "bad\x7fkey"):
+            expect_error(lambda: initializer.proxy_admin_auth(invalid))
+        check_proxy(ROOT, base, initializer)
         # A surviving database must never get a freshly generated pepper.
         (data / "postgres" / "PG_VERSION").write_text("17\n")
         backup = (config / "api.env").read_bytes()
@@ -143,6 +168,16 @@ def main():
             assert services["api"]["environment"]["DATABASE_URL"] == updated["DATABASE_URL"]
             assert "POSTGRES_PASSWORD" not in services["api"]["environment"]
             assert "ARK_DOUBAO_API_KEY" not in services["postgres"]["environment"]
+            proxy = services["proxy"]
+            assert "KEY_ISSUER_API_KEY" not in proxy.get("environment", {})
+            credential_mount = next(mount for mount in proxy["volumes"]
+                                    if mount["target"] == "/etc/nginx/proxy-admin-auth.conf")
+            assert credential_mount["source"] == str(proxy_path)
+            assert credential_mount["read_only"] is True
+            # Compose omits false/default values in its canonical JSON output.
+            assert credential_mount.get("bind", {}).get("create_host_path", False) is False
+            assert "create_host_path: false" in (ROOT / "app/docker/docker-compose.yaml").read_text()
+            assert all(not mount["source"].endswith("api.env") for mount in proxy["volumes"])
             assert all("healthcheck" in service for service in services.values())
             assert "pg_isready -h 127.0.0.1" in services["postgres"]["healthcheck"]["test"][1]
             assert all(0 < float(service["cpus"]) <= 1 for service in services.values())
@@ -157,13 +192,53 @@ def main():
         docker.write_text("#!/bin/sh\ncase \"$1\" in\nps) echo fixture;;\ninspect) printf '%s\\n' \"${FIXTURE_STATE:-running healthy}\";;\n*) exit 99;;\nesac\n")
         docker.chmod(0o755)
         env = dict(os.environ, PATH=str(fake) + os.pathsep + os.environ.get("PATH", ""))
+        # nginx syntax errors may contain invalid tokens: never forward them into
+        # Docker/fnOS logs, where a private credential could become visible.
+        fake_nginx = fake / "nginx"
+        fake_nginx.write_text("#!/bin/sh\nprintf '%s\\n' 'offline-private-diagnostic' >&2\nexit 1\n")
+        fake_nginx.chmod(0o755)
+        rejected = subprocess.run([str(ROOT / "proxy/entrypoint.sh")], env=env, capture_output=True, text=True)
+        assert rejected.returncode == 1
+        assert "offline-private-diagnostic" not in rejected.stdout + rejected.stderr
+        assert "configuration is missing or invalid" in rejected.stderr
         for operation in ("start", "stop", "status"):
             result = subprocess.run([str(ROOT / "cmd/main"), operation], env=env)
             assert result.returncode == 0
         env["FIXTURE_STATE"] = "running unhealthy"
         assert subprocess.run([str(ROOT / "cmd/main"), "status"], env=env).returncode == 3
-    print("PASS: JSON, shell/Python syntax, PNG sizes, first/repeated config, stable secrets, restore guards, lifecycle status.")
-    print("This check does not run image builds, nginx -t, fnpack build, live fnOS or provider calls.")
+        # Exercise the real early lifecycle entrypoints with a staged bootstrap.
+        # The fake Docker helper runs the same initializer locally, without a daemon.
+        staged = base / "staged-cmd"
+        shutil.copytree(ROOT / "cmd", staged)
+        bootstrap = staged / "bootstrap"
+        bootstrap.mkdir()
+        shutil.copy2(ROOT / "app/docker/initialize.py", bootstrap / "initialize.py")
+        (bootstrap / "api-image").write_text("offline.invalid/api:fixture\n")
+        docker.write_text(
+            "#!/bin/sh\nset -eu\n[ \"$1\" = run ] || exit 99\n"
+            "exec \"$FIXTURE_PYTHON\" -c 'import os, runpy; from pathlib import Path; "
+            "module = runpy.run_path(os.environ[\"FIXTURE_INITIALIZER\"]); "
+            "module[\"initialize\"](Path(os.environ[\"TRIM_PKGETC\"]), "
+            "Path(os.environ[\"TRIM_PKGVAR\"]), os.environ[\"wizard_ark_api_key\"], owner=None)'\n"
+        )
+        env.update(TRIM_APPDEST=str(base / "target"), TRIM_PKGETC=str(base / "lifecycle-etc"),
+                   TRIM_PKGVAR=str(base / "lifecycle-var"), FIXTURE_PYTHON=sys.executable,
+                   FIXTURE_INITIALIZER=str(bootstrap / "initialize.py"), wizard_ark_api_key="offline-lifecycle-key")
+        lifecycle_config = Path(env["TRIM_PKGETC"])
+        for operation in ("install_init", "install_callback", "upgrade_init", "upgrade_callback"):
+            if operation == "upgrade_init":
+                (lifecycle_config / "proxy-admin-auth.conf").unlink()
+                env["wizard_ark_api_key"] = ""
+            subprocess.run([str(staged / operation)], env=env, check=True)
+            assert (lifecycle_config / "proxy-admin-auth.conf").is_file()
+            assert stat.S_IMODE((lifecycle_config / "proxy-admin-auth.conf").stat().st_mode) == 0o600
+            lifecycle_api = initializer.read_env(lifecycle_config / "api.env")
+            if operation == "install_init":
+                original_key = lifecycle_api["KEY_ISSUER_API_KEY"]
+            assert lifecycle_api["KEY_ISSUER_API_KEY"] == original_key
+    print("PASS: JSON, shell/Python syntax, PNG sizes, first/repeated config, stable secrets, restore guards,")
+    print("      private permissions, pre-Compose install/upgrade initialization and lifecycle status.")
+    print("This check does not run image builds, fnpack build, live fnOS or provider calls.")
 
 
 if __name__ == "__main__":
