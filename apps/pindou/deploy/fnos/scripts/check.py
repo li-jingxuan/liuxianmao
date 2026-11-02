@@ -37,6 +37,9 @@ def expect_error(action):
 
 
 def main():
+    manifest = dict(line.split("=", 1) for line in (ROOT / "manifest").read_text().splitlines()
+                    if line.strip() and not line.lstrip().startswith("#"))
+    assert manifest.get("micro_app") == "true", "Native SDK requires the micro-app runtime declaration"
     for relative in ("config/resource", "config/privilege", "app/ui/config",
                      "wizard/install", "wizard/config", "wizard/upgrade", "wizard/uninstall"):
         json.loads((ROOT / relative).read_text(encoding="utf-8"))

@@ -148,7 +148,17 @@ JSON API 另需 `authx: nonce=...&timestamp=...&sign=...`：
 
 协议证据：[SDK 0.5.0 发布包](https://registry.npmjs.org/@trimjs/web-app/-/web-app-0.5.0.tgz) 确认就绪条件、双层 JSON 解码，其 README 提及手机使用 `getUserMessage`；[NAS 相册上传 worker](http://192.168.2.13:5666/p/assets/CnPv0tpVPBFeCbFD.js) 确认上传需要 `secret` 和可选 `token`。但 SDK 没有声明 `getUserMessage` 的 payload 字段；README 中 `code: 0, data: { secret, token? }` 明确属于 Desktop 的另一接口。此处的手机字段映射是待实机确认的兼容实现，不能据此宣称手机协议已验证。若实际字段不同，需要取得只包含字段名、类型及存在性的诊断信息后调整，不能收集原始会话响应。
 
-没有可用原生桥时提示重新打开；会话字段无法识别时，错误信息仅附带有长度和深度限制的字段名及类型，不包含凭据值、用户 ID 或其他字段值，便于手机用户反馈真实格式。NAS 接口明确返回 401 时仍提示重新登录。不使用共享管理员账号替代当前用户。官方 SDK 的 `getSessionCredentials()` 只适用于获授权的 Desktop 官方应用，不能替代手机端 `getUserMessage`，因此此处直接使用原生桥，未新增 SDK 依赖或更改应用启动方式。
+没有可用原生桥时提示检查 App 会话；会话字段无法识别时，诊断仅附带有长度和深度限制的字段名及类型，不包含凭据值、用户 ID 或其他字段值，便于手机用户反馈真实格式。NAS 接口明确返回 401 时仍提示重新登录。不使用共享管理员账号替代当前用户。官方 SDK 的 `getSessionCredentials()` 只适用于获授权的 Desktop 官方应用，不能替代手机端 `getUserMessage`，因此此处直接使用原生桥，未新增 SDK 依赖。
+
+后续测试版将完整诊断放在可选择、可复制的独立文本区，包含版本号、平台类别、从 UA 提取的 App 数字版本、是否在同源框架内、桥所在层级、就绪标记、失败阶段和经过裁剪的字段结构。字段名仅显示固定白名单，其他键名统一替换为 `unknown`，防止凭据被当作对象 key 时出现在诊断中。不会包含完整 UA、页面地址、原生错误文本、字段值或原始响应。失败阶段区分 `FNS_NO_BRIDGE`、`FNS_NOT_READY`、`FNS_HANDLER_TIMEOUT`、`FNS_HANDLER_REJECTED`、`FNS_RESPONSE_UNRECOGNIZED`；成功检查为 `FNS_READY`。手动“检查 App 会话”只调用桥或读取当前网页会话，不上传、不创建分享、不调用 AI。
+
+同源 iframe 可以使用直接父页面注入的桥，并监听父页面的一次性就绪事件；此回退是本项目的兼容逻辑，SDK 没有公开保证父页面会提供桥。每个桥只使用其所属页面的就绪标记，优先选择已就绪的桥。跨来源父页面不读取、不调用、不发送会话消息。原生桥调用仍保持当前用户上下文，页面不缓存凭据。
+
+官方[调用方式](https://developer.fnnas.com/api/calling/)要求应用包声明 `micro_app=true` 才能初始化 JS SDK 运行环境，源 manifest 已补充该声明。此声明的安装元数据是否在目标 App 生效，需要结合实际安装升级及新诊断验证，不能假设仅修改 Web 镜像就能让宿主注入桥。
+
+## 临时无 AI 测试入口
+
+构建飞牛 Web 时设置 `NEXT_PUBLIC_FNOS_ALBUM_TEST_MODE=true`，首页改为独立相册测试界面；默认值为 `false`，普通 Web 不受影响。测试页在本机生成一张小 PNG，或选择已有 PNG，复用正式 `createImageDelivery` 的保存→同源上传→入库→七天分享流程，不发起转换、不校验或消耗转换次数。关闭测试时重新构建该参数为 `false` 的镜像即可恢复正常首页。
 
 ## 本项目调用方式与部署
 
