@@ -1,0 +1,73 @@
+{
+  "results": [
+    {
+      "name": "歌词气泡锚定且无遮罩",
+      "passed": true
+    },
+    {
+      "name": "歌词草稿、DOM 与选区往返保留",
+      "passed": true
+    },
+    {
+      "name": "组合输入禁止切表面和选词提交",
+      "passed": true
+    },
+    {
+      "name": "脏气泡点击谱面空白不丢输入",
+      "passed": true
+    },
+    {
+      "name": "歌词无修改下一处不产生撤销",
+      "passed": true
+    },
+    {
+      "name": "干净气泡空白收起且重复点选恢复",
+      "passed": true
+    },
+    {
+      "name": "组合输入期间离屏保持，结束后隐藏并保留草稿",
+      "passed": true
+    },
+    {
+      "name": "空间不足在侧栏继续且扩大后不抢回",
+      "passed": true
+    },
+    {
+      "name": "关闭脏草稿需要确认，取消确认零写入",
+      "passed": true
+    },
+    {
+      "name": "空白时间窗首次填词后保持真实目标和编辑会话",
+      "passed": true
+    },
+    {
+      "name": "简谱紧凑视图及侧栏往返保留正文节点",
+      "passed": true
+    },
+    {
+      "name": "已有简谱时值独立应用，正文不被提交",
+      "passed": true
+    },
+    {
+      "name": "正文与时值依赖冲突提前禁用",
+      "passed": true
+    },
+    {
+      "name": "干净气泡收起及离屏后释放谱面键盘",
+      "passed": true
+    },
+    {
+      "name": "保留音高草稿返回气泡后可继续正文编辑",
+      "passed": true
+    },
+    {
+      "name": "组合输入及结束保护期间历史操作零写入",
+      "passed": true
+    },
+    {
+      "name": "已有锚点暂失后释放输入且恢复时不抢焦点",
+      "passed": true
+    }
+  ],
+  "errors": []
+}

@@ -244,6 +244,10 @@
   min-width: 0;
   min-height: 0;
   background: var(--panel-muted);
+  &:has(.musicTextFloating) {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+  }
 }
 .musicTextSidebar {
   width: auto;
@@ -275,19 +279,82 @@
 .musicTextFloating {
   position: fixed;
   z-index: 30;
-  width: min(560px, calc(100vw - 24px));
+  width: min(360px, calc(100vw - 24px));
   max-height: calc(100vh - 24px);
   border: 1px solid var(--border);
-  border-radius: 16px;
-  box-shadow: 0 18px 48px rgb(15 23 42 / 20%);
-  overflow: hidden;
+  border-radius: 10px;
+  box-shadow: 0 8px 28px rgb(15 23 42 / 16%);
+  overflow: visible;
   background: var(--panel);
+  &::before {
+    content: "";
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    transform: rotate(45deg);
+    pointer-events: none;
+  }
+  &[data-popover-placement="bottom"]::before {
+    left: calc(var(--popover-arrow-offset) - 5px);
+    top: -6px;
+    border-right: 0;
+    border-bottom: 0;
+  }
+  &[data-popover-placement="top"]::before {
+    left: calc(var(--popover-arrow-offset) - 5px);
+    bottom: -6px;
+    border-left: 0;
+    border-top: 0;
+  }
+  &[data-popover-placement="right"]::before {
+    top: calc(var(--popover-arrow-offset) - 5px);
+    left: -6px;
+    border-right: 0;
+    border-top: 0;
+  }
+  &[data-popover-placement="left"]::before {
+    top: calc(var(--popover-arrow-offset) - 5px);
+    right: -6px;
+    border-left: 0;
+    border-bottom: 0;
+  }
+  [hidden] { display: none !important; }
+  .floatingHeader { padding: 8px 10px 6px 12px; border: 0; }
+  .floatingTitle {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    strong { font-size: 14px; white-space: nowrap; }
+    span { font-size: 12px; }
+  }
   .sidebarHeader {
     display: none;
   }
   .sidebarBody {
     min-height: 0;
-    overflow: auto;
+    overflow: visible;
+    padding: 0 12px 8px;
+    gap: 8px;
+    :global(.ant-form-item) { margin-bottom: 8px; }
+    :global(.ant-form-item-explain) { font-size: 12px; }
+    :global(textarea.ant-input) { resize: none; }
+  }
+  .sidebarSection { padding: 0; border: 0; }
+  .sidebarTarget { display: none; }
+  .sidebarActions {
+    gap: 6px;
+    flex-wrap: wrap;
+    > :global(.ant-btn-link) { margin-right: auto; padding-inline: 0; }
+  }
+  .sequencePreview { margin: 0; padding: 0; border: 0; }
+  .sidebarMessage, .sidebarError { margin: 0 0 6px; font-size: 12px; }
+  .sidebarFooter {
+    padding: 0 12px 12px;
+    border: 0;
+    background: transparent;
+    &[hidden] { display: none; }
   }
   .sidebarFooter {
     flex: none;
@@ -301,10 +368,10 @@
   flex: none;
   padding: 18px 20px 14px;
   border-bottom: 1px solid var(--border);
-  cursor: move;
-  user-select: none;
-  touch-action: none;
 }
+.lyricModeSwitch { margin-bottom: 8px; }
+.compactSummary { margin: 0; color: var(--muted); font-size: 12px; }
+.musicTextSidebar [hidden] { display: none !important; }
 .floatingTitle {
   display: grid;
   gap: 4px;
@@ -564,6 +631,23 @@
     flex-wrap: wrap;
     gap: 8px;
   }
+}
+
+// 确认区独立约束到视口，避免 pending 冻结气泡几何时新增内容越界。
+.musicTextFloating .draftConfirmation {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  box-sizing: border-box;
+  width: min(360px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  overflow: auto;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel);
+  box-shadow: 0 8px 28px rgb(15 23 42 / 20%);
 }
 
 /** 窄窗口采用上下分区，连续录入时谱面仍然可以点选，切换不卸载草稿。 */

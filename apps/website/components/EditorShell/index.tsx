@@ -178,6 +178,7 @@ export const EditorShell: React.FC = () => {
   );
   const musicTextController = useRef<MusicTextController>(null);
   const [musicTextEditing, setMusicTextEditing] = useState(false);
+  const [musicTextPopoverHidden, setMusicTextPopoverHidden] = useState(false);
   const [numberedActionBlocked, setNumberedActionBlocked] = useState(true);
   const pageViewportRef = useRef<HTMLDivElement>(null);
   const [activeMusicTextTarget, setActiveMusicTextTarget] =
@@ -320,16 +321,15 @@ export const EditorShell: React.FC = () => {
       if (!focus || !scoreSvgRef.current) return null;
       const matrix = scoreSvgRef.current.getScreenCTM();
       if (!matrix) return null;
-      const start = new DOMPoint(focus.x, focus.y).matrixTransform(matrix);
-      const end = new DOMPoint(
-        focus.x + focus.width,
-        focus.y + focus.height,
-      ).matrixTransform(matrix);
+      const points = [
+        [focus.x, focus.y], [focus.x + focus.width, focus.y],
+        [focus.x, focus.y + focus.height], [focus.x + focus.width, focus.y + focus.height],
+      ].map(([x, y]) => new DOMPoint(x, y).matrixTransform(matrix));
       return {
-        left: start.x,
-        top: start.y,
-        right: end.x,
-        bottom: end.y,
+        left: Math.min(...points.map((point) => point.x)),
+        top: Math.min(...points.map((point) => point.y)),
+        right: Math.max(...points.map((point) => point.x)),
+        bottom: Math.max(...points.map((point) => point.y)),
       };
     },
     [lxmLayout],
@@ -407,7 +407,8 @@ export const EditorShell: React.FC = () => {
   /** 只滚动谱面视口，文本编辑期间也能跟随目标；不会滚动侧栏输入区。 */
   useEffect(() => {
     const viewport = pageViewportRef.current;
-    if (!viewport) return;
+    // 气泡隐藏时保留用户滚动位置，未提交草稿也不能把视口拉回。
+    if (!viewport || (activeMusicTextTarget && musicTextPopoverHidden)) return;
     const revealTarget = () => {
       const caret = focusCaretRef.current;
       const matrix = scoreSvgRef.current?.getScreenCTM();
@@ -485,6 +486,7 @@ export const EditorShell: React.FC = () => {
   }, [
     focusCaret,
     musicTextEditing,
+    musicTextPopoverHidden,
     selection,
     lxmLayout,
     lyricFocus,
@@ -500,6 +502,7 @@ export const EditorShell: React.FC = () => {
 
   /** 所有立即生效的编辑动作都先使等待中的品位草稿失效。 */
   const runImmediateEditorAction = (action: () => void): void => {
+    if (musicTextController.current?.isTransitionBlocked()) return;
     clearFretDraft();
     action();
   };
@@ -707,13 +710,21 @@ export const EditorShell: React.FC = () => {
       selection,
       event.shiftKey,
     );
-    if (!action) return;
+    if (!action) {
+      if (!event.shiftKey) musicTextController.current?.dismissCleanPopover();
+      return;
+    }
     event.preventDefault();
     if (action.type === "target") {
       musicTextController.current?.open(action.target);
       return;
     }
     if (action.type !== "selection") return;
+    if (!action.selection && !action.techniqueId && !event.shiftKey &&
+        (activeMusicTextTarget?.kind === "numbered" || activeMusicTextTarget?.kind === "lyric")) {
+      musicTextController.current?.dismissCleanPopover();
+      return;
+    }
     const result = musicTextController.current?.select(
       action.selection,
       action.techniqueId,
@@ -922,6 +933,10 @@ export const EditorShell: React.FC = () => {
     )
       return;
 
+    if (activeMusicTextTarget?.kind === "numbered" || activeMusicTextTarget?.kind === "lyric") {
+      musicTextController.current?.dismissCleanPopover();
+      return;
+    }
     musicTextController.current?.select(null);
   };
 
@@ -962,6 +977,7 @@ export const EditorShell: React.FC = () => {
     if (modals.isOpen()) return false;
     clearFretDraft();
     if (action.type === "undo" || action.type === "redo") {
+      if (musicTextController.current?.isTransitionBlocked()) return false;
       const now = session.getState();
       if (action.type === "undo") now.undo();
       else now.redo();
@@ -1217,9 +1233,11 @@ export const EditorShell: React.FC = () => {
           onNumberedActionBlockedChange={setNumberedActionBlocked}
           onTargetChange={setActiveMusicTextTarget}
           onScoreFocus={focusScore}
+          onPopoverHiddenChange={setMusicTextPopoverHidden}
           onScoreSelection={acceptScoreSelection}
           getFloatingAnchor={getFloatingAnchor}
           getFloatingViewport={getFloatingViewport}
+          getFloatingObservedElements={() => [pageViewportRef.current]}
           revealFloatingTarget={revealFloatingTarget}
         />
       </div>

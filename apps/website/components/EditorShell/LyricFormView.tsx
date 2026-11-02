@@ -1,4 +1,4 @@
-import { Alert, Button, Checkbox, Form, Input, Select } from "antd";
+import { Alert, Button, Checkbox, Form, Input, Segmented, Select } from "antd";
 import { planLyricSequence, type ILXMLyricVerse } from "@liuxianmao/lxm-editor";
 import type { RefCallback } from "react";
 import type { MusicTextDraft } from "./music-text-draft";
@@ -6,6 +6,7 @@ import styles from "./index.module.scss";
 
 /** 纯呈现：草稿、输入法、目标保护和音乐命令仍由 Sidebar 唯一持有。 */
 export const LyricFormView = ({
+  presentation = "sidebar",
   draft,
   plan,
   issue,
@@ -20,6 +21,7 @@ export const LyricFormView = ({
   onOverwriteChange,
   onInspect,
 }: {
+  presentation?: "popover" | "sidebar";
   draft: MusicTextDraft;
   plan: ReturnType<typeof planLyricSequence> | null;
   issue: string | null;
@@ -35,9 +37,10 @@ export const LyricFormView = ({
   onInspect: (index: number) => void;
 }) => {
   const sequence = draft.lyricMode === "sequence";
+  const compact = presentation === "popover";
   return (
     <section className={styles.sidebarSection} aria-label="歌词属性表单">
-      <div className={styles.propertyGrid}>
+      <div className={styles.propertyGrid} hidden={compact} inert={compact}>
         <Form.Item layout="vertical" label="录入方式" htmlFor="lyric-mode">
           <Select
             id="lyric-mode"
@@ -63,9 +66,14 @@ export const LyricFormView = ({
           />
         </Form.Item>
       </div>
+      <div hidden={!compact} inert={!compact} className={styles.lyricModeSwitch}>
+        <Segmented size="small" aria-label="歌词录入方式" value={draft.lyricMode}
+          options={[{value: "single", label: "单点"}, {value: "sequence", label: "连续"}]}
+          onChange={(value) => onModeChange(value as MusicTextDraft["lyricMode"])} />
+      </div>
       <Form.Item
         layout="vertical"
-        label={sequence ? "连续歌词" : "歌词"}
+        label={compact ? undefined : sequence ? "连续歌词" : "歌词"}
         htmlFor="lyric-body"
         validateStatus={issue ? "error" : undefined}
         help={issue ?? undefined}
@@ -95,7 +103,7 @@ export const LyricFormView = ({
       </Form.Item>
       {sequence ? (
         <>
-          <div id="lyric-sequence-tips" className={styles.sidebarTip}>
+          <div id="lyric-sequence-tips" className={styles.sidebarTip} hidden={compact} inert={compact}>
             <p>
               用空格分词，每项依次对应一个音符或空白位置，自动跳过休止。用{" "}
               <code>_</code> 跳过一个位置并保留原词。
@@ -105,13 +113,13 @@ export const LyricFormView = ({
               半角与全角空格均可分隔，首尾空格忽略。每项最多64字，每批最多256个位置；不接受换行或制表符，超出谱尾整批拒绝。英文空格也会拆词，同一位置的短句请用单音符编辑。
             </details>
           </div>
-          <Checkbox
+          <div hidden={compact} inert={compact}><Checkbox
             checked={draft.allowOverwrite}
             onChange={(event) => onOverwriteChange(event.target.checked)}
           >
             允许替换预览中标记的已有歌词（{plan?.overwrites ?? 0} 项）
-          </Checkbox>
-          {issue && (
+          </Checkbox></div>
+          {issue && !compact && (
             <Alert
               type="error"
               showIcon
@@ -121,10 +129,10 @@ export const LyricFormView = ({
           )}
           {plan && (
             <div className={styles.sequencePreview} aria-label="歌词对应预览">
-              <p role="status">
-                对应预览 · 写入 {plan.changes} 项 · 覆盖 {plan.overwrites} 项
+              <p role="status" className={compact ? styles.compactSummary : undefined}>
+                {compact ? "" : "对应预览 · "}写入 {plan.changes} 项 · 覆盖 {plan.overwrites} 项
               </p>
-              <details>
+              <details hidden={compact} inert={compact}>
                 <summary>查看歌词与位置映射 · {plan.rows.length} 项</summary>
                 <table>
                   <thead>
@@ -179,7 +187,7 @@ export const LyricFormView = ({
           )}
         </>
       ) : (
-        <>
+        <div hidden={compact} inert={compact}>
           <p className={styles.sidebarTip}>
             下一歌词位置：{nextLocation ?? "已到最后一个歌词位置"}
           </p>
@@ -191,7 +199,7 @@ export const LyricFormView = ({
             Enter 应用并移到下一个歌词位置；Shift+Enter
             仅应用。每个音符单行，支持第1–4段歌词。
           </p>
-        </>
+        </div>
       )}
     </section>
   );

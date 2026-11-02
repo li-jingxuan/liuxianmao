@@ -1,6 +1,10 @@
 .editor {
   min-width: 0;
 
+  [hidden] {
+    display: none !important;
+  }
+
   details {
     margin-block: 10px;
   }
@@ -50,4 +54,126 @@
   color: var(--muted);
   font-size: 12px;
   line-height: 1.5;
+}
+
+.compact {
+  padding: 0;
+
+  :global(.ant-form-item) {
+    margin-bottom: 6px;
+  }
+
+  :global(.ant-form-item-label) {
+    display: none;
+  }
+
+  :global(textarea.ant-input) {
+    min-height: 32px;
+    font-size: 14px;
+    resize: vertical;
+  }
+
+  .actions {
+    position: static;
+    gap: 6px;
+    padding: 8px 0 0;
+    background: transparent;
+  }
+
+  > p[role="status"] {
+    margin: 4px 0 0;
+    font-size: 12px;
+  }
+}
+
+.compactRhythm {
+  min-width: 0;
+  margin-block: 6px;
+}
+
+.rhythmToolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+
+  button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 28px;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--ant-color-text, #262626);
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+      background: var(--ant-color-fill-tertiary, #f0f0f0);
+    }
+
+    &[aria-pressed="true"] {
+      background: var(--ant-color-primary-bg, #e6f4ff);
+      color: var(--ant-color-primary, #1677ff);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--ant-color-primary, #1677ff);
+      outline-offset: 1px;
+    }
+
+    &:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+  }
+}
+
+.rhythmLabel {
+  margin-right: 2px;
+  font-size: 12px;
+  color: var(--ant-color-text-secondary, #595959);
+}
+
+.rhythmApply {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.compactSummary,
+.compactNotice {
+  margin: 4px 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ant-color-text-secondary, #595959);
+  overflow-wrap: anywhere;
+
+  p {
+    margin: 2px 0;
+  }
+
+  button {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--ant-color-primary, #1677ff);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  [role="status"] {
+    color: var(--ant-color-warning-text, #ad6800);
+  }
+}
+
+.more {
+  margin-right: auto;
+  padding-inline: 0;
 }
