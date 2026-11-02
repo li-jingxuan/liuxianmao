@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { createImageDelivery } from "@/lib/api";
-import { diagnoseFnosUploadSession } from "@/lib/fnos-session";
+import { diagnoseFnosUploadSession, FNOS_SESSION_BUILD } from "@/lib/fnos-session";
 import type { ImageDeliveryResponse } from "@/lib/types";
 
 import styles from "./fnos-album-test.module.scss";
@@ -173,7 +173,7 @@ export function FnosAlbumTest() {
   return (
     <main className={styles.shell}>
       <header>
-        <span className={styles.badge}>飞牛 · 临时测试版</span>
+        <span className={styles.badge}>飞牛 · 临时测试版 {FNOS_SESSION_BUILD}</span>
         <h1>拼豆相册测试</h1>
         <p className={styles.assurance}>不调用 AI，不消耗转换次数</p>
         <p>生成本地小图，或选择已有 PNG，测试保存、相册上传和七天分享。</p>

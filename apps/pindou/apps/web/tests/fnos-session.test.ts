@@ -33,6 +33,8 @@ afterEach(() => {
   vi.unstubAllGlobals();
   localStorage.clear();
   document.cookie = "fnos-token=; Max-Age=0; path=/";
+  document.cookie = "fnos-Secret=; Max-Age=0; path=/";
+  document.cookie = "fnos-Secret=; Max-Age=0; path=/app";
 });
 
 describe("fnOS upload session", () => {
@@ -296,5 +298,122 @@ describe("fnOS upload session", () => {
     expect(report).not.toContain("anotherPrivateKey");
     expect(report).not.toContain("private value");
     expect(report).not.toContain("private-token");
+  });
+
+  it.each([null, undefined])("uses current-origin session cookies when Android's ready handler returns %s", async (raw) => {
+    mobile();
+    bridge(raw);
+    document.cookie = `fnos-Secret=${encodeURIComponent(SECRET)}; path=/`;
+    document.cookie = "fnos-token=app%2Bcookie; path=/";
+    localStorage.setItem("fnos-Secret", "b2xk");
+    const storage = vi.spyOn(Storage.prototype, "getItem");
+    await expect(getFnosUploadSession()).resolves.toEqual({ secret: SECRET, token: "app+cookie" });
+    const report = await diagnoseFnosUploadSession();
+    expect(report).toContain('"credentialSource": "cookie"');
+    expect(report).toContain('"cookieSession": "available"');
+    expect(report).toContain('"stage": "FNS_READY"');
+    expect(report).not.toContain(SECRET);
+    expect(report).not.toContain("app+cookie");
+    expect(storage).not.toHaveBeenCalled();
+  });
+
+  it("keeps the native account when both native and Cookie credentials exist", async () => {
+    mobile();
+    bridge(envelope({ secret: SECRET, token: "native-token" }));
+    document.cookie = "fnos-Secret=b2xk; path=/";
+    document.cookie = "fnos-token=old; path=/";
+    await expect(getFnosUploadSession()).resolves.toEqual({ secret: SECRET, token: "native-token" });
+    expect(await diagnoseFnosUploadSession()).toContain('"credentialSource": "native"');
+  });
+
+  it("identifies a null native result without silently using stale browser storage", async () => {
+    mobile();
+    bridge(null);
+    localStorage.setItem("fnos-Secret", SECRET);
+    const report = await diagnoseFnosUploadSession();
+    expect(report).toContain('"stage": "FNS_NATIVE_EMPTY"');
+    expect(report).toContain('"responseShape": "null"');
+    expect(report).toContain('"cookieSession": "missing"');
+    expect(report).not.toContain(SECRET);
+  });
+
+  it.each(["bad%encoding", "not-base64!", ""])('rejects invalid session Cookie %s without leaking it', async (secret) => {
+    mobile();
+    bridge(null);
+    document.cookie = `fnos-Secret=${secret}; path=/`;
+    const report = await diagnoseFnosUploadSession();
+    expect(report).toContain('"stage": "FNS_NATIVE_EMPTY"');
+    expect(report).toContain('"cookieSession": "invalid"');
+  });
+
+  it("does not use cookies to hide a denied or malformed native response", async () => {
+    mobile();
+    const call = bridge(envelope({ code: 403 }));
+    document.cookie = `fnos-Secret=${encodeURIComponent(SECRET)}; path=/`;
+    await expect(getFnosUploadSession()).rejects.toThrow("FNS_RESPONSE_UNRECOGNIZED");
+    call.mockResolvedValue(envelope({ secret: "broken!" }));
+    await expect(getFnosUploadSession()).rejects.toThrow("FNS_RESPONSE_UNRECOGNIZED");
+  });
+
+  it("reports blocked cookies without exposing the browser error", async () => {
+    mobile();
+    bridge(null);
+    vi.spyOn(document, "cookie", "get").mockImplementation(() => { throw new Error("private error"); });
+    const report = await diagnoseFnosUploadSession();
+    expect(report).toContain('"cookieSession": "blocked"');
+    expect(report).not.toContain("private error");
+  });
+
+  it("rejects ambiguous path Cookies and invalid optional token values", async () => {
+    mobile();
+    bridge(null);
+    document.cookie = `fnos-Secret=${encodeURIComponent(SECRET)}; path=/`;
+    const duplicate = vi.spyOn(document, "cookie", "get").mockReturnValue(`fnos-Secret=${SECRET}; fnos-Secret=b2xk`);
+    expect(await diagnoseFnosUploadSession()).toContain('"cookieSession": "invalid"');
+    duplicate.mockRestore();
+    document.cookie = "fnos-token=bad%0Aheader; path=/";
+    expect(await diagnoseFnosUploadSession()).toContain('"cookieSession": "invalid"');
+  });
+
+  it("reads fresh Cookie credentials on each empty native response", async () => {
+    mobile();
+    bridge(null);
+    document.cookie = `fnos-Secret=${encodeURIComponent(SECRET)}; path=/`;
+    await expect(getFnosUploadSession()).resolves.toEqual({ secret: SECRET, token: "" });
+    document.cookie = "fnos-Secret=bmV3; path=/";
+    document.cookie = "fnos-token=new-session; path=/";
+    await expect(getFnosUploadSession()).resolves.toEqual({ secret: "bmV3", token: "new-session" });
+    document.cookie = "fnos-Secret=; Max-Age=0; path=/";
+    await expect(getFnosUploadSession()).rejects.toThrow("FNS_NATIVE_EMPTY");
+  });
+
+  it("does not read session Cookies when a native timeout finishes late", async () => {
+    vi.useFakeTimers();
+    mobile();
+    let complete!: (value: unknown) => void;
+    bridge(null).mockImplementation(() => new Promise((resolve) => { complete = resolve; }));
+    const promise = getFnosUploadSession();
+    const result = expect(promise).rejects.toThrow("FNS_HANDLER_TIMEOUT");
+    await vi.advanceTimersByTimeAsync(5000);
+    await result;
+    const cookie = vi.spyOn(document, "cookie", "get");
+    complete(null);
+    await Promise.resolve();
+    expect(cookie).not.toHaveBeenCalled();
+  });
+
+  it("does not inspect cookies from a native response that arrives after cancellation", async () => {
+    mobile();
+    let complete!: (value: unknown) => void;
+    bridge(null).mockImplementation(() => new Promise((resolve) => { complete = resolve; }));
+    const controller = new AbortController();
+    const promise = getFnosUploadSession(controller.signal);
+    await Promise.resolve();
+    const cookie = vi.spyOn(document, "cookie", "get");
+    controller.abort();
+    await expect(promise).rejects.toMatchObject({ name: "AbortError" });
+    complete(null);
+    await Promise.resolve();
+    expect(cookie).not.toHaveBeenCalled();
   });
 });

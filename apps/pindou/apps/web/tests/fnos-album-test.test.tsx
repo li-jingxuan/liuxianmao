@@ -13,7 +13,7 @@ vi.mock("../src/lib/paths", () => ({ get IS_FNOS() { return platform.isFnos; } }
 vi.mock("../src/lib/api", () => ({
   createImageDelivery: vi.fn(), createConversion: vi.fn(), createAccessKey: vi.fn(), getAccessKeyQuota: vi.fn(),
 }));
-vi.mock("../src/lib/fnos-session", () => ({ diagnoseFnosUploadSession: vi.fn() }));
+vi.mock("../src/lib/fnos-session", () => ({ diagnoseFnosUploadSession: vi.fn(), FNOS_SESSION_BUILD: "20261103.2" }));
 vi.mock("../src/components/pindou-converter", () => ({
   PindouConverter: ({ apiKey, deliveryAdminKey }: { apiKey?: string; deliveryAdminKey?: string }) => (
     <div data-testid="normal-converter">{apiKey}|{deliveryAdminKey}</div>

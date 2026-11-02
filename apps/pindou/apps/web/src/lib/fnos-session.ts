@@ -4,6 +4,7 @@ type NativeBridge = {
   callHandler: (method: string) => Promise<unknown>;
 };
 type NativeWindow = Window & { flutter_inappwebview?: NativeBridge };
+export const FNOS_SESSION_BUILD = "20261103.2";
 
 const READY_EVENT = "flutterInAppWebViewPlatformReady";
 const SESSION_TIMEOUT_MS = 5_000;
@@ -34,6 +35,7 @@ if (typeof window !== "undefined") {
 
 type Diagnostic = {
   version: 2;
+  build: string;
   platform: "android" | "apple" | "other";
   appVersion: string;
   frame: "top" | "same-origin-frame" | "cross-origin-frame";
@@ -42,6 +44,8 @@ type Diagnostic = {
   platformReady: boolean;
   stage: string;
   responseShape?: string;
+  credentialSource?: "native" | "browser-storage" | "cookie";
+  cookieSession?: "missing" | "invalid" | "blocked" | "available";
 };
 
 function diagnosticText(diagnostic: Diagnostic): string {
@@ -65,7 +69,7 @@ function failure(diagnostic: Diagnostic, stage: string, message = "无法获取�
 function createDiagnostic(): Diagnostic {
   const ua = navigator.userAgent;
   return {
-    version: 2,
+    version: 2, build: FNOS_SESSION_BUILD,
     platform: /Android/i.test(ua) ? "android" : /(iPad|iPhone|iPod|Macintosh|Mac OS X)/i.test(ua) ? "apple" : "other",
     appVersion: ua.match(/FNAppVer\/(\d+(?:\.\d+){0,5})\b/i)?.[1] ?? "unknown",
     frame: window.parent === window ? "top" : sameOriginParent() ? "same-origin-frame" : "cross-origin-frame",
@@ -109,6 +113,33 @@ function validate(secret: unknown, token: unknown): UploadSession {
     return { secret, token: typeof token === "string" ? token : "" };
   } catch {
     throw unavailable();
+  }
+}
+
+function cookieSession(diagnostic: Diagnostic): UploadSession | undefined {
+  let cookies: string[];
+  try {
+    cookies = document.cookie.split(/;\s*/);
+  } catch {
+    diagnostic.cookieSession = "blocked";
+    return;
+  }
+  const secrets = cookies.filter((entry) => entry.startsWith("fnos-Secret="));
+  if (secrets.length === 0) {
+    diagnostic.cookieSession = "missing";
+    return;
+  }
+  try {
+    // 与飞牛自带 Docker 前端的 Cookie 来源一致。拒绝同名多值，避免路径 Cookie 歧义。
+    const tokens = cookies.filter((entry) => entry.startsWith("fnos-token="));
+    if (secrets.length !== 1 || tokens.length > 1) throw unavailable();
+    const secret = decodeURIComponent(secrets[0].slice("fnos-Secret=".length));
+    const token = tokens.length ? decodeURIComponent(tokens[0].slice("fnos-token=".length)) : undefined;
+    const session = validate(secret, token);
+    diagnostic.cookieSession = "available";
+    return session;
+  } catch {
+    diagnostic.cookieSession = "invalid";
   }
 }
 
@@ -170,6 +201,7 @@ async function acquireSession(diagnostic: Diagnostic, signal?: AbortSignal): Pro
     try {
       const cookie = document.cookie.split(/;\s*/).find((entry) => entry.startsWith("fnos-token="));
       const session = validate(secret, cookie ? decodeURIComponent(cookie.slice("fnos-token=".length)) : "");
+      diagnostic.credentialSource = "browser-storage";
       diagnostic.stage = "FNS_READY";
       return session;
     } catch {
@@ -179,6 +211,7 @@ async function acquireSession(diagnostic: Diagnostic, signal?: AbortSignal): Pro
 
   const apple = /(iPad|iPhone|iPod|Macintosh|Mac OS X)/i.test(navigator.userAgent);
   let started = false;
+  let finished = false;
   let timer: number | undefined;
   let poll: number | undefined;
   let onReady: () => void = () => {};
@@ -200,7 +233,19 @@ async function acquireSession(diagnostic: Diagnostic, signal?: AbortSignal): Pro
         })
           .then((raw) => {
             try {
+              if (finished) return;
+              signal?.throwIfAborted();
+              if (raw === null || raw === undefined) {
+                diagnostic.responseShape = raw === null ? "null" : "undefined";
+                const session = cookieSession(diagnostic);
+                if (!session) throw failure(diagnostic, "FNS_NATIVE_EMPTY");
+                diagnostic.credentialSource = "cookie";
+                diagnostic.stage = "FNS_READY";
+                resolve(session);
+                return;
+              }
               const session = nativeSession(raw, diagnostic);
+              diagnostic.credentialSource = "native";
               diagnostic.stage = "FNS_READY";
               resolve(session);
             } catch (cause) { reject(cause); }
@@ -221,6 +266,7 @@ async function acquireSession(diagnostic: Diagnostic, signal?: AbortSignal): Pro
       else check();
     });
   } finally {
+    finished = true;
     window.clearTimeout(timer);
     window.clearInterval(poll);
     window.removeEventListener(READY_EVENT, onReady);

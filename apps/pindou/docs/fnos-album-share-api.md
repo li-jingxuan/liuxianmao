@@ -146,6 +146,12 @@ JSON API 另需 `authx: nonce=...&timestamp=...&sign=...`：
 
 手机适配位于 `apps/web/src/lib/fnos-session.ts`，使用 `window.flutter_inappwebview.callHandler("getUserMessage")`。就绪判断与 `@trimjs/web-app` 0.5.0 一致：Apple 平台允许直接使用已有桥，其他平台等待 `_platformReady` 或 `flutterInAppWebViewPlatformReady` 事件，并记住一次性就绪事件；兼容延迟注入，初始化和调用共用 5 秒上限，纳入原上传流程的 90 秒总时限，支持取消。按照 SDK 的双层 JSON 格式解析 `result`，尝试读取 `secret` 与可选 `token`，也接受已解码对象和 `code: 0, data` 包装。响应格式或凭据无效时不开始相册请求，错误提示不包含桥返回内容。
 
+用户在 Android App 1.37.3 的实机诊断已确认：当前页面桥存在且就绪，原生调用直接返回 `null`，不是字段别名不匹配。`20261103.2` 兼容版在原生直接返回 `null`/`undefined` 时，尝试读取同源可读 Cookie `fnos-Secret` 与可选 `fnos-token`。该来源有 NAS 自带 Docker 前端 `KE()`/`WE()` 的实际代码依据；不推断 Android 必然注入这些 Cookie。有效原生会话始终优先，不混用 Cookie token；原生拒绝、超时、拒绝业务码、格式错误或字符串形式的 `"null"` 不触发此回退。
+
+Cookie 值只解码一次并校验格式，同名多值或无效 token 拒绝，不记录凭据，不回退到手机可能残留的 localStorage。Cookie 的格式有效不等于身份或新鲜度已验证；后续仍由同源 NAS 会话及相册接口检查权限，不能仅凭 Cookie 存在宣称与原生账号一致。`FNS_NATIVE_EMPTY` 单独表示原生空结果且没有可用 Cookie；诊断增加 `build`、`credentialSource` 和 `cookieSession` 固定枚举（`missing`/`invalid`/`blocked`/`available`，最后一种仅指格式可用）。
+
+未找到有文档依据的其他手机凭据接口或调用参数。SDK 初始化中的 `getAppMessage()` 只读取 appApi，不能证明会启用会话方法；`GET /app/token` 成功只返回空响应、不会返回 secret。因此不猜测额外 handler、字段或通过后端服务账号替代当前用户。若新诊断仍为 `FNS_NATIVE_EMPTY` 且 Cookie 缺失，需要确认宿主支持的凭据提供方式，不能称手机故障已解决。
+
 协议证据：[SDK 0.5.0 发布包](https://registry.npmjs.org/@trimjs/web-app/-/web-app-0.5.0.tgz) 确认就绪条件、双层 JSON 解码，其 README 提及手机使用 `getUserMessage`；[NAS 相册上传 worker](http://192.168.2.13:5666/p/assets/CnPv0tpVPBFeCbFD.js) 确认上传需要 `secret` 和可选 `token`。但 SDK 没有声明 `getUserMessage` 的 payload 字段；README 中 `code: 0, data: { secret, token? }` 明确属于 Desktop 的另一接口。此处的手机字段映射是待实机确认的兼容实现，不能据此宣称手机协议已验证。若实际字段不同，需要取得只包含字段名、类型及存在性的诊断信息后调整，不能收集原始会话响应。
 
 没有可用原生桥时提示检查 App 会话；会话字段无法识别时，诊断仅附带有长度和深度限制的字段名及类型，不包含凭据值、用户 ID 或其他字段值，便于手机用户反馈真实格式。NAS 接口明确返回 401 时仍提示重新登录。不使用共享管理员账号替代当前用户。官方 SDK 的 `getSessionCredentials()` 只适用于获授权的 Desktop 官方应用，不能替代手机端 `getUserMessage`，因此此处直接使用原生桥，未新增 SDK 依赖。
