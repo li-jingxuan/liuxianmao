@@ -1,0 +1,25 @@
+{
+  "verified_at": "2026-11-02T16:39:27.682Z",
+  "native_phone_verified": false,
+  "no_ai": true,
+  "web_session_stage": "FNS_READY",
+  "png_sha256": "22d6bcd86dc0ab56b62b7e9355db72b0046f1687e79a4fb441ca7be455915587",
+  "png_bytes": 967,
+  "album_photo_id": 48881,
+  "album_ingested": true,
+  "share_expires_at": "2026-11-09T16:39:29.000Z",
+  "share_photo_count": 1,
+  "saved_png_matches": true,
+  "seven_day_expiry": true,
+  "link_copied": true,
+  "write_requests": [
+    "/app/pindou/api/v1/image-deliveries",
+    "/upload",
+    "/p/api/v1/photo/upload/notice",
+    "/p/api/v1/share_link/new",
+    "/p/api/v1/share_link/detail"
+  ],
+  "anonymous_share_opened": true,
+  "anonymous_download_matches": true,
+  "external_relay_verified": false
+}
