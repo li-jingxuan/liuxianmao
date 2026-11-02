@@ -6,6 +6,7 @@ from functools import lru_cache
 from pathlib import Path
 from urllib.parse import urlsplit
 
+import httpx
 from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -36,6 +37,35 @@ def _default_image_delivery_dir() -> Path:
 
 
 API_ENV_FILE = Path(__file__).resolve().parents[3] / ".env"
+
+
+def nas_origin(value: str) -> str:
+    """校验并规范化可信 NAS 来源，用于配置和浏览器来源的精确匹配。"""
+    url = urlsplit(value)
+    if (
+        url.scheme not in {"http", "https"}
+        or not url.hostname
+        or url.username is not None
+        or url.password is not None
+        or url.path not in {"", "/"}
+        or url.query
+        or url.fragment
+        or (url.port is not None and url.port < 1)
+        or "\\" in value
+        or any(char.isspace() or ord(char) < 32 or ord(char) == 127 for char in value)
+    ):
+        raise ValueError("NAS 地址必须是不含凭据和路径的 HTTP(S) 服务地址")
+    # 与实际 HTTP 客户端采用同一套 IDNA 规则，避免把 ß 等字符改成另一域名。
+    try:
+        host = httpx.URL(value).raw_host.decode("ascii").lower()
+    except httpx.InvalidURL:
+        raise ValueError("NAS 地址包含无效主机名") from None
+    if ":" in host:
+        host = f"[{host}]"
+    port = url.port
+    default_port = 443 if url.scheme == "https" else 80
+    authority = f"{host}:{port}" if port is not None and port != default_port else host
+    return f"{url.scheme}://{authority}"
 
 
 class Settings(BaseSettings):
@@ -102,6 +132,8 @@ class Settings(BaseSettings):
     # 仅 fnOS 部署开启；上游地址只能由服务端环境配置，不能接受客户端覆盖。
     nas_album_enabled: bool = False
     nas_album_base_url: str = "http://host.docker.internal:5666"
+    # 新配置优先；最多四个指向同一 NAS 的可信来源，避免无限探测。
+    nas_album_base_urls: list[str] | None = Field(default=None, min_length=1, max_length=4)
     nas_album_id: int = Field(default=25, ge=1)
 
     # PostgreSQL 与 API Key 配置不提供可误用的生产默认值。测试环境会显式注入
@@ -135,23 +167,25 @@ class Settings(BaseSettings):
         """兼容旧调用方；新代码必须按背景模式选择 Pro/Lite。"""
         return self.ark_doubao_image_model_pro
 
+    def nas_album_urls_for_origin(self, origin: str | None) -> tuple[str, ...]:
+        """浏览器来源只能调整已配置地址的优先级，不能创建新的上游。"""
+        urls = tuple(dict.fromkeys(
+            nas_origin(url) for url in (self.nas_album_base_urls or [self.nas_album_base_url])
+        ))
+        try:
+            preferred = nas_origin(origin) if origin else None
+        except (ValueError, UnicodeError):
+            preferred = None
+        if preferred in urls:
+            return (preferred, *(url for url in urls if url != preferred))
+        return urls
+
     @model_validator(mode="after")
     def validate_configuration(self) -> Settings:
         """在启动期拒绝不完整的数据库、密钥和 AI 配置。"""
-        nas_url = urlsplit(self.nas_album_base_url)
-        if (
-            nas_url.scheme not in {"http", "https"}
-            or not nas_url.hostname
-            or nas_url.username is not None
-            or nas_url.password is not None
-            or nas_url.path not in {"", "/"}
-            or nas_url.query
-            or nas_url.fragment
-            or (nas_url.port is not None and nas_url.port < 1)
-            or "\\" in self.nas_album_base_url
-            or any(char.isspace() for char in self.nas_album_base_url)
-        ):
-            raise ValueError("NAS_ALBUM_BASE_URL 必须是不含凭据和路径的 HTTP(S) 服务地址")
+        nas_origin(self.nas_album_base_url)
+        for url in self.nas_album_base_urls or []:
+            nas_origin(url)
         if self.app_env != "test":
             required_secrets = {
                 "DATABASE_URL": self.database_url,

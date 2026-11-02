@@ -6,6 +6,9 @@ apps/api/models/foreground/u2net.onnx
 .env.*
 **/.env
 **/.env.*
+# 本地账号凭据不能进入镜像构建上下文。
+secrets.env
+**/secrets.env
 node_modules
 **/node_modules
 .next

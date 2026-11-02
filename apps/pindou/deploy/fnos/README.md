@@ -2,6 +2,8 @@
 
 “上传并生成链接”的飞牛相册接口与鉴权说明见 [相册上传与七天外链](../../docs/fnos-album-share-api.md)。飞牛包先保存完整 PNG，再上传到配置相册，为单张图纸创建 7 天外链并显示可复制链接。默认相册 ID 为 `25`；可在 `api.env` 中设置 `NAS_ALBUM_ID`、`NAS_ALBUM_BASE_URL`（默认 `http://host.docker.internal:5666`）。使用当前 NAS 用户的会话和相册权限，失效时提示重新登录。
 
+需要按访问来源选择内网 IP 或网关时，可在 `api.env` 配置 `NAS_ALBUM_BASE_URLS='["http://192.168.1.10:5666","https://nas.example.com"]'`，示例地址需替换为同一 NAS 的实际地址。浏览器 POST 的 `Origin` 与候选精确匹配时优先该地址，否则按列表顺序；只在上传前连接失败或超时才回退，上传开始后不切换。新配置优先于旧单地址配置，最多 4 个可信来源。网关必须直接支持 `/p/api/...` 与 `/upload`，且后端必须能访问它并使用当前会话；登录重定向不会被自动跟随。
+
 本目录遵循 `fnpack create pindou --template docker` 的官方目录结构。固定外部路径为 **`/app/pindou`**，仅使用飞牛统一网关，无宿主机 TCP 端口映射。初始 manifest 声明 `platform=x86`；发布 ARM 包前须实际构建、验证相应镜像并调整声明，不能仅修改 manifest 后假定兼容。
 
 ## 访问路径与服务

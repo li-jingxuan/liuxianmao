@@ -64,12 +64,14 @@ def nas(monkeypatch):
     return install
 
 
-def post_delivery(client, *, ost="session-one", secret=SECRET, token=None):
+def post_delivery(client, *, ost="session-one", secret=SECRET, token=None, origin=None):
     headers = {"X-Admin-API-Key": "test-admin-key", "Cookie": f"ost={ost}; other=ignored"}
     if secret is not None:
         headers["X-Fnos-Secret"] = secret
     if token is not None:
         headers["X-Fnos-Token"] = token
+    if origin is not None:
+        headers["Origin"] = origin
     return client.post(PATH, headers=headers, files={
         "file": ("untrusted-name.png", make_png_bytes(), "image/png"),
     })
@@ -338,3 +340,162 @@ def test_nas_configuration_rejects_non_origin_urls(monkeypatch, url):
     get_settings.cache_clear()
     with pytest.raises(ValueError):
         get_settings()
+
+
+@pytest.fixture
+def multiple_nas(nas, monkeypatch):
+    monkeypatch.setenv("NAS_ALBUM_BASE_URLS", json.dumps([
+        "http://192.168.1.10:5666", "https://nice007.fnos.net",
+    ]))
+    get_settings.cache_clear()
+    return nas
+
+
+@pytest.mark.parametrize(("origin", "host"), [
+    (None, "192.168.1.10"),
+    ("http://192.168.1.10:5666", "192.168.1.10"),
+    ("https://nice007.fnos.net", "nice007.fnos.net"),
+    ("https://NICE007.FNOS.NET:443", "nice007.fnos.net"),
+    ("https://attacker.invalid", "192.168.1.10"),
+    ("https://nice007.fnos.net.attacker.invalid", "192.168.1.10"),
+    ("http://nice007.fnos.net", "192.168.1.10"),
+    ("null", "192.168.1.10"),
+    ("https://nice007.fnos.net/path", "192.168.1.10"),
+])
+def test_access_origin_only_prioritizes_configured_nas(client, multiple_nas, origin, host):
+    hosts = []
+
+    def handler(request):
+        hosts.append(request.url.host)
+        return success_reply(request)
+
+    multiple_nas(handler)
+    response = post_delivery(client, origin=origin)
+    assert response.status_code == 201, response.text
+    assert hosts == [host] * 4
+
+
+@pytest.mark.parametrize("error", [httpx.ConnectError, httpx.ConnectTimeout, httpx.ReadTimeout])
+def test_unreachable_local_address_falls_back_before_upload(client, multiple_nas, error):
+    calls = []
+
+    def handler(request):
+        calls.append((request.url.host, request.url.path))
+        if request.url.host == "192.168.1.10":
+            raise error("private connection details", request=request)
+        return success_reply(request)
+
+    multiple_nas(handler)
+    response = post_delivery(client)
+    assert response.status_code == 201, response.text
+    assert calls[0] == ("192.168.1.10", "/p/api/v2/photo/upload/path")
+    assert [host for host, _ in calls[1:]] == ["nice007.fnos.net"] * 4
+
+
+@pytest.mark.parametrize("status", [302, 401, 403, 500])
+def test_upstream_http_errors_never_switch_addresses(client, multiple_nas, status):
+    hosts = []
+
+    def handler(request):
+        hosts.append(request.url.host)
+        return httpx.Response(status, headers={"location": "https://attacker.invalid"})
+
+    multiple_nas(handler)
+    assert post_delivery(client).status_code in {401, 502}
+    assert hosts == ["192.168.1.10"]
+
+
+@pytest.mark.parametrize("failure_path", [
+    "/upload", "/p/api/v1/photo/upload/notice", "/p/api/v1/share_link/new",
+])
+def test_failures_after_upload_starts_never_replay_on_other_address(
+    client, multiple_nas, failure_path,
+):
+    calls = []
+
+    def handler(request):
+        calls.append((request.url.host, request.url.path))
+        if request.url.path == failure_path:
+            raise httpx.ReadTimeout("private connection details", request=request)
+        return success_reply(request)
+
+    multiple_nas(handler)
+    response = post_delivery(client)
+    assert response.status_code == 504
+    assert {host for host, _ in calls} == {"192.168.1.10"}
+    assert [path for _, path in calls].count(failure_path) == 1
+
+
+def test_all_addresses_unavailable_preserves_local_image(client, multiple_nas):
+    hosts = []
+
+    def handler(request):
+        hosts.append(request.url.host)
+        raise httpx.ConnectError("private connection details", request=request)
+
+    multiple_nas(handler)
+    response = post_delivery(client)
+    assert response.status_code == 502
+    assert hosts == ["192.168.1.10", "nice007.fnos.net"]
+    assert "private" not in response.text
+    assert len(list(get_image_delivery_store().directory.glob("*.png"))) == 1
+
+
+def test_fallback_keeps_the_original_deadline(client, multiple_nas, monkeypatch):
+    clock = [0.0]
+    hosts = []
+    monkeypatch.setattr(fnos_album.time, "monotonic", lambda: clock[0])
+
+    def handler(request):
+        hosts.append(request.url.host)
+        clock[0] = fnos_album.MAX_DURATION_SECONDS + 1
+        raise httpx.ConnectTimeout("private connection details", request=request)
+
+    multiple_nas(handler)
+    assert post_delivery(client).status_code == 504
+    assert hosts == ["192.168.1.10"]
+
+
+def test_invalid_gateway_certificate_does_not_fall_back(client, multiple_nas):
+    import ssl
+
+    hosts = []
+
+    def handler(request):
+        hosts.append(request.url.host)
+        raise httpx.ConnectError("certificate failed", request=request) from (
+            ssl.SSLCertVerificationError("invalid certificate")
+        )
+
+    multiple_nas(handler)
+    assert post_delivery(client, origin="https://nice007.fnos.net").status_code == 502
+    assert hosts == ["nice007.fnos.net"]
+
+
+@pytest.mark.parametrize("urls", [
+    [], ["https://nas/path"], ["http://user:password@nas"], ["http://nas:99999"],
+    ["http://nas?redirect=evil"], ["file:///tmp"], ["http://nas\\evil"],
+    ["http://nas\n"], ["http://nas:0"], [None], ["http://nas"] * 5,
+])
+def test_candidate_configuration_rejects_invalid_addresses(monkeypatch, urls):
+    monkeypatch.setenv("NAS_ALBUM_BASE_URLS", json.dumps(urls))
+    get_settings.cache_clear()
+    with pytest.raises(ValueError):
+        get_settings()
+
+
+def test_internationalized_nas_origin_preserves_httpx_destination(client, nas, monkeypatch):
+    monkeypatch.setenv("NAS_ALBUM_BASE_URLS", json.dumps([
+        "http://192.168.1.10:5666", "https://faß.de",
+    ]))
+    get_settings.cache_clear()
+    hosts = []
+
+    def handler(request):
+        hosts.append(request.url.raw_host)
+        return success_reply(request)
+
+    nas(handler)
+    response = post_delivery(client, origin="https://xn--fa-hia.de")
+    assert response.status_code == 201
+    assert hosts == [b"xn--fa-hia.de"] * 4

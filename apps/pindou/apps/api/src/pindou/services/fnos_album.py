@@ -1,4 +1,4 @@
-"""fnOS 相册适配：会话只用于本次请求，所有请求均发往服务端配置的同一来源。"""
+"""fnOS 相册适配：仅使用可信候选地址，开始上传后固定来源且不重放写操作。"""
 
 from __future__ import annotations
 
@@ -9,7 +9,10 @@ import hmac
 import json
 import re
 import secrets
+import ssl
 import time
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -88,9 +91,37 @@ def _positive_int(value: object) -> bool:
 class FnosAlbumClient:
     """每次交付创建一个实例和 HTTP client，不缓存或持久化 Cookie/secret。"""
 
-    def __init__(self, *, base_url: str, album_id: int) -> None:
-        self.base_url = base_url.rstrip("/")
+    def __init__(
+        self, *, base_url: str, album_id: int, fallback_urls: tuple[str, ...] = (),
+    ) -> None:
+        self.base_urls = (base_url, *fallback_urls)
         self.album_id = album_id
+
+    @contextmanager
+    def _upload_client(self, ost: str) -> Iterator[tuple[httpx.Client, dict]]:
+        """只在只读目录查询阶段回退，yield 后的上传异常不会重试。"""
+        for index, base_url in enumerate(self.base_urls):
+            with httpx.Client(
+                base_url=base_url,
+                cookies={"ost": ost},
+                follow_redirects=False,
+                trust_env=False,
+                timeout=httpx.Timeout(10.0, connect=3.0, write=30.0),
+            ) as client:
+                try:
+                    upload_data = self._api(client, "GET", "/p/api/v2/photo/upload/path")
+                except (httpx.ConnectError, httpx.TimeoutException) as error:
+                    # httpx 将证书错误包装成 ConnectError，不能将其当作普通断网。
+                    cause: BaseException | None = error
+                    while cause is not None:
+                        if isinstance(cause, ssl.SSLError):
+                            raise error
+                        cause = cause.__cause__ or cause.__context__
+                    if index == len(self.base_urls) - 1:
+                        raise
+                    continue
+                yield client, upload_data
+                return
 
     def upload_and_share(
         self, image: Path, *, ost: str | None, secret: str | None, token: str | None
@@ -107,15 +138,8 @@ class FnosAlbumClient:
             raise _session_expired()
         self._deadline = time.monotonic() + MAX_DURATION_SECONDS
         try:
-            # 不使用进程代理、共享 Cookie jar 或重定向；ost 永不离开配置的 NAS。
-            with httpx.Client(
-                base_url=self.base_url,
-                cookies={"ost": ost},
-                follow_redirects=False,
-                trust_env=False,
-                timeout=httpx.Timeout(10.0, connect=3.0, write=30.0),
-            ) as client:
-                upload_data = self._api(client, "GET", "/p/api/v2/photo/upload/path")
+            # 不使用进程代理、共享 Cookie jar 或重定向；仅接触配置的可信 NAS 地址。
+            with self._upload_client(ost) as (client, upload_data):
                 upload = upload_data.get("upload")
                 if not isinstance(upload, dict):
                     raise _invalid_response()

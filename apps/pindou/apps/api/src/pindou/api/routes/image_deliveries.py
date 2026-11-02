@@ -49,8 +49,10 @@ def create_image_delivery(
     result = _to_response(delivery)
     settings = get_settings()
     if settings.nas_album_enabled:
+        # 同源 POST 的 Origin 只作为可信候选地址的排序提示。
+        urls = settings.nas_album_urls_for_origin(request.headers.get("origin"))
         share = FnosAlbumClient(
-            base_url=settings.nas_album_base_url, album_id=settings.nas_album_id,
+            base_url=urls[0], fallback_urls=urls[1:], album_id=settings.nas_album_id,
         ).upload_and_share(
             delivery.path,
             ost=request.cookies.get("ost"),
