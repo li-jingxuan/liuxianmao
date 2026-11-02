@@ -152,6 +152,7 @@ export type AccessKeyCreateResponse = {
 /** 管理员上传图纸及公开预览页查询共用的临时交付契约。 */
 export type ImageDeliveryResponse = {
   share_url?: string | null;
+  nas_album_id?: number | null;
   token: string;
   image_url: string;
   download_url: string;

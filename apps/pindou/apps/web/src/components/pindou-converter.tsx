@@ -249,6 +249,8 @@ function Converter({
   const resultRef = useRef<HTMLElement>(null);
   // 请求序号避免较早发出的额度查询晚返回后覆盖更新的数据。
   const quotaRequestIdRef = useRef(0);
+  const patternVersionRef = useRef(0);
+  const deliveryControllerRef = useRef<AbortController | null>(null);
 
   // 上传文件状态。previewUrl 仅用于当前浏览器会话，必须在替换/卸载时释放。
   const [file, setFile] = useState<File | null>(null);
@@ -401,7 +403,20 @@ function Converter({
    * 以新文件完整替换旧上传状态。
    * 文件变化会令旧转换结果失效，因此同时重置结果和流程状态；参数选择保留。
    */
+  const invalidatePattern = () => {
+    patternVersionRef.current += 1;
+    deliveryControllerRef.current?.abort();
+    deliveryControllerRef.current = null;
+    setIsUploadingDelivery(false);
+  };
+
+  useEffect(() => () => {
+    patternVersionRef.current += 1;
+    deliveryControllerRef.current?.abort();
+  }, []);
+
   const replaceFile = async (nextFile: File | null) => {
+    invalidatePattern();
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     // 更换图片后关闭旧的微信保存预览，避免用户误保存上一张图纸。
     setSavePreviewUrl(null);
@@ -526,6 +541,7 @@ function Converter({
       return;
     }
     setError(null);
+    invalidatePattern();
     setResult(null);
     setExportBlob(null);
     setDelivery(null);
@@ -578,11 +594,15 @@ function Converter({
   const getPatternSheetBlob = async (): Promise<Blob> => {
     if (exportBlob) return exportBlob;
     if (!result || !file || !details) throw new Error("当前图纸尚未准备完成");
+    const version = patternVersionRef.current;
     const blob = await exportPatternSheet({
       grid: result,
       sourceFile: file,
       sourceDetails: details,
     });
+    if (version !== patternVersionRef.current) {
+      throw new DOMException("图纸已更新，请重新导出", "AbortError");
+    }
     setExportBlob(blob);
     return blob;
   };
@@ -621,9 +641,15 @@ function Converter({
     setError(null);
     setIsUploadingDelivery(true);
     setIsDeliveryCopied(false);
+    const version = patternVersionRef.current;
+    const controller = new AbortController();
+    deliveryControllerRef.current = controller;
     try {
       const blob = await getPatternSheetBlob();
-      const response = await createImageDelivery(blob, keyControl ? { fnos: true } : { adminApiKey: deliveryAdminKey });
+      const response = await createImageDelivery(blob, keyControl
+        ? { fnos: true, signal: controller.signal }
+        : { adminApiKey: deliveryAdminKey, signal: controller.signal });
+      if (version !== patternVersionRef.current || controller.signal.aborted) return;
       if (keyControl && !response.share_url) {
         throw new Error("飞牛相册分享尚未配置，请检查应用的相册分享设置");
       }
@@ -632,11 +658,15 @@ function Converter({
         expiresAt: response.expires_at,
       });
     } catch (cause) {
+      if (version !== patternVersionRef.current || controller.signal.aborted) return;
       setError(keyControl && cause instanceof PindouApiError && cause.code === "ADMIN_API_KEY_INVALID"
         ? "NAS 管理授权失败，请检查应用配置"
         : cause instanceof Error ? cause.message : "图纸上传失败，请稍后重试");
     } finally {
-      setIsUploadingDelivery(false);
+      if (deliveryControllerRef.current === controller) {
+        deliveryControllerRef.current = null;
+        setIsUploadingDelivery(false);
+      }
     }
   };
 
@@ -1198,6 +1228,7 @@ function Converter({
                   className={cx("secondary-button")}
                   type="button"
                   onClick={() => {
+                    invalidatePattern();
                     setResult(null);
                     setExportBlob(null);
                     setDelivery(null);

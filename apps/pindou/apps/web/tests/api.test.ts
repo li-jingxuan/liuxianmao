@@ -1,4 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { uploadAndShareAlbum } from "../src/lib/fnos-album";
+
+vi.mock("../src/lib/fnos-album", () => ({ uploadAndShareAlbum: vi.fn() }));
 
 import {
   createAccessKey,
@@ -247,22 +250,39 @@ describe("image delivery", () => {
     );
   });
 
-  it("sends the current NAS upload secret only for NAS deliveries", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(delivery), { status: 201 }));
+  it("saves without NAS session material then shares through the browser", async () => {
+    const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(
+      new Response(JSON.stringify({ ...delivery, nas_album_id: 25 }), { status: 201 }),
+    ));
+    vi.mocked(uploadAndShareAlbum).mockResolvedValue({
+      url: "https://share.fnnas.net/s/test", expiresAt: delivery.expires_at,
+    });
     vi.stubGlobal("fetch", fetchMock);
     window.localStorage.setItem("fnos-Secret", "test-session-secret");
     try {
-      await createImageDelivery(new Blob(["png"]), { fnos: true });
+      const blob = new Blob(["png"]);
+      const result = await createImageDelivery(blob, { fnos: true });
       const nasRequest = fetchMock.mock.calls[0][1] as RequestInit;
-      expect(new Headers(nasRequest.headers).get("X-Fnos-Secret")).toBe("test-session-secret");
+      expect(new Headers(nasRequest.headers).has("X-Fnos-Secret")).toBe(false);
+      expect(new Headers(nasRequest.headers).has("X-Fnos-Token")).toBe(false);
       expect(new Headers(nasRequest.headers).has("X-Admin-API-Key")).toBe(false);
       expect(nasRequest.credentials).toBe("same-origin");
+      expect(fetchMock.mock.calls[0][0]).toMatch(/image-deliveries\?share_mode=browser$/);
+      expect(uploadAndShareAlbum).toHaveBeenCalledWith(blob, 25, undefined);
+      expect(result.share_url).toBe("https://share.fnnas.net/s/test");
       await createImageDelivery(new Blob(["png"]), { adminApiKey: "web-admin" });
       const webRequest = fetchMock.mock.calls[1][1] as RequestInit;
       expect(new Headers(webRequest.headers).has("X-Fnos-Secret")).toBe(false);
     } finally {
       window.localStorage.removeItem("fnos-Secret");
     }
+  });
+
+  it("preserves the local save when NAS sharing is not configured", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(delivery), { status: 201 }),
+    ));
+    await expect(createImageDelivery(new Blob(["png"]), { fnos: true })).rejects.toThrow("已保存在本地");
   });
 
   it("lets the NAS proxy authorize an upload without a browser management credential", async () => {

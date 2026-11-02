@@ -2,9 +2,11 @@
 
 ## 应用交付链路
 
-飞牛 NAS 应用中的“上传并生成链接”执行：
+飞牛 NAS 应用中的“上传并生成链接”执行（2026-11-02 修正统一网关会话适配）：
 
-**生成完整 PNG 图纸 → 保存到应用交付目录 → 上传到飞牛相册 → 为单张图纸创建 7 天限时外链 → 展示完整链接、复制按钮及到期时间。**
+**生成完整 PNG 图纸 → 后端保存到应用交付目录 → 浏览器同源上传到飞牛相册 → 为单张图纸创建 7 天限时外链 → 展示完整链接、复制按钮及到期时间。**
+
+飞牛统一网关会过滤系统登录 Cookie，不能依赖后端获取 `ost`。当前前端使用 `POST /app/pindou/api/v1/image-deliveries?share_mode=browser` 保存图纸并获取配置的 `nas_album_id`，然后直接调用本文的相册接口；系统 Cookie 由浏览器自动携带。旧后端相册适配保留作为兼容模式，不作为当前飞牛页面的上传路径。
 
 普通 Web 部署使用原有交付页。飞牛部署返回相册官方外链，不拼接 NAS 内网地址。七天为 `7 × 24 × 60 × 60 = 604800` 秒，从创建分享时计算，不受普通 Web 的交付时长配置影响。
 
@@ -131,7 +133,7 @@
 
 ## 登录与签名
 
-应用浏览器在同源请求中自动附带 NAS 登录 Cookie，后端按本次请求转发。会话 secret 由当前浏览器的 `localStorage["fnos-Secret"]` 获取，经 `X-Fnos-Secret` 请求头仅随本次图纸上传发送；旧会话的可选上传 token 经 `X-Fnos-Token` 发送。应用不保存 NAS 账号密码、Cookie 或会话 secret，也不在响应或日志中输出它们。
+当前飞牛页面的所有相册请求发往 `window.location.origin` 的固定接口路径。会话 secret 由当前浏览器的 `localStorage["fnos-Secret"]` 读取，仅在浏览器内生成上传签名，不发送给拼豆后端。旧会话的可选上传 token 只发送到同源 `/upload`。HttpOnly `ost` 由浏览器自动携带，应用不尝试读取它。应用不保存 NAS 账号密码、Cookie 或会话 secret，也不在响应或日志中输出它们。
 
 JSON API 另需 `authx: nonce=...&timestamp=...&sign=...`：
 
@@ -146,19 +148,22 @@ JSON API 另需 `authx: nonce=...&timestamp=...&sign=...`：
 
 ## 本项目调用方式与部署
 
-前端仍调用 `POST /app/pindou/api/v1/image-deliveries`，文件字段为 `file`。后端先校验并保存 PNG，再执行上述相册流程。成功响应新增：
+当前飞牛前端调用 `POST /app/pindou/api/v1/image-deliveries?share_mode=browser`，文件字段为 `file`。后端仍校验管理授权和 PNG，保存成功后返回本地图纸信息及 `nas_album_id`，不请求相册、不要求会话 Cookie。浏览器再使用同一 Blob 执行相册流程，成功后在前端合并 `share_url` 和七天 `expires_at`，交给原页面展示：
 
 ```json
 {
   "token": "<local-delivery-token>",
   "image_url": "/api/v1/image-deliveries/<token>/image",
   "download_url": "/api/v1/image-deliveries/<token>/download",
+  "nas_album_id": 31,
   "share_url": "https://share.fnnas.net/s/<share-id>",
   "expires_at": "<与七天外链一致的 UTC 时间>"
 }
 ```
 
 飞牛模式必须收到 `share_url` 才展示成功结果；失败时保留错误提示，允许重试。现有完整 PNG 导出缓存保证保存、上传的是同一份图纸。
+
+未传 `share_mode` 时默认 `server`，保留原有后端适配行为。普通 Web 仍使用本地交付页。NAS 会话材料不再发送给拼豆 API，飞牛模式配置跨域 API 时会在保存前拒绝。切换/重试图纸会取消旧上传并忽略迟到结果。
 
 飞牛包启用 `NAS_ALBUM_ENABLED=true`。应用的 `api.env` 可指定：
 
@@ -179,7 +184,7 @@ NAS_ALBUM_BASE_URLS='["http://192.168.1.10:5666","https://nas.example.com"]'
 
 仅在只读上传目录查询发生连接失败或超时时回退到下一候选；后续上传、入库及分享固定使用选中地址，不自动重放写请求。鉴权、业务、HTTP 状态错误、重定向及证书校验错误不会触发回退。所有候选共享原有 90 秒总时限。
 
-这些相册请求来自 API 后端，而非浏览器；后端部署在 NAS 内时，外网用户访问并不意味着后端失去直连能力。网关地址必须从后端可达、直接提供 `/p/api/...` 和 `/upload`，并接受同一 NAS 会话。不能仅凭浏览器能打开网关就认定相册调用可用，需实机验收。
+上述候选列表仅作用于保留的 `server` 兼容模式。当前飞牛浏览器分享模式直接使用当前页面来源，因此通过内网 IP 访问时自动使用同一 IP，通过外网网关访问时使用同一网关，不需要服务端跨来源转发 NAS Cookie。
 
 外链到期仅使链接失效，不自动删除相册图片。应用本地文件按原有清理策略处理。相册创建成功但响应丢失时，重试可能产生额外分享记录。
 
@@ -189,4 +194,4 @@ NAS_ALBUM_BASE_URLS='["http://192.168.1.10:5666","https://nas.example.com"]'
 
 本次还直接运行了项目新增的 Python 适配器，使用当前登录会话上传一张新的 128×128 测试 PNG：相册返回新图片 ID `48828`，生成七天外链 `https://share.fnnas.net/s/65f4d46ae2724d36bf`，到期时间 `2026-11-08T19:16:28Z`。未登录浏览器确认仅一张图片且缩略图加载成功。这覆盖了新图片上传和入库，不只是原图去重路径。测试通过本机临时桥传递会话，不向磁盘保存凭据；临时桥已退出。
 
-此结果验证适配器到 NAS 的实际调用；应用容器重新构建后，仍需验收官方网关是否向应用后端保留 `ost` Cookie，以及飞牛手机宿主是否能提供上传 secret。
+此历史结果仅验证服务端适配器到 NAS 的实际调用。后续实机检查确认官方网关不向应用后端保留 `ost`，现已改为浏览器同源调用；飞牛手机宿主是否提供上传 secret 仍需在对应宿主独立验证。

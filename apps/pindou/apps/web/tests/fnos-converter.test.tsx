@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FnosKeyProvider, useFnosKey } from "../src/components/fnos-key-provider";
 import { PindouConverter } from "../src/components/pindou-converter";
 import { createConversion, createImageDelivery, getAccessKeyQuota, getColorSets } from "../src/lib/api";
+import { exportPatternSheet } from "../src/lib/pattern-sheet-export";
 import type { BeadGrid } from "../src/lib/types";
 
 const navigation = vi.hoisted(() => ({ push: vi.fn() }));
@@ -53,6 +54,51 @@ afterEach(() => {
 
 function renderNas(apiKey?: string) {
   return render(<FnosKeyProvider><PindouConverter apiKey={apiKey} isFnos /></FnosKeyProvider>);
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolvePromise) => { resolve = resolvePromise; });
+  return { promise, resolve };
+}
+
+function mockImageBrowser() {
+  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+  vi.stubGlobal("Image", class {
+    naturalWidth = 64; naturalHeight = 64;
+    onload: (() => void) | null = null;
+    set src(_value: string) { queueMicrotask(() => this.onload?.()); }
+  });
+  vi.stubGlobal("ResizeObserver", class { observe() {} disconnect() {} });
+  vi.stubGlobal("URL", class extends URL {
+    static createObjectURL = vi.fn(() => "blob:source");
+    static revokeObjectURL = vi.fn();
+  });
+  vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+  const scroll = HTMLElement.prototype.scrollIntoView;
+  HTMLElement.prototype.scrollIntoView = vi.fn();
+  vi.mocked(exportPatternSheet).mockResolvedValue(new Blob(["test-png"], { type: "image/png" }));
+  vi.mocked(createConversion).mockResolvedValue({ grid, quota: { initial_uses: 10, remaining_uses: 7 } });
+  return () => { HTMLElement.prototype.scrollIntoView = scroll; };
+}
+
+async function selectImage(container: HTMLElement, file: File) {
+  const fileInput = container.querySelector('input[type="file"]')!;
+  fireEvent.change(fileInput, { target: { files: [file] } });
+  fireEvent.click(await screen.findByRole("button", { name: "跳过裁剪" }));
+  await screen.findByText(/64 × 64/);
+}
+
+async function convertImage() {
+  fireEvent.click(screen.getByRole("button", { name: "开始转换" }));
+  await screen.findByRole("button", { name: "上传并生成链接" });
+}
+
+function deliveryResponse(token: string): Awaited<ReturnType<typeof createImageDelivery>> {
+  return {
+    token, image_url: "/image", download_url: "/download", expires_at: "2099-01-01T00:00:00Z",
+    share_url: `https://share.fnnas.net/s/${token}`,
+  };
 }
 
 describe("NAS converter keys", () => {
@@ -128,20 +174,7 @@ describe("NAS converter keys", () => {
   });
 
   it("converts with the applied key and uploads without a browser management key", async () => {
-    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
-    vi.stubGlobal("Image", class {
-      naturalWidth = 64; naturalHeight = 64;
-      onload: (() => void) | null = null;
-      set src(_value: string) { queueMicrotask(() => this.onload?.()); }
-    });
-    vi.stubGlobal("ResizeObserver", class { observe() {} disconnect() {} });
-    vi.stubGlobal("URL", class extends URL {
-      static createObjectURL = vi.fn(() => "blob:source");
-      static revokeObjectURL = vi.fn();
-    });
-    const scroll = HTMLElement.prototype.scrollIntoView;
-    HTMLElement.prototype.scrollIntoView = vi.fn();
-    vi.mocked(createConversion).mockResolvedValue({ grid, quota: { initial_uses: 10, remaining_uses: 7 } });
+    const restoreBrowser = mockImageBrowser();
     vi.mocked(createImageDelivery).mockResolvedValue({
       token: "delivered", image_url: "/image", download_url: "/download", expires_at: "2099-01-01T00:00:00Z",
       share_url: "https://share.fnnas.net/s/test-single-photo",
@@ -156,7 +189,7 @@ describe("NAS converter keys", () => {
     fireEvent.click(await screen.findByRole("button", { name: "上传并生成链接" }));
     expect(await screen.findByText("交付链接已生成")).toBeInTheDocument();
     expect(createConversion).toHaveBeenCalledWith(expect.anything(), { apiKey: "conversion-key" });
-    expect(createImageDelivery).toHaveBeenCalledWith(expect.any(Blob), { fnos: true });
+    expect(createImageDelivery).toHaveBeenCalledWith(expect.any(Blob), { fnos: true, signal: expect.any(AbortSignal) });
     expect(screen.getByRole("link", { name: "https://share.fnnas.net/s/test-single-photo" })).toHaveAttribute("href", "https://share.fnnas.net/s/test-single-photo");
     vi.stubGlobal("navigator", { clipboard: undefined });
     const execCommand = vi.fn(() => true);
@@ -165,6 +198,80 @@ describe("NAS converter keys", () => {
     expect(execCommand).toHaveBeenCalledWith("copy");
     expect(await screen.findByText("已复制")).toBeInTheDocument();
     Reflect.deleteProperty(document, "execCommand");
-    HTMLElement.prototype.scrollIntoView = scroll;
+    restoreBrowser();
+  });
+
+  it.each(["retry", "replace"] as const)("cancels a pending upload on %s and ignores its late share link", async (action) => {
+    const restoreBrowser = mockImageBrowser();
+    const oldUpload = deferred<Awaited<ReturnType<typeof createImageDelivery>>>();
+    const newUpload = deferred<Awaited<ReturnType<typeof createImageDelivery>>>();
+    vi.mocked(createImageDelivery)
+      .mockReturnValueOnce(oldUpload.promise)
+      .mockReturnValueOnce(newUpload.promise);
+    const view = renderNas("conversion-key");
+    await screen.findByText("剩余转换次数：8 次");
+    await selectImage(view.container, new File(["old"], "old.png", { type: "image/png" }));
+    await convertImage();
+    fireEvent.click(screen.getByRole("button", { name: "上传并生成链接" }));
+    await waitFor(() => expect(createImageDelivery).toHaveBeenCalledTimes(1));
+    const oldSignal = vi.mocked(createImageDelivery).mock.calls[0][1]?.signal;
+    expect(oldSignal).toBeInstanceOf(AbortSignal);
+    expect(oldSignal?.aborted).toBe(false);
+
+    if (action === "retry") {
+      fireEvent.click(screen.getByRole("button", { name: "重试" }));
+    } else {
+      await selectImage(view.container, new File(["new"], "new.png", { type: "image/png" }));
+    }
+    expect(oldSignal?.aborted).toBe(true);
+    await convertImage();
+    fireEvent.click(screen.getByRole("button", { name: "上传并生成链接" }));
+    await waitFor(() => expect(createImageDelivery).toHaveBeenCalledTimes(2));
+    const newSignal = vi.mocked(createImageDelivery).mock.calls[1][1]?.signal;
+    expect(newSignal).toBeInstanceOf(AbortSignal);
+    expect(newSignal?.aborted).toBe(false);
+
+    // A server can finish an aborted request; keep the newer upload pending while it does.
+    await act(async () => oldUpload.resolve(deliveryResponse("old-photo")));
+    expect(screen.queryByRole("link", { name: "https://share.fnnas.net/s/old-photo" })).not.toBeInTheDocument();
+    expect(screen.queryByText("交付链接已生成")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "正在上传…" })).toBeDisabled();
+    expect(newSignal?.aborted).toBe(false);
+
+    await act(async () => newUpload.resolve(deliveryResponse("new-photo")));
+    expect(await screen.findByRole("link", { name: "https://share.fnnas.net/s/new-photo" }))
+      .toHaveAttribute("href", "https://share.fnnas.net/s/new-photo");
+    expect(screen.queryByRole("link", { name: "https://share.fnnas.net/s/old-photo" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "上传并生成链接" })).toBeEnabled();
+    restoreBrowser();
+  });
+
+  it("does not upload or cache an old export that finishes after replacing the image", async () => {
+    const restoreBrowser = mockImageBrowser();
+    const oldExport = deferred<Blob>();
+    const newBlob = new Blob(["new-pattern"], { type: "image/png" });
+    vi.mocked(exportPatternSheet).mockReturnValueOnce(oldExport.promise).mockResolvedValueOnce(newBlob);
+    vi.mocked(createImageDelivery).mockResolvedValue(deliveryResponse("new-photo"));
+    const oldFile = new File(["old"], "old.png", { type: "image/png" });
+    const newFile = new File(["new"], "new.png", { type: "image/png" });
+    const view = renderNas("conversion-key");
+    await screen.findByText("剩余转换次数：8 次");
+    await selectImage(view.container, oldFile);
+    await convertImage();
+    fireEvent.click(screen.getByRole("button", { name: "上传并生成链接" }));
+    await waitFor(() => expect(exportPatternSheet).toHaveBeenCalledTimes(1));
+
+    await selectImage(view.container, newFile);
+    await convertImage();
+    await act(async () => oldExport.resolve(new Blob(["old-pattern"], { type: "image/png" })));
+    expect(createImageDelivery).not.toHaveBeenCalled();
+    expect(screen.queryByText("交付链接已生成")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "上传并生成链接" }));
+
+    expect(await screen.findByRole("link", { name: "https://share.fnnas.net/s/new-photo" })).toBeInTheDocument();
+    expect(exportPatternSheet).toHaveBeenCalledTimes(2);
+    expect(exportPatternSheet).toHaveBeenLastCalledWith(expect.objectContaining({ sourceFile: newFile }));
+    expect(createImageDelivery).toHaveBeenCalledExactlyOnceWith(newBlob, { fnos: true, signal: expect.any(AbortSignal) });
+    restoreBrowser();
   });
 });

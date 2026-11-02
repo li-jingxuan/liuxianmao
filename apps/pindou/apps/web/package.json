@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "browser-image-compression": "^2.0.2",
+    "crypto-js": "4.2.0",
     "lucide-react": "latest",
     "next": "latest",
     "react": "latest",
@@ -22,6 +23,7 @@
   "devDependencies": {
     "@testing-library/jest-dom": "latest",
     "@testing-library/react": "latest",
+    "@types/crypto-js": "4.2.2",
     "@types/node": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",

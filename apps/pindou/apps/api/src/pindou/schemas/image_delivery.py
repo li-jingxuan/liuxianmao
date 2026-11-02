@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ImageDeliveryResponse(BaseModel):
@@ -15,3 +15,4 @@ class ImageDeliveryResponse(BaseModel):
     download_url: str
     expires_at: datetime
     share_url: str | None = None
+    nas_album_id: int | None = Field(default=None, gt=0)

@@ -10,6 +10,7 @@ import type {
   ImageDeliveryResponse,
 } from "./types";
 import { apiPath } from "./paths";
+import { uploadAndShareAlbum } from "./fnos-album";
 
 type ApiErrorBody = {
   error?: {
@@ -278,26 +279,25 @@ export const createImageDelivery = async (
   const form = new FormData();
   form.set("file", blob, "pindou-pattern.png");
   const headers: Record<string, string> = adminApiKey ? { "X-Admin-API-Key": adminApiKey } : {};
-  if (fnos) {
-    // NAS 的会话密钥只随本次同源上传发送，Cookie 由浏览器自动附带。
-    // 手机宿主可能不提供该值，由服务端返回可操作的登录提示。
-    try {
-      const secret = window.localStorage.getItem("fnos-Secret");
-      if (secret) headers["X-Fnos-Secret"] = secret;
-      const token = document.cookie.split("; ").find((entry) => entry.startsWith("fnos-token="));
-      if (token) headers["X-Fnos-Token"] = decodeURIComponent(token.slice("fnos-token=".length));
-    } catch {
-      throw new Error("无法读取飞牛登录状态，请在飞牛网页端重新登录后重试");
-    }
+  const path = apiPath("/api/v1/image-deliveries");
+  if (fnos && new URL(path, window.location.origin).origin !== window.location.origin) {
+    throw new Error("飞牛图纸交付必须使用同源 API，请检查应用配置");
   }
-  const response = await fetch(apiPath("/api/v1/image-deliveries"), {
+  // 网关过滤系统 Cookie，后端只保存图纸，不再接收 NAS 的会话密钥。
+  const response = await fetch(`${path}${fnos ? "?share_mode=browser" : ""}`, {
     method: "POST",
     headers: Object.keys(headers).length ? headers : undefined,
     ...(fnos ? { credentials: "same-origin" as const } : {}),
     body: form,
     signal,
   });
-  return parseResponse<ImageDeliveryResponse>(response);
+  const delivery = await parseResponse<ImageDeliveryResponse>(response);
+  if (!fnos) return delivery;
+  if (!delivery.nas_album_id) {
+    throw new Error("飞牛相册分享尚未配置，图纸已保存在本地");
+  }
+  const share = await uploadAndShareAlbum(blob, delivery.nas_album_id, signal);
+  return { ...delivery, share_url: share.url, expires_at: share.expiresAt };
 };
 
 /** 公开预览页按 token 查询原图地址和服务端计算的过期时间。 */

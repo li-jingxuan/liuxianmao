@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Annotated
+from typing import Annotated, Literal
 
-from fastapi import APIRouter, File, Request, Response, UploadFile, status
+from fastapi import APIRouter, File, Query, Request, Response, UploadFile, status
 from fastapi.responses import FileResponse
 
 from pindou.api.dependencies import AdminApiKeyDep, ImageDeliveryStoreDep
@@ -30,6 +30,7 @@ def create_image_delivery(
     file: Annotated[UploadFile, File()],
     store: ImageDeliveryStoreDep,
     _admin_api_key: AdminApiKeyDep,
+    share_mode: Annotated[Literal["server", "browser"], Query()] = "server",
 ) -> ImageDeliveryResponse:
     """保存当前完整施工图；管理鉴权复用固定 KEY_ISSUER_API_KEY。"""
     # 只读取“体积上限 + 1”字节，避免恶意请求把任意大文件完整载入内存。
@@ -48,7 +49,10 @@ def create_image_delivery(
     response.headers["Cache-Control"] = "no-store"
     result = _to_response(delivery)
     settings = get_settings()
-    if settings.nas_album_enabled:
+    if settings.nas_album_enabled and share_mode == "browser":
+        # 网关会过滤系统 Cookie，由浏览器使用自己的会话同源上传到配置相册。
+        result.nas_album_id = settings.nas_album_id
+    elif settings.nas_album_enabled:
         # 同源 POST 的 Origin 只作为可信候选地址的排序提示。
         urls = settings.nas_album_urls_for_origin(request.headers.get("origin"))
         share = FnosAlbumClient(

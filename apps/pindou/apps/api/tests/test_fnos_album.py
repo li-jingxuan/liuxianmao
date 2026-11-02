@@ -64,7 +64,9 @@ def nas(monkeypatch):
     return install
 
 
-def post_delivery(client, *, ost="session-one", secret=SECRET, token=None, origin=None):
+def post_delivery(
+    client, *, ost="session-one", secret=SECRET, token=None, origin=None, share_mode=None,
+):
     headers = {"X-Admin-API-Key": "test-admin-key", "Cookie": f"ost={ost}; other=ignored"}
     if secret is not None:
         headers["X-Fnos-Secret"] = secret
@@ -72,7 +74,8 @@ def post_delivery(client, *, ost="session-one", secret=SECRET, token=None, origi
         headers["X-Fnos-Token"] = token
     if origin is not None:
         headers["Origin"] = origin
-    return client.post(PATH, headers=headers, files={
+    params = {"share_mode": share_mode} if share_mode is not None else {}
+    return client.post(PATH, params=params, headers=headers, files={
         "file": ("untrusted-name.png", make_png_bytes(), "image/png"),
     })
 
@@ -118,7 +121,8 @@ def assert_body_signature(request):
 
 
 @pytest.mark.parametrize("repeat", [False, True])
-def test_full_upload_share_and_readiness_sequence(client: TestClient, nas, repeat):
+@pytest.mark.parametrize("share_mode", [None, "server"])
+def test_full_upload_share_and_readiness_sequence(client: TestClient, nas, repeat, share_mode):
     requests = []
 
     def handler(request):
@@ -136,10 +140,11 @@ def test_full_upload_share_and_readiness_sequence(client: TestClient, nas, repea
         )
 
     nas(handler)
-    response = post_delivery(client, token="current-token")
+    response = post_delivery(client, token="current-token", share_mode=share_mode)
     assert response.status_code == 201, response.text
     payload = response.json()
     assert payload["share_url"] == URL
+    assert payload["nas_album_id"] is None
     assert datetime.fromisoformat(payload["expires_at"]) == datetime.fromtimestamp(
         NOW + 604800, UTC
     )
