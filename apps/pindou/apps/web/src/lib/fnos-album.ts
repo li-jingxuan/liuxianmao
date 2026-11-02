@@ -2,6 +2,8 @@ import Base64 from "crypto-js/enc-base64";
 import HmacSHA256 from "crypto-js/hmac-sha256";
 import MD5 from "crypto-js/md5";
 
+import { getFnosUploadSession } from "./fnos-session";
+
 const TTL_SECONDS = 604800;
 const MAX_DURATION_MS = 90_000;
 const SIGN_PREFIX = "NDzZTVxnRKP8Z0jXg1VAMonaG8akvh";
@@ -56,20 +58,6 @@ export async function uploadAndShareAlbum(
   signal?: AbortSignal,
 ): Promise<{ url: string; expiresAt: string }> {
   if (!positiveInt(albumId)) throw new Error("飞牛相册尚未配置，图纸已保存在本地");
-  let secret: string | null;
-  try {
-    secret = window.localStorage.getItem("fnos-Secret");
-  } catch {
-    throw new Error("无法读取飞牛相册会话，请在飞牛网页端登录后重试，图纸已保存在本地");
-  }
-  if (!secret) {
-    throw new Error("当前飞牛宿主未提供相册上传会话，请在飞牛网页端登录后重试，图纸已保存在本地");
-  }
-  try {
-    if (secret.length > 4096 || !atob(secret)) throw new Error();
-  } catch {
-    throw sessionInvalid();
-  }
   const controller = new AbortController();
   const abort = () => controller.abort(signal?.reason);
   signal?.addEventListener("abort", abort, { once: true });
@@ -121,6 +109,8 @@ export async function uploadAndShareAlbum(
   }
 
   try {
+    const { secret, token } = await getFnosUploadSession(controller.signal);
+    controller.signal.throwIfAborted();
     const info = await api("/p/api/v2/photo/upload/path");
     const upload = info.upload as { path?: unknown; hasAccess?: unknown } | undefined;
     if (!upload || typeof upload !== "object") throw invalidResponse();
@@ -141,7 +131,6 @@ export async function uploadAndShareAlbum(
     const now = Math.floor(Date.now() / 1000);
     const form = new FormData();
     form.set("trim-upload-file", image, filename);
-    const legacyToken = document.cookie.split("; ").find((entry) => entry.startsWith("fnos-token="));
     await request("/upload", {
       method: "POST",
       headers: {
@@ -149,7 +138,7 @@ export async function uploadAndShareAlbum(
         "Trim-Overwrite": "false",
         "Trim-Mtim": String(now),
         "Trim-Flags": "1",
-        "Trim-Token": legacyToken ? decodeURIComponent(legacyToken.slice("fnos-token=".length)) : "",
+        "Trim-Token": token,
         "Trim-Sign": Base64.stringify(HmacSHA256(path, Base64.parse(secret))),
       },
       body: form,

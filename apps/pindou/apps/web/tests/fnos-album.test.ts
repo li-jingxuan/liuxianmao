@@ -92,6 +92,40 @@ describe("browser NAS album delivery", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("uploads from the App with native credentials and creates a seven-day share", async () => {
+    window.localStorage.clear();
+    vi.spyOn(navigator, "userAgent", "get").mockReturnValue("Android FNAppVer/1.0.0");
+    const callHandler = vi.fn().mockResolvedValue(JSON.stringify({
+      result: JSON.stringify({ secret: SECRET, token: "native-upload-token" }),
+    }));
+    vi.stubGlobal("flutter_inappwebview", { _platformReady: true, callHandler });
+    const fetchMock = install();
+    await expect(uploadAndShareAlbum(png, 31)).resolves.toEqual({
+      url: SHARE_URL, expiresAt: new Date((NOW / 1000 + 604800) * 1000).toISOString(),
+    });
+    expect(callHandler).toHaveBeenCalledExactlyOnceWith("getUserMessage");
+    const headers = new Headers(fetchMock.mock.calls[1][1].headers);
+    expect(headers.get("Trim-Token")).toBe("native-upload-token");
+    expect(headers.get("Trim-Sign")).toBe(createHmac("sha256", Buffer.from(SECRET, "base64"))
+      .update(headers.get("Trim-Path")!).digest("base64"));
+    expect(JSON.parse(String(fetchMock.mock.calls[2][1].body)).album_id).toBe(31);
+    for (const [url, request] of fetchMock.mock.calls) {
+      if (new URL(url).pathname !== "/upload") {
+        expect(new Headers(request.headers).has("Trim-Token")).toBe(false);
+      }
+    }
+    expect(window.localStorage.length).toBe(0);
+  });
+
+  it("does not start an upload when native credentials are unavailable", async () => {
+    window.localStorage.clear();
+    vi.spyOn(navigator, "userAgent", "get").mockReturnValue("iPhone FNAppVer/1.0.0");
+    vi.stubGlobal("flutter_inappwebview", { callHandler: vi.fn().mockResolvedValue(null) });
+    const fetchMock = install();
+    await expect(uploadAndShareAlbum(png, 31)).rejects.toThrow("无法获取飞牛 App");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("does not replay uploads after a failure", async () => {
     const fetchMock = install({ fail: "/upload", status: 500 });
     await expect(uploadAndShareAlbum(png, 25)).rejects.toThrow("已保存在本地");

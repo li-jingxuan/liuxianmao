@@ -133,7 +133,7 @@
 
 ## 登录与签名
 
-当前飞牛页面的所有相册请求发往 `window.location.origin` 的固定接口路径。会话 secret 由当前浏览器的 `localStorage["fnos-Secret"]` 读取，仅在浏览器内生成上传签名，不发送给拼豆后端。旧会话的可选上传 token 只发送到同源 `/upload`。HttpOnly `ost` 由浏览器自动携带，应用不尝试读取它。应用不保存 NAS 账号密码、Cookie 或会话 secret，也不在响应或日志中输出它们。
+当前飞牛页面的所有相册请求发往 `window.location.origin` 的固定接口路径。网页端读取 `localStorage["fnos-Secret"]` 和可选 `fnos-token` Cookie；手机飞牛 App 则通过原生桥 `getUserMessage` 获取当前用户会话，优先于可能残留的网页会话。secret 仅在页面内生成上传签名，不发送给拼豆后端。可选上传 token 只发送到同源 `/upload`。HttpOnly `ost` 由浏览器自动携带，应用不尝试读取它。应用不保存 NAS 账号密码、Cookie 或 App 返回的会话材料，也不在响应或日志中输出它们。
 
 JSON API 另需 `authx: nonce=...&timestamp=...&sign=...`：
 
@@ -142,9 +142,13 @@ JSON API 另需 `authx: nonce=...&timestamp=...&sign=...`：
 3. 使用网页公开签名材料、包含 `/p` 的完整接口路径、六位随机数、毫秒时间戳、参数 MD5、网页固定材料，按原网页格式连接后计算 MD5。
 4. 将随机数、时间戳、签名组成 `authx`。`Trim-Sign` 是上传路径的另一套签名，不可互换。
 
-签名实现在后端适配层中维护，不动态依赖带构建哈希的 NAS JS 文件。请求体序列化必须和签名完全一致。
+浏览器签名实现在 `apps/web/src/lib/fnos-album.ts` 中维护，并与保留的后端适配器使用相同固定向量验证，不动态依赖带构建哈希的 NAS JS 文件。请求体序列化必须和签名完全一致。
 
-如果宿主没有提供当前会话 secret，或 NAS 登录失效，提示重新登录；不使用共享管理员账号替代当前用户。手机飞牛 App 的 WebView 是否提供相同会话材料需要在实际宿主中验证。
+手机适配位于 `apps/web/src/lib/fnos-session.ts`，使用 `window.flutter_inappwebview.callHandler("getUserMessage")`。就绪判断与 `@trimjs/web-app` 0.5.0 一致：Apple 平台允许直接使用已有桥，其他平台等待 `_platformReady` 或 `flutterInAppWebViewPlatformReady` 事件，并记住一次性就绪事件；兼容延迟注入，初始化和调用共用 5 秒上限，纳入原上传流程的 90 秒总时限，支持取消。按照 SDK 的双层 JSON 格式解析 `result`，尝试读取 `secret` 与可选 `token`，也接受已解码对象和 `code: 0, data` 包装。响应格式或凭据无效时不开始相册请求，错误提示不包含桥返回内容。
+
+协议证据：[SDK 0.5.0 发布包](https://registry.npmjs.org/@trimjs/web-app/-/web-app-0.5.0.tgz) 确认就绪条件、双层 JSON 解码，其 README 提及手机使用 `getUserMessage`；[NAS 相册上传 worker](http://192.168.2.13:5666/p/assets/CnPv0tpVPBFeCbFD.js) 确认上传需要 `secret` 和可选 `token`。但 SDK 没有声明 `getUserMessage` 的 payload 字段；README 中 `code: 0, data: { secret, token? }` 明确属于 Desktop 的另一接口。此处的手机字段映射是待实机确认的兼容实现，不能据此宣称手机协议已验证。若实际字段不同，需要取得只包含字段名、类型及存在性的诊断信息后调整，不能收集原始会话响应。
+
+没有可用原生桥时提示重新打开；会话字段无法识别时，错误信息仅附带有长度和深度限制的字段名及类型，不包含凭据值、用户 ID 或其他字段值，便于手机用户反馈真实格式。NAS 接口明确返回 401 时仍提示重新登录。不使用共享管理员账号替代当前用户。官方 SDK 的 `getSessionCredentials()` 只适用于获授权的 Desktop 官方应用，不能替代手机端 `getUserMessage`，因此此处直接使用原生桥，未新增 SDK 依赖或更改应用启动方式。
 
 ## 本项目调用方式与部署
 
@@ -194,4 +198,6 @@ NAS_ALBUM_BASE_URLS='["http://192.168.1.10:5666","https://nas.example.com"]'
 
 本次还直接运行了项目新增的 Python 适配器，使用当前登录会话上传一张新的 128×128 测试 PNG：相册返回新图片 ID `48828`，生成七天外链 `https://share.fnnas.net/s/65f4d46ae2724d36bf`，到期时间 `2026-11-08T19:16:28Z`。未登录浏览器确认仅一张图片且缩略图加载成功。这覆盖了新图片上传和入库，不只是原图去重路径。测试通过本机临时桥传递会话，不向磁盘保存凭据；临时桥已退出。
 
-此历史结果仅验证服务端适配器到 NAS 的实际调用。后续实机检查确认官方网关不向应用后端保留 `ost`，现已改为浏览器同源调用；飞牛手机宿主是否提供上传 secret 仍需在对应宿主独立验证。
+此历史结果仅验证服务端适配器到 NAS 的实际调用。后续实机检查确认官方网关不向应用后端保留 `ost`，现已改为浏览器同源调用。
+
+手机会话适配已通过模拟原生桥的回归：双层 JSON、可选 token、App 优先于旧网页会话、Android 延迟就绪与桥注入、iOS 已有桥、缺失/失败/超时/取消，以及使用原生 secret 计算真实 HMAC、上传入库和创建七天分享。当前未连接真实手机 WebView；实际 App 返回字段、同源 Cookie 和完整上传链路仍需手机验收。模拟测试不代表已在手机上上传成功。
