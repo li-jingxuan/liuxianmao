@@ -294,16 +294,12 @@ describe("fnOS album test UI", () => {
 });
 
 describe("restored Home", () => {
-  it("renders the no-AI album test on fnOS only when the flag is true", async () => {
+  it("restores the full fnOS converter even when an old test flag remains true", async () => {
     vi.stubEnv("NEXT_PUBLIC_FNOS_ALBUM_TEST_MODE", "true");
     render(await Home({ searchParams: Promise.resolve({ k: "existing-key" }) }));
-    expect(screen.getByRole("heading", { name: "拼豆相册测试" })).toBeInTheDocument();
-    expect(screen.getByText("不调用 AI，不消耗转换次数")).toBeInTheDocument();
-    expect(screen.queryByTestId("normal-converter")).not.toBeInTheDocument();
-    await generate();
-    fireEvent.click(screen.getByRole("button", { name: "上传并生成链接" }));
-    await screen.findByText("相册分享链接已生成");
-    expect(createImageDelivery).toHaveBeenCalledExactlyOnceWith(png, { fnos: true, signal: expect.any(AbortSignal) });
+    expect(screen.getByTestId("normal-converter")).toHaveTextContent("existing-key|");
+    expect(screen.queryByRole("heading", { name: "拼豆相册测试" })).not.toBeInTheDocument();
+    expect(createImageDelivery).not.toHaveBeenCalled();
     expect(createConversion).not.toHaveBeenCalled();
     expect(createAccessKey).not.toHaveBeenCalled();
     expect(getAccessKeyQuota).not.toHaveBeenCalled();
