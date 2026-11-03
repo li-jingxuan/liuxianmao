@@ -1,0 +1,16 @@
+{
+  "verified_at": "2026-11-03T14:13:02.832Z",
+  "authenticated": true,
+  "status": 200,
+  "native_bridge_served": true,
+  "page_errors": 0,
+  "heading": "拼豆图片转换器",
+  "full_converter_verified": true,
+  "static_files_200": 8,
+  "ios_diagnostics_preserved": true,
+  "issuer_navigation_verified": true,
+  "color_page_verified": true,
+  "no_conversion_or_write_requests": true,
+  "mobile_width": 390,
+  "native_ios_acceptance": "user-confirmed-test-build"
+}
