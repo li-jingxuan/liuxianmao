@@ -291,12 +291,12 @@ describe("fnOS album test UI", () => {
   });
 });
 
-describe("temporary Home switch", () => {
-  it("renders only the album test when fnOS test mode is enabled", async () => {
+describe("restored Home", () => {
+  it("renders the full converter even when an old test flag remains enabled", async () => {
     vi.stubEnv("NEXT_PUBLIC_FNOS_ALBUM_TEST_MODE", "true");
-    render(await Home({ searchParams: Promise.resolve({ k: "ignored" }) }));
-    expect(screen.getByRole("heading", { name: "拼豆相册测试" })).toBeInTheDocument();
-    expect(screen.queryByTestId("normal-converter")).not.toBeInTheDocument();
+    render(await Home({ searchParams: Promise.resolve({ k: "existing-key" }) }));
+    expect(screen.getByTestId("normal-converter")).toHaveTextContent("existing-key|");
+    expect(screen.queryByRole("heading", { name: "拼豆相册测试" })).not.toBeInTheDocument();
     expect(createConversion).not.toHaveBeenCalled();
     expect(getAccessKeyQuota).not.toHaveBeenCalled();
   });
