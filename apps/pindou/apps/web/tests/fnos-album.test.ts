@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createHash, createHmac } from "node:crypto";
-import { albumAuthx, uploadAndShareAlbum } from "../src/lib/fnos-album";
+import { albumAuthx, FnosAlbumError, uploadAndShareAlbum } from "../src/lib/fnos-album";
 
 const SECRET = "c2Vzc2lvbi1zZWNyZXQtZml4dHVyZQ==";
 const NOW = 1793400000000;
@@ -140,6 +140,54 @@ describe("browser NAS album delivery", () => {
   it("distinguishes missing album permissions from an expired session", async () => {
     install({ fail: "upload/notice", status: 403 });
     await expect(uploadAndShareAlbum(png, 25)).rejects.toThrow("相册操作权限");
+  });
+
+  it.each([
+    ["/p/api/v2/photo/upload/path", "upload-path", 1],
+    ["/upload", "upload", 2],
+    ["/p/api/v1/photo/upload/notice", "album-notice", 3],
+    ["/p/api/v1/share_link/new", "share-create", 4],
+    ["/p/api/v1/share_link/detail", "share-detail", 5],
+  ])("identifies business 403 at %s without assuming target-album ACL", async (failedPath, stage, count) => {
+    const fetchMock = install({ ready: false });
+    const normal = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation(async (input, init) => {
+      if (new URL(input).pathname === failedPath) {
+        return new Response(JSON.stringify({ code: 403, msg: `private ${SECRET}`, user: "private-account" }), {
+          headers: { Date: new Date(NOW + 120_000).toUTCString() },
+        });
+      }
+      return normal(input, init);
+    });
+    const error = await uploadAndShareAlbum(png, 31).catch((cause) => cause);
+    expect(error).toBeInstanceOf(FnosAlbumError);
+    expect(error.message).toContain("相册接口拒绝请求");
+    expect(error.message).not.toContain("没有目标相册");
+    const report = JSON.parse(error.diagnostic.split("\n").slice(1).join("\n"));
+    expect(report).toMatchObject({ stage, albumId: 31, httpStatus: 200, businessCode: 403, codeField: "code", serverClockDifferenceSeconds: 120 });
+    expect(report.session).toContain('"credentialSource": "browser-storage"');
+    expect(error.diagnostic).not.toContain(SECRET);
+    expect(error.diagnostic).not.toContain("private-account");
+    expect(error.diagnostic).not.toContain("Trim-Sign");
+    expect(fetchMock).toHaveBeenCalledTimes(count);
+  });
+
+  it("separates HTTP rejection from JSON error codes and retains the failed step", async () => {
+    install({ fail: "upload/notice", status: 403 });
+    const error = await uploadAndShareAlbum(png, 31).catch((cause) => cause);
+    expect(error).toBeInstanceOf(FnosAlbumError);
+    const report = JSON.parse(error.diagnostic.split("\n").slice(1).join("\n"));
+    expect(report).toMatchObject({ stage: "album-notice", httpStatus: 403 });
+    expect(report.businessCode).toBeUndefined();
+    expect(report.codeField).toBeUndefined();
+  });
+
+  it("does not carry a successful JSON code into a later HTTP failure", async () => {
+    install({ fail: "/upload", status: 500 });
+    const error = await uploadAndShareAlbum(png, 31).catch((cause) => cause);
+    const report = JSON.parse(error.diagnostic.split("\n").slice(1).join("\n"));
+    expect(report).toMatchObject({ stage: "upload", httpStatus: 500 });
+    expect(report.businessCode).toBeUndefined();
   });
 
   it("supports cancellation", async () => {

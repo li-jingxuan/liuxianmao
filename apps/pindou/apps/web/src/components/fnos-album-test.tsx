@@ -223,7 +223,7 @@ export function FnosAlbumTest() {
 
       <section className={styles.card} aria-labelledby="session-title">
         <h2 id="session-title">App 会话诊断</h2>
-        <p>仅包含脱敏的环境和会话字段信息。失败后可手动检查，不会自动重传。</p>
+        <p>上传失败后请复制诊断。仅包含脱敏的环境和会话字段信息，可手动检查，不会自动重传。</p>
         <div className={styles.actions}>
           <button type="button" onClick={diagnose} disabled={!!busy}>检查 App 会话</button>
           <button type="button" disabled={!diagnostic || !!busy} onClick={() => copy(diagnostic, "诊断已复制")}>复制诊断</button>

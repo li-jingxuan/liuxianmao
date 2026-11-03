@@ -4,7 +4,7 @@ type NativeBridge = {
   callHandler: (method: string) => Promise<unknown>;
 };
 type NativeWindow = Window & { flutter_inappwebview?: NativeBridge };
-export const FNOS_SESSION_BUILD = "20261103.2";
+export const FNOS_SESSION_BUILD = "20261104.1";
 
 const READY_EVENT = "flutterInAppWebViewPlatformReady";
 const SESSION_TIMEOUT_MS = 5_000;
@@ -276,8 +276,11 @@ async function acquireSession(diagnostic: Diagnostic, signal?: AbortSignal): Pro
 }
 
 /** 每次读取当前宿主会话；不缓存、不写入 localStorage，也不记录桥接响应。 */
-export function getFnosUploadSession(signal?: AbortSignal): Promise<UploadSession> {
-  return acquireSession(createDiagnostic(), signal);
+export async function getFnosUploadSession(signal?: AbortSignal, report?: (diagnostic: string) => void): Promise<UploadSession> {
+  const diagnostic = createDiagnostic();
+  const session = await acquireSession(diagnostic, signal);
+  report?.(diagnosticText(diagnostic));
+  return session;
 }
 
 /** 只返回固定诊断字段；成功取得的凭据立即丢弃，不发送网络请求。 */

@@ -2,7 +2,7 @@ import Base64 from "crypto-js/enc-base64";
 import HmacSHA256 from "crypto-js/hmac-sha256";
 import MD5 from "crypto-js/md5";
 
-import { getFnosUploadSession } from "./fnos-session";
+import { FNOS_SESSION_BUILD, FnosSessionError, getFnosUploadSession } from "./fnos-session";
 
 const TTL_SECONDS = 604800;
 const MAX_DURATION_MS = 90_000;
@@ -34,14 +34,45 @@ function positiveInt(value: unknown): value is number {
   return Number.isSafeInteger(value) && (value as number) > 0;
 }
 
-function checkPayload(value: unknown): Record<string, unknown> {
+type AlbumStage = "session" | "upload-path" | "upload" | "album-notice" | "share-create" | "share-detail" | "complete";
+type AlbumDiagnostic = {
+  version: 1;
+  build: string;
+  stage: AlbumStage;
+  albumId: number;
+  session?: string;
+  httpStatus?: number;
+  businessCode?: number;
+  codeField?: "code" | "errno" | "errorCode";
+  serverClockDifferenceSeconds?: number;
+};
+
+const STAGE_NAMES: Record<AlbumStage, string> = {
+  session: "读取 App 会话", "upload-path": "查询上传目录", upload: "传输图片",
+  "album-notice": "加入目标相册", "share-create": "创建分享", "share-detail": "检查分享", complete: "完成",
+};
+
+export class FnosAlbumError extends Error {
+  readonly diagnostic: string;
+  constructor(message: string, diagnostic: AlbumDiagnostic) {
+    super(message);
+    this.name = "FnosAlbumError";
+    this.diagnostic = `飞牛相册诊断 v1\n${JSON.stringify(diagnostic, null, 2)}`;
+  }
+}
+
+function checkPayload(value: unknown, diagnostic: AlbumDiagnostic): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw invalidResponse();
   const data = value as Record<string, unknown>;
-  for (const key of ["code", "errno", "errorCode"]) {
+  for (const key of ["code", "errno", "errorCode"] as const) {
     if (!(key in data)) continue;
+    if (typeof data[key] === "number" && Number.isSafeInteger(data[key])) {
+      diagnostic.businessCode = data[key] as number;
+      diagnostic.codeField = key;
+    }
     if (data[key] === 401) throw sessionInvalid();
     if (data[key] === 403) {
-      throw new Error("当前用户没有目标相册的操作权限，请检查相册配置或授权，图纸已保存在本地");
+      throw new Error(`相册接口拒绝请求（${STAGE_NAMES[diagnostic.stage]}，错误码 403），请检查 App 登录和相册授权，图纸已保存在本地`);
     }
     if (data[key] !== 0) {
       throw new Error("相册服务请求失败，图纸已保存在本地");
@@ -58,6 +89,14 @@ export async function uploadAndShareAlbum(
   signal?: AbortSignal,
 ): Promise<{ url: string; expiresAt: string }> {
   if (!positiveInt(albumId)) throw new Error("飞牛相册尚未配置，图纸已保存在本地");
+  const diagnostic: AlbumDiagnostic = { version: 1, build: FNOS_SESSION_BUILD, stage: "session", albumId };
+  function stage(value: AlbumStage) {
+    diagnostic.stage = value;
+    delete diagnostic.httpStatus;
+    delete diagnostic.businessCode;
+    delete diagnostic.codeField;
+    delete diagnostic.serverClockDifferenceSeconds;
+  }
   const controller = new AbortController();
   const abort = () => controller.abort(signal?.reason);
   signal?.addEventListener("abort", abort, { once: true });
@@ -79,6 +118,10 @@ export async function uploadAndShareAlbum(
       redirect: "error",
       signal: controller.signal,
     });
+    diagnostic.httpStatus = response.status;
+    const serverDate = response.headers.get("Date");
+    const serverTime = serverDate ? Date.parse(serverDate) : NaN;
+    if (Number.isFinite(serverTime)) diagnostic.serverClockDifferenceSeconds = Math.round((serverTime - Date.now()) / 1000);
     if (response.status === 401) throw sessionInvalid();
     if (response.status === 403) {
       throw new Error("当前用户没有相册操作权限，请检查相册授权，图纸已保存在本地");
@@ -89,7 +132,7 @@ export async function uploadAndShareAlbum(
     if (text.length > 1024 * 1024) throw invalidResponse();
     let data: unknown;
     try { data = JSON.parse(text); } catch { throw invalidResponse(); }
-    return checkPayload(data);
+    return checkPayload(data, diagnostic);
   }
 
   async function api(path: string, body?: object, query = "") {
@@ -109,8 +152,9 @@ export async function uploadAndShareAlbum(
   }
 
   try {
-    const { secret, token } = await getFnosUploadSession(controller.signal);
+    const { secret, token } = await getFnosUploadSession(controller.signal, (report) => { diagnostic.session = report; });
     controller.signal.throwIfAborted();
+    stage("upload-path");
     const info = await api("/p/api/v2/photo/upload/path");
     const upload = info.upload as { path?: unknown; hasAccess?: unknown } | undefined;
     if (!upload || typeof upload !== "object") throw invalidResponse();
@@ -131,6 +175,7 @@ export async function uploadAndShareAlbum(
     const now = Math.floor(Date.now() / 1000);
     const form = new FormData();
     form.set("trim-upload-file", image, filename);
+    stage("upload");
     await request("/upload", {
       method: "POST",
       headers: {
@@ -143,6 +188,7 @@ export async function uploadAndShareAlbum(
       },
       body: form,
     }, true);
+    stage("album-notice");
     const notice = await api("/p/api/v1/photo/upload/notice", {
       files: [{
         file_create_time: new Date(now * 1000).toISOString().slice(0, 19).replaceAll("-", ":").replace("T", " "),
@@ -159,6 +205,7 @@ export async function uploadAndShareAlbum(
       throw new Error("相册入库失败，图纸已保存在本地");
     }
     const validTo = Math.floor(Date.now() / 1000) + TTL_SECONDS;
+    stage("share-create");
     let share = await api("/p/api/v1/share_link/new", {
       photoIds: [photo.id], name: "拼豆图纸", validTo,
     });
@@ -175,16 +222,18 @@ export async function uploadAndShareAlbum(
       if (attempt === 4) break;
       controller.signal.throwIfAborted();
       if (attempt) await new Promise((resolve) => window.setTimeout(resolve, 500));
+      stage("share-detail");
       share = await api("/p/api/v1/share_link/detail", undefined, `id=${id}`);
     }
     throw new Error("相册分享尚未就绪，图纸已保存在本地，请稍后重试");
   } catch (cause) {
-    if (timedOut) throw new Error("相册服务响应超时，图纸已保存在本地，请稍后重试");
+    if (timedOut) throw new FnosAlbumError("相册服务响应超时，图纸已保存在本地，请稍后重试", diagnostic);
     if (controller.signal.aborted) throw new DOMException("上传已取消", "AbortError");
+    if (cause instanceof FnosSessionError) throw cause;
     if (cause instanceof TypeError) {
-      throw new Error("相册服务连接失败，请确认飞牛登录及网络状态，图纸已保存在本地");
+      throw new FnosAlbumError("相册服务连接失败，请确认飞牛登录及网络状态，图纸已保存在本地", diagnostic);
     }
-    throw cause;
+    throw new FnosAlbumError(cause instanceof Error ? cause.message : "相册服务请求失败，图纸已保存在本地", diagnostic);
   } finally {
     window.clearTimeout(timer);
     signal?.removeEventListener("abort", abort);

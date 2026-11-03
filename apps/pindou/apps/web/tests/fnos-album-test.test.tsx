@@ -188,12 +188,14 @@ describe("fnOS album test UI", () => {
     expect(document.querySelectorAll("textarea")).toHaveLength(1);
   });
 
-  it("shows an upload session error and its safe diagnosis without replaying any calls", async () => {
-    vi.mocked(createImageDelivery).mockRejectedValue(Object.assign(new Error("App 会话失败"), { diagnostic: diagnosis }));
+  it("shows an album permission error and copies its diagnosis without replaying any calls", async () => {
+    const message = "当前用户没有目标相册的操作权限，请检查相册配置或授权，图纸已保存在本地";
+    vi.mocked(createImageDelivery).mockRejectedValue(Object.assign(new Error(message), { diagnostic: diagnosis }));
     render(<FnosAlbumTest />);
     await generate();
     fireEvent.click(screen.getByRole("button", { name: "上传并生成链接" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("App 会话失败");
+    expect(await screen.findByRole("alert")).toHaveTextContent(message);
+    expect(screen.getByText(/上传失败后请复制诊断/)).toBeInTheDocument();
     expect(screen.getByLabelText("完整诊断")).toHaveValue(diagnosis);
     expect(createImageDelivery).toHaveBeenCalledTimes(1);
     expect(diagnoseFnosUploadSession).not.toHaveBeenCalled();
@@ -292,16 +294,22 @@ describe("fnOS album test UI", () => {
 });
 
 describe("restored Home", () => {
-  it("renders the full converter even when an old test flag remains enabled", async () => {
+  it("renders the no-AI album test on fnOS only when the flag is true", async () => {
     vi.stubEnv("NEXT_PUBLIC_FNOS_ALBUM_TEST_MODE", "true");
     render(await Home({ searchParams: Promise.resolve({ k: "existing-key" }) }));
-    expect(screen.getByTestId("normal-converter")).toHaveTextContent("existing-key|");
-    expect(screen.queryByRole("heading", { name: "拼豆相册测试" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "拼豆相册测试" })).toBeInTheDocument();
+    expect(screen.getByText("不调用 AI，不消耗转换次数")).toBeInTheDocument();
+    expect(screen.queryByTestId("normal-converter")).not.toBeInTheDocument();
+    await generate();
+    fireEvent.click(screen.getByRole("button", { name: "上传并生成链接" }));
+    await screen.findByText("相册分享链接已生成");
+    expect(createImageDelivery).toHaveBeenCalledExactlyOnceWith(png, { fnos: true, signal: expect.any(AbortSignal) });
     expect(createConversion).not.toHaveBeenCalled();
+    expect(createAccessKey).not.toHaveBeenCalled();
     expect(getAccessKeyQuota).not.toHaveBeenCalled();
   });
 
-  it.each([undefined, "false"])("preserves the normal fnOS home with flag %s", async (flag) => {
+  it.each([undefined, "false", "", "TRUE", "1"])("preserves the normal fnOS home with flag %s", async (flag) => {
     vi.stubEnv("NEXT_PUBLIC_FNOS_ALBUM_TEST_MODE", flag);
     render(await Home({ searchParams: Promise.resolve({ k: ["existing-key"], user: "admin" }) }));
     expect(screen.getByTestId("normal-converter")).toHaveTextContent("existing-key|");
