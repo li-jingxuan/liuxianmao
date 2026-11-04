@@ -1,6 +1,10 @@
 # 拼豆 fnOS Docker 应用包
 
-“上传并生成链接”的飞牛相册接口与鉴权说明见 [相册上传与七天外链](../../docs/fnos-album-share-api.md)。飞牛包先保存完整 PNG，再上传到配置相册，为单张图纸创建 7 天外链并显示可复制链接。默认相册 ID 为 `25`；可在 `api.env` 中设置 `NAS_ALBUM_ID`、`NAS_ALBUM_BASE_URL`（默认 `http://host.docker.internal:5666`）。使用当前 NAS 用户的会话和相册权限，失效时提示重新登录。
+配置模板、部署目录结构和安装步骤见 [部署与配置指南](deployment/README.md)。
+
+本机两套部署统一目录与主配置的操作见 [统一目录部署](deployment/统一目录部署.md)。该模式以 `deploy/.env` 为唯一维护入口，与独立 FPK 安装向导模式分开使用。
+
+“上传并生成链接”的飞牛相册接口与鉴权说明见 [相册上传与七天外链](../../docs/fnos-album-share-api.md)。飞牛包先保存完整 PNG，再上传到配置相册，为单张图纸创建 7 天外链并显示可复制链接。默认相册 ID 为 `25`；可在 `api.env` 中设置 `NAS_ALBUM_ID`、`NAS_ALBUM_BASE_URL`（默认 `http://host.docker.internal:5666`）。统一配置使用 `FNOS_NAS_ALBUM_ID`、`FNOS_NAS_ALBUM_BASE_URL`。使用当前 NAS 用户的会话和相册权限，失效时提示重新登录。
 
 当前飞牛页面使用浏览器分享模式：`POST /app/pindou/api/v1/image-deliveries?share_mode=browser` 只保存 PNG 并返回配置的相册 ID，随后浏览器同源完成相册上传和外链创建。统一网关会过滤 `ost`，所以不再要求它向拼豆后端转发 NAS Cookie；会话密钥也不再发送给拼豆后端。通过 IP 或网关访问时自动使用当前来源。`NAS_ALBUM_ID` 必须是当前用户有权限的相册；本次测试设备已按用户新建的“拼豆”相册设为 `31`。下述多地址候选仅用于保留的 `server` 兼容模式。
 

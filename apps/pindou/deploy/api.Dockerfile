@@ -31,6 +31,11 @@ RUN pip install --no-cache-dir --index-url "${PIP_INDEX_URL}" --upgrade pip \
     && mkdir -p /var/lib/pindou/images /var/lib/pindou/log /var/lib/pindou/image-deliveries \
     && chown -R pindou:pindou /app /var/lib/pindou
 
+# fnOS shared folders can report mode 000 for archived source files. COPY keeps
+# those bits; grant the runtime user read/traverse access to application code.
+RUN find /app -type d -exec chmod 755 {} + \
+    && find /app -type f -exec chmod 644 {} +
+
 USER pindou
 EXPOSE 3112
 CMD ["uvicorn", "pindou.main:app", "--host", "0.0.0.0", "--port", "3112"]

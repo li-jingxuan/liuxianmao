@@ -1,5 +1,7 @@
 # Docker 独立部署
 
+本 NAS 的 Web/飞牛两套部署统一管理方式见 [统一目录部署](fnos/deployment/统一目录部署.md)；该模式使用 `deploy/.env` 和 `python3 deploy/run.py web ...`，运行配置由 `configure.py` 生成。以下为原独立模式说明。
+
 适用于支持 Docker Compose 的主机，以下命令在 `apps/pindou/` 目录执行。
 飞牛应用中心安装及官方 `/app/pindou` 统一网关接入请使用 [飞牛 Docker 应用包](fnos/README.md)。
 

@@ -30,7 +30,7 @@ services:
         U2NET_MODEL_URL: ${U2NET_MODEL_URL:-https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2net.onnx}
     restart: unless-stopped
     env_file:
-      - .env
+      - ${WEB_API_ENV_FILE:-.env}
     environment:
       APP_ENV: production
       API_HOST: 0.0.0.0

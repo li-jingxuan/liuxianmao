@@ -38,3 +38,6 @@ log
 .npm-cache
 deploy/fnos/dist
 deploy/fnos/.tools
+deploy/fnos/data
+deploy/.runtime
+deploy/fnos/.runtime

@@ -6,13 +6,42 @@ fail() {
     printf '%s\n' "$message" >&2
     exit 1
 }
-: "${TRIM_APPDEST:?}" "${TRIM_PKGETC:?}" "${TRIM_PKGVAR:?}"
+: "${TRIM_APPDEST:?}" "${TRIM_PKGETC:?}"
 # cmd is available before the app payload is installed. stage.py copies the
 # initializer and image reference here so install_init can configure Compose.
 bootstrap=$(CDPATH= cd -- "$(dirname "$0")/bootstrap" && pwd)
 image=$(cat "$bootstrap/api-image")
 case "$image" in ''|example.invalid/*) fail ;; esac
-mkdir -p "$TRIM_PKGETC" "$TRIM_PKGVAR"
+data_dir=${TRIM_PKGVAR:-}
+if [ -f "$bootstrap/data-dir" ]; then
+    data_dir=$(cat "$bootstrap/data-dir") || fail
+    # stage.py validates custom paths; reject malformed bootstrap metadata too.
+    case "$data_dir" in
+        ''|*[!a-zA-Z0-9_./-]*|*/../*|*/./*|*/..|*/.|*//*|*/|/) fail ;;
+        /*) ;;
+        *) fail ;;
+    esac
+fi
+: "${data_dir:?}"
+mkdir -p "$TRIM_PKGETC" "$data_dir"
+if [ -f "$bootstrap/master-env" ]; then
+    master_env=$(cat "$bootstrap/master-env") || fail
+    [ -f "$master_env" ] || fail
+    # The host file is mounted read-only; the renderer emits only fnOS secrets.
+    # Configuration UI must not create a second source of truth in master mode.
+    if [ -n "${wizard_ark_api_key:-}" ]; then
+        printf '%s\n' '统一配置模式：请修改 deploy/.env 后应用配置，不要在向导中另填方舟密钥。' >&2
+        exit 1
+    fi
+    docker run --rm --network none --read-only --user 0:0 \
+        --cpus 0.25 --memory 256m --pids-limit 64 \
+        --tmpfs /tmp:rw,nosuid,noexec,size=16m \
+        --mount "type=bind,src=$bootstrap,dst=/bootstrap,readonly" \
+        --mount "type=bind,src=$master_env,dst=/master.env,readonly" \
+        --mount "type=bind,src=$TRIM_PKGETC,dst=/config" \
+        --entrypoint python "$image" /bootstrap/render-config.py \
+        --env /master.env --fnos-etc /config --fnos-only || fail
+fi
 # Use Python already shipped in the API image: fnOS host Python is not required.
 # This one-shot helper does not start or stop the fnOS-managed Compose project.
 # Pass the wizard variable by NAME so its value is not placed in process arguments.
@@ -23,7 +52,7 @@ if ! docker run --rm --network none --read-only --user 0:0 \
     --env wizard_ark_api_key \
     --mount "type=bind,src=$bootstrap,dst=/bootstrap,readonly" \
     --mount "type=bind,src=$TRIM_PKGETC,dst=/config" \
-    --mount "type=bind,src=$TRIM_PKGVAR,dst=/data" \
+    --mount "type=bind,src=$data_dir,dst=/data" \
     --entrypoint python "$image" /bootstrap/initialize.py; then
     fail
 fi

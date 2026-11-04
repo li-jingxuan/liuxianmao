@@ -153,7 +153,7 @@ class Settings(BaseSettings):
     ark_doubao_response_format: str = "b64_json"
     ark_doubao_watermark: bool = False  # 水印
     ark_doubao_connect_timeout_seconds: float = 5.0
-    ark_doubao_read_timeout_seconds: float = 90.0
+    ark_doubao_read_timeout_seconds: float = 300.0
     ark_doubao_write_timeout_seconds: float = 15.0
     ark_doubao_pool_timeout_seconds: float = 5.0
     ark_doubao_max_concurrency: int = Field(default=2, ge=1, le=32)
