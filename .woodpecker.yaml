@@ -1,0 +1,79 @@
+when:
+  - event: [push, manual]
+    branch: openchamber/pindou
+
+clone:
+  git:
+    image: quay.io/woodpeckerci/plugin-git:2.11.0
+    settings:
+      depth: 1
+      partial: false
+      recursive: false
+      lfs: false
+      attempts: 2
+    environment:
+      GIT_CONFIG_COUNT: "2"
+      GIT_CONFIG_KEY_0: http.version
+      GIT_CONFIG_VALUE_0: HTTP/1.1
+      GIT_CONFIG_KEY_1: http.curloptResolve
+      GIT_CONFIG_VALUE_1:
+        from_secret: github_curlopt_resolve
+
+steps:
+  - name: api-checks-and-tests
+    image: docker.m.daocloud.io/library/python:3.12-slim
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+      PIP_INDEX_URL: https://pypi.tuna.tsinghua.edu.cn/simple
+      TEST_POSTGRES_URL: postgresql+psycopg://pindou:pindou-ci-only@postgres:5432/pindou_ci
+    commands:
+      - cd apps/pindou/apps/api
+      - python -m pip install --no-cache-dir . pytest ruff
+      - ruff check src tests
+      - |
+        python - <<'PY'
+        import os
+        import time
+        from sqlalchemy import create_engine, text
+
+        engine = create_engine(os.environ["TEST_POSTGRES_URL"])
+        for attempt in range(30):
+            try:
+                with engine.connect() as connection:
+                    connection.execute(text("SELECT 1"))
+                break
+            except Exception:
+                if attempt == 29:
+                    raise
+                time.sleep(1)
+        engine.dispose()
+        PY
+      - python -m pytest -q
+
+  - name: web-checks-tests-and-build
+    image: docker.m.daocloud.io/library/node:22-alpine
+    environment:
+      CI: "true"
+      NEXT_TELEMETRY_DISABLED: "1"
+      NODE_OPTIONS: --max-old-space-size=1024
+      NEXT_PUBLIC_BASE_PATH: /app/pindou
+      NEXT_PUBLIC_API_BASE_URL: /app/pindou
+    commands:
+      - cd apps/pindou/apps/web
+      - npm install --global pnpm@11.10.0 --registry=https://registry.npmmirror.com
+      - pnpm install --frozen-lockfile
+      - pnpm lint
+      - pnpm test --maxWorkers=1
+      - pnpm exec tsc --noEmit
+      - pnpm exec next build --webpack
+      - test -f .next/standalone/server.js
+
+services:
+  - name: postgres
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: pindou_ci
+      POSTGRES_USER: pindou
+      POSTGRES_PASSWORD: pindou-ci-only
