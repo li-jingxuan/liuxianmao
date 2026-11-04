@@ -83,7 +83,7 @@ steps:
       PYTHONDONTWRITEBYTECODE: "1"
       PYTHONUNBUFFERED: "1"
       PIP_DISABLE_PIP_VERSION_CHECK: "1"
-      PIP_INDEX_URL: https://pypi.tuna.tsinghua.edu.cn/simple
+      PIP_INDEX_URL: https://mirrors.aliyun.com/pypi/simple/
       TEST_POSTGRES_URL: postgresql+psycopg://pindou:pindou-ci-only@postgres:5432/pindou_ci
     commands:
       - cd apps/pindou/apps/api
