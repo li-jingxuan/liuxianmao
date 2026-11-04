@@ -23,6 +23,12 @@ clone:
         import urllib.error
         import urllib.request
 
+        if os.environ["CI_PIPELINE_EVENT"] == "manual":
+            target = os.environ.get("BUILD_TARGET", "")
+            if target not in ("", "all", "api", "web"):
+                raise SystemExit("BUILD_TARGET must be api, web or all (empty defaults to all)")
+            print("Manual build target:", target or "all", flush=True)
+
         repository = os.environ["CI_REPO"]
         commit = os.environ["CI_COMMIT_SHA"]
         if repository != "li-jingxuan/liuxianmao" or not re.fullmatch(r"[a-f0-9]{40}", commit):
@@ -79,6 +85,19 @@ clone:
 steps:
   - name: api-checks-and-tests
     image: docker.m.daocloud.io/library/python:3.12-slim
+    when: &api_when
+      - event: manual
+        evaluate: 'BUILD_TARGET == "" || BUILD_TARGET in ["all", "api"]'
+      - event: push
+        path:
+          include:
+            - apps/pindou/apps/api/**
+            - apps/pindou/deploy/api.Dockerfile
+            - .woodpecker.yaml
+            - apps/pindou/.dockerignore
+            - apps/pindou/docker-compose.yml
+            - apps/pindou/deploy/fnos/**
+          on_empty: true
     environment:
       PYTHONDONTWRITEBYTECODE: "1"
       PYTHONUNBUFFERED: "1"
@@ -111,6 +130,19 @@ steps:
 
   - name: web-checks-tests-and-build
     image: docker.m.daocloud.io/library/node:22-alpine
+    when:
+      - event: manual
+        evaluate: 'BUILD_TARGET == "" || BUILD_TARGET in ["all", "web"]'
+      - event: push
+        path:
+          include:
+            - apps/pindou/apps/web/**
+            - apps/pindou/deploy/web.Dockerfile
+            - .woodpecker.yaml
+            - apps/pindou/.dockerignore
+            - apps/pindou/docker-compose.yml
+            - apps/pindou/deploy/fnos/**
+          on_empty: true
     environment:
       CI: "true"
       NEXT_TELEMETRY_DISABLED: "1"
@@ -130,6 +162,7 @@ steps:
 services:
   - name: postgres
     image: postgres:17-alpine
+    when: *api_when
     environment:
       POSTGRES_DB: pindou_ci
       POSTGRES_USER: pindou
