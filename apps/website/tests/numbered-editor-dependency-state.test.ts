@@ -38,7 +38,7 @@ const setup = () => {
 };
 
 describe("简谱分组提前禁用与提交共用依赖检查", () => {
-  it("正文重建成员时保护未应用的时值和成员音高", () => {
+  it("正文重建成员仍可保留同事件时值草稿，成员音高草稿受到保护", () => {
     const { state, candidate } = setup();
     expect(
       checkNumberedDraftDependencies(
@@ -46,7 +46,7 @@ describe("简谱分组提前禁用与提交共用依赖检查", () => {
         candidate,
         "content",
       ),
-    ).toContain("先应用或恢复事件时值组");
+    ).toBeNull();
     expect(
       checkNumberedDraftDependencies(
         { ...state, itemPitchDirty: true },
@@ -77,7 +77,7 @@ describe("简谱分组提前禁用与提交共用依赖检查", () => {
     expect(
       checkNumberedDraftDependencies(
         { ...state, rhythmDirty: true },
-        candidate,
+        { ...candidate, track: { ...candidate.track, measures: candidate.track.measures.map((measure) => ({ ...measure, numberedVoice: { ...measure.numberedVoice, events: measure.numberedVoice.events.filter((event) => event.id !== state.event.id) } })) } },
         "content",
       ),
     ).toContain("时值草稿");

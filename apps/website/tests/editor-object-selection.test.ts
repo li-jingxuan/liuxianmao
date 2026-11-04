@@ -45,7 +45,7 @@ const fixture = () => {
 
 describe("谱面对象选择与文字页签解耦", () => {
   it.each(["lyric", "numbered", "chord"] as const)(
-    "%s 草稿下点击同拍弦格仍是六线谱选择",
+    "%s 草稿下点击同拍弦格仍是六线谱选择，歌词和简谱未应用内容直接丢弃",
     (kind) => {
       const { document, layout, measure, target, lyricTarget, selection } =
         fixture();
@@ -74,9 +74,10 @@ describe("谱面对象选择与文字页签解耦", () => {
       }
       expect(
         resolveSidebarRequest(draft, action, {
+          numberedTarget: kind === "numbered" ? { ...target, kind } : undefined,
           numberedDirty: kind === "numbered",
         }),
-      ).toBe("confirm");
+      ).toBe(kind === "chord" ? "confirm" : "execute");
     },
   );
 
@@ -202,7 +203,7 @@ describe("谱面对象选择与文字页签解耦", () => {
     );
   });
 
-  it("简谱重复激活不丢草稿；同拍转 beat 或换歌词仍需确认", () => {
+  it("简谱重复激活不丢草稿；同拍转 beat、换歌词或切标签直接丢弃，设置脏时仍确认", () => {
     const { target, lyricTarget, selection } = fixture();
     const numberedTarget = { ...target, kind: "numbered" as const };
     const guards = { numberedTarget, numberedDirty: true };
@@ -215,17 +216,17 @@ describe("谱面对象选择与文字页签解耦", () => {
     ).toBe("ignore");
     expect(
       resolveSidebarRequest(null, { type: "selection", selection }, guards),
-    ).toBe("confirm");
+    ).toBe("execute");
     expect(
       resolveSidebarRequest(
         null,
         { type: "target", target: lyricTarget },
         guards,
       ),
-    ).toBe("confirm");
+    ).toBe("execute");
     expect(
       resolveSidebarRequest(null, { type: "tab", kind: "score" }, guards),
-    ).toBe("confirm");
+    ).toBe("execute");
     expect(
       resolveSidebarRequest(
         null,
@@ -234,7 +235,7 @@ describe("谱面对象选择与文字页签解耦", () => {
       ),
     ).toBe("confirm");
   });
-  it("同拍切换到另一个简谱事件不进入阻断确认", () => {
+  it("同拍切换到另一个简谱事件直接丢弃未应用修改", () => {
     const { target } = fixture();
     const first = {
       ...target,

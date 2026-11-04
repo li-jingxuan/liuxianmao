@@ -6,6 +6,7 @@ import {
   type NumberedCandidate,
 } from "@liuxianmao/lxm-editor";
 import { formatNumberedBeatPosition } from "./numbered-editor-target";
+import type { BeatMappingRow, BeatMappingPosition } from "./BeatMappingPreview";
 
 export type NumberedPreviewStatus =
   | "add"
@@ -26,6 +27,9 @@ export interface NumberedPreviewRow {
   rhythm: string;
   status: NumberedPreviewStatus;
   impact: "none" | "overwrite" | "release";
+  eventId?: string;
+  sourcePosition: BeatMappingPosition | null;
+  plannedPosition: BeatMappingPosition | null;
 }
 const bases = {
   whole: "全音",
@@ -87,6 +91,9 @@ export const buildNumberedPreviewRows = (
     );
     rows.push({
       key: `${measureId}/${event.tick}/${event.id}`,
+      eventId: event.id,
+      sourcePosition: before ? { trackId: beforeTrack.id, measureId, startTick: before.tick, endTick: eventEnd(beforeTrack, measureId, before) } : null,
+      plannedPosition: after ? { trackId: candidate.track.id, measureId, startTick: after.tick, endTick: eventEnd(candidate.track, measureId, after) } : null,
       measureId,
       measureNumber: measureIndex + 1,
       position: formatNumberedBeatPosition(
@@ -179,7 +186,23 @@ export const buildNumberedPreviewRows = (
       rhythm: "不补休止",
       status: "release",
       impact: "release",
+      sourcePosition: { trackId: beforeTrack.id, measureId: measure.id, startTick, endTick },
+      plannedPosition: null,
     });
   }
   return rows.sort((a, b) => a.startTick - b.startTick);
 };
+
+/** 不拆 key 推测领域身份；原位置与候选位置随真实事件一起生成。 */
+export const numberedPreviewMapping = (rows: readonly NumberedPreviewRow[]): BeatMappingRow[] => rows.map((row) => ({
+  key: row.key,
+  before: row.before,
+  after: row.after,
+  positionLabel: `${row.measureNumber} 小节 · ${row.position}`,
+  status: row.status,
+  sourcePosition: row.sourcePosition,
+  plannedPosition: row.plannedPosition,
+  canInspect: !!row.sourcePosition,
+  rhythm: row.rhythm,
+  impactLabel: row.impact === "overwrite" ? "覆盖" : row.impact === "release" ? "释放空位" : undefined,
+}));

@@ -4,7 +4,9 @@ import {
   EXAMPLE_MVP_7_2_DOCUMENT,
   applyScoreCommand,
   hitTestNumbered,
+  layoutNumberedBeatContext,
   layoutParagraphFocus,
+  type MusicTextRect,
 } from "../../src";
 
 /** 孤立一小节，避免歌词和指法图成为宽度主导，专门检查简谱几何。 */
@@ -19,6 +21,18 @@ const fixture = () => {
   m.lyrics = [];
   m.chordSymbols = [];
   return { doc, track, m };
+};
+
+const expectContains = (outer: MusicTextRect, inner: MusicTextRect) => {
+  const epsilon = 1e-6;
+  expect(outer.x).toBeLessThanOrEqual(inner.x + epsilon);
+  expect(outer.y).toBeLessThanOrEqual(inner.y + epsilon);
+  expect(outer.x + outer.width + epsilon).toBeGreaterThanOrEqual(
+    inner.x + inner.width,
+  );
+  expect(outer.y + outer.height + epsilon).toBeGreaterThanOrEqual(
+    inner.y + inner.height,
+  );
 };
 describe("简谱编辑与成品排版", () => {
   it("密集三十二分空位受预算约束，不强制每槽扩成完整框", () => {
@@ -115,58 +129,221 @@ describe("简谱编辑与成品排版", () => {
       expect(result.document).toEqual(before);
     },
   );
-  it("同一 TAB 拍内多事件共用焦点框，命中仍指向各自音符", () => {
-    const { doc, track, m } = fixture();
-    const result = applyScoreCommand(doc, {
-      type: "numbered.range.replace",
-      trackId: track.id,
-      measureId: m.id,
-      startTick: 0,
-      endTick: 960,
-      items: ["1", "1", "2"].map((token) => ({
-        kind: "set" as const,
-        tokens: [token],
-      })),
-      rhythms: [
-        { base: "eighth", dots: 0 },
-        { base: "sixteenth", dots: 0 },
-        { base: "sixteenth", dots: 0 },
-      ],
-      allowOverwrite: true,
-    });
-    if (!result.ok) throw Error(result.message);
-    const layout = buildLayout(result.document, { purpose: "editing" });
-    const measure = layout.systems[0]!.measures[0]!;
-    const events =
-      result.document.score.tracks[0]!.measures[0]!.numberedVoice.events.filter(
-        (event) => event.tick < 960,
-      );
-    const frames = events.map((event) =>
-      layoutParagraphFocus(layout, {
-        kind: "numbered",
+  it.each([
+    {
+      name: "两个八分 5/3",
+      tokens: ["5", "3"],
+      bases: ["eighth", "eighth"] as const,
+    },
+    {
+      name: "八分与两个十六分混合",
+      tokens: ["1", "1", "2"],
+      bases: ["eighth", "sixteenth", "sixteenth"] as const,
+    },
+  ])(
+    "$name 在同一 TAB 拍内焦点独立、拍背景一致且导航按 tick 排序",
+    ({ tokens, bases }) => {
+      const { doc, track, m } = fixture();
+      const result = applyScoreCommand(doc, {
+        type: "numbered.range.replace",
         trackId: track.id,
         measureId: m.id,
-        eventId: event.id,
-        itemId: event.items[0]!.id,
+        startTick: 0,
+        endTick: 960,
+        items: tokens.map((token) => ({
+          kind: "set" as const,
+          tokens: [token],
+        })),
+        rhythms: bases.map((base) => ({ base, dots: 0 })),
+        allowOverwrite: true,
+      });
+      if (!result.ok) throw Error(result.message);
+      const events =
+        result.document.score.tracks[0]!.measures[0]!.numberedVoice.events.filter(
+          (event) => event.tick < 960,
+        );
+      for (const options of [
+        { purpose: "editing", density: "compact", systemWidth: 360 },
+        { purpose: "editing", density: "comfortable", systemWidth: 1000 },
+        { purpose: "presentation", density: "compact", systemWidth: 600 },
+      ] as const) {
+        const layout = buildLayout(result.document, options);
+        const measure = layout.systems[0]!.measures[0]!;
+        const targets = events.map((event) => ({
+          kind: "numbered" as const,
+          trackId: track.id,
+          measureId: m.id,
+          eventId: event.id,
+        }));
+        const frames = targets.map(
+          (target) => layoutParagraphFocus(layout, target)!,
+        );
+        const context = layoutNumberedBeatContext(layout, targets[0]!)!;
+        expect(context.eventIds).toEqual(events.map((event) => event.id));
+        const notations = events.map(
+          (event) =>
+            measure.numberedNotation!.find((n) => n.eventId === event.id)!,
+        );
+        const left = Math.min(...notations.map((n) => n.bounds.x));
+        const top = Math.min(...notations.map((n) => n.bounds.y));
+        expect(context.bounds).toEqual({
+          x: left - 4,
+          y: top - 2,
+          width:
+            Math.max(...notations.map((n) => n.bounds.x + n.bounds.width)) -
+            left +
+            8,
+          height:
+            Math.max(...notations.map((n) => n.bounds.y + n.bounds.height)) -
+            top +
+            4,
+        });
+        for (let i = 0; i < events.length; i++) {
+          const n = notations[i]!;
+          const frame = frames[i]!;
+          expect(frame).toEqual({
+            x: n.bounds.x - 4,
+            y: n.bounds.y - 2,
+            width: n.bounds.width + 8,
+            height: n.bounds.height + 4,
+          });
+          expectContains(frame, n.labels[0]!.bounds);
+          expectContains(context.bounds, frame);
+          if (i > 0) {
+            expect(frame).not.toEqual(frames[i - 1]);
+            expect(frame.x).toBeGreaterThan(frames[i - 1]!.x);
+          }
+          const item = n.itemBounds![0]!;
+          expectContains(
+            layoutParagraphFocus(layout, {
+              ...targets[i]!,
+              itemId: item.itemId,
+            })!,
+            item.bounds,
+          );
+          expect(
+            hitTestNumbered(layout, {
+              x: item.bounds.x + item.bounds.width / 2,
+              y: item.bounds.y + item.bounds.height / 2,
+            }),
+          ).toMatchObject({ eventId: events[i]!.id, itemId: item.itemId });
+          expect(layoutNumberedBeatContext(layout, targets[i]!)).toEqual(
+            context,
+          );
+        }
+        // 导航不依赖渲染数组的偶然顺序，也不能原地排序调用方的 slots。
+        measure.numberedNotation!.reverse();
+        measure.numberedSlots.reverse();
+        const slotOrder = measure.numberedSlots.map((slot) => slot.id);
+        expect(layoutNumberedBeatContext(layout, targets[0]!)).toEqual(context);
+        expect(measure.numberedSlots.map((slot) => slot.id)).toEqual(slotOrder);
+      }
+    },
+  );
+  it("单事件或同时多音只返回局部焦点，没有拍背景；明确 itemId 选择单音", () => {
+    const { doc, track, m } = fixture();
+    const event = m.numberedVoice.events[0]!;
+    const target = {
+      kind: "numbered" as const,
+      trackId: track.id,
+      measureId: m.id,
+      eventId: event.id,
+    };
+    expect(layoutNumberedBeatContext(buildLayout(doc), target)).toBeNull();
+    event.items = ["5", "3"].map((token, i) => ({ id: `chord-${i}`, token }));
+    const layout = buildLayout(doc, { purpose: "editing" });
+    const notation = layout.systems[0]!.measures[0]!.numberedNotation![0]!;
+    expect(layoutNumberedBeatContext(layout, target)).toBeNull();
+    const eventFocus = layoutParagraphFocus(layout, target)!;
+    for (const item of notation.itemBounds!) {
+      const focus = layoutParagraphFocus(layout, {
+        ...target,
+        itemId: item.itemId,
+      })!;
+      expect(focus).toEqual({
+        x: item.bounds.x - 4,
+        y: item.bounds.y - 2,
+        width: item.bounds.width + 8,
+        height: item.bounds.height + 4,
+      });
+      expect(focus.width).toBeLessThan(eventFocus.width);
+      expectContains(eventFocus, focus);
+    }
+    expect(
+      layoutParagraphFocus(layout, { ...target, itemId: "missing" }),
+    ).toEqual(eventFocus);
+  });
+  it("不存在的目标、空输入槽和歌词不产生拍背景", () => {
+    const { doc, track, m } = fixture();
+    m.numberedVoice.events = [m.numberedVoice.events[0]!];
+    const layout = buildLayout(doc, { purpose: "editing" });
+    const target = { trackId: track.id, measureId: m.id };
+    for (const invalid of [
+      { ...target, eventId: "missing" },
+      { ...target, trackId: "missing", eventId: m.numberedVoice.events[0]!.id },
+      {
+        ...target,
+        measureId: "missing",
+        eventId: m.numberedVoice.events[0]!.id,
+      },
+      { ...target, tick: 960, endTick: 1920 },
+      {
+        ...target,
+        kind: "lyric" as const,
+        eventId: m.numberedVoice.events[0]!.id,
+      },
+    ])
+      expect(layoutNumberedBeatContext(layout, invalid)).toBeNull();
+    const slot = layout.systems[0]!.measures[0]!.numberedInputSlots![0]!;
+    expect(
+      layoutParagraphFocus(layout, { ...slot.target, kind: "numbered" }),
+    ).toEqual({
+      x: slot.anchorX - Math.max(24, slot.width) / 2,
+      y: slot.y,
+      width: Math.max(24, slot.width),
+      height: slot.height,
+    });
+  });
+  it("换行重排后拍背景使用最终坐标且保留同拍事件顺序", () => {
+    const doc = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);
+    const track = doc.score.tracks[0]!;
+    track.numberedMarks = [];
+    track.techniques = [];
+    const m = track.measures[3]!;
+    m.numberedVoice = {
+      events: [0, 480].map((tick, i) => ({
+        id: `reflow-${i}`,
+        kind: "notes",
+        tick,
+        rhythm: { base: "eighth", dots: 0 },
+        items: [{ id: `reflow-item-${i}`, token: i ? "3" : "5" }],
+      })),
+      tuplets: [],
+    };
+    const target = { trackId: track.id, measureId: m.id, eventId: "reflow-0" };
+    const layouts = [400, 1800].map((systemWidth) =>
+      buildLayout(doc, {
+        purpose: "editing",
+        systemWidth,
       }),
     );
-    expect(frames[0]).toEqual(frames[1]);
-    expect(frames[1]).toEqual(frames[2]);
-    expect(frames[0]!.x).toBeLessThan(
-      measure.numberedNotation![0]!.labels[0]!.x,
-    );
-    for (let i = 0; i < events.length; i++) {
-      const bounds = measure.numberedNotation![i]!.itemBounds![0]!.bounds;
+    const contexts = layouts.map((layout) => {
+      const measure = layout.systems
+        .flatMap((s) => s.measures)
+        .find((item) => item.id === m.id)!;
+      const context = layoutNumberedBeatContext(layout, target)!;
+      expect(context.eventIds).toEqual(["reflow-0", "reflow-1"]);
+      for (const n of measure.numberedNotation!)
+        expectContains(context.bounds, n.bounds);
       expect(
-        hitTestNumbered(layout, {
-          x: bounds.x + bounds.width / 2,
-          y: bounds.y + bounds.height / 2,
-        }),
-      ).toMatchObject({
-        eventId: events[i]!.id,
-        itemId: events[i]!.items[0]!.id,
-      });
-    }
+        layoutNumberedBeatContext(layout, { ...target, eventId: "reflow-1" }),
+      ).toEqual(context);
+      return { context, systemIndex: measure.systemIndex };
+    });
+    expect(contexts[0]!.systemIndex).not.toBe(contexts[1]!.systemIndex);
+    expect(contexts[0]!.context.bounds).not.toEqual(
+      contexts[1]!.context.bounds,
+    );
   });
   it("同时多音从首音对齐 TAB 起点", () => {
     const { doc, m } = fixture();

@@ -225,6 +225,7 @@
 .editor {
   container-type: inline-size;
   container-name: score-editor;
+  min-width: 1440px;
   min-height: 0;
 }
 .editorControls {
@@ -239,17 +240,28 @@
 }
 .editorWorkspace {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 440px;
+  grid-template-columns: minmax(0, 1fr) 400px;
   flex: 1;
   min-width: 0;
   min-height: 0;
   background: var(--panel-muted);
-  &:has(.musicTextFloating) {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr);
-  }
+  &[data-sidebar-collapsed="true"] { grid-template-columns: minmax(0, 1fr); }
+}
+.openSidebar {
+  position: sticky;
+  z-index: 10;
+  top: 8px;
+  left: calc(100% - 130px);
+  margin-bottom: 8px;
+}
+.inspectionOutline {
+  fill: transparent;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-dasharray: 5 3;
 }
 .musicTextSidebar {
+  box-sizing: border-box;
   width: auto;
   min-width: 0;
   min-height: 0;
@@ -276,7 +288,15 @@
     font-weight: 600;
   }
 }
+.musicTextSurface {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
 .musicTextFloating {
+  &[hidden] { display: none !important; }
   position: fixed;
   z-index: 30;
   width: min(360px, calc(100vw - 24px));
@@ -392,9 +412,10 @@
 }
 .floatingHeaderActions {
   display: flex;
+  align-items: center;
   flex: none;
   gap: 2px;
-  button {
+  > button {
     color: var(--muted);
     font-size: 22px;
     line-height: 1;
@@ -417,7 +438,9 @@
     width: 100%;
     margin: 0;
   }
+  :global(.ant-tabs-nav-list) { width: 100%; }
   :global(.ant-tabs-tab) {
+    margin-inline: 0 !important;
     flex: 1;
     justify-content: center;
     min-height: 40px;
@@ -428,6 +451,8 @@
       color: var(--accent);
     }
   }
+  :global(.ant-tabs-tab-btn) { display: inline-flex; align-items: center; gap: 5px; }
+  :global(.ant-tabs-tab-icon) { display: inline-flex; margin: 0 !important; }
   :global(.ant-tabs-tab-active) {
     :global(.ant-tabs-tab-btn) {
       color: var(--accent);
@@ -464,8 +489,14 @@
 .sidebarBody {
   flex: 1;
   min-height: 0;
-  overflow: auto;
-  padding: 18px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-padding-block: 12px;
+  padding: 16px 20px 20px;
+}
+.paragraphTabs {
+  margin: 0 0 16px;
+  :global(.ant-segmented-item) { min-height: 30px; }
 }
 .sidebarTarget {
   margin: 0 0 18px;
@@ -477,14 +508,30 @@
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 14px;
-  padding: 45px 12px;
+  gap: 12px;
+  padding: 28px 4px;
   color: var(--muted);
   h3,
   p {
     margin: 0;
+    line-height: 1.8;
   }
 }
+.emptyIllustration {
+  margin-bottom: 4px;
+  svg { width: 100px; height: 70px; fill: none; stroke: var(--border); }
+  rect { fill: var(--accent-soft); stroke: var(--accent); stroke-dasharray: 3 3; }
+  path:last-child { stroke: var(--accent); stroke-width: 1.5; }
+}
+.emptyHelp { font-size: 12px; }
+.sidebarDisclosure {
+  padding-block: 10px;
+  border-block: 1px solid var(--border);
+  margin-top: 14px;
+  summary { cursor: pointer; font-weight: 600; line-height: 1.6; }
+  p { color: var(--muted); line-height: 1.7; font-size: 12px; margin-block: 10px; }
+}
+.actionSummary { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
 .sidebarSection {
   & + & {
     margin-top: 20px;
@@ -596,6 +643,7 @@
 }
 .sidebarFooter {
   flex: none;
+  &:empty { display: none; }
   padding: 12px 18px 16px;
   border-top: 1px solid var(--border);
 }
@@ -712,6 +760,20 @@
   fill: rgb(47 101 255 / 12%);
   stroke: var(--accent);
   stroke-width: 1;
+}
+.numberedBeatContext {
+  fill: rgb(22 119 255 / 4%);
+  stroke: none;
+}
+.numberedPopoverNavigation {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  color: var(--muted);
 }
 .emptyLyricCaret {
   fill: transparent;
@@ -1004,28 +1066,6 @@
   color: var(--muted);
   white-space: nowrap;
 }
-@container score-editor (width < 1200px) {
-  .editorWorkspace {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1.2fr) minmax(0, 1fr);
-  }
-  .musicTextSidebar:not(.musicTextFloating) {
-    width: auto;
-    margin: 0 16px 12px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-  }
-  .editorWorkspace:has(.musicTextFloating) {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr);
-  }
-  .floatingSidebarSummary {
-    display: none;
-  }
-  .pageViewport {
-    padding: 20px;
-  }
-}
 @container score-editor (width < 900px) {
   .editorHeader {
     grid-template-columns: 110px minmax(0, 1fr);
@@ -1051,18 +1091,6 @@
     font-size: 11px;
   }
 }
-@media (max-height: 600px) {
-  @container score-editor (width < 1200px) {
-    // 页面缩放后可用高度很低时保留可操作区域，由工作区滚动而不是压成零高表单。
-    .editorWorkspace {
-      grid-template-rows: minmax(180px, 1fr) minmax(260px, 1fr);
-      overflow: auto;
-    }
-    .settingsActions {
-      position: static;
-    }
-  }
-}
 @media print {
   .editorHeader,
   .editorToolbar,
@@ -1074,6 +1102,7 @@
   .editor {
     display: block;
     height: auto;
+    min-width: 0;
     container-type: normal;
   }
 }

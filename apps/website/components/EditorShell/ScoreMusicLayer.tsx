@@ -5,18 +5,22 @@ export const SceneItems = ({
   items,
   selectedTechniqueId,
   selectedNumberedMarkId,
+  selectedNumberedEventId,
 }: {
   items: ScorePrimitive[];
   selectedTechniqueId?: string | null;
   selectedNumberedMarkId?: string | null;
+  selectedNumberedEventId?: string | null;
 }) => (
   <>
     {items.map((p, index) => {
       const selected =
         (!!p.techniqueId && p.techniqueId === selectedTechniqueId) ||
-        (!!p.numberedMarkId && p.numberedMarkId === selectedNumberedMarkId);
+        (!!p.numberedMarkId && p.numberedMarkId === selectedNumberedMarkId) ||
+        (!!p.numberedEventId && p.numberedEventId === selectedNumberedEventId);
       const style = {
         "data-numbered-mark": p.numberedMarkId,
+        "data-numbered-event": p.numberedEventId,
         fill: selected && p.fill && p.fill !== "none" ? "#2864e3" : p.fill,
         stroke:
           selected && p.stroke && p.stroke !== "#fff" ? "#2864e3" : p.stroke,
@@ -86,10 +90,12 @@ export const ScoreMusicLayer = ({
   scene,
   selectedTechniqueId,
   selectedNumberedMarkId,
+  selectedNumberedEventId,
 }: {
   scene: ScoreScene;
   selectedTechniqueId?: string | null;
   selectedNumberedMarkId?: string | null;
+  selectedNumberedEventId?: string | null;
 }) => (
   <g data-layer="score-music">
     <SceneItems items={scene.header} />
@@ -99,6 +105,7 @@ export const ScoreMusicLayer = ({
           items={s.items}
           selectedTechniqueId={selectedTechniqueId}
           selectedNumberedMarkId={selectedNumberedMarkId}
+          selectedNumberedEventId={selectedNumberedEventId}
         />
       </g>
     ))}

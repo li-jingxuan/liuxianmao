@@ -4,7 +4,7 @@ import {
   createDocumentIdFactory,
   editNumberedTrack,
 } from "@liuxianmao/lxm-editor";
-import { buildNumberedPreviewRows } from "../components/EditorShell/numbered-preview";
+import { buildNumberedPreviewRows, numberedPreviewMapping } from "../components/EditorShell/numbered-preview";
 
 describe("简谱修改预览 adapter", () => {
   it("按事件身份显示单音组修改前后值", () => {
@@ -136,4 +136,53 @@ it("时值缩短显示释放空位而不伪造休止", () => {
   expect(candidate.track.measures[0]!.numberedVoice.events.length).toBe(
     measure.numberedVoice.events.length,
   );
+});
+
+it("时间线保留未改音高事件的原位置和规划位置，不把位移当作无影响", () => {
+  const document = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);
+  const track = document.score.tracks[0]!;
+  track.numberedMarks = [];
+  const measure = track.measures[0]!;
+  measure.numberedVoice.tuplets = [];
+  const event = measure.numberedVoice.events[0]!;
+  const command = {
+    type: "numbered.event.setRhythm" as const,
+    trackId: track.id, measureId: measure.id, eventId: event.id,
+    rhythm: { base: "half" as const, dots: 0 }, timeline: "editTimeline" as const,
+  };
+  const candidate = editNumberedTrack(track, command, createDocumentIdFactory(document), true);
+  expect(candidate.ok).toBe(true);
+  if (!candidate.ok) return;
+  const rows = buildNumberedPreviewRows(track, candidate, command);
+  for (const id of candidate.movedEventIds) {
+    const row = rows.find((item) => item.eventId === id)!;
+    expect(row).toBeDefined();
+    expect(row.sourcePosition?.startTick).not.toBe(row.plannedPosition?.startTick);
+    expect(row.before).toBe(row.after);
+    expect(numberedPreviewMapping([row])[0]!.canInspect).toBe(true);
+  }
+  expect(candidate.movedEventIds.length).toBeGreaterThan(0);
+});
+
+it("尚未应用的新事件没有伪造的原谱定位", () => {
+  const document = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);
+  const track = document.score.tracks[0]!;
+  const measure = track.measures[0]!;
+  measure.numberedVoice.events = [];
+  measure.numberedVoice.tuplets = [];
+  measure.lyrics = [];
+  track.numberedMarks = [];
+  const command = {
+    type: "numbered.sequence.insert" as const,
+    trackId: track.id, measureId: measure.id, startTick: 0, endTick: 960,
+    items: [{ kind: "set" as const, tokens: ["6"] }],
+    rhythms: [{ base: "eighth" as const, dots: 0 }],
+  };
+  const candidate = editNumberedTrack(track, command, createDocumentIdFactory(document), true);
+  expect(candidate.ok).toBe(true);
+  if (!candidate.ok) return;
+  const row = numberedPreviewMapping(buildNumberedPreviewRows(track, candidate, command))[0]!;
+  expect(row.sourcePosition).toBeNull();
+  expect(row.plannedPosition).toEqual({ trackId: track.id, measureId: measure.id, startTick: 0, endTick: 480 });
+  expect(row.canInspect).toBe(false);
 });

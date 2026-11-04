@@ -1,0 +1,48 @@
+.group {
+  min-width: 0;
+  padding: 14px 0;
+  border-top: 1px solid var(--ant-color-border-secondary, #e7ebf0);
+}
+
+.durationPicker {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 6px;
+  margin-bottom: 12px;
+
+  button {
+    min-width: 0;
+    height: 42px;
+    padding-inline: 4px;
+  }
+}
+
+.disclosure {
+  min-width: 0;
+  padding: 14px 0;
+  border-top: 1px solid var(--ant-color-border-secondary, #e7ebf0);
+
+  > summary {
+    cursor: pointer;
+    font-weight: 600;
+    line-height: 1.6;
+
+    small {
+      display: block;
+      margin: 4px 0 0 16px;
+      color: var(--ant-color-text-secondary, #64748b);
+      font-weight: 400;
+      overflow-wrap: anywhere;
+    }
+  }
+
+  > div, > form {
+    margin-top: 12px;
+  }
+}
+
+.boundaryBody {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}

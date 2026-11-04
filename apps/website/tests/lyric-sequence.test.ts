@@ -58,7 +58,7 @@ describe("连续填词历史、草稿与歌词焦点", () => {
     store.getState().redo();
     expect(store.getState().document).toBe(saved);
   });
-  it("换模式保护草稿，覆盖许可参与 dirty，换目标重置许可且不会携带输入", () => {
+  it("换模式或关闭直接丢弃未应用输入与覆盖许可，换目标重新读取内容", () => {
     const { document, track, target } = fixture();
     const single = readMusicTextDraft(document, target, "single")!;
     expect(
@@ -67,13 +67,13 @@ describe("连续填词历史、草稿与歌词焦点", () => {
     single.text = "未保存";
     expect(
       resolveSidebarRequest(single, { type: "mode", mode: "sequence" }),
-    ).toBe("confirm");
+    ).toBe("execute");
     const batch = readMusicTextDraft(document, target, "sequence")!;
     expect(batch.text).toBe("");
-    expect(batch.allowOverwrite).toBe(true);
+    expect(batch.allowOverwrite).toBe(false);
     expect(resolveSidebarRequest(batch, { type: "close" })).toBe("execute");
-    batch.allowOverwrite = false;
-    expect(resolveSidebarRequest(batch, { type: "close" })).toBe("confirm");
+    batch.allowOverwrite = true;
+    expect(resolveSidebarRequest(batch, { type: "close" })).toBe("execute");
     const next = readMusicTextDraft(
       document,
       {
@@ -83,7 +83,7 @@ describe("连续填词历史、草稿与歌词焦点", () => {
       },
       "sequence",
     )!;
-    expect(next.allowOverwrite).toBe(true);
+    expect(next.allowOverwrite).toBe(false);
     expect(next.text).toBe("Sing");
   });
   it("只定位当前段真实歌词，重排后重新解析；空拍与和弦不产生假歌词框", () => {
@@ -139,6 +139,6 @@ describe("连续填词历史、草稿与歌词焦点", () => {
     expect(store.getState().document).toBe(document);
     expect(store.getState().historyDepth.past).toBe(0);
     expect(draft).toEqual(before);
-    expect(resolveSidebarRequest(draft, { type: "close" })).toBe("confirm");
+    expect(resolveSidebarRequest(draft, { type: "close" })).toBe("execute");
   });
 });

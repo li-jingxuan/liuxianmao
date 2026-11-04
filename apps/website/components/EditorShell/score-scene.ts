@@ -42,7 +42,12 @@ export type ScorePrimitive = (
       textAnchor: "start" | "middle" | "end";
     }
 ) &
-  SceneStyle & { techniqueId?: string; numberedMarkId?: string };
+  SceneStyle & {
+    techniqueId?: string;
+    numberedMarkId?: string;
+    numberedEventId?: string;
+    numberedItemId?: string;
+  };
 export interface ScoreScene {
   header: ScorePrimitive[];
   systems: { index: number; items: ScorePrimitive[] }[];
@@ -127,7 +132,13 @@ const systemScene = (s: ILXMSystemLayout): ScorePrimitive[] => {
   }
   for (const m of s.measures) {
     for (const notation of m.numberedNotation ?? []) {
-      items.push(...notation.labels.map(glyph));
+      // 事件选择只关联数字和升降号，公共连梁、八度点及节奏图元保留原色。
+      items.push(
+        ...notation.labels.map((g) => ({
+          ...glyph(g),
+          numberedEventId: notation.eventId,
+        })),
+      );
       items.push(
         ...(notation.lines ?? [])
           .filter((l) => l.thickness > 0)

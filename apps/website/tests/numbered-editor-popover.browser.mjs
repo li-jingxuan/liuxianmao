@@ -42,13 +42,22 @@ try {
   await server.listen();
   const address = server.httpServer.address();
   const base = `http://127.0.0.1:${address.port}/__numbered-test__`;
-  browser = await chromium.launch({ headless: true });
+  browser = await chromium.launch({ headless: true, executablePath: process.env.LXM_CHROMIUM_EXECUTABLE });
   const page = await browser.newPage();
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  const open = async (scenario = "event") => {
-    await page.goto(`${base}?scenario=${scenario}`);
-    await page.locator('[data-presentation="popover"] textarea').waitFor();
+  const open = async (scenario = "event", input) => {
+    const query = new URLSearchParams({ scenario });
+    if (input !== undefined) query.set("input", input);
+    await page.goto(`${base}?${query}`);
+    await page
+      .locator('[data-presentation="popover"] input[placeholder]')
+      .waitFor();
+    if (input !== undefined)
+      await page.waitForFunction(
+        (value) => window.numberedTest?.snapshot().raw === value,
+        input,
+      );
   };
   const snapshot = () => page.evaluate(() => window.numberedTest.snapshot());
   const commandCount = () =>
@@ -56,31 +65,28 @@ try {
   const toolbar = () => page.getByRole("group", { name: "常用时值" });
   const applyContent = () =>
     page.getByRole("button", { name: "应用", exact: true });
+  const compactInput = () =>
+    page.locator('[data-presentation="popover"] input[placeholder]');
+  const surface = async (value) => {
+    await page.evaluate((next) => window.numberedTest.surface(next), value);
+    await page.locator(`[data-presentation="${value}"]`).waitFor();
+  };
+  const select = async (label, option) => {
+    await page.getByLabel(label, { exact: true }).click();
+    const dropdown = page.locator(".ant-select-dropdown:visible");
+    await dropdown.getByText(option, { exact: true }).click();
+    await dropdown.waitFor({ state: "hidden" });
+  };
 
   await open();
-  const textarea = page.locator("textarea");
-  await textarea.fill("#5");
-  await textarea.evaluate((node) => {
-    window.originalInput = node;
-    node.focus();
-    node.setSelectionRange(1, 2);
-  });
+  await compactInput().fill("#5");
   const before = await snapshot();
-  await page.getByRole("button", { name: "更多编辑" }).click();
-  assert.equal(
-    await page.evaluate(
-      () => window.originalInput === document.querySelector("textarea"),
-    ),
-    true,
-  );
-  assert.equal(await textarea.inputValue(), "#5");
-  await page.evaluate(() => window.numberedTest.surface("popover"));
-  await page.locator('[data-presentation="popover"]').waitFor();
+  await surface("sidebar");
+  assert.equal(await page.locator("textarea").inputValue(), "#5");
   assert.deepEqual(await snapshot(), before);
-  assert.deepEqual(
-    await textarea.evaluate((node) => [node.selectionStart, node.selectionEnd]),
-    [1, 2],
-  );
+  await surface("popover");
+  assert.equal(await compactInput().inputValue(), "#5");
+  assert.deepEqual(await snapshot(), before);
   assert.equal(await commandCount(), 0);
   assert.equal(await page.getByLabel("简谱节奏模板").isVisible(), false);
   assert.equal(
@@ -108,13 +114,19 @@ try {
   await toolbar()
     .getByRole("button", { name: "八分音符", exact: true })
     .click();
-  await page.locator("textarea").fill("6");
-  assert.equal(await applyContent().isDisabled(), true);
-  assert.match(
-    await page.getByLabel("简谱紧凑摘要").innerText(),
-    /先应用或恢复事件时值组/,
-  );
+  await compactInput().fill("6");
+  assert.equal(await applyContent().isDisabled(), false);
   assert.equal(await commandCount(), 0);
+  const multiple = await page.evaluate(() => window.numberedTest.apply(false));
+  assert.equal(multiple.status, "blocked");
+  assert.match(multiple.message, /多个分组/);
+  await applyContent().click();
+  await page.waitForFunction(() => !window.numberedTest.groups().content.dirty);
+  assert.equal(await commandCount(), 1);
+  assert.equal((await snapshot()).base, "eighth");
+  assert.equal(await page.evaluate(() => window.numberedTest.groups().rhythm.dirty), true);
+  assert.deepEqual(await page.evaluate(() => window.numberedTest.selections), []);
+  assert.equal(await page.evaluate(() => window.numberedTest.document().score.tracks[0].measures[0].numberedVoice.events[0].rhythm.base), "quarter");
 
   await open();
   await page.evaluate(() => window.numberedTest.focus("itemPitch"));
@@ -133,7 +145,7 @@ try {
   );
 
   await open();
-  await page.locator("textarea").fill("6");
+  await compactInput().fill("6");
   await applyContent().click();
   assert.equal(await commandCount(), 1);
   assert.equal(
@@ -156,16 +168,12 @@ try {
     await impact.evaluate((node) => node.closest("[hidden], [inert]") === null),
     true,
   );
-  assert.equal(
-    await page.getByRole("button", { name: "更多编辑" }).isDisabled(),
-    true,
-  );
   await impact.getByRole("button", { name: /取.*消/ }).click();
   assert.equal(await commandCount(), 0);
   assert.equal((await snapshot()).base, "half");
 
   await open("blank");
-  await page.locator("textarea").fill("1 2");
+  await compactInput().fill("1 2");
   await toolbar()
     .getByRole("button", { name: "八分音符", exact: true })
     .click();
@@ -199,6 +207,21 @@ try {
   assert.equal((await snapshot()).dots, 2);
 
   await open("custom");
+  await surface("sidebar");
+  await page.locator("textarea").fill("1 2 3");
+  await page.locator("summary").filter({ hasText: "节奏与范围" }).click();
+  await select("简谱节奏模板", "自定义成员时值");
+  await select("模板成员时值", "八分");
+  await page
+    .locator("summary")
+    .filter({ hasText: "高级录入范围与复杂节奏" })
+    .click();
+  await select("简谱第1音时值", "八分");
+  await select("简谱第2音时值", "十六分");
+  await select("简谱第3音时值", "十六分");
+  await page.evaluate(() => window.numberedTest.focus("itemPitch"));
+  await page.getByLabel("简谱单音符音高", { exact: true }).fill("#1");
+  await surface("popover");
   const custom = await snapshot();
   assert.match(
     await page.locator('[data-presentation="popover"]').innerText(),
@@ -215,10 +238,6 @@ try {
     { ...custom, activeGroup: undefined },
   );
   assert.equal(await commandCount(), 0);
-  await page
-    .locator("summary")
-    .filter({ hasText: "高级录入范围与复杂节奏" })
-    .click();
   await page.getByRole("button", { name: "恢复均分", exact: true }).click();
   assert.equal((await snapshot()).template, "uniform");
   assert.equal((await snapshot()).fixedRange, false);
@@ -234,23 +253,110 @@ try {
   );
 
   await open();
-  await page.locator("textarea").fill("6");
-  await page.locator("textarea").dispatchEvent("compositionstart");
+  await compactInput().fill("6");
+  await compactInput().dispatchEvent("compositionstart");
   assert.equal(await applyContent().isDisabled(), true);
-  assert.equal(
-    await page.getByRole("button", { name: "更多编辑" }).isDisabled(),
-    true,
-  );
-  await page.locator("textarea").dispatchEvent("compositionend");
+  await compactInput().dispatchEvent("compositionend");
   await page.waitForFunction(
-    () =>
-      !document.querySelector('button[title="应用正文（Ctrl/Cmd+Enter）"]')
-        ?.disabled,
+    () => !document.querySelector('button[aria-label="应用"]')?.disabled,
   );
   assert.equal(await commandCount(), 0);
   assert.deepEqual(errors, []);
+
+  await open("event", "");
+  const clearBefore = await page.evaluate(() => window.numberedTest.document());
+  const clearResult = await page.evaluate(() =>
+    window.numberedTest.apply(false),
+  );
+  assert.equal(clearResult.status, "applied");
+  const clearAfter = await page.evaluate(() => window.numberedTest.document());
+  const originalEvent =
+    clearBefore.score.tracks[0].measures[0].numberedVoice.events[0];
+  const clearedEvent =
+    clearAfter.score.tracks[0].measures[0].numberedVoice.events[0];
+  assert.deepEqual(clearedEvent, { ...originalEvent, kind: "gap", items: [] });
+  assert.deepEqual(
+    clearAfter.score.tracks[0].measures[0].lyrics,
+    clearBefore.score.tracks[0].measures[0].lyrics,
+  );
+  assert.deepEqual(
+    await page.evaluate(() => window.numberedTest.selections),
+    [],
+  );
+  await open("gap", " ");
+  assert.equal(
+    (await page.evaluate(() => window.numberedTest.apply(false))).status,
+    "noop",
+  );
+  assert.equal(await commandCount(), 0);
+  assert.deepEqual(errors, []);
+
+  // A content-only insertion advances using the actual planner focus.
+  await open("blank");
+  await compactInput().fill("1");
+  await toolbar().getByRole("button", { name: "八分音符", exact: true }).click();
+  await applyContent().click();
+  await page.waitForFunction(() => window.numberedTest.selections.length === 1);
+  assert.equal(await page.evaluate(() => window.numberedTest.selections[0].tick), 480);
+
+  // Group restore reads its structured applied baseline and leaves the others dirty.
+  await open();
+  await compactInput().fill("6");
+  await applyContent().click();
+  await page.waitForFunction(() => !window.numberedTest.groups().content.dirty);
+  const appliedBaseline = (await snapshot()).contentBaselineValue;
+  await compactInput().fill("5");
+  await toolbar().getByRole("button", { name: "八分音符", exact: true }).click();
+  assert.equal(await page.evaluate(() => window.numberedTest.restoreGroup("content")), true);
+  await page.waitForFunction((raw) => window.numberedTest.snapshot().raw === raw, appliedBaseline.raw);
+  assert.equal((await snapshot()).raw, appliedBaseline.raw);
+  assert.equal((await snapshot()).base, "eighth");
+  assert.equal(await page.evaluate(() => window.numberedTest.groups().rhythm.dirty), true);
+  await compactInput().dispatchEvent("compositionstart");
+  assert.equal(await page.evaluate(() => window.numberedTest.restoreGroup("rhythm")), false);
+  await compactInput().dispatchEvent("compositionend");
+  await page.waitForFunction(() => !window.numberedTest.readStatus().composing);
+  assert.equal(await page.evaluate(() => window.numberedTest.restoreGroup("rhythm")), true);
+
+  // Own content commits can regenerate member IDs without invalidating the owner.
+  await open("explicit-member");
+  await toolbar().getByRole("button", { name: "八分音符", exact: true }).click();
+  await compactInput().fill("6");
+  await applyContent().click();
+  await page.waitForFunction(() => !window.numberedTest.groups().content.dirty);
+  assert.equal(await page.evaluate(() => window.numberedTest.groups().rhythm.dirty), true);
+  assert.equal(await page.evaluate(() => window.numberedTest.groups().rhythm.blockedReason), null);
+  assert.equal(await compactInput().inputValue(), "6");
+  assert.deepEqual(await page.evaluate(() => window.numberedTest.selections), []);
+
+  // External changes block the old candidate without replacing the current text.
+  await open();
+  await compactInput().fill("#5");
+  await page.evaluate(() => window.numberedTest.external("change"));
+  await page.waitForFunction(() => !!window.numberedTest.groups().content.blockedReason);
+  assert.equal((await snapshot()).raw, "#5");
+  assert.match(await page.evaluate(() => window.numberedTest.groups().content.blockedReason), /已改变/);
+  assert.equal(await applyContent().isDisabled(), true);
+  await compactInput().fill("#6");
+  assert.equal(await applyContent().isDisabled(), false);
+  await page.evaluate(() => window.numberedTest.external("remove"));
+  await page.waitForFunction(() => /已失效/.test(window.numberedTest.groups().content.blockedReason ?? ""));
+  assert.equal(await compactInput().inputValue(), "#6");
+  assert.equal(await applyContent().isDisabled(), true);
+
+  // A member selector requests the complete new business target through its parent.
+  await open("members");
+  await page.evaluate(() => window.numberedTest.focus("itemPitch"));
+  await page.getByLabel("简谱单音符音高", { exact: true }).fill("#1");
+  await select("简谱技巧起始音符", "2：3");
+  assert.equal(await page.evaluate(() => window.numberedTest.targetRequests[0].itemId), "member-test-second");
+  assert.equal((await snapshot()).itemDraft, "#1");
+  // The owner renders its main actions into the stable host and focus changes the group.
+  await page.locator('[data-testid="numbered-actions"]').getByRole("button", { name: "应用单音符音高", exact: true }).waitFor();
+  assert.equal(await commandCount(), 0);
+
   console.log(
-    "NumberedEditor browser regressions passed: stable input/selection, hidden+inert advanced fields, independent rhythm, content dependency blocking, blank insertion, complex/double-dot preservation, IME guard.",
+    "NumberedEditor browser regressions passed: shared surfaces, group submission/restore, compatible dirty group retention, planner advance, external conflict/invalidation, member requests, action Portal, complex rhythm, IME guard.",
   );
 } finally {
   await browser?.close();

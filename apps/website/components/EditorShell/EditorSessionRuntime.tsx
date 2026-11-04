@@ -11,6 +11,7 @@ import type { StoreApi } from "zustand/vanilla";
 import type { EditorStoreState } from "../../stores/editor-store";
 import {
   createEditorDraftCoordinator,
+  createEditorDraftOwner,
   type EditorDraftRecord,
 } from "./editor-draft-coordinator";
 import { createEditorModalController } from "./editor-modal-controller";
@@ -82,10 +83,22 @@ export const useEditorDraftRecords = (
   records: readonly EditorDraftRecord[] | (() => readonly EditorDraftRecord[]),
 ) => {
   const runtime = useContext(RuntimeContext);
+  const [owner] = useState(createEditorDraftOwner);
+  // 在 render 捕获，而非在 effect 执行时读取，防止旧 render 的 effect 迟到登记。
+  const generation = owner.generation;
+  const [handle] = useState(() => ({
+    invalidateOwner: () => {
+      if (runtime) runtime.drafts.invalidateOwner(owner);
+      else owner.generation += 1;
+    },
+  }));
   useEffect(() => {
-    if (!runtime) return;
+    if (!runtime || owner.generation !== generation) return;
     const entries = typeof records === "function" ? records() : records;
-    const release = entries.map((record) => runtime.drafts.register(record));
+    const release = entries.map((record) =>
+      runtime.drafts.register(record, { owner, generation }),
+    );
     return () => release.forEach((unregister) => unregister());
-  }, [runtime, records]);
+  }, [runtime, records, owner, generation]);
+  return handle;
 };

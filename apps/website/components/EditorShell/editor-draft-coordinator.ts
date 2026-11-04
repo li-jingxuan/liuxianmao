@@ -13,6 +13,20 @@ export type EditorDraftKind =
   | "beatPaste";
 export type EditorDraftApplyResult = "applied" | "blocked" | "stale";
 
+/** 每个 hook 实例独占一个 owner；generation 在接受离开时同步递增。 */
+export interface EditorDraftOwner {
+  readonly token: symbol;
+  generation: number;
+}
+export const createEditorDraftOwner = (): EditorDraftOwner => ({
+  token: Symbol("editor-draft-owner"),
+  generation: 0,
+});
+export interface EditorDraftRegistration {
+  owner: EditorDraftOwner;
+  generation: number;
+}
+
 export interface EditorDraftRecord {
   id: string;
   kind: EditorDraftKind;
@@ -49,6 +63,10 @@ export const createEditorDraftCoordinator = (
   getVersion: () => EditorSessionVersion,
 ) => {
   const records = new Map<string, EditorDraftRecord>();
+  const registrations = new WeakMap<
+    EditorDraftRecord,
+    EditorDraftRegistration
+  >();
   const listeners = new Set<() => void>();
   let revision = 0;
   let busy = false;
@@ -72,6 +90,17 @@ export const createEditorDraftCoordinator = (
     } catch {
       return false;
     }
+  };
+  const ownerIsCurrent = (record: EditorDraftRecord) => {
+    const registration = registrations.get(record);
+    return (
+      !registration || registration.owner.generation === registration.generation
+    );
+  };
+  const sameOwner = (left: EditorDraftRecord, right: EditorDraftRecord) => {
+    const a = registrations.get(left),
+      b = registrations.get(right);
+    return a?.owner.token === b?.owner.token && a?.generation === b?.generation;
   };
   const request = async (
     action: EditorDraftAction,
@@ -130,9 +159,11 @@ export const createEditorDraftCoordinator = (
     try {
       const result = await record.apply({
         isCurrent: () =>
+          ownerIsCurrent(record) &&
           (records.get(record.id) === record ||
             (record.inputKey !== undefined &&
               records.get(record.id)?.inputKey === record.inputKey &&
+              sameOwner(record, records.get(record.id)!) &&
               sameEditorVersion(
                 records.get(record.id)!.version,
                 record.version,
@@ -141,6 +172,7 @@ export const createEditorDraftCoordinator = (
       });
       // 成功提交本来就会改变文档版本；这里只阻止旧会话的迟到结果。
       if (
+        !ownerIsCurrent(record) ||
         !sameEditorSession(getVersion(), record.version) ||
         result === "stale"
       )
@@ -159,9 +191,19 @@ export const createEditorDraftCoordinator = (
     }
   };
   return {
-    register(record: EditorDraftRecord) {
+    register(
+      record: EditorDraftRecord,
+      registration?: EditorDraftRegistration,
+    ) {
+      // effect 使用 render 时捕获的代次；接受离开后迟到的 effect 无权复活记录。
+      if (
+        registration &&
+        registration.owner.generation !== registration.generation
+      )
+        return () => {};
       // 清理使用登记实例身份，旧 effect 的清理不能删除同 ID 的新登记。
       const entry = { ...record };
+      if (registration) registrations.set(entry, { ...registration });
       records.set(entry.id, entry);
       publish();
       return () => {
@@ -170,6 +212,15 @@ export const createEditorDraftCoordinator = (
           publish();
         }
       };
+    },
+    invalidateOwner(owner: EditorDraftOwner) {
+      owner.generation += 1;
+      // 一个设置 owner 可登记多个组；只删除仍属于这个实例的登记。
+      for (const [id, record] of records) {
+        if (registrations.get(record)?.owner.token === owner.token)
+          records.delete(id);
+      }
+      publish();
     },
     inspect,
     request,

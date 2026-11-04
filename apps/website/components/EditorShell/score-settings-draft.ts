@@ -44,6 +44,44 @@ export const settingsKeys = {
   signature: ["signature"],
   label: ["label"],
 } as const;
+export const settingsGroups = Object.keys(settingsKeys) as SettingsGroup[];
+export const isSettingsGroupDirty = (
+  value: ScoreSettingsDraft,
+  initial: ScoreSettingsDraft,
+  group: SettingsGroup,
+) => settingsKeys[group].some((key) => value[key] !== initial[key]);
+
+export interface SettingsGroupStatus {
+  dirty: boolean;
+  canApply: boolean;
+  blockedReason: string | null;
+}
+
+/** 外部更新只接纳干净字段；同字段冲突保留旧基线，直到明确恢复或重新编辑。 */
+export const reconcileSettingsDraft = (
+  value: ScoreSettingsDraft,
+  initial: ScoreSettingsDraft,
+  fresh: ScoreSettingsDraft,
+  conflicts: Partial<Record<SettingsGroup, string>> = {},
+  applied: readonly SettingsGroup[] = [],
+) => {
+  const nextValue = rebaseSettingsDraft(value, initial, fresh, applied);
+  const nextInitial = { ...fresh };
+  const nextConflicts = { ...conflicts };
+  for (const group of settingsGroups) {
+    if (applied.includes(group)) {
+      delete nextConflicts[group];
+      continue;
+    }
+    for (const key of settingsKeys[group]) {
+      if (value[key] === initial[key]) continue;
+      if (fresh[key] !== initial[key])
+        nextConflicts[group] = "此组已应用内容发生变化，原输入已保留。请恢复本组或核对后修改输入。";
+      if (nextConflicts[group]) Object.assign(nextInitial, { [key]: initial[key] });
+    }
+  }
+  return { value: nextValue, initial: nextInitial, conflicts: nextConflicts };
+};
 /** 按表单分组提交；用于提前验证“应用后继续”，不生成 UI 层时间轴算法。 */
 export const planSettingsCommands = (
   document: ILXMDocument,

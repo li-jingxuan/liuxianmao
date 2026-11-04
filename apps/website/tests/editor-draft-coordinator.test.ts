@@ -6,6 +6,7 @@ import {
 import { createEditorSession } from "../stores/editor-store";
 import {
   createEditorDraftCoordinator,
+  createEditorDraftOwner,
   type EditorDraftRecord,
   type EditorDraftApplyResult,
 } from "../components/EditorShell/editor-draft-coordinator";
@@ -84,6 +85,88 @@ describe("会话草稿协调器", () => {
     expect(coordinator.inspect().pending[0]?.label).toBe("恢复后的 A");
     newCleanup();
     expect(coordinator.isOutputBlocked()).toBe(false);
+  });
+
+  it("接受离开同步失效同 owner 的所有组，迟到 effect 无权复活且设置 owner 不受影响", () => {
+    const { coordinator, record } = setup();
+    const owner = createEditorDraftOwner();
+    const settings = createEditorDraftOwner();
+    const oldRegistration = { owner, generation: owner.generation };
+    coordinator.register(record(), oldRegistration);
+    coordinator.register(record({ id: "numbered:rhythm" }), oldRegistration);
+    coordinator.register(record({ id: "settings", kind: "settings" }), {
+      owner: settings,
+      generation: settings.generation,
+    });
+    coordinator.invalidateOwner(owner);
+    expect(coordinator.inspect().pending.map((draft) => draft.id)).toEqual([
+      "settings",
+    ]);
+    coordinator.register(record(), oldRegistration);
+    expect(coordinator.inspect().pending.map((draft) => draft.id)).toEqual([
+      "settings",
+    ]);
+    coordinator.invalidateOwner(settings);
+    expect(coordinator.isOutputBlocked()).toBe(false);
+    coordinator.register(record(), { owner, generation: owner.generation });
+    expect(coordinator.isOutputBlocked()).toBe(true);
+  });
+
+  it("同 ID 同输入的新 owner 不能继承旧异步提交许可，旧 cleanup 不能清新记录", async () => {
+    const { coordinator, record } = setup();
+    const owner = createEditorDraftOwner();
+    let resume!: () => void;
+    const ready = new Promise<void>((resolve) => {
+      resume = resolve;
+    });
+    const write = vi.fn();
+    const cleanup = coordinator.register(
+      record({
+        inputKey: "same-input",
+        apply: async ({ isCurrent }) => {
+          await ready;
+          if (!isCurrent()) return "stale";
+          write();
+          return "applied";
+        },
+      }),
+      { owner, generation: owner.generation },
+    );
+    const pending = coordinator.request({ type: "apply", id: "numbered:A" });
+    coordinator.invalidateOwner(owner);
+    coordinator.register(record({ inputKey: "same-input" }), {
+      owner,
+      generation: owner.generation,
+    });
+    cleanup();
+    resume();
+    expect(await pending).toEqual({ status: "stale" });
+    expect(write).not.toHaveBeenCalled();
+    expect(coordinator.inspect().pending).toHaveLength(1);
+  });
+
+  it("重新登记同 owner 同代次及相同输入不使异步确认过期", async () => {
+    const { coordinator, record } = setup();
+    const owner = createEditorDraftOwner();
+    const registration = { owner, generation: owner.generation };
+    let resume!: () => void;
+    const ready = new Promise<void>((resolve) => {
+      resume = resolve;
+    });
+    coordinator.register(
+      record({
+        inputKey: "A",
+        apply: async ({ isCurrent }) => {
+          await ready;
+          return isCurrent() ? "applied" : "stale";
+        },
+      }),
+      registration,
+    );
+    const pending = coordinator.request({ type: "apply", id: "numbered:A" });
+    coordinator.register(record({ inputKey: "A" }), registration);
+    resume();
+    expect(await pending).toEqual({ status: "accepted", discarded: 0 });
   });
 
   it("组合输入期间阻止应用、丢弃和焦点迁移", async () => {

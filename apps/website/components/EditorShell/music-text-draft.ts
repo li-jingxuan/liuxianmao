@@ -8,6 +8,7 @@ import type {
 } from "@liuxianmao/lxm-editor";
 import type { ChordDraft } from "./ChordEditor";
 import { resolveLyricPosition } from "@liuxianmao/lxm-editor";
+import { resolveNumberedEditorTarget } from "./numbered-editor-target";
 
 export type MusicTextTarget =
   | (ILXMTabCellReference & {
@@ -93,10 +94,36 @@ export const musicTextDraftValue = (
           mode: draft.lyricMode,
           allowOverwrite: draft.allowOverwrite,
         }
-      : draft.chord.chord,
+      : draft.chord,
   );
 
-/** 同一目标重复点击保持草稿；非法草稿也必须经过切换保护。 */
+/** 仅规范化业务身份，不读取或重置正在输入的值。 */
+export const normalizeMusicTextTarget = (
+  document: ILXMDocument | null,
+  target: MusicTextTarget,
+): MusicTextTarget | null => {
+  if (!document) return null;
+  const measure = document.score.tracks.find((track) => track.id === target.trackId)
+    ?.measures.find((item) => item.id === target.measureId);
+  if (!measure) return null;
+  const base = { trackId: target.trackId, measureId: target.measureId };
+  if (target.kind === "numbered") {
+    const resolved = resolveNumberedEditorTarget(document, target);
+    if (!resolved) return null;
+    return resolved.kind === "numberedEvent"
+      ? { ...base, kind: "numbered", eventId: resolved.eventId, itemId: resolved.itemId }
+      : { ...base, kind: "numbered", tick: resolved.tick, endTick: resolved.endTick };
+  }
+  if (target.kind === "chord") return measure.beats.some((beat) => beat.id === target.beatId)
+    ? { ...base, kind: "chord", beatId: target.beatId, string: 1 } : null;
+  const position = resolveLyricPosition(measure, target);
+  if (!position) return null;
+  return position.eventId
+    ? { ...base, kind: "lyric", eventId: position.eventId, verse: target.verse ?? 1 }
+    : { ...base, kind: "lyric", tick: position.tick, endTick: position.endTick, verse: target.verse ?? 1 };
+};
+
+/** 重复激活保留输入；离开歌词／简谱目标时直接丢弃未应用修改。 */
 export const resolveSidebarRequest = (
   draft: MusicTextDraft | null,
   action: SidebarAction,
@@ -104,9 +131,10 @@ export const resolveSidebarRequest = (
     numberedTarget?: MusicTextTarget | null;
     numberedDirty?: boolean;
     settingsDirty?: boolean;
+    visibleTaskChanged?: boolean;
   } = {},
 ): "ignore" | "confirm" | "execute" => {
-  // 仅相同文字业务对象可重复激活；同拍六线谱选择也必须经过草稿保护。
+  // 仅相同文字业务对象可重复激活，不以 TAB 拍合并不同目标。
   const current = draft?.target ?? guards.numberedTarget;
   if (current && action.type === "target") {
     const b = action.target;
@@ -125,15 +153,9 @@ export const resolveSidebarRequest = (
   }
   if (draft && action.type === "mode" && action.mode === draft.lyricMode)
     return "ignore";
-  if (draft && action.type === "tab" && action.kind === draft.target.kind)
+  if (draft && action.type === "tab" && action.kind === draft.target.kind && !guards.visibleTaskChanged)
     return "ignore";
-  // 简谱事件之间允许立即切换；未应用输入由侧栏按事件暂存。
-  if (
-    current?.kind === "numbered" &&
-    action.type === "target" &&
-    action.target.kind === "numbered" &&
-    !guards.settingsDirty
-  )
+  if ((current?.kind === "lyric" || current?.kind === "numbered") && !guards.settingsDirty)
     return "execute";
   return (draft && musicTextDraftValue(draft) !== draft.initial) ||
     guards.numberedDirty ||
@@ -180,8 +202,7 @@ export const readMusicTextDraft = (
       verse,
     },
     lyricMode,
-    // 新歌词草稿默认允许覆盖，实际写入仍需点击应用。
-    allowOverwrite: target.kind === "lyric",
+    allowOverwrite: false,
     text: lyric?.text ?? "",
     chord: chord
       ? structuredClone({ display: chord.display, chord: chord.chord })

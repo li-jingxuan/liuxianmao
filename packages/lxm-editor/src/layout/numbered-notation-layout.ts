@@ -11,7 +11,7 @@ import {
   type MusicTextGlyph,
   type MusicTextRect,
 } from "./music-text-metrics";
-import type { ILXMLayout } from "./layout-types";
+import type { ILXMLayout, ILXMMeasureLayout } from "./layout-types";
 import { getMeasureContentBottom } from "./rhythm-bounds";
 import { numberedXAtTick } from "./numbered-input-layout";
 import { layoutLyricPlaceholder } from "./lyric-placeholder-layout";
@@ -153,27 +153,98 @@ export const translateNumbered = (
   })),
   bounds: { ...n.bounds, y: n.bounds.y + dy },
 });
+export interface ParagraphFocusTarget {
+  trackId: string;
+  measureId: string;
+  beatId?: string;
+  eventId?: string;
+  itemId?: string;
+  tick?: number;
+  endTick?: number;
+  kind: "lyric" | "numbered";
+  verse?: number;
+}
+
+const paragraphMeasure = (
+  layout: ILXMLayout,
+  target: Pick<ParagraphFocusTarget, "trackId" | "measureId">,
+): ILXMMeasureLayout | undefined =>
+  layout.trackId === target.trackId
+    ? layout.systems
+        .flatMap((s) => s.measures)
+        .find((m) => m.id === target.measureId)
+    : undefined;
+
+const padNumberedBounds = (bounds: MusicTextRect): MusicTextRect => ({
+  x: bounds.x - 4,
+  y: bounds.y - 2,
+  width: bounds.width + 8,
+  height: bounds.height + 4,
+});
+
+/** 同拍归属沿用 TAB 拍的横向区间；导航顺序只由简谱 slot tick 决定。 */
+const numberedEventsInTabBeat = (
+  measure: ILXMMeasureLayout,
+  eventId: string | undefined,
+): NumberedLayout[] => {
+  const sourceSlot = measure.numberedSlots.find((s) => s.id === eventId);
+  const tabBeat =
+    sourceSlot &&
+    measure.beats.find(
+      (beat) =>
+        sourceSlot.x >= beat.x - 0.001 &&
+        sourceSlot.x < beat.x + beat.width - 0.001,
+    );
+  if (!tabBeat) return [];
+  const notationById = new Map(
+    measure.numberedNotation?.map((n) => [n.eventId, n]),
+  );
+  if (!eventId || !notationById.has(eventId)) return [];
+  return measure.numberedSlots
+    .filter(
+      (slot) =>
+        slot.x >= tabBeat.x - 0.001 &&
+        slot.x < tabBeat.x + tabBeat.width - 0.001,
+    )
+    .sort((a, b) => a.tick - b.tick)
+    .flatMap((slot) => notationById.get(slot.id) ?? []);
+};
+
+/** 多事件 TAB 拍的淡底与导航上下文；单事件、空输入槽和歌词没有拍背景。 */
+export const layoutNumberedBeatContext = (
+  layout: ILXMLayout,
+  target: Omit<ParagraphFocusTarget, "kind"> & {
+    kind?: ParagraphFocusTarget["kind"];
+  },
+): { bounds: MusicTextRect; eventIds: string[] } | null => {
+  if (target.kind === "lyric") return null;
+  const measure = paragraphMeasure(layout, target);
+  if (!measure) return null;
+  const events = numberedEventsInTabBeat(measure, target.eventId);
+  if (events.length <= 1) return null;
+  return {
+    bounds: padNumberedBounds(unionMusicBounds(events.map((n) => n.bounds))),
+    eventIds: events.map((n) => n.eventId),
+  };
+};
+
 /** 焦点优先消费文本单元格；未启用编辑区域时兼容旧的临时位置。 */
 export const layoutParagraphFocus = (
   layout: ILXMLayout,
-  target: {
-    trackId: string;
-    measureId: string;
-    beatId?: string;
-    eventId?: string;
-    itemId?: string;
-    tick?: number;
-    endTick?: number;
-    kind: "lyric" | "numbered";
-    verse?: number;
-  },
+  target: ParagraphFocusTarget,
 ): MusicTextRect | null => {
   if (layout.trackId !== target.trackId) return null;
   if (target.kind === "numbered") {
-    const m = layout.systems
-      .flatMap((s) => s.measures)
-      .find((m) => m.id === target.measureId);
+    const m = paragraphMeasure(layout, target);
     if (!m) return null;
+    const existing =
+      target.eventId &&
+      m.numberedNotation?.find((n) => n.eventId === target.eventId);
+    if (existing)
+      return padNumberedBounds(
+        existing.itemBounds?.find((i) => i.itemId === target.itemId)?.bounds ??
+          existing.bounds,
+      );
     const slot = m.numberedInputSlots?.find((s) =>
       target.eventId
         ? s.target.kind === "numberedEvent" &&
@@ -187,51 +258,6 @@ export const layoutParagraphFocus = (
         width: Math.max(24, slot.width),
         height: slot.height,
       };
-    const existing =
-      target.eventId &&
-      m.numberedNotation?.find((n) => n.eventId === target.eventId);
-    if (existing) {
-      const sourceSlot = m.numberedSlots.find((s) => s.id === target.eventId);
-      const tabBeat =
-        sourceSlot &&
-        m.beats.find(
-          (beat) =>
-            sourceSlot.x >= beat.x - 0.001 &&
-            sourceSlot.x < beat.x + beat.width - 0.001,
-        );
-      // 一拍中的多个独立事件共用视觉激活框，命中索引仍保留每个 item 的身份。
-      const grouped = tabBeat
-        ? (m.numberedNotation ?? []).filter((notation) => {
-            const eventSlot = m.numberedSlots.find(
-              (s) => s.id === notation.eventId,
-            );
-            return (
-              eventSlot &&
-              eventSlot.x >= tabBeat.x - 0.001 &&
-              eventSlot.x < tabBeat.x + tabBeat.width - 0.001
-            );
-          })
-        : [];
-      const bounds = grouped.length
-        ? {
-            x: Math.min(...grouped.map((n) => n.bounds.x)),
-            y: Math.min(...grouped.map((n) => n.bounds.y)),
-            width:
-              Math.max(...grouped.map((n) => n.bounds.x + n.bounds.width)) -
-              Math.min(...grouped.map((n) => n.bounds.x)),
-            height:
-              Math.max(...grouped.map((n) => n.bounds.y + n.bounds.height)) -
-              Math.min(...grouped.map((n) => n.bounds.y)),
-          }
-        : (existing.itemBounds?.find((i) => i.itemId === target.itemId)
-            ?.bounds ?? existing.bounds);
-      return {
-        x: bounds.x - 4,
-        y: bounds.y - 2,
-        width: bounds.width + 8,
-        height: bounds.height + 4,
-      };
-    }
     const row = layout.systems.find((s) =>
       s.measures.some((x) => x.id === m.id),
     )!;

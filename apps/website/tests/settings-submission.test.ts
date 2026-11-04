@@ -9,6 +9,8 @@ import {
   prepareSettingsSubmission,
   submitSettingsDraft,
   rebaseSettingsDraft,
+  reconcileSettingsDraft,
+  isSettingsGroupDirty,
 } from "../components/EditorShell/score-settings-draft";
 
 const setup = () => {
@@ -20,6 +22,52 @@ const setup = () => {
 };
 
 describe("设置表单提交适配", () => {
+  it("外部无关修改重基干净字段，保留未应用组且不产生冲突", () => {
+    const { initial } = setup();
+    const value = { ...initial, title: "未应用名称", capo: "3" };
+    const fresh = { ...initial, arranger: "外部作者", label: "外部段落" };
+    const result = reconcileSettingsDraft(value, initial, fresh);
+    expect(result.value).toMatchObject({ title: "未应用名称", capo: "3", arranger: "外部作者", label: "外部段落" });
+    expect(result.initial).toEqual(fresh);
+    expect(result.conflicts).toEqual({});
+    expect(isSettingsGroupDirty(result.value, result.initial, "info")).toBe(true);
+    expect(isSettingsGroupDirty(result.value, result.initial, "label")).toBe(false);
+  });
+  it("同字段外部更改保留原文与旧基线，普通重渲染或撤销不能静默解除冲突", () => {
+    const { initial } = setup();
+    const value = { ...initial, title: "我的名称", capo: "3" };
+    const fresh = { ...initial, title: "外部名称" };
+    const first = reconcileSettingsDraft(value, initial, fresh);
+    expect(first.value.title).toBe("我的名称");
+    expect(first.initial.title).toBe(initial.title);
+    expect(first.conflicts.info).toMatch(/发生变化/);
+    expect(first.conflicts.capo).toBeUndefined();
+    const repeated = reconcileSettingsDraft(first.value, first.initial, fresh, first.conflicts);
+    expect(repeated).toEqual(first);
+    const undone = reconcileSettingsDraft(first.value, first.initial, initial, first.conflicts);
+    expect(undone.conflicts.info).toBe(first.conflicts.info);
+  });
+  it("自身成功仅重基成功组，其他组冲突与原文继续保留", () => {
+    const { initial } = setup();
+    const value = { ...initial, title: "新名称", capo: "3", label: "我的段落" };
+    const next = { ...initial, title: "新名称", label: "外部段落" };
+    const result = reconcileSettingsDraft(value, initial, next, {}, ["info"]);
+    expect(isSettingsGroupDirty(result.value, result.initial, "info")).toBe(false);
+    expect(result.conflicts.info).toBeUndefined();
+    expect(result.value.capo).toBe("3");
+    expect(result.conflicts.capo).toBeUndefined();
+    expect(result.value.label).toBe("我的段落");
+    expect(result.conflicts.label).toMatch(/发生变化/);
+  });
+  it("原小节删除后的局部输入仍可查看，但不能写入另一个小节", () => {
+    const { document, initial, measureId } = setup();
+    const changed = structuredClone(document);
+    changed.score.tracks[0]!.measures = changed.score.tracks[0]!.measures.filter((measure) => measure.id !== measureId);
+    const result = reconcileSettingsDraft({ ...initial, label: "待处理段落" }, initial, readScoreSettings(changed, measureId));
+    expect(result.value.label).toBe("待处理段落");
+    expect(prepareSettingsSubmission(changed, result.value, result.initial, measureId, "label")).toMatchObject({ ok: false, issue: { group: "label" } });
+    expect(prepareSettingsSubmission(changed, { ...result.value, title: "可独立处理" }, result.initial, measureId, "info").ok).toBe(true);
+  });
   it("多组先整体预验证，越界/空值/小数 Capo 不会先写入合法歌曲名称", () => {
     for (const capo of ["", " ", "13", "-1", "1.5", "abc"]) {
       const { session, initial, measureId } = setup();

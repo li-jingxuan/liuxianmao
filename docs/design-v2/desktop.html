@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="icon" href="data:,">
+  <title>六线猫 · 1440px 桌面基准稿</title>
+  <style>
+    *{box-sizing:border-box}
+    body{margin:0;padding:28px;background:#e9edf4;color:#202838;font:13px/1.6 "PingFang SC","Microsoft YaHei",Arial,sans-serif;min-width:1498px}
+    header,main,footer{width:1442px;margin-inline:auto}
+    header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+    h1{font-size:22px;margin:0 0 4px;letter-spacing:-.5px}p{font-size:12px;color:#626e82;margin:0}
+    a{color:#285be0;text-decoration:none}a:hover{text-decoration:underline}a:focus-visible{outline:2px solid #285be0;outline-offset:4px}
+    .frame{border:1px solid #bdc9da;border-radius:10px;background:white;overflow:hidden}
+    iframe{display:block;border:0;width:1440px;height:900px;background:white}
+    footer{margin-top:14px;font-size:11px;color:#626e82}
+  </style>
+</head>
+<body>
+  <header><div><h1>1440px，桌面编辑的最小基线。</h1><p>1440 × 900 产品视口 / 谱面与 400px 右侧编辑台并排常驻</p></div><a href="index.html">打开完整交互稿</a></header>
+  <main><div class="frame"><iframe id="desktop-frame" title="1440像素桌面编辑台" src="index.html?scene=melody&embed=1"></iframe></div></main>
+  <footer>内层产品画布固定为 1440 × 900，可直接操作。外层评审留白不计入产品视口。更大窗口只分配更多谱面空间，侧栏维持桌面结构；仅收起侧栏会释放空间，保留当前输入。</footer>
+  <script>
+    const allowed=['melody','lyrics','selection','measure','chord','song','empty','error','export','guard'];
+    const scene=new URLSearchParams(location.search).get('scene');
+    if(allowed.includes(scene))document.getElementById('desktop-frame').src='index.html?scene='+scene+'&embed=1';
+  </script>
+</body>
+</html>

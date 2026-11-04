@@ -13,6 +13,7 @@ import {
   hitTestTechniqueTarget,
   layoutTabCellCaret,
   layoutTabCellSelection,
+  layoutNumberedBeatContext,
   LXMScoreCommandEnum,
   navigateTabCellSelection,
   resolveTabCellSelection,
@@ -24,7 +25,7 @@ import {
   type ILXMTabCellSelection,
 } from "@liuxianmao/lxm-editor";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { theme } from "antd";
+import { Button, theme } from "antd";
 import {
   useEditorSessionStore,
   useEditorStore,
@@ -43,6 +44,7 @@ import type { ImageExportSnapshot } from "./image-export-controller";
 import { ScorePrintLayer } from "./ScorePrintLayer";
 import { ScoreFileControls } from "./ScoreFileControls";
 import { MusicTextSidebar, type MusicTextController } from "./MusicTextSidebar";
+import type { SidebarLocation } from "./sidebar-context";
 import type { MusicTextTarget } from "./music-text-draft";
 import { resolveParagraphFocus } from "./music-text-focus";
 import { MusicTextEditingHints } from "./MusicTextEditingHints";
@@ -161,6 +163,11 @@ export const EditorShell: React.FC = () => {
   const [imageExportSnapshot, setImageExportSnapshot] =
     useState<ImageExportSnapshot | null>(null);
   const [outputBlockedOpen, setOutputBlockedOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const openSidebarButton = useRef<HTMLButtonElement>(null);
+  const [inspectionRect, setInspectionRect] = useState<{ x:number; y:number; width:number; height:number } | null>(null);
+  const inspectionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (inspectionTimer.current) clearTimeout(inspectionTimer.current); }, []);
   const [fileFeedbackHost, setFileFeedbackHost] =
     useState<HTMLDivElement | null>(null);
   /** 文档、状态版本或会话任一变化立即关闭旧输出，晚到回调不能发布旧谱。 */
@@ -276,13 +283,19 @@ export const EditorShell: React.FC = () => {
     () => resolveParagraphFocus(lxmLayout, activeMusicTextTarget),
     [lxmLayout, activeMusicTextTarget],
   );
+  const numberedBeatContext = useMemo(
+    () => lxmLayout && activeMusicTextTarget?.kind === "numbered"
+      ? layoutNumberedBeatContext(lxmLayout, activeMusicTextTarget)
+      : null,
+    [lxmLayout, activeMusicTextTarget],
+  );
   const musicTextHoverFocus = useMemo(() => {
     if (!hoveredMusicText || hoveredMusicText.layout !== lxmLayout) return null;
     const target = hoveredMusicText.target;
     // 当前对象已有选中框，不再叠加同一对象的悬停描边。
     if (sameMusicTextTarget(activeMusicTextTarget, target)) return null;
     const focus = resolveParagraphFocus(lxmLayout, target);
-    // 同拍多个简谱音虽有不同事件 ID，但共享一个激活框。
+    // 相同可见范围不再叠加悬停描边；同拍独立事件使用各自范围。
     if (
       focus &&
       lyricFocus &&
@@ -362,6 +375,29 @@ export const EditorShell: React.FC = () => {
     },
     [getFloatingAnchor],
   );
+  const locateSidebarObject = useCallback((location: SidebarLocation) => {
+    const measure = lxmLayout?.systems.flatMap((system) => system.measures).find((item) => item.id === location.measureId);
+    const svg = scoreSvgRef.current;
+    const viewport = pageViewportRef.current;
+    if (!measure || !svg || !viewport) return;
+    let bounds = { x: measure.x, y: measure.y, width: measure.width, height: measure.height };
+    if (location.beatId) {
+      const caret = layoutTabCellCaret(lxmLayout!, { ...location, beatId: location.beatId, string: 1 });
+      if (caret) bounds = caret;
+    } else if (location.startTick !== undefined) {
+      const anchors = measure.timeAnchors;
+      const anchor = anchors.find((item) => item.tick === location.startTick);
+      if (anchor) bounds = { ...bounds, x: anchor.x - 5, width: 20 };
+    }
+    const matrix = svg.getScreenCTM();
+    if (!matrix) return;
+    const center = new DOMPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2).matrixTransform(matrix);
+    const view = viewport.getBoundingClientRect();
+    viewport.scrollBy({ left: center.x - (view.left + view.right) / 2, top: center.y - (view.top + view.bottom) / 2 });
+    setInspectionRect(bounds);
+    if (inspectionTimer.current) clearTimeout(inspectionTimer.current);
+    inspectionTimer.current = setTimeout(() => setInspectionRect(null), 1500);
+  }, [lxmLayout]);
   /** 选拍或草稿确认结束后保留谱面焦点，不触发浏览器默认滚动。 */
   const focusScore = useCallback(
     () => scoreSvgRef.current?.focus({ preventScroll: true }),
@@ -943,7 +979,7 @@ export const EditorShell: React.FC = () => {
   if (!document || !lxmLayout)
     return (
       <div className={styles.editorControls}>
-        <ScoreFileControls session={session} isBlocked={isOutputBlocked} />
+        <ScoreFileControls session={session} isBlocked={isOutputBlocked} onBlocked={() => setOutputBlockedOpen(true)} />
         <p className={styles.errorMessage} role="alert">
           {errorMessage ?? "当前没有可编辑的乐谱文档。"}
         </p>
@@ -959,7 +995,7 @@ export const EditorShell: React.FC = () => {
     if (
       command.type === "numbered.event.setRhythm"
         ? musicTextController.current?.isNumberedActionBlocked()
-        : musicTextController.current?.isOutputBlocked()
+        : musicTextController.current?.isOutputBlocked({ allowSettingsBusy: command.type === LXMScoreCommandEnum.CopyMeasureRange })
     )
       return {
         status: "blocked",
@@ -1070,6 +1106,7 @@ export const EditorShell: React.FC = () => {
             className={styles.headerNativeAction}
             feedbackContainer={fileFeedbackHost}
             isBlocked={isOutputBlocked}
+            onBlocked={() => setOutputBlockedOpen(true)}
           />
         }
         imageExportButtonRef={imageExportButtonRef}
@@ -1129,13 +1166,15 @@ export const EditorShell: React.FC = () => {
           </p>
         )}
       </div>
-      <div className={styles.editorWorkspace}>
+      <div className={styles.editorWorkspace} data-sidebar-collapsed={sidebarCollapsed}>
         <div
           ref={pageViewportRef}
           className={styles.pageViewport}
           onPointerDown={handleWorkspacePointerDown}
           onScroll={clearHover}
         >
+          {sidebarCollapsed && <Button ref={openSidebarButton} className={styles.openSidebar} onPointerDown={(event) => event.stopPropagation()}
+            onClick={() => { setSidebarCollapsed(false); requestAnimationFrame(() => musicTextController.current?.restoreSidebarFocus()); }} aria-controls="music-text-sidebar" aria-expanded={false}>打开编辑台</Button>}
           <main className={styles.paper} aria-label="A4 乐谱页面">
             <svg
               ref={scoreSvgRef}
@@ -1160,9 +1199,11 @@ export const EditorShell: React.FC = () => {
                 layout={lxmLayout}
                 activeFocus={lyricFocus}
                 hoverFocus={musicTextHoverFocus}
+                beatContext={numberedBeatContext?.bounds ?? null}
               />
               {/* 选区层位于音乐元素下方，且永不参与指针命中。 */}
               <g className={styles.selectionLayer} pointerEvents="none">
+                {inspectionRect && <rect {...inspectionRect} className={styles.inspectionOutline} rx={3} />}
                 {tabCellHoverCaret && (
                   <rect
                     data-tab-cell-hover={`${tabCellHoverCaret.measureId}/${tabCellHoverCaret.beatId}/${tabCellHoverCaret.string}`}
@@ -1199,7 +1240,8 @@ export const EditorShell: React.FC = () => {
               </g>
               {lyricFocus && (
                 <rect
-                  data-paragraph-focus={lyricFocus.kind}
+                    data-paragraph-focus={lyricFocus.kind}
+                    data-numbered-event-focus={activeMusicTextTarget?.kind === "numbered" ? activeMusicTextTarget.eventId : undefined}
                   className={styles.lyricFocus}
                   pointerEvents="none"
                   x={lyricFocus.x}
@@ -1214,17 +1256,30 @@ export const EditorShell: React.FC = () => {
                   scene={scoreScene}
                   selectedTechniqueId={selectedTechniqueId}
                   selectedNumberedMarkId={selectedNumberedMarkId}
+                  selectedNumberedEventId={activeMusicTextTarget?.kind === "numbered" ? activeMusicTextTarget.eventId : null}
                 />
               )}
             </svg>
           </main>
         </div>
         <MusicTextSidebar
+          collapsed={sidebarCollapsed}
+          onExpandSidebar={() => setSidebarCollapsed(false)}
+          onCollapse={() => {
+            if (!musicTextController.current?.canCollapse()) return;
+            const moveFocus = globalThis.document.activeElement?.closest("#music-text-sidebar") !== null;
+            setSidebarCollapsed(true);
+            if (moveFocus) requestAnimationFrame(() => openSidebarButton.current?.focus({ preventScroll: true }));
+          }}
+          onLocate={locateSidebarObject}
           getSystemMeasureIds={(measureId) =>
             lxmLayout.systems
               .find((s) => s.measures.some((m) => m.id === measureId))
               ?.measures.map((m) => m.id) ?? []
           }
+          getNumberedBeatEventIds={(target) => target.kind === "numbered"
+            ? layoutNumberedBeatContext(lxmLayout, target)?.eventIds ?? []
+            : []}
           ref={musicTextController}
           onToolAction={handleToolbarAction}
           executeTool={executeTool}

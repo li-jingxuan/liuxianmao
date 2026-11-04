@@ -141,6 +141,7 @@ export const layoutNumberedRhythm = (
     }));
   }
   // 逐层合并连续成员；gap、休止与不同实际拍组中断共享连梁。
+  const coveredLines = new Set<NonNullable<NumberedLayout["lines"]>[number]>();
   for (let level = 1; level <= 3; level++) {
     let group: typeof events = [];
     const flush = () => {
@@ -156,6 +157,8 @@ export const layoutNumberedRhythm = (
           thickness: 1.1,
           shared: true,
         });
+        for (const event of group)
+          coveredLines.add(byId.get(event.id)!.lines![level - 1]!);
       }
       group = [];
     };
@@ -181,7 +184,8 @@ export const layoutNumberedRhythm = (
     }
     flush();
   }
-  for (const n of frames)
+  for (const n of frames) {
+    // 命中范围仍包含每个音符自身的减时线，不扩张到整条公共连梁。
     n.bounds = unionMusicBounds([
       ...n.labels.map((g) => g.bounds),
       ...[...n.dots, ...(n.rhythmDots ?? [])].map((d) => ({
@@ -199,5 +203,8 @@ export const layoutNumberedRhythm = (
           height: l.thickness,
         })),
     ]);
+    // 所有层合并完成后再移除被公共线覆盖的局部线，保持扫描时的层索引稳定。
+    n.lines = n.lines!.filter((line) => !coveredLines.has(line));
+  }
   return frames;
 };

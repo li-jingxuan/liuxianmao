@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   EXAMPLE_MVP_7_2_DOCUMENT,
@@ -7,8 +7,8 @@ import {
 import {
   NumberedEditor,
   type NumberedEditorController,
-  type NumberedEditorDraft,
 } from "../components/EditorShell/NumberedEditor";
+import type { MusicTextTarget } from "../components/EditorShell/music-text-draft";
 import { createEditorSession, useEditorStore } from "../stores/editor-store";
 import { EditorStoreContext } from "../stores/editor-context";
 
@@ -16,7 +16,8 @@ const fixture = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);
 const track = fixture.score.tracks[0]!;
 const measure = track.measures[0]!;
 const event = measure.numberedVoice.events[0]!;
-const scenario = new URLSearchParams(location.search).get("scenario");
+const parameters = new URLSearchParams(location.search);
+const scenario = parameters.get("scenario");
 measure.numberedVoice.tuplets = [];
 track.numberedMarks = [];
 if (scenario === "blank") {
@@ -24,37 +25,16 @@ if (scenario === "blank") {
   measure.lyrics = [];
 }
 if (scenario === "double-dot") event.rhythm = { base: "eighth", dots: 2 };
+if (scenario === "gap") {
+  event.kind = "gap";
+  event.items = [];
+}
+if (scenario === "members" && event.kind === "notes") event.items.push({ ...event.items[0]!, id: "member-test-second", token: "3" });
 const session = createEditorSession(fixture);
 const commands: ILXMScoreCommand[] = [];
+const selections: unknown[] = [];
 const requests: ("content" | "rhythm" | "itemPitch" | undefined)[] = [];
-const initial =
-  scenario === "blank" ? "" : event.items.map((item) => item.token).join("+");
-const savedDraft: NumberedEditorDraft | undefined =
-  scenario === "custom"
-    ? {
-        selectedId: event.id,
-        start: 0,
-        end: 960,
-        raw: "1 2 3",
-        initial,
-        overwrite: true,
-        base: event.rhythm.base,
-        dots: event.rhythm.dots,
-        template: "custom",
-        fixedRange: true,
-        templateBase: "eighth",
-        templateDots: 0,
-        itemId: event.items[0]!.id,
-        destination: "",
-        ratioIndex: 1,
-        customRhythms: [
-          { base: "eighth", dots: 0 },
-          { base: "sixteenth", dots: 0 },
-          { base: "sixteenth", dots: 0 },
-        ],
-        itemDraft: "#1",
-      }
-    : undefined;
+const targetRequests: MusicTextTarget[] = [];
 
 const Harness = () => {
   const document = useEditorStore((state) => state.document)!;
@@ -65,21 +45,50 @@ const Harness = () => {
     scenario === "blank" || scenario === "custom" ? "sequence" : "single",
   );
   const controller = useRef<NumberedEditorController>(null);
-  Object.assign(window, {
+  const [actionsHost, setActionsHost] = useState<HTMLDivElement | null>(null);
+  useEffect(() => {
+    // Optional fixture input exercises React's actual field event path after
+    // score-derived initialization; it is never passed as editor state.
+    const value = parameters.get("input");
+    if (value === null) return;
+    const control = globalThis.document.querySelector<HTMLInputElement>(
+      '[data-presentation="popover"] input[aria-label="单音组简谱"], [data-presentation="popover"] input[aria-label="连续简谱"]',
+    );
+    if (!control) throw new Error("Missing numbered fixture input");
+    Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      "value",
+    )!.set!.call(control, value);
+    control.dispatchEvent(new Event("input", { bubbles: true }));
+  }, []);
+  useEffect(() => {
+    Object.assign(window, {
     numberedTest: {
       commands,
+      selections,
       requests,
+      targetRequests,
       focus: (group: "content" | "rhythm" | "itemPitch") =>
         controller.current!.focus(group),
       snapshot: () => controller.current!.snapshot(),
       groups: () => controller.current!.groups,
+      readStatus: () => controller.current!.readStatus(),
+      restoreGroup: (group: "content" | "rhythm" | "itemPitch") => controller.current!.restoreGroup(group),
+      external: (type: "change" | "remove") => session.getState().execute(type === "remove" ? {
+        type: "numbered.event.remove", trackId: track.id, measureId: measure.id, eventId: event.id,
+      } : { type: "numbered.event.set", trackId: track.id, measureId: measure.id, eventId: event.id, tokens: ["7"] }),
       applyGroup: (group: "content" | "rhythm" | "itemPitch") =>
         controller.current!.applyGroup(group),
+      apply: (advance = true) => {
+        const applyCurrent = controller.current!.apply;
+        return applyCurrent(undefined, { advance });
+      },
       surface: (next: "popover" | "sidebar") => setPresentation(next),
       document: () => session.getState().document,
       version: () => session.getState().document!.documentRevision,
     },
-  });
+    });
+  }, []);
   return (
     <div style={{ width: presentation === "popover" ? 336 : 440, padding: 12 }}>
       <button
@@ -93,6 +102,8 @@ const Harness = () => {
         ref={controller}
         document={document}
         presentation={presentation}
+        actionsHost={presentation === "sidebar" ? actionsHost : null}
+        onRequestTarget={(target) => targetRequests.push(target)}
         onRequestSidebar={(group) => {
           requests.push(group);
           setPresentation("sidebar");
@@ -103,11 +114,10 @@ const Harness = () => {
           measureId: measure.id,
           ...(scenario === "blank"
             ? { tick: 0, endTick: 960 }
-            : { eventId: event.id }),
+             : { eventId: event.id, ...(scenario === "explicit-member" ? { itemId: event.items[0]?.id } : {}) }),
         }}
         mode={mode}
         onModeChange={setMode}
-        savedDraft={savedDraft}
         commit={(command) => {
           commands.push(command);
           return session.getState().execute(command);
@@ -117,12 +127,13 @@ const Harness = () => {
         onPreviewTargetChange={() => {}}
         onActivate={() => {}}
         onCanApply={() => {}}
-        onSelectTarget={() => {}}
+        onSelectTarget={(target) => selections.push(target)}
         onCancel={() => {}}
         getClipboard={() => null}
         copyRange={() => false}
         selectedMarkId={null}
       />
+      <div ref={setActionsHost} data-testid="numbered-actions" />
     </div>
   );
 };

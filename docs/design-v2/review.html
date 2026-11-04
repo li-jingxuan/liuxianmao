@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" href="data:,"><title>六线猫 · 侧栏评审板</title><style>
+*{box-sizing:border-box}body{margin:0;padding:32px;background:#e9edf4;color:#202838;font:13px/1.6 "PingFang SC","Microsoft YaHei",Arial,sans-serif;min-width:1440px}header,main,footer{max-width:1360px;margin:auto}header{display:flex;align-items:end;justify-content:space-between;margin-bottom:24px;gap:24px}h1{font-size:25px;letter-spacing:-.5px;margin:0 0 6px}header p{margin:0;color:#626e82}a{color:#285be0;text-decoration:none}a:hover{text-decoration:underline}.boards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:28px}.board h2{font-size:14px;font-weight:600;margin:0 0 4px}.board>p{font-size:12px;color:#626e82;margin:0 0 14px;min-height:20px}.frame{border:1px solid #cad3e0;border-radius:10px;overflow:hidden;background:white;box-shadow:0 6px 24px #20345608}iframe{display:block;width:100%;height:740px;border:0;background:white}.secondary-boards{margin-top:32px}footer{margin-top:25px;font-size:11px;color:#626e82}a:focus-visible{outline:2px solid #285be0;outline-offset:4px}
+</style></head><body>
+<header><div><h1>让每一次修改，都对得上谱面。</h1><p>六线猫右侧编辑台 v2 / 桌面最小宽度 1440px</p></div><div><a href="desktop.html">1440 基准稿</a>　<a href="index.html">打开完整交互稿</a></div></header>
+<main><section class="boards">
+<article class="board"><h2>简谱：先录入，再看节拍</h2><p>目标常驻，四个音符的时值与影响直接可见。</p><div class="frame"><iframe title="简谱录入设计" src="index.html?scene=melody&panel=1"></iframe></div></article>
+<article class="board"><h2>歌词：字词与音符一一对应</h2><p>四段歌词独立填写，空格分词、自动跳过休止。</p><div class="frame"><iframe title="歌词映射设计" src="index.html?scene=lyrics&panel=1"></iframe></div></article>
+<article class="board"><h2>和弦：用六弦指法说话</h2><p>名称、预设与真实指法预览形成一个编辑任务。</p><div class="frame"><iframe title="和弦指法设计" src="index.html?scene=chord&panel=1"></iframe></div></article>
+</section><section class="boards secondary-boards" id="structure">
+<article class="board"><h2>小节：局部结构回到选区</h2><p>段落标记、小节线、反复和复制在同一处。</p><div class="frame"><iframe title="小节结构设计" src="index.html?scene=measure&panel=1"></iframe></div></article>
+<article class="board"><h2>歌曲：只放全曲设置</h2><p>曲谱信息、基础拍号与变调夹分别应用。</p><div class="frame"><iframe title="歌曲设置设计" src="index.html?scene=song&panel=1"></iframe></div></article>
+<article class="board"><h2>空态：告诉用户从哪里开始</h2><p>没有选区时给出入口，不铺满禁用控件。</p><div class="frame"><iframe title="空态设计" src="index.html?scene=empty&panel=1"></iframe></div></article>
+</section><section class="boards secondary-boards" id="states">
+<article class="board"><h2>校验：错误就在输入旁</h2><p>提交失败后保留正文，摘要可定位到字段。</p><div class="frame"><iframe title="校验错误设计" src="index.html?scene=error&panel=1"></iframe></div></article>
+<article class="board"><h2>和弦：保留离开确认</h2><p>歌词、简谱直接切换；和弦和歌曲仍先处理修改。</p><div class="frame"><iframe title="和弦切换确认设计" src="index.html?scene=guard&panel=1"></iframe></div></article>
+<article class="board"><h2>导出：检查当前未应用输入</h2><p>返回当前编辑处理后，再次发起导出。</p><div class="frame"><iframe title="当前输入导出检查" src="index.html?scene=export&panel=1"></iframe></div></article>
+</section></main><footer>面板画框仅截取桌面侧栏部件，不代表独立窄屏布局。产品仅设计 1440px 及以上桌面视口。所有画面均为可点击的独立原型，固定演示数据，不读取或写入真实曲谱；复杂音乐命令、真实输入法与持久化不在原型验证范围。</footer>
+</body></html>

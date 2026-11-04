@@ -24,9 +24,10 @@
 }
 
 .summary {
-  padding: 10px 12px;
-  background: var(--ant-color-fill-quaternary, #f5f5f5);
-  border-radius: 6px;
+  margin-block: 10px;
+  color: var(--ant-color-text-secondary, #595959);
+  font-size: 0.8125rem;
+  line-height: 1.6;
 
   p {
     margin: 3px 0;
@@ -34,15 +35,44 @@
 }
 
 .actions {
-  position: sticky;
-  bottom: 0;
-  z-index: 1;
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
   padding-block: 10px;
   background: var(--ant-color-bg-container, #fff);
+}
+
+.actionReason {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--ant-color-error-text, #a8071a);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.modeRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+  font-size: 0.8125rem;
+
+  > span { color: var(--ant-color-text-secondary, #595959); }
+}
+
+.taskGroup {
+  padding-block: 10px;
+  border-top: 1px solid var(--ant-color-border-secondary, #eee);
+
+  > summary {
+    font-weight: 600;
+    line-height: 1.6;
+
+    > span { color: var(--ant-color-text-secondary, #595959); font-size: 0.75rem; font-weight: 400; }
+  }
 }
 
 .dirty {
@@ -56,6 +86,8 @@
   line-height: 1.5;
 }
 
+.fullSettings:global(.ant-btn) { display: block; height: auto; margin-top: 4px; margin-left: auto; padding: 0; font-size: 0.75rem; }
+
 .compact {
   padding: 0;
 
@@ -67,10 +99,9 @@
     display: none;
   }
 
-  :global(textarea.ant-input) {
+  :global(.ant-input) {
     min-height: 32px;
     font-size: 14px;
-    resize: vertical;
   }
 
   .actions {
@@ -138,13 +169,20 @@
   color: var(--ant-color-text-secondary, #595959);
 }
 
-.rhythmApply {
+.compactRhythmRow {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 4px;
+  gap: 4px;
+
+  .rhythmToolbar {
+    flex: 1;
+    min-width: 0;
+    gap: 2px;
+  }
+  > :global(.ant-btn) {
+    flex: none;
+    padding-inline: 6px;
+  }
 }
 
 .compactSummary,
@@ -171,9 +209,4 @@
   [role="status"] {
     color: var(--ant-color-warning-text, #ad6800);
   }
-}
-
-.more {
-  margin-right: auto;
-  padding-inline: 0;
 }

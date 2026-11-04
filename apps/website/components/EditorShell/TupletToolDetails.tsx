@@ -10,6 +10,7 @@ import {
 } from "@liuxianmao/lxm-editor";
 import type { EditorCommandAdapter } from "./editor-command-adapter";
 import styles from "./index.module.scss";
+import { formatNumberedBeatPosition } from "./numbered-editor-target";
 
 /** 待选比例不写音乐，只有明确应用才执行；详情始终挂载，收纳不丢准备状态。 */
 export const TupletToolDetails = ({
@@ -24,6 +25,11 @@ export const TupletToolDetails = ({
   execute: EditorCommandAdapter;
 }) => {
   const range = resolveTupletSelection(document, selection);
+  const track = document.score.tracks.find((item) => item.id === range?.trackId);
+  const measureIndex = track?.measures.findIndex((item) => item.id === range?.measureId) ?? -1;
+  const measure = track?.measures[measureIndex];
+  const first = measure?.beats.find((item) => item.id === range?.startBeatId);
+  const last = measure?.beats.find((item) => item.id === range?.endBeatId);
   const key = JSON.stringify(selection);
   const [choice, setChoice] = useState({
     key,
@@ -86,12 +92,13 @@ export const TupletToolDetails = ({
       <h3 tabIndex={-1}>连音组</h3>
       <div className={styles.toolTarget}>
         {range
-          ? `同小节内已选 ${range.beatIds.length} 拍`
+          ? `第 ${measureIndex + 1} 小节 · ${first && measure ? formatNumberedBeatPosition(first.tick, measure.timeSignature.denominator) : "起点"} 至 ${last && measure ? formatNumberedBeatPosition(last.tick, measure.timeSignature.denominator) : "终点"} · ${range.beatIds.length} 个成员`
           : "请选择同小节内的连续拍点"}
       </div>
       <p className={styles.settingsHint}>
         选中连续、相同时值和附点的拍点。成员数必须与连音比例一致。
       </p>
+      <p className={styles.settingsHint}>连音组用于节奏分组；延音线与连音线请在对应音符的连接工具中编辑。</p>
       <p className={styles.settingsHint}>
         当前组：
         {range?.group
@@ -140,14 +147,6 @@ export const TupletToolDetails = ({
         description="不支持混合时值、跨小节、嵌套或重叠；最终由音乐规则校验。"
       />
       <Button
-        danger
-        block
-        disabled={blocked || busy || !range?.group}
-        onClick={() => void run(true)}
-      >
-        删除当前连音组
-      </Button>
-      <Button
         type="primary"
         block
         loading={busy}
@@ -157,6 +156,14 @@ export const TupletToolDetails = ({
         onClick={() => void run()}
       >
         应用 {choice.value || "所选"} 连音
+      </Button>
+      <Button
+        danger
+        block
+        disabled={blocked || busy || !range?.group}
+        onClick={() => void run(true)}
+      >
+        删除当前连音组
       </Button>
     </section>
   );

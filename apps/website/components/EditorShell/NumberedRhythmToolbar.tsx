@@ -1,16 +1,19 @@
 import type { ILXMRhythmBase } from "@liuxianmao/lxm-editor";
+import type { MusicControlIcon } from "../../assets/svg/svg-assets-manifest";
+import { MusicAssetIcon } from "../MusicAssetIcon";
 import styles from "./NumberedEditor.module.scss";
+import toolbarStyles from "./index.module.scss";
 
-const rhythms: { base: ILXMRhythmBase; label: string; flags: number }[] = [
-  { base: "whole", label: "全音符", flags: 0 },
-  { base: "half", label: "二分音符", flags: 0 },
-  { base: "quarter", label: "四分音符", flags: 0 },
-  { base: "eighth", label: "八分音符", flags: 1 },
-  { base: "sixteenth", label: "十六分音符", flags: 2 },
-  { base: "thirtySecond", label: "三十二分音符", flags: 3 },
+const rhythms: { base: ILXMRhythmBase; label: string; icon: MusicControlIcon }[] = [
+  { base: "whole", label: "全音符", icon: "noteWhole" },
+  { base: "half", label: "二分音符", icon: "noteHalf" },
+  { base: "quarter", label: "四分音符", icon: "noteQuarter" },
+  { base: "eighth", label: "八分音符", icon: "noteEighth" },
+  { base: "sixteenth", label: "十六分音符", icon: "noteSixteenth" },
+  { base: "thirtySecond", label: "三十二分音符", icon: "noteThirtySecond" },
 ];
 
-/** 内联矢量音乐符号不依赖客户端音乐字体。这里只更新草稿。 */
+/** 与顶部工具栏共用音乐图标资源和尺寸；这里只更新草稿。 */
 export const NumberedRhythmToolbar = ({
   base,
   dots,
@@ -35,39 +38,7 @@ export const NumberedRhythmToolbar = ({
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => onChange(rhythm.base, dots)}
       >
-        <svg viewBox="0 0 24 28" width="22" height="26" aria-hidden="true">
-          <ellipse
-            cx={rhythm.base === "whole" ? 12 : 8}
-            cy="21"
-            rx={rhythm.base === "whole" ? 6 : 4.5}
-            ry="3"
-            transform={rhythm.base === "whole" ? undefined : "rotate(-20 8 21)"}
-            fill={
-              rhythm.base === "whole" || rhythm.base === "half"
-                ? "none"
-                : "currentColor"
-            }
-            stroke="currentColor"
-            strokeWidth="1.7"
-          />
-          {rhythm.base !== "whole" && (
-            <path
-              d="M12 20V3"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.7"
-            />
-          )}
-          {Array.from({ length: rhythm.flags }, (_, flag) => (
-            <path
-              key={flag}
-              d={`M12 ${3 + flag * 4} C13 ${7 + flag * 4},21 ${6 + flag * 4},18 ${12 + flag * 4}`}
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.7"
-            />
-          ))}
-        </svg>
+        <MusicAssetIcon assetId={rhythm.icon} className={toolbarStyles.toolbarIcon} />
       </button>
     ))}
     <button
@@ -79,9 +50,7 @@ export const NumberedRhythmToolbar = ({
       onMouseDown={(event) => event.preventDefault()}
       onClick={() => onChange(base, dots === 1 ? 0 : 1)}
     >
-      <svg viewBox="0 0 24 28" width="22" height="26" aria-hidden="true">
-        <circle cx="12" cy="15" r="2.5" fill="currentColor" />
-      </svg>
+      <span aria-hidden="true">·</span>
     </button>
   </div>
 );

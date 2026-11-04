@@ -7,8 +7,8 @@ import {
   type ILXMTabCellReference,
 } from "@liuxianmao/lxm-editor";
 import type { MusicTextTarget } from "./music-text-draft";
-/** 草稿按真实简谱事件／时间窗口定位，不能用 TAB beatId 合并不同音。 */
-export const numberedDraftKey = (target: ILXMNumberedTarget): string =>
+/** 编辑器按真实简谱事件／时间窗口定位，不能用 TAB beatId 合并不同音。 */
+export const numberedTargetKey = (target: ILXMNumberedTarget): string =>
   `${target.trackId}/${target.measureId}/${
     target.kind === "numberedEvent"
       ? `event/${target.eventId}/${target.itemId ?? ""}`

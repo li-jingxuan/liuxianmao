@@ -1,5 +1,7 @@
 "use client";
 import { Alert, Button, Form, Select, Tooltip } from "antd";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   LXM_EDITABLE_TIME_SIGNATURES,
   type ILXMBarlineType,
@@ -13,6 +15,7 @@ import type {
 } from "./editor-tool-actions";
 import type { ToolNavigation } from "./editor-tool-catalog";
 import styles from "./index.module.scss";
+import taskStyles from "./SelectionTaskDetails.module.scss";
 export const BARLINES: { value: ILXMBarlineType; label: string }[] = [
   { value: "single", label: "单小节线" },
   { value: "double", label: "双小节线" },
@@ -51,7 +54,7 @@ const BarlineSymbol = ({ value }: { value: ILXMBarlineType }) => (
   </svg>
 );
 
-/** 当前值只读派生；段落和可配置复制始终导航到原歌曲 Form。 */
+/** 立即生效的小节工具与设置 owner 的常驻局部表面共用任务区。 */
 export const MeasureToolDetails = ({
   document,
   selection,
@@ -60,6 +63,7 @@ export const MeasureToolDetails = ({
   boundaryOnly,
   onAction,
   navigate,
+  measureHost,
 }: {
   document: ILXMDocument;
   selection: ILXMTabCellSelection | null;
@@ -68,7 +72,25 @@ export const MeasureToolDetails = ({
   boundaryOnly: boolean;
   onAction: ToolActionHandler;
   navigate: (destination: ToolNavigation) => void;
+  measureHost?: (node: HTMLDivElement | null) => void;
 }) => {
+  const settingsRoot = useRef<HTMLDivElement>(null);
+  const [boundaryHost, setBoundaryHost] = useState<HTMLElement | null>(null);
+  const bindSettingsHost = useCallback((node: HTMLDivElement | null) => {
+    settingsRoot.current = node;
+    measureHost?.(node);
+  }, [measureHost]);
+  // 设置表面由外部 owner portal 挂入。只把即时边界工具放进其布局插槽，
+  // 不复制段落字段、复制参数或任何设置草稿。
+  useLayoutEffect(() => {
+    const root = settingsRoot.current;
+    if (!root || !measureHost) return;
+    const update = () => setBoundaryHost(root.querySelector<HTMLElement>("[data-measure-boundary-host]"));
+    update();
+    const observer = new MutationObserver(update);
+    observer.observe(root, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [measureHost]);
   const tools = deriveEditorToolState(document, selection);
   const track = target
     ? document.score.tracks.find((item) => item.id === target.trackId)
@@ -77,9 +99,7 @@ export const MeasureToolDetails = ({
     ? (track?.measures.findIndex((item) => item.id === target.measureId) ?? -1)
     : (tools.focused?.index ?? -1);
   const measure = index >= 0 ? track?.measures[index] : null;
-  if (!track || !measure)
-    return <Alert variant="filled" type="info" title="请选择目标小节。" />;
-  const signature = `${measure.timeSignature.numerator}/${measure.timeSignature.denominator}`;
+  const signature = measure ? `${measure.timeSignature.numerator}/${measure.timeSignature.denominator}` : "";
   const options: { value: string; label: string; disabled?: boolean }[] =
     LXM_EDITABLE_TIME_SIGNATURES.map((item) => ({
       value: `${item.numerator}/${item.denominator}`,
@@ -91,30 +111,8 @@ export const MeasureToolDetails = ({
       label: `${signature}（只读）`,
       disabled: true,
     });
-  const atEnd = index === track.measures.length - 1;
-  return (
-    <section className={styles.toolDetails} aria-label="小节属性详情">
-      <h3 tabIndex={-1}>{boundaryOnly ? "右边界类型" : "小节属性"}</h3>
-      <div className={styles.toolTarget}>
-        {atEnd ? "焦点位于谱尾 · " : ""}第 {index + 1} 小节
-      </div>
-      {!boundaryOnly && (
-        <Form.Item label="当前小节拍号" htmlFor="tool-measure-signature">
-          <Select
-            id="tool-measure-signature"
-            aria-label="当前小节拍号"
-            disabled={blocked}
-            value={signature}
-            options={options}
-            onChange={(value) =>
-              void onAction({ type: "signature", value, target })
-            }
-          />
-          <p className={styles.settingsHint}>
-            从当前小节生效，直到下一拍号变化点。
-          </p>
-        </Form.Item>
-      )}
+  const atEnd = index === (track?.measures.length ?? 0) - 1;
+  const boundaryTools = track && measure ? <div className={taskStyles.boundaryBody}>
       <div
         className={styles.barlineOptions}
         role="group"
@@ -177,6 +175,33 @@ export const MeasureToolDetails = ({
       >
         谱首开始反复：{track.startBarline === "repeatStart" ? "开" : "关"}
       </Button>
+      {index !== 0 && <p className={styles.settingsHint}>{tools.startRepeat.reason || "谱首反复仅对第一小节可用。"}</p>}
+    </div> : null;
+  const boundary = boundaryOnly ? boundaryTools : <details className={taskStyles.disclosure}>
+    <summary>小节线与反复<small>右边界：{BARLINES.find((item) => item.value === measure?.barline)?.label ?? "未选择"}</small></summary>
+    {boundaryTools}
+  </details>;
+  return (
+    <section className={styles.toolDetails} aria-label="小节属性详情">
+      {track && measure ? <>
+      <h3 tabIndex={-1}>{boundaryOnly ? "右边界类型" : "小节拍号"}</h3>
+      <div className={styles.toolTarget}>
+        {atEnd ? "焦点位于谱尾 · " : ""}第 {index + 1} 小节
+      </div>
+      {!boundaryOnly && (
+        <Form.Item label="当前小节拍号" htmlFor="tool-measure-signature">
+          <Select
+            id="tool-measure-signature"
+            aria-label="当前小节拍号"
+            disabled={blocked}
+            value={signature}
+            options={options}
+            onChange={(value) => void onAction({ type: "signature", value, target })}
+          />
+          <p className={styles.settingsHint}>选择后生效：从第 {index + 1} 小节起，直到下一拍号变化点。</p>
+        </Form.Item>
+      )}
+      {!measureHost && !boundaryOnly && <>
       <h3 tabIndex={-1}>段落标记与小节复用</h3>
       <p className={styles.settingsHint}>
         段落：{measure.sectionLabel || "未设置"}（仅元数据）
@@ -187,6 +212,10 @@ export const MeasureToolDetails = ({
       <Button block onClick={() => navigate("copy")}>
         配置小节范围复制…
       </Button>
+      </>}
+      </> : <Alert variant="filled" type="info" title="请选择目标小节。" />}
+      <div ref={bindSettingsHost} hidden={boundaryOnly || !track || !measure} data-settings-host="measure" />
+      {track && measure && (boundaryHost && !boundaryOnly && measureHost ? createPortal(boundary, boundaryHost) : boundary)}
     </section>
   );
 };

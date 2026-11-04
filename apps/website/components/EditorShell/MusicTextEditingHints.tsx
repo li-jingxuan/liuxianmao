@@ -16,12 +16,22 @@ export const MusicTextEditingHints = ({
   layout,
   activeFocus,
   hoverFocus,
+  beatContext,
 }: {
   layout: ILXMLayout;
   activeFocus: ParagraphFocus | null;
   hoverFocus: ParagraphFocus | null;
+  beatContext?: { x: number; y: number; width: number; height: number } | null;
 }) => (
   <g className={styles.musicTextEditingHints} pointerEvents="none">
+    {beatContext && (
+      <rect
+        data-numbered-beat-context
+        className={styles.numberedBeatContext}
+        {...beatContext}
+        rx={4}
+      />
+    )}
     {layout.systems.flatMap((system) => {
       const eventX = new Map(
         system.measures.flatMap((measure) =>

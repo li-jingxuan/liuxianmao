@@ -149,10 +149,10 @@ export const OutputBlockedModal = ({
     >
       <div className={styles.blockedBody}>
         <p>
-          图片只导出已提交内容。请先返回对应编辑位置应用或取消修改，再重新导出。
+          输出仅使用已应用的曲谱。请先处理当前输入，再重新发起原操作。
         </p>
         {pending.length ? (
-          <ul className={styles.blockedList} aria-label="待处理草稿">
+          <ul className={styles.blockedList} aria-label="当前未应用输入">
             {pending.map((record, index) => (
               <li key={record.id}>
                 <div>

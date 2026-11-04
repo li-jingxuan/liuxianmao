@@ -1,12 +1,73 @@
-import { Alert, Button, Checkbox, Form, Input, Segmented, Select } from "antd";
-import { planLyricSequence, type ILXMLyricVerse } from "@liuxianmao/lxm-editor";
+import { Button, Checkbox, Form, Input, Segmented, Select } from "antd";
+import {
+  getMeasureCapacityTicks,
+  parseLyricSequence,
+  planLyricSequence,
+  resolveLyricPosition,
+  type ILXMDocument,
+  type ILXMLyricVerse,
+} from "@liuxianmao/lxm-editor";
 import type { RefCallback } from "react";
+import {
+  BeatMappingPreview,
+  type BeatMappingMeasure,
+  type BeatMappingRow,
+} from "./BeatMappingPreview";
 import type { MusicTextDraft } from "./music-text-draft";
+import { formatNumberedBeatPosition } from "./numbered-editor-target";
 import styles from "./index.module.scss";
+import formStyles from "./LyricFormView.module.scss";
+
+/** 只适配领域规划；顺序号不参与拍位或时间范围计算。 */
+export function buildLyricMappingPreview(
+  document: ILXMDocument,
+  plan: ReturnType<typeof planLyricSequence>,
+): { rows: BeatMappingRow[]; measures: BeatMappingMeasure[] } | null {
+  const rows: BeatMappingRow[] = [];
+  const measureKeys = new Set<string>();
+  for (const row of plan.rows) {
+    const track = document.score.tracks.find((value) => value.id === row.target?.trackId);
+    const measure = track?.measures.find((value) => value.id === row.target?.measureId);
+    const position = measure && row.target ? resolveLyricPosition(measure, row.target) : undefined;
+    // 有目标但已无法解析时，整批旧规划失效；超谱尾行仍保留其领域错误。
+    if (row.target && (!measure || !position)) return null;
+    const sourcePosition = row.target && position ? {
+      trackId: row.target.trackId,
+      measureId: row.target.measureId,
+      startTick: position.tick,
+      endTick: position.endTick,
+    } : null;
+    if (measure) measureKeys.add(measure.id);
+    const event = measure?.numberedVoice.events.find((value) => value.id === position?.eventId);
+    const beatLabel = measure && position ? formatNumberedBeatPosition(position.tick, measure.timeSignature.denominator) : null;
+    const measureNumber = track?.measures.findIndex((value) => value.id === measure?.id);
+    rows.push({
+      key: String(row.index),
+      before: row.previous ?? "空",
+      after: row.item.kind === "skip" ? "保留原词" : row.item.text,
+      positionLabel: measure && position ? `${measureNumber! + 1} 小节 / ${beatLabel}${!event || event.kind === "gap" ? `～${formatNumberedBeatPosition(position.endTick, measure.timeSignature.denominator)}` : ""}` : "超出谱尾",
+      status: row.status,
+      sourcePosition,
+      plannedPosition: sourcePosition,
+      canInspect: !!sourcePosition,
+      rhythm: event?.kind === "notes" ? `音符 ${event.items.map((item) => item.token).join("+")}` : sourcePosition ? "空白位置" : undefined,
+      music: event?.kind === "notes" ? event.items.map((item) => item.token).join("+") : "—",
+      impactLabel: row.status === "change" ? "覆盖已有歌词" : undefined,
+    });
+  }
+  const measures = document.score.tracks.flatMap((track) => track.measures.flatMap((measure, index) => measureKeys.has(measure.id) ? [{
+    key: measure.id,
+    label: `${index + 1} 小节 · ${measure.timeSignature.numerator}/${measure.timeSignature.denominator}`,
+    durationTicks: getMeasureCapacityTicks(measure.timeSignature),
+    beatTicks: 3840 / measure.timeSignature.denominator,
+  }] : []));
+  return { rows, measures };
+}
 
 /** 纯呈现：草稿、输入法、目标保护和音乐命令仍由 Sidebar 唯一持有。 */
 export const LyricFormView = ({
   presentation = "sidebar",
+  document,
   draft,
   plan,
   issue,
@@ -22,6 +83,7 @@ export const LyricFormView = ({
   onInspect,
 }: {
   presentation?: "popover" | "sidebar";
+  document?: ILXMDocument | null;
   draft: MusicTextDraft;
   plan: ReturnType<typeof planLyricSequence> | null;
   issue: string | null;
@@ -38,24 +100,17 @@ export const LyricFormView = ({
 }) => {
   const sequence = draft.lyricMode === "sequence";
   const compact = presentation === "popover";
+  const fieldId = (field: string) => `lyric-${compact ? "popover-" : ""}${field}`;
+  const parsed = sequence ? parseLyricSequence(draft.text) : null;
+  const currentPlan = parsed?.ok && plan?.rows.length ? plan : null;
+  const mapping = document && currentPlan ? buildLyricMappingPreview(document, currentPlan) : null;
+  const visiblePlan = document === null || (document && !mapping) ? null : currentPlan;
   return (
-    <section className={styles.sidebarSection} aria-label="歌词属性表单">
-      <div className={styles.propertyGrid} hidden={compact} inert={compact}>
-        <Form.Item layout="vertical" label="录入方式" htmlFor="lyric-mode">
+    <section className={`${styles.sidebarSection} ${formStyles.form}`} aria-label="歌词属性表单">
+      <div hidden={compact} inert={compact}>
+        <Form.Item className={formStyles.verseRow} label="歌词段号" htmlFor={fieldId("verse")}>
           <Select
-            id="lyric-mode"
-            aria-label="歌词录入方式"
-            value={draft.lyricMode}
-            onChange={onModeChange}
-            options={[
-              { value: "single", label: "单音符编辑" },
-              { value: "sequence", label: "连续填词" },
-            ]}
-          />
-        </Form.Item>
-        <Form.Item layout="vertical" label="段号" htmlFor="lyric-verse">
-          <Select
-            id="lyric-verse"
+            id={fieldId("verse")}
             aria-label="歌词段号"
             value={draft.target.verse}
             onChange={onVerseChange}
@@ -65,7 +120,14 @@ export const LyricFormView = ({
             }))}
           />
         </Form.Item>
+        <div className={formStyles.modeRow}>
+          <span>填写方式</span>
+          <Segmented size="small" id={fieldId("mode")} aria-label="歌词录入方式" value={draft.lyricMode}
+            options={[{ value: "single", label: "单个位置" }, { value: "sequence", label: "连续填词" }]}
+            onChange={(value) => onModeChange(value as MusicTextDraft["lyricMode"])} />
+        </div>
       </div>
+      {!sequence && !compact && <p className={formStyles.context}>原词：{existingText ?? `此音符暂无第 ${draft.target.verse} 段歌词。`}</p>}
       <div hidden={!compact} inert={!compact} className={styles.lyricModeSwitch}>
         <Segmented size="small" aria-label="歌词录入方式" value={draft.lyricMode}
           options={[{value: "single", label: "单点"}, {value: "sequence", label: "连续"}]}
@@ -74,15 +136,15 @@ export const LyricFormView = ({
       <Form.Item
         layout="vertical"
         label={compact ? undefined : sequence ? "连续歌词" : "歌词"}
-        htmlFor="lyric-body"
+        htmlFor={fieldId("body")}
         validateStatus={issue ? "error" : undefined}
-        help={issue ?? undefined}
       >
         {sequence ? (
           <Input.TextArea
-            id="lyric-body"
+            id={fieldId("body")}
             aria-label="连续歌词"
-            aria-describedby="lyric-sequence-tips"
+             aria-describedby={fieldId("sequence-tips")}
+             aria-invalid={!!issue}
             rows={2}
             ref={(control) =>
               sequenceInputRef(control?.resizableTextArea?.textArea ?? null)
@@ -93,47 +155,46 @@ export const LyricFormView = ({
           />
         ) : (
           <Input
-            id="lyric-body"
-            aria-label="歌词文本"
+            id={fieldId("body")}
+             aria-label="歌词文本"
+             aria-invalid={!!issue}
             ref={(control) => inputRef(control?.input ?? null)}
             value={draft.text}
             onChange={(event) => onTextChange(event.target.value)}
           />
         )}
       </Form.Item>
+      {issue && <p className={formStyles.error} role="status">{issue}</p>}
       {sequence ? (
         <>
-          <div id="lyric-sequence-tips" className={styles.sidebarTip} hidden={compact} inert={compact}>
-            <p>
-              用空格分词，每项依次对应一个音符或空白位置，自动跳过休止。用{" "}
-              <code>_</code> 跳过一个位置并保留原词。
-            </p>
-            <details>
-              <summary>详细规则</summary>
-              半角与全角空格均可分隔，首尾空格忽略。每项最多64字，每批最多256个位置；不接受换行或制表符，超出谱尾整批拒绝。英文空格也会拆词，同一位置的短句请用单音符编辑。
-            </details>
-          </div>
-          <div hidden={compact} inert={compact}><Checkbox
-            checked={draft.allowOverwrite}
-            onChange={(event) => onOverwriteChange(event.target.checked)}
-          >
-            允许替换预览中标记的已有歌词（{plan?.overwrites ?? 0} 项）
-          </Checkbox></div>
-          {issue && !compact && (
-            <Alert
-              type="error"
-              showIcon
-              title="整批尚未应用"
-              description={issue}
-            />
-          )}
-          {plan && (
+          <p id={fieldId("sequence-tips")} className={formStyles.hint} hidden={compact} inert={compact}>
+            空格分词；<code>_</code> 保留一个位置。按简谱对齐，自动跳过休止。
+          </p>
+          {visiblePlan && (
             <div className={styles.sequencePreview} aria-label="歌词对应预览">
               <p role="status" className={compact ? styles.compactSummary : undefined}>
-                {compact ? "" : "对应预览 · "}写入 {plan.changes} 项 · 覆盖 {plan.overwrites} 项
+                {compact ? "" : "对应预览 · "}写入 {visiblePlan.changes} 项 · 覆盖 {visiblePlan.overwrites} 项
               </p>
-              <details hidden={compact} inert={compact}>
-                <summary>查看歌词与位置映射 · {plan.rows.length} 项</summary>
+              {!compact && mapping && <BeatMappingPreview
+                rows={mapping.rows}
+                measures={mapping.measures}
+                label="音符与歌词映射"
+                onInspect={(position) => {
+                  const row = mapping.rows.find((value) => value.sourcePosition?.trackId === position.trackId && value.sourcePosition.measureId === position.measureId && value.sourcePosition.startTick === position.startTick && value.sourcePosition.endTick === position.endTick);
+                  if (row) onInspect(Number(row.key));
+                }}
+              />}
+              <div hidden={compact} inert={compact} className={formStyles.overwrite}><Checkbox
+                checked={draft.allowOverwrite}
+                onChange={(event) => onOverwriteChange(event.target.checked)}
+              >
+                允许替换预览中标记的已有歌词（{visiblePlan.overwrites} 项）
+              </Checkbox>
+                {visiblePlan.overwrites > 0 && !draft.allowOverwrite && <p className={formStyles.hint}>待允许覆盖，整批尚未应用。</p>}
+              </div>
+              <details className={formStyles.disclosure} hidden={compact} inert={compact}>
+                <summary>查看完整对应表 · {visiblePlan.rows.length} 项</summary>
+                <div className={formStyles.tableScroll}>
                 <table>
                   <thead>
                     <tr>
@@ -143,7 +204,7 @@ export const LyricFormView = ({
                     </tr>
                   </thead>
                   <tbody>
-                    {plan.rows.map((row) => (
+                    {visiblePlan.rows.map((row) => (
                       <tr
                         key={row.index}
                         aria-selected={inspection === row.index}
@@ -152,12 +213,13 @@ export const LyricFormView = ({
                           <Button
                             size="small"
                             type="text"
-                            disabled={!row.target}
+                            disabled={!row.target || (!!document && !mapping?.rows.find((value) => value.key === String(row.index))?.canInspect)}
+                            onPointerDown={(event) => event.preventDefault()}
                             onClick={() => onInspect(row.index)}
                           >
                             {row.index + 1} ·{" "}
                             {row.target
-                              ? `${row.measureNumber} 小节 / 简谱位置 ${row.beatNumber}`
+                              ? mapping?.rows.find((value) => value.key === String(row.index))?.positionLabel ?? `${row.measureNumber} 小节 / 歌词位置待解析`
                               : "超出谱尾"}
                           </Button>
                         </td>
@@ -182,20 +244,21 @@ export const LyricFormView = ({
                     ))}
                   </tbody>
                 </table>
+                </div>
               </details>
             </div>
           )}
+          <details className={formStyles.disclosure} hidden={compact} inert={compact}>
+            <summary>连续填词规则 <span>空格、留空与休止</span></summary>
+            <p className={formStyles.hint}>半角与全角空格均可分隔，首尾空格忽略。每项最多64字，每批最多256个位置；不接受换行或制表符，超出谱尾整批拒绝。英文空格也会拆词，同一位置的短句请用单音符编辑。第1–4段分别填写。</p>
+          </details>
         </>
       ) : (
         <div hidden={compact} inert={compact}>
-          <p className={styles.sidebarTip}>
+          <p className={formStyles.context}>
             下一歌词位置：{nextLocation ?? "已到最后一个歌词位置"}
           </p>
-          <p className={styles.sidebarTip}>
-            原词：
-            {existingText ?? `此音符暂无第 ${draft.target.verse} 段歌词。`}
-          </p>
-          <p className={styles.sidebarTip}>
+          <p className={formStyles.hint}>
             Enter 应用并移到下一个歌词位置；Shift+Enter
             仅应用。每个音符单行，支持第1–4段歌词。
           </p>

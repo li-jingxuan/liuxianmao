@@ -1,7 +1,7 @@
 "use client";
 import { Button } from "antd";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { StoreApi } from "zustand/vanilla";
 import type { EditorStoreState } from "../../stores/editor-store";
@@ -11,15 +11,17 @@ import {
   serializeScoreFile,
 } from "./score-file";
 import styles from "./score-file.module.scss";
+import {
+  captureEditorVersion,
+  sameEditorVersion,
+  type EditorSessionVersion,
+} from "./editor-session-version";
 
-type VersionToken = Pick<
-  EditorStoreState,
-  "sessionId" | "sessionVersion" | "stateVersion" | "document"
->;
+export type ScoreFileIntent = "import" | "export";
 type Candidate = {
   bytes: ArrayBuffer;
   name: string;
-  token: VersionToken;
+  token: EditorSessionVersion;
   title: string;
   track: string;
   measures: number;
@@ -27,21 +29,16 @@ type Candidate = {
   sourceVersion: number;
 };
 
-/** 除文档 ID 外核对真实会话与编辑版本，异步读取或确认期间发生编辑时不能覆盖。 */
-const sameVersion = (current: EditorStoreState, token: VersionToken): boolean =>
-  current.sessionId === token.sessionId &&
-  current.sessionVersion === token.sessionVersion &&
-  current.stateVersion === token.stateVersion &&
-  current.document === token.document;
-
 export const ScoreFileControls = ({
   session,
   isBlocked,
+  onBlocked,
   className,
   feedbackContainer,
 }: {
   session: StoreApi<EditorStoreState>;
   isBlocked: () => boolean;
+  onBlocked?: (intent: ScoreFileIntent) => void;
   className?: string;
   feedbackContainer?: HTMLElement | null;
 }) => {
@@ -50,6 +47,10 @@ export const ScoreFileControls = ({
   const importButtonRef = useRef<HTMLButtonElement>(null);
   const cancelButtonRef = useRef<HTMLButtonElement>(null);
   const requestId = useRef(0);
+  const guards = useRef({ isBlocked, onBlocked });
+  useLayoutEffect(() => {
+    guards.current = { isBlocked, onBlocked };
+  }, [isBlocked, onBlocked]);
   const mounted = useRef(true);
   const downloadUrls = useRef(new Set<string>());
   const [busy, setBusy] = useState(false);
@@ -80,13 +81,15 @@ export const ScoreFileControls = ({
     setCandidate(null);
     importButtonRef.current?.focus();
   };
-  const blocked = () => {
-    if (!isBlocked()) return false;
+  const blocked = (intent: ScoreFileIntent, discardCandidate = false) => {
+    if (!guards.current.isBlocked()) return false;
+    if (discardCandidate) close();
     setErrors(["请先应用或取消当前输入，再导入或导出曲谱。"]);
+    guards.current.onBlocked?.(intent);
     return true;
   };
   const openFile = () => {
-    if (busy || blocked()) return;
+    if (busy || blocked("import")) return;
     setErrors([]);
     setNotice("");
     inputRef.current?.click();
@@ -95,9 +98,9 @@ export const ScoreFileControls = ({
   /** 文件读取后的验证保持候选隔离，确认之前绝不写入正在编辑的会话。 */
   const onFile = async (file: File | undefined) => {
     if (!file) return;
-    if (blocked()) return;
+    if (blocked("import")) return;
     setErrors([]);
-    const token = session.getState();
+    const token = captureEditorVersion(session.getState());
     const generation = ++requestId.current;
     if (file.size > SCORE_FILE_MAX_BYTES) {
       setErrors(["曲谱文件超过 10 MiB 上限"]);
@@ -107,13 +110,14 @@ export const ScoreFileControls = ({
     try {
       const bytes = await file.arrayBuffer();
       if (!mounted.current || generation !== requestId.current) return;
-      if (!sameVersion(session.getState(), token)) {
+      if (blocked("import")) return;
+      if (!sameEditorVersion(session.getState(), token)) {
         setErrors(["读取期间曲谱已变化，请重新选择文件。"]);
         return;
       }
       const checked = decodeScoreFile(bytes);
       if (!mounted.current || generation !== requestId.current) return;
-      if (!sameVersion(session.getState(), token)) {
+      if (!sameEditorVersion(session.getState(), token)) {
         setErrors(["校验期间曲谱已变化，请重新选择文件。"]);
         return;
       }
@@ -141,8 +145,10 @@ export const ScoreFileControls = ({
 
   /** 最终确认重新校验版本及原始文件；store 自己再次校验后才提交。 */
   const confirmImport = () => {
-    if (!candidate || blocked()) return;
-    if (!sameVersion(session.getState(), candidate.token)) {
+    if (!candidate) return;
+    // 受阻的候选不保留为待续跑闭包；处理输入后需要重新选择文件。
+    if (blocked("import", true)) return;
+    if (!sameEditorVersion(session.getState(), candidate.token)) {
       close();
       setErrors(["当前曲谱已变化，请重新选择文件。"]);
       return;
@@ -151,6 +157,12 @@ export const ScoreFileControls = ({
     if (!checked.ok) {
       close();
       setErrors(checked.errors);
+      return;
+    }
+    if (blocked("import", true)) return;
+    if (!sameEditorVersion(session.getState(), candidate.token)) {
+      close();
+      setErrors(["当前曲谱已变化，请重新选择文件。"]);
       return;
     }
     const replaced = session
@@ -166,7 +178,7 @@ export const ScoreFileControls = ({
 
   /** 下载链接点击后延时释放，同时在组件卸载时兜底回收。 */
   const exportFile = () => {
-    if (blocked()) return;
+    if (blocked("export")) return;
     const score = session.getState().document;
     if (!score) {
       setErrors(["当前没有可导出的曲谱。"]);

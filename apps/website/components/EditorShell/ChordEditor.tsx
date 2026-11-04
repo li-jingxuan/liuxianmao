@@ -12,6 +12,7 @@ import {
 import type { RefCallback } from "react";
 import { ChordDiagramView } from "./MusicTextLayer";
 import styles from "./index.module.scss";
+import viewStyles from "./ChordEditor.module.scss";
 
 export interface ChordDraft {
   display: ILXMChordSymbol["display"];
@@ -52,9 +53,29 @@ export const ChordEditor = ({
       JSON.stringify(p.diagram) === JSON.stringify(diagram),
   );
   return (
-    <>
+    <div className={viewStyles.editor}>
+      <section className={viewStyles.preview} aria-label="和弦预览">
+        <div className={viewStyles.previewCaption}>
+          <span>当前和弦</span>
+          <strong>{draft.chord.name || "未命名"}</strong>
+          <span>{draft.display === "name" ? "谱面仅显示名称" : "谱面显示名称与指法"}</span>
+        </div>
+        {issue ? (
+          <p role="alert">{issue}</p>
+        ) : preview ? (
+          <svg
+            role="img"
+            aria-label="指法图预览"
+            width={132}
+            height={156}
+            viewBox={`${preview.bounds.x - 4} ${preview.bounds.y - 4} ${preview.bounds.width + 8} ${preview.bounds.height + 8}`}
+          >
+            <ChordDiagramView diagram={preview} />
+          </svg>
+        ) : <span className={viewStyles.emptyDiagram}>尚未设置指法</span>}
+      </section>
       <section className={styles.sidebarSection}>
-        <h3>基本设置</h3>
+        <h3>名称与预设</h3>
         <div className={styles.propertyGrid}>
           <Form.Item
             layout="vertical"
@@ -120,7 +141,7 @@ export const ChordEditor = ({
             <Button
               type="link"
               onClick={() =>
-                onChange({ ...draft, chord: { ...draft.chord, diagram: null } })
+                onChange({ display: "name", chord: { ...draft.chord, diagram: null } })
               }
             >
               清除指法图
@@ -205,26 +226,8 @@ export const ChordEditor = ({
                 ))}
               </tbody>
             </table>
-            <div className={styles.chordPreview} aria-label="和弦预览">
-              <h4>和弦预览</h4>
-              <strong>{draft.chord.name || "未命名"}</strong>
-              {issue ? (
-                <p role="alert">{issue}</p>
-              ) : (
-                preview && (
-                  <svg
-                    aria-label="指法图预览"
-                    width={150}
-                    height={180}
-                    viewBox={`${preview.bounds.x - 4} ${preview.bounds.y - 4} ${preview.bounds.width + 8} ${preview.bounds.height + 8}`}
-                  >
-                    <ChordDiagramView diagram={preview} />
-                  </svg>
-                )
-              )}
-            </div>
           </div>
-          <details className={styles.barreSettings} open>
+          <details className={styles.barreSettings}>
             <summary>横按设置（{diagram.barres.length}/4）</summary>
             {diagram.barres.map((b, i) => (
               <fieldset key={i}>
@@ -307,9 +310,22 @@ export const ChordEditor = ({
           </p>
         </section>
       )}
-      {diagram && (
-        <section className={styles.sidebarSection} aria-label="和弦高级设置">
-          <h3>高级设置</h3>
+        <section className={styles.sidebarSection} aria-label="和弦显示设置">
+          <h3>显示设置</h3>
+          <Form.Item layout="vertical" label="谱面显示" htmlFor="chord-display">
+            <Select
+              id="chord-display"
+              aria-label="和弦显示方式"
+              value={draft.display}
+              onChange={(display: ChordDraft["display"]) => onChange({ ...draft, display })}
+              options={[
+                { value: "name", label: "仅名称" },
+                { value: "nameAndDiagram", label: "名称与指法图", disabled: !diagram },
+              ]}
+            />
+            {!diagram && <small>创建指法图后可在谱面显示指法。</small>}
+          </Form.Item>
+          {diagram && <>
           <Form.Item
             layout="vertical"
             label="起始品位"
@@ -320,7 +336,6 @@ export const ChordEditor = ({
               aria-label="起始品位"
               min={1}
               max={20}
-              disabled={!diagram}
               value={
                 Number.isFinite(diagram?.startFret ?? 1)
                   ? (diagram?.startFret ?? 1)
@@ -350,10 +365,10 @@ export const ChordEditor = ({
             />
           )}
           <p className={styles.sidebarTip}>
-            起始品位只调整观察窗口，不转调。清除指法图保留名称；取消可放弃当前草稿。
+             起始品位只调整观察窗口，不转调。清除指法图保留名称；取消可放弃当前草稿。
           </p>
+          </>}
         </section>
-      )}
-    </>
+    </div>
   );
 };

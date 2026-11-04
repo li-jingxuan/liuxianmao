@@ -1,0 +1,58 @@
+.preview {
+  min-width: 0;
+  margin-block: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--ant-color-fill-quaternary, #f5f5f5);
+  color: var(--ant-color-text, #262626);
+  font-size: 0.8125rem;
+}
+
+.heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-weight: 600;
+
+  span { color: var(--ant-color-text-secondary, #595959); font-weight: 400; }
+}
+
+.measure { min-width: 0; margin-top: 10px; }
+.measureLabel { margin-bottom: 6px; color: var(--ant-color-text-secondary, #595959); }
+.scroll { overflow-x: auto; padding-bottom: 4px; }
+.scroll:focus-visible { outline: 2px solid var(--ant-color-primary, #1677ff); outline-offset: 2px; }
+.timeline { display: flex; width: max-content; min-width: 100%; font-variant-numeric: tabular-nums; }
+.mapping {
+  display: flex;
+  flex: 1 0 108px;
+  flex-direction: column;
+  align-items: center;
+  box-sizing: border-box;
+  width: 108px;
+  max-width: 160px;
+  padding: 8px;
+  border-inline-start: 1px solid var(--ant-color-border-secondary, #e5e5e5);
+  border-top: 2px solid var(--ant-color-primary-border, #91caff);
+  text-align: center;
+  overflow-wrap: anywhere;
+
+  &:first-child { border-inline-start: 0; }
+  &[data-status="remove"], &[data-status="release"], &[data-status="skip"] { border-top-style: dashed; }
+  &[data-status="same"], &[data-status="skip"] { border-top-color: var(--ant-color-border, #d9d9d9); }
+}
+.music { margin-bottom: 6px; color: var(--ant-color-text, #262626); font-size: 1.375rem; line-height: 1.4; }
+.position {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ant-color-primary, #1677ff);
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+
+  &:disabled { color: var(--ant-color-text-secondary, #595959); cursor: default; }
+  &:focus-visible { outline: 2px solid var(--ant-color-primary, #1677ff); outline-offset: 2px; }
+}
+.description { display: flex; flex-direction: column; gap: 3px; margin-top: 8px; }
+.status { color: var(--ant-color-text-secondary, #595959); font-size: 0.75rem; }
+.notice { margin: 8px 0 0; line-height: 1.5; }

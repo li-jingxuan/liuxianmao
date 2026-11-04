@@ -1,4 +1,9 @@
-import { createElement, type RefObject } from "react";
+import {
+  createElement,
+  isValidElement,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
@@ -10,7 +15,6 @@ import {
 import {
   NumberedEditor,
   type NumberedEditorController,
-  type NumberedEditorDraft,
 } from "../components/EditorShell/NumberedEditor";
 import { createEditorSession } from "../stores/editor-store";
 import { EditorStoreContext } from "../stores/editor-context";
@@ -20,20 +24,34 @@ const harness = vi.hoisted(() => ({
   effects: [] as (() => void | (() => void))[],
   cleanups: [] as (() => void)[],
   submission: null as ReturnType<typeof createNumberedSubmission> | null,
+  stateChanges: [] as unknown[],
 }));
 
 // Publish the controller and submission owner in the existing SSR test environment.
-vi.mock("react", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("react")>()),
-  useLayoutEffect: (effect: () => void | (() => void)) =>
-    harness.effects.push(effect),
-  useImperativeHandle: (
-    ref: RefObject<unknown> | null,
-    create: () => unknown,
-  ) => {
-    if (ref) ref.current = create();
-  },
-}));
+vi.mock("react", async (importOriginal) => {
+  const original = await importOriginal<typeof import("react")>();
+  return {
+    ...original,
+    useState: (initial: unknown) => {
+      const [value, setValue] = original.useState(initial);
+      return [
+        value,
+        (next: unknown) => {
+          harness.stateChanges.push(next);
+          setValue(next);
+        },
+      ];
+    },
+    useLayoutEffect: (effect: () => void | (() => void)) =>
+      harness.effects.push(effect),
+    useImperativeHandle: (
+      ref: RefObject<unknown> | null,
+      create: () => unknown,
+    ) => {
+      if (ref) ref.current = create();
+    },
+  };
+});
 vi.mock(
   "../components/EditorShell/numbered-submission",
   async (importOriginal) => {
@@ -60,7 +78,32 @@ afterEach(() => {
     .forEach((cleanup) => cleanup());
   harness.effects = [];
   harness.submission = null;
+  harness.stateChanges = [];
 });
+
+const findInput = (
+  node: ReactNode,
+  label: string,
+): {
+  onChange: (event: { target: { value: string } }) => void;
+} | null => {
+  if (Array.isArray(node)) {
+    for (const child of node) {
+      const found = findInput(child, label);
+      if (found) return found;
+    }
+  } else if (
+    isValidElement<{
+      "aria-label"?: string;
+      children?: ReactNode;
+      onChange: (event: { target: { value: string } }) => void;
+    }>(node)
+  ) {
+    if (node.props["aria-label"] === label) return node.props;
+    return findInput(node.props.children, label);
+  }
+  return null;
+};
 
 const setup = (
   raw: string,
@@ -113,28 +156,26 @@ const setup = (
     session.getState().execute(operation),
   );
   const ref: RefObject<NumberedEditorController | null> = { current: null };
-  const initial = event.items.map((item) => item.token).join("+");
-  const savedDraft: NumberedEditorDraft = {
-    selectedId: kind === "missing" ? "" : event.id,
-    start: event.tick,
-    end: event.tick + 720,
-    raw,
-    initial,
-    overwrite: true,
-    base: event.rhythm.base,
-    dots: event.rhythm.dots,
-    template: "uniform",
-    itemId: event.items[0]?.id ?? "",
-    destination: "",
-    customRhythms: [],
-    ratioIndex: 1,
-    itemDraft: initial,
+  let entered = false;
+  // SSR supports render-phase updates: exercise the real field onChange after
+  // initialization, retaining its score-derived initial value and baseline.
+  const EditorWithInput = (props: Parameters<typeof NumberedEditor>[0]) => {
+    harness.effects = [];
+    const editor = NumberedEditor(props);
+    if (!entered) {
+      entered = true;
+      findInput(
+        editor,
+        mode === "single" ? "单音组简谱" : "连续简谱",
+      )!.onChange({ target: { value: raw } });
+    }
+    return editor;
   };
   const html = renderToStaticMarkup(
     createElement(
       EditorStoreContext.Provider,
       { value: { ...session, getInitialState: session.getState } },
-      createElement(NumberedEditor, {
+      createElement(EditorWithInput, {
         ref,
         document,
         target: {
@@ -145,7 +186,6 @@ const setup = (
             ? { tick: event.tick, endTick: event.tick + 720 }
             : { eventId: event.id, itemId: event.items[0]?.id }),
         },
-        savedDraft,
         commit,
         onDirty: () => {},
         onInputActive: () => {},
@@ -176,11 +216,11 @@ describe("clearing a single numbered event", () => {
       const { ref, commit, session, document, event, html } = setup("", kind);
       expect(ref.current!.dirtyGroups).toEqual(["content"]);
       expect(ref.current!.canApply).toBe(true);
-      expect(html).toContain("修改预览 · 1 项");
+      expect(html).toContain('aria-label="节拍映射预览"');
       expect(html).toContain("→ 空白");
       expect(html).not.toContain("简谱音高无效");
       expect(html).toMatch(
-        /<button(?![^>]*disabled)[^>]*><span>应用内容<\/span>/,
+        /<button(?![^>]*disabled)[^>]*><span>应用简谱内容<\/span>/,
       );
       expect(await ref.current!.apply()).toMatchObject({ status: "applied" });
       expect(commit).toHaveBeenCalledWith(
@@ -215,11 +255,32 @@ describe("clearing a single numbered event", () => {
     expect(commit.mock.calls[0]![0]).not.toHaveProperty("itemId");
   });
 
+  it.each([undefined, true, false])(
+    "apply advance=%s controls the next target at submission success",
+    async (advance) => {
+      const { ref } = setup("");
+      harness.stateChanges = [];
+      const applyCurrent = ref.current!.apply;
+      expect(
+        await applyCurrent(undefined, { advance }),
+      ).toMatchObject({ status: "applied" });
+      expect(
+        harness.stateChanges.some(
+          (value) =>
+            typeof value === "object" &&
+            value !== null &&
+            "kind" in value &&
+            value.kind === "numbered",
+        ),
+      ).toBe(advance !== false);
+    },
+  );
+
   it.each(["", " \n\t "])("an existing gap stays clean for %j", async (raw) => {
     const { ref, commit, session, document, html } = setup(raw, "gap");
     expect(ref.current!.dirty).toBe(false);
     expect(ref.current!.dirtyGroups).toEqual([]);
-    expect(html).toMatch(/<button[^>]*disabled[^>]*><span>应用内容<\/span>/);
+    expect(html).toMatch(/<button[^>]*disabled[^>]*><span>应用简谱内容<\/span>/);
     expect(await ref.current!.applyGroup("content")).toMatchObject({
       status: "noop",
     });
@@ -230,7 +291,7 @@ describe("clearing a single numbered event", () => {
   it("a blank unoccupied time range remains a no-op", async () => {
     const { ref, commit, html } = setup("", "missing");
     expect(ref.current!.dirty).toBe(false);
-    expect(html).not.toContain("修改预览 ·");
+    expect(html).not.toContain('aria-label="节拍映射预览"');
     expect(await ref.current!.apply()).toMatchObject({ status: "noop" });
     expect(commit).not.toHaveBeenCalled();
   });
@@ -239,7 +300,7 @@ describe("clearing a single numbered event", () => {
     const { ref, commit, html } = setup("", "notes", "sequence");
     expect(parseNumberedSequence("").ok).toBe(false);
     expect(ref.current!.canApply).toBe(false);
-    expect(html).not.toContain("修改预览 ·");
+    expect(html).not.toContain('aria-label="节拍映射预览"');
     expect(await ref.current!.applyGroup("content")).toMatchObject({
       status: "blocked",
     });
@@ -253,11 +314,22 @@ describe("clearing a single numbered event", () => {
       "single",
       true,
     );
-    const pending = ref.current!.applyGroup("content");
+    harness.stateChanges = [];
+    const applyCurrent = ref.current!.apply;
+    const pending = applyCurrent(undefined, { advance: false });
     expect(harness.submission!.isBusy()).toBe(true);
     expect(commit).not.toHaveBeenCalled();
     harness.submission!.confirm();
     expect(await pending).toMatchObject({ status: "applied" });
+    expect(
+      harness.stateChanges.some(
+        (value) =>
+          typeof value === "object" &&
+          value !== null &&
+          "kind" in value &&
+          value.kind === "numbered",
+      ),
+    ).toBe(false);
     expect(commit.mock.calls[0]![0]).toMatchObject({
       tokens: [],
       confirmedRemovedMarkIds: ["clear-tie"],

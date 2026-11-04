@@ -75,10 +75,10 @@ describe("谱面设置与连续填词默认", () => {
     const draft = readMusicTextDraft(doc, target)!;
     expect(draft.lyricMode).toBe("sequence");
     expect(draft.text).toBe("风");
-    expect(draft.allowOverwrite).toBe(true);
+    expect(draft.allowOverwrite).toBe(false);
     draft.text = "未应用";
     expect(resolveSidebarRequest(draft, { type: "tab", kind: "score" })).toBe(
-      "confirm",
+      "execute",
     );
     expect(readMusicTextDraft(doc, target, "single")!.lyricMode).toBe("single");
   });

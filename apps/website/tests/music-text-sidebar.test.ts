@@ -2,10 +2,14 @@ import { describe, expect, it } from "vitest";
 import {
   EXAMPLE_MVP_6_DOCUMENT,
   copyChordPreset,
+  planLyricPositions,
 } from "@liuxianmao/lxm-editor";
 import {
   readMusicTextDraft,
+  normalizeMusicTextTarget,
+  musicTextDraftValue,
   resolveSidebarRequest,
+  type SidebarAction,
 } from "../components/EditorShell/music-text-draft";
 import {
   resolveParagraphInsertionTarget,
@@ -35,7 +39,41 @@ const fixture = () => {
   return { document, track, measure, target, chordTarget };
 };
 
-describe("音乐文本侧栏草稿保护", () => {
+describe("音乐文本侧栏未应用内容的离开策略", () => {
+  it("新歌词会话保护覆盖，和弦仅改显示配置也保护离开", () => {
+    const { document, target, chordTarget } = fixture();
+    expect(readMusicTextDraft(document, target)!.allowOverwrite).toBe(false);
+    const chord = readMusicTextDraft(document, chordTarget)!;
+    chord.chord.display = chord.chord.display === "name" ? "nameAndDiagram" : "name";
+    expect(musicTextDraftValue(chord)).not.toBe(chord.initial);
+    expect(resolveSidebarRequest(chord, { type: "close" })).toBe("confirm");
+  });
+  it("歌词时间窗与事件入口归一，段号及简谱成员保持独立", () => {
+    const { document, target, measure } = fixture();
+    const event = measure.numberedVoice.events[0]!;
+    const position = planLyricPositions(measure).find((item) => item.eventId === event.id)!;
+    const normalized = normalizeMusicTextTarget(document, target);
+    expect(normalizeMusicTextTarget(document, { kind: "lyric", trackId: target.trackId, measureId: target.measureId,
+      tick: position.tick, endTick: position.endTick, string: 6 })).toEqual(normalized);
+    expect(normalizeMusicTextTarget(document, { ...target, verse: 2 })).not.toEqual(normalized);
+    expect(normalizeMusicTextTarget(document, { ...target, eventId: "deleted" })).toBeNull();
+  });
+  it("更换可见任务不能借相同业务kind绕过设置保护", () => {
+    const { document, chordTarget } = fixture();
+    const draft = readMusicTextDraft(document, chordTarget)!;
+    expect(resolveSidebarRequest(draft, { type: "tab", kind: "chord" }, {
+      settingsDirty: true, visibleTaskChanged: true,
+    })).toBe("confirm");
+  });
+  it("切换简谱目标直接丢弃未应用修改，干净目标也可直接切换", () => {
+    const { target, measure } = fixture();
+    const numberedTarget = { ...target, kind: "numbered" as const, verse: undefined };
+    const action = { type: "target" as const, target: {
+      ...numberedTarget, eventId: measure.numberedVoice.events[1]!.id,
+    } };
+    expect(resolveSidebarRequest(null, action, { numberedTarget, numberedDirty: true })).toBe("execute");
+    expect(resolveSidebarRequest(null, action, { numberedTarget, numberedDirty: false })).toBe("execute");
+  });
   it("未创建草稿的默认侧栏不要求确认，有效目标才可进入编辑", () => {
     const { document, target } = fixture();
     expect(resolveSidebarRequest(null, { type: "tab", kind: "chord" })).toBe(
@@ -47,26 +85,67 @@ describe("音乐文本侧栏草稿保护", () => {
     ).toBeNull();
     expect(readMusicTextDraft(document, target)?.target).toEqual(target);
   });
-  it("非法未应用歌词在关闭、切标签、切拍或切段前仍需确认", () => {
+  it.each(["待应用歌词", "\n"])("未应用歌词 %j 在关闭、切标签、切拍或切段时直接丢弃", (text) => {
     const { document, target, measure } = fixture();
     const draft = readMusicTextDraft(document, target)!;
-    draft.text = "\n";
-    expect(resolveSidebarRequest(draft, { type: "close" })).toBe("confirm");
+    draft.text = text;
+    expect(resolveSidebarRequest(draft, { type: "close" })).toBe("execute");
     expect(resolveSidebarRequest(draft, { type: "tab", kind: "chord" })).toBe(
-      "confirm",
+      "execute",
     );
     expect(
       resolveSidebarRequest(draft, {
         type: "target",
         target: { ...target, verse: 2 },
       }),
-    ).toBe("confirm");
+    ).toBe("execute");
     expect(
       resolveSidebarRequest(draft, {
         type: "target",
         target: { ...target, eventId: measure.numberedVoice.events[1]!.id },
       }),
-    ).toBe("confirm");
+    ).toBe("execute");
+    expect(resolveSidebarRequest(draft, { type: "mode", mode: "single" })).toBe("execute");
+    expect(resolveSidebarRequest(draft, { type: "selection", selection: null })).toBe("execute");
+    expect(resolveSidebarRequest(draft, { type: "mode", mode: "sequence" })).toBe("ignore");
+    expect(draft.text).toBe(text);
+  });
+  it("简谱脏草稿在关闭、切标签、模式或选区时直接丢弃，重复目标保持输入", () => {
+    const { target } = fixture();
+    const numberedTarget = { ...target, kind: "numbered" as const, verse: undefined };
+    const guards = { numberedTarget, numberedDirty: true };
+    const actions: SidebarAction[] = [
+      { type: "close" },
+      { type: "tab", kind: "lyric" },
+      { type: "tab", kind: "chord" },
+      { type: "tab", kind: "score" },
+      { type: "numberedMode", mode: "single" },
+      { type: "numberedMode", mode: "sequence" },
+      { type: "selection", selection: null },
+    ];
+    for (const action of actions) {
+      expect(resolveSidebarRequest(null, action, guards)).toBe("execute");
+      expect(resolveSidebarRequest(null, action, { ...guards, settingsDirty: true })).toBe("confirm");
+    }
+    expect(resolveSidebarRequest(null, { type: "target", target: numberedTarget }, guards)).toBe("ignore");
+  });
+  it.each(["待应用歌词", "\n"])("歌词 %j 与简谱同时脏时直接离开，设置脏时仍确认", (text) => {
+    const { document, target } = fixture();
+    const draft = readMusicTextDraft(document, target)!;
+    draft.text = text;
+    const guards = { numberedTarget: { ...target, kind: "numbered" as const, verse: undefined }, numberedDirty: true };
+    const actions: SidebarAction[] = [
+      { type: "close" },
+      { type: "tab", kind: "numbered" },
+      { type: "mode", mode: "single" },
+      { type: "target", target: { ...target, verse: 2 } },
+      { type: "selection", selection: null },
+    ];
+    for (const action of actions) {
+      expect(resolveSidebarRequest(draft, action, guards)).toBe("execute");
+      expect(resolveSidebarRequest(draft, action, { ...guards, settingsDirty: true })).toBe("confirm");
+    }
+    expect(resolveSidebarRequest(draft, { type: "target", target }, guards)).toBe("ignore");
   });
   it("重复点击同一拍不同弦或当前标签不覆盖脏草稿", () => {
     const { document, target } = fixture();
@@ -224,7 +303,7 @@ describe("内容行入口目标解析", () => {
         type: "target",
         target: { ...target, eventId: measure.numberedVoice.events[1]!.id },
       }),
-    ).toBe("confirm");
+    ).toBe("execute");
   });
 
   it("谱行布局未就绪不能猜测目标谱行", () => {
