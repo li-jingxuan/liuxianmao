@@ -36,7 +36,7 @@ describe("MVP v7.2 简谱 mock", () => {
   });
 
   it.each(["compact", "comfortable"] as const)(
-    "%s 布局保留八度点、可命中的多音及图片图元，左线停在首行歌词上缘",
+    "%s 布局保留八度点、可命中的音符及图片图元，左线停在首行歌词上缘",
     (density) => {
       const layout = buildLayout(EXAMPLE_MVP_7_2_DOCUMENT, {
         systemWidth: A4_CONTENT_WIDTH,
@@ -108,7 +108,7 @@ describe("MVP v7.2 简谱 mock", () => {
         }
       }
       expect(notationCount).toBe(29);
-      expect(dotCount).toBe(15);
+      expect(dotCount).toBe(13);
       // 无简谱与歌词的小节单独成行时不创建简谱占位，竖线仅到横梁。
       const isolated = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);
       isolated.score.tracks[0]!.measures = [

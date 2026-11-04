@@ -173,10 +173,10 @@ const baseDocument: ILXMDocument = {
           ]),
           createMeasure(
             4,
-            "同拍多音与两行歌词",
+            "单音旋律与两行歌词",
             [
               {
-                numbered: "1+3+5",
+                numbered: "3",
                 notes: [
                   [3, 0],
                   [2, 1],
@@ -184,7 +184,7 @@ const baseDocument: ILXMDocument = {
                 ],
               },
               {
-                numbered: "2+4+6",
+                numbered: "4",
                 notes: [
                   [3, 2],
                   [2, 3],
@@ -192,7 +192,7 @@ const baseDocument: ILXMDocument = {
                 ],
               },
               {
-                numbered: "3+5+7",
+                numbered: "5",
                 notes: [
                   [3, 4],
                   [2, 5],
@@ -200,7 +200,7 @@ const baseDocument: ILXMDocument = {
                 ],
               },
               {
-                numbered: "1'+3'+5'",
+                numbered: "3'",
                 notes: [
                   [3, 12],
                   [2, 13],
