@@ -3,28 +3,19 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
-  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
   type ReactNode,
 } from "react";
-import { Alert, Button, Popover, Select, Tooltip } from "antd";
+import { Alert, Button, Tooltip } from "antd";
 import {
   CopyOutlined,
-  LinkOutlined,
-  PauseOutlined,
   DeleteOutlined,
   RedoOutlined,
   UndoOutlined,
 } from "@ant-design/icons";
-import {
-  createNumberedRhythmContext,
-  getMeasureCapacityTicks,
-  type ILXMRhythm,
-  type ILXMNumberedTarget,
-  type ILXMDocument,
-} from "@liuxianmao/lxm-editor";
+import type { ILXMRhythm } from "@liuxianmao/lxm-editor";
 import {
   useEditorSessionStore,
   useEditorStore,
@@ -44,11 +35,9 @@ import {
   type EditorToolPanelController,
 } from "./EditorToolPanelHost";
 import { createBeatPasteController } from "./beat-paste-controller";
-import { formatNumberedBeatPosition } from "./numbered-editor-target";
 import { useEditorRuntime } from "./EditorSessionRuntime";
 import type { EditorCommandAdapter } from "./editor-command-adapter";
 import type { ToolActionHandler } from "./editor-tool-actions";
-import { buildEditorToolCommand } from "./editor-tool-actions";
 import type { ToolNavigation } from "./editor-tool-catalog";
 import type { SelectionRequestResult } from "./editor-object-selection";
 import styles from "./index.module.scss";
@@ -104,242 +93,11 @@ const ToolButton = ({
   </Tooltip>
 );
 
-/** 简谱快捷技巧只提供显式端点选择；音乐规则继续由核心 numbered command 校验。 */
-const NumberedQuickTechniques = ({
-  document,
-  target,
-  blocked,
-  getBlocked,
-  execute,
-}: {
-  document: ILXMDocument;
-  target: ILXMNumberedTarget | null;
-  blocked: boolean;
-  getBlocked: () => boolean;
-  execute: EditorCommandAdapter;
-}) => {
-  const session = useEditorSessionStore();
-  const [kind, setKind] = useState<"tie" | "slur" | null>(null);
-  const [destination, setDestination] = useState<string>();
-  const resolved = useMemo(() => {
-    if (!target) return null;
-    const track = document.score.tracks.find(
-      (item) => item.id === target.trackId,
-    );
-    if (!track) return null;
-    const measure = track.measures.find((item) => item.id === target.measureId);
-    if (!measure) return null;
-    const event =
-      target.kind === "numberedEvent"
-        ? measure.numberedVoice.events.find(
-            (item) => item.id === target.eventId,
-          )
-        : measure.numberedVoice.events.find(
-            (item) => item.tick <= target.tick && item.tick < target.endTick,
-          );
-    if (!event || event.kind !== "notes") return null;
-    const item =
-      target.kind === "numberedEvent" && target.itemId
-        ? (event.items.find((candidate) => candidate.id === target.itemId) ??
-          event.items[0])
-        : event.items[0];
-    return { track, measure, event, item };
-  }, [document, target]);
-  const blockedReason = blocked
-    ? "先完成当前简谱草稿或确认操作。"
-    : !resolved
-      ? "请先选择简谱音符。"
-      : "";
-  const enabled = !!resolved && !blocked;
-  const options = useMemo(() => {
-    if (!resolved || !kind) return [];
-    if (kind === "tie") {
-      const orderedItems = resolved.track.measures.flatMap(
-        (measure, measureIndex) => {
-          const measureOffset = resolved.track.measures
-            .slice(0, measureIndex)
-            .reduce(
-              (sum, previous) =>
-                sum + getMeasureCapacityTicks(previous.timeSignature),
-              0,
-            );
-          const rhythm = createNumberedRhythmContext(measure.numberedVoice);
-          const items = measure.numberedVoice.events.flatMap((event) => {
-            const duration = rhythm.getEventDurationTicks(event);
-            return event.kind === "notes" && duration.ok
-              ? event.items.map((item) => ({
-                  value: item.id,
-                  label: `${measureIndex + 1}小节 · ${formatNumberedBeatPosition(event.tick, measure.timeSignature.denominator)} · ${item.token}`,
-                  token: item.token,
-                  start: measureOffset + event.tick,
-                  end: measureOffset + event.tick + duration.ticks,
-                }))
-              : [];
-          });
-          return items;
-        },
-      );
-      const origin = orderedItems.find(
-        (item) => item.value === resolved.item.id,
-      );
-      return origin
-        ? orderedItems
-            .filter(
-              (candidate) =>
-                candidate.start === origin.end &&
-                candidate.token.replace(/^n/, "") ===
-                  resolved.item.token.replace(/^n/, ""),
-            )
-            .map(({ value, label }) => ({ value, label }))
-        : [];
-    }
-    const originMeasureIndex = resolved.track.measures.indexOf(
-      resolved.measure,
-    );
-    const originOrder = resolved.measure.numberedVoice.events.indexOf(
-      resolved.event,
-    );
-    return resolved.track.measures.flatMap((measure, measureIndex) =>
-      measure.numberedVoice.events
-        .filter(
-          (event) =>
-            event.kind === "notes" &&
-            (measureIndex > originMeasureIndex ||
-              (measureIndex === originMeasureIndex &&
-                measure.numberedVoice.events.indexOf(event) > originOrder)),
-        )
-        .map((event) => ({
-          value: event.id,
-          label: `${measureIndex + 1}小节 · ${formatNumberedBeatPosition(event.tick, measure.timeSignature.denominator)} · ${event.items.map((item) => item.token).join("+")}`,
-        })),
-    );
-  }, [kind, resolved]);
-  const choose = (next: "tie" | "slur") => {
-    setDestination(undefined);
-    setKind(next);
-  };
-  const apply = async () => {
-    if (!resolved || !kind || !destination || getBlocked()) return;
-    const liveTarget = session.getState().numberedSelection;
-    if (JSON.stringify(liveTarget) !== JSON.stringify(target)) {
-      setKind(null);
-      return;
-    }
-    const result = await execute({
-      type: "numbered.mark.add",
-      trackId: resolved.track.id,
-      mark:
-        kind === "tie"
-          ? { type: "tie", fromItemId: resolved.item.id, toItemId: destination }
-          : {
-              type: "slur",
-              fromEventId: resolved.event.id,
-              toEventId: destination,
-            },
-    });
-    if (result.status === "applied" || result.status === "noop") setKind(null);
-  };
-  const popover = (type: "tie" | "slur") => (
-    <div
-      className={styles.toolMenu}
-      aria-label={type === "tie" ? "添加简谱延音线" : "添加简谱连音线"}
-    >
-      <div className={styles.toolTarget}>
-        起点：
-        {resolved
-          ? `${resolved.event.items.map((item) => item.token).join("+")} · ${resolved.item.token}`
-          : "未选择简谱音符"}
-      </div>
-      <label className={styles.toolbarField}>
-        <span>连接终点</span>
-        <Select
-          aria-label={type === "tie" ? "简谱延音线终点" : "简谱连音线终点"}
-          value={kind === type ? destination : undefined}
-          onChange={setDestination}
-          style={{ width: 230 }}
-          options={options}
-          placeholder="请选择后续音符"
-          disabled={!enabled || kind !== type}
-        />
-      </label>
-      <Button
-        type="primary"
-        disabled={!enabled || kind !== type || !destination}
-        onClick={() => void apply()}
-      >
-        添加{type === "tie" ? "延音线" : "连音线"}
-      </Button>
-    </div>
-  );
-  const toggleFermata = async () => {
-    if (!resolved || !enabled || getBlocked()) return;
-    const liveTarget = session.getState().numberedSelection;
-    if (JSON.stringify(liveTarget) !== JSON.stringify(target)) return;
-    const existing = resolved.track.numberedMarks.find(
-      (mark) => mark.type === "fermata" && mark.eventId === resolved.event.id,
-    );
-    await execute(
-      existing
-        ? {
-            type: "numbered.mark.remove",
-            trackId: resolved.track.id,
-            markId: existing.id,
-          }
-        : {
-            type: "numbered.mark.add",
-            trackId: resolved.track.id,
-            mark: { type: "fermata", eventId: resolved.event.id },
-          },
-    );
-  };
-  if (!target) return null;
-  const hasFermata = !!resolved?.track.numberedMarks.some(
-    (mark) => mark.type === "fermata" && mark.eventId === resolved.event.id,
-  );
-  return (
-    <div
-      className={styles.toolbarGroup}
-      role="group"
-      aria-label="简谱技巧快捷操作"
-    >
-      {(["tie", "slur"] as const).map((type) => (
-        <Popover
-          key={type}
-          trigger="click"
-          open={kind === type}
-          onOpenChange={(open) => setKind(open ? type : null)}
-          content={popover(type)}
-        >
-          <span>
-            <ToolButton
-              label={type === "tie" ? "添加简谱延音线" : "添加简谱连音线"}
-              availability={{ enabled, reason: blockedReason }}
-              onClick={() => choose(type)}
-            >
-              <LinkOutlined />
-              {type === "tie" ? " 延音" : " 连音"}
-            </ToolButton>
-          </span>
-        </Popover>
-      ))}
-      <ToolButton
-        label={hasFermata ? "移除简谱延长记号" : "添加简谱延长记号"}
-        pressed={hasFermata}
-        availability={{ enabled, reason: blockedReason }}
-        onClick={() => void toggleFermata()}
-      >
-        <PauseOutlined /> 延长
-      </ToolButton>
-    </div>
-  );
-};
-
-/** 菜单和更多工具只改变入口；预览控制器随会话存活，不再按版本/选区 key 重建。 */
+/** 桌面菜单只组织入口；预览控制器随会话存活。 */
 export const EditorToolbar = ({
   activeTarget,
   blocked,
   numberedBlocked,
-  getNumberedBlocked,
   onAction,
   beforeAction,
   execute,
@@ -348,7 +106,6 @@ export const EditorToolbar = ({
   activeTarget: MusicTextTarget | null;
   blocked: boolean;
   numberedBlocked: boolean;
-  getNumberedBlocked: () => boolean;
   onAction: ToolActionHandler;
   beforeAction: () => void;
   execute: EditorCommandAdapter;
@@ -436,20 +193,6 @@ export const EditorToolbar = ({
       live.current.editingBlocked
     )
       return false;
-    if (action.type === "sustain") {
-      const now = session.getState();
-      if (!now.document || now.numberedSelection || modals.isOpen()) return false;
-      const command = buildEditorToolCommand(now.document, now.selection, action);
-      if (!command) {
-        setErrorMessage("请选择六线谱起音或紧随其后的空拍。");
-        return false;
-      }
-      const result = await executeLatest(command);
-      const success = result.status === "applied" || result.status === "noop";
-      if (success) setErrorMessage(null);
-      else if ("message" in result) setErrorMessage(result.message);
-      return success;
-    }
     const success = await onAction(action);
     if (success) host.current?.close(true);
     return success;
@@ -514,10 +257,11 @@ export const EditorToolbar = ({
           <RedoOutlined />
         </ToolButton>
       </div>
-      <div className={styles.toolbarGroup} role="group" aria-label="音符与节奏">
-        <span>
-          {rhythmTarget.kind === "numbered" ? "简谱时值" : "六线谱时值"}
-        </span>
+      <div
+        className={styles.toolbarGroup}
+        role="group"
+        aria-label={rhythmTarget.kind === "numbered" ? "简谱时值" : "六线谱时值"}
+      >
         {RHYTHMS.map((rhythm) => (
           <ToolButton
             key={rhythm.base}
@@ -534,71 +278,7 @@ export const EditorToolbar = ({
             />
           </ToolButton>
         ))}
-        {([0, 1, 2] as const).map((dots) => (
-          <ToolButton
-            key={dots}
-            label={
-              dots === 0 ? "取消附点" : dots === 1 ? "设置单附点" : "设置双附点"
-            }
-            availability={rhythmAvailability}
-            pressed={rhythmTarget.rhythm?.dots === dots}
-            onClick={() => void runRhythm({ type: "dots", dots })}
-          >
-            {dots === 0 ? "无点" : dots === 1 ? "·" : "··"}
-          </ToolButton>
-        ))}
-        <ToolButton
-          label="设置为闷音音符 x"
-          title={editorShortcutLabel("muted")}
-          availability={available(tools.note)}
-          onClick={() => void run({ type: "muted" })}
-        >
-          X
-        </ToolButton>
-        <ToolButton
-          label="将选中 Beat 设为休止并清空全部弦音符"
-          title={editorShortcutLabel("rest")}
-          availability={available(tools.beatRange)}
-          onClick={() => void run({ type: "rest" })}
-        >
-          休止
-        </ToolButton>
-        <ToolButton
-          label="取消选中 Beat 的休止状态"
-          title={editorShortcutLabel("restore")}
-          availability={available(tools.beatRange)}
-          onClick={() => void run({ type: "restore" })}
-        >
-          恢复
-        </ToolButton>
-        <ToolButton
-          label="延续一拍"
-          title="延续前音一个四分音符，不重新拨弦；后方须有空白。"
-          availability={available(
-            numberedSelection
-              ? { enabled: false, reason: "请先选择六线谱起音或空拍。" }
-              : tools.sustain,
-          )}
-          onClick={() => void run({ type: "sustain" })}
-        >
-          <LinkOutlined /> 延续一拍
-        </ToolButton>
-        <ToolButton
-          label="删除所选音符"
-          title={editorShortcutLabel("remove")}
-          availability={available(tools.note)}
-          onClick={() => void run({ type: "removeNotes" })}
-        >
-          <DeleteOutlined />
-        </ToolButton>
       </div>
-      <NumberedQuickTechniques
-        document={document}
-        target={numberedSelection}
-        blocked={numberedBlocked || !!modal}
-        getBlocked={getNumberedBlocked}
-        execute={executeLatest}
-      />
       <EditorToolPanelHost
         ref={host}
         beforeOpen={beforeAction}
@@ -681,19 +361,32 @@ export const EditorToolbar = ({
           ),
           tuplet: (
             <div className={styles.toolMenu}>
-              <TupletToolbar
-                document={document}
-                selection={selection}
-                execute={execute}
-                blocked={editingBlocked}
-                onSuccess={() => host.current?.close(true)}
-              />
+              {!numberedSelection && (
+                <TupletToolbar
+                  document={document}
+                  selection={selection}
+                  execute={execute}
+                  blocked={editingBlocked}
+                  onSuccess={() => host.current?.close(true)}
+                />
+              )}
               <Button block onClick={() => navigate("tuplet")}>
                 连音比例与选区详情…
               </Button>
+              {numberedSelection && (
+                <Button block onClick={() => navigate("note")}>
+                  简谱时值与连接…
+                </Button>
+              )}
             </div>
           ),
-          technique: (
+          technique: numberedSelection ? (
+            <div className={styles.toolMenu} aria-label="简谱技巧菜单">
+              <Button block onClick={() => navigate("note")}>
+                简谱时值、延音线与连音线…
+              </Button>
+            </div>
+          ) : (
             <TechniqueToolbar
               document={document}
               selection={selection}
@@ -714,7 +407,7 @@ export const EditorToolbar = ({
         }}
       </EditorToolPanelHost>
       <span id="editor-tool-reason" className={styles.toolbarHint}>
-        {reason || tools.rhythm.reason || "当前选区可编辑音符与节奏。"}
+        {rhythmAvailability.reason || reason || "当前选区可编辑音符与节奏。"}
       </span>
       <PasteNotice controller={paste} />
     </div>

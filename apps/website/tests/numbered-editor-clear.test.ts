@@ -166,7 +166,7 @@ const setup = (
       entered = true;
       findInput(
         editor,
-        mode === "single" ? "单音组简谱" : "连续简谱",
+        mode === "single" ? "单音组简谱" : "音符内容",
       )!.onChange({ target: { value: raw } });
     }
     return editor;

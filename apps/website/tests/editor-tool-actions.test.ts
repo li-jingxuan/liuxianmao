@@ -7,7 +7,6 @@ import {
 } from "@liuxianmao/lxm-editor";
 import { buildEditorToolCommand } from "../components/EditorShell/editor-tool-actions";
 import { createEditorSession } from "../stores/editor-store";
-import { findEditorTools } from "../components/EditorShell/editor-tool-catalog";
 import {
   TECHNIQUE_OPTIONS,
   TECHNIQUE_GROUPS,
@@ -114,13 +113,7 @@ describe("工具动作与目录", () => {
       }),
     ).toMatchObject({ boundary: { kind: "trackStart" } });
   });
-  it("搜索只返回目录元数据，覆盖中文别名/空结果；16类分组不丢失", () => {
-    expect(findEditorTools("覆盖").map((item) => item.group)).toContain("beat");
-    expect(findEditorTools("推弦").map((item) => item.group)).toEqual([
-      "technique",
-    ]);
-    expect(findEditorTools("不存在的工具")).toEqual([]);
-    expect(findEditorTools(" ")).toHaveLength(6);
+  it("技巧分组保留全部 16 类", () => {
     expect(TECHNIQUE_GROUPS.map((group) => group.items.length)).toEqual([
       5, 6, 5,
     ]);

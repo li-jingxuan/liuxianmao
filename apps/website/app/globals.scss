@@ -12,16 +12,16 @@
 
 :root {
   color-scheme: light;
-  --background: #f7f8fb;
+  --background: #f4f6fa;
   --panel: #ffffff;
-  --panel-muted: #f3f6fb;
-  --foreground: #121417;
-  --muted: #687182;
+  --panel-muted: #f4f6fa;
+  --foreground: #202838;
+  --muted: #626e82;
   --subtle: #98a1b2;
-  --border: #e4e8ef;
-  --border-strong: #c9ced8;
-  --accent: #356cff;
-  --accent-soft: #edf2ff;
+  --border: #dce2ec;
+  --border-strong: #8995a8;
+  --accent: #285be0;
+  --accent-soft: #edf3ff;
   --success: #55b77a;
   --dark: #1d2025;
   --shadow: 0 18px 48px rgb(25 33 61 / 8%);
@@ -41,11 +41,23 @@ body {
   margin: 0;
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-family: "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+  font-size: 13px;
 }
 
 button {
   font: inherit;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 @media print {

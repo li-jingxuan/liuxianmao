@@ -23,7 +23,7 @@ interface EditorModalBase {
 }
 export type EditorModalRequest = EditorModalBase &
   (
-    | { kind: "keyboard-help" | "structure-impact" }
+    | { kind: "structure-impact" }
     | { kind: "beat-paste"; preview: BeatPasteController }
     | { kind: "technique-type"; picker: TechniqueTypeController }
   );

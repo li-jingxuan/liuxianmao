@@ -14,13 +14,13 @@
   display: flex;
   gap: 4px;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   margin-bottom: 0;
-  padding: 8px 20px;
+  padding: 0 20px;
+  height: 44px;
   min-height: 44px;
-  max-height: 176px;
   flex: none;
-  overflow: auto;
+  overflow: visible;
   border-bottom: 1px solid var(--border);
   background: var(--panel);
 }
@@ -38,15 +38,6 @@
   align-items: center;
   font-size: 14px;
   color: #626e82;
-}
-
-.toolbarSwitch {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: #5b6470;
-  font-size: 12px;
-  white-space: nowrap;
 }
 
 .techniqueSelectionLabel {
@@ -103,17 +94,22 @@
   min-width: 0;
   min-height: 0;
   overflow: auto;
-  padding: 24px;
+  padding: 30px 34px 56px;
   background: var(--panel-muted);
 }
 
 .paper {
-  width: 210mm;
-  min-height: 297mm;
+  width: 780px;
+  min-height: 900px;
   margin: 0 auto;
-  padding: 8mm;
+  padding: 35px 42px;
   background: #fff;
-  box-shadow: 0 4px 24px rgb(0 0 0 / 12%);
+  box-shadow: 0 3px 22px rgb(32 52 86 / 4%);
+}
+
+@media screen and (min-width: 1600px) {
+  .paper { width: 800px; }
+  .pageViewport { padding-top: 32px; }
 }
 
 .scoreSvg .fretNoteText {
@@ -167,14 +163,9 @@
   stroke: none;
 }
 
-.inputHint,
 .errorMessage {
   margin: 0 0 8px;
   font-size: 13px;
-}
-
-.inputHint {
-  color: #5b6470;
 }
 
 .errorMessage {
@@ -207,6 +198,7 @@
   .paper {
     width: 210mm;
     min-height: 297mm;
+    padding: 8mm;
     margin: 0;
     box-shadow: none;
   }
@@ -223,8 +215,6 @@
 
 /** 属性侧栏占用视口空间，不改变纸张或核心谱面几何。 */
 .editor {
-  container-type: inline-size;
-  container-name: score-editor;
   min-width: 1440px;
   min-height: 0;
 }
@@ -234,9 +224,6 @@
   &:empty {
     display: none;
   }
-}
-.protectedTools {
-  display: contents;
 }
 .editorWorkspace {
   display: grid;
@@ -273,7 +260,7 @@
   border-radius: 0;
   background: var(--panel);
   box-shadow: none;
-  font-size: 14px;
+  font-size: 13px;
   &[hidden] {
     display: none;
   }
@@ -283,8 +270,8 @@
     line-height: 1.6;
   }
   h3 {
-    margin: 0 0 16px;
-    font-size: 16px;
+    margin: 0 0 12px;
+    font-size: 14px;
     font-weight: 600;
   }
 }
@@ -362,7 +349,6 @@
     :global(textarea.ant-input) { resize: none; }
   }
   .sidebarSection { padding: 0; border: 0; }
-  .sidebarTarget { display: none; }
   .sidebarActions {
     gap: 6px;
     flex-wrap: wrap;
@@ -427,7 +413,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 12px 0;
+  padding: 0 13px;
   border-bottom: 1px solid var(--border);
   :global(.ant-tabs) {
     display: flex;
@@ -443,8 +429,9 @@
     margin-inline: 0 !important;
     flex: 1;
     justify-content: center;
-    min-height: 40px;
-    padding: 8px 6px;
+    min-height: 38px;
+    padding: 9px 6px 11px;
+    font-size: 12px;
     color: var(--muted);
     font-weight: 600;
     &:hover {
@@ -459,7 +446,7 @@
     }
   }
   :global(.ant-tabs-ink-bar) {
-    height: 3px;
+    height: 2px;
   }
 }
 
@@ -493,15 +480,12 @@
   overflow-x: hidden;
   scroll-padding-block: 12px;
   padding: 16px 20px 20px;
+  scrollbar-width: thin;
+  scrollbar-color: #ccd5e3 transparent;
 }
 .paragraphTabs {
   margin: 0 0 16px;
   :global(.ant-segmented-item) { min-height: 30px; }
-}
-.sidebarTarget {
-  margin: 0 0 18px;
-  color: var(--muted);
-  font-size: 12px;
 }
 .sidebarEmpty {
   display: flex;
@@ -548,89 +532,6 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   column-gap: 16px;
 }
-.sectionHeading {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-  h3 {
-    margin: 0;
-  }
-}
-.fingeringGrid {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    table-layout: fixed;
-    font-size: 13px;
-  }
-  th,
-  td {
-    padding: 3px 4px;
-    text-align: center;
-  }
-  th {
-    color: var(--muted);
-    font-weight: 400;
-  }
-  th:first-child {
-    width: 32px;
-  }
-}
-.chordPreview {
-  // 指法预览位于六弦表格上方，顺序与设计稿一致。
-  order: -1;
-  background: var(--panel-muted);
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 10px 6px;
-  overflow-wrap: anywhere;
-  h4 {
-    align-self: flex-start;
-    margin: 0 0 16px;
-    font-size: 13px;
-    font-weight: 600;
-  }
-  strong {
-    font-size: 20px;
-    margin-bottom: 6px;
-  }
-  svg {
-    max-width: 100%;
-  }
-  p {
-    font-size: 12px;
-    color: #b42318;
-  }
-}
-.barreSettings {
-  margin-top: 18px;
-  summary {
-    font-weight: 600;
-    cursor: pointer;
-    margin-bottom: 12px;
-  }
-  fieldset {
-    padding: 10px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-    margin-bottom: 10px;
-  }
-  legend {
-    padding: 0 4px;
-    color: var(--muted);
-  }
-}
 .sidebarTip {
   margin-top: 16px;
   padding: 12px;
@@ -644,7 +545,7 @@
 .sidebarFooter {
   flex: none;
   &:empty { display: none; }
-  padding: 12px 18px 16px;
+  padding: 10px 20px 12px;
   border-top: 1px solid var(--border);
 }
 .sidebarActions {
@@ -698,24 +599,7 @@
   box-shadow: 0 8px 28px rgb(15 23 42 / 20%);
 }
 
-/** 窄窗口采用上下分区，连续录入时谱面仍然可以点选，切换不卸载草稿。 */
-
-@container score-editor (width < 520px) {
-  .propertyGrid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .sidebarHeader [role="tab"] {
-    padding: 6px;
-    font-size: 12px;
-  }
-  .sidebarFooter {
-    padding: 8px;
-  }
-}
 @media print {
-  .editor {
-    container-type: normal;
-  }
   .editorControls,
   .musicTextSidebar {
     display: none;
@@ -733,7 +617,6 @@
 }
 
 // inert 保留正常禁用语义，同时向用户提示哪些谱面操作暂时暂停。
-.protectedTools[inert] > *,
 .toolbarGroup[inert] > * {
   opacity: 0.45;
 }
@@ -830,30 +713,6 @@
   margin: 0 0 16px;
 }
 
-.sequenceTable {
-  width: 100%;
-  font-size: 12px;
-  border-collapse: collapse;
-  th,
-  td {
-    padding: 6px 4px;
-    text-align: left;
-    border-bottom: 1px solid var(--border);
-  }
-}
-
-/** 谱面焦点由拍点光标与选区提示，不再绘制整页外框；状态播报不增加占位。 */
-.cursorStatus {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
 /** 状态带保持紧凑，位置、选区和未应用草稿在窄窗口中自然换行。 */
 .statusBar {
   display: flex;
@@ -873,28 +732,18 @@
   grid-template-columns: 140px minmax(120px, 1fr) auto;
   align-items: center;
   gap: 20px;
-  min-height: 56px;
-  padding: 12px 24px;
+  height: 58px;
+  min-height: 58px;
+  padding: 0 24px;
   background: var(--panel);
   border-bottom: 1px solid var(--border);
 }
 .editorBrand {
   display: flex;
   align-items: center;
-  gap: 10px;
   color: var(--accent);
   font-size: 18px;
   white-space: nowrap;
-  > span {
-    display: grid;
-    place-items: center;
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
-    color: white;
-    background: var(--accent);
-    font-size: 22px;
-  }
 }
 .editorHeading {
   display: flex;
@@ -905,7 +754,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 500;
   }
   > span {
@@ -928,7 +777,7 @@
   border-radius: 6px;
   background: var(--panel);
   color: var(--foreground);
-  font-size: 14px;
+  font-size: 13px;
   white-space: nowrap;
   cursor: pointer;
   &:hover:not(:disabled) {
@@ -943,7 +792,7 @@
 .toolbarGroup {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 4px;
   padding-right: 10px;
   margin-right: 6px;
@@ -965,27 +814,7 @@
   margin-left: auto;
   color: var(--muted);
   font-size: 11px;
-  max-width: 230px;
-}
-.viewSettings {
-  display: grid;
-  gap: 18px;
-  width: min(300px, calc(100vw - 48px));
-  color: #202838;
-  h3 {
-    margin: 0;
-    font-size: 15px;
-  }
-  label {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  p {
-    margin: 0;
-    color: #626e82;
-    font-size: 12px;
-  }
+  max-width: 190px;
 }
 .selectionPanel {
   padding: 10px 0;
@@ -1051,44 +880,14 @@
 }
 .statusBar {
   flex: none;
-  min-height: 32px;
+  min-height: 28px;
   margin: 0;
-  padding: 6px 20px;
+  padding: 4px 17px;
   border-top: 1px solid var(--border);
   background: var(--panel);
   color: var(--muted);
   :global(.ant-tag) {
     margin: 0;
-  }
-}
-.statusView {
-  margin-left: auto;
-  color: var(--muted);
-  white-space: nowrap;
-}
-@container score-editor (width < 900px) {
-  .editorHeader {
-    grid-template-columns: 110px minmax(0, 1fr);
-    gap: 8px;
-    padding: 10px 12px;
-  }
-  .headerActions {
-    grid-column: 1 / -1;
-    justify-content: flex-end;
-    flex-wrap: wrap;
-  }
-  .editorToolbar {
-    padding: 8px 12px;
-  }
-  .toolbarHint {
-    display: block;
-    flex-basis: 100%;
-    margin-left: 0;
-    max-width: none;
-  }
-  .statusBar {
-    padding-inline: 12px;
-    font-size: 11px;
   }
 }
 @media print {
@@ -1103,20 +902,14 @@
     display: block;
     height: auto;
     min-width: 0;
-    container-type: normal;
   }
 }
 
-/** 工具只重排入口；参数内容和草稿 owner 始终保留同一实例。 */
+/** 桌面工具入口与参数保持同一实例。 */
 .advancedToolTriggers {
-  --editor-tools-mode: wide;
   display: flex;
-  flex-wrap: wrap;
   gap: 4px;
   align-items: center;
-}
-.compactToolTrigger {
-  display: none;
 }
 .toolPanelHost {
   width: min(345px, calc(100vw - 56px));
@@ -1147,26 +940,12 @@
   border-radius: 6px;
   font-size: 13px;
 }
-.toolSearch {
-  margin-bottom: 12px;
-}
-.toolSearchResults {
-  display: grid;
-  gap: 4px;
-  margin-top: 8px;
-  button {
-    white-space: normal;
-    height: auto;
-    min-height: 32px;
-    text-align: left;
-  }
-}
 .toolDetails {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
   h3 {
-    font-size: 16px;
+    font-size: 14px;
     font-weight: 500;
     margin: 8px 0 0;
   }
@@ -1224,17 +1003,6 @@
   flex-basis: 100%;
   padding-block: 4px;
   font-size: 12px;
-}
-@container score-editor (width < 900px) {
-  .advancedToolTriggers {
-    --editor-tools-mode: compact;
-  }
-  .wideToolTrigger {
-    display: none;
-  }
-  .compactToolTrigger {
-    display: inline-flex;
-  }
 }
 @media (max-width: 600px) {
   .techniqueTypeGrid {
@@ -1304,11 +1072,6 @@
     display: block;
     font-size: 11px;
     color: var(--muted);
-  }
-}
-@container score-editor (width < 900px) {
-  .propertyFieldset {
-    margin-block: 12px;
   }
 }
 

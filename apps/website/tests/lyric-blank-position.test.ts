@@ -27,7 +27,9 @@ describe("空简谱歌词入口", () => {
     track.numberedMarks = [];
     measure.numberedVoice = { events: [], tuplets: [] };
     measure.lyrics = [];
-    const start = resolveParagraphInsertionTarget(document, null)!;
+    const start = resolveParagraphInsertionTarget(document, {
+      kind: "numbered", trackId: track.id, measureId: measure.id, tick: 0, endTick: 960,
+    })!;
     const target = { ...start, kind: "lyric" as const, verse: 1 as const };
     expect(start).toMatchObject({ tick: 0 });
     expect(readMusicTextDraft(document, target)?.text).toBe("");

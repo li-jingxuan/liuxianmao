@@ -35,7 +35,7 @@ try {
     ...(process.env.LXM_BROWSER_CHANNEL ? { channel: process.env.LXM_BROWSER_CHANNEL } : {}),
   });
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
-  page.setDefaultTimeout(90000);
+  page.setDefaultTimeout(20000);
   const errors = [];
   page.on("console", (message) => { if (message.type() === "error") console.error(message.text()); });
   page.on("pageerror", (error) => {
@@ -59,7 +59,7 @@ try {
   await sidebar.getByRole("button", {name:"在当前位置录入简谱",exact:true}).waitFor({state:"visible"});
   await page.screenshot({path:path.resolve(website,"../../artifacts/sidebar-v2-writing-entry.png"), animations: "disabled"});
   await sidebar.getByRole("button", {name:"在当前位置录入简谱",exact:true}).click();
-  await sidebar.getByRole("textbox", {name:/连续简谱|单音组简谱/}).waitFor({state:"visible"});
+  await sidebar.getByRole("textbox", {name:/音符内容|单音组简谱/}).waitFor({state:"visible"});
   await page.screenshot({path:path.resolve(website,"../../artifacts/sidebar-v2-numbered.png"), animations:"disabled"});
   assert.deepEqual(await page.evaluate(() => window.coexistStore.getState().historyDepth),initialHistory);
   await page.locator('[data-text-surface="popover"]').getByRole("button", {name:"结束文字编辑",exact:true}).click();
@@ -152,7 +152,7 @@ try {
   await page.getByRole("application", { name: "六线谱编辑器" }).locator('[data-system-index="0"]').getByText("1", { exact: true }).first().click();
   await popover.waitFor({ state: "visible" });
   const numberedInput = popover.getByRole("textbox");
-  const numberedSidebarInput = fields.getByRole("textbox", { name: /连续简谱|单音组简谱/ });
+  const numberedSidebarInput = fields.getByRole("textbox", { name: /音符内容|单音组简谱/ });
   assert.equal(await numberedSidebarInput.isVisible(), true);
    assert.equal(await fields.getByLabel("简谱节奏模板").isVisible(), false);
   await page.waitForFunction(() => document.activeElement?.closest('[data-text-surface="popover"]') && document.activeElement instanceof HTMLInputElement);
@@ -293,23 +293,23 @@ try {
   assert.deepEqual(historyAfterSwitch, historyBefore);
   await popover.getByRole("textbox").fill("#4");
   await popover.getByRole("textbox").dispatchEvent("compositionstart");
-  await popover.getByRole("textbox").press("Enter");
+  await popover.getByRole("textbox").press("Control+Enter");
   assert.equal((await currentEvent()).items[0].token, "5");
   await popover.getByRole("textbox").evaluate((node) => {
     node.dispatchEvent(new CompositionEvent("compositionend", { bubbles: true }));
-    node.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    node.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", ctrlKey: true, bubbles: true, cancelable: true }));
   });
   assert.equal((await currentEvent()).items[0].token, "5");
   await page.waitForFunction(() => !document.querySelector('[data-text-surface="popover"] button[aria-label="应用"]')?.disabled);
-  await popover.getByRole("textbox").press("Enter");
+  await popover.getByRole("textbox").press("Control+Enter");
   await page.waitForFunction(() => window.coexistStore.getState().document.score.tracks[0].measures[0].numberedVoice.events.find((event) => event.id === "focus-five").items[0].token === "#4");
   assert.equal(await numberedSidebarInput.inputValue(), "#4");
   const historyAfterEnter = await page.evaluate(() => window.coexistStore.getState().historyDepth);
   assert.equal(historyAfterEnter.past, historyAfterSwitch.past + 1);
-  await popover.getByRole("textbox").press("Enter");
+  await popover.getByRole("textbox").press("Control+Enter");
   assert.deepEqual(await page.evaluate(() => window.coexistStore.getState().historyDepth), historyAfterEnter);
   await popover.getByRole("textbox").fill("invalid");
-  await popover.getByRole("textbox").press("Enter");
+  await popover.getByRole("textbox").press("Control+Enter");
   assert.equal((await currentEvent()).items[0].token, "#4");
   assert.deepEqual(await page.evaluate(() => window.coexistStore.getState().historyDepth), historyAfterEnter);
   await popover.getByRole("button", { name: "同拍下一个简谱音符", exact: true }).click();
@@ -334,7 +334,7 @@ try {
   assert.equal((await currentEvent()).items[0].token, "#4");
   await digit("focus-seven").click();
   await popover.getByRole("textbox").fill("6");
-  await popover.getByRole("button", { name: /取\s*消/ }).click();
+  await popover.getByRole("button", { name: "结束编辑", exact: true }).click();
   await popover.waitFor({ state: "hidden" });
   const seventhToken = () => page.evaluate(() => window.coexistStore.getState().document.score.tracks[0].measures[0].numberedVoice.events.find((event) => event.id === "focus-seven").items[0].token);
   assert.equal(await seventhToken(), "7");
@@ -374,7 +374,8 @@ try {
   assert.equal(await popover.getByRole("group", { name: "常用时值" }).getByRole("button", { name: "八分音符", exact: true }).getAttribute("aria-pressed"), "true");
   assert.equal(await sidebar.getByText(/暂存|返回编辑|本次编辑不再提示/).count(), 0);
   await sidebar.getByRole("tab", {name:"歌曲",exact:true}).click();
-  await sidebar.locator("#settings-capo").fill("3");
+  await sidebar.getByRole("combobox", {name:"Capo",exact:true}).click();
+  await page.locator(".ant-select-dropdown:visible").getByText("3 品", {exact:true}).click();
   await page.getByRole("button", {name:"收起编辑台",exact:true}).click();
   await page.getByRole("button", {name:"导出曲谱",exact:true}).click();
   const blockedOutput = page.getByRole("dialog", {name:"先处理未应用的输入"});
@@ -382,7 +383,7 @@ try {
   await blockedOutput.getByRole("button", {name:"返回编辑",exact:true}).click();
   await page.waitForFunction(() => document.activeElement?.id === "settings-capo");
   assert.equal(await sidebar.isVisible(), true);
-  assert.equal(await sidebar.locator("#settings-capo").inputValue(), "3");
+  assert.equal(await sidebar.locator("#settings-capo").locator("..").getAttribute("title"), "3 品");
   await sidebar.getByRole("button", {name:"恢复本组",exact:true}).click();
   assert.equal(await blockedOutput.isVisible(), false);
   await sidebar.getByRole("button", {name:/^编辑当前小节/}).click();

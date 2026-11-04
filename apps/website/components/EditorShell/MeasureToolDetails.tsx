@@ -1,6 +1,6 @@
 "use client";
 import { Alert, Button, Form, Select, Tooltip } from "antd";
-import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useImperativeHandle, useLayoutEffect, useRef, useState, type Ref } from "react";
 import { createPortal } from "react-dom";
 import {
   LXM_EDITABLE_TIME_SIGNATURES,
@@ -56,26 +56,47 @@ const BarlineSymbol = ({ value }: { value: ILXMBarlineType }) => (
 
 /** 立即生效的小节工具与设置 owner 的常驻局部表面共用任务区。 */
 export const MeasureToolDetails = ({
+  ref,
   document,
   selection,
   target,
   blocked,
-  boundaryOnly,
   onAction,
   navigate,
   measureHost,
 }: {
+  ref?: Ref<{ focusBoundary: () => boolean }>;
   document: ILXMDocument;
   selection: ILXMTabCellSelection | null;
   target?: MeasureToolTarget;
   blocked: boolean;
-  boundaryOnly: boolean;
   onAction: ToolActionHandler;
   navigate: (destination: ToolNavigation) => void;
   measureHost?: (node: HTMLDivElement | null) => void;
 }) => {
   const settingsRoot = useRef<HTMLDivElement>(null);
+  const boundaryRoot = useRef<HTMLDetailsElement>(null);
+  const boundaryFocusPending = useRef(false);
+  const focusBoundary = useCallback(() => {
+    const root = boundaryRoot.current;
+    if (!root) return false;
+    root.open = true;
+    root.scrollIntoView({ block: "nearest" });
+    root.querySelector<HTMLElement>("summary")?.focus({ preventScroll: true });
+    return true;
+  }, []);
+  useImperativeHandle(ref, () => ({ focusBoundary: () => {
+    boundaryFocusPending.current = true;
+    return focusBoundary();
+  } }));
   const [boundaryHost, setBoundaryHost] = useState<HTMLElement | null>(null);
+  // 设置 owner 的插槽稍后挂载时，恢复同一次显式边界导航的展开与焦点。
+  useLayoutEffect(() => {
+    if (boundaryFocusPending.current) {
+      focusBoundary();
+      if (boundaryHost) boundaryFocusPending.current = false;
+    }
+  }, [boundaryHost, focusBoundary]);
   const bindSettingsHost = useCallback((node: HTMLDivElement | null) => {
     settingsRoot.current = node;
     measureHost?.(node);
@@ -177,18 +198,17 @@ export const MeasureToolDetails = ({
       </Button>
       {index !== 0 && <p className={styles.settingsHint}>{tools.startRepeat.reason || "谱首反复仅对第一小节可用。"}</p>}
     </div> : null;
-  const boundary = boundaryOnly ? boundaryTools : <details className={taskStyles.disclosure}>
+  const boundary = <details ref={boundaryRoot} className={taskStyles.disclosure}>
     <summary>小节线与反复<small>右边界：{BARLINES.find((item) => item.value === measure?.barline)?.label ?? "未选择"}</small></summary>
     {boundaryTools}
   </details>;
   return (
     <section className={styles.toolDetails} aria-label="小节属性详情">
       {track && measure ? <>
-      <h3 tabIndex={-1}>{boundaryOnly ? "右边界类型" : "小节拍号"}</h3>
+      <h3 tabIndex={-1}>小节拍号</h3>
       <div className={styles.toolTarget}>
         {atEnd ? "焦点位于谱尾 · " : ""}第 {index + 1} 小节
       </div>
-      {!boundaryOnly && (
         <Form.Item label="当前小节拍号" htmlFor="tool-measure-signature">
           <Select
             id="tool-measure-signature"
@@ -200,8 +220,7 @@ export const MeasureToolDetails = ({
           />
           <p className={styles.settingsHint}>选择后生效：从第 {index + 1} 小节起，直到下一拍号变化点。</p>
         </Form.Item>
-      )}
-      {!measureHost && !boundaryOnly && <>
+      {!measureHost && <>
       <h3 tabIndex={-1}>段落标记与小节复用</h3>
       <p className={styles.settingsHint}>
         段落：{measure.sectionLabel || "未设置"}（仅元数据）
@@ -214,8 +233,8 @@ export const MeasureToolDetails = ({
       </Button>
       </>}
       </> : <Alert variant="filled" type="info" title="请选择目标小节。" />}
-      <div ref={bindSettingsHost} hidden={boundaryOnly || !track || !measure} data-settings-host="measure" />
-      {track && measure && (boundaryHost && !boundaryOnly && measureHost ? createPortal(boundary, boundaryHost) : boundary)}
+      <div ref={bindSettingsHost} hidden={!track || !measure} data-settings-host="measure" />
+      {track && measure && (boundaryHost && measureHost ? createPortal(boundary, boundaryHost) : boundary)}
     </section>
   );
 };

@@ -1,0 +1,181 @@
+.songForm {
+  min-width: 0;
+
+  :global(.ant-form-item) {
+    margin-bottom: 12px;
+  }
+
+  :global(.ant-form-item-label) {
+    padding-bottom: 6px;
+
+    > label {
+      height: auto;
+      font-size: 12px;
+      font-weight: 500;
+    }
+  }
+
+  :global(.ant-select) {
+    width: 100%;
+  }
+
+  :global(.ant-alert) {
+    margin-block: 8px;
+  }
+}
+
+.section {
+  min-width: 0;
+  margin-bottom: 19px;
+
+  + .section {
+    padding-top: 17px;
+    border-top: 1px solid var(--border);
+  }
+}
+
+.sectionHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+
+  h3 {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  span {
+    color: var(--muted);
+    font-size: 11px;
+  }
+}
+
+.hint,
+.performanceHint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.65;
+}
+
+.performanceFields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  column-gap: 12px;
+
+  > form {
+    display: grid;
+    grid-template-rows: subgrid;
+    grid-row: 1 / span 4;
+    min-width: 0;
+
+    &:first-child {
+      grid-column: 1;
+    }
+
+    &:nth-child(2) {
+      grid-column: 2;
+    }
+
+    > :global(.ant-form-item) {
+      grid-row: 1;
+    }
+
+    > .inlineActions {
+      grid-row: 3;
+      margin-block: 12px;
+    }
+
+    > :global(.ant-alert) {
+      grid-row: 4;
+    }
+  }
+}
+
+.performanceHint {
+  grid-row: 2;
+  grid-column: 1 / -1;
+}
+
+.inlineActions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+
+  :global(.ant-btn) {
+    min-height: 32px;
+    padding-inline: 10px;
+    font-size: 12px;
+  }
+}
+
+.measureLink {
+  height: auto;
+  padding: 4px 0;
+  font-size: 12px;
+}
+
+.footer {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.actionState {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  font-size: 11px;
+  line-height: 1.6;
+
+  strong {
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  span {
+    color: var(--muted);
+  }
+}
+
+.footerActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+
+  :global(.ant-btn) {
+    min-height: 34px;
+    padding-inline: 12px;
+    font-size: 12px;
+  }
+
+  > :last-child {
+    margin-left: auto;
+  }
+}
+
+.otherGroups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+
+  :global(.ant-btn) {
+    height: auto;
+    padding: 0;
+    font-size: 11px;
+  }
+}
+
+.footerHint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.65;
+}

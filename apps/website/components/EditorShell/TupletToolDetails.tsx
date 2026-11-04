@@ -6,14 +6,62 @@ import {
   LXM_TUPLET_RATIOS,
   resolveTupletSelection,
   type ILXMDocument,
+  type ILXMNumberedTarget,
   type ILXMTabCellSelection,
 } from "@liuxianmao/lxm-editor";
 import type { EditorCommandAdapter } from "./editor-command-adapter";
 import styles from "./index.module.scss";
-import { formatNumberedBeatPosition } from "./numbered-editor-target";
+import { formatNumberedBeatPosition, resolveNumberedEditorTarget } from "./numbered-editor-target";
+import type { MusicTextTarget } from "./music-text-draft";
+
+/** 简谱选择只读取独立声部，绝不把仍保留的 TAB 选区当成连音成员。 */
+export const TupletToolDetails = ({ numberedSelection, onEditNumberedRhythm, ...props }: {
+  document: ILXMDocument;
+  selection: ILXMTabCellSelection | null;
+  numberedSelection?: ILXMNumberedTarget | null;
+  blocked: boolean;
+  execute: EditorCommandAdapter;
+  onEditNumberedRhythm?: (target: MusicTextTarget) => void;
+}) => {
+  const [busy, setBusy] = useState(false);
+  const lock = useRef(false);
+  if (!numberedSelection) return <TabTupletToolDetails {...props} />;
+  const { document, blocked, execute } = props;
+  const resolved = resolveNumberedEditorTarget(document, numberedSelection);
+  const track = document.score.tracks.find((item) => item.id === resolved?.trackId);
+  const measureIndex = track?.measures.findIndex((item) => item.id === resolved?.measureId) ?? -1;
+  const measure = track?.measures[measureIndex];
+  const event = resolved?.kind === "numberedEvent"
+    ? measure?.numberedVoice.events.find((item) => item.id === resolved.eventId) : null;
+  const group = event && measure?.numberedVoice.tuplets.find((item) => item.eventIds.includes(event.id));
+  const tick = event?.tick ?? (resolved?.kind === "numberedTime" ? resolved.tick : undefined);
+  return <section className={styles.toolDetails} aria-label="简谱连音组详情">
+    <h3 tabIndex={-1}>简谱连音组</h3>
+    <div className={styles.toolTarget}>{measure && tick !== undefined
+      ? `第 ${measureIndex + 1} 小节 · ${formatNumberedBeatPosition(tick, measure.timeSignature.denominator)}`
+      : "原简谱位置已失效，请重新选择。"}</div>
+    <p className={styles.settingsHint}>{group
+      ? `当前组：${group.ratio.actual}:${group.ratio.normal} · ${group.eventIds.length} 个成员`
+      : "当前简谱位置没有连音组。请在简谱的节奏与范围中设置连音。"}</p>
+    <p className={styles.settingsHint}>连音组用于节奏分组；延音线与连音线请在对应音符的连接工具中编辑。</p>
+    <Button block disabled={blocked || busy || !resolved || !onEditNumberedRhythm}
+      onClick={() => resolved && onEditNumberedRhythm?.({ ...resolved, kind: "numbered" })}>编辑简谱节奏与范围</Button>
+    <Button danger block loading={busy} disabled={blocked || busy || !group}
+      onClick={() => {
+        if (blocked || lock.current || !resolved || !group) return;
+        lock.current = true;
+        setBusy(true);
+        void Promise.resolve(execute({ type: "numbered.tuplet.remove", trackId: resolved.trackId,
+          measureId: resolved.measureId, tupletId: group.id })).finally(() => {
+          lock.current = false;
+          setBusy(false);
+        });
+      }}>删除当前简谱连音组</Button>
+  </section>;
+};
 
 /** 待选比例不写音乐，只有明确应用才执行；详情始终挂载，收纳不丢准备状态。 */
-export const TupletToolDetails = ({
+const TabTupletToolDetails = ({
   document,
   selection,
   blocked,

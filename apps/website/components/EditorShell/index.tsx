@@ -19,7 +19,6 @@ import {
   resolveTabCellSelection,
   type ILXMHitTarget,
   type ILXMLayout,
-  type ILXMLayoutDensity,
   type ILXMFret,
   type ILXMTabCellReference,
   type ILXMTabCellSelection,
@@ -44,7 +43,7 @@ import type { ImageExportSnapshot } from "./image-export-controller";
 import { ScorePrintLayer } from "./ScorePrintLayer";
 import { ScoreFileControls } from "./ScoreFileControls";
 import { MusicTextSidebar, type MusicTextController } from "./MusicTextSidebar";
-import type { SidebarLocation } from "./sidebar-context";
+import { deriveSidebarContext, type SidebarLocation } from "./sidebar-context";
 import type { MusicTextTarget } from "./music-text-draft";
 import { resolveParagraphFocus } from "./music-text-focus";
 import { MusicTextEditingHints } from "./MusicTextEditingHints";
@@ -73,10 +72,13 @@ import {
 } from "./editor-command-adapter";
 import { buildEditorToolCommand } from "./editor-tool-actions";
 import { resolveEditorRhythmTarget } from "./editor-rhythm-target";
-import { editorShortcutHelp } from "./editor-shortcuts";
 
 /** 两位品位输入等待第二个数字的时间，超时后提交一位品位。 */
 const FRET_DRAFT_TIMEOUT_MS = 600;
+
+/** 编辑、图片导出和打印统一使用固定的默认排版。 */
+const density = "compact";
+const showChordDiagrams = true;
 
 /** layout 命中结果含视觉 systemIndex；selection 只保留稳定业务 ID。 */
 const toCellReference = (target: ILXMHitTarget): ILXMTabCellReference => ({
@@ -107,6 +109,7 @@ export const EditorShell: React.FC = () => {
   );
   const document = useEditorStore((state) => state.document);
   const selection = useEditorStore((state) => state.selection);
+  const numberedSelection = useEditorStore((state) => state.numberedSelection);
   const effects = useEditorStore((state) => state.effects);
   const selectedNumberedMarkId = useEditorStore(
     (state) => state.selectedNumberedMarkId,
@@ -204,13 +207,10 @@ export const EditorShell: React.FC = () => {
     setHoveredMusicText(null);
     setHoveredTabCell(null);
   }, []);
-  const [showChordDiagrams, setShowChordDiagrams] = useState(true);
   const musicTextMetrics = useMusicTextMetrics(document, showChordDiagrams);
 
   /** 品位草稿是瞬时输入状态，不进入 document 或历史。 */
   const [fretDraft, setFretDraft] = useState("");
-  /** 排版密度只影响视觉，不进入文档或撤销历史。 */
-  const [density, setDensity] = useState<ILXMLayoutDensity>("compact");
   const deferredFretDraftCommit = useMemo(
     () => createDeferredFretDraftCommit(FRET_DRAFT_TIMEOUT_MS),
     [],
@@ -251,9 +251,7 @@ export const EditorShell: React.FC = () => {
     });
   }, [
     document,
-    density,
     musicTextMetrics,
-    showChordDiagrams,
     activeMusicTextTarget,
   ]);
 
@@ -362,19 +360,6 @@ export const EditorShell: React.FC = () => {
       bottom: Math.min(bottom, scoreArea.bottom),
     };
   }, []);
-  const revealFloatingTarget = useCallback(
-    (target: MusicTextTarget | null) => {
-      const anchor = getFloatingAnchor(target);
-      const viewport = pageViewportRef.current;
-      if (!anchor || !viewport) return;
-      const view = viewport.getBoundingClientRect();
-      viewport.scrollBy({
-        left: (anchor.left + anchor.right - view.left - view.right) / 2,
-        top: (anchor.top + anchor.bottom - view.top - view.bottom) / 2,
-      });
-    },
-    [getFloatingAnchor],
-  );
   const locateSidebarObject = useCallback((location: SidebarLocation) => {
     const measure = lxmLayout?.systems.flatMap((system) => system.measures).find((item) => item.id === location.measureId);
     const svg = scoreSvgRef.current;
@@ -385,9 +370,19 @@ export const EditorShell: React.FC = () => {
       const caret = layoutTabCellCaret(lxmLayout!, { ...location, beatId: location.beatId, string: 1 });
       if (caret) bounds = caret;
     } else if (location.startTick !== undefined) {
-      const anchors = measure.timeAnchors;
-      const anchor = anchors.find((item) => item.tick === location.startTick);
-      if (anchor) bounds = { ...bounds, x: anchor.x - 5, width: 20 };
+      const position = {
+        trackId: location.trackId,
+        measureId: location.measureId,
+        eventId: location.eventId,
+        tick: location.startTick,
+        endTick: location.endTick,
+      };
+      const focus = resolveParagraphFocus(lxmLayout,
+        location.kind === "lyric"
+          ? { ...position, kind: "lyric", verse: location.verse }
+          : { ...position, kind: "numbered", itemId: location.itemId },
+      );
+      if (focus) bounds = focus;
     }
     const matrix = svg.getScreenCTM();
     if (!matrix) return;
@@ -1079,6 +1074,7 @@ export const EditorShell: React.FC = () => {
     "--accent": token.colorPrimary,
     "--accent-soft": token.colorPrimaryBg,
   };
+  const currentPosition = deriveSidebarContext({ document, selection, numberedSelection });
 
   return (
     <div
@@ -1088,18 +1084,6 @@ export const EditorShell: React.FC = () => {
     >
       <EditorHeader
         title={document.score.title}
-        density={density}
-        showChordDiagrams={showChordDiagrams}
-        onDensityChange={setDensity}
-        onChordDiagramsChange={setShowChordDiagrams}
-        helpDisabled={!!fretDraft}
-        onHelp={() =>
-          modals.open({
-            kind: "keyboard-help",
-            title: "编辑快捷键",
-            message: editorShortcutHelp(),
-          })
-        }
         fileControls={
           <ScoreFileControls
             session={session}
@@ -1135,7 +1119,6 @@ export const EditorShell: React.FC = () => {
         activeTarget={activeMusicTextTarget}
         blocked={musicTextEditing}
         numberedBlocked={numberedActionBlocked}
-        getNumberedBlocked={() => numberedActionBlocked}
         onAction={handleToolbarAction}
         beforeAction={clearFretDraft}
         execute={executeTool}
@@ -1272,11 +1255,6 @@ export const EditorShell: React.FC = () => {
             if (moveFocus) requestAnimationFrame(() => openSidebarButton.current?.focus({ preventScroll: true }));
           }}
           onLocate={locateSidebarObject}
-          getSystemMeasureIds={(measureId) =>
-            lxmLayout.systems
-              .find((s) => s.measures.some((m) => m.id === measureId))
-              ?.measures.map((m) => m.id) ?? []
-          }
           getNumberedBeatEventIds={(target) => target.kind === "numbered"
             ? layoutNumberedBeatContext(lxmLayout, target)?.eventIds ?? []
             : []}
@@ -1293,18 +1271,18 @@ export const EditorShell: React.FC = () => {
           getFloatingAnchor={getFloatingAnchor}
           getFloatingViewport={getFloatingViewport}
           getFloatingObservedElements={() => [pageViewportRef.current]}
-          revealFloatingTarget={revealFloatingTarget}
         />
       </div>
       <EditorStatusBar
         position={
-          selection && focusedMeasureContext
+          numberedSelection && currentPosition.valid
+            ? `${currentPosition.title}：${currentPosition.position}${currentPosition.scope ? ` · ${currentPosition.scope}` : ""}`
+            : selection && focusedMeasureContext
             ? `当前位置：第 ${focusedMeasureContext.measureIndex + 1} 小节，第 ${focusedMeasureContext.measure.beats.findIndex((beat) => beat.id === selection.focus.beatId) + 1} 拍点，第 ${selection.focus.string} 弦。`
             : "请在谱面选择编辑位置。"
         }
         cellCount={resolvedSelection?.cellCount ?? 0}
         fretDraft={fretDraft}
-        viewLabel={`${density === "compact" ? "紧凑" : "舒适"}排版 · ${showChordDiagrams ? "指法图显示" : "指法图隐藏"}`}
       />
       <ScorePrintLayer
         score={document}

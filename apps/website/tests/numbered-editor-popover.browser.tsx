@@ -52,7 +52,7 @@ const Harness = () => {
     const value = parameters.get("input");
     if (value === null) return;
     const control = globalThis.document.querySelector<HTMLInputElement>(
-      '[data-presentation="popover"] input[aria-label="单音组简谱"], [data-presentation="popover"] input[aria-label="连续简谱"]',
+      '[data-presentation="popover"] input[aria-label="单音组简谱"], [data-presentation="popover"] input[aria-label="音符内容"]',
     );
     if (!control) throw new Error("Missing numbered fixture input");
     Object.getOwnPropertyDescriptor(

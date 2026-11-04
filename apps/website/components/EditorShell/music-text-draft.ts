@@ -9,6 +9,7 @@ import type {
 import type { ChordDraft } from "./ChordEditor";
 import { resolveLyricPosition } from "@liuxianmao/lxm-editor";
 import { resolveNumberedEditorTarget } from "./numbered-editor-target";
+import { sameMusicTextTarget } from "./music-text-hover";
 
 export type MusicTextTarget =
   | (ILXMTabCellReference & {
@@ -74,7 +75,6 @@ export type SidebarAction =
       target: MusicTextTarget;
       focus?: "score" | "input";
       numberedMarkId?: string;
-      keepFloatingPosition?: boolean;
     }
   | {
       type: "tab";
@@ -137,18 +137,7 @@ export const resolveSidebarRequest = (
   // 仅相同文字业务对象可重复激活，不以 TAB 拍合并不同目标。
   const current = draft?.target ?? guards.numberedTarget;
   if (current && action.type === "target") {
-    const b = action.target;
-    if (
-      current.trackId === b.trackId &&
-      current.measureId === b.measureId &&
-      current.beatId === b.beatId &&
-      current.eventId === b.eventId &&
-      current.itemId === b.itemId &&
-      current.tick === b.tick &&
-      current.endTick === b.endTick &&
-      current.kind === b.kind &&
-      (current.kind !== "lyric" || (current.verse ?? 1) === (b.verse ?? 1))
-    )
+    if (sameMusicTextTarget(current, action.target))
       return "ignore";
   }
   if (draft && action.type === "mode" && action.mode === draft.lyricMode)

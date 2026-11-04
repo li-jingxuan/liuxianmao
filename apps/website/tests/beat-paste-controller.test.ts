@@ -314,8 +314,8 @@ describe("稳定拍点粘贴预览", () => {
   it("其他 Modal 占用、活动对象保护均不制造可应用候选", async () => {
     const s = setup();
     const id = s.modals.open({
-      kind: "keyboard-help",
-      title: "帮助",
+      kind: "structure-impact",
+      title: "结构影响",
       message: "",
     })!;
     expect(

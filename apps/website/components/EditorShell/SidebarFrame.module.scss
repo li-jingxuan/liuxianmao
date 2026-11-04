@@ -3,19 +3,21 @@
   align-items: center;
   justify-content: space-between;
   flex-shrink: 0;
-  padding: 12px 18px 4px;
-  color: var(--text);
+  min-height: 44px;
+  padding: 0 14px 0 20px;
+  color: var(--foreground);
   strong { font-size: 16px; }
 }
 .context {
   flex-shrink: 0;
-  padding: 12px 20px;
+  min-height: 61px;
+  padding: 13px 20px 12px;
   border-bottom: 1px solid var(--border);
-  background: color-mix(in srgb, var(--panel-muted) 42%, var(--panel));
+  background: #fafbfd;
   display: grid;
-  gap: 6px;
+  gap: 4px;
   font-variant-numeric: tabular-nums;
-  strong { font-size: 14px; }
+  strong { font-size: 13px; }
   p { margin: 0; color: var(--muted); line-height: 1.5; font-size: 13px; overflow-wrap: anywhere; }
   button { justify-self: start; padding-inline: 0; }
 }
@@ -26,7 +28,7 @@
   gap: 10px;
   min-width: 0;
   strong { min-width: 0; }
-  button { flex-shrink: 0; height: auto; }
+  button { flex-shrink: 0; height: auto; font-size: 11px; }
 }
 .contextBottom {
   display: flex;

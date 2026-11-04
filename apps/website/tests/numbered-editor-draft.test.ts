@@ -87,7 +87,7 @@ const renderEditor = (
 describe("简谱当前目标初始化", () => {
   it("空位从空文本和均匀模板初始化，不产生未应用修改", () => {
     const html = renderEditor();
-    expect(html).toContain('aria-label="连续简谱"');
+    expect(html).toContain('aria-label="音符内容"');
     expect(html).toContain('title="自选时值"');
     expect(html).not.toContain('aria-label="节拍映射预览"');
     expect(html).not.toContain("允许覆盖此时间范围的简谱");
@@ -103,7 +103,7 @@ describe("简谱当前目标初始化", () => {
 
   it("普通空位允许部分填入，固定范围仍要求填满范围", () => {
     const edits = [
-      { label: "连续简谱", value: { target: { value: "6" } } },
+      { label: "音符内容", value: { target: { value: "6" } } },
       { label: "模板成员时值", value: "sixteenth" },
     ];
     const partial = renderEditor({}, false, edits);
@@ -139,8 +139,8 @@ describe("简谱当前目标初始化", () => {
       },
       true,
     );
-    expect(html).toContain(
-      `${event.items.map((item) => item.token).join("+")}</textarea>`,
+    expect(html.match(/<input\b[^>]*aria-label="单音组简谱"[^>]*>/)?.[0]).toContain(
+      `value="${event.items.map((item) => item.token).join("+")}"`,
     );
     expect(html).toContain('title="八分"');
     expect(html).not.toContain("应用前需确认");

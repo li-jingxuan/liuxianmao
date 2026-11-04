@@ -21,7 +21,7 @@ const setup = () => {
     overrides: Partial<
       Extract<
         EditorModalRequest,
-        { kind: "keyboard-help" | "structure-impact" }
+        { kind: "structure-impact" }
       >
     > = {},
   ): EditorModalRequest => ({
@@ -161,7 +161,7 @@ describe("统一弹层宿主控制器", () => {
     expect(onClose).toHaveBeenCalledWith("stale");
   });
 
-  it("抛出异常不关闭确认，帮助弹层不绑定音乐版本", async () => {
+  it("抛出异常不关闭确认，未绑定版本的请求不随文档变化失效", async () => {
     const { session, modals, request } = setup();
     const id = modals.open(
       request({
@@ -176,15 +176,15 @@ describe("统一弹层宿主控制器", () => {
       error: expect.any(String),
     });
     modals.close(id, "cancel");
-    const help = modals.open({
-      kind: "keyboard-help",
-      title: "帮助",
-      message: "快捷键",
+    const unversioned = modals.open({
+      kind: "structure-impact",
+      title: "结构影响",
+      message: "确认修改",
     })!;
     session.getState().replaceDocument(EXAMPLE_MVP_7_2_DOCUMENT);
     modals.invalidate();
-    expect(modals.getSnapshot()?.id).toBe(help);
-    expect(await modals.confirm(help)).toBe(false);
+    expect(modals.getSnapshot()?.id).toBe(unversioned);
+    expect(await modals.confirm(unversioned)).toBe(false);
   });
   it("选区条件改变立即作废类型请求，旧下一步不再交接", () => {
     const { session, modals, request } = setup();

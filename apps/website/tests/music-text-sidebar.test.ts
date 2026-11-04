@@ -13,8 +13,6 @@ import {
 } from "../components/EditorShell/music-text-draft";
 import {
   resolveParagraphInsertionTarget,
-  resolveParagraphNumberedTarget,
-  resolveSystemMeasureIds,
 } from "../components/EditorShell/music-text-target";
 
 const fixture = () => {
@@ -255,14 +253,15 @@ describe("内容行入口目标解析", () => {
     });
   });
 
-  it("无选区可从首位置开始，拒绝失效事件和休止", () => {
+  it("无显式歌词来源不猜测首位置，拒绝TAB拍点、失效事件和休止", () => {
     const { document, target, chordTarget, measure } = fixture();
-    expect(resolveParagraphInsertionTarget(document, null)).toMatchObject({
-      eventId: target.eventId,
-    });
+    expect(resolveParagraphInsertionTarget(document, null)).toBeNull();
     expect(
       resolveParagraphInsertionTarget(document, chordTarget),
-    ).toMatchObject({ eventId: target.eventId });
+    ).toBeNull();
+    expect(resolveParagraphInsertionTarget(document, {
+      kind: "numbered", trackId: target.trackId, measureId: target.measureId,
+    })).toBeNull();
     expect(
       resolveParagraphInsertionTarget(document, {
         ...target,
@@ -306,45 +305,4 @@ describe("内容行入口目标解析", () => {
     ).toBe("execute");
   });
 
-  it("谱行布局未就绪不能猜测目标谱行", () => {
-    expect(resolveSystemMeasureIds("measure-2", () => [])).toBeNull();
-    expect(
-      resolveSystemMeasureIds("measure-2", () => ["measure-1"]),
-    ).toBeNull();
-    expect(
-      resolveSystemMeasureIds("measure-2", () => ["measure-1", "measure-2"]),
-    ).toEqual(["measure-1", "measure-2"]);
-  });
-
-  it("合法独立简谱事件与空白时间窗不依赖TAB拍点", () => {
-    const { document } = fixture();
-    const track = document.score.tracks[0]!;
-    const measure = track.measures[0]!;
-    measure.beats = [];
-    measure.numberedVoice.events = [
-      {
-        id: "independent",
-        tick: 0,
-        rhythm: { base: "quarter", dots: 0 },
-        kind: "notes",
-        items: [{ id: "independent-item", token: "1" }],
-      },
-    ];
-    const event = measure.numberedVoice.events[0]!;
-    const target = {
-      kind: "numbered" as const,
-      trackId: track.id,
-      measureId: measure.id,
-      eventId: event.id,
-    };
-    expect(resolveParagraphNumberedTarget(document, target)).toMatchObject({
-      eventId: event.id,
-    });
-    measure.numberedVoice.events = [];
-    measure.numberedVoice.tuplets = [];
-    expect(resolveParagraphNumberedTarget(document, null)).toMatchObject({
-      tick: 0,
-      endTick: 960,
-    });
-  });
 });

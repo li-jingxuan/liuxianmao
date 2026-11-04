@@ -18,6 +18,7 @@ const Harness = () => {
   const document = useEditorStore((state) => state.document)!;
   const runtime = useEditorRuntime();
   const controller = useRef<ScoreSettingsController>(null);
+  const measureController = useRef<{ focusBoundary: () => boolean }>(null);
   const [songHost, setSongHost] = useState<HTMLDivElement | null>(null);
   const [measureHost, setMeasureHost] = useState<HTMLDivElement | null>(null);
   const [actionsHost, setActionsHost] = useState<HTMLDivElement | null>(null);
@@ -26,6 +27,7 @@ const Harness = () => {
   useEffect(() => {
     Object.assign(window, { settingsTest: {
       status: () => controller.current!.readStatus(),
+      boundary: () => measureController.current!.focusBoundary(),
       apply: (group: "info" | "label" | "capo" | "signature") => controller.current!.applyGroup(group),
       restore: (group: "info" | "label" | "capo" | "signature") => controller.current!.restoreGroup(group),
       focus: (group: "info" | "label" | "copy" | "capo") => controller.current!.focus(group),
@@ -45,7 +47,7 @@ const Harness = () => {
   }, [runtime.drafts, requestedMeasureId]);
   return <>
     <div hidden={activeSurface !== "song"}><div ref={setSongHost} /></div>
-    <div hidden={activeSurface !== "measure"}><MeasureToolDetails document={document} selection={null} target={{ trackId, measureId: requestedMeasureId! }} blocked={false} boundaryOnly={false} onAction={async () => false} navigate={noop} measureHost={setMeasureHost} /></div>
+    <div hidden={activeSurface !== "measure"}><MeasureToolDetails ref={measureController} document={document} selection={null} target={{ trackId, measureId: requestedMeasureId! }} blocked={false} onAction={async () => false} navigate={noop} measureHost={setMeasureHost} /></div>
     <div ref={setActionsHost} />
     <ScoreSettings ref={controller} document={document} requestedMeasureId={requestedMeasureId} songHost={songHost} measureHost={measureHost} actionsHost={actionsHost} activeSurface={activeSurface} onDirty={noop} onFocusRequest={(group) => { setSurface(group === "label" || group === "copy" ? "measure" : "song"); return true; }} executeTool={(command) => { commands.push(command); return new Promise((resolve) => { finishCopy = resolve; }); }} commit={(command) => { commands.push(command); return session.getState().execute(command); }} />
   </>;

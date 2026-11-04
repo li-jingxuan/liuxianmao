@@ -1,12 +1,14 @@
-import type { ILXMDocument, ILXMTabCellSelection, ILXMNumberedTarget } from "@liuxianmao/lxm-editor";
+import type { ILXMDocument, ILXMTabCellSelection, ILXMNumberedTarget, ILXMLyricVerse } from "@liuxianmao/lxm-editor";
 import { resolveTupletSelection } from "@liuxianmao/lxm-editor";
 import { normalizeMusicTextTarget, type MusicTextTarget } from "./music-text-draft";
+import { sameMusicTextTarget } from "./music-text-hover";
 import { formatNumberedBeatPosition } from "./numbered-editor-target";
 import type { MeasureToolTarget } from "./editor-tool-actions";
 
 /** 只读定位引用，与可编辑业务目标分离。 */
 export type SidebarLocation = {
-  trackId: string; measureId: string; beatId?: string;
+  trackId: string; measureId: string; beatId?: string; eventId?: string; itemId?: string;
+  kind?: "lyric" | "numbered" | "chord"; verse?: ILXMLyricVerse;
   startTick?: number; endTick?: number;
 };
 export type SidebarContext = {
@@ -25,18 +27,25 @@ export function deriveSidebarContext({ document, target, selection, numberedSele
   const measure = track?.measures[index];
   const invalid = { ...empty, title: target?.kind === "lyric" ? "歌词位置已失效" : "原编辑位置已失效", reason: "目标已删除或无法解析，请重新选择。" };
   if (!measure) return invalid;
-  const resolved = target ? normalizeMusicTextTarget(document, target) : null;
-  if (target && !resolved) return invalid;
+  const musicTarget = target ?? (!measureTarget && numberedSelection ? { ...numberedSelection, kind: "numbered" as const } : null);
+  const resolved = musicTarget ? normalizeMusicTextTarget(document, musicTarget) : null;
+  if (musicTarget && !resolved) return invalid;
   let title = measureTarget ? "当前小节" : "TAB 音符";
   let position = `第 ${index + 1} 小节`;
   let scope = "";
   const location: SidebarLocation = { trackId: source.trackId, measureId: source.measureId };
+  if (resolved) {
+    location.kind = resolved.kind;
+    if (resolved.kind === "lyric") location.verse = resolved.verse ?? 1;
+  }
   if (resolved?.kind === "lyric" || resolved?.kind === "numbered") {
     const event = measure.numberedVoice.events.find((item) => item.id === resolved.eventId);
     const tick = event?.tick ?? resolved.tick;
     if (tick === undefined) return invalid;
     location.startTick = tick;
     location.endTick = resolved.endTick;
+    location.eventId = resolved.eventId;
+    location.itemId = resolved.itemId;
     position += ` · ${formatNumberedBeatPosition(tick, measure.timeSignature.denominator)}`;
     if (resolved.kind === "lyric") { title = "歌词"; scope = `第 ${resolved.verse ?? 1} 段`; }
     else {
@@ -44,6 +53,11 @@ export function deriveSidebarContext({ document, target, selection, numberedSele
       const member = event?.items.findIndex((item) => item.id === resolved.itemId) ?? -1;
       if (member >= 0) scope = `第 ${member + 1} 音`;
       if (resolved.endTick !== undefined) scope += ` 至 ${formatNumberedBeatPosition(resolved.endTick, measure.timeSignature.denominator)}`;
+      if (task === "tuplet") {
+        const group = event && measure.numberedVoice.tuplets.find((item) => item.eventIds.includes(event.id));
+        title = "简谱连音组";
+        scope = group ? `${group.eventIds.length} 个成员 · ${group.ratio.actual}:${group.ratio.normal}` : "当前简谱位置没有连音组";
+      }
     }
   } else if (!measureTarget) {
     const beatId = resolved?.beatId ?? ("beatId" in source && typeof source.beatId === "string" ? source.beatId : undefined);
@@ -72,7 +86,20 @@ export function deriveSidebarContext({ document, target, selection, numberedSele
     }
   }
   const current = numberedSelection ?? selection?.focus;
-  const differentSelection = !!current && (current.trackId !== source.trackId || current.measureId !== source.measureId ||
-    (!!resolved?.eventId && "eventId" in current && current.eventId !== resolved.eventId));
+  let differentSelection = !!current && (current.trackId !== source.trackId || current.measureId !== source.measureId);
+  // 同小节也可能是另一拍、另一空窗或同时音中的另一成员；歌词只比较其承载位置。
+  if (current && resolved) {
+    const currentTarget: MusicTextTarget | null = numberedSelection
+      ? resolved.kind === "chord" ? null : resolved.kind === "lyric"
+        ? { kind: "lyric", trackId: numberedSelection.trackId, measureId: numberedSelection.measureId,
+            eventId: numberedSelection.kind === "numberedEvent" ? numberedSelection.eventId : undefined,
+            tick: numberedSelection.kind === "numberedTime" ? numberedSelection.tick : undefined,
+            endTick: numberedSelection.kind === "numberedTime" ? numberedSelection.endTick : undefined,
+            verse: resolved.verse }
+        : { ...numberedSelection, kind: "numbered" }
+      : resolved.kind === "chord" && selection ? { ...selection.focus, kind: "chord" } : null;
+    const normalized = currentTarget && normalizeMusicTextTarget(document, currentTarget);
+    differentSelection = !normalized || !sameMusicTextTarget(resolved, normalized);
+  }
   return { title, position, scope, valid: true, reason: null, location, differentSelection };
 }

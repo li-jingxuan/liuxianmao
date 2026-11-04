@@ -92,8 +92,7 @@ export const EditorModalHost = ({
   const [display, setDisplay] = useState(active);
   if (active && active !== display) setDisplay(active);
   const request = display?.request;
-  const dismissable =
-    request?.kind === "keyboard-help" || request?.kind === "technique-type";
+  const dismissable = request?.kind === "technique-type";
   return (
     <Modal
       title={request?.title}

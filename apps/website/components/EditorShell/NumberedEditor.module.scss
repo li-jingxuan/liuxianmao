@@ -51,6 +51,14 @@
   line-height: 1.5;
 }
 
+.leavingHint {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--ant-color-text-secondary, #595959);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
 .modeRow {
   display: flex;
   align-items: center;

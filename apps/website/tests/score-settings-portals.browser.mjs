@@ -12,19 +12,32 @@ const server = await createServer({ root: website, configFile: false, esbuild: {
 let browser;
 try {
   await server.listen();
-  browser = await chromium.launch({ headless: true });
+  browser = await chromium.launch({ headless: true, executablePath: process.env.LXM_CHROMIUM_EXECUTABLE });
   const page = await browser.newPage();
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   const open = async () => { await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/__settings-test__`); await page.locator("#settings-title").waitFor(); await page.waitForFunction(() => !!window.settingsTest); };
   const status = () => page.evaluate(() => window.settingsTest.status());
   await open();
+  // 边界入口保留完整小节表面，重复导航仍展开并聚焦同一个分组。
+  await page.evaluate(() => window.settingsTest.surface("measure"));
+  const boundary = page.locator("details").filter({ has: page.locator('[aria-label="六类小节线"]') });
+  for (let repeat = 0; repeat < 2; repeat += 1) {
+    assert.equal(await page.evaluate(() => window.settingsTest.boundary()), true);
+    await page.waitForFunction(() => document.activeElement?.tagName === "SUMMARY");
+    assert.equal(await boundary.getAttribute("open"), "");
+    assert.equal(await page.locator("#tool-measure-signature").isVisible(), true);
+    assert.equal(await page.locator("#settings-label").isVisible(), true);
+    await boundary.locator("summary").click();
+  }
+  await page.evaluate(() => window.settingsTest.surface("song"));
   assert.equal(await page.locator("#settings-label").count(), 1);
   assert.equal(await page.locator('[data-settings-surface="song"] #settings-label').count(), 0);
   await page.locator("#settings-title").fill("未应用名称");
   await page.evaluate(() => window.settingsTest.externalCapo(5));
+  await page.waitForFunction(() => document.querySelector("#settings-capo")?.closest(".ant-select")?.textContent.includes("5 品"));
   assert.equal(await page.locator("#settings-title").inputValue(), "未应用名称");
-  assert.equal(await page.locator("#settings-capo").inputValue(), "5");
+  assert.match(await page.locator(".ant-select").filter({ has: page.locator("#settings-capo") }).innerText(), /5 品/);
   assert.equal((await status()).groups.info.canApply, true);
   await page.evaluate(() => window.settingsTest.external("外部名称"));
   assert.equal(await page.locator("#settings-title").inputValue(), "未应用名称");
@@ -34,6 +47,39 @@ try {
   assert.equal((await status()).groups.info.canApply, true);
   assert.equal(await page.evaluate(() => window.settingsTest.apply("info")), true);
   assert.equal(await page.evaluate(() => window.settingsTest.document().score.title), "核对后的名称");
+
+  // 三个设置组共用底栏，只提交当前焦点组；非法拍号不阻挡其他组的独立提交。
+  const footer = page.locator('[data-settings-surface="actions"]');
+  await page.locator("#settings-title").fill("独立提交的名称");
+  await page.locator("#settings-signature").click();
+  await page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item-option-content').getByText("3/4", { exact: true }).click();
+  await page.locator("#settings-capo").click();
+  for (let step = 0; step < 7; step += 1) await page.locator("#settings-capo").press("ArrowDown");
+  await page.locator("#settings-capo").press("Enter");
+  assert.match(await page.locator(".ant-select").filter({ has: page.locator("#settings-capo") }).innerText(), /12 品/);
+  assert.equal(await footer.getByRole("status").innerText(), "变调夹\n有未应用的修改");
+  const restoreBox = await footer.getByRole("button", { name: "恢复本组", exact: true }).boundingBox();
+  const applyBox = await footer.getByRole("button", { name: "应用变调夹", exact: true }).boundingBox();
+  assert.ok(restoreBox.x < applyBox.x);
+  assert.equal(restoreBox.y, applyBox.y);
+  const beforeGroups = await page.evaluate(() => ({ commands: window.settingsTest.commands().length, history: window.settingsTest.history() }));
+  await footer.getByRole("button", { name: "应用变调夹", exact: true }).click();
+  assert.equal(await page.evaluate(() => window.settingsTest.document().score.tracks[0].capo), 12);
+  assert.equal((await status()).groups.info.dirty, true);
+  assert.equal((await status()).groups.signature.dirty, true);
+  assert.equal((await status()).groups.capo.dirty, false);
+  await page.locator("#settings-signature").focus();
+  assert.equal(await footer.getByRole("button", { name: "应用基础拍号", exact: true }).isDisabled(), true);
+  assert.ok((await status()).groups.signature.blockedReason);
+  assert.equal(await page.evaluate(() => window.settingsTest.apply("signature")), false);
+  await footer.getByRole("button", { name: "恢复本组", exact: true }).click();
+  assert.equal((await status()).groups.signature.dirty, false);
+  assert.equal((await status()).groups.info.dirty, true);
+  await page.locator("#settings-title").focus();
+  await footer.getByRole("button", { name: "应用曲谱信息", exact: true }).click();
+  assert.deepEqual(await page.evaluate((start) => window.settingsTest.commands().slice(start).map((command) => command.type), beforeGroups.commands), ["track.setCapo", "score.setNotationInfo"]);
+  assert.equal(await page.evaluate(() => window.settingsTest.history()), beforeGroups.history + 2);
+  assert.equal((await status()).groups.info.dirty, false);
 
   await page.evaluate(() => window.settingsTest.focus("label"));
   await page.waitForFunction(() => document.activeElement?.id === "settings-label");
@@ -47,7 +93,7 @@ try {
   await page.locator("#settings-title").fill("另一个未应用名称");
   await page.evaluate(() => window.settingsTest.focus("label"));
   await page.locator("#settings-label").fill("待处理标记");
-  assert.deepEqual((await page.evaluate(() => window.settingsTest.pending())).filter((entry) => entry.dirty).map((entry) => entry.label).sort(), ["歌曲信息", "段落标记"].sort());
+  assert.deepEqual((await page.evaluate(() => window.settingsTest.pending())).filter((entry) => entry.dirty).map((entry) => entry.label).sort(), ["曲谱信息", "段落标记"].sort());
   assert.equal(await page.evaluate(() => window.settingsTest.restore("label")), true);
   assert.equal((await status()).groups.info.dirty, true);
   assert.equal((await status()).groups.label.dirty, false);
@@ -69,7 +115,7 @@ try {
   await page.evaluate(() => window.settingsTest.focus("info"));
   await page.locator("#settings-title").fill("收起后保留");
   await page.evaluate(() => window.settingsTest.surface(null));
-  assert.equal(await page.getByRole("button", { name: "应用歌曲信息", exact: true }).count(), 0);
+  assert.equal(await page.getByRole("button", { name: "应用曲谱信息", exact: true }).count(), 0);
   await page.evaluate(() => window.settingsTest.focus("info"));
   assert.equal(await page.locator("#settings-title").inputValue(), "收起后保留");
   await page.evaluate(() => window.settingsTest.focus("copy"));

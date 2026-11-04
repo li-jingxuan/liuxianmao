@@ -148,13 +148,11 @@ export const MusicTextSidebar = ({
     selection: ILXMTabCellSelection | null,
     techniqueId: string | null,
   ) => void;
-  getSystemMeasureIds: (measureId: string) => string[];
   getNumberedBeatEventIds: (target: MusicTextTarget) => string[];
   getFloatingAnchor: (
     target: MusicTextTarget | null,
   ) => FloatingAnchorRect | null;
   getFloatingViewport: () => FloatingAnchorRect;
-  revealFloatingTarget: (target: MusicTextTarget | null) => void;
   getFloatingObservedElements?: () => readonly (Element | null)[];
   collapsed?: boolean;
   onCollapse?: () => void;
@@ -179,11 +177,14 @@ export const MusicTextSidebar = ({
   // 一级栏目只负责组织界面；真实业务目标仍由 kind 和现有草稿闸门维护。
   const [propertyTab, setPropertyTab] = useState<PropertyTab>("selection");
   const [selectionDetail, setSelectionDetail] =
-    useState<ToolNavigation>("note");
+    useState<"note" | "measure" | "tuplet">("note");
   const [detailTarget, setDetailTarget] = useState<MeasureToolTarget>();
   const [detailFocus, setDetailFocus] = useState(0);
+  const [selectionToolsRequested, setSelectionToolsRequested] = useState(false);
   const detailRegion = useRef<HTMLDivElement>(null);
   const settingsFieldRequest = useRef<"label" | "copy" | null>(null);
+  const boundaryFocusRequest = useRef(false);
+  const measureDetailsRef = useRef<{ focusBoundary: () => boolean }>(null);
   // 活动对象独立于可见页签；null 表示普通六线谱选择，不表示关闭侧栏。
   const [activeObject, setActiveObject] = useState<MusicTextTarget | null>(
     null,
@@ -206,7 +207,6 @@ export const MusicTextSidebar = ({
   const [numberedDirty, setNumberedDirty] = useState(false);
   const [numberedInputActive, setNumberedInputActive] = useState(false);
   const paragraphKind = useRef<"lyric" | "numbered">("numbered");
-  const paragraphVerse = useRef<ILXMLyricVerse>(1);
   const settingsRef = useRef<ScoreSettingsController>(null);
   const [settingsDirty, setSettingsDirty] = useState(false);
   const [settingsStatus, setSettingsStatus] = useState<ScoreSettingsStatus | null>(null);
@@ -294,7 +294,7 @@ export const MusicTextSidebar = ({
     draft?.target ??
     (kind === "lyric"
       ? lyricStart && { ...lyricStart, kind: "lyric" as const }
-      : selection?.focus);
+      : numberedSelection ? null : selection?.focus);
   const track = target
     ? score?.score.tracks.find((t) => t.id === target.trackId)
     : score?.score.tracks[0];
@@ -505,7 +505,6 @@ export const MusicTextSidebar = ({
     setPropertyTab(next.kind === "chord" ? "chord" : "paragraph");
     if (next.kind === "lyric") {
       paragraphKind.current = "lyric";
-      paragraphVerse.current = next.verse ?? 1;
     }
     baseline.current = editorStore.getState().document;
     if (value) {
@@ -577,6 +576,7 @@ export const MusicTextSidebar = ({
       setNumberedPreview(null);
     }
     if (action.type === "tool") {
+      setSelectionToolsRequested(true);
       setDraft(null);
       setNumberedTarget(null);
       setActiveObject(null);
@@ -585,6 +585,7 @@ export const MusicTextSidebar = ({
       setMessage(null);
       focusDestination.current = "score";
       setDetailTarget(action.target);
+      boundaryFocusRequest.current = action.destination === "barline";
       if (action.destination === "section" || action.destination === "copy") {
         setPropertyTab("selection");
         setSelectionDetail("measure");
@@ -592,11 +593,12 @@ export const MusicTextSidebar = ({
           action.destination === "section" ? "label" : "copy";
       } else {
         setPropertyTab("selection");
-        setSelectionDetail(action.destination);
+        setSelectionDetail(action.destination === "barline" ? "measure" : action.destination);
       }
       setDetailFocus((value) => value + 1);
       onOpen();
     } else if (action.type === "selection" || action.type === "close") {
+      setSelectionToolsRequested(false);
       setDetailTarget(undefined);
       const nextSelection =
         action.type === "selection"
@@ -669,10 +671,6 @@ export const MusicTextSidebar = ({
       setNumberedMode(action.mode);
     } else if (action.type === "mode") {
       if (draft) loadTarget(draft.target, action.mode, "input", action.lyricFocusSurface ?? lyricFocusSurface.current);
-    } else if (action.kind === "chord" && current.selection?.focus) {
-      // 已选拍点切到和弦页签时直接读取该拍和弦并进入编辑态。
-      current.setNumberedSelection(null);
-      loadTarget({ ...current.selection.focus, kind: "chord" });
     } else {
       // 页签只展示工具，保留谱面对象；显式输入／编辑按钮才加载文字草稿。
       setDraft(null);
@@ -714,13 +712,13 @@ export const MusicTextSidebar = ({
     if (action.type === "tool" && propertyTab === "selection") {
       const destination = action.destination === "barline" || action.destination === "section" || action.destination === "copy"
         ? "measure" : action.destination;
-      const currentDetail = selectionDetail === "barline" ? "measure" : selectionDetail;
       const bound = settingsRef.current?.readStatus().measureId;
-      const sameMeasure = !action.target || action.target.measureId === (bound ?? detailTarget?.measureId ?? selection?.focus.measureId);
-      if (destination === currentDetail && sameMeasure) {
+      const sameMeasure = !action.target || (action.target.measureId === (bound ?? detailTarget?.measureId ?? numberedSelection?.measureId ?? selection?.focus.measureId) &&
+        action.target.trackId === (detailTarget?.trackId ?? numberedSelection?.trackId ?? selection?.focus.trackId));
+      if (destination === selectionDetail && sameMeasure) {
         if (action.destination === "section" || action.destination === "copy") {
           settingsRef.current?.focusField(action.destination === "section" ? "label" : "copy");
-        }
+        } else if (action.destination === "barline") measureDetailsRef.current?.focusBoundary();
         return "accepted";
       }
     }
@@ -852,7 +850,9 @@ export const MusicTextSidebar = ({
   // 只有受保护请求真正完成且布局已提交，才定位可见详情或原歌曲字段。
   useEffect(() => {
     if (!detailFocus || pending) return;
-    if (settingsFieldRequest.current) {
+    if (boundaryFocusRequest.current) {
+      if (measureDetailsRef.current?.focusBoundary()) boundaryFocusRequest.current = false;
+    } else if (settingsFieldRequest.current) {
       const field = settingsFieldRequest.current;
       if (settingsRef.current?.focusField(field))
         settingsFieldRequest.current = null;
@@ -1306,14 +1306,18 @@ export const MusicTextSidebar = ({
       if (!target) return;
       const measure = score?.score.tracks.find((track) => track.id === target.trackId)?.measures.find((measure) => measure.id === target.measureId);
       const position = measure && resolveLyricPosition(measure, target);
-      if (position) onLocate({ trackId: target.trackId, measureId: target.measureId, startTick: position.tick, endTick: position.endTick });
+      if (position) onLocate({ kind: "lyric", verse: target.verse, trackId: target.trackId, measureId: target.measureId, eventId: position.eventId, startTick: position.tick, endTick: position.endTick });
     },
   };
   const context = deriveSidebarContext({ document: score, target: activeObject,
-    task: selectionDetail,
+    task: propertyTab === "selection" ? selectionDetail : undefined,
     selection, numberedSelection, song: propertyTab === "song",
-    measureTarget: propertyTab === "selection" && (selectionDetail === "measure" || selectionDetail === "barline")
-      ? { trackId: detailTarget?.trackId ?? selection?.focus.trackId ?? "", measureId: settingsStatus?.measureId ?? detailTarget?.measureId ?? selection?.focus.measureId ?? "" } : undefined });
+    measureTarget: propertyTab === "selection" && selectionDetail === "measure"
+      ? { trackId: detailTarget?.trackId ?? numberedSelection?.trackId ?? selection?.focus.trackId ?? "", measureId: settingsStatus?.measureId ?? detailTarget?.measureId ?? numberedSelection?.measureId ?? selection?.focus.measureId ?? "" } : undefined });
+  const hasExplicitSelection = numberedSelection
+    ? !!score && !!resolveNumberedEditorTarget(score, numberedSelection)
+    : !!selection && isScoreSelectionValid(score, selection);
+  const showSelectionInvitation = !hasExplicitSelection && !selectionToolsRequested;
   return (
     <ConfigProvider
       theme={{
@@ -1389,7 +1393,9 @@ export const MusicTextSidebar = ({
           />
         </header>
         <SidebarObjectContext context={context} onLocate={onLocate}
-          onCurrentSelection={() => request({ type: "selection", selection })} />
+          onCurrentSelection={() => numberedSelection
+            ? request({ type: "target", target: { ...numberedSelection, kind: "numbered" } })
+            : request({ type: "selection", selection })} />
         <section
         key="music-text-editor-surface"
         className={styles.musicTextSurface}
@@ -1536,7 +1542,7 @@ export const MusicTextSidebar = ({
                 songHost={songHost}
                 measureHost={measureHost}
                 actionsHost={actionsHost}
-                activeSurface={propertyTab === "song" ? "song" : propertyTab === "selection" && (selectionDetail === "measure" || selectionDetail === "barline") ? "measure" : null}
+                activeSurface={propertyTab === "song" ? "song" : propertyTab === "selection" && selectionDetail === "measure" ? "measure" : null}
                 onDirty={setSettingsDirty}
                 onStatus={setSettingsStatus}
                 commit={commit}
@@ -1558,14 +1564,24 @@ export const MusicTextSidebar = ({
             hidden={propertyTab !== "selection"}
             inert={propertyTab !== "selection"}
           >
-            {score && onToolAction && executeTool ? (
+            {showSelectionInvitation ? (
+              <div className={styles.sidebarEmpty}>
+                <div className={styles.emptyIllustration} aria-hidden="true"><svg viewBox="0 0 110 70"><path d="M8 18h94M8 28h94M8 38h94M8 48h94M8 58h94" /><rect x="36" y="12" width="28" height="51" rx="5" /><path d="M50 28v20m-10-10h20" /></svg></div>
+                <h3>从谱面上的一个位置开始</h3>
+                <p>点击音符、简谱、歌词或和弦，这里会显示对应的编辑内容。</p>
+                <Button block onClick={onScoreFocus}>前往谱面选择</Button>
+                <Button block onClick={() => request({ type: "tab", kind: "numbered", propertyTab: "paragraph" })}>浏览简谱与歌词</Button>
+                <Button block onClick={() => request({ type: "tab", kind: "score", propertyTab: "song" })}>查看歌曲设置</Button>
+                {score && onToolAction && executeTool && <Button type="link" onClick={() => request({ type: "tool", kind: "score", destination: "measure", sessionId: editorStore.getState().sessionId, sessionVersion: editorStore.getState().sessionVersion })}>浏览小节工具</Button>}
+              </div>
+            ) : score && onToolAction && executeTool ? (
               <>
-                <Segmented block aria-label="选区任务" value={selectionDetail === "barline" ? "measure" : selectionDetail}
+                <Segmented block aria-label="选区任务" value={selectionDetail}
                   options={[{value:"note",label:"音符"},{value:"measure",label:"小节"},{value:"tuplet",label:"连音"}]}
                   onChange={(destination) => {
                     const state = editorStore.getState();
                     request({ type: "tool", kind: "score", destination: destination as ToolNavigation,
-                      target: detailTarget ?? (selection?.focus ? { trackId: selection.focus.trackId, measureId: selection.focus.measureId } : undefined),
+                      target: detailTarget ?? numberedSelection ?? (selection?.focus ? { trackId: selection.focus.trackId, measureId: selection.focus.measureId } : undefined),
                       sessionId: state.sessionId, sessionVersion: state.sessionVersion });
                   }} />
                 <div
@@ -1584,21 +1600,16 @@ export const MusicTextSidebar = ({
                   />
                 </div>
                 <div
-                  data-selection-detail={
-                    selectionDetail === "barline" ? "barline" : "measure"
-                  }
-                  hidden={
-                    selectionDetail !== "measure" &&
-                    selectionDetail !== "barline"
-                  }
+                  data-selection-detail="measure"
+                  hidden={selectionDetail !== "measure"}
                 >
                   <MeasureToolDetails
+                    ref={measureDetailsRef}
                     document={score}
                     selection={selection}
                     target={detailTarget}
                     measureHost={setMeasureHost}
                     blocked={editing}
-                    boundaryOnly={selectionDetail === "barline"}
                     onAction={onToolAction}
                     navigate={(destination) =>
                       request({
@@ -1626,6 +1637,14 @@ export const MusicTextSidebar = ({
                   <TupletToolDetails
                     document={score}
                     selection={selection}
+                    numberedSelection={numberedSelection}
+                    onEditNumberedRhythm={(target) => {
+                      if (request({ type: "target", target }) === "accepted") {
+                        surfaceFocusGroup.current = "rhythm";
+                        onExpandSidebar();
+                        requestAnimationFrame(() => numberedRef.current?.focus("rhythm"));
+                      }
+                    }}
                     blocked={editing}
                     execute={executeTool}
                   />
@@ -1663,9 +1682,6 @@ export const MusicTextSidebar = ({
                         <li>输入品位与节奏</li>
                         <li>添加歌词、简谱或和弦</li>
                       </ol>
-                      <p className={styles.sidebarTip}>
-                        在头部“视图”中随时查看快捷键。
-                      </p>
                     </>
                   )}
                 </section>
@@ -1762,11 +1778,10 @@ export const MusicTextSidebar = ({
                   selectedMarkId={selectedNumberedMarkId}
                   target={numberedTarget ?? selection?.focus ?? null}
                   selection={selection}
-                  onSelectTarget={(next, advance) =>
+                  onSelectTarget={(next) =>
                     request({
                       type: "target",
                       target: next,
-                      keepFloatingPosition: advance,
                     })
                   }
                   commit={commit}
@@ -1836,7 +1851,7 @@ export const MusicTextSidebar = ({
                                 verse: 1,
                               },
                             });
-                        } else if (selection?.focus)
+                        } else if (!numberedSelection && selection?.focus)
                           request({
                             type: "target",
                             target: { ...selection.focus, kind: "chord" },
@@ -1964,7 +1979,9 @@ export const MusicTextSidebar = ({
               {draft && (
                 <>
                 <p className={styles.actionSummary}>{lyricDirty ? `${kind === "lyric" ? "歌词" : "和弦"}有未应用修改${sequence && plan ? ` · ${plan.changes} 项变化${plan.overwrites ? ` · ${plan.overwrites} 项覆盖` : ""}` : ""}` : "当前内容已应用"}</p>
+                {kind === "lyric" && <p className={styles.settingsHint}>切换位置、段号、模式或结束编辑会丢弃未应用歌词。</p>}
                 <div className={styles.sidebarActions}>
+                  {kind === "lyric" && <Button disabled={surfaceDisabled} onClick={cancelTextEditing}>结束编辑</Button>}
                   <Button disabled={surfaceDisabled || !lyricDirty} onClick={() => {
                     if (draft) { setDraft(readMusicTextDraft(editorStore.getState().document, draft.target, draft.lyricMode)); setTextConflict(false); }
                   }}>
@@ -2066,9 +2083,10 @@ export const MusicTextSidebar = ({
           {floating && kind === "lyric" && draft && (
             <footer className={styles.sidebarFooter}>
               {message && <p className={styles.sidebarMessage} role="status">{message}</p>}
+              <p className={styles.settingsHint}>结束编辑或切换位置会丢弃未应用歌词。</p>
               <div className={styles.sidebarActions}>
                 <Button type="link" disabled={surfaceDisabled} onClick={() => focusSidebar()}>完整设置</Button>
-                <Button disabled={surfaceDisabled} onClick={cancelTextEditing}>取消</Button>
+                <Button disabled={surfaceDisabled} onClick={cancelTextEditing}>结束编辑</Button>
                 {sequence ? (
                   <Button type="primary" disabled={!!issue || !lyricDirty || surfaceDisabled} onClick={() => apply()}>应用</Button>
                 ) : (

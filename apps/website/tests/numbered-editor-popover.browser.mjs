@@ -42,7 +42,7 @@ try {
   await server.listen();
   const address = server.httpServer.address();
   const base = `http://127.0.0.1:${address.port}/__numbered-test__`;
-  browser = await chromium.launch({ headless: true, executablePath: process.env.LXM_CHROMIUM_EXECUTABLE });
+  browser = await chromium.launch({ headless: true, channel: process.env.LXM_BROWSER_CHANNEL, executablePath: process.env.LXM_CHROMIUM_EXECUTABLE });
   const page = await browser.newPage();
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
@@ -82,7 +82,7 @@ try {
   await compactInput().fill("#5");
   const before = await snapshot();
   await surface("sidebar");
-  assert.equal(await page.locator("textarea").inputValue(), "#5");
+  assert.equal(await page.getByLabel("单音组简谱", { exact: true }).inputValue(), "#5");
   assert.deepEqual(await snapshot(), before);
   await surface("popover");
   assert.equal(await compactInput().inputValue(), "#5");
@@ -95,6 +95,41 @@ try {
       .evaluate((node) => !!node.closest("[hidden][inert]")),
     true,
   );
+
+  // Single-group sidebar uses a real Input and Enter; composition cannot submit.
+  await open();
+  await surface("sidebar");
+  const singleInput = page.getByRole("textbox", { name: "单音组简谱", exact: true });
+  assert.equal(await singleInput.evaluate((node) => node.tagName), "INPUT");
+  await singleInput.fill("6");
+  await singleInput.dispatchEvent("compositionstart");
+  await singleInput.press("Enter");
+  assert.equal(await commandCount(), 0);
+  await singleInput.dispatchEvent("compositionend");
+  await page.waitForFunction(() => !window.numberedTest.readStatus().composing);
+  await singleInput.press("Enter");
+  await page.waitForFunction(() => window.numberedTest.commands.length === 1);
+  assert.equal(await commandCount(), 1);
+  await page.evaluate(() => window.numberedTest.focus("rhythm"));
+  assert.equal(await page.getByLabel("简谱时值", { exact: true }).evaluate((node) => node.closest("details").open), true);
+
+  // Continuous input keeps plain Enter local and uses Ctrl+Enter for one command.
+  await open("blank");
+  await surface("sidebar");
+  const continuousInput = page.getByRole("textbox", { name: "音符内容", exact: true });
+  await continuousInput.fill("1");
+  await continuousInput.press("Enter");
+  assert.equal(await commandCount(), 0);
+  await continuousInput.fill("1");
+  await continuousInput.press("Control+Enter");
+  await page.waitForFunction(() => window.numberedTest.commands.length === 1);
+
+  // A valid parse outside the available range exposes both range disclosures.
+  await open("blank");
+  await surface("sidebar");
+  await page.getByRole("textbox", { name: "音符内容", exact: true }).fill("1 2 3");
+  await page.waitForFunction(() => [...document.querySelectorAll("summary")].filter((node) => /节奏与范围|高级录入范围/.test(node.textContent)).every((node) => node.parentElement.open));
+  assert.equal(await commandCount(), 0);
 
   await open();
   await toolbar()
@@ -209,13 +244,13 @@ try {
   await open("custom");
   await surface("sidebar");
   await page.locator("textarea").fill("1 2 3");
-  await page.locator("summary").filter({ hasText: "节奏与范围" }).click();
+  await page.locator("summary").filter({ hasText: "节奏与范围" }).evaluate((node) => { node.parentElement.open = true; });
   await select("简谱节奏模板", "自定义成员时值");
   await select("模板成员时值", "八分");
   await page
     .locator("summary")
     .filter({ hasText: "高级录入范围与复杂节奏" })
-    .click();
+    .evaluate((node) => { node.parentElement.open = true; });
   await select("简谱第1音时值", "八分");
   await select("简谱第2音时值", "十六分");
   await select("简谱第3音时值", "十六分");

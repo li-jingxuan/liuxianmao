@@ -2,6 +2,7 @@
 import { Button, Segmented } from "antd";
 import {
   DeleteOutlined,
+  LinkOutlined,
   InfoCircleOutlined,
   ExclamationCircleOutlined,
 } from "@ant-design/icons";
@@ -79,7 +80,7 @@ export const NoteToolDetails = ({
       </p>
       <p className={styles.settingsHint}>时值、单音符音高与连接在「简谱与歌词 → 简谱」中分别编辑和应用。</p>
       {onEdit && <div className={styles.sidebarActions}>
-        <Button disabled={!numberedMeasure} onClick={() => onEdit(numberedTarget)}>编辑简谱</Button>
+        <Button disabled={!numberedMeasure} onClick={() => onEdit(numberedTarget)}>编辑简谱时值与连接</Button>
         <Button disabled={!numberedMeasure} onClick={() => onEdit({ kind: "lyric", trackId: numberedTarget.trackId, measureId: numberedTarget.measureId,
           eventId: numberedTarget.eventId, tick: numberedTarget.tick, endTick: numberedTarget.endTick, verse: 1 })}>填写歌词</Button>
       </div>}
@@ -171,8 +172,18 @@ export const NoteToolDetails = ({
       >
         设置闷音音符 x
       </Button>
+      <Button
+        block
+        icon={<LinkOutlined />}
+        title={tools.sustain.reason || "延续前音一个四分音符，不重新拨弦；后方须有空白。"}
+        disabled={blocked || !tools.sustain.enabled}
+        onClick={() => void onAction({ type: "sustain" })}
+      >
+        延续一拍
+      </Button>
       {!tools.beatRange.enabled && <p className={styles.settingsHint}>{tools.beatRange.reason}</p>}
       {!tools.note.enabled && <p className={styles.settingsHint}>{tools.note.reason}</p>}
+      {!tools.sustain.enabled && <p className={styles.settingsHint}>{tools.sustain.reason}</p>}
       </div>
       <details className={taskStyles.disclosure}>
         <summary>演奏技巧<small>快捷工具与当前记号</small></summary>

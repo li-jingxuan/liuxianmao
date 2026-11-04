@@ -10,6 +10,7 @@ import { MeasureSettingsForm } from "./MeasureSettingsForm";
 import { useEditorDraftRecords } from "./EditorSessionRuntime";
 import { captureEditorVersion, sameEditorSession, sameEditorVersion } from "./editor-session-version";
 import { createScoreSettingsComposition } from "./score-settings-composition";
+import styles from "./ScoreSettingsForm.module.scss";
 
 type SettingsFocusGroup = SettingsGroup | "copy";
 export interface ScoreSettingsStatus {
@@ -32,7 +33,7 @@ export interface ScoreSettingsController {
   focus: (group?: SettingsFocusGroup) => boolean;
   focusField: (field: "label" | "copy") => boolean;
 }
-const labels: Record<SettingsGroup, string> = { info: "歌曲信息", signature: "基础拍号", capo: "Capo", label: "段落标记" };
+const labels: Record<SettingsGroup, string> = { info: "曲谱信息", signature: "基础拍号", capo: "变调夹", label: "段落标记" };
 const fields: Record<SettingsFocusGroup, string> = { info: "settings-title", signature: "settings-signature", capo: "settings-capo", label: "settings-label", copy: "settings-copy-start" };
 const buildStatus = (draft: { value: ScoreSettingsDraft; initial: ScoreSettingsDraft; document: ILXMDocument; measureId?: string; sessionId: number; generation: number; conflicts: Partial<Record<SettingsGroup, string>> }, composing: boolean, busy: boolean): ScoreSettingsStatus => {
   const groups = {} as Record<SettingsGroup, SettingsGroupStatus>;
@@ -286,19 +287,21 @@ export const ScoreSettings = ({ ref, document, measureId, requestedMeasureId = m
   const copyStart = measures.findIndex((measure) => measure.id === copy.start);
   const copyEnd = measures.findIndex((measure) => measure.id === copy.end);
   const canCopy = !dirty && !busy && !compositionActive && copyStart >= 0 && copyEnd >= copyStart && (!copy.after || measures.some((measure) => measure.id === copy.after));
-  const actions = activeSurface && actionsHost ? createPortal(surface("actions", <div aria-label="设置操作">
+  const actions = activeSurface && actionsHost ? createPortal(surface("actions", <div className={styles.footer} aria-label="设置操作">
     {copyAction ? <>
-      <strong>范围复制</strong>
+      <div className={styles.actionState} role="status"><strong>范围复制</strong><span>{canCopy ? "可复制所选小节" : "请检查复制范围与未应用设置"}</span></div>
       {issues.copy && <Alert type="error" title={issues.copy} />}
-      {dirty && <p>请先处理未应用的设置，再复制小节。</p>}
-      <Button type="primary" disabled={!canCopy} loading={busy} onClick={copyMeasures}>复制小节范围</Button>
+      {dirty && <p className={styles.footerHint}>请先处理未应用的设置，再复制小节。</p>}
+      <div className={styles.footerActions}><Button type="primary" disabled={!canCopy} loading={busy} onClick={copyMeasures}>复制小节范围</Button></div>
     </> : <>
-    <strong>{labels[actionGroup]}{actionStatus.dirty ? " · 未应用" : " · 已应用"}</strong>
+    <div className={styles.actionState} role="status"><strong>{labels[actionGroup]}</strong><span>{actionStatus.dirty ? "有未应用的修改" : "已应用到曲谱"}</span></div>
     {(issues[actionGroup] || actionStatus.blockedReason) && <Alert type="error" title={issues[actionGroup] || actionStatus.blockedReason} />}
-    <Button type="primary" disabled={!actionStatus.canApply} onClick={() => apply(actionGroup)}>应用{labels[actionGroup]}</Button>
-    <Button disabled={!actionStatus.dirty || busy || compositionActive} onClick={() => restoreGroup(actionGroup)}>恢复本组</Button>
+    <div className={styles.footerActions}>
+      <Button disabled={!actionStatus.dirty || busy || compositionActive} onClick={() => restoreGroup(actionGroup)}>恢复本组</Button>
+      <Button type="primary" disabled={!actionStatus.canApply} onClick={() => apply(actionGroup)}>应用{labels[actionGroup]}</Button>
+    </div>
     </>}
-    {settingsGroups.filter((group) => (copyAction || group !== actionGroup) && status.groups[group].dirty).map((group) => <Button key={group} type="link" onClick={() => focus(group)}>{labels[group]}未应用</Button>)}
+    {settingsGroups.some((group) => (copyAction || group !== actionGroup) && status.groups[group].dirty) && <div className={styles.otherGroups}>{settingsGroups.filter((group) => (copyAction || group !== actionGroup) && status.groups[group].dirty).map((group) => <Button key={group} type="link" onClick={() => focus(group)}>{labels[group]}未应用</Button>)}</div>}
   </div>), actionsHost) : null;
   return <>{portalMode ? <>{songHost && createPortal(song, songHost)}{measureHost && createPortal(measure, measureHost)}</> : <>{song}{measure}</>}{actions}</>;
 };

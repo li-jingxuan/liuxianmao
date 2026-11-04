@@ -1,4 +1,4 @@
-/** 帮助与工具提示共享描述，不注册第二套键盘监听。 */
+/** 工具提示使用统一的快捷键描述，不注册第二套键盘监听。 */
 export const EDITOR_SHORTCUTS = {
   undo: { keys: "Ctrl / ⌘ + Z", description: "撤销（输入框保留原生撤销）" },
   redo: { keys: "Ctrl / ⌘ + Shift + Z；Ctrl + Y", description: "重做" },
@@ -25,11 +25,3 @@ export const EDITOR_SHORTCUTS = {
 } as const;
 export const editorShortcutLabel = (key: keyof typeof EDITOR_SHORTCUTS) =>
   `${EDITOR_SHORTCUTS[key].description}（${EDITOR_SHORTCUTS[key].keys}）`;
-export const editorShortcutHelp = () =>
-  [
-    "点击或拖动选择，Shift 扩展选区。",
-    ...Object.values(EDITOR_SHORTCUTS).map(
-      (item) => `${item.keys}：${item.description}。`,
-    ),
-    "输入框、Select 与中文输入法组合输入期间保留原生键盘行为。",
-  ].join("\n");
