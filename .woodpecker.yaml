@@ -3,20 +3,78 @@ when:
     branch: openchamber/pindou
 
 clone:
-  git:
-    image: quay.io/woodpeckerci/plugin-git:2.11.0
+  checkout:
+    image: docker.m.daocloud.io/library/python:3.12-slim
     environment:
-      PLUGIN_DEPTH: "1"
-      PLUGIN_PARTIAL: "false"
-      PLUGIN_RECURSIVE: "false"
-      PLUGIN_LFS: "false"
-      PLUGIN_ATTEMPTS: "2"
-      GIT_CONFIG_COUNT: "2"
-      GIT_CONFIG_KEY_0: http.version
-      GIT_CONFIG_VALUE_0: HTTP/1.1
-      GIT_CONFIG_KEY_1: http.curloptResolve
-      GIT_CONFIG_VALUE_1:
-        from_secret: github_curlopt_resolve
+      GITHUB_API_TOKEN:
+        from_secret: github_api_checkout
+    commands:
+      - |
+        python - <<'PY'
+        import base64
+        from concurrent.futures import ThreadPoolExecutor
+        import hashlib
+        import http.client
+        import json
+        import os
+        from pathlib import Path, PurePosixPath
+        import re
+        import time
+        import urllib.error
+        import urllib.request
+
+        repository = os.environ["CI_REPO"]
+        commit = os.environ["CI_COMMIT_SHA"]
+        if repository != "li-jingxuan/liuxianmao" or not re.fullmatch(r"[a-f0-9]{40}", commit):
+            raise SystemExit("Unexpected repository or commit")
+        root = Path.cwd().resolve()
+        headers = {
+            "Authorization": "Bearer " + os.environ["GITHUB_API_TOKEN"],
+            "Accept": "application/vnd.github+json",
+            "User-Agent": "Pindou-Woodpecker-checkout",
+            "X-GitHub-Api-Version": "2022-11-28",
+        }
+
+        def request(path):
+            for attempt in range(3):
+                try:
+                    url = "https://api.github.com/repos/" + repository + path
+                    with urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=30) as response:
+                        return json.load(response)
+                except (OSError, ValueError, http.client.HTTPException):
+                    if attempt == 2:
+                        raise RuntimeError("GitHub API checkout failed") from None
+                    time.sleep(attempt + 1)
+
+        tree = request("/git/trees/" + commit + "?recursive=1")
+        if tree.get("truncated"):
+            raise SystemExit("Refusing incomplete repository tree")
+        files = []
+        for entry in tree["tree"]:
+            path = PurePosixPath(entry["path"])
+            if path.is_absolute() or ".." in path.parts or ".git" in path.parts:
+                raise SystemExit("Unsafe repository path")
+            if entry["type"] == "tree":
+                continue
+            if entry["type"] != "blob" or entry["mode"] not in ("100644", "100755"):
+                raise SystemExit("Unsupported repository entry")
+            files.append(entry)
+
+        def checkout(entry):
+            blob = request("/git/blobs/" + entry["sha"])
+            content = base64.b64decode(blob["content"])
+            header = b"blob " + str(len(content)).encode() + b"\0"
+            if hashlib.sha1(header + content).hexdigest() != entry["sha"]:
+                raise RuntimeError("Git blob checksum mismatch")
+            path = root / entry["path"]
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(content)
+            path.chmod(0o755 if entry["mode"] == "100755" else 0o644)
+
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            list(executor.map(checkout, files))
+        print("Verified checkout:", repository, commit, len(files), "files")
+        PY
 
 steps:
   - name: api-checks-and-tests
