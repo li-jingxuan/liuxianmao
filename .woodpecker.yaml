@@ -5,13 +5,12 @@ when:
 clone:
   git:
     image: quay.io/woodpeckerci/plugin-git:2.11.0
-    settings:
-      depth: 1
-      partial: false
-      recursive: false
-      lfs: false
-      attempts: 2
     environment:
+      PLUGIN_DEPTH: "1"
+      PLUGIN_PARTIAL: "false"
+      PLUGIN_RECURSIVE: "false"
+      PLUGIN_LFS: "false"
+      PLUGIN_ATTEMPTS: "2"
       GIT_CONFIG_COUNT: "2"
       GIT_CONFIG_KEY_0: http.version
       GIT_CONFIG_VALUE_0: HTTP/1.1
