@@ -10,6 +10,9 @@ dist
 build
 .turbo
 
+# development and verification artifacts
+/artifacts/
+
 # env
 .env
 .env*.local
