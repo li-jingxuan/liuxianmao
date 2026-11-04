@@ -3,7 +3,7 @@ when:
     branch: openchamber/pindou
 
 clone:
-  checkout:
+  git:
     image: docker.m.daocloud.io/library/python:3.12-slim
     environment:
       GITHUB_API_TOKEN:

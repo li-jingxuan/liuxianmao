@@ -14,7 +14,7 @@ dependencies = [
   "python-multipart>=0.0.20,<1",
   "sqlmodel>=0.0.24,<1",
   "uvicorn[standard]>=0.34,<1",
-  "volcengine-python-sdk[ark]>=5.0.47,<6",
+  "volcengine-ark-runtime>=5.0.47,<6",
 ]
 
 [project.scripts]
