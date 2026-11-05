@@ -1,0 +1,129 @@
+.editor {
+  min-width: 0;
+  color: var(--foreground);
+  font-size: 12px;
+
+  p {
+    margin: 0;
+  }
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 9px;
+
+  label {
+    font-size: 11px;
+  }
+  input {
+    height: 35px;
+    font-size: 15px;
+  }
+}
+
+.caption {
+  color: var(--muted);
+  font-size: 11px;
+  margin-bottom: 6px !important;
+}
+
+.presets {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 5px;
+
+  button {
+    height: 27px;
+    min-width: 0;
+    padding: 2px 3px;
+    font-size: 12px;
+  }
+}
+
+.presets button,
+.display button {
+  &[aria-pressed="true"] {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: var(--accent-soft, #edf3ff);
+  }
+}
+
+.summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 94px;
+  margin: 10px 0;
+  padding: 8px 10px;
+  border-radius: 5px;
+  background: var(--panel-muted);
+
+  > svg {
+    flex: 0 0 68px;
+  }
+}
+
+.summaryText {
+  min-width: 0;
+  flex: 1;
+  strong {
+    font-size: 11px;
+    font-weight: 500;
+  }
+}
+
+.tuning {
+  margin-top: 4px !important;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.display {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 9px;
+
+  button {
+    height: 25px;
+    padding: 2px 7px;
+    font-size: 11px;
+  }
+}
+
+.empty {
+  display: grid;
+  place-items: center;
+  flex: 0 0 68px;
+  height: 66px;
+  border: 1px dashed var(--border);
+  border-radius: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.help {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+  margin-top: 6px !important;
+}
+
+.error {
+  color: var(--danger, #b42318);
+  font-size: 11px;
+  line-height: 1.6;
+
+  button {
+    height: 25px;
+    padding: 0;
+    font-size: 11px;
+  }
+}
+.editor :global(.ant-input) {
+  // 气泡从 hidden 变为 visible 时，不能让输入的 all 过渡延迟可聚焦状态。
+  transition-property: border-color, box-shadow, background-color, color;
+}

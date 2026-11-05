@@ -1,11 +1,6 @@
 "use client";
-import { Button, Segmented } from "antd";
-import {
-  DeleteOutlined,
-  LinkOutlined,
-  InfoCircleOutlined,
-  ExclamationCircleOutlined,
-} from "@ant-design/icons";
+import { Button, Select } from "antd";
+import { DeleteOutlined, LinkOutlined } from "@ant-design/icons";
 import type {
   ILXMDocument,
   ILXMRhythm,
@@ -17,10 +12,13 @@ import { deriveEditorToolState } from "./editor-tool-state";
 import type { ToolActionHandler } from "./editor-tool-actions";
 import styles from "./index.module.scss";
 import type { MusicTextTarget } from "./music-text-draft";
-import { formatNumberedBeatPosition } from "./numbered-editor-target";
 import taskStyles from "./SelectionTaskDetails.module.scss";
 
-const rhythms: { base: ILXMRhythm["base"]; icon: MusicControlIcon; label: string }[] = [
+const rhythms: {
+  base: ILXMRhythm["base"];
+  icon: MusicControlIcon;
+  label: string;
+}[] = [
   { base: "whole", icon: "noteWhole", label: "全音符" },
   { base: "half", icon: "noteHalf", label: "二分音符" },
   { base: "quarter", icon: "noteQuarter", label: "四分音符" },
@@ -42,7 +40,7 @@ export const NoteToolDetails = ({
   selection: ILXMTabCellSelection | null;
   blocked: boolean;
   onAction: ToolActionHandler;
-  numberedTarget?: Extract<MusicTextTarget, {kind:"numbered"}> | null;
+  numberedTarget?: Extract<MusicTextTarget, { kind: "numbered" }> | null;
   onEdit?: (target: MusicTextTarget) => void;
 }) => {
   const tools = deriveEditorToolState(document, selection);
@@ -67,140 +65,233 @@ export const NoteToolDetails = ({
     selectedNotes.some((note) => note.fret === "x") &&
     selectedNotes.some((note) => note.fret !== "x");
   const beat = beats.length === 1 ? beats[0] : null;
-  const numberedMeasure = numberedTarget && document.score.tracks
-    .find((track) => track.id === numberedTarget.trackId)?.measures
-    .find((measure) => measure.id === numberedTarget.measureId);
-  const numberedEvent = numberedMeasure?.numberedVoice.events.find((event) => event.id === numberedTarget?.eventId);
-  // 简谱目标不能借仍保留的 TAB 选区执行另一谱层的时值或状态命令。
-  if (numberedTarget) return (
-    <section className={styles.toolDetails} aria-label="音符与休止详情">
-      <h3 tabIndex={-1}>简谱音符</h3>
-      <p className={styles.settingsHint}>
-        {numberedEvent ? `${numberedEvent.items.length} 个成员 · ${rhythms.find((rhythm) => rhythm.base === numberedEvent.rhythm.base)?.label ?? numberedEvent.rhythm.base}${numberedEvent.rhythm.dots ? ` · ${numberedEvent.rhythm.dots} 附点` : ""}` : "简谱录入位置"}
-      </p>
-      <p className={styles.settingsHint}>时值、单音符音高与连接在「简谱与歌词 → 简谱」中分别编辑和应用。</p>
-      {onEdit && <div className={styles.sidebarActions}>
-        <Button disabled={!numberedMeasure} onClick={() => onEdit(numberedTarget)}>编辑简谱时值与连接</Button>
-        <Button disabled={!numberedMeasure} onClick={() => onEdit({ kind: "lyric", trackId: numberedTarget.trackId, measureId: numberedTarget.measureId,
-          eventId: numberedTarget.eventId, tick: numberedTarget.tick, endTick: numberedTarget.endTick, verse: 1 })}>填写歌词</Button>
-      </div>}
-    </section>
+  const numberedMeasure =
+    numberedTarget &&
+    document.score.tracks
+      .find((track) => track.id === numberedTarget.trackId)
+      ?.measures.find((measure) => measure.id === numberedTarget.measureId);
+  const numberedEvent = numberedMeasure?.numberedVoice.events.find(
+    (event) => event.id === numberedTarget?.eventId,
   );
+  // 简谱目标不能借仍保留的 TAB 选区执行另一谱层的时值或状态命令。
+  if (numberedTarget)
+    return (
+      <section className={styles.toolDetails} aria-label="音符与休止详情">
+        <h3 tabIndex={-1}>简谱音符</h3>
+        <p className={styles.settingsHint}>
+          {numberedEvent
+            ? `${numberedEvent.items.length} 个成员 · ${rhythms.find((rhythm) => rhythm.base === numberedEvent.rhythm.base)?.label ?? numberedEvent.rhythm.base}${numberedEvent.rhythm.dots ? ` · ${numberedEvent.rhythm.dots} 附点` : ""}`
+            : "简谱录入位置"}
+        </p>
+        <p className={styles.settingsHint}>
+          时值、单音符音高与连接在「简谱与歌词 → 简谱」中分别编辑和应用。
+        </p>
+        {onEdit && (
+          <div className={styles.sidebarActions}>
+            <Button
+              disabled={!numberedMeasure}
+              onClick={() => onEdit(numberedTarget)}
+            >
+              编辑简谱时值与连接
+            </Button>
+            <Button
+              disabled={!numberedMeasure}
+              onClick={() =>
+                onEdit({
+                  kind: "lyric",
+                  trackId: numberedTarget.trackId,
+                  measureId: numberedTarget.measureId,
+                  eventId: numberedTarget.eventId,
+                  tick: numberedTarget.tick,
+                  endTick: numberedTarget.endTick,
+                  verse: 1,
+                })
+              }
+            >
+              填写歌词
+            </Button>
+          </div>
+        )}
+      </section>
+    );
   return (
-    <section className={styles.toolDetails} aria-label="音符与休止详情">
-      <h3 tabIndex={-1}>音符与休止</h3>
-      {onEdit && selection?.focus && tools.focused ? <Button onClick={() => onEdit({ ...selection.focus, kind:"chord" })}>编辑此拍和弦</Button> : null}
-      <div className={styles.toolTarget}>
-        {tools.focused
-          ? `TAB · 第 ${tools.focused.index + 1} 小节${beat ? ` · ${formatNumberedBeatPosition(beat.tick, tools.focused.measure.timeSignature.denominator)}` : ` · 已选 ${beats.length} 拍`}${selectedNotes.length === 1 ? ` · 第 ${selectedNotes[0]!.string} 弦 · ${selectedNotes[0]!.fret === "x" ? "闷音 x" : `第 ${selectedNotes[0]!.fret} 品`}` : ` · ${selectedNotes.length} 个音符`}`
-          : "在谱面选择音符或小节"}
-      </div>
-      <div className={taskStyles.group}>
-        <h3 tabIndex={-1}>时值</h3>
-        <div className={taskStyles.durationPicker} role="group" aria-label="音符时值">
-          {rhythms.map((rhythm) => <Button
-            key={rhythm.base}
-            aria-label={rhythm.label}
-            title={tools.rhythm.reason || rhythm.label}
-            aria-pressed={beat?.rhythm.base === rhythm.base}
-            disabled={blocked || !tools.rhythm.enabled}
-            color={beat?.rhythm.base === rhythm.base ? "primary" : "default"}
-            variant={beat?.rhythm.base === rhythm.base ? "filled" : "outlined"}
-            onClick={() => void onAction({ type: "rhythm", base: rhythm.base })}
-          ><MusicAssetIcon assetId={rhythm.icon} className={styles.toolbarIcon} /></Button>)}
-        </div>
-        <h3 tabIndex={-1}>附点</h3>
-        <Segmented
-          block
-          aria-label="音符附点"
-          disabled={blocked || !tools.rhythm.enabled}
-          value={beat?.rhythm.dots ?? -1}
-          options={[
-            { value: 0, label: "无附点" },
-            { value: 1, label: "单附点" },
-            { value: 2, label: "双附点" },
-          ]}
-          onChange={(dots) => void onAction({ type: "dots", dots: dots as 0 | 1 | 2 })}
-        />
-        {!tools.rhythm.enabled && <p className={styles.settingsHint}>{tools.rhythm.reason}</p>}
-      </div>
-      <div className={taskStyles.group}>
-      <h3 tabIndex={-1}>音符状态</h3>
-      {/* 选区说明采用紧凑图文，保留状态与操作影响，避免提示卡片挤占操作空间。 */}
-      <p className={styles.selectionTip}>
-        <InfoCircleOutlined aria-hidden="true" />
-        <span>
-          {!beats.length
-            ? "尚未选择拍点"
-            : rests && rests === beats.length
-              ? "当前拍为休止"
-              : rests
-                ? "选区为混合状态"
-                : mixedNotes
-                  ? "选区含普通音符与闷音的混合状态"
-                  : "当前拍为音符"}
-          。休止属于整拍；取消休止不会恢复已清空的原音符。
+    <section className={taskStyles.noteDetails} aria-label="音符与休止详情">
+      <div className={taskStyles.detailStat}>
+        <span className={taskStyles.statLarge}>
+          {selectedNotes.length === 1
+            ? selectedNotes[0]!.fret
+            : rests === beats.length && rests > 0
+              ? "休"
+              : selectedNotes.length}
         </span>
-      </p>
-      <Button
-        type="primary"
-        block
-        disabled={blocked || !tools.beatRange.enabled}
-        onClick={() =>
-          void onAction({
-            type: rests === beats.length && rests > 0 ? "restore" : "rest",
-          })
-        }
-      >
-        {rests === beats.length && rests > 0
-          ? "取消休止（Shift+R）"
-          : "设为休止（R）"}
-      </Button>
-      {rests > 0 && rests < beats.length && (
-        <Button
-          block
-          disabled={blocked}
-          onClick={() => void onAction({ type: "restore" })}
-        >
-          取消选区休止
-        </Button>
-      )}
-      <Button
-        block
-        disabled={blocked || !tools.note.enabled}
-        onClick={() => void onAction({ type: "muted" })}
-      >
-        设置闷音音符 x
-      </Button>
-      <Button
-        block
-        icon={<LinkOutlined />}
-        title={tools.sustain.reason || "延续前音一个四分音符，不重新拨弦；后方须有空白。"}
-        disabled={blocked || !tools.sustain.enabled}
-        onClick={() => void onAction({ type: "sustain" })}
-      >
-        延续一拍
-      </Button>
-      {!tools.beatRange.enabled && <p className={styles.settingsHint}>{tools.beatRange.reason}</p>}
-      {!tools.note.enabled && <p className={styles.settingsHint}>{tools.note.reason}</p>}
-      {!tools.sustain.enabled && <p className={styles.settingsHint}>{tools.sustain.reason}</p>}
+        <div>
+          <strong>
+            {selectedNotes.length === 1
+              ? `第 ${selectedNotes[0]!.string} 弦 · ${selectedNotes[0]!.fret === "x" ? "闷音 x" : `第 ${selectedNotes[0]!.fret} 品`}`
+              : beats.length
+                ? `已选 ${beats.length} 拍 · ${selectedNotes.length} 个音符`
+                : "在谱面选择音符或小节"}
+          </strong>
+          <small>
+            {selectedNotes.length
+              ? `当前选中 ${selectedNotes.length} 个 TAB 音符`
+              : beats.length
+                ? "当前选区没有弦音符"
+                : "尚未选择拍点"}
+          </small>
+        </div>
       </div>
-      <details className={taskStyles.disclosure}>
-        <summary>演奏技巧<small>快捷工具与当前记号</small></summary>
-        <p className={styles.settingsHint}>在顶部「技巧」工具中选择击弦、勾弦、滑音、延音等记号，再进入技巧参数。连接按既有规则选择起点与终点。</p>
+      <div className={taskStyles.group}>
+        <div className={taskStyles.sectionHeading}>
+          <h3 tabIndex={-1}>时值</h3>
+          <span>{beat ? "单拍选区" : `已选 ${beats.length} 拍`}</span>
+        </div>
+        <div
+          className={taskStyles.durationPicker}
+          role="group"
+          aria-label="音符时值"
+        >
+          {rhythms.map((rhythm) => (
+            <Button
+              key={rhythm.base}
+              aria-label={rhythm.label}
+              title={tools.rhythm.reason || rhythm.label}
+              aria-pressed={beat?.rhythm.base === rhythm.base}
+              disabled={blocked || !tools.rhythm.enabled}
+              color={beat?.rhythm.base === rhythm.base ? "primary" : "default"}
+              variant={
+                beat?.rhythm.base === rhythm.base ? "filled" : "outlined"
+              }
+              onClick={() =>
+                void onAction({ type: "rhythm", base: rhythm.base })
+              }
+            >
+              <MusicAssetIcon
+                assetId={rhythm.icon}
+                className={styles.toolbarIcon}
+              />
+            </Button>
+          ))}
+        </div>
+        <label className={taskStyles.field}>
+          <span>附点</span>
+          <Select
+            aria-label="音符附点"
+            disabled={blocked || !tools.rhythm.enabled}
+            value={beat?.rhythm.dots}
+            placeholder="请选择单拍选区"
+            options={[
+              { value: 0, label: "无附点" },
+              { value: 1, label: "单附点" },
+              { value: 2, label: "双附点" },
+            ]}
+            onChange={(dots) =>
+              void onAction({ type: "dots", dots: dots as 0 | 1 | 2 })
+            }
+          />
+        </label>
+        {!tools.rhythm.enabled && (
+          <p className={styles.settingsHint}>{tools.rhythm.reason}</p>
+        )}
+      </div>
+      <div className={taskStyles.group}>
+        <h3 tabIndex={-1}>音符状态</h3>
+        <div className={taskStyles.compactActions}>
+          <Button
+            disabled={blocked || !tools.note.enabled}
+            onClick={() => void onAction({ type: "muted" })}
+          >
+            设为闷音 x
+          </Button>
+          <Button
+            disabled={blocked || !tools.beatRange.enabled}
+            title={
+              rests === beats.length && rests > 0
+                ? "取消休止（Shift+R）；不会恢复已清空的原音符"
+                : "设为整拍休止（R）；清空整拍全部弦音符"
+            }
+            onClick={() =>
+              void onAction({
+                type: rests === beats.length && rests > 0 ? "restore" : "rest",
+              })
+            }
+          >
+            {rests === beats.length && rests > 0
+              ? "取消整拍休止"
+              : "设为整拍休止"}
+          </Button>
+          {rests > 0 && rests < beats.length && (
+            <Button
+              disabled={blocked}
+              onClick={() => void onAction({ type: "restore" })}
+            >
+              取消选区休止
+            </Button>
+          )}
+        </div>
+        <p className={taskStyles.help}>
+          {rests > 0
+            ? rests === beats.length
+              ? "当前选区为休止。"
+              : "选区含音符与休止。"
+            : mixedNotes
+              ? "选区含普通音符与闷音。"
+              : ""}
+          闷音只影响所选弦；休止会清空整拍全部弦音符。
+          {rests > 0 && "取消休止不会恢复已清空的原音符。"}
+        </p>
+        <div className={taskStyles.compactActions}>
+          <Button
+            icon={<LinkOutlined />}
+            title={
+              tools.sustain.reason ||
+              "延续前音一个四分音符，不重新拨弦；后方须有空白。"
+            }
+            disabled={blocked || !tools.sustain.enabled}
+            onClick={() => void onAction({ type: "sustain" })}
+          >
+            延续一拍
+          </Button>
+          {onEdit && selection?.focus && tools.focused ? (
+            <Button
+              onClick={() => onEdit({ ...selection.focus, kind: "chord" })}
+            >
+              编辑此拍和弦
+            </Button>
+          ) : null}
+        </div>
+        {!tools.beatRange.enabled && (
+          <p className={styles.settingsHint}>{tools.beatRange.reason}</p>
+        )}
+        {!tools.note.enabled && (
+          <p className={styles.settingsHint}>{tools.note.reason}</p>
+        )}
+        {!tools.sustain.enabled && (
+          <p className={styles.settingsHint}>{tools.sustain.reason}</p>
+        )}
+      </div>
+      <details
+        className={`${taskStyles.disclosure} ${taskStyles.noteDisclosure}`}
+      >
+        <summary>
+          演奏技巧<small>快捷工具与当前记号</small>
+        </summary>
+        <p className={styles.settingsHint}>
+          在顶部「技巧」工具中选择击弦、勾弦、滑音、延音等记号，再进入技巧参数。连接按既有规则选择起点与终点。
+        </p>
       </details>
       <Button
-        block
+        type="text"
+        className={taskStyles.deleteNote}
         danger
         icon={<DeleteOutlined />}
         disabled={blocked || !tools.note.enabled}
         onClick={() => void onAction({ type: "removeNotes" })}
       >
-        删除所选音符
+        删除所选弦音符
       </Button>
-      <p className={styles.selectionTip}>
-        <ExclamationCircleOutlined aria-hidden="true" />
-        <span>删除只清所选弦；休止清整拍全部弦。恢复原内容请使用撤销。</span>
+      <p className={taskStyles.deleteHint}>
+        删除只清所选弦。恢复原内容请使用撤销。
       </p>
     </section>
   );

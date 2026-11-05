@@ -169,7 +169,7 @@ const baseDocument: ILXMDocument = {
             { numbered: "#4'", notes: [[1, 14]] },
             { numbered: "b7.", notes: [[3, 3]] },
             { numbered: "1''", notes: [[1, 20]] },
-            { numbered: "6...", notes: [[5, 0]] },
+            { numbered: "6..", notes: [[5, 0]] },
           ]),
           createMeasure(
             4,

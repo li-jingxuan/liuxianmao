@@ -45,7 +45,7 @@ import { ScoreFileControls } from "./ScoreFileControls";
 import { MusicTextSidebar, type MusicTextController } from "./MusicTextSidebar";
 import { deriveSidebarContext, type SidebarLocation } from "./sidebar-context";
 import type { MusicTextTarget } from "./music-text-draft";
-import { resolveParagraphFocus } from "./music-text-focus";
+import { resolveChordFocus, resolveParagraphFocus } from "./music-text-focus";
 import { MusicTextEditingHints } from "./MusicTextEditingHints";
 import { useMusicTextMetrics } from "./music-text-metrics";
 import { resolveScorePointerAction } from "./editor-object-selection";
@@ -190,6 +190,7 @@ export const EditorShell: React.FC = () => {
   const [musicTextEditing, setMusicTextEditing] = useState(false);
   const [musicTextPopoverHidden, setMusicTextPopoverHidden] = useState(false);
   const [numberedActionBlocked, setNumberedActionBlocked] = useState(true);
+  const [chordEntryBlocked, setChordEntryBlocked] = useState(false);
   const pageViewportRef = useRef<HTMLDivElement>(null);
   const [activeMusicTextTarget, setActiveMusicTextTarget] =
     useState<MusicTextTarget | null>(null);
@@ -281,6 +282,7 @@ export const EditorShell: React.FC = () => {
     () => resolveParagraphFocus(lxmLayout, activeMusicTextTarget),
     [lxmLayout, activeMusicTextTarget],
   );
+  const chordFocus = useMemo(() => resolveChordFocus(lxmLayout, activeMusicTextTarget), [lxmLayout, activeMusicTextTarget]);
   const numberedBeatContext = useMemo(
     () => lxmLayout && activeMusicTextTarget?.kind === "numbered"
       ? layoutNumberedBeatContext(lxmLayout, activeMusicTextTarget)
@@ -328,7 +330,7 @@ export const EditorShell: React.FC = () => {
     activeMusicTextTarget?.kind === "numbered";
   const getFloatingAnchor = useCallback(
     (target: MusicTextTarget | null) => {
-      const focus = resolveParagraphFocus(lxmLayout, target);
+      const focus = target?.kind === "chord" ? resolveChordFocus(lxmLayout, target) : resolveParagraphFocus(lxmLayout, target);
       if (!focus || !scoreSvgRef.current) return null;
       const matrix = scoreSvgRef.current.getScreenCTM();
       if (!matrix) return null;
@@ -1119,6 +1121,8 @@ export const EditorShell: React.FC = () => {
         activeTarget={activeMusicTextTarget}
         blocked={musicTextEditing}
         numberedBlocked={numberedActionBlocked}
+        chordEntryBlocked={chordEntryBlocked}
+        onOpenChord={(target) => musicTextController.current?.open(target)}
         onAction={handleToolbarAction}
         beforeAction={clearFretDraft}
         execute={executeTool}
@@ -1186,6 +1190,7 @@ export const EditorShell: React.FC = () => {
               />
               {/* 选区层位于音乐元素下方，且永不参与指针命中。 */}
               <g className={styles.selectionLayer} pointerEvents="none">
+                {chordFocus && <rect data-chord-focus className={styles.lyricFocus} x={chordFocus.x} y={chordFocus.y} width={chordFocus.width} height={chordFocus.height} rx={3} />}
                 {inspectionRect && <rect {...inspectionRect} className={styles.inspectionOutline} rx={3} />}
                 {tabCellHoverCaret && (
                   <rect
@@ -1264,6 +1269,7 @@ export const EditorShell: React.FC = () => {
           onOpen={clearScoreInteraction}
           onEditingChange={setMusicTextEditing}
           onNumberedActionBlockedChange={setNumberedActionBlocked}
+          onTransitionBlockedChange={setChordEntryBlocked}
           onTargetChange={setActiveMusicTextTarget}
           onScoreFocus={focusScore}
           onPopoverHiddenChange={setMusicTextPopoverHidden}

@@ -198,18 +198,18 @@ export const MeasureToolDetails = ({
       </Button>
       {index !== 0 && <p className={styles.settingsHint}>{tools.startRepeat.reason || "谱首反复仅对第一小节可用。"}</p>}
     </div> : null;
-  const boundary = <details ref={boundaryRoot} className={taskStyles.disclosure}>
+  const boundary = <details ref={boundaryRoot} className={`${taskStyles.disclosure} ${taskStyles.noteDisclosure}`}>
     <summary>小节线与反复<small>右边界：{BARLINES.find((item) => item.value === measure?.barline)?.label ?? "未选择"}</small></summary>
     {boundaryTools}
   </details>;
   return (
-    <section className={styles.toolDetails} aria-label="小节属性详情">
+    <section className={`${taskStyles.noteDetails} ${taskStyles.measureDetails}`} aria-label="小节属性详情">
       {track && measure ? <>
-      <h3 tabIndex={-1}>小节拍号</h3>
-      <div className={styles.toolTarget}>
-        {atEnd ? "焦点位于谱尾 · " : ""}第 {index + 1} 小节
+      <div className={taskStyles.sectionHeading}>
+        <h3 tabIndex={-1}>小节拍号</h3>
+        <span>{atEnd ? "谱尾 · 局部设置" : "局部设置"}</span>
       </div>
-        <Form.Item label="当前小节拍号" htmlFor="tool-measure-signature">
+        <Form.Item layout="vertical" label={`从第 ${index + 1} 小节开始`} htmlFor="tool-measure-signature">
           <Select
             id="tool-measure-signature"
             aria-label="当前小节拍号"

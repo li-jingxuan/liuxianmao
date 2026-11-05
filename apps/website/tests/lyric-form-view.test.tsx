@@ -66,10 +66,16 @@ describe("歌词视图的真实规划适配", () => {
     const markup = renderView(value);
     expect(markup).toContain("音符与歌词映射");
     expect(markup).toContain("待允许覆盖");
-    expect(markup).toContain(`查看完整对应表 · ${value.plan.rows.length} 项`);
+    expect(markup).toContain(`覆盖与逐项预览 <span>${value.plan.rows.length} 个字词 · 第 1 段 · 待允许覆盖</span>`);
+    const disclosure = markup.slice(markup.indexOf("<summary>覆盖与逐项预览"), markup.indexOf("</details>", markup.indexOf("<summary>覆盖与逐项预览")));
+    expect(disclosure).toContain('type="checkbox"');
+    expect(disclosure).toContain("原词 → 新词");
+    expect(disclosure).toContain("1 小节 / 第1拍 + 1/2");
+    value.draft.allowOverwrite = true;
+    expect(renderView(value)).toContain("· 已允许覆盖</span>");
     expect(markup).toContain("覆盖已有歌词");
     expect(renderView(value, "新词\n续词")).not.toContain("音符与歌词映射");
-    expect(renderView(value, "新词\n续词")).not.toContain("查看完整对应表");
+    expect(renderView(value, "新词\n续词")).not.toContain("覆盖与逐项预览");
   });
 
   it("目标失效撤图；超谱尾行只显示错误且不虚构拍位", () => {

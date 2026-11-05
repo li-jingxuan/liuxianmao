@@ -32,6 +32,7 @@ try {
   await server.listen();
   browser = await chromium.launch({
     headless: true,
+    ...(process.env.LXM_CHROMIUM_EXECUTABLE ? { executablePath: process.env.LXM_CHROMIUM_EXECUTABLE } : {}),
     ...(process.env.LXM_BROWSER_CHANNEL ? { channel: process.env.LXM_BROWSER_CHANNEL } : {}),
   });
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
@@ -44,6 +45,8 @@ try {
   });
   await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/__coexist__`, { waitUntil: "commit" });
   const sidebar = page.getByRole("complementary", { name: "编辑器属性" });
+  // 首次启动需等待 Vite 编译完整编辑器，后续交互仍使用 20 秒超时。
+  await sidebar.waitFor({ state: "visible", timeout: 90000 });
   const sidebarBefore = await sidebar.boundingBox();
   assert.equal(sidebarBefore.width, 400);
   for (const viewport of [{width:1920,height:1080},{width:1440,height:720},{width:1440,height:900}]) {
@@ -334,7 +337,7 @@ try {
   assert.equal((await currentEvent()).items[0].token, "#4");
   await digit("focus-seven").click();
   await popover.getByRole("textbox").fill("6");
-  await popover.getByRole("button", { name: "结束编辑", exact: true }).click();
+  await popover.getByRole("button", { name: "结束文字编辑", exact: true }).click();
   await popover.waitFor({ state: "hidden" });
   const seventhToken = () => page.evaluate(() => window.coexistStore.getState().document.score.tracks[0].measures[0].numberedVoice.events.find((event) => event.id === "focus-seven").items[0].token);
   assert.equal(await seventhToken(), "7");
@@ -375,7 +378,10 @@ try {
   assert.equal(await sidebar.getByText(/暂存|返回编辑|本次编辑不再提示/).count(), 0);
   await sidebar.getByRole("tab", {name:"歌曲",exact:true}).click();
   await sidebar.getByRole("combobox", {name:"Capo",exact:true}).click();
-  await page.locator(".ant-select-dropdown:visible").getByText("3 品", {exact:true}).click();
+  // 键盘选择不依赖长侧栏滚动后的下拉弹层坐标。
+  await sidebar.getByRole("combobox", {name:"Capo",exact:true}).press("Home");
+  for (let index = 0; index < 3; index++) await sidebar.getByRole("combobox", {name:"Capo",exact:true}).press("ArrowDown");
+  await sidebar.getByRole("combobox", {name:"Capo",exact:true}).press("Enter");
   await page.getByRole("button", {name:"收起编辑台",exact:true}).click();
   await page.getByRole("button", {name:"导出曲谱",exact:true}).click();
   const blockedOutput = page.getByRole("dialog", {name:"先处理未应用的输入"});

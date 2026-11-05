@@ -1,5 +1,6 @@
 "use client";
-import { Alert, Button, Radio, Tooltip } from "antd";
+import { Button, Select } from "antd";
+import { DeleteOutlined, InfoCircleOutlined } from "@ant-design/icons";
 import { useRef, useState } from "react";
 import {
   LXMScoreCommandEnum as C,
@@ -11,6 +12,7 @@ import {
 } from "@liuxianmao/lxm-editor";
 import type { EditorCommandAdapter } from "./editor-command-adapter";
 import styles from "./index.module.scss";
+import taskStyles from "./SelectionTaskDetails.module.scss";
 import { formatNumberedBeatPosition, resolveNumberedEditorTarget } from "./numbered-editor-target";
 import type { MusicTextTarget } from "./music-text-draft";
 
@@ -136,67 +138,38 @@ const TabTupletToolDetails = ({
     }
   };
   return (
-    <section className={styles.toolDetails} aria-label="连音组详情">
-      <h3 tabIndex={-1}>连音组</h3>
-      <div className={styles.toolTarget}>
-        {range
-          ? `第 ${measureIndex + 1} 小节 · ${first && measure ? formatNumberedBeatPosition(first.tick, measure.timeSignature.denominator) : "起点"} 至 ${last && measure ? formatNumberedBeatPosition(last.tick, measure.timeSignature.denominator) : "终点"} · ${range.beatIds.length} 个成员`
-          : "请选择同小节内的连续拍点"}
+    <section className={taskStyles.noteDetails} aria-label="连音组详情">
+      <div className={taskStyles.detailStat}>
+        <span className={taskStyles.statLarge}>{range?.group ? `${range.group.ratio.actual}:${range.group.ratio.normal}` : "—"}</span>
+        <div>
+          <strong>{range?.group ? `${range.group.ratio.actual} 个音符，占 ${range.group.ratio.normal} 个音符的时间` : "当前选区未设置连音组"}</strong>
+          <small>{range
+            ? `第 ${measureIndex + 1} 小节 · ${first && measure ? formatNumberedBeatPosition(first.tick, measure.timeSignature.denominator) : "起点"} 至 ${last && measure ? formatNumberedBeatPosition(last.tick, measure.timeSignature.denominator) : "终点"} · ${range.beatIds.length} 个成员`
+            : "请选择同小节内的连续拍点"}</small>
+        </div>
       </div>
-      <p className={styles.settingsHint}>
-        选中连续、相同时值和附点的拍点。成员数必须与连音比例一致。
-      </p>
-      <p className={styles.settingsHint}>连音组用于节奏分组；延音线与连音线请在对应音符的连接工具中编辑。</p>
-      <p className={styles.settingsHint}>
-        当前组：
-        {range?.group
-          ? `${range.group.ratio.actual}:${range.group.ratio.normal}`
-          : "无"}
-      </p>
-      <Radio.Group
-        buttonStyle="solid"
+      <div className={taskStyles.field}>
+        <h3 tabIndex={-1}>连音比例</h3>
+      <Select
         aria-label="待应用连音比例"
-        className={styles.tupletRatioGrid}
-        value={choice.value}
-        onChange={(event) => setChoice({ key, value: event.target.value })}
-      >
-        {LXM_TUPLET_RATIOS.map((item) => {
-          const value = `${item.actual}:${item.normal}`,
-            enabled = !!range && range.beatIds.length === item.actual;
-          return (
-            <Tooltip
-              key={value}
-              title={
-                !enabled ? `需要同小节内连续 ${item.actual} 拍` : undefined
-              }
-            >
-              <span tabIndex={!enabled ? 0 : undefined}>
-                <Radio.Button
-                  className={styles.toolChoiceCard}
-                  value={value}
-                  disabled={blocked || busy || !enabled}
-                >
-                  {value}
-                </Radio.Button>
-              </span>
-            </Tooltip>
-          );
-        })}
-      </Radio.Group>
-      <Alert
-        variant="filled"
-        type="info"
-        showIcon
-        title={
-          ratio
-            ? `${ratio.actual} 个同值音符占 ${ratio.normal} 个音符的时间`
-            : "请选择可用比例"
-        }
-        description="不支持混合时值、跨小节、嵌套或重叠；最终由音乐规则校验。"
+        value={choice.value || undefined}
+        placeholder="请选择可用比例"
+        disabled={blocked || busy || !range}
+        onChange={(value) => setChoice({ key, value })}
+        options={LXM_TUPLET_RATIOS.map((item) => ({
+          value: `${item.actual}:${item.normal}`,
+          label: `${item.actual}:${item.normal}${range?.beatIds.length === item.actual ? "" : `（需连续 ${item.actual} 拍）`}`,
+          disabled: !range || range.beatIds.length !== item.actual,
+        }))}
       />
+      </div>
+      <p className={styles.selectionTip}>
+        <InfoCircleOutlined aria-hidden="true" />
+        <span>成员须在同一小节内，且时值、附点相同；成员数必须与比例一致。不支持跨小节、重叠或嵌套。</span>
+      </p>
+      {ratio && <p>{ratio.actual} 个同值音符占 {ratio.normal} 个音符的时间。</p>}
+      <div className={taskStyles.tupletActions}>
       <Button
-        type="primary"
-        block
         loading={busy}
         disabled={
           blocked || !ratio || !range || range.beatIds.length !== ratio.actual
@@ -207,12 +180,16 @@ const TabTupletToolDetails = ({
       </Button>
       <Button
         danger
-        block
+        type="text"
+        icon={<DeleteOutlined />}
+        className={taskStyles.deleteNote}
         disabled={blocked || busy || !range?.group}
         onClick={() => void run(true)}
       >
         删除当前连音组
       </Button>
+      </div>
+      <p>连音组用于节奏分组；延音线与连音线在音符连接工具中编辑。</p>
     </section>
   );
 };

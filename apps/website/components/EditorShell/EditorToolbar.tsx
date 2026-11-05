@@ -43,6 +43,7 @@ import type { SelectionRequestResult } from "./editor-object-selection";
 import styles from "./index.module.scss";
 import type { MusicTextTarget } from "./music-text-draft";
 import { resolveEditorRhythmTarget } from "./editor-rhythm-target";
+import { resolveEditorChordTarget } from "./editor-chord-target";
 export type { EditorToolbarAction } from "./editor-tool-actions";
 
 const RHYTHMS: {
@@ -64,6 +65,7 @@ const ToolButton = ({
   children,
   pressed,
   title,
+  expanded,
 }: {
   label: string;
   availability: ToolAvailability;
@@ -71,6 +73,7 @@ const ToolButton = ({
   children: ReactNode;
   pressed?: boolean;
   title?: string;
+  expanded?: boolean;
 }) => (
   <Tooltip title={availability.reason || title || label}>
     <span
@@ -81,6 +84,7 @@ const ToolButton = ({
       <Button
         aria-label={label}
         aria-pressed={pressed}
+        aria-expanded={expanded}
         disabled={!availability.enabled}
         onClick={onClick}
         color={pressed ? "primary" : "default"}
@@ -102,6 +106,8 @@ export const EditorToolbar = ({
   beforeAction,
   execute,
   onNavigate,
+  onOpenChord,
+  chordEntryBlocked = false,
 }: {
   activeTarget: MusicTextTarget | null;
   blocked: boolean;
@@ -110,6 +116,8 @@ export const EditorToolbar = ({
   beforeAction: () => void;
   execute: EditorCommandAdapter;
   onNavigate: (destination: ToolNavigation) => SelectionRequestResult;
+  onOpenChord?: (target: MusicTextTarget) => void;
+  chordEntryBlocked?: boolean;
 }) => {
   const session = useEditorSessionStore();
   const { drafts, modals } = useEditorRuntime();
@@ -178,6 +186,16 @@ export const EditorToolbar = ({
   }, [modal]);
   if (!document) return null;
   const tools = deriveEditorToolState(document, selection);
+  const chordTarget = resolveEditorChordTarget(document, selection, activeTarget, !!numberedSelection);
+  const chordAvailability: ToolAvailability = modal || chordEntryBlocked
+    ? { enabled: false, reason: "请先完成当前输入或弹层操作。" }
+    : !onOpenChord
+      ? { enabled: false, reason: "和弦编辑入口暂不可用。" }
+      : { enabled: chordTarget.enabled, reason: chordTarget.reason };
+  const chordActive = activeTarget?.kind === "chord" && !!chordTarget.target &&
+    activeTarget.trackId === chordTarget.target.trackId &&
+    activeTarget.measureId === chordTarget.target.measureId &&
+    activeTarget.beatId === chordTarget.target.beatId;
   const reason = editingBlocked
     ? "先完成属性编辑，再修改 TAB；可继续浏览工具说明。"
     : null;
@@ -274,6 +292,33 @@ export const EditorToolbar = ({
           >
             <MusicAssetIcon
               assetId={rhythm.icon}
+              className={styles.toolbarIcon}
+            />
+          </ToolButton>
+        ))}
+      </div>
+      <div
+        className={styles.toolbarGroup}
+        role="group"
+        aria-label={rhythmTarget.kind === "numbered" ? "简谱附点" : "六线谱附点"}
+      >
+        {([1, 2] as const).map((dots) => (
+          <ToolButton
+            key={dots}
+            label={dots === 1 ? "单附点" : "双附点"}
+            title={`${dots === 1 ? "单附点：原时值的 1.5 倍" : "双附点：原时值的 1.75 倍"}；再次点击取消附点`}
+            availability={rhythmAvailability}
+            pressed={rhythmTarget.rhythm?.dots === dots}
+            onClick={() =>
+              void runRhythm({
+                type: "dots",
+                // 与时值共用当前谱层的目标；重复点击恢复普通时值。
+                dots: rhythmTarget.rhythm?.dots === dots ? 0 : dots,
+              })
+            }
+          >
+            <MusicAssetIcon
+              assetId={dots === 1 ? "noteDot" : "noteDoubleDotted"}
               className={styles.toolbarIcon}
             />
           </ToolButton>
@@ -406,6 +451,26 @@ export const EditorToolbar = ({
           ),
         }}
       </EditorToolPanelHost>
+      <div className={styles.toolbarGroup} role="group" aria-label="和弦">
+        <ToolButton
+          label={chordTarget.label}
+          title={chordTarget.title}
+          availability={chordAvailability}
+          pressed={chordActive}
+          expanded={chordActive}
+          onClick={() => {
+            if (!chordAvailability.enabled || !chordTarget.target) return;
+            onOpenChord?.(chordTarget.target);
+            host.current?.close();
+          }}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+            <path d="M4 4v16M8 4v16M12 4v16M16 4v16M4 5h12M4 10h12M4 15h12M4 20h12" />
+            <circle cx="8" cy="10" r="2" fill="currentColor" />
+            {!chordTarget.chord && <path d="M20 3v6m-3-3h6" />}
+          </svg>
+        </ToolButton>
+      </div>
       <span id="editor-tool-reason" className={styles.toolbarHint}>
         {rhythmAvailability.reason || reason || "当前选区可编辑音符与节奏。"}
       </span>

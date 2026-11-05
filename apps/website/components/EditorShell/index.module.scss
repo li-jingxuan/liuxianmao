@@ -375,6 +375,17 @@
   padding: 18px 20px 14px;
   border-bottom: 1px solid var(--border);
 }
+.chordFloating {
+  .floatingHeader { padding-top: 10px; gap: 6px; }
+  .floatingTitle {
+    gap: 6px;
+    strong { font-size: 13px; }
+    span { font-size: 11px; }
+  }
+  .sidebarBody { padding-bottom: 6px; }
+  .sidebarActions { justify-content: flex-end; }
+  .settingsHint { font-size: 11px; line-height: 1.6; }
+}
 .lyricModeSwitch { margin-bottom: 8px; }
 .compactSummary { margin: 0; color: var(--muted); font-size: 12px; }
 .musicTextSidebar [hidden] { display: none !important; }
@@ -516,6 +527,43 @@
   p { color: var(--muted); line-height: 1.7; font-size: 12px; margin-block: 10px; }
 }
 .actionSummary { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.lyricRemoval {
+  padding-block: 0;
+  margin-top: 0;
+
+  > summary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 39px;
+    list-style: none;
+    font-size: 12px;
+    font-weight: 400;
+
+    &::-webkit-details-marker { display: none; }
+    > span {
+      margin-left: auto;
+      color: var(--muted);
+      font-size: 11px;
+    }
+    &::after {
+      content: "";
+      flex: none;
+      width: 6px;
+      height: 6px;
+      margin-right: 4px;
+      border-right: 1.5px solid var(--muted);
+      border-bottom: 1.5px solid var(--muted);
+      transform: rotate(-45deg);
+    }
+  }
+
+  &[open] {
+    padding-bottom: 10px;
+    > summary::after { transform: rotate(45deg); }
+  }
+  :global(.ant-btn) { height: auto; padding: 7px 0; font-size: 12px; }
+}
 .sidebarSection {
   & + & {
     margin-top: 20px;
@@ -951,6 +999,17 @@
   }
   p {
     margin: 0;
+  }
+}
+.selectionTaskTabs {
+  margin-bottom: 16px;
+  padding: 3px;
+  background: #f0f3f8;
+  font-size: 12px;
+
+  :global(.ant-segmented-item-label) {
+    min-height: 27px;
+    line-height: 27px;
   }
 }
 // 图标与首行文字对齐，长提示自然换行，不再使用带背景和内边距的提示卡片。

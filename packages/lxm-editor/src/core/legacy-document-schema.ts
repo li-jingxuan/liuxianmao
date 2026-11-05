@@ -6,7 +6,7 @@ const validNumberedTokens = (v: unknown): v is string[] =>
   v.every(
     (t: unknown) =>
       typeof t === "string" &&
-      /^(?:0|-|[#b]?[1-7](?:'{1,3}|\.{1,3})?)$/.test(t),
+      /^(?:0|-|[#b]?[1-7](?:'{1,3}|\.{1,2})?)$/.test(t),
   ) &&
   (v.length === 1 || v.every((t: string) => t !== "0" && t !== "-"));
 import { validateTuning } from "./tuning";

@@ -7,7 +7,7 @@ export type NumberedSequenceItem =
 /** 简谱编码仅表达音级、升降号及八度点，不参与 TAB 时值或音高推导。 */
 export const isNumberedToken = (value: unknown): value is string =>
   typeof value === "string" &&
-  /^(?:0|-|[#bn]?[1-7](?:'{1,3}|\.{1,3})?)$/.test(value);
+  /^(?:0|-|[#bn]?[1-7](?:'{1,3}|\.{1,2})?)$/.test(value);
 export const validNumberedTokens = (tokens: unknown): tokens is string[] =>
   Array.isArray(tokens) &&
   tokens.length >= 1 &&
@@ -46,7 +46,7 @@ export const parseNumberedSequence = (
       if (!validNumberedTokens(tokens))
         return {
           ok: false,
-          message: `第 ${i + 1} 项简谱无效；同拍多音用 +，高音用 '，低音用 .。`,
+          message: `第 ${i + 1} 项简谱无效；同拍多音用 +，高音用 '（最多 3 个），低音用 .（最多 2 个）。`,
         };
       items.push({ kind: "set", tokens });
     }

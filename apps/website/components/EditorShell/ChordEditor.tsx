@@ -42,11 +42,17 @@ export const ChordEditor = ({
   draft,
   onChange,
   presetsEnabled,
+  disabled = false,
+  presetMenuOpen,
+  onPresetMenuOpenChange,
 }: {
   inputRef: RefCallback<HTMLInputElement>;
   draft: ChordDraft;
   onChange: (draft: ChordDraft) => void;
   presetsEnabled: boolean;
+  disabled?: boolean;
+  presetMenuOpen?: boolean;
+  onPresetMenuOpenChange?: (open: boolean) => void;
 }) => {
   // InputNumber 清空时以 NaN 保留非法草稿，统一校验阻止提交，不把空值转成 0。
   const diagram = draft.chord.diagram;
@@ -120,7 +126,7 @@ export const ChordEditor = ({
           {quickPresets.map((name) => (
             <Button
               key={name}
-              disabled={!presetsEnabled}
+              disabled={disabled || !presetsEnabled}
               aria-pressed={preset?.name === name}
               onClick={() => choosePreset(name)}
             >
@@ -128,7 +134,9 @@ export const ChordEditor = ({
             </Button>
           ))}
           <Dropdown
-            disabled={!presetsEnabled}
+            open={presetMenuOpen}
+            onOpenChange={onPresetMenuOpenChange}
+            disabled={disabled || !presetsEnabled}
             trigger={["click"]}
             menu={{
               selectable: true,
@@ -136,11 +144,11 @@ export const ChordEditor = ({
               items: CHORD_PRESETS.filter(
                 (item) => !quickPresets.includes(item.name),
               ).map((item) => ({ key: item.name, label: item.name })),
-              onClick: ({ key }) => choosePreset(key),
+              onClick: ({ key }) => { choosePreset(key); onPresetMenuOpenChange?.(false); },
             }}
           >
             <Button
-              disabled={!presetsEnabled}
+              disabled={disabled || !presetsEnabled}
               aria-label="其他常用和弦预设"
               aria-pressed={!!preset && !quickPresets.includes(preset.name)}
             >
@@ -159,7 +167,7 @@ export const ChordEditor = ({
           />
         )}
         {!diagram && (
-          <Button onClick={() => updateDiagram(emptyDiagram())}>
+          <Button disabled={disabled} onClick={() => updateDiagram(emptyDiagram())}>
             创建指法图
           </Button>
         )}
@@ -191,6 +199,7 @@ export const ChordEditor = ({
                           <th scope="row">第 {s.string} 弦</th>
                           <td>
                             <Select
+                              disabled={disabled}
                               aria-label={`${s.string}弦品位`}
                               value={s.fret}
                               onChange={(value) => {
@@ -226,7 +235,7 @@ export const ChordEditor = ({
                           <td>
                             <Select
                               aria-label={`${s.string}弦手指`}
-                              disabled={s.fret === "x" || s.fret === 0}
+                              disabled={disabled || s.fret === "x" || s.fret === 0}
                               aria-describedby={
                                 s.fret === "x" || s.fret === 0
                                   ? `chord-finger-reason-${s.string}`
@@ -311,6 +320,7 @@ export const ChordEditor = ({
                         htmlFor={"editor-field-" + `横按${i + 1}${field}`}
                       >
                         <InputNumber
+                          disabled={disabled}
                           id={"editor-field-" + `横按${i + 1}${field}`}
                           aria-label={`横按${i + 1}${field}`}
                           min={1}
@@ -335,6 +345,7 @@ export const ChordEditor = ({
                     ),
                   )}
                   <Button
+                    disabled={disabled}
                     onClick={() =>
                       updateDiagram({
                         ...diagram,
@@ -347,7 +358,7 @@ export const ChordEditor = ({
                 </fieldset>
               ))}
               <Button
-                disabled={diagram.barres.length >= 4}
+                disabled={disabled || diagram.barres.length >= 4}
                 onClick={() =>
                   updateDiagram({
                     ...diagram,
@@ -371,6 +382,7 @@ export const ChordEditor = ({
                 htmlFor={"editor-field-" + "起始品位"}
               >
                 <InputNumber
+                  disabled={disabled}
                   id={"editor-field-" + "起始品位"}
                   aria-label="起始品位"
                   min={1}
@@ -410,6 +422,7 @@ export const ChordEditor = ({
         <div className={viewStyles.disclosureContent}>
           <Form.Item layout="vertical" label="谱面显示" htmlFor="chord-display">
             <Select
+              disabled={disabled}
               id="chord-display"
               aria-label="和弦显示方式"
               value={draft.display}
@@ -436,6 +449,7 @@ export const ChordEditor = ({
           </summary>
           <div className={viewStyles.disclosureContent}>
             <Button
+              disabled={disabled}
               onClick={() =>
                 onChange({
                   display: "name",

@@ -5,6 +5,8 @@ import {
   hitTestNumbered,
   type ILXMNumberedEvent,
 } from "../../src";
+import { musicTextInkBounds } from "../../src/layout/music-text-metrics";
+import { numberedLayoutProfile } from "../../src/layout/numbered-layout-profile";
 
 const note = (
   tick: number,
@@ -31,6 +33,30 @@ const fixture = (events: ILXMNumberedEvent[]) => {
 };
 
 describe("简谱减时线合并", () => {
+  it.each(["editing", "presentation"] as const)(
+    "%s 低音点贴近数字或本音减时线，不受其它音符的三层连梁影响",
+    (purpose) => {
+      for (const base of ["quarter", "eighth", "sixteenth", "thirtySecond"] as const) {
+        const low = note(0, base);
+        low.items = [{ id: "bass", token: "6.." }];
+        const { document } = fixture([low, note(960, "thirtySecond")]);
+        const layout = buildLayout(document, { purpose });
+        const frame = layout.systems[0]!.measures[0]!.numberedNotation![0]!;
+        const ink = musicTextInkBounds(frame.labels[0]!);
+        const bottom = Math.max(
+          ink.y + ink.height,
+          ...frame.lines!.map((line) => line.y + line.thickness / 2),
+        );
+        const profile = numberedLayoutProfile(purpose);
+        expect(frame.dots).toHaveLength(2);
+        expect(frame.dots[0]!.cy - frame.dots[0]!.r - bottom).toBeCloseTo(profile.octaveGap);
+        expect(frame.dots[1]!.cy - frame.dots[0]!.cy).toBeCloseTo(2.6 + profile.octaveStackGap);
+        expect(frame.bounds.y + frame.bounds.height + 0.000001).toBeGreaterThanOrEqual(frame.dots[1]!.cy + frame.dots[1]!.r);
+        expect(hitTestNumbered(layout, { x: frame.dots[1]!.cx, y: frame.dots[1]!.cy })).toMatchObject({ itemId: "bass" });
+      }
+    },
+  );
+
   it.each(["editing", "presentation"] as const)(
     "%s 的同拍八分音符只绘制一条公共线，命中范围仍属于各自音符",
     (purpose) => {

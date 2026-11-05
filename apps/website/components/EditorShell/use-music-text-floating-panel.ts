@@ -19,6 +19,8 @@ export interface MusicTextFloatingPanelOptions {
   /** 布局/缩放版本；也可在外部布局完成后调用 recompute。 */
   layoutKey?: unknown;
   revealTarget?: () => void;
+  /** 禁止紧凑和弦表单缩成另一种布局；空间不足时保留完整侧栏。 */
+  allowNarrowing?: boolean;
 }
 
 const hiddenGeometry: PopoverGeometry = {
@@ -96,7 +98,7 @@ export const useMusicTextFloatingPanel = (
       const availableWidth =
         viewport.right - viewport.left - FLOATING_PANEL_MARGIN * 2;
       // 宽度在本轮内固定；不限制高度，否则会误把截断后的内容判为可操作。
-      const maxWidth = Math.max(FLOATING_PANEL_MIN_WIDTH, availableWidth);
+      const maxWidth = Math.max(current.allowNarrowing === false ? 360 : FLOATING_PANEL_MIN_WIDTH, availableWidth);
       const normalMaxWidth = `${maxWidth}px`;
       if (panel.style.maxWidth !== normalMaxWidth)
         panel.style.maxWidth = normalMaxWidth;
@@ -105,6 +107,7 @@ export const useMusicTextFloatingPanel = (
       let next = computeFloatingPanelGeometry(anchor, rect, viewport);
       if (
         next.kind === "sidebar-required" &&
+        current.allowNarrowing !== false &&
         rect.width > FLOATING_PANEL_MIN_WIDTH &&
         availableWidth >= FLOATING_PANEL_MIN_WIDTH
       ) {

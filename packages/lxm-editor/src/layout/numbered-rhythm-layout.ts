@@ -7,7 +7,7 @@ import { TICKS_PER_QUARTER } from "../core/constants";
 import type { ILXMMeasure, ILXMRhythmBase } from "../core/types";
 import type { ILXMMeasureLayout } from "./layout-types";
 import type { NumberedLayout } from "./numbered-notation-layout";
-import { unionMusicBounds } from "./music-text-metrics";
+import { musicTextInkBounds, unionMusicBounds } from "./music-text-metrics";
 const levels: Record<ILXMRhythmBase, number> = {
   whole: 0,
   half: 0,
@@ -36,7 +36,6 @@ export const layoutNumberedRhythm = (
           .map((g) => g.bounds.y + g.bounds.height),
       ),
     ) + 3;
-  const maxLevel = Math.max(0, ...events.map((e) => levels[e.rhythm.base]));
   const groupTicks = getTimeSignatureBeatGroupTicks(source.timeSignature) ?? [
     Infinity,
   ];
@@ -61,23 +60,14 @@ export const layoutNumberedRhythm = (
       y: baseY + i * 3,
       thickness: 1.1,
     }));
-    n.dots = n.dots.map((d) =>
-      d.cy > 0
-        ? {
-            ...d,
-            cy:
-              baseY +
-              Math.max(0, maxLevel - 1) * 3 +
-              4 +
-              Math.max(
-                0,
-                d.cy -
-                  (Math.max(...body.map((g) => g.bounds.y + g.bounds.height)) +
-                    4),
-              ),
-          }
-        : d,
-    );
+    n.dots = n.dots.map((d) => {
+      if (d.cy <= 0 || level === 0) return d;
+      const digit = body.find((g) => g.x === d.cx)!;
+      const ink = musicTextInkBounds(digit);
+      // 只避让本音符的减时线；其它音符的三层连梁不能把低音点一起向下推。
+      const lineBottom = baseY + (level - 1) * 3 + 1.1 / 2;
+      return { ...d, cy: d.cy + Math.max(0, lineBottom - (ink.y + ink.height)) };
+    });
     n.rhythmDots = [];
     const duration = context.getEventDurationTicks(event),
       written = calculateRhythmTicks(event.rhythm);

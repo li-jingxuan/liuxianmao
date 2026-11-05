@@ -5,6 +5,7 @@ import {
   applyScoreCommand,
   buildLayout,
   EXAMPLE_MVP_7_2_DOCUMENT,
+  type ILXMRhythm,
 } from "@liuxianmao/lxm-editor";
 import {
   resolveMusicTextHoverTarget,
@@ -21,6 +22,98 @@ import { createEditorSession } from "../stores/editor-store";
 import { createMusicTextMetricReader } from "../components/EditorShell/music-text-metric-reader";
 
 describe("简谱空位与 hover 接入", () => {
+  it.each([
+    { base: "eighth", dots: 0 },
+    { base: "sixteenth", dots: 0 },
+    { base: "quarter", dots: 1 },
+    { base: "half", dots: 0 },
+  ] satisfies ILXMRhythm[])("单音 $base/$dots 的数字与节奏区域使用同一个 hover 目标和框", (rhythm) => {
+    const document = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);
+    const track = document.score.tracks[0]!;
+    track.numberedMarks = [];
+    const measure = track.measures[0]!;
+    measure.numberedVoice = {
+      events: [{
+        ...measure.numberedVoice.events[0]!,
+        kind: "notes",
+        rhythm,
+        items: [{ id: "hover-note", token: "5" }],
+      }],
+      tuplets: [],
+    };
+    const layout = buildLayout(document, { purpose: "editing" });
+    const notation = layout.systems[0]!.measures[0]!.numberedNotation![0]!;
+    const item = notation.itemBounds![0]!;
+    const digit = {
+      x: item.bounds.x + item.bounds.width / 2,
+      y: item.bounds.y + item.bounds.height / 2,
+    };
+    // 位于事件矩形右下角，避开数字本体，覆盖减时线、附点及延时线的事件命中分支。
+    const rhythmPoint = {
+      x: notation.bounds.x + notation.bounds.width - 0.01,
+      y: notation.bounds.y + notation.bounds.height - 0.01,
+    };
+    expect(
+      rhythmPoint.x > item.bounds.x + item.bounds.width ||
+      rhythmPoint.y > item.bounds.y + item.bounds.height,
+    ).toBe(true);
+    const hover = resolveMusicTextHoverTarget(layout, digit)!;
+    const outerHover = resolveMusicTextHoverTarget(layout, rhythmPoint)!;
+    expect(outerHover).toEqual(hover);
+    expect(hover).toMatchObject({ eventId: notation.eventId, itemId: item.itemId });
+    expect(sameMusicTextTarget(hover, outerHover)).toBe(true);
+    const focus = resolveParagraphFocus(layout, hover)!;
+    expect(focus).toEqual(resolveParagraphFocus(layout, outerHover));
+    expect(focus).toEqual(resolveParagraphFocus(layout, { ...hover, itemId: undefined }));
+    expect(focus).toMatchObject({
+      x: notation.bounds.x - 4,
+      y: notation.bounds.y - 2,
+      width: notation.bounds.width + 8,
+      height: notation.bounds.height + 4,
+    });
+    expect(resolveScorePointerAction(document, layout, rhythmPoint, null, false)).toMatchObject({ type: "target", target: hover });
+  });
+
+  it("同时多音保留各成员 hover 和整体事件命中", () => {
+    const document = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);
+    const track = document.score.tracks[0]!;
+    track.numberedMarks = [];
+    const measure = track.measures[0]!;
+    measure.numberedVoice = {
+      events: [{
+        ...measure.numberedVoice.events[0]!,
+        kind: "notes",
+        rhythm: { base: "eighth", dots: 0 },
+        items: [{ id: "low", token: "3" }, { id: "high", token: "5" }],
+      }],
+      tuplets: [],
+    };
+    const layout = buildLayout(document, { purpose: "editing" });
+    const notation = layout.systems[0]!.measures[0]!.numberedNotation![0]!;
+    const whole = {
+      kind: "numbered" as const,
+      trackId: track.id,
+      measureId: measure.id,
+      eventId: notation.eventId,
+    };
+    const wholeFocus = resolveParagraphFocus(layout, whole)!;
+    for (const item of notation.itemBounds!) {
+      const hover = resolveMusicTextHoverTarget(layout, {
+        x: item.bounds.x + item.bounds.width / 2,
+        y: item.bounds.y + item.bounds.height / 2,
+      })!;
+      expect(hover).toMatchObject({ itemId: item.itemId });
+      expect(resolveParagraphFocus(layout, hover)!.width).toBeLessThan(wholeFocus.width);
+      expect(sameMusicTextTarget(whole, hover)).toBe(false);
+    }
+    const eventHover = resolveMusicTextHoverTarget(layout, {
+      x: notation.bounds.x + notation.bounds.width - 0.01,
+      y: notation.bounds.y + notation.bounds.height - 0.01,
+    })!;
+    expect(eventHover).toMatchObject(whole);
+    expect(eventHover).not.toHaveProperty("itemId");
+  });
+
   it("缩短、填入占位与撤销共用真实时间窗口，提示仅在编辑层绘制", () => {
     const initial = EXAMPLE_MVP_7_2_DOCUMENT,
       track = initial.score.tracks[0]!,

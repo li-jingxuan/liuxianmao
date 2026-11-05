@@ -54,6 +54,10 @@ export const buildHitIndex = (
             trackId,
             measureId: m.id,
             eventId: n.eventId,
+            // 单音的数字和节奏区域属于同一编辑对象，避免悬停时来回切换成员／事件。
+            ...(n.itemBounds?.length === 1
+              ? { itemId: n.itemBounds[0]!.itemId }
+              : {}),
           },
         })),
       ),

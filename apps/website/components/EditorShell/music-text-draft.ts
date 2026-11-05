@@ -123,7 +123,7 @@ export const normalizeMusicTextTarget = (
     : { ...base, kind: "lyric", tick: position.tick, endTick: position.endTick, verse: target.verse ?? 1 };
 };
 
-/** 重复激活保留输入；离开歌词／简谱目标时直接丢弃未应用修改。 */
+/** 重复激活保留当前输入；离开和弦、歌词或简谱时直接丢弃未应用修改。 */
 export const resolveSidebarRequest = (
   draft: MusicTextDraft | null,
   action: SidebarAction,
@@ -144,7 +144,7 @@ export const resolveSidebarRequest = (
     return "ignore";
   if (draft && action.type === "tab" && action.kind === draft.target.kind && !guards.visibleTaskChanged)
     return "ignore";
-  if ((current?.kind === "lyric" || current?.kind === "numbered") && !guards.settingsDirty)
+  if (current && !guards.settingsDirty)
     return "execute";
   return (draft && musicTextDraftValue(draft) !== draft.initial) ||
     guards.numberedDirty ||

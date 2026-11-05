@@ -16,21 +16,29 @@ const website = fileURLToPath(new URL("..", import.meta.url));
 const server = await createServer({
   root: website,
   configFile: false,
+  cacheDir: path.resolve(website, "node_modules/.vite/numbered-popover"),
+  optimizeDeps: {
+    entries: ["tests/numbered-editor-popover.browser.tsx"],
+    include: ["react/jsx-dev-runtime"],
+  },
   esbuild: { jsx: "automatic" },
   server: {
     host: "127.0.0.1",
     port: 0,
+    watch: { ignored: ["**/.next/**"] },
     fs: { allow: [path.resolve(website, "../..")] },
   },
   plugins: [
     {
       name: "numbered-popover-fixture",
       configureServer(dev) {
-        dev.middlewares.use((request, response, next) => {
+        dev.middlewares.use(async (request, response, next) => {
           if (!request.url?.startsWith("/__numbered-test__")) return next();
           response.setHeader("Content-Type", "text/html");
           response.end(
-            '<!doctype html><div id="root"></div><script type="module" src="/tests/numbered-editor-popover.browser.tsx"></script>',
+            await dev.transformIndexHtml(request.url,
+              '<!doctype html><div id="root"></div><script type="module" src="/tests/numbered-editor-popover.browser.tsx"></script>',
+            ),
           );
         });
       },
@@ -255,7 +263,7 @@ try {
   await select("简谱第2音时值", "十六分");
   await select("简谱第3音时值", "十六分");
   await page.evaluate(() => window.numberedTest.focus("itemPitch"));
-  await page.getByLabel("简谱单音符音高", { exact: true }).fill("#1");
+  await select("简谱单音符变音", "升号 ♯");
   await surface("popover");
   const custom = await snapshot();
   assert.match(
@@ -382,13 +390,41 @@ try {
   // A member selector requests the complete new business target through its parent.
   await open("members");
   await page.evaluate(() => window.numberedTest.focus("itemPitch"));
-  await page.getByLabel("简谱单音符音高", { exact: true }).fill("#1");
+  await select("简谱单音符变音", "升号 ♯");
   await select("简谱技巧起始音符", "2：3");
   assert.equal(await page.evaluate(() => window.numberedTest.targetRequests[0].itemId), "member-test-second");
   assert.equal((await snapshot()).itemDraft, "#1");
   // The owner renders its main actions into the stable host and focus changes the group.
   await page.locator('[data-testid="numbered-actions"]').getByRole("button", { name: "应用单音符音高", exact: true }).waitFor();
   assert.equal(await commandCount(), 0);
+
+  // 侧栏按设计默认折叠；就地按钮仍走原有分组提交和依赖保护。
+  await open();
+  await surface("sidebar");
+  assert.equal(await page.locator("summary").filter({ hasText: /^(节奏与范围|音高与连接|复制与粘贴|移除当前事件)/ }).count(), 4);
+  assert.equal(await page.locator("summary").filter({ hasText: /^(节奏与范围|音高与连接|复制与粘贴|移除当前事件)/ }).evaluateAll((nodes) => nodes.every((node) => !node.parentElement.open)), true);
+  await page.evaluate(() => window.numberedTest.focus("itemPitch"));
+  await select("简谱单音符八度", "低2八度");
+  assert.equal((await snapshot()).itemDraft, "1..");
+  await page.getByRole("button", { name: "恢复音高", exact: true }).click();
+  assert.equal((await snapshot()).itemDraft, "1");
+  await select("简谱单音符变音", "还原号 ♮");
+  await page.getByRole("button", { name: "应用单个音高", exact: true }).click();
+  await page.waitForFunction(() => !window.numberedTest.groups().itemPitch.dirty);
+  assert.equal(await page.evaluate(() => window.numberedTest.commands[0].type), "numbered.event.set");
+  assert.equal(await page.evaluate(() => !!window.numberedTest.commands[0].itemId), true);
+  await page.getByRole("textbox", { name: "单音组简谱", exact: true }).fill("5");
+  await select("简谱单音符变音", "升号 ♯");
+  assert.equal(await page.getByRole("button", { name: "应用单个音高", exact: true }).isDisabled(), true);
+  assert.match(await page.locator('[data-numbered-group="itemPitch"]').innerText(), /先应用或恢复内容组/);
+  assert.equal(await commandCount(), 1);
+  await open();
+  await surface("sidebar");
+  await page.evaluate(() => window.numberedTest.focus("rhythm"));
+  await select("简谱时值", "八分");
+  await page.locator('[data-numbered-group="rhythm"]').getByRole("button", { name: "应用时值", exact: true }).click();
+  await page.waitForFunction(() => !window.numberedTest.groups().rhythm.dirty);
+  assert.equal(await page.evaluate(() => window.numberedTest.commands[0].type), "numbered.event.setRhythm");
 
   console.log(
     "NumberedEditor browser regressions passed: shared surfaces, group submission/restore, compatible dirty group retention, planner advance, external conflict/invalidation, member requests, action Portal, complex rhythm, IME guard.",

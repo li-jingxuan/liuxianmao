@@ -15,6 +15,7 @@ import {
   resolveSidebarRequest,
 } from "../components/EditorShell/music-text-draft";
 import { createEditorStore } from "../stores/editor-store";
+import { resolveChordFocus } from "../components/EditorShell/music-text-focus";
 
 /** 路由与草稿决策直接调用生产模块，保持真实布局、命中和业务 ID。 */
 const fixture = () => {
@@ -44,8 +45,17 @@ const fixture = () => {
 };
 
 describe("谱面对象选择与文字页签解耦", () => {
+  it("和弦锚点使用真实图元，空拍使用 TAB 光标，失效位置不借邻近拍", () => {
+    const { layout, target, measure } = fixture();
+    const bounds = layout.hitIndex.musicTextBounds!.find((item) => item.kind === "chord" && item.measureId === target.measureId && item.beatId === target.beatId);
+    expect(resolveChordFocus(layout, { ...target, kind: "chord" })).toBe(bounds);
+    const empty = measure.beats.find((beat) => !layout.hitIndex.musicTextBounds!.some((item) => item.kind === "chord" && item.measureId === target.measureId && item.beatId === beat.id))!;
+    const focus = resolveChordFocus(layout, { ...target, beatId: empty.id, kind: "chord" });
+    expect(focus).toMatchObject({ beatId: empty.id, measureId: target.measureId });
+    expect(resolveChordFocus(layout, { ...target, beatId: "removed", kind: "chord" })).toBeNull();
+  });
   it.each(["lyric", "numbered", "chord"] as const)(
-    "%s 草稿下点击同拍弦格仍是六线谱选择，歌词和简谱未应用内容直接丢弃",
+    "%s 草稿下点击同拍弦格仍是六线谱选择，未应用内容直接丢弃",
     (kind) => {
       const { document, layout, measure, target, lyricTarget, selection } =
         fixture();
@@ -77,7 +87,7 @@ describe("谱面对象选择与文字页签解耦", () => {
           numberedTarget: kind === "numbered" ? { ...target, kind } : undefined,
           numberedDirty: kind === "numbered",
         }),
-      ).toBe(kind === "chord" ? "confirm" : "execute");
+      ).toBe("execute");
     },
   );
 

@@ -184,16 +184,17 @@ export const LyricFormView = ({
                   if (row) onInspect(Number(row.key));
                 }}
               />}
-              <div hidden={compact} inert={compact} className={formStyles.overwrite}><Checkbox
+              {visiblePlan.overwrites > 0 && !draft.allowOverwrite && <p hidden={compact} inert={compact} className={formStyles.hint}>待允许覆盖，整批尚未应用。</p>}
+              <details className={formStyles.disclosure} hidden={compact} inert={compact}>
+                <summary>覆盖与逐项预览 <span>{visiblePlan.rows.length} 个字词 · 第 {draft.target.verse} 段{visiblePlan.overwrites > 0 ? draft.allowOverwrite ? " · 已允许覆盖" : " · 待允许覆盖" : ""}</span></summary>
+              <div className={formStyles.overwrite}><Checkbox
                 checked={draft.allowOverwrite}
                 onChange={(event) => onOverwriteChange(event.target.checked)}
               >
                 允许替换预览中标记的已有歌词（{visiblePlan.overwrites} 项）
               </Checkbox>
-                {visiblePlan.overwrites > 0 && !draft.allowOverwrite && <p className={formStyles.hint}>待允许覆盖，整批尚未应用。</p>}
+                <p className={formStyles.hint}>仅替换预览中标记的已有歌词；逐项查看原词与新词，点击位置可定位到谱面。</p>
               </div>
-              <details className={formStyles.disclosure} hidden={compact} inert={compact}>
-                <summary>查看完整对应表 · {visiblePlan.rows.length} 项</summary>
                 <div className={formStyles.tableScroll}>
                 <table>
                   <thead>

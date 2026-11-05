@@ -114,7 +114,11 @@ export const layoutNumbered = (
               profile.octaveGap -
               1.3 -
               i * (2.6 + profile.octaveStackGap)
-            : g.bounds.y + g.bounds.height + 4 + i * 4,
+            : musicTextInkBounds(g).y +
+              musicTextInkBounds(g).height +
+              profile.octaveGap +
+              1.3 +
+              i * (2.6 + profile.octaveStackGap),
         r: 1.3,
       });
     left += r.width + profile.itemGap;
@@ -242,8 +246,11 @@ export const layoutParagraphFocus = (
       m.numberedNotation?.find((n) => n.eventId === target.eventId);
     if (existing)
       return padNumberedBounds(
-        existing.itemBounds?.find((i) => i.itemId === target.itemId)?.bounds ??
-          existing.bounds,
+        // 单音使用包含节奏图元的统一范围；同时多音仍允许按成员局部定位。
+        existing.itemBounds?.length === 1
+          ? existing.bounds
+          : existing.itemBounds?.find((i) => i.itemId === target.itemId)?.bounds ??
+            existing.bounds,
       );
     const slot = m.numberedInputSlots?.find((s) =>
       target.eventId

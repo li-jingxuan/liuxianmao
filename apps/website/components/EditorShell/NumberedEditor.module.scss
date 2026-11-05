@@ -71,17 +71,95 @@
   > span { color: var(--ant-color-text-secondary, #595959); }
 }
 
-.taskGroup {
-  padding-block: 10px;
-  border-top: 1px solid var(--ant-color-border-secondary, #eee);
+.editor .taskGroup,
+.editor .secondaryGroup {
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+  border-top: 1px solid #e6ebf3;
 
   > summary {
-    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 39px;
+    margin: 0;
+    list-style: none;
+    font-size: 12px;
+    font-weight: 400;
     line-height: 1.6;
 
-    > span { color: var(--ant-color-text-secondary, #595959); font-size: 0.75rem; font-weight: 400; }
+    &::-webkit-details-marker { display: none; }
+
+    > span {
+      min-width: 0;
+      margin-left: auto;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: #626e82;
+      font-size: 11px;
+      font-weight: 400;
+    }
+
+    &::after {
+      content: "";
+      flex: none;
+      width: 6px;
+      height: 6px;
+      margin-right: 4px;
+      border-right: 1.5px solid #738097;
+      border-bottom: 1.5px solid #738097;
+      transform: rotate(-45deg);
+    }
+  }
+
+  &[open] {
+    padding-bottom: 14px;
+
+    > summary { margin-bottom: 3px; }
+    > summary::after { transform: rotate(45deg); }
+  }
+
+  :global(.ant-form-item-label) > label { font-size: 12px; }
+  :global(.ant-select) { width: 100%; min-width: 0; height: 37px; font-size: 13px; }
+  :global(.ant-btn) { font-size: 12px; }
+}
+
+.editor .taskGroup:last-of-type {
+  border-bottom: 1px solid #e6ebf3;
+}
+
+.editor .secondaryGroup {
+  margin-top: 12px;
+
+  > summary { color: #626e82; }
+}
+
+.inlineActions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.compactActions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+
+  > button {
+    min-width: 0;
+    min-height: 34px;
+    padding-inline: 8px;
+    font-size: 12px;
   }
 }
+
+.connectionFields { margin-top: 12px; }
+
+.dangerAction:global(.ant-btn) { height: auto; padding: 7px 0; }
 
 .dirty {
   font-size: 12px;

@@ -16,12 +16,25 @@
 .hint, .modeRow > span { color: var(--ant-color-text-secondary, #595959); }
 .error { margin: 4px 0 10px; color: var(--ant-color-error-text, #a8071a); font-size: 0.8125rem; line-height: 1.5; }
 .disclosure {
-  margin-block: 10px;
-  padding-block: 10px;
+  margin-block: 0;
   border-top: 1px solid var(--ant-color-border-secondary, #eee);
 
-  > summary { cursor: pointer; font-size: 0.8125rem; font-weight: 600; line-height: 1.6; }
-  > summary > span { color: var(--ant-color-text-secondary, #595959); font-size: 0.75rem; font-weight: 400; }
+  > summary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 39px;
+    cursor: pointer;
+    list-style: none;
+    white-space: nowrap;
+    font-size: 12px;
+    font-weight: 600;
+
+    &::-webkit-details-marker { display: none; }
+    &::after { content: "›"; margin-left: auto; color: var(--ant-color-text-secondary, #595959); font-size: 16px; }
+  }
+  &[open] > summary::after { transform: rotate(90deg); }
+  > summary > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--ant-color-text-secondary, #595959); font-size: 11px; font-weight: 400; }
 }
 .overwrite { margin-block: 10px; }
 .tableScroll {

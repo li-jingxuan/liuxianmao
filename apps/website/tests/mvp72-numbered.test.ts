@@ -14,6 +14,31 @@ import { getMeasureContentBottom } from "../../../packages/lxm-editor/src/layout
 import { createEditorSession, editorStore } from "../stores/editor-store";
 import { buildScoreScene } from "../components/EditorShell/score-scene";
 
+describe("简谱八度语法边界", () => {
+  it.each(["1..", "#4..", "n6..", "b7'''", "♯2'''", "1..+3'''"])(
+    "接受低两八度和高三八度：%s",
+    (raw) => expect(parseNumberedSequence(raw).ok).toBe(true),
+  );
+
+  it.each(["1...", "#4...", "n6...", "1''''", "1..+3...", "1.'"])(
+    "拒绝超出边界或混合八度：%s",
+    (raw) => {
+      expect(parseNumberedSequence(raw)).toEqual({
+        ok: false,
+        message: expect.stringContaining("高音用 '（最多 3 个），低音用 .（最多 2 个）"),
+      });
+    },
+  );
+
+  it("文档加载拒绝低三八度并保留高三八度", () => {
+    const document = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);
+    document.score.tracks[0]!.measures[0]!.numberedVoice.events[0]!.items[0]!.token = "1...";
+    expect(loadDocument(JSON.stringify(document)).ok).toBe(false);
+    document.score.tracks[0]!.measures[0]!.numberedVoice.events[0]!.items[0]!.token = "1'''";
+    expect(loadDocument(JSON.stringify(document)).ok).toBe(true);
+  });
+});
+
 /** 使用首页同一份 mock，验证真实 loader、布局、会话和导出投影。 */
 describe("MVP v7.2 简谱 mock", () => {
   it("首页默认加载八小节 mock，特殊符号与空拍均经过正式加载器", () => {
@@ -31,7 +56,7 @@ describe("MVP v7.2 简谱 mock", () => {
     ).toBe(false);
     expect(track.measures[6]!.numberedVoice.events.length === 0).toBe(true);
     expect(events.flatMap((e) => e.items.map((i) => i.token))).toEqual(
-      expect.arrayContaining(["0", "-", "#4'", "b7.", "1''", "6..."]),
+      expect.arrayContaining(["0", "-", "#4'", "b7.", "1''", "6.."]),
     );
   });
 
@@ -108,7 +133,7 @@ describe("MVP v7.2 简谱 mock", () => {
         }
       }
       expect(notationCount).toBe(29);
-      expect(dotCount).toBe(13);
+      expect(dotCount).toBe(12);
       // 无简谱与歌词的小节单独成行时不创建简谱占位，竖线仅到横梁。
       const isolated = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);
       isolated.score.tracks[0]!.measures = [

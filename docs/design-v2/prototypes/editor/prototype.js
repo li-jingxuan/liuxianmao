@@ -104,7 +104,16 @@
   function emptyPanel() {
     return `<div class="empty-state"><div class="empty-illustration"><svg viewBox="0 0 110 70" aria-hidden="true"><path d="M8 18h94M8 28h94M8 38h94M8 48h94M8 58h94" stroke="#ced8e8"/><rect x="36" y="12" width="28" height="51" rx="5" fill="#edf3ff" stroke="#9cb5e8" stroke-dasharray="3 3"/><path d="M50 28v20m-10-10h20" stroke="#285be0"/></svg></div><h2>从谱面上的一个位置开始</h2><p>点击音符、简谱、歌词或和弦，<br>这里会显示对应的编辑内容。</p><button class="primary small" data-action="example">选择一个示例音符</button><div class="empty-options"><button data-action="add-melody"><span>${icon('music')}在当前位置录入简谱</span>${icon('chevron')}</button><button data-action="add-lyric"><span>${icon('file')}为简谱填写歌词</span>${icon('chevron')}</button><button data-action="song"><span>${icon('settings')}查看歌曲设置</span>${icon('chevron')}</button></div></div>`;
   }
+  function updateToolbarDots() {
+    const enabled=!state.empty&&((state.tab==='selection'&&state.selection==='note')||(state.tab==='writing'&&state.writing==='melody'&&!hasPending()));
+    document.querySelectorAll('[data-dots]').forEach(button=>{
+      button.disabled=!enabled;
+      button.setAttribute('aria-pressed',String(enabled&&button.dataset.dots===state.dots));
+      button.title=!enabled?'请先选择可编辑音符，并处理未应用输入。':`${button.dataset.dots==='1'?'单附点：原时值的 1.5 倍':'双附点：原时值的 1.75 倍'}；再次点击取消附点`;
+    });
+  }
   function updateFooter() {
+    updateToolbarDots();
     const dirty=isDirty(),type=currentType();let summary,button;
     if(state.empty){$('#apply-bar').innerHTML=`<div class="apply-summary">${icon('info')}还没有修改曲谱</div><p class="help">选择对象后，操作与影响范围会显示在这里。</p>`;return;}
     if(state.tab==='selection'){summary=state.selection==='measure'?'小节设置分别应用；复制前先查看影响':'快捷操作直接作用于选区，可使用撤销';button=state.selection==='measure'?'应用小节设置':null;}
@@ -268,6 +277,7 @@
     if(button.dataset.mode){if(state[button.dataset.mode]!==button.dataset.value)discardWriting();state[button.dataset.mode]=button.dataset.value;render();return;}
     if(button.dataset.chord){state.chord=button.dataset.chord;state.chordFrets=[...presets[state.chord]];state.chordDirty=true;render();return;}
     if(button.dataset.duration){state.duration=button.dataset.duration;state.rhythmDirty=state.tab==='writing';render();if(state.tab==='selection')toast('已修改所选音符时值（演示）');return;}
+    if(button.dataset.dots&&!button.disabled){state.dots=state.dots===button.dataset.dots?'0':button.dataset.dots;render();toast(`${{'0':'无附点','1':'单附点','2':'双附点'}[state.dots]}已应用（演示）`);return;}
     if(button.dataset.score){
       const type=button.dataset.score,target=Number(button.dataset.target||0);
       if(type==='chord'){navigate('chord');return;}
@@ -291,6 +301,7 @@
   document.addEventListener('input',(e)=>{if(e.target.dataset.bind)bindInput(e.target);if(e.target.hasAttribute('data-mark-dirty')){state.otherDirty=true;updateFooter();}});
   document.addEventListener('change',(e)=>{
     const el=e.target,id=el.id;
+    if(id==='note-dots'){state.dots=el.value;render();toast('已修改所选音符附点（演示）');return;}
     if(id==='duration'||id==='dots'){state[id]=el.value;state.rhythmDirty=true;if($('#live-preview'))$('#live-preview').innerHTML=renderPreview();updateFooter();}
     if(id==='verse'){if(state.verse!==el.value)discardWriting();state.verse=el.value;render();}
     if(id.startsWith('fret-')){const i=Number(id.split('-')[1]);state.chordFrets[i]=el.value;state.chord='自定义';state.chordDirty=true;render();}

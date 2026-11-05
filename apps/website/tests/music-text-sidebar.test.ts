@@ -38,13 +38,13 @@ const fixture = () => {
 };
 
 describe("音乐文本侧栏未应用内容的离开策略", () => {
-  it("新歌词会话保护覆盖，和弦仅改显示配置也保护离开", () => {
+  it("新歌词会话保护覆盖，和弦仅改显示配置可直接离开", () => {
     const { document, target, chordTarget } = fixture();
     expect(readMusicTextDraft(document, target)!.allowOverwrite).toBe(false);
     const chord = readMusicTextDraft(document, chordTarget)!;
     chord.chord.display = chord.chord.display === "name" ? "nameAndDiagram" : "name";
     expect(musicTextDraftValue(chord)).not.toBe(chord.initial);
-    expect(resolveSidebarRequest(chord, { type: "close" })).toBe("confirm");
+    expect(resolveSidebarRequest(chord, { type: "close" })).toBe("execute");
   });
   it("歌词时间窗与事件入口归一，段号及简谱成员保持独立", () => {
     const { document, target, measure } = fixture();
@@ -160,17 +160,31 @@ describe("音乐文本侧栏未应用内容的离开策略", () => {
     );
     expect(draft.text).toBe("未提交的词");
   });
-  it("干净草稿可切换；和弦的图和名称修改均触发保护", () => {
-    const { document, chordTarget } = fixture();
+  it("和弦名称、显示与指法修改在换拍、切页签或关闭时直接丢弃", () => {
+    const { document, chordTarget, measure } = fixture();
     const draft = readMusicTextDraft(document, chordTarget)!;
     expect(resolveSidebarRequest(draft, { type: "close" })).toBe("execute");
+    const actions: SidebarAction[] = [
+      { type: "close" },
+      { type: "target", target: { ...chordTarget, beatId: measure.beats[1]!.id } },
+      { type: "selection", selection: { anchor: { ...chordTarget, beatId: measure.beats[1]!.id }, focus: { ...chordTarget, beatId: measure.beats[1]!.id } } },
+      { type: "tab", kind: "numbered" },
+      { type: "tab", kind: "lyric" },
+      { type: "tab", kind: "score", propertyTab: "song" },
+    ];
     for (const chord of [
       { ...draft.chord, chord: { ...draft.chord.chord, name: "新名称" } },
+      { ...draft.chord, chord: { ...draft.chord.chord, name: "" } },
+      { ...draft.chord, display: "nameAndDiagram" as const },
       { display: "nameAndDiagram" as const, chord: copyChordPreset("F")! },
-    ])
-      expect(
-        resolveSidebarRequest({ ...draft, chord }, { type: "close" }),
-      ).toBe("confirm");
+    ]) {
+      const edited = { ...draft, chord };
+      for (const action of actions) {
+        expect(resolveSidebarRequest(edited, action)).toBe("execute");
+        expect(resolveSidebarRequest(edited, action, { settingsDirty: true })).toBe("confirm");
+      }
+      expect(resolveSidebarRequest(edited, { type: "target", target: { ...chordTarget, string: 6 } })).toBe("ignore");
+    }
   });
   it("每次换拍独立预填歌词与和弦，不能携带上一拍快照", () => {
     const { document, chordTarget, measure } = fixture();
@@ -184,7 +198,12 @@ describe("音乐文本侧栏未应用内容的离开策略", () => {
         chord,
       },
     ];
+    const first = readMusicTextDraft(document, chordTarget)!;
+    first.chord.chord.name = "未应用和弦 A";
+    expect(resolveSidebarRequest(first, { type: "target", target: second })).toBe("execute");
     const next = readMusicTextDraft(document, second)!;
+    expect(next.chord.chord.name).toBe("F");
+    next.chord.chord.name = "未应用和弦 B";
     next.chord.chord.diagram!.strings[0]!.fret = 20;
     expect(measure.chordSymbols[0]!.chord.diagram!.strings[0]!.fret).not.toBe(
       20,
@@ -192,6 +211,9 @@ describe("音乐文本侧栏未应用内容的离开策略", () => {
     expect(
       readMusicTextDraft(document, chordTarget)!.chord.chord.diagram,
     ).toBeNull();
+    expect(resolveSidebarRequest(next, { type: "target", target: chordTarget })).toBe("execute");
+    expect(readMusicTextDraft(document, chordTarget)!.chord.chord.name).toBe("");
+    expect(readMusicTextDraft(document, second)!.chord.chord.name).toBe("F");
     expect(
       resolveSidebarRequest(readMusicTextDraft(document, second), {
         type: "close",
