@@ -98,9 +98,8 @@ const numberedGroupLabels: Record<NumberedDraftGroup, string> = {
   content: "简谱内容", rhythm: "时值", itemPitch: "单音符音高",
 };
 
-function NumberedActions({ compact, mode, group, groups, dirtyGroups, disabled, onRestore, onApply, onFocus }: {
+function NumberedActions({ compact, group, groups, dirtyGroups, disabled, onRestore, onApply, onFocus }: {
   compact: boolean;
-  mode: "single" | "sequence";
   group: NumberedDraftGroup;
   groups: Record<NumberedDraftGroup, NumberedGroupState>;
   dirtyGroups: readonly NumberedDraftGroup[];
@@ -115,7 +114,7 @@ function NumberedActions({ compact, mode, group, groups, dirtyGroups, disabled, 
     <p className={floatingStyles.leavingHint}>切换位置或模式会丢弃未应用输入。</p>
     {!compact && <Button disabled={disabled || !state.dirty} onClick={() => onRestore(group)}>恢复{label}</Button>}
     <Button type="primary" aria-label={compact ? "应用" : `应用${label}`} disabled={disabled || !state.canApply}
-      title={state.blockedReason ?? (!state.dirty ? "本组没有未应用修改" : group !== "content" ? `独立应用${label}` : mode === "single" ? "应用正文（Enter）" : "应用正文（Ctrl/Cmd+Enter）")}
+      title={state.blockedReason ?? (!state.dirty ? "本组没有未应用修改" : group !== "content" ? `独立应用${label}` : "应用正文（Enter）")}
       onClick={() => onApply(group)}>{compact ? "应用" : `应用${label}`}</Button>
     {!compact && dirtyGroups.filter((other) => other !== group).map((other) => <Button key={other} size="small" onClick={() => onFocus(other)}>{numberedGroupLabels[other]}未应用 · 前往处理</Button>)}
     {!compact && group !== "content" && state.blockedReason && <p className={floatingStyles.actionReason} role="status">{state.blockedReason}</p>}
@@ -1596,9 +1595,7 @@ export const NumberedEditor = ({
     },
     onKeyDown: (e) => {
       const bodyInput = e.target === input.current || e.target === popoverInput.current;
-      const applyKey = mode === "single"
-        ? !e.shiftKey && !e.altKey
-        : (e.ctrlKey || e.metaKey) && !e.altKey;
+      const applyKey = !e.shiftKey && !e.altKey;
       if (e.key !== "Enter" || !bodyInput || !applyKey)
         return;
       e.stopPropagation();
@@ -1611,7 +1608,7 @@ export const NumberedEditor = ({
       )
         return;
       e.preventDefault();
-      if (!pending) void applyContent();
+      if (!pending && !e.repeat) void applyContent();
     },
     onFocusCapture: (e) => {
       // 用户已选中任一表单控件时，不再补做等待中的气泡聚焦。
@@ -1648,7 +1645,7 @@ export const NumberedEditor = ({
             value={raw}
             onChange={(e) => setRaw(e.target.value)}
             placeholder={mode === "single" ? "1+3+5" : "1 2 3；同时多音用 1+3+5"}
-            title={mode === "single" ? "Enter 应用简谱内容" : "Ctrl/Cmd+Enter 应用简谱内容"}
+            title="Enter 应用简谱内容"
           />
         ) : (
           <Input.TextArea
@@ -1660,6 +1657,7 @@ export const NumberedEditor = ({
             aria-label={label}
             aria-invalid={!!inputIssue}
             rows={2}
+            title="Enter 应用简谱内容；Shift+Enter 换行"
             value={raw}
             onChange={(e) => setRaw(e.target.value)}
             placeholder="1 2 3；同时多音用 1+3+5"
@@ -1794,7 +1792,7 @@ export const NumberedEditor = ({
   const marksMaintenance = track?.numberedMarks.filter((mark) => mark.id === selectedMarkId || (event && (mark.type === "tie"
     ? event.items.some((item) => item.id === mark.fromItemId || item.id === mark.toItemId)
     : mark.type === "slur" ? mark.fromEventId === event.id || mark.toEventId === event.id : mark.eventId === event.id)));
-  const actions = (compact: boolean) => <NumberedActions compact={compact} mode={mode} group={compact ? "content" : actionGroup}
+  const actions = (compact: boolean) => <NumberedActions compact={compact} group={compact ? "content" : actionGroup}
     groups={groups} dirtyGroups={dirtyGroups} disabled={!!pending || compositionGuard}
     onRestore={restoreGroup} onApply={applyGroup} onFocus={focusGroup} />;
   const editor = (
@@ -1834,7 +1832,7 @@ export const NumberedEditor = ({
                 inert={compact}
               >
                 空格分先后音，+ 表示同时发音；高音用 &apos;，低音用 .，还原号用 n。
-                {mode === "single" ? " Enter 应用简谱内容。" : " Ctrl/Cmd+Enter 应用简谱内容。"}
+                {mode === "single" ? " Enter 应用简谱内容。" : " Enter 应用简谱内容；Shift+Enter 换行。"}
               </p>
               {!compact && !targetInvalid && conflicts.content !== contentFingerprint && (plan?.ok || overwritePreview?.ok) && (
                 <BeatMappingPreview

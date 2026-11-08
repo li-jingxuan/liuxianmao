@@ -95,6 +95,9 @@ const renderToolbar = ({
     eventId: measure.numberedVoice.events[0]!.id,
   };
   const props: ComponentProps<typeof EditorToolbar> = {
+    sidebarCollapsed: false,
+    onToggleSidebar: () => {},
+    sidebarToggleRef: null,
     activeTarget: lyric
       ? { ...target, kind: "lyric", verse: 1 }
       : numbered

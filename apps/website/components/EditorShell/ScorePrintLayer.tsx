@@ -73,6 +73,7 @@ export const ScorePrintLayer = ({
   return (
     <div
       className={styles.printLayer}
+      data-score-print-layer="true"
       aria-hidden="true"
       data-print-ready={!!current?.prepared}
     >

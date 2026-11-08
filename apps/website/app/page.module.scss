@@ -4,12 +4,14 @@
   display: flex;
   flex-wrap: wrap;
   height: 100%;
+  min-width: 0;
+  min-height: 0;
   .editorContentContainer {
     flex: 1;
     min-width: 0;
     height: 100dvh;
     min-height: 0;
-    overflow-x: auto;
+    overflow-x: hidden;
     overflow-y: hidden;
   }
 }

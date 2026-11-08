@@ -76,7 +76,7 @@ export interface ILXMLayout {
   y: number;
   /**
    * 整谱画布的宽度和高度（SVG 用于设置 width、height 与 viewBox）。
-   * 非空布局的 width 至少为配置的 systemWidth；它可以大于稀疏末行的实际宽度。
+   * 非空布局的 width 至少为配置的 systemWidth；超宽小节或图元可扩大画布。
    */
   width: number;
   height: number;
@@ -107,8 +107,8 @@ export interface ILXMSystemLayout {
   x: number;
   y: number;
   /**
-   * 当前行的实际绘制宽度。正文多小节行通常等于配置 systemWidth；稀疏末行或
-   * 单小节行可以更短，超宽小节行可以更长。
+   * 当前行的实际绘制宽度。各行（含末行和单小节行）铺满配置 systemWidth；
+   * 单个小节的固有宽度超出行宽时允许更长，避免压缩内容。
    */
   width: number;
   /** 当前行中最高小节决定的高度。 */

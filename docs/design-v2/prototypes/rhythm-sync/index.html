@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>节奏细分与简谱歌词同步 · 交互原型</title><link rel="icon" href="data:,">
+  <style>
+    :root{font-family:"PingFang SC","Microsoft YaHei",sans-serif;font-size:14px;color:#263147;background:#f4f6fa}*{box-sizing:border-box}body{margin:0}main{max-width:1060px;margin:32px auto;padding:0 20px}h1{font-size:24px;margin:10px 0}h2{font-size:17px;margin:0 0 16px}h3{font-size:14px;margin:20px 0 10px}p{line-height:1.8}a{color:#285be0}.muted,small{color:#68758b}.top,.actions,.controls{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.top{justify-content:space-between}.card{background:white;border:1px solid #dce2ec;border-radius:12px;padding:20px;margin:18px 0}.controls label{display:grid;gap:7px;flex:1;min-width:170px}button,select,input{font:inherit;border:1px solid #cbd3e0;border-radius:7px;padding:9px 12px;background:#fff;color:inherit}button{cursor:pointer}button:hover{border-color:#285be0}button:disabled{opacity:.45;cursor:default}.primary{background:#285be0;color:white;border-color:#285be0}button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid #9fb9ff;outline-offset:2px}.hint{padding:12px;background:#edf3ff;border-radius:7px;line-height:1.7}.warning{background:#fff4dc;color:#805314}.error{background:#ffedec;color:#a23229}.success{background:#eaf7ef;color:#216741}.score{overflow-x:auto;padding-bottom:8px}.row{display:flex;gap:8px;align-items:stretch;min-width:530px;margin:9px 0}.row-label{flex:0 0 58px;padding-top:12px;color:#68758b}.slots{display:flex;gap:6px;flex:1}.slot{min-width:0;text-align:center;padding:10px 4px;border-radius:7px;background:#f3f5f9;overflow-wrap:anywhere}.slot.selected{box-shadow:inset 0 0 0 2px #285be0;background:#edf3ff}.slot small{display:block;font-size:11px;margin-top:7px}.slot.gap{border:1px dashed #7896cb;background:#f7faff}.pitch{display:inline-block;font-size:22px;line-height:1.1}.r8{border-bottom:1px solid currentColor;padding-bottom:3px}.r16{border-bottom:3px double currentColor;padding-bottom:3px}.columns{display:grid;grid-template-columns:1fr 1fr;gap:18px}.columns .score .row{min-width:360px}.columns .score{border-radius:8px;background:#fafbfe;padding:10px}.status{min-height:28px;margin-top:14px;line-height:1.7}.badge{color:#285be0;font-size:12px}.detail{line-height:1.8}summary{cursor:pointer}.form{display:flex;gap:10px;align-items:end;flex-wrap:wrap}.form label{display:grid;gap:8px}input{width:150px}pre{font-size:12px;overflow:auto;max-height:220px}.preview[hidden],section[hidden]{display:none}.footer{font-size:12px;color:#68758b;margin:24px 0}@media(max-width:700px){main{padding:0 12px;margin:20px auto}.columns{grid-template-columns:1fr}.card{padding:15px}h1{font-size:21px}}
+  </style>
+</head>
+<body><main>
+  <header class="top"><div><span class="badge">2026-11-09 · 独立设计演示 / 固定样谱</span><h1>TAB 节奏细分与简谱、歌词位置</h1><p class="muted">第一小节 · 第一拍；后续三拍保持原位。仅演示交互，不调用产品命令。</p></div><a href="../../specs/13-TAB节奏细分与简谱歌词同步.md">查看交互约定 ↗</a></header>
+  <section class="card">
+    <div class="controls">
+      <label>入口<select id="entry"><option value="after">对已改 TAB 范围细分简谱</option><option value="combined">TAB 拆分并同步（单 Beat）</option></select></label>
+      <label>场景<select id="scenario"><option value="A">A · 四分 → 两八分位置</option><option value="B">B · 两八分 → 两十六分＋八分位置</option></select></label>
+      <label>原内容<select id="source"><option value="notes">已有音符与两段歌词</option><option value="gap">已保存空事件（仅歌词）</option><option value="blank">真正空窗（无事件）</option></select></label>
+    </div><p class="muted">切换演示条件会重置样谱。普通 TAB 时值编辑仍保留独立简谱与歌词；请从下方显式入口预览。</p>
+  </section>
+  <section class="card" aria-labelledby="score-title">
+    <div class="top"><h2 id="score-title">当前谱面</h2><span id="history" class="muted"></span></div>
+    <p id="selection" class="hint"></p><div id="score" class="score"></div>
+    <div class="actions"><button id="open" class="primary"></button><button id="undo" disabled>撤销最近一步</button><button id="reset">重置样谱</button></div>
+    <div id="status" class="status" role="status" aria-live="polite"></div>
+  </section>
+  <section id="preview" class="card preview" hidden aria-labelledby="preview-title">
+    <h2 id="preview-title" tabindex="-1">细分预览</h2><p id="scope"></p>
+    <div class="columns"><div><h3>当前</h3><div id="before" class="score"></div></div><div><h3>应用后</h3><div id="after" class="score"></div></div></div>
+    <p id="summary" class="hint"></p><p id="marks" class="muted"></p>
+    <div class="actions"><button id="apply" class="primary">应用细分</button><button id="cancel">取消</button><button id="stale">模拟谱面或选择已变化</button><button id="fail">模拟最终校验失败</button></div>
+    <div id="preview-status" class="status" role="status" aria-live="polite"></div>
+  </section>
+  <section id="content" class="card" hidden aria-labelledby="content-title">
+    <h2 id="content-title">当前位置</h2><p id="content-info" class="hint"></p>
+    <div class="form"><label>简谱音高（1–7；留空保留空事件）<input id="pitch" maxlength="1" inputmode="numeric"></label><label>第 1 段歌词<input id="lyric1" maxlength="12"></label><label>第 2 段歌词<input id="lyric2" maxlength="12"></label><button id="save" class="primary">应用当前位置内容</button><button id="close-content">结束编辑</button></div>
+    <p class="muted">两行均锚定同一位置；补音继承当前位置时值。可先填词应用，再补音；也可反向操作。</p>
+  </section>
+  <details class="card"><summary>边界与现有录入模板演示</summary>
+    <h3>拒绝时保持原谱与选区</h3><div class="controls"><label>目标情况<select id="boundary"><option value="cut">只选新十六分拍，切穿原八分</option><option value="cross">跨小节 / 不连续 / 无有效目标</option><option value="unsupported">连音 / 无法精确表示的时值 / 休止或延续需拆分</option><option value="tie">受影响的简谱 tie / slur</option></select></label><button id="reject">查看阻止反馈</button></div>
+    <h3>现有模板准确预览（独立演示，不写入上方谱面）</h3><div class="controls"><label>现有模板<select id="template"><option value="uniform">统一十六分</option><option value="custom">自定义：十六分、十六分、八分</option><option value="front8">前八后十六：八分、十六分、十六分</option><option value="back8">前十六后八：十六分、十六分、八分</option></select></label><label>输入数字<input id="sequence" value="123" maxlength="12" inputmode="numeric"></label></div><p id="template-summary" class="hint" role="status"></p>
+  </details>
+  <details class="card"><summary>评审用数据（身份、位置、历史）</summary><pre id="debug"></pre></details>
+  <p class="footer">新空事件不是休止符或延续符；虚线框仅用于编辑。成品、打印、导出保留时间间隔，空事件不生成数字或减时线。本原型不代表核心命令、导出或产品验收。</p>
+</main><script>
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const copy = value => JSON.parse(JSON.stringify(value));
+  const lengthName = duration => ({960:'四分',480:'八分',240:'十六分',120:'三十二分'})[duration] || `${duration} ticks`;
+  const place = tick => ({0:'第 1 拍起点',240:'第 1 拍 ¼ 处',480:'第 1 拍后半拍',960:'第 2 拍起点'})[tick] || `拍内 ${tick}/960`;
+  let state, stack = [], preview = null, focusId = null, serial = 0, version = 0;
+  function event(id,tick,duration,pitch,lyrics){return {id,tick,duration,pitch,items:pitch?[id+'-item']:[],lyrics};}
+  function notice(text,tone=''){ $('status').textContent=text; $('status').className='status '+tone; }
+  function reset(){
+    const isB=$('scenario').value==='B', combined=$('entry').value==='combined', source=$('source').value;
+    state={tab:combined?(isB?[480,480]:[960]):(isB?[240,240,480]:[480,480]),events:source==='blank'?[]:[event('e0',0,isB?480:960,source==='notes'?'5':'',['轻','风'])],history:[]};
+    if(isB&&source!=='blank')state.events.push(event('e1',480,480,source==='notes'?'6':'',['唱','来']));
+    stack=[];preview=null;focusId=null;version++;$('preview').hidden=true;$('content').hidden=true;
+    render();notice(source==='blank'?'真正空窗随 TAB 边界派生两行入口，显示本身不保存事件。':'已载入样谱；选择节奏操作查看候选结果。');
+  }
+  function parts(data){
+    let tick=0;const derived=[];data.tab.forEach(duration=>{const end=tick+duration;if(!data.events.some(e=>e.tick<end&&e.tick+e.duration>tick))derived.push({id:'derived-'+tick,tick,duration,pitch:'',lyrics:[],derived:true});tick=end;});return [...data.events,...derived].sort((a,b)=>a.tick-b.tick);
+  }
+  function addRow(host,label,items,interactive=false,kind='notes'){
+    const row=document.createElement('div');row.className='row';const title=document.createElement('span');title.className='row-label';title.textContent=label;row.append(title);
+    const slots=document.createElement('div');slots.className='slots';row.append(slots);
+    items.forEach(item=>{
+      const cell=document.createElement(interactive?'button':'div');cell.className='slot'+(!item.pitch&&kind!=='tab'?' gap':'')+(focusId===item.id&&interactive?' selected':'');cell.style.flex=item.duration+' 1 0%';
+      if(kind==='tab'){cell.textContent=lengthName(item.duration);cell.classList.add('selected');}
+      else if(kind==='notes'){const pitch=document.createElement('span');pitch.textContent=item.pitch|| (item.derived?'＋':'空位');pitch.className='pitch'+(item.pitch&&item.duration<=240?' r16':item.pitch&&item.duration===480?' r8':'');cell.append(pitch);}
+      else cell.textContent=item.lyrics[kind==='verse1'?0:1]||'填词';
+      const sub=document.createElement('small');sub.textContent=kind==='tab'?place(item.tick):lengthName(item.duration);cell.append(sub);
+      if(interactive){cell.setAttribute('aria-label',`${place(item.tick)}，${lengthName(item.duration)}，${kind==='notes'?'简谱':'歌词'}，${item.pitch||'空位'}`);cell.onclick=()=>edit(item,kind);}
+      slots.append(cell);
+    });host.append(row);
+  }
+  function score(host,data,interactive=false){
+    host.replaceChildren();let tick=0;const tab=data.tab.map(duration=>{const item={tick,duration};tick+=duration;return item;});
+    addRow(host,'TAB',tab,false,'tab');const positions=parts(data);addRow(host,'简谱',positions,interactive);addRow(host,'词 1',positions,interactive,'verse1');addRow(host,'词 2',positions,interactive,'verse2');
+  }
+  function render(){
+    score($('score'),state,true);const combined=$('entry').value==='combined';
+    $('selection').textContent=combined?`已选择单个 TAB Beat：${place(0)}，${lengthName(state.tab[0])}；精确等分为两个${lengthName(state.tab[0]/2)}。同拍多弦只算一个目标。`:'已选择第一小节第一拍的连续 TAB 范围；整拍覆盖原简谱音符。';
+    $('open').textContent=combined?'TAB 拆分并同步':'按所选 TAB 节奏细分简谱';$('undo').disabled=!stack.length;
+    $('history').textContent=`本轮新增历史 ${state.history.length} 条`;
+    $('debug').textContent=JSON.stringify({version,focusId,...state},null,2);
+  }
+  function plan(){
+    const candidate=copy(state),combined=$('entry').value==='combined',end=combined?state.tab[0]:960;
+    if(state.events.some(e=>e.tick<end&&e.tick+e.duration>end))throw Error('所选范围切穿已有简谱，请扩大到完整音符后重试；组合操作不会扩大 TAB 拆分目标。');
+    if(combined){if(end/2<120)throw Error('此范围暂不支持同步细分：已达到演示支持的最短时值。');candidate.tab.splice(0,1,end/2,end/2);}
+    let tick=0;const boundaries=[0];candidate.tab.forEach(d=>{tick+=d;boundaries.push(tick);});
+    let shortened=0,newIds=[];
+    candidate.events=state.events.flatMap(e=>{
+      if(e.tick>=end)return [copy(e)];
+      const cuts=[e.tick,...boundaries.filter(t=>t>e.tick&&t<e.tick+e.duration),e.tick+e.duration];
+      if(cuts.length===2)return [copy(e)];shortened++;
+      return cuts.slice(0,-1).map((t,i)=>{if(!i)return {...copy(e),duration:cuts[i+1]-t};const id=`new-${version}-${serial}-${t}`;newIds.push(id);return event(id,t,cuts[i+1]-t,'',[]);});
+    });return {candidate,shortened,newIds,end,combined,version};
+  }
+  $('open').onclick=()=>{
+    serial++;try{preview=plan();}catch(error){notice(error.message,'error');return;}
+    if(!preview.combined&&!preview.newIds.length){preview=null;notice('所选范围已按当前 TAB 节奏细分；未写入文档或新增历史。','success');return;}
+    $('content').hidden=true;$('preview').hidden=false;$('apply').disabled=false;$('preview-status').textContent='';
+    $('scope').textContent=`作用范围：第一小节第 1 拍${preview.end===480?'的前半拍':''}；${preview.combined?'单个 TAB Beat 等分，与简谱一次提交、一次撤销。':'事后细分形成一条新历史，之前的 TAB 修改保留自己的历史。'}`;
+    score($('before'),state);score($('after'),preview.candidate);
+    const first=state.events[0],newFirst=preview.candidate.events[0];
+    $('summary').textContent=`缩短原事件 ${preview.shortened} 个，新增持久化空位 ${preview.newIds.length} 个。`+(preview.shortened?`原${lengthName(first.duration)}缩为${lengthName(newFirst.duration)}，后接${lengthName(first.duration-newFirst.duration)}空位；已有后续位置保持原位。`:'已有简谱无需改动。')+(state.events.length?' 首音与原词只留在首段，两段歌词均保留；新位置无音、无词，不复制音高或建立简谱 tie。':' 真正空窗只派生提示，不因显示保存空事件。');
+    $('marks').textContent=preview.combined?'记号影响：TAB 复用原拆分的音符复制、持续音 tie 与技巧迁移；本样谱无需迁移的 TAB 技巧或简谱连接记号。受影响简谱 tie / slur 将阻止操作。':'记号影响：本样谱无受影响连接记号；有未定义迁移规则的简谱 tie / slur 时整次阻止。';
+    $('preview-title').focus();
+  };
+  function endPreview(){preview=null;$('preview').hidden=true;$('open').focus();}
+  $('cancel').onclick=()=>{endPreview();notice('已取消预览；谱面、历史和 TAB 选择保留。');};
+  $('stale').onclick=()=>{if(!preview)return;version++;$('apply').disabled=true;$('preview-status').textContent='谱面或选择已变化，请重新检查细分结果。预览与输入保留；关闭后重新进入。';$('preview-status').className='status warning';render();};
+  $('fail').onclick=()=>{if(!preview)return;preview.fail=true;$('preview-status').textContent='已设置最终校验失败；点击应用验证两层均不提交。';};
+  $('apply').onclick=()=>{
+    if(!preview)return;
+    if(preview.version!==version){$('preview-status').textContent='谱面或选择已变化，请重新检查细分结果。';return;}
+    if(preview.fail){$('preview-status').textContent='未应用细分，请重新检查目标范围。TAB、简谱、歌词及历史均未写入；预览保留。';$('preview-status').className='status error';return;}
+    stack.push({state:copy(state),focusId});const target=preview.newIds[0];state=preview.candidate;state.history.push(preview.combined?'TAB 拆分并同步':'按所选 TAB 节奏细分简谱');version++;focusId=target||focusId;endPreview();render();
+    notice('已应用；原词保留首段，新空位可分别补音和填词。TAB 范围保留。','success');
+    if(target){const buttons=$('score').querySelectorAll('button');const index=parts(state).findIndex(e=>e.id===target);buttons[index]?.focus();}
+  };
+  function edit(item,kind){
+    if(preview){version++;$('apply').disabled=true;$('preview-status').textContent='谱面或选择已变化，请重新检查细分结果。';}
+    focusId=item.id;$('content').hidden=false;$('content-info').textContent=`${place(item.tick)} · ${lengthName(item.duration)}；${item.derived?'真正空窗，应用内容时才保存事件':'已有位置，补音保留身份、时值与两段歌词'}。`;
+    $('pitch').value=item.pitch;$('lyric1').value=item.lyrics[0]||'';$('lyric2').value=item.lyrics[1]||'';render();$(kind==='verse1'?'lyric1':kind==='verse2'?'lyric2':'pitch').focus();
+  }
+  $('save').onclick=()=>{
+    const pitch=$('pitch').value.trim();if(pitch&&!/^[1-7]$/.test(pitch)){notice('请输入 1–7 的单个音高。','error');return;}
+    const item=parts(state).find(e=>e.id===focusId);if(!item)return;stack.push({state:copy(state),focusId});
+    if(item.derived){item.id='saved-'+(++serial);delete item.derived;state.events.push(item);focusId=item.id;}
+    item.pitch=pitch;if(pitch&&!item.items?.length)item.items=[item.id+'-item'];if(!pitch)item.items=[];item.lyrics=[$('lyric1').value,$('lyric2').value];
+    state.history.push('编辑当前位置内容');version++;$('content').hidden=true;render();notice(`已保存${lengthName(item.duration)}位置的音与词；仍是同一个事件。`,'success');
+  };
+  $('close-content').onclick=()=>{$('content').hidden=true;};
+  $('undo').onclick=()=>{const previous=stack.pop();if(!previous)return;state=previous.state;focusId=previous.focusId;version++;preview=null;$('preview').hidden=true;$('content').hidden=true;render();notice('已撤销最近一步；组合拆分的 TAB 与简谱整体恢复。');};
+  $('reject').onclick=()=>{const messages={cut:'所选范围切穿已有简谱，请扩大到完整音符后重试。组合入口请改用事后完整范围细分。',cross:'请选择同一小节内连续的 TAB 拍点。',unsupported:'此范围暂不支持同步细分：涉及连音、不可精确分段或需要拆分的休止 / 延续事件。',tie:'此范围暂不支持同步细分：原简谱 tie / slur 的音乐含义会变化。'};notice(messages[$('boundary').value]+' 原谱、原选择及历史保留。','error');};
+  function template(){const mode=$('template').value,digits=$('sequence').value.trim(),rhythms=mode==='uniform'?[240,240,240,240,240]:mode==='front8'?[480,240,240]:[240,240,480];const n=digits.length,total=rhythms.slice(0,n).reduce((a,b)=>a+b,0);$('template-summary').textContent=n>rhythms.length?`输入 ${n} 项，可写位置 ${rhythms.length} 个：整批拒绝，不截断、不重复最后时值。`:`输入 ${n} 项；实际节奏：${rhythms.slice(0,n).map(lengthName).join('、')||'无'}；作用范围：从第 1 拍起点至 ${total/960} 拍处；剩余 ${rhythms.length-n} 个位置。${mode==='uniform'?'五个数字保存为五个真实十六分，保留双层减时线。':''}`;}
+  ['entry','scenario','source'].forEach(id=>$(id).onchange=reset);$('reset').onclick=reset;$('template').onchange=template;$('sequence').oninput=template;reset();template();
+</script></body></html>

@@ -42,8 +42,11 @@ import type {
 
 import {
   boundsIntersect,
+  compactRangeTechnique,
   getFretTextBounds,
   getTextBounds,
+  getTechniqueInkBounds,
+  placeCurveLabelAboveApex,
   padBounds,
   translateTechniqueSegment,
   withTechniqueBounds,
@@ -54,7 +57,6 @@ import {
   techniqueInkIntersects,
 } from "./technique-curve-placement";
 import {
-  chordTraversalOffset,
   TECHNIQUE_BEND_RISE,
   TECHNIQUE_BEND_RUN,
   TECHNIQUE_LABEL_GAP,
@@ -137,21 +139,21 @@ const buildAnchorMaps = (systems: ILXMSystemLayout[]): ILXMAnchorMaps => {
 };
 
 /**
- * 收集应隐藏基础品位文本的 Beat × 弦范围。
+ * 收集应隐藏基础品位文本和同拍休止符的 Beat × 弦范围。
  *
  * 范围端点来自用户的矩形选区，不要求端点上预先存在 Note；只要弦号能解析到当前
  * staff 的真实 Y 坐标即可。非法范围不会进入投影，避免技巧无路径时误隐藏品位。
  */
-interface ILXMFretSuppressionRange {
+interface ILXMChordTraversalSuppressionRange {
   beatId: string;
   minString: number;
   maxString: number;
 }
 
-const getFretSuppressionRanges = (
+const getChordTraversalSuppressionRanges = (
   techniques: ILXMTechnique[],
   anchors: ILXMAnchorMaps,
-): readonly ILXMFretSuppressionRange[] =>
+): readonly ILXMChordTraversalSuppressionRange[] =>
   techniques.flatMap((technique) => {
     if (technique.type !== "strum" && technique.type !== "arpeggio") return [];
     const beat = anchors.beats.get(technique.beatId);
@@ -171,23 +173,25 @@ const getFretSuppressionRanges = (
   });
 
 /**
- * 在所有时值、技巧 anchor 与 SVG segment 完成后，只裁剪最终可见的基础品位。
+ * 在所有时值、技巧 anchor 与 SVG segment 完成后，裁剪最终可见的基础品位和休止符。
+ * 休止符属于整拍，只要该拍存在有效扫弦/琶音范围就隐藏；源 Beat 保留以便删除技巧后恢复。
  * 保持结构共享既减少无关对象变化，也让调用方可以可靠判断哪些 system/measure
  * 真正受到了投影影响。
  */
-const applyFretVisibilityProjection = (
+const applyChordTraversalVisibilityProjection = (
   systems: ILXMSystemLayout[],
-  suppressionRanges: readonly ILXMFretSuppressionRange[],
+  suppressionRanges: readonly ILXMChordTraversalSuppressionRange[],
 ): ILXMSystemLayout[] => {
   if (suppressionRanges.length === 0) return systems;
+  const suppressedBeatIds = new Set(
+    suppressionRanges.map((range) => range.beatId),
+  );
 
   return systems.map((system) => {
     let systemChanged = false;
     const measures = system.measures.map((measure) => {
       const notes = measure.notes.filter(
-        // x 是闷音语义，不是可省略的和弦品位，扫弦/琶音不能将其隐藏。
         (note) =>
-          note.fret === "x" ||
           !suppressionRanges.some(
             (range) =>
               range.beatId === note.beatId &&
@@ -195,9 +199,16 @@ const applyFretVisibilityProjection = (
               note.string <= range.maxString,
           ),
       );
-      if (notes.length === measure.notes.length) return measure;
+      const restMarks = measure.restMarks.filter(
+        (rest) => !suppressedBeatIds.has(rest.beatId),
+      );
+      if (
+        notes.length === measure.notes.length &&
+        restMarks.length === measure.restMarks.length
+      )
+        return measure;
       systemChanged = true;
-      return { ...measure, notes };
+      return { ...measure, notes, restMarks };
     });
     return systemChanged ? { ...system, measures } : system;
   });
@@ -493,6 +504,45 @@ const assignLanes = (
     placed.push({ ...segment, lane });
     segmentsBySystem.set(candidate.systemIndex, placed);
   });
+  // 弧线轮廓与端点先按原规则避让，再单独压紧 H/P；不改变弧高或挤占其它弦。
+  for (const [systemIndex, segments] of segmentsBySystem) {
+    const notes = [...anchors.notes.values()]
+      .filter((note) => note.systemIndex === systemIndex)
+      .map((note) => getFretTextBounds(note.layout));
+    segments.forEach((segment, index) => {
+      if ((segment.type !== "hammerOn" && segment.type !== "pullOff") ||
+          !segment.texts.length || !segment.path ||
+          (segment.path.d.match(/Q/g) ?? []).length !== 1) return;
+      const values = segment.path.d.match(/-?(?:\d*\.)?\d+(?:e[+-]?\d+)?/gi)!.map(Number);
+      if (values.length !== 6) return; // 内嵌标签的分段弧线保持既有规则。
+      const apexY = (values[1]! + 2 * values[3]! + values[5]!) / 4;
+      const compact = withTechniqueBounds({
+        ...segment,
+        texts: segment.texts.map((label) => placeCurveLabelAboveApex(label, apexY, segment.path!.strokeWidth)),
+      });
+      const labelBounds = getTechniqueInkBounds({ texts: compact.texts, path: null });
+      if (labelBounds.some((label) => notes.some((note) => boundsIntersect(label, note))) ||
+          segments.some((other, otherIndex) => otherIndex !== index && techniqueInkIntersects(compact, other))) return;
+      segments[index] = compact;
+    });
+    // H/P 已收紧后再回收区间标记按 12 单位整档避让留下的空白。
+    // 从低到高收紧，保证相互覆盖的区间仍按原层级排列。
+    const ranges = segments.map((segment, index) => ({ segment, index }))
+      .filter(({ segment }) => segment.type === "palmMute" || segment.type === "letRing")
+      .sort((a, b) => b.segment.visualBounds.y - a.segment.visualBounds.y);
+    for (const { index } of ranges) {
+      const segment = segments[index]!;
+      const obstacles = [...notes, ...segments.flatMap((other, otherIndex) =>
+        otherIndex === index ? [] : isAnchoredCurve(other)
+          ? getTechniqueInkBounds(other) : [other.visualBounds])];
+      const compact = compactRangeTechnique(segment,
+        Math.max(0, segment.lane) * LXM_TECHNIQUE_LANE_HEIGHT, obstacles);
+      // 仍遵守最终通用碰撞合同；极密组合不为压紧空白引入交叠。
+      if (!segments.some((other, otherIndex) => otherIndex !== index && techniqueInkIntersects(compact, other))) {
+        segments[index] = compact;
+      }
+    }
+  }
   return segmentsBySystem;
 };
 
@@ -742,6 +792,9 @@ const createNaturalSegmentLayout = (
         d: `M ${x1} ${(fromIsLocal ? from.y : localStringY) - slope} L ${x2} ${(toIsLocal ? to.y : localStringY) + slope}`,
         strokeWidth: LXM_TECHNIQUE_PATH_STROKE_WIDTH,
       };
+      if (candidate.segmentIndex === 0) {
+        texts = [text("S", (x1 + x2) / 2, laneY - LXM_TECHNIQUE_NOTE_CLEARANCE_Y)];
+      }
     } else {
       // 弧线在数字中心上方起落；连同线宽避开品位描边，紧凑短音也保留完整跨度。
       // 只读取本行锚点的上缘，跨行续接继续使用各自谱行的坐标与安全边。
@@ -778,7 +831,7 @@ const createNaturalSegmentLayout = (
           text(
             technique.type === "hammerOn" ? "H" : "P",
             (x1 + x2) / 2,
-            // 标签整体高于曲线控制点及其描边，避免 H/P 的白色描边盖住弧顶。
+            // 保守模板先参与弧线避让；压紧标签在全部技巧定位完成后单独执行。
             curveY -
               LXM_TECHNIQUE_CURVE_HEIGHT -
               LXM_TECHNIQUE_NOTE_CLEARANCE_Y,
@@ -834,14 +887,7 @@ const createNaturalSegmentLayout = (
         }
         const y1 = Math.min(fromY, toY) - 2;
         const y2 = Math.max(fromY, toY) + 2;
-        // 普通品位沿用拍点中心；范围内的 x 必须保留，并为方向记号留出左侧净空。
-        const x =
-          beat.x -
-          chordTraversalOffset(
-            beat.notes,
-            technique.minString,
-            technique.maxString,
-          );
+        const x = beat.x;
         const directionStartY =
           technique.type === "arpeggio"
             ? technique.direction === "ascending"
@@ -1059,13 +1105,13 @@ export const planTrackTechniques = (
     ),
   }));
   // anchors 在投影前由完整 Note layout 建立；技巧跨度、时值符干与其他 Note 技巧
-  // 均已消费真实坐标。这里过滤只影响最终 adapter 可见的基础品位文本。
-  const visibleSystems = applyFretVisibilityProjection(
+  // 均已消费真实坐标。这里过滤只影响最终 adapter 可见的基础品位文本和休止符。
+  const visibleSystems = applyChordTraversalVisibilityProjection(
     applyChordTraversalDurationProjection(
       systemsWithTechniques,
       track.techniques,
     ),
-    getFretSuppressionRanges(track.techniques, baseAnchors),
+    getChordTraversalSuppressionRanges(track.techniques, baseAnchors),
   );
   return naturalNoteIds.size
     ? visibleSystems.map((system) => ({

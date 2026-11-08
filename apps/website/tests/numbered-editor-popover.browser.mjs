@@ -60,7 +60,7 @@ try {
     await page.goto(`${base}?${query}`);
     await page
       .locator('[data-presentation="popover"] input[placeholder]')
-      .waitFor();
+      .waitFor().catch((error) => { throw new Error(`${error.message}\nPage errors: ${errors.join("; ")}\n${scenario}`); });
     if (input !== undefined)
       await page.waitForFunction(
         (value) => window.numberedTest?.snapshot().raw === value,
@@ -119,15 +119,24 @@ try {
   await page.waitForFunction(() => window.numberedTest.commands.length === 1);
   assert.equal(await commandCount(), 1);
   await page.evaluate(() => window.numberedTest.focus("rhythm"));
+  await page.waitForFunction(() => [...document.querySelectorAll('[aria-label="简谱时值"]')].some((node) => node.closest("details")?.open));
   assert.equal(await page.getByLabel("简谱时值", { exact: true }).evaluate((node) => node.closest("details").open), true);
 
-  // Continuous input keeps plain Enter local and uses Ctrl+Enter for one command.
+  // Continuous input applies with Enter, while Shift+Enter still inserts a newline.
   await open("blank");
   await surface("sidebar");
   const continuousInput = page.getByRole("textbox", { name: "音符内容", exact: true });
   await continuousInput.fill("1");
-  await continuousInput.press("Enter");
+  await continuousInput.press("Shift+Enter");
   assert.equal(await commandCount(), 0);
+  assert.ok((await continuousInput.inputValue()).includes("\n"));
+  await continuousInput.fill("1");
+  await continuousInput.press("Enter");
+  await page.waitForFunction(() => window.numberedTest.commands.length === 1);
+
+  // The previous modifier shortcut remains supported.
+  await open("blank");
+  await surface("sidebar");
   await continuousInput.fill("1");
   await continuousInput.press("Control+Enter");
   await page.waitForFunction(() => window.numberedTest.commands.length === 1);
@@ -333,6 +342,24 @@ try {
   );
   assert.equal(await commandCount(), 0);
   assert.deepEqual(errors, []);
+
+  // A gap created by two real synchronized splits keeps its sixteenth duration,
+  // event identity and prefilled lyric despite an explicit quarter-note preference.
+  await open("sync-gap");
+  const syncBefore = await page.evaluate(() => window.numberedTest.document());
+  const syncGap = syncBefore.score.tracks[0].measures[0].numberedVoice.events.find((event) => event.tick === 240);
+  assert.equal(syncGap.kind, "gap");
+  assert.equal(syncGap.rhythm.base, "sixteenth");
+  await compactInput().fill("6");
+  await applyContent().click();
+  await page.waitForFunction(() => window.numberedTest.commands.length === 1);
+  const syncAfter = await page.evaluate(() => window.numberedTest.document());
+  const syncFilled = syncAfter.score.tracks[0].measures[0].numberedVoice.events.find((event) => event.id === syncGap.id);
+  assert.equal(syncFilled.kind, "notes");
+  assert.equal(syncFilled.rhythm.base, "sixteenth");
+  assert.equal(syncFilled.tick, 240);
+  assert.deepEqual(syncAfter.score.tracks[0].measures[0].lyrics, syncBefore.score.tracks[0].measures[0].lyrics);
+  assert.equal(await page.evaluate(() => window.numberedTest.commands[0].type), "numbered.event.set");
 
   // A content-only insertion advances using the actual planner focus.
   await open("blank");

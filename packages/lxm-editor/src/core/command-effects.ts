@@ -286,6 +286,7 @@ export const collectCommandEffects = (
         const nextDuration = afterContext.getBeatDurationTicks(nextBeat);
         const isRequestedRhythm =
           (command.type === "beat.setRhythm" ||
+            command.type === "beat.splitAndAlignNumbered" ||
             command.type === "beat.split") &&
           command.trackId === track.id &&
           command.measureId === measure.id &&

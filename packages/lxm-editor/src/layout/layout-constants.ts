@@ -37,6 +37,10 @@ export const LXM_TECHNIQUE_HIT_PADDING = 4;
 export const LXM_TECHNIQUE_NOTE_CLEARANCE_Y = 5;
 export const LXM_TECHNIQUE_FRET_GAP_X = 2;
 export const LXM_TECHNIQUE_CURVE_HEIGHT = 6;
+/** H/P 字形描边下缘与弧线实际弧顶外缘的净空。 */
+export const LXM_TECHNIQUE_CURVE_LABEL_GAP = 2;
+/** 区间技巧文字、虚线及末端钩与下方技巧墨迹的最小净空。 */
+export const LXM_TECHNIQUE_RANGE_INK_GAP = 4;
 /** 弧线垂直净空调节处：0 表示外缘贴近品位白色描边上缘；增大此值会抬高弧线。 */
 export const LXM_TECHNIQUE_CURVE_FRET_GAP_Y = 0;
 /** 密集和弦内嵌 H/P 时使用 8px，使字形连同描边可容纳于 12px 弦距。 */
@@ -84,15 +88,6 @@ export const LXM_TIME_SIGNATURE_DENOMINATOR_OFFSET_Y = 48;
  * 不能只依赖 compact 模式 8px padding，否则圆点会与拍号数字落在同一位置。
  */
 export const LXM_LEADING_REPEAT_CLEARANCE_WIDTH = 12;
-
-/**
- * 稀疏 System 的节奏内容区最大横向拉伸倍数。
- *
- * 该限制用于所有末行以及任意位置的单小节行。倍数只作用于 beat columns 的内容
- * 宽度；小节左右 padding 与 measureGap 都保持固定，避免通过放大空白伪造舒展感。
- * 当按此倍数计算出的宽度足以覆盖完整行宽时，System 仍会自然铺满。
- */
-export const LXM_SPARSE_SYSTEM_MAX_CONTENT_SCALE = 1.6;
 
 /** 默认排版密度保持 MVP v1-v3 既有页面和核心测试的几何结果。 */
 export const LXM_LAYOUT_DEFAULT_DENSITY: ILXMLayoutDensity = "comfortable";

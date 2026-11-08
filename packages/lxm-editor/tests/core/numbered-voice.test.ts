@@ -95,7 +95,18 @@ describe("独立简谱声部", () => {
     expect(row.beats[0]!.width).toBeCloseTo(row.beats[1]!.x - row.beats[0]!.x);
     expect(row.numberedSlots[1]!.x).toBeGreaterThan(row.numberedSlots[0]!.x);
     expect(row.numberedSlots[2]!.x).toBeGreaterThan(row.numberedSlots[1]!.x);
-    expect(row.numberedNotation!.at(-1)!.lines).toHaveLength(2);
+    // 公共减时线存于各组首帧；按整组的实际几何检查两层，而不是末帧的存储位置。
+    const frames = row.numberedNotation!;
+    const lines = frames.flatMap((frame) => frame.lines!);
+    expect(lines).toHaveLength(2);
+    const [first, second] = [...lines].sort((a, b) => a.y - b.y);
+    expect(first!.shared).toBe(true);
+    expect(second!.shared).toBe(true);
+    expect(first!.x1).toBeLessThan(frames[0]!.labels[0]!.x);
+    expect(first!.x2).toBeGreaterThan(frames[2]!.labels[0]!.x);
+    expect(second!.x1).toBeGreaterThan(frames[0]!.labels[0]!.x);
+    expect(second!.x1).toBeLessThan(frames[1]!.labels[0]!.x);
+    expect(second!.x2).toBeGreaterThan(frames[2]!.labels[0]!.x);
     expect(loadDocument(JSON.stringify(next)).ok).toBe(true);
   });
   it("修改与拆分 TAB 保留独立简谱事件与标记", () => {

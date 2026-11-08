@@ -1,0 +1,61 @@
+.root {
+  container: editor-toolbar / inline-size;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto;
+  height: auto !important;
+  min-height: 44px;
+  padding: 0 !important;
+  overflow: visible !important;
+}
+.content { display: flex; min-width: 0; width: 100%; align-items: center; }
+.row { display: flex; flex: 0 0 auto; gap: 4px; align-items: center; min-width: 0; min-height: 44px; overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; scrollbar-width: thin; }
+.primary { padding-left: 16px; }
+.secondary { flex: 1 1 auto; padding-right: 16px; }
+.hint { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.desktopTrigger { display: inline-flex; }
+.moreTrigger { display: none; }
+.triggers { display: inline-flex; flex: 0 0 auto; gap: 4px; align-items: center; }
+.popup { z-index: 1050; box-sizing: border-box; padding: 0; color: var(--foreground); background: var(--panel, #fff); border-radius: 8px; box-shadow: 0 6px 24px #0003; }
+.popupContent { box-sizing: border-box; width: 100% !important; padding: 16px; }
+.viewControls {
+  display: flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-left: 1px solid var(--border);
+}
+.panelToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  min-height: 36px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background-color 140ms, color 140ms;
+  svg { flex-shrink: 0; }
+  &:hover { background: var(--panel-muted); color: var(--foreground); }
+  &[aria-expanded="true"] { background: var(--accent-soft); color: var(--accent); }
+  &[aria-expanded="true"]:hover { border-color: var(--accent); }
+  &:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+}
+.root > :global(.ant-alert) { grid-column: 1 / -1; }
+@container editor-toolbar (width < 960px) {
+  .content { flex-direction: column; align-items: stretch; }
+  .row { flex: none; min-height: 44px; padding: 3px 8px; overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; scrollbar-width: thin; }
+  .primary { border-bottom: 1px solid var(--border); }
+  .row > * { flex-shrink: 0; }
+  .desktopTrigger { display: none; }
+  .moreTrigger { display: inline-flex; }
+}
+@container editor-toolbar (width < 600px) {
+  .viewControls { padding-inline: 4px; }
+}
+@media (pointer: coarse) {
+  .row { min-height: 50px; }
+  .panelToggle { min-width: 44px; min-height: 44px; }
+}
+@media print { .root { display: none !important; } }

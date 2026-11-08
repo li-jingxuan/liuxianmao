@@ -146,6 +146,7 @@ export const LyricFormView = ({
              aria-describedby={fieldId("sequence-tips")}
              aria-invalid={!!issue}
             rows={2}
+            title="Enter 应用连续歌词"
             ref={(control) =>
               sequenceInputRef(control?.resizableTextArea?.textArea ?? null)
             }
@@ -157,6 +158,7 @@ export const LyricFormView = ({
           <Input
             id={fieldId("body")}
              aria-label="歌词文本"
+             title="Enter 应用并下一处；Shift+Enter 仅应用"
              aria-invalid={!!issue}
             ref={(control) => inputRef(control?.input ?? null)}
             value={draft.text}
@@ -168,7 +170,7 @@ export const LyricFormView = ({
       {sequence ? (
         <>
           <p id={fieldId("sequence-tips")} className={formStyles.hint} hidden={compact} inert={compact}>
-            空格分词；<code>_</code> 保留一个位置。按简谱对齐，自动跳过休止。
+            空格分词；<code>_</code> 保留一个位置。按简谱对齐，自动跳过休止。Enter 应用。
           </p>
           {visiblePlan && (
             <div className={styles.sequencePreview} aria-label="歌词对应预览">

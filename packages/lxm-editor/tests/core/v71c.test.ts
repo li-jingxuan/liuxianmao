@@ -180,9 +180,10 @@ describe("MVP7.1-C 原子结构与记谱", () => {
       }),
     ).toMatchObject({ ok: true });
   });
-  it("和弦逐弦拆分 Tie 后可无损合并，首拍文本/简谱保留，无压缩误报", () => {
+  it.each([5, "x"] as const)("和弦含 %s 逐弦拆分 Tie 后可无损合并，首拍文本/简谱保留", (fret) => {
     const d = fixture(true),
       m = d.score.tracks[0]!.measures[0]!;
+    m.beats[0]!.notes[0]!.fret = fret;
     m.numberedVoice.events = [
       {
         id: "numbered-first",
@@ -217,7 +218,7 @@ describe("MVP7.1-C 原子结构与记谱", () => {
     ).toHaveLength(0);
     expect(d).toEqual(before);
   });
-  it("拒绝未 Tie 起音、x、连音、后续和弦及部分时长技巧", () => {
+  it("拒绝未 Tie 起音、连音、后续和弦及部分时长技巧", () => {
     const d = fixture(true),
       m = d.score.tracks[0]!.measures[0]!;
     m.beats[1] = {
@@ -235,10 +236,6 @@ describe("MVP7.1-C 原子结构与记谱", () => {
         startBeatId: "b0-0",
         endBeatId: "b0-1",
       }),
-    ).toMatchObject({ ok: false });
-    m.beats[0]!.notes[0]!.fret = "x";
-    expect(
-      applyScoreCommand(d, { type: C.SplitBeat, ...target }),
     ).toMatchObject({ ok: false });
     const split = execute(fixture(true), {
         type: C.SplitBeat,

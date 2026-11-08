@@ -6,9 +6,11 @@ import {
   hitTestTechniqueTarget,
   resolveTabCellSelection,
   resolveTechniqueSelection,
+  LXMScoreCommandEnum as C,
   type ILXMDocument,
   type ILXMLayout,
   type ILXMTabCellSelection,
+  type ILXMScoreCommand,
 } from "@liuxianmao/lxm-editor";
 import type { SidebarAction } from "./music-text-draft";
 
@@ -92,3 +94,20 @@ export const isScoreSelectionValid = (
   !!document && (!selection || resolveTabCellSelection(document, selection).ok);
 
 export type SelectionRequestResult = "accepted" | "pending" | "blocked";
+
+/** 技巧映射的 TAB 区间仅用于定位；对象被选中时删除不能落到该区间的音符。 */
+export const resolveScoreDeleteCommand = (
+  document: ILXMDocument,
+  selection: ILXMTabCellSelection | null,
+  selectedTechniqueId: string | null,
+): ILXMScoreCommand | null => {
+  if (selectedTechniqueId) {
+    const track = document.score.tracks.find((item) =>
+      item.techniques.some((technique) => technique.id === selectedTechniqueId));
+    return track ? { type: C.RemoveTechnique, trackId: track.id, techniqueId: selectedTechniqueId } : null;
+  }
+  return selection ? {
+    type: C.RemoveNotesInRect,
+    range: { trackId: selection.anchor.trackId, anchor: selection.anchor, focus: selection.focus },
+  } : null;
+};

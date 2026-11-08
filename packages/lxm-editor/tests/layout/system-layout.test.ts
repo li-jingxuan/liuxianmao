@@ -4,12 +4,8 @@ import { getDurationFlagBottom } from "../../src/layout/rhythm-bounds";
 import EXAMPLE_MVP_2 from "../../example/example-mvp2.json";
 import { loadDocument } from "../../src/core/loader";
 import { buildLayout } from "../../src/layout";
-import {
-  LXM_SPARSE_SYSTEM_MAX_CONTENT_SCALE,
-  LXM_SYSTEM_HEADER_WIDTH,
-  LXM_TIME_SIGNATURE_WIDTH,
-} from "../../src/layout/layout-constants";
-import { summarizeMeasureSpacingWidth } from "../../src/layout/measure-spacing";
+import { LXM_SYSTEM_HEADER_WIDTH } from "../../src/layout/layout-constants";
+import EXAMPLE_MVP_7_2_DOCUMENT from "../../example/example-mvp7.2";
 
 /** 供断行测试复用的固定逻辑宽度；每行应容纳两个标准四分小节。 */
 const TWO_MEASURES_PER_SYSTEM_WIDTH = 700;
@@ -38,37 +34,49 @@ const documentWithMeasures = (measureIndexes: number[]) => ({
   },
 });
 
-/** 按方案公式独立计算一条受限 System 的最大可读宽度。 */
-const sparseSystemMaxReadableWidth = (
-  measureIndexes: number[],
-  measureGap = 0,
-) => {
-  const summaries = measureIndexes.map((measureIndex) =>
-    summarizeMeasureSpacingWidth(
-      EXAMPLE_MVP_2.score.tracks[0]!.measures[measureIndex]!,
-      "compact",
-      // 规范谱例只有整首第一小节展示 4/4；普通换行不会重复相同拍号。
-      measureIndex === 0 ? LXM_TIME_SIGNATURE_WIDTH : 0,
-    ),
-  );
-  const totalIntrinsicWidth = summaries.reduce(
-    (total, summary) => total + summary.assignedWidth,
-    measureGap * Math.max(0, summaries.length - 1),
-  );
-  const totalContentWidth = summaries.reduce(
-    (total, summary) => total + summary.contentWidth,
-    0,
-  );
-  const fixedWidth = totalIntrinsicWidth - totalContentWidth;
-
-  return (
-    LXM_SYSTEM_HEADER_WIDTH +
-    fixedWidth +
-    totalContentWidth * LXM_SPARSE_SYSTEM_MAX_CONTENT_SCALE
-  );
-};
-
 describe("buildLayout 的 system 自动换行", () => {
+  it.each(["editing", "presentation"] as const)(
+    "%s 混合谱的每行铺满相同边界，删除技巧后重排仍对齐",
+    (purpose) => {
+      const document = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);
+      const options = {
+        purpose,
+        density: "compact" as const,
+        systemWidth: A4_COMPACT_SYSTEM_WIDTH,
+        x: 17,
+        y: 23,
+        showChordDiagrams: true,
+      };
+      for (const withLetRing of [true, false]) {
+        if (!withLetRing)
+          document.score.tracks[0]!.techniques = document.score.tracks[0]!.techniques
+            .filter((item) => item.type !== "letRing");
+        const before = structuredClone(document);
+        const layout = buildLayout(document, options);
+        expect(layout.systems.length).toBeGreaterThan(1);
+        expect(
+          layout.systems.flatMap((system) => system.measures.map((measure) => measure.id)),
+        ).toEqual(document.score.tracks[0]!.measures.map((measure) => measure.id));
+        for (const system of layout.systems) {
+          expect(system.x).toBe(options.x);
+          expect(system.width).toBeCloseTo(options.systemWidth);
+          const last = system.measures.at(-1)!;
+          expect(last.x + last.width).toBeCloseTo(options.x + options.systemWidth);
+          for (const measure of system.measures) {
+            for (const string of measure.strings) {
+              expect(string.x1).toBeCloseTo(measure.x);
+              expect(string.x2).toBeCloseTo(measure.x + measure.width);
+            }
+            for (const beat of measure.beats) {
+              expect(beat.x).toBeGreaterThanOrEqual(measure.x);
+              expect(beat.x).toBeLessThan(measure.x + measure.width);
+            }
+          }
+        }
+        expect(document).toEqual(before);
+      }
+    },
+  );
   it("每条 system 在六线谱内生成纵向 TAB 行头，且所有 measure 从统一 staffX 开始", () => {
     const layout = buildLayout(EXAMPLE_MVP_2, {
       systemWidth: TWO_MEASURES_PER_SYSTEM_WIDTH,
@@ -246,7 +254,7 @@ describe("buildLayout 的 system 自动换行", () => {
     }
   });
 
-  it("包含两个短小节的末行按整行内容限制拉伸", () => {
+  it("包含两个短小节的末行仍铺满，固定小节间隔不变", () => {
     const measureIndexes = [0, 1];
     const systemWidth = A4_COMPACT_SYSTEM_WIDTH;
     const measureGap = 12;
@@ -256,17 +264,11 @@ describe("buildLayout 的 system 自动换行", () => {
       measureGap,
     });
     const system = layout.systems[0]!;
-    const expectedWidth = sparseSystemMaxReadableWidth(
-      measureIndexes,
-      measureGap,
-    );
-
     expect(system.measures).toHaveLength(2);
-    expect(expectedWidth).toBeLessThan(systemWidth);
-    expect(system.width).toBeCloseTo(expectedWidth);
+    expect(system.width).toBeCloseTo(systemWidth);
     expect(
       system.measures.at(-1)!.x + system.measures.at(-1)!.width,
-    ).toBeCloseTo(system.x + expectedWidth);
+    ).toBeCloseTo(system.x + systemWidth);
     expect(
       system.measures[1]!.x -
         (system.measures[0]!.x + system.measures[0]!.width),
@@ -287,32 +289,33 @@ describe("buildLayout 的 system 自动换行", () => {
     ).toBeCloseTo(firstSystem.x + systemWidth);
   });
 
-  it("非末行的单小节 System 同样限制拉伸", () => {
+  it("放不下下一小节时，单小节行与末行也对齐同一右边界", () => {
     const measureIndexes = [0, 1];
-    // v4.1 行头和首次拍号也属于整行固定宽度。330 仍放不下两个小节，但大于
-    // 首小节的最大可读宽度，因此能同时验证换行与单小节留白限制。
+    // 330 放不下两个小节；每行的小节都应扩宽到相同的右边界。
     const systemWidth = 330;
     const layout = buildLayout(documentWithMeasures(measureIndexes), {
       systemWidth,
       density: "compact",
     });
     const firstSystem = layout.systems[0]!;
-    const expectedWidth = sparseSystemMaxReadableWidth([measureIndexes[0]!]);
 
     expect(layout.systems).toHaveLength(2);
     expect(firstSystem.measures).toHaveLength(1);
-    expect(expectedWidth).toBeLessThan(systemWidth);
-    expect(firstSystem.width).toBeCloseTo(expectedWidth);
+    for (const system of layout.systems) {
+      expect(system.width).toBeCloseTo(systemWidth);
+      const last = system.measures.at(-1)!;
+      expect(last.x + last.width).toBeCloseTo(system.x + systemWidth);
+    }
   });
 
-  it("稀疏末行缩短时仍保留完整画布宽度", () => {
+  it("稀疏末行与画布均使用完整目标宽度", () => {
     const systemWidth = A4_COMPACT_SYSTEM_WIDTH;
     const layout = buildLayout(documentWithMeasures([0, 1]), {
       systemWidth,
       density: "compact",
     });
 
-    expect(layout.systems[0]!.width).toBeLessThan(systemWidth);
+    expect(layout.systems[0]!.width).toBe(systemWidth);
     expect(layout.width).toBe(systemWidth);
   });
 

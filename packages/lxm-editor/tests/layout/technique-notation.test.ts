@@ -121,6 +121,11 @@ describe("技巧记谱方向、净空和单次品位显示", () => {
       expect(p[0]).toBeGreaterThan(a.x + a.width);
       expect(p[2]).toBeLessThan(z.x);
       expect(type === "slideUp" ? p[3]! < p[1]! : p[3]! > p[1]!).toBe(true);
+      const segment = layout.systems[0]!.techniques[0]!;
+      expect(segment.texts.map((label) => label.text)).toEqual(["S"]);
+      const label = getTextBounds(segment.texts[0]!);
+      expect(label.y + label.height).toBeLessThan(Math.min(p[1]!, p[3]!));
+      expect(hitTestTechnique(layout, { x: label.x + label.width / 2, y: label.y + label.height / 2 })).toBe("slide");
     },
   );
 

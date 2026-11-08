@@ -212,15 +212,13 @@ export const validateTechnique = (
         "toNoteId",
       );
 
-    // x 没有确定音高；不能比较高低，也不能将两个 x 误认为同音延音。
-    if (typeof from.note.fret !== "number" || typeof to.note.fret !== "number")
-      return fail(
-        "TECHNIQUE_TARGET_INVALID",
-        "击弦、勾弦、滑音和延音线需要两端都是数值品位，不能连接闷音 x",
-        "toNoteId",
-      );
+    // x 表示弹奏但未指定品位；仅在两端都有确定品位时比较音高。
+    const fromFret = from.note.fret;
+    const toFret = to.note.fret;
+    const hasKnownPitch =
+      typeof fromFret === "number" && typeof toFret === "number";
     if (technique.type === "tie") {
-      if (from.note.fret !== to.note.fret)
+      if (hasKnownPitch && fromFret !== toFret)
         return fail(
           "TECHNIQUE_REQUIRES_SAME_PITCH",
           "延音线两端必须是同弦同品位",
@@ -240,10 +238,12 @@ export const validateTechnique = (
           "击弦、勾弦和滑音只能连接无休止间隔的同弦下一音",
           "toNoteId",
         );
-      const goesUp = to.note.fret > from.note.fret;
       const expectsUp =
         technique.type === "hammerOn" || technique.type === "slideUp";
-      if (goesUp !== expectsUp || to.note.fret === from.note.fret)
+      if (
+        hasKnownPitch &&
+        (toFret > fromFret !== expectsUp || toFret === fromFret)
+      )
         return fail(
           "TECHNIQUE_DIRECTION_MISMATCH",
           "技巧方向与两端品位高低不一致",
@@ -256,13 +256,6 @@ export const validateTechnique = (
       return fail(
         "TECHNIQUE_NOTE_NOT_FOUND",
         "技巧目标音符不存在",
-        "fromNoteId",
-      );
-    // 当前所有单 Note 技巧均需要有音高/触弦位置的音符。
-    if (target.note.fret === "x")
-      return fail(
-        "TECHNIQUE_TARGET_INVALID",
-        "该技巧需要数值品位，不能作用于闷音 x",
         "fromNoteId",
       );
     if (

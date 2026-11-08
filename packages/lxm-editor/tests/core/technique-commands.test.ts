@@ -6,6 +6,9 @@ import {
   LXMScoreCommandEnum,
 } from "../../src/core/commands";
 import { findNextNoteOnSameStringInTrack } from "../../src/core/technique-rules";
+import { LXMDocumentSchema } from "../../src/core/schema";
+import { validateDocumentSemantics } from "../../src/core/semantic-validation";
+import type { ILXMTechniqueDraft } from "../../src/core/types";
 
 const createDocument = () => structuredClone(EXAMPLE_MVP_2);
 const trackId = "mvp2-track-guitar";
@@ -26,9 +29,7 @@ describe("MVP v5 技巧领域命令", () => {
     if (!added.ok) return;
     const technique = added.document.score.tracks[0]!.techniques[0]!;
     expect(technique).toMatchObject({ type: "hammerOn" });
-    expect(added.document.documentRevision).toBe(
-      document.documentRevision + 1,
-    );
+    expect(added.document.documentRevision).toBe(document.documentRevision + 1);
 
     const noOp = applyScoreCommand(added.document, {
       type: LXMScoreCommandEnum.AddTechnique,
@@ -122,7 +123,7 @@ describe("MVP v5 技巧领域命令", () => {
           direction: "ascending",
         },
       }),
-    ).toMatchObject({ ok: false, code: "TECHNIQUE_CONFLICT" });
+    ).toMatchObject({ ok: true, changed: true });
 
     expect(
       applyScoreCommand(document, {
@@ -149,52 +150,168 @@ describe("MVP v5 技巧领域命令", () => {
     ).toMatchObject({ ok: false, code: "TECHNIQUE_CONFLICT" });
   });
 
-  it.each([
-    {
-      existing: { type: "strum", stroke: "down" } as const,
-      conflicting: { type: "strum", stroke: "up" } as const,
-    },
-    {
-      existing: { type: "arpeggio", direction: "ascending" } as const,
-      conflicting: { type: "arpeggio", direction: "descending" } as const,
-    },
-    {
-      existing: { type: "strum", stroke: "down" } as const,
-      conflicting: { type: "arpeggio", direction: "ascending" } as const,
-    },
-  ])(
-    "同一 Beat 的 $existing.type 与 $conflicting.type 不因方向不同而允许叠加",
-    ({ existing, conflicting }) => {
-      const document = createDocument();
-      const added = applyScoreCommand(document, {
-        type: LXMScoreCommandEnum.AddTechnique,
-        trackId,
-        technique: {
-          ...existing,
-          beatId: "mvp2-beat-1-2",
-          minString: 2,
-          maxString: 3,
-        },
-      });
-      expect(added).toMatchObject({ ok: true, changed: true });
-      if (!added.ok) return;
-
-      expect(
-        applyScoreCommand(added.document, {
+  describe.each([
+    LXMScoreCommandEnum.AddTechnique,
+    LXMScoreCommandEnum.UpdateTechnique,
+  ] as const)("%s 原子替换同拍扫弦/琶音", (commandType) => {
+    it.each([
+      {
+        existing: { type: "strum", stroke: "down" } as const,
+        replacement: { type: "strum", stroke: "up" } as const,
+      },
+      {
+        existing: { type: "arpeggio", direction: "ascending" } as const,
+        replacement: { type: "arpeggio", direction: "descending" } as const,
+      },
+      {
+        existing: { type: "strum", stroke: "down" } as const,
+        replacement: { type: "arpeggio", direction: "ascending" } as const,
+      },
+      {
+        existing: { type: "arpeggio", direction: "descending" } as const,
+        replacement: { type: "strum", stroke: "up" } as const,
+      },
+    ])(
+      "$existing.type 替换为 $replacement.type 并保留 ID",
+      ({ existing, replacement }) => {
+        const document = createDocument();
+        const added = applyScoreCommand(document, {
           type: LXMScoreCommandEnum.AddTechnique,
           trackId,
           technique: {
-            ...conflicting,
+            ...existing,
             beatId: "mvp2-beat-1-2",
             minString: 2,
             maxString: 3,
           },
-        }),
-      ).toMatchObject({ ok: false, code: "TECHNIQUE_CONFLICT" });
-    },
-  );
+        });
+        expect(added).toMatchObject({ ok: true, changed: true });
+        if (!added.ok) return;
 
-  it("更新技巧目标时也执行同一 Beat 的扫弦/琶音唯一性校验", () => {
+        const original = added.document.score.tracks[0]!.techniques[0]!;
+        const draft = {
+          ...replacement,
+          beatId: "mvp2-beat-1-2",
+          minString: 2,
+          maxString: 3,
+        };
+        const replaced = applyScoreCommand(added.document, {
+          type: commandType,
+          trackId,
+          techniqueId: original.id,
+          technique: draft,
+        });
+        expect(replaced).toMatchObject({ ok: true, changed: true });
+        if (!replaced.ok) return;
+        expect(replaced.document.score.tracks[0]!.techniques).toEqual([
+          { ...draft, id: original.id },
+        ]);
+        expect(replaced.document.documentRevision).toBe(
+          added.document.documentRevision + 1,
+        );
+        expect(added.document.score.tracks[0]!.techniques).toEqual([original]);
+        expect(LXMDocumentSchema.safeParse(replaced.document).success).toBe(
+          true,
+        );
+        expect(validateDocumentSemantics(replaced.document)).toEqual({
+          ok: true,
+        });
+      },
+    );
+
+    it.each([
+      { type: "strum", stroke: "down" } as const,
+      { type: "arpeggio", direction: "ascending" } as const,
+    ])("重复 $type 保留文档引用、技巧对象和 revision", (params) => {
+      const document = createDocument();
+      const technique = {
+        ...params,
+        id: "tech-no-op",
+        beatId: "mvp2-beat-1-2",
+        minString: 2,
+        maxString: 3,
+      };
+      document.score.tracks[0]!.techniques = [technique];
+      const result = applyScoreCommand(document, {
+        type: commandType,
+        trackId,
+        techniqueId: technique.id,
+        technique: {
+          maxString: 3,
+          minString: 2,
+          beatId: technique.beatId,
+          ...params,
+        },
+      });
+      expect(result).toMatchObject({ ok: true, changed: false });
+      if (!result.ok) return;
+      expect(result.document).toBe(document);
+      expect(result.document.documentRevision).toBe(document.documentRevision);
+      expect(result.document.score.tracks[0]!.techniques[0]).toBe(technique);
+    });
+
+    it.each([
+      {
+        draft: {
+          type: "strum",
+          beatId: "mvp2-beat-1-2",
+          minString: 3,
+          maxString: 3,
+          stroke: "up",
+        } as const,
+        code: "TECHNIQUE_TARGET_INVALID",
+      },
+      {
+        draft: {
+          type: "strum",
+          beatId: "mvp2-beat-1-2",
+          minString: 2,
+          maxString: 3,
+          stroke: "sideways",
+        } as unknown as ILXMTechniqueDraft,
+        code: "DOCUMENT_INVALID",
+      },
+    ])("无效草稿 $code 不删除或修改原技巧", ({ draft, code }) => {
+      const document = createDocument();
+      const target = {
+        id: "tech-target",
+        type: "strum" as const,
+        beatId: "mvp2-beat-1-2",
+        minString: 2,
+        maxString: 3,
+        stroke: "down" as const,
+      };
+      const edited = {
+        id: "tech-edited",
+        type: "arpeggio" as const,
+        beatId: "mvp2-beat-1-5",
+        minString: 2,
+        maxString: 6,
+        direction: "ascending" as const,
+      };
+      const track = document.score.tracks[0]!;
+      track.techniques = [target, edited];
+      const originalTechniques = track.techniques;
+      const snapshot = structuredClone(document);
+      expect(
+        applyScoreCommand(document, {
+          type: commandType,
+          trackId,
+          techniqueId: edited.id,
+          technique: draft,
+        }),
+      ).toMatchObject({ ok: false, code });
+      expect(document).toEqual(snapshot);
+      expect(track.techniques).toBe(originalTechniques);
+      expect(track.techniques[0]).toBe(target);
+      expect(track.techniques[1]).toBe(edited);
+    });
+  });
+
+  it.each([
+    { type: "strum", stroke: "up" } as const,
+    { type: "arpeggio", direction: "descending" } as const,
+  ])("更新为 $type 并移到已有技巧的 Beat 时保留被编辑 ID", (params) => {
     const document = createDocument();
     document.score.tracks[0]!.techniques = [
       {
@@ -215,20 +332,38 @@ describe("MVP v5 技巧领域命令", () => {
       },
     ];
 
-    expect(
-      applyScoreCommand(document, {
-        type: LXMScoreCommandEnum.UpdateTechnique,
-        trackId,
-        techniqueId: "tech-arpeggio-b",
-        technique: {
-          type: "arpeggio",
-          beatId: "mvp2-beat-1-2",
-          minString: 2,
-          maxString: 3,
-          direction: "descending",
-        },
-      }),
-    ).toMatchObject({ ok: false, code: "TECHNIQUE_CONFLICT" });
+    const untouched = {
+      id: "tech-untouched",
+      type: "tapping" as const,
+      fromNoteId: "mvp2-note-1-1-6",
+    };
+    document.score.tracks[0]!.techniques.push(untouched);
+    const snapshot = structuredClone(document);
+    const draft = {
+      ...params,
+      beatId: "mvp2-beat-1-2",
+      minString: 2,
+      maxString: 3,
+    };
+    const result = applyScoreCommand(document, {
+      type: LXMScoreCommandEnum.UpdateTechnique,
+      trackId,
+      techniqueId: "tech-arpeggio-b",
+      technique: draft,
+    });
+    expect(result).toMatchObject({ ok: true, changed: true });
+    if (!result.ok) return;
+    expect(result.document.score.tracks[0]!.techniques).toEqual([
+      { ...draft, id: "tech-arpeggio-b" },
+      untouched,
+    ]);
+    expect(result.document.score.tracks[0]!.techniques[1]).toBe(untouched);
+    expect(result.document.documentRevision).toBe(
+      document.documentRevision + 1,
+    );
+    expect(document).toEqual(snapshot);
+    expect(LXMDocumentSchema.safeParse(result.document).success).toBe(true);
+    expect(validateDocumentSemantics(result.document)).toEqual({ ok: true });
   });
 
   it("Tie 强制同音相邻，H/P 强制连接无休止间隔的同弦下一音", () => {

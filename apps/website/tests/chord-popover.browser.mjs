@@ -92,13 +92,13 @@ try {
   await menuItem.press('Escape');
   await page.locator('.ant-dropdown:visible').waitFor({state:'hidden'});
   assert.equal(await input.inputValue(),'Side draft');
-  await sidebar.getByRole('button', { name: '收起编辑台', exact: true }).click();
+  await page.getByRole('button', { name: '编辑面板', exact: true }).click();
   assert.equal(await sidebar.isVisible(), false);
   assert.equal(await input.inputValue(), 'Side draft');
   await tool.click();
   await page.waitForFunction(()=>document.activeElement?.id==='chord-popover-name');
   assert.equal(await input.inputValue(),'Side draft');
-  await page.getByRole('button', { name: '打开编辑台', exact: true }).click();
+  await page.getByRole('button', { name: '编辑面板', exact: true }).click();
   const preset = popover.getByRole('button', { name: 'Am', exact: true });
   await preset.click();
   assert.equal(await preset.evaluate(node => node === document.activeElement), true);

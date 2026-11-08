@@ -22,7 +22,7 @@ const command = {
   fret: "x" as const,
 };
 
-/** 在真实连续同弦音中替换中间音，验证 x 是攻击与连接中断而不是空白。 */
+/** 在真实连续同弦音中替换中间音，验证 x 保留弹奏与技巧引用。 */
 const xDocument = () => {
   const document = structuredClone(example);
   document.score.tracks[0]!.measures[0]!.beats[4]!.notes.find(
@@ -31,7 +31,7 @@ const xDocument = () => {
   return document;
 };
 
-describe("闷音 x 领域闭环", () => {
+describe("弹奏标记 x 领域闭环", () => {
   it("当前数值谱不迁移，schema 4 混合谱可加载，旧 3 明确拒绝", () => {
     const numeric = loadDocument(JSON.stringify(example));
     expect(numeric.ok && numeric.document).toEqual(example);
@@ -61,7 +61,7 @@ describe("闷音 x 领域闭环", () => {
       expect(result).toMatchObject({ ok: false, code: "INVALID_FRET" });
     },
   );
-  it("数字/x 切换保留 ID 与 tick、no-op 保留引用；失效技巧一次清理并报告", () => {
+  it("数字/x 切换保留 ID、tick 与技巧，no-op 保留引用", () => {
     const document = structuredClone(example);
     const track = document.score.tracks[0]!;
     track.techniques = [
@@ -87,12 +87,8 @@ describe("闷音 x 领域闭环", () => {
         beat.rhythm,
       ]),
     ).toEqual(track.measures[0]!.beats.map((beat) => [beat.tick, beat.rhythm]));
-    expect(result.effects).toEqual([
-      expect.objectContaining({
-        kind: "technique.removed",
-        techniqueId: "x-bend",
-      }),
-    ]);
+    expect(result.effects ?? []).toEqual([]);
+    expect(result.document.score.tracks[0]!.techniques).toEqual(track.techniques);
     expect(result.document.documentRevision).toBe(
       document.documentRevision + 1,
     );
@@ -108,7 +104,7 @@ describe("闷音 x 领域闭环", () => {
     });
     expect(
       restored.ok && restored.document.score.tracks[0]!.techniques,
-    ).toEqual([]);
+    ).toEqual(track.techniques);
   });
   it("矩形 x 命令覆盖多拍多弦，仅新增所需 Note，复制完整保持 x", () => {
     const document = structuredClone(example);
@@ -194,7 +190,7 @@ describe("闷音 x 领域闭环", () => {
     "artificialHarmonic",
     "tapping",
     "trill",
-  ] as const)("%s 不得作用于 x", (type) => {
+  ] as const)("%s 可作用于 x，命令与加载校验一致", (type) => {
     const document = xDocument();
     const track = document.score.tracks[0]!;
     const draft = {
@@ -206,24 +202,17 @@ describe("闷音 x 领域闭环", () => {
       ...(type === "bend" ? { semitones: 2 } : {}),
       ...(type === "trill" ? { auxiliaryFret: 9 } : {}),
     } as ILXMTechniqueDraft;
-    expect(validateTechnique(track, draft)).toMatchObject({
-      ok: false,
-      error: { code: "TECHNIQUE_TARGET_INVALID" },
+    expect(validateTechnique(track, draft)).toEqual({ ok: true });
+    const result = applyScoreCommand(document, {
+      type: LXMScoreCommandEnum.AddTechnique,
+      trackId: track.id,
+      technique: draft,
     });
-    // 外部无效关系不能绕过语义校验进入编辑器。
-    if (type === "bend") {
-      track.techniques = [
-        {
-          id: "illegal-x-bend",
-          type,
-          fromNoteId: "mvp2-note-1-5-6",
-          semitones: 2,
-        },
-      ];
-      expect(loadDocument(JSON.stringify(document)).ok).toBe(false);
-    }
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(loadDocument(JSON.stringify(result.document)).ok).toBe(true);
   });
-  it("连接不能跳过同弦 x，两个 x 不能互相延音", () => {
+  it("连接不能跳过同弦 x，两个相邻 x 可互相延音", () => {
     const document = xDocument();
     const track = document.score.tracks[0]!;
     expect(
@@ -244,7 +233,43 @@ describe("闷音 x 领域闭环", () => {
         fromNoteId: "mvp2-note-1-5-6",
         toNoteId: "mvp2-note-1-6-6",
       }),
-    ).toMatchObject({ ok: false, error: { code: "TECHNIQUE_TARGET_INVALID" } });
+    ).toEqual({ ok: true });
+  });
+  it.each(["hammerOn", "pullOff", "slideUp", "slideDown", "tie"] as const)(
+    "%s 不对含 x 的任一端推断数值音高",
+    (type) => {
+      for (const [fromFret, toFret] of [["x", 0], [0, "x"], ["x", "x"]] as const) {
+        const document = xDocument();
+        const track = document.score.tracks[0]!;
+        track.measures[0]!.beats[4]!.notes.find((n) => n.string === 6)!.fret = fromFret;
+        track.measures[0]!.beats[5]!.notes.find((n) => n.string === 6)!.fret = toFret;
+        expect(validateTechnique(track, {
+          type,
+          fromNoteId: "mvp2-note-1-5-6",
+          toNoteId: "mvp2-note-1-6-6",
+        })).toEqual({ ok: true });
+      }
+    },
+  );
+  it("数值品位仍校验 H/P/slide 方向及 Tie 同音", () => {
+    const track = xDocument().score.tracks[0]!;
+    const from = track.measures[0]!.beats[4]!.notes.find((n) => n.string === 6)!;
+    const to = track.measures[0]!.beats[5]!.notes.find((n) => n.string === 6)!;
+    from.fret = 5;
+    to.fret = 7;
+    for (const type of ["pullOff", "slideDown", "tie"] as const) {
+      expect(validateTechnique(track, {
+        type, fromNoteId: from.id, toNoteId: to.id,
+      })).toMatchObject({ ok: false, error: {
+        code: type === "tie" ? "TECHNIQUE_REQUIRES_SAME_PITCH" : "TECHNIQUE_DIRECTION_MISMATCH",
+      } });
+    }
+    to.fret = 5;
+    for (const type of ["hammerOn", "pullOff", "slideUp", "slideDown"] as const) {
+      expect(validateTechnique(track, {
+        type, fromNoteId: from.id, toNoteId: to.id,
+      })).toMatchObject({ ok: false, error: { code: "TECHNIQUE_DIRECTION_MISMATCH" } });
+    }
   });
   it.each(["pickStroke", "strum", "arpeggio", "palmMute", "letRing"] as const)(
     "%s 保留 Beat/范围上的 x 组合",

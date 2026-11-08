@@ -244,7 +244,20 @@ describe("beat.sustain 原子延续一拍", () => {
     ).toEqual(track.techniques);
   });
 
-  it.each(["rest", "empty", "muted"])("拒绝源拍 %s 且原文档不变", (kind) => {
+  it("混合 x 与数字的和弦可延续，保持 x 且重复延续不改动文档", () => {
+    const d = fixture();
+    measureOf(d).beats[0]!.notes[0]!.fret = "x";
+    const before = structuredClone(d);
+    const result = execute(d);
+    expect(measureOf(result.document).beats[1]!.notes.map((n) => n.fret)).toEqual(["x", 7]);
+    expect(result.document.score.tracks[0]!.techniques).toHaveLength(2);
+    expect(applyScoreCommand(result.document, command)).toMatchObject({
+      ok: true, changed: false, document: result.document,
+    });
+    expect(d).toEqual(before);
+  });
+
+  it.each(["rest", "empty"])("拒绝源拍 %s 且原文档不变", (kind) => {
     const d = fixture(),
       source = measureOf(d).beats[0]!;
     if (kind === "rest") {
@@ -252,7 +265,6 @@ describe("beat.sustain 原子延续一拍", () => {
       source.notes = [];
     }
     if (kind === "empty") source.notes = [];
-    if (kind === "muted") source.notes[0]!.fret = "x";
     const before = structuredClone(d);
     expect(applyScoreCommand(d, command)).toMatchObject({
       ok: false,

@@ -173,10 +173,10 @@ export interface ILXMBeat {
   notes: ILXMNote[];
 }
 
-/** 数值表示有确定音高的品位；x 表示有时值的无音高闷音。 */
+/** 数值表示有确定音高的品位；x 表示弹奏，未指定品位。 */
 export type ILXMFret = number | "x";
 
-/** 六线谱音符，string 为弦号，fret 为品位或闷音。 */
+/** 六线谱音符，string 为弦号，fret 为品位或弹奏标记 x。 */
 export interface ILXMNote {
   id: string;
   string: number;

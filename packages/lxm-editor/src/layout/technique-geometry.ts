@@ -6,7 +6,9 @@ import {
   LXM_TECHNIQUE_ARROW_HEIGHT,
   LXM_TECHNIQUE_ARROW_WIDTH,
   LXM_TECHNIQUE_COLLISION_PADDING,
+  LXM_TECHNIQUE_CURVE_LABEL_GAP,
   LXM_TECHNIQUE_HIT_PADDING,
+  LXM_TECHNIQUE_RANGE_INK_GAP,
   LXM_TECHNIQUE_TEXT_HALO_WIDTH,
 } from "./layout-constants";
 import type {
@@ -34,6 +36,20 @@ export const getTextBounds = (text: ILXMTextLayout, halo = 0): Rect => {
   };
 };
 
+/** 以真实弧顶而非控制点定位 H/P，字形和白色描边均不接触弧线。 */
+export const placeCurveLabelAboveApex = (
+  label: ILXMTextLayout,
+  apexY: number,
+  strokeWidth: number,
+): ILXMTextLayout => {
+  const bounds = getTextBounds(label, LXM_TECHNIQUE_TEXT_HALO_WIDTH);
+  return {
+    ...label,
+    y: label.y + apexY - strokeWidth / 2 - LXM_TECHNIQUE_CURVE_LABEL_GAP -
+      (bounds.y + bounds.height),
+  };
+};
+
 /** 品位文字完整视觉范围包含基线偏移与白色描边。 */
 export const getFretTextBounds = (note: ILXMNoteLayout): Rect =>
   getTextBounds(
@@ -55,10 +71,11 @@ export const padBounds = (bounds: Rect, padding: number): Rect => ({
 });
 
 export const boundsIntersect = (left: Rect, right: Rect): boolean =>
-  left.x < right.x + right.width &&
-  left.x + left.width > right.x &&
-  left.y < right.y + right.height &&
-  left.y + left.height > right.y;
+  // 整行扩高／平移后，相切边缘可能出现约 1e-13 的舍入差；不将其视为墨迹重叠。
+  left.x < right.x + right.width - 1e-9 &&
+  left.x + left.width > right.x + 1e-9 &&
+  left.y < right.y + right.height - 1e-9 &&
+  left.y + left.height > right.y + 1e-9;
 
 /** 核心技巧模板只输出绝对 M/L/Q；控制点凸包完整覆盖二次曲线。 */
 const pathTokens = (d: string): string[] =>
@@ -130,6 +147,25 @@ export const getTechniqueInkBounds = (
     }
   }
   return rects;
+};
+
+/** 区间标记只在原有上方通道内下移，逐图元检查整个范围，不能越过其它技巧。 */
+export const compactRangeTechnique = (
+  segment: ILXMTechniqueSegmentLayout,
+  maxDown: number,
+  obstacles: readonly Rect[],
+): ILXMTechniqueSegmentLayout => {
+  let down = maxDown;
+  for (const piece of getTechniqueInkBounds(segment)) {
+    for (const obstacle of obstacles) {
+      if (piece.x >= obstacle.x + obstacle.width ||
+          piece.x + piece.width <= obstacle.x ||
+          obstacle.y + obstacle.height <= piece.y) continue;
+      down = Math.min(down, Math.max(0,
+        obstacle.y - piece.y - piece.height - LXM_TECHNIQUE_RANGE_INK_GAP));
+    }
+  }
+  return down > 0 ? translateTechniqueSegment(segment, down) : segment;
 };
 
 /** 只平移已生成路径中的 Y，避免扩高后重新执行模板而产生不同锚点。 */

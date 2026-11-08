@@ -16,7 +16,6 @@ import {
 import {
   LXM_LAYOUT_DENSITY_PROFILES,
   LXM_LEADING_REPEAT_CLEARANCE_WIDTH,
-  LXM_SPARSE_SYSTEM_MAX_CONTENT_SCALE,
   LXM_SYSTEM_HEADER_WIDTH,
   LXM_TIME_SIGNATURE_WIDTH,
 } from "./layout-constants";
@@ -25,7 +24,6 @@ import type {
   ILXMLayoutPurpose,
   ILXMSystemLayout,
 } from "./layout-types";
-import { numberedLayoutProfile } from "./numbered-layout-profile";
 import { shouldShowTimeSignature } from "./time-signature-layout";
 import { layoutSystemHeader } from "./system-header-layout";
 import { alignSystemRhythm } from "./rhythm-lane-layout";
@@ -75,51 +73,6 @@ interface ILXMPendingMeasure {
  * flush 执行时完整的 systems 数组尚未生成。
  */
 type ILXMSystemFlushReason = "wrapped" | "final";
-
-interface ILXMResolveSystemTargetWidthContext {
-  systemWidth: number;
-  intrinsicSystemWidth: number;
-  measures: ILXMPendingMeasure[];
-  isFinalSystem: boolean;
-  numberedStretch?: number;
-}
-
-/**
- * 决定一条 System 的实际绘制宽度。
- *
- * 正文中的多小节行继续两端对齐；末行和任意单小节行则限制节奏内容的拉伸倍数。
- * `intrinsicSystemWidth` 已经包含 measureGap，而每个 pending measure 同时保存了不含
- * padding 的内容宽度，因此两者之差正好是所有不可伸展空间（padding + gap）。
- */
-const resolveSystemTargetWidth = ({
-  systemWidth,
-  intrinsicSystemWidth,
-  measures,
-  isFinalSystem,
-  numberedStretch,
-}: ILXMResolveSystemTargetWidthContext): number => {
-  // 贪心断行允许单个超宽小节独占一行。它不能被压缩回 systemWidth，否则节奏列会
-  // 低于固有宽度，并破坏 measure-spacing 只扩张、不压缩的契约。
-  if (intrinsicSystemWidth >= systemWidth) return intrinsicSystemWidth;
-
-  const shouldLimitStretch =
-    numberedStretch !== undefined || isFinalSystem || measures.length === 1;
-  if (!shouldLimitStretch) return systemWidth;
-
-  const totalContentWidth = measures.reduce(
-    (total, measure) => total + measure.intrinsicContentWidth,
-    0,
-  );
-  const fixedWidth = intrinsicSystemWidth - totalContentWidth;
-  const maxReadableWidth =
-    fixedWidth +
-    totalContentWidth *
-      (numberedStretch ?? LXM_SPARSE_SYSTEM_MAX_CONTENT_SCALE);
-
-  // 对内容已经足够密集的末行，maxReadableWidth 会自然达到 systemWidth，因此仍可
-  // 完整对齐页面右边界；短末行则保留真实的右侧画布留白。
-  return Math.min(systemWidth, maxReadableWidth);
-};
 
 /**
  * 将一组连续小节按贪心策略切分为多条谱面行。
@@ -295,19 +248,8 @@ export const layoutSystems = (
     const systemIndex = systems.length;
     // 这里先决定六线谱正文宽度，随后再加固定行头得到 system.width。若直接把
     // 整行宽度分给 measures，TAB 会被挤到画布外，命中区域也会比视觉宽一段。
-    const targetStaffWidth = resolveSystemTargetWidth({
-      systemWidth: staffWidthLimit,
-      intrinsicSystemWidth: pendingWidth,
-      measures: pendingMeasures,
-      isFinalSystem: reason === "final",
-      numberedStretch: pendingMeasures.some(
-        ({ measure }) =>
-          measure.numberedVoice.events.length ||
-          measure.id === options.editingNumberedMeasureId,
-      )
-        ? numberedLayoutProfile(options.purpose).stretch
-        : undefined,
-    });
+    // 所有行（包括末行和单小节行）两端对齐；超宽小节保留固有宽度，不能压缩节奏列。
+    const targetStaffWidth = Math.max(staffWidthLimit, pendingWidth);
     const remainingWidth = targetStaffWidth - pendingWidth;
     const flexibleWidths = pendingMeasures.map(
       ({ intrinsicContentWidth }) => intrinsicContentWidth,

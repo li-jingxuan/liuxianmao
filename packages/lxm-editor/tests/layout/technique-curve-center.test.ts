@@ -15,7 +15,7 @@ import {
   getFretTextBounds,
   getTextBounds,
 } from "../../src/layout/technique-geometry";
-import { LXM_TECHNIQUE_TEXT_HALO_WIDTH } from "../../src/layout/layout-constants";
+import { LXM_TECHNIQUE_CURVE_LABEL_GAP, LXM_TECHNIQUE_TEXT_HALO_WIDTH } from "../../src/layout/layout-constants";
 import type { ILXMTechniqueSegmentLayout } from "../../src/layout/layout-types";
 
 const curveTypes = ["tie", "hammerOn", "pullOff"] as const;
@@ -243,7 +243,7 @@ describe("技巧弧线中心锚点", () => {
                 expect(gap).toBeGreaterThanOrEqual(-1e-10);
                 if (segment.lane === 0) expect(gap).toBeCloseTo(0, 10);
               }
-              // H/P 文字连同白色描边须完整高于弧线控制点包围框。
+              // H/P 按实际弧顶定位，字形连同白色描边保留紧凑的 2 单位净空。
               if (type !== "tie") {
                 const label = getTextBounds(
                   segment.texts[0]!,
@@ -253,9 +253,9 @@ describe("技巧弧线中心锚点", () => {
                   (from!.x + to!.x) / 2,
                   10,
                 );
-                expect(label.y + label.height).toBeLessThan(
-                  p[3]! - segment.path!.strokeWidth / 2,
-                );
+                const apex = (p[1]! + p[3]!) / 2;
+                const gap = apex - segment.path!.strokeWidth / 2 - (label.y + label.height);
+                expect(gap).toBeCloseTo(LXM_TECHNIQUE_CURVE_LABEL_GAP, 10);
               }
               const midpoint = {
                 x: (p[0]! + p[4]!) / 2,

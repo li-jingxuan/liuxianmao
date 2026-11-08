@@ -70,13 +70,13 @@ describe("六线谱延续一拍工具", () => {
       expect(session.getState().document).toBe(before);
     }
   });
-  it("无前音的空拍、闷音、多拍及非四分单位拍不提供续音动作", () => {
+  it("x 起音可以延续；无前音的空拍、多拍及非四分单位拍不提供续音动作", () => {
     const f = fixture();
     const sourceSelection = f.selection(f.source.id);
     f.source.notes[0]!.fret = "x";
     expect(
       buildEditorToolCommand(f.document, sourceSelection, { type: "sustain" }),
-    ).toBeNull();
+    ).toMatchObject({ type: C.ExtendBeat, beatId: f.source.id });
     f.source.kind = "rest";
     f.source.notes = [];
     expect(

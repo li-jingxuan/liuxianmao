@@ -88,7 +88,7 @@ describe("简谱编辑与成品排版", () => {
     expect(outer.bounds.y + outer.bounds.height).toBeLessThan(inner.bounds.y);
   });
   it.each(["compact", "comfortable"] as const)(
-    "%s 下成品收紧且双谱首音对齐，布局不修改文档",
+    "%s 下编辑与成品行宽一致且双谱首音对齐，布局不修改文档",
     (density) => {
       const { doc, track, m } = fixture();
       const result = applyScoreCommand(doc, {
@@ -113,14 +113,22 @@ describe("简谱编辑与成品排版", () => {
       const editing = buildLayout(result.document, {
         purpose: "editing",
         density,
+        systemWidth: 600,
       }).systems[0]!;
       const finished = buildLayout(result.document, {
         purpose: "presentation",
         density,
+        systemWidth: 600,
       }).systems[0]!;
-      expect(finished.width).toBeLessThan(editing.width);
+      expect(editing.width).toBe(600);
+      expect(finished.width).toBe(600);
+      // 成品仍收紧简谱与 TAB 的纵向净空，用途差异不再通过缩短整行表达。
+      const numberedStaffGap = (system: typeof editing) =>
+        system.numberedRow!.y - system.measures[0]!.strings.at(-1)!.y1;
+      expect(numberedStaffGap(finished)).toBeLessThan(numberedStaffGap(editing));
       for (const s of [editing, finished]) {
         const measure = s.measures[0]!;
+        expect(measure.x + measure.width).toBeCloseTo(s.x + 600);
         expect(measure.numberedNotation![0]!.labels[0]!.x).toBe(
           measure.beats[0]!.x,
         );

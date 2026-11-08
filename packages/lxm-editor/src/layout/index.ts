@@ -104,9 +104,7 @@ export const buildLayout = (
     ),
     x,
     y,
-    // 稀疏末行可以短于 systemWidth，但 SVG 画布不能随之缩窄，否则右侧留白会从
-    // 坐标系中消失，页面也无法继续使用完整内容区。非空布局以 systemWidth 为
-    // 下限；单个超宽小节仍可把画布扩展到其真实宽度，避免裁剪。
+    // 各行铺满 systemWidth；超宽小节或边缘图元仍可扩大画布，避免裁剪。
     width:
       systems.length === 0
         ? 0

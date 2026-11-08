@@ -458,6 +458,8 @@ export const ImageExportModal = ({
           <label className={styles.rangeLabel}>
             <span>输出范围</span>
             <Select<"all" | "page">
+              getPopupContainer={(trigger: HTMLElement) => trigger.closest<HTMLElement>('[role="dialog"]') ?? document.body}
+              styles={{ popup: { root: { pointerEvents: "auto" } } }}
               aria-label="输出范围"
               value={rangeAll ? "all" : "page"}
               disabled={!prepared || busy}

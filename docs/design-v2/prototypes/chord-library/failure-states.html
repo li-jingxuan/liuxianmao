@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>和弦库 · 加载与配置故障状态稿</title><link rel="icon" href="data:,">
+  <style>
+    :root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif;color:#202938;background:#eef2f6;font-size:14px}*{box-sizing:border-box}body{margin:0}main{max-width:1020px;margin:28px auto;padding:0 16px 40px}h1{font-size:1.5rem}h2{font-size:1.1rem}h3{font-size:1rem}p{line-height:1.8}a{color:#2457eb}button,input,select{font:inherit;color:inherit;min-height:36px;border:1px solid #c5cfdb;border-radius:6px;padding:7px 10px;background:white;max-width:100%}button{cursor:pointer}button:disabled{cursor:not-allowed;background:#f3f5f7;color:#85909e}button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid #91b4ff;outline-offset:2px}.primary{background:#2457eb;color:white;border-color:#2457eb}.muted{color:#607084;font-size:.88rem}.review{padding:16px;background:#182439;color:white;border-radius:8px}.review a{color:#bed1ff}.grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:20px}.panel{background:white;border-radius:10px;padding:20px;min-width:0}.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.row label{display:grid;gap:7px;flex:1;min-width:170px}.notice{padding:12px;background:#f0f5ff;border-radius:6px;line-height:1.8;margin:14px 0}.notice.error{background:#fff0f0;color:#9a2533}.notice.warning{background:#fff6e7;color:#77531b}.preview{background:#f3f6fa;padding:14px;border-radius:6px}.controls{margin-top:12px}.full{grid-column:1/-1}ul{padding-left:22px;line-height:1.9}.counts{font-variant-numeric:tabular-nums}input{width:100%}[hidden]{display:none!important}button[aria-pressed=true]{border-color:#2457eb;color:#2457eb;background:#eef3ff}@media(max-width:680px){.grid{grid-template-columns:1fr}.full{grid-column:auto}.panel{padding:16px}}
+  </style>
+</head>
+<body><main>
+  <header class="review"><strong>设计审查 · 状态模拟</strong><p>只操作页面内示例，不发送和弦库请求，不写浏览器配置或曲谱。产品复用现有编辑台与弹层；本页用于审查提示、可用动作和失败终态。</p><a href="prototype.html">返回完整交互稿</a></header>
+  <h1>加载失败时仍能继续编辑</h1><p class="muted">曲谱事实、系统库资源、个人配置分别呈现状态。各区块为独立审查场景；以下审查控件不会进入产品。</p>
+  <div class="grid">
+    <section class="panel" aria-labelledby="resource-title">
+      <h2 id="resource-title">系统和弦库</h2>
+      <label>审查资源状态 <select id="resource-fixture"><option value="loading">首次加载中</option><option value="error">首次加载失败</option><option value="ready">加载成功</option><option value="stale">更新失败，已有可用版本</option><option value="removed">加载成功，但快捷引用已移除</option></select></label>
+      <div class="row controls"><label>当前调弦 <select id="tuning"><option value="standard">标准调弦</option><option value="drop">Drop D</option></select></label></div>
+      <p><strong>曲谱 G 大调 · 1=G</strong></p>
+      <div id="resource-status" class="notice" role="status"></div>
+      <div class="row"><button id="retry">重试</button><button id="finish-load" hidden>模拟请求成功</button></div>
+      <h3>我的常用</h3><div class="row"><button id="quick-c">C</button><button id="quick-g">G</button><button id="more">更多 ⌄</button></div>
+      <p id="quick-reason" class="muted"></p>
+      <div id="more-panel" class="preview" hidden><strong>曲谱 G 大调 · 1=G</strong><p id="candidate-state"></p><div class="row"><button id="candidate">G · 开放指法</button><button id="details">查看示例详情</button></div><p class="muted">配置常用、我的指法和自定义编辑始终可达；系统图只在资源及调弦均适用时选用。</p></div>
+      <p id="resource-action" role="status" class="muted"></p>
+    </section>
+    <section class="panel" aria-labelledby="draft-title">
+      <h2 id="draft-title">当前和弦草稿仍可编辑</h2><label>和弦名称 <input id="draft-name" value="G"></label>
+      <div class="preview"><strong>已有 G 指法</strong><p>6 → 1 弦：3 · 2 · 0 · 0 · 0 · 3</p><p class="muted">已有图来自谱文件快照，系统库加载失败不会清空它。</p></div>
+      <div class="row controls"><button id="custom">编辑自定义指法</button><button id="favorite">我的指法 · 示例 Em</button></div><p id="draft-message" class="muted" role="status">改名保留已有图；操作只形成草稿。</p>
+      <p class="muted">非标准调弦可编辑自定义图；个人收藏只有其保存的调弦与当前一致时才允许选用。</p>
+    </section>
+    <section class="panel full" aria-labelledby="score-conflict-title">
+      <h2 id="score-conflict-title">歌曲信息：整组冲突需显式核对</h2>
+      <p class="muted">从和弦入口进入设置时，原和弦草稿暂停并保留；返回时重新核验同一目标。普通手动切栏目仍沿用产品现有规则。</p>
+      <div class="row"><label>未应用标题 <input id="score-draft-title" value="风吹过山谷（修改中）"></label><button id="external-score">模拟外部修改曲谱调性</button></div>
+      <div id="score-conflict-status" class="notice" role="status">当前已应用：G 大调 · 1=G；设置草稿：G 大调。未应用的和弦草稿仍保留。</div>
+      <div class="row"><button id="reload-score" hidden>加载已应用信息</button><button id="accept-score" hidden>核对并保留整组输入</button><button id="save-score" class="primary">应用曲谱信息</button></div>
+      <p id="score-conflict-result" class="muted" role="status">设置草稿不会提前改变和弦推荐。</p>
+    </section>
+    <section class="panel full" aria-labelledby="preferences-title">
+      <h2 id="preferences-title">常用配置与独立文件导入</h2>
+      <div class="row"><label>审查保存状态 <select id="storage-fixture"><option value="ok">浏览器可保存</option><option value="memory">写入失败</option><option value="conflict">其他标签已更新</option><option value="quarantine">已有坏记录被隔离</option><option value="unsupported">已有配置为未知新版本</option></select></label><label>审查导入文件 <select id="import-fixture"><option value="valid">合法替换 · 4 个快捷项 / 2 个收藏</option><option value="invalid">包含无效图</option><option value="oversize">文件超过 1 MiB</option><option value="unknown">不支持的文件版本</option></select></label></div>
+      <div class="preview controls"><strong>配置草稿</strong><p id="config-draft">C · G · Am · F · Dm · Em</p><div class="row"><button id="remove-quick">移除末项</button><button id="save-config" class="primary">保存配置</button><button id="cancel-config">放弃配置修改</button><button id="export-config">导出配置</button></div></div>
+      <div id="storage-status" class="notice" role="status"></div>
+      <div class="row"><button id="load-external" hidden>加载其他标签配置</button><button id="keep-local" hidden>保留本地并重新保存</button><button id="handle-quarantine" hidden>下载原始记录并移除隔离项</button><button id="export-raw" hidden>下载原始配置</button></div>
+      <p class="counts">当前会话快捷项：<strong id="session-count">6</strong>；浏览器已保存快捷项：<strong id="disk-count">6</strong>。曲谱调性：<strong>G 大调 · 1=G</strong></p>
+      <div class="row"><button id="parse-import">检查导入文件</button><button id="confirm-import" class="primary" disabled>替换本地配置</button></div>
+      <div id="import-preview" class="notice" role="status">先检查文件，再预览替换；关闭或取消不写配置。</div><button id="cancel-import" hidden>取消导入</button>
+      <p class="muted">示例不做隐式合并；有坏项时整份拒绝替换。网络未成功加载时仍可保留系统引用，不因暂时不可用删除快捷项。真实产品还需校验每个 id、图与调弦。</p>
+    </section>
+  </div>
+  <p class="muted">边界：首载成功可进入尚未取得快照的库；已有快照的库在本次打开期间固定版本。目录更新不替换正在编辑的指法，配置保存或导入也不写谱面。真实超时、竞态、跨标签事件、浏览器配额及文件解析需在实施阶段验证。</p>
+</main><script>
+  'use strict';
+  const $=s=>document.querySelector(s);
+  const defaults=['C','G','Am','F','Dm','Em'];
+  let resource='loading',session=[...defaults],disk=[...defaults],config=[...defaults],importReady=false;
+  function renderResource(){
+    const usable=resource==='ready'||resource==='stale'||resource==='removed',standard=$('#tuning').value==='standard';
+    const copy={loading:'和弦库加载中… 当前名称与已保存指法可继续编辑。',error:'和弦库暂不可用，请重试。已保存指法、自定义编辑及适用的个人收藏仍可使用。',ready:'和弦库已加载。',stale:'更新失败，继续使用已加载的和弦库。关闭重开库后才使用新版本。',removed:'和弦库已加载；快捷项 C 的原指法已移除，请在配置中重新指定。'};
+    $('#resource-status').textContent=copy[resource];$('#resource-status').className='notice'+(resource==='error'?' error':resource==='stale'?' warning':'');
+    $('#retry').hidden=resource==='ready'||resource==='removed';$('#retry').disabled=resource==='loading';$('#finish-load').hidden=resource!=='loading';
+    $('#quick-c').disabled=!usable||!standard||resource==='removed';$('#quick-g').disabled=!usable||!standard;$('#candidate').disabled=!usable||!standard;
+    $('#quick-reason').textContent=!usable?(resource==='loading'?'快捷引用等待和弦库，不删除配置。':'快捷引用暂不可用，不视为已移除。'):!standard?'系统指法仅适用标准调弦；当前可查看示例。':resource==='removed'?'C：该预置已移除；其余快捷项仍可用。':'系统快捷项可用。';
+    $('#candidate-state').textContent=!usable?copy[resource]:!standard?'当前为非标准调弦，系统示例可查看，不能选用。':'本调推荐 · G Am Bm C D Em F#dim';
+    $('#details').disabled=!usable;$('#favorite').disabled=!standard;
+  }
+  $('#resource-fixture').onchange=e=>{resource=e.target.value;renderResource()};$('#tuning').onchange=renderResource;
+  $('#retry').onclick=()=>{resource='loading';$('#resource-fixture').value='loading';renderResource()};$('#finish-load').onclick=()=>{resource='ready';$('#resource-fixture').value='ready';renderResource()};
+  $('#more').onclick=e=>{const open=$('#more-panel').hidden;$('#more-panel').hidden=!open;e.target.setAttribute('aria-expanded',String(open))};
+  for(const id of ['quick-c','quick-g','candidate'])$('#'+id).onclick=()=>{$('#resource-action').textContent='选用形成和弦草稿，仍需在父编辑表面应用。'};
+  $('#details').onclick=()=>{$('#resource-action').textContent='标准调弦 G 示例：6→1 弦为 3·2·0·0·0·3；查看不改变当前草稿。'};
+  $('#draft-name').oninput=()=>{$('#draft-message').textContent='名称已修改，原 G 指法快照保留。'};
+  $('#custom').onclick=()=>{$('#draft-message').textContent='正式产品打开独立指法编辑；完成回填草稿，取消保留原值。可在完整交互稿操作。'};
+  $('#favorite').onclick=()=>{$('#draft-message').textContent='Em 收藏来自本地完整快照，网络失败仍可选用；回填后仍需应用。'};
+  function renderConfig(){
+    $('#config-draft').textContent=config.join(' · ')||'未设置快捷项，仅保留“更多”';$('#session-count').textContent=session.length;$('#disk-count').textContent=disk.length;
+    const mode=$('#storage-fixture').value;
+    const copy={ok:'配置草稿尚未保存。',memory:'浏览器写入不可用；保存后本次会话可用，不能显示“已保存到浏览器”。',conflict:'其他标签已更新。当前配置草稿保留，请选择加载外部或保留本地。',quarantine:'1 条坏记录已隔离。先下载原始记录并明确处理，再保存；不自动丢弃。',unsupported:'配置版本暂不支持。保留原始数据，以内存会话运行；不能覆盖浏览器原值，可下载原始配置。'};
+    $('#storage-status').textContent=copy[mode];$('#storage-status').className='notice'+(mode==='ok'?'':' warning');
+    $('#load-external').hidden=$('#keep-local').hidden=mode!=='conflict';$('#handle-quarantine').hidden=mode!=='quarantine';$('#export-raw').hidden=mode!=='unsupported';
+    $('#save-config').disabled=['conflict','quarantine'].includes(mode);$('#confirm-import').disabled=!importReady||['conflict','quarantine'].includes(mode);
+  }
+  function saveConfig(){session=[...config];const mode=$('#storage-fixture').value;if(mode==='ok')disk=[...session];renderConfig();$('#storage-status').textContent=mode==='ok'?'已保存到此浏览器。':'本次会话可用，未保存到浏览器；可导出配置备份。'}
+  $('#storage-fixture').onchange=renderConfig;$('#remove-quick').onclick=()=>{config.pop();renderConfig()};$('#save-config').onclick=saveConfig;
+  $('#cancel-config').onclick=()=>{config=[...session];renderConfig()};
+  $('#load-external').onclick=()=>{disk=['C','G','Am'];session=[...disk];config=[...disk];$('#storage-fixture').value='ok';renderConfig()};
+  $('#keep-local').onclick=()=>{$('#storage-fixture').value='ok';saveConfig()};$('#handle-quarantine').onclick=()=>{download('原始记录模拟.txt','设计稿中的原始隔离记录示例，不是可导入配置');$('#storage-fixture').value='ok';renderConfig()};
+  $('#export-raw').onclick=()=>download('原始配置模拟.txt','设计稿未知新版本示例；真实产品须原样导出原始内容');
+  function download(name,body){const u=URL.createObjectURL(new Blob([body],{type:'text/plain;charset=utf-8'}));const a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)}
+  $('#export-config').onclick=()=>download('配置审查示例.txt','设计稿示例，非正式导入协议\n'+session.join(' · '));
+  function cancelImport(){importReady=false;$('#confirm-import').disabled=true;$('#cancel-import').hidden=true;$('#import-preview').textContent='导入已取消，本地配置与曲谱均未改变。'}
+  $('#import-fixture').onchange=cancelImport;
+  $('#parse-import').onclick=()=>{const mode=$('#import-fixture').value;importReady=mode==='valid';$('#cancel-import').hidden=false;renderConfig();$('#import-preview').textContent=importReady?`检查通过。快捷项 ${session.length} → 4；收藏 0 → 2。替换我的常用与收藏，曲谱 G 大调及已有和弦不变。`:({invalid:'导入被拒绝：第 2 个收藏图无效。未替换任何记录。',oversize:'导入被拒绝：文件超过 1 MiB，未解析或写入。',unknown:'导入被拒绝：文件版本暂不支持，未替换原配置。'})[mode]};
+  $('#confirm-import').onclick=()=>{if(!importReady)return;config=['C','G','Am','Em'];saveConfig();importReady=false;$('#confirm-import').disabled=true;$('#cancel-import').hidden=true;$('#import-preview').textContent='替换已用于当前会话；浏览器保存结果见上方。曲谱未改变。'};
+  $('#cancel-import').onclick=cancelImport;
+  let scoreConflict=false,scoreCurrent='G 大调 · 1=G',scoreDraft='G 大调 · 1=G';
+  function renderScoreConflict(){
+    $('#save-score').disabled=scoreConflict;$('#reload-score').hidden=$('#accept-score').hidden=!scoreConflict;
+    $('#score-conflict-status').className='notice'+(scoreConflict?' warning':'');
+    $('#score-conflict-status').textContent='已应用：'+scoreCurrent+'；设置草稿：'+scoreDraft+'。'+(scoreConflict?'本组已应用内容发生变化。标题输入仍保留；继续编辑任一字段不会解除冲突。核对并保留将重新提交整组草稿，可能改回 G 大调。':'未应用和弦草稿仍保留。');
+  }
+  $('#external-score').onclick=()=>{scoreCurrent=scoreCurrent.startsWith('A')?'D 大调 · 1=D':'A 小调 · 1=C · 6=A';scoreConflict=true;renderScoreConflict();$('#score-conflict-result').textContent='检测到新的外部变化；之前的核对不再适用，请重新核对整组。'};
+  $('#score-draft-title').oninput=renderScoreConflict;
+  $('#reload-score').onclick=()=>{scoreDraft=scoreCurrent;scoreConflict=false;$('#score-draft-title').value='风吹过山谷';renderScoreConflict()};
+  $('#accept-score').onclick=()=>{scoreConflict=false;renderScoreConflict();$('#score-conflict-result').textContent='已显式核对并保留整组输入；再次外部变化会重新阻止提交。'};
+  $('#save-score').onclick=()=>{if(scoreConflict)return;scoreCurrent=scoreDraft;renderScoreConflict();$('#score-conflict-result').textContent='模拟一次应用曲谱信息；原和弦草稿仍保留，未转调、未提交和弦。其他区块是独立审查场景。'};
+  renderResource();renderConfig();
+</script></body></html>

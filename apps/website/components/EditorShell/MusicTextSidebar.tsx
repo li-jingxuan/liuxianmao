@@ -54,8 +54,10 @@ import { ChordEditor } from "./ChordEditor";
 import { ChordQuickEditor } from "./ChordQuickEditor";
 import { chordIssueField } from "./chord-issue-field";
 import { shouldIgnoreMusicTextKey } from "./music-text-interaction";
+import { isEditorInputEnter } from "./editor-input-enter";
 import {
   readMusicTextDraft,
+  lyricDraftMappingDependency,
   normalizeMusicTextTarget,
   musicTextDraftValue,
   resolveSidebarRequest,
@@ -102,7 +104,7 @@ type SidebarAction = DraftSidebarAction & {
 export interface MusicTextController {
   navigateTool: (destination: ToolNavigation) => SelectionRequestResult;
   /** 输出前只读检查草稿，不自动提交或取消用户输入。 */
-  isOutputBlocked: (options?: { allowSettingsBusy?: boolean }) => boolean;
+  isOutputBlocked: (options?: { allowSettingsBusy?: boolean; allowModalId?: number }) => boolean;
   isNumberedActionBlocked: () => boolean;
   isTransitionBlocked: () => boolean;
   canCollapse: () => boolean;
@@ -134,10 +136,11 @@ export const MusicTextSidebar = ({
   getFloatingViewport,
   getFloatingObservedElements,
   collapsed = false,
-  onCollapse = () => {},
+  modal = false,
   onExpandSidebar = () => {},
   onLocate = () => {},
 }: {
+  modal?: boolean;
   ref: Ref<MusicTextController>;
   onToolAction?: ToolActionHandler;
   executeTool?: EditorCommandAdapter;
@@ -159,7 +162,6 @@ export const MusicTextSidebar = ({
   getFloatingViewport: () => FloatingAnchorRect;
   getFloatingObservedElements?: () => readonly (Element | null)[];
   collapsed?: boolean;
-  onCollapse?: () => void;
   onExpandSidebar?: () => void;
   onLocate?: (location: SidebarLocation) => void;
 }) => {
@@ -387,7 +389,7 @@ export const MusicTextSidebar = ({
   );
   const plan = useMemo(
     () =>
-      parsed?.ok && score && draft?.target.kind === "lyric"
+      !textConflict && parsed?.ok && score && draft?.target.kind === "lyric"
         ? planLyricSequence(
             score,
             { ...draft.target, verse: draft.target.verse! },
@@ -395,11 +397,11 @@ export const MusicTextSidebar = ({
             draft.allowOverwrite,
           )
         : null,
-    [parsed, score, draft],
+    [parsed, score, draft, textConflict],
   );
   const issue = draft && (!score || !normalizeMusicTextTarget(score, draft.target))
     ? "原编辑目标已失效，请重新选择。"
-    : textConflict ? "原位置内容已变化，请恢复或修改输入后重新检查。" : draft
+    : textConflict ? "歌词位置或原内容已变化，输入已保留，请恢复或修改输入后重新检查。" : draft
     ? draft.target.kind === "lyric"
       ? sequence
         ? parsed && !parsed.ok
@@ -450,9 +452,10 @@ export const MusicTextSidebar = ({
     numberedBusy || !!activeModal;
   const transitionBlocked = surfaceDisabled || !!settingsStatus?.busy || !!settingsStatus?.composing;
   useEffect(() => onTransitionBlockedChange?.(transitionBlocked), [transitionBlocked, onTransitionBlockedChange]);
-  const surfaceBlocked = useCallback(() =>
-    composing.current || compositionCoolingRef.current || surfaceDisabled || navigationApplying.current,
-    [surfaceDisabled]);
+  const surfaceBlocked = useCallback((allowModalId?: number) =>
+    composing.current || compositionCoolingRef.current || compositionActive || compositionCooling ||
+    !!pending || numberedBusy || (!!activeModal && activeModal.id !== allowModalId) || navigationApplying.current,
+    [compositionActive, compositionCooling, pending, numberedBusy, activeModal]);
   const focusSidebar = useCallback((
     group?: NumberedDraftGroup,
   ): SelectionRequestResult => {
@@ -625,6 +628,7 @@ export const MusicTextSidebar = ({
         setSelectionDetail(action.destination === "barline" ? "measure" : action.destination);
       }
       setDetailFocus((value) => value + 1);
+      onExpandSidebar();
       onOpen();
     } else if (action.type === "selection" || action.type === "close") {
       setSelectionToolsRequested(false);
@@ -802,6 +806,15 @@ export const MusicTextSidebar = ({
   };
   useImperativeHandle(ref, () => ({
     restoreSidebarFocus: () => {
+      // 窄屏气泡回退到侧栏时延续原输入意图，不能由抽屉默认焦点抢到关闭按钮。
+      if (textSession && focusDestination.current === "input") {
+        if (kind === "numbered") { numberedRef.current?.focus(); return; }
+        const input = (sequence ? sequenceInputRef : inputRef).current;
+        if (input?.isConnected && !input.closest("[hidden],[inert]")) {
+          input.focus({ preventScroll: true });
+          return;
+        }
+      }
       const previous = lastSidebarFocus.current;
       if (previous?.isConnected && !previous.closest("[hidden], [inert]")) previous.focus({ preventScroll: true });
       else document.querySelector<HTMLElement>('#music-text-sidebar [role="tab"][aria-selected="true"]')?.focus({ preventScroll: true });
@@ -810,7 +823,7 @@ export const MusicTextSidebar = ({
       (!(composing.current || compositionCoolingRef.current) || (kind !== "chord" && compositionSurface.current === "popover")),
     isTransitionBlocked: () => surfaceBlocked() || !!settingsRef.current?.isComposing() || !!settingsRef.current?.readStatus().busy || !!numberedRef.current?.readStatus().busy,
     isOutputBlocked: (options) =>
-      surfaceBlocked() ||
+      surfaceBlocked(options?.allowModalId) ||
       !!settingsRef.current?.isComposing() ||
       (!options?.allowSettingsBusy && !!settingsRef.current?.readStatus().busy) ||
       !!numberedRef.current?.readStatus().busy ||
@@ -871,6 +884,7 @@ export const MusicTextSidebar = ({
     () =>
       editorStore.subscribe((state) => {
         if (state.document !== baseline.current && !committing.current) {
+          const previousDocument = baseline.current;
           setPending(null);
           setNumberedPreview(null);
           setDraft((previous) => {
@@ -878,7 +892,11 @@ export const MusicTextSidebar = ({
             const fresh = readMusicTextDraft(state.document, previous.target, previous.lyricMode);
             if (!fresh) { setMessage("原编辑目标已失效，当前原文仅供查看，请重新选择。"); return previous; }
             if (musicTextDraftValue(previous) === previous.initial) return fresh;
-            if (fresh.initial !== previous.initial) setTextConflict(true);
+            if (fresh.initial !== previous.initial ||
+              lyricDraftMappingDependency(previousDocument, previous) !== lyricDraftMappingDependency(state.document, previous)) {
+              setTextConflict(true);
+              setInspection(0);
+            }
             return previous;
           });
           baseline.current = state.document;
@@ -1106,6 +1124,13 @@ export const MusicTextSidebar = ({
   };
   const apply = (advance = false): boolean => {
     if (!draft || issue || committing.current || composing.current || compositionCoolingRef.current || compositionCooling) return false;
+    if (draft.target.kind === "lyric" &&
+      lyricDraftMappingDependency(score, draft) !== lyricDraftMappingDependency(editorStore.getState().document, draft)) {
+      setTextConflict(true);
+      setInspection(0);
+      setMessage("歌词位置或原内容已变化，输入已保留，请重新检查。");
+      return false;
+    }
     if (draft.target.kind === "chord" && musicTextDraftValue(draft) === draft.initial) return true;
     const target = draft.target;
     const result = commit(
@@ -1324,6 +1349,7 @@ export const MusicTextSidebar = ({
   const showSelectionInvitation = !hasExplicitSelection && !selectionToolsRequested;
   return (
     <ConfigProvider
+      getPopupContainer={(trigger) => trigger?.closest<HTMLElement>("#music-text-sidebar,[data-editor-associated-panel]") ?? globalThis.document.body}
       theme={{
         components: {
           Select: { zIndexPopup: 60 },
@@ -1335,11 +1361,13 @@ export const MusicTextSidebar = ({
       <SidebarFrame
         ref={registerFrame}
         collapsed={collapsed}
-        collapseBlocked={!!pending || !!activeModal || numberedBusy || !!settingsStatus?.busy || ((compositionActive || compositionCooling) && (kind === "chord" || compositionOrigin !== "popover")) || !!settingsStatus?.composing}
-        onCollapse={onCollapse}
         id="music-text-sidebar"
         className={styles.musicTextSidebar}
         aria-label="编辑器属性"
+        role={modal ? "dialog" : undefined}
+        aria-modal={modal || undefined}
+        aria-owns={modal && floating && !popoverHidden ? (kind === "chord" ? "chord-edit-popover" : "music-text-edit-popover") : undefined}
+        tabIndex={modal ? -1 : undefined}
         inert={!!activeModal}
         onPointerDown={(event) => event.stopPropagation()}
         onKeyDown={(event) => event.stopPropagation()}
@@ -1498,17 +1526,25 @@ export const MusicTextSidebar = ({
           }
           if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
             e.preventDefault();
+            if (e.repeat || e.altKey) return;
             if (kind === "numbered") numberedRef.current?.applyContent();
             else apply();
             return;
           }
           if (
             e.key === "Enter" &&
-            (e.target === inputRef.current || e.target === popoverInputRef.current) &&
+            !e.altKey &&
+            (e.target === inputRef.current || e.target === popoverInputRef.current ||
+              e.target === sequenceInputRef.current || e.target === popoverSequenceInputRef.current) &&
             draft?.target.kind === "lyric"
           ) {
             e.preventDefault();
-            applyLyricPrimary(!e.shiftKey);
+            if (!e.repeat) applyLyricPrimary(!e.shiftKey);
+            return;
+          }
+          if (kind === "chord" && draft?.target.kind === "chord" && isEditorInputEnter(e)) {
+            e.preventDefault();
+            if (!e.repeat) apply();
           }
         }}
       >
@@ -1743,7 +1779,7 @@ export const MusicTextSidebar = ({
             <div className={styles.sidebarEmpty}>
               <div className={styles.emptyIllustration} aria-hidden="true"><svg viewBox="0 0 110 70"><path d="M8 18h94M8 28h94M8 38h94M8 48h94M8 58h94" /><rect x="36" y="12" width="28" height="51" rx="5" /><path d="M50 28v20m-10-10h20" /></svg></div>
               <h3>{numberedEntry ? "从当前谱面位置开始" : "先选择简谱位置"}</h3>
-              <p>{numberedEntry ? "在编辑台录入简谱，查看节拍映射并分别应用修改。" : "点击谱面上的简谱音符或空白位置，即可在这里编辑。"}</p>
+              <p>{numberedEntry ? "在编辑面板录入简谱，查看节拍映射并分别应用修改。" : "点击谱面上的简谱音符或空白位置，即可在这里编辑。"}</p>
               {numberedEntry && <Button type="primary" onClick={() => {
                 if (request({ type: "target", target: { ...numberedEntry, kind: "numbered" } }) === "accepted") {
                   onExpandSidebar();
@@ -2032,7 +2068,9 @@ export const MusicTextSidebar = ({
         </footer>
         {portalRoot && createPortal(<section
           ref={floatingPanelRef}
-          id={kind === "chord" ? "chord-edit-popover" : undefined}
+          data-music-text-floating
+          data-editor-associated-panel="music-text-sidebar"
+          id={kind === "chord" ? "chord-edit-popover" : "music-text-edit-popover"}
           className={`${styles.musicTextSurface} ${styles.musicTextFloating} ${kind === "chord" ? styles.chordFloating : ""}`}
           hidden={!floating}
           aria-label={floatingTitle}
@@ -2119,7 +2157,7 @@ export const MusicTextSidebar = ({
            {floating && kind === "chord" && draft && <footer className={styles.sidebarFooter}>
              {issue && <p className={styles.sidebarError} role="alert">{issue}</p>}
              {message && <p className={styles.sidebarMessage} role="status">{message}</p>}
-             <p className={styles.settingsHint}>切换位置或结束编辑会丢弃未应用输入。<br />Ctrl / ⌘ + Enter 应用，停留当前拍。</p>
+              <p className={styles.settingsHint}>切换位置或结束编辑会丢弃未应用输入。<br />Enter 应用，停留当前拍。</p>
              <div className={styles.sidebarActions}>
                <Button type="primary" disabled={surfaceDisabled || !!issue || !lyricDirty} onClick={() => apply()}>应用和弦</Button>
              </div>

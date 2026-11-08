@@ -8,12 +8,15 @@ import {
   type ILXMScoreCommand,
 } from "@liuxianmao/lxm-editor";
 import type { EditorStoreState } from "../../stores/editor-store";
-import type { EditorModalController } from "./editor-modal-controller";
+import type { EditorModalController, EditorModalRequest } from "./editor-modal-controller";
 import {
   captureEditorVersion,
   sameEditorSession,
+  sameEditorVersion,
 } from "./editor-session-version";
 import { formatNumberedBeatPosition } from "./numbered-editor-target";
+import { isTabOnlyToolCommand, tabToolTargetReason, type EditorToolSubmission } from "./editor-tool-guard";
+import { describeTabNumberedSyncPreview, isTabNumberedSyncCommand } from "./tab-numbered-sync";
 
 const rhythmName = (rhythm: { base: string; dots: number }) =>
   `${({ whole: "全音符", half: "二分", quarter: "四分", eighth: "八分", sixteenth: "十六分", thirtySecond: "三十二分" } as Record<string, string>)[rhythm.base]}${rhythm.dots === 1 ? "附点" : rhythm.dots === 2 ? "双附点" : ""}`;
@@ -35,6 +38,7 @@ export type EditorCommandResult =
 export type EditorCommandAdapter = (
   command: ILXMScoreCommand,
   impact?: "modal" | "caller",
+  submission?: EditorToolSubmission,
 ) => Promise<EditorCommandResult>;
 
 /** 将公共结构确认转换为最终结果；粘贴自行在原弹层承接影响，禁止嵌套 Modal。 */
@@ -42,15 +46,75 @@ export const createEditorCommandAdapter =
   (
     session: StoreApi<EditorStoreState>,
     modals: EditorModalController,
+    getBlockedReason?: (command: ILXMScoreCommand, submission?: EditorToolSubmission) => string | null,
   ): EditorCommandAdapter =>
-  async (command, impact = "modal") => {
+  async (command, impact = "modal", submission) => {
+    if (modals.getSnapshot()?.request.kind === "rhythm-sync")
+      return { status: "blocked", message: "请先应用或取消节奏细分预览。" };
     const snapshot = captureEditorVersion(session.getState());
     const capturedSelection = JSON.stringify(session.getState().selection);
     const capturedNumbered = JSON.stringify(
       session.getState().numberedSelection,
     );
+    let ownedConfirmation: EditorModalRequest | undefined;
+    const currentReason = () => {
+      if (!sameEditorVersion(session.getState(), snapshot) ||
+        capturedSelection !== JSON.stringify(session.getState().selection) ||
+        capturedNumbered !== JSON.stringify(session.getState().numberedSelection) ||
+        (submission?.isCurrent && !submission.isCurrent()))
+        return "目标或文档已变化，请重新操作。";
+      const tabReason = (submission?.tabOnly || isTabOnlyToolCommand(command))
+        ? tabToolTargetReason(session.getState(), null) : null;
+      const active = modals.getSnapshot();
+      // 请求对象身份也要匹配，不能借另一弹层的 ID 跳过保护。
+      // open 的 publish 在返回 ID 前同步发生，因此从已登记的同一请求读取 ID。
+      const confirmationModalId = ownedConfirmation && active?.request === ownedConfirmation &&
+        active.request.kind === "rhythm-sync" ? active.id : undefined;
+      return tabReason ?? getBlockedReason?.(command, {
+        ...submission,
+        confirmationModalId,
+      }) ?? null;
+    };
+    const initialReason = currentReason();
+    if (initialReason) return { status: "blocked", message: initialReason };
     if (!snapshot.document)
       return { status: "blocked", message: "当前没有可编辑的乐谱。" };
+
+    if (isTabNumberedSyncCommand(command)) {
+      // 预览与提交共用核心原子命令。候选对象及其临时 ID 不进入 store。
+      const frozen = structuredClone({ ...command, expectedRevision: command.expectedRevision ?? snapshot.document.documentRevision });
+      const preview = applyScoreCommand(snapshot.document, frozen);
+      if (!preview.ok) return { status: "blocked", message: preview.message };
+      if (!preview.changed) return { status: "noop", result: preview };
+      return new Promise<EditorCommandResult>((resolve) => {
+        let outcome: EditorCommandResult | null = null;
+        let committed = false;
+        ownedConfirmation = {
+          kind: "rhythm-sync",
+          title: command.type === "numbered.range.alignToTab" ? "按所选 TAB 节奏细分简谱" : "TAB 拆分并同步",
+          confirmLabel: command.type === "numbered.range.alignToTab" ? "应用细分" : "拆分并同步",
+          message: describeTabNumberedSyncPreview(snapshot.document!, preview.document, frozen),
+          version: snapshot,
+          isValid: () => !currentReason(),
+          confirm: ({ isCurrent }) => {
+            if (committed || !isCurrent() || currentReason()) return false;
+            const result = session.getState().execute(frozen);
+            if (!sameEditorSession(session.getState(), snapshot) || !result?.ok) return false;
+            committed = true;
+            outcome = { status: result.changed ? "applied" : "noop", result };
+            return true;
+          },
+          onClose: (reason) => resolve(outcome ?? {
+            status: reason === "stale" ? "stale" : "cancelled",
+            message: reason === "stale"
+              ? "谱面或选择已变化，请重新检查细分结果"
+              : "已取消细分，保留原谱与 TAB 选择。",
+          }),
+        };
+        const id = modals.open(ownedConfirmation);
+        if (id === null) resolve({ status: "blocked", message: "请先完成当前弹层操作。" });
+      });
+    }
 
     if (
       command.type === "numbered.event.setRhythm" &&
@@ -101,13 +165,13 @@ export const createEditorCommandAdapter =
             title: "简谱时值影响确认",
             message: `将顺移 ${candidate.movedEventIds.length} 个后续事件，压缩 ${candidate.resizedEventIds.length} 个后续事件；歌词随事件移动。${changes.join("；")}。删除 ${candidate.removedMarkIds.length} 个、调整 ${candidate.changedMarkIds.length} 个连接记号。`,
             version: snapshot,
-            isValid: () =>
+            isValid: () => !currentReason() &&
               capturedSelection ===
                 JSON.stringify(session.getState().selection) &&
               capturedNumbered ===
                 JSON.stringify(session.getState().numberedSelection),
             confirm: ({ isCurrent }) => {
-              if (!isCurrent()) return false;
+              if (!isCurrent() || currentReason()) return false;
               const result = session.getState().execute({
                 ...command,
                 expectedRevision: snapshot.document!.documentRevision,
@@ -198,13 +262,13 @@ export const createEditorCommandAdapter =
           title,
           message,
           version: snapshot,
-          isValid: () =>
+          isValid: () => !currentReason() &&
             capturedSelection ===
               JSON.stringify(session.getState().selection) &&
             capturedNumbered ===
               JSON.stringify(session.getState().numberedSelection),
           confirm: ({ isCurrent }) => {
-            if (!isCurrent()) return false;
+             if (!isCurrent() || currentReason()) return false;
             const next = session.getState().execute(confirmedCommand);
             if (!sameEditorSession(session.getState(), snapshot)) return false;
             if (!next?.ok) return false;
@@ -248,12 +312,12 @@ export const createEditorCommandAdapter =
         title: "公共结构影响确认",
         message: `这次结构修改将删除 ${result.removedMarkIds?.length ?? 0} 个简谱连接记号。确认后与结构修改一起提交、一起撤销。`,
         version: snapshot,
-        isValid: () =>
+        isValid: () => !currentReason() &&
           capturedSelection === JSON.stringify(session.getState().selection) &&
           capturedNumbered ===
             JSON.stringify(session.getState().numberedSelection),
         confirm: ({ isCurrent }) => {
-          if (!isCurrent()) return false;
+          if (!isCurrent() || currentReason()) return false;
           const next = session.getState().execute({
             ...command,
             expectedRevision: snapshot.document!.documentRevision,

@@ -1,0 +1,123 @@
+.feedback {
+  position: absolute;
+  right: 16px;
+  bottom: 18px;
+  z-index: 30;
+  width: min(380px, calc(100% - 32px));
+  max-height: calc(100% - 36px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+  &[hidden] {
+    display: none;
+  }
+  button {
+    font: inherit;
+  }
+  button:focus-visible {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+  }
+}
+.toast,
+.clipboardDetails {
+  pointer-events: auto;
+  background: #fff;
+  color: #334c6d;
+  border: 1px solid #cddff7;
+  border-radius: 10px;
+  box-shadow: 0 8px 30px #22477c1a;
+  min-height: 0;
+}
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 13px 12px;
+  flex-shrink: 0;
+  font-size: 12px;
+}
+.icon {
+  flex-shrink: 0;
+  color: #4082df;
+  margin-top: 1px;
+}
+.body {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  strong {
+    font-size: 12px;
+    font-weight: 600;
+  }
+  p {
+    font-size: 11px;
+    line-height: 1.6;
+    color: #71829a;
+    margin: 5px 0;
+  }
+}
+.link {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  color: #2563eb;
+  cursor: pointer;
+}
+.pending {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+  color: #71829a;
+}
+.close {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 5px;
+  color: #7d8ba0;
+  background: transparent;
+  cursor: pointer;
+  &:hover {
+    color: #2563eb;
+    background: #edf4ff;
+  }
+}
+.clipboardDetails {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  &:focus-visible {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 11px 13px;
+    border-bottom: 1px solid #e5edf8;
+  }
+  h2 {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+  }
+}
+.detailsScroll {
+  overflow-y: auto;
+  min-height: 0;
+  padding: 12px 14px;
+  overscroll-behavior: contain;
+}
+@media print {
+  .feedback {
+    display: none !important;
+  }
+}

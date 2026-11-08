@@ -1,12 +1,12 @@
 "use client";
 import {
+  type Ref,
   useCallback,
   useEffect,
   useLayoutEffect,
   useRef,
   useState,
   useSyncExternalStore,
-  type ReactNode,
 } from "react";
 import { Alert, Button, Tooltip } from "antd";
 import {
@@ -29,7 +29,7 @@ import {
 import { editorShortcutLabel } from "./editor-shortcuts";
 import { BeatToolbar } from "./BeatToolbar";
 import { TupletToolbar } from "./TupletToolbar";
-import { TechniqueToolbar } from "./TechniqueToolbar";
+import { TechniqueToolbar, type TechniqueToolbarController } from "./TechniqueToolbar";
 import {
   EditorToolPanelHost,
   type EditorToolPanelController,
@@ -44,6 +44,12 @@ import styles from "./index.module.scss";
 import type { MusicTextTarget } from "./music-text-draft";
 import { resolveEditorRhythmTarget } from "./editor-rhythm-target";
 import { resolveEditorChordTarget } from "./editor-chord-target";
+import { currentChordTechniqueDirection, resolveQuickTechnique } from "./editor-technique-target";
+import { captureEditorToolIntent, tabToolTargetReason } from "./editor-tool-guard";
+import { buildTabNumberedSyncCommand, type TabNumberedSyncMode } from "./tab-numbered-sync";
+import { EditorToolSymbolButton, TechniqueSymbol } from "./EditorToolSymbolButton";
+import symbolStyles from "./EditorToolSymbolButton.module.scss";
+import toolbarStyles from "./EditorToolbar.module.scss";
 export type { EditorToolbarAction } from "./editor-tool-actions";
 
 const RHYTHMS: {
@@ -58,44 +64,7 @@ const RHYTHMS: {
   { base: "sixteenth", icon: "noteSixteenth", label: "十六分音符" },
   { base: "thirtySecond", icon: "noteThirtySecond", label: "三十二分音符" },
 ];
-const ToolButton = ({
-  label,
-  availability,
-  onClick,
-  children,
-  pressed,
-  title,
-  expanded,
-}: {
-  label: string;
-  availability: ToolAvailability;
-  onClick: () => void;
-  children: ReactNode;
-  pressed?: boolean;
-  title?: string;
-  expanded?: boolean;
-}) => (
-  <Tooltip title={availability.reason || title || label}>
-    <span
-      className={styles.toolButtonWrap}
-      tabIndex={!availability.enabled ? 0 : undefined}
-      aria-label={!availability.enabled ? availability.reason : undefined}
-    >
-      <Button
-        aria-label={label}
-        aria-pressed={pressed}
-        aria-expanded={expanded}
-        disabled={!availability.enabled}
-        onClick={onClick}
-        color={pressed ? "primary" : "default"}
-        variant={pressed ? "filled" : "text"}
-        className={styles.musicToolButton}
-      >
-        {children}
-      </Button>
-    </span>
-  </Tooltip>
-);
+const ToolButton = EditorToolSymbolButton;
 
 /** 桌面菜单只组织入口；预览控制器随会话存活。 */
 export const EditorToolbar = ({
@@ -108,6 +77,9 @@ export const EditorToolbar = ({
   onNavigate,
   onOpenChord,
   chordEntryBlocked = false,
+  sidebarCollapsed,
+  onToggleSidebar,
+  sidebarToggleRef,
 }: {
   activeTarget: MusicTextTarget | null;
   blocked: boolean;
@@ -118,6 +90,9 @@ export const EditorToolbar = ({
   onNavigate: (destination: ToolNavigation) => SelectionRequestResult;
   onOpenChord?: (target: MusicTextTarget) => void;
   chordEntryBlocked?: boolean;
+  sidebarCollapsed: boolean;
+  onToggleSidebar: () => void;
+  sidebarToggleRef: Ref<HTMLButtonElement>;
 }) => {
   const session = useEditorSessionStore();
   const { drafts, modals } = useEditorRuntime();
@@ -148,13 +123,23 @@ export const EditorToolbar = ({
     drafts.getSnapshot,
   );
   const host = useRef<EditorToolPanelController>(null);
+  const [syncNotice, setSyncNotice] = useState<string | null>(null);
+  const syncGeneration = useRef(0);
+  useEffect(() => () => { syncGeneration.current += 1; }, []);
+  const techniquePanel = useRef<TechniqueToolbarController>(null);
+  const activeTargetRef = useRef(activeTarget);
+  useLayoutEffect(() => { activeTargetRef.current = activeTarget; }, [activeTarget]);
+  const getActiveTarget = useCallback(() => activeTargetRef.current, []);
   const protectedDraft = drafts
     .inspect()
     .pending.some((item) => item.kind !== "beatPaste" && item.kind !== "fret");
-  const editingBlocked = blocked || protectedDraft;
+  const editingBlocked = blocked || protectedDraft || drafts.inspect().busy;
+  const techniqueBlocked = blocked || drafts.inspect().pending.some(
+    (item) => item.kind !== "beatPaste" && item.kind !== "fret" && item.kind !== "technique",
+  );
   const live = useRef({ editingBlocked, beforeAction, execute });
   const executeLatest: EditorCommandAdapter = useCallback(
-    (command, impact) => live.current.execute(command, impact),
+    (command, impact, submission) => live.current.execute(command, impact, submission),
     [],
   );
   const beforeLatest = useCallback(() => live.current.beforeAction(), []);
@@ -186,6 +171,7 @@ export const EditorToolbar = ({
   }, [modal]);
   if (!document) return null;
   const tools = deriveEditorToolState(document, selection);
+  const tabReason = tabToolTargetReason(session.getState(), activeTarget);
   const chordTarget = resolveEditorChordTarget(document, selection, activeTarget, !!numberedSelection);
   const chordAvailability: ToolAvailability = modal || chordEntryBlocked
     ? { enabled: false, reason: "请先完成当前输入或弹层操作。" }
@@ -205,6 +191,8 @@ export const EditorToolbar = ({
       : value;
   const run: ToolActionHandler = async (action) => {
     beforeAction();
+    if ((action.type === "restToggle" || action.type === "quickTechnique") &&
+      tabToolTargetReason(session.getState(), getActiveTarget())) return false;
     if (
       action.type !== "undo" &&
       action.type !== "redo" &&
@@ -236,13 +224,40 @@ export const EditorToolbar = ({
     if (!rhythmAvailability.enabled) return false;
     return onAction(action);
   };
+  const syncAvailability = (mode: TabNumberedSyncMode): ToolAvailability => {
+    if (tabReason) return available({ enabled: false, reason: tabReason });
+    const built = buildTabNumberedSyncCommand(document, selection, mode);
+    return available({ enabled: built.ok, reason: built.ok ? "" : built.message });
+  };
+  const runSync = async (mode: TabNumberedSyncMode) => {
+    if (!syncAvailability(mode).enabled) return;
+    beforeAction();
+    const now = session.getState();
+    if (!now.document || live.current.editingBlocked || modals.isOpen() ||
+      tabToolTargetReason(now, getActiveTarget())) return;
+    const built = buildTabNumberedSyncCommand(now.document, now.selection, mode);
+    if (!built.ok) { setSyncNotice(built.message); return; }
+    const current = captureEditorToolIntent(session.getState, getActiveTarget);
+    const generation = syncGeneration.current;
+    setSyncNotice(null);
+    const result = await execute(built.command, "modal", {
+      tabOnly: true,
+      isCurrent: () => generation === syncGeneration.current && current(),
+    });
+    if (generation !== syncGeneration.current) return;
+    setSyncNotice(result.status === "noop" ? "所选范围已按当前 TAB 节奏细分"
+      : result.status === "applied" ? "已应用节奏细分，可在新空位补入简谱或歌词。"
+      : result.status === "needs-impact" ? result.result.message : result.message);
+  };
   return (
     <div
-      className={styles.editorToolbar}
+      className={`${styles.editorToolbar} ${toolbarStyles.root}`}
       role="toolbar"
       aria-label="节奏、小节与历史工具"
       aria-describedby="editor-tool-reason"
     >
+      <div className={toolbarStyles.content}>
+      <div className={`${toolbarStyles.row} ${toolbarStyles.primary}`} data-toolbar-row="rhythm">
       <div className={styles.toolbarGroup} role="group" aria-label="历史">
         <ToolButton
           label="撤销"
@@ -257,7 +272,7 @@ export const EditorToolbar = ({
           }}
           onClick={() => void run({ type: "undo" })}
         >
-          <UndoOutlined />
+          <UndoOutlined className={symbolStyles.historyIcon} />
         </ToolButton>
         <ToolButton
           label="重做"
@@ -272,7 +287,7 @@ export const EditorToolbar = ({
           }}
           onClick={() => void run({ type: "redo" })}
         >
-          <RedoOutlined />
+          <RedoOutlined className={symbolStyles.historyIcon} />
         </ToolButton>
       </div>
       <div
@@ -324,11 +339,48 @@ export const EditorToolbar = ({
           </ToolButton>
         ))}
       </div>
+      <div className={styles.toolbarGroup} role="group" aria-label="TAB 与简谱节奏同步">
+        <Tooltip title={syncAvailability("align").reason || "按所选 TAB 节奏细分简谱：预览原音缩短、空位及歌词保留"}>
+          <span><Button size="small" data-tool-action="numbered-align-to-tab"
+            aria-label="按所选 TAB 节奏细分简谱"
+            title="按所选 TAB 节奏细分简谱"
+            disabled={!syncAvailability("align").enabled} onClick={() => void runSync("align")}>细分简谱</Button></span>
+        </Tooltip>
+        <Tooltip title={syncAvailability("split").reason || "TAB 拆分并同步：等分单拍，并在简谱后半段留空"}>
+          <span><Button size="small" data-tool-action="beat-split-and-align-numbered"
+            aria-label="TAB 拆分并同步"
+            title="TAB 拆分并同步"
+            disabled={!syncAvailability("split").enabled} onClick={() => void runSync("split")}>拆分并同步</Button></span>
+        </Tooltip>
+      </div>
+      </div>
+      <div className={`${toolbarStyles.row} ${toolbarStyles.secondary}`} data-toolbar-row="techniques">
+      <div className={symbolStyles.quickGroup} role="group" aria-label="休止与吉他技巧快捷">
+        <ToolButton label="切换休止" availability={available(tabReason ? { enabled: false, reason: tabReason } : tools.beatRange)}
+          pressed={tools.restState === "all"}
+          title={`切换休止（${editorShortcutLabel("rest")}）；${tools.restState === "mixed" ? "当前为混合状态，点击统一设为休止。" : ""}休止影响整拍全部弦并清空音符；取消休止仅得到空普通拍，恢复音符请撤销。`}
+          onClick={() => void run({ type: "restToggle" })}><TechniqueSymbol kind="rest" /></ToolButton>
+        {(["hammerOn", "pullOff", "slide", "strumDown", "strumUp", "arpeggioDown", "arpeggioUp"] as const).map((quick) => {
+          const result = resolveQuickTechnique(document, selection, quick);
+          const labels = { hammerOn: "击弦 H", pullOff: "勾弦 P", slide: "滑音", strumDown: "下扫：从低音弦到高音弦，箭头向上", strumUp: "上扫：从高音弦到低音弦，箭头向下", arpeggioDown: "下琶音：从低音弦到高音弦，箭头向上", arpeggioUp: "上琶音：从高音弦到低音弦，箭头向下" };
+          return <ToolButton key={quick} label={labels[quick]}
+            availability={available(tabReason ? { enabled: false, reason: tabReason } : { enabled: result.ok, reason: result.ok ? "" : result.message })}
+            pressed={quick === "strumDown" || quick === "strumUp" || quick === "arpeggioDown" || quick === "arpeggioUp"
+              ? currentChordTechniqueDirection(document, selection, quick.startsWith("strum") ? "strum" : "arpeggio") === (quick.endsWith("Down") ? "down" : "up") : undefined}
+            onClick={() => void run({ type: "quickTechnique", technique: quick })}>
+            {quick === "hammerOn" ? "H" : quick === "pullOff" ? "P" : quick === "slide" ? "S" : <TechniqueSymbol kind={quick} />}
+          </ToolButton>;
+        })}
+      </div>
       <EditorToolPanelHost
         ref={host}
         beforeOpen={beforeAction}
         blocked={!!modal}
         reason={reason}
+        canHide={() => techniquePanel.current?.canHide() ?? true}
+        onHideTechnique={() => techniquePanel.current?.discard()}
+        subscribeProtection={drafts.subscribe}
+        onTechniqueIntent={(intent) => techniquePanel.current?.openTechnique(intent) ?? false}
       >
         {{
           measure: (
@@ -425,19 +477,16 @@ export const EditorToolbar = ({
               )}
             </div>
           ),
-          technique: numberedSelection ? (
-            <div className={styles.toolMenu} aria-label="简谱技巧菜单">
-              <Button block onClick={() => navigate("note")}>
-                简谱时值、延音线与连音线…
-              </Button>
-            </div>
-          ) : (
+          technique: (
             <TechniqueToolbar
+              ref={techniquePanel}
               document={document}
               selection={selection}
               selectedTechniqueId={selectedTechniqueId}
               execute={execute}
-              blocked={editingBlocked}
+              blocked={techniqueBlocked || !!tabReason}
+              beforeAction={beforeAction}
+              getActiveTarget={getActiveTarget}
               setSelectedTechniqueId={setSelectedTechniqueId}
               setErrorMessage={setErrorMessage}
               onShowParameters={() =>
@@ -471,10 +520,32 @@ export const EditorToolbar = ({
           </svg>
         </ToolButton>
       </div>
-      <span id="editor-tool-reason" className={styles.toolbarHint}>
+      </div>
+      </div>
+      <div className={toolbarStyles.viewControls} role="group" aria-label="工作区布局" data-editor-associated-panel="music-text-sidebar" data-editor-panel-control>
+        <Tooltip title={sidebarCollapsed ? "展开编辑面板" : "收起编辑面板"} trigger={["hover", "focus"]} placement="bottomRight">
+        <button
+          ref={sidebarToggleRef}
+          type="button"
+          className={toolbarStyles.panelToggle}
+          aria-label="编辑面板"
+          aria-controls="music-text-sidebar"
+          aria-expanded={!sidebarCollapsed}
+          onClick={onToggleSidebar}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+            <rect x="3" y="4" width="18" height="16" rx="2" />
+            <path d="M15 4v16" />
+            {!sidebarCollapsed && <path d="M17 7h2v10h-2z" fill="currentColor" stroke="none" />}
+          </svg>
+        </button>
+        </Tooltip>
+      </div>
+      <span id="editor-tool-reason" className={toolbarStyles.hint}>
         {rhythmAvailability.reason || reason || "当前选区可编辑音符与节奏。"}
       </span>
       <PasteNotice controller={paste} />
+      {syncNotice && <Alert className={styles.toolbarNotice} type="info" title={syncNotice} showIcon />}
     </div>
   );
 };

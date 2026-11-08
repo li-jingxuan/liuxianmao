@@ -1,6 +1,8 @@
 import { buildNumberedIndex } from "./numbered-rhythm";
+import { sameTechniqueDraft } from "./technique-equality";
 import { planBeatPaste, type BeatClipboard } from "./beat-clipboard";
 import { splitBeat, mergeBeats } from "./beat-structure";
+import { planNumberedTabAlignment } from "./numbered-tab-alignment";
 import { extendBeat } from "./beat-sustain";
 import { techniqueBeatIds } from "./content-protection";
 import { type NumberedSequenceItem } from "./numbered-notation";
@@ -328,7 +330,24 @@ export interface ILXMBeatPasteCommand {
   expectedConfirmationKey: string;
 }
 
+export interface ILXMNumberedAlignToTabCommand {
+  type: "numbered.range.alignToTab";
+  trackId: string;
+  measureId: string;
+  startTick: number;
+  endTick: number;
+}
+
+export interface ILXMSplitBeatAndAlignNumberedCommand {
+  type: "beat.splitAndAlignNumbered";
+  trackId: string;
+  measureId: string;
+  beatId: string;
+}
+
 type ScoreCommandOperation =
+  | ILXMNumberedAlignToTabCommand
+  | ILXMSplitBeatAndAlignNumberedCommand
   | ILXMExtendBeatCommand
   | ILXMBeatPasteCommand
   | ILXMNumberedCommand
@@ -802,7 +821,7 @@ const editNotesInRect = (
     command.type === LXMScoreCommandEnum.SetNotesInRect &&
     !isValidFret(command.fret)
   )
-    return fail("INVALID_FRET", `品位必须是 0 到 ${MAX_FRET} 的整数或闷音 x`);
+    return fail("INVALID_FRET", `品位必须是 0 到 ${MAX_FRET} 的整数或弹奏标记 x`);
 
   const resolved = resolveCommandRange(document, command.range);
   if (!resolved.ok) return resolved;
@@ -1038,7 +1057,7 @@ const setBarlineBoundary = (
  * 新增、修改与删除技巧共享一个深 Module interface。
  *
  * 页面不需要知道目标解析、互斥矩阵或 ID 分配；所有候选先通过领域规则，再只复制
- * 目标 track 并进行最终两层校验。update 排除自身后校验，避免把原技巧误判为重复。
+ * 目标 track 并进行最终两层校验。同拍扫弦/琶音先排除被替换项，update 另排除自身。
  */
 const editTechnique = (
   document: ILXMDocument,
@@ -1078,57 +1097,62 @@ const editTechnique = (
     );
   }
 
+  const draft = command.technique;
+  const replacements = track.techniques.filter(
+    (item) =>
+      (draft.type === "strum" || draft.type === "arpeggio") &&
+      (item.type === "strum" || item.type === "arpeggio") &&
+      item.beatId === draft.beatId,
+  );
   const existing =
     command.type === LXMScoreCommandEnum.UpdateTechnique
       ? track.techniques.find((item) => item.id === command.techniqueId)
-      : undefined;
+      : replacements[0];
   if (
     command.type === LXMScoreCommandEnum.UpdateTechnique &&
     existing === undefined
   )
     return fail("TECHNIQUE_NOT_FOUND", "目标技巧不存在");
 
-  const toTechniqueDraftJson = (value: (typeof track.techniques)[number]) => {
-    const { id: _id, ...draft } = value;
-    return JSON.stringify(draft);
-  };
-  const commandDraftJson = JSON.stringify(command.technique);
   // 完全重复新增是成功 no-op；它与“同一目标但参数冲突”是不同语义，必须在
   // validateTechnique 的冲突矩阵之前识别。
   if (
     command.type === LXMScoreCommandEnum.AddTechnique &&
     track.techniques.some(
-      (candidate) => toTechniqueDraftJson(candidate) === commandDraftJson,
+      (candidate) => sameTechniqueDraft(candidate, command.technique),
     )
   )
     return unchanged(document);
 
+  // Add 沿用目标技巧 ID；Update 沿用被编辑 ID，并移除目标 Beat 的其他扫弦/琶音。
+  // 仅构造候选数组，校验失败时原文档及其中的技巧对象保持不变。
+  const replacementIds = new Set(replacements.map((item) => item.id));
+  const remaining = track.techniques.filter(
+    (item) => item.id === existing?.id || !replacementIds.has(item.id),
+  );
   const validation = validateTechnique(
-    track,
-    command.technique,
-    command.type === LXMScoreCommandEnum.UpdateTechnique
-      ? command.techniqueId
-      : undefined,
+    { ...track, techniques: remaining },
+    draft,
+    existing?.id,
   );
   if (!validation.ok)
     return fail(validation.error.code, validation.error.message);
 
-  if (existing && toTechniqueDraftJson(existing) === commandDraftJson)
+  if (
+    existing &&
+    sameTechniqueDraft(existing, draft) &&
+    remaining.length === track.techniques.length
+  )
     return unchanged(document);
 
   const technique = {
-    ...command.technique,
-    id:
-      command.type === LXMScoreCommandEnum.UpdateTechnique
-        ? command.techniqueId
-        : createDocumentIdFactory(document).createTechniqueId(),
+    ...draft,
+    id: existing?.id ?? createDocumentIdFactory(document).createTechniqueId(),
   } as (typeof track.techniques)[number];
   const techniques =
-    command.type === LXMScoreCommandEnum.UpdateTechnique
-      ? track.techniques.map((item) =>
-          item.id === command.techniqueId ? technique : item,
-        )
-      : [...track.techniques, technique];
+    existing
+      ? remaining.map((item) => (item.id === existing.id ? technique : item))
+      : [...remaining, technique];
 
   return finalize(
     {
@@ -1160,6 +1184,85 @@ const applyScoreCommandInternal = (
     command.expectedRevision !== document.documentRevision
   )
     return fail("STALE_NUMBERED_PLAN", "确认已过期，请重新预览");
+  if (
+    command.type === "numbered.range.alignToTab" ||
+    command.type === "beat.splitAndAlignNumbered"
+  ) {
+    const track = document.score.tracks.find((t) => t.id === command.trackId);
+    if (!track) return fail("TRACK_NOT_FOUND", "目标轨道不存在");
+    const measure = track.measures.find((m) => m.id === command.measureId);
+    if (!measure) return fail("MEASURE_NOT_FOUND", "目标小节不存在");
+    const factory = createDocumentIdFactory(document);
+    let candidateTrack = track;
+    let range: { measureId: string; startTick: number; endTick: number };
+    let split: ReturnType<typeof splitBeat> | undefined;
+    if (command.type === "beat.splitAndAlignNumbered") {
+      const beat = measure.beats.find((b) => b.id === command.beatId);
+      if (!beat) return fail("BEAT_NOT_FOUND", "目标节拍不存在");
+      const duration =
+        createMeasureRhythmContext(measure).getBeatDurationTicks(beat);
+      if (!duration.ok)
+        return fail("INVALID_BEAT_OPERATION", "目标拍不能精确拆分");
+      range = {
+        measureId: measure.id,
+        startTick: beat.tick,
+        endTick: beat.tick + duration.ticks,
+      };
+      split = splitBeat(track, measure.id, beat.id, factory);
+      if (!split.ok) return fail("INVALID_BEAT_OPERATION", split.message);
+      candidateTrack = split.track;
+    } else range = command;
+    const plan = planNumberedTabAlignment(candidateTrack, range, factory);
+    if (!plan.ok) return plan;
+    if (!plan.changed && !split) return unchanged(document);
+    const result = finalize(
+      {
+        ...document,
+        documentRevision: document.documentRevision + 1,
+        score: {
+          ...document.score,
+          tracks: document.score.tracks.map((t) =>
+            t === track ? plan.track : t,
+          ),
+        },
+      },
+      document,
+      command,
+    );
+    if (!result.ok) return result;
+    const gap = plan.newGaps[0];
+    return {
+      ...result,
+      ...(gap
+        ? {
+            nextNumberedFocus: {
+              trackId: track.id,
+              measureId: measure.id,
+              eventId: gap.id,
+            },
+          }
+        : {}),
+      ...(split?.ok
+        ? {
+            nextFocus: {
+              trackId: track.id,
+              measureId: measure.id,
+              beatId: split.focusBeatId,
+            },
+            effects: [
+              {
+                kind: "beats.structured",
+                trackId: track.id,
+                measureId: measure.id,
+                measureNumber: track.measures.indexOf(measure) + 1,
+                operation: "split",
+                consumedTieCount: split.consumedTieCount,
+              },
+            ],
+          }
+        : {}),
+    };
+  }
   if (isNumberedVoiceCommand(command)) {
     const numbered = command as ILXMNumberedVoiceCommand;
     if (
@@ -1528,7 +1631,7 @@ const applyScoreCommandInternal = (
       command.type === LXMScoreCommandEnum.SetNote &&
       !isValidFret(command.fret)
     )
-      return fail("INVALID_FRET", `品位必须是 0 到 ${MAX_FRET} 的整数或闷音 x`);
+      return fail("INVALID_FRET", `品位必须是 0 到 ${MAX_FRET} 的整数或弹奏标记 x`);
     const factory = createDocumentIdFactory(document);
     let nextBeat: ILXMBeat;
     if (command.type === LXMScoreCommandEnum.SetBeatKind) {

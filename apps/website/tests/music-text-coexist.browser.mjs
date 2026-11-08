@@ -101,11 +101,11 @@ try {
   const lyricBaseline = await page.evaluate(() => ({ document: window.coexistStore.getState().document, history: window.coexistStore.getState().historyDepth }));
   await input.fill("旋律草稿");
   assert.equal(await sidebarInput.inputValue(), "旋律草稿");
-  await sidebar.getByRole("button", {name:"收起编辑台",exact:true}).click();
+  await page.getByRole("button", {name:"编辑面板",exact:true}).click();
   assert.equal(await sidebar.isVisible(), false);
   assert.equal(await popover.isVisible(), true);
   assert.equal(await input.inputValue(), "旋律草稿");
-  const openSidebar = page.getByRole("button", {name:"打开编辑台",exact:true});
+  const openSidebar = page.getByRole("button", {name:"编辑面板",exact:true});
   await openSidebar.focus();
   await openSidebar.press("Enter");
   assert.equal(await sidebarInput.inputValue(), "旋律草稿");
@@ -382,7 +382,7 @@ try {
   await sidebar.getByRole("combobox", {name:"Capo",exact:true}).press("Home");
   for (let index = 0; index < 3; index++) await sidebar.getByRole("combobox", {name:"Capo",exact:true}).press("ArrowDown");
   await sidebar.getByRole("combobox", {name:"Capo",exact:true}).press("Enter");
-  await page.getByRole("button", {name:"收起编辑台",exact:true}).click();
+  await page.getByRole("button", {name:"编辑面板",exact:true}).click();
   await page.getByRole("button", {name:"导出曲谱",exact:true}).click();
   const blockedOutput = page.getByRole("dialog", {name:"先处理未应用的输入"});
   await blockedOutput.waitFor({state:"visible"});
@@ -401,7 +401,7 @@ try {
   await blockedOutput.getByRole("button", {name:"返回编辑",exact:true}).click();
   await page.waitForFunction(() => document.activeElement?.id === "settings-label");
   assert.equal(await sectionInput.inputValue(), "原小节草稿");
-  await sidebar.getByRole("button", {name:"收起编辑台",exact:true}).click();
+  await page.getByRole("button", {name:"编辑面板",exact:true}).click();
   await digit("focus-three").click();
   await confirmation.waitFor({state:"visible"});
   assert.equal(await sidebar.isVisible(), true);

@@ -10,6 +10,7 @@ export type EditorDraftKind =
   | "lyric"
   | "numbered"
   | "chord"
+  | "technique"
   | "beatPaste";
 export type EditorDraftApplyResult = "applied" | "blocked" | "stale";
 
@@ -70,18 +71,20 @@ export const createEditorDraftCoordinator = (
   const listeners = new Set<() => void>();
   let revision = 0;
   let busy = false;
+  let busyOwner: EditorDraftOwner | undefined;
   const publish = () => {
     revision += 1;
     listeners.forEach((listener) => listener());
   };
-  const inspect = () => {
+  const inspect = (exceptOwner?: EditorDraftOwner) => {
     const pending = [...records.values()].filter(
-      (record) => record.dirty || record.composing || record.error,
+      (record) => (record.dirty || record.composing || record.error) &&
+        (!exceptOwner || registrations.get(record)?.owner.token !== exceptOwner.token),
     );
     return {
       pending,
       composing: pending.some((record) => record.composing),
-      busy,
+      busy: busy && (!exceptOwner || busyOwner?.token !== exceptOwner.token),
     };
   };
   const attempt = (action: () => boolean): boolean => {
@@ -155,6 +158,7 @@ export const createEditorDraftCoordinator = (
         reason: record.error ?? "请在原表单完成校验。",
       };
     busy = true;
+    busyOwner = registrations.get(record)?.owner;
     publish();
     try {
       const result = await record.apply({
@@ -187,6 +191,7 @@ export const createEditorDraftCoordinator = (
       };
     } finally {
       busy = false;
+      busyOwner = undefined;
       publish();
     }
   };

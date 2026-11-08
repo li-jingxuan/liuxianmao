@@ -4,11 +4,14 @@ import {
   EXAMPLE_MVP_7_2_DOCUMENT,
   buildLayout,
   createCollapsedTabCellSelection,
+  resolveTechniqueSelection,
+  LXMScoreCommandEnum as C,
   type ILXMTabCellReference,
 } from "@liuxianmao/lxm-editor";
 import {
   resolveScorePointerAction,
   isScoreSelectionValid,
+  resolveScoreDeleteCommand,
 } from "../components/EditorShell/editor-object-selection";
 import {
   readMusicTextDraft,
@@ -45,6 +48,37 @@ const fixture = () => {
 };
 
 describe("谱面对象选择与文字页签解耦", () => {
+  it("删除已选 let ring 只移除技巧，保留覆盖的音符、琶音和扫弦，并可一步撤销", () => {
+    const { document } = fixture();
+    const track = document.score.tracks[0]!;
+    const ring = track.techniques.find((item) => item.type === "letRing")!;
+    const selection = resolveTechniqueSelection(document, ring.id, "start")!;
+    const store = createEditorStore(document);
+    store.getState().setSelection(selection);
+    store.getState().setSelectedTechniqueId(ring.id);
+    const before = store.getState().document!;
+    const command = resolveScoreDeleteCommand(before, selection, ring.id)!;
+    expect(command).toEqual({ type: C.RemoveTechnique, trackId: track.id, techniqueId: ring.id });
+    expect(store.getState().execute(command)).toMatchObject({ ok: true, changed: true });
+    const after = store.getState().document!;
+    expect(after.score.tracks[0]!.measures).toEqual(before.score.tracks[0]!.measures);
+    expect(after.score.tracks[0]!.techniques).toEqual(track.techniques.filter((item) => item.id !== ring.id));
+    expect(store.getState().selectedTechniqueId).toBeNull();
+    const visible = buildLayout(after).systems.flatMap((system) => system.techniques.map((item) => item.techniqueId));
+    for (const technique of track.techniques.filter((item) => item.type === "arpeggio" || item.type === "strum"))
+      expect(visible).toContain(technique.id);
+    expect(store.getState().historyDepth.past).toBe(1);
+    store.getState().undo();
+    expect(store.getState().document).toBe(before);
+  });
+  it("普通 TAB 删除仍删除音符；失效技巧 ID 不回退删除底层音符", () => {
+    const { document, selection, target } = fixture();
+    expect(resolveScoreDeleteCommand(document, selection, null)).toMatchObject({
+      type: C.RemoveNotesInRect, range: { trackId: target.trackId, anchor: selection.anchor, focus: selection.focus },
+    });
+    expect(resolveScoreDeleteCommand(document, selection, "missing-technique")).toBeNull();
+    expect(resolveScoreDeleteCommand(document, null, null)).toBeNull();
+  });
   it("和弦锚点使用真实图元，空拍使用 TAB 光标，失效位置不借邻近拍", () => {
     const { layout, target, measure } = fixture();
     const bounds = layout.hitIndex.musicTextBounds!.find((item) => item.kind === "chord" && item.measureId === target.measureId && item.beatId === target.beatId);

@@ -1,5 +1,5 @@
 /** 技巧的横向占位在断行前确定，与最终模板共用文字和图元尺寸。 */
-import type { ILXMFret, ILXMNote, ILXMTrack } from "../core/types";
+import type { ILXMFret, ILXMTrack } from "../core/types";
 import {
   LXM_FRET_TEXT_FONT_SIZE,
   LXM_FRET_TEXT_HALO_WIDTH,
@@ -61,22 +61,6 @@ export const techniqueLabelWidth = (label: string): number =>
 export const curveLabelWidth = (label: "H" | "P"): number =>
   techniqueLabelWidth(label) + LXM_TECHNIQUE_TEXT_HALO_WIDTH * 2;
 
-/** 范围内有 x 时，将扫弦/琶音放在字形左侧，尺寸与断行占位共用。 */
-export const chordTraversalOffset = (
-  notes: readonly Pick<ILXMNote, "string" | "fret">[],
-  minString: number,
-  maxString: number,
-): number =>
-  notes.some(
-    (note) =>
-      note.fret === "x" && note.string >= minString && note.string <= maxString,
-  )
-    ? fretHalfWidth("x") +
-      LXM_TECHNIQUE_FRET_GAP_X +
-      LXM_TECHNIQUE_ARROW_WIDTH / 2 +
-      2
-    : 0;
-
 /** 多个同拍技巧取最严格占位，避免叠加宽度造成不必要的稀疏排版。 */
 export const buildTechniqueInsets = (
   track: ILXMTrack,
@@ -120,20 +104,7 @@ export const buildTechniqueInsets = (
       );
       continue;
     }
-    if (t.type === "strum" || t.type === "arpeggio") {
-      const offset = chordTraversalOffset(
-        beats.get(t.beatId)?.notes ?? [],
-        t.minString,
-        t.maxString,
-      );
-      if (offset)
-        reserve(
-          t.beatId,
-          offset + LXM_TECHNIQUE_ARROW_WIDTH / 2 + 1,
-          fretHalfWidth("x"),
-        );
-      continue;
-    }
+    if (t.type === "strum" || t.type === "arpeggio") continue;
     if (!("fromNoteId" in t)) continue;
     const target = notes.get(t.fromNoteId);
     if (!target) continue;

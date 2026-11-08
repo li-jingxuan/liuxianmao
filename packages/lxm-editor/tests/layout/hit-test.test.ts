@@ -103,7 +103,7 @@ describe("hitTestLayout", () => {
     });
   });
 
-  it("稀疏 System 的右侧画布留白不误命中最后一拍", () => {
+  it("单小节铺满后新增区域命中最后一拍，行外空白不误命中", () => {
     const systemWidth = 733;
     const layout = buildLayout(documentWithFirstMeasureOnly, {
       systemWidth,
@@ -113,10 +113,21 @@ describe("hitTestLayout", () => {
     const measure = system.measures[0]!;
     const string = measure.strings[2]!;
 
-    expect(system.width).toBeLessThan(layout.width);
+    expect(system.width).toBe(systemWidth);
+    expect(measure.x + measure.width).toBeCloseTo(system.x + systemWidth);
     expect(
       hitTestLayout(layout, {
-        x: system.x + system.width + (layout.width - system.width) / 2,
+        x: system.x + systemWidth - 1,
+        y: string.y1,
+      }),
+    ).toMatchObject({
+      measureId: measure.id,
+      beatId: measure.beats.at(-1)!.id,
+      string: string.index,
+    });
+    expect(
+      hitTestLayout(layout, {
+        x: system.x + systemWidth + 1,
         y: string.y1,
       }),
     ).toBeNull();

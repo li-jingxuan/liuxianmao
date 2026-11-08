@@ -7,7 +7,7 @@ import type {
   ILXMLyricVerse,
 } from "@liuxianmao/lxm-editor";
 import type { ChordDraft } from "./ChordEditor";
-import { resolveLyricPosition } from "@liuxianmao/lxm-editor";
+import { parseLyricSequence, planLyricSequence, resolveLyricPosition } from "@liuxianmao/lxm-editor";
 import { resolveNumberedEditorTarget } from "./numbered-editor-target";
 import { sameMusicTextTarget } from "./music-text-hover";
 
@@ -96,6 +96,40 @@ export const musicTextDraftValue = (
         }
       : draft.chord,
   );
+
+/** 对应当前输入实际会使用的位置和原词；首 ID/文字不变也可能发生中间插位。 */
+export const lyricDraftMappingDependency = (
+  document: ILXMDocument | null,
+  draft: Pick<MusicTextDraft, "target" | "text" | "lyricMode" | "allowOverwrite">,
+): string => {
+  if (!document || draft.target.kind !== "lyric") return "";
+  const target = { ...draft.target, verse: draft.target.verse ?? 1 };
+  const track = document.score.tracks.find((item) => item.id === target.trackId);
+  const measures = new Map(track?.measures.map((measure) => [measure.id, measure]));
+  const parsed = parseLyricSequence(draft.text);
+  const targets = draft.lyricMode === "sequence"
+    ? planLyricSequence(document, target, parsed.ok ? parsed.items : [{ kind: "skip" }], true)
+        .rows.map((row) => row.target)
+    : [target];
+  return JSON.stringify({
+    trackId: target.trackId,
+    verse: target.verse,
+    mode: draft.lyricMode,
+    positions: targets.map((item) => {
+      if (!item) return null;
+      const measure = measures.get(item.measureId);
+      const position = measure && resolveLyricPosition(measure, item);
+      if (!position) return null;
+      return {
+        measureId: item.measureId,
+        eventId: position.eventId,
+        // 单点仍跟随存活事件；连续输入必须核对完整有序时间映射。
+        ...(draft.lyricMode === "sequence" ? { tick: position.tick, endTick: position.endTick } : {}),
+        previous: measure!.lyrics.find((lyric) => lyric.eventId === position.eventId && lyric.verse === target.verse)?.text ?? null,
+      };
+    }),
+  });
+};
 
 /** 仅规范化业务身份，不读取或重置正在输入的值。 */
 export const normalizeMusicTextTarget = (

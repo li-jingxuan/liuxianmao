@@ -1,0 +1,38 @@
+.notice {
+  padding: 10px 12px;
+  border: 1px solid #d6e4f6;
+  border-radius: 8px;
+  background: #f4f8ff;
+  color: #334d70;
+  font-size: 12px;
+  line-height: 1.7;
+  summary {
+    cursor: pointer;
+  }
+  summary:focus-visible {
+    outline: 2px solid #3b82f6;
+    outline-offset: 3px;
+  }
+}
+.details {
+  color: #425876;
+  font-size: 12px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+  ul {
+    margin: 8px 0 0;
+    padding-left: 18px;
+  }
+  li + li {
+    margin-top: 6px;
+  }
+}
+.note {
+  margin: 0;
+  color: #64748b;
+}
+@media print {
+  .notice {
+    display: none !important;
+  }
+}

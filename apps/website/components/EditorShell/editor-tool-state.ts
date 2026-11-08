@@ -68,15 +68,21 @@ export const deriveEditorToolState = (
       ? "请先选择一个起音或紧随其后的空拍。"
       : focused?.measure.timeSignature.denominator !== 4
         ? "延续一拍目前用于以四分音符为单位拍的拍号。"
-        : !sustainSource?.notes.length ||
-            sustainSource.notes.some((note) => typeof note.fret !== "number")
-          ? "请选择有品位的起音，或紧随其后的空拍；闷音不能延续。"
+        : !sustainSource?.notes.length
+          ? "请选择一个起音，或紧随其后的空拍。"
           : focused.measure.tuplets.some((group) =>
                 group.beatIds.includes(sustainSource.id),
               )
             ? "连音组请使用整组编辑。"
             : "";
+  const selectedBeats = range?.beats.flatMap((reference) =>
+    track?.measures.find((measure) => measure.id === reference.measureId)
+      ?.beats.filter((beat) => beat.id === reference.beatId) ?? []) ?? [];
+  const rests = selectedBeats.filter((beat) => beat.kind === "rest").length;
+  const restState: "all" | "mixed" | "none" = selectedBeats.length && rests === selectedBeats.length
+    ? "all" : rests ? "mixed" : "none";
   return {
+    restState,
     range,
     focused,
     sustain: available(!sustainReason, sustainReason),

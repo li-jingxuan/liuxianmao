@@ -8,6 +8,7 @@ import {
   type ILXMTabCellSelection,
 } from "@liuxianmao/lxm-editor";
 import { deriveEditorToolState } from "./editor-tool-state";
+import { resolveQuickTechnique, type QuickTechnique } from "./editor-technique-target";
 export type MeasureToolTarget = { trackId: string; measureId: string };
 export type EditorToolbarAction =
   | {
@@ -17,7 +18,8 @@ export type EditorToolbarAction =
         | "muted"
         | "removeNotes"
         | "rest"
-        | "restore"
+         | "restore"
+         | "restToggle"
         | "sustain";
     }
   | {
@@ -26,6 +28,7 @@ export type EditorToolbarAction =
     }
   | { type: "rhythm"; base: ILXMRhythm["base"] }
   | { type: "dots"; dots: 0 | 1 | 2 }
+  | { type: "quickTechnique"; technique: QuickTechnique }
   | { type: "signature"; value: string; target?: MeasureToolTarget }
   | { type: "barline"; value: ILXMBarlineType; target?: MeasureToolTarget };
 export type ToolActionHandler = (
@@ -39,6 +42,10 @@ export const buildEditorToolCommand = (
   action: EditorToolbarAction,
 ): ILXMScoreCommand | null => {
   const tools = deriveEditorToolState(document, selection);
+  if (action.type === "quickTechnique") {
+    const result = resolveQuickTechnique(document, selection, action.technique);
+    return result.ok ? result.command : null;
+  }
   const explicit = "target" in action ? action.target : undefined;
   const track = explicit
     ? document.score.tracks.find((item) => item.id === explicit.trackId)
@@ -145,6 +152,6 @@ export const buildEditorToolCommand = (
   return {
     type: C.SetBeatKindRange,
     range,
-    kind: action.type === "rest" ? "rest" : "notes",
+    kind: action.type === "restToggle" ? (tools.restState === "all" ? "notes" : "rest") : action.type === "rest" ? "rest" : "notes",
   };
 };

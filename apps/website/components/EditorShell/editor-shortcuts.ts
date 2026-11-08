@@ -10,8 +10,8 @@ export const EDITOR_SHORTCUTS = {
     keys: "0–24",
     description: "输入品位；1、2 等待第二位，600ms 后提交",
   },
-  muted: { keys: "X", description: "设置闷音音符" },
-  remove: { keys: "Backspace / Delete", description: "删除所选音符" },
+  muted: { keys: "X", description: "输入 x 弹奏标记" },
+  remove: { keys: "Backspace / Delete", description: "删除所选技巧或音符" },
   rest: { keys: "R", description: "整拍设为休止" },
   restore: { keys: "Shift + R", description: "取消休止，原音符可通过撤销恢复" },
   escape: {

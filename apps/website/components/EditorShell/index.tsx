@@ -1,7 +1,11 @@
 "use client";
 import type { ILXMScoreCommand } from "@liuxianmao/lxm-editor";
 
-import { EditorImpactNotice } from "./EditorImpactNotice";
+import { useEditorHostWidth } from "./use-editor-host-width";
+import { useWorkspaceOverlays } from "./use-workspace-overlays";
+import { useScoreView } from "./use-score-view";
+import { EditorHistoryPanel, EditorHistoryRail } from "./EditorHistoryPanel";
+import { EditorFeedback } from "./EditorFeedback";
 
 import {
   buildLayout,
@@ -23,8 +27,16 @@ import {
   type ILXMTabCellReference,
   type ILXMTabCellSelection,
 } from "@liuxianmao/lxm-editor";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Button, theme } from "antd";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
+import { theme } from "antd";
 import {
   useEditorSessionStore,
   useEditorStore,
@@ -48,7 +60,7 @@ import type { MusicTextTarget } from "./music-text-draft";
 import { resolveChordFocus, resolveParagraphFocus } from "./music-text-focus";
 import { MusicTextEditingHints } from "./MusicTextEditingHints";
 import { useMusicTextMetrics } from "./music-text-metrics";
-import { resolveScorePointerAction } from "./editor-object-selection";
+import { resolveScoreDeleteCommand, resolveScorePointerAction } from "./editor-object-selection";
 import {
   resolveMusicTextHoverTarget,
   sameMusicTextTarget,
@@ -72,6 +84,11 @@ import {
 } from "./editor-command-adapter";
 import { buildEditorToolCommand } from "./editor-tool-actions";
 import { resolveEditorRhythmTarget } from "./editor-rhythm-target";
+import {
+  captureEditorToolIntent,
+  editorToolSubmissionReason,
+  tabToolTargetReason,
+} from "./editor-tool-guard";
 
 /** 两位品位输入等待第二个数字的时间，超时后提交一位品位。 */
 const FRET_DRAFT_TIMEOUT_MS = 600;
@@ -103,14 +120,41 @@ export const EditorShell: React.FC = () => {
   const session = useEditorSessionStore();
   const { token } = theme.useToken();
   const { drafts, modals } = useEditorRuntime();
+  const activeModal = useSyncExternalStore(
+    modals.subscribe,
+    modals.getSnapshot,
+    () => null,
+  );
+  const activeMusicTextTargetRef = useRef<MusicTextTarget | null>(null);
+  const musicTextController = useRef<MusicTextController>(null);
   const toolExecute = useMemo(
-    () => createEditorCommandAdapter(session, modals),
-    [session, modals],
+    // 工厂只保存保护回调，真正提交及确认时才读取 owner 的实时状态。
+    () =>
+      // eslint-disable-next-line react-hooks/refs
+      createEditorCommandAdapter(session, modals, (command, submission) => {
+        const reason = editorToolSubmissionReason(
+          session.getState(),
+          activeMusicTextTargetRef.current,
+          drafts,
+          command,
+          submission,
+        );
+        if (reason) return reason;
+        const blocked =
+          command.type === "numbered.event.setRhythm"
+            ? musicTextController.current?.isNumberedActionBlocked()
+             : musicTextController.current?.isOutputBlocked({
+                allowModalId: submission?.confirmationModalId,
+                allowSettingsBusy:
+                  command.type === LXMScoreCommandEnum.CopyMeasureRange,
+              });
+        return blocked ? "请先应用或取消属性草稿，再修改音乐。" : null;
+      }),
+    [session, modals, drafts],
   );
   const document = useEditorStore((state) => state.document);
   const selection = useEditorStore((state) => state.selection);
   const numberedSelection = useEditorStore((state) => state.numberedSelection);
-  const effects = useEditorStore((state) => state.effects);
   const selectedNumberedMarkId = useEditorStore(
     (state) => state.selectedNumberedMarkId,
   );
@@ -158,19 +202,50 @@ export const EditorShell: React.FC = () => {
     (state) => state.setSelectedTechniqueId,
   );
   const setErrorMessage = useEditorStore((state) => state.setErrorMessage);
-  const undo = useEditorStore((state) => state.undo);
-  const redo = useEditorStore((state) => state.redo);
   const canUndo = useEditorStore((state) => state.canUndo);
   const canRedo = useEditorStore((state) => state.canRedo);
+  const historyEntries = useEditorStore((state) => state.historyEntries);
+  const appliedHistoryCount = useEditorStore(
+    (state) => state.pastEntries.length,
+  );
+  const baselineAdvanced = useEditorStore((state) => state.baselineAdvanced);
+  const feedbackEvent = useEditorStore((state) => state.feedbackEvent);
+  const sessionVersion = useEditorStore((state) => state.sessionVersion);
+  const sessionKey = `${session.getState().sessionId}:${sessionVersion}`;
+  const [expandedHistoryIds, setExpandedHistoryIds] = useState<string[]>([]);
 
   const [imageExportSnapshot, setImageExportSnapshot] =
     useState<ImageExportSnapshot | null>(null);
   const [outputBlockedOpen, setOutputBlockedOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const openSidebarButton = useRef<HTMLButtonElement>(null);
-  const [inspectionRect, setInspectionRect] = useState<{ x:number; y:number; width:number; height:number } | null>(null);
+  const editorRootRef = useRef<HTMLDivElement>(null);
+  const workspaceRef = useRef<HTMLDivElement>(null);
+  const { width: hostWidth, mode: layoutMode } =
+    useEditorHostWidth(editorRootRef);
+  const narrowPanels = layoutMode === "compact" || layoutMode === "narrow";
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const historyTriggerRef = useRef<HTMLButtonElement>(null);
+  const pendingPanel = useRef<{
+    kind: "history" | "close-sidebar";
+    sessionVersion: number;
+    narrowOnly?: boolean;
+  } | null>(null);
+  const previousNarrow = useRef<boolean | null>(null);
+  const retryPendingLayout = useRef<() => void>(() => {});
+  const sidebarToggleRef = useRef<HTMLButtonElement>(null);
+  const [inspectionRect, setInspectionRect] = useState<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null>(null);
   const inspectionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => { if (inspectionTimer.current) clearTimeout(inspectionTimer.current); }, []);
+  useEffect(
+    () => () => {
+      if (inspectionTimer.current) clearTimeout(inspectionTimer.current);
+    },
+    [],
+  );
   const [fileFeedbackHost, setFileFeedbackHost] =
     useState<HTMLDivElement | null>(null);
   /** 文档、状态版本或会话任一变化立即关闭旧输出，晚到回调不能发布旧谱。 */
@@ -186,14 +261,192 @@ export const EditorShell: React.FC = () => {
       }),
     [session],
   );
-  const musicTextController = useRef<MusicTextController>(null);
+  const restorePanelTrigger = useCallback((kind: "history" | "sidebar") => {
+    requestAnimationFrame(() => {
+      const target =
+        kind === "history"
+          ? historyTriggerRef.current
+          : sidebarToggleRef.current;
+      if (
+        target?.isConnected &&
+        target.getClientRects().length &&
+        !target.closest("[hidden],[inert]")
+      )
+        target.focus({ preventScroll: true });
+      else scoreSvgRef.current?.focus({ preventScroll: true });
+    });
+  }, []);
+  const canHideSidebar = useCallback(
+    () => !!musicTextController.current?.canCollapse(),
+    [],
+  );
+  const openHistory = useCallback(() => {
+    if (narrowPanels && !sidebarCollapsed && !canHideSidebar()) {
+      pendingPanel.current = {
+        kind: "history",
+        sessionVersion: session.getState().sessionVersion,
+      };
+      return false;
+    }
+    pendingPanel.current = null;
+    if (narrowPanels) setSidebarCollapsed(true);
+    setHistoryOpen(true);
+    return true;
+  }, [narrowPanels, sidebarCollapsed, canHideSidebar, session]);
+  const closeHistory = useCallback(() => {
+    pendingPanel.current = null;
+    setHistoryOpen(false);
+    restorePanelTrigger("history");
+  }, [restorePanelTrigger]);
+  const openHistoryEntry = useCallback(
+    (entryId: string) => {
+      if (
+        !session.getState().historyEntries.some((entry) => entry.id === entryId)
+      )
+        return false;
+      if (
+        modals.isOpen() ||
+        imageExportSnapshot ||
+        outputBlockedOpen ||
+        !openHistory()
+      )
+        return false;
+      setExpandedHistoryIds((ids) =>
+        ids.includes(entryId) ? ids : [...ids, entryId],
+      );
+      return true;
+    },
+    [session, modals, imageExportSnapshot, outputBlockedOpen, openHistory],
+  );
+  const openSidebar = useCallback(() => {
+    pendingPanel.current = null;
+    if (narrowPanels) setHistoryOpen(false);
+    setSidebarCollapsed(false);
+  }, [narrowPanels]);
+  const closeSidebar = useCallback(() => {
+    if (!canHideSidebar()) {
+      pendingPanel.current = {
+        kind: "close-sidebar",
+        sessionVersion: session.getState().sessionVersion,
+      };
+      return;
+    }
+    pendingPanel.current = null;
+    setSidebarCollapsed(true);
+    restorePanelTrigger("sidebar");
+  }, [canHideSidebar, session, restorePanelTrigger]);
+  const closeDrawer = useCallback(() => {
+    if (historyOpen) closeHistory();
+    else closeSidebar();
+  }, [historyOpen, closeHistory, closeSidebar]);
+  useWorkspaceOverlays({
+    rootRef: editorRootRef,
+    workspaceRef,
+    panel: narrowPanels
+      ? historyOpen
+        ? "history"
+        : !sidebarCollapsed
+          ? "sidebar"
+          : null
+      : null,
+    onClose: closeDrawer,
+  });
+  useEffect(() => {
+    if (!narrowPanels || (!historyOpen && sidebarCollapsed)) return;
+    const frame = requestAnimationFrame(() => {
+      if (
+        globalThis.document.querySelector(
+          '.ant-modal-wrap:not([style*="display: none"])',
+        )
+      )
+        return;
+      const panel = workspaceRef.current?.querySelector<HTMLElement>(
+        historyOpen ? "#editor-history-panel" : "#music-text-sidebar",
+      );
+      const current = globalThis.document.activeElement;
+      const inAssociatedSurface =
+        !historyOpen &&
+        current instanceof HTMLElement &&
+        !!current.closest(
+          '[data-editor-associated-panel="music-text-sidebar"]',
+        );
+      if (panel && !panel.contains(current) && !inAssociatedSurface) {
+        if (!historyOpen) musicTextController.current?.restoreSidebarFocus();
+        else panel.querySelector<HTMLElement>('button:not(:disabled),[tabindex="0"]')?.focus({ preventScroll: true });
+      }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [narrowPanels, historyOpen, sidebarCollapsed]);
+  useEffect(() => {
+    if (!hostWidth) return;
+    const frame = requestAnimationFrame(() => {
+      if (previousNarrow.current !== narrowPanels) {
+        previousNarrow.current = narrowPanels;
+        if (narrowPanels) {
+          if (canHideSidebar()) setSidebarCollapsed(true);
+          else {
+            // 跨断点时原属性 owner 的组合输入优先保留可见；历史等待保护解除后再开。
+            setHistoryOpen(false);
+            pendingPanel.current = {
+              kind: historyOpen ? "history" : "close-sidebar",
+              sessionVersion: session.getState().sessionVersion,
+              narrowOnly: true,
+            };
+          }
+        } else if (pendingPanel.current?.narrowOnly) {
+          if (pendingPanel.current.kind === "history") setHistoryOpen(true);
+          pendingPanel.current = null;
+        }
+      }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [hostWidth, narrowPanels, canHideSidebar, session, historyOpen]);
+  useEffect(() => {
+    let frame = 0;
+    const retry = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const pending = pendingPanel.current;
+        if (!pending) return;
+        if (session.getState().sessionVersion !== pending.sessionVersion) {
+          pendingPanel.current = null;
+          return;
+        }
+        if (!canHideSidebar()) return;
+        pendingPanel.current = null;
+        if (pending.kind === "history") {
+          if (narrowPanels) setSidebarCollapsed(true);
+          setHistoryOpen(true);
+        } else if (narrowPanels || !pending.narrowOnly)
+          setSidebarCollapsed(true);
+      });
+    };
+    const unsubscribe = drafts.subscribe(retry);
+    retryPendingLayout.current = retry;
+    globalThis.document.addEventListener("compositionend", retry, true);
+    globalThis.document.addEventListener("focusout", retry, true);
+    return () => {
+      unsubscribe();
+      retryPendingLayout.current = () => {};
+      cancelAnimationFrame(frame);
+      globalThis.document.removeEventListener("compositionend", retry, true);
+      globalThis.document.removeEventListener("focusout", retry, true);
+    };
+  }, [drafts, canHideSidebar, session, narrowPanels]);
   const [musicTextEditing, setMusicTextEditing] = useState(false);
   const [musicTextPopoverHidden, setMusicTextPopoverHidden] = useState(false);
   const [numberedActionBlocked, setNumberedActionBlocked] = useState(true);
   const [chordEntryBlocked, setChordEntryBlocked] = useState(false);
+  useEffect(() => {
+    // 组合结束缓冲只改变 owner 的 UI 保护状态，也须唤醒延迟布局请求。
+    retryPendingLayout.current();
+  }, [chordEntryBlocked, numberedActionBlocked, musicTextEditing]);
   const pageViewportRef = useRef<HTMLDivElement>(null);
   const [activeMusicTextTarget, setActiveMusicTextTarget] =
     useState<MusicTextTarget | null>(null);
+  useLayoutEffect(() => {
+    activeMusicTextTargetRef.current = activeMusicTextTarget;
+  }, [activeMusicTextTarget]);
   /** 悬停只属于当前布局快照，换谱或重排后不沿用旧坐标。 */
   const [hoveredMusicText, setHoveredMusicText] = useState<{
     layout: ILXMLayout;
@@ -250,11 +503,26 @@ export const EditorShell: React.FC = () => {
           ? { ...activeMusicTextTarget, kind: activeMusicTextTarget.kind }
           : undefined,
     });
-  }, [
-    document,
-    musicTextMetrics,
-    activeMusicTextTarget,
-  ]);
+  }, [document, musicTextMetrics, activeMusicTextTarget]);
+
+  const onScoreGeometryChange = useCallback(() => {
+    const svg = scoreSvgRef.current;
+    const pointer = activePointerIdRef.current;
+    if (svg && pointer !== null && svg.hasPointerCapture(pointer))
+      svg.releasePointerCapture(pointer);
+    activePointerIdRef.current = null;
+    dragAnchorRef.current = null;
+    clearHover();
+    // transform 不会触发 ResizeObserver；浮层必须在同一次实际矩阵变化后重定位。
+    window.dispatchEvent(new Event("resize"));
+  }, [clearHover]);
+  const scoreView = useScoreView({
+    viewportRef: pageViewportRef,
+    layoutWidth: lxmLayout?.width ?? 0,
+    layoutHeight: lxmLayout?.height ?? 0,
+    sessionKey: `${session.getState().sessionId}/${session.getState().sessionVersion}`,
+    onGeometryChange: onScoreGeometryChange,
+  });
 
   /** 音乐图元与图片渲染共享，选区变化不重新生成全部音乐。 */
   const scoreScene = useMemo(
@@ -282,11 +550,15 @@ export const EditorShell: React.FC = () => {
     () => resolveParagraphFocus(lxmLayout, activeMusicTextTarget),
     [lxmLayout, activeMusicTextTarget],
   );
-  const chordFocus = useMemo(() => resolveChordFocus(lxmLayout, activeMusicTextTarget), [lxmLayout, activeMusicTextTarget]);
+  const chordFocus = useMemo(
+    () => resolveChordFocus(lxmLayout, activeMusicTextTarget),
+    [lxmLayout, activeMusicTextTarget],
+  );
   const numberedBeatContext = useMemo(
-    () => lxmLayout && activeMusicTextTarget?.kind === "numbered"
-      ? layoutNumberedBeatContext(lxmLayout, activeMusicTextTarget)
-      : null,
+    () =>
+      lxmLayout && activeMusicTextTarget?.kind === "numbered"
+        ? layoutNumberedBeatContext(lxmLayout, activeMusicTextTarget)
+        : null,
     [lxmLayout, activeMusicTextTarget],
   );
   const musicTextHoverFocus = useMemo(() => {
@@ -330,13 +602,18 @@ export const EditorShell: React.FC = () => {
     activeMusicTextTarget?.kind === "numbered";
   const getFloatingAnchor = useCallback(
     (target: MusicTextTarget | null) => {
-      const focus = target?.kind === "chord" ? resolveChordFocus(lxmLayout, target) : resolveParagraphFocus(lxmLayout, target);
+      const focus =
+        target?.kind === "chord"
+          ? resolveChordFocus(lxmLayout, target)
+          : resolveParagraphFocus(lxmLayout, target);
       if (!focus || !scoreSvgRef.current) return null;
       const matrix = scoreSvgRef.current.getScreenCTM();
       if (!matrix) return null;
       const points = [
-        [focus.x, focus.y], [focus.x + focus.width, focus.y],
-        [focus.x, focus.y + focus.height], [focus.x + focus.width, focus.y + focus.height],
+        [focus.x, focus.y],
+        [focus.x + focus.width, focus.y],
+        [focus.x, focus.y + focus.height],
+        [focus.x + focus.width, focus.y + focus.height],
       ].map(([x, y]) => new DOMPoint(x, y).matrixTransform(matrix));
       return {
         left: Math.min(...points.map((point) => point.x)),
@@ -362,39 +639,60 @@ export const EditorShell: React.FC = () => {
       bottom: Math.min(bottom, scoreArea.bottom),
     };
   }, []);
-  const locateSidebarObject = useCallback((location: SidebarLocation) => {
-    const measure = lxmLayout?.systems.flatMap((system) => system.measures).find((item) => item.id === location.measureId);
-    const svg = scoreSvgRef.current;
-    const viewport = pageViewportRef.current;
-    if (!measure || !svg || !viewport) return;
-    let bounds = { x: measure.x, y: measure.y, width: measure.width, height: measure.height };
-    if (location.beatId) {
-      const caret = layoutTabCellCaret(lxmLayout!, { ...location, beatId: location.beatId, string: 1 });
-      if (caret) bounds = caret;
-    } else if (location.startTick !== undefined) {
-      const position = {
-        trackId: location.trackId,
-        measureId: location.measureId,
-        eventId: location.eventId,
-        tick: location.startTick,
-        endTick: location.endTick,
+  const locateSidebarObject = useCallback(
+    (location: SidebarLocation) => {
+      const measure = lxmLayout?.systems
+        .flatMap((system) => system.measures)
+        .find((item) => item.id === location.measureId);
+      const svg = scoreSvgRef.current;
+      const viewport = pageViewportRef.current;
+      if (!measure || !svg || !viewport) return;
+      let bounds = {
+        x: measure.x,
+        y: measure.y,
+        width: measure.width,
+        height: measure.height,
       };
-      const focus = resolveParagraphFocus(lxmLayout,
-        location.kind === "lyric"
-          ? { ...position, kind: "lyric", verse: location.verse }
-          : { ...position, kind: "numbered", itemId: location.itemId },
-      );
-      if (focus) bounds = focus;
-    }
-    const matrix = svg.getScreenCTM();
-    if (!matrix) return;
-    const center = new DOMPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2).matrixTransform(matrix);
-    const view = viewport.getBoundingClientRect();
-    viewport.scrollBy({ left: center.x - (view.left + view.right) / 2, top: center.y - (view.top + view.bottom) / 2 });
-    setInspectionRect(bounds);
-    if (inspectionTimer.current) clearTimeout(inspectionTimer.current);
-    inspectionTimer.current = setTimeout(() => setInspectionRect(null), 1500);
-  }, [lxmLayout]);
+      if (location.beatId) {
+        const caret = layoutTabCellCaret(lxmLayout!, {
+          ...location,
+          beatId: location.beatId,
+          string: 1,
+        });
+        if (caret) bounds = caret;
+      } else if (location.startTick !== undefined) {
+        const position = {
+          trackId: location.trackId,
+          measureId: location.measureId,
+          eventId: location.eventId,
+          tick: location.startTick,
+          endTick: location.endTick,
+        };
+        const focus = resolveParagraphFocus(
+          lxmLayout,
+          location.kind === "lyric"
+            ? { ...position, kind: "lyric", verse: location.verse }
+            : { ...position, kind: "numbered", itemId: location.itemId },
+        );
+        if (focus) bounds = focus;
+      }
+      const matrix = svg.getScreenCTM();
+      if (!matrix) return;
+      const center = new DOMPoint(
+        bounds.x + bounds.width / 2,
+        bounds.y + bounds.height / 2,
+      ).matrixTransform(matrix);
+      const view = viewport.getBoundingClientRect();
+      viewport.scrollBy({
+        left: center.x - (view.left + view.right) / 2,
+        top: center.y - (view.top + view.bottom) / 2,
+      });
+      setInspectionRect(bounds);
+      if (inspectionTimer.current) clearTimeout(inspectionTimer.current);
+      inspectionTimer.current = setTimeout(() => setInspectionRect(null), 1500);
+    },
+    [lxmLayout],
+  );
   /** 选拍或草稿确认结束后保留谱面焦点，不触发浏览器默认滚动。 */
   const focusScore = useCallback(
     () => scoreSvgRef.current?.focus({ preventScroll: true }),
@@ -565,28 +863,16 @@ export const EditorShell: React.FC = () => {
     });
   };
 
-  /** 删除同样是一条批量命令，页面绝不循环发送 note.remove。 */
-  const removeSelectedNotes = () => {
-    if (!selection) {
-      setErrorMessage("请先选择谱面中的 TAB 单元格，再删除音符。");
-      return;
-    }
-    execute({
-      type: LXMScoreCommandEnum.RemoveNotesInRect,
-      range: {
-        trackId: selection.anchor.trackId,
-        anchor: {
-          measureId: selection.anchor.measureId,
-          beatId: selection.anchor.beatId,
-          string: selection.anchor.string,
-        },
-        focus: {
-          measureId: selection.focus.measureId,
-          beatId: selection.focus.beatId,
-          string: selection.focus.string,
-        },
-      },
-    });
+  /** 删除按当前对象分发：技巧只删自身，普通 TAB 选区使用一条批量音符命令。 */
+  const removeScoreSelection = async () => {
+    const now = session.getState();
+    if (!now.document) return;
+    const command = resolveScoreDeleteCommand(now.document, now.selection, now.selectedTechniqueId);
+    if (!command) return;
+    const isCurrent = captureEditorToolIntent(session.getState, () => activeMusicTextTargetRef.current);
+    const result = await executeTool(command, "modal", { isCurrent, tabOnly: true });
+    if (result.status === "blocked" || result.status === "stale")
+      setErrorMessage(result.message);
   };
 
   /** 休止属于完整 Beat；框选的弦范围不会缩窄该命令的作用域。 */
@@ -753,8 +1039,13 @@ export const EditorShell: React.FC = () => {
       return;
     }
     if (action.type !== "selection") return;
-    if (!action.selection && !action.techniqueId && !event.shiftKey &&
-        (activeMusicTextTarget?.kind === "numbered" || activeMusicTextTarget?.kind === "lyric")) {
+    if (
+      !action.selection &&
+      !action.techniqueId &&
+      !event.shiftKey &&
+      (activeMusicTextTarget?.kind === "numbered" ||
+        activeMusicTextTarget?.kind === "lyric")
+    ) {
       musicTextController.current?.dismissCleanPopover();
       return;
     }
@@ -854,11 +1145,11 @@ export const EditorShell: React.FC = () => {
     if (!action) return;
 
     event.preventDefault();
-    runImmediateEditorAction(action === "undo" ? undo : redo);
+    void handleToolbarAction({ type: action });
   };
 
   /**
-   * 谱面键盘入口只处理导航和 Note 输入，避免 Toolbar 上的方向键被谱面劫持。
+    * 谱面键盘入口处理导航、当前对象删除和 Note 输入，避免劫持 Toolbar 的方向键。
    * 边界处 changed:false 时保留浏览器默认行为。
    */
   const handleScoreKeyDown: React.KeyboardEventHandler<SVGSVGElement> = (
@@ -926,10 +1217,10 @@ export const EditorShell: React.FC = () => {
       return;
     }
     if (event.key === "Backspace" || event.key === "Delete") {
-      if (!selection) return;
+      if (!selection && !selectedTechniqueId) return;
       event.preventDefault();
       clearFretDraft();
-      removeSelectedNotes();
+      void removeScoreSelection();
       return;
     }
     if (!/^\d$/.test(event.key)) return;
@@ -966,7 +1257,10 @@ export const EditorShell: React.FC = () => {
     )
       return;
 
-    if (activeMusicTextTarget?.kind === "numbered" || activeMusicTextTarget?.kind === "lyric") {
+    if (
+      activeMusicTextTarget?.kind === "numbered" ||
+      activeMusicTextTarget?.kind === "lyric"
+    ) {
       musicTextController.current?.dismissCleanPopover();
       return;
     }
@@ -976,7 +1270,11 @@ export const EditorShell: React.FC = () => {
   if (!document || !lxmLayout)
     return (
       <div className={styles.editorControls}>
-        <ScoreFileControls session={session} isBlocked={isOutputBlocked} onBlocked={() => setOutputBlockedOpen(true)} />
+        <ScoreFileControls
+          session={session}
+          isBlocked={isOutputBlocked}
+          onBlocked={() => setOutputBlockedOpen(true)}
+        />
         <p className={styles.errorMessage} role="alert">
           {errorMessage ?? "当前没有可编辑的乐谱文档。"}
         </p>
@@ -987,12 +1285,24 @@ export const EditorShell: React.FC = () => {
   const executeTool: EditorCommandAdapter = async (
     command,
     impact = "modal",
+    submission,
   ) => {
     clearFretDraft();
+    const reason = editorToolSubmissionReason(
+      session.getState(),
+      activeMusicTextTargetRef.current,
+      drafts,
+      command,
+      submission,
+    );
+    if (reason) return { status: "blocked", message: reason };
     if (
       command.type === "numbered.event.setRhythm"
         ? musicTextController.current?.isNumberedActionBlocked()
-        : musicTextController.current?.isOutputBlocked({ allowSettingsBusy: command.type === LXMScoreCommandEnum.CopyMeasureRange })
+        : musicTextController.current?.isOutputBlocked({
+            allowSettingsBusy:
+              command.type === LXMScoreCommandEnum.CopyMeasureRange,
+          })
     )
       return {
         status: "blocked",
@@ -1001,7 +1311,7 @@ export const EditorShell: React.FC = () => {
     const modal = modals.getSnapshot();
     if (modal && !(impact === "caller" && modal.request.kind === "beat-paste"))
       return { status: "blocked", message: "请先完成当前弹层操作。" };
-    return toolExecute(command, impact);
+    return toolExecute(command, impact, submission);
   };
   /** 菜单/详情共享最新目标和最终确认结果，不捕获旧 render 的音乐对象。 */
   const handleToolbarAction = async (
@@ -1010,12 +1320,32 @@ export const EditorShell: React.FC = () => {
     if (modals.isOpen()) return false;
     clearFretDraft();
     if (action.type === "undo" || action.type === "redo") {
-      if (musicTextController.current?.isTransitionBlocked()) return false;
+      if (
+        musicTextController.current?.isTransitionBlocked() ||
+        drafts.inspect().pending.some((record) => record.kind === "technique")
+      )
+        return false;
       const now = session.getState();
       if (action.type === "undo") now.undo();
       else now.redo();
       return true;
     }
+    const tabQuick =
+      action.type === "restToggle" || action.type === "quickTechnique";
+    if (tabQuick) {
+      const reason = tabToolTargetReason(
+        session.getState(),
+        activeMusicTextTargetRef.current,
+      );
+      if (reason) {
+        setErrorMessage(reason);
+        return false;
+      }
+    }
+    const intentIsCurrent = captureEditorToolIntent(
+      session.getState,
+      () => activeMusicTextTargetRef.current,
+    );
     if (action.type === "rhythm" || action.type === "dots") {
       const now = session.getState();
       if (!now.document) return false;
@@ -1062,7 +1392,10 @@ export const EditorShell: React.FC = () => {
       setErrorMessage("当前目标不适用此操作，请重新选择。");
       return false;
     }
-    const result = await executeTool(command);
+    const result = await executeTool(command, "modal", {
+      isCurrent: intentIsCurrent,
+      tabOnly: tabQuick,
+    });
     return result.status === "applied" || result.status === "noop";
   };
   const editorVariables = {
@@ -1076,12 +1409,24 @@ export const EditorShell: React.FC = () => {
     "--accent": token.colorPrimary,
     "--accent-soft": token.colorPrimaryBg,
   };
-  const currentPosition = deriveSidebarContext({ document, selection, numberedSelection });
+  const currentPosition = deriveSidebarContext({
+    document,
+    selection,
+    numberedSelection,
+  });
 
   return (
     <div
+      ref={editorRootRef}
       className={styles.editor}
-      style={{ ...editorVariables, color: token.colorText }}
+      data-layout={layoutMode}
+      style={
+        {
+          ...editorVariables,
+          "--sidebar-width": `${Math.min(384, Math.max(352, hostWidth * 0.24))}px`,
+          color: token.colorText,
+        } as React.CSSProperties
+      }
       onKeyDown={handleEditorKeyDown}
     >
       <EditorHeader
@@ -1118,6 +1463,18 @@ export const EditorShell: React.FC = () => {
         }}
       />
       <EditorToolbar
+        sidebarCollapsed={sidebarCollapsed}
+        sidebarToggleRef={sidebarToggleRef}
+        onToggleSidebar={() => {
+          if (!sidebarCollapsed) {
+            closeSidebar();
+            return;
+          }
+          openSidebar();
+          requestAnimationFrame(() =>
+            musicTextController.current?.restoreSidebarFocus(),
+          );
+        }}
         activeTarget={activeMusicTextTarget}
         blocked={musicTextEditing}
         numberedBlocked={numberedActionBlocked}
@@ -1146,123 +1503,187 @@ export const EditorShell: React.FC = () => {
               部分文字暂使用保守估算排版，真实字体边界尚未全部确认。
             </p>
           )}
-        <EditorImpactNotice effects={effects} />
         {errorMessage && (
           <p className={styles.errorMessage} role="alert">
             {errorMessage}
           </p>
         )}
       </div>
-      <div className={styles.editorWorkspace} data-sidebar-collapsed={sidebarCollapsed}>
+      <div
+        ref={workspaceRef}
+        className={styles.editorWorkspace}
+        data-layout={layoutMode}
+        data-history-open={historyOpen}
+        data-sidebar-collapsed={sidebarCollapsed}
+      >
+        <EditorHistoryRail
+          open={historyOpen}
+          buttonRef={historyTriggerRef}
+          onToggle={() => (historyOpen ? closeHistory() : openHistory())}
+        />
+        <EditorHistoryPanel
+          open={historyOpen}
+          modal={narrowPanels}
+          entries={historyEntries}
+          appliedCount={appliedHistoryCount}
+          baselineAdvanced={baselineAdvanced}
+          sessionKey={sessionKey}
+          expandedEntryIds={expandedHistoryIds}
+          onExpandedEntryIdsChange={setExpandedHistoryIds}
+          onClose={closeHistory}
+          onUndo={() => void handleToolbarAction({ type: "undo" })}
+          onRedo={() => void handleToolbarAction({ type: "redo" })}
+          canUndo={canUndo}
+          canRedo={canRedo}
+          blocked={chordEntryBlocked}
+        />
+        {narrowPanels && (historyOpen || !sidebarCollapsed) && (
+          <div
+            className={styles.drawerMask}
+            data-drawer-mask
+            aria-hidden="true"
+            onClick={closeDrawer}
+          />
+        )}
         <div
           ref={pageViewportRef}
           className={styles.pageViewport}
           onPointerDown={handleWorkspacePointerDown}
           onScroll={clearHover}
         >
-          {sidebarCollapsed && <Button ref={openSidebarButton} className={styles.openSidebar} onPointerDown={(event) => event.stopPropagation()}
-            onClick={() => { setSidebarCollapsed(false); requestAnimationFrame(() => musicTextController.current?.restoreSidebarFocus()); }} aria-controls="music-text-sidebar" aria-expanded={false}>打开编辑台</Button>}
-          <main className={styles.paper} aria-label="A4 乐谱页面">
-            <svg
-              ref={scoreSvgRef}
-              className={styles.scoreSvg}
-              viewBox={`0 0 ${lxmLayout.width} ${lxmLayout.height}`}
-              style={{
-                width: `${Math.max(1, lxmLayout.width / A4_CONTENT_WIDTH) * 100}%`,
-              }}
-              width={lxmLayout.width}
-              height={lxmLayout.height}
-              tabIndex={0}
-              role="application"
-              aria-label="六线谱编辑器"
-              onPointerDown={handlePointerDown}
-              onPointerMove={handlePointerMove}
-              onPointerLeave={clearHover}
-              onPointerUp={finishPointerDrag}
-              onPointerCancel={finishPointerDrag}
-              onKeyDown={handleScoreKeyDown}
+          <div
+            className={styles.scoreStage}
+            style={scoreView.stageStyle}
+            data-score-scale={scoreView.geometry.scale}
+            data-score-view={scoreView.mode}
+          >
+            <main
+              className={styles.paper}
+              style={scoreView.paperStyle}
+              aria-label="A4 乐谱页面"
             >
-              <MusicTextEditingHints
-                layout={lxmLayout}
-                activeFocus={lyricFocus}
-                hoverFocus={musicTextHoverFocus}
-                beatContext={numberedBeatContext?.bounds ?? null}
-              />
-              {/* 选区层位于音乐元素下方，且永不参与指针命中。 */}
-              <g className={styles.selectionLayer} pointerEvents="none">
-                {chordFocus && <rect data-chord-focus className={styles.lyricFocus} x={chordFocus.x} y={chordFocus.y} width={chordFocus.width} height={chordFocus.height} rx={3} />}
-                {inspectionRect && <rect {...inspectionRect} className={styles.inspectionOutline} rx={3} />}
-                {tabCellHoverCaret && (
-                  <rect
-                    data-tab-cell-hover={`${tabCellHoverCaret.measureId}/${tabCellHoverCaret.beatId}/${tabCellHoverCaret.string}`}
-                    className={styles.tabCellHover}
-                    x={tabCellHoverCaret.x}
-                    y={tabCellHoverCaret.y}
-                    width={tabCellHoverCaret.width}
-                    height={tabCellHoverCaret.height}
-                  />
-                )}
-                {!lyricEditing &&
-                  selectionRects.map((rect) => (
+              <svg
+                ref={scoreSvgRef}
+                className={styles.scoreSvg}
+                viewBox={`0 0 ${lxmLayout.width} ${lxmLayout.height}`}
+                style={scoreView.svgStyle}
+                width={lxmLayout.width}
+                height={lxmLayout.height}
+                tabIndex={0}
+                role="application"
+                aria-label="六线谱编辑器"
+                onPointerDown={handlePointerDown}
+                onPointerMove={handlePointerMove}
+                onPointerLeave={clearHover}
+                onPointerUp={finishPointerDrag}
+                onPointerCancel={finishPointerDrag}
+                onKeyDown={handleScoreKeyDown}
+              >
+                <MusicTextEditingHints
+                  layout={lxmLayout}
+                  activeFocus={lyricFocus}
+                  hoverFocus={musicTextHoverFocus}
+                  beatContext={numberedBeatContext?.bounds ?? null}
+                />
+                {/* 选区层位于音乐元素下方，且永不参与指针命中。 */}
+                <g className={styles.selectionLayer} pointerEvents="none">
+                  {chordFocus && (
                     <rect
-                      key={`${rect.measureId}-${rect.beatIds.join("-")}`}
-                      className={styles.selectionRange}
-                      x={rect.x}
-                      y={rect.y}
-                      width={rect.width}
-                      height={rect.height}
+                      data-chord-focus
+                      className={styles.lyricFocus}
+                      x={chordFocus.x}
+                      y={chordFocus.y}
+                      width={chordFocus.width}
+                      height={chordFocus.height}
+                      rx={3}
                     />
-                  ))}
-                {focusCaret && !lyricFocus && (
+                  )}
+                  {inspectionRect && (
+                    <rect
+                      {...inspectionRect}
+                      className={styles.inspectionOutline}
+                      rx={3}
+                    />
+                  )}
+                  {tabCellHoverCaret && (
+                    <rect
+                      data-tab-cell-hover={`${tabCellHoverCaret.measureId}/${tabCellHoverCaret.beatId}/${tabCellHoverCaret.string}`}
+                      className={styles.tabCellHover}
+                      x={tabCellHoverCaret.x}
+                      y={tabCellHoverCaret.y}
+                      width={tabCellHoverCaret.width}
+                      height={tabCellHoverCaret.height}
+                    />
+                  )}
+                  {!lyricEditing &&
+                    selectionRects.map((rect) => (
+                      <rect
+                        key={`${rect.measureId}-${rect.beatIds.join("-")}`}
+                        className={styles.selectionRange}
+                        x={rect.x}
+                        y={rect.y}
+                        width={rect.width}
+                        height={rect.height}
+                      />
+                    ))}
+                  {focusCaret && !lyricFocus && (
+                    <rect
+                      ref={focusCaretRef}
+                      className={
+                        lyricEditing
+                          ? styles.emptyLyricCaret
+                          : styles.focusCaret
+                      }
+                      x={focusCaret.x}
+                      y={focusCaret.y}
+                      width={focusCaret.width}
+                      height={focusCaret.height}
+                    />
+                  )}
+                </g>
+                {lyricFocus && (
                   <rect
-                    ref={focusCaretRef}
-                    className={
-                      lyricEditing ? styles.emptyLyricCaret : styles.focusCaret
+                    data-paragraph-focus={lyricFocus.kind}
+                    data-numbered-event-focus={
+                      activeMusicTextTarget?.kind === "numbered"
+                        ? activeMusicTextTarget.eventId
+                        : undefined
                     }
-                    x={focusCaret.x}
-                    y={focusCaret.y}
-                    width={focusCaret.width}
-                    height={focusCaret.height}
+                    className={styles.lyricFocus}
+                    pointerEvents="none"
+                    x={lyricFocus.x}
+                    y={lyricFocus.y}
+                    width={lyricFocus.width}
+                    height={lyricFocus.height}
+                    rx={3}
                   />
                 )}
-              </g>
-              {lyricFocus && (
-                <rect
-                    data-paragraph-focus={lyricFocus.kind}
-                    data-numbered-event-focus={activeMusicTextTarget?.kind === "numbered" ? activeMusicTextTarget.eventId : undefined}
-                  className={styles.lyricFocus}
-                  pointerEvents="none"
-                  x={lyricFocus.x}
-                  y={lyricFocus.y}
-                  width={lyricFocus.width}
-                  height={lyricFocus.height}
-                  rx={3}
-                />
-              )}
-              {scoreScene && (
-                <ScoreMusicLayer
-                  scene={scoreScene}
-                  selectedTechniqueId={selectedTechniqueId}
-                  selectedNumberedMarkId={selectedNumberedMarkId}
-                  selectedNumberedEventId={activeMusicTextTarget?.kind === "numbered" ? activeMusicTextTarget.eventId : null}
-                />
-              )}
-            </svg>
-          </main>
+                {scoreScene && (
+                  <ScoreMusicLayer
+                    scene={scoreScene}
+                    selectedTechniqueId={selectedTechniqueId}
+                    selectedNumberedMarkId={selectedNumberedMarkId}
+                    selectedNumberedEventId={
+                      activeMusicTextTarget?.kind === "numbered"
+                        ? activeMusicTextTarget.eventId
+                        : null
+                    }
+                  />
+                )}
+              </svg>
+            </main>
+          </div>
         </div>
         <MusicTextSidebar
+          modal={narrowPanels && !sidebarCollapsed}
           collapsed={sidebarCollapsed}
-          onExpandSidebar={() => setSidebarCollapsed(false)}
-          onCollapse={() => {
-            if (!musicTextController.current?.canCollapse()) return;
-            const moveFocus = globalThis.document.activeElement?.closest("#music-text-sidebar") !== null;
-            setSidebarCollapsed(true);
-            if (moveFocus) requestAnimationFrame(() => openSidebarButton.current?.focus({ preventScroll: true }));
-          }}
+          onExpandSidebar={openSidebar}
           onLocate={locateSidebarObject}
-          getNumberedBeatEventIds={(target) => target.kind === "numbered"
-            ? layoutNumberedBeatContext(lxmLayout, target)?.eventIds ?? []
-            : []}
+          getNumberedBeatEventIds={(target) =>
+            target.kind === "numbered"
+              ? (layoutNumberedBeatContext(lxmLayout, target)?.eventIds ?? [])
+              : []
+          }
           ref={musicTextController}
           onToolAction={handleToolbarAction}
           executeTool={executeTool}
@@ -1279,13 +1700,27 @@ export const EditorShell: React.FC = () => {
           getFloatingObservedElements={() => [pageViewportRef.current]}
         />
       </div>
+      <EditorFeedback
+        event={feedbackEvent}
+        entries={historyEntries}
+        appliedCount={appliedHistoryCount}
+        sessionKey={sessionKey}
+        onOpenHistoryEntry={openHistoryEntry}
+        retryKey={`${historyOpen}:${sidebarCollapsed}:${chordEntryBlocked}:${activeModal?.id ?? ""}`}
+        hidden={
+          !!activeModal ||
+          !!imageExportSnapshot ||
+          outputBlockedOpen ||
+          (narrowPanels && !sidebarCollapsed)
+        }
+      />
       <EditorStatusBar
         position={
           numberedSelection && currentPosition.valid
             ? `${currentPosition.title}：${currentPosition.position}${currentPosition.scope ? ` · ${currentPosition.scope}` : ""}`
             : selection && focusedMeasureContext
-            ? `当前位置：第 ${focusedMeasureContext.measureIndex + 1} 小节，第 ${focusedMeasureContext.measure.beats.findIndex((beat) => beat.id === selection.focus.beatId) + 1} 拍点，第 ${selection.focus.string} 弦。`
-            : "请在谱面选择编辑位置。"
+              ? `当前位置：第 ${focusedMeasureContext.measureIndex + 1} 小节，第 ${focusedMeasureContext.measure.beats.findIndex((beat) => beat.id === selection.focus.beatId) + 1} 拍点，第 ${selection.focus.string} 弦。`
+              : "请在谱面选择编辑位置。"
         }
         cellCount={resolvedSelection?.cellCount ?? 0}
         fretDraft={fretDraft}

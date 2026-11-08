@@ -127,7 +127,7 @@ export const NoteToolDetails = ({
         <div>
           <strong>
             {selectedNotes.length === 1
-              ? `第 ${selectedNotes[0]!.string} 弦 · ${selectedNotes[0]!.fret === "x" ? "闷音 x" : `第 ${selectedNotes[0]!.fret} 品`}`
+              ? `第 ${selectedNotes[0]!.string} 弦 · ${selectedNotes[0]!.fret === "x" ? "x 弹奏标记" : `第 ${selectedNotes[0]!.fret} 品`}`
               : beats.length
                 ? `已选 ${beats.length} 拍 · ${selectedNotes.length} 个音符`
                 : "在谱面选择音符或小节"}
@@ -201,7 +201,7 @@ export const NoteToolDetails = ({
             disabled={blocked || !tools.note.enabled}
             onClick={() => void onAction({ type: "muted" })}
           >
-            设为闷音 x
+            设为 x 弹奏标记
           </Button>
           <Button
             disabled={blocked || !tools.beatRange.enabled}
@@ -235,9 +235,9 @@ export const NoteToolDetails = ({
               ? "当前选区为休止。"
               : "选区含音符与休止。"
             : mixedNotes
-              ? "选区含普通音符与闷音。"
+              ? "选区含数字品位与 x 弹奏标记。"
               : ""}
-          闷音只影响所选弦；休止会清空整拍全部弦音符。
+          x 只标记所选弦的弹奏；休止会清空整拍全部弦音符。
           {rests > 0 && "取消休止不会恢复已清空的原音符。"}
         </p>
         <div className={taskStyles.compactActions}>

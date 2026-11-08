@@ -1,0 +1,1175 @@
+{
+  "scope": "当前实现的领域命令复现与布局对照，不表示已修复；截图操作由 Playwright 可选执行",
+  "reports": [
+    {
+      "name": "A-before-quarter",
+      "tab": [
+        {
+          "id": "mvp72-beat-1-1",
+          "tick": 0,
+          "base": "quarter",
+          "kind": "notes"
+        },
+        {
+          "id": "mvp72-beat-1-2",
+          "tick": 960,
+          "base": "quarter",
+          "kind": "notes"
+        },
+        {
+          "id": "mvp72-beat-1-3",
+          "tick": 1920,
+          "base": "quarter",
+          "kind": "notes"
+        },
+        {
+          "id": "mvp72-beat-1-4",
+          "tick": 2880,
+          "base": "quarter",
+          "kind": "notes"
+        }
+      ],
+      "numbered": [
+        {
+          "id": "mvp72-beat-1-1-numbered",
+          "tick": 0,
+          "base": "quarter",
+          "kind": "notes"
+        },
+        {
+          "id": "mvp72-beat-1-2-numbered",
+          "tick": 960,
+          "base": "quarter",
+          "kind": "notes"
+        },
+        {
+          "id": "mvp72-beat-1-3-numbered",
+          "tick": 1920,
+          "base": "quarter",
+          "kind": "notes"
+        },
+        {
+          "id": "mvp72-beat-1-4-numbered",
+          "tick": 2880,
+          "base": "quarter",
+          "kind": "notes"
+        }
+      ],
+      "inputSlots": [],
+      "lyricPositions": [
+        {
+          "eventId": "mvp72-beat-1-1-numbered",
+          "tick": 0,
+          "endTick": 960
+        },
+        {
+          "eventId": "mvp72-beat-1-2-numbered",
+          "tick": 960,
+          "endTick": 1920
+        },
+        {
+          "eventId": "mvp72-beat-1-3-numbered",
+          "tick": 1920,
+          "endTick": 2880
+        },
+        {
+          "eventId": "mvp72-beat-1-4-numbered",
+          "tick": 2880,
+          "endTick": 3840
+        }
+      ],
+      "hit240": null,
+      "hit480": null,
+      "notation": {
+        "editing": [
+          {
+            "eventId": "mvp72-beat-1-1-numbered",
+            "token": "1",
+            "x": 60,
+            "lines": []
+          },
+          {
+            "eventId": "mvp72-beat-1-2-numbered",
+            "token": "2",
+            "x": 190.5,
+            "lines": []
+          },
+          {
+            "eventId": "mvp72-beat-1-3-numbered",
+            "token": "3",
+            "x": 321,
+            "lines": []
+          },
+          {
+            "eventId": "mvp72-beat-1-4-numbered",
+            "token": "5",
+            "x": 451.5,
+            "lines": []
+          }
+        ],
+        "presentation": [
+          {
+            "eventId": "mvp72-beat-1-1-numbered",
+            "token": "1",
+            "x": 60,
+            "lines": []
+          },
+          {
+            "eventId": "mvp72-beat-1-2-numbered",
+            "token": "2",
+            "x": 190.5,
+            "lines": []
+          },
+          {
+            "eventId": "mvp72-beat-1-3-numbered",
+            "token": "3",
+            "x": 321,
+            "lines": []
+          },
+          {
+            "eventId": "mvp72-beat-1-4-numbered",
+            "token": "5",
+            "x": 451.5,
+            "lines": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "A-after-eighths",
+      "tab": [
+        {
+          "id": "mvp72-beat-1-1",
+          "tick": 0,
+          "base": "eighth",
+          "kind": "notes"
+        },
+        {
+          "id": "mvp72-beat-1-2",
+          "tick": 480,
+          "base": "eighth",
+          "kind": "notes"
+        },
+        {
+          "id": "mvp72-beat-1-3",
+          "tick": 960,
+          "base": "quarter",
+          "kind": "notes"
+        },
+        {
+          "id": "mvp72-beat-1-4",
+          "tick": 1920,
+          "base": "quarter",
+          "kind": "notes"
+        },
+        {
+          "id": "beat-21-1",
+          "tick": 2880,
+          "base": "quarter",
+          "kind": "rest"
+        }
+      ],
+      "numbered": [
+        {
+          "id": "mvp72-beat-1-1-numbered",
+          "tick": 0,
+          "base": "quarter",
+          "kind": "notes"
+        },
+        {
+          "id": "mvp72-beat-1-2-numbered",
+          "tick": 960,
+          "base": "quarter",
+          "kind": "notes"
+        },
+        {
+          "id": "mvp72-beat-1-3-numbered",
+          "tick": 1920,
+          "base": "quarter",
+          "kind": "notes"
+        },
+        {
+          "id": "mvp72-beat-1-4-numbered",
+          "tick": 2880,
+          "base": "quarter",
+          "kind": "notes"
+        }
+      ],
+      "inputSlots": [],
+      "lyricPositions": [
+        {
+          "eventId": "mvp72-beat-1-1-numbered",
+          "tick": 0,
+          "endTick": 960
+        },
+        {
+          "eventId": "mvp72-beat-1-2-numbered",
+          "tick": 960,
+          "endTick": 1920
+        },
+        {
+          "eventId": "mvp72-beat-1-3-numbered",
+          "tick": 1920,
+          "endTick": 2880
+        },
+        {
+          "eventId": "mvp72-beat-1-4-numbered",
+          "tick": 2880,
+          "endTick": 3840
+        }
+      ],
+      "hit240": null,
+      "hit480": null,
+      "notation": {
+        "editing": [
+          {
+            "eventId": "mvp72-beat-1-1-numbered",
+            "token": "1",
+            "x": 60,
+            "lines": []
+          },
+          {
+            "eventId": "mvp72-beat-1-2-numbered",
+            "token": "2",
+            "x": 183.57551020408164,
+            "lines": []
+          },
+          {
+            "eventId": "mvp72-beat-1-3-numbered",
+            "token": "3",
+            "x": 316.38367346938776,
+            "lines": []
+          },
+          {
+            "eventId": "mvp72-beat-1-4-numbered",
+            "token": "5",
+            "x": 449.1918367346939,
+            "lines": []
+          }
+        ],
+        "presentation": [
+          {
+            "eventId": "mvp72-beat-1-1-numbered",
+            "token": "1",
+            "x": 60,
+            "lines": []
+          },
+          {
+            "eventId": "mvp72-beat-1-2-numbered",
+            "token": "2",
+            "x": 183.57551020408164,
+            "lines": []
+          },
+          {
+            "eventId": "mvp72-beat-1-3-numbered",
+            "token": "3",
+            "x": 316.38367346938776,
+            "lines": []
+          },
+          {
+            "eventId": "mvp72-beat-1-4-numbered",
+            "token": "5",
+            "x": 449.1918367346939,
+            "lines": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "B-before-two-eighths",
+      "tab": [
+        {
+          "id": "mvp72-beat-7-1",
+          "tick": 0,
+          "base": "eighth",
+          "kind": "notes"
+        },
+        {
+          "id": "mvp72-beat-7-2",
+          "tick": 480,
+          "base": "eighth",
+          "kind": "notes"
+        },
+        {
+          "id": "mvp72-beat-7-3",
+          "tick": 960,
+          "base": "eighth",
+          "kind": "notes"
+        },
+        {
+          "id": "mvp72-beat-7-4",
+          "tick": 1440,
+          "base": "eighth",
+          "kind": "notes"
+        },
+        {
+          "id": "mvp72-beat-7-5",
+          "tick": 1920,
+          "base": "eighth",
+          "kind": "notes"
+        },
+        {
+          "id": "mvp72-beat-7-6",
+          "tick": 2400,
+          "base": "eighth",
+          "kind": "notes"
+        },
+        {
+          "id": "mvp72-beat-7-7",
+          "tick": 2880,
+          "base": "eighth",
+          "kind": "notes"
+        },
+        {
+          "id": "mvp72-beat-7-8",
+          "tick": 3360,
+          "base": "eighth",
+          "kind": "notes"
+        }
+      ],
+      "numbered": [
+        {
+          "id": "numbered-event-20-1",
+          "tick": 0,
+          "base": "eighth",
+          "kind": "notes"
+        },
+        {
+          "id": "numbered-event-20-2",
+          "tick": 480,
+          "base": "eighth",
+          "kind": "notes"
+        }
+      ],
+      "inputSlots": [
+        {
+          "tick": 960,
+          "endTick": 1440,
+          "x": 190.49999999999997
+        },
+        {
+          "tick": 1440,
+          "endTick": 1920,
+          "x": 255.74999999999994
+        },
+        {
+          "tick": 1920,
+          "endTick": 2400,
+          "x": 320.99999999999994
+        },
+        {
+          "tick": 2400,
+          "endTick": 2880,
+          "x": 386.24999999999994
+        },
+        {
+          "tick": 2880,
+          "endTick": 3360,
+          "x": 451.49999999999994
+        },
+        {
+          "tick": 3360,
+          "endTick": 3840,
+          "x": 516.75
+        }
+      ],
+      "lyricPositions": [
+        {
+          "eventId": "numbered-event-20-1",
+          "tick": 0,
+          "endTick": 480
+        },
+        {
+          "eventId": "numbered-event-20-2",
+          "tick": 480,
+          "endTick": 960
+        },
+        {
+          "tick": 960,
+          "endTick": 1440
+        },
+        {
+          "tick": 1440,
+          "endTick": 1920
+        },
+        {
+          "tick": 1920,
+          "endTick": 2400
+        },
+        {
+          "tick": 2400,
+          "endTick": 2880
+        },
+        {
+          "tick": 2880,
+          "endTick": 3360
+        },
+        {
+          "tick": 3360,
+          "endTick": 3840
+        }
+      ],
+      "hit240": null,
+      "hit480": null,
+      "notation": {
+        "editing": [
+          {
+            "eventId": "numbered-event-20-1",
+            "token": "1",
+            "x": 60,
+            "lines": [
+              {
+                "x1": 48.6,
+                "x2": 136.64999999999998,
+                "y": 273.775,
+                "thickness": 1.1,
+                "shared": true
+              }
+            ]
+          },
+          {
+            "eventId": "numbered-event-20-2",
+            "token": "2",
+            "x": 125.24999999999999,
+            "lines": []
+          }
+        ],
+        "presentation": [
+          {
+            "eventId": "numbered-event-20-1",
+            "token": "1",
+            "x": 60,
+            "lines": [
+              {
+                "x1": 48.6,
+                "x2": 136.64999999999998,
+                "y": 271.775,
+                "thickness": 1.1,
+                "shared": true
+              }
+            ]
+          },
+          {
+            "eventId": "numbered-event-20-2",
+            "token": "2",
+            "x": 125.24999999999999,
+            "lines": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "B-after-tab-sixteenth-sixteenth-eighth",
+      "tab": [
+        {
+          "id": "mvp72-beat-7-1",
+          "tick": 0,
+          "base": "sixteenth",
+          "kind": "notes"
+        },
+        {
+          "id": "mvp72-beat-7-2",
+          "tick": 240,
+          "base": "sixteenth",
+          "kind": "notes"
+        },
+        {
+          "id": "mvp72-beat-7-3",
+          "tick": 480,
+          "base": "eighth",
+          "kind": "notes"
+        },
+        {
+          "id": "mvp72-beat-7-4",
+          "tick": 960,
+          "base": "eighth",
+          "kind": "notes"
+        },
+        {
+          "id": "mvp72-beat-7-5",
+          "tick": 1440,
+          "base": "eighth",
+          "kind": "notes"
+        },
+        {
+          "id": "mvp72-beat-7-6",
+          "tick": 1920,
+          "base": "eighth",
+          "kind": "notes"
+        },
+        {
+          "id": "mvp72-beat-7-7",
+          "tick": 2400,
+          "base": "eighth",
+          "kind": "notes"
+        },
+        {
+          "id": "mvp72-beat-7-8",
+          "tick": 2880,
+          "base": "eighth",
+          "kind": "notes"
+        },
+        {
+          "id": "beat-22-1",
+          "tick": 3360,
+          "base": "eighth",
+          "kind": "rest"
+        }
+      ],
+      "numbered": [
+        {
+          "id": "numbered-event-20-1",
+          "tick": 0,
+          "base": "eighth",
+          "kind": "notes"
+        },
+        {
+          "id": "numbered-event-20-2",
+          "tick": 480,
+          "base": "eighth",
+          "kind": "notes"
+        }
+      ],
+      "inputSlots": [
+        {
+          "tick": 960,
+          "endTick": 1440,
+          "x": 194.39829302987198
+        },
+        {
+          "tick": 1440,
+          "endTick": 1920,
+          "x": 258.99857752489334
+        },
+        {
+          "tick": 1920,
+          "endTick": 2400,
+          "x": 323.5988620199147
+        },
+        {
+          "tick": 2400,
+          "endTick": 2880,
+          "x": 388.19914651493605
+        },
+        {
+          "tick": 2880,
+          "endTick": 3360,
+          "x": 452.7994310099574
+        },
+        {
+          "tick": 3360,
+          "endTick": 3840,
+          "x": 517.3997155049788
+        }
+      ],
+      "lyricPositions": [
+        {
+          "eventId": "numbered-event-20-1",
+          "tick": 0,
+          "endTick": 480
+        },
+        {
+          "eventId": "numbered-event-20-2",
+          "tick": 480,
+          "endTick": 960
+        },
+        {
+          "tick": 960,
+          "endTick": 1440
+        },
+        {
+          "tick": 1440,
+          "endTick": 1920
+        },
+        {
+          "tick": 1920,
+          "endTick": 2400
+        },
+        {
+          "tick": 2400,
+          "endTick": 2880
+        },
+        {
+          "tick": 2880,
+          "endTick": 3360
+        },
+        {
+          "tick": 3360,
+          "endTick": 3840
+        }
+      ],
+      "hit240": null,
+      "hit480": null,
+      "notation": {
+        "editing": [
+          {
+            "eventId": "numbered-event-20-1",
+            "token": "1",
+            "x": 60,
+            "lines": [
+              {
+                "x1": 48.6,
+                "x2": 141.19800853485063,
+                "y": 307.775,
+                "thickness": 1.1,
+                "shared": true
+              }
+            ]
+          },
+          {
+            "eventId": "numbered-event-20-2",
+            "token": "2",
+            "x": 129.79800853485062,
+            "lines": []
+          }
+        ],
+        "presentation": [
+          {
+            "eventId": "numbered-event-20-1",
+            "token": "1",
+            "x": 60,
+            "lines": [
+              {
+                "x1": 48.6,
+                "x2": 141.19800853485063,
+                "y": 305.775,
+                "thickness": 1.1,
+                "shared": true
+              }
+            ]
+          },
+          {
+            "eventId": "numbered-event-20-2",
+            "token": "2",
+            "x": 129.79800853485062,
+            "lines": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "B-control-explicit-mixed-rhythm",
+      "tab": [
+        {
+          "id": "mvp72-beat-7-1",
+          "tick": 0,
+          "base": "sixteenth",
+          "kind": "notes"
+        },
+        {
+          "id": "mvp72-beat-7-2",
+          "tick": 240,
+          "base": "sixteenth",
+          "kind": "notes"
+        },
+        {
+          "id": "mvp72-beat-7-3",
+          "tick": 480,
+          "base": "eighth",
+          "kind": "notes"
+        },
+        {
+          "id": "mvp72-beat-7-4",
+          "tick": 960,
+          "base": "eighth",
+          "kind": "notes"
+        },
+        {
+          "id": "mvp72-beat-7-5",
+          "tick": 1440,
+          "base": "eighth",
+          "kind": "notes"
+        },
+        {
+          "id": "mvp72-beat-7-6",
+          "tick": 1920,
+          "base": "eighth",
+          "kind": "notes"
+        },
+        {
+          "id": "mvp72-beat-7-7",
+          "tick": 2400,
+          "base": "eighth",
+          "kind": "notes"
+        },
+        {
+          "id": "mvp72-beat-7-8",
+          "tick": 2880,
+          "base": "eighth",
+          "kind": "notes"
+        },
+        {
+          "id": "beat-22-1",
+          "tick": 3360,
+          "base": "eighth",
+          "kind": "rest"
+        }
+      ],
+      "numbered": [
+        {
+          "id": "numbered-event-23-1",
+          "tick": 0,
+          "base": "sixteenth",
+          "kind": "notes"
+        },
+        {
+          "id": "numbered-event-23-2",
+          "tick": 240,
+          "base": "sixteenth",
+          "kind": "notes"
+        },
+        {
+          "id": "numbered-event-20-2",
+          "tick": 480,
+          "base": "eighth",
+          "kind": "notes"
+        }
+      ],
+      "inputSlots": [
+        {
+          "tick": 960,
+          "endTick": 1440,
+          "x": 216.98459477561954
+        },
+        {
+          "tick": 1440,
+          "endTick": 1920,
+          "x": 277.8204956463496
+        },
+        {
+          "tick": 1920,
+          "endTick": 2400,
+          "x": 338.65639651707966
+        },
+        {
+          "tick": 2400,
+          "endTick": 2880,
+          "x": 399.49229738780974
+        },
+        {
+          "tick": 2880,
+          "endTick": 3360,
+          "x": 460.3281982585398
+        },
+        {
+          "tick": 3360,
+          "endTick": 3840,
+          "x": 521.16409912927
+        }
+      ],
+      "lyricPositions": [
+        {
+          "eventId": "numbered-event-23-1",
+          "tick": 0,
+          "endTick": 240
+        },
+        {
+          "eventId": "numbered-event-23-2",
+          "tick": 240,
+          "endTick": 480
+        },
+        {
+          "eventId": "numbered-event-20-2",
+          "tick": 480,
+          "endTick": 960
+        },
+        {
+          "tick": 960,
+          "endTick": 1440
+        },
+        {
+          "tick": 1440,
+          "endTick": 1920
+        },
+        {
+          "tick": 1920,
+          "endTick": 2400
+        },
+        {
+          "tick": 2400,
+          "endTick": 2880
+        },
+        {
+          "tick": 2880,
+          "endTick": 3360
+        },
+        {
+          "tick": 3360,
+          "endTick": 3840
+        }
+      ],
+      "hit240": null,
+      "hit480": null,
+      "notation": {
+        "editing": [
+          {
+            "eventId": "numbered-event-23-1",
+            "token": "1",
+            "x": 60,
+            "lines": [
+              {
+                "x1": 48.6,
+                "x2": 167.5486939048895,
+                "y": 307.775,
+                "thickness": 1.1,
+                "shared": true
+              },
+              {
+                "x1": 48.6,
+                "x2": 119.47434695244473,
+                "y": 310.775,
+                "thickness": 1.1,
+                "shared": true
+              }
+            ]
+          },
+          {
+            "eventId": "numbered-event-23-2",
+            "token": "2",
+            "x": 108.07434695244474,
+            "lines": []
+          },
+          {
+            "eventId": "numbered-event-20-2",
+            "token": "2",
+            "x": 156.14869390488948,
+            "lines": []
+          }
+        ],
+        "presentation": [
+          {
+            "eventId": "numbered-event-23-1",
+            "token": "1",
+            "x": 60,
+            "lines": [
+              {
+                "x1": 48.6,
+                "x2": 145.02482369534556,
+                "y": 305.775,
+                "thickness": 1.1,
+                "shared": true
+              },
+              {
+                "x1": 48.6,
+                "x2": 108.21241184767277,
+                "y": 308.775,
+                "thickness": 1.1,
+                "shared": true
+              }
+            ]
+          },
+          {
+            "eventId": "numbered-event-23-2",
+            "token": "2",
+            "x": 96.81241184767278,
+            "lines": []
+          },
+          {
+            "eventId": "numbered-event-20-2",
+            "token": "2",
+            "x": 133.62482369534555,
+            "lines": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "B-control-uniform-five-sixteenths",
+      "tab": [
+        {
+          "id": "mvp72-beat-7-1",
+          "tick": 0,
+          "base": "sixteenth",
+          "kind": "notes"
+        },
+        {
+          "id": "mvp72-beat-7-2",
+          "tick": 240,
+          "base": "sixteenth",
+          "kind": "notes"
+        },
+        {
+          "id": "mvp72-beat-7-3",
+          "tick": 480,
+          "base": "eighth",
+          "kind": "notes"
+        },
+        {
+          "id": "mvp72-beat-7-4",
+          "tick": 960,
+          "base": "eighth",
+          "kind": "notes"
+        },
+        {
+          "id": "mvp72-beat-7-5",
+          "tick": 1440,
+          "base": "eighth",
+          "kind": "notes"
+        },
+        {
+          "id": "mvp72-beat-7-6",
+          "tick": 1920,
+          "base": "eighth",
+          "kind": "notes"
+        },
+        {
+          "id": "mvp72-beat-7-7",
+          "tick": 2400,
+          "base": "eighth",
+          "kind": "notes"
+        },
+        {
+          "id": "mvp72-beat-7-8",
+          "tick": 2880,
+          "base": "eighth",
+          "kind": "notes"
+        },
+        {
+          "id": "beat-22-1",
+          "tick": 3360,
+          "base": "eighth",
+          "kind": "rest"
+        }
+      ],
+      "numbered": [
+        {
+          "id": "numbered-event-23-1",
+          "tick": 0,
+          "base": "sixteenth",
+          "kind": "notes"
+        },
+        {
+          "id": "numbered-event-23-2",
+          "tick": 240,
+          "base": "sixteenth",
+          "kind": "notes"
+        },
+        {
+          "id": "numbered-event-23-3",
+          "tick": 480,
+          "base": "sixteenth",
+          "kind": "notes"
+        },
+        {
+          "id": "numbered-event-23-4",
+          "tick": 720,
+          "base": "sixteenth",
+          "kind": "notes"
+        },
+        {
+          "id": "numbered-event-23-5",
+          "tick": 960,
+          "base": "sixteenth",
+          "kind": "notes"
+        }
+      ],
+      "inputSlots": [
+        {
+          "tick": 1200,
+          "endTick": 1440,
+          "x": 271.4138438880707
+        },
+        {
+          "tick": 1440,
+          "endTick": 1920,
+          "x": 314.4653902798233
+        },
+        {
+          "tick": 1920,
+          "endTick": 2400,
+          "x": 367.97231222385864
+        },
+        {
+          "tick": 2400,
+          "endTick": 2880,
+          "x": 421.479234167894
+        },
+        {
+          "tick": 2880,
+          "endTick": 3360,
+          "x": 474.98615611192935
+        },
+        {
+          "tick": 3360,
+          "endTick": 3840,
+          "x": 528.4930780559647
+        }
+      ],
+      "lyricPositions": [
+        {
+          "eventId": "numbered-event-23-1",
+          "tick": 0,
+          "endTick": 240
+        },
+        {
+          "eventId": "numbered-event-23-2",
+          "tick": 240,
+          "endTick": 480
+        },
+        {
+          "eventId": "numbered-event-23-3",
+          "tick": 480,
+          "endTick": 720
+        },
+        {
+          "eventId": "numbered-event-23-4",
+          "tick": 720,
+          "endTick": 960
+        },
+        {
+          "eventId": "numbered-event-23-5",
+          "tick": 960,
+          "endTick": 1200
+        },
+        {
+          "tick": 1200,
+          "endTick": 1440
+        },
+        {
+          "tick": 1440,
+          "endTick": 1920
+        },
+        {
+          "tick": 1920,
+          "endTick": 2400
+        },
+        {
+          "tick": 2400,
+          "endTick": 2880
+        },
+        {
+          "tick": 2880,
+          "endTick": 3360
+        },
+        {
+          "tick": 3360,
+          "endTick": 3840
+        }
+      ],
+      "hit240": null,
+      "hit480": null,
+      "notation": {
+        "editing": [
+          {
+            "eventId": "numbered-event-23-1",
+            "token": "1",
+            "x": 60,
+            "lines": [
+              {
+                "x1": 48.6,
+                "x2": 198.24830633284242,
+                "y": 307.775,
+                "thickness": 1.1,
+                "shared": true
+              },
+              {
+                "x1": 48.6,
+                "x2": 198.24830633284242,
+                "y": 310.775,
+                "thickness": 1.1,
+                "shared": true
+              }
+            ]
+          },
+          {
+            "eventId": "numbered-event-23-2",
+            "token": "2",
+            "x": 102.28276877761414,
+            "lines": []
+          },
+          {
+            "eventId": "numbered-event-23-3",
+            "token": "2",
+            "x": 144.56553755522827,
+            "lines": []
+          },
+          {
+            "eventId": "numbered-event-23-4",
+            "token": "2",
+            "x": 186.8483063328424,
+            "lines": []
+          },
+          {
+            "eventId": "numbered-event-23-5",
+            "token": "2",
+            "x": 229.13107511045655,
+            "lines": [
+              {
+                "x1": 217.73107511045654,
+                "x2": 240.53107511045656,
+                "y": 307.775,
+                "thickness": 1.1
+              },
+              {
+                "x1": 217.73107511045654,
+                "x2": 240.53107511045656,
+                "y": 310.775,
+                "thickness": 1.1
+              }
+            ]
+          }
+        ],
+        "presentation": [
+          {
+            "eventId": "numbered-event-23-1",
+            "token": "1",
+            "x": 60,
+            "lines": [
+              {
+                "x1": 48.6,
+                "x2": 178.88112560054904,
+                "y": 305.775,
+                "thickness": 1.1,
+                "shared": true
+              },
+              {
+                "x1": 48.6,
+                "x2": 178.88112560054904,
+                "y": 308.775,
+                "thickness": 1.1,
+                "shared": true
+              }
+            ]
+          },
+          {
+            "eventId": "numbered-event-23-2",
+            "token": "2",
+            "x": 95.82704186684968,
+            "lines": []
+          },
+          {
+            "eventId": "numbered-event-23-3",
+            "token": "2",
+            "x": 131.65408373369937,
+            "lines": []
+          },
+          {
+            "eventId": "numbered-event-23-4",
+            "token": "2",
+            "x": 167.48112560054903,
+            "lines": []
+          },
+          {
+            "eventId": "numbered-event-23-5",
+            "token": "2",
+            "x": 203.30816746739873,
+            "lines": [
+              {
+                "x1": 191.90816746739873,
+                "x2": 214.70816746739874,
+                "y": 305.775,
+                "thickness": 1.1
+              },
+              {
+                "x1": 191.90816746739873,
+                "x2": 214.70816746739874,
+                "y": 308.775,
+                "thickness": 1.1
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

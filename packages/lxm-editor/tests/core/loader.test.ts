@@ -62,6 +62,31 @@ describe("loadDocument", () => {
     ).toMatchObject({ minString: 2, maxString: 3 });
   });
 
+  it.each([
+    { type: "strum", stroke: "up" } as const,
+    { type: "arpeggio", direction: "ascending" } as const,
+  ])("导入同拍扫弦与 $type 仍拒绝冲突文档", (params) => {
+    const document = structuredClone(EXAMPLE_MVP_5);
+    const track = document.score.tracks[0]!;
+    const strum = track.techniques.find(
+      (technique) => technique.type === "strum",
+    );
+    if (!strum || strum.type !== "strum") throw new Error("缺少扫弦 fixture");
+    track.techniques.push({
+      ...params,
+      id: "import-conflicting-traversal",
+      beatId: strum.beatId,
+      minString: strum.minString,
+      maxString: strum.maxString,
+    });
+    const result = loadDocument(JSON.stringify(document));
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.errors.join("\n")).toContain(
+      "同一和弦最多只能标记一个扫弦或琶音技巧",
+    );
+  });
+
   it("文档字段不符合 schema 时返回字段路径和错误信息", () => {
     const invalidDocument = {
       ...EXAMPLE_MVP_1,

@@ -67,4 +67,15 @@ button {
     overflow: visible;
     background: #fff;
   }
+
+  // Only the independent presentation layer and its ancestors may print.
+  // This also removes body portals (Ant Popover/Modal, native dialogs, tooltips).
+  body *:not([data-score-print-layer]):not([data-score-print-layer] *):not(:has([data-score-print-layer])) {
+    display: none !important;
+  }
+  [data-score-print-layer] {
+    display: block !important;
+    position: static !important;
+    transform: none !important;
+  }
 }

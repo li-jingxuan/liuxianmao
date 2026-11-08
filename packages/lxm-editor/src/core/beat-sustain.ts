@@ -42,14 +42,8 @@ export const extendBeat = (
   const context = createMeasureRhythmContext(measure);
   if (context.tupletByBeatId.has(source.id))
     return reject("请先删除源拍连音组，再延续一拍", "BEAT_IN_TUPLET");
-  if (
-    source.kind !== "notes" ||
-    source.notes.length === 0 ||
-    source.notes.some((n) => typeof n.fret !== "number")
-  )
-    return reject(
-      "延续一拍需要包含数值品位音符的源拍，不能延续空拍、休止或闷音 x",
-    );
+  if (source.kind !== "notes" || source.notes.length === 0)
+    return reject("延续一拍需要包含音符的源拍，不能延续空拍或休止");
   const duration = calculateRhythmTicks(source.rhythm);
   if (!duration.ok) return reject("源拍时值无效");
   const startTick = source.tick + duration.ticks;

@@ -51,8 +51,8 @@ export const splitBeat = (
     return { ok: false, message: "连音成员不能拆分，请先移除连音组。" };
   const index = LXM_RHYTHM_BASES.indexOf(b.rhythm.base),
     base = LXM_RHYTHM_BASES[index + 1];
-  if (!base || b.notes.some((n) => n.fret === "x"))
-    return { ok: false, message: "最短时值或闷音 x 不能保持原音乐语义拆分。" };
+  if (!base)
+    return { ok: false, message: "最短时值不能保持原音乐语义拆分。" };
   const duration = calculateRhythmTicks(b.rhythm);
   if (!duration.ok || duration.ticks % 2)
     return { ok: false, message: "该时值不能精确等分。" };
@@ -63,7 +63,7 @@ export const splitBeat = (
     ...body,
     id: factory.createBeatId(),
     tick: b.tick + duration.ticks / 2,
-    rhythm,
+    rhythm: { ...rhythm },
     notes: b.notes.map((n) => ({ ...n, id: factory.createNoteId() })),
   };
   const noteMap = new Map(b.notes.map((n, j) => [n.id, second.notes[j]!.id]));
@@ -141,7 +141,6 @@ export const mergeBeats = (
     range.every(
       (b) =>
         b.kind === "notes" &&
-        !b.notes.some((n) => n.fret === "x") &&
         key(b) === key(first),
     );
   if (!rests && !sustained)

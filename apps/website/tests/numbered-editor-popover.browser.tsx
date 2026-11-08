@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   EXAMPLE_MVP_7_2_DOCUMENT,
+  applyScoreCommand,
   type ILXMScoreCommand,
 } from "@liuxianmao/lxm-editor";
 import {
@@ -12,12 +13,29 @@ import type { MusicTextTarget } from "../components/EditorShell/music-text-draft
 import { createEditorSession, useEditorStore } from "../stores/editor-store";
 import { EditorStoreContext } from "../stores/editor-context";
 
-const fixture = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);
-const track = fixture.score.tracks[0]!;
-const measure = track.measures[0]!;
-const event = measure.numberedVoice.events[0]!;
 const parameters = new URLSearchParams(location.search);
 const scenario = parameters.get("scenario");
+let fixture = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);
+if (scenario === "sync-gap") {
+  for (let index = 0; index < 2; index++) {
+    const track = fixture.score.tracks[0]!;
+    const measure = track.measures[0]!;
+    const result = applyScoreCommand(fixture, {
+      type: "beat.splitAndAlignNumbered", trackId: track.id, measureId: measure.id, beatId: measure.beats[0]!.id,
+    });
+    if (!result.ok) throw new Error(result.message);
+    fixture = result.document;
+  }
+}
+const track = fixture.score.tracks[0]!;
+const measure = track.measures[0]!;
+const event = scenario === "sync-gap"
+  ? measure.numberedVoice.events.find((item) => item.tick === 240)!
+  : measure.numberedVoice.events[0]!;
+if (scenario === "sync-gap") {
+  measure.lyrics.push({ id: "sync-gap-lyric", eventId: event.id, verse: 1, text: "新" });
+  measure.lyrics.sort((a, b) => measure.numberedVoice.events.findIndex((item) => item.id === a.eventId) - measure.numberedVoice.events.findIndex((item) => item.id === b.eventId) || a.verse - b.verse);
+}
 measure.numberedVoice.tuplets = [];
 track.numberedMarks = [];
 if (scenario === "blank") {
@@ -31,6 +49,7 @@ if (scenario === "gap") {
 }
 if (scenario === "members" && event.kind === "notes") event.items.push({ ...event.items[0]!, id: "member-test-second", token: "3" });
 const session = createEditorSession(fixture);
+if (scenario === "sync-gap") session.getState().setNumberedInputRhythm({ base: "quarter", dots: 0 });
 const commands: ILXMScoreCommand[] = [];
 const selections: unknown[] = [];
 const requests: ("content" | "rhythm" | "itemPitch" | undefined)[] = [];

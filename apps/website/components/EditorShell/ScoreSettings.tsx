@@ -1,4 +1,4 @@
-import { useState, useRef, useImperativeHandle, useEffect, useLayoutEffect, useMemo, useId, type Ref, type ReactNode, type FocusEvent } from "react";
+import { useState, useRef, useImperativeHandle, useEffect, useLayoutEffect, useMemo, useId, type Ref, type ReactNode, type FocusEvent, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import { Alert, Button } from "antd";
 import { LXMScoreCommandEnum, type ILXMDocument, type ILXMApplyScoreCommandResult, type ILXMScoreCommand } from "@liuxianmao/lxm-editor";
@@ -10,6 +10,7 @@ import { MeasureSettingsForm } from "./MeasureSettingsForm";
 import { useEditorDraftRecords } from "./EditorSessionRuntime";
 import { captureEditorVersion, sameEditorSession, sameEditorVersion } from "./editor-session-version";
 import { createScoreSettingsComposition } from "./score-settings-composition";
+import { isEditorInputEnter } from "./editor-input-enter";
 import styles from "./ScoreSettingsForm.module.scss";
 
 type SettingsFocusGroup = SettingsGroup | "copy";
@@ -268,12 +269,22 @@ export const ScoreSettings = ({ ref, document, measureId, requestedMeasureId = m
     activeGroupRef.current = group;
     setActiveGroup(group);
   };
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (composition.isComposing()) { event.stopPropagation(); return; }
+    if (!isEditorInputEnter(event)) return;
+    const group = (event.target as HTMLElement).closest<HTMLElement>("[data-settings-group]")?.dataset.settingsGroup;
+    if (!group) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.repeat || busyRef.current || !settingsGroups.includes(group as SettingsGroup)) return;
+    if (readStatus().groups[group as SettingsGroup].dirty) apply(group as SettingsGroup);
+  };
   const surface = (name: "song" | "measure" | "actions", children: ReactNode) => <div
     ref={(node) => { roots.current[name] = node; }}
     data-settings-surface={name}
     onCompositionStart={composition.start} onCompositionEnd={composition.end}
     onKeyDownCapture={(event) => composition.observeKey(event.nativeEvent)}
-    onKeyDown={(event) => { if (composition.isComposing()) event.stopPropagation(); }}
+    onKeyDown={handleKeyDown}
     onFocusCapture={handleFocusCapture}
   >{children}</div>;
   const props = { document, value: rendered.value, composing: compositionActive, busy, issues, groups: status.groups, inlineActions: !actionsHost, onChange: update, onApply: apply, onRestore: restoreGroup };

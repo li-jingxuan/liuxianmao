@@ -17,7 +17,6 @@ import {
   createCollapsedTabCellSelection,
   EXAMPLE_MVP_7_2_DOCUMENT,
   getFirstTabCellReference,
-  HISTORY_LIMIT,
   loadDocument,
   LXMScoreCommandEnum,
   resolveTabCellSelection,
@@ -39,11 +38,20 @@ import { useContext } from "react";
 import { EditorStoreContext } from "./editor-context";
 import { useStore } from "zustand";
 import { createStore, type StoreApi } from "zustand/vanilla";
-
-interface EditorHistory {
-  past: ILXMDocument[];
-  future: ILXMDocument[];
-}
+import {
+  createEmptyHistory,
+  createHistoryEntry,
+  readonlySnapshot,
+  retainFeedback,
+  toHistoryState,
+  transitionHistory,
+  type EditorHistory,
+  type EditorHistoryView,
+  type EditorFeedbackEvent,
+  type HistoryEntry,
+} from "./editor-history";
+export { selectEditorHistory, selectHistoryEntries } from "./editor-history";
+export type { HistoryEntry, HistoryTarget, EditorFeedbackEvent, EditorHistoryView } from "./editor-history";
 
 export interface EditorStore {
   document: ILXMDocument | null;
@@ -58,6 +66,14 @@ export interface EditorStore {
   sessionId: number;
   sessionVersion: number;
   effects: ILXMCommandEffect[];
+  pastEntries: readonly HistoryEntry[];
+  futureEntries: readonly HistoryEntry[];
+  historyEntries: readonly HistoryEntry[];
+  baselineAdvanced: boolean;
+  historyView: EditorHistoryView;
+  feedbackEvent: EditorFeedbackEvent | null;
+  /** 旧计时器/关闭回调只能清除它所拥有的事件。 */
+  dismissFeedback: (eventId: string) => void;
   replaceDocument: (input: unknown, source?: "file") => DocumentLoadResult;
   selection: ILXMTabCellSelection | null;
   /** 当前点击的技巧仅属于 UI 焦点，不进入文档历史。 */
@@ -265,16 +281,6 @@ const getSelectionCandidateAfterCommand = (
   };
 };
 
-const toHistoryState = (history: EditorHistory) => ({
-  history,
-  canUndo: history.past.length > 0,
-  canRedo: history.future.length > 0,
-  historyDepth: {
-    past: history.past.length,
-    future: history.future.length,
-  },
-});
-
 /**
  * 创建独立 store，便于测试和未来多文档标签页复用。
  * 页面使用下方单例；测试传入自己的初始文档，互不污染历史。
@@ -288,6 +294,21 @@ export const createEditorStore = (
   createStore<EditorStoreState>((set, get) => {
     let clipboard: BeatClipboard | null = null;
     let numberedClipboard: NumberedClipboard | null = null;
+    const sessionId = ++nextSessionId;
+    let nextEntryId = 0;
+    let nextFeedbackId = 0;
+    const createFeedback = (
+      source: EditorFeedbackEvent["source"],
+      effects: readonly ILXMCommandEffect[],
+      entryId?: string,
+    ): EditorFeedbackEvent => readonlySnapshot({
+      eventId: `${sessionId}:${get().sessionVersion}:feedback:${++nextFeedbackId}`,
+      sessionId,
+      sessionVersion: get().sessionVersion,
+      source,
+      ...(entryId ? { entryId } : {}),
+      effects,
+    });
     // 宿主回调位于提交之后；宿主异常不能破坏编辑器历史或向调用方抛出。
     const reportError = (message: string) => {
       set({ errorMessage: message });
@@ -299,7 +320,12 @@ export const createEditorStore = (
     };
     const notifyChange = (event: EditorChangeEvent) => {
       try {
-        options.onChange?.(event);
+        if (options.onChange) options.onChange({
+          ...event,
+          // document 沿用宿主契约中的当前已提交对象；可变命令/影响参数单独隔离。
+          command: event.command ? structuredClone(event.command) : undefined,
+          effects: structuredClone(event.effects),
+        });
       } catch {
         reportError("宿主接收编辑结果失败，编辑结果已保留。");
       }
@@ -319,15 +345,14 @@ export const createEditorStore = (
           return false;
         }
         numberedClipboard = structuredClone(result.clipboard);
+        const effects = collectNumberedOmissionEffects(
+          d, range.trackId, range.measureId, result.clipboard.omissions,
+        );
         set({
           clipboardVersion: get().clipboardVersion + 1,
           errorMessage: null,
-          effects: collectNumberedOmissionEffects(
-            d,
-            range.trackId,
-            range.measureId,
-            result.clipboard.omissions,
-          ),
+          effects: structuredClone(effects),
+          ...(effects.length ? { feedbackEvent: createFeedback("clipboard", effects) } : {}),
         });
         return true;
       },
@@ -342,25 +367,28 @@ export const createEditorStore = (
           return false;
         }
         clipboard = structuredClone(result.clipboard);
+        const effects = [
+          ...result.clipboard.omissions,
+          ...collectNumberedOmissionEffects(
+            document, range.trackId, range.measureId, result.clipboard.numberedOmissions,
+          ),
+        ];
         set({
           hasBeatClipboard: true,
           clipboardVersion: get().clipboardVersion + 1,
           errorMessage: null,
-          effects: [
-            ...result.clipboard.omissions,
-            ...collectNumberedOmissionEffects(
-              document,
-              range.trackId,
-              range.measureId,
-              result.clipboard.numberedOmissions,
-            ),
-          ],
+          effects: structuredClone(effects),
+          ...(effects.length ? { feedbackEvent: createFeedback("clipboard", effects) } : {}),
         });
         return true;
       },
-      sessionId: ++nextSessionId,
+      sessionId,
       sessionVersion: 0,
       effects: [],
+      feedbackEvent: null,
+      dismissFeedback: (eventId) => {
+        if (get().feedbackEvent?.eventId === eventId) set({ feedbackEvent: null });
+      },
       replaceDocument: (input, source) => {
         const result = loadEditorDocument(input);
         if (!result.ok) {
@@ -387,8 +415,9 @@ export const createEditorStore = (
               ? `已导入「${result.document.score.title || "未命名曲谱"}」。`
               : null,
           effects: [],
+          feedbackEvent: null,
           sessionVersion: get().sessionVersion + 1,
-          ...toHistoryState({ past: [], future: [] }),
+          ...toHistoryState(createEmptyHistory()),
         });
         return result;
       },
@@ -406,10 +435,7 @@ export const createEditorStore = (
       selectedNumberedMarkId: null,
       errorMessage: initialDocument ? null : "无法加载示例乐谱。",
       loadNotice: null,
-      history: { past: [], future: [] },
-      canUndo: false,
-      canRedo: false,
-      historyDepth: { past: 0, future: 0 },
+      ...toHistoryState(createEmptyHistory()),
 
       execute: (command) => {
         const state = get();
@@ -431,10 +457,13 @@ export const createEditorStore = (
           return result;
         }
 
-        const history: EditorHistory = {
-          past: [...state.history.past, state.document].slice(-HISTORY_LIMIT),
-          future: [],
-        };
+        const entry = createHistoryEntry(
+          `${sessionId}:${state.sessionVersion}:entry:${++nextEntryId}`,
+          state.document, command, result.effects ?? [],
+        );
+        const history = transitionHistory(state.history, {
+          type: "commit", document: state.document, entry,
+        });
         const selectionCandidate = result.nextFocus
           ? createCollapsedTabCellSelection({
               ...result.nextFocus,
@@ -447,7 +476,10 @@ export const createEditorStore = (
               command,
             );
         set({
-          effects: result.effects ?? [],
+          effects: structuredClone(result.effects ?? []),
+          feedbackEvent: entry.effects.length
+            ? createFeedback("command", entry.effects, entry.id)
+            : retainFeedback(state.feedbackEvent, history),
           document: result.document,
           numberedSelection: result.nextNumberedFocus
             ? result.nextNumberedFocus.eventId
@@ -469,7 +501,7 @@ export const createEditorStore = (
             ? state.selectedNumberedMarkId
             : null,
           stateVersion: get().stateVersion + 1,
-          selection: command.type.startsWith("numbered.")
+          selection: command.type.startsWith("numbered.") || command.type === "beat.splitAndAlignNumbered"
             ? state.selection
             : reconcileSelection(result.document, selectionCandidate),
           selectedTechniqueId: result.document.score.tracks.some((track) =>
@@ -542,10 +574,7 @@ export const createEditorStore = (
         const state = get();
         const previous = state.history.past.at(-1);
         if (!state.document || !previous) return;
-        const history: EditorHistory = {
-          past: state.history.past.slice(0, -1),
-          future: [state.document, ...state.history.future],
-        };
+        const history = transitionHistory(state.history, { type: "undo", document: state.document });
         set({
           effects: [],
           document: previous,
@@ -576,13 +605,11 @@ export const createEditorStore = (
         const state = get();
         const next = state.history.future[0];
         if (!state.document || !next) return;
-        const history: EditorHistory = {
-          past: [...state.history.past, state.document].slice(-HISTORY_LIMIT),
-          future: state.history.future.slice(1),
-        };
+        const history = transitionHistory(state.history, { type: "redo", document: state.document });
         set({
           effects: [],
           document: next,
+          feedbackEvent: retainFeedback(state.feedbackEvent, history),
           numberedSelection: reconcileNumberedSelection(
             next,
             state.numberedSelection,
