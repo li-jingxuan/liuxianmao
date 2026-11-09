@@ -16,6 +16,57 @@ const setup = () => {
 };
 
 describe("quick techniques share the domain target adapter", () => {
+  it("延音线支持正反向同弦选择、单选下一音、重复 no-op 及撤销重做", () => {
+    const { document: source, cell } = setup();
+    const document = structuredClone(source);
+    const notes = document.score.tracks[0]!.measures[0]!.beats.flatMap((beat) => beat.notes);
+    notes.find((note) => note.id === "mvp2-note-1-6-6")!.fret = notes.find((note) => note.id === "mvp2-note-1-5-6")!.fret;
+    const session = createEditorSession(document);
+    const start = cell("5", 6), end = cell("6", 6);
+    const selection = { anchor: start, focus: end };
+    const target = resolveQuickTechnique(document, selection, "tie");
+    expect(target).toMatchObject({ ok: true, pressed: false, command: {
+      type: C.AddTechnique, technique: { type: "tie", fromNoteId: "mvp2-note-1-5-6", toNoteId: "mvp2-note-1-6-6" },
+    } });
+    expect(resolveQuickTechnique(document, { anchor: end, focus: start }, "tie")).toEqual(target);
+    expect(resolveQuickTechnique(document, { anchor: start, focus: start }, "tie")).toEqual(target);
+    const command = buildEditorToolCommand(document, selection, { type: "quickTechnique", technique: "tie" });
+    expect(command).toEqual(target.ok ? target.command : null);
+    if (!command) throw new Error("Missing tie command");
+    expect(session.getState().execute(command)).toMatchObject({ ok: true, changed: true });
+    const applied = session.getState().document;
+    const depth = session.getState().historyDepth;
+    const repeat = resolveQuickTechnique(applied!, selection, "tie");
+    expect(repeat).toMatchObject({ ok: true, pressed: true });
+    if (!repeat.ok) throw new Error(repeat.message);
+    expect(session.getState().execute(repeat.command)).toMatchObject({ ok: true, changed: false });
+    expect(session.getState().historyDepth).toEqual(depth);
+    session.getState().undo();
+    expect(session.getState().document).toEqual(document);
+    session.getState().redo();
+    expect(session.getState().document).toEqual(applied);
+  });
+
+  it("延音线拒绝不同品位、多弦、缺失起音、无下一音和非相邻拍", () => {
+    const { document, cell } = setup();
+    expect(resolveQuickTechnique(document, { anchor: cell("5", 6), focus: cell("6", 6) }, "tie"))
+      .toEqual({ ok: false, message: "延音线两端必须是同弦同品位" });
+    expect(resolveQuickTechnique(document, { anchor: cell("5", 6), focus: cell("6", 5) }, "tie"))
+      .toEqual({ ok: false, message: "请选择同一根弦上的音符。" });
+    expect(resolveQuickTechnique(document, null, "tie").ok).toBe(false);
+    expect(resolveQuickTechnique(document, { anchor: cell("5", 1), focus: cell("6", 1) }, "tie").ok).toBe(false);
+    const last = document.score.tracks[0]!.measures.at(-1)!.beats.at(-1)!;
+    const lastCell = { ...cell("5", 6), measureId: document.score.tracks[0]!.measures.at(-1)!.id, beatId: last.id };
+    expect(resolveQuickTechnique(document, { anchor: lastCell, focus: lastCell }, "tie").ok).toBe(false);
+    const sparse = structuredClone(document);
+    const beats = sparse.score.tracks[0]!.measures[0]!.beats;
+    beats.find((beat) => beat.id === cell("6", 6).beatId)!.notes = [];
+    const later = beats.find((beat) => beat.id === cell("7", 6).beatId)!;
+    later.notes = [{ id: "later-same-pitch", string: 6, fret: beats.find((beat) => beat.id === cell("5", 6).beatId)!.notes.find((note) => note.string === 6)!.fret }];
+    expect(resolveQuickTechnique(sparse, { anchor: cell("5", 6), focus: cell("7", 6) }, "tie"))
+      .toEqual({ ok: false, message: "延音线只能连接时间轴上相邻的两个 Beat" });
+  });
+
   it.each([["x", 3], [3, "x"], ["x", "x"]] as const)("x endpoints %s/%s accept connection shortcuts without numeric pitch assumptions", (from, to) => {
     const { document: original, cell } = setup();
     const document = structuredClone(original);
@@ -23,7 +74,7 @@ describe("quick techniques share the domain target adapter", () => {
     notes.find((note) => note.id === "mvp2-note-1-5-6")!.fret = from;
     notes.find((note) => note.id === "mvp2-note-1-6-6")!.fret = to;
     const selection = { anchor: cell("5", 6), focus: cell("6", 6) };
-    for (const quick of ["hammerOn", "pullOff", "slideUp", "slideDown", "slide"] as const)
+    for (const quick of ["hammerOn", "pullOff", "slideUp", "slideDown", "slide", "tie"] as const)
       expect(resolveQuickTechnique(document, selection, quick)).toMatchObject({ ok: true });
     expect(resolveQuickTechnique(document, selection, "slide")).toMatchObject({
       command: { technique: { type: "slideUp" } },

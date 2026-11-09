@@ -317,13 +317,15 @@ export const EditorToolbar = ({
           pressed={tools.restState === "all"}
           title={`切换休止（${editorShortcutLabel("rest")}）；${tools.restState === "mixed" ? "当前为混合状态，点击统一设为休止。" : ""}休止影响整拍全部弦并清空音符；取消休止仅得到空普通拍，恢复音符请撤销。`}
           onClick={() => void run({ type: "restToggle" })}><TechniqueSymbol kind="rest" /></ToolButton>
-        {(["hammerOn", "pullOff", "slide", "strumDown", "strumUp", "arpeggioDown", "arpeggioUp"] as const).map((quick) => {
+        {(["hammerOn", "pullOff", "slide", "tie", "strumDown", "strumUp", "arpeggioDown", "arpeggioUp"] as const).map((quick) => {
           const result = resolveQuickTechnique(document, selection, quick);
-          const labels = { hammerOn: "击弦 H", pullOff: "勾弦 P", slide: "滑音", strumDown: "下扫：从低音弦到高音弦，箭头向上", strumUp: "上扫：从高音弦到低音弦，箭头向下", arpeggioDown: "下琶音：从低音弦到高音弦，箭头向上", arpeggioUp: "上琶音：从高音弦到低音弦，箭头向下" };
+          const labels = { hammerOn: "击弦 H", pullOff: "勾弦 P", slide: "滑音", tie: "延音线", strumDown: "下扫：从低音弦到高音弦，箭头向上", strumUp: "上扫：从高音弦到低音弦，箭头向下", arpeggioDown: "下琶音：从低音弦到高音弦，箭头向上", arpeggioUp: "上琶音：从高音弦到低音弦，箭头向下" };
           return <ToolButton key={quick} label={labels[quick]}
+            title={quick === "tie" ? "延音线：连接相邻拍上的同弦同品位音符；单选起音连接同弦下一音。" : undefined}
             availability={available(tabReason ? { enabled: false, reason: tabReason } : { enabled: result.ok, reason: result.ok ? "" : result.message })}
             pressed={quick === "strumDown" || quick === "strumUp" || quick === "arpeggioDown" || quick === "arpeggioUp"
-              ? currentChordTechniqueDirection(document, selection, quick.startsWith("strum") ? "strum" : "arpeggio") === (quick.endsWith("Down") ? "down" : "up") : undefined}
+              ? currentChordTechniqueDirection(document, selection, quick.startsWith("strum") ? "strum" : "arpeggio") === (quick.endsWith("Down") ? "down" : "up")
+              : quick === "tie" && result.ok ? result.pressed : undefined}
             onClick={() => void run({ type: "quickTechnique", technique: quick })}>
             {quick === "hammerOn" ? "H" : quick === "pullOff" ? "P" : quick === "slide" ? "S" : <TechniqueSymbol kind={quick} />}
           </ToolButton>;

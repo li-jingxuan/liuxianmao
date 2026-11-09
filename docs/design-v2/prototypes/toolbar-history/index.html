@@ -53,6 +53,7 @@
   <symbol id="i-strum-up" viewBox="0 0 24 24"><path d="M12 3v17m-4-5 4 5 4-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
   <symbol id="i-arp" viewBox="0 0 24 24"><path d="m9 6 3-3 3 3m-3-2c-6 3 6 4 0 7s6 4 0 7 0 3 0 3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
   <symbol id="i-slide" viewBox="0 0 24 24"><path d="m5 18 14-12M4 14v5h5M15 5h5v5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-tie" viewBox="0 0 24 24"><path d="M4 16C7 7 17 7 20 16C16 10 8 10 4 16Z" fill="currentColor"/></symbol>
   <symbol id="i-techniques" viewBox="0 0 24 24"><path d="M10 16V4l8 2v5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><ellipse cx="7" cy="17" rx="3.5" ry="2.5" fill="currentColor" transform="rotate(-20 7 17)"/><circle cx="14" cy="19" r="1" fill="currentColor"/><circle cx="18" cy="19" r="1" fill="currentColor"/><circle cx="22" cy="19" r="1" fill="currentColor"/></symbol>
   <symbol id="i-locate" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12" r="2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4" stroke="currentColor" stroke-width="1.5"/></symbol>
 </defs></svg>
@@ -140,7 +141,7 @@
   function placePopover(button){opener=button;const r=button.getBoundingClientRect();$('popover').hidden=false;const w=$('popover').getBoundingClientRect().width;$('popover').style.left=Math.min(Math.max(8,r.left),Math.max(8,innerWidth-w-8))+'px';$('popover').style.top=(r.bottom+8)+'px';}
   function openTechnique(name,button){
     if(state.tab!=='selection'){toast('先选择 TAB 目标，再添加弹奏技巧',false);return;}
-    if(name==='击弦 H'||name==='勾弦 P'){
+    if(name==='击弦 H'||name==='勾弦 P'||name==='延音线'){
       if(state.rest||state.tech){toast('起始单元格需要已有音符；请选择同弦下一音',false);return;}
       state.tech=name;commit('添加'+name);return;
     }
@@ -178,6 +179,7 @@
       sys.lyrics.forEach((c,j)=>{const x=67+j*40.5;out+=text(x,y+171,c,13,'text-anchor="middle"');out+=`<path d="M${x} ${y+184}v11" stroke="#c5d2e5" stroke-width=".8"/>`});
     });$('score').innerHTML=out;
   }
+  const tieShortcut=document.createElement('button');tieShortcut.className='tech quick-relation symbol-button';tieShortcut.dataset.tech='延音线';tieShortcut.setAttribute('aria-label','延音线');tieShortcut.dataset.tooltip='延音线 · 连接同弦同品位的两个音';tieShortcut.innerHTML=icon('tie');document.querySelector('[data-tech="滑音"]').after(tieShortcut);
   for(const container of ['toolbar-rhythm','panel-rhythm']){$(container).innerHTML=Object.keys(names).map(n=>`<button class="${container==='toolbar-rhythm'?'icon':''}" data-rhythm="${n}" title="${names[n]}" aria-label="${names[n]}" aria-pressed="${n==='quarter'}">${icon(n)}</button>`).join('');}
   document.querySelectorAll('[data-rhythm]').forEach(b=>b.onclick=()=>{if(state.tab!=='selection'){toast('时值作用于当前简谱焦点；本页仅演示 TAB 修改',false);return;}if(state.rhythm===b.dataset.rhythm)return;state.rhythm=b.dataset.rhythm;commit('修改为'+names[state.rhythm]);});
   document.querySelectorAll('[data-dots]').forEach(b=>b.onclick=()=>{state.dots=state.dots===+b.dataset.dots?0:+b.dataset.dots;commit(state.dots?'添加'+(state.dots===1?'单':'双')+'附点':'取消附点');});$('dots-select').onchange=()=>{state.dots=+$('dots-select').value;commit('修改附点');};

@@ -70,9 +70,10 @@ export const EditorToolSymbolButton = ({ label, title, availability, pressed, ex
   </span>;
 };
 
-export const TechniqueSymbol = ({ kind }: { kind: "slideUp" | "slideDown" | "strumDown" | "strumUp" | "arpeggioDown" | "arpeggioUp" | "technique" | "rest" }) =>
+export const TechniqueSymbol = ({ kind }: { kind: "slideUp" | "slideDown" | "tie" | "strumDown" | "strumUp" | "arpeggioDown" | "arpeggioUp" | "technique" | "rest" }) =>
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
     {kind === "rest" ? <text x="12" y="12" textAnchor="middle" dominantBaseline="central" className={styles.musicGlyph} fill="currentColor" stroke="none">{"\uE4E5"}</text>
+      : kind === "tie" ? <path d="M4 16C7 7 17 7 20 16C16 10 8 10 4 16Z" fill="currentColor" stroke="none" />
       : kind === "slideUp" ? <><path d="m5 18 14-12M15 6h4v4" /><path d="M4 7h5M15 18h5" /></>
       : kind === "slideDown" ? <><path d="m5 6 14 12M15 18h4v-4" /><path d="M4 17h5M15 6h5" /></>
       : kind === "arpeggioDown" || kind === "arpeggioUp" ? <><path d="M9 20c-7-2 7-5 0-7s7-5 0-7" />{kind === "arpeggioDown"

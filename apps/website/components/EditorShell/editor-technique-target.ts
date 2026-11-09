@@ -11,7 +11,7 @@ import {
   type ILXMScoreCommand,
 } from "@liuxianmao/lxm-editor";
 
-export type QuickTechnique = "hammerOn" | "pullOff" | "slide" | "slideUp" | "slideDown" | "strumDown" | "strumUp" | "arpeggioDown" | "arpeggioUp";
+export type QuickTechnique = "hammerOn" | "pullOff" | "slide" | "slideUp" | "slideDown" | "tie" | "strumDown" | "strumUp" | "arpeggioDown" | "arpeggioUp";
 export type TechniqueIntent = { mode: "create"; type: "slide" | "arpeggio" };
 export type TechniqueParameters = {
   direction: "down" | "up";
@@ -92,7 +92,7 @@ export const resolveQuickTechnique = (
 ): { ok: true; command: ILXMScoreCommand; pressed: boolean } | { ok: false; message: string } => {
   const strum = quick === "strumDown" || quick === "strumUp";
   const arpeggio = quick === "arpeggioDown" || quick === "arpeggioUp";
-  const type = quick === "slide" ? "slideUp" : quick === "hammerOn" || quick === "pullOff" || quick === "slideUp" || quick === "slideDown"
+  const type = quick === "slide" ? "slideUp" : quick === "hammerOn" || quick === "pullOff" || quick === "slideUp" || quick === "slideDown" || quick === "tie"
     ? quick : strum ? "strum" : "arpeggio";
   const target = resolveTechniqueDraft(document, selection, type, {
     direction: quick === "strumUp" || quick === "arpeggioUp" ? "up" : "down", semitones: 2, trillFret: 7,
@@ -119,7 +119,8 @@ export const resolveQuickTechnique = (
   return {
     ok: true,
     pressed: (draft.type === "strum" && existing?.type === "strum" && existing.stroke === draft.stroke) ||
-      (draft.type === "arpeggio" && existing?.type === "arpeggio" && existing.direction === draft.direction),
+      (draft.type === "arpeggio" && existing?.type === "arpeggio" && existing.direction === draft.direction) ||
+      (draft.type === "tie" && !!duplicate),
     command: existing
       ? { type: C.UpdateTechnique, trackId: track.id, techniqueId: existing.id, technique: draft }
       : { type: C.AddTechnique, trackId: track.id, technique: draft },
