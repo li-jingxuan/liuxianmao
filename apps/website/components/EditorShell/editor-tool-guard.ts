@@ -9,13 +9,10 @@ export interface EditorToolSubmission {
   /** Checked immediately before execution and again inside every asynchronous confirmation. */
   isCurrent?: () => boolean;
   tabOnly?: boolean;
-  /** 仅由 adapter 为自己仍持有的确认弹层注入；调用方提供的值会被丢弃。 */
-  confirmationModalId?: number;
 }
 export const isTabOnlyToolCommand = (command: ILXMScoreCommand) =>
   command.type === C.SetBeatKindRange || command.type === C.AddTechnique ||
-  command.type === C.UpdateTechnique || command.type === C.RemoveTechnique ||
-  command.type === "numbered.range.alignToTab" || command.type === "beat.splitAndAlignNumbered";
+  command.type === C.UpdateTechnique || command.type === C.RemoveTechnique;
 
 export const tabToolTargetReason = (
   state: Pick<EditorStoreState, "selection" | "numberedSelection" | "document">,

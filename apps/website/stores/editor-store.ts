@@ -501,7 +501,7 @@ export const createEditorStore = (
             ? state.selectedNumberedMarkId
             : null,
           stateVersion: get().stateVersion + 1,
-          selection: command.type.startsWith("numbered.") || command.type === "beat.splitAndAlignNumbered"
+          selection: command.type.startsWith("numbered.")
             ? state.selection
             : reconcileSelection(result.document, selectionCandidate),
           selectedTechniqueId: result.document.score.tracks.some((track) =>

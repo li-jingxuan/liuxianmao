@@ -45,8 +45,7 @@ import type { MusicTextTarget } from "./music-text-draft";
 import { resolveEditorRhythmTarget } from "./editor-rhythm-target";
 import { resolveEditorChordTarget } from "./editor-chord-target";
 import { currentChordTechniqueDirection, resolveQuickTechnique } from "./editor-technique-target";
-import { captureEditorToolIntent, tabToolTargetReason } from "./editor-tool-guard";
-import { buildTabNumberedSyncCommand, type TabNumberedSyncMode } from "./tab-numbered-sync";
+import { tabToolTargetReason } from "./editor-tool-guard";
 import { EditorToolSymbolButton, TechniqueSymbol } from "./EditorToolSymbolButton";
 import symbolStyles from "./EditorToolSymbolButton.module.scss";
 import toolbarStyles from "./EditorToolbar.module.scss";
@@ -123,9 +122,6 @@ export const EditorToolbar = ({
     drafts.getSnapshot,
   );
   const host = useRef<EditorToolPanelController>(null);
-  const [syncNotice, setSyncNotice] = useState<string | null>(null);
-  const syncGeneration = useRef(0);
-  useEffect(() => () => { syncGeneration.current += 1; }, []);
   const techniquePanel = useRef<TechniqueToolbarController>(null);
   const activeTargetRef = useRef(activeTarget);
   useLayoutEffect(() => { activeTargetRef.current = activeTarget; }, [activeTarget]);
@@ -224,31 +220,6 @@ export const EditorToolbar = ({
     if (!rhythmAvailability.enabled) return false;
     return onAction(action);
   };
-  const syncAvailability = (mode: TabNumberedSyncMode): ToolAvailability => {
-    if (tabReason) return available({ enabled: false, reason: tabReason });
-    const built = buildTabNumberedSyncCommand(document, selection, mode);
-    return available({ enabled: built.ok, reason: built.ok ? "" : built.message });
-  };
-  const runSync = async (mode: TabNumberedSyncMode) => {
-    if (!syncAvailability(mode).enabled) return;
-    beforeAction();
-    const now = session.getState();
-    if (!now.document || live.current.editingBlocked || modals.isOpen() ||
-      tabToolTargetReason(now, getActiveTarget())) return;
-    const built = buildTabNumberedSyncCommand(now.document, now.selection, mode);
-    if (!built.ok) { setSyncNotice(built.message); return; }
-    const current = captureEditorToolIntent(session.getState, getActiveTarget);
-    const generation = syncGeneration.current;
-    setSyncNotice(null);
-    const result = await execute(built.command, "modal", {
-      tabOnly: true,
-      isCurrent: () => generation === syncGeneration.current && current(),
-    });
-    if (generation !== syncGeneration.current) return;
-    setSyncNotice(result.status === "noop" ? "所选范围已按当前 TAB 节奏细分"
-      : result.status === "applied" ? "已应用节奏细分，可在新空位补入简谱或歌词。"
-      : result.status === "needs-impact" ? result.result.message : result.message);
-  };
   return (
     <div
       className={`${styles.editorToolbar} ${toolbarStyles.root}`}
@@ -338,20 +309,6 @@ export const EditorToolbar = ({
             />
           </ToolButton>
         ))}
-      </div>
-      <div className={styles.toolbarGroup} role="group" aria-label="TAB 与简谱节奏同步">
-        <Tooltip title={syncAvailability("align").reason || "按所选 TAB 节奏细分简谱：预览原音缩短、空位及歌词保留"}>
-          <span><Button size="small" data-tool-action="numbered-align-to-tab"
-            aria-label="按所选 TAB 节奏细分简谱"
-            title="按所选 TAB 节奏细分简谱"
-            disabled={!syncAvailability("align").enabled} onClick={() => void runSync("align")}>细分简谱</Button></span>
-        </Tooltip>
-        <Tooltip title={syncAvailability("split").reason || "TAB 拆分并同步：等分单拍，并在简谱后半段留空"}>
-          <span><Button size="small" data-tool-action="beat-split-and-align-numbered"
-            aria-label="TAB 拆分并同步"
-            title="TAB 拆分并同步"
-            disabled={!syncAvailability("split").enabled} onClick={() => void runSync("split")}>拆分并同步</Button></span>
-        </Tooltip>
       </div>
       </div>
       <div className={`${toolbarStyles.row} ${toolbarStyles.secondary}`} data-toolbar-row="techniques">
@@ -545,7 +502,6 @@ export const EditorToolbar = ({
         {rhythmAvailability.reason || reason || "当前选区可编辑音符与节奏。"}
       </span>
       <PasteNotice controller={paste} />
-      {syncNotice && <Alert className={styles.toolbarNotice} type="info" title={syncNotice} showIcon />}
     </div>
   );
 };

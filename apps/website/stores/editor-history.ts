@@ -59,8 +59,6 @@ export const readonlySnapshot = <T>(value: T): T => {
 
 const labels: Readonly<Record<string, string>> = {
   "beat.split": "拆分拍点",
-  "beat.splitAndAlignNumbered": "TAB 拆分并同步",
-  "numbered.range.alignToTab": "按所选 TAB 节奏细分简谱",
   "beat.sustain": "延长拍点",
   "beat.mergeRange": "合并拍点",
   "beat.paste": "粘贴拍点",

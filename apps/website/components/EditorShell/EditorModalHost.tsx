@@ -162,7 +162,7 @@ export const EditorModalHost = ({
               loading={display.busy}
               onClick={() => void controller.confirm(display.id)}
             >
-              {display.request.confirmLabel ?? "确认修改"}
+              确认修改
             </Button>
           </>
         ) : (

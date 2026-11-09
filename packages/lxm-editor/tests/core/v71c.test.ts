@@ -203,6 +203,14 @@ describe("MVP7.1-C 原子结构与记谱", () => {
     expect(r.effects?.some((e) => e.kind === "beat.compressed")).toBe(false);
     const t = r.document.score.tracks[0]!,
       beats = t.measures[0]!.beats;
+    // 拆分拍各自持有 rhythm，满足保存器拒绝共享对象的结构约束。
+    expect(beats[0]!.rhythm).toEqual({ base: "eighth", dots: 0 });
+    expect(beats[1]!.rhythm).toEqual(beats[0]!.rhythm);
+    expect(beats[1]!.rhythm).not.toBe(beats[0]!.rhythm);
+    expect(loadDocument(JSON.stringify(r.document))).toEqual({
+      ok: true,
+      document: r.document,
+    });
     expect(t.techniques.filter((t) => t.type === "tie")).toHaveLength(2);
     expect(t.measures[0]!.numberedVoice).toEqual(m.numberedVoice);
     expect(beats[2]!.tick).toBe(960);

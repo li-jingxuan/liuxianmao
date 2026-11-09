@@ -104,7 +104,7 @@ type SidebarAction = DraftSidebarAction & {
 export interface MusicTextController {
   navigateTool: (destination: ToolNavigation) => SelectionRequestResult;
   /** 输出前只读检查草稿，不自动提交或取消用户输入。 */
-  isOutputBlocked: (options?: { allowSettingsBusy?: boolean; allowModalId?: number }) => boolean;
+  isOutputBlocked: (options?: { allowSettingsBusy?: boolean }) => boolean;
   isNumberedActionBlocked: () => boolean;
   isTransitionBlocked: () => boolean;
   canCollapse: () => boolean;
@@ -452,9 +452,9 @@ export const MusicTextSidebar = ({
     numberedBusy || !!activeModal;
   const transitionBlocked = surfaceDisabled || !!settingsStatus?.busy || !!settingsStatus?.composing;
   useEffect(() => onTransitionBlockedChange?.(transitionBlocked), [transitionBlocked, onTransitionBlockedChange]);
-  const surfaceBlocked = useCallback((allowModalId?: number) =>
+  const surfaceBlocked = useCallback(() =>
     composing.current || compositionCoolingRef.current || compositionActive || compositionCooling ||
-    !!pending || numberedBusy || (!!activeModal && activeModal.id !== allowModalId) || navigationApplying.current,
+    !!pending || numberedBusy || !!activeModal || navigationApplying.current,
     [compositionActive, compositionCooling, pending, numberedBusy, activeModal]);
   const focusSidebar = useCallback((
     group?: NumberedDraftGroup,
@@ -823,7 +823,7 @@ export const MusicTextSidebar = ({
       (!(composing.current || compositionCoolingRef.current) || (kind !== "chord" && compositionSurface.current === "popover")),
     isTransitionBlocked: () => surfaceBlocked() || !!settingsRef.current?.isComposing() || !!settingsRef.current?.readStatus().busy || !!numberedRef.current?.readStatus().busy,
     isOutputBlocked: (options) =>
-      surfaceBlocked(options?.allowModalId) ||
+      surfaceBlocked() ||
       !!settingsRef.current?.isComposing() ||
       (!options?.allowSettingsBusy && !!settingsRef.current?.readStatus().busy) ||
       !!numberedRef.current?.readStatus().busy ||

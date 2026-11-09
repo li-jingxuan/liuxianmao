@@ -343,22 +343,22 @@ try {
   assert.equal(await commandCount(), 0);
   assert.deepEqual(errors, []);
 
-  // A gap created by two real synchronized splits keeps its sixteenth duration,
+  // A prefilled gap keeps its sixteenth duration,
   // event identity and prefilled lyric despite an explicit quarter-note preference.
-  await open("sync-gap");
-  const syncBefore = await page.evaluate(() => window.numberedTest.document());
-  const syncGap = syncBefore.score.tracks[0].measures[0].numberedVoice.events.find((event) => event.tick === 240);
-  assert.equal(syncGap.kind, "gap");
-  assert.equal(syncGap.rhythm.base, "sixteenth");
+  await open("sixteenth-gap");
+  const gapBefore = await page.evaluate(() => window.numberedTest.document());
+  const sixteenthGap = gapBefore.score.tracks[0].measures[0].numberedVoice.events.find((event) => event.tick === 240);
+  assert.equal(sixteenthGap.kind, "gap");
+  assert.deepEqual(sixteenthGap.rhythm, { base: "sixteenth", dots: 0 });
   await compactInput().fill("6");
   await applyContent().click();
   await page.waitForFunction(() => window.numberedTest.commands.length === 1);
-  const syncAfter = await page.evaluate(() => window.numberedTest.document());
-  const syncFilled = syncAfter.score.tracks[0].measures[0].numberedVoice.events.find((event) => event.id === syncGap.id);
-  assert.equal(syncFilled.kind, "notes");
-  assert.equal(syncFilled.rhythm.base, "sixteenth");
-  assert.equal(syncFilled.tick, 240);
-  assert.deepEqual(syncAfter.score.tracks[0].measures[0].lyrics, syncBefore.score.tracks[0].measures[0].lyrics);
+  const gapAfter = await page.evaluate(() => window.numberedTest.document());
+  const filledGap = gapAfter.score.tracks[0].measures[0].numberedVoice.events.find((event) => event.id === sixteenthGap.id);
+  assert.equal(filledGap.kind, "notes");
+  assert.deepEqual(filledGap.rhythm, sixteenthGap.rhythm);
+  assert.equal(filledGap.tick, 240);
+  assert.deepEqual(gapAfter.score.tracks[0].measures[0].lyrics, gapBefore.score.tracks[0].measures[0].lyrics);
   assert.equal(await page.evaluate(() => window.numberedTest.commands[0].type), "numbered.event.set");
 
   // A content-only insertion advances using the actual planner focus.

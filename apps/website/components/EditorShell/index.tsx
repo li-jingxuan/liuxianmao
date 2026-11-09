@@ -144,7 +144,6 @@ export const EditorShell: React.FC = () => {
           command.type === "numbered.event.setRhythm"
             ? musicTextController.current?.isNumberedActionBlocked()
              : musicTextController.current?.isOutputBlocked({
-                allowModalId: submission?.confirmationModalId,
                 allowSettingsBusy:
                   command.type === LXMScoreCommandEnum.CopyMeasureRange,
               });

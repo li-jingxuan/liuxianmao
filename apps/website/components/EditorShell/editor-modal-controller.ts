@@ -10,7 +10,6 @@ type CloseReason = "cancel" | "resolved" | "stale";
 interface EditorModalBase {
   title: string;
   message: string;
-  confirmLabel?: string;
   version?: EditorSessionVersion;
   /** 选区等不进入文档版本的请求条件也必须显式核验。 */
   isValid?: () => boolean;
@@ -24,8 +23,7 @@ interface EditorModalBase {
 }
 export type EditorModalRequest = EditorModalBase &
   (
-     | { kind: "structure-impact" }
-     | { kind: "rhythm-sync" }
+    | { kind: "structure-impact" }
     | { kind: "beat-paste"; preview: BeatPasteController }
     | { kind: "technique-type"; picker: TechniqueTypeController }
   );

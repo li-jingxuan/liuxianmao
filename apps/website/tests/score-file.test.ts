@@ -7,6 +7,7 @@ import {
   EXAMPLE_MUTED_NOTE_DOCUMENT,
   EXAMPLE_MVP_6_DOCUMENT,
   createQualityScore,
+  applyScoreCommand,
   LXMScoreCommandEnum,
   getFirstTabCellReference,
 } from "@liuxianmao/lxm-editor";
@@ -78,6 +79,29 @@ describe("原生曲谱文件往返", () => {
     const loaded = decodeScoreFile(encode(output.text));
     expect(loaded.ok).toBe(true);
     if (loaded.ok) expect(loaded.document).toEqual(document);
+  });
+
+  it("连续普通拆分结果可直接保存并重开", () => {
+    let document = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);
+    for (let index = 0; index < 2; index++) {
+      const track = document.score.tracks[0]!;
+      const measure = track.measures[0]!;
+      const result = applyScoreCommand(document, {
+        type: LXMScoreCommandEnum.SplitBeat,
+        trackId: track.id,
+        measureId: measure.id,
+        beatId: measure.beats[0]!.id,
+      });
+      expect(result.ok).toBe(true);
+      if (!result.ok) throw new Error(result.message);
+      document = result.document;
+      const saved = serializeScoreFile(document);
+      expect(saved.ok).toBe(true);
+      if (!saved.ok) throw new Error(saved.errors.join("；"));
+      const reopened = inspectScoreFile(saved.text);
+      expect(reopened.ok).toBe(true);
+      if (reopened.ok) expect(reopened.document).toEqual(document);
+    }
   });
 
   it("编辑过的曲谱重新导入后仍可编辑和撤销", () => {
