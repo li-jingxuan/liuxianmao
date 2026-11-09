@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   A4_CONTENT_WIDTH,
   EXAMPLE_MVP_7_2_DOCUMENT,
+  DEFAULT_MOCK_DOCUMENT,
   buildLayout,
   hitTestNumbered,
   loadDocument,
@@ -39,16 +40,21 @@ describe("简谱八度语法边界", () => {
   });
 });
 
-/** 使用首页同一份 mock，验证真实 loader、布局、会话和导出投影。 */
+/** 验证首页默认 mock；历史谱例继续覆盖布局、会话和导出投影。 */
 describe("MVP v7.2 简谱 mock", () => {
   it("首页默认加载八小节 mock，特殊符号与空拍均经过正式加载器", () => {
-    const loaded = loadDocument(JSON.stringify(EXAMPLE_MVP_7_2_DOCUMENT));
+    const loaded = loadDocument(JSON.stringify(DEFAULT_MOCK_DOCUMENT));
     expect(loaded.ok, JSON.stringify(loaded)).toBe(true);
-    expect(editorStore.getState().document).toEqual(EXAMPLE_MVP_7_2_DOCUMENT);
-    const track = EXAMPLE_MVP_7_2_DOCUMENT.score.tracks[0]!;
+    expect(editorStore.getState().document).toEqual(DEFAULT_MOCK_DOCUMENT);
+    expect(DEFAULT_MOCK_DOCUMENT.documentRevision).toBe(231);
+    const track = DEFAULT_MOCK_DOCUMENT.score.tracks[0]!;
     expect(track.measures).toHaveLength(8);
     const events = track.measures.flatMap((m) => m.numberedVoice.events);
-    expect(events).toHaveLength(29);
+    expect(events).toHaveLength(28);
+    expect(track.techniques).toHaveLength(12);
+    expect(track.measures.map((m) => m.chordSymbols[0]!.chord.name)).toEqual([
+      "G", "C", "Em", "G", "G", "Am", "D", "G",
+    ]);
     expect(
       track.measures[5]!.numberedVoice.events.some(
         (e) => e.tick === track.measures[5]!.beats[1]!.tick,

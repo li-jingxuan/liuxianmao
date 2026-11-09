@@ -65,6 +65,7 @@ export {
 } from "../example/example-mvp7c";
 export { createQualityScore } from "../example/quality-score";
 export { default as EXAMPLE_MVP_7_2_DOCUMENT } from "../example/example-mvp7.2";
+export { default as DEFAULT_MOCK_DOCUMENT } from "../example/default-score";
 
 export * from "./core/numbered-rhythm";
 export * from "./core/numbered-timeline";

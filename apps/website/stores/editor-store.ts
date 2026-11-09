@@ -15,7 +15,7 @@ import {
   createNumberedRhythmContext,
   buildOrderedBeatIndex,
   createCollapsedTabCellSelection,
-  EXAMPLE_MVP_7_2_DOCUMENT,
+  DEFAULT_MOCK_DOCUMENT,
   getFirstTabCellReference,
   loadDocument,
   LXMScoreCommandEnum,
@@ -103,7 +103,7 @@ export type EditorStoreState = EditorStore & { history: EditorHistory };
 
 /** 初始 fixture 也经过正式 loader，避免页面绕过 schema/语义校验。 */
 const loadInitialDocument = (): ILXMDocument | null => {
-  const result = loadDocument(JSON.stringify(EXAMPLE_MVP_7_2_DOCUMENT));
+  const result = loadDocument(JSON.stringify(DEFAULT_MOCK_DOCUMENT));
   return result.ok ? result.document : null;
 };
 
