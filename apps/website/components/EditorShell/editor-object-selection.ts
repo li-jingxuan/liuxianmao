@@ -4,6 +4,7 @@ import {
   hitTestNumbered,
   hitTestNumberedMark,
   hitTestTechniqueTarget,
+  hitTestTuplet,
   resolveTabCellSelection,
   resolveTechniqueSelection,
   LXMScoreCommandEnum as C,
@@ -14,7 +15,7 @@ import {
 } from "@liuxianmao/lxm-editor";
 import type { SidebarAction } from "./music-text-draft";
 
-/** 命中对象决定动作，不接收侧栏页签；技巧优先于六线谱单元格命中。 */
+/** 命中对象决定动作，不接收侧栏页签；技巧和连音标注优先于 TAB 弦格。 */
 export const resolveScorePointerAction = (
   document: ILXMDocument,
   layout: ILXMLayout,
@@ -69,6 +70,22 @@ export const resolveScorePointerAction = (
         technique.focusEndpoint,
       ),
     };
+  const tuplet = hitTestTuplet(layout, point);
+  if (tuplet?.beatIds.length) {
+    const target = {
+      trackId: tuplet.trackId,
+      measureId: tuplet.measureId,
+      string: selection?.focus.string ?? 1,
+    };
+    return {
+      type: "selection",
+      startDrag: false,
+      selection: {
+        anchor: { ...target, beatId: tuplet.beatIds[0]! },
+        focus: { ...target, beatId: tuplet.beatIds.at(-1)! },
+      },
+    };
+  }
   const hit = hitTestLayout(layout, point);
   if (!hit) return extend ? null : { type: "selection", selection: null };
   const target = {

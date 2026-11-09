@@ -246,7 +246,7 @@ export const TechniqueToolbar = ({ ref, document, selection, selectedTechniqueId
       for (const [measureIndex, measure] of track.measures.entries()) {
         for (const [beatIndex, beat] of measure.beats.entries()) {
           const note = beat.notes.find((item) => item.id === id);
-          if (note) return `第 ${measureIndex + 1} 小节第 ${beatIndex + 1} 拍 · 第 ${note.string} 弦 ${note.fret === "x" ? "x 弹奏标记" : `${note.fret} 品`}`;
+          if (note) return `第 ${measureIndex + 1} 小节第 ${beatIndex + 1} 拍 · 第 ${note.string} 弦 ${note.fret === "x" ? "x 弹奏标记" : note.fret === "-" ? "- 延音标记" : `${note.fret} 品`}`;
         }
       }
     }

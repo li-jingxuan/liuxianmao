@@ -363,6 +363,15 @@
 }
 .musicTextFloating {
   &[hidden] { display: none !important; }
+  // 表单控件的 transition: all 会延迟 visibility，隐藏后仍在 (0, 0) 短暂绘制。
+  // 保留 DOM 供锚点测量，但收起时立即隐藏整棵子树。
+  &[aria-hidden="true"] {
+    pointer-events: none;
+    &, * {
+      visibility: hidden !important;
+      transition: none !important;
+    }
+  }
   position: fixed;
   z-index: 30;
   width: min(360px, calc(100vw - 24px));

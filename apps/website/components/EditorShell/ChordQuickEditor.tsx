@@ -19,6 +19,8 @@ export interface ChordQuickEditorProps {
   disabled: boolean;
   /** IME 锁住命令时仍须让原输入接收组合文字。 */
   inputReadOnly?: boolean;
+  /** 已有和弦清空名称后，应用表示删除名称与指法。 */
+  allowEmptyName?: boolean;
   onFixDiagram: () => void;
 }
 
@@ -30,12 +32,14 @@ export const ChordQuickEditor = ({
   presetsEnabled,
   disabled,
   inputReadOnly = disabled,
+  allowEmptyName = false,
   onFixDiagram,
 }: ChordQuickEditorProps) => {
   const diagram = draft.chord.diagram;
   const issue = diagram ? validateChordDiagram(diagram) : null;
   const preview = diagram && !issue ? layoutChordDiagram(diagram) : null;
-  const nameInvalid = normalizeMusicText(draft.chord.name, 32) === null;
+  const removing = allowEmptyName && draft.chord.name.trim() === "";
+  const nameInvalid = !removing && normalizeMusicText(draft.chord.name, 32) === null;
   const preset = CHORD_PRESETS.find(
     (item) =>
       item.name === draft.chord.name &&
@@ -73,6 +77,9 @@ export const ChordQuickEditor = ({
           >
             和弦名称须为单行文字，最多 32 个字符，不能为空。
           </p>
+        )}
+        {removing && (
+          <p className={styles.help}>应用后将删除当前拍的和弦名称与指法。</p>
         )}
       </div>
       <section aria-label="常用指法">

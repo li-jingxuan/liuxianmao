@@ -94,3 +94,13 @@ export const resolveMutedNoteShortcut = (
   !input.altKey &&
   !input.isComposing &&
   input.key.toLowerCase() === "x";
+
+/** TAB 弦格的横线延音标记；组合输入和系统快捷键不接管。 */
+export const resolveTabContinuationShortcut = (
+  input: BeatKindShortcutInput & { isComposing?: boolean },
+): boolean =>
+  !input.metaKey &&
+  !input.ctrlKey &&
+  !input.altKey &&
+  !input.isComposing &&
+  input.key === "-";

@@ -4,6 +4,7 @@ import {
   createDeferredFretDraftCommit,
   resolveBeatKindShortcut,
   resolveEditorHistoryShortcut,
+  resolveTabContinuationShortcut,
 } from "../components/EditorShell/editor-interaction";
 
 describe("editor interaction", () => {
@@ -72,6 +73,17 @@ describe("editor interaction", () => {
     vi.advanceTimersByTime(600);
 
     expect(commit).not.toHaveBeenCalled();
+  });
+
+  it("TAB 横线键只接管普通输入，保留系统快捷键与组合输入", () => {
+    const input = {
+      key: "-", metaKey: false, ctrlKey: false, altKey: false,
+      shiftKey: false, isComposing: false,
+    };
+    expect(resolveTabContinuationShortcut(input)).toBe(true);
+    for (const flag of ["metaKey", "ctrlKey", "altKey", "isComposing"] as const)
+      expect(resolveTabContinuationShortcut({ ...input, [flag]: true })).toBe(false);
+    expect(resolveTabContinuationShortcut({ ...input, key: "_", shiftKey: true })).toBe(false);
   });
 
   it("重新调度时只提交最后一份品位草稿", () => {

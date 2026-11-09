@@ -68,9 +68,11 @@ export const deriveEditorToolState = (
       ? "请先选择一个起音或紧随其后的空拍。"
       : focused?.measure.timeSignature.denominator !== 4
         ? "延续一拍目前用于以四分音符为单位拍的拍号。"
-        : !sustainSource?.notes.length
-          ? "请选择一个起音，或紧随其后的空拍。"
-          : focused.measure.tuplets.some((group) =>
+         : !sustainSource?.notes.length
+           ? "请选择一个起音，或紧随其后的空拍。"
+           : sustainSource.notes.some((note) => note.fret === "-")
+             ? "横线是延音标记，请选择前面的实际起音再延续。"
+           : focused.measure.tuplets.some((group) =>
                 group.beatIds.includes(sustainSource.id),
               )
             ? "连音组请使用整组编辑。"

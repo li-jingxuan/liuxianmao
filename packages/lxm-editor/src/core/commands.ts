@@ -463,6 +463,7 @@ const isValidString = (string: number) =>
 /** 所有输入入口使用同一集合，拒绝任意字符串和数值哨兵。 */
 const isValidFret = (fret: ILXMFret) =>
   fret === "x" ||
+  fret === "-" ||
   (typeof fret === "number" &&
     Number.isInteger(fret) &&
     fret >= 0 &&
@@ -803,7 +804,7 @@ const editNotesInRect = (
     command.type === LXMScoreCommandEnum.SetNotesInRect &&
     !isValidFret(command.fret)
   )
-    return fail("INVALID_FRET", `品位必须是 0 到 ${MAX_FRET} 的整数或弹奏标记 x`);
+    return fail("INVALID_FRET", `品位必须是 0 到 ${MAX_FRET} 的整数、弹奏标记 x 或延音标记 -`);
 
   const resolved = resolveCommandRange(document, command.range);
   if (!resolved.ok) return resolved;
@@ -1534,7 +1535,7 @@ const applyScoreCommandInternal = (
       command.type === LXMScoreCommandEnum.SetNote &&
       !isValidFret(command.fret)
     )
-      return fail("INVALID_FRET", `品位必须是 0 到 ${MAX_FRET} 的整数或弹奏标记 x`);
+      return fail("INVALID_FRET", `品位必须是 0 到 ${MAX_FRET} 的整数、弹奏标记 x 或延音标记 -`);
     const factory = createDocumentIdFactory(document);
     let nextBeat: ILXMBeat;
     if (command.type === LXMScoreCommandEnum.SetBeatKind) {

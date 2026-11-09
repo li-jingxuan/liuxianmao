@@ -126,6 +126,7 @@ export {
   hitTestNumberedMark,
   hitTestTechnique,
   hitTestTechniqueTarget,
+  hitTestTuplet,
 } from "./hit-test";
 export { layoutTabCellCaret, layoutTabCellSelection } from "./selection-layout";
 export type {

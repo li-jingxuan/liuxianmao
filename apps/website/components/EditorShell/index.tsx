@@ -45,6 +45,7 @@ import {
   createDeferredFretDraftCommit,
   resolveBeatKindShortcut,
   resolveMutedNoteShortcut,
+  resolveTabContinuationShortcut,
   resolveEditorHistoryShortcut,
 } from "./editor-interaction";
 import { ScoreMusicLayer } from "./ScoreMusicLayer";
@@ -131,7 +132,7 @@ export const EditorShell: React.FC = () => {
     // 工厂只保存保护回调，真正提交及确认时才读取 owner 的实时状态。
     () =>
       // eslint-disable-next-line react-hooks/refs
-      createEditorCommandAdapter(session, modals, (command, submission) => {
+      createEditorCommandAdapter(session, modals, (command, submission, ownModalId) => {
         const reason = editorToolSubmissionReason(
           session.getState(),
           activeMusicTextTargetRef.current,
@@ -142,10 +143,11 @@ export const EditorShell: React.FC = () => {
         if (reason) return reason;
         const blocked =
           command.type === "numbered.event.setRhythm"
-            ? musicTextController.current?.isNumberedActionBlocked()
-             : musicTextController.current?.isOutputBlocked({
+            ? musicTextController.current?.isNumberedActionBlocked({ ignoreModalId: ownModalId })
+            : musicTextController.current?.isOutputBlocked({
                 allowSettingsBusy:
                   command.type === LXMScoreCommandEnum.CopyMeasureRange,
+                ignoreModalId: ownModalId,
               });
         return blocked ? "请先应用或取消属性草稿，再修改音乐。" : null;
       }),
@@ -837,10 +839,10 @@ export const EditorShell: React.FC = () => {
     action();
   };
 
-  /** 将合法品位作为一条原子矩形命令提交，整个选区只产生一条历史。 */
+  /** 将品位或弦格标记作为一条原子矩形命令提交，选区只产生一条历史。 */
   const setSelectedNotes = (fret: ILXMFret) => {
     if (!selection) {
-      setErrorMessage("请先选择谱面中的 TAB 单元格，再输入品位。");
+      setErrorMessage("请先选择谱面中的 TAB 单元格，再输入品位或标记。");
       return;
     }
     execute({
@@ -1053,7 +1055,12 @@ export const EditorShell: React.FC = () => {
       action.techniqueId,
     );
     // 有草稿时只记录待选区，不捕获原 PointerEvent，也不重放已松开的拖动。
-    if (result !== "accepted" || !action.selection || action.techniqueId)
+    if (
+      result !== "accepted" ||
+      !action.selection ||
+      action.techniqueId ||
+      action.startDrag === false
+    )
       return;
     dragAnchorRef.current = action.selection.anchor;
     activePointerIdRef.current = event.pointerId;
@@ -1205,6 +1212,11 @@ export const EditorShell: React.FC = () => {
     if (resolveMutedNoteShortcut(event)) {
       event.preventDefault();
       runImmediateEditorAction(() => setSelectedNotes("x"));
+      return;
+    }
+    if (resolveTabContinuationShortcut(event)) {
+      event.preventDefault();
+      runImmediateEditorAction(() => setSelectedNotes("-"));
       return;
     }
     const beatKindAction = resolveBeatKindShortcut(event);

@@ -15,7 +15,7 @@ import {
   RedoOutlined,
   UndoOutlined,
 } from "@ant-design/icons";
-import type { ILXMRhythm } from "@liuxianmao/lxm-editor";
+import { LXMScoreCommandEnum, type ILXMRhythm } from "@liuxianmao/lxm-editor";
 import {
   useEditorSessionStore,
   useEditorStore,
@@ -174,6 +174,10 @@ export const EditorToolbar = ({
     : !onOpenChord
       ? { enabled: false, reason: "和弦编辑入口暂不可用。" }
       : { enabled: chordTarget.enabled, reason: chordTarget.reason };
+  // 干净的和弦气泡会锁住 TAB 工具，但不应锁住自身的删除入口。
+  const chordDeletionAvailability: ToolAvailability = protectedDraft || drafts.inspect().busy
+    ? { enabled: false, reason: "请先应用或取消当前草稿。" }
+    : chordAvailability;
   const chordActive = activeTarget?.kind === "chord" && !!chordTarget.target &&
     activeTarget.trackId === chordTarget.target.trackId &&
     activeTarget.measureId === chordTarget.target.measureId &&
@@ -478,6 +482,26 @@ export const EditorToolbar = ({
             {!chordTarget.chord && <path d="M20 3v6m-3-3h6" />}
           </svg>
         </ToolButton>
+        {chordTarget.chord && chordTarget.target && (
+          <ToolButton
+            label="删除和弦"
+            title={`删除当前拍的和弦名称与指法 · ${chordTarget.chord.chord.name}`}
+            availability={chordDeletionAvailability}
+            onClick={async () => {
+              if (!chordDeletionAvailability.enabled || !chordTarget.target || !chordTarget.chord) return;
+              beforeAction();
+              const result = await execute({
+                type: LXMScoreCommandEnum.RemoveChordSymbol,
+                ...chordTarget.target,
+                chordSymbolId: chordTarget.chord.id,
+              });
+              if (result.status === "applied" || result.status === "noop") host.current?.close(true);
+              else if ("message" in result) setErrorMessage(result.message);
+            }}
+          >
+            <DeleteOutlined />
+          </ToolButton>
+        )}
       </div>
       </div>
       </div>

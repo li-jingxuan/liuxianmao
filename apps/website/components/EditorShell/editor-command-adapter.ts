@@ -45,9 +45,11 @@ export const createEditorCommandAdapter =
   (
     session: StoreApi<EditorStoreState>,
     modals: EditorModalController,
-    getBlockedReason?: (command: ILXMScoreCommand, submission?: EditorToolSubmission) => string | null,
+    getBlockedReason?: (command: ILXMScoreCommand, submission?: EditorToolSubmission, ownModalId?: number) => string | null,
   ): EditorCommandAdapter =>
   async (command, impact = "modal", submission) => {
+    // 复核草稿时只放行本次命令自己的确认弹窗，背景操作仍受弹窗保护。
+    let ownModalId: number | undefined;
     const snapshot = captureEditorVersion(session.getState());
     const capturedSelection = JSON.stringify(session.getState().selection);
     const capturedNumbered = JSON.stringify(
@@ -61,7 +63,7 @@ export const createEditorCommandAdapter =
         return "目标或文档已变化，请重新操作。";
       const tabReason = (submission?.tabOnly || isTabOnlyToolCommand(command))
         ? tabToolTargetReason(session.getState(), null) : null;
-      return tabReason ?? getBlockedReason?.(command, submission) ?? null;
+      return tabReason ?? getBlockedReason?.(command, submission, ownModalId) ?? null;
     };
     const initialReason = currentReason();
     if (initialReason) return { status: "blocked", message: initialReason };
@@ -145,6 +147,7 @@ export const createEditorCommandAdapter =
                 },
               ),
           });
+          ownModalId = id ?? undefined;
           if (id === null)
             resolve({ status: "blocked", message: "请先完成当前弹层操作。" });
         });
@@ -241,6 +244,7 @@ export const createEditorCommandAdapter =
               },
             ),
         });
+        ownModalId = id ?? undefined;
         if (id === null)
           resolve({ status: "blocked", message: "请先完成当前弹层操作。" });
       });
@@ -292,6 +296,7 @@ export const createEditorCommandAdapter =
             },
           ),
       });
+      ownModalId = id ?? undefined;
       if (id === null)
         resolve({ status: "blocked", message: "请先完成当前弹层操作。" });
     });

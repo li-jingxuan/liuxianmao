@@ -104,8 +104,8 @@ type SidebarAction = DraftSidebarAction & {
 export interface MusicTextController {
   navigateTool: (destination: ToolNavigation) => SelectionRequestResult;
   /** 输出前只读检查草稿，不自动提交或取消用户输入。 */
-  isOutputBlocked: (options?: { allowSettingsBusy?: boolean }) => boolean;
-  isNumberedActionBlocked: () => boolean;
+  isOutputBlocked: (options?: { allowSettingsBusy?: boolean; ignoreModalId?: number }) => boolean;
+  isNumberedActionBlocked: (options?: { ignoreModalId?: number }) => boolean;
   isTransitionBlocked: () => boolean;
   canCollapse: () => boolean;
   restoreSidebarFocus: () => void;
@@ -378,6 +378,8 @@ export const MusicTextSidebar = ({
     : kind === "numbered"
       ? (numberedTarget?.eventId ? "修改简谱" : "连续录入")
       : `歌词 · 第 ${draft?.target.verse ?? 1} 段`;
+  const removingChord = draft?.target.kind === "chord" && !!existing &&
+    draft.chord.chord.name.trim() === "";
   const sequence =
     draft?.target.kind === "lyric" && draft.lyricMode === "sequence";
   const parsed = useMemo(
@@ -410,6 +412,7 @@ export const MusicTextSidebar = ({
         : normalizeMusicText(draft.text, 64) === null
           ? "歌词须为单行非空文本，最多 64 个字符。"
           : null
+      : removingChord ? null
       : normalizeMusicText(draft.chord.chord.name, 32) === null
         ? "和弦名须为单行非空文本，最多 32 个字符。"
         : draft.chord.chord.diagram
@@ -452,9 +455,9 @@ export const MusicTextSidebar = ({
     numberedBusy || !!activeModal;
   const transitionBlocked = surfaceDisabled || !!settingsStatus?.busy || !!settingsStatus?.composing;
   useEffect(() => onTransitionBlockedChange?.(transitionBlocked), [transitionBlocked, onTransitionBlockedChange]);
-  const surfaceBlocked = useCallback(() =>
+  const surfaceBlocked = useCallback((ignoreModalId?: number) =>
     composing.current || compositionCoolingRef.current || compositionActive || compositionCooling ||
-    !!pending || numberedBusy || !!activeModal || navigationApplying.current,
+    !!pending || numberedBusy || (!!activeModal && activeModal.id !== ignoreModalId) || navigationApplying.current,
     [compositionActive, compositionCooling, pending, numberedBusy, activeModal]);
   const focusSidebar = useCallback((
     group?: NumberedDraftGroup,
@@ -823,7 +826,7 @@ export const MusicTextSidebar = ({
       (!(composing.current || compositionCoolingRef.current) || (kind !== "chord" && compositionSurface.current === "popover")),
     isTransitionBlocked: () => surfaceBlocked() || !!settingsRef.current?.isComposing() || !!settingsRef.current?.readStatus().busy || !!numberedRef.current?.readStatus().busy,
     isOutputBlocked: (options) =>
-      surfaceBlocked() ||
+      surfaceBlocked(options?.ignoreModalId) ||
       !!settingsRef.current?.isComposing() ||
       (!options?.allowSettingsBusy && !!settingsRef.current?.readStatus().busy) ||
       !!numberedRef.current?.readStatus().busy ||
@@ -831,8 +834,8 @@ export const MusicTextSidebar = ({
       (activeTextOwner.current && renderedGeneration === ownerGeneration.current && !!numberedRef.current?.dirty) ||
       !!settingsRef.current?.isDirty() ||
       (activeTextOwner.current && renderedGeneration === ownerGeneration.current && !!draft && musicTextDraftValue(draft) !== draft.initial),
-    isNumberedActionBlocked: () =>
-      surfaceBlocked() ||
+    isNumberedActionBlocked: (options) =>
+      surfaceBlocked(options?.ignoreModalId) ||
       !!settingsRef.current?.isComposing() ||
       !!settingsRef.current?.readStatus().busy ||
       !!numberedRef.current?.readStatus().busy ||
@@ -1149,7 +1152,11 @@ export const MusicTextSidebar = ({
               verse: target.verse!,
               text: draft.text,
             }
-        : {
+        : removingChord && existing ? {
+            type: LXMScoreCommandEnum.RemoveChordSymbol,
+            ...target,
+            chordSymbolId: existing.id,
+          } : {
             type: LXMScoreCommandEnum.SetChordSymbol,
             ...target,
             ...draft.chord,
@@ -1167,7 +1174,7 @@ export const MusicTextSidebar = ({
         initial: musicTextDraftValue(draft),
       });
     } else setDraft(saved);
-    setMessage(result.changed ? "已应用" : "内容未变化");
+    setMessage(result.changed ? removingChord ? "已删除，保留当前拍点。" : "已应用" : "内容未变化");
     if (advance && target.kind === "lyric" && !sequence) {
       const next = resolveNextLyricTarget(
         result.document,
@@ -2141,6 +2148,7 @@ export const MusicTextSidebar = ({
              {floating && kind === "chord" && draft && <div inert={(compositionActive || compositionCooling) && compositionOrigin === "sidebar"}>
                <ChordQuickEditor
                  draft={draft.chord}
+                 allowEmptyName={!!existing}
                  inputRef={(element) => { popoverInputRef.current = element; }}
                  onChange={(chord) => {
                    if (JSON.stringify(chord) !== JSON.stringify(draft.chord)) setTextConflict(false);

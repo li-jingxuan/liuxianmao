@@ -45,6 +45,17 @@ function view(overrides: Partial<ChordQuickEditorProps> = {}) {
 }
 
 describe("和弦快捷表单", () => {
+  it("已有和弦允许清空名称并提示删除，新建空名称仍报错", () => {
+    const draft = { display: "nameAndDiagram" as const, chord: { ...copyChordPreset("C")!, name: "" } };
+    const existing = view({ draft, allowEmptyName: true });
+    const input = existing.elements.find((element) => element.props.id === "chord-popover-name")!;
+    expect(input.props["aria-invalid"]).toBe(false);
+    expect(existing.html).toContain("应用后将删除当前拍的和弦名称与指法");
+    expect(view({ draft }).html).toContain("不能为空");
+    const invalid = view({ draft: { ...draft, chord: { ...draft.chord, name: "C".repeat(33) } }, allowEmptyName: true });
+    expect(invalid.html).toContain("不能为空");
+  });
+
   it("名称仅更新文本，保留指法引用及显示方式", () => {
     const value = view();
     const input = value.elements.find(

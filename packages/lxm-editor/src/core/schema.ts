@@ -173,13 +173,14 @@ export const LXMRhythmSchema = z
   })
   .strict() satisfies z.ZodType<ILXMRhythm>;
 
-/** 六线谱音符校验，string 为弦号，fret 为品位。 */
+/** 六线谱音符校验，fret 为品位、弹奏标记 x 或延音标记 -。 */
 export const LXMNoteSchema = z
   .object({
     id: z.string(),
     string: z.number().int().min(MIN_GUITAR_STRING_INDEX),
     fret: z.union([
       z.literal("x"),
+      z.literal("-"),
       z.number().int().min(MIN_NON_NEGATIVE_INTEGER).max(MAX_FRET),
     ]),
   })

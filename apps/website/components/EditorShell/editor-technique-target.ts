@@ -47,6 +47,7 @@ export const resolveTechniqueDraft = (
   switch (type) {
     case "bend": case "trill": case "vibrato": case "naturalHarmonic": case "artificialHarmonic": case "tapping":
       if (!focus) return fail("该技巧需要 focus 单元格中已有品位音符。");
+      if (focus.fret === "-") return fail("横线延音标记不能作为音符技巧的目标，请选择实际起音。");
       return result(type === "bend"
         ? { type, fromNoteId: focus.id, semitones: parameters.semitones }
         : type === "trill"
@@ -66,6 +67,8 @@ export const resolveTechniqueDraft = (
       const to = explicit && explicit.id !== from.id
         ? explicit : findNextNoteOnSameStringInTrack(track, from.id)?.note;
       if (!to) return fail("没有找到可连接的同弦下一音，请调整选区。");
+      if (from.fret === "-" || to.fret === "-")
+        return fail("横线延音标记不能作为连接技巧的端点，请选择实际起音。");
       return result({ type, fromNoteId: from.id, toNoteId: to.id });
     }
     case "strum": case "arpeggio": {

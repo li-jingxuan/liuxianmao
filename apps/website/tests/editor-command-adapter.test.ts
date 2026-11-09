@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  DEFAULT_MOCK_DOCUMENT,
   EXAMPLE_MVP_7_2_DOCUMENT,
   LXMScoreCommandEnum,
 } from "@liuxianmao/lxm-editor";
@@ -112,5 +113,46 @@ describe("统一结构命令适配器", () => {
     expect(await modals.confirm(nextModal.id)).toBe(true);
     expect(await second).toMatchObject({ status: "applied" });
     expect(session.getState().historyDepth.past).toBe(1);
+  });
+
+  it.each([
+    ["原示例", EXAMPLE_MVP_7_2_DOCUMENT],
+    ["当前默认 mock", DEFAULT_MOCK_DOCUMENT],
+  ])("%s：删除确认只放行自己的弹窗，仍检查属性草稿且可一次撤销", async (_name, document) => {
+    const session = createEditorSession(document);
+    const original = session.getState().document!;
+    const track = original.score.tracks[0]!;
+    const modals = createEditorModalController(session.getState, () => vi.fn());
+    let dirty = false;
+    // 对应侧栏的输出保护：弹窗阻断背景操作，但命令自己的确认不能阻断自身。
+    const guard = vi.fn((_command, _submission, ownModalId?: number) =>
+      dirty || (modals.isOpen() && modals.getSnapshot()!.id !== ownModalId)
+        ? "请先处理属性草稿或弹窗。" : null,
+    );
+    const execute = createEditorCommandAdapter(session, modals, guard);
+    const command = {
+      type: LXMScoreCommandEnum.RemoveMeasure,
+      trackId: track.id,
+      measureId: track.measures[0]!.id,
+    } as const;
+
+    const pending = execute(command);
+    const modal = modals.getSnapshot()!;
+    expect(await execute(command)).toMatchObject({ status: "blocked" });
+    expect(session.getState().document).toBe(original);
+    expect(await modals.confirm(modal.id)).toBe(true);
+    expect(await pending).toMatchObject({ status: "applied" });
+    expect(session.getState().document!.score.tracks[0]!.measures.map((m) => m.id))
+      .toEqual(track.measures.slice(1).map((m) => m.id));
+    expect(session.getState().historyDepth.past).toBe(1);
+    session.getState().undo();
+    expect(session.getState().document).toBe(original);
+
+    const blocked = execute(command);
+    dirty = true;
+    expect(await modals.confirm(modals.getSnapshot()!.id)).toBe(false);
+    expect(await blocked).toMatchObject({ status: "stale" });
+    expect(session.getState().document).toBe(original);
+    expect(session.getState().historyDepth.past).toBe(0);
   });
 });

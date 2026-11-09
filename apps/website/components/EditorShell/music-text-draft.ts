@@ -67,6 +67,8 @@ export type SidebarAction =
       type: "selection";
       selection: ILXMTabCellSelection | null;
       techniqueId?: string;
+      /** 连音标注的一键整组选区不随本次指针移动改变。 */
+      startDrag?: false;
     }
   | { type: "mode"; mode: MusicTextDraft["lyricMode"] }
   | { type: "close" }

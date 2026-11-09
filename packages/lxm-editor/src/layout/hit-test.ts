@@ -6,6 +6,7 @@
 
 import { getBeatCellBounds } from "./beat-cell-bounds";
 import { LXM_STRING_HIT_RADIUS_Y } from "./layout-constants";
+import { getTextBounds } from "./technique-geometry";
 import type {
   ILXMHitIndex,
   ILXMHitTarget,
@@ -167,6 +168,53 @@ const isPointInBounds = (
   point.x <= bounds.x + bounds.width &&
   point.y >= bounds.y &&
   point.y <= bounds.y + bounds.height;
+
+/** TAB 连音直接消费最终布局；只命中数字及括号线段附近，不占用组内空白。 */
+export const hitTestTuplet = (
+  layout: ILXMLayout,
+  point: ILXMLayoutPoint,
+  tolerance = 4,
+) => {
+  for (const system of layout.systems) {
+    for (const measure of system.measures) {
+      for (const group of measure.tuplets) {
+        const bracket = group.bracket;
+        const onBracket = bracket?.lines.some((line) => {
+          const dx = line.x2 - line.x1;
+          const dy = line.y2 - line.y1;
+          const lengthSquared = dx * dx + dy * dy;
+          const t = lengthSquared
+            ? Math.max(
+                0,
+                Math.min(
+                  1,
+                  ((point.x - line.x1) * dx + (point.y - line.y1) * dy) /
+                    lengthSquared,
+                ),
+              )
+            : 0;
+          return (
+            Math.hypot(
+              point.x - line.x1 - t * dx,
+              point.y - line.y1 - t * dy,
+            ) <= tolerance + bracket.strokeWidth / 2
+          );
+        });
+        if (
+          isPointInBounds(point, getTextBounds(group.label, tolerance)) ||
+          onBracket
+        )
+          return {
+            trackId: layout.trackId,
+            measureId: measure.id,
+            tupletId: group.id,
+            beatIds: group.beatIds,
+          };
+      }
+    }
+  }
+  return null;
+};
 
 /**
  * 将逻辑坐标转换为稳定编辑目标。

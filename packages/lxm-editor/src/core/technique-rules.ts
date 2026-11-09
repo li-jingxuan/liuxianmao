@@ -199,6 +199,12 @@ export const validateTechnique = (
       );
     if (!to)
       return fail("TECHNIQUE_NOTE_NOT_FOUND", "技巧目标音符不存在", "toNoteId");
+    if (from.note.fret === "-" || to.note.fret === "-")
+      return fail(
+        "TECHNIQUE_TARGET_INVALID",
+        "延音标记 - 不能作为音符技巧的起点或终点",
+        from.note.fret === "-" ? "fromNoteId" : "toNoteId",
+      );
     if (from.beat.order >= to.beat.order)
       return fail(
         "TECHNIQUE_NOTES_NOT_ORDERED",
@@ -256,6 +262,12 @@ export const validateTechnique = (
       return fail(
         "TECHNIQUE_NOTE_NOT_FOUND",
         "技巧目标音符不存在",
+        "fromNoteId",
+      );
+    if (target.note.fret === "-")
+      return fail(
+        "TECHNIQUE_TARGET_INVALID",
+        "延音标记 - 不能作为音符技巧的目标",
         "fromNoteId",
       );
     if (

@@ -44,6 +44,8 @@ export const extendBeat = (
     return reject("请先删除源拍连音组，再延续一拍", "BEAT_IN_TUPLET");
   if (source.kind !== "notes" || source.notes.length === 0)
     return reject("延续一拍需要包含音符的源拍，不能延续空拍或休止");
+  if (source.notes.some((note) => note.fret === "-"))
+    return reject("含有延音标记 - 的源拍不能延续一拍，请选择实际起音");
   const duration = calculateRhythmTicks(source.rhythm);
   if (!duration.ok) return reject("源拍时值无效");
   const startTick = source.tick + duration.ticks;
