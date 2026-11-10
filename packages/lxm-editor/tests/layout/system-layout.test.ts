@@ -4,7 +4,14 @@ import { getDurationFlagBottom } from "../../src/layout/rhythm-bounds";
 import EXAMPLE_MVP_2 from "../../example/example-mvp2.json";
 import { loadDocument } from "../../src/core/loader";
 import { buildLayout } from "../../src/layout";
-import { LXM_SYSTEM_HEADER_WIDTH } from "../../src/layout/layout-constants";
+import {
+  LXM_LAYOUT_DENSITY_PROFILES,
+  LXM_SYSTEM_HEADER_WIDTH,
+  LXM_TIME_SIGNATURE_WIDTH,
+} from "../../src/layout/layout-constants";
+import { summarizeMeasureSpacingWidth } from "../../src/layout/measure-spacing";
+import type { ILXMLayoutDensity } from "../../src/layout/layout-types";
+import { shouldShowTimeSignature } from "../../src/layout/time-signature-layout";
 import EXAMPLE_MVP_7_2_DOCUMENT from "../../example/example-mvp7.2";
 
 /** 供断行测试复用的固定逻辑宽度；每行应容纳两个标准四分小节。 */
@@ -34,9 +41,24 @@ const documentWithMeasures = (measureIndexes: number[]) => ({
   },
 });
 
+/** 使用实际节奏摘要核对内容比例，固定拍号不计入可拉伸宽度。 */
+const intrinsicSpacing = (
+  document: ReturnType<typeof documentWithMeasures>,
+  density: ILXMLayoutDensity,
+) => {
+  const measures = document.score.tracks[0]!.measures;
+  return measures.map((measure, index) =>
+    summarizeMeasureSpacingWidth(
+      measure,
+      density,
+      shouldShowTimeSignature(measures, index) ? LXM_TIME_SIGNATURE_WIDTH : 0,
+    ),
+  );
+};
+
 describe("buildLayout 的 system 自动换行", () => {
   it.each(["editing", "presentation"] as const)(
-    "%s 混合谱的每行铺满相同边界，删除技巧后重排仍对齐",
+    "%s 混合谱按实际行宽收束，删除技巧后重排仍保持几何一致",
     (purpose) => {
       const document = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);
       const options = {
@@ -59,9 +81,14 @@ describe("buildLayout 的 system 自动换行", () => {
         ).toEqual(document.score.tracks[0]!.measures.map((measure) => measure.id));
         for (const system of layout.systems) {
           expect(system.x).toBe(options.x);
-          expect(system.width).toBeCloseTo(options.systemWidth);
+          expect(system.width).toBeLessThanOrEqual(options.systemWidth);
+          if (
+            system.index < layout.systems.length - 1 &&
+            system.measures.length > 1
+          )
+            expect(system.width).toBeCloseTo(options.systemWidth);
           const last = system.measures.at(-1)!;
-          expect(last.x + last.width).toBeCloseTo(options.x + options.systemWidth);
+          expect(last.x + last.width).toBeCloseTo(system.x + system.width);
           for (const measure of system.measures) {
             for (const string of measure.strings) {
               expect(string.x1).toBeCloseTo(measure.x);
@@ -229,12 +256,26 @@ describe("buildLayout 的 system 自动换行", () => {
 
   it("超宽小节独占一行而不被缩放或丢弃", () => {
     const layout = buildLayout(EXAMPLE_MVP_2, { systemWidth: 100 });
+    const summaries = intrinsicSpacing(EXAMPLE_MVP_2, "comfortable");
 
     expect(layout.systems).toHaveLength(8);
     expect(layout.systems.every((system) => system.measures.length === 1)).toBe(
       true,
     );
     expect(layout.systems[0]!.width).toBeGreaterThan(100);
+    layout.systems.forEach((system, index) => {
+      const measure = system.measures[0]!;
+      expect(measure.width).toBeCloseTo(summaries[index]!.assignedWidth);
+      measure.beats.forEach((beat, beatIndex) => {
+        expect(beat.width).toBeCloseTo(
+          summaries[index]!.columns[beatIndex]!.idealWidth,
+        );
+      });
+      expect(system.width).toBeCloseTo(LXM_SYSTEM_HEADER_WIDTH + measure.width);
+    });
+    expect(layout.width).toBe(
+      Math.max(...layout.systems.map((system) => system.width)),
+    );
   });
 
   it("内容足够密集时，包括末行在内的 System 仍拉伸到目标宽度", () => {
@@ -254,21 +295,40 @@ describe("buildLayout 的 system 自动换行", () => {
     }
   });
 
-  it("包含两个短小节的末行仍铺满，固定小节间隔不变", () => {
+  it("包含两个不同密度小节的末行按内容比例封顶，固定拍号、padding 和间隔不变", () => {
     const measureIndexes = [0, 1];
     const systemWidth = A4_COMPACT_SYSTEM_WIDTH;
     const measureGap = 12;
-    const layout = buildLayout(documentWithMeasures(measureIndexes), {
+    const document = documentWithMeasures(measureIndexes);
+    const summaries = intrinsicSpacing(document, "compact");
+    const layout = buildLayout(document, {
       systemWidth,
       density: "compact",
       measureGap,
+      x: 17,
     });
     const system = layout.systems[0]!;
     expect(system.measures).toHaveLength(2);
-    expect(system.width).toBeCloseTo(systemWidth);
+    expect(summaries[0]!.contentWidth).not.toBe(summaries[1]!.contentWidth);
+    const fixedWidth =
+      LXM_SYSTEM_HEADER_WIDTH + LXM_TIME_SIGNATURE_WIDTH +
+      4 * LXM_LAYOUT_DENSITY_PROFILES.compact.measurePaddingX + measureGap +
+      summaries.reduce((sum, summary) => sum + summary.leftExtra + summary.tailExtra, 0);
+    expect(system.width).toBeCloseTo(
+      fixedWidth + summaries.reduce(
+        (sum, summary) => sum + summary.contentWidth * 1.6,
+        0,
+      ),
+    );
+    expect(system.width).toBeLessThan(systemWidth);
     expect(
       system.measures.at(-1)!.x + system.measures.at(-1)!.width,
-    ).toBeCloseTo(system.x + systemWidth);
+    ).toBeCloseTo(system.x + system.width);
+    system.measures.forEach((measure, index) => {
+      expect(measure.width - summaries[index]!.assignedWidth).toBeCloseTo(
+        summaries[index]!.contentWidth * 0.6,
+      );
+    });
     expect(
       system.measures[1]!.x -
         (system.measures[0]!.x + system.measures[0]!.width),
@@ -277,7 +337,9 @@ describe("buildLayout 的 system 自动换行", () => {
 
   it("非末行的多小节 System 继续铺满目标宽度", () => {
     const systemWidth = TWO_MEASURES_PER_SYSTEM_WIDTH;
-    const layout = buildLayout(documentWithMeasures([0, 1, 2]), {
+    const document = documentWithMeasures([0, 1, 2]);
+    const summaries = intrinsicSpacing(document, "comfortable");
+    const layout = buildLayout(document, {
       systemWidth,
     });
     const firstSystem = layout.systems[0]!;
@@ -287,13 +349,23 @@ describe("buildLayout 的 system 自动换行", () => {
     expect(
       firstSystem.measures.at(-1)!.x + firstSystem.measures.at(-1)!.width,
     ).toBeCloseTo(firstSystem.x + systemWidth);
+    const contentScales = firstSystem.measures.map(
+      (measure, index) =>
+        (measure.width - summaries[index]!.assignedWidth) /
+        summaries[index]!.contentWidth,
+    );
+    expect(contentScales[0]).toBeCloseTo(contentScales[1]!);
   });
 
-  it("放不下下一小节时，单小节行与末行也对齐同一右边界", () => {
+  it("放不下下一小节时，非末行的单小节同样限制内容拉伸", () => {
     const measureIndexes = [0, 1];
-    // 330 放不下两个小节；每行的小节都应扩宽到相同的右边界。
-    const systemWidth = 330;
-    const layout = buildLayout(documentWithMeasures(measureIndexes), {
+    // 行宽低于两小节硬宽之和，压缩到硬边界仍无法合行。
+    const document = documentWithMeasures(measureIndexes);
+    const summaries = intrinsicSpacing(document, "compact");
+    const systemWidth = LXM_SYSTEM_HEADER_WIDTH + summaries.reduce(
+      (sum, summary) => sum + summary.minWidth, 0,
+    ) - 1;
+    const layout = buildLayout(document, {
       systemWidth,
       density: "compact",
     });
@@ -301,25 +373,83 @@ describe("buildLayout 的 system 自动换行", () => {
 
     expect(layout.systems).toHaveLength(2);
     expect(firstSystem.measures).toHaveLength(1);
-    for (const system of layout.systems) {
-      expect(system.width).toBeCloseTo(systemWidth);
+    expect(firstSystem.width).toBeLessThanOrEqual(systemWidth);
+    for (const [index, system] of layout.systems.entries()) {
+      const summary = summaries[index]!;
+      expect(system.width).toBeCloseTo(
+        Math.min(
+          systemWidth,
+          LXM_SYSTEM_HEADER_WIDTH + summary.assignedWidth + summary.contentWidth * 0.6,
+        ),
+      );
       const last = system.measures.at(-1)!;
-      expect(last.x + last.width).toBeCloseTo(system.x + systemWidth);
+      expect(last.x + last.width).toBeCloseTo(system.x + system.width);
     }
   });
 
-  it("稀疏末行与画布均使用完整目标宽度", () => {
-    const systemWidth = A4_COMPACT_SYSTEM_WIDTH;
-    const layout = buildLayout(documentWithMeasures([0, 1]), {
-      systemWidth,
-      density: "compact",
-    });
+  it.each(["comfortable", "compact"] as const)(
+    "%s 不同时值密度的单小节内容最多展开至 1.6 倍，画布保留目标宽度",
+    (density) => {
+      for (const measureIndex of [0, 1, 2]) {
+        const document = documentWithMeasures([measureIndex]);
+        const summary = intrinsicSpacing(document, density)[0]!;
+        const padding = LXM_LAYOUT_DENSITY_PROFILES[density].measurePaddingX;
+        const layout = buildLayout(document, { systemWidth: 2000, density, x: 17 });
+        const system = layout.systems[0]!;
+        const measure = system.measures[0]!;
+        expect(layout.width).toBe(2000);
+        expect(system.width).toBeLessThan(layout.width);
+        expect(system.width).toBeCloseTo(
+          LXM_SYSTEM_HEADER_WIDTH + 2 * padding + LXM_TIME_SIGNATURE_WIDTH +
+            summary.contentWidth * 1.6,
+        );
+        expect(measure.beats[0]!.x - measure.x).toBeCloseTo(
+          padding + LXM_TIME_SIGNATURE_WIDTH,
+        );
+        measure.beats.forEach((beat, index) => {
+          expect(beat.width).toBeCloseTo(summary.columns[index]!.idealWidth * 1.6);
+        });
+        const lastBeat = measure.beats.at(-1)!;
+        expect(measure.x + measure.width - lastBeat.x - lastBeat.width).toBeCloseTo(
+          padding,
+        );
 
-    expect(layout.systems[0]!.width).toBe(systemWidth);
-    expect(layout.width).toBe(systemWidth);
-  });
+        // 固有宽恰好达到行宽，或只需小幅展开即可填满时，均保留完整边界。
+        const intrinsicSystemWidth = LXM_SYSTEM_HEADER_WIDTH + summary.assignedWidth;
+        for (const systemWidth of [
+          intrinsicSystemWidth,
+          intrinsicSystemWidth + summary.contentWidth * 0.3,
+        ]) {
+          const dense = buildLayout(document, { systemWidth, density });
+          const denseSystem = dense.systems[0]!;
+          expect(denseSystem.width).toBeCloseTo(systemWidth);
+          expect(denseSystem.measures[0]!.width).toBeGreaterThanOrEqual(
+            summary.assignedWidth,
+          );
+        }
+      }
+    },
+  );
 
-  it("紧凑排版让 A4 规范谱例优先按每行四小节断行", () => {
+  it.each(["comfortable", "compact"] as const)(
+    "%s 编辑、预览/导出与默认 purpose 的 TAB 谱行几何一致",
+    (density) => {
+      for (const indexes of [[0], [0, 1], [0, 1, 2], [0, 1, 2, 3, 4, 5, 6, 7]]) {
+        const document = documentWithMeasures(indexes);
+        const options = { systemWidth: A4_COMPACT_SYSTEM_WIDTH, density };
+        const presentation = buildLayout(document, {
+          ...options,
+          purpose: "presentation",
+        });
+        expect(buildLayout(document, { ...options, purpose: "editing" })).toEqual(
+          presentation,
+        );
+        expect(buildLayout(document, options)).toEqual(presentation);
+      }
+    },
+  );
+
+  it("紧凑排版让 A4 规范谱例按五小节和三小节断行", () => {
     const layout = buildLayout(EXAMPLE_MVP_2, {
       systemWidth: A4_COMPACT_SYSTEM_WIDTH,
       density: "compact",
@@ -327,29 +457,49 @@ describe("buildLayout 的 system 自动换行", () => {
 
     expect(layout.systems).toHaveLength(2);
     expect(layout.systems.map((system) => system.measures.length)).toEqual([
-      4, 4,
+      5, 3,
     ]);
+    expect(layout.systems[0]!.width).toBe(A4_COMPACT_SYSTEM_WIDTH);
+    const finalSummaries = intrinsicSpacing(EXAMPLE_MVP_2, "compact").slice(5);
+    expect(layout.systems[1]!.width).toBeCloseTo(
+      LXM_SYSTEM_HEADER_WIDTH + finalSummaries.reduce(
+        (sum, summary) => sum + summary.assignedWidth + summary.contentWidth * 0.6,
+        0,
+      ),
+    );
+    expect(layout.systems[1]!.width).toBeLessThan(A4_COMPACT_SYSTEM_WIDTH);
     for (const system of layout.systems) {
-      expect(system.width).toBe(A4_COMPACT_SYSTEM_WIDTH);
-      expect(system.measures.at(-1)!.x + system.measures.at(-1)!.width).toBe(
-        A4_COMPACT_SYSTEM_WIDTH,
+      expect(system.measures.at(-1)!.x + system.measures.at(-1)!.width).toBeCloseTo(
+        system.x + system.width,
       );
     }
   });
 
-  it("紧凑排版不会把复杂小节压缩到固有宽度以下", () => {
+  it("紧凑排版允许低于理想宽，但复杂小节仍不低于硬宽", () => {
     const layout = buildLayout(EXAMPLE_MVP_2, {
       systemWidth: 200,
       density: "compact",
     });
 
-    expect(layout.systems.every((system) => system.measures.length === 1)).toBe(
-      true,
+    const summaries = intrinsicSpacing(EXAMPLE_MVP_2, "compact");
+    const measures = layout.systems.flatMap((system) => system.measures);
+    expect(measures.map((measure) => measure.id)).toEqual(
+      EXAMPLE_MVP_2.score.tracks[0]!.measures.map((measure) => measure.id),
     );
-    expect(layout.systems[2]!.width).toBeGreaterThan(200);
-    expect(
-      layout.systems[2]!.measures[0]!.beats.every((beat) => beat.width >= 15),
-    ).toBe(true);
+    measures.forEach((measure, index) => {
+      expect(measure.width).toBeGreaterThanOrEqual(summaries[index]!.minWidth - 1e-8);
+      expect(measure.beats.every((beat) => beat.width >= 9 - 1e-8)).toBe(true);
+    });
+    expect(measures.some((measure, index) =>
+      measure.width < summaries[index]!.idealWidth - 1e-8,
+    )).toBe(true);
+    for (const system of layout.systems) {
+      if (system.width <= 200) continue;
+      expect(system.measures).toHaveLength(1);
+      const measure = system.measures[0]!;
+      const summary = summaries.find((item) => item.measureId === measure.id)!;
+      expect(summary.minWidth + LXM_SYSTEM_HEADER_WIDTH).toBeGreaterThan(200);
+    }
   });
 
   it("measureGap 不参与内容拉伸，最终右边界仍与目标宽度一致", () => {

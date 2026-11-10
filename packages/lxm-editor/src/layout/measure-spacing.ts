@@ -35,6 +35,11 @@ interface ILXMMeasureSpacingSummary {
   assignedWidth: number;
   leftExtra: number;
   tailExtra: number;
+  /** compact 的硬边界；与理想边界同整套 DAG 位置一起插值。 */
+  hardLeftExtra?: number;
+  hardTailExtra?: number;
+  /** System 对整行采用同一比例，跨小节约束因而也保持可行。 */
+  compressionRatio?: number;
   slotsByBeatId: Record<string, ILXMBeatLayout>;
   slotsByNumberedEventId: Record<string, ILXMNumberedSlotLayout>;
   xByTick: Record<number, number>;
@@ -124,14 +129,17 @@ export const summarizeMeasureSpacingWidth = (
   numberedOptions?: { purpose?: ILXMLayoutPurpose; active?: boolean },
 ): ILXMSummarizeMeasureSpacingWidth => {
   const profile = LXM_LAYOUT_DENSITY_PROFILES[density];
-  if (measure.numberedVoice.events.length || numberedOptions?.active)
+  if (density === "compact" || measure.numberedVoice.events.length || numberedOptions?.active)
     return summarizeTimeGrid(
       measure,
       density,
       leadingWidth,
       musicTextMetrics,
       techniqueInsets,
-      numberedOptions?.purpose,
+      // 隐藏简谱层的纯 TAB 不预留编辑输入框；各输出用途共享正文几何。
+      measure.numberedVoice.events.length || numberedOptions?.active
+        ? numberedOptions?.purpose
+        : "presentation",
     );
   // 计算每个 beat 节拍列信息
   const columns = buildRhythmicColumns(measure, density);
@@ -169,7 +177,8 @@ export const summarizeMeasureSpacingWidth = (
     columns[0] && techniqueInsets?.get(columns[0].tabBeatIds[0]!);
   const leftExtra = Math.max(
     textInsets.leftExtra,
-    (firstInset?.left ?? 0) + 2 - profile.measurePaddingX - leadingWidth,
+    (firstInset?.left ?? 0) +
+      2 - profile.measurePaddingX - leadingWidth,
   );
   const tailExtra = textInsets.tailExtra;
   columns.forEach((column) => {
@@ -209,9 +218,9 @@ export const summarizeMeasureSpacingWidth = (
 /**
  * 将节奏列转换成最终 beat slot。
  *
- * 小节左右 padding 始终保持固定；System 分配的额外宽度只进入节奏内容区，并按
- * 每个 column 的固有 idealWidth 成比例分配。因此该函数不会通过放大首尾空白来
- * 假装对齐，小节中的拍点、音符、休止符和后续命中区域都会使用真实拉伸后的坐标。
+ * compact 在完整硬/理想位置之间统一插值，首尾保护边界也使用同一系数。
+ * 超出理想宽度的额外空间只进入节奏内容区，并按 idealWidth 比例分配。
+ * 拍点、音符、休止符与后续命中区域共用最终位置。
  */
 export const layoutMeasureSpacing = (
   measure: ILXMMeasure,
@@ -243,26 +252,33 @@ export const layoutMeasureSpacing = (
   const intrinsicWidth = summary.assignedWidth;
   const assignedWidth = context.assignedWidth ?? intrinsicWidth;
 
-  // 本轮算法只负责扩张。若允许 assignedWidth 落在 minWidth 和 idealWidth
-  // 之间，extraWidth 会变成负数并悄悄压缩节奏列，违背 System 对齐的契约。
-  // EPSILON 只容忍上层残差吸收可能带来的机器精度误差，不允许真实压缩。
+  const minimumWidth = density === "compact" ? summary.minWidth : intrinsicWidth;
   const widthEpsilon = Number.EPSILON * Math.max(1, intrinsicWidth) * 8;
   if (
     !Number.isFinite(assignedWidth) ||
-    assignedWidth + widthEpsilon < intrinsicWidth
+    assignedWidth + widthEpsilon < minimumWidth
   ) {
     throw new RangeError(
-      `assignedWidth 必须是大于等于小节固有宽度 ${intrinsicWidth} 的有限数值，实际为 ${assignedWidth}`,
+      `assignedWidth 必须是大于等于小节最小宽度 ${minimumWidth} 的有限数值，实际为 ${assignedWidth}`,
     );
   }
 
-  const extraWidth = assignedWidth - intrinsicWidth;
+  const ratio = density === "compact"
+    ? summary.compressionRatio ?? (summary.idealWidth > summary.minWidth
+        ? Math.min(1, Math.max(0,
+            (assignedWidth - summary.minWidth) / (summary.idealWidth - summary.minWidth)))
+        : 1)
+    : 1;
+  const interpolate = (hard: number, ideal: number) => hard + (ideal - hard) * ratio;
+  const leftExtra = interpolate(summary.hardLeftExtra ?? summary.leftExtra, summary.leftExtra);
+  const tailExtra = interpolate(summary.hardTailExtra ?? summary.tailExtra, summary.tailExtra);
+  const extraWidth = Math.max(0, assignedWidth - intrinsicWidth);
   const assignedContentWidth =
     assignedWidth -
     profile.measurePaddingX * 2 -
     leadingWidth -
-    summary.leftExtra -
-    summary.tailExtra;
+    leftExtra -
+    tailExtra;
   let allocatedContentWidth = 0;
 
   // 计算每个 beat 节拍的x坐标信息
@@ -273,7 +289,7 @@ export const layoutMeasureSpacing = (
   // 弦线仍从 measure.x 开始，但第一个 beat 必须越过左 padding 和拍号前导区。
   // 这样拍号可以画在六线谱上，同时不会压住第一拍品位数字或命中区域。
   let cursorX =
-    context.x + profile.measurePaddingX + leadingWidth + summary.leftExtra;
+    context.x + profile.measurePaddingX + leadingWidth + leftExtra;
   const sourceBeats = new Map(measure.beats.map((b) => [b.id, b]));
   const sourceEvents = new Map(
     measure.numberedVoice.events.map((e) => [e.id, e]),
@@ -284,7 +300,7 @@ export const layoutMeasureSpacing = (
     // 避免多次浮点加法让最后一个 slot 偏离右 padding。
     const proportionalWidth =
       summary.contentWidth > 0
-        ? column.idealWidth +
+        ? interpolate(column.minWidth, column.idealWidth) +
           (extraWidth * column.idealWidth) / summary.contentWidth
         : column.idealWidth;
     const width = isLastColumn
@@ -344,6 +360,8 @@ export const layoutMeasureSpacing = (
   return {
     ...summary,
     assignedWidth,
+    leftExtra,
+    tailExtra,
     slotsByBeatId,
     slotsByNumberedEventId,
     xByTick,

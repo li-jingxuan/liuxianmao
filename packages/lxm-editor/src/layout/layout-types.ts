@@ -24,7 +24,7 @@ import type {
   ILXMNumberedEvent,
 } from "../core/types";
 
-/** 谱面横向排版密度；默认舒适模式保持既有几何，紧凑模式用于纸张排版。 */
+/** 谱面横向排版密度；舒适模式保留节奏权重，紧凑模式收紧列宽与小节留白。 */
 export type ILXMLayoutDensity = "comfortable" | "compact";
 /** 编辑保留有限操作空间；成品用于预览、导出与打印。 */
 export type ILXMLayoutPurpose = "editing" | "presentation";
@@ -52,7 +52,8 @@ export interface ILXMLayoutOptions {
   y?: number;
   measureGap?: number;
   /**
-   * 普通谱面行的目标逻辑宽度，同时也是断行上限；单个超宽小节保留真实宽度。
+   * 谱面行的目标逻辑宽度、断行上限及非空画布的宽度下限。
+   * 单小节行及末行按内容限制拉伸，可短于此宽度；超宽小节保留真实宽度。
    */
   systemWidth?: number;
   /** 相邻谱面行之间的垂直间距。 */
@@ -107,8 +108,9 @@ export interface ILXMSystemLayout {
   x: number;
   y: number;
   /**
-   * 当前行的实际绘制宽度。各行（含末行和单小节行）铺满配置 systemWidth；
-   * 单个小节的固有宽度超出行宽时允许更长，避免压缩内容。
+   * 当前行的实际绘制宽度，包含固定 TAB 行头。非末行的多小节行铺满 systemWidth；
+   * 单小节行及末行的内容区最多拉伸至固有宽度的 1.6 倍，固定空间不拉伸。
+   * 固有宽度超出行宽时允许更长，避免压缩内容。
    */
   width: number;
   /** 当前行中最高小节决定的高度。 */

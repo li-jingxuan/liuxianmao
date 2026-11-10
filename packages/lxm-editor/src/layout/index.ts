@@ -104,7 +104,7 @@ export const buildLayout = (
     ),
     x,
     y,
-    // 各行铺满 systemWidth；超宽小节或边缘图元仍可扩大画布，避免裁剪。
+    // 稀疏行可短于 systemWidth，画布仍保留配置宽度；超宽内容可继续扩大画布。
     width:
       systems.length === 0
         ? 0

@@ -78,8 +78,8 @@ describe("hitTestLayout", () => {
     expect(hitTestLayout(layout, { x: beat.x + 1, y: string.y1 })).toEqual({
       trackId: "mvp2-track-guitar",
       systemIndex: 1,
-      measureId: "mvp2-measure-5",
-      beatId: "mvp2-beat-5-2",
+      measureId: measure.id,
+      beatId: beat.id,
       string: 5,
     });
   });
@@ -103,7 +103,7 @@ describe("hitTestLayout", () => {
     });
   });
 
-  it("单小节铺满后新增区域命中最后一拍，行外空白不误命中", () => {
+  it("受控拉伸后小节内仍命中最后一拍，画布右侧留白不命中", () => {
     const systemWidth = 733;
     const layout = buildLayout(documentWithFirstMeasureOnly, {
       systemWidth,
@@ -113,11 +113,18 @@ describe("hitTestLayout", () => {
     const measure = system.measures[0]!;
     const string = measure.strings[2]!;
 
-    expect(system.width).toBe(systemWidth);
-    expect(measure.x + measure.width).toBeCloseTo(system.x + systemWidth);
+    expect(layout.width).toBe(systemWidth);
+    expect(system.width).toBeLessThan(systemWidth);
+    const measureRight = measure.x + measure.width;
+    expect(measureRight).toBeCloseTo(system.x + system.width);
+    expect(measure.barline.parts).toContainEqual(expect.objectContaining({
+      kind: "line",
+      x: measureRight,
+    }));
+    expect(layout.hitIndex.measureBounds[0]!.width).toBe(measure.width);
     expect(
       hitTestLayout(layout, {
-        x: system.x + systemWidth - 1,
+        x: measureRight - 1,
         y: string.y1,
       }),
     ).toMatchObject({
@@ -125,11 +132,13 @@ describe("hitTestLayout", () => {
       beatId: measure.beats.at(-1)!.id,
       string: string.index,
     });
-    expect(
-      hitTestLayout(layout, {
-        x: system.x + systemWidth + 1,
-        y: string.y1,
-      }),
-    ).toBeNull();
+    for (const x of [
+      measureRight + 1,
+      (measureRight + system.x + systemWidth) / 2,
+      system.x + systemWidth - 1,
+      system.x + systemWidth + 1,
+    ]) {
+      expect(hitTestLayout(layout, { x, y: string.y1 })).toBeNull();
+    }
   });
 });

@@ -798,15 +798,14 @@ const createNaturalSegmentLayout = (
     } else {
       // 弧线在数字中心上方起落；连同线宽避开品位描边，紧凑短音也保留完整跨度。
       // 只读取本行锚点的上缘，跨行续接继续使用各自谱行的坐标与安全边。
-      const curveY = Math.min(
-        laneY,
+      const curveY = anchorNotes.length ? Math.min(
         ...anchorNotes.map(
           (note) =>
             getFretTextBounds(note).y -
             LXM_TECHNIQUE_CURVE_FRET_GAP_Y -
             LXM_TECHNIQUE_PATH_STROKE_WIDTH / 2,
         ),
-      );
+      ) : laneY;
       const startX =
         candidate.continuation === "none" || candidate.continuation === "toNext"
           ? (from?.x ?? candidate.x1)

@@ -50,7 +50,7 @@ describe("summarizeMeasureSpacingWidth", () => {
     );
   });
 
-  it("紧凑排版缩小理想列宽但保留最低可读宽度", () => {
+  it("紧凑排版保留 9 的起音硬宽，理想宽按 .22 缩放，空白时间延伸至小节末尾", () => {
     const summary = summarizeMeasureSpacingWidth(
       createMeasure([
         createBeat("beat-quarter", 0, "quarter"),
@@ -59,14 +59,22 @@ describe("summarizeMeasureSpacingWidth", () => {
       "compact",
     );
 
-    expect(summary.columns.map((column) => column.minWidth)).toEqual([15, 15]);
-    expect(summary.columns.map((column) => column.idealWidth)).toEqual([
-      // v4.1 为同一 A4 行内的 TAB 行头与首次拍号让出固定宽度。
-      34 * 2.2 * 0.34,
-      15,
+    expect(summary.columns.map((column) => [column.tick, column.endTick])).toEqual([
+      [0, 960], [960, 1200], [1200, 3840],
     ]);
-    expect(summary.minWidth).toBe(15 + 15 + 8 * 2);
-    expect(summary.idealWidth).toBeCloseTo(34 * 2.2 * 0.34 + 15 + 8 * 2);
+    expect(summary.columns.map((column) => column.minWidth)).toEqual([9, 9, 1]);
+    expect(summary.columns.map((column) => column.idealWidth)).toEqual([
+      34 * 2.2 * 0.22,
+      9,
+      1,
+    ]);
+    // 数字半宽 3，左侧净空 6；扣除固定 padding 3 后还需 6。
+    expect(summary.leftExtra).toBe(6);
+    expect(summary.hardLeftExtra).toBe(6);
+    expect(summary.tailExtra).toBe(0);
+    expect(summary.hardTailExtra).toBe(0);
+    expect(summary.minWidth).toBe(9 + 9 + 1 + 3 * 2 + 6);
+    expect(summary.idealWidth).toBeCloseTo(34 * 2.2 * 0.22 + 9 + 1 + 3 * 2 + 6);
   });
 });
 
@@ -139,7 +147,7 @@ describe("layoutMeasureSpacing", () => {
     ).toThrow(/assignedWidth/);
   });
 
-  it("紧凑排版保持 8px 首尾 padding 并让末拍覆盖到右边界", () => {
+  it("紧凑排版保持 3px padding，末拍与其后的空白时间共同延伸至右边界", () => {
     const measure = createMeasure([
       createBeat("beat-quarter", 0, "quarter"),
       createBeat("beat-sixteenth", 960, "sixteenth"),
@@ -152,9 +160,43 @@ describe("layoutMeasureSpacing", () => {
       assignedWidth,
     });
 
-    expect(spacing.slotsByBeatId["beat-quarter"]!.x).toBe(108);
+    expect(spacing.slotsByBeatId["beat-quarter"]!.x).toBe(100 + 3 + intrinsic.leftExtra);
     const lastSlot = spacing.slotsByBeatId["beat-sixteenth"]!;
-    expect(lastSlot.width).toBeGreaterThanOrEqual(15);
-    expect(lastSlot.x + lastSlot.width).toBeCloseTo(100 + assignedWidth - 8);
+    expect(lastSlot.width).toBeGreaterThanOrEqual(9);
+    expect(lastSlot.x + lastSlot.width).toBeCloseTo(spacing.xByTick[1200]!);
+    expect(spacing.xByTick[3840]!).toBeCloseTo(100 + assignedWidth - 3);
+    expect(spacing.xByTick[3840]! - spacing.xByTick[1200]!).toBeGreaterThan(0);
+  });
+
+  it("compact 在硬宽与理想宽之间插值完整时间点位置，低于硬宽才拒绝", () => {
+    const measure = createMeasure([
+      createBeat("beat-quarter", 0, "quarter"),
+      createBeat("beat-sixteenth", 960, "sixteenth"),
+    ]);
+    const summary = summarizeMeasureSpacingWidth(measure, "compact");
+    const layoutAt = (assignedWidth: number) => layoutMeasureSpacing(measure, {
+      x: 100,
+      density: "compact",
+      assignedWidth,
+    });
+    const hard = layoutAt(summary.minWidth);
+    const ideal = layoutAt(summary.idealWidth);
+    const middle = layoutAt((summary.minWidth + summary.idealWidth) / 2);
+    expect(hard.xByTick).toEqual({ 0: 109, 960: 118, 1200: 127, 3840: 128 });
+    for (const tick of [0, 960, 1200, 3840])
+      expect(middle.xByTick[tick]).toBeCloseTo(
+        (hard.xByTick[tick]! + ideal.xByTick[tick]!) / 2,
+      );
+    for (const spacing of [hard, middle, ideal]) {
+      expect(spacing.slotsByBeatId["beat-quarter"]!.x).toBe(spacing.xByTick[0]);
+      expect(spacing.slotsByBeatId["beat-quarter"]!.width).toBeCloseTo(
+        spacing.xByTick[960]! - spacing.xByTick[0]!,
+      );
+      expect(spacing.xByTick[3840]! + 3 + spacing.tailExtra).toBeCloseTo(
+        100 + spacing.assignedWidth,
+      );
+    }
+    expect(() => layoutAt(summary.minWidth - 0.01)).toThrow(/assignedWidth/);
+    expect(() => layoutAt(Number.POSITIVE_INFINITY)).toThrow(/assignedWidth/);
   });
 });

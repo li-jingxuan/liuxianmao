@@ -27,7 +27,7 @@ const chord = (beatId: string, id = "chord") => ({
 });
 
 describe("和弦拍点左对齐及按需空间", () => {
-  it("孤立和弦不扩宽下一拍，网格左边对齐拍点，名称居中且距顶线固定12", () => {
+  it("孤立和弦不扩宽下一拍，网格左边对齐拍点，名称居中且距顶线固定9", () => {
     const document = fixture();
     const measure = document.score.tracks[0]!.measures[0]!;
     const original = summarizeMeasureSpacingWidth(measure, "compact");
@@ -43,8 +43,8 @@ describe("和弦拍点左对齐及按需空间", () => {
     const positioned = layout.systems[0]!.measures[0]!;
     const symbol = positioned.chordSymbols![0]!;
     expect(symbol.diagram!.lines[0]!.x1).toBe(positioned.beats[0]!.x);
-    expect(symbol.label.x).toBeCloseTo(positioned.beats[0]!.x + 19.125);
-    expect(symbol.diagram!.lines[0]!.y1 - symbol.label.y).toBeCloseTo(12);
+    expect(symbol.label.x).toBeCloseTo(positioned.beats[0]!.x + 13.5);
+    expect(symbol.diagram!.lines[0]!.y1 - symbol.label.y).toBeCloseTo(9);
   });
   it("非相邻和弦借用中间空拍，只有真正不足的跨度才补宽", () => {
     const document = fixture();

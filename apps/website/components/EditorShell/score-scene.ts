@@ -2,6 +2,7 @@ import {
   LXM_FRET_TEXT_BASELINE_OFFSET_Y,
   LXM_FRET_TEXT_FONT_SIZE,
   LXM_FRET_TEXT_HALO_WIDTH,
+  LXM_DURATION_STEM_STROKE_WIDTH,
   LXM_TECHNIQUE_TEXT_HALO_WIDTH,
   type ILXMLayout,
   type ILXMSystemLayout,
@@ -231,7 +232,10 @@ const systemScene = (s: ILXMSystemLayout): ScorePrimitive[] => {
     items.push(...barline(m.barline));
     for (const mark of m.durationMarks) {
       if (mark.stemVisible)
-        items.push(line(mark.stemX, mark.stemY1, mark.stemX, mark.stemY2));
+        items.push(line(
+          mark.stemX, mark.stemY1, mark.stemX, mark.stemY2,
+          LXM_DURATION_STEM_STROKE_WIDTH,
+        ));
       items.push(
         ...mark.sustainMarks.map((t) =>
           line(t.x1, t.y, t.x2, t.y, t.thickness),

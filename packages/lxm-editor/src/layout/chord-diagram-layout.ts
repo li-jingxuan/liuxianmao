@@ -68,9 +68,8 @@ export const layoutChordDiagram = (
     const left = stringX(b.maxString),
       right = stringX(b.minString),
       y = fretY(b.fret);
-    // 横按最终会随和弦图缩放；这里反推原始厚度，确保页面显示为 4px。
-    const barreHeight =
-      LXM_SCORE_CHORD_BARRE_DISPLAY_HEIGHT / LXM_SCORE_CHORD_DIAGRAM_SCALE;
+    // 原图供侧栏编辑器复用，保留原有厚度；谱面厚度在缩放阶段单独处理。
+    const barreHeight = 4 / 0.85;
     roundedRects.push({
       x: left - 4,
       y: y - barreHeight / 2,
@@ -167,7 +166,7 @@ export const translateChordDiagram = (
   bounds: { ...g.bounds, x: g.bounds.x + dx, y: g.bounds.y + dy },
 });
 
-/** 图元与命中外框同步缩放；小字保留 7 号下限，并按字形原点重算外框。 */
+/** 谱面小字保留 5.5 号下限；原图字体不变，字形度量与命中外框同步。 */
 export const scaleChordDiagram = (
   g: ChordDiagramLayout,
   scale: number,
@@ -179,21 +178,56 @@ export const scaleChordDiagram = (
     height: rect.height * scale,
   });
   const texts = g.texts.map((t) => {
-    const fontSize = Math.max(7, t.fontSize * scale);
+    const fontSize = Math.max(5.5, t.fontSize * scale);
     const textScale = fontSize / t.fontSize;
+    // 度量缓存来自原字号；按比例换算墨迹，点击保护量仍保持最终坐标中的 2px。
+    const inkY = (t.bounds.y - t.y + 2) * textScale;
+    const inkHeight = (t.bounds.height - 4) * textScale;
+    const y =
+      scale < 1 && t.fill === "white"
+        ? (t.y - 2.5) * scale - inkY - inkHeight / 2
+        : t.y * scale;
     return {
       ...t,
+      ...musicTextRequest(
+        t.text,
+        fontSize,
+        t.textAnchor,
+        t.fontWeight,
+        t.fontFamily,
+      ),
       x: t.x * scale,
-      y: t.y * scale,
-      fontSize,
+      y,
       bounds: {
-        x: t.x * scale + (t.bounds.x - t.x) * textScale,
-        y: t.y * scale + (t.bounds.y - t.y) * textScale,
-        width: t.bounds.width * textScale,
-        height: t.bounds.height * textScale,
+        x: t.x * scale + (t.bounds.x - t.x + 2) * textScale - 2,
+        y: y + inkY - 2,
+        width: (t.bounds.width - 4) * textScale + 4,
+        height: inkHeight + 4,
       },
     };
   });
+  const roundedRects = g.roundedRects.map((r) => {
+    const height =
+      scale < 1
+        ? LXM_SCORE_CHORD_BARRE_DISPLAY_HEIGHT *
+          (scale / LXM_SCORE_CHORD_DIAGRAM_SCALE)
+        : r.height * scale;
+    return {
+      ...bounds(r),
+      y: (r.y + r.height / 2) * scale - height / 2,
+      height,
+      rx: height / 2,
+    };
+  });
+  // 3px 横按两端保持轻薄，数字处使用与单指同径的圆承载白色字形。
+  const barreCircles =
+    scale < 1
+      ? g.roundedRects.map((r) => ({
+          cx: (r.x + r.width / 2) * scale,
+          cy: (r.y + r.height / 2) * scale,
+          r: 4 * scale,
+        }))
+      : [];
   return {
     lines: g.lines.map((l) => ({
       ...l,
@@ -203,16 +237,26 @@ export const scaleChordDiagram = (
       y2: l.y2 * scale,
       strokeWidth: l.strokeWidth * scale,
     })),
-    circles: g.circles.map((c) => ({
-      cx: c.cx * scale,
-      cy: c.cy * scale,
-      r: c.r * scale,
-    })),
-    roundedRects: g.roundedRects.map((r) => ({
-      ...bounds(r),
-      rx: r.rx * scale,
-    })),
+    circles: [
+      ...g.circles.map((c) => ({
+        cx: c.cx * scale,
+        cy: c.cy * scale,
+        r: c.r * scale,
+      })),
+      ...barreCircles,
+    ],
+    roundedRects,
     texts,
-    bounds: unionMusicBounds([bounds(g.bounds), ...texts.map((t) => t.bounds)]),
+    bounds: unionMusicBounds([
+      bounds(g.bounds),
+      ...roundedRects,
+      ...barreCircles.map((c) => ({
+        x: c.cx - c.r,
+        y: c.cy - c.r,
+        width: c.r * 2,
+        height: c.r * 2,
+      })),
+      ...texts.map((t) => t.bounds),
+    ]),
   };
 };

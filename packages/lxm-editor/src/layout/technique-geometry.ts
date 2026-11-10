@@ -19,9 +19,21 @@ import type {
 
 type Rect = ILXMTechniqueSegmentLayout["bounds"];
 
-/** 保守估算粗体等宽数字和技巧文字；字体度量可在此统一替换。 */
+/**
+ * Arial 墨迹边界，不使用含行距的字体行框。Chrome canvas 实测：8px 的数字
+ * ascent=5.75、最大 descent=.1015625（数字 3）；6px H/P ascent=4.294921875。
+ * 普通文字仍保守覆盖大小写上缘，含 g/j/p/q/y 时保留 descender；未知字形
+ * 回退到完整行框。横向维持既有保守宽度，所有白色描边另行计入。
+ */
 export const getTextBounds = (text: ILXMTextLayout, halo = 0): Rect => {
   const width = text.text.length * text.fontSize * 0.65;
+  const digits = /^[\d<>]+$/.test(text.text);
+  const capitals = /^[HP]+$/.test(text.text);
+  const latin = /^[\x20-\x7e]*$/.test(text.text);
+  const ascent = digits ? 5.75 / 8 : capitals ? 4.294921875 / 6 : latin ? 0.75 : 1;
+  const descent = digits
+    ? 0.1015625 / 8
+    : capitals ? 0 : latin ? (/[gjpqy]/.test(text.text) ? 0.25 : 0.02) : 0.25;
   const left =
     text.textAnchor === "middle"
       ? width / 2
@@ -30,9 +42,9 @@ export const getTextBounds = (text: ILXMTextLayout, halo = 0): Rect => {
         : 0;
   return {
     x: text.x - left - halo,
-    y: text.y - text.fontSize - halo,
+    y: text.y - text.fontSize * ascent - halo,
     width: width + halo * 2,
-    height: text.fontSize * 1.25 + halo * 2,
+    height: text.fontSize * (ascent + descent) + halo * 2,
   };
 };
 

@@ -58,7 +58,7 @@ export type {
   NumberedDraftGroup,
   NumberedPropertyApplyResult,
 } from "./numbered-submission";
-import { numberedInputRhythmForWindow } from "./editor-rhythm-target";
+import { numberedInputRhythmForWindow, numberedInputRhythmFromTab } from "./editor-rhythm-target";
 import { shouldIgnoreMusicTextKey } from "./music-text-interaction";
 import floatingStyles from "./NumberedEditor.module.scss";
 import { NumberedRhythmToolbar } from "./NumberedRhythmToolbar";
@@ -504,6 +504,7 @@ export const NumberedEditor = ({
       preference,
       preferenceExplicit,
       window.end - window.start,
+      !event ? numberedInputRhythmFromTab(measure, window.start, window.end - window.start) : undefined,
     ).base,
   );
   const [templateDots, setTemplateDots] = useState(
@@ -511,6 +512,7 @@ export const NumberedEditor = ({
       preference,
       preferenceExplicit,
       window.end - window.start,
+      !event ? numberedInputRhythmFromTab(measure, window.start, window.end - window.start) : undefined,
     ).dots,
   );
   const complexRhythm =
@@ -771,6 +773,7 @@ export const NumberedEditor = ({
       preference,
       preferenceExplicit,
       window.end - window.start,
+      !event ? numberedInputRhythmFromTab(measure, window.start, window.end - window.start) : undefined,
     );
     if (rhythm.base === templateBase && rhythm.dots === templateDots) return;
     let cancelled = false;
@@ -805,6 +808,8 @@ export const NumberedEditor = ({
     preferenceExplicit,
     window.end,
     window.start,
+    measure,
+    event,
     contentDirty,
     pending,
     templateBase,

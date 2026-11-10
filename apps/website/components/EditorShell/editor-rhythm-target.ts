@@ -2,7 +2,9 @@ import {
   calculateRhythmTicks,
   createNumberedRhythmContext,
   numberedRhythmForTicks,
+  tabInputRhythmFromNumbered,
   type ILXMDocument,
+  type ILXMMeasure,
   type ILXMRhythm,
   type ILXMTabCellSelection,
 } from "@liuxianmao/lxm-editor";
@@ -10,12 +12,26 @@ import type { MusicTextTarget } from "./music-text-draft";
 import { deriveEditorToolState } from "./editor-tool-state";
 import { resolveNumberedEditorTarget } from "./numbered-editor-target";
 
-/** 会话初值可以适应短空位；显式选择永远保留，由核心提示容量不足。 */
+/** 仅为新建空位借用同起点的普通 TAB 节奏，不能脱离连音组复制成员时值。 */
+export const numberedInputRhythmFromTab = (
+  measure: ILXMMeasure | undefined,
+  tick: number,
+  ticks: number,
+): ILXMRhythm | undefined => {
+  const beat = measure?.beats.find((item) => item.tick === tick);
+  if (!beat || measure?.tuplets.some((group) => group.beatIds.includes(beat.id))) return;
+  const duration = calculateRhythmTicks(beat.rhythm);
+  return duration.ok && duration.ticks <= ticks ? beat.rhythm : undefined;
+};
+
+/** 显式选择优先，其次是对侧节奏，再适应空位容量。 */
 export const numberedInputRhythmForWindow = (
   preference: ILXMRhythm,
   explicit: boolean,
   ticks: number,
+  inherited?: ILXMRhythm,
 ): ILXMRhythm => {
+  if (!explicit && inherited) return inherited;
   const duration = calculateRhythmTicks(preference);
   return !explicit && duration.ok && duration.ticks > ticks
     ? (numberedRhythmForTicks(ticks) ?? preference)
@@ -29,6 +45,7 @@ export const resolveEditorRhythmTarget = (
   active: MusicTextTarget | null,
   preference: ILXMRhythm,
   explicit: boolean,
+  tabInputRhythmOverrides: readonly string[] = [],
 ) => {
   if (active?.kind === "numbered") {
     const target = resolveNumberedEditorTarget(document, active);
@@ -48,6 +65,7 @@ export const resolveEditorRhythmTarget = (
             preference,
             explicit,
             target.endTick - target.tick,
+            numberedInputRhythmFromTab(measure, target.tick, target.endTick - target.tick),
           )
         : null);
     const occupied =
@@ -86,7 +104,11 @@ export const resolveEditorRhythmTarget = (
     : null;
   return {
     kind: "tab" as const,
-    rhythm: beat?.rhythm ?? null,
+    rhythm: beat
+      ? (tabInputRhythmOverrides.includes(beat.id)
+        ? beat.rhythm
+        : tabInputRhythmFromNumbered(tools.focused!.track, tools.focused!.measure, beat.id) ?? beat.rhythm)
+      : null,
     enabled: !!beat,
     reason: tools.rhythm.reason,
   };

@@ -188,6 +188,11 @@ describe("技巧记谱方向、净空和单次品位显示", () => {
             : { id: "last", type, fromNoteId: "last-note" };
       const document = fixture(technique);
       const measure = document.score.tracks[0]!.measures[0]!;
+      // 替换整组 Beat 后旧和弦的 beatId 不再存在，重建到合法的新拍点。
+      measure.chordSymbols = measure.chordSymbols.map((chord) => {
+        const beat = measure.beats.find((item) => item.id === chord.beatId)!;
+        return { ...chord, beatId: `dense-${beat.tick / 120}` };
+      });
       measure.beats = Array.from({ length: 32 }, (_, i) => ({
         id: `dense-${i}`,
         tick: i * 120,

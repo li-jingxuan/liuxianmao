@@ -4,6 +4,7 @@ import { planBeatPaste, type BeatClipboard } from "./beat-clipboard";
 import { splitBeat, mergeBeats } from "./beat-structure";
 import { extendBeat } from "./beat-sustain";
 import { techniqueBeatIds } from "./content-protection";
+import { prepareTabInputRhythm } from "./tab-input-rhythm";
 import { type NumberedSequenceItem } from "./numbered-notation";
 import { validateTuning } from "./tuning";
 import { normalizeMusicText, hasMusicTextControlCharacter } from "./music-text";
@@ -120,6 +121,8 @@ export interface ILXMSetNoteCommand extends ILXMBeatCommandBase {
   type: LXMScoreCommandEnum.SetNote;
   string: number;
   fret: ILXMFret;
+  /** 页面已明确选择 TAB 时值时关闭首次空位继承。 */
+  inheritNumberedRhythm?: boolean;
 }
 export interface ILXMRemoveNoteCommand extends ILXMBeatCommandBase {
   type: LXMScoreCommandEnum.RemoveNote;
@@ -139,6 +142,7 @@ export interface ILXMSetNotesInRectCommand {
   type: LXMScoreCommandEnum.SetNotesInRect;
   range: ILXMTabCellRange;
   fret: ILXMFret;
+  inheritNumberedRhythm?: boolean;
 }
 export interface ILXMRemoveNotesInRectCommand {
   type: LXMScoreCommandEnum.RemoveNotesInRect;
@@ -853,8 +857,13 @@ const editNotesInRect = (
 
   const nextMeasures = track.measures.map((measure) => {
     if (!targetMeasureIds.has(measure.id)) return measure;
-    let measureChanged = false;
-    const nextBeats = measure.beats.map((beat) => {
+    const prepared = command.type === LXMScoreCommandEnum.SetNotesInRect &&
+      command.inheritNumberedRhythm !== false && resolved.range.beats.length === 1
+      ? prepareTabInputRhythm(track, measure, resolved.range.beats[0]!.beatId, factory.createBeatId)
+      : measure;
+    let measureChanged = prepared !== measure;
+    if (measureChanged) changed = true;
+    const nextBeats = prepared.beats.map((beat) => {
       if (!targetBeatIds.has(beat.id)) return beat;
 
       if (command.type === LXMScoreCommandEnum.RemoveNotesInRect) {
@@ -897,7 +906,7 @@ const editNotesInRect = (
         notes: [...notesByString.values()],
       };
     });
-    return measureChanged ? { ...measure, beats: nextBeats } : measure;
+    return measureChanged ? { ...prepared, beats: nextBeats } : measure;
   });
 
   if (!changed) return unchanged(document);
@@ -1565,6 +1574,13 @@ const applyScoreCommandInternal = (
     )
       return fail("INVALID_FRET", `品位必须是 0 到 ${MAX_FRET} 的整数、弹奏标记 x 或延音标记 -`);
     const factory = createDocumentIdFactory(document);
+    const preparedMeasure = command.type === LXMScoreCommandEnum.SetNote && command.inheritNumberedRhythm !== false
+      ? prepareTabInputRhythm(
+          document.score.tracks.find((track) => track.id === command.trackId)!,
+          target.measure, target.beat.id, factory.createBeatId,
+        )
+      : target.measure;
+    const preparedBeat = preparedMeasure.beats.find((beat) => beat.id === target.beat.id)!;
     let nextBeat: ILXMBeat;
     if (command.type === LXMScoreCommandEnum.SetBeatKind) {
       if (target.beat.kind === command.kind) return unchanged(document);
@@ -1616,15 +1632,15 @@ const applyScoreCommandInternal = (
               fret: command.fret,
             },
           ];
-      nextBeat = { ...target.beat, kind: "notes", notes };
+      nextBeat = { ...preparedBeat, kind: "notes", notes };
     }
     const trackWithEditedMeasure = replaceMeasure(
       document,
       command.trackId,
       command.measureId,
       {
-        ...target.measure,
-        beats: target.measure.beats.map((beat) =>
+        ...preparedMeasure,
+        beats: preparedMeasure.beats.map((beat) =>
           beat.id === target.beat.id ? nextBeat : beat,
         ),
       },

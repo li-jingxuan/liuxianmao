@@ -8,6 +8,7 @@ import type { ILXMMeasure, ILXMRhythmBase } from "../core/types";
 import type { ILXMMeasureLayout } from "./layout-types";
 import type { NumberedLayout } from "./numbered-notation-layout";
 import { musicTextInkBounds, unionMusicBounds } from "./music-text-metrics";
+import { LXM_NUMBERED_REDUCTION_LINE_CLEARANCE } from "./layout-constants";
 const levels: Record<ILXMRhythmBase, number> = {
   whole: 0,
   half: 0,
@@ -33,9 +34,12 @@ export const layoutNumberedRhythm = (
       ...frames.flatMap((f) =>
         f.labels
           .filter((g) => g.fontFamily !== "Bravura")
-          .map((g) => g.bounds.y + g.bounds.height),
+          .map((g) => {
+            const ink = musicTextInkBounds(g);
+            return ink.y + ink.height;
+          }),
       ),
-    ) + 3;
+    ) + LXM_NUMBERED_REDUCTION_LINE_CLEARANCE + 1.1 / 2;
   const groupTicks = getTimeSignatureBeatGroupTicks(source.timeSignature) ?? [
     Infinity,
   ];

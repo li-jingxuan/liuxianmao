@@ -101,6 +101,7 @@ export const EditorToolbar = ({
   const canUndo = useEditorStore((state) => state.canUndo),
     canRedo = useEditorStore((state) => state.canRedo);
   const inputRhythm = useEditorStore((state) => state.numberedInputRhythm);
+  const tabInputRhythmOverrides = useEditorStore((state) => state.tabInputRhythmOverrides);
   const inputRhythmExplicit = useEditorStore(
     (state) => state.numberedInputRhythmExplicit,
   );
@@ -213,6 +214,7 @@ export const EditorToolbar = ({
     activeTarget,
     inputRhythm,
     inputRhythmExplicit,
+    tabInputRhythmOverrides,
   );
   const rhythmAvailability: ToolAvailability =
     modal ||

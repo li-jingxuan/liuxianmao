@@ -31,8 +31,8 @@ describe("节奏轮廓与紧凑行高", () => {
           getDurationFlagBottom(flag) + 12,
         );
       }
-      // 四分符干距第六弦 22，加底部 padding 后只需 122 个布局单位。
-      expect(quarter.height).toBe(122);
+      // 顶部 28 + 五个 20/3 弦距 + 符干净空 22 + 底部 12。
+      expect(quarter.height).toBeCloseTo(28 + 100 / 3 + 22 + 12);
     },
   );
   it("符尾下缘随字号缩放，文字基线移动只平移最终边界", () => {
@@ -61,11 +61,14 @@ describe("节奏轮廓与紧凑行高", () => {
       density: "compact",
     });
     expect(layout.durationMarks).toHaveLength(0);
-    expect(layout.height).toBe(100);
+    // 休止符基线在六线中点；其保守下缘略低于第六弦。
+    expect(layout.height).toBeCloseTo(28 + 50 / 3 + 18 + 12);
     expect(layout.y + layout.height).toBeGreaterThanOrEqual(
       layout.restMarks[0]!.y + 18 + 12,
     );
-    expect(layout.y + layout.height).toBe(layout.strings[5]!.y1 + 12);
+    expect(layout.y + layout.height).toBeCloseTo(
+      Math.max(layout.strings[5]!.y1, layout.restMarks[0]!.y + 18) + 12,
+    );
   });
   it("三层连梁按最上层净空扩展，同一行的四分音符沿公共基线且不移动音符锚点", () => {
     const document = structuredClone(EXAMPLE_MVP_6_DOCUMENT);
@@ -92,7 +95,8 @@ describe("节奏轮廓与紧凑行高", () => {
     const measures = buildLayout(document, { systemWidth: 1800 }).systems[0]!
       .measures;
     const baseline = measures[1]!.durationMarks[0]!.beamY;
-    expect(baseline - measures[1]!.strings[5]!.y1).toBe(25.5);
+    // 附点净空仍约束公共基线；减薄后的连梁不再要求额外半像素。
+    expect(baseline - measures[1]!.strings[5]!.y1).toBeCloseTo(25);
     for (const measure of measures) {
       for (const mark of measure.durationMarks) {
         expect(mark.beamY).toBe(baseline);
@@ -103,10 +107,12 @@ describe("节奏轮廓与紧凑行高", () => {
         for (const dot of mark.dotAnchors)
           expect(dot.y - 2 - measure.strings[5]!.y1).toBeGreaterThanOrEqual(8);
       }
-      for (const beam of measure.beamSegments)
+      for (const beam of measure.beamSegments) {
+        expect(beam.thickness).toBe(1.5);
         expect(
           beam.y - beam.thickness / 2 - measure.strings[5]!.y1,
         ).toBeGreaterThanOrEqual(14);
+      }
     }
   });
   it.each(["eighth", "sixteenth", "thirtySecond"] as const)(

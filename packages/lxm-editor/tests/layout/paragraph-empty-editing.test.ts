@@ -50,7 +50,7 @@ describe("无占位歌词和简谱编辑", () => {
     expect(focus()).toMatchObject({
       x: slot.x - 12,
       width: 24,
-      height: Math.max(18, cell.height),
+      height: Math.max(15, cell.height),
     });
     cell.x = slot.x - 20;
     cell.width = 80;

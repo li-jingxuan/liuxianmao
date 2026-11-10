@@ -16,8 +16,14 @@ export const LXM_LAYOUT_DEFAULT_Y = 0;
 /** 单条谱面行默认可容纳的逻辑宽度；由调用方可通过 systemWidth 覆盖。 */
 export const LXM_SYSTEM_DEFAULT_WIDTH = 600;
 
+/** 单小节行及末行的内容区最大拉伸比例；固定留白与前导记号不参与。 */
+export const LXM_SPARSE_SYSTEM_MAX_CONTENT_SCALE = 1.6;
+
+/** 紧凑排版每行最多五小节；真实硬净空仍可提前断行。 */
+export const LXM_COMPACT_SYSTEM_MAX_MEASURES = 5;
+
 /** 相邻两条谱面行之间的垂直留白，避免符干、连梁发生视觉重叠。 */
-export const LXM_SYSTEM_GAP_Y = 12;
+export const LXM_SYSTEM_GAP_Y = 8;
 
 /**
  * system 上方技巧区的确定性尺寸。
@@ -43,16 +49,23 @@ export const LXM_TECHNIQUE_CURVE_LABEL_GAP = 2;
 export const LXM_TECHNIQUE_RANGE_INK_GAP = 4;
 /** 弧线垂直净空调节处：0 表示外缘贴近品位白色描边上缘；增大此值会抬高弧线。 */
 export const LXM_TECHNIQUE_CURVE_FRET_GAP_Y = 0;
-/** 密集和弦内嵌 H/P 时使用 8px，使字形连同描边可容纳于 12px 弦距。 */
-export const LXM_TECHNIQUE_INLINE_TEXT_FONT_SIZE = 8;
+/** 密集和弦内嵌 H/P 使用 6px；狭窄弦格内由曲线放置器共同避让字形。 */
+export const LXM_TECHNIQUE_INLINE_TEXT_FONT_SIZE = 6;
 /** 内嵌标签左右仍保留可辨认的弧线，不将整段弧线压缩成文字。 */
 export const LXM_TECHNIQUE_CURVE_WING_WIDTH = 4;
 export const LXM_TECHNIQUE_CURVE_INK_GAP = 1;
 export const LXM_TECHNIQUE_COLLISION_PADDING = 2;
 /** 品位文字与页面白色描边共用同一尺寸契约。 */
-export const LXM_FRET_TEXT_FONT_SIZE = 12;
-export const LXM_FRET_TEXT_HALO_WIDTH = 2.5;
-export const LXM_FRET_TEXT_BASELINE_OFFSET_Y = 4;
+export const LXM_FRET_TEXT_FONT_SIZE = 8;
+export const LXM_FRET_TEXT_HALO_WIDTH = 0.4;
+export const LXM_FRET_TEXT_BASELINE_OFFSET_Y = 2.5;
+export const LXM_NUMBERED_TEXT_FONT_SIZE = 11;
+/** 高低八度点比时值附点轻，保留各自独立的视觉语义。 */
+export const LXM_NUMBERED_OCTAVE_DOT_RADIUS = 0.8;
+/** 简谱减时线距数字实际墨迹下缘的净空。 */
+export const LXM_NUMBERED_REDUCTION_LINE_CLEARANCE = 2;
+/** TAB 符干略细于弦线，横梁仍保留足够的视觉重量。 */
+export const LXM_DURATION_STEM_STROKE_WIDTH = 0.75;
 /** 区间说明的线、标签下缘和结束钩均须高于第一弦品位文字及描边。 */
 export const LXM_TECHNIQUE_STAFF_CLEARANCE_Y =
   LXM_FRET_TEXT_FONT_SIZE -
@@ -70,26 +83,26 @@ export const LXM_TECHNIQUE_STAFF_CLEARANCE_Y =
 export const LXM_SYSTEM_HEADER_WIDTH = 18;
 
 /** 纵向 T/A/B 使用同一字号与水平中心，三个基线分别落在六线谱上、中、下部。 */
-export const LXM_TAB_LABEL_FONT_SIZE = 11;
+export const LXM_TAB_LABEL_FONT_SIZE = 9;
 export const LXM_TAB_LABEL_CENTER_OFFSET_X = 10;
-export const LXM_TAB_LABEL_BASELINE_OFFSETS_Y = [10, 30, 50] as const;
+export const LXM_TAB_LABEL_BASELINE_OFFSETS_Y = [6, 18, 30] as const;
 
 /**
  * 拍号是小节的固定前导记号，不随节奏列一起拉伸。
  * width 同时覆盖两位数分子/分母与拍号右侧净空。
  */
 export const LXM_TIME_SIGNATURE_WIDTH = 24;
-export const LXM_TIME_SIGNATURE_FONT_SIZE = 14;
-export const LXM_TIME_SIGNATURE_NUMERATOR_OFFSET_Y = 22;
-export const LXM_TIME_SIGNATURE_DENOMINATOR_OFFSET_Y = 48;
+export const LXM_TIME_SIGNATURE_FONT_SIZE = 12;
+export const LXM_TIME_SIGNATURE_NUMERATOR_OFFSET_Y = 12;
+export const LXM_TIME_SIGNATURE_DENOMINATOR_OFFSET_Y = 27;
 
 /**
  * 开始反复线的圆点会向右伸入下一小节。下一小节的拍号和第一拍必须额外后移，
- * 不能只依赖 compact 模式 8px padding，否则圆点会与拍号数字落在同一位置。
+ * 不能只依赖 compact 模式的 padding，否则圆点会与拍号数字落在同一位置。
  */
 export const LXM_LEADING_REPEAT_CLEARANCE_WIDTH = 12;
 
-/** 默认排版密度保持 MVP v1-v3 既有页面和核心测试的几何结果。 */
+/** 默认保留舒适模式的横向节奏权重。 */
 export const LXM_LAYOUT_DEFAULT_DENSITY: ILXMLayoutDensity = "comfortable";
 
 /**
@@ -104,13 +117,11 @@ export const LXM_LAYOUT_DENSITY_PROFILES = {
     minColumnWidth: null,
   },
   compact: {
-    // A4 紧凑契约与既有几何测试均以 8px 为基线；12px 会把规范八小节
-    // 从 4+4 挤成 3+5，并让第二行命中目标整体漂移。
-    measurePaddingX: 8,
-    // v4.1 把 TAB 行头、首次拍号和反复线净空纳入同一 A4 内容宽度。0.34 在不
-    // 突破 15px 最低列宽的前提下，仍能让既有八小节规范谱保持每行四小节。
-    idealColumnScale: 0.34,
-    minColumnWidth: 15,
+    // 留白与节奏理想宽度可收紧，字形和技巧仍由硬约束保护。
+    measurePaddingX: 3,
+    idealColumnScale: 0.22,
+    // 单位品位的净空下限；双位品位与技巧另按真实字形扩宽。
+    minColumnWidth: 9,
   },
 } as const satisfies Record<
   ILXMLayoutDensity,
@@ -122,17 +133,17 @@ export const LXM_LAYOUT_DENSITY_PROFILES = {
 >;
 
 /** 点击弦线时允许的纵向误差范围，提升鼠标命中容错。 */
-export const LXM_STRING_HIT_RADIUS_Y = 6;
+export const LXM_STRING_HIT_RADIUS_Y = 10 / 3;
 
 /**
  * TAB 当前活动输入框的固定逻辑尺寸。
  *
  * caret 是精确表达当前 Beat/string 输入位置的视觉标记，不应随节奏列宽度、
- * System 拉伸或命中容错区域一起变化。20 × 14 能完整包围当前一位/两位品位文本，
- * 并在 12px 弦距上下各保留 1 个逻辑单位的视觉空隙。
+ * System 拉伸或命中容错区域一起变化。14 × 8 包围缩小后的单/双位品位，
+ * 相邻弦格的命中边界仍由实际弦距决定。
  */
-export const LXM_TAB_FOCUS_CARET_WIDTH = 20;
-export const LXM_TAB_FOCUS_CARET_HEIGHT = 14;
+export const LXM_TAB_FOCUS_CARET_WIDTH = 14;
+export const LXM_TAB_FOCUS_CARET_HEIGHT = 8;
 
 // 左右留白距离
 export const LXM_MEASURE_PADDING_X =
@@ -145,7 +156,7 @@ export const LXM_STAFF_Y = 28;
 export const LXM_MEASURE_MIN_WIDTH = 112;
 
 // 每根弦之间的间距
-export const LXM_STRING_SPACING = 12;
+export const LXM_STRING_SPACING = 20 / 3;
 
 // 六线谱的高度
 export const LXM_STAFF_HEIGHT = LXM_STRING_SPACING * (GUITAR_STRING_COUNT - 1);
@@ -248,9 +259,9 @@ export const LXM_TUPLET_STROKE = 1;
 export const LXM_TUPLET_BOTTOM_PADDING = 12;
 
 /** 谱面指法图缩小一档；侧栏预览继续使用原始几何。 */
-export const LXM_SCORE_CHORD_DIAGRAM_SCALE = 0.85;
+export const LXM_SCORE_CHORD_DIAGRAM_SCALE = 0.6;
 /** 谱面和弦图横按的最终显示厚度；核心几何会按缩放比例反推原始高度。 */
-export const LXM_SCORE_CHORD_BARRE_DISPLAY_HEIGHT = 4;
+export const LXM_SCORE_CHORD_BARRE_DISPLAY_HEIGHT = 3;
 /** 和弦与第一弦上方可见内容的净空，不再叠加小节顶部固定留白。 */
 export const LXM_CHORD_CONTENT_CLEARANCE_Y = 4;
 /** 横向接近的标记也参与避让，避免字形边缘紧贴指法图。 */

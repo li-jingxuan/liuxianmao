@@ -211,6 +211,8 @@ describe("技巧的音符自然锚点", () => {
     "%s 跨行 Tie 的两端跟随本行音符，且命中仍指向同一技巧",
     (density) => {
       const document = structuredClone(EXAMPLE_MVP_2);
+      document.score.tracks[0]!.measures =
+        document.score.tracks[0]!.measures.slice(3, 5);
       document.score.tracks[0]!.techniques = [
         {
           id: "cross-anchor",
@@ -219,7 +221,8 @@ describe("技巧的音符自然锚点", () => {
           toNoteId: "mvp2-note-5-1-6",
         },
       ];
-      const layout = buildLayout(document, { systemWidth: 742, density });
+      const layout = buildLayout(document, { systemWidth: 120, density });
+      expect(layout.systems).toHaveLength(2);
       const segments = layout.systems.flatMap((system) => system.techniques);
       const notes = layout.systems.flatMap((system) =>
         system.measures.flatMap((measure) => measure.notes),
@@ -309,10 +312,10 @@ describe("技巧的音符自然锚点", () => {
     const first = segments[0]!;
     const second = segments[1]!;
     const dy = -second.lane * LXM_TECHNIQUE_LANE_HEIGHT;
-    expect(getAnchorY(second)).toBe(getAnchorY(first) + dy);
-    expect(second.texts[0]!.y).toBe(first.texts[0]!.y + dy);
-    expect(second.bounds.y).toBe(first.bounds.y + dy);
-    expect(second.visualBounds.y).toBe(first.visualBounds.y + dy);
+    expect(getAnchorY(second)).toBeCloseTo(getAnchorY(first) + dy, 10);
+    expect(second.texts[0]!.y).toBeCloseTo(first.texts[0]!.y + dy, 10);
+    expect(second.bounds.y).toBeCloseTo(first.bounds.y + dy, 10);
+    expect(second.visualBounds.y).toBeCloseTo(first.visualBounds.y + dy, 10);
     const coords = pathCoordinates(first);
     // 箭头外延与 Full 标签都包含在完整可见范围内。
     expect(first.visualBounds.x + first.visualBounds.width).toBeGreaterThan(

@@ -14,10 +14,13 @@ import {
   LXM_LAYOUT_DENSITY_PROFILES,
   LXM_DURATION_MIN_COLUMN_WIDTH,
   LXM_DURATION_VISUAL_WEIGHT,
+  LXM_DURATION_SUSTAIN_MIN_WIDTH,
+  LXM_DURATION_SUSTAIN_HORIZONTAL_PADDING,
 } from "./layout-constants";
 import {
   musicTextGlyph,
   musicTextRequest,
+  MUSIC_LYRIC_FONT_SIZE,
   type ILXMMusicTextMetrics,
 } from "./music-text-metrics";
 import { layoutNumbered } from "./numbered-notation-layout";
@@ -54,7 +57,8 @@ export const summarizeTimeGrid = (
   purpose: ILXMLayoutPurpose = "presentation",
 ) => {
   const profile = LXM_LAYOUT_DENSITY_PROFILES[density];
-  const numberedProfile = numberedLayoutProfile(purpose);
+  const numberedProfile = numberedLayoutProfile(purpose, density);
+  const tabGlyphGap = density === "compact" ? 2 : 6;
   const capacity = getMeasureCapacityTicks(measure.timeSignature);
   const tab = createMeasureRhythmContext(measure),
     numbered = createNumberedRhythmContext(measure.numberedVoice);
@@ -73,10 +77,14 @@ export const summarizeTimeGrid = (
     const end = tick + actual;
     tickSet.add(tick);
     tickSet.add(end);
-    const min =
+    let min =
       layer === "numbered"
-        ? 15
-        : (profile.minColumnWidth ?? LXM_DURATION_MIN_COLUMN_WIDTH[base]);
+        ? (density === "compact" ? 10 : 15)
+         : (profile.minColumnWidth ?? LXM_DURATION_MIN_COLUMN_WIDTH[base]);
+    // TAB 长时值绘制器将 slot 分为四分单位，压缩后每单位仍须容纳真实短横。
+    if (density === "compact" && layer === "tab" && (base === "half" || base === "whole"))
+      min = Math.max(min, (base === "whole" ? 4 : 2) *
+        (LXM_DURATION_SUSTAIN_MIN_WIDTH + 2 * LXM_DURATION_SUSTAIN_HORIZONTAL_PADDING));
     const ideal =
       layer === "numbered"
         ? numberedProfile.widths[base] * (density === "comfortable" ? 1.25 : 1)
@@ -101,7 +109,7 @@ export const summarizeTimeGrid = (
             tick: tick + offset,
             left: 6,
             right: 6,
-            lane: layer === "tab" ? "tab-sustain" : "numbered",
+            lane: layer === "tab" && density !== "compact" ? "tab-sustain" : layer,
           });
         }
       }
@@ -118,7 +126,7 @@ export const summarizeTimeGrid = (
       b.rhythm.base,
       b.rhythm.dots,
     );
-    const half = Math.max(5, ...b.notes.map((n) => fretHalfWidth(n.fret)));
+    const half = Math.max(density === "compact" ? 0 : 5, ...b.notes.map((n) => fretHalfWidth(n.fret)));
     const inset = techniqueInsets?.get(b.id);
     extents.push({
       tick: b.tick,
@@ -154,11 +162,29 @@ export const summarizeTimeGrid = (
       metrics,
       numberedProfile,
     );
+    // numbered-rhythm-layout 的点心：正文 bounds.right + 1（减时线）+ 4，
+    // 半径 1.3；后续点心间隔 4。按真实圆点外缘约束，不能只累加 dots * 4。
+    const written = calculateRhythmTicks(e.rhythm);
+    const units = written.ok ? written.ticks / TICKS_PER_QUARTER : 0;
+    const lastSustainUnit = Math.floor(units) - 1;
+    const dotCount = units > 1
+      ? (units % 1 === 0.5 ? 1 : units % 1 === 0.75 ? 2 : 0)
+      : e.rhythm.dots;
+    const bodyRight = Math.max(...glyph.labels
+      .filter((g) => g.fontFamily !== "Bravura")
+      .map((g) => g.bounds.x + g.bounds.width));
+    let right = glyph.bounds.x + glyph.bounds.width - 2;
+    if (density === "compact" && dotCount > 0) {
+      if (lastSustainUnit > 0) {
+        const tick = e.tick + duration.ticks * lastSustainUnit / units;
+        extents.push({ tick, left: 6, right: 9 + (dotCount - 1) * 4 + 1.3, lane: "numbered" });
+      } else right = Math.max(right, bodyRight + 1 + 4 + (dotCount - 1) * 4 + 1.3);
+    } else if (density !== "compact") right += e.rhythm.dots * 4;
     extents.push({
       tick: e.tick,
       // 字形已自带两侧保护边界；音乐边缘间隔只按墨迹计算一次。
       left: -glyph.bounds.x - 2,
-      right: glyph.bounds.x + glyph.bounds.width - 2 + e.rhythm.dots * 4,
+      right,
       lane: "numbered",
     });
   }
@@ -169,7 +195,7 @@ export const summarizeTimeGrid = (
   for (const l of measure.lyrics) {
     const event = numberedById.get(l.eventId);
     if (!event) continue;
-    const g = musicTextGlyph(musicTextRequest(l.text), 0, 0, metrics);
+    const g = musicTextGlyph(musicTextRequest(l.text, MUSIC_LYRIC_FONT_SIZE), 0, 0, metrics);
     extents.push({
       tick: event.tick,
       left: -g.bounds.x,
@@ -239,7 +265,9 @@ export const summarizeTimeGrid = (
         values[i]!.tick,
         values[i - 1]!.right +
           values[i]!.left +
-          (lane === "numbered" ? numberedProfile.glyphGap : 6),
+          (lane === "numbered"
+            ? numberedProfile.glyphGap
+            : lane === "tab" ? tabGlyphGap : 6),
       );
   }
   for (const g of measure.numberedVoice.tuplets) {
@@ -276,22 +304,25 @@ export const summarizeTimeGrid = (
         a.startTick - b.startTick,
     )) {
       const lengths = incoming.map((edges) => edges.length);
-      edge(range.startTick, range.endTick, 28);
+      const inputWidth = density === "compact" ? 20 : 24;
+      const inputEdge = (from: number, to: number, width: number) =>
+        edge(from, to, density === "compact" ? 1 : width, width);
+      inputEdge(range.startTick, range.endTick, inputWidth + 4);
       const previous = numberedExtents
         .filter((e) => e.tick < range.startTick)
         .at(-1);
       const next = numberedExtents.find((e) => e.tick > range.startTick);
       if (previous)
-        edge(
+        inputEdge(
           previous.tick,
           range.startTick,
-          previous.right + 12 + numberedProfile.glyphGap,
+          previous.right + inputWidth / 2 + numberedProfile.glyphGap,
         );
       if (next)
-        edge(
+        inputEdge(
           range.startTick,
           next.tick,
-          12 + next.left + numberedProfile.glyphGap,
+          inputWidth / 2 + next.left + numberedProfile.glyphGap,
         );
       if (solve(true).at(-1)! > budget)
         incoming.forEach((edges, i) => edges.splice(lengths[i]!));
@@ -300,29 +331,33 @@ export const summarizeTimeGrid = (
   const minPositions = solve(false),
     idealPositions = solve(true);
   const contentWidth = idealPositions.at(-1)!;
-  const leftExtra = Math.max(
+  const leftInset = (positions: number[]) => Math.max(
     0,
     ...extents.map(
       (e) =>
         e.left +
         6 -
-        idealPositions[index.get(e.tick)!]! -
+        positions[index.get(e.tick)!]! -
         profile.measurePaddingX -
         leading,
     ),
   );
-  const tailExtra = Math.max(
+  const tailInset = (positions: number[]) => Math.max(
     0,
     ...extents.map(
       (e) =>
-        idealPositions[index.get(e.tick)!]! +
+        positions[index.get(e.tick)!]! +
         e.right +
         6 -
-        contentWidth -
+        positions.at(-1)! -
         profile.measurePaddingX,
     ),
   );
-  const fixed = 2 * profile.measurePaddingX + leading + leftExtra + tailExtra;
+  const leftExtra = leftInset(idealPositions);
+  const tailExtra = tailInset(idealPositions);
+  const hardLeftExtra = leftInset(minPositions);
+  const hardTailExtra = tailInset(minPositions);
+  const fixed = 2 * profile.measurePaddingX + leading;
   const sourceStarts = new Map<number, Source[]>();
   for (const source of sources)
     sourceStarts.set(source.start, [
@@ -340,19 +375,23 @@ export const summarizeTimeGrid = (
       .map((s) => s.id),
     rhythmTicks: ticks[i + 1]! - tick,
     durationWeight: 1,
-    // 既有 system 只允许扩张；工作列预算采用已满足全部约束的理想差值。
-    minWidth: idealPositions[i + 1]! - idealPositions[i]!,
+    // 两套完整最长路径的相邻差值；只能以同一比例插值整套位置。
+    minWidth: density === "compact"
+      ? minPositions[i + 1]! - minPositions[i]!
+      : idealPositions[i + 1]! - idealPositions[i]!,
     idealWidth: idealPositions[i + 1]! - idealPositions[i]!,
   }));
   return {
     measureId: measure.id,
     leadingWidth: leading,
     columns,
-    minWidth: minPositions.at(-1)! + fixed,
-    idealWidth: contentWidth + fixed,
-    assignedWidth: contentWidth + fixed,
+    minWidth: minPositions.at(-1)! + fixed + hardLeftExtra + hardTailExtra,
+    idealWidth: contentWidth + fixed + leftExtra + tailExtra,
+    assignedWidth: contentWidth + fixed + leftExtra + tailExtra,
     contentWidth,
     leftExtra,
     tailExtra,
+    hardLeftExtra,
+    hardTailExtra,
   };
 };

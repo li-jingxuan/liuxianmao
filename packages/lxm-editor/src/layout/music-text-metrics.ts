@@ -1,6 +1,7 @@
 import { scoreHeaderText } from "./score-header-text";
 import { effectiveChordDisplay } from "./chord-display";
 import type { ILXMDocument } from "../core/types";
+import { LXM_NUMBERED_TEXT_FONT_SIZE } from "./layout-constants";
 
 export interface ILXMMusicTextMeasureRequest {
   key: string;
@@ -42,19 +43,21 @@ export const musicTextInkBounds = (glyph: MusicTextGlyph): MusicTextRect => ({
 export const MUSIC_TEXT_FONT =
   'Arial, "PingFang SC", "Microsoft YaHei", sans-serif';
 export const MUSIC_TEXT_GAP = 6;
-export const MUSIC_TEXT_LANE_GAP = 8;
+export const MUSIC_TEXT_LANE_GAP = 3;
+/** 歌词字号独立于和弦、标题与通用文本请求，度量和正文共用。 */
+export const MUSIC_LYRIC_FONT_SIZE = 11;
 /** 空歌词占位框的默认尺寸；编辑焦点与占位区域共用，避免两套几何漂移。 */
 export const MUSIC_TEXT_PLACEHOLDER_WIDTH = 24;
-export const MUSIC_TEXT_PLACEHOLDER_HEIGHT = 18;
+export const MUSIC_TEXT_PLACEHOLDER_HEIGHT = 15;
 /** 段间留白与正文/和弦净空独立，避免压缩歌词时牵动指法图。 */
-export const MUSIC_LYRIC_VERSE_GAP = 3;
+export const MUSIC_LYRIC_VERSE_GAP = 2;
 /** 最后一段歌词的收尾留白，与正文到歌词的净空分别控制。 */
-export const MUSIC_LYRIC_BOTTOM_GAP = 4;
+export const MUSIC_LYRIC_BOTTOM_GAP = 2;
 /** 名称下缘与顶部标记之间保留最小净空，实际字形较高时自动扩展。 */
 export const MUSIC_CHORD_NAME_MIN_DESCENT = 3;
 export const MUSIC_CHORD_NAME_MARKER_GAP = 1;
 /** 谱面和弦名称使用独立字号，度量与渲染共同消费。 */
-export const MUSIC_CHORD_NAME_FONT_SIZE = 10;
+export const MUSIC_CHORD_NAME_FONT_SIZE = 9;
 
 /** 度量与渲染共同消费字体和 anchor，避免继承样式产生漂移。 */
 export const musicTextRequest = (
@@ -130,7 +133,9 @@ export const collectMusicTextMeasureRequests = (
   document: ILXMDocument,
   showChordDiagrams?: boolean,
 ): ILXMMusicTextMeasureRequest[] => {
-  const requests: ILXMMusicTextMeasureRequest[] = [musicTextRequest("0", 14)];
+  const requests: ILXMMusicTextMeasureRequest[] = [
+    musicTextRequest("0", LXM_NUMBERED_TEXT_FONT_SIZE),
+  ];
   const track = document.score.tracks[0];
   if (track) {
     const header = scoreHeaderText(document.score, track);
@@ -150,7 +155,7 @@ export const collectMusicTextMeasureRequests = (
         requests.push(
           musicTextRequest(
             token.replace(/^[#bn]/, "").replace(/['.]+$/, ""),
-            14,
+            LXM_NUMBERED_TEXT_FONT_SIZE,
           ),
         );
         if (prefix) requests.push(numberedAccidentalMeasureRequest(prefix));
@@ -166,7 +171,7 @@ export const collectMusicTextMeasureRequests = (
         ),
       );
     for (const lyric of measure.lyrics) {
-      requests.push(musicTextRequest(lyric.text));
+      requests.push(musicTextRequest(lyric.text, MUSIC_LYRIC_FONT_SIZE));
     }
     for (const symbol of measure.chordSymbols) {
       requests.push(

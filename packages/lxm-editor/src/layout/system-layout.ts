@@ -15,7 +15,9 @@ import {
 } from "./measure-spacing";
 import {
   LXM_LAYOUT_DENSITY_PROFILES,
+  LXM_COMPACT_SYSTEM_MAX_MEASURES,
   LXM_LEADING_REPEAT_CLEARANCE_WIDTH,
+  LXM_SPARSE_SYSTEM_MAX_CONTENT_SCALE,
   LXM_SYSTEM_HEADER_WIDTH,
   LXM_TIME_SIGNATURE_WIDTH,
 } from "./layout-constants";
@@ -152,6 +154,77 @@ export const layoutSystems = (
         intrinsicContentWidth: spacingSummary.contentWidth,
       };
     });
+    if (options.density === "compact") {
+      // 两个完整可行端点分别核验；最终整行以同一系数插值，跨小节净空也保留。
+      for (const hard of [true, false]) {
+        const widthKey = hard ? "minWidth" : "idealWidth";
+        const leftKey = hard ? "hardLeftExtra" : "leftExtra";
+        const tailKey = hard ? "hardTailExtra" : "tailExtra";
+        const columns = planned.flatMap((entry) =>
+          entry.spacingSummary.columns.map((column) => ({ entry, column })),
+        );
+        const chords = columns.flatMap(({ entry, column }, columnIndex) =>
+          entry.measure.chordSymbols
+            .filter((symbol) => column.tabBeatIds.includes(symbol.beatId))
+            .map((symbol) => ({
+              columnIndex,
+              bounds: createChordBlock(symbol, options.musicTextMetrics).bounds,
+            })),
+        );
+        const anchorX = (columnIndex: number) => {
+          let x = 0;
+          for (const entry of planned) {
+            const summary = entry.spacingSummary;
+            const localIndex = summary.columns.indexOf(columns[columnIndex]!.column);
+            if (localIndex >= 0)
+              return x + padding + entry.leadingWidth + (summary[leftKey] ?? 0) +
+                summary.columns.slice(0, localIndex).reduce((sum, c) => sum + c[widthKey], 0);
+            x += summary[widthKey] + options.measureGap;
+          }
+          return x;
+        };
+        for (let i = 0; i < chords.length; i++) {
+          const current = chords[i]!;
+          for (const previous of chords.slice(0, i)) {
+            if (previous.columnIndex === current.columnIndex) continue;
+            const deficit = anchorX(previous.columnIndex) + previous.bounds.x +
+              previous.bounds.width + 4 - anchorX(current.columnIndex) - current.bounds.x;
+            if (deficit <= 0) continue;
+            // 给当前锚点之前的整段后缀平移；所有向前 DAG 约束保持成立。
+            const { entry, column } = columns[current.columnIndex - 1]!;
+            column[widthKey] += deficit;
+            entry.spacingSummary[widthKey] += deficit;
+          }
+        }
+        const rowWidth = planned.reduce((sum, entry) => sum + entry.spacingSummary[widthKey],
+          Math.max(0, planned.length - 1) * options.measureGap);
+        const tailDeficit = Math.max(0, ...chords.map(({ columnIndex, bounds }) =>
+          anchorX(columnIndex) + bounds.x + bounds.width + 4 - rowWidth));
+        const last = planned.at(-1);
+        if (last && tailDeficit > 0) {
+          last.spacingSummary[tailKey] = (last.spacingSummary[tailKey] ?? 0) + tailDeficit;
+          last.spacingSummary[widthKey] += tailDeficit;
+        }
+        if (hard) {
+          // 额外和弦约束可能只抬高硬端点；理想端点仍须至少容纳硬预算。
+          for (const { spacingSummary: summary } of planned) {
+            const deficit = summary.minWidth - summary.idealWidth;
+            if (deficit > 0) {
+              summary.columns.at(-1)!.idealWidth += deficit;
+              summary.idealWidth += deficit;
+            }
+          }
+        }
+      }
+      for (const entry of planned) {
+        const summary = entry.spacingSummary;
+        summary.contentWidth = summary.columns.reduce((sum, c) => sum + c.idealWidth, 0);
+        summary.assignedWidth = summary.idealWidth;
+        entry.intrinsicWidth = summary.idealWidth;
+        entry.intrinsicContentWidth = summary.contentWidth;
+      }
+      return planned;
+    }
     const columns = planned.flatMap((entry) =>
       entry.spacingSummary.columns.map((column) => ({ entry, column })),
     );
@@ -240,17 +313,15 @@ export const layoutSystems = (
       (sum, entry) => sum + entry.intrinsicWidth,
       Math.max(0, entries.length - 1) * options.measureGap,
     );
+  const pendingMinimum = (entries: ILXMPendingMeasure[]) =>
+    entries.reduce((sum, entry) => sum + entry.spacingSummary.minWidth,
+      Math.max(0, entries.length - 1) * options.measureGap);
 
   /** 将当前待布局小节提交为一条最终坐标确定的谱面行。 */
   const flushSystem = (reason: ILXMSystemFlushReason) => {
     if (pendingMeasures.length === 0) return;
 
     const systemIndex = systems.length;
-    // 这里先决定六线谱正文宽度，随后再加固定行头得到 system.width。若直接把
-    // 整行宽度分给 measures，TAB 会被挤到画布外，命中区域也会比视觉宽一段。
-    // 所有行（包括末行和单小节行）两端对齐；超宽小节保留固有宽度，不能压缩节奏列。
-    const targetStaffWidth = Math.max(staffWidthLimit, pendingWidth);
-    const remainingWidth = targetStaffWidth - pendingWidth;
     const flexibleWidths = pendingMeasures.map(
       ({ intrinsicContentWidth }) => intrinsicContentWidth,
     );
@@ -258,6 +329,21 @@ export const layoutSystems = (
       (total, width) => total + width,
       0,
     );
+    // 先决定六线谱正文宽度，再加固定 TAB 行头得到 system.width。
+    // 单小节行及末行仅允许内容区有限拉伸；padding、拍号、gap 等固定空间
+    // 已包含在 pendingWidth 中，不参与倍数放大。超宽内容保留固有宽度。
+    const shouldLimitStretch = reason === "final" || pendingMeasures.length === 1;
+    const maxStaffWidth = shouldLimitStretch
+      ? pendingWidth +
+        totalFlexibleWidth * (LXM_SPARSE_SYSTEM_MAX_CONTENT_SCALE - 1)
+      : staffWidthLimit;
+    let targetStaffWidth = Math.max(
+      pendingWidth,
+      Math.min(staffWidthLimit, maxStaffWidth),
+    );
+    if (options.density === "compact" && pendingMinimum(pendingMeasures) <= staffWidthLimit)
+      targetStaffWidth = Math.min(targetStaffWidth, staffWidthLimit);
+    const remainingWidth = targetStaffWidth - pendingWidth;
 
     // System 剩余空间只加入各小节的内容区。按 flexibleWidth 比例分配等价于
     // 让整行节奏内容使用统一横向比例；空小节全部没有内容宽度时才退化为均分。
@@ -270,6 +356,15 @@ export const layoutSystems = (
         return intrinsicWidth + remainingWidth * weight;
       },
     );
+    if (options.density === "compact" && targetStaffWidth < pendingWidth) {
+      const minimum = pendingMinimum(pendingMeasures);
+      const ratio = Math.max(0, Math.min(1,
+        (staffWidthLimit - minimum) / (pendingWidth - minimum || 1)));
+      pendingMeasures.forEach(({ spacingSummary: summary }, i) => {
+        summary.compressionRatio = ratio;
+        assignedWidths[i] = summary.minWidth + (summary.idealWidth - summary.minWidth) * ratio;
+      });
+    }
 
     const staffX = options.startX + LXM_SYSTEM_HEADER_WIDTH;
     let cursorX = staffX;
@@ -340,7 +435,7 @@ export const layoutSystems = (
       index: systemIndex,
       x: options.startX,
       y: systemY,
-      // 普通行使用调用方目标宽度；超宽小节行使用其真实固有宽度。
+      // 记录实际绘制宽度；受限行可短于画布，超宽小节行可长于配置行宽。
       width: LXM_SYSTEM_HEADER_WIDTH + targetStaffWidth,
       height: systemHeight,
       header: layoutSystemHeader({
@@ -364,7 +459,9 @@ export const layoutSystems = (
     const candidate = planPending([...pendingMeasures, { measure, index }]);
     if (
       pendingMeasures.length > 0 &&
-      pendingTotal(candidate) > staffWidthLimit
+      (options.density === "compact"
+        ? candidate.length > LXM_COMPACT_SYSTEM_MAX_MEASURES || pendingMinimum(candidate) > staffWidthLimit
+        : pendingTotal(candidate) > staffWidthLimit)
     ) {
       flushSystem("wrapped");
       pendingMeasures = planPending([{ measure, index }]);

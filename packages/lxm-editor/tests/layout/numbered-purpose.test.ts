@@ -8,6 +8,11 @@ import {
   layoutParagraphFocus,
   type MusicTextRect,
 } from "../../src";
+import {
+  LXM_SYSTEM_HEADER_WIDTH,
+  LXM_TIME_SIGNATURE_WIDTH,
+} from "../../src/layout/layout-constants";
+import { summarizeMeasureSpacingWidth } from "../../src/layout/measure-spacing";
 
 /** 孤立一小节，避免歌词和指法图成为宽度主导，专门检查简谱几何。 */
 const fixture = () => {
@@ -88,7 +93,7 @@ describe("简谱编辑与成品排版", () => {
     expect(outer.bounds.y + outer.bounds.height).toBeLessThan(inner.bounds.y);
   });
   it.each(["compact", "comfortable"] as const)(
-    "%s 下编辑与成品行宽一致且双谱首音对齐，布局不修改文档",
+    "%s 下编辑与成品均限制内容拉伸且双谱首音对齐，布局不修改文档",
     (density) => {
       const { doc, track, m } = fixture();
       const result = applyScoreCommand(doc, {
@@ -120,15 +125,31 @@ describe("简谱编辑与成品排版", () => {
         density,
         systemWidth: 600,
       }).systems[0]!;
-      expect(editing.width).toBe(600);
-      expect(finished.width).toBe(600);
-      // 成品仍收紧简谱与 TAB 的纵向净空，用途差异不再通过缩短整行表达。
+      // 成品仍收紧简谱与 TAB 的纵向净空。
       const numberedStaffGap = (system: typeof editing) =>
         system.numberedRow!.y - system.measures[0]!.strings.at(-1)!.y1;
       expect(numberedStaffGap(finished)).toBeLessThan(numberedStaffGap(editing));
-      for (const s of [editing, finished]) {
+      for (const [s, purpose] of [
+        [editing, "editing"],
+        [finished, "presentation"],
+      ] as const) {
+        const summary = summarizeMeasureSpacingWidth(
+          result.document.score.tracks[0]!.measures[0]!,
+          density,
+          LXM_TIME_SIGNATURE_WIDTH,
+          undefined,
+          true,
+          undefined,
+          { purpose },
+        );
+        expect(s.width).toBeCloseTo(
+          Math.min(
+            600,
+            LXM_SYSTEM_HEADER_WIDTH + summary.assignedWidth + summary.contentWidth * 0.6,
+          ),
+        );
         const measure = s.measures[0]!;
-        expect(measure.x + measure.width).toBeCloseTo(s.x + 600);
+        expect(measure.x + measure.width).toBeCloseTo(s.x + s.width);
         expect(measure.numberedNotation![0]!.labels[0]!.x).toBe(
           measure.beats[0]!.x,
         );

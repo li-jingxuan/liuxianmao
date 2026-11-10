@@ -37,11 +37,20 @@ export const planNumberedInputRanges = (
   const appendBlank = (start: number, end: number) => {
     let cursor = start;
     while (cursor < end) {
+      const beat = measure.beats.find((item) => item.tick === cursor);
+      const duration = beat && calculateRhythmTicks(beat.rhythm);
+      if (beat && duration?.ok &&
+        !measure.tuplets.some((group) => group.beatIds.includes(beat.id)) &&
+        cursor + duration.ticks <= end) {
+        result.push({ startTick: cursor, endTick: cursor + duration.ticks, rhythm: { ...beat.rhythm } });
+        cursor += duration.ticks;
+        continue;
+      }
       const beatBoundary = Math.min(
         end,
         (Math.floor(cursor / unit) + 1) * unit,
       );
-      // 空简谱只借用 TAB 起点作为录入提示；时值和事件仍由独立简谱声部决定。
+      // 无完整普通 TAB 节奏可借用时，沿拍号单位与 TAB 起点分解空白。
       const nextTabStart = tabStarts.find(
         (tick) =>
           tick > cursor &&

@@ -5,8 +5,8 @@
  */
 
 import { getBeatCellBounds } from "./beat-cell-bounds";
-import { LXM_STRING_HIT_RADIUS_Y } from "./layout-constants";
-import { getTextBounds } from "./technique-geometry";
+import { LXM_STRING_HIT_RADIUS_Y, LXM_TECHNIQUE_TEXT_HALO_WIDTH } from "./layout-constants";
+import { getTechniqueInkBounds, getTextBounds } from "./technique-geometry";
 import type {
   ILXMHitIndex,
   ILXMHitTarget,
@@ -127,9 +127,31 @@ export const hitTestTechnique = (
   layout: ILXMLayout,
   point: ILXMLayoutPoint,
 ): string | null =>
-  layout.hitIndex.techniqueBounds.find((bounds) =>
+  findTechniqueHitBounds(layout, point)?.techniqueId ?? null;
+
+/** 保护框可跨弦重叠；先选标签墨迹，再按最近的实际图元消除数组顺序偏差。 */
+const findTechniqueHitBounds = (layout: ILXMLayout, point: ILXMLayoutPoint) => {
+  const candidates = layout.hitIndex.techniqueBounds.filter((bounds) =>
     isPointInBounds(point, bounds),
-  )?.techniqueId ?? null;
+  );
+  const distanceSquared = (rect: { x: number; y: number; width: number; height: number }) => {
+    const dx = Math.max(rect.x - point.x, 0, point.x - rect.x - rect.width);
+    const dy = Math.max(rect.y - point.y, 0, point.y - rect.y - rect.height);
+    return dx * dx + dy * dy;
+  };
+  const score = (bounds: (typeof candidates)[number]) => {
+    const segment = layout.systems[bounds.systemIndex]?.techniques.find(
+      (item) => item.techniqueId === bounds.techniqueId,
+    );
+    if (!segment) return [1, Infinity];
+    const onLabel = segment.texts.some((label) =>
+      isPointInBounds(point, getTextBounds(label, LXM_TECHNIQUE_TEXT_HALO_WIDTH)),
+    );
+    return [onLabel ? 0 : 1, Math.min(...getTechniqueInkBounds(segment).map(distanceSquared))];
+  };
+  return candidates.map((bounds) => ({ bounds, score: score(bounds) }))
+    .sort((a, b) => a.score[0]! - b.score[0]! || a.score[1]! - b.score[1]!)[0]?.bounds;
+};
 
 export interface ILXMTechniqueHitTarget {
   techniqueId: string;
@@ -141,9 +163,7 @@ export const hitTestTechniqueTarget = (
   layout: ILXMLayout,
   point: ILXMLayoutPoint,
 ): ILXMTechniqueHitTarget | null => {
-  const bounds = layout.hitIndex.techniqueBounds.find((candidate) =>
-    isPointInBounds(point, candidate),
-  );
+  const bounds = findTechniqueHitBounds(layout, point);
   if (!bounds) return null;
   const endpoints = bounds.focusEndpoints;
   if (!endpoints)
@@ -253,7 +273,7 @@ export const hitTestLayout = (
   if (!beat) return null;
 
   const string = measure.strings.find(
-    (item) => Math.abs(point.y - item.y1) <= LXM_STRING_HIT_RADIUS_Y,
+    (item) => Math.abs(point.y - item.y1) <= LXM_STRING_HIT_RADIUS_Y + 1e-9,
   );
   if (!string) return null;
 

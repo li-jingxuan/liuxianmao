@@ -1366,6 +1366,7 @@ export const EditorShell: React.FC = () => {
         activeMusicTextTarget,
         now.numberedInputRhythm,
         now.numberedInputRhythmExplicit,
+        now.tabInputRhythmOverrides,
       );
       if (!target.enabled || !target.rhythm) return false;
       if (target.kind === "numbered" && target.target) {
@@ -1398,7 +1399,7 @@ export const EditorShell: React.FC = () => {
     }
     const now = session.getState();
     if (!now.document) return false;
-    const command = buildEditorToolCommand(now.document, now.selection, action);
+    const command = buildEditorToolCommand(now.document, now.selection, action, now.tabInputRhythmOverrides);
     if (!command) {
       setErrorMessage("当前目标不适用此操作，请重新选择。");
       return false;

@@ -152,7 +152,7 @@ describe("和弦动态上方占位", () => {
         expect(
           narrow.systems[i]!.y -
             (narrow.systems[i - 1]!.y + narrow.systems[i - 1]!.height),
-        ).toBeCloseTo(12);
+        ).toBeCloseTo(8);
     },
   );
 });

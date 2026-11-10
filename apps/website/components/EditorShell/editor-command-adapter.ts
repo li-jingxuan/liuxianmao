@@ -206,11 +206,11 @@ export const createEditorCommandAdapter =
         const effectCount = preview.effects?.length ?? 0;
         const title =
           command.type === LXMScoreCommandEnum.RemoveMeasure
-            ? "删除小节影响确认"
+            ? "删除确认"
             : "小节范围复制影响确认";
         const message =
           command.type === LXMScoreCommandEnum.RemoveMeasure
-            ? `本次将删除目标小节及其 TAB、简谱、歌词、和弦和关联结构；${effectCount} 项关联影响将在确认后一起提交。`
+            ? "将删除目标小节，是否确认删除？"
             : `本次将插入整小节双谱内容；${effectCount} 项复制或关系影响将在确认后一起提交。`;
         const id = modals.open({
           kind: "structure-impact",

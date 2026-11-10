@@ -11,6 +11,7 @@ import {
   musicTextGlyph,
   unionMusicBounds,
   MUSIC_TEXT_GAP,
+  MUSIC_LYRIC_FONT_SIZE,
   MUSIC_CHORD_NAME_FONT_SIZE,
   type MusicTextGlyph,
   type MusicTextRect,
@@ -32,11 +33,11 @@ export interface ChordSymbolLayout {
   bounds: MusicTextRect;
   description: string;
 }
-/** 保留原参数契约，名称基线到网格顶线固定为 12，避免调用方版本不一致。 */
+/** 保留原参数契约，名称基线到网格顶线固定为 9。 */
 export const chordDiagramGridOffset = (
   _symbols: readonly ILXMMeasure["chordSymbols"][number][] = [],
   _metrics?: ILXMMusicTextMetrics,
-): number => 12;
+): number => 9;
 
 /** 网格左弦线对齐 Beat，名称居中于网格；只显示名称时仍以 Beat 为中心。 */
 export const createChordBlock = (
@@ -116,7 +117,7 @@ export const getMusicTextExtents = (
   for (const lyric of measure.lyrics)
     add(
       lyric.eventId,
-      musicTextGlyph(musicTextRequest(lyric.text), 0, 0, metrics).bounds,
+      musicTextGlyph(musicTextRequest(lyric.text, MUSIC_LYRIC_FONT_SIZE), 0, 0, metrics).bounds,
     );
   for (const symbol of measure.chordSymbols)
     add(symbol.beatId, createChordBlock(symbol, metrics).bounds);

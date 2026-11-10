@@ -1,6 +1,7 @@
 import {
   LXMScoreCommandEnum as C,
   LXM_EDITABLE_TIME_SIGNATURES,
+  tabInputRhythmFromNumbered,
   type ILXMBarlineType,
   type ILXMDocument,
   type ILXMRhythm,
@@ -41,6 +42,7 @@ export const buildEditorToolCommand = (
   document: ILXMDocument,
   selection: ILXMTabCellSelection | null,
   action: EditorToolbarAction,
+  tabInputRhythmOverrides: readonly string[] = [],
 ): ILXMScoreCommand | null => {
   const tools = deriveEditorToolState(document, selection);
   if (action.type === "quickTechnique") {
@@ -130,14 +132,15 @@ export const buildEditorToolCommand = (
     const beat = focus.measure.beats.find(
       (item) => item.id === selection.focus.beatId,
     );
-    return beat
+    const rhythm = beat && (tabInputRhythmOverrides.includes(beat.id) ? beat.rhythm : tabInputRhythmFromNumbered(focus.track, focus.measure, beat.id) ?? beat.rhythm);
+    return beat && rhythm
       ? {
           type: C.SetBeatRhythm,
           ...selection.focus,
           rhythm:
             action.type === "rhythm"
-              ? { ...beat.rhythm, base: action.base }
-              : { ...beat.rhythm, dots: action.dots },
+              ? { ...rhythm, base: action.base }
+              : { ...rhythm, dots: action.dots },
         }
       : null;
   }

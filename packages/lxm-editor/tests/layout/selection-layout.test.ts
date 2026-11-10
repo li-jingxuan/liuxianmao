@@ -30,7 +30,7 @@ const resolve = (
 };
 
 describe("selection layout", () => {
-  it("单格矩形以 Beat/string 锚点为中心使用固定 20 × 14 尺寸", () => {
+  it("单格矩形以 Beat/string 锚点为中心使用固定 14 × 8 尺寸", () => {
     const layout = buildLayout(EXAMPLE_MVP_4, {
       systemWidth: 733,
       density: "compact",
@@ -47,10 +47,10 @@ describe("selection layout", () => {
     expect(rects[0]).toMatchObject({
       measureId: measure.id,
       beatIds: [beat.id],
-      x: beat.x - 10,
-      width: 20,
-      y: strings[2]!.y1 - 7,
-      height: 14,
+      x: beat.x - 7,
+      width: 14,
+      y: strings[2]!.y1 - 4,
+      height: 8,
     });
   });
 
@@ -169,8 +169,13 @@ describe("selection layout", () => {
       x: beat.x - LXM_TAB_FOCUS_CARET_WIDTH / 2,
       y: startString.y1 - LXM_TAB_FOCUS_CARET_HEIGHT / 2,
       width: LXM_TAB_FOCUS_CARET_WIDTH,
-      height: endString.y1 - startString.y1 + LXM_TAB_FOCUS_CARET_HEIGHT,
     });
+    expect(rect.height).toBeCloseTo(
+      endString.y1 - startString.y1 + LXM_TAB_FOCUS_CARET_HEIGHT,
+    );
+    expect(rect.y + rect.height).toBeCloseTo(
+      endString.y1 + LXM_TAB_FOCUS_CARET_HEIGHT / 2,
+    );
   });
 
   it("多 Beat 范围继续使用宽单元格边界，不被固定 caret 宽度截短", () => {
@@ -192,8 +197,8 @@ describe("selection layout", () => {
   });
 
   it("compact 与 comfortable 下 caret 尺寸固定，只更新中心坐标", () => {
-    expect(LXM_TAB_FOCUS_CARET_WIDTH).toBe(20);
-    expect(LXM_TAB_FOCUS_CARET_HEIGHT).toBe(14);
+    expect(LXM_TAB_FOCUS_CARET_WIDTH).toBe(14);
+    expect(LXM_TAB_FOCUS_CARET_HEIGHT).toBe(8);
 
     for (const density of ["compact", "comfortable"] as const) {
       const layout = buildLayout(EXAMPLE_MVP_4, { systemWidth: 733, density });
@@ -207,7 +212,7 @@ describe("selection layout", () => {
         (candidate) => candidate.index === focus.string,
       )!;
 
-      expect(caret).toMatchObject({ width: 20, height: 14 });
+      expect(caret).toMatchObject({ width: 14, height: 8 });
       expect(caret.x + caret.width / 2).toBe(beat.x);
       expect(caret.y + caret.height / 2).toBe(string.y1);
     }

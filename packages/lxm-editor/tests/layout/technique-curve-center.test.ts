@@ -114,6 +114,8 @@ describe("技巧弧线中心锚点", () => {
         (note) => note.string === 6,
       )!;
       const to = track.measures[4]!.beats[0]!.notes[0]!;
+      // 只保留连接的两小节，用硬宽约束明确制造跨行，避免随字体缩小落回同一行。
+      track.measures = track.measures.slice(3, 5);
       from.fret = 12;
       to.string = 6;
       to.fret = type === "hammerOn" ? 14 : type === "pullOff" ? 10 : 12;
@@ -128,8 +130,9 @@ describe("技巧弧线中心锚点", () => {
       for (const density of ["compact", "comfortable"] as const) {
         const layout = buildLayout(added.document, {
           density,
-          systemWidth: 742,
+          systemWidth: 120,
         });
+        expect(layout.systems).toHaveLength(2);
         const segments = layout.systems.flatMap((system) => system.techniques);
         expect(segments.map((segment) => segment.continuation)).toEqual([
           "toNext",

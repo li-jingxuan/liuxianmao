@@ -6,6 +6,8 @@ import type {
   ILXMRhythm,
   ILXMTabCellSelection,
 } from "@liuxianmao/lxm-editor";
+import { tabInputRhythmFromNumbered } from "@liuxianmao/lxm-editor";
+import { useEditorStore } from "../../stores/editor-store";
 import { MusicAssetIcon } from "../MusicAssetIcon";
 import type { MusicControlIcon } from "../../assets/svg/svg-assets-manifest";
 import { deriveEditorToolState } from "./editor-tool-state";
@@ -43,6 +45,7 @@ export const NoteToolDetails = ({
   numberedTarget?: Extract<MusicTextTarget, { kind: "numbered" }> | null;
   onEdit?: (target: MusicTextTarget) => void;
 }) => {
+  const overrides = useEditorStore((state) => state.tabInputRhythmOverrides);
   const tools = deriveEditorToolState(document, selection);
   const beats =
     tools.range?.beats.flatMap(
@@ -65,6 +68,9 @@ export const NoteToolDetails = ({
     typeof note.fret === "number" ? "fret" : note.fret,
   )).size > 1;
   const beat = beats.length === 1 ? beats[0] : null;
+  const inputRhythm = beat && tools.focused
+    ? (overrides.includes(beat.id) ? beat.rhythm : tabInputRhythmFromNumbered(tools.focused.track, tools.focused.measure, beat.id) ?? beat.rhythm)
+    : null;
   const numberedMeasure =
     numberedTarget &&
     document.score.tracks
@@ -156,11 +162,11 @@ export const NoteToolDetails = ({
               key={rhythm.base}
               aria-label={rhythm.label}
               title={tools.rhythm.reason || rhythm.label}
-              aria-pressed={beat?.rhythm.base === rhythm.base}
+              aria-pressed={inputRhythm?.base === rhythm.base}
               disabled={blocked || !tools.rhythm.enabled}
-              color={beat?.rhythm.base === rhythm.base ? "primary" : "default"}
+              color={inputRhythm?.base === rhythm.base ? "primary" : "default"}
               variant={
-                beat?.rhythm.base === rhythm.base ? "filled" : "outlined"
+                inputRhythm?.base === rhythm.base ? "filled" : "outlined"
               }
               onClick={() =>
                 void onAction({ type: "rhythm", base: rhythm.base })
@@ -178,7 +184,7 @@ export const NoteToolDetails = ({
           <Select
             aria-label="音符附点"
             disabled={blocked || !tools.rhythm.enabled}
-            value={beat?.rhythm.dots}
+            value={inputRhythm?.dots}
             placeholder="请选择单拍选区"
             options={[
               { value: 0, label: "无附点" },

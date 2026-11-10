@@ -16,6 +16,10 @@ import { getMeasureContentBottom } from "./rhythm-bounds";
 import { numberedXAtTick } from "./numbered-input-layout";
 import { layoutLyricPlaceholder } from "./lyric-placeholder-layout";
 import {
+  LXM_NUMBERED_TEXT_FONT_SIZE,
+  LXM_NUMBERED_OCTAVE_DOT_RADIUS,
+} from "./layout-constants";
+import {
   numberedLayoutProfile,
   type NumberedLayoutProfile,
 } from "./numbered-layout-profile";
@@ -49,7 +53,9 @@ export const layoutNumbered = (
     const suffix = token.match(/['.]+$/)?.[0] ?? "";
     const prefix = token.match(/^[#bn]/)?.[0];
     const body = token.slice(prefix ? 1 : 0, token.length - suffix.length);
-    const glyph = musicTextGlyph(musicTextRequest(body, 14), 0, 0, metrics);
+    const glyph = musicTextGlyph(
+      musicTextRequest(body, LXM_NUMBERED_TEXT_FONT_SIZE), 0, 0, metrics,
+    );
     return {
       suffix,
       prefix,
@@ -75,7 +81,9 @@ export const layoutNumbered = (
   for (const r of raw) {
     const center =
       raw.length === 1 ? x : left + r.width / 2 + (r.prefix ? 4 : 0);
-    const g = musicTextGlyph(musicTextRequest(r.body, 14), center, y, metrics);
+    const g = musicTextGlyph(
+      musicTextRequest(r.body, LXM_NUMBERED_TEXT_FONT_SIZE), center, y, metrics,
+    );
     labels.push(g);
     if (r.prefix) {
       const raw = musicTextGlyph(
@@ -112,14 +120,14 @@ export const layoutNumbered = (
           r.suffix[0] === "'"
             ? musicTextInkBounds(g).y -
               profile.octaveGap -
-              1.3 -
-              i * (2.6 + profile.octaveStackGap)
+              LXM_NUMBERED_OCTAVE_DOT_RADIUS -
+              i * (2 * LXM_NUMBERED_OCTAVE_DOT_RADIUS + profile.octaveStackGap)
             : musicTextInkBounds(g).y +
               musicTextInkBounds(g).height +
               profile.octaveGap +
-              1.3 +
-              i * (2.6 + profile.octaveStackGap),
-        r: 1.3,
+              LXM_NUMBERED_OCTAVE_DOT_RADIUS +
+              i * (2 * LXM_NUMBERED_OCTAVE_DOT_RADIUS + profile.octaveStackGap),
+        r: LXM_NUMBERED_OCTAVE_DOT_RADIUS,
       });
     left += r.width + profile.itemGap;
   }

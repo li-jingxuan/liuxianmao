@@ -49,7 +49,7 @@ export interface ILXMTabCellCaretLayout {
  * 通过相邻弦线的中点得到单元格上下边界。
  *
  * 首尾弦没有一侧邻居时复用另一侧间距。这样 compact/comfortable 或未来自定义
- * 谱面间距都直接服从 layout 产物，不把固定 12px 弦距泄漏到页面。
+ * 谱面间距都直接服从 layout 产物，不把固定弦距泄漏到页面。
  */
 const getStringCellBounds = (
   strings: ILXMStringLineLayout[],

@@ -35,6 +35,16 @@ describe("工具栏实际时值目标", () => {
       ),
     ).toMatchObject({ kind: "numbered", enabled: true, rhythm: event.rhythm });
   });
+  it("直接点击空简谱继承同 tick 的长音与附点，显式选择仍优先", () => {
+    const doc = structuredClone(document);
+    const m = doc.score.tracks[0]!.measures[0]!;
+    m.numberedVoice = { events: [], tuplets: [] };
+    m.tuplets = [];
+    m.beats = [{ ...m.beats[0]!, tick: 0, rhythm: { base: "half", dots: 1 } }];
+    const active = { kind: "numbered" as const, trackId: track.id, measureId: measure.id, tick: 0, endTick: 2880 };
+    expect(resolveEditorRhythmTarget(doc, selection, active, preference, false).rhythm).toEqual({ base: "half", dots: 1 });
+    expect(resolveEditorRhythmTarget(doc, selection, active, preference, true).rhythm).toEqual(preference);
+  });
   it("空白首次适应较短窗口，显式偏好不被静默改写", () => {
     const shortened = structuredClone(document);
     shortened.score.tracks[0]!.measures[0]!.numberedVoice.events[0]!.rhythm = {

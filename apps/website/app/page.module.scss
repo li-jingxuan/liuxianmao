@@ -1,15 +1,22 @@
+.editorShell {
+  height: 100dvh;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
 .editorContentWrapper {
   background-color: #fff;
   border-radius: 5px;
   display: flex;
   flex-wrap: wrap;
   height: 100%;
-  min-width: 0;
+  // 窄窗口滚动浏览完整桌面工作区，不触发移动端布局。
+  min-width: 1400px;
   min-height: 0;
   .editorContentContainer {
     flex: 1;
     min-width: 0;
-    height: 100dvh;
+    height: 100%;
     min-height: 0;
     overflow-x: hidden;
     overflow-y: hidden;
@@ -21,6 +28,11 @@
   .editorContentWrapper,
   .editorContentContainer {
     height: auto;
+    min-width: 0;
+  }
+
+  .editorShell {
+    overflow: visible;
   }
 
   .editorContentWrapper {

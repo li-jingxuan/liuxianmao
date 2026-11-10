@@ -50,7 +50,8 @@ describe("简谱减时线合并", () => {
         const profile = numberedLayoutProfile(purpose);
         expect(frame.dots).toHaveLength(2);
         expect(frame.dots[0]!.cy - frame.dots[0]!.r - bottom).toBeCloseTo(profile.octaveGap);
-        expect(frame.dots[1]!.cy - frame.dots[0]!.cy).toBeCloseTo(2.6 + profile.octaveStackGap);
+        expect(frame.dots.every((dot) => dot.r === 0.8)).toBe(true);
+        expect(frame.dots[1]!.cy - frame.dots[0]!.cy).toBeCloseTo(1.6 + profile.octaveStackGap);
         expect(frame.bounds.y + frame.bounds.height + 0.000001).toBeGreaterThanOrEqual(frame.dots[1]!.cy + frame.dots[1]!.r);
         expect(hitTestNumbered(layout, { x: frame.dots[1]!.cx, y: frame.dots[1]!.cy })).toMatchObject({ itemId: "bass" });
       }

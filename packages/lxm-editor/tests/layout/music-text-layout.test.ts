@@ -14,6 +14,7 @@ import {
 import { getMeasureContentBottom } from "../../src/layout/rhythm-bounds";
 import { getFretTextBounds } from "../../src/layout/technique-geometry";
 import { scaleChordDiagram } from "../../src/layout/chord-diagram-layout";
+import { musicTextInkBounds } from "../../src/layout/music-text-metrics";
 /** 单次快照固定度量，测试不依赖浏览器字体或机器环境。 */
 const metrics = (): ILXMMusicTextMetrics =>
   Object.fromEntries(
@@ -109,6 +110,49 @@ describe("MVP6 文本联合排版", () => {
       }).measured,
     ).toBe(false);
   });
+  it("歌词显式请求 11 并命中对应缓存，旧 12 号及通用 13 号缓存不混用", () => {
+    const document = structuredClone(EXAMPLE_MVP_6_DOCUMENT);
+    const track = document.score.tracks[0]!;
+    track.measures = [track.measures[0]!];
+    track.techniques = [];
+    const measure = track.measures[0]!;
+    measure.lyrics = [{
+      id: "explicit-lyric-size",
+      eventId: measure.numberedVoice.events[0]!.id,
+      verse: 1,
+      text: "歌词缓存",
+    }];
+    const request = musicTextRequest("歌词缓存", 11);
+    const previous = musicTextRequest("歌词缓存", 12);
+    const generic = musicTextRequest("歌词缓存");
+    expect(generic.fontSize).toBe(13);
+    expect(request.key).not.toBe(generic.key);
+    const requests = collectMusicTextMeasureRequests(document);
+    expect(requests).toContainEqual(request);
+    expect(requests).not.toContainEqual(generic);
+    expect(requests).not.toContainEqual(previous);
+    for (const purpose of ["editing", "presentation"] as const) {
+      const layout = buildLayout(document, {
+        systemWidth: 733,
+        purpose,
+        musicTextMetrics: {
+          [request.key]: { x: -21, y: -10, width: 42, height: 12 },
+          [previous.key]: { x: -80, y: -30, width: 160, height: 40 },
+          [generic.key]: { x: -100, y: -40, width: 200, height: 50 },
+        },
+      });
+      const lyric = layout.systems[0]!.measures[0]!.lyrics![0]!;
+      expect(lyric.label).toMatchObject({
+        key: request.key,
+        fontSize: 11,
+        measured: true,
+      });
+      expect(lyric.bounds.width).toBe(46);
+      expect(lyric.bounds.height).toBe(16);
+      expect(lyric.bounds.x).toBeCloseTo(lyric.label.x - 23);
+      expect(lyric.bounds.y).toBeCloseTo(lyric.label.y - 12);
+    }
+  });
   it.each([733, 420, 180])(
     "宽度 %i 下歌词沿简谱事件，和弦沿 Beat，命中使用最终几何",
     (systemWidth) => {
@@ -141,7 +185,7 @@ describe("MVP6 文本联合排版", () => {
           for (const chord of measure.chordSymbols!) {
             expect(chord.label.x).toBe(
               measure.beats.find((b) => b.id === chord.beatId)!.x +
-                (chord.diagram ? 22.5 * 0.85 : 0),
+                (chord.diagram ? 22.5 * 0.6 : 0),
             );
             expect(chord.bounds.y).toBeGreaterThanOrEqual(system.y);
             expect(chord.bounds.y + chord.bounds.height).toBeLessThan(
@@ -164,9 +208,8 @@ describe("MVP6 文本联合排版", () => {
           }
         }
       for (let i = 1; i < layout.systems.length; i++)
-        expect(layout.systems[i]!.y).toBeGreaterThan(
-          layout.systems[i - 1]!.y + layout.systems[i - 1]!.height,
-        );
+        expect(layout.systems[i]!.y - layout.systems[i - 1]!.y -
+          layout.systems[i - 1]!.height).toBeCloseTo(8);
     },
   );
   it("四段共用行距，只有第三段也保留前两行槽位", () => {
@@ -179,7 +222,7 @@ describe("MVP6 文本联合排版", () => {
     expect(lyricRows(system)).toHaveLength(3);
     const label = system.measures.find((m) => m.id === "mvp51-7-measure")!
       .lyrics![0]!.label;
-    expect(label.bounds.y).toBeCloseTo(lyricRows(system)[2]!.y);
+    expect(musicTextInkBounds(label).y).toBeCloseTo(lyricRows(system)[2]!.y);
   });
   it("相邻长文本预先扩宽并溢出，不缩字号、不裁切", () => {
     const document = structuredClone(EXAMPLE_MVP_6_DOCUMENT);
@@ -204,7 +247,7 @@ describe("MVP6 文本联合排版", () => {
     );
     expect(a!.bounds.x).toBeGreaterThanOrEqual(0);
     expect(b!.bounds.x + b!.bounds.width).toBeLessThanOrEqual(layout.width);
-    expect(a!.label.fontSize).toBe(13);
+    expect(a!.label.fontSize).toBe(11);
   });
   it("纯名称隐藏图；高品位与横按均进入包围框", () => {
     const layout = buildLayout(EXAMPLE_MVP_6_DOCUMENT);
@@ -223,8 +266,8 @@ describe("MVP6 文本联合排版", () => {
     const diagram = layoutChordDiagram(f);
     expect(diagram.roundedRects).toHaveLength(1);
     expect(
-      scaleChordDiagram(diagram, 0.85).roundedRects[0]!.height,
-    ).toBeCloseTo(4);
+      scaleChordDiagram(diagram, 0.6).roundedRects[0]!.height,
+    ).toBeCloseTo(3);
     expect(
       diagram.texts.some((t) => t.text === "8" && t.textAnchor === "end"),
     ).toBe(true);
@@ -257,11 +300,11 @@ describe("MVP6 文本联合排版", () => {
       const xs = chord.diagram!.lines.flatMap((l) => [l.x1, l.x2]);
       expect((Math.min(...xs) + Math.max(...xs)) / 2).toBe(chord.label.x);
       const vertical = chord.diagram!.lines[0]!;
-      expect(vertical.y2 - vertical.y1).toBeCloseTo(30.6);
-      expect(Math.max(...xs) - Math.min(...xs)).toBe(38.25);
-      expect(chord.diagram!.texts.every((t) => t.fontSize >= 7)).toBe(true);
+      expect(vertical.y2 - vertical.y1).toBeCloseTo(21.6);
+      expect(Math.max(...xs) - Math.min(...xs)).toBe(27);
+      expect(chord.diagram!.texts.every((t) => t.fontSize >= 5.5)).toBe(true);
       expect(
-        hitTestMusicText(layout, { x: chord.label.x, y: vertical.y1 + 15.3 }),
+        hitTestMusicText(layout, { x: chord.label.x, y: (vertical.y1 + vertical.y2) / 2 }),
       ).toMatchObject({ id: chord.id, kind: "chord" });
       for (const text of chord.diagram!.texts) {
         expect(text.bounds.x).toBeGreaterThanOrEqual(chord.diagram!.bounds.x);
@@ -282,38 +325,62 @@ describe("MVP6 文本联合排版", () => {
       systemWidth: 1800,
     }).systems[0]!.measures.flatMap((m) => m.chordSymbols!);
     expect(new Set(updated.map((c) => c.diagram!.lines[0]!.y1)).size).toBe(1);
-    expect(updated[2]!.diagram!.lines[0]!.x1 + 22.5 * 0.85).toBe(
+    expect(updated[2]!.diagram!.lines[0]!.x1 + 22.5 * 0.6).toBe(
       updated[2]!.label.x,
     );
   });
-  it("正常字号四段基线间隔 24，较高文字轮廓自动扩大行距", () => {
+  it("11 号四段歌词按墨迹加 2 排列，高字形扩展行距且不重复计入 bbox 保护量", () => {
     const snapshot = { ...metrics() };
     for (const request of collectMusicTextMeasureRequests(
       EXAMPLE_MVP_6_DOCUMENT,
     )) {
-      if (request.fontSize === 13)
+      if (request.fontSize === 11 && request.textAnchor === "middle")
         snapshot[request.key] = { x: -6, y: -12, width: 12, height: 15 };
     }
-    const labels = lyricRows(
-      buildLayout(EXAMPLE_MVP_6_DOCUMENT, {
-        musicTextMetrics: snapshot,
-      }).systems[0]!,
-    );
-    expect(labels[1]!.y - labels[0]!.y).toBeCloseTo(24);
+    const normal = buildLayout(EXAMPLE_MVP_6_DOCUMENT, {
+      musicTextMetrics: snapshot,
+    }).systems[0]!;
+    const labels = lyricRows(normal);
+    expect(labels).toHaveLength(4);
+    for (let i = 1; i < labels.length; i++) {
+      // 快照墨迹 ascent 12、descent 3，加段间净空 2；保护框的 4 不参与行距。
+      expect(labels[i]!.y - labels[i - 1]!.y).toBeCloseTo(12 + 3 + 2);
+    }
+    const baselines = new Map(normal.measures.flatMap((m) =>
+      m.lyrics!.map((l) => [l.verse, l.label.y] as const),
+    ));
+    expect([...baselines.keys()].sort()).toEqual([1, 2, 3, 4]);
+    for (const verse of [2, 3, 4] as const)
+      expect(baselines.get(verse)! - baselines.get(1)!).toBeCloseTo((verse - 1) * 17);
     for (const request of collectMusicTextMeasureRequests(
       EXAMPLE_MVP_6_DOCUMENT,
     )) {
-      if (request.fontSize === 13)
+      if (request.fontSize === 11 && request.textAnchor === "middle")
         snapshot[request.key] = { x: -6, y: -20, width: 12, height: 28 };
     }
-    const tall = lyricRows(
-      buildLayout(EXAMPLE_MVP_6_DOCUMENT, {
-        musicTextMetrics: snapshot,
-      }).systems[0]!,
-    );
-    expect(tall[1]!.y - tall[0]!.y).toBeGreaterThan(24);
-    expect(tall[0]!.bounds.y + tall[0]!.bounds.height + 3).toBeLessThanOrEqual(
-      tall[1]!.bounds.y + 0.001,
-    );
+    const tallSystem = buildLayout(EXAMPLE_MVP_6_DOCUMENT, {
+      musicTextMetrics: snapshot,
+    }).systems[0]!;
+    const tall = lyricRows(tallSystem);
+    expect(tall[1]!.y - tall[0]!.y).toBeCloseTo(20 + 8 + 2);
+    expect(tall[1]!.y - tall[0]!.y).toBeGreaterThan(labels[1]!.y - labels[0]!.y);
+    expect(tallSystem.height).toBeGreaterThan(normal.height);
+    for (const verse of [1, 2, 3] as const) {
+      const lyrics = tallSystem.measures.flatMap((m) => m.lyrics!);
+      const currentBottom = Math.max(...lyrics.filter((l) => l.verse === verse)
+        .map((l) => { const ink = musicTextInkBounds(l.label); return ink.y + ink.height; }));
+      const nextTop = Math.min(...lyrics.filter((l) => l.verse === verse + 1)
+        .map((l) => musicTextInkBounds(l.label).y));
+      expect(nextTop - currentBottom).toBeCloseTo(2);
+    }
+  });
+  it("无度量快照时多段歌词仍按 11 号 fallback 墨迹保持紧凑行距", () => {
+    const system = buildLayout(EXAMPLE_MVP_6_DOCUMENT).systems[0]!;
+    const rows = lyricRows(system);
+    expect(rows).toHaveLength(4);
+    for (let i = 1; i < rows.length; i++)
+      expect(rows[i]!.y - rows[i - 1]!.y).toBeCloseTo(11 * 1.3 + 2);
+    expect(system.measures.flatMap((m) => m.lyrics!)
+      .every((l) => l.label.fontSize === 11 && !l.label.measured)).toBe(true);
   });
 });

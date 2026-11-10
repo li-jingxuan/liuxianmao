@@ -368,8 +368,7 @@ describe("MVP v5 技巧布局", () => {
 
   it("跨 system Tie 拆成两个开放弧线 segment，领域技巧保持单一", () => {
     const document = createDocument();
-    // 紧凑 A4 基线按 4+4 断行；把第五小节首音改成上一行末拍同弦同品位，
-    // 构造合法的相邻 Beat 跨行 Tie。
+    // 只保留相邻两小节并限制硬宽，确保同弦同品位的相邻 Beat 真正跨行。
     document.score.tracks[0]!.measures[4]!.beats[0]!.notes[0] = {
       ...document.score.tracks[0]!.measures[4]!.beats[0]!.notes[0]!,
       string: 6,
@@ -383,11 +382,14 @@ describe("MVP v5 技巧布局", () => {
         toNoteId: "mvp2-note-5-1-6",
       },
     ];
+    document.score.tracks[0]!.measures =
+      document.score.tracks[0]!.measures.slice(3, 5);
 
     const layout = buildLayout(document, {
-      systemWidth: 742,
+      systemWidth: 120,
       density: "compact",
     });
+    expect(layout.systems).toHaveLength(2);
     const segments = layout.systems.flatMap((system) => system.techniques);
     expect(segments).toHaveLength(2);
     expect(segments.map((item) => item.continuation)).toEqual([

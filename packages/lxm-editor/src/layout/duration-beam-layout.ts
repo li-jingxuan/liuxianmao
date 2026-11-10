@@ -90,9 +90,9 @@ const LXM_DURATION_FLAG_GLYPH: Partial<Record<ILXMRhythmBase, string>> = {
 // 多层连梁之间的纵向距离。
 export const LXM_DURATION_BEAM_LEVEL_GAP = 5;
 // 连梁横条厚度。
-export const LXM_DURATION_BEAM_THICKNESS = 3;
+export const LXM_DURATION_BEAM_THICKNESS = 1.5;
 // partial beam 的默认短横线长度。
-// TODO 这里明显不对，要根据时值和dots来计算
+// 窄列按相邻符干间距限制长度，不能越过同组邻音。
 export const LXM_DURATION_PARTIAL_BEAM_LENGTH = 12;
 // 第一个附点相对符干的水平偏移，以及多附点之间的水平间距。
 export const LXM_DURATION_DOT_OFFSET_X = 2.5;
@@ -256,14 +256,21 @@ export const layoutBeamSegments = (
 
         if (hasLeftNeighbor || hasRightNeighbor) {
           const direction = hasLeftNeighbor ? "left" : "right";
+          const neighbor = group[hasLeftNeighbor ? markIndex - 1 : markIndex + 1]!;
+          // 短梁只伸向同组邻音，最多占两根符干间距的一半；共享梁仍完整连接。
+          // 因此 compact 窄列与小节/行尾都不会把短梁画出拍组的符干范围。
+          const partialLength = Math.min(
+            LXM_DURATION_PARTIAL_BEAM_LENGTH,
+            Math.abs(mark.stemX - neighbor.stemX) / 2,
+          );
           const x1 =
             direction === "left"
-              ? mark.stemX - LXM_DURATION_PARTIAL_BEAM_LENGTH
+              ? mark.stemX - partialLength
               : mark.stemX;
           const x2 =
             direction === "left"
               ? mark.stemX
-              : mark.stemX + LXM_DURATION_PARTIAL_BEAM_LENGTH;
+              : mark.stemX + partialLength;
 
           beamSegments.push({
             kind: "partial",

@@ -81,6 +81,8 @@ export interface EditorStore {
   numberedSelection: ILXMNumberedTarget | null;
   numberedInputRhythm: ILXMRhythm;
   numberedInputRhythmExplicit: boolean;
+  /** 会话中明确设置过时值的 TAB 拍，首次录入时不再套用对侧默认值。 */
+  tabInputRhythmOverrides: readonly string[];
   setNumberedInputRhythm: (rhythm: ILXMRhythm) => void;
   selectedNumberedMarkId: string | null;
   setNumberedSelection: (target: ILXMNumberedTarget | null) => void;
@@ -408,6 +410,7 @@ export const createEditorStore = (
           numberedSelection: null,
           numberedInputRhythm: { base: "quarter", dots: 0 },
           numberedInputRhythmExplicit: false,
+          tabInputRhythmOverrides: [],
           selectedNumberedMarkId: null,
           errorMessage: null,
           loadNotice:
@@ -427,6 +430,7 @@ export const createEditorStore = (
       numberedSelection: null,
       numberedInputRhythm: { base: "quarter", dots: 0 },
       numberedInputRhythmExplicit: false,
+      tabInputRhythmOverrides: [],
       setNumberedInputRhythm: (rhythm) =>
         set({
           numberedInputRhythm: { ...rhythm },
@@ -445,12 +449,20 @@ export const createEditorStore = (
           return null;
         }
 
+        if (command.type === LXMScoreCommandEnum.SetNote && state.tabInputRhythmOverrides.includes(command.beatId))
+          command = { ...command, inheritNumberedRhythm: false };
+        if (command.type === LXMScoreCommandEnum.SetNotesInRect &&
+          command.range.anchor.beatId === command.range.focus.beatId &&
+          state.tabInputRhythmOverrides.includes(command.range.focus.beatId))
+          command = { ...command, inheritNumberedRhythm: false };
         const result = applyScoreCommand(state.document, command);
         if (!result.ok) {
           set({ effects: [] });
           reportError(result.message);
           return result;
         }
+        if (command.type === LXMScoreCommandEnum.SetBeatRhythm && !state.tabInputRhythmOverrides.includes(command.beatId))
+          set({ tabInputRhythmOverrides: [...state.tabInputRhythmOverrides, command.beatId] });
         // 成功 no-op 只清理旧错误，不触发 setter 历史语义，也不替换 document。
         if (!result.changed) {
           set({ errorMessage: null, effects: [] });
@@ -576,6 +588,7 @@ export const createEditorStore = (
         if (!state.document || !previous) return;
         const history = transitionHistory(state.history, { type: "undo", document: state.document });
         set({
+          tabInputRhythmOverrides: [],
           effects: [],
           document: previous,
           numberedSelection: reconcileNumberedSelection(
@@ -607,6 +620,7 @@ export const createEditorStore = (
         if (!state.document || !next) return;
         const history = transitionHistory(state.history, { type: "redo", document: state.document });
         set({
+          tabInputRhythmOverrides: [],
           effects: [],
           document: next,
           feedbackEvent: retainFeedback(state.feedbackEvent, history),

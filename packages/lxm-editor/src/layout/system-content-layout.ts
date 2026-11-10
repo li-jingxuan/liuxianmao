@@ -32,6 +32,7 @@ import {
   LXM_TECHNIQUE_AREA_PADDING_TOP,
   LXM_CHORD_CONTENT_CLEARANCE_Y,
   LXM_CHORD_CONTENT_CLEARANCE_X,
+  LXM_NUMBERED_TEXT_FONT_SIZE,
 } from "./layout-constants";
 import {
   createChordBlock,
@@ -42,11 +43,13 @@ import {
 } from "./music-text-layout";
 import {
   musicTextGlyph,
+  musicTextInkBounds,
   musicTextRequest,
   unionMusicBounds,
   MUSIC_TEXT_LANE_GAP,
   MUSIC_LYRIC_VERSE_GAP,
   MUSIC_LYRIC_BOTTOM_GAP,
+  MUSIC_LYRIC_FONT_SIZE,
   type ILXMMusicTextMetrics,
 } from "./music-text-metrics";
 
@@ -154,7 +157,9 @@ export const layoutSystemContent = (
       purpose === "editing" &&
       (!!active ||
         system.measures.some((m) => source.get(m.id)!.lyrics.length > 0));
-    const emptyBody = musicTextGlyph(musicTextRequest("0", 14), 0, 0, metrics);
+    const emptyBody = musicTextGlyph(
+      musicTextRequest("0", LXM_NUMBERED_TEXT_FONT_SIZE), 0, 0, metrics,
+    );
     const rawNumberedMarks = layoutNumberedMarks(
       track,
       system,
@@ -230,13 +235,15 @@ export const layoutSystemContent = (
       source
         .get(m.id)!
         .lyrics.map((l) =>
-          musicTextGlyph(musicTextRequest(l.text), 0, 0, metrics),
+          musicTextGlyph(musicTextRequest(l.text, MUSIC_LYRIC_FONT_SIZE), 0, 0, metrics),
         ),
     );
-    const rowAscent = Math.max(15, ...glyphs.map((g) => -g.bounds.y));
+    // 段间按实际墨迹排布，点击保护框的上下 2px 不再重复计入每段行距。
+    const lyricInk = glyphs.map(musicTextInkBounds);
+    const rowAscent = Math.max(MUSIC_LYRIC_FONT_SIZE, ...lyricInk.map((bounds) => -bounds.y));
     const rowDescent = Math.max(
-      6,
-      ...glyphs.map((g) => g.bounds.y + g.bounds.height),
+      1,
+      ...lyricInk.map((bounds) => bounds.y + bounds.height),
     );
     const rowHeight = rowAscent + rowDescent + MUSIC_LYRIC_VERSE_GAP;
     const lyricBaseline = paragraphBottom + MUSIC_TEXT_LANE_GAP + rowAscent;
@@ -247,7 +254,7 @@ export const layoutSystemContent = (
       );
       const lyrics = domain.lyrics.map((l) => {
         const label = musicTextGlyph(
-          musicTextRequest(l.text),
+          musicTextRequest(l.text, MUSIC_LYRIC_FONT_SIZE),
           anchors.get(l.eventId)!,
           lyricBaseline + (l.verse - 1) * rowHeight,
           metrics,
@@ -307,7 +314,7 @@ export const layoutSystemContent = (
         n.labels.filter((g) => g.fontFamily !== "Bravura"),
       )[0] ?? emptyBody;
     const numberedTop = body.bounds.y + numberedDy;
-    const numberedHeight = Math.max(18, body.bounds.height);
+    const numberedHeight = Math.max(LXM_NUMBERED_TEXT_FONT_SIZE + 4, body.bounds.height);
     for (const m of measures) {
       const positions = planLyricPositions(source.get(m.id)!);
       const slots = [

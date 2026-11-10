@@ -5,6 +5,7 @@ export {
   LXM_FRET_TEXT_FONT_SIZE,
   LXM_FRET_TEXT_HALO_WIDTH,
   LXM_FRET_TEXT_BASELINE_OFFSET_Y,
+  LXM_DURATION_STEM_STROKE_WIDTH,
   LXM_TECHNIQUE_ARROW_WIDTH,
   LXM_TECHNIQUE_ARROW_HEIGHT,
   LXM_TECHNIQUE_TEXT_HALO_WIDTH,
@@ -66,6 +67,7 @@ export {
 export { createQualityScore } from "../example/quality-score";
 export { default as EXAMPLE_MVP_7_2_DOCUMENT } from "../example/example-mvp7.2";
 export { default as DEFAULT_MOCK_DOCUMENT } from "../example/default-score";
+export { tabInputRhythmFromNumbered, prepareTabInputRhythm } from "./core/tab-input-rhythm";
 
 export * from "./core/numbered-rhythm";
 export * from "./core/numbered-timeline";
