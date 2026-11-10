@@ -1,12 +1,13 @@
 import type { BeatPasteController } from "./beat-paste-controller";
 import type { TechniqueTypeController } from "./technique-type-controller";
+import type { ReactNode } from "react";
 import {
   sameEditorSession,
   sameEditorVersion,
   type EditorSessionVersion,
 } from "./editor-session-version";
 
-type CloseReason = "cancel" | "resolved" | "stale";
+type CloseReason = "cancel" | "resolved" | "stale" | "handoff";
 interface EditorModalBase {
   title: string;
   message: string;
@@ -26,12 +27,14 @@ export type EditorModalRequest = EditorModalBase &
     | { kind: "structure-impact" }
     | { kind: "beat-paste"; preview: BeatPasteController }
     | { kind: "technique-type"; picker: TechniqueTypeController }
+    | { kind: "chord-library" | "chord-custom"; content: ReactNode }
   );
 export interface EditorModalState {
   id: number;
   request: EditorModalRequest;
   busy: boolean;
   error: string | null;
+  closing?: boolean;
 }
 
 /** 弹层只协调版本、忙碌锁和焦点；领域命令由请求方提交。 */
@@ -43,13 +46,19 @@ export const createEditorModalController = (
   let sequence = 0;
   let restoreFocus: (() => void) | null = null;
   let afterClose: (() => boolean) | undefined;
+  let transition: (() => boolean) | undefined;
   const listeners = new Set<() => void>();
   const publish = () => listeners.forEach((listener) => listener());
   const close = (id: number, reason: CloseReason): boolean => {
-    if (!current || current.id !== id || (current.busy && reason === "cancel"))
+    if (
+      !current ||
+      current.id !== id ||
+      current.closing ||
+      (current.busy && reason === "cancel")
+    )
       return false;
     const previous = current;
-    current = null;
+    current = { ...previous, busy: false, closing: true };
     afterClose =
       reason === "resolved" ? previous.request.afterClose : undefined;
     publish();
@@ -58,6 +67,7 @@ export const createEditorModalController = (
   };
   const isCurrent = (state: EditorModalState) =>
     current?.id === state.id &&
+    !current.closing &&
     (!state.request.isValid || state.request.isValid()) &&
     (!state.request.version ||
       sameEditorVersion(getVersion(), state.request.version));
@@ -72,11 +82,24 @@ export const createEditorModalController = (
       return current.id;
     },
     close,
+    handoff(id: number, next: () => boolean) {
+      if (
+        !current ||
+        current.id !== id ||
+        current.closing ||
+        current.busy ||
+        !isCurrent(current)
+      )
+        return false;
+      transition = next;
+      return close(id, "handoff");
+    },
     async confirm(id: number) {
       if (
         !current ||
         current.id !== id ||
         current.busy ||
+        current.closing ||
         !current.request.confirm
       )
         return false;
@@ -121,17 +144,21 @@ export const createEditorModalController = (
     },
     invalidate() {
       // 确认中的同步命令会产生自己的新版本，由 confirm 的结果决定关闭原因。
-      if (current && !current.busy && !isCurrent(current))
+      if (current && !current.closing && !current.busy && !isCurrent(current))
         close(current.id, "stale");
     },
-    restoreFocus() {
+    restoreFocus(id?: number) {
       // 等退出动画结束再恢复；此时若已有新弹层，不能把焦点带回背景。
-      if (current) return;
+      if (!current?.closing || (id !== undefined && current.id !== id)) return;
+      current = null;
       const restore = restoreFocus;
       restoreFocus = null;
       const handoff = afterClose;
       afterClose = undefined;
-      if (!handoff?.()) restore?.();
+      const next = transition;
+      transition = undefined;
+      publish();
+      if (!next?.() && !handoff?.()) restore?.();
     },
     isOpen: () => current !== null,
     getSnapshot: () => current,

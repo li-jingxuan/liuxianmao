@@ -29,6 +29,7 @@ import { copyNumberedVoices } from "./numbered-copy";
 import { validateNumberedMarks } from "./numbered-marks";
 import { editMeasureMusicText } from "./music-text-commands";
 import { cloneChordDiagram } from "./chord-diagram";
+import { SCORE_TONALITY_NAMESPACE, validateScoreTonality, tonalityMatchesKeySignature, semanticJsonEqual, type ScoreTonalityV1 } from "./score-tonality";
 import type { ILXMChordSymbol, ILXMLyricVerse } from "./types";
 /**
  * 乐谱编辑器的纯领域命令。
@@ -78,6 +79,7 @@ export enum LXMScoreCommandEnum {
   RemoveNumbered = "numberedNotation.remove",
   SetNumberedSequence = "numberedNotation.setSequence",
   SetNotationInfo = "score.setNotationInfo",
+  SetScoreInfo = "score.setInfo",
   SetLyric = "lyric.set",
   SetLyricSequence = "lyrics.setSequence",
   RemoveLyric = "lyric.remove",
@@ -281,6 +283,12 @@ export type ILXMSetNotationInfoCommand = {
   keySignature: ILXMDocument["score"]["keySignature"];
 };
 
+export type ILXMSetScoreInfoCommand = Omit<ILXMSetNotationInfoCommand, "type"> & {
+  type: LXMScoreCommandEnum.SetScoreInfo;
+  /** undefined preserves the exact namespace; null explicitly deletes it. */
+  tonality?: ScoreTonalityV1 | null;
+};
+
 export type ILXMNumberedCommand =
   | {
       type: LXMScoreCommandEnum.SetNumbered;
@@ -336,6 +344,7 @@ type ScoreCommandOperation =
   | ILXMNumberedVoiceCommand
   | ILXMBeatStructureCommand
   | ILXMSetNotationInfoCommand
+  | ILXMSetScoreInfoCommand
   | ILXMSetLyricSequenceCommand
   | ILXMMusicTextCommand
   | ILXMSetTupletCommand
@@ -1364,7 +1373,7 @@ const applyScoreCommandInternal = (
       "旧简谱命令已停用，请使用独立简谱事件或时间范围",
     );
 
-  if (command.type === LXMScoreCommandEnum.SetNotationInfo) {
+  if (command.type === LXMScoreCommandEnum.SetNotationInfo || command.type === LXMScoreCommandEnum.SetScoreInfo) {
     // 标题与作者一起规范化并验证，失败不留下部分修改。
     const text = (value: string, limit: number) =>
       hasMusicTextControlCharacter(value)
@@ -1376,18 +1385,37 @@ const applyScoreCommandInternal = (
       arranger = text(command.arranger, 64);
     if (title === null || arranger === null)
       return fail("INVALID_NOTATION_INFO", "歌曲名称或编谱作者格式不合法");
+    const keyChanged = command.keySignature !== document.score.keySignature;
+    const intent = command.type === LXMScoreCommandEnum.SetScoreInfo ? command.tonality : undefined;
+    const present = Object.hasOwn(document.score.meta, SCORE_TONALITY_NAMESPACE);
+    const previous = document.score.meta[SCORE_TONALITY_NAMESPACE];
+    if (intent !== undefined && intent !== null && validateScoreTonality(intent))
+      return fail("INVALID_NOTATION_INFO", validateScoreTonality(intent)!);
+    const candidate = intent === undefined ? previous : intent;
+    if (intent !== null && (intent !== undefined || keyChanged) && (intent !== undefined || present)) {
+      const invalid = validateScoreTonality(candidate);
+      if (invalid && command.type === LXMScoreCommandEnum.SetScoreInfo)
+        return fail("INVALID_NOTATION_INFO", "请显式修复或清除调性资料后再修改数字 1。");
+      if (!invalid && !tonalityMatchesKeySignature(candidate as ScoreTonalityV1, command.keySignature))
+        return fail("INVALID_NOTATION_INFO", "曲谱调性与数字 1 不一致，请使用 SetScoreInfo 成组修改。");
+    }
+    const meta = { ...document.score.meta };
+    if (intent === null) delete meta[SCORE_TONALITY_NAMESPACE];
+    else if (intent !== undefined) meta[SCORE_TONALITY_NAMESPACE] = structuredClone(intent);
     const nextScore = {
       ...document.score,
       title,
       arranger,
       keySignature: command.keySignature,
+      meta,
     };
     if (!LXMScoreSchema.safeParse(nextScore).success)
       return fail("INVALID_NOTATION_INFO", "调性或歌曲信息不合法");
     if (
       title === document.score.title &&
       arranger === document.score.arranger &&
-      command.keySignature === document.score.keySignature
+      command.keySignature === document.score.keySignature &&
+      semanticJsonEqual(meta, document.score.meta)
     )
       return unchanged(document);
     return finalize(

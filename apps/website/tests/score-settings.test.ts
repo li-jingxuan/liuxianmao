@@ -21,12 +21,14 @@ describe("谱面设置与连续填词默认", () => {
     const initial = readScoreSettings(before);
     const commands = planSettingsCommands(
       before,
-      { ...initial, title: "歌", arranger: "作者", keySignature: "C" },
+      { ...initial, title: "歌", arranger: "作者", keySignature: "C", tonalityIntent: { kind: "set", value: { version: 1, tonic: "A", mode: "minor", minorTonicDegree: 6 } } },
       initial,
     );
     expect(commands).toHaveLength(1);
     session.getState().execute(commands[0]!);
     const next = session.getState().document;
+    expect(next?.score.meta["lxm:tonality"]).toEqual({ version: 1, tonic: "A", mode: "minor", minorTonicDegree: 6 });
+    expect(next?.score.tracks).toEqual(before.score.tracks);
     expect(onChange).toHaveBeenCalledTimes(1);
     expect(session.getState().historyDepth.past).toBe(1);
     session.getState().undo();
@@ -47,7 +49,7 @@ describe("谱面设置与连续填词默认", () => {
       "info",
     );
     expect(info).toHaveLength(1);
-    expect(info[0]!.type).toBe(LXMScoreCommandEnum.SetNotationInfo);
+    expect(info[0]!.type).toBe(LXMScoreCommandEnum.SetScoreInfo);
     const meter = planSettingsCommands(
       doc,
       value,

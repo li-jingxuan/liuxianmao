@@ -4,9 +4,9 @@
 
 已撤销节奏同步专项：按用户最新决定，移除“细分简谱”“拆分并同步”入口及专用实现、原型和规格，普通 TAB 编辑继续保留简谱独立时值。[历史与撤销记录](../mvp/v8/20261109_TAB节奏细分与简谱歌词占位同步修复方案.md#12-撤销显式同步操作)。
 
-最新待审：[和弦库与指法编辑交互稿 v2](prototypes/chord-library/README.md)、[可点击原型](prototypes/chord-library/prototype.html)、[配套技术方案](implementation/20261107_和弦库与指法编辑优化技术方案.md)、[本轮设计复核与截图](records/20261107_和弦库与指法设计复核.md)。已补齐“推荐调性跟随当前曲谱”的设计与数据契约，未实施产品功能。
+最新实施：[和弦库与指法编辑交互稿 v2.3](prototypes/chord-library/README.md)、[可点击原型](prototypes/chord-library/prototype.html)、[配套技术方案](implementation/20261107_和弦库与指法编辑优化技术方案.md)、[设计回溯记录](records/20261111_和弦设计与近期改动对齐复核.md)、[实施验收与归档记录](records/20261111_和弦库实施验收与归档.md)。独立 worktree 已实现共享“更多”、完整库、配置、图形编辑与曲谱调性；192 identities/212 voicings 通过自动校验，人工演奏性、真实 IME 与辅助技术验收待完成。紧凑排版及并行节奏录入仍属于原专项。
 
-最新数据口径：系统和弦预置采用项目内 JSON，通过网站同源 HTTP 静态加载；当前不接第三方存储。文件放 `apps/website/public/assets/chords/`，对象存储仅作为未来迁移方向，详见技术方案 v2.2 第 3.7、5.4 节。已补[加载、设置冲突与配置故障状态稿](prototypes/chord-library/failure-states.html)，并完成 56 项原型浏览器复核；该结果不代表产品实现验收。
+最新数据口径：系统和弦预置采用项目内 JSON，通过网站同源 HTTP 静态加载；当前不接第三方存储。文件放 `apps/website/public/assets/chords/`，对象存储仅作为未来迁移方向，详见技术方案 v2.3 第 3.7、5.4 节。已有[加载、设置冲突与配置故障状态稿](prototypes/chord-library/failure-states.html)，86 项原型复核保留历史，真实应用验证另记于实施记录。
 
 当前阅读入口：[设计导航](index.html)、[和弦快捷气泡原型](prototypes/chord-popover/index.html)、[10 · 和弦快捷气泡规格](specs/10-和弦快捷气泡.md)、[11 · 和弦气泡实施复核](records/11-和弦快捷气泡实施复核.md)。工具栏调整版已接入产品，独立原型保留设计演示用途。
 

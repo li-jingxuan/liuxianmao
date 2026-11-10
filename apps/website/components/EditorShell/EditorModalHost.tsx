@@ -92,21 +92,25 @@ export const EditorModalHost = ({
   const [display, setDisplay] = useState(active);
   if (active && active !== display) setDisplay(active);
   const request = display?.request;
-  const dismissable = request?.kind === "technique-type";
+  const chord =
+    request?.kind === "chord-library" || request?.kind === "chord-custom";
+  const dismissable = request?.kind === "technique-type" || chord;
   return (
     <Modal
       title={request?.title}
-      open={!!active}
+      open={!!active && !active.closing}
       width={
-        request?.kind === "beat-paste"
-          ? 660
-          : request?.kind === "technique-type"
-            ? 720
-            : 560
+        chord
+          ? 1000
+          : request?.kind === "beat-paste"
+            ? 660
+            : request?.kind === "technique-type"
+              ? 720
+              : 560
       }
       centered
       mask={{ closable: false }}
-      keyboard={dismissable && !display?.busy}
+      keyboard={false}
       closable={!display?.busy}
       focusable={{ focusTriggerAfterClose: false }}
       styles={{
@@ -137,9 +141,9 @@ export const EditorModalHost = ({
       onCancel={() => {
         if (active) controller.close(active.id, "cancel");
       }}
-      afterClose={controller.restoreFocus}
+      afterClose={() => controller.restoreFocus(display?.id)}
       footer={
-        display && request?.kind === "beat-paste" ? (
+        chord ? null : display && request?.kind === "beat-paste" ? (
           <PasteFooter
             active={{ ...display, request }}
             controller={controller}
@@ -174,7 +178,9 @@ export const EditorModalHost = ({
         )
       }
     >
-      {request?.kind === "beat-paste" ? (
+      {request?.kind === "chord-library" || request?.kind === "chord-custom" ? (
+        request.content
+      ) : request?.kind === "beat-paste" ? (
         <BeatPastePreview controller={request.preview} />
       ) : request?.kind === "technique-type" ? (
         <TechniqueTypePicker controller={request.picker} />

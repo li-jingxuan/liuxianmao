@@ -19,10 +19,7 @@ const setup = () => {
   const modals = createEditorModalController(session.getState, capture);
   const request = (
     overrides: Partial<
-      Extract<
-        EditorModalRequest,
-        { kind: "structure-impact" }
-      >
+      Extract<EditorModalRequest, { kind: "structure-impact" }>
     > = {},
   ): EditorModalRequest => ({
     kind: "structure-impact",
@@ -36,32 +33,58 @@ const setup = () => {
 };
 
 describe("统一弹层宿主控制器", () => {
-  it("活动请求不能被覆盖，取消不写历史且动画结束后只恢复一次焦点", () => {
+  it("活动请求不能被覆盖，退出动画结束前仍占用宿主且只恢复一次焦点", async () => {
     const { session, modals, restore, capture, request } = setup();
     const onClose = vi.fn();
-    const id = modals.open(request({ onClose }))!;
+    const confirm = vi.fn(() => true);
+    const id = modals.open(request({ onClose, confirm }))!;
     expect(modals.open(request())).toBeNull();
     expect(capture).toHaveBeenCalledOnce();
     expect(modals.close(id + 1, "cancel")).toBe(false);
     expect(modals.close(id, "cancel")).toBe(true);
+    expect(modals.getSnapshot()).toMatchObject({
+      id,
+      closing: true,
+      busy: false,
+    });
+    expect(modals.isOpen()).toBe(true);
+    expect(modals.open(request())).toBeNull();
+    expect(await modals.confirm(id)).toBe(false);
+    expect(confirm).not.toHaveBeenCalled();
+    expect(modals.close(id, "cancel")).toBe(false);
+    expect(onClose).toHaveBeenCalledOnce();
     expect(onClose).toHaveBeenCalledWith("cancel");
     expect(session.getState().historyDepth.past).toBe(0);
     expect(restore).not.toHaveBeenCalled();
-    modals.restoreFocus();
-    modals.restoreFocus();
+    modals.restoreFocus(id);
+    expect(modals.getSnapshot()).toBeNull();
+    expect(modals.isOpen()).toBe(false);
+    modals.restoreFocus(id);
     expect(restore).toHaveBeenCalledOnce();
   });
 
-  it("退出动画中打开新弹层时，不把焦点恢复到背景", () => {
+  it("旧弹层的迟到 afterClose 不能释放新的活动或退出中弹层", () => {
     const { modals, restore, request } = setup();
     const first = modals.open(request())!;
+    modals.restoreFocus(first);
+    expect(modals.getSnapshot()?.id).toBe(first);
     modals.close(first, "cancel");
-    const second = modals.open(request())!;
-    modals.restoreFocus();
+    expect(modals.open(request())).toBeNull();
+    modals.restoreFocus(first + 1);
     expect(restore).not.toHaveBeenCalled();
+    modals.restoreFocus(first);
+    const second = modals.open(request())!;
+    expect(second).not.toBe(first);
+    restore.mockClear();
+    modals.restoreFocus(first);
+    expect(modals.getSnapshot()).toMatchObject({ id: second });
     expect(modals.close(first, "cancel")).toBe(false);
     modals.close(second, "cancel");
-    modals.restoreFocus();
+    modals.restoreFocus(first);
+    expect(modals.getSnapshot()).toMatchObject({ id: second, closing: true });
+    expect(modals.isOpen()).toBe(true);
+    expect(restore).not.toHaveBeenCalled();
+    modals.restoreFocus(second);
     expect(restore).toHaveBeenCalledOnce();
   });
 
@@ -100,10 +123,13 @@ describe("统一弹层宿主控制器", () => {
       arranger: "",
       keySignature: "C",
     });
-    expect(modals.getSnapshot()).toBeNull();
+    expect(modals.getSnapshot()).toMatchObject({ id, closing: true });
+    expect(modals.isOpen()).toBe(true);
     expect(onClose).toHaveBeenCalledWith("stale");
     expect(await modals.confirm(id)).toBe(false);
     expect(confirm).not.toHaveBeenCalled();
+    modals.restoreFocus(id);
+    expect(modals.isOpen()).toBe(false);
     unsubscribe();
   });
 
@@ -127,6 +153,7 @@ describe("统一弹层宿主控制器", () => {
       }),
     )!;
     expect(await modals.confirm(id)).toBe(true);
+    expect(modals.getSnapshot()).toMatchObject({ id, closing: true });
     expect(onClose).toHaveBeenCalledExactlyOnceWith("resolved");
     expect(session.getState().historyDepth.past).toBe(1);
     session.getState().undo();
@@ -176,6 +203,7 @@ describe("统一弹层宿主控制器", () => {
       error: expect.any(String),
     });
     modals.close(id, "cancel");
+    modals.restoreFocus(id);
     const unversioned = modals.open({
       kind: "structure-impact",
       title: "结构影响",
@@ -202,7 +230,7 @@ describe("统一弹层宿主控制器", () => {
           getFirstTabCellReference(session.getState().document!)!,
         ),
       );
-    expect(modals.getSnapshot()).toBeNull();
+    expect(modals.getSnapshot()).toMatchObject({ id, closing: true });
     expect(modals.close(id, "cancel")).toBe(false);
     unsubscribe();
   });
@@ -213,9 +241,85 @@ describe("统一弹层宿主控制器", () => {
     const id = modals.open(request({ afterClose: handoff }))!;
     expect(await modals.confirm(id)).toBe(true);
     expect(handoff).not.toHaveBeenCalled();
-    modals.restoreFocus();
-    modals.restoreFocus();
+    modals.restoreFocus(id);
+    modals.restoreFocus(id);
     expect(handoff).toHaveBeenCalledOnce();
     expect(restore).not.toHaveBeenCalled();
+  });
+
+  it("显式交接在 afterClose 后打开下一弹层，退出期间不能重复交接", () => {
+    const { modals, restore, request } = setup();
+    const onClose = vi.fn();
+    const resolved = vi.fn(() => true);
+    const id = modals.open(request({ onClose, afterClose: resolved }))!;
+    let nextId: number | null = null;
+    const next = vi.fn(() => {
+      nextId = modals.open(request());
+      return nextId !== null;
+    });
+    const duplicate = vi.fn(() => true);
+    expect(modals.handoff(id, next)).toBe(true);
+    expect(onClose).toHaveBeenCalledExactlyOnceWith("handoff");
+    expect(modals.getSnapshot()).toMatchObject({ id, closing: true });
+    expect(next).not.toHaveBeenCalled();
+    expect(modals.handoff(id, duplicate)).toBe(false);
+    expect(modals.open(request())).toBeNull();
+    modals.restoreFocus(id + 1);
+    expect(next).not.toHaveBeenCalled();
+    modals.restoreFocus(id);
+    expect(next).toHaveBeenCalledOnce();
+    expect(nextId).not.toBeNull();
+    expect(modals.getSnapshot()?.id).toBe(nextId);
+    modals.restoreFocus(id);
+    expect(modals.getSnapshot()?.id).toBe(nextId);
+    expect(next).toHaveBeenCalledOnce();
+    expect(duplicate).not.toHaveBeenCalled();
+    expect(resolved).not.toHaveBeenCalled();
+    expect(restore).not.toHaveBeenCalled();
+  });
+
+  it("取消不会执行已完成交接回调；交接未接收时恢复焦点", () => {
+    const { modals, restore, request } = setup();
+    const afterClose = vi.fn(() => true);
+    const id = modals.open(request({ afterClose }))!;
+    modals.close(id, "cancel");
+    modals.restoreFocus(id);
+    expect(afterClose).not.toHaveBeenCalled();
+    expect(restore).toHaveBeenCalledOnce();
+    restore.mockClear();
+    const next = vi.fn(() => false);
+    const second = modals.open(request())!;
+    expect(modals.handoff(second, next)).toBe(true);
+    expect(next).not.toHaveBeenCalled();
+    modals.restoreFocus(second);
+    expect(next).toHaveBeenCalledOnce();
+    expect(restore).toHaveBeenCalledOnce();
+    expect(modals.isOpen()).toBe(false);
+  });
+
+  it("忙碌、过期和错误 ID 的交接不执行回调", async () => {
+    const { modals, request } = setup();
+    let finish!: (accepted: boolean) => void;
+    let valid = true;
+    const id = modals.open(
+      request({
+        isValid: () => valid,
+        confirm: () =>
+          new Promise<boolean>((resolve) => {
+            finish = resolve;
+          }),
+      }),
+    )!;
+    const next = vi.fn(() => true);
+    expect(modals.handoff(id + 1, next)).toBe(false);
+    const pending = modals.confirm(id);
+    expect(modals.handoff(id, next)).toBe(false);
+    finish(false);
+    expect(await pending).toBe(false);
+    valid = false;
+    expect(modals.handoff(id, next)).toBe(false);
+    modals.invalidate();
+    modals.restoreFocus(id);
+    expect(next).not.toHaveBeenCalled();
   });
 });

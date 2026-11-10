@@ -103,6 +103,11 @@ describe("统一结构命令适配器", () => {
     expect(await modals.close(modal!.id, "cancel")).toBe(true);
     expect(await pending).toMatchObject({ status: "cancelled" });
     expect(session.getState().historyDepth.past).toBe(0);
+    expect(modals.getSnapshot()).toMatchObject({
+      id: modal!.id,
+      closing: true,
+    });
+    modals.restoreFocus(modal!.id);
 
     const second = execute({
       type: LXMScoreCommandEnum.RemoveMeasure,
@@ -145,6 +150,8 @@ describe("统一结构命令适配器", () => {
     expect(session.getState().document!.score.tracks[0]!.measures.map((m) => m.id))
       .toEqual(track.measures.slice(1).map((m) => m.id));
     expect(session.getState().historyDepth.past).toBe(1);
+    expect(modals.getSnapshot()).toMatchObject({ id: modal.id, closing: true });
+    modals.restoreFocus(modal.id);
     session.getState().undo();
     expect(session.getState().document).toBe(original);
 

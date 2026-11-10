@@ -1,0 +1,95 @@
+.controls {
+  min-width: 0;
+  margin-bottom: 12px;
+}
+.heading {
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+.row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+.quick {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  button {
+    min-width: 35px;
+    height: auto;
+    min-height: 29px;
+    padding: 3px 8px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  button[aria-pressed="true"] {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: var(--accent-soft, #edf3ff);
+  }
+}
+.more {
+  flex: 0 0 auto;
+}
+.popup {
+  width: 360px;
+  max-width: calc(100vw - 24px);
+  max-height: min(560px, calc(100dvh - 100px));
+  overflow-y: auto;
+  padding: 14px;
+  color: var(--foreground);
+  background: var(--panel, var(--background, white));
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  box-shadow: 0 6px 24px #0002;
+  > strong {
+    display: block;
+    margin-bottom: 8px;
+  }
+}
+.help {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+  margin-top: 5px;
+  button {
+    padding: 0 5px;
+    height: 24px;
+    font-size: inherit;
+  }
+}
+.results {
+  margin: 12px 0;
+  font-size: 12px;
+  p {
+    margin: 8px 0;
+  }
+}
+.candidates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.candidate {
+  display: flex;
+  align-items: center;
+  button {
+    height: auto;
+    min-height: 30px;
+  }
+  small {
+    margin-left: 6px;
+    color: var(--muted);
+  }
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}

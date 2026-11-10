@@ -1284,7 +1284,7 @@ export const EditorShell: React.FC = () => {
         <ScoreFileControls
           session={session}
           isBlocked={isOutputBlocked}
-          onBlocked={() => setOutputBlockedOpen(true)}
+          onBlocked={() => { if (!modals.isOpen()) setOutputBlockedOpen(true); }}
         />
         <p className={styles.errorMessage} role="alert">
           {errorMessage ?? "当前没有可编辑的乐谱文档。"}
@@ -1448,7 +1448,7 @@ export const EditorShell: React.FC = () => {
             className={styles.headerNativeAction}
             feedbackContainer={fileFeedbackHost}
             isBlocked={isOutputBlocked}
-            onBlocked={() => setOutputBlockedOpen(true)}
+            onBlocked={() => { if (!modals.isOpen()) setOutputBlockedOpen(true); }}
           />
         }
         imageExportButtonRef={imageExportButtonRef}
@@ -1686,6 +1686,7 @@ export const EditorShell: React.FC = () => {
           </div>
         </div>
         <MusicTextSidebar
+          showChordDiagrams={showChordDiagrams}
           modal={narrowPanels && !sidebarCollapsed}
           collapsed={sidebarCollapsed}
           onExpandSidebar={openSidebar}

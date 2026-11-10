@@ -11,6 +11,8 @@ import {
   rebaseSettingsDraft,
   reconcileSettingsDraft,
   isSettingsGroupDirty,
+  acknowledgeScoreInfo,
+  changeScoreSettingsField,
 } from "../components/EditorShell/score-settings-draft";
 
 const setup = () => {
@@ -22,14 +24,14 @@ const setup = () => {
 };
 
 describe("设置表单提交适配", () => {
-  it("外部无关修改重基干净字段，保留未应用组且不产生冲突", () => {
+  it("info 整组保留并捕获作者外部修改，其他干净组继续刷新", () => {
     const { initial } = setup();
     const value = { ...initial, title: "未应用名称", capo: "3" };
     const fresh = { ...initial, arranger: "外部作者", label: "外部段落" };
     const result = reconcileSettingsDraft(value, initial, fresh);
-    expect(result.value).toMatchObject({ title: "未应用名称", capo: "3", arranger: "外部作者", label: "外部段落" });
-    expect(result.initial).toEqual(fresh);
-    expect(result.conflicts).toEqual({});
+    expect(result.value).toMatchObject({ title: "未应用名称", capo: "3", arranger: initial.arranger, label: "外部段落" });
+    expect(result.initial.arranger).toBe(initial.arranger);
+    expect(result.conflicts.info).toMatch(/整组/);
     expect(isSettingsGroupDirty(result.value, result.initial, "info")).toBe(true);
     expect(isSettingsGroupDirty(result.value, result.initial, "label")).toBe(false);
   });
@@ -273,5 +275,90 @@ describe("设置表单提交适配", () => {
     ).toBe("stale");
     expect(readScoreSettings(session.getState().document!)).toEqual(initial);
     expect(session.getState().historyDepth.past).toBe(0);
+  });
+});
+
+describe("曲谱调性整组设置", () => {
+  it("set 意图同步计算数字 1，小调记法切换仍用一条 info 命令", () => {
+    const { document, initial } = setup();
+    for (const minorTonicDegree of [1, 6] as const) {
+      const value = changeScoreSettingsField(initial, "tonalityIntent", { kind: "set", value: { version: 1, tonic: "A", mode: "minor", minorTonicDegree } });
+      expect(value.keySignature).toBe(minorTonicDegree === 6 ? "C" : "A");
+      const plan = prepareSettingsSubmission(document, { ...value, capo: "13" }, initial, undefined, "info");
+      expect(plan.ok).toBe(true);
+      if (plan.ok) expect(plan.commands).toMatchObject([{ group: "info", command: { type: LXMScoreCommandEnum.SetScoreInfo, tonality: { minorTonicDegree } } }]);
+    }
+  });
+  it("命名空间原值为独立快照，键序不同不冲突，其他 namespace 变化不冲突", () => {
+    const { document } = setup();
+    document.score.meta["lxm:tonality"] = { version: 9, data: { a: 1, b: [2, 3] } };
+    const initial = readScoreSettings(document);
+    const value = { ...initial, title: "草稿" };
+    document.score.meta["lxm:tonality"] = { data: { b: [2, 3], a: 1 }, version: 9 };
+    document.score.meta.other = { changed: true };
+    const reordered = reconcileSettingsDraft(value, initial, readScoreSettings(document));
+    expect(reordered.conflicts.info).toBeUndefined();
+    (document.score.meta["lxm:tonality"] as { data: { b: number[] } }).data.b.reverse();
+    expect(initial.tonalityNamespace.namespaceRaw).toEqual({ version: 9, data: { a: 1, b: [2, 3] } });
+    expect(reconcileSettingsDraft(value, initial, readScoreSettings(document)).conflicts.info).toBeTruthy();
+  });
+  it("旧 namespace 缺失与 null 不相同，提交前再次变更基线会拒绝且不写历史", () => {
+    const { session, document, initial } = setup();
+    const value = { ...initial, title: "我的输入" };
+    const external = structuredClone(document);
+    external.score.meta["lxm:tonality"] = null;
+    const fresh = readScoreSettings(external);
+    expect(reconcileSettingsDraft(value, initial, fresh).conflicts.info).toBeTruthy();
+    expect(prepareSettingsSubmission(external, value, initial, undefined, "info")).toMatchObject({ ok: false, issue: { group: "info" } });
+    expect(session.getState().historyDepth.past).toBe(0);
+  });
+  it("冲突后只改标题不能解除；显式认可整组重新验证关系，再次外部修改再次冲突", () => {
+    const { document, initial } = setup();
+    const value = changeScoreSettingsField({ ...initial, title: "我的名称" }, "tonalityIntent", { kind: "set", value: { version: 1, tonic: "A", mode: "minor", minorTonicDegree: 6 } });
+    const external = structuredClone(document);
+    external.score.arranger = "外部作者";
+    external.score.keySignature = "D";
+    const fresh = readScoreSettings(external);
+    const conflicted = reconcileSettingsDraft(value, initial, fresh);
+    const edited = changeScoreSettingsField(conflicted.value, "title", "再次编辑标题");
+    expect(reconcileSettingsDraft(edited, conflicted.initial, fresh, conflicted.conflicts).conflicts.info).toBeTruthy();
+    const invalid = acknowledgeScoreInfo(external, { ...edited, keySignature: "D" }, fresh);
+    expect(invalid).toMatchObject({ ok: false, issue: { group: "info" } });
+    const acknowledged = acknowledgeScoreInfo(external, edited, fresh);
+    expect(acknowledged.ok).toBe(true);
+    if (!acknowledged.ok) return;
+    expect(acknowledged.value).toMatchObject({ title: "再次编辑标题", arranger: initial.arranger, keySignature: "C" });
+    expect(prepareSettingsSubmission(external, acknowledged.value, acknowledged.initial, undefined, "info").ok).toBe(true);
+    external.score.title = "又一次外部修改";
+    const again = reconcileSettingsDraft(acknowledged.value, acknowledged.initial, readScoreSettings(external));
+    expect(again.conflicts.info).toBeTruthy();
+    expect(prepareSettingsSubmission(external, acknowledged.value, acknowledged.initial, undefined, "info").ok).toBe(false);
+  });
+  it("preserve 的未知资料不被标题修改覆盖，显式 delete 保留数字 1 并保留最新其他 meta", () => {
+    const { session, document } = setup();
+    document.score.meta["lxm:tonality"] = { version: 7, future: [1, 2] };
+    session.getState().replaceDocument(document);
+    const initial = readScoreSettings(session.getState().document!);
+    const value = { ...initial, title: "只改标题" };
+    let result = submitSettingsDraft({ getState: session.getState, commit: session.getState().execute, initial, value, group: "info" });
+    expect(result.status).toBe("applied");
+    expect(session.getState().document!.score.meta["lxm:tonality"]).toEqual({ version: 7, future: [1, 2] });
+    const latest = readScoreSettings(session.getState().document!);
+    result = submitSettingsDraft({ getState: session.getState, commit: session.getState().execute, initial: latest, value: { ...latest, tonalityIntent: { kind: "delete" } }, group: "info" });
+    expect(result.status).toBe("applied");
+    expect(session.getState().document!.score.meta).not.toHaveProperty("lxm:tonality");
+    expect(session.getState().document!.score.keySignature).toBe(initial.keySignature);
+  });
+  it("等值 set 不是 dirty；无效/未知原资料变更后不能通过认可自动写回旧坏资料", () => {
+    const { document } = setup();
+    document.score.keySignature = "C";
+    document.score.meta["lxm:tonality"] = { version: 1, tonic: "C", mode: "major" };
+    const initial = readScoreSettings(document);
+    const equal = changeScoreSettingsField(initial, "tonalityIntent", { kind: "set", value: { mode: "major", tonic: "C", version: 1 } });
+    expect(isSettingsGroupDirty(equal, initial, "info")).toBe(false);
+    document.score.meta["lxm:tonality"] = { version: 9, data: "旧资料" };
+    const unknown = readScoreSettings(document);
+    document.score.meta["lxm:tonality"] = { version: 10, data: "新资料" };
+    expect(acknowledgeScoreInfo(document, { ...unknown, title: "草稿" }, readScoreSettings(document))).toMatchObject({ ok: false, issue: { group: "info" } });
   });
 });

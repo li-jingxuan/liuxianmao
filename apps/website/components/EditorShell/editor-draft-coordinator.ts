@@ -228,6 +228,8 @@ export const createEditorDraftCoordinator = (
       publish();
     },
     inspect,
+    /** 仅供专用设置交接核对实际登记身份，不能据此免除其他草稿。 */
+    registrationOf: (record: EditorDraftRecord) => registrations.get(record),
     request,
     isOutputBlocked: () => busy || inspect().pending.length > 0,
     subscribe(listener: () => void) {

@@ -66,6 +66,7 @@ const labels: Readonly<Record<string, string>> = {
   "numberedNotation.remove": "删除简谱",
   "numberedNotation.setSequence": "设置简谱序列",
   "score.setNotationInfo": "修改歌曲信息",
+  "score.setInfo": "修改曲谱信息",
   "lyric.set": "设置歌词",
   "lyrics.setSequence": "设置歌词序列",
   "lyric.remove": "删除歌词",

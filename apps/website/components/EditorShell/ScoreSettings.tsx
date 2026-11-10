@@ -4,10 +4,11 @@ import { Alert, Button } from "antd";
 import { LXMScoreCommandEnum, type ILXMDocument, type ILXMApplyScoreCommandResult, type ILXMScoreCommand } from "@liuxianmao/lxm-editor";
 import { useEditorSessionStore } from "../../stores/editor-store";
 import type { EditorCommandAdapter } from "./editor-command-adapter";
-import { readScoreSettings, submitSettingsDraft, reconcileSettingsDraft, prepareSettingsSubmission, settingsGroups, settingsKeys, isSettingsGroupDirty, type ScoreSettingsDraft, type SettingsGroup, type SettingsGroupStatus } from "./score-settings-draft";
+import { readScoreSettings, submitSettingsDraft, reconcileSettingsDraft, prepareSettingsSubmission, settingsGroups, settingsKeys, isSettingsGroupDirty, changeScoreSettingsField, acknowledgeScoreInfo, scoreInfoSnapshot, type ScoreSettingsDraft, type SettingsGroup, type SettingsGroupStatus } from "./score-settings-draft";
 import { ScoreSettingsForm, type SettingsCopyRange, type SettingsIssues } from "./ScoreSettingsForm";
 import { MeasureSettingsForm } from "./MeasureSettingsForm";
 import { useEditorDraftRecords } from "./EditorSessionRuntime";
+import type { EditorDraftRegistration } from "./editor-draft-coordinator";
 import { captureEditorVersion, sameEditorSession, sameEditorVersion } from "./editor-session-version";
 import { createScoreSettingsComposition } from "./score-settings-composition";
 import { isEditorInputEnter } from "./editor-input-enter";
@@ -48,7 +49,7 @@ const buildStatus = (draft: { value: ScoreSettingsDraft; initial: ScoreSettingsD
 };
 
 /** 唯一设置 owner：两个正文 Portal 和动作 Portal 共享值、版本、组合输入和提交闸门。 */
-export const ScoreSettings = ({ ref, document, measureId, requestedMeasureId = measureId, songHost, measureHost, actionsHost, activeSurface, onDirty, onStatus, commit, executeTool, onFocusRequest, onOpen }: {
+export const ScoreSettings = ({ ref, document, measureId, requestedMeasureId = measureId, songHost, measureHost, actionsHost, activeSurface, onDirty, onStatus, commit, executeTool, onFocusRequest, onOpen, guardApply, onInfoApplied, onApplySettled }: {
   ref: Ref<ScoreSettingsController>;
   document: ILXMDocument;
   measureId?: string;
@@ -63,6 +64,9 @@ export const ScoreSettings = ({ ref, document, measureId, requestedMeasureId = m
   executeTool?: EditorCommandAdapter;
   onFocusRequest?: (group?: SettingsFocusGroup) => boolean;
   onOpen?: (group?: SettingsFocusGroup) => boolean | void;
+  guardApply?: (group: SettingsGroup | undefined, identity?: EditorDraftRegistration) => boolean;
+  onInfoApplied?: (document: ILXMDocument) => void;
+  onApplySettled?: (group: SettingsGroup | undefined) => void;
 }) => {
   const store = useEditorSessionStore();
   const ownerId = useId();
@@ -168,13 +172,13 @@ export const ScoreSettings = ({ ref, document, measureId, requestedMeasureId = m
     if (!draft || draft.value[key] === value) return;
     const group = settingsGroups.find((group) => (settingsKeys[group] as readonly string[]).includes(key))!;
     const initial = { ...draft.initial };
-    if (draft.conflicts[group]) {
+    if (draft.conflicts[group] && group !== "info") {
       const freshValue = readScoreSettings(draft.document, draft.measureId);
       for (const field of settingsKeys[group]) Object.assign(initial, { [field]: freshValue[field] });
     }
     const conflicts = { ...draft.conflicts };
-    delete conflicts[group];
-    publish({ ...draft, initial, conflicts, value: { ...draft.value, [key]: value }, generation: draft.generation + 1 });
+    if (group !== "info") delete conflicts[group];
+    publish({ ...draft, initial, conflicts, value: changeScoreSettingsField(draft.value, key, value), generation: draft.generation + 1 });
     clearIssues([group]);
   };
   const restoreGroup = (group: SettingsGroup) => {
@@ -189,6 +193,17 @@ export const ScoreSettings = ({ ref, document, measureId, requestedMeasureId = m
     clearIssues([group]);
     return true;
   };
+  const acknowledgeInfo = () => {
+    if (composition.isComposing() || busyRef.current) return;
+    const draft = synchronize();
+    if (!draft) return;
+    const result = acknowledgeScoreInfo(draft.document, draft.value, readScoreSettings(draft.document, draft.measureId));
+    if (!result.ok) { setIssues((previous) => ({ ...previous, info: result.issue.message })); return; }
+    const conflicts = { ...draft.conflicts };
+    delete conflicts.info;
+    publish({ ...draft, value: result.value, initial: result.initial, conflicts, generation: draft.generation + 1 });
+    clearIssues(["info"]);
+  };
   const apply = (group?: SettingsGroup): boolean => {
     if (composition.isComposing() || busyRef.current) return false;
     const draft = synchronize();
@@ -197,6 +212,11 @@ export const ScoreSettings = ({ ref, document, measureId, requestedMeasureId = m
     const latest = statusFor(draft);
     const blocked = groups.find((item) => latest.groups[item].blockedReason);
     if (blocked) { setIssues((previous) => ({ ...previous, [blocked]: latest.groups[blocked].blockedReason! })); return false; }
+    if (guardApply && !guardApply(group, draftRegistration.captureIdentity())) {
+      setIssues((previous) => ({ ...previous, [group ?? "all"]: "当前交接状态不允许提交此设置组，请返回和弦编辑或重新打开曲谱信息。" }));
+      onApplySettled?.(group);
+      return false;
+    }
     const expected = captureEditorVersion(store.getState());
     busyRef.current = true;
     setBusy(true);
@@ -207,9 +227,10 @@ export const ScoreSettings = ({ ref, document, measureId, requestedMeasureId = m
       if (nextDocument) publish({ ...draft, document: nextDocument, ...reconcileSettingsDraft(draft.value, draft.initial, readScoreSettings(nextDocument, draft.measureId), draft.conflicts, result.submittedGroups), generation: draft.generation + 1 });
       clearIssues(result.submittedGroups);
       if (result.issue) { setIssues((previous) => ({ ...previous, [result.issue!.group ?? "all"]: result.issue!.message })); store.getState().setErrorMessage(result.issue.message); return false; }
+      if (nextDocument && result.submittedGroups.includes("info")) onInfoApplied?.(nextDocument);
       store.getState().setErrorMessage(null);
       return true;
-    } finally { busyRef.current = false; setBusy(false); }
+    } finally { busyRef.current = false; setBusy(false); onApplySettled?.(group); }
   };
 
   const copyMeasures = async () => {
@@ -288,7 +309,7 @@ export const ScoreSettings = ({ ref, document, measureId, requestedMeasureId = m
     onFocusCapture={handleFocusCapture}
   >{children}</div>;
   const props = { document, value: rendered.value, composing: compositionActive, busy, issues, groups: status.groups, inlineActions: !actionsHost, onChange: update, onApply: apply, onRestore: restoreGroup };
-  const song = surface("song", <ScoreSettingsForm {...props} measureId={requestedMeasureId} onEditMeasure={() => focus("label")} />);
+  const song = surface("song", <ScoreSettingsForm {...props} measureId={requestedMeasureId} onEditMeasure={() => focus("label")} infoConflict={rendered.conflicts.info ? { previous: scoreInfoSnapshot(rendered.initial), current: scoreInfoSnapshot(readScoreSettings(document, rendered.measureId)) } : undefined} onAcknowledgeInfo={acknowledgeInfo} />);
   const measure = surface("measure", <MeasureSettingsForm {...props} measureId={rendered.measureId} selectedMeasureId={requestedMeasureId} dirty={dirty} copy={copy} onCopyChange={(next) => { if (!busyRef.current) { setCopy(next); setIssues((previous) => ({ ...previous, copy: undefined })); } }} onCopy={copyMeasures} />);
   const portalMode = songHost !== undefined || measureHost !== undefined;
   const actionGroup: SettingsGroup = activeSurface === "measure" ? "label" : activeGroup === "copy" || activeGroup === "label" ? "info" : activeGroup;

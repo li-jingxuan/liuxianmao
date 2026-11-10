@@ -74,3 +74,6 @@ export * from "./core/numbered-marks";
 export * from "./core/numbered-clipboard";
 export { getMeasureCapacityTicks, calculateRhythmTicks } from "./core/rhythm";
 export * from "./core/numbered-input-ranges";
+export * from "./core/chord-catalog";
+export * from "./core/score-tonality";
+export * from "./core/chord-diagram-edit";
