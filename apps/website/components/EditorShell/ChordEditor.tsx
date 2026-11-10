@@ -1,15 +1,5 @@
+import { Alert, Button, Form, Input, InputNumber, Select } from "antd";
 import {
-  Alert,
-  Button,
-  Dropdown,
-  Form,
-  Input,
-  InputNumber,
-  Select,
-} from "antd";
-import {
-  CHORD_PRESETS,
-  copyChordPreset,
   layoutChordDiagram,
   validateChordDiagram,
   getChordDiagramFretCount,
@@ -17,14 +7,51 @@ import {
   type ILXMChordDiagram,
   type ILXMChordString,
 } from "@liuxianmao/lxm-editor";
-import type { RefCallback } from "react";
+import { useMemo, useState, type RefCallback } from "react";
 import { ChordDiagramView } from "./MusicTextLayer";
+import {
+  ChordPresetControls,
+  type ChordEditorLibraryProps,
+} from "./ChordPresetControls";
 import viewStyles from "./ChordEditor.module.scss";
 
 export interface ChordDraft {
   display: ILXMChordSymbol["display"];
   chord: ILXMChordSymbol["chord"];
 }
+/** Invalid form intermediates never reach layout; retain a readable valid graph. */
+export const ChordDiagramPreview = ({
+  diagram,
+  width,
+  height,
+  emptyText = "尚未设置指法",
+}: {
+  diagram: ILXMChordDiagram | null;
+  width: number;
+  height: number;
+  emptyText?: string;
+}) => {
+  const valid = useMemo(() => diagram && !validateChordDiagram(diagram) ? layoutChordDiagram(diagram) : null, [diagram]);
+  const [lastValid, setLastValid] = useState(valid);
+  if ((valid || !diagram) && valid !== lastValid) setLastValid(valid);
+  const preview = diagram ? (valid ?? lastValid) : null;
+  return preview ? (
+    <div className={viewStyles.previewGraph}>
+      <svg
+        role="img"
+        aria-label="指法图预览"
+        width={width}
+        height={height}
+        viewBox={`${preview.bounds.x - 4} ${preview.bounds.y - 4} ${preview.bounds.width + 8} ${preview.bounds.height + 8}`}
+      >
+        <ChordDiagramView diagram={preview} />
+      </svg>
+      {!valid && <small>显示上次有效指法；当前修改尚未通过校验。</small>}
+    </div>
+  ) : (
+    <span className={viewStyles.emptyDiagram}>{emptyText}</span>
+  );
+};
 const emptyDiagram = (): ILXMChordDiagram => ({
   startFret: 1,
   fretCount: 5,
@@ -35,7 +62,17 @@ const emptyDiagram = (): ILXMChordDiagram => ({
     finger: null,
   })),
 });
-const quickPresets = ["C", "G", "Am", "F", "Dm", "Em"];
+export interface ChordEditorProps extends ChordEditorLibraryProps {
+  inputRef: RefCallback<HTMLInputElement>;
+  draft: ChordDraft;
+  onChange: (draft: ChordDraft) => void;
+  presetsEnabled: boolean;
+  disabled?: boolean;
+  inputReadOnly?: boolean;
+  allowEmptyName?: boolean;
+  presetMenuOpen?: boolean;
+  onPresetMenuOpenChange?: (open: boolean) => void;
+}
 /** 控件变化只更新本地值对象，所有字段一起应用成一条领域命令。 */
 export const ChordEditor = ({
   inputRef,
@@ -45,31 +82,22 @@ export const ChordEditor = ({
   disabled = false,
   presetMenuOpen,
   onPresetMenuOpenChange,
-}: {
-  inputRef: RefCallback<HTMLInputElement>;
-  draft: ChordDraft;
-  onChange: (draft: ChordDraft) => void;
-  presetsEnabled: boolean;
-  disabled?: boolean;
-  presetMenuOpen?: boolean;
-  onPresetMenuOpenChange?: (open: boolean) => void;
-}) => {
+  inputReadOnly = disabled,
+  allowEmptyName = false,
+  document,
+  tuning,
+  onOpenLibrary,
+  onOpenCustom,
+  onOpenSettings,
+  showChordDiagrams,
+}: ChordEditorProps) => {
   // InputNumber 清空时以 NaN 保留非法草稿，统一校验阻止提交，不把空值转成 0。
   const diagram = draft.chord.diagram;
   const updateDiagram = (value: ILXMChordDiagram) =>
     onChange({ ...draft, chord: { ...draft.chord, diagram: value } });
   const issue = diagram ? validateChordDiagram(diagram) : null;
   // 非法中间值只显示校验信息，不交给图形布局生成误导性预览。
-  const preview = diagram && !issue ? layoutChordDiagram(diagram) : null;
-  const preset = CHORD_PRESETS.find(
-    (p) =>
-      p.name === draft.chord.name &&
-      JSON.stringify(p.diagram) === JSON.stringify(diagram),
-  );
-  const choosePreset = (name: string) => {
-    const chord = copyChordPreset(name);
-    if (chord) onChange({ display: "nameAndDiagram", chord });
-  };
+  const removing = allowEmptyName && draft.chord.name.trim() === "";
   return (
     <div className={viewStyles.editor}>
       <section className={viewStyles.preview} aria-label="和弦预览">
@@ -77,21 +105,8 @@ export const ChordEditor = ({
           <strong>{draft.chord.name || "未命名"}</strong>
           <span>{presetsEnabled ? "标准调弦　E A D G B E" : "自定义调弦"}</span>
         </div>
-        {issue ? (
-          <p role="alert">{issue}</p>
-        ) : preview ? (
-          <svg
-            role="img"
-            aria-label="指法图预览"
-            width={90}
-            height={110}
-            viewBox={`${preview.bounds.x - 4} ${preview.bounds.y - 4} ${preview.bounds.width + 8} ${preview.bounds.height + 8}`}
-          >
-            <ChordDiagramView diagram={preview} />
-          </svg>
-        ) : (
-          <span className={viewStyles.emptyDiagram}>尚未设置指法</span>
-        )}
+        {issue && !removing && <p role="alert">{issue}</p>}
+        <ChordDiagramPreview diagram={diagram} width={90} height={110} />
       </section>
       <section className={viewStyles.presets} aria-label="名称与常用指法">
         <Form.Item
@@ -106,7 +121,9 @@ export const ChordEditor = ({
             }}
             aria-label="和弦名称"
             value={draft.chord.name}
+            readOnly={inputReadOnly}
             onChange={(e) =>
+              !inputReadOnly &&
               onChange({
                 ...draft,
                 chord: { ...draft.chord, name: e.target.value },
@@ -114,50 +131,23 @@ export const ChordEditor = ({
             }
           />
         </Form.Item>
-        <div className={viewStyles.sectionHeading}>
-          <h3>常用指法</h3>
-          <span>{presetsEnabled ? "标准调弦可用" : "常用预设暂停"}</span>
-        </div>
-        <div
-          className={viewStyles.presetRow}
-          role="group"
-          aria-label="常用和弦预设"
-        >
-          {quickPresets.map((name) => (
-            <Button
-              key={name}
-              disabled={disabled || !presetsEnabled}
-              aria-pressed={preset?.name === name}
-              onClick={() => choosePreset(name)}
-            >
-              {name}
-            </Button>
-          ))}
-          <Dropdown
-            open={presetMenuOpen}
-            onOpenChange={onPresetMenuOpenChange}
-            disabled={disabled || !presetsEnabled}
-            trigger={["click"]}
-            menu={{
-              selectable: true,
-              selectedKeys: preset ? [preset.name] : [],
-              items: CHORD_PRESETS.filter(
-                (item) => !quickPresets.includes(item.name),
-              ).map((item) => ({ key: item.name, label: item.name })),
-              onClick: ({ key }) => { choosePreset(key); onPresetMenuOpenChange?.(false); },
-            }}
-          >
-            <Button
-              disabled={disabled || !presetsEnabled}
-              aria-label="其他常用和弦预设"
-              aria-pressed={!!preset && !quickPresets.includes(preset.name)}
-            >
-              {preset && !quickPresets.includes(preset.name)
-                ? preset.name
-                : "更多"}
-            </Button>
-          </Dropdown>
-        </div>
+        {removing && (
+          <p className={viewStyles.help}>
+            应用后删除当前拍的和弦名称与指法，保留拍点。
+          </p>
+        )}
+        <ChordPresetControls
+          draft={draft}
+          onChange={onChange}
+          presetsEnabled={presetsEnabled}
+          disabled={disabled}
+          document={document}
+          tuning={tuning}
+          onOpenLibrary={onOpenLibrary}
+          onOpenSettings={onOpenSettings}
+          menuOpen={presetMenuOpen}
+          onMenuOpenChange={onPresetMenuOpenChange}
+        />
         {!presetsEnabled && (
           <Alert
             type="info"
@@ -166,13 +156,21 @@ export const ChordEditor = ({
             description="预设基于标准调弦；已有指法不会自动转置，和弦名称由你确认。"
           />
         )}
-        {!diagram && (
-          <Button disabled={disabled} onClick={() => updateDiagram(emptyDiagram())}>
+        {onOpenCustom && (
+          <Button disabled={disabled} onClick={() => onOpenCustom()}>
+            {diagram ? "编辑指法" : "自定义指法"}
+          </Button>
+        )}
+        {!diagram && !onOpenCustom && (
+          <Button
+            disabled={disabled}
+            onClick={() => updateDiagram(emptyDiagram())}
+          >
             创建指法图
           </Button>
         )}
       </section>
-      {diagram && (
+      {diagram && !onOpenCustom && (
         <>
           <details className={viewStyles.disclosure} open>
             <summary>
@@ -235,7 +233,9 @@ export const ChordEditor = ({
                           <td>
                             <Select
                               aria-label={`${s.string}弦手指`}
-                              disabled={disabled || s.fret === "x" || s.fret === 0}
+                              disabled={
+                                disabled || s.fret === "x" || s.fret === 0
+                              }
                               aria-describedby={
                                 s.fret === "x" || s.fret === 0
                                   ? `chord-finger-reason-${s.string}`
@@ -416,11 +416,15 @@ export const ChordEditor = ({
       )}
       <details className={viewStyles.disclosure}>
         <summary>
-          谱面显示
+          和弦保存方式
           <span>{draft.display === "name" ? "仅名称" : "名称与指法图"}</span>
         </summary>
         <div className={viewStyles.disclosureContent}>
-          <Form.Item layout="vertical" label="谱面显示" htmlFor="chord-display">
+          <Form.Item
+            layout="vertical"
+            label="和弦保存方式"
+            htmlFor="chord-display"
+          >
             <Select
               disabled={disabled}
               id="chord-display"
@@ -439,6 +443,17 @@ export const ChordEditor = ({
               ]}
             />
             {!diagram && <small>创建指法图后可在谱面显示指法。</small>}
+            {diagram && draft.display === "name" && (
+              <small>指法已保留，谱面当前保存为仅名称。</small>
+            )}
+            {diagram && showChordDiagrams === false && (
+              <small>指法已保留；全局已隐藏指法图，编辑预览仍可见。</small>
+            )}
+            {diagram &&
+              showChordDiagrams === true &&
+              draft.display === "name" && (
+                <small>保存为仅名称；全局已开启指法图。</small>
+              )}
           </Form.Item>
         </div>
       </details>
@@ -465,7 +480,7 @@ export const ChordEditor = ({
           </div>
         </details>
       )}
-      {issue && (
+      {issue && !removing && (
         <Alert type="error" showIcon title="指法尚未应用" description={issue} />
       )}
     </div>

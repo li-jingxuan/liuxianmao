@@ -12,6 +12,10 @@ const session = createEditorSession(EXAMPLE_MVP_7_2_DOCUMENT);
 const trackId = session.getState().document!.score.tracks[0]!.id;
 const measureIds = session.getState().document!.score.tracks[0]!.measures.map((measure) => measure.id);
 const commands: ILXMScoreCommand[] = [];
+let allowedGroups: "all" | "info" = "all";
+const guards: { group?: string; liveOwner: boolean }[] = [];
+const infoApplied: number[] = [];
+const settled: (string | undefined)[] = [];
 let finishCopy: ((result: EditorCommandResult) => void) | undefined;
 const noop = () => {};
 const Harness = () => {
@@ -29,6 +33,9 @@ const Harness = () => {
       status: () => controller.current!.readStatus(),
       boundary: () => measureController.current!.focusBoundary(),
       apply: (group: "info" | "label" | "capo" | "signature") => controller.current!.applyGroup(group),
+      applyAll: () => controller.current!.apply(),
+      allow: (mode: "all" | "info") => { allowedGroups = mode; },
+      hooks: () => ({ guards, infoApplied, settled }),
       restore: (group: "info" | "label" | "capo" | "signature") => controller.current!.restoreGroup(group),
       focus: (group: "info" | "label" | "copy" | "capo") => controller.current!.focus(group),
       discard: () => controller.current!.discard(),
@@ -49,7 +56,7 @@ const Harness = () => {
     <div hidden={activeSurface !== "song"}><div ref={setSongHost} /></div>
     <div hidden={activeSurface !== "measure"}><MeasureToolDetails ref={measureController} document={document} selection={null} target={{ trackId, measureId: requestedMeasureId! }} blocked={false} onAction={async () => false} navigate={noop} measureHost={setMeasureHost} /></div>
     <div ref={setActionsHost} />
-    <ScoreSettings ref={controller} document={document} requestedMeasureId={requestedMeasureId} songHost={songHost} measureHost={measureHost} actionsHost={actionsHost} activeSurface={activeSurface} onDirty={noop} onFocusRequest={(group) => { setSurface(group === "label" || group === "copy" ? "measure" : "song"); return true; }} executeTool={(command) => { commands.push(command); return new Promise((resolve) => { finishCopy = resolve; }); }} commit={(command) => { commands.push(command); return session.getState().execute(command); }} />
+    <ScoreSettings ref={controller} document={document} requestedMeasureId={requestedMeasureId} songHost={songHost} measureHost={measureHost} actionsHost={actionsHost} activeSurface={activeSurface} onDirty={noop} onFocusRequest={(group) => { setSurface(group === "label" || group === "copy" ? "measure" : "song"); return true; }} guardApply={(group, identity) => { guards.push({ group, liveOwner: !!identity && typeof identity.owner.token === "symbol" && identity.generation === identity.owner.generation }); return allowedGroups === "all" || group === "info"; }} onInfoApplied={(document) => infoApplied.push(document.documentRevision)} onApplySettled={(group) => { settled.push(group); }} executeTool={(command) => { commands.push(command); return new Promise((resolve) => { finishCopy = resolve; }); }} commit={(command) => { commands.push(command); return session.getState().execute(command); }} />
   </>;
 };
 createRoot(globalThis.document.getElementById("root")!).render(<EditorStoreContext.Provider value={session}><EditorSessionRuntime session={session}><Harness /></EditorSessionRuntime></EditorStoreContext.Provider>);

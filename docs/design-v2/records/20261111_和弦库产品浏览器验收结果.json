@@ -1,0 +1,99 @@
+{
+  "status": "passed",
+  "createdAt": "2026-11-10T19:31:18.178Z",
+  "fixture": "tests/music-text-coexist.browser.tsx: real HomePage and coexistStore",
+  "browser": {
+    "version": "157.0.8103.50",
+    "channel": "chrome"
+  },
+  "viewports": [
+    {
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "width": 1440,
+      "height": 650
+    }
+  ],
+  "checks": [
+    {
+      "label": "Real same-origin HTTP manifest/catalog 200 and 192 candidates",
+      "status": "passed"
+    },
+    {
+      "label": "Library footer reachable at 1440×650",
+      "status": "passed"
+    },
+    {
+      "label": "Quick fixed More opens library; cancel preserves dirty parent",
+      "status": "passed"
+    },
+    {
+      "label": "Modal and actual closing transition block background editing/undo",
+      "status": "passed"
+    },
+    {
+      "label": "Library choice only backfills shared quick/sidebar draft; Apply creates one SetChordSymbol and undo restores document",
+      "status": "passed"
+    },
+    {
+      "label": "Custom editor footer reachable at 1440×650",
+      "status": "passed"
+    },
+    {
+      "label": "Sidebar fixed More and library→custom handoff; cancel preserves original parent draft",
+      "status": "passed"
+    },
+    {
+      "label": "Custom complete only backfills parent; ordinary Enter creates one SetChordSymbol and undo restores document",
+      "status": "passed"
+    },
+    {
+      "label": "Settings handoff suspends/resumes dirty chord without writes and blocks background undo",
+      "status": "passed"
+    },
+    {
+      "label": "Info-only Enter applies one SetScoreInfo; recommendations use committed tonality and suspended chord survives",
+      "status": "passed"
+    },
+    {
+      "label": "Empty and whitespace names delete the selected chord through Enter, one command and full undo",
+      "status": "passed"
+    },
+    {
+      "label": "Inner select consumes first Escape; next Escape dismisses library",
+      "status": "passed"
+    },
+    {
+      "label": "Modal and real closing transition block delayed score/image output without extra modal or download",
+      "status": "passed"
+    }
+  ],
+  "screenshots": [
+    "catalog.png",
+    "custom.png",
+    "settings.png"
+  ],
+  "catalogResponses": [
+    {
+      "url": "http://127.0.0.1:59246/assets/chords/manifest.json",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:59246/assets/chords/catalog-2026.11.11.1.json",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:59246/assets/chords/manifest.json",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:59246/assets/chords/catalog-2026.11.11.1.json",
+      "status": 200
+    }
+  ],
+  "pageErrors": [],
+  "downloads": [],
+  "evidenceScope": "Real product modules mounted by browser fixture; separate from prototype review"
+}

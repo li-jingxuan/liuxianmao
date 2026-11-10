@@ -56,8 +56,13 @@ export function useWorkspaceOverlays({
       if (!element.inert) element.inert = true;
     };
     const restore = () => {
-      for (const [element, previous] of managed)
-        if (element.inert !== previous) element.inert = previous;
+      for (const [element, previous] of managed) {
+        // 文字 portal 的可见性可能在 Modal 退出期间改变；恢复当前 React 意图，
+        // 不能把打开时捕获的 hidden/inert 永久写回已恢复的表面。
+        const desired = element.dataset.editorInert;
+        const next = desired === undefined ? previous : desired === "true";
+        if (element.inert !== next) element.inert = next;
+      }
       managed.clear();
     };
     const drawer = () =>

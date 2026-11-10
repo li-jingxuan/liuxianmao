@@ -13,6 +13,7 @@ import {
   createEditorDraftCoordinator,
   createEditorDraftOwner,
   type EditorDraftRecord,
+  type EditorDraftRegistration,
 } from "./editor-draft-coordinator";
 import { createEditorModalController } from "./editor-modal-controller";
 import { EditorModalHost } from "./EditorModalHost";
@@ -87,6 +88,12 @@ export const useEditorDraftRecords = (
   // 在 render 捕获，而非在 effect 执行时读取，防止旧 render 的 effect 迟到登记。
   const generation = owner.generation;
   const [handle] = useState(() => ({
+    captureIdentity: (): EditorDraftRegistration => ({
+      owner,
+      generation: owner.generation,
+    }),
+    isCurrent: (identity: EditorDraftRegistration) =>
+      identity.owner === owner && identity.generation === owner.generation,
     invalidateOwner: () => {
       if (runtime) runtime.drafts.invalidateOwner(owner);
       else owner.generation += 1;

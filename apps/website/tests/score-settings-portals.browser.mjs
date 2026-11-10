@@ -44,6 +44,8 @@ try {
   assert.equal((await status()).groups.info.canApply, false);
   assert.equal(await page.evaluate(() => window.settingsTest.apply("info")), false);
   await page.locator("#settings-title").fill("核对后的名称");
+  assert.equal((await status()).groups.info.canApply, false);
+  await page.getByRole("button", { name: "核对并保留整组输入", exact: true }).click();
   assert.equal((await status()).groups.info.canApply, true);
   assert.equal(await page.evaluate(() => window.settingsTest.apply("info")), true);
   assert.equal(await page.evaluate(() => window.settingsTest.document().score.title), "核对后的名称");
@@ -77,7 +79,7 @@ try {
   assert.equal((await status()).groups.info.dirty, true);
   await page.locator("#settings-title").focus();
   await footer.getByRole("button", { name: "应用曲谱信息", exact: true }).click();
-  assert.deepEqual(await page.evaluate((start) => window.settingsTest.commands().slice(start).map((command) => command.type), beforeGroups.commands), ["track.setCapo", "score.setNotationInfo"]);
+  assert.deepEqual(await page.evaluate((start) => window.settingsTest.commands().slice(start).map((command) => command.type), beforeGroups.commands), ["track.setCapo", "score.setInfo"]);
   assert.equal(await page.evaluate(() => window.settingsTest.history()), beforeGroups.history + 2);
   assert.equal((await status()).groups.info.dirty, false);
 
@@ -139,6 +141,35 @@ try {
   assert.equal((await status()).groups.label.canApply, false);
   assert.equal(await page.locator('[data-settings-host="measure"]').count(), 1);
   assert.equal(await page.evaluate(() => window.settingsTest.apply("label")), false);
+  // 设置交接只授权 info；按钮和普通 Enter 经同一个 owner 闸门。
+  await open();
+  await page.evaluate(() => window.settingsTest.allow("info"));
+  await page.locator("#settings-title").fill("交接中的信息");
+  assert.equal(await page.evaluate(() => window.settingsTest.applyAll()), false);
+  assert.equal(await page.evaluate(() => window.settingsTest.commands().length), 0);
+  assert.match(await page.locator('[data-settings-surface="song"]').innerText(), /不允许提交此设置组/);
+  await footer.getByRole("button", { name: "应用曲谱信息", exact: true }).click();
+  assert.deepEqual(await page.evaluate(() => window.settingsTest.commands().map((command) => command.type)), ["score.setInfo"]);
+  await page.locator("#settings-capo").click();
+  await page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item-option-content').getByText("1 品", { exact: true }).click();
+  assert.equal(await page.evaluate(() => window.settingsTest.apply("capo")), false);
+  assert.equal(await page.evaluate(() => window.settingsTest.commands().length), 1);
+  await page.evaluate(() => window.settingsTest.restore("capo"));
+  await page.locator("#settings-mode").click();
+  await page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item-option-content').getByText("小调", { exact: true }).click();
+  await page.locator("#settings-tonic").fill("A");
+  assert.match(await page.locator('.ant-select').filter({ has: page.locator("#settings-minor-degree") }).innerText(), /主音记作 6/);
+  assert.equal(await page.evaluate(() => window.settingsTest.document().score.meta["lxm:tonality"]), undefined);
+  assert.match(await page.locator('[data-settings-surface="song"]').innerText(), /设置预览：曲谱 A小调/);
+  await page.locator("#settings-tonic").press("Enter");
+  assert.equal(await page.evaluate(() => window.settingsTest.document().score.keySignature), "C");
+  assert.deepEqual(await page.evaluate(() => window.settingsTest.document().score.meta["lxm:tonality"]), { version: 1, tonic: "A", mode: "minor", minorTonicDegree: 6 });
+  assert.deepEqual(await page.evaluate(() => window.settingsTest.commands().map((command) => command.type)), ["score.setInfo", "score.setInfo"]);
+  const hooks = await page.evaluate(() => window.settingsTest.hooks());
+  assert.deepEqual(hooks.guards.map((entry) => entry.group), [undefined, "info", "capo", "info"]);
+  assert.ok(hooks.guards.every((entry) => entry.liveOwner));
+  assert.equal(hooks.infoApplied.length, 2);
+  assert.equal(hooks.settled.length, 4);
   assert.deepEqual(errors, []);
   console.log("score-settings portals: rebasing, conflicts, group records, pinned/invalid target, focus and IME passed");
 } finally { await browser?.close(); await server.close(); }

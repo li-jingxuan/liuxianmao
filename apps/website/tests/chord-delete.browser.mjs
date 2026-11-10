@@ -13,10 +13,11 @@ const website = fileURLToPath(new URL("..", import.meta.url));
 const artifacts = path.resolve(website, "../../artifacts/chord-delete");
 const server = await createServer({
   root: website, configFile: false,
+  define: { "process.env.NEXT_PUBLIC_BASE_PATH": '""' },
   cacheDir: path.resolve(website, "node_modules/.vite/chord-delete"),
   optimizeDeps: { entries: ["tests/music-text-coexist.browser.tsx"], include: ["react/jsx-dev-runtime"] },
   esbuild: { jsx: "automatic" },
-  server: { host: "127.0.0.1", port: 0, watch: { ignored: ["**/.next/**"] }, fs: { allow: [path.resolve(website, "../..")] } },
+   server: { host: "127.0.0.1", port: 0, hmr: false, watch: null, fs: { allow: [path.resolve(website, "../..")] } },
   plugins: [{ name: "chord-delete-fixture", configureServer(dev) {
     dev.middlewares.use(async (request, response, next) => {
       if (request.url !== "/__chord_delete__") return next();
@@ -101,7 +102,9 @@ try {
   assert.equal(await deleteTool.isDisabled(),true,'IME locks toolbar deletion');
   assert.equal(await applyChord.isDisabled(),true);
   await input.dispatchEvent('compositionend');
-  await page.waitForFunction(() => !document.querySelector('button[aria-label="删除和弦"]')?.disabled);
+  await sidebar.getByRole('button',{name:'编辑指法',exact:true}).waitFor({state:'visible'});
+  await page.waitForFunction(() => Array.from(document.querySelectorAll('button')).some(button => button.textContent === '编辑指法' && !button.disabled));
+  await page.waitForFunction(() => { const e=document.querySelector('#chord-popover-name'); return e && !e.readOnly; });
   await page.screenshot({path:path.join(artifacts,'selected-chord-delete-button.png'),animations:'disabled'});
   await deleteTool.click();
   await assertRemoved();
@@ -110,13 +113,17 @@ try {
   await redo.click();
   await assertRemoved();
   await undo.click();
-  // Deleting a chord must not require repairing a discarded diagram draft.
-  const range = sidebar.locator('details').filter({hasText:'横按与显示范围'});
-  await range.locator('summary').click();
-  await range.getByRole('spinbutton',{name:'起始品位',exact:true}).fill('');
-  assert.equal(await applyChord.isDisabled(),true,'invalid diagram still blocks regular edits');
+  // Invalid local diagrams never escape the custom editor into the parent draft.
+  await sidebar.getByRole('button',{name:'编辑指法',exact:true}).click();
+  const custom = page.getByRole('dialog',{name:'自定义指法',exact:true});
+  await custom.getByRole('textbox',{name:'自定义和弦名称',exact:true}).fill('');
+  assert.equal(await custom.getByRole('button',{name:'完成编辑',exact:true}).isDisabled(),true);
+  await custom.getByRole('button',{name:'取消',exact:true}).click();
+  await custom.waitFor({state:'hidden'});
+  await page.waitForFunction(() => !document.querySelector('button[aria-label="删除和弦"]')?.disabled);
+  assert.deepEqual(await currentChord(),original,'invalid local edit cancellation preserves full parent');
   await input.fill('');
-  assert.equal(await applyChord.isEnabled(),true,'cleared name deletes even with invalid diagram draft');
+  assert.equal(await applyChord.isEnabled(),true,'cleared existing name still permits deletion');
   await applyChord.click();
   await assertRemoved();
   await undo.click();

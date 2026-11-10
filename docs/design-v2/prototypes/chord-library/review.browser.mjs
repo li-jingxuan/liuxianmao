@@ -16,6 +16,15 @@ const more = () => page.locator('[data-scene="more"]').click();
 const custom = () => page.locator('[data-scene="custom"]').click();
 try {
   await page.goto(new URL('prototype.html', base).href);
+  const savedBeforeOverride=JSON.stringify(await state());
+  await page.selectOption('#global-display-fixture','hide');
+  check('全局隐藏说明保图且不改草稿/快照', (await text('#display-hint')).includes('全局已隐藏') && JSON.stringify(await state())===savedBeforeOverride);
+  check('全局隐藏仍保留编辑预览',await page.locator('.side [data-diagram] svg').isVisible());
+  await page.selectOption('#display-mode','name');await page.selectOption('#global-display-fixture','show');
+  check('全局开启说明覆盖保存的仅名称', (await text('#display-hint')).includes('保存为仅名称') && (await state()).draft.display==='name');
+  await page.selectOption('#global-display-fixture','inherit');
+  check('未指定全局偏好沿用和弦保存方式', (await text('#display-hint')).includes('谱面当前仅显示名称'));
+  await page.selectOption('#display-mode','both');
   await more();
   check('默认推荐为 C 大调，D7 不混入调内列表', (await text('#more-key-title')).includes('C 大调') && !(await text('#more-results')).split('\n').includes('D7'));
   await page.locator('#more-search').fill('CM7');
@@ -89,6 +98,36 @@ try {
   await page.locator('#library-cards button').nth(1).click();
   check('同名第二份收藏按 id 选用', await page.evaluate(()=>libMine.prototypeId===mine[1].prototypeId && JSON.stringify(libMine.frets)===JSON.stringify(mine[1].frets)));
   check('同品重叠横按被拒绝', await page.evaluate(()=>!!validateEdit({name:'X',start:1,frets:Array(6).fill(3),fingers:Array(6).fill(null),barres:[{fret:1,from:0,to:3,finger:1},{fret:1,from:2,to:5,finger:2}]})));
+  await page.locator('[data-close="library"].close').click();
+  await page.selectOption('#target-fixture','existing');
+  await page.locator('.quick-popup .chord-name').fill('');
+  check('已有和弦空名进入待删除，不清草稿原图', await page.locator('.quick-popup [data-apply]').isEnabled() && (await state()).draft.frets[0]===3 && (await state()).applied.name==='G');
+  await page.locator('[data-revert]').click();check('待删除可恢复完整和弦', (await state()).draft.name==='G');
+  await page.locator('.quick-popup .chord-name').fill('');await page.locator('.quick-popup .chord-name').press('Enter');
+  check('空名 Enter 删除完整和弦并保留目标', await page.evaluate(()=>!chordExists&&targetFixture==='existing'&&draft.hasDiagram===false));
+  check('删除后禁用重复删除和空白新增', await page.locator('#delete-chord').isDisabled() && await page.locator('.quick-popup [data-apply]').isDisabled());
+  await page.selectOption('#target-fixture','new');
+  check('无和弦的新增空名无提交', await page.locator('.quick-popup [data-apply]').isDisabled());
+  await page.selectOption('#global-display-fixture','show');
+  check('全局开启但缺图明确说明仅名称',(await text('#display-hint')).includes('当前无指法图'));
+  await page.selectOption('#global-display-fixture','inherit');
+  await page.locator('.quick-popup .chord-name').fill('G');await page.locator('.quick-popup .chord-name').press('Enter');
+  check('新增名称 Enter 应用，仅名称可无图', (await state()).applied.name==='G' && (await state()).applied.hasDiagram===false);
+  await page.locator('.quick-popup .chord-name').fill('G7');
+  await page.locator('#panel-toggle').click();await page.locator('#panel-toggle').click();
+  check('纯图标收起再开保留同一父草稿', (await state()).draft.name==='G7' && await page.locator('#panel-toggle').getAttribute('aria-expanded')==='true');
+  await page.locator('#delete-chord').click();check('工具栏删除不绕过未应用父草稿', (await state()).applied.name==='G' && (await state()).draft.name==='G7');
+  await page.selectOption('#target-fixture','existing');await page.locator('#delete-chord').click();
+  check('工具栏删除已有和弦', await page.evaluate(()=>!chordExists&&draft.hasDiagram===false));
+  await page.selectOption('#target-fixture','continuation');await more();await page.locator('#more-search').fill('C');await page.locator('#more-results button').filter({hasText:/^C$/}).click();
+  check('TAB 续音拍允许形成和弦草稿', (await state()).draft.name==='C' && (await text('#target-context')).includes('续音标记'));
+  await custom();await page.locator('#custom-name').fill('Cnew');await page.locator('#custom-name').press('Enter');
+  check('custom Enter 只回填父草稿，不直接应用', (await state()).draft.name==='Cnew' && (await state()).applied.name==='G' && !await page.locator('#custom-overlay').isVisible());
+  for(const target of ['numbered','blank']){await page.selectOption('#target-fixture',target);check('失去 TAB 目标后禁用入口 '+target,await page.locator('#chord-tool').isDisabled() && await page.locator('#delete-chord').isDisabled() && !await page.locator('.quick-popup').isVisible());}
+  await page.selectOption('#target-fixture','existing');await custom();
+  const semanticBefore=await page.evaluate(()=>JSON.stringify(edit));
+  check('可读编辑图和谱面缩小图分别展示',await page.locator('#last-valid-preview svg').isVisible() && await page.locator('#score-size-preview svg').isVisible());
+  check('展示谱面缩小示意不修改图语义',await page.evaluate(()=>JSON.stringify(edit))===semanticBefore);
   await page.goto(new URL('failure-states.html', base).href);
   await page.selectOption('#resource-fixture','error');
   check('首载失败仅禁用系统选择，个人编辑可用', await page.locator('#quick-c').isDisabled() && await page.locator('#custom').isEnabled() && await page.locator('#favorite').isEnabled());
@@ -109,18 +148,32 @@ try {
   await page.locator('#cancel-import').click();check('取消导入不写配置', (await text('#session-count'))==='5');
   await page.locator('#parse-import').click();await page.locator('#confirm-import').click();check('确认导入替换配置', (await text('#session-count'))==='4' && (await text('#disk-count'))==='4');
   const screenshots = fileURLToPath(new URL('../../screenshots/chord-library/', import.meta.url));await mkdir(screenshots,{recursive:true});
-  await page.selectOption('#resource-fixture','error');await page.screenshot({path:screenshots+'09_加载与配置故障复核.png',fullPage:true});
-  for (const width of [390,1440]) {
-    await page.setViewportSize({width,height:width===390?844:650});
-    check('故障状态稿无横溢 '+width, await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
-    await page.goto(new URL('prototype.html',base).href);await page.locator('[data-scene="custom"]').click();
-    check('指法完成入口可达 '+width, await page.locator('#custom-confirm').isVisible() && await page.locator('#custom-confirm').evaluate(e=>e.getBoundingClientRect().bottom<=innerHeight));
-    check('主原型无横溢 '+width, await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
-    if(width===390)await page.screenshot({path:screenshots+'10_窄屏指法复核.png'});
-    await page.goto(new URL('failure-states.html',base).href);
+  for (const width of [1440,1400,768,390]) {
+    await page.setViewportSize({width,height:650});
+    await page.goto(new URL('prototype.html',base).href);
+    check('桌面工作区保持最小宽度 '+width, await page.evaluate(()=>document.body.getBoundingClientRect().width>=1400));
+    check('不恢复侧栏标题行 '+width, await page.locator('.side-heading').count()===0);
+    if(width<1400){
+      check('窄窗口采用外层横向滚动 '+width,await page.evaluate(()=>document.documentElement.scrollWidth>=1400&&document.documentElement.scrollWidth>innerWidth));
+      await page.locator('.side .chord-name').scrollIntoViewIfNeeded();
+      await page.locator('.side .chord-name').fill('横滚输入');
+      check('横滚后侧栏输入可达 '+width,await page.locator('.side .chord-name').evaluate(e=>{const r=e.getBoundingClientRect();return r.left<innerWidth&&r.right>0&&e.value==='横滚输入'}));
+    }
+    if(width===1440){
+      await page.setViewportSize({width,height:900});
+      await page.locator('.quick-popup .chord-name').fill('');
+      await page.screenshot({path:screenshots+'11_20261111_已有和弦待删除.png'});
+      await page.locator('[data-revert]').click();await custom();
+      await page.screenshot({path:screenshots+'12_20261111_编辑与谱图示意.png'});
+      await page.locator('#custom-overlay [data-close="custom"].close').click();
+      await page.setViewportSize({width,height:650});
+    }
+    await page.locator('.side [data-custom]').click();
+    check('低屏指法完成入口可达 '+width, await page.locator('#custom-confirm').isVisible() && await page.locator('#custom-confirm').evaluate(e=>e.getBoundingClientRect().bottom<=innerHeight));
+    if(width===390)await page.screenshot({path:screenshots+'13_20261111_窄窗口弹层.png'});
   }
   check('浏览器无脚本异常',errors.length===0);
-  const report={kind:'prototype-review-only',checkedAt:new Date().toISOString(),browser:await browser.version(),checks,errors,limitations:['No product integration or real catalog HTTP loading tested','No real IME or manual playability audit']};
-  await writeFile(new URL('../../records/20261107_和弦原型浏览器复核结果.json',import.meta.url),JSON.stringify(report,null,2)+'\n');
+  const report={kind:'prototype-review-only',revision:'v2.3',checkedAt:new Date().toISOString(),browser:await browser.version(),checks,errors,limitations:['No product integration or real catalog HTTP loading tested','No real IME or manual playability audit','Small score diagram is illustrative; no product geometry tested','1400px desktop minimum replaces historical mobile-workspace checks']};
+  await writeFile(new URL('../../records/20261111_和弦原型浏览器复核结果.json',import.meta.url),JSON.stringify(report,null,2)+'\n');
   console.log(`PASS: ${checks.length} prototype checks; no page errors.`);
 } finally { await browser.close(); }

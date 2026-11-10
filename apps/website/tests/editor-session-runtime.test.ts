@@ -73,6 +73,52 @@ const setup = () => {
 };
 
 describe("当前输入 owner 登记生命周期", () => {
+  it("同一 owner 的身份跨重绘有效，失效后仅新 generation 可以接收结果", () => {
+    const { drafts, record, render } = setup();
+    const handle = render([record]);
+    const identity = handle.captureIdentity();
+    expect(handle.isCurrent(identity)).toBe(true);
+    expect(render([{ ...record, targetKey: "B" }])).toBe(handle);
+    expect(handle.isCurrent(identity)).toBe(true);
+    handle.invalidateOwner();
+    expect(handle.isCurrent(identity)).toBe(false);
+    const next = handle.captureIdentity();
+    expect(next.owner).toBe(identity.owner);
+    expect(next.generation).toBe(identity.generation + 1);
+    expect(handle.isCurrent(next)).toBe(true);
+    handle.invalidateOwner();
+    expect(handle.isCurrent(next)).toBe(false);
+    expect(drafts.isOutputBlocked()).toBe(false);
+  });
+
+  it("generation 相同的其他 owner 身份不能用于当前输入", () => {
+    const first = setup();
+    const firstHandle = first.render([first.record]);
+    const firstIdentity = firstHandle.captureIdentity();
+    harness.states = [];
+    const second = setup();
+    const secondHandle = second.render([second.record]);
+    const secondIdentity = secondHandle.captureIdentity();
+    expect(firstIdentity.generation).toBe(secondIdentity.generation);
+    expect(secondHandle.isCurrent(firstIdentity)).toBe(false);
+    expect(firstHandle.isCurrent(secondIdentity)).toBe(false);
+    expect(firstHandle.isCurrent(firstIdentity)).toBe(true);
+    expect(secondHandle.isCurrent(secondIdentity)).toBe(true);
+  });
+
+  it("没有 runtime 时离开仍递增身份 generation，拒绝旧结果", () => {
+    const { record, render } = setup();
+    harness.runtime = null;
+    const handle = render([record]);
+    const identity = handle.captureIdentity();
+    handle.invalidateOwner();
+    expect(handle.isCurrent(identity)).toBe(false);
+    const next = handle.captureIdentity();
+    expect(next.owner).toBe(identity.owner);
+    expect(next.generation).toBe(identity.generation + 1);
+    expect(handle.isCurrent(next)).toBe(true);
+  });
+
   it("离开立即放行输出；旧 effect 迟到不能重新登记；新 generation 的真实输入继续阻断", () => {
     const { drafts, record, render } = setup();
     const handle = render([record]);

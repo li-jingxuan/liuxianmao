@@ -52,6 +52,13 @@ import {
 import { LyricFormView } from "./LyricFormView";
 import { ChordEditor } from "./ChordEditor";
 import { ChordQuickEditor } from "./ChordQuickEditor";
+import type { ChordDraft } from "./ChordEditor";
+import { ChordLibraryModal } from "./ChordLibraryModal";
+import { ChordDiagramEditorModal } from "./ChordDiagramEditorModal";
+import type { ChordLibraryTab } from "./ChordPresetControls";
+import { saveCustomChordVoicing } from "./chord-preferences";
+import { createChordEditSession } from "./chord-edit-session";
+import type { SettingsGroup } from "./score-settings-draft";
 import { chordIssueField } from "./chord-issue-field";
 import { shouldIgnoreMusicTextKey } from "./music-text-interaction";
 import { isEditorInputEnter } from "./editor-input-enter";
@@ -77,7 +84,7 @@ import {
 } from "./EditorSessionRuntime";
 import type { NumberedDraftGroup } from "./numbered-submission";
 import { captureEditorVersion, sameEditorVersion, type EditorSessionVersion } from "./editor-session-version";
-import type { EditorDraftRecord } from "./editor-draft-coordinator";
+import type { EditorDraftRecord, EditorDraftRegistration } from "./editor-draft-coordinator";
 import type { FloatingAnchorRect } from "./music-text-floating-position";
 import { useMusicTextFloatingPanel } from "./use-music-text-floating-panel";
 
@@ -137,10 +144,12 @@ export const MusicTextSidebar = ({
   getFloatingObservedElements,
   collapsed = false,
   modal = false,
+  showChordDiagrams,
   onExpandSidebar = () => {},
   onLocate = () => {},
 }: {
   modal?: boolean;
+  showChordDiagrams?: boolean;
   ref: Ref<MusicTextController>;
   onToolAction?: ToolActionHandler;
   executeTool?: EditorCommandAdapter;
@@ -166,7 +175,7 @@ export const MusicTextSidebar = ({
   onLocate?: (location: SidebarLocation) => void;
 }) => {
   const editorStore = useEditorSessionStore();
-  const { modals } = useEditorRuntime();
+  const { modals, drafts } = useEditorRuntime();
   const activeModal = useSyncExternalStore(
     modals.subscribe,
     modals.getSnapshot,
@@ -258,7 +267,26 @@ export const MusicTextSidebar = ({
   const confirmRef = useRef<HTMLButtonElement>(null);
   const lastInputFocus = useRef<HTMLElement | null>(null);
   const lastSidebarFocus = useRef<HTMLElement | null>(null);
-  const draftRegistrationRef = useRef<{ invalidateOwner: () => void } | null>(null);
+  const draftRegistrationRef = useRef<ReturnType<typeof useEditorDraftRecords> | null>(null);
+  const draftLive = useRef(draft);
+  useLayoutEffect(() => { draftLive.current = draft; }, [draft]);
+  const [chordModalActive, setChordModalActive] = useState(false);
+  type SuspendedChord = {
+    draft: MusicTextDraft; identity: EditorDraftRegistration;
+    version: EditorSessionVersion; surface: "popover" | "sidebar";
+  };
+  const suspendedChord = useRef<SuspendedChord | null>(null);
+  const [chordSuspended, setChordSuspended] = useState(false);
+  const infoAuthorization = useRef<{ identity: EditorDraftRegistration; version: EditorSessionVersion } | null>(null);
+  const [chordSession] = useState(createChordEditSession);
+  useLayoutEffect(() => { chordSession.setReader(() => {
+    const current = draftLive.current, registration = draftRegistrationRef.current;
+    const state = editorStore.getState();
+    if (!current || current.target.kind !== "chord" || !registration ||
+      !normalizeMusicTextTarget(state.document, current.target)) return null;
+    return { identity: registration.captureIdentity(), version: captureEditorVersion(state),
+      targetKey: JSON.stringify(current.target), parentValue: musicTextDraftValue(current) };
+  }); }, [chordSession, editorStore]);
   const restoreInputFocus = useRef(false);
   const requestedTabFocus = useRef<string | null>(null);
   const composing = useRef(false);
@@ -279,7 +307,7 @@ export const MusicTextSidebar = ({
     : null;
   const textSession =
     activeObject?.kind === "lyric" || activeObject?.kind === "numbered" || activeObject?.kind === "chord";
-  const floating = textSession && surface === "popover";
+  const floating = textSession && surface === "popover" && !chordSuspended;
   const numberedActionBlocked =
     numberedDirty ||
     !!pending ||
@@ -453,11 +481,11 @@ export const MusicTextSidebar = ({
 
   const surfaceDisabled = compositionActive || compositionCooling || !!pending ||
     numberedBusy || !!activeModal;
-  const transitionBlocked = surfaceDisabled || !!settingsStatus?.busy || !!settingsStatus?.composing;
+  const transitionBlocked = surfaceDisabled || chordSuspended || !!settingsStatus?.busy || !!settingsStatus?.composing;
   useEffect(() => onTransitionBlockedChange?.(transitionBlocked), [transitionBlocked, onTransitionBlockedChange]);
   const surfaceBlocked = useCallback((ignoreModalId?: number) =>
     composing.current || compositionCoolingRef.current || compositionActive || compositionCooling ||
-    !!pending || numberedBusy || (!!activeModal && activeModal.id !== ignoreModalId) || navigationApplying.current,
+     !!pending || numberedBusy || !!suspendedChord.current || (!!activeModal && activeModal.id !== ignoreModalId) || navigationApplying.current,
     [compositionActive, compositionCooling, pending, numberedBusy, activeModal]);
   const focusSidebar = useCallback((
     group?: NumberedDraftGroup,
@@ -714,6 +742,7 @@ export const MusicTextSidebar = ({
   };
   /** 统一处理对象／页签切换；先校验目标和输入状态，再丢弃旧输入并迁移 selection。 */
   const request = (action: SidebarAction): SelectionRequestResult => {
+    if (suspendedChord.current) { setMessage("请先返回和弦编辑，或处理当前曲谱信息输入。"); return "blocked"; }
     if (
       composing.current ||
       compositionCoolingRef.current ||
@@ -886,6 +915,16 @@ export const MusicTextSidebar = ({
   useEffect(
     () =>
       editorStore.subscribe((state) => {
+        if (suspendedChord.current && !committing.current &&
+          !sameEditorVersion(captureEditorVersion(state), suspendedChord.current.version)) {
+          suspendedChord.current = null;
+          infoAuthorization.current = null;
+          setChordSuspended(false);
+          draftRegistrationRef.current?.invalidateOwner();
+          setDraft(null);
+          setActiveObject(null);
+          setMessage("原和弦会话已变化，请重新选择和弦位置。");
+        }
         if (state.document !== baseline.current && !committing.current) {
           const previousDocument = baseline.current;
           setPending(null);
@@ -1101,6 +1140,22 @@ export const MusicTextSidebar = ({
   /** 提交标记在异常、失败及 no-op 时也释放；失败保留当前草稿。 */
   const commit = (command: ILXMScoreCommand) => {
     if (composing.current || compositionCoolingRef.current || compositionCooling) return null;
+    if (modals.isOpen() && command.type !== LXMScoreCommandEnum.SetScoreInfo) return null;
+    if (suspendedChord.current) {
+      const authorization = infoAuthorization.current;
+      const paused = suspendedChord.current;
+      const inspection = drafts.inspect(authorization?.identity.owner);
+      if (command.type !== LXMScoreCommandEnum.SetScoreInfo || !authorization ||
+        !sameEditorVersion(captureEditorVersion(editorStore.getState()), authorization.version) ||
+        authorization.identity.owner.generation !== authorization.identity.generation ||
+        !draftRegistrationRef.current?.isCurrent(paused.identity) || modals.isOpen() ||
+        inspection.composing || inspection.busy || inspection.pending.some(record => {
+          const registration = drafts.registrationOf(record);
+          return !registration || (registration.owner !== paused.identity.owner &&
+            registration.owner !== authorization.identity.owner);
+        })) return null;
+      infoAuthorization.current = null;
+    }
     committing.current = true;
     try {
       const result = editorStore.getState().execute(command);
@@ -1126,6 +1181,7 @@ export const MusicTextSidebar = ({
     }
   };
   const apply = (advance = false): boolean => {
+    if (modals.isOpen() || suspendedChord.current) return false;
     if (!draft || issue || committing.current || composing.current || compositionCoolingRef.current || compositionCooling) return false;
     if (draft.target.kind === "lyric" &&
       lyricDraftMappingDependency(score, draft) !== lyricDraftMappingDependency(editorStore.getState().document, draft)) {
@@ -1222,7 +1278,7 @@ export const MusicTextSidebar = ({
     const version = captureEditorVersion(editorStore.getState());
     if (
       activeTextOwner.current && draft &&
-      (musicTextDraftValue(draft) !== draft.initial ||
+      (chordModalActive || chordSuspended || musicTextDraftValue(draft) !== draft.initial ||
         (compositionActive && kind !== "score"))
     ) {
       records.push({
@@ -1231,13 +1287,18 @@ export const MusicTextSidebar = ({
         targetKey,
         label: draft.target.kind === "lyric" ? "歌词输入" : "和弦编辑",
         location: draftLocation(draft.target),
-        dirty: musicTextDraftValue(draft) !== draft.initial,
+        dirty: chordModalActive || chordSuspended || musicTextDraftValue(draft) !== draft.initial,
         composing: compositionActive,
-        canApply: !issue && !pending,
+        canApply: !issue && !pending && !chordModalActive && !chordSuspended,
         error: issue,
         version,
         inputKey: musicTextDraftValue(draft),
         focus: () => {
+          if (modals.isOpen()) {
+            document.querySelector<HTMLElement>('.ant-modal:not([aria-hidden="true"]) input')?.focus();
+            return true;
+          }
+          if (suspendedChord.current) { onExpandSidebar(); setPropertyTab("song"); return true; }
           onExpandSidebar();
           setPropertyTab(draft.target.kind === "chord" ? "chord" : "paragraph");
           if (draft.target.kind === "lyric") {
@@ -1250,7 +1311,7 @@ export const MusicTextSidebar = ({
         apply: ({ isCurrent }) =>
           isCurrent() ? (apply() ? "applied" : "blocked") : "stale",
         discard: () => {
-          if (composing.current || compositionCoolingRef.current || pending) return false;
+          if (composing.current || compositionCoolingRef.current || pending || modals.isOpen() || suspendedChord.current) return false;
           setDraft(
             readMusicTextDraft(
               editorStore.getState().document,
@@ -1301,6 +1362,135 @@ export const MusicTextSidebar = ({
     return records;
   });
   useLayoutEffect(() => { draftRegistrationRef.current = draftRegistration; }, [draftRegistration]);
+  const resumeChord = () => {
+    const paused = suspendedChord.current;
+    if (!paused || settingsRef.current?.isComposing() || settingsRef.current?.readStatus().busy) return;
+    if (settingsRef.current?.isDirty()) {
+      setMessage("曲谱信息仍有未应用输入；请先应用，或在设置中恢复后返回。");
+      return;
+    }
+    if (!draftRegistration.isCurrent(paused.identity) ||
+      !sameEditorVersion(captureEditorVersion(editorStore.getState()), paused.version) ||
+      !normalizeMusicTextTarget(editorStore.getState().document, paused.draft.target)) {
+      suspendedChord.current = null; setChordSuspended(false); setDraft(null);
+      setMessage("原和弦目标已变化，请重新选择。"); return;
+    }
+    suspendedChord.current = null; setChordSuspended(false);
+    setDraft(paused.draft); setKind("chord"); setPropertyTab("chord");
+    setSurface(paused.surface); setDismissed(false); setActiveObject(paused.draft.target);
+    setMessage(null); focusTarget("input");
+  };
+  const suspendForSettings = () => {
+    const current = draftLive.current;
+    if (!current || current.target.kind !== "chord" || suspendedChord.current ||
+      composing.current || compositionCoolingRef.current || pending || numberedBusy ||
+      settingsRef.current?.isComposing() || settingsRef.current?.readStatus().busy) return false;
+    suspendedChord.current = { draft: structuredClone(current), identity: draftRegistration.captureIdentity(),
+      version: captureEditorVersion(editorStore.getState()), surface };
+    setChordSuspended(true); setChordModalActive(false); setKind("score"); setPropertyTab("song");
+    setDismissed(true); setInputEditing(false); onExpandSidebar();
+    requestAnimationFrame(() => document.querySelector<HTMLElement>('[data-settings-group="info"] input')?.focus());
+    return true;
+  };
+  const guardSettingsApply = (group: SettingsGroup | undefined, identity?: EditorDraftRegistration) => {
+    if (!suspendedChord.current) return !modals.isOpen();
+    const paused = suspendedChord.current;
+    const inspection = drafts.inspect(identity?.owner);
+    if (group !== "info" || !identity || identity.generation !== identity.owner.generation ||
+      !draftRegistration.isCurrent(paused.identity) ||
+      !sameEditorVersion(captureEditorVersion(editorStore.getState()), paused.version) ||
+      modals.isOpen() || inspection.busy || inspection.composing ||
+      inspection.pending.some(record => drafts.registrationOf(record)?.owner !== paused.identity.owner)) return false;
+    infoAuthorization.current = { identity, version: captureEditorVersion(editorStore.getState()) };
+    return true;
+  };
+  const rebaseSuspendedChord = () => {
+    const paused = suspendedChord.current;
+    if (!paused) return;
+    const fresh = readMusicTextDraft(editorStore.getState().document, paused.draft.target, paused.draft.lyricMode);
+    if (!fresh || fresh.initial !== paused.draft.initial) {
+      suspendedChord.current = null; setChordSuspended(false); setDraft(null);
+      setMessage("原和弦内容已变化，请重新打开。"); return;
+    }
+    draftRegistration.invalidateOwner();
+    ownerGeneration.current += 1;
+    paused.identity = draftRegistration.captureIdentity();
+    paused.version = captureEditorVersion(editorStore.getState());
+    setDraft({ ...paused.draft });
+  };
+  const openChordModal = (mode: "library" | "custom", tab: ChordLibraryTab = "key", seed?: ChordDraft) => {
+    const parent = draftLive.current;
+    if (!parent || parent.target.kind !== "chord" || surfaceBlocked() || suspendedChord.current ||
+      !score || !track) return;
+    const token = chordSession.open();
+    if (token === null) return;
+    const failedHandoff = () => {
+      chordSession.cancel(token);
+      setChordModalActive(false);
+      setDismissed(false);
+      setMessage("原编辑目标已变化，请重新打开。");
+      return false;
+    };
+    const tuning = track.tuning.strings;
+    const restore = () => {
+      const input = surface === "popover" ? popoverInputRef.current : inputRef.current;
+      if (input?.isConnected && input.getClientRects().length) input.focus({ preventScroll: true });
+      else onScoreFocus();
+    };
+    const openSurface = (nextMode: "library" | "custom", value: ChordDraft): boolean => {
+      if (!chordSession.isCurrent(token)) return failedHandoff();
+      let requestId: number | null = null;
+      const cancel = () => { if (requestId !== null) modals.close(requestId, "cancel"); };
+      const complete = (next: ChordDraft) => {
+        if (requestId === null) return;
+        const updated = chordSession.complete(token, () => {
+          setDraft({ ...parent, chord: { ...structuredClone(next), display: parent.chord.display } });
+          setMessage(null);
+        });
+        modals.close(requestId, updated ? "resolved" : "stale");
+      };
+      const toSettings = () => {
+        if (requestId === null || !chordSession.isCurrent(token)) return;
+        modals.handoff(requestId, () => {
+          if (!chordSession.isCurrent(token)) return failedHandoff();
+          chordSession.cancel(token);
+          return suspendForSettings() || failedHandoff();
+        });
+      };
+      const content = nextMode === "custom" ? (
+        <ChordDiagramEditorModal seed={value} tuning={tuning} onComplete={complete} onCancel={cancel}
+          onSave={async chord => {
+            if (!chordSession.isCurrent(token)) return { ok: false, message: "原编辑目标已变化。" };
+            const result = saveCustomChordVoicing(chord, tuning);
+            return result.ok ? { ok: true, message: result.persistence === "browser" ? "已保存到我的指法；取消编辑仍会保留收藏。" : "本次会话可用，未保存到浏览器。" }
+              : { ok: false, message: result.error };
+          }} />
+      ) : (
+        <ChordLibraryModal draft={value} document={score} tuning={tuning} presetsEnabled={JSON.stringify(tuning.map(s => [s.pitch, s.midi])) === JSON.stringify([["E4",64],["B3",59],["G3",55],["D3",50],["A2",45],["E2",40]])}
+          initialTab={tab} onConfirm={complete} onCancel={cancel} onOpenSettings={toSettings}
+          onOpenCustom={next => {
+            if (requestId !== null) modals.handoff(requestId, () => openSurface("custom", next ?? value));
+          }} />
+      );
+      requestId = modals.open({ kind: nextMode === "custom" ? "chord-custom" : "chord-library",
+        title: nextMode === "custom" ? "自定义指法" : "和弦库", message: "",
+        content, version: captureEditorVersion(editorStore.getState()),
+        isValid: () => chordSession.isCurrent(token), restoreFocus: restore,
+        onClose: reason => {
+          if (reason !== "handoff") { chordSession.cancel(token); setChordModalActive(false); setDismissed(false); }
+          if (reason === "stale") setMessage("原编辑目标已变化，请重新打开。");
+        } });
+      return requestId !== null || failedHandoff();
+    };
+    if (openSurface(mode, seed ?? parent.chord)) { setChordModalActive(true); setDismissed(true); }
+    else chordSession.cancel(token);
+  };
+  const chordLibraryProps = {
+    document: score ?? undefined, tuning: track?.tuning.strings, showChordDiagrams,
+    onOpenLibrary: (tab?: ChordLibraryTab) => openChordModal("library", tab),
+    onOpenCustom: (seed?: ChordDraft) => openChordModal("custom", "key", seed),
+    onOpenSettings: () => { if (!surfaceBlocked()) suspendForSettings(); },
+  };
   const selectionTrack = score?.score.tracks.find(
     (track) => track.id === selection?.focus.trackId,
   );
@@ -1473,6 +1663,11 @@ export const MusicTextSidebar = ({
         }}
         onKeyDown={(e) => {
           e.stopPropagation();
+          if (shouldIgnoreMusicTextKey(e.nativeEvent, composing.current, compositionEndedAt.current)) {
+            if (e.key === "Enter") e.preventDefault();
+            return;
+          }
+          if (modals.isOpen() || suspendedChord.current) return;
           if (e.key === "Escape" && chordPresetMenuOpen) {
             e.preventDefault();
             setChordPresetMenuOpen(false);
@@ -1587,6 +1782,7 @@ export const MusicTextSidebar = ({
         >
           {score && (
             <div hidden={propertyTab !== "song"}>
+              {chordSuspended && <Button onClick={resumeChord}>返回和弦编辑</Button>}
               <div ref={setSongHost} />
               <ScoreSettings
                 ref={settingsRef}
@@ -1599,8 +1795,12 @@ export const MusicTextSidebar = ({
                 onDirty={setSettingsDirty}
                 onStatus={setSettingsStatus}
                 commit={commit}
+                guardApply={guardSettingsApply}
+                onInfoApplied={rebaseSuspendedChord}
+                onApplySettled={() => { infoAuthorization.current = null; }}
                 executeTool={executeTool}
                 onFocusRequest={(group) => {
+                  if (suspendedChord.current) return group === "info";
                   const local = group === "label" || group === "copy";
                   const nextTab = local ? "selection" : "song";
                   if (request({ type: "tab", kind: "score", propertyTab: nextTab, settingsFocus: true }) !== "accepted") return false;
@@ -1926,6 +2126,8 @@ export const MusicTextSidebar = ({
                  ) : (
                   <div data-chord-full-editor inert={(compositionActive || compositionCooling) && compositionOrigin === "popover"}>
                   <ChordEditor
+                    {...chordLibraryProps}
+                    allowEmptyName={!!existing}
                     disabled={surfaceDisabled}
                     presetMenuOpen={chordPresetMenuOpen}
                     onPresetMenuOpenChange={setChordPresetMenuOpen}
@@ -2029,7 +2231,7 @@ export const MusicTextSidebar = ({
             </div>
           ) : (
             <>
-              {issue && (
+              {issue && !chordSuspended && (
                 <p className={styles.sidebarError} role="alert">
                   {issue}
                 </p>
@@ -2039,7 +2241,8 @@ export const MusicTextSidebar = ({
                   {message}
                 </p>
               )}
-              {draft && (
+              {chordSuspended && <p className={styles.settingsHint}>和弦草稿已暂停并保留；处理曲谱信息后可返回和弦编辑。</p>}
+              {draft && !chordSuspended && (
                 <>
                 <p className={styles.actionSummary}>{lyricDirty ? `${kind === "lyric" ? "歌词" : "和弦"}有未应用修改${sequence && plan ? ` · ${plan.changes} 项变化${plan.overwrites ? ` · ${plan.overwrites} 项覆盖` : ""}` : ""}` : "当前内容已应用"}</p>
                 <p className={styles.settingsHint}>{kind === "lyric" ? "切换位置、段号或模式会丢弃未应用歌词。" : "切换位置或页签会丢弃未应用和弦修改。"}</p>
@@ -2086,6 +2289,7 @@ export const MusicTextSidebar = ({
           data-text-surface={floating ? "popover" : undefined}
           data-popover-placement={geometry.kind === "placed" ? geometry.placement : undefined}
           inert={!!activeModal || popoverHidden || !!pending}
+          data-editor-inert={String(!!activeModal || popoverHidden || !!pending)}
           aria-hidden={popoverHidden || !floating || undefined}
           style={{
             left: geometry.kind === "placed" ? geometry.left : 0,
@@ -2146,7 +2350,8 @@ export const MusicTextSidebar = ({
               sequenceInputRef={(element) => { popoverSequenceInputRef.current = element; }}
              />}
              {floating && kind === "chord" && draft && <div inert={(compositionActive || compositionCooling) && compositionOrigin === "sidebar"}>
-               <ChordQuickEditor
+                <ChordQuickEditor
+                  {...chordLibraryProps}
                  draft={draft.chord}
                  allowEmptyName={!!existing}
                  inputRef={(element) => { popoverInputRef.current = element; }}

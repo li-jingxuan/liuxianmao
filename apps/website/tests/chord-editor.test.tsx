@@ -6,16 +6,13 @@ import {
 } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { Button, Dropdown, type MenuProps } from "antd";
-import {
-  CHORD_PRESETS,
-  copyChordPreset,
-  validateChordDiagram,
-} from "@liuxianmao/lxm-editor";
+import { Button } from "antd";
+import { copyChordPreset, validateChordDiagram } from "@liuxianmao/lxm-editor";
 import {
   ChordEditor,
   type ChordDraft,
 } from "../components/EditorShell/ChordEditor";
+import { ChordPresetControls } from "../components/EditorShell/ChordPresetControls";
 
 type Element = ReactElement<Record<string, unknown> & { children?: ReactNode }>;
 function descendants(node: ReactNode): Element[] {
@@ -107,47 +104,19 @@ describe("和弦草稿编辑布局", () => {
     },
   );
 
-  it("原型六个快捷指法与其他预设都复制完整音乐参数，只更新草稿", () => {
-    const value = view();
-    const quick = value.elements.filter(
-      (element) =>
-        element.type === Button &&
-        typeof element.props.children === "string" &&
-        ["C", "G", "Am", "F", "Dm", "Em"].includes(element.props.children),
-    );
-    expect(quick.map((element) => element.props.children)).toEqual([
-      "C",
-      "G",
-      "Am",
-      "F",
-      "Dm",
-      "Em",
-    ]);
-    const dropdown = value.elements.find(
-      (element) => element.type === Dropdown,
+  it("两处入口复用受控常用配置，首载不以旧预设兜底，更多名称固定", () => {
+    const value = view("Bm");
+    const control = value.elements.find(
+      (element) => element.type === ChordPresetControls,
     )!;
-    const menu = dropdown.props.menu as MenuProps;
-    const names = [
-      ...quick.map((element) => element.props.children as string),
-      ...menu.items!.map((item) => String(item!.key)),
-    ];
-    expect([...names].sort()).toEqual(
-      CHORD_PRESETS.map((preset) => preset.name).sort(),
-    );
-    for (const preset of CHORD_PRESETS) {
-      const button = quick.find(
-        (element) => element.props.children === preset.name,
-      );
-      if (button) (button.props.onClick as () => void)();
-      else
-        menu.onClick!({ key: preset.name } as Parameters<
-          NonNullable<MenuProps["onClick"]>
-        >[0]);
-      const changed = value.onChange.mock.lastCall![0];
-      expect(changed).toEqual({ display: "nameAndDiagram", chord: preset });
-      expect(changed.chord.diagram).not.toBe(preset.diagram);
-      expect(validateChordDiagram(changed.chord.diagram!)).toBeNull();
-    }
+    expect(control.props.draft).toBe(value.draft);
+    expect(control.props.onChange).toBe(value.onChange);
+    const html = renderToStaticMarkup(value.tree);
+    expect(html).toContain("我的常用");
+    expect(html).toContain("更多 ⌄");
+    expect(html).toContain("等待和弦库，暂不可用");
+    expect(html).toContain("和弦库加载中");
+    expect(value.onChange).not.toHaveBeenCalled();
   });
 
   it("非标准调弦暂停所有预设，保留自定义六弦、横按与观察窗口", () => {

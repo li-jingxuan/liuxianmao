@@ -1,17 +1,17 @@
 import { Button, Input } from "antd";
 import {
-  CHORD_PRESETS,
-  copyChordPreset,
-  layoutChordDiagram,
   normalizeMusicText,
   validateChordDiagram,
 } from "@liuxianmao/lxm-editor";
 import type { RefCallback } from "react";
-import type { ChordDraft } from "./ChordEditor";
-import { ChordDiagramView } from "./MusicTextLayer";
+import { ChordDiagramPreview, type ChordDraft } from "./ChordEditor";
+import {
+  ChordPresetControls,
+  type ChordEditorLibraryProps,
+} from "./ChordPresetControls";
 import styles from "./ChordQuickEditor.module.scss";
 
-export interface ChordQuickEditorProps {
+export interface ChordQuickEditorProps extends ChordEditorLibraryProps {
   draft: ChordDraft;
   onChange: (next: ChordDraft) => void;
   inputRef: RefCallback<HTMLInputElement>;
@@ -34,17 +34,18 @@ export const ChordQuickEditor = ({
   inputReadOnly = disabled,
   allowEmptyName = false,
   onFixDiagram,
+  document,
+  tuning,
+  onOpenLibrary,
+  onOpenCustom,
+  onOpenSettings,
+  showChordDiagrams,
 }: ChordQuickEditorProps) => {
   const diagram = draft.chord.diagram;
   const issue = diagram ? validateChordDiagram(diagram) : null;
-  const preview = diagram && !issue ? layoutChordDiagram(diagram) : null;
   const removing = allowEmptyName && draft.chord.name.trim() === "";
-  const nameInvalid = !removing && normalizeMusicText(draft.chord.name, 32) === null;
-  const preset = CHORD_PRESETS.find(
-    (item) =>
-      item.name === draft.chord.name &&
-      JSON.stringify(item.diagram) === JSON.stringify(diagram),
-  );
+  const nameInvalid =
+    !removing && normalizeMusicText(draft.chord.name, 32) === null;
 
   return (
     <div className={styles.editor}>
@@ -83,23 +84,16 @@ export const ChordQuickEditor = ({
         )}
       </div>
       <section aria-label="常用指法">
-        <p className={styles.caption}>常用指法</p>
-        <div className={styles.presets} role="group" aria-label="常用和弦预设">
-          {["C", "G", "Am", "F", "Dm", "Em"].map((name) => (
-            <Button
-              key={name}
-              disabled={disabled || !presetsEnabled}
-              aria-pressed={preset?.name === name}
-              onClick={() => {
-                if (disabled || !presetsEnabled) return;
-                const chord = copyChordPreset(name);
-                if (chord) onChange({ display: "nameAndDiagram", chord });
-              }}
-            >
-              {name}
-            </Button>
-          ))}
-        </div>
+        <ChordPresetControls
+          draft={draft}
+          onChange={onChange}
+          presetsEnabled={presetsEnabled}
+          disabled={disabled}
+          document={document}
+          tuning={tuning}
+          onOpenLibrary={onOpenLibrary}
+          onOpenSettings={onOpenSettings}
+        />
         {!presetsEnabled && (
           <p className={styles.help}>
             当前为非标准调弦，常用预设暂停；已有指法保留，不会自动转置。
@@ -107,19 +101,12 @@ export const ChordQuickEditor = ({
         )}
       </section>
       <section className={styles.summary} aria-label="当前指法与显示">
-        {preview ? (
-          <svg
-            role="img"
-            aria-label="指法图预览"
-            width={68}
-            height={82}
-            viewBox={`${preview.bounds.x - 4} ${preview.bounds.y - 4} ${preview.bounds.width + 8} ${preview.bounds.height + 8}`}
-          >
-            <ChordDiagramView diagram={preview} />
-          </svg>
-        ) : (
-          <div className={styles.empty}>{issue ? "预览暂停" : "暂无指法"}</div>
-        )}
+        <ChordDiagramPreview
+          diagram={diagram}
+          width={82}
+          height={100}
+          emptyText={issue ? "预览暂停" : "暂无指法"}
+        />
         <div className={styles.summaryText}>
           <strong>当前指法</strong>
           <p className={styles.tuning}>
@@ -133,11 +120,29 @@ export const ChordQuickEditor = ({
         </p>
       )}
       {diagram && draft.display === "name" && (
-        <p className={styles.help}>指法保留，不显示在谱面。</p>
+        <p className={styles.help}>指法已保留；和弦保存方式为仅名称。</p>
       )}
-      {issue && (
+      {diagram && showChordDiagrams === false && (
+        <p className={styles.help}>
+          指法已保留；全局已隐藏指法图，编辑预览仍可见。
+        </p>
+      )}
+      {diagram && showChordDiagrams === true && draft.display === "name" && (
+        <p className={styles.help}>保存为仅名称；全局已开启指法图。</p>
+      )}
+      {onOpenCustom && (
+        <Button
+          disabled={disabled}
+          onClick={() => {
+            if (!disabled) onOpenCustom();
+          }}
+        >
+          {diagram ? "编辑指法" : "自定义指法"}
+        </Button>
+      )}
+      {issue && !removing && (
         <div className={styles.error} role="alert">
-          <p>指法无效，已暂停预览：{issue}</p>
+          <p>指法无效，当前修改已暂停预览：{issue}</p>
           <Button
             type="link"
             disabled={disabled}

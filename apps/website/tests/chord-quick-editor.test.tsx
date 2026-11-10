@@ -11,6 +11,7 @@ import {
   ChordQuickEditor,
   type ChordQuickEditorProps,
 } from "../components/EditorShell/ChordQuickEditor";
+import { ChordPresetControls } from "../components/EditorShell/ChordPresetControls";
 
 type Element = ReactElement<Record<string, unknown> & { children?: ReactNode }>;
 const descendants = (node: ReactNode): Element[] =>
@@ -46,13 +47,21 @@ function view(overrides: Partial<ChordQuickEditorProps> = {}) {
 
 describe("和弦快捷表单", () => {
   it("已有和弦允许清空名称并提示删除，新建空名称仍报错", () => {
-    const draft = { display: "nameAndDiagram" as const, chord: { ...copyChordPreset("C")!, name: "" } };
+    const draft = {
+      display: "nameAndDiagram" as const,
+      chord: { ...copyChordPreset("C")!, name: "" },
+    };
     const existing = view({ draft, allowEmptyName: true });
-    const input = existing.elements.find((element) => element.props.id === "chord-popover-name")!;
+    const input = existing.elements.find(
+      (element) => element.props.id === "chord-popover-name",
+    )!;
     expect(input.props["aria-invalid"]).toBe(false);
     expect(existing.html).toContain("应用后将删除当前拍的和弦名称与指法");
     expect(view({ draft }).html).toContain("不能为空");
-    const invalid = view({ draft: { ...draft, chord: { ...draft.chord, name: "C".repeat(33) } }, allowEmptyName: true });
+    const invalid = view({
+      draft: { ...draft, chord: { ...draft.chord, name: "C".repeat(33) } },
+      allowEmptyName: true,
+    });
     expect(invalid.html).toContain("不能为空");
   });
 
@@ -70,21 +79,17 @@ describe("和弦快捷表单", () => {
     expect(next.display).toBe(value.props.draft.display);
   });
 
-  it("预设替换名称、指法与显示；高亮同时比较名称和图", () => {
+  it("快捷表面接入同一常用配置，保留固定更多和加载状态", () => {
     const value = view();
-    (value.button("Am").props.onClick as () => void)();
-    expect(value.props.onChange).toHaveBeenCalledWith({
-      display: "nameAndDiagram",
-      chord: copyChordPreset("Am"),
-    });
-    expect(value.button("C").props["aria-pressed"]).toBe(true);
-    const renamed = view({
-      draft: {
-        ...value.props.draft,
-        chord: { ...value.props.draft.chord, name: "G" },
-      },
-    });
-    expect(renamed.button("G").props["aria-pressed"]).toBe(false);
+    const control = value.elements.find(
+      (element) => element.type === ChordPresetControls,
+    )!;
+    expect(control.props.draft).toBe(value.props.draft);
+    expect(control.props.onChange).toBe(value.props.onChange);
+    expect(value.html).toContain("我的常用");
+    expect(value.html).toContain("更多 ⌄");
+    expect(value.html).toContain("和弦库加载中");
+    expect(value.props.onChange).not.toHaveBeenCalled();
   });
 
   it("气泡不提供显示切换；无图提示和仅名称时的指法预览保留", () => {
@@ -98,7 +103,7 @@ describe("和弦快捷表单", () => {
     const named = view({
       draft: { display: "name", chord: copyChordPreset("C")! },
     });
-    expect(named.html).toContain("指法保留，不显示在谱面");
+    expect(named.html).toContain("指法已保留；和弦保存方式为仅名称");
     expect(named.html).toContain('aria-label="指法图预览"');
     expect(named.html).not.toContain('aria-label="和弦显示方式"');
     expect(named.props.onChange).not.toHaveBeenCalled();
@@ -118,8 +123,10 @@ describe("和弦快捷表单", () => {
     const tuning = view({ presetsEnabled: false });
     expect(tuning.html).toContain("非标准调弦");
     expect(tuning.html).toContain('aria-label="指法图预览"');
-    expect(tuning.button("G").props.disabled).toBe(true);
-    (tuning.button("G").props.onClick as () => void)();
+    expect(
+      tuning.elements.find((element) => element.type === ChordPresetControls)!
+        .props.presetsEnabled,
+    ).toBe(false);
     expect(tuning.props.onChange).not.toHaveBeenCalled();
     const locked = view({ disabled: true });
     const input = locked.elements.find(
@@ -130,15 +137,25 @@ describe("和弦快捷表单", () => {
     (input.props.onChange as (event: { target: { value: string } }) => void)({
       target: { value: "G" },
     });
-    (locked.button("G").props.onClick as () => void)();
+    expect(
+      locked.elements.find((element) => element.type === ChordPresetControls)!
+        .props.disabled,
+    ).toBe(true);
     expect(locked.props.onChange).not.toHaveBeenCalled();
   });
   it("IME 命令锁不阻止组合文字同步", () => {
     const value = view({ disabled: true, inputReadOnly: false });
-    const input = value.elements.find((element) => element.props.id === "chord-popover-name")!;
+    const input = value.elements.find(
+      (element) => element.props.id === "chord-popover-name",
+    )!;
     expect(input.props.readOnly).toBe(false);
-    (input.props.onChange as (event: { target: { value: string } }) => void)({ target: { value: "和弦" } });
+    (input.props.onChange as (event: { target: { value: string } }) => void)({
+      target: { value: "和弦" },
+    });
     expect(value.props.onChange).toHaveBeenCalledOnce();
-    expect(value.button("G").props.disabled).toBe(true);
+    expect(
+      value.elements.find((element) => element.type === ChordPresetControls)!
+        .props.disabled,
+    ).toBe(true);
   });
 });
