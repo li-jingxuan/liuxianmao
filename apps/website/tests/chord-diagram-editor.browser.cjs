@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- Standalone Node browser runner. */
-/* global require, __dirname, process, window, console */
+/* global require, __dirname, process, window, document, console */
 /* Real React component + native browser keyboard. Synthetic composition events
  * check guards only; they do not certify a real OS input method.
  * PLAYWRIGHT_MODULE=/path/to/playwright node apps/website/tests/chord-diagram-editor.browser.cjs
@@ -31,14 +31,21 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || '/Users/nice02/.ca
     await page.setContent('<main id="root"></main>');
     await page.addScriptTag({ content: result.outputFiles[0].text });
     await label('自定义和弦名称').waitFor();
-    assert.equal(await page.getByRole('gridcell').count(), 42);
+    assert.equal(await page.getByRole('gridcell').count(), 36);
     assert.equal(await page.locator('[role=gridcell][tabindex="0"]').count(), 1);
     assert.ok((await cell('第 6 弦 1 品').boundingBox()).height >= 32);
     assert.ok((await cell('第 6 弦 1 品').boundingBox()).width >= 32);
     assert.ok((await button('完成编辑').boundingBox()).y < 650);
-    await cell('第 6 弦 空弦').focus();
-    await page.keyboard.press('ArrowDown'); await page.keyboard.press('ArrowDown'); await page.keyboard.press('Enter');
+    assert.equal((await page.getByRole('grid').boundingBox()).width, 254);
+    await label('新按点的手指').selectOption('2');
+    await page.locator('[data-chord-cell="0"]').focus();
+    await page.keyboard.press('ArrowDown'); await page.keyboard.press('Enter');
+    await page.getByText('精细编辑 · 六弦与手指', { exact: true }).click();
     assert.equal(await label('6弦品位').inputValue(), '1');
+    assert.equal(await label('6弦手指').inputValue(), '2');
+    await label('新按点的手指').selectOption('');
+    await cell('第 5 弦 1 品').click();
+    assert.equal(await label('5弦手指').inputValue(), '');
     await button('横按').click();
     await cell('第 6 弦 1 品').click();
     assert.equal(await label('1弦品位').inputValue(), '0');
@@ -47,8 +54,10 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || '/Users/nice02/.ca
     assert.equal((await state()).cancelled, 0);
     await cell('第 6 弦 1 品').click(); await cell('第 1 弦 1 品').click();
     assert.equal(await label('1弦品位').inputValue(), '1'); assert.equal(await label('1弦手指').inputValue(), '1');
+    assert.equal((await page.locator('.barreLine').boundingBox()).width, 190);
     await button('撤销').click(); assert.equal(await label('1弦品位').inputValue(), '0');
     await button('重做').click(); assert.equal(await label('1弦品位').inputValue(), '1');
+    await page.getByText('横按设置', { exact: true }).click();
     await button('删除横按 1').click(); assert.equal(await label('1弦品位').inputValue(), '1'); assert.equal(await label('1弦手指').inputValue(), '');
     await button('撤销').click(); assert.equal(await label('1弦手指').inputValue(), '1');
     await button('编辑横按 1').click(); await label('横按起弦').fill('2'); await label('横按止弦').fill('4'); await button('应用横按').click();
@@ -67,7 +76,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || '/Users/nice02/.ca
     await input.focus(); await input.press('End'); await input.pressSequentially('maj7');
     await input.press('Meta+z'); assert.equal(await input.inputValue(), 'C');
     await input.fill('局部名称'); await page.getByRole('grid').focus();
-    await cell('第 6 弦 空弦').focus(); await page.keyboard.press('Meta+z'); assert.notEqual(await input.inputValue(), '局部名称');
+    await page.locator('[data-chord-cell="0"]').focus(); await page.keyboard.press('Meta+z'); assert.notEqual(await input.inputValue(), '局部名称');
     await reset();
     await label('自定义和弦名称').dispatchEvent('compositionstart');
     await label('自定义和弦名称').press('Enter'); await label('自定义和弦名称').press('Escape');
@@ -80,11 +89,32 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || '/Users/nice02/.ca
     assert.equal((await state()).completed.length, 0); await page.waitForTimeout(65);
     await label('自定义和弦名称').dispatchEvent('keydown', { key: 'Enter', repeat: true, bubbles: true });
     assert.equal((await state()).completed.length, 0);
-    await button('存入我的指法').click(); assert.equal((await state()).saved.length, 1); assert.equal((await state()).completed.length, 0);
+    await button('另存为我的指法').click(); assert.equal((await state()).saved.length, 1); assert.equal((await state()).completed.length, 0);
     await button('取消').click(); assert.equal((await state()).cancelled, 1); assert.equal((await state()).saved.length, 1);
-    await page.evaluate(() => { window.chordDiagramTest.saveOk = false; }); await button('存入我的指法').click();
+    await page.evaluate(() => { window.chordDiagramTest.saveOk = false; }); await button('另存为我的指法').click();
     assert.equal(await page.getByText('存储失败', { exact: true }).count(), 1);
     assert.equal((await state()).backgroundKeys, 0);
+    await reset();
+    await page.getByText('精细编辑 · 六弦与手指', { exact: true }).click();
+    await label('6弦品位').fill('24');
+    assert.equal(await button('完成编辑').isDisabled(), true);
+    await label('观察窗口起始品位').fill('20');
+    assert.equal(await label('6弦品位').inputValue(), '24');
+    assert.equal(await button('完成编辑').isEnabled(), true);
+    await label('观察窗口起始品位').fill('19');
+    assert.equal(await label('6弦品位').inputValue(), '24');
+    assert.equal(await button('完成编辑').isDisabled(), true);
+    await label('观察窗口起始品位').fill('20');
+    await button('完成编辑').click();
+    assert.equal((await state()).completed[0].chord.diagram.strings[5].fret, 24);
+    await reset();
+    await page.locator('[data-chord-cell="0"]').click();
+    assert.equal(await page.locator('[data-chord-cell="0"]').innerText(), '×');
+    await page.locator('[data-chord-cell="0"]').click();
+    assert.equal(await page.locator('[data-chord-cell="0"]').innerText(), '○');
+    await page.setViewportSize({ width: 390, height: 650 });
+    assert.ok((await button('完成编辑').boundingBox()).y + (await button('完成编辑').boundingBox()).height < 650);
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true);
     assert.deepEqual(errors, []);
     console.log('PASS: actual component grid sizing, low height footer, roving keyboard, atomic barres, invalid preview, local/native undo, IME/cooling/229/repeat, independent save/cancel, display preservation. OS IME remains manual.');
   } finally { await browser.close(); }

@@ -140,15 +140,26 @@
 }
 
 .chordFloating {
-  .floatingHeader { padding-top: 10px; gap: 6px; }
+  width: min(378px, calc(100vw - 24px));
+  border-color: #dce3eb;
+  box-shadow: 0 10px 40px #20334a26;
+  .floatingHeader { padding: 16px 16px 20px; gap: 6px; }
   .floatingTitle {
     gap: 6px;
-    strong { font-size: 13px; }
-    span { font-size: 11px; }
+    strong { font-size: 14px; }
+    span { font-size: 12px; }
   }
-  .sidebarBody { padding-bottom: 6px; }
+  .sidebarBody { padding: 0 16px 0; }
+  .sidebarFooter { margin: 16px 16px 0; padding: 12px 0 16px; border-top: 1px solid #dce3eb; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   :global([data-editor-form-actions]) { justify-content: flex-end; }
-  :global([data-editor-form-hint]) { font-size: 11px; line-height: 1.6; }
+  :global([data-editor-form-hint]) { font-size: 12px; line-height: 1.7; margin: 0; }
+}
+
+.chordReturn {
+  margin-bottom: 16px;
+  section { margin-top: 12px; padding: 12px; border: 1px solid #dce3eb; border-radius: 8px; background: #f3f6fa; }
+  p { font-size: 12px; color: #607084; line-height: 1.7; }
+  section > div { display: flex; flex-wrap: wrap; gap: 8px; }
 }
 
 .musicTextSidebar [hidden] { display: none !important; }

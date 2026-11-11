@@ -77,6 +77,16 @@ const draft: ChordDraft = {
   chord: { name: "Bm", diagram: null },
 };
 describe("和弦库与两处入口", () => {
+  it("默认六项均解析为低把位常用指法，F 使用一品横按", () => {
+    const defaults = createDefaultChordPreferences();
+    const chords = defaults.quickItems.map((reference) => resolveChordReference(reference, catalog, [], STANDARD_GUITAR_TUNING, true).chord);
+    expect(chords.map((chord) => chord?.name)).toEqual(["C", "G", "Am", "F", "Dm", "Em"]);
+    for (const chord of chords) {
+      expect(chord?.diagram).toBeTruthy();
+      expect(chord!.diagram!.strings.every((string) => string.fret === "x" || string.fret <= 3)).toBe(true);
+    }
+    expect(chords[3]!.diagram!.barres.some((barre) => barre.fret === 1 && barre.minString === 1 && barre.maxString === 6)).toBe(true);
+  });
   it("刷新失败保留已有目录和可浏览候选，重试时仍可继续选用", () => {
     try {
       state.snapshot = {
@@ -239,6 +249,123 @@ describe("和弦库与两处入口", () => {
     expect(legacy).toContain("大小调未确认");
     expect(legacy).toContain("暂停本调推荐");
     expect(legacy).not.toContain("曲谱 G大调");
+  });
+  it("自然三和弦、七和弦与和声小调补充分组独立，级数保持正确", () => {
+    const html = renderToStaticMarkup(
+      <ChordLibraryModal
+        draft={draft}
+        document={committed("A", "minor")}
+        presetsEnabled
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+    const sections = html.match(/<section[^>]*>[\s\S]*?<\/section>/g)!;
+    expect(sections).toHaveLength(3);
+    expect(sections[0]).toContain("A 小调 · 自然三和弦");
+    expect(sections[0]!.match(/<b>/g)).toHaveLength(7);
+    expect(sections[0]).toContain(">ii°</span>");
+    expect(sections[0]).not.toContain("Am7");
+    expect(sections[1]).toContain(">七和弦</h4>");
+    expect(sections[1]!.match(/<b>/g)).toHaveLength(7);
+    expect(sections[1]).toContain("Am7");
+    expect(sections[2]).toContain("和声小调补充");
+    expect(sections[2]!.match(/<b>/g)).toHaveLength(4);
+  });
+  it("精确暂存当前草稿的非默认指法，预览和六到一弦说明不重置版本", () => {
+    const match = queryChordCatalog(catalog, { text: "G" }).items.find(
+      (m) => m.name === "G",
+    )!;
+    const voicing = match.item.voicings.find(
+      (v) => v.id !== match.item.defaultVoicingId,
+    )!;
+    const copied = selectedCatalogChord(catalog, match, voicing.id);
+    if (!copied.ok) throw new Error(copied.error);
+    const seed: ChordDraft = { display: "name", chord: copied.chord };
+    const original = structuredClone(seed);
+    const onConfirm = vi.fn();
+    const html = renderToStaticMarkup(
+      <ChordLibraryModal
+        draft={seed}
+        document={committed()}
+        presetsEnabled
+        onConfirm={onConfirm}
+        onCancel={vi.fn()}
+      />,
+    );
+    const escaped = voicing.label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    expect(html).toContain('aria-label="G指法预览"');
+    expect(html).toMatch(
+      new RegExp(`aria-pressed="true"[^>]*><b>${escaped}</b>`),
+    );
+    expect(html).toContain("6 → 1 弦");
+    expect(html).toContain("更新常用指法");
+    expect(html).not.toMatch(/<button[^>]*disabled=""[^>]*><span>选用此指法/);
+    expect(onConfirm).not.toHaveBeenCalled();
+    expect(seed).toEqual(original);
+    const changed = structuredClone(seed);
+    changed.chord.diagram!.strings[0]!.finger = null;
+    changed.chord.diagram!.startFret += 1;
+    const unmatched = renderToStaticMarkup(
+      <ChordLibraryModal
+        draft={changed}
+        document={committed()}
+        presetsEnabled
+        onConfirm={onConfirm}
+        onCancel={vi.fn()}
+      />,
+    );
+    expect(unmatched).toContain("尚未改变当前草稿");
+    expect(unmatched).not.toContain('aria-label="G指法预览"');
+  });
+  it("非标准调弦可暂存并查看精确指法，但不能确认写回", () => {
+    const match = queryChordCatalog(catalog, { text: "G" }).items.find(
+      (m) => m.name === "G",
+    )!;
+    const copied = selectedCatalogChord(catalog, match);
+    if (!copied.ok) throw new Error(copied.error);
+    const tuning: { pitch: string; midi: number }[] = STANDARD_GUITAR_TUNING.map((s) => ({ ...s }));
+    tuning[5]!.pitch = "D2";
+    tuning[5]!.midi = 38;
+    const html = renderToStaticMarkup(
+      <ChordLibraryModal
+        draft={{ display: "name", chord: copied.chord }}
+        document={committed()}
+        tuning={tuning}
+        presetsEnabled
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+    expect(html).toContain('aria-label="G指法预览"');
+    expect(html).toContain("系统指法仅供标准调弦");
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*><span>选用此指法/);
+  });
+  it("配置直接提供添加候选、六槽实时预览和已选指法版本", () => {
+    const html = renderToStaticMarkup(
+      <ChordLibraryModal
+        draft={draft}
+        document={committed()}
+        presetsEnabled
+        initialTab="config"
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+    expect(html).toContain('aria-label="搜索常用配置"');
+    expect(html).toContain('aria-label="添加常用候选"');
+    const preview = html.match(
+      /aria-label="常用入口实时预览"><div[^>]*>([\s\S]*?)<\/div>/,
+    )![1]!;
+    expect(preview.match(/<span/g)).toHaveLength(6);
+    for (const ref of createDefaultChordPreferences().quickItems) {
+      const voicing = catalog.items
+        .find((item) => item.id === ref.identityId)!
+        .voicings.find((v) => v.id === ref.defaultVoicingId)!;
+      expect(html).toContain(voicing.label);
+    }
+    expect(html).toContain("恢复默认 6 项");
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*><span>保存常用配置/);
   });
   it("固定更多、我的常用与全库加载来自同一资源，名称 Bm 不替换入口文字", () => {
     const onChange = vi.fn();

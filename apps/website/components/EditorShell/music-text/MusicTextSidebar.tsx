@@ -247,7 +247,8 @@ export const MusicTextSidebar = ({
   }, [pending]);
   const [message, setMessage] = useState<string | null>(null);
   const [textConflict, setTextConflict] = useState(false);
-  const [chordPresetMenuOpen, setChordPresetMenuOpen] = useState(false);
+  const [chordPresetMenuOrigin, setChordPresetMenuOrigin] = useState<"quick" | "sidebar" | null>(null);
+  const chordPresetMenuOpen = chordPresetMenuOrigin !== null;
   const inputRef = useRef<HTMLInputElement>(null);
   const sequenceInputRef = useRef<HTMLTextAreaElement>(null);
   const popoverInputRef = useRef<HTMLInputElement>(null);
@@ -279,6 +280,7 @@ export const MusicTextSidebar = ({
   };
   const suspendedChord = useRef<SuspendedChord | null>(null);
   const [chordSuspended, setChordSuspended] = useState(false);
+  const [settingsLeaveRequested, setSettingsLeaveRequested] = useState(false);
   const infoAuthorization = useRef<{ identity: EditorDraftRegistration; version: EditorSessionVersion } | null>(null);
   const [chordSession] = useState(createChordEditSession);
   useLayoutEffect(() => { chordSession.setReader(() => {
@@ -622,7 +624,7 @@ export const MusicTextSidebar = ({
       requestedTabFocus.current = `${action.focus === "paragraph" ? "paragraph" : "music"}-tab-${action.kind === "numbered" && action.focus !== "paragraph" ? "lyric" : action.kind}`;
     setPending(null);
     ownerGeneration.current += 1;
-    setChordPresetMenuOpen(false);
+    setChordPresetMenuOrigin(null);
     activeTextOwner.current = false;
     draftRegistrationRef.current?.invalidateOwner();
     if (action.type === "target") {
@@ -1368,6 +1370,7 @@ export const MusicTextSidebar = ({
     const paused = suspendedChord.current;
     if (!paused || settingsRef.current?.isComposing() || settingsRef.current?.readStatus().busy) return;
     if (settingsRef.current?.isDirty()) {
+      setSettingsLeaveRequested(true);
       setMessage("曲谱信息仍有未应用输入；请先应用，或在设置中恢复后返回。");
       return;
     }
@@ -1378,6 +1381,7 @@ export const MusicTextSidebar = ({
       setMessage("原和弦目标已变化，请重新选择。"); return;
     }
     suspendedChord.current = null; setChordSuspended(false);
+    setSettingsLeaveRequested(false);
     setDraft(paused.draft); setKind("chord"); setPropertyTab("chord");
     setSurface(paused.surface); setDismissed(false); setActiveObject(paused.draft.target);
     setMessage(null); focusTarget("input");
@@ -1391,7 +1395,7 @@ export const MusicTextSidebar = ({
       version: captureEditorVersion(editorStore.getState()), surface };
     setChordSuspended(true); setChordModalActive(false); setKind("score"); setPropertyTab("song");
     setDismissed(true); setInputEditing(false); onExpandSidebar();
-    requestAnimationFrame(() => document.querySelector<HTMLElement>('[data-settings-group="info"] input')?.focus());
+    requestAnimationFrame(() => document.querySelector<HTMLElement>('#settings-mode')?.focus());
     return true;
   };
   const guardSettingsApply = (group: SettingsGroup | undefined, identity?: EditorDraftRegistration) => {
@@ -1434,7 +1438,14 @@ export const MusicTextSidebar = ({
       return false;
     };
     const tuning = track.tuning.strings;
+    const focused = document.activeElement;
+    const parentSurface = surface === "popover" ? floatingPanelRef.current : document.querySelector<HTMLElement>("#music-text-sidebar");
+    const opener = focused instanceof HTMLElement && parentSurface?.contains(focused)
+      ? focused : parentSurface?.querySelector<HTMLElement>('[aria-label="更多和弦"]');
     const restore = () => {
+      if (opener?.isConnected && !opener.closest("[hidden],[inert]") && opener.getClientRects().length) {
+        opener.focus({ preventScroll: true }); return;
+      }
       const input = surface === "popover" ? popoverInputRef.current : inputRef.current;
       if (input?.isConnected && input.getClientRects().length) input.focus({ preventScroll: true });
       else onScoreFocus();
@@ -1476,6 +1487,7 @@ export const MusicTextSidebar = ({
       );
       requestId = modals.open({ kind: nextMode === "custom" ? "chord-custom" : "chord-library",
         title: nextMode === "custom" ? "自定义指法" : "和弦库", message: "",
+        subtitle: nextMode === "custom" ? `${draftLocation(parent.target) ?? "当前和弦"} ／ ${JSON.stringify(tuning.map(s => s.pitch)) === JSON.stringify(["E4","B3","G3","D3","A2","E2"]) ? "标准调弦 E A D G B E" : "当前轨道调弦"}` : undefined,
         content, version: captureEditorVersion(editorStore.getState()),
         isValid: () => chordSession.isCurrent(token), restoreFocus: restore,
         onClose: reason => {
@@ -1489,7 +1501,7 @@ export const MusicTextSidebar = ({
   };
   const chordLibraryProps = {
     document: score ?? undefined, tuning: track?.tuning.strings, showChordDiagrams,
-    onOpenLibrary: (tab?: ChordLibraryTab) => openChordModal("library", tab),
+    onOpenLibrary: (tab?: ChordLibraryTab, seed?: ChordDraft) => openChordModal("library", tab, seed),
     onOpenCustom: (seed?: ChordDraft) => openChordModal("custom", "key", seed),
     onOpenSettings: () => { if (!surfaceBlocked()) suspendForSettings(); },
   };
@@ -1664,8 +1676,9 @@ export const MusicTextSidebar = ({
             setMessage("请粘贴单行文本。");
           }
         }}
-        onKeyDown={(e) => {
-          e.stopPropagation();
+         onKeyDown={(e) => {
+           e.stopPropagation();
+           if (e.defaultPrevented) return;
           if (shouldIgnoreMusicTextKey(e.nativeEvent, composing.current, compositionEndedAt.current)) {
             if (e.key === "Enter") e.preventDefault();
             return;
@@ -1673,8 +1686,9 @@ export const MusicTextSidebar = ({
           if (modals.isOpen() || suspendedChord.current) return;
           if (e.key === "Escape" && chordPresetMenuOpen) {
             e.preventDefault();
-            setChordPresetMenuOpen(false);
-            document.querySelector<HTMLButtonElement>('[data-chord-full-editor] button[aria-label="其他常用和弦预设"]')?.focus({ preventScroll: true });
+            setChordPresetMenuOrigin(null);
+            const panel = chordPresetMenuOrigin === "quick" ? floatingPanelRef.current : document.querySelector<HTMLElement>("#music-text-sidebar");
+            panel?.querySelector<HTMLButtonElement>('button[aria-label="更多和弦"]')?.focus({ preventScroll: true });
             return;
           }
           // Select 自己处理方向键、Enter 和 Esc，不能把关闭下拉框解释成退出编辑。
@@ -1785,7 +1799,17 @@ export const MusicTextSidebar = ({
         >
           {score && (
             <div hidden={propertyTab !== "song"}>
-              {chordSuspended && <Button onClick={resumeChord}>返回和弦编辑</Button>}
+              {chordSuspended && <div className={musicTextSidebarStyles.chordReturn}>
+                <Button onClick={resumeChord}>返回和弦编辑</Button>
+                {settingsLeaveRequested && <section role="alertdialog" aria-label="处理未应用的曲谱信息">
+                  <p>曲谱信息有未应用的修改，请选择如何返回和弦编辑。</p>
+                  <div>
+                    <Button onClick={() => { if (settingsRef.current?.applyGroup("info")) resumeChord(); }}>应用曲谱信息后返回</Button>
+                    <Button onClick={() => { if (settingsRef.current?.discard()) resumeChord(); }}>放弃设置修改并返回</Button>
+                    <Button onClick={() => { setSettingsLeaveRequested(false); setMessage(null); }}>继续编辑设置</Button>
+                  </div>
+                </section>}
+              </div>}
               <div ref={setSongHost} />
               <ScoreSettings
                 ref={settingsRef}
@@ -2132,8 +2156,8 @@ export const MusicTextSidebar = ({
                     {...chordLibraryProps}
                     allowEmptyName={!!existing}
                     disabled={surfaceDisabled}
-                    presetMenuOpen={chordPresetMenuOpen}
-                    onPresetMenuOpenChange={setChordPresetMenuOpen}
+                    presetMenuOpen={chordPresetMenuOrigin === "sidebar"}
+                    onPresetMenuOpenChange={(open) => setChordPresetMenuOrigin((origin) => open ? "sidebar" : origin === "sidebar" ? null : origin)}
                     inputRef={(element) => {
                       inputRef.current = element;
                     }}
@@ -2248,7 +2272,7 @@ export const MusicTextSidebar = ({
               {draft && !chordSuspended && (
                 <>
                 <p className={musicTextSidebarStyles.actionSummary}>{lyricDirty ? `${kind === "lyric" ? "歌词" : "和弦"}有未应用修改${sequence && plan ? ` · ${plan.changes} 项变化${plan.overwrites ? ` · ${plan.overwrites} 项覆盖` : ""}` : ""}` : "当前内容已应用"}</p>
-                <p data-editor-form-hint className={editorFormStyles.settingsHint}>{kind === "lyric" ? "切换位置、段号或模式会丢弃未应用歌词。" : "切换位置或页签会丢弃未应用和弦修改。"}</p>
+                {kind === "lyric" && <p data-editor-form-hint className={editorFormStyles.settingsHint}>切换位置、段号或模式会丢弃未应用歌词。</p>}
                 <div data-editor-form-actions className={editorFormStyles.sidebarActions}>
                   <Button disabled={surfaceDisabled || !lyricDirty} onClick={() => {
                     if (draft) { setDraft(readMusicTextDraft(editorStore.getState().document, draft.target, draft.lyricMode)); setTextConflict(false); }
@@ -2262,7 +2286,7 @@ export const MusicTextSidebar = ({
                   >
                     {sequence
                       ? `应用歌词${draft.allowOverwrite && plan?.overwrites ? `（覆盖 ${plan.overwrites} 项）` : ""}`
-                      : kind === "chord" ? "应用和弦" : "应用歌词"}
+                      : kind === "chord" ? existing && !draft.chord.chord.name.trim() ? "应用删除" : "应用和弦" : "应用歌词"}
                   </Button>
                   {kind === "lyric" && !sequence && (
                     <Button
@@ -2298,7 +2322,7 @@ export const MusicTextSidebar = ({
             left: geometry.kind === "placed" ? geometry.left : 0,
             top: geometry.kind === "placed" ? geometry.top : 0,
             visibility: popoverHidden ? "hidden" : "visible",
-            width: kind === "lyric" && !sequence ? 320 : 360,
+            width: kind === "chord" ? 378 : kind === "lyric" && !sequence ? 320 : 360,
             "--popover-arrow-offset": geometry.kind === "placed" ? `${geometry.arrowOffset}px` : "16px",
           } as CSSProperties}
         >
@@ -2327,7 +2351,10 @@ export const MusicTextSidebar = ({
                   />
                 </div>
               )}
-              <Button type="text" disabled={surfaceDisabled} aria-label={kind === "chord" ? "结束和弦编辑" : "结束文字编辑"} title={kind === "chord" ? "结束和弦编辑" : "结束文字编辑"} onClick={() => returnToScore()}>
+               <Button type="text" disabled={surfaceDisabled} aria-label={kind === "chord" ? "关闭快捷编辑" : "结束文字编辑"} title={kind === "chord" ? "关闭快捷编辑" : "结束文字编辑"} onClick={() => {
+                 if (kind === "chord") { setSurface("sidebar"); setDismissed(true); setInputEditing(false); onScoreFocus(); }
+                 else returnToScore();
+               }}>
                 ×
               </Button>
             </div>
@@ -2353,7 +2380,9 @@ export const MusicTextSidebar = ({
               sequenceInputRef={(element) => { popoverSequenceInputRef.current = element; }}
              />}
              {floating && kind === "chord" && draft && <div inert={(compositionActive || compositionCooling) && compositionOrigin === "sidebar"}>
-                <ChordQuickEditor
+                 <ChordQuickEditor
+                  presetMenuOpen={chordPresetMenuOrigin === "quick"}
+                  onPresetMenuOpenChange={(open) => setChordPresetMenuOrigin((origin) => open ? "quick" : origin === "quick" ? null : origin)}
                   {...chordLibraryProps}
                  draft={draft.chord}
                  allowEmptyName={!!existing}
@@ -2373,9 +2402,9 @@ export const MusicTextSidebar = ({
            {floating && kind === "chord" && draft && <footer className={musicTextSidebarStyles.sidebarFooter}>
              {issue && <p className={musicTextSidebarStyles.sidebarError} role="alert">{issue}</p>}
              {message && <p className={musicTextSidebarStyles.sidebarMessage} role="status">{message}</p>}
-              <p data-editor-form-hint className={editorFormStyles.settingsHint}>切换位置或结束编辑会丢弃未应用输入。<br />Enter 应用，停留当前拍。</p>
+               <p data-editor-form-hint className={editorFormStyles.settingsHint}>{lyricDirty ? "有未应用的和弦修改" : "当前内容已应用"}</p>
              <div data-editor-form-actions className={editorFormStyles.sidebarActions}>
-               <Button type="primary" disabled={surfaceDisabled || !!issue || !lyricDirty} onClick={() => apply()}>应用和弦</Button>
+                <Button type="primary" disabled={surfaceDisabled || !!issue || !lyricDirty} onClick={() => apply()}>{existing && !draft.chord.chord.name.trim() ? "应用删除" : "应用和弦"}</Button>
              </div>
            </footer>}
           {floating && kind === "lyric" && draft && (

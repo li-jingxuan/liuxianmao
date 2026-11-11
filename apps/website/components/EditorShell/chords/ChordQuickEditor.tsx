@@ -22,6 +22,8 @@ export interface ChordQuickEditorProps extends ChordEditorLibraryProps {
   /** 已有和弦清空名称后，应用表示删除名称与指法。 */
   allowEmptyName?: boolean;
   onFixDiagram: () => void;
+  presetMenuOpen?: boolean;
+  onPresetMenuOpenChange?: (open: boolean) => void;
 }
 
 /** 快捷表面只更新共享草稿；应用与焦点转移由会话表面负责。 */
@@ -40,6 +42,8 @@ export const ChordQuickEditor = ({
   onOpenCustom,
   onOpenSettings,
   showChordDiagrams,
+  presetMenuOpen,
+  onPresetMenuOpenChange,
 }: ChordQuickEditorProps) => {
   const diagram = draft.chord.diagram;
   const issue = diagram ? validateChordDiagram(diagram) : null;
@@ -93,6 +97,9 @@ export const ChordQuickEditor = ({
           tuning={tuning}
           onOpenLibrary={onOpenLibrary}
           onOpenSettings={onOpenSettings}
+          presentation="quick"
+          menuOpen={presetMenuOpen}
+          onMenuOpenChange={onPresetMenuOpenChange}
         />
         {!presetsEnabled && (
           <p className={styles.help}>
@@ -103,20 +110,21 @@ export const ChordQuickEditor = ({
       <section className={styles.summary} aria-label="当前指法与显示">
         <ChordDiagramPreview
           diagram={diagram}
-          width={82}
-          height={100}
+           width={65}
+           height={78}
           emptyText={issue ? "预览暂停" : "暂无指法"}
         />
         <div className={styles.summaryText}>
           <strong>当前指法</strong>
           <p className={styles.tuning}>
-            {presetsEnabled ? "标准调弦 E A D G B E" : "自定义调弦"}
-          </p>
+             {draft.chord.name || "未命名"} · {diagram ? diagram.barres?.length ? "横按指法" : "开放指法" : "暂无指法"}
+           </p>
+           {onOpenCustom && <Button type="link" disabled={disabled} onClick={() => { if (!disabled) onOpenCustom(); }}>{diagram ? "编辑指法 →" : "创建指法 →"}</Button>}
         </div>
       </section>
       {!diagram && (
         <p className={styles.help}>
-          尚未设置指法，可在右侧和弦页创建；当前仅显示名称。
+           尚未设置指法，可直接创建；当前仅显示名称。
         </p>
       )}
       {diagram && draft.display === "name" && (
@@ -129,16 +137,6 @@ export const ChordQuickEditor = ({
       )}
       {diagram && showChordDiagrams === true && draft.display === "name" && (
         <p className={styles.help}>保存为仅名称；全局已开启指法图。</p>
-      )}
-      {onOpenCustom && (
-        <Button
-          disabled={disabled}
-          onClick={() => {
-            if (!disabled) onOpenCustom();
-          }}
-        >
-          {diagram ? "编辑指法" : "自定义指法"}
-        </Button>
       )}
       {issue && !removing && (
         <div className={styles.error} role="alert">
@@ -155,7 +153,7 @@ export const ChordQuickEditor = ({
         </div>
       )}
       <p className={styles.help}>
-        修改名称不会自动修改指法；选择常用指法会替换名称和指法。
+         改名称会保留原指法。选择和弦会替换名称与指法。
       </p>
     </div>
   );

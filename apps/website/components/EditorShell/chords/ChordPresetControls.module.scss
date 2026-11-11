@@ -1,95 +1,45 @@
-.controls {
-  min-width: 0;
-  margin-bottom: 12px;
-}
+.controls { min-width: 0; }
 .heading {
-  color: var(--muted);
-  font-size: 12px;
-  margin-bottom: 6px;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 9px;
+  h3 { margin: 0; color: #202938; font-size: 13px; font-weight: 600; }
+  > span { color: #607084; font-size: 12px; }
+  button { height: auto; padding: 0 4px; font-size: 12px; color: #2457eb; }
 }
-.row {
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-}
+.row { display: flex; align-items: flex-start; gap: 6px; }
 .quick {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  button {
-    min-width: 35px;
-    height: auto;
-    min-height: 29px;
-    padding: 3px 8px;
-    white-space: normal;
-    overflow-wrap: anywhere;
-  }
-  button[aria-pressed="true"] {
-    color: var(--accent);
-    border-color: var(--accent);
-    background: var(--accent-soft, #edf3ff);
-  }
+  flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 6px;
+  button { flex: 1; min-width: 36px; height: 32px; padding: 4px 7px; border-radius: 6px; font-size: 13px; }
+  button[aria-pressed="true"] { color: #2457eb; border-color: #2457eb; background: #eef3ff; }
 }
-.more {
-  flex: 0 0 auto;
-}
+.more { flex: none; height: 32px; padding-inline: 10px; border-radius: 6px; font-size: 13px; }
 .popup {
-  width: 360px;
-  max-width: calc(100vw - 24px);
-  max-height: min(560px, calc(100dvh - 100px));
-  overflow-y: auto;
-  padding: 14px;
-  color: var(--foreground);
-  background: var(--panel, var(--background, white));
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  box-shadow: 0 6px 24px #0002;
-  > strong {
-    display: block;
-    margin-bottom: 8px;
-  }
+  display: flex; flex-direction: column;
+  width: 328px; max-width: calc(100vw - 24px); max-height: calc(100dvh - 24px);
+  overflow: hidden; overscroll-behavior: contain; padding: 12px;
+  color: #202938; background: #fff; border: 1px solid #dce3eb; border-radius: 8px;
+  box-shadow: 0 8px 32px #21324729; font-size: 13px; scroll-padding: 12px;
+  button { font-size: 12px; border-radius: 6px; }
+  button:focus-visible { outline: 3px solid #91b4ff; outline-offset: 2px; }
 }
-.help {
-  color: var(--muted);
-  font-size: 11px;
-  line-height: 1.6;
-  margin-top: 5px;
-  button {
-    padding: 0 5px;
-    height: 24px;
-    font-size: inherit;
-  }
+.search { flex-shrink: 0; height: 36px; margin-bottom: 12px; }
+.keySource { flex-shrink: 0; display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
+  strong { font-size: 12px; line-height: 1.8; }
+  button { flex: none; height: auto; padding: 0 4px; color: #2457eb; }
 }
-.results {
-  margin: 12px 0;
-  font-size: 12px;
-  p {
-    margin: 8px 0;
-  }
+.help { flex-shrink: 0; color: #607084; font-size: 12px; line-height: 1.7; margin: 5px 0 0;
+  button { height: 24px; padding: 0 5px; font-size: inherit; }
 }
-.candidates {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
+.results { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; margin-top: 12px; font-size: 12px; p { line-height: 1.7; } }
+.groupTitle { font-size: 11px; color: #607084; margin: 12px 0 7px; }
+.candidates { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
 .candidate {
-  display: flex;
-  align-items: center;
-  button {
-    height: auto;
-    min-height: 30px;
-  }
-  small {
-    margin-left: 6px;
-    color: var(--muted);
-  }
+  min-width: 0; display: flex; flex-direction: column;
+  button { width: 100%; min-width: 0; min-height: 32px; padding: 4px; }
+  small { display: none; }
 }
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  border-top: 1px solid var(--border);
-  padding-top: 10px;
+.loadError { padding: 8px; border-radius: 6px; background: #fff6e7; color: #856125;
+  button { padding: 0 4px; height: auto; }
+}
+.actions { flex-shrink: 0; display: flex; justify-content: space-between; gap: 6px; border-top: 1px solid #dce3eb; margin-top: 12px; padding-top: 8px;
+  button { padding-inline: 0; color: #2457eb; height: 28px; }
 }

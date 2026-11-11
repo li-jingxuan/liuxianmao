@@ -1,0 +1,97 @@
+{
+  "status": "passed",
+  "mode": "screenshots",
+  "createdAt": "2026-11-11T15:18:33.233Z",
+  "fixture": "tests/music-text-coexist.browser.tsx: real HomePage and coexistStore",
+  "browser": {
+    "version": "157.0.8103.50",
+    "channel": "chromium"
+  },
+  "viewports": [
+    {
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "width": 1440,
+      "height": 650
+    },
+    {
+      "width": 1400,
+      "height": 900
+    }
+  ],
+  "checks": [],
+  "screenshots": [
+    "product-quick-1440x1000.png",
+    "product-more-1440x1000.png",
+    "product-sidebar-1440x1000.png",
+    "product-keylib-1440x1000.png",
+    "product-alllib-1440x1000.png",
+    "product-config-1440x1000.png",
+    "product-custom-1440x1000.png",
+    "prototype-quick-1440x1000.png",
+    "prototype-more-1440x1000.png",
+    "prototype-sidebar-1440x1000.png",
+    "prototype-keylib-1440x1000.png",
+    "prototype-alllib-1440x1000.png",
+    "prototype-config-1440x1000.png",
+    "prototype-custom-1440x1000.png",
+    "product-quick-1440x650.png",
+    "product-more-1440x650.png",
+    "product-sidebar-1440x650.png",
+    "product-keylib-1440x650.png",
+    "product-alllib-1440x650.png",
+    "product-config-1440x650.png",
+    "product-custom-1440x650.png",
+    "prototype-quick-1440x650.png",
+    "prototype-more-1440x650.png",
+    "prototype-sidebar-1440x650.png",
+    "prototype-keylib-1440x650.png",
+    "prototype-alllib-1440x650.png",
+    "prototype-config-1440x650.png",
+    "prototype-custom-1440x650.png",
+    "product-quick-1400x900.png",
+    "product-more-1400x900.png",
+    "product-sidebar-1400x900.png",
+    "product-keylib-1400x900.png",
+    "product-alllib-1400x900.png",
+    "product-config-1400x900.png",
+    "product-custom-1400x900.png",
+    "prototype-quick-1400x900.png",
+    "prototype-more-1400x900.png",
+    "prototype-sidebar-1400x900.png",
+    "prototype-keylib-1400x900.png",
+    "prototype-alllib-1400x900.png",
+    "prototype-config-1400x900.png",
+    "prototype-custom-1400x900.png"
+  ],
+  "catalogResponses": [
+    {
+      "url": "http://127.0.0.1:50237/assets/chords/manifest.json",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:50237/assets/chords/catalog-2026.11.11.1.json",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:50237/assets/chords/manifest.json",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:50237/assets/chords/catalog-2026.11.11.1.json",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:50237/assets/chords/manifest.json",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:50237/assets/chords/catalog-2026.11.11.1.json",
+      "status": 200
+    }
+  ],
+  "pageErrors": [],
+  "downloads": []
+}

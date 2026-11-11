@@ -1,0 +1,230 @@
+{
+  "status": "passed",
+  "mode": "integration-and-screenshots",
+  "createdAt": "2026-11-11T16:00:21.363Z",
+  "fixture": "tests/music-text-coexist.browser.tsx: real HomePage and coexistStore",
+  "browser": {
+    "version": "157.0.8103.50",
+    "channel": "chromium"
+  },
+  "viewports": [
+    {
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "width": 1440,
+      "height": 650
+    },
+    {
+      "width": 1400,
+      "height": 900
+    }
+  ],
+  "checks": [
+    {
+      "label": "Real same-origin HTTP manifest/catalog 200 and 192 candidates",
+      "status": "passed"
+    },
+    {
+      "label": "Library footer reachable at 1440×650",
+      "status": "passed"
+    },
+    {
+      "label": "Quick fixed More opens library; cancel preserves dirty parent",
+      "status": "passed"
+    },
+    {
+      "label": "Modal and actual closing transition block background editing/undo",
+      "status": "passed"
+    },
+    {
+      "label": "Library choice only backfills shared quick/sidebar draft; Apply creates one SetChordSymbol and undo restores document",
+      "status": "passed"
+    },
+    {
+      "label": "Custom editor footer reachable at 1440×650",
+      "status": "passed"
+    },
+    {
+      "label": "Sidebar fixed More and library→custom handoff; cancel preserves original parent draft",
+      "status": "passed"
+    },
+    {
+      "label": "Custom complete only backfills parent; ordinary Enter creates one SetChordSymbol and undo restores document",
+      "status": "passed"
+    },
+    {
+      "label": "Settings handoff suspends/resumes dirty chord without writes and blocks background undo",
+      "status": "passed"
+    },
+    {
+      "label": "Info-only Enter applies one SetScoreInfo; recommendations use committed tonality and suspended chord survives",
+      "status": "passed"
+    },
+    {
+      "label": "Empty and whitespace names delete the selected chord through Enter, one command and full undo",
+      "status": "passed"
+    },
+    {
+      "label": "Inner select consumes first Escape; next Escape dismisses library",
+      "status": "passed"
+    },
+    {
+      "label": "Modal and real closing transition block delayed score/image output without extra modal or download",
+      "status": "passed"
+    },
+    {
+      "label": "More Escape keeps clean/dirty chord editor; direct sidebar library and both custom entrances cancel without changing shared draft or history",
+      "status": "passed"
+    },
+    {
+      "label": "Quick and sidebar More footer actions are initially visible and pointer-reachable at1440×650",
+      "status": "passed"
+    },
+    {
+      "label": "Confirmed C major has seven natural triads and seven sevenths; temporary G browsing resets to score without writes",
+      "status": "passed"
+    },
+    {
+      "label": "Visible alternate voicing updates preview, backfills and applies the chosen barre diagram",
+      "status": "passed"
+    },
+    {
+      "label": "Custom finger placement, open/mute toggle and local undo work; all 36 targets meet 32px and 650px footer is reachable",
+      "status": "passed"
+    },
+    {
+      "label": "Save mine is independent of the score; case-insensitive mine search selects the saved diagram",
+      "status": "passed"
+    },
+    {
+      "label": "Configuration inline add/remove/reorder drives live preview; Cancel discards, Save synchronizes both surfaces without score commands",
+      "status": "passed"
+    },
+    {
+      "label": "Dirty song settings discard returns directly to the preserved chord draft without history",
+      "status": "passed"
+    }
+  ],
+  "screenshots": [
+    "product-quick-1440x1000.png",
+    "product-more-1440x1000.png",
+    "product-sidebar-1440x1000.png",
+    "product-keylib-1440x1000.png",
+    "product-alllib-1440x1000.png",
+    "product-config-1440x1000.png",
+    "product-custom-1440x1000.png",
+    "prototype-quick-1440x1000.png",
+    "prototype-more-1440x1000.png",
+    "prototype-sidebar-1440x1000.png",
+    "prototype-keylib-1440x1000.png",
+    "prototype-alllib-1440x1000.png",
+    "prototype-config-1440x1000.png",
+    "prototype-custom-1440x1000.png",
+    "product-quick-1440x650.png",
+    "product-more-1440x650.png",
+    "product-sidebar-1440x650.png",
+    "product-keylib-1440x650.png",
+    "product-alllib-1440x650.png",
+    "product-config-1440x650.png",
+    "product-custom-1440x650.png",
+    "prototype-quick-1440x650.png",
+    "prototype-more-1440x650.png",
+    "prototype-sidebar-1440x650.png",
+    "prototype-keylib-1440x650.png",
+    "prototype-alllib-1440x650.png",
+    "prototype-config-1440x650.png",
+    "prototype-custom-1440x650.png",
+    "product-quick-1400x900.png",
+    "product-more-1400x900.png",
+    "product-sidebar-1400x900.png",
+    "product-keylib-1400x900.png",
+    "product-alllib-1400x900.png",
+    "product-config-1400x900.png",
+    "product-custom-1400x900.png",
+    "prototype-quick-1400x900.png",
+    "prototype-more-1400x900.png",
+    "prototype-sidebar-1400x900.png",
+    "prototype-keylib-1400x900.png",
+    "prototype-alllib-1400x900.png",
+    "prototype-config-1400x900.png",
+    "prototype-custom-1400x900.png"
+  ],
+  "catalogResponses": [
+    {
+      "url": "http://127.0.0.1:50654/assets/chords/manifest.json",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:50654/assets/chords/catalog-2026.11.11.1.json",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:50654/assets/chords/manifest.json",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:50654/assets/chords/catalog-2026.11.11.1.json",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:50654/assets/chords/manifest.json",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:50654/assets/chords/catalog-2026.11.11.1.json",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:50654/assets/chords/manifest.json",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:50654/assets/chords/catalog-2026.11.11.1.json",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:50654/assets/chords/manifest.json",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:50654/assets/chords/catalog-2026.11.11.1.json",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:50654/assets/chords/manifest.json",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:50654/assets/chords/catalog-2026.11.11.1.json",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:50654/assets/chords/manifest.json",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:50654/assets/chords/catalog-2026.11.11.1.json",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:50654/assets/chords/manifest.json",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:50654/assets/chords/catalog-2026.11.11.1.json",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:50654/assets/chords/manifest.json",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:50654/assets/chords/catalog-2026.11.11.1.json",
+      "status": 200
+    }
+  ],
+  "pageErrors": [],
+  "downloads": []
+}

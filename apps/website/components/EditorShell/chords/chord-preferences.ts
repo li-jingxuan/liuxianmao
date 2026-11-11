@@ -80,7 +80,7 @@ export const createDefaultChordPreferences = (): ChordPreferencesV1 => ({
     "pc:5/major",
     "pc:2/m",
     "pc:4/m",
-  ].map((identityId) => ({ identityId, defaultVoicingId: "a-closed-01" })),
+  ].map((identityId) => ({ identityId, defaultVoicingId: identityId === "pc:5/major" ? "e-closed-01" : "open-01" })),
   customVoicings: [],
 });
 const object = (value: unknown): value is Record<string, unknown> =>

@@ -1,0 +1,12 @@
+.chordModal {
+  :global(.ant-modal-close) { top: 20px; inset-inline-end: 20px; color: #607084; }
+  :global(.ant-modal-container) { overflow: hidden; box-shadow: 0 18px 80px #13213744; }
+  :global(.ant-modal-body) { display: flex; flex-direction: column; }
+  // Ant's dialog wrapper ignores pointers; portals within that wrapper opt in.
+  :global(.ant-select-dropdown), :global(.ant-dropdown) { pointer-events: auto; }
+}
+.heading {
+  padding-right: 34px;
+  h2 { margin: 0; color: #202938; font-size: 16px; font-weight: 600; line-height: 1.5; }
+  p { margin: 5px 0 0; color: #607084; font-size: 12px; font-weight: 400; line-height: 1.7; }
+}

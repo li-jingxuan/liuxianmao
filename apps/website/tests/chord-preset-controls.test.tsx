@@ -147,6 +147,8 @@ describe("更多和弦键盘交互", () => {
   );
   it("共用 composition helper 的组合及 cooling 保护，卸载清理计时器", () => {
     vi.useFakeTimers();
+    vi.stubGlobal("requestAnimationFrame", (callback: () => void) => setTimeout(callback, 16));
+    vi.stubGlobal("cancelAnimationFrame", clearTimeout);
     const value = view();
     const effectCleanups = harness.effects
       .map((effect) => effect())
@@ -156,7 +158,7 @@ describe("更多和弦键盘交互", () => {
     const start = value.popup.props.onCompositionStart as () => void,
       end = value.popup.props.onCompositionEnd as () => void;
     const library = value.nodes.find(
-      (node) => node.props.children === "完整和弦库",
+      (node) => node.props.children === "浏览完整和弦库 →",
     )!;
     start();
     const composing = key("Enter");

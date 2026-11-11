@@ -1,7 +1,7 @@
 "use client";
 
-import { Alert, Button, Modal } from "antd";
-import { useState, useSyncExternalStore } from "react";
+import { Alert, Button, ConfigProvider, Modal } from "antd";
+import { Fragment, useState, useSyncExternalStore } from "react";
 import type {
   EditorModalController,
   EditorModalState,
@@ -9,6 +9,7 @@ import type {
 import { BeatPastePreview } from "../tools/BeatPastePreview";
 import { EditorModalGuard } from "./EditorModalGuard";
 import { TechniqueTypePicker } from "../tools/TechniqueTypePicker";
+import styles from "./EditorModalHost.module.scss";
 
 /** footer 订阅同一 owner，勾选/模式更新立即反映可提交状态。 */
 const PasteFooter = ({
@@ -96,12 +97,15 @@ export const EditorModalHost = ({
     request?.kind === "chord-library" || request?.kind === "chord-custom";
   const dismissable = request?.kind === "technique-type" || chord;
   return (
-    <Modal
-      title={request?.title}
+    <ConfigProvider
+      getPopupContainer={chord ? (trigger) => trigger?.closest<HTMLElement>(".ant-modal") ?? document.body : undefined}
+      theme={chord ? { token: { colorPrimary: "#2457eb", colorText: "#202938", colorTextSecondary: "#607084", colorBorder: "#ccd5e1", borderRadius: 6, fontSize: 14, controlHeight: 36 }, components: { Select: { zIndexPopup: 1100 }, Dropdown: { zIndexPopup: 1100 } } } : {}}><Modal
+      className={chord ? styles.chordModal : undefined}
+      title={chord && request ? <div className={styles.heading}><h2>{request.title}</h2><p aria-hidden="true">{request.subtitle ?? (request.kind === "chord-library" ? "选择和弦与指法，带回当前编辑位置。" : "调整按点与横按，完成后带回当前和弦草稿。")}</p></div> : request?.title}
       open={!!active && !active.closing}
       width={
         chord
-          ? 1000
+          ? request?.kind === "chord-custom" ? 850 : 1000
           : request?.kind === "beat-paste"
             ? 660
             : request?.kind === "technique-type"
@@ -116,14 +120,14 @@ export const EditorModalHost = ({
       styles={{
         container: {
           maxWidth: "calc(100vw - 32px)",
-          padding: 28,
-          borderRadius: 8,
+          padding: chord ? 0 : 28,
+          borderRadius: chord ? 12 : 8,
           maxHeight: "calc(100dvh - 32px)",
           display: "flex",
           flexDirection: "column",
         },
-        body: { overflowY: "auto", minHeight: 0 },
-        header: { flexShrink: 0 },
+        body: { overflowY: chord ? "hidden" : "auto", minHeight: 0 },
+        header: { flexShrink: 0, ...(chord ? { padding: "20px 24px", marginBottom: 0, borderBottom: "1px solid #dce3eb" } : {}) },
         title: { fontSize: 20, fontWeight: 500 },
         footer: { flexShrink: 0, marginTop: 24 },
       }}
@@ -179,7 +183,7 @@ export const EditorModalHost = ({
       }
     >
       {request?.kind === "chord-library" || request?.kind === "chord-custom" ? (
-        request.content
+        <Fragment key={display?.id}>{request.content}</Fragment>
       ) : request?.kind === "beat-paste" ? (
         <BeatPastePreview controller={request.preview} />
       ) : request?.kind === "technique-type" ? (
@@ -190,6 +194,6 @@ export const EditorModalHost = ({
       {display?.error && request?.kind !== "beat-paste" && (
         <Alert type="error" title={display.error} showIcon />
       )}
-    </Modal>
+    </Modal></ConfigProvider>
   );
 };

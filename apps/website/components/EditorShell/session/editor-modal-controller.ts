@@ -27,7 +27,7 @@ export type EditorModalRequest = EditorModalBase &
     | { kind: "structure-impact" }
     | { kind: "beat-paste"; preview: BeatPasteController }
     | { kind: "technique-type"; picker: TechniqueTypeController }
-    | { kind: "chord-library" | "chord-custom"; content: ReactNode }
+    | { kind: "chord-library" | "chord-custom"; content: ReactNode; subtitle?: string }
   );
 export interface EditorModalState {
   id: number;

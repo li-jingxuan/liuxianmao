@@ -156,11 +156,6 @@ export const ChordEditor = ({
             description="预设基于标准调弦；已有指法不会自动转置，和弦名称由你确认。"
           />
         )}
-        {onOpenCustom && (
-          <Button disabled={disabled} onClick={() => onOpenCustom()}>
-            {diagram ? "编辑指法" : "自定义指法"}
-          </Button>
-        )}
         {!diagram && !onOpenCustom && (
           <Button
             disabled={disabled}
@@ -170,6 +165,14 @@ export const ChordEditor = ({
           </Button>
         )}
       </section>
+      {onOpenCustom && <section className={viewStyles.customEntry} aria-label="指法图">
+        <div className={viewStyles.sectionHeading}><h3>指法图</h3><span className={viewStyles.typeTag}>{diagram ? diagram.barres?.length ? "横按指法" : "开放指法" : "尚无指法"}</span></div>
+        <p>从和弦库选一种指法，也可以直接在图上调整。</p>
+        <div className={viewStyles.buttonPair}>
+          <Button disabled={disabled || !onOpenLibrary} onClick={() => onOpenLibrary?.("key")}>选择其他指法</Button>
+          <Button disabled={disabled} onClick={() => onOpenCustom()}>{diagram ? "编辑指法" : "自定义指法"}</Button>
+        </div>
+      </section>}
       {diagram && !onOpenCustom && (
         <>
           <details className={viewStyles.disclosure} open>
@@ -414,15 +417,10 @@ export const ChordEditor = ({
           </details>
         </>
       )}
-      <details className={viewStyles.disclosure}>
-        <summary>
-          和弦保存方式
-          <span>{draft.display === "name" ? "仅名称" : "名称与指法图"}</span>
-        </summary>
-        <div className={viewStyles.disclosureContent}>
+      <section className={viewStyles.displaySection}>
           <Form.Item
             layout="vertical"
-            label="和弦保存方式"
+            label="谱面显示"
             htmlFor="chord-display"
           >
             <Select
@@ -455,8 +453,8 @@ export const ChordEditor = ({
                 <small>保存为仅名称；全局已开启指法图。</small>
               )}
           </Form.Item>
-        </div>
-      </details>
+      </section>
+      <p className={viewStyles.help}>同一和弦的不同位置可使用不同指法。</p>
       {diagram && (
         <details className={viewStyles.disclosure}>
           <summary>

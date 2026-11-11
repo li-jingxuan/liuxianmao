@@ -1,12 +1,14 @@
 .editor {
   min-width: 0;
+  display: grid;
+  gap: 18px;
 
   :global(.ant-form-item) {
-    margin-bottom: 12px;
+    margin-bottom: 0;
   }
 
   :global(.ant-form-item-label) > label {
-    font-size: 12px;
+    font-size: 13px;
   }
 
   :global(.ant-select) {
@@ -24,13 +26,12 @@
 .preview {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 28px;
-  min-height: 130px;
-  margin-bottom: 15px;
-  padding: 10px;
-  border-radius: 9px;
-  background: var(--panel-muted);
+  justify-content: space-between;
+  gap: 20px;
+  min-height: 126px;
+  padding: 16px 22px;
+  border-radius: 8px;
+  background: #f3f6fa;
   color: var(--foreground);
 
   svg {
@@ -54,7 +55,7 @@
 
   span {
     color: var(--muted);
-    font-size: 11px;
+    font-size: 12px;
   }
 
   strong {
@@ -87,11 +88,30 @@
 }
 
 .presets {
-  margin-bottom: 12px;
+  display: grid;
+  gap: 18px;
 
   :global(.ant-alert) {
     margin-bottom: 12px;
   }
+}
+
+.customEntry {
+  padding: 14px;
+  border: 1px solid #dce3eb;
+  border-radius: 8px;
+  background: #fafbfd;
+  p { margin: 8px 0 12px; color: #607084; font-size: 12px; line-height: 1.7; }
+}
+.typeTag { background: #eaf0ff; color: #3156a0 !important; padding: 3px 6px; border-radius: 4px; font-size: 11px; }
+.buttonPair { display: flex; gap: 8px; flex-wrap: wrap; button { min-height: 32px; font-size: 13px; } }
+.displaySection {
+  border-top: 1px solid #dce3eb; padding-top: 14px;
+  :global(.ant-form-item-row) { display: flex; flex-direction: row !important; flex-wrap: nowrap; align-items: flex-start; gap: 12px; }
+  :global(.ant-form-item-label) { flex: none; padding: 7px 0 0; }
+  :global(.ant-form-item-control) { flex: 1; min-width: 0; }
+  :global(.ant-select) { width: 100%; }
+  small { display: block; margin-top: 6px; }
 }
 
 .sectionHeading {
