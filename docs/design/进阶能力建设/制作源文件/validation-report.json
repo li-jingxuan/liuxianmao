@@ -1,0 +1,23 @@
+{
+  "screens": 8,
+  "reviewPngs": 13,
+  "categories": {
+    "01_学习总览": 2,
+    "02_理论学习": 1,
+    "03_练习作答": 1,
+    "04_考试与结果": 2,
+    "05_进度与窄窗口": 2
+  },
+  "contrastChecks": [
+    { "foreground": "text", "background": "white", "ratio": 14.768 },
+    { "foreground": "muted", "background": "white", "ratio": 5.157 },
+    { "foreground": "blue", "background": "white", "ratio": 5.733 },
+    { "foreground": "white", "background": "blue", "ratio": 5.733 },
+    { "foreground": "green", "background": "greenbg", "ratio": 5.285 },
+    { "foreground": "red", "background": "redbg", "ratio": 5.082 },
+    { "foreground": "amber", "background": "amberbg", "ratio": 5.016 }
+  ],
+  "validation": "PNG 编码、尺寸、索引和指定颜色组合通过；未验证应用运行时、键盘、本地存储恢复和真实响应式行为",
+  "antdVersion": "6.4.4",
+  "designBasis": "Ant Design 品牌主题静态稿；非实际 React 控件截图"
+}

@@ -1449,6 +1449,16 @@ export const EditorShell: React.FC = () => {
     >
       <EditorHeader
         title={document.score.title}
+        canNavigateToLearning={() => {
+          // 路由卸载同样受会话草稿及输出生命周期保护；处理后由用户重新点击入口。
+          if (!isOutputBlocked()) return true;
+          if (modals.isOpen() || imageExportSnapshot) {
+            setErrorMessage("请先完成当前弹层或图片导出，再进入吉他进阶。");
+          } else {
+            setOutputBlockedOpen(true);
+          }
+          return false;
+        }}
         fileControls={
           <ScoreFileControls
             session={session}

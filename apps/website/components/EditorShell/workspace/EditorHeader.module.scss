@@ -69,6 +69,11 @@
   }
 }
 
+// 跨功能导航属于头部；不将学习入口样式重新放回工作区布局模块。
+.learningLink {
+  text-decoration: none;
+}
+
 @media print {
   .editorHeader {
     display: none !important;

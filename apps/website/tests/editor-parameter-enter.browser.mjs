@@ -25,10 +25,10 @@ try {
   await title.fill("Enter 歌曲");
   await label.fill("Enter 段落");
   await title.press("Enter");
-  assert.deepEqual((await commands()).map((command) => command.type), ["score.setNotationInfo"]);
+  assert.deepEqual((await commands()).map((command) => command.type), ["score.setInfo"]);
   assert.equal(await page.evaluate(() => window.parameterEnterTest.status().groups.label.dirty), true);
   await label.press("Enter");
-  assert.deepEqual((await commands()).map((command) => command.type), ["score.setNotationInfo", "measure.setSectionLabel"]);
+  assert.deepEqual((await commands()).map((command) => command.type), ["score.setInfo", "measure.setSectionLabel"]);
   assert.equal(await page.evaluate(() => window.parameterEnterTest.status().groups.label.dirty), false);
   await page.locator("#settings-arranger").fill("Enter 作者");
   await page.locator("#settings-arranger").press("Enter");

@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import path from "node:path";
+import { nextBrowserDefines } from "./next-browser-env.fixture.mjs";
 
 const require = createRequire(import.meta.url);
 const viteRequire = createRequire(require.resolve("vitest/package.json"));
@@ -12,6 +13,7 @@ const { chromium } = await import(process.env.LXM_PLAYWRIGHT_MODULE ?? "playwrig
 const website = fileURLToPath(new URL("..", import.meta.url));
 const server = await createServer({
   root: website, configFile: false,
+  define: nextBrowserDefines,
   cacheDir: path.resolve(website, "node_modules/.vite/tab-continuation"),
   optimizeDeps: { entries: ["tests/music-text-coexist.browser.tsx"], include: ["react/jsx-dev-runtime"] },
   esbuild: { jsx: "automatic" },

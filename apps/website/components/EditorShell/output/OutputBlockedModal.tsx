@@ -6,7 +6,7 @@ import type { EditorDraftCoordinator } from "../session/editor-draft-coordinator
 import { EditorModalGuard } from "../session/EditorModalGuard";
 import styles from "./image-export.module.scss";
 
-/** 输出闸门只提供返回编辑和明确放弃，不自动应用草稿，也不自动重开输出。 */
+/** 输出与离开页面共用草稿提示；只提供返回编辑和明确放弃，不自动续跑原操作。 */
 export const OutputBlockedModal = ({
   open,
   drafts,
@@ -149,7 +149,7 @@ export const OutputBlockedModal = ({
     >
       <div className={styles.blockedBody}>
         <p>
-          输出仅使用已应用的曲谱。请先处理当前输入，再重新发起原操作。
+          当前输入尚未应用到曲谱。请先处理这些输入，再重新发起原操作。
         </p>
         {pending.length ? (
           <ul className={styles.blockedList} aria-label="当前未应用输入">

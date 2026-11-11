@@ -4,6 +4,7 @@ import { createRequire } from "node:module";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import path from "node:path";
+import { nextBrowserDefines } from "./next-browser-env.fixture.mjs";
 
 const require = createRequire(import.meta.url);
 const viteRequire = createRequire(require.resolve("vitest/package.json"));
@@ -13,6 +14,7 @@ const website = fileURLToPath(new URL("..", import.meta.url));
 const server = await createServer({
   root: website,
   configFile: false,
+  define: nextBrowserDefines,
   cacheDir: path.resolve(website, "node_modules/.vite/image-export"),
   optimizeDeps: {
     entries: ["tests/music-text-coexist.browser.tsx"],
@@ -49,7 +51,10 @@ try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   page.setDefaultTimeout(20000);
   const errors = [];
-  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("pageerror", (error) => {
+    errors.push(error.message);
+    console.error(error.stack ?? error.message);
+  });
   // 保留真实 URL 行为，只观测分配/回收，验证任务提取后没有泄露或复用旧链接。
   await page.addInitScript(() => {
     const create = URL.createObjectURL.bind(URL);

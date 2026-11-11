@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "completedLessonIds": ["rhythm-eighth-sixteenth"],
+  "completedExerciseIds": ["rhythm-identify-eighth-notes"],
+  "exerciseResults": {
+    "rhythm-identify-eighth-notes": {
+      "exerciseId": "rhythm-identify-eighth-notes",
+      "selectedOptionId": "once-per-beat",
+      "isCorrect": false,
+      "submittedAt": "2026-10-16T10:00:00.000Z"
+    }
+  },
+  "lastVisited": { "kind": "exercise", "id": "rhythm-identify-eighth-notes" },
+  "updatedAt": "2026-10-16T10:00:00.000Z"
+}

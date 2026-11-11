@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode, RefObject } from "react";
+import Link from "next/link";
 import { Button } from "antd";
 import { PictureOutlined } from "@ant-design/icons";
 import editorHeaderStyles from "./EditorHeader.module.scss";
@@ -11,11 +12,13 @@ export const EditorHeader = ({
   fileControls,
   onImageExport,
   imageExportButtonRef,
+  canNavigateToLearning,
 }: {
   title: string;
   fileControls: ReactNode;
   onImageExport: () => void;
   imageExportButtonRef: RefObject<HTMLButtonElement | null>;
+  canNavigateToLearning: () => boolean;
 }) => {
   return (
     <header className={editorHeaderStyles.editorHeader}>
@@ -27,6 +30,15 @@ export const EditorHeader = ({
         <span>吉他弹唱谱</span>
       </div>
       <div className={editorHeaderStyles.headerActions}>
+        <Link
+          className={`${editorHeaderStyles.headerNativeAction} ${editorHeaderStyles.learningLink}`}
+          href="/guitar-advanced"
+          onNavigate={(event) => {
+            if (!canNavigateToLearning()) event.preventDefault();
+          }}
+        >
+          吉他进阶
+        </Link>
         {fileControls}
         <Button
           ref={imageExportButtonRef}
