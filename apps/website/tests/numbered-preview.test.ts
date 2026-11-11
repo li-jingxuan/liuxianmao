@@ -4,7 +4,7 @@ import {
   createDocumentIdFactory,
   editNumberedTrack,
 } from "@liuxianmao/lxm-editor";
-import { buildNumberedPreviewRows, numberedPreviewMapping } from "../components/EditorShell/numbered-preview";
+import { buildNumberedPreviewRows, numberedPreviewMapping } from "../components/EditorShell/numbered/numbered-preview";
 
 describe("简谱修改预览 adapter", () => {
   it("按事件身份显示单音组修改前后值", () => {

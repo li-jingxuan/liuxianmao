@@ -1,17 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { getDurationFlagBottom } from "../../src/layout/rhythm-bounds";
+import { getDurationFlagBottom } from "../../src/layout/rhythm/rhythm-bounds";
 
 import EXAMPLE_MVP_2 from "../../example/example-mvp2.json";
-import { loadDocument } from "../../src/core/loader";
+import { loadDocument } from "../../src/core/document/loader";
 import { buildLayout } from "../../src/layout";
 import {
   LXM_LAYOUT_DENSITY_PROFILES,
   LXM_SYSTEM_HEADER_WIDTH,
   LXM_TIME_SIGNATURE_WIDTH,
 } from "../../src/layout/layout-constants";
-import { summarizeMeasureSpacingWidth } from "../../src/layout/measure-spacing";
+import { summarizeMeasureSpacingWidth } from "../../src/layout/structure/measure-spacing";
 import type { ILXMLayoutDensity } from "../../src/layout/layout-types";
-import { shouldShowTimeSignature } from "../../src/layout/time-signature-layout";
+import { shouldShowTimeSignature } from "../../src/layout/structure/time-signature-layout";
 import EXAMPLE_MVP_7_2_DOCUMENT from "../../example/example-mvp7.2";
 
 /** 供断行测试复用的固定逻辑宽度；每行应容纳两个标准四分小节。 */

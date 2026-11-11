@@ -4,9 +4,9 @@ import EXAMPLE_MVP_4 from "../../example/example-mvp4.json";
 import {
   applyScoreCommand,
   LXMScoreCommandEnum,
-} from "../../src/core/commands";
+} from "../../src/core/commands/commands";
 import type { ILXMBeatRange } from "../../src/editing/tab-cell-selection";
-import { validateDocumentSemantics } from "../../src/core/semantic-validation";
+import { validateDocumentSemantics } from "../../src/core/document/semantic-validation";
 
 const endpoint = (measure: number, beat: number) => ({
   measureId: `mvp2-measure-${measure}`,

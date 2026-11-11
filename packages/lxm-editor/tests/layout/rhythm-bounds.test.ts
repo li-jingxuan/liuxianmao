@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import source from "../../example/example-mvp5.1.json";
 import type { ILXMRhythmBase } from "../../src/core/types";
-import { layoutMeasure } from "../../src/layout/measure-layout";
+import { layoutMeasure } from "../../src/layout/structure/measure-layout";
 import { buildLayout, EXAMPLE_MVP_6_DOCUMENT } from "../../src";
-import { getDurationFlagTop } from "../../src/layout/rhythm-bounds";
-import { getDurationFlagBottom } from "../../src/layout/rhythm-bounds";
+import { getDurationFlagTop } from "../../src/layout/rhythm/rhythm-bounds";
+import { getDurationFlagBottom } from "../../src/layout/rhythm/rhythm-bounds";
 
 /** 单个有音符的 Beat 强制生成孤立符尾，避免连梁覆盖隐藏回归问题。 */
 const isolatedMeasure = (base: ILXMRhythmBase) => {

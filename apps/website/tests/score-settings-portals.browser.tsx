@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { EXAMPLE_MVP_7_2_DOCUMENT, LXMScoreCommandEnum, type ILXMScoreCommand } from "@liuxianmao/lxm-editor";
-import { ScoreSettings, type ScoreSettingsController } from "../components/EditorShell/ScoreSettings";
-import { MeasureToolDetails } from "../components/EditorShell/MeasureToolDetails";
-import { EditorSessionRuntime, useEditorRuntime } from "../components/EditorShell/EditorSessionRuntime";
+import { ScoreSettings, type ScoreSettingsController } from "../components/EditorShell/settings/ScoreSettings";
+import { MeasureToolDetails } from "../components/EditorShell/tools/MeasureToolDetails";
+import { EditorSessionRuntime, useEditorRuntime } from "../components/EditorShell/session/EditorSessionRuntime";
 import { createEditorSession, useEditorStore } from "../stores/editor-store";
 import { EditorStoreContext } from "../stores/editor-context";
-import type { EditorCommandResult } from "../components/EditorShell/editor-command-adapter";
+import type { EditorCommandResult } from "../components/EditorShell/session/editor-command-adapter";
 
 const session = createEditorSession(EXAMPLE_MVP_7_2_DOCUMENT);
 const trackId = session.getState().document!.score.tracks[0]!.id;

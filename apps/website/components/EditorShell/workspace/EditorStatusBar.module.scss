@@ -1,0 +1,28 @@
+/** 状态带保持紧凑，位置、选区和未应用草稿在窄窗口中自然换行。 */
+.statusBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  font-size: 12px;
+  flex: none;
+  min-height: 28px;
+  margin: 0;
+  padding: 4px 17px;
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--muted);
+  :global(.ant-tag) {
+    margin: 0;
+  }
+}
+
+@media print {
+  .statusBar {
+    display: none !important;
+  }
+}
+
+:global([data-editor-shell][data-layout="narrow"]) {
+  .statusBar { padding-inline: 10px; gap: 4px 8px; }
+}

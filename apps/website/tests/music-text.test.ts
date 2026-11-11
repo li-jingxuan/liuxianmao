@@ -5,7 +5,7 @@ import {
   copyChordPreset,
 } from "@liuxianmao/lxm-editor";
 import { createEditorStore } from "../stores/editor-store";
-import { shouldIgnoreMusicTextKey } from "../components/EditorShell/music-text-interaction";
+import { shouldIgnoreMusicTextKey } from "../components/EditorShell/music-text/music-text-interaction";
 
 describe("音乐文本网站边界", () => {
   it("歌词与和弦各自一次入历史，失败、同值和导航不入历史，完整撤销重做", () => {

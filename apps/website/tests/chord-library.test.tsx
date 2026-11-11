@@ -9,15 +9,15 @@ import {
   queryChordCatalog,
   type ILXMDocument,
 } from "@liuxianmao/lxm-editor";
-import { ChordLibraryModal } from "../components/EditorShell/ChordLibraryModal";
+import { ChordLibraryModal } from "../components/EditorShell/chords/ChordLibraryModal";
 import {
   ChordPresetControls,
   resolveChordReference,
   selectedCatalogChord,
   standardChordTuning,
-} from "../components/EditorShell/ChordPresetControls";
-import { createDefaultChordPreferences } from "../components/EditorShell/chord-preferences";
-import type { ChordDraft } from "../components/EditorShell/ChordEditor";
+} from "../components/EditorShell/chords/ChordPresetControls";
+import { createDefaultChordPreferences } from "../components/EditorShell/chords/chord-preferences";
+import type { ChordDraft } from "../components/EditorShell/chords/ChordEditor";
 
 const state = vi.hoisted(() => ({
   snapshot: {
@@ -26,7 +26,7 @@ const state = vi.hoisted(() => ({
     error: null as string | null,
   },
 }));
-vi.mock("../components/EditorShell/chord-catalog-resource", () => ({
+vi.mock("../components/EditorShell/chords/chord-catalog-resource", () => ({
   chordCatalogResource: {
     getSnapshot: () => state.snapshot,
     subscribe: () => () => {},

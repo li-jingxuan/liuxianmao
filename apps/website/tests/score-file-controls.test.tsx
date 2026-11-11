@@ -5,8 +5,8 @@ import {
   LXMScoreCommandEnum,
 } from "@liuxianmao/lxm-editor";
 import { createEditorSession } from "../stores/editor-store";
-import { ScoreFileControls } from "../components/EditorShell/ScoreFileControls";
-import { serializeScoreFile } from "../components/EditorShell/score-file";
+import { ScoreFileControls } from "../components/EditorShell/output/ScoreFileControls";
+import { serializeScoreFile } from "../components/EditorShell/output/score-file";
 
 const harness = vi.hoisted(() => ({
   values: [] as unknown[],

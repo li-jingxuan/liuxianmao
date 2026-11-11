@@ -3,7 +3,7 @@ import {
   EXAMPLE_MVP_7_2_DOCUMENT,
   type ILXMRhythm,
 } from "@liuxianmao/lxm-editor";
-import { resolveEditorRhythmTarget } from "../components/EditorShell/editor-rhythm-target";
+import { resolveEditorRhythmTarget } from "../components/EditorShell/tools/editor-rhythm-target";
 import { createEditorSession } from "../stores/editor-store";
 
 describe("工具栏实际时值目标", () => {

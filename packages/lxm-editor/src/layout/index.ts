@@ -1,5 +1,5 @@
-import { unionMusicBounds } from "./music-text-metrics";
-import { layoutScoreHeader } from "./score-header-layout";
+import { unionMusicBounds } from "./music-text/music-text-metrics";
+import { layoutScoreHeader } from "./structure/score-header-layout";
 /**
  * 整谱布局公开门面。
  *
@@ -17,15 +17,15 @@ import {
 } from "./layout-constants";
 import { buildHitIndex } from "./hit-test";
 import type { ILXMLayout, ILXMLayoutOptions } from "./layout-types";
-import { chordDisplayTrack } from "./chord-display";
-import { layoutSystems } from "./system-layout";
-import { layoutSystemContent } from "./system-content-layout";
-import { buildTechniqueInsets } from "./technique-spacing";
+import { chordDisplayTrack } from "./music-text/chord-display";
+import { layoutSystems } from "./structure/system-layout";
+import { layoutSystemContent } from "./structure/system-content-layout";
+import { buildTechniqueInsets } from "./techniques/technique-spacing";
 export {
   layoutChordDiagram,
   translateChordDiagram,
   scaleChordDiagram,
-} from "./chord-diagram-layout";
+} from "./music-text/chord-diagram-layout";
 
 /** 没有可布局轨道时返回的空布局，保持调用方无需做 null 判断。 */
 const getDefaultLayout = (options: ILXMLayoutOptions): ILXMLayout => {
@@ -133,15 +133,15 @@ export type {
   ILXMTabCellCaretLayout,
   ILXMTabCellSelectionRect,
 } from "./selection-layout";
-export { layoutSystems } from "./system-layout";
+export { layoutSystems } from "./structure/system-layout";
 
-export * from "./music-text-metrics";
-export * from "./chord-diagram-layout";
-export * from "./music-text-layout";
+export * from "./music-text/music-text-metrics";
+export * from "./music-text/chord-diagram-layout";
+export * from "./music-text/music-text-layout";
 
-export * from "./chord-display";
+export * from "./music-text/chord-display";
 
-export * from "./numbered-notation-layout";
-export * from "./page-layout";
-export * from "./numbered-input-layout";
-export * from "./lyric-placeholder-layout";
+export * from "./music-text/numbered-notation-layout";
+export * from "./structure/page-layout";
+export * from "./music-text/numbered-input-layout";
+export * from "./music-text/lyric-placeholder-layout";

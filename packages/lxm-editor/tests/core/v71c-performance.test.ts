@@ -2,15 +2,15 @@ import { it, expect } from "vitest";
 import { performance } from "node:perf_hooks";
 import { EXAMPLE_MVP7C_LONG_DOCUMENT } from "../../example/example-mvp7c";
 import { buildLayout } from "../../src/layout";
-import { loadDocument } from "../../src/core/loader";
+import { loadDocument } from "../../src/core/document/loader";
 import {
   applyScoreCommand,
   LXMScoreCommandEnum as C,
-} from "../../src/core/commands";
+} from "../../src/core/commands/commands";
 import {
   createBeatClipboard,
   planBeatPaste,
-} from "../../src/core/beat-clipboard";
+} from "../../src/core/rhythm/beat-clipboard";
 /** 100 小节实际混合内容的可重复基线，不将机器耗时硬编码为产品验收阈值。 */
 it("100 小节加载、布局、记谱编辑与复用均保持合法", () => {
   const d = EXAMPLE_MVP7C_LONG_DOCUMENT,

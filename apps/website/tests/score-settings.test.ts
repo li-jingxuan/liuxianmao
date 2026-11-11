@@ -6,11 +6,11 @@ import {
 import {
   readScoreSettings,
   planSettingsCommands,
-} from "../components/EditorShell/score-settings-draft";
+} from "../components/EditorShell/settings/score-settings-draft";
 import {
   readMusicTextDraft,
   resolveSidebarRequest,
-} from "../components/EditorShell/music-text-draft";
+} from "../components/EditorShell/music-text/music-text-draft";
 import { createEditorSession } from "../stores/editor-store";
 
 describe("谱面设置与连续填词默认", () => {

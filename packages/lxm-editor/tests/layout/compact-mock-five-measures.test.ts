@@ -1,16 +1,16 @@
 import { describe, expect, it } from "vitest";
 import DEFAULT_SCORE from "../../example/default-score.lxm.json";
 import { buildLayout } from "../../src/layout";
-import { loadDocument } from "../../src/core/loader";
-import { layoutMeasureSpacing, summarizeMeasureSpacingWidth } from "../../src/layout/measure-spacing";
-import { buildTechniqueInsets, fretHalfWidth } from "../../src/layout/technique-spacing";
+import { loadDocument } from "../../src/core/document/loader";
+import { layoutMeasureSpacing, summarizeMeasureSpacingWidth } from "../../src/layout/structure/measure-spacing";
+import { buildTechniqueInsets, fretHalfWidth } from "../../src/layout/techniques/technique-spacing";
 import type { ILXMMeasure } from "../../src/core/types";
-import { createChordBlock } from "../../src/layout/music-text-layout";
-import { musicTextGlyph, musicTextRequest, MUSIC_LYRIC_FONT_SIZE } from "../../src/layout/music-text-metrics";
-import { layoutNumbered } from "../../src/layout/numbered-notation-layout";
-import { numberedLayoutProfile } from "../../src/layout/numbered-layout-profile";
-import { layoutMeasure } from "../../src/layout/measure-layout";
-import { layoutNumberedRhythm } from "../../src/layout/numbered-rhythm-layout";
+import { createChordBlock } from "../../src/layout/music-text/music-text-layout";
+import { musicTextGlyph, musicTextRequest, MUSIC_LYRIC_FONT_SIZE } from "../../src/layout/music-text/music-text-metrics";
+import { layoutNumbered } from "../../src/layout/music-text/numbered-notation-layout";
+import { numberedLayoutProfile } from "../../src/layout/music-text/numbered-layout-profile";
+import { layoutMeasure } from "../../src/layout/structure/measure-layout";
+import { layoutNumberedRhythm } from "../../src/layout/music-text/numbered-rhythm-layout";
 
 const document = () => {
   const loaded = loadDocument(JSON.stringify(DEFAULT_SCORE));

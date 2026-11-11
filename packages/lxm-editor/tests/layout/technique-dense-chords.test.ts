@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyScoreCommand,
   LXMScoreCommandEnum,
-} from "../../src/core/commands";
+} from "../../src/core/commands/commands";
 import {
   screenshot,
   chordPair,
@@ -17,7 +17,7 @@ import {
   boundsIntersect,
   getTechniqueInkBounds,
   getFretTextBounds,
-} from "../../src/layout/technique-geometry";
+} from "../../src/layout/techniques/technique-geometry";
 
 describe("完整密集和弦谱中的多条弧线", () => {
   it.each([false, true])(

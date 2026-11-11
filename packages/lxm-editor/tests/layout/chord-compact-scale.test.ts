@@ -10,13 +10,13 @@ import {
   layoutChordDiagram,
   scaleChordDiagram,
   translateChordDiagram,
-} from "../../src/layout/chord-diagram-layout";
-import { createChordBlock } from "../../src/layout/music-text-layout";
+} from "../../src/layout/music-text/chord-diagram-layout";
+import { createChordBlock } from "../../src/layout/music-text/music-text-layout";
 import {
   musicTextRequest,
   type ILXMMusicTextMetrics,
   type MusicTextRect,
-} from "../../src/layout/music-text-metrics";
+} from "../../src/layout/music-text/music-text-metrics";
 
 // 固定原字号墨迹，验证缩放后的度量换算，而非依赖保守 fallback 的保护框。
 const metrics: ILXMMusicTextMetrics = Object.fromEntries([

@@ -7,9 +7,9 @@ import {
   type ILXMDocument,
 } from "@liuxianmao/lxm-editor";
 import { createEditorStore } from "../stores/editor-store";
-import { resolveEditorRhythmTarget } from "../components/EditorShell/editor-rhythm-target";
-import { buildEditorToolCommand } from "../components/EditorShell/editor-tool-actions";
-import { NoteToolDetails } from "../components/EditorShell/NoteToolDetails";
+import { resolveEditorRhythmTarget } from "../components/EditorShell/tools/editor-rhythm-target";
+import { buildEditorToolCommand } from "../components/EditorShell/tools/editor-tool-actions";
+import { NoteToolDetails } from "../components/EditorShell/tools/NoteToolDetails";
 
 const setup = () => {
   const document: ILXMDocument = structuredClone(DEFAULT_MOCK_DOCUMENT);

@@ -9,8 +9,8 @@ import { createEditorSession } from "../stores/editor-store";
 import {
   createEditorModalController,
   type EditorModalRequest,
-} from "../components/EditorShell/editor-modal-controller";
-import { captureEditorVersion } from "../components/EditorShell/editor-session-version";
+} from "../components/EditorShell/session/editor-modal-controller";
+import { captureEditorVersion } from "../components/EditorShell/session/editor-session-version";
 
 const setup = () => {
   const session = createEditorSession(EXAMPLE_MVP_7_2_DOCUMENT);
@@ -33,6 +33,40 @@ const setup = () => {
 };
 
 describe("统一弹层宿主控制器", () => {
+  it.each(["accepted", "blocked", "rejected"] as const)(
+    "退出动画期间迟到的 %s 确认不复活旧弹层",
+    async (outcome) => {
+      const { modals, request, restore } = setup();
+      let finish!: (accepted: boolean) => void;
+      let reject!: (error: Error) => void;
+      const onClose = vi.fn();
+      const id = modals.open(
+        request({
+          onClose,
+          confirm: () =>
+            new Promise<boolean>((resolve, rejectPromise) => {
+              finish = resolve;
+              reject = rejectPromise;
+            }),
+        }),
+      )!;
+      const result = modals.confirm(id);
+      expect(modals.close(id, "stale")).toBe(true);
+      const closing = modals.getSnapshot();
+      if (outcome === "rejected") reject(new Error("迟到错误"));
+      else finish(outcome === "accepted");
+      expect(await result).toBe(false);
+      expect(modals.getSnapshot()).toBe(closing);
+      expect(modals.open(request())).toBeNull();
+      expect(onClose).toHaveBeenCalledExactlyOnceWith("stale");
+      expect(restore).not.toHaveBeenCalled();
+      modals.restoreFocus(id);
+      expect(modals.isOpen()).toBe(false);
+      expect(restore).toHaveBeenCalledOnce();
+      expect(modals.open(request())).not.toBeNull();
+    },
+  );
+
   it("活动请求不能被覆盖，退出动画结束前仍占用宿主且只恢复一次焦点", async () => {
     const { session, modals, restore, capture, request } = setup();
     const onClose = vi.fn();

@@ -6,7 +6,7 @@ import {
   EXAMPLE_MVP_7_2_DOCUMENT,
   type ILXMNumberedEvent,
 } from "@liuxianmao/lxm-editor";
-import { MusicTextEditingHints } from "../components/EditorShell/MusicTextEditingHints";
+import { MusicTextEditingHints } from "../components/EditorShell/score/MusicTextEditingHints";
 
 describe("歌词占位框渲染", () => {
   it.each(["single", "whole", "eighths"] as const)(

@@ -11,7 +11,7 @@ import {
 import {
   boundsIntersect,
   getFretTextBounds,
-} from "../../src/layout/technique-geometry";
+} from "../../src/layout/techniques/technique-geometry";
 import type { ILXMTechniqueSegmentLayout } from "../../src/layout/layout-types";
 
 const createDocument = (string = 6) => {

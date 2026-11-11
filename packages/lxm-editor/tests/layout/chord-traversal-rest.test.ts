@@ -4,7 +4,7 @@ import EXAMPLE_MVP_2 from "../../example/example-mvp2.json";
 import {
   applyScoreCommand,
   LXMScoreCommandEnum,
-} from "../../src/core/commands";
+} from "../../src/core/commands/commands";
 import { buildLayout } from "../../src/layout";
 
 const createDocument = () => {

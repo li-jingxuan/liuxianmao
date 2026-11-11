@@ -1,0 +1,75 @@
+.form {
+  min-width: 0;
+
+  [hidden] { display: none !important; }
+  :global(.ant-form-item) { margin-bottom: 10px; }
+}
+.verseRow:global(.ant-form-item) {
+  :global(.ant-form-item-row) { align-items: center; justify-content: space-between; flex-wrap: nowrap; }
+  :global(.ant-form-item-label) { padding-bottom: 0; }
+  :global(.ant-form-item-control) { flex: 0 1 185px; }
+  :global(.ant-form-item-label) > label { font-size: 0.8125rem; }
+}
+.modeRow { display: flex; align-items: center; justify-content: space-between; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; font-size: 0.8125rem; }
+.context, .hint { margin: 6px 0 10px; font-size: 0.75rem; line-height: 1.6; overflow-wrap: anywhere; }
+.context { color: var(--ant-color-text, #262626); }
+.hint, .modeRow > span { color: var(--ant-color-text-secondary, #595959); }
+.error { margin: 4px 0 10px; color: var(--ant-color-error-text, #a8071a); font-size: 0.8125rem; line-height: 1.5; }
+.disclosure {
+  margin-block: 0;
+  border-top: 1px solid var(--ant-color-border-secondary, #eee);
+
+  > summary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 39px;
+    cursor: pointer;
+    list-style: none;
+    white-space: nowrap;
+    font-size: 12px;
+    font-weight: 600;
+
+    &::-webkit-details-marker { display: none; }
+    &::after { content: "›"; margin-left: auto; color: var(--ant-color-text-secondary, #595959); font-size: 16px; }
+  }
+  &[open] > summary::after { transform: rotate(90deg); }
+  > summary > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--ant-color-text-secondary, #595959); font-size: 11px; font-weight: 400; }
+}
+.overwrite { margin-block: 10px; }
+.tableScroll {
+  max-width: 100%;
+  overflow-x: auto;
+
+  table { width: 100%; margin-top: 8px; font-size: 0.75rem; border-collapse: collapse; }
+  th, td { padding: 6px; border-bottom: 1px solid var(--ant-color-border-secondary, #eee); text-align: left; }
+  :global(.ant-btn) { white-space: normal; height: auto; text-align: left; }
+}
+
+.lyricModeSwitch { margin-bottom: 8px; }
+
+.compactSummary { margin: 0; color: var(--muted); font-size: 12px; }
+
+.sequencePreview {
+  overflow: auto;
+  table {
+    min-width: 320px;
+    width: 100%;
+    border-collapse: collapse;
+  }
+  th,
+  td {
+    padding: 6px;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+    overflow-wrap: anywhere;
+  }
+  tr[aria-selected="true"] {
+    background: var(--accent-soft);
+  }
+  small {
+    display: block;
+    font-size: 11px;
+    color: var(--muted);
+  }
+}

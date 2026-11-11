@@ -4,10 +4,10 @@ import EXAMPLE_MVP_2 from "../../example/example-mvp2.json";
 import {
   applyScoreCommand,
   LXMScoreCommandEnum,
-} from "../../src/core/commands";
-import { findNextNoteOnSameStringInTrack } from "../../src/core/technique-rules";
-import { LXMDocumentSchema } from "../../src/core/schema";
-import { validateDocumentSemantics } from "../../src/core/semantic-validation";
+} from "../../src/core/commands/commands";
+import { findNextNoteOnSameStringInTrack } from "../../src/core/techniques/technique-rules";
+import { LXMDocumentSchema } from "../../src/core/document/schema";
+import { validateDocumentSemantics } from "../../src/core/document/semantic-validation";
 import type { ILXMTechniqueDraft } from "../../src/core/types";
 
 const createDocument = () => structuredClone(EXAMPLE_MVP_2);

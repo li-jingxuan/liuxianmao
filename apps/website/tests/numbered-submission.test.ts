@@ -8,12 +8,12 @@ import {
   type ILXMNumberedVoiceCommand,
 } from "@liuxianmao/lxm-editor";
 import { createEditorSession } from "../stores/editor-store";
-import { createNumberedSubmission } from "../components/EditorShell/numbered-submission";
+import { createNumberedSubmission } from "../components/EditorShell/numbered/numbered-submission";
 import {
   createEditorDraftCoordinator,
   type EditorDraftRecord,
-} from "../components/EditorShell/editor-draft-coordinator";
-import { captureEditorVersion } from "../components/EditorShell/editor-session-version";
+} from "../components/EditorShell/session/editor-draft-coordinator";
+import { captureEditorVersion } from "../components/EditorShell/session/editor-session-version";
 
 const setup = (prepare?: (document: ILXMDocument) => void) => {
   const document = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);

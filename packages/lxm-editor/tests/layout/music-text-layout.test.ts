@@ -11,10 +11,10 @@ import {
   type ILXMMusicTextMetrics,
   type ILXMSystemLayout,
 } from "../../src";
-import { getMeasureContentBottom } from "../../src/layout/rhythm-bounds";
-import { getFretTextBounds } from "../../src/layout/technique-geometry";
-import { scaleChordDiagram } from "../../src/layout/chord-diagram-layout";
-import { musicTextInkBounds } from "../../src/layout/music-text-metrics";
+import { getMeasureContentBottom } from "../../src/layout/rhythm/rhythm-bounds";
+import { getFretTextBounds } from "../../src/layout/techniques/technique-geometry";
+import { scaleChordDiagram } from "../../src/layout/music-text/chord-diagram-layout";
+import { musicTextInkBounds } from "../../src/layout/music-text/music-text-metrics";
 /** 单次快照固定度量，测试不依赖浏览器字体或机器环境。 */
 const metrics = (): ILXMMusicTextMetrics =>
   Object.fromEntries(

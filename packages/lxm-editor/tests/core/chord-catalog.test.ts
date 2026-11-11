@@ -7,8 +7,8 @@ import {
   parseChordCatalog,
   parseChordCatalogName,
   queryChordCatalog,
-} from "../../src/core/chord-catalog";
-import { validateChordDiagram } from "../../src/core/chord-diagram";
+} from "../../src/core/chords/chord-catalog";
+import { validateChordDiagram } from "../../src/core/chords/chord-diagram";
 
 const dataUrl = new URL(
   "../../../../apps/website/public/assets/chords/catalog-2026.11.11.1.json",

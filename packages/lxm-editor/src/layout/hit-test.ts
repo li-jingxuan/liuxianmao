@@ -4,9 +4,9 @@
  * 命中计算只依赖 layout 产物，避免页面根据数组下标或 CSS 尺寸重新猜测业务位置。
  */
 
-import { getBeatCellBounds } from "./beat-cell-bounds";
+import { getBeatCellBounds } from "./rhythm/beat-cell-bounds";
 import { LXM_STRING_HIT_RADIUS_Y, LXM_TECHNIQUE_TEXT_HALO_WIDTH } from "./layout-constants";
-import { getTechniqueInkBounds, getTextBounds } from "./technique-geometry";
+import { getTechniqueInkBounds, getTextBounds } from "./techniques/technique-geometry";
 import type {
   ILXMHitIndex,
   ILXMHitTarget,

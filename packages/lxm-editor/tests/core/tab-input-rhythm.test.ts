@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { applyScoreCommand, LXMScoreCommandEnum as C } from "../../src/core/commands";
+import { applyScoreCommand, LXMScoreCommandEnum as C } from "../../src/core/commands/commands";
 import DEFAULT_MOCK_DOCUMENT from "../../example/default-score";
 import type { ILXMDocument, ILXMRhythm, ILXMScoreCommand } from "../../src/index";
-import { tabInputRhythmFromNumbered } from "../../src/core/tab-input-rhythm";
+import { tabInputRhythmFromNumbered } from "../../src/core/rhythm/tab-input-rhythm";
 import { buildLayout, hitTestLayout } from "../../src/layout";
 
 export const numberedFirstDocument = (): ILXMDocument => {

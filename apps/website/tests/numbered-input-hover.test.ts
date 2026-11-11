@@ -10,16 +10,16 @@ import {
 import {
   resolveMusicTextHoverTarget,
   sameMusicTextTarget,
-} from "../components/EditorShell/music-text-hover";
-import { resolveScorePointerAction } from "../components/EditorShell/editor-object-selection";
-import { resolveParagraphFocus } from "../components/EditorShell/music-text-focus";
+} from "../components/EditorShell/music-text/music-text-hover";
+import { resolveScorePointerAction } from "../components/EditorShell/session/editor-object-selection";
+import { resolveParagraphFocus } from "../components/EditorShell/score/music-text-focus";
 import {
   resolveNumberedEditorTarget,
   numberedTargetWindow,
-} from "../components/EditorShell/numbered-editor-target";
-import { MusicTextEditingHints } from "../components/EditorShell/MusicTextEditingHints";
+} from "../components/EditorShell/numbered/numbered-editor-target";
+import { MusicTextEditingHints } from "../components/EditorShell/score/MusicTextEditingHints";
 import { createEditorSession } from "../stores/editor-store";
-import { createMusicTextMetricReader } from "../components/EditorShell/music-text-metric-reader";
+import { createMusicTextMetricReader } from "../components/EditorShell/score/music-text-metric-reader";
 
 describe("简谱空位与 hover 接入", () => {
   it.each([

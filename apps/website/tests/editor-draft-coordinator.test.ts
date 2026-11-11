@@ -9,8 +9,8 @@ import {
   createEditorDraftOwner,
   type EditorDraftRecord,
   type EditorDraftApplyResult,
-} from "../components/EditorShell/editor-draft-coordinator";
-import { captureEditorVersion } from "../components/EditorShell/editor-session-version";
+} from "../components/EditorShell/session/editor-draft-coordinator";
+import { captureEditorVersion } from "../components/EditorShell/session/editor-session-version";
 
 const setup = () => {
   const session = createEditorSession(EXAMPLE_MVP_7_2_DOCUMENT);

@@ -10,10 +10,10 @@ import {
   musicTextDraftValue,
   resolveSidebarRequest,
   type SidebarAction,
-} from "../components/EditorShell/music-text-draft";
+} from "../components/EditorShell/music-text/music-text-draft";
 import {
   resolveParagraphInsertionTarget,
-} from "../components/EditorShell/music-text-target";
+} from "../components/EditorShell/music-text/music-text-target";
 
 const fixture = () => {
   const document = structuredClone(EXAMPLE_MVP_6_DOCUMENT);

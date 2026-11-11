@@ -4,8 +4,8 @@ import {
   copyChordPreset,
   EXAMPLE_MVP_6_DOCUMENT,
 } from "../../src";
-import { summarizeMeasureSpacingWidth } from "../../src/layout/measure-spacing";
-import { createChordBlock } from "../../src/layout/music-text-layout";
+import { summarizeMeasureSpacingWidth } from "../../src/layout/structure/measure-spacing";
+import { createChordBlock } from "../../src/layout/music-text/music-text-layout";
 
 /** 复用有效节奏数据，只移除其它文本和技巧，隔离和弦的横向贡献。 */
 const fixture = () => {

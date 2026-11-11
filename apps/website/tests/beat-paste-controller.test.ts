@@ -7,10 +7,10 @@ import {
   LXMScoreCommandEnum as C,
 } from "@liuxianmao/lxm-editor";
 import { createEditorSession } from "../stores/editor-store";
-import { createEditorDraftCoordinator } from "../components/EditorShell/editor-draft-coordinator";
-import { createEditorModalController } from "../components/EditorShell/editor-modal-controller";
-import { createEditorCommandAdapter } from "../components/EditorShell/editor-command-adapter";
-import { createBeatPasteController } from "../components/EditorShell/beat-paste-controller";
+import { createEditorDraftCoordinator } from "../components/EditorShell/session/editor-draft-coordinator";
+import { createEditorModalController } from "../components/EditorShell/session/editor-modal-controller";
+import { createEditorCommandAdapter } from "../components/EditorShell/session/editor-command-adapter";
+import { createBeatPasteController } from "../components/EditorShell/tools/beat-paste-controller";
 
 /** 使用真实 store/核心规划验证历史、版本与影响确认，而非只断言组件 state。 */
 const setup = (marked = false) => {
@@ -77,6 +77,15 @@ const setup = (marked = false) => {
   });
   const release = controller.start();
   const unsubscribe = session.subscribe(modals.invalidate);
+  // 显式模拟宿主的 afterClose；不要在 close 时自动跳过退出动画。
+  const afterClose = () => {
+    const closing = modals.getSnapshot()!;
+    expect(closing).toMatchObject({ closing: true, busy: false });
+    expect(modals.isOpen()).toBe(true);
+    modals.restoreFocus(closing.id);
+    expect(modals.getSnapshot()).toBeNull();
+    expect(modals.isOpen()).toBe(false);
+  };
   const dispose = () => {
     release();
     unsubscribe();
@@ -89,6 +98,7 @@ const setup = (marked = false) => {
     controller,
     execute,
     restore,
+    afterClose,
     dispose,
     block: (value: string | null) => {
       blocked = value;
@@ -128,8 +138,13 @@ describe("稳定拍点粘贴预览", () => {
     expect(s.drafts.inspect().pending).toHaveLength(1);
     release();
     expect(s.drafts.inspect().pending).toHaveLength(0);
-    expect(s.modals.isOpen()).toBe(false);
     const nextRelease = s.controller.start();
+    expect(
+      await s.controller.request({ type: "prepare", mode: "overwrite" }),
+    ).toBe(false);
+    expect(s.controller.getSnapshot().candidate).toBeNull();
+    expect(s.drafts.inspect().pending).toHaveLength(0);
+    s.afterClose();
     await s.controller.request({ type: "prepare", mode: "overwrite" });
     expect(s.drafts.inspect().pending).toHaveLength(1);
     nextRelease();
@@ -183,6 +198,7 @@ describe("稳定拍点粘贴预览", () => {
     expect(await s.controller.request({ type: "apply" })).toBe(false);
     expect(await result).toBe(true);
     expect(s.execute).toHaveBeenCalledTimes(1);
+    s.afterClose();
     expect(s.modals.isOpen()).toBe(false);
     expect(s.drafts.isOutputBlocked()).toBe(false);
     expect(s.controller.getSnapshot().notice).toContain("已粘贴");
@@ -323,6 +339,11 @@ describe("稳定拍点粘贴预览", () => {
     ).toBe(false);
     expect(s.drafts.isOutputBlocked()).toBe(false);
     s.modals.close(id, "cancel");
+    expect(
+      await s.controller.request({ type: "prepare", mode: "overwrite" }),
+    ).toBe(false);
+    expect(s.controller.getSnapshot().candidate).toBeNull();
+    s.afterClose();
     s.block("简谱正在编辑");
     expect(
       await s.controller.request({ type: "prepare", mode: "overwrite" }),
@@ -361,6 +382,7 @@ describe("稳定拍点粘贴预览", () => {
     s.block("当前激活独立简谱");
     expect(s.controller.getSnapshot().candidate).toBeNull();
     expect(s.drafts.isOutputBlocked()).toBe(false);
+    s.afterClose();
     expect(s.modals.isOpen()).toBe(false);
     expect(s.session.getState().historyDepth.past).toBe(0);
     s.dispose();
@@ -379,12 +401,19 @@ describe("稳定拍点粘贴预览", () => {
     );
     const old = s.controller.request({ type: "apply" });
     s.dispose();
+    s.afterClose();
     const release = s.controller.start();
-    await s.controller.request({ type: "prepare", mode: "overwrite" });
+    expect(
+      await s.controller.request({ type: "prepare", mode: "overwrite" }),
+    ).toBe(true);
     const candidate = s.controller.getSnapshot().candidate;
+    expect(candidate).not.toBeNull();
+    const newModal = s.modals.getSnapshot();
+    expect(s.drafts.inspect().pending).toHaveLength(1);
     finish({ status: "blocked", message: "迟到错误" });
     expect(await old).toBe(false);
     expect(s.controller.getSnapshot().candidate).toBe(candidate);
+    expect(s.modals.getSnapshot()).toBe(newModal);
     expect(s.drafts.inspect().pending).toHaveLength(1);
     expect(s.controller.getSnapshot().error).toBeNull();
     release();
@@ -416,6 +445,8 @@ describe("稳定拍点粘贴预览", () => {
     expect(s.session.getState().document).toBe(original);
     s.modals.close(firstId, "cancel");
     expect(await cancelled).toMatchObject({ status: "cancelled" });
+    expect(await execute(command)).toMatchObject({ status: "blocked" });
+    s.afterClose();
     const stale = execute(command);
     s.session
       .getState()
@@ -424,6 +455,7 @@ describe("稳定拍点粘贴预览", () => {
       );
     expect(await stale).toMatchObject({ status: "stale" });
     expect(s.session.getState().historyDepth.past).toBe(0);
+    s.afterClose();
     s.session
       .getState()
       .setSelection(createCollapsedTabCellSelection(s.target));

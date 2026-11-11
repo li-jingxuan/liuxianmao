@@ -12,7 +12,7 @@ import {
   LXM_SYSTEM_HEADER_WIDTH,
   LXM_TIME_SIGNATURE_WIDTH,
 } from "../../src/layout/layout-constants";
-import { summarizeMeasureSpacingWidth } from "../../src/layout/measure-spacing";
+import { summarizeMeasureSpacingWidth } from "../../src/layout/structure/measure-spacing";
 
 /** 孤立一小节，避免歌词和指法图成为宽度主导，专门检查简谱几何。 */
 const fixture = () => {

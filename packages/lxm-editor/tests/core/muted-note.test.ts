@@ -4,13 +4,13 @@ import muted from "../../example/example-muted-note";
 import {
   applyScoreCommand,
   LXMScoreCommandEnum,
-} from "../../src/core/commands";
-import { loadDocument } from "../../src/core/loader";
-import { LXMDocumentSchema } from "../../src/core/schema";
+} from "../../src/core/commands/commands";
+import { loadDocument } from "../../src/core/document/loader";
+import { LXMDocumentSchema } from "../../src/core/document/schema";
 import {
   findNextNoteOnSameStringInTrack,
   validateTechnique,
-} from "../../src/core/technique-rules";
+} from "../../src/core/techniques/technique-rules";
 import type { ILXMFret, ILXMTechniqueDraft } from "../../src/core/types";
 
 const command = {

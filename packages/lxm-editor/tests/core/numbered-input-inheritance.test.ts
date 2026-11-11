@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { EXAMPLE_MVP_7_2_DOCUMENT } from "../../src";
-import { planNumberedInputRanges } from "../../src/core/numbered-input-ranges";
+import { planNumberedInputRanges } from "../../src/core/numbered/numbered-input-ranges";
 
 const fixture = () => {
   const measure = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT.score.tracks[0]!.measures[0]!);

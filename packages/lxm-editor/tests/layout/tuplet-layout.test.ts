@@ -1,18 +1,18 @@
 import { describe, it, expect } from "vitest";
 import { buildLayout } from "../../src/layout";
-import { buildRhythmicColumns } from "../../src/layout/measure-spacing";
-import { layoutMeasure } from "../../src/layout/measure-layout";
+import { buildRhythmicColumns } from "../../src/layout/structure/measure-spacing";
+import { layoutMeasure } from "../../src/layout/structure/measure-layout";
 import {
   applyScoreCommand,
   LXMScoreCommandEnum as Command,
-} from "../../src/core/commands";
+} from "../../src/core/commands/commands";
 import example from "../../example/example-mvp5.1.json";
 import v5 from "../../example/example-mvp5.json";
 import v6 from "../../example/example-mvp6.json";
-import { alignSystemTuplets } from "../../src/layout/tuplet-layout";
-import { getTextBounds } from "../../src/layout/technique-geometry";
-import { MUSIC_TEXT_LANE_GAP } from "../../src/layout/music-text-metrics";
-import { getDurationFlagBottom } from "../../src/layout/rhythm-bounds";
+import { alignSystemTuplets } from "../../src/layout/rhythm/tuplet-layout";
+import { getTextBounds } from "../../src/layout/techniques/technique-geometry";
+import { MUSIC_TEXT_LANE_GAP } from "../../src/layout/music-text/music-text-metrics";
+import { getDurationFlagBottom } from "../../src/layout/rhythm/rhythm-bounds";
 const measures = example.score.tracks[0]!.measures;
 
 describe("连音布局的最终几何", () => {

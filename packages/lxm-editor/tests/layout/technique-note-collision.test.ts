@@ -3,13 +3,13 @@ import source from "../../example/example-mvp2.json";
 import {
   applyScoreCommand,
   LXMScoreCommandEnum,
-} from "../../src/core/commands";
+} from "../../src/core/commands/commands";
 import { buildLayout, hitTestTechnique } from "../../src/layout";
 import {
   boundsIntersect,
   getFretTextBounds,
   getTechniqueInkBounds,
-} from "../../src/layout/technique-geometry";
+} from "../../src/layout/techniques/technique-geometry";
 import type { ILXMTechniqueSegmentLayout } from "../../src/layout/layout-types";
 
 /** 用户谱例：第 2 拍的两颗八分音符同时包含第一弦 0→1 和第四弦 1→2。 */

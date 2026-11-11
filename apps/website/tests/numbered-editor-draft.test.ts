@@ -7,7 +7,7 @@ import {
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { EXAMPLE_MVP_7_2_DOCUMENT } from "@liuxianmao/lxm-editor";
-import { NumberedEditor } from "../components/EditorShell/NumberedEditor";
+import { NumberedEditor } from "../components/EditorShell/numbered/NumberedEditor";
 import { createEditorSession } from "../stores/editor-store";
 import { EditorStoreContext } from "../stores/editor-context";
 

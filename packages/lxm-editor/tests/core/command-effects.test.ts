@@ -1,11 +1,55 @@
 import { describe, expect, it } from "vitest";
 import example from "../../example/example-mvp2.json";
+import { collectCommandEffects } from "../../src/core/commands/command-effects";
 import {
   applyScoreCommand,
   LXMScoreCommandEnum,
-} from "../../src/core/commands";
+} from "../../src/core/commands/commands";
 
 describe("结构化编辑影响", () => {
+  it("按编辑前顺序报告重排小节中的变化，并忽略共享轨道", () => {
+    const before = structuredClone(example);
+    const track = before.score.tracks[0]!;
+    const measures = track.measures.slice(0, 2);
+    const after = {
+      ...before,
+      score: {
+        ...before.score,
+        tracks: [
+          {
+            ...track,
+            measures: [...measures].reverse().map((measure) => ({
+              ...measure,
+              beats: measure.beats.map((beat) => ({
+                ...beat,
+                tick: beat.tick + 1,
+              })),
+            })),
+          },
+        ],
+      },
+    };
+    const command = {
+      type: LXMScoreCommandEnum.RemoveMeasure,
+      trackId: track.id,
+      measureId: "unused",
+    } as const;
+    expect(collectCommandEffects(before, before, command)).toEqual([]);
+    expect(collectCommandEffects(before, after, command)).toEqual(
+      measures.flatMap((measure, measureIndex) =>
+        measure.beats.map((beat, beatIndex) => ({
+          kind: "beat.retimed",
+          trackId: track.id,
+          measureId: measure.id,
+          measureNumber: measureIndex + 1,
+          beatId: beat.id,
+          beatNumber: beatIndex + 1,
+          beforeTick: beat.tick,
+          afterTick: beat.tick + 1,
+        })),
+      ),
+    );
+  });
   it("只报告后续压缩，并附带起点重排；不把主动目标时值当成副作用", () => {
     const document = structuredClone(example);
     const track = document.score.tracks[0]!;

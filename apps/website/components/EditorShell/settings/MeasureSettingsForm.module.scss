@@ -1,0 +1,25 @@
+.settingsForms {
+  display: grid;
+  gap: 24px;
+  > form {
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  h3 {
+    margin: 0 0 16px;
+    font-size: 15px;
+    font-weight: 500;
+  }
+  :global(.ant-alert) {
+    margin-block: 10px;
+  }
+}
+
+.settingsActions {
+  position: sticky;
+  bottom: -18px;
+  z-index: 1;
+  padding: 12px 0 18px;
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+}

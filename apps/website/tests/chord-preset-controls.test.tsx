@@ -6,7 +6,7 @@ import {
 } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Button, Dropdown, Input } from "antd";
-import { ChordPresetControls } from "../components/EditorShell/ChordPresetControls";
+import { ChordPresetControls } from "../components/EditorShell/chords/ChordPresetControls";
 
 const harness = vi.hoisted(() => ({
   effects: [] as (() => void | (() => void))[],
@@ -31,7 +31,7 @@ vi.mock("react", async (original) => ({
   useSyncExternalStore: (_subscribe: unknown, snapshot: () => unknown) =>
     snapshot(),
 }));
-vi.mock("../components/EditorShell/chord-catalog-resource", () => ({
+vi.mock("../components/EditorShell/chords/chord-catalog-resource", () => ({
   chordCatalogResource: {
     subscribe: vi.fn(),
     getSnapshot: () => ({ status: "ready", catalog: null, error: null }),

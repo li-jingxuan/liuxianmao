@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
 import example from "../../example/example-mvp7.2";
-import { applyScoreCommand, LXMScoreCommandEnum as C } from "../../src/core/commands";
-import { loadDocument } from "../../src/core/loader";
+import { applyScoreCommand, LXMScoreCommandEnum as C } from "../../src/core/commands/commands";
+import { loadDocument } from "../../src/core/document/loader";
 import {
   SCORE_TONALITY_NAMESPACE as NS,
   keySignatureForTonality,
   readScoreTonality,
   semanticJsonEqual,
   type ScoreTonalityV1,
-} from "../../src/core/score-tonality";
+} from "../../src/core/document/score-tonality";
 import type { ILXMKeySignature } from "../../src/core/types";
 
 const create = (raw?: unknown, key: ILXMKeySignature | null = "C") => {

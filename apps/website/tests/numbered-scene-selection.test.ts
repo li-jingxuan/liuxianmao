@@ -6,8 +6,8 @@ import {
   EXAMPLE_MVP_7_2_DOCUMENT,
   type ILXMNumberedEvent,
 } from "@liuxianmao/lxm-editor";
-import { buildScoreScene } from "../components/EditorShell/score-scene";
-import { ScoreMusicLayer } from "../components/EditorShell/ScoreMusicLayer";
+import { buildScoreScene } from "@liuxianmao/lxm-editor";
+import { ScoreMusicLayer } from "../components/EditorShell/score/ScoreMusicLayer";
 
 const fixture = (withTabBeams = false) => {
   const document = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);

@@ -15,7 +15,7 @@ const websiteRequire = createRequire(path.join(repo, 'apps/website/package.json'
 const sass = websiteRequire('sass');
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || '/Users/nice02/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
 (async () => {
-  const css = sass.compile(path.join(repo, 'apps/website/components/EditorShell/ChordDiagramEditorModal.module.scss')).css;
+  const css = sass.compile(path.join(repo, 'apps/website/components/EditorShell/chords/ChordDiagramEditorModal.module.scss')).css;
   const result = await build({ entryPoints: [path.join(__dirname, 'chord-diagram-editor.browser.tsx')], bundle: true, write: false, platform: 'browser', format: 'iife', jsx: 'automatic', loader: { '.scss': 'empty' }, define: { 'process.env.NODE_ENV': '"development"' }, plugins: [{ name: 'actual-editor-styles', setup(build) { build.onLoad({ filter: /ChordDiagramEditorModal\.module\.scss$/ }, () => { const names = [...new Set([...css.matchAll(/\.([a-zA-Z][\w-]*)/g)].map((m) => m[1]))]; return { loader: 'js', contents: `const sheet=document.createElement('style');sheet.textContent=${JSON.stringify(css)};document.head.append(sheet);export default ${JSON.stringify(Object.fromEntries(names.map((name) => [name, name])))};` }; }); } }] });
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
   const page = await browser.newPage({ viewport: { width: 1000, height: 650 } });

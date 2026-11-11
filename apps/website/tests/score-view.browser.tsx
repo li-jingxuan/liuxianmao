@@ -1,9 +1,12 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { A4_CONTENT_WIDTH } from "@liuxianmao/lxm-editor";
-import { useScoreView } from "../components/EditorShell/use-score-view";
+import { useScoreView } from "../components/EditorShell/score/use-score-view";
 import styles from "../components/EditorShell/index.module.scss";
-import printStyles from "../components/EditorShell/score-print.module.scss";
+import editorHeaderStyles from "../components/EditorShell/workspace/EditorHeader.module.scss";
+import musicTextSidebarStyles from "../components/EditorShell/music-text/MusicTextSidebar.module.scss";
+import scoreInteractionStyles from "../components/EditorShell/score/score-interaction.module.scss";
+import printStyles from "../components/EditorShell/output/score-print.module.scss";
 import "../app/globals.scss";
 
 function Fixture() {
@@ -29,23 +32,26 @@ function Fixture() {
       status: () => ({ ...view.geometry, mode: view.mode, changes: changes.current }),
     } });
   }, [view]);
-  return <div className={styles.editor} data-layout={layout} style={{ width: hostWidth, height: 650, "--sidebar-width": "352px" } as React.CSSProperties}>
-    <header className={styles.editorHeader}>header</header>
+  return <div className={styles.editor} data-editor-shell data-layout={layout} style={{ width: hostWidth, height: 650, "--sidebar-width": "352px" } as React.CSSProperties}>
+    <header className={editorHeaderStyles.editorHeader}>
+      header
+      {/* 测试控件与生产工具栏一样放在工作区外，避免成为额外网格项。 */}
+      <div><button onClick={() => view.setMode("fit")}>fit</button><button onClick={() => view.setMode("actual")}>actual</button></div>
+    </header>
     <section className={styles.editorWorkspace} data-layout={layout} data-history-open={history} data-sidebar-collapsed={!sidebar}>
       <nav data-history-rail>rail</nav>
       <aside data-history-panel>history</aside>
-      <div ref={viewport} className={styles.pageViewport} data-viewport>
-        <div className={styles.scoreStage} style={view.stageStyle} data-stage>
-          <main className={styles.paper} style={view.paperStyle} data-paper>
-            <svg viewBox={`0 0 ${A4_CONTENT_WIDTH * (wideScore ? 2 : 1)} 5000`} className={styles.scoreSvg} style={view.svgStyle}>
+      <div ref={viewport} className={scoreInteractionStyles.pageViewport} data-score-viewport data-viewport>
+        <div className={scoreInteractionStyles.scoreStage} style={view.stageStyle} data-stage>
+          <main className={scoreInteractionStyles.paper} style={view.paperStyle} data-paper>
+            <svg viewBox={`0 0 ${A4_CONTENT_WIDTH * (wideScore ? 2 : 1)} 5000`} className={scoreInteractionStyles.scoreSvg} style={view.svgStyle}>
               <rect width="100%" height="100%" fill="white" />
               <path d="M0 100H500M0 1000H500M0 2000H500M0 3000H500" stroke="black" />
             </svg>
           </main>
         </div>
       </div>
-      <div className={styles.scoreViewControls}><button onClick={() => view.setMode("fit")}>fit</button><button onClick={() => view.setMode("actual")}>actual</button></div>
-      <aside className={styles.musicTextSidebar} hidden={!sidebar}>sidebar</aside>
+      <aside className={musicTextSidebarStyles.musicTextSidebar} data-music-text-sidebar hidden={!sidebar}>sidebar</aside>
     </section>
     <div data-score-print-layer className={printStyles.printLayer}><div className={printStyles.page}>presentation</div></div>
   </div>;

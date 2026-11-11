@@ -14,7 +14,7 @@ import type {
   ILXMMeasureLayout,
   ILXMStringLineLayout,
 } from "./layout-types";
-import { getBeatCellBounds } from "./beat-cell-bounds";
+import { getBeatCellBounds } from "./rhythm/beat-cell-bounds";
 import {
   LXM_TAB_FOCUS_CARET_HEIGHT,
   LXM_TAB_FOCUS_CARET_WIDTH,

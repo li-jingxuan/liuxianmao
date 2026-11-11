@@ -4,7 +4,7 @@ import type { ILXMMeasure } from "../../src/core/types";
 import {
   layoutMeasureSpacing,
   summarizeMeasureSpacingWidth,
-} from "../../src/layout/measure-spacing";
+} from "../../src/layout/structure/measure-spacing";
 import { LXM_MEASURE_PADDING_X } from "../../src/layout/layout-constants";
 
 const createBeat = (

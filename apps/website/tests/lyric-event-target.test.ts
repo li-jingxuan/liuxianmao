@@ -2,18 +2,18 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { buildLayout, EXAMPLE_MVP_6_DOCUMENT } from "@liuxianmao/lxm-editor";
-import { resolveNextLyricTarget } from "../components/EditorShell/music-text-target";
+import { resolveNextLyricTarget } from "../components/EditorShell/music-text/music-text-target";
 import {
   resolveLyricFocus,
   resolveParagraphFocus,
-} from "../components/EditorShell/music-text-focus";
+} from "../components/EditorShell/score/music-text-focus";
 import {
   resolveMusicTextHoverTarget,
   sameMusicTextTarget,
-} from "../components/EditorShell/music-text-hover";
-import { resolveScorePointerAction } from "../components/EditorShell/editor-object-selection";
-import { MusicTextEditingHints } from "../components/EditorShell/MusicTextEditingHints";
-import { buildScoreScene } from "../components/EditorShell/score-scene";
+} from "../components/EditorShell/music-text/music-text-hover";
+import { resolveScorePointerAction } from "../components/EditorShell/session/editor-object-selection";
+import { MusicTextEditingHints } from "../components/EditorShell/score/MusicTextEditingHints";
+import { buildScoreScene } from "@liuxianmao/lxm-editor";
 
 const fixture = () => {
   const document = structuredClone(EXAMPLE_MVP_6_DOCUMENT);

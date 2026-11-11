@@ -5,13 +5,13 @@ import {
   getFirstTabCellReference,
   LXMScoreCommandEnum as C,
 } from "@liuxianmao/lxm-editor";
-import { buildEditorToolCommand } from "../components/EditorShell/editor-tool-actions";
+import { buildEditorToolCommand } from "../components/EditorShell/tools/editor-tool-actions";
 import { createEditorSession } from "../stores/editor-store";
 import {
   TECHNIQUE_OPTIONS,
   TECHNIQUE_GROUPS,
-} from "../components/EditorShell/technique-catalog";
-import { createTechniqueTypeController } from "../components/EditorShell/technique-type-controller";
+} from "../components/EditorShell/tools/technique-catalog";
+import { createTechniqueTypeController } from "../components/EditorShell/tools/technique-type-controller";
 
 /** 验证入口翻译实际影响的谱层、目标和历史边界，不复制核心音乐算法。 */
 describe("工具动作与目录", () => {

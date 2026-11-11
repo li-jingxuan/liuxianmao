@@ -5,7 +5,7 @@ import {
   createCollapsedTabCellSelection,
   getFirstTabCellReference,
 } from "@liuxianmao/lxm-editor";
-import { deriveEditorToolState } from "../components/EditorShell/editor-tool-state";
+import { deriveEditorToolState } from "../components/EditorShell/tools/editor-tool-state";
 import { createEditorSession } from "../stores/editor-store";
 
 describe("编辑工具入口条件", () => {

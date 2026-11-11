@@ -68,9 +68,9 @@ button {
     background: #fff;
   }
 
-  // Only the independent presentation layer and its ancestors may print.
-  // This also removes body portals (Ant Popover/Modal, native dialogs, tooltips).
-  body *:not([data-score-print-layer]):not([data-score-print-layer] *):not(:has([data-score-print-layer])) {
+  // 仅成品层及祖先进入打印；隐藏所有业务 Portal。
+  // 离屏且透明的临时度量 SVG 必须保留布局，否则打印期间字体事件会得到零尺寸。
+  body *:not([data-score-print-layer]):not([data-score-print-layer] *):not(:has([data-score-print-layer])):not([data-score-text-measure]):not([data-score-text-measure] *) {
     display: none !important;
   }
   [data-score-print-layer] {

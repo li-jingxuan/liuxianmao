@@ -5,11 +5,11 @@ import {
   EditorHistoryPanel,
   EditorHistoryRail,
   type EditorHistoryItem,
-} from "../components/EditorShell/EditorHistoryPanel";
+} from "../components/EditorShell/workspace/EditorHistoryPanel";
 import {
   EditorFeedback,
   type EditorFeedbackEvent,
-} from "../components/EditorShell/EditorFeedback";
+} from "../components/EditorShell/workspace/EditorFeedback";
 
 const effect: ILXMCommandEffect = {
   kind: "technique.removed",

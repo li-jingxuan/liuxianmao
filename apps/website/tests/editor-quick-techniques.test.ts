@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import { LXMScoreCommandEnum as C, type ILXMTabCellReference } from "@liuxianmao/lxm-editor";
 import EXAMPLE from "../../../packages/lxm-editor/example/example-mvp2.json";
 import { createEditorSession } from "../stores/editor-store";
-import { currentChordTechniqueDirection, resolveQuickTechnique, resolveTechniqueDraft } from "../components/EditorShell/editor-technique-target";
-import { buildEditorToolCommand } from "../components/EditorShell/editor-tool-actions";
-import { deriveEditorToolState } from "../components/EditorShell/editor-tool-state";
+import { currentChordTechniqueDirection, resolveQuickTechnique, resolveTechniqueDraft } from "../components/EditorShell/tools/editor-technique-target";
+import { buildEditorToolCommand } from "../components/EditorShell/tools/editor-tool-actions";
+import { deriveEditorToolState } from "../components/EditorShell/tools/editor-tool-state";
 
 const setup = () => {
   const session = createEditorSession(EXAMPLE);

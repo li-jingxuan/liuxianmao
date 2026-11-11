@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { ILXMMeasure } from "../../src/core/types";
-import { layoutMeasure } from "../../src/layout/measure-layout";
+import { layoutMeasure } from "../../src/layout/structure/measure-layout";
 
 const createMeasure = (): ILXMMeasure => ({
   id: "rest-layout-measure",

@@ -1,16 +1,15 @@
 "use client";
 import type { ILXMScoreCommand } from "@liuxianmao/lxm-editor";
 
-import { useEditorHostWidth } from "./use-editor-host-width";
-import { useWorkspaceOverlays } from "./use-workspace-overlays";
-import { useScoreView } from "./use-score-view";
-import { EditorHistoryPanel, EditorHistoryRail } from "./EditorHistoryPanel";
-import { EditorFeedback } from "./EditorFeedback";
+import { useEditorHostWidth } from "./workspace/use-editor-host-width";
+import { useWorkspaceOverlays } from "./workspace/use-workspace-overlays";
+import { useScoreView } from "./score/use-score-view";
+import { EditorHistoryPanel, EditorHistoryRail } from "./workspace/EditorHistoryPanel";
+import { EditorFeedback } from "./workspace/EditorFeedback";
 
 import {
   buildLayout,
   A4_CONTENT_WIDTH,
-  collectMusicTextMeasureRequests,
   createCollapsedTabCellSelection,
   hitTestLayout,
   hitTestMusicText,
@@ -47,49 +46,52 @@ import {
   resolveMutedNoteShortcut,
   resolveTabContinuationShortcut,
   resolveEditorHistoryShortcut,
-} from "./editor-interaction";
-import { ScoreMusicLayer } from "./ScoreMusicLayer";
-import { buildScoreScene } from "./score-scene";
-import { OutputBlockedModal } from "./OutputBlockedModal";
-import { ImageExportModal } from "./ImageExportModal";
-import type { ImageExportSnapshot } from "./image-export-controller";
-import { ScorePrintLayer } from "./ScorePrintLayer";
-import { ScoreFileControls } from "./ScoreFileControls";
-import { MusicTextSidebar, type MusicTextController } from "./MusicTextSidebar";
-import { deriveSidebarContext, type SidebarLocation } from "./sidebar-context";
-import type { MusicTextTarget } from "./music-text-draft";
-import { resolveChordFocus, resolveParagraphFocus } from "./music-text-focus";
-import { MusicTextEditingHints } from "./MusicTextEditingHints";
-import { useMusicTextMetrics } from "./music-text-metrics";
-import { resolveScoreDeleteCommand, resolveScorePointerAction } from "./editor-object-selection";
+} from "./session/editor-interaction";
+import { ScoreMusicLayer } from "./score/ScoreMusicLayer";
+import { buildScoreScene } from "@liuxianmao/lxm-editor";
+import { OutputBlockedModal } from "./output/OutputBlockedModal";
+import { ImageExportModal } from "./output/ImageExportModal";
+import type { ImageExportSnapshot } from "./output/image-export-controller";
+import { ScorePrintLayer } from "./output/ScorePrintLayer";
+import { ScoreFileControls } from "./output/ScoreFileControls";
+import { MusicTextSidebar, type MusicTextController } from "./music-text/MusicTextSidebar";
+import { deriveSidebarContext, type SidebarLocation } from "./music-text/sidebar-context";
+import type { MusicTextTarget } from "./music-text/music-text-draft";
+import { resolveChordFocus, resolveParagraphFocus } from "./score/music-text-focus";
+import { MusicTextEditingHints } from "./score/MusicTextEditingHints";
+import { useMusicTextMetrics } from "./score/music-text-metrics";
+import { resolveScoreDeleteCommand, resolveScorePointerAction } from "./session/editor-object-selection";
 import {
   resolveMusicTextHoverTarget,
   sameMusicTextTarget,
-} from "./music-text-hover";
+} from "./music-text/music-text-hover";
+import editorHeaderStyles from "./workspace/EditorHeader.module.scss";
 import styles from "./index.module.scss";
+import editorFormStyles from "./shared/editor-form.module.scss";
+import scoreInteractionStyles from "./score/score-interaction.module.scss";
 import {
   useEditorDraftRecords,
   useEditorRuntime,
-} from "./EditorSessionRuntime";
+} from "./session/EditorSessionRuntime";
 import {
   captureEditorVersion,
   sameEditorSession,
   sameEditorVersion,
-} from "./editor-session-version";
-import { EditorStatusBar } from "./EditorStatusBar";
-import { EditorHeader } from "./EditorHeader";
-import { EditorToolbar, type EditorToolbarAction } from "./EditorToolbar";
+} from "./session/editor-session-version";
+import { EditorStatusBar } from "./workspace/EditorStatusBar";
+import { EditorHeader } from "./workspace/EditorHeader";
+import { EditorToolbar, type EditorToolbarAction } from "./workspace/EditorToolbar";
 import {
   createEditorCommandAdapter,
   type EditorCommandAdapter,
-} from "./editor-command-adapter";
-import { buildEditorToolCommand } from "./editor-tool-actions";
-import { resolveEditorRhythmTarget } from "./editor-rhythm-target";
+} from "./session/editor-command-adapter";
+import { buildEditorToolCommand } from "./tools/editor-tool-actions";
+import { resolveEditorRhythmTarget } from "./tools/editor-rhythm-target";
 import {
   captureEditorToolIntent,
   editorToolSubmissionReason,
   tabToolTargetReason,
-} from "./editor-tool-guard";
+} from "./tools/editor-tool-guard";
 
 /** 两位品位输入等待第二个数字的时间，超时后提交一位品位。 */
 const FRET_DRAFT_TIMEOUT_MS = 600;
@@ -462,7 +464,10 @@ export const EditorShell: React.FC = () => {
     setHoveredMusicText(null);
     setHoveredTabCell(null);
   }, []);
-  const musicTextMetrics = useMusicTextMetrics(document, showChordDiagrams);
+  const { metrics: musicTextMetrics, hasMissingMetrics } = useMusicTextMetrics(
+    document,
+    showChordDiagrams,
+  );
 
   /** 品位草稿是瞬时输入状态，不进入 document 或历史。 */
   const [fretDraft, setFretDraft] = useState("");
@@ -1286,7 +1291,7 @@ export const EditorShell: React.FC = () => {
           isBlocked={isOutputBlocked}
           onBlocked={() => { if (!modals.isOpen()) setOutputBlockedOpen(true); }}
         />
-        <p className={styles.errorMessage} role="alert">
+        <p className={editorFormStyles.errorMessage} role="alert">
           {errorMessage ?? "当前没有可编辑的乐谱文档。"}
         </p>
       </div>
@@ -1431,6 +1436,7 @@ export const EditorShell: React.FC = () => {
     <div
       ref={editorRootRef}
       className={styles.editor}
+      data-editor-shell
       data-layout={layoutMode}
       style={
         {
@@ -1446,7 +1452,7 @@ export const EditorShell: React.FC = () => {
         fileControls={
           <ScoreFileControls
             session={session}
-            className={styles.headerNativeAction}
+            className={editorHeaderStyles.headerNativeAction}
             feedbackContainer={fileFeedbackHost}
             isBlocked={isOutputBlocked}
             onBlocked={() => { if (!modals.isOpen()) setOutputBlockedOpen(true); }}
@@ -1507,16 +1513,13 @@ export const EditorShell: React.FC = () => {
             当前谱面超过 A4 内容宽度，可横向滚动；请调整内容后再导出 A4 图片。
           </p>
         )}
-        {musicTextMetrics &&
-          collectMusicTextMeasureRequests(document, showChordDiagrams).some(
-            (r) => !musicTextMetrics[r.key],
-          ) && (
-            <p role="status">
-              部分文字暂使用保守估算排版，真实字体边界尚未全部确认。
-            </p>
-          )}
+        {hasMissingMetrics && (
+          <p role="status">
+            部分文字暂使用保守估算排版，真实字体边界尚未全部确认。
+          </p>
+        )}
         {errorMessage && (
-          <p className={styles.errorMessage} role="alert">
+          <p className={editorFormStyles.errorMessage} role="alert">
             {errorMessage}
           </p>
         )}
@@ -1559,24 +1562,25 @@ export const EditorShell: React.FC = () => {
         )}
         <div
           ref={pageViewportRef}
-          className={styles.pageViewport}
+          className={scoreInteractionStyles.pageViewport}
+          data-score-viewport
           onPointerDown={handleWorkspacePointerDown}
           onScroll={clearHover}
         >
           <div
-            className={styles.scoreStage}
+            className={scoreInteractionStyles.scoreStage}
             style={scoreView.stageStyle}
             data-score-scale={scoreView.geometry.scale}
             data-score-view={scoreView.mode}
           >
             <main
-              className={styles.paper}
+              className={scoreInteractionStyles.paper}
               style={scoreView.paperStyle}
               aria-label="A4 乐谱页面"
             >
               <svg
                 ref={scoreSvgRef}
-                className={styles.scoreSvg}
+                className={scoreInteractionStyles.scoreSvg}
                 viewBox={`0 0 ${lxmLayout.width} ${lxmLayout.height}`}
                 style={scoreView.svgStyle}
                 width={lxmLayout.width}
@@ -1598,11 +1602,11 @@ export const EditorShell: React.FC = () => {
                   beatContext={numberedBeatContext?.bounds ?? null}
                 />
                 {/* 选区层位于音乐元素下方，且永不参与指针命中。 */}
-                <g className={styles.selectionLayer} pointerEvents="none">
+                <g className={scoreInteractionStyles.selectionLayer} pointerEvents="none">
                   {chordFocus && (
                     <rect
                       data-chord-focus
-                      className={styles.lyricFocus}
+                      className={scoreInteractionStyles.lyricFocus}
                       x={chordFocus.x}
                       y={chordFocus.y}
                       width={chordFocus.width}
@@ -1613,14 +1617,14 @@ export const EditorShell: React.FC = () => {
                   {inspectionRect && (
                     <rect
                       {...inspectionRect}
-                      className={styles.inspectionOutline}
+                      className={scoreInteractionStyles.inspectionOutline}
                       rx={3}
                     />
                   )}
                   {tabCellHoverCaret && (
                     <rect
                       data-tab-cell-hover={`${tabCellHoverCaret.measureId}/${tabCellHoverCaret.beatId}/${tabCellHoverCaret.string}`}
-                      className={styles.tabCellHover}
+                      className={scoreInteractionStyles.tabCellHover}
                       x={tabCellHoverCaret.x}
                       y={tabCellHoverCaret.y}
                       width={tabCellHoverCaret.width}
@@ -1631,7 +1635,7 @@ export const EditorShell: React.FC = () => {
                     selectionRects.map((rect) => (
                       <rect
                         key={`${rect.measureId}-${rect.beatIds.join("-")}`}
-                        className={styles.selectionRange}
+                        className={scoreInteractionStyles.selectionRange}
                         x={rect.x}
                         y={rect.y}
                         width={rect.width}
@@ -1643,8 +1647,8 @@ export const EditorShell: React.FC = () => {
                       ref={focusCaretRef}
                       className={
                         lyricEditing
-                          ? styles.emptyLyricCaret
-                          : styles.focusCaret
+                          ? scoreInteractionStyles.emptyLyricCaret
+                          : scoreInteractionStyles.focusCaret
                       }
                       x={focusCaret.x}
                       y={focusCaret.y}
@@ -1661,7 +1665,7 @@ export const EditorShell: React.FC = () => {
                         ? activeMusicTextTarget.eventId
                         : undefined
                     }
-                    className={styles.lyricFocus}
+                    className={scoreInteractionStyles.lyricFocus}
                     pointerEvents="none"
                     x={lyricFocus.x}
                     y={lyricFocus.y}

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   computeFloatingPanelGeometry as place,
   type FloatingAnchorRect,
-} from "../components/EditorShell/music-text-floating-position";
+} from "../components/EditorShell/music-text/music-text-floating-position";
 
 const viewport = { left: 20, top: 100, right: 1020, bottom: 800 };
 const panel = { width: 320, height: 180 };

@@ -11,7 +11,7 @@ import {
   type ChordPreferencesStorage,
   type ChordQuickReference,
   type CustomChordVoicing,
-} from "../components/EditorShell/chord-preferences";
+} from "../components/EditorShell/chords/chord-preferences";
 type ImportInput = { version: number; lastKey?: string; quickItems: ChordQuickReference[]; customVoicings: unknown[] };
 
 const custom = (n = 1): CustomChordVoicing => ({

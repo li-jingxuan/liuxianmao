@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createRoot } from "react-dom/client";
-import { ChordDiagramEditorModal } from "../components/EditorShell/ChordDiagramEditorModal";
-import type { ChordDraft } from "../components/EditorShell/ChordEditor";
+import { ChordDiagramEditorModal } from "../components/EditorShell/chords/ChordDiagramEditorModal";
+import type { ChordDraft } from "../components/EditorShell/chords/ChordEditor";
 
 const seed: ChordDraft = { display: "name", chord: { name: "C", diagram: { startFret: 1, fretCount: 5, strings: [1, 2, 3, 4, 5, 6].map((string) => ({ string: string as 1, fret: 0, finger: null })), barres: [] } } };
 const state = { completed: [] as ChordDraft[], saved: [] as ChordDraft[], cancelled: 0, backgroundKeys: 0, saveOk: true };

@@ -9,7 +9,7 @@ import {
   LXM_BARLINE_THICK_STROKE_WIDTH,
   LXM_BARLINE_THIN_STROKE_WIDTH,
 } from "../../src/layout/layout-constants";
-import { layoutBarline } from "../../src/layout/barline-layout";
+import { layoutBarline } from "../../src/layout/structure/barline-layout";
 import type { ILXMStringLineLayout } from "../../src/layout/layout-types";
 
 const createUnsortedStrings = (): ILXMStringLineLayout[] => [

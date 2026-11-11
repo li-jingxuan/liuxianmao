@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import EXAMPLE_MVP_4 from "../../example/example-mvp4.json";
 import { resolveTabCellSelection } from "../../src/editing/tab-cell-selection";
 import { buildLayout } from "../../src/layout";
-import { getBeatCellBounds } from "../../src/layout/beat-cell-bounds";
+import { getBeatCellBounds } from "../../src/layout/rhythm/beat-cell-bounds";
 import {
   LXM_TAB_FOCUS_CARET_HEIGHT,
   LXM_TAB_FOCUS_CARET_WIDTH,

@@ -5,7 +5,7 @@ import {
   resolveBeatKindShortcut,
   resolveEditorHistoryShortcut,
   resolveTabContinuationShortcut,
-} from "../components/EditorShell/editor-interaction";
+} from "../components/EditorShell/session/editor-interaction";
 
 describe("editor interaction", () => {
   afterEach(() => vi.useRealTimers());
@@ -104,7 +104,7 @@ describe("editor interaction", () => {
 describe("闷音快捷键", () => {
   it("仅非组合输入的 x/X 生效", async () => {
     const { resolveMutedNoteShortcut } =
-      await import("../components/EditorShell/editor-interaction");
+      await import("../components/EditorShell/session/editor-interaction");
     const input = {
       key: "x",
       metaKey: false,

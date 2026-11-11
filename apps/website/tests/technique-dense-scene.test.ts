@@ -4,7 +4,7 @@ import {
   screenshot,
   chordPair,
 } from "../../../packages/lxm-editor/tests/fixtures/technique-dense-chords";
-import { buildScoreScene } from "../components/EditorShell/score-scene";
+import { buildScoreScene } from "@liuxianmao/lxm-editor";
 
 /** 页面 SVG 与图片 Canvas 必须消费同一套路径，特别是内嵌 H 的断开弧线。 */
 describe("密集技巧的页面及导出图元", () => {

@@ -1,0 +1,154 @@
+import {
+  layoutLyricPlaceholder,
+  type ILXMLayout,
+} from "@liuxianmao/lxm-editor";
+import type { resolveParagraphFocus } from "./music-text-focus";
+import scoreInteractionStyles from "./score-interaction.module.scss";
+
+type ParagraphFocus = NonNullable<ReturnType<typeof resolveParagraphFocus>>;
+
+/** 窄拍位仅提示录入位置；最小编辑宽度由核心焦点计算统一提供。 */
+const PLACEHOLDER_BOX_MIN_WIDTH = 24;
+const PLACEHOLDER_MARK_HEIGHT = 10;
+
+/** 只绘制临时提示，不扩展核心单元格，也不参与指针命中或图片导出。 */
+export const MusicTextEditingHints = ({
+  layout,
+  activeFocus,
+  hoverFocus,
+  beatContext,
+}: {
+  layout: ILXMLayout;
+  activeFocus: ParagraphFocus | null;
+  hoverFocus: ParagraphFocus | null;
+  beatContext?: { x: number; y: number; width: number; height: number } | null;
+}) => (
+  <g className={scoreInteractionStyles.musicTextEditingHints} pointerEvents="none">
+    {beatContext && (
+      <rect
+        data-numbered-beat-context
+        className={scoreInteractionStyles.numberedBeatContext}
+        {...beatContext}
+        rx={4}
+      />
+    )}
+    {layout.systems.flatMap((system) => {
+      const eventX = new Map(
+        system.measures.flatMap((measure) =>
+          measure.numberedSlots.map((event) => [event.id, event.x] as const),
+        ),
+      );
+      return (system.musicTextCells ?? [])
+        .filter((cell) => cell.empty)
+        .map((cell) => {
+          const anchorX =
+            cell.anchorX ??
+            eventX.get(cell.eventId!) ??
+            cell.x + cell.width / 2;
+          const placeholder = layoutLyricPlaceholder(cell, anchorX);
+          // 展开的定位框附近降低空占位对比度，防止密集拍点出现多重边框。
+          const nearFocus = [activeFocus, hoverFocus].some(
+            (focus) =>
+              focus &&
+              focus.kind === cell.kind &&
+              focus.x < cell.x + cell.width &&
+              focus.x + focus.width > cell.x &&
+              focus.y < cell.y + cell.height &&
+              focus.y + focus.height > cell.y,
+          );
+          const props = {
+            "data-paragraph-cell": `${cell.kind}/${cell.measureId}/${cell.eventId ?? cell.id}/${cell.verse ?? ""}`,
+            className: scoreInteractionStyles.musicTextPlaceholder,
+            opacity: nearFocus ? 0.15 : 1,
+          };
+          const key = props["data-paragraph-cell"];
+          if (placeholder.width < PLACEHOLDER_BOX_MIN_WIDTH) {
+            // 中点划分的单元格可能不对称，短标记必须落在真实音符锚点上。
+            const middleY = cell.y + cell.height / 2;
+            const halfHeight =
+              Math.min(PLACEHOLDER_MARK_HEIGHT, cell.height) / 2;
+            return (
+              <line
+                key={key}
+                {...props}
+                data-paragraph-placeholder="marker"
+                x1={anchorX}
+                x2={anchorX}
+                y1={middleY - halfHeight}
+                y2={middleY + halfHeight}
+                strokeLinecap="round"
+              />
+            );
+          }
+          return (
+            <rect
+              key={key}
+              {...props}
+              data-paragraph-placeholder="box"
+              x={placeholder.x}
+              y={cell.y}
+              width={placeholder.width}
+              height={cell.height}
+              strokeDasharray="3 3"
+              rx={3}
+            />
+          );
+        });
+    })}
+    {layout.systems.flatMap((system) =>
+      system.measures.flatMap((measure) =>
+        (measure.numberedInputSlots ?? []).map((slot) => {
+          const nearFocus = [activeFocus, hoverFocus].some(
+            (f) =>
+              f?.kind === "numbered" &&
+              f.x < slot.x + slot.width &&
+              f.x + f.width > slot.x &&
+              f.y < slot.y + slot.height &&
+              f.y + f.height > slot.y,
+          );
+          const props = {
+            "data-paragraph-cell": `numbered/${slot.key}`,
+            className: scoreInteractionStyles.musicTextPlaceholder,
+            opacity: nearFocus ? 0.15 : 1,
+          };
+          // 窄简谱时间槽沿用歌词短标记，中心始终落在真实可录入起点。
+          return slot.width < PLACEHOLDER_BOX_MIN_WIDTH ? (
+            <line
+              key={slot.key}
+              {...props}
+              data-paragraph-placeholder="marker"
+              x1={slot.anchorX}
+              x2={slot.anchorX}
+              y1={slot.y + slot.height / 2 - 5}
+              y2={slot.y + slot.height / 2 + 5}
+              strokeLinecap="round"
+            />
+          ) : (
+            <rect
+              key={slot.key}
+              {...props}
+              data-paragraph-placeholder="box"
+              x={slot.x}
+              y={slot.y}
+              width={slot.width}
+              height={slot.height}
+              strokeDasharray="3 3"
+              rx={3}
+            />
+          );
+        }),
+      ),
+    )}
+    {hoverFocus && (
+      <rect
+        data-paragraph-hover={hoverFocus.kind}
+        className={scoreInteractionStyles.musicTextHover}
+        x={hoverFocus.x}
+        y={hoverFocus.y}
+        width={hoverFocus.width}
+        height={hoverFocus.height}
+        rx={3}
+      />
+    )}
+  </g>
+);

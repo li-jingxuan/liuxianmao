@@ -5,11 +5,11 @@ import {
   createCollapsedTabCellSelection,
 } from "@liuxianmao/lxm-editor";
 import { createEditorSession } from "../stores/editor-store";
-import { buildEditorToolCommand } from "../components/EditorShell/editor-tool-actions";
-import { buildScoreScene } from "../components/EditorShell/score-scene";
-import { inspectScoreFile, serializeScoreFile } from "../components/EditorShell/score-file";
-import { deriveEditorToolState } from "../components/EditorShell/editor-tool-state";
-import { resolveTechniqueDraft } from "../components/EditorShell/editor-technique-target";
+import { buildEditorToolCommand } from "../components/EditorShell/tools/editor-tool-actions";
+import { buildScoreScene } from "@liuxianmao/lxm-editor";
+import { inspectScoreFile, serializeScoreFile } from "../components/EditorShell/output/score-file";
+import { deriveEditorToolState } from "../components/EditorShell/tools/editor-tool-state";
+import { resolveTechniqueDraft } from "../components/EditorShell/tools/editor-technique-target";
 import { LXM_FRET_TEXT_BASELINE_OFFSET_Y } from "../../../packages/lxm-editor/src/layout/layout-constants";
 
 describe("TAB 横线延音标记", () => {

@@ -5,7 +5,7 @@ import { buildLayout, hitTestTechnique } from "../../src/layout";
 import {
   getFretTextBounds,
   getTextBounds,
-} from "../../src/layout/technique-geometry";
+} from "../../src/layout/techniques/technique-geometry";
 
 /** 单小节、两位品位与密集列直接检验实际布局，避免只测试模板常数。 */
 const fixture = (technique: ILXMTechnique, fret = 12) => {

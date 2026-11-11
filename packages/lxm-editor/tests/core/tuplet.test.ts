@@ -7,18 +7,18 @@ import {
   LXMMeasureSchema,
   LXMTupletSchema,
   LXMDocumentSchema,
-} from "../../src/core/schema";
+} from "../../src/core/document/schema";
 import {
   getBeatDurationTicks,
   createMeasureRhythmContext,
-} from "../../src/core/tuplet";
-import { reconcileMeasureTimeline } from "../../src/core/measure-timeline";
+} from "../../src/core/rhythm/tuplet";
+import { reconcileMeasureTimeline } from "../../src/core/rhythm/measure-timeline";
 import {
   applyScoreCommand,
   LXMScoreCommandEnum as Command,
-} from "../../src/core/commands";
-import { validateDocumentSemantics } from "../../src/core/semantic-validation";
-import { loadDocument } from "../../src/core/loader";
+} from "../../src/core/commands/commands";
+import { validateDocumentSemantics } from "../../src/core/document/semantic-validation";
+import { loadDocument } from "../../src/core/document/loader";
 import type {
   ILXMDocument,
   ILXMMeasure,

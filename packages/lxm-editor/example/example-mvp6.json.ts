@@ -1,6 +1,6 @@
 /** 八小节真实混合谱例；保留 v5/v5.1 独立样例作为回归依据。 */
 import source from "./example-mvp5.1.json";
-import { copyChordPreset } from "../src/core/chord-presets";
+import { copyChordPreset } from "../src/core/chords/chord-presets";
 import type { ILXMDocument } from "../src/core/types";
 const document: ILXMDocument = structuredClone(source);
 document.score.title = "MVP v6 歌词与和弦";

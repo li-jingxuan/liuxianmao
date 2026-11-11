@@ -5,7 +5,7 @@ import {
   EXAMPLE_MVP_6_DOCUMENT,
   hitTestMusicText,
 } from "../../src";
-import { getFretTextBounds } from "../../src/layout/technique-geometry";
+import { getFretTextBounds } from "../../src/layout/techniques/technique-geometry";
 import type { ILXMSystemLayout } from "../../src/layout/layout-types";
 
 /** 固定三小节低弦音符，隔离上方占位与同一行对齐行为。 */

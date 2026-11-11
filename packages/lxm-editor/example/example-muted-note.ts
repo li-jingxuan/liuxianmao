@@ -1,5 +1,5 @@
 import source from "./example-technique-rhythm";
-import { pruneInvalidTechniques } from "../src/core/technique-rules";
+import { pruneInvalidTechniques } from "../src/core/techniques/technique-rules";
 import type { ILXMDocument } from "../src/core/types";
 
 /** 独立混合谱不改原 14 小节；保留附点、休止、三连音与可组合的整拍/范围技巧。 */

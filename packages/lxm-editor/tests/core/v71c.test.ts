@@ -4,14 +4,14 @@ import {
   applyScoreCommand,
   LXMScoreCommandEnum as C,
   type ILXMScoreCommand,
-} from "../../src/core/commands";
-import { parseNumberedSequence } from "../../src/core/numbered-notation";
+} from "../../src/core/commands/commands";
+import { parseNumberedSequence } from "../../src/core/numbered/numbered-notation";
 import {
   createBeatClipboard,
   planBeatPaste,
   validateBeatClipboard,
-} from "../../src/core/beat-clipboard";
-import { loadDocument, upgradeDocumentToCurrent } from "../../src/core/loader";
+} from "../../src/core/rhythm/beat-clipboard";
+import { loadDocument, upgradeDocumentToCurrent } from "../../src/core/document/loader";
 import {
   buildLayout,
   layoutParagraphFocus,

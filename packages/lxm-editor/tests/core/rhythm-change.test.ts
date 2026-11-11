@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import EXAMPLE_MVP_2 from "../../example/example-mvp2.json";
-import { changeMeasureBeatRhythm } from "../../src/core/rhythm-change";
+import { changeMeasureBeatRhythm } from "../../src/core/rhythm/rhythm-change";
 import type { ILXMBeat, ILXMMeasure } from "../../src/core/types";
 
 /** 构造只供领域规划测试使用的 beat，避免测试依赖页面或 layout。 */

@@ -7,8 +7,8 @@ import {
 import {
   NumberedEditor,
   type NumberedEditorController,
-} from "../components/EditorShell/NumberedEditor";
-import type { MusicTextTarget } from "../components/EditorShell/music-text-draft";
+} from "../components/EditorShell/numbered/NumberedEditor";
+import type { MusicTextTarget } from "../components/EditorShell/music-text/music-text-draft";
 import { createEditorSession, useEditorStore } from "../stores/editor-store";
 import { EditorStoreContext } from "../stores/editor-context";
 

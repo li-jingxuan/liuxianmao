@@ -5,7 +5,7 @@ import {
   resolveTupletSelection,
   type ILXMTabCellSelection,
 } from "@liuxianmao/lxm-editor";
-import { resolveScorePointerAction } from "../components/EditorShell/editor-object-selection";
+import { resolveScorePointerAction } from "../components/EditorShell/session/editor-object-selection";
 import { createEditorStore } from "../stores/editor-store";
 
 const fixture = () => {

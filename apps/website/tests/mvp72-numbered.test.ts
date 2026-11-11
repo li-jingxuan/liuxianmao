@@ -11,9 +11,9 @@ import {
   collectMusicTextMeasureRequests,
   copyChordPreset,
 } from "@liuxianmao/lxm-editor";
-import { getMeasureContentBottom } from "../../../packages/lxm-editor/src/layout/rhythm-bounds";
+import { getMeasureContentBottom } from "../../../packages/lxm-editor/src/layout/rhythm/rhythm-bounds";
 import { createEditorSession, editorStore } from "../stores/editor-store";
-import { buildScoreScene } from "../components/EditorShell/score-scene";
+import { buildScoreScene } from "@liuxianmao/lxm-editor";
 
 describe("简谱八度语法边界", () => {
   it.each(["1..", "#4..", "n6..", "b7'''", "♯2'''", "1..+3'''"])(

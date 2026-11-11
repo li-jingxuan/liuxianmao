@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { copyChordPreset } from "@liuxianmao/lxm-editor";
-import { chordIssueField } from "../components/EditorShell/chord-issue-field";
+import { chordIssueField } from "../components/EditorShell/chords/chord-issue-field";
 
 describe("和弦错误字段定位", () => {
   it("合法图不定位，窗口错误定位起始品位", () => {

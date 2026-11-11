@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { planNumberedEventRhythm } from "../../src/core/numbered-timeline";
-import { editNumberedTrack } from "../../src/core/numbered-commands";
+import { planNumberedEventRhythm } from "../../src/core/numbered/numbered-timeline";
+import { editNumberedTrack } from "../../src/core/numbered/numbered-commands";
 import { createDocumentIdFactory } from "../../src/core/id-factory";
-import { applyScoreCommand } from "../../src/core/commands";
-import { calculateRhythmTicks } from "../../src/core/rhythm";
-import { validateNumberedVoice } from "../../src/core/numbered-rhythm";
+import { applyScoreCommand } from "../../src/core/commands/commands";
+import { calculateRhythmTicks } from "../../src/core/rhythm/rhythm";
+import { validateNumberedVoice } from "../../src/core/numbered/numbered-rhythm";
 import example from "../../example/example-mvp7.2";
 import type {
   ILXMMeasure,

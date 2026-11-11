@@ -11,8 +11,8 @@ import { copyChordPreset, validateChordDiagram } from "@liuxianmao/lxm-editor";
 import {
   ChordEditor,
   type ChordDraft,
-} from "../components/EditorShell/ChordEditor";
-import { ChordPresetControls } from "../components/EditorShell/ChordPresetControls";
+} from "../components/EditorShell/chords/ChordEditor";
+import { ChordPresetControls } from "../components/EditorShell/chords/ChordPresetControls";
 
 type Element = ReactElement<Record<string, unknown> & { children?: ReactNode }>;
 function descendants(node: ReactNode): Element[] {

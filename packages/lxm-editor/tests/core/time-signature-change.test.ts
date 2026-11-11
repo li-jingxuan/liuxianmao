@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { changeMeasureTimeSignature } from "../../src/core/time-signature-change";
+import { changeMeasureTimeSignature } from "../../src/core/rhythm/time-signature-change";
 import type { ILXMBeat, ILXMMeasure } from "../../src/core/types";
 
 const createIdFactory = () => {

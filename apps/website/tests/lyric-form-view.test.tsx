@@ -6,8 +6,8 @@ import {
   planLyricSequence,
   planLyricPositions,
 } from "@liuxianmao/lxm-editor";
-import { buildLyricMappingPreview, LyricFormView } from "../components/EditorShell/LyricFormView";
-import { readMusicTextDraft } from "../components/EditorShell/music-text-draft";
+import { buildLyricMappingPreview, LyricFormView } from "../components/EditorShell/lyrics/LyricFormView";
+import { readMusicTextDraft } from "../components/EditorShell/music-text/music-text-draft";
 
 function fixture() {
   const document = structuredClone(EXAMPLE_MVP_6_DOCUMENT);

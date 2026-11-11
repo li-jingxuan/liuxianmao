@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-import { createBeatAlignedRestBeats } from "../../src/core/rest-beats";
-import { reconcileMeasureTimeline } from "../../src/core/measure-timeline";
-import { changeMeasureBeatRhythm } from "../../src/core/rhythm-change";
+import { createBeatAlignedRestBeats } from "../../src/core/rhythm/rest-beats";
+import { reconcileMeasureTimeline } from "../../src/core/rhythm/measure-timeline";
+import { changeMeasureBeatRhythm } from "../../src/core/rhythm/rhythm-change";
 import type { ILXMBeat, ILXMMeasure } from "../../src/core/types";
 
 const signature = { numerator: 4, denominator: 4 };

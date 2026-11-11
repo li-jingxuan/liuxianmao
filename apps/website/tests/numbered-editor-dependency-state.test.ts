@@ -4,7 +4,7 @@ import {
   editNumberedTrack,
   EXAMPLE_MVP_7_2_DOCUMENT,
 } from "@liuxianmao/lxm-editor";
-import { checkNumberedDraftDependencies } from "../components/EditorShell/NumberedEditor";
+import { checkNumberedDraftDependencies } from "../components/EditorShell/numbered/NumberedEditor";
 
 const setup = () => {
   const document = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import EXAMPLE_MVP_2 from "../../example/example-mvp2.json";
 import { buildLayout, hitTestLayout } from "../../src/layout";
-import { getBeatCellBounds } from "../../src/layout/beat-cell-bounds";
+import { getBeatCellBounds } from "../../src/layout/rhythm/beat-cell-bounds";
 
 const documentWithFirstMeasureOnly = {
   ...EXAMPLE_MVP_2,

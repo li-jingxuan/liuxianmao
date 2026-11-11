@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { cloneChordDiagram, validateChordDiagram, validateChordDiagramIssues } from "../../src/core/chord-diagram";
-import { editChordDiagram, type ChordDiagramEditResult } from "../../src/core/chord-diagram-edit";
+import { cloneChordDiagram, validateChordDiagram, validateChordDiagramIssues } from "../../src/core/chords/chord-diagram";
+import { editChordDiagram, type ChordDiagramEditResult } from "../../src/core/chords/chord-diagram-edit";
 import type { ILXMChordDiagram } from "../../src/core/types";
 
 const open = (): ILXMChordDiagram => ({ startFret: 1, fretCount: 5, strings: [1, 2, 3, 4, 5, 6].map((string) => ({ string: string as 1, fret: 0, finger: null })), barres: [] });

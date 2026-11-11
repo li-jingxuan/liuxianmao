@@ -13,7 +13,7 @@ import {
   isSettingsGroupDirty,
   acknowledgeScoreInfo,
   changeScoreSettingsField,
-} from "../components/EditorShell/score-settings-draft";
+} from "../components/EditorShell/settings/score-settings-draft";
 
 const setup = () => {
   const session = createEditorSession(EXAMPLE_MVP_7_2_DOCUMENT);

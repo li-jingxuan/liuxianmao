@@ -4,23 +4,23 @@ import {
   applyScoreCommand,
   LXMScoreCommandEnum,
   type ILXMScoreCommand,
-} from "../../src/core/commands";
+} from "../../src/core/commands/commands";
 import {
   createBeatClipboard,
   planBeatPaste,
   validateBeatClipboard,
-} from "../../src/core/beat-clipboard";
+} from "../../src/core/rhythm/beat-clipboard";
 import {
   createNumberedClipboard,
   validateNumberedClipboard,
-} from "../../src/core/numbered-clipboard";
+} from "../../src/core/numbered/numbered-clipboard";
 import { createDocumentIdFactory } from "../../src/core/id-factory";
-import { loadDocument } from "../../src/core/loader";
+import { loadDocument } from "../../src/core/document/loader";
 import {
   editNumberedTrack,
   type ILXMNumberedVoiceCommand,
-} from "../../src/core/numbered-commands";
-import { validateNumberedVoice } from "../../src/core/numbered-rhythm";
+} from "../../src/core/numbered/numbered-commands";
+import { validateNumberedVoice } from "../../src/core/numbered/numbered-rhythm";
 import type { ILXMDocument } from "../../src/core/types";
 
 const fixture = (tuplet = false) => {

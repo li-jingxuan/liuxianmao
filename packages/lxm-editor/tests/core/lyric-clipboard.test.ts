@@ -4,17 +4,17 @@ import {
   applyScoreCommand,
   LXMScoreCommandEnum as C,
   type ILXMScoreCommand,
-} from "../../src/core/commands";
+} from "../../src/core/commands/commands";
 import {
   createBeatClipboard,
   planBeatPaste,
-} from "../../src/core/beat-clipboard";
+} from "../../src/core/rhythm/beat-clipboard";
 import {
   createNumberedClipboard,
   validateNumberedClipboard,
-} from "../../src/core/numbered-clipboard";
-import { loadDocument } from "../../src/core/loader";
-import { planLyricSequence } from "../../src/core/lyric-sequence";
+} from "../../src/core/numbered/numbered-clipboard";
+import { loadDocument } from "../../src/core/document/loader";
+import { planLyricSequence } from "../../src/core/lyrics/lyric-sequence";
 import type { ILXMDocument } from "../../src/core/types";
 
 const fixture = () => {

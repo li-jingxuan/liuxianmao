@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import * as exampleMvp1Module from "../../example/example-mvp1.json";
 import EXAMPLE_MVP_5 from "../../example/example-mvp5.json";
-import { loadDocument } from "../../src/core/loader";
+import { loadDocument } from "../../src/core/document/loader";
 
 const EXAMPLE_MVP_1 = exampleMvp1Module.default;
 

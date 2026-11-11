@@ -2,7 +2,7 @@ import source from "../../example/example-mvp7.2";
 import {
   applyScoreCommand,
   LXMScoreCommandEnum,
-} from "../../src/core/commands";
+} from "../../src/core/commands/commands";
 import type { ILXMDocument } from "../../src/core/types";
 /** 完整截图谱例：先在第五弦添加，再在相同两拍的第二弦添加。 */
 export const screenshot = (reverse = false): ILXMDocument => {

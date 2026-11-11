@@ -4,7 +4,7 @@ import source from "../../example/example-mvp2.json";
 import {
   applyScoreCommand,
   LXMScoreCommandEnum,
-} from "../../src/core/commands";
+} from "../../src/core/commands/commands";
 import type { ILXMDocument } from "../../src/core/types";
 import {
   A4_CONTENT_WIDTH,
@@ -14,7 +14,7 @@ import {
 import {
   getFretTextBounds,
   getTextBounds,
-} from "../../src/layout/technique-geometry";
+} from "../../src/layout/techniques/technique-geometry";
 import { LXM_TECHNIQUE_CURVE_LABEL_GAP, LXM_TECHNIQUE_TEXT_HALO_WIDTH } from "../../src/layout/layout-constants";
 import type { ILXMTechniqueSegmentLayout } from "../../src/layout/layout-types";
 

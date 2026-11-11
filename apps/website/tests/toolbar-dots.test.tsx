@@ -5,8 +5,8 @@ import {
   EXAMPLE_MVP_7_2_DOCUMENT,
   LXMScoreCommandEnum,
 } from "@liuxianmao/lxm-editor";
-import { EditorToolbar } from "../components/EditorShell/EditorToolbar";
-import { EditorSessionRuntime } from "../components/EditorShell/EditorSessionRuntime";
+import { EditorToolbar } from "../components/EditorShell/workspace/EditorToolbar";
+import { EditorSessionRuntime } from "../components/EditorShell/session/EditorSessionRuntime";
 import { EditorStoreContext } from "../stores/editor-context";
 import { createEditorSession } from "../stores/editor-store";
 

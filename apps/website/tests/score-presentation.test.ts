@@ -7,9 +7,9 @@ import {
   collectMusicTextMeasureRequests,
   EXAMPLE_MVP_7_2_DOCUMENT,
 } from "@liuxianmao/lxm-editor";
-import { prepareScorePresentation } from "../components/EditorShell/image-export-controller";
-import { buildScoreScene } from "../components/EditorShell/score-scene";
-import { ScorePresentationPage } from "../components/EditorShell/ScorePresentationPage";
+import { prepareScorePresentation } from "../components/EditorShell/output/image-export-controller";
+import { buildScoreScene } from "@liuxianmao/lxm-editor";
+import { ScorePresentationPage } from "../components/EditorShell/output/ScorePresentationPage";
 
 afterEach(() => vi.unstubAllGlobals());
 describe("成品快照供预览、图片与打印消费", () => {

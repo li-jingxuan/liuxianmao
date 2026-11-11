@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import source from "../../example/example-mvp2.json";
 import { buildLayout, hitTestTechnique } from "../../src/layout";
-import { getTechniqueInkBounds } from "../../src/layout/technique-geometry";
-import { techniqueInkIntersects } from "../../src/layout/technique-curve-placement";
+import { getTechniqueInkBounds } from "../../src/layout/techniques/technique-geometry";
+import { techniqueInkIntersects } from "../../src/layout/techniques/technique-curve-placement";
 import type { ILXMTechnique } from "../../src/core/types";
 
 const fixture = (type: "palmMute" | "letRing") => {

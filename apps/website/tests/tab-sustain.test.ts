@@ -4,8 +4,8 @@ import {
   createCollapsedTabCellSelection,
   LXMScoreCommandEnum as C,
 } from "@liuxianmao/lxm-editor";
-import { buildEditorToolCommand } from "../components/EditorShell/editor-tool-actions";
-import { deriveEditorToolState } from "../components/EditorShell/editor-tool-state";
+import { buildEditorToolCommand } from "../components/EditorShell/tools/editor-tool-actions";
+import { deriveEditorToolState } from "../components/EditorShell/tools/editor-tool-state";
 import { createEditorSession } from "../stores/editor-store";
 
 const fixture = () => {

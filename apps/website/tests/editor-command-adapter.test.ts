@@ -4,8 +4,8 @@ import {
   EXAMPLE_MVP_7_2_DOCUMENT,
   LXMScoreCommandEnum,
 } from "@liuxianmao/lxm-editor";
-import { createEditorCommandAdapter } from "../components/EditorShell/editor-command-adapter";
-import { createEditorModalController } from "../components/EditorShell/editor-modal-controller";
+import { createEditorCommandAdapter } from "../components/EditorShell/session/editor-command-adapter";
+import { createEditorModalController } from "../components/EditorShell/session/editor-modal-controller";
 import { createEditorSession } from "../stores/editor-store";
 
 describe("统一结构命令适配器", () => {

@@ -15,10 +15,10 @@ import {
 import {
   NumberedEditor,
   type NumberedEditorController,
-} from "../components/EditorShell/NumberedEditor";
+} from "../components/EditorShell/numbered/NumberedEditor";
 import { createEditorSession } from "../stores/editor-store";
 import { EditorStoreContext } from "../stores/editor-context";
-import type { createNumberedSubmission } from "../components/EditorShell/numbered-submission";
+import type { createNumberedSubmission } from "../components/EditorShell/numbered/numbered-submission";
 
 const harness = vi.hoisted(() => ({
   effects: [] as (() => void | (() => void))[],
@@ -53,11 +53,11 @@ vi.mock("react", async (importOriginal) => {
   };
 });
 vi.mock(
-  "../components/EditorShell/numbered-submission",
+  "../components/EditorShell/numbered/numbered-submission",
   async (importOriginal) => {
     const original =
       await importOriginal<
-        typeof import("../components/EditorShell/numbered-submission")
+        typeof import("../components/EditorShell/numbered/numbered-submission")
       >();
     return {
       ...original,

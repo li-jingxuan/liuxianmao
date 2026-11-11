@@ -7,17 +7,17 @@ import {
   getEditorHistoryRows,
   reconcileExpandedHistoryIds,
   type EditorHistoryItem,
-} from "../components/EditorShell/EditorHistoryPanel";
+} from "../components/EditorShell/workspace/EditorHistoryPanel";
 import {
   EditorFeedbackController,
   type EditorFeedbackEvent,
-} from "../components/EditorShell/EditorFeedback";
+} from "../components/EditorShell/workspace/EditorFeedback";
 import {
   EditorImpactDetails,
   EditorImpactNotice,
   formatEditorImpact,
   formatEditorImpactSummary,
-} from "../components/EditorShell/EditorImpactNotice";
+} from "../components/EditorShell/workspace/EditorImpactNotice";
 
 const effect: ILXMCommandEffect = {
   kind: "technique.removed",

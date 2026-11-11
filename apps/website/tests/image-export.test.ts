@@ -10,7 +10,7 @@ import {
   pngCrc32,
   readPngChunks,
   setPngResolution,
-} from "../components/EditorShell/png-resolution";
+} from "../components/EditorShell/output/png-resolution";
 import {
   imageBasename,
   pageImageName,
@@ -20,12 +20,12 @@ import {
   ImageExportError,
   toImageExportError,
   type PreparedScoreImages,
-} from "../components/EditorShell/image-export-controller";
-import { renderPageCanvas } from "../components/EditorShell/score-canvas-renderer";
-vi.mock("../components/EditorShell/score-canvas-renderer", () => ({
+} from "../components/EditorShell/output/image-export-controller";
+import { renderPageCanvas } from "../components/EditorShell/score/score-canvas-renderer";
+vi.mock("../components/EditorShell/score/score-canvas-renderer", () => ({
   renderPageCanvas: vi.fn(),
 }));
-import { buildScoreScene } from "../components/EditorShell/score-scene";
+import { buildScoreScene } from "@liuxianmao/lxm-editor";
 
 // 测试输入由独立 zlib 编码产生，校验后再交给 PNG 密度处理。
 const chunk = (type: string, data: Uint8Array) => {

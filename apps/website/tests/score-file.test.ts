@@ -18,7 +18,7 @@ import {
   scoreFileName,
   serializeScoreFile,
   SCORE_FILE_MAX_BYTES,
-} from "../components/EditorShell/score-file";
+} from "../components/EditorShell/output/score-file";
 
 const examples = [
   EXAMPLE_MVP_7_2_DOCUMENT,

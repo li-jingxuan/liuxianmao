@@ -12,13 +12,13 @@ import {
   resolveScorePointerAction,
   isScoreSelectionValid,
   resolveScoreDeleteCommand,
-} from "../components/EditorShell/editor-object-selection";
+} from "../components/EditorShell/session/editor-object-selection";
 import {
   readMusicTextDraft,
   resolveSidebarRequest,
-} from "../components/EditorShell/music-text-draft";
+} from "../components/EditorShell/music-text/music-text-draft";
 import { createEditorStore } from "../stores/editor-store";
-import { resolveChordFocus } from "../components/EditorShell/music-text-focus";
+import { resolveChordFocus } from "../components/EditorShell/score/music-text-focus";
 
 /** 路由与草稿决策直接调用生产模块，保持真实布局、命中和业务 ID。 */
 const fixture = () => {

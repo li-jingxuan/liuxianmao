@@ -10,7 +10,7 @@ import {
 import Link from "next/link";
 import { useState } from "react";
 import { useStore } from "zustand";
-import { EditorSession } from "../../components/EditorShell/EditorSession";
+import { EditorSession } from "../../components/EditorShell/session/EditorSession";
 import { createEditorSession } from "../../stores/editor-store";
 import styles from "./page.module.scss";
 

@@ -4,10 +4,10 @@ import {
   applyScoreCommand,
   LXMScoreCommandEnum as C,
   type ILXMScoreCommand,
-} from "../../src/core/commands";
-import { loadDocument } from "../../src/core/loader";
-import { LXMDocumentSchema } from "../../src/core/schema";
-import { validateTechnique } from "../../src/core/technique-rules";
+} from "../../src/core/commands/commands";
+import { loadDocument } from "../../src/core/document/loader";
+import { LXMDocumentSchema } from "../../src/core/document/schema";
+import { validateTechnique } from "../../src/core/techniques/technique-rules";
 import type {
   ILXMDocument,
   ILXMTechniqueDraft,

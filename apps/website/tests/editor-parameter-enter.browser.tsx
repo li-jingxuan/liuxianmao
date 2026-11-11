@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { EXAMPLE_MVP_7_2_DOCUMENT, type ILXMScoreCommand } from "@liuxianmao/lxm-editor";
-import { ScoreSettings, type ScoreSettingsController } from "../components/EditorShell/ScoreSettings";
-import { TechniqueToolbar } from "../components/EditorShell/TechniqueToolbar";
-import { EditorSessionRuntime, useEditorRuntime } from "../components/EditorShell/EditorSessionRuntime";
-import { createEditorCommandAdapter, type EditorCommandAdapter } from "../components/EditorShell/editor-command-adapter";
+import { ScoreSettings, type ScoreSettingsController } from "../components/EditorShell/settings/ScoreSettings";
+import { TechniqueToolbar } from "../components/EditorShell/tools/TechniqueToolbar";
+import { EditorSessionRuntime, useEditorRuntime } from "../components/EditorShell/session/EditorSessionRuntime";
+import { createEditorCommandAdapter, type EditorCommandAdapter } from "../components/EditorShell/session/editor-command-adapter";
 import { createEditorSession, useEditorStore } from "../stores/editor-store";
 import { EditorStoreContext } from "../stores/editor-context";
 

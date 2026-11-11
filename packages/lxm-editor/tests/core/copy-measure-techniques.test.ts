@@ -4,9 +4,9 @@ import example from "../../example/example-mvp2.json";
 import {
   applyScoreCommand,
   LXMScoreCommandEnum,
-} from "../../src/core/commands";
+} from "../../src/core/commands/commands";
 import { LXM_TECHNIQUE_TYPES } from "../../src/core/constants";
-import { loadDocument } from "../../src/core/loader";
+import { loadDocument } from "../../src/core/document/loader";
 import { buildLayout } from "../../src/layout";
 import type { ILXMTechnique } from "../../src/core/types";
 

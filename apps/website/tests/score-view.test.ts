@@ -5,7 +5,7 @@ import {
   captureScoreViewAnchor,
   restoreScoreViewAnchor,
   SCORE_CONTENT_SCALE,
-} from "../components/EditorShell/score-view";
+} from "../components/EditorShell/score/score-view";
 
 const standard = {
   layoutWidth: A4_CONTENT_WIDTH,

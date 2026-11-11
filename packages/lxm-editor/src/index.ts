@@ -1,4 +1,7 @@
 export * from "./layout";
+export { buildScoreScene, textPrimitive } from "./presentation/score-scene";
+export { SCORE_TEXT_FONT } from "./presentation/constants";
+export type { SceneStyle, ScorePrimitive, ScoreScene } from "./presentation/scene-types";
 export * from "./layout/layout-types";
 /** 渲染层共用品位文字与 marker 尺寸，避免出现核心不知道的视觉外延。 */
 export {
@@ -15,12 +18,12 @@ export * from "./editing/tab-cell-selection";
 export * from "./editing/technique-selection";
 export * from "./core/constants";
 export * from "./core/id-factory";
-export * from "./core/commands";
-export * from "./core/loader";
-export * from "./core/schema";
-export * from "./core/semantic-validation";
-export * from "./core/time-signature-change";
-export * from "./core/technique-rules";
+export * from "./core/commands/commands";
+export * from "./core/document/loader";
+export * from "./core/document/schema";
+export * from "./core/document/semantic-validation";
+export * from "./core/rhythm/time-signature-change";
+export * from "./core/techniques/technique-rules";
 export * from "./core/types";
 
 /** 具名规范谱例供页面和验收测试共用。 */
@@ -29,35 +32,35 @@ export { default as EXAMPLE_MVP_5_DOCUMENT } from "../example/example-mvp5.json"
 
 export * as EXAMPLE from "../example";
 
-export * from "./core/tuplet";
-export * from "./core/measure-timeline";
+export * from "./core/rhythm/tuplet";
+export * from "./core/rhythm/measure-timeline";
 
 export { default as EXAMPLE_MVP_5_1_DOCUMENT } from "../example/example-mvp5.1.json";
 
 export * from "./editing/tuplet-selection";
 
-export * from "./core/music-text";
-export * from "./core/chord-diagram";
+export * from "./core/music-text/music-text";
+export * from "./core/chords/chord-diagram";
 
-export * from "./core/chord-presets";
+export * from "./core/chords/chord-presets";
 export { default as EXAMPLE_MVP_6_DOCUMENT } from "../example/example-mvp6.json";
 
-export * from "./core/lyric-sequence";
-export * from "./core/lyric-positions";
+export * from "./core/lyrics/lyric-sequence";
+export * from "./core/lyrics/lyric-positions";
 
 export { default as EXAMPLE_TECHNIQUE_RHYTHM_DOCUMENT } from "../example/example-technique-rhythm";
 
-export * from "./core/command-effects";
+export * from "./core/commands/command-effects";
 
 export { default as EXAMPLE_MUTED_NOTE_DOCUMENT } from "../example/example-muted-note";
 
-export * from "./core/tuning";
+export * from "./core/document/tuning";
 
-export * from "./core/numbered-notation";
+export * from "./core/numbered/numbered-notation";
 
-export * from "./core/beat-clipboard";
-export * from "./core/beat-structure";
-export * from "./core/beat-sustain";
+export * from "./core/rhythm/beat-clipboard";
+export * from "./core/rhythm/beat-structure";
+export * from "./core/rhythm/beat-sustain";
 
 export {
   EXAMPLE_MVP7C_DOCUMENT,
@@ -67,15 +70,15 @@ export {
 export { createQualityScore } from "../example/quality-score";
 export { default as EXAMPLE_MVP_7_2_DOCUMENT } from "../example/example-mvp7.2";
 export { default as DEFAULT_MOCK_DOCUMENT } from "../example/default-score";
-export { tabInputRhythmFromNumbered, prepareTabInputRhythm } from "./core/tab-input-rhythm";
+export { tabInputRhythmFromNumbered, prepareTabInputRhythm } from "./core/rhythm/tab-input-rhythm";
 
-export * from "./core/numbered-rhythm";
-export * from "./core/numbered-timeline";
-export * from "./core/numbered-commands";
-export * from "./core/numbered-marks";
-export * from "./core/numbered-clipboard";
-export { getMeasureCapacityTicks, calculateRhythmTicks } from "./core/rhythm";
-export * from "./core/numbered-input-ranges";
-export * from "./core/chord-catalog";
-export * from "./core/score-tonality";
-export * from "./core/chord-diagram-edit";
+export * from "./core/numbered/numbered-rhythm";
+export * from "./core/numbered/numbered-timeline";
+export * from "./core/numbered/numbered-commands";
+export * from "./core/numbered/numbered-marks";
+export * from "./core/numbered/numbered-clipboard";
+export { getMeasureCapacityTicks, calculateRhythmTicks } from "./core/rhythm/rhythm";
+export * from "./core/numbered/numbered-input-ranges";
+export * from "./core/chords/chord-catalog";
+export * from "./core/document/score-tonality";
+export * from "./core/chords/chord-diagram-edit";

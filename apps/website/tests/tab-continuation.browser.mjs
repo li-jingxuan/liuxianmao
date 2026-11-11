@@ -36,7 +36,8 @@ try {
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/__tab_continuation__`);
-  await page.getByRole("application").waitFor();
+  // 首次启动需编译完整编辑器，后续交互仍保持 15 秒超时。
+  await page.getByRole("application").waitFor({ timeout: 90000 });
   const initial = await page.evaluate(() => {
     const state = window.coexistStore.getState();
     const track = state.document.score.tracks[0];
@@ -67,7 +68,8 @@ try {
   assert.deepEqual(afterMeasure.lyrics, beforeMeasure.lyrics);
   assert.deepEqual(afterMeasure.beats.slice(0, -1), beforeMeasure.beats.slice(0, -1));
   assert.deepEqual(afterMeasure.beats.at(-1).rhythm, { base: "quarter", dots: 0 });
-  const glyph = page.locator('[role="application"] text[font-size="12"]').filter({ hasText: /^-$/ });
+  // 简谱也有延音横线，只核对 TAB 图元，不依赖具体字号。
+  const glyph = page.locator('[role="application"] [data-layer="score-music"] text:not([data-numbered-event])').filter({ hasText: /^-$/ });
   await glyph.waitFor({ state: "visible" });
   assert.match(await page.getByRole("complementary", { name: "编辑器属性" }).innerText(), /- 延音标记/);
   await page.getByRole("button", { name: "撤销", exact: true }).click();

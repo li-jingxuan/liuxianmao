@@ -7,7 +7,7 @@ import {
   isEditableTimeSignature,
   isSameTimeSignature,
   getShorterRhythmOptions,
-} from "../../src/core/rhythm";
+} from "../../src/core/rhythm/rhythm";
 
 describe("calculateRhythmTicks", () => {
   it("按基础时值换算 tick 数", () => {

@@ -4,10 +4,10 @@ import { buildLayout, hitTestLayout } from "../../src/layout";
 import {
   collectMusicTextMeasureRequests,
   musicTextRequest,
-} from "../../src/layout/music-text-metrics";
+} from "../../src/layout/music-text/music-text-metrics";
 import { LXM_FRET_TEXT_FONT_SIZE } from "../../src/layout/layout-constants";
-import { getFretTextBounds } from "../../src/layout/technique-geometry";
-import { loadDocument } from "../../src/core/loader";
+import { getFretTextBounds } from "../../src/layout/techniques/technique-geometry";
+import { loadDocument } from "../../src/core/document/loader";
 
 /** 复用规范文档的调弦和小节结构，只替换正文为等时值单音。 */
 const regularScore = (

@@ -7,7 +7,7 @@ import {
   groupContiguousMarks,
   layoutBeamSegments,
   layoutDurationBeams,
-} from "../../src/layout/duration-beam-layout";
+} from "../../src/layout/rhythm/duration-beam-layout";
 import type {
   ILXMBeatLayout,
   ILXMDurationMarkLayout,

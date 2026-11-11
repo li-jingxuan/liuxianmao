@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import document from "../../example/example-muted-note";
 import source from "../../example/example-mvp2.json";
-import { loadDocument } from "../../src/core/loader";
+import { loadDocument } from "../../src/core/document/loader";
 import type { ILXMTechnique } from "../../src/core/types";
 import { buildLayout, hitTestLayout } from "../../src/layout";
 

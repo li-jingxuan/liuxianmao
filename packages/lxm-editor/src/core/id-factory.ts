@@ -51,12 +51,15 @@ export const createDocumentIdFactory = (
   document: ILXMDocument,
 ): ILXMIdFactory => {
   const used = collectEntityIds(document);
+  const nextSuffixes = new Map<string, number>();
   const create = (kind: string) => {
     const prefix = `${kind}-${document.documentRevision + 1}`;
-    let suffix = 1;
+    // 已分配 ID 不会释放，各类型只需从上次位置继续检查全局碰撞。
+    let suffix = nextSuffixes.get(kind) ?? 1;
     while (used.has(`${prefix}-${suffix}`)) suffix += 1;
     const id = `${prefix}-${suffix}`;
     used.add(id);
+    nextSuffixes.set(kind, suffix + 1);
     return id;
   };
   return {

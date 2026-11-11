@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import EXAMPLE from "../../example/example-mvp2.json";
-import { applyScoreCommand, LXMScoreCommandEnum as C } from "../../src/core/commands";
-import { sameTechniqueDraft } from "../../src/core/technique-equality";
+import { applyScoreCommand, LXMScoreCommandEnum as C } from "../../src/core/commands/commands";
+import { sameTechniqueDraft } from "../../src/core/techniques/technique-equality";
 import type { ILXMTechniqueDraft } from "../../src/core/types";
 
 const drafts: ILXMTechniqueDraft[] = [

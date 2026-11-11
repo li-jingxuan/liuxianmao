@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   applyScoreCommand,
   LXMScoreCommandEnum as C,
-} from "../../src/core/commands";
+} from "../../src/core/commands/commands";
 import { STANDARD_GUITAR_TUNING } from "../../src/core/constants";
-import { validateDocumentSemantics } from "../../src/core/semantic-validation";
+import { validateDocumentSemantics } from "../../src/core/document/semantic-validation";
 import type { ILXMBeat, ILXMDocument } from "../../src/core/types";
 
 const rest = (

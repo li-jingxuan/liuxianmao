@@ -5,6 +5,7 @@ import { performance } from "node:perf_hooks";
 import {
   createQualityScore,
   buildLayout,
+  buildScoreScene,
   paginateLayout,
   A4_CONTENT_WIDTH,
   applyScoreCommand,
@@ -12,7 +13,6 @@ import {
   loadDocument,
 } from "../packages/lxm-editor/src";
 import { createEditorSession } from "../apps/website/stores/editor-store";
-import { buildScoreScene } from "../apps/website/components/EditorShell/score-scene";
 
 /** 固定数据、预热及采样；报告 Node 计算耗时，不伪装为浏览器可见更新。 */
 it("记录 100 小节计算与历史基线", () => {

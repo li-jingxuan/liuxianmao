@@ -1,6 +1,6 @@
 "use client";
 
-import { EditorSession } from "../components/EditorShell/EditorSession";
+import { EditorSession } from "../components/EditorShell/session/EditorSession";
 import { editorStore } from "../stores/editor-store";
 import styles from "./page.module.scss";
 

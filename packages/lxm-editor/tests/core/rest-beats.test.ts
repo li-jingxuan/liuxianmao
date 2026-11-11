@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   createMeasureRestBeats,
   createRestBeats,
-} from "../../src/core/rest-beats";
+} from "../../src/core/rhythm/rest-beats";
 
 const createSequentialIdFactory = () => {
   let nextId = 1;

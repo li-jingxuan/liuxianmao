@@ -1,6 +1,6 @@
 import type { HTMLAttributes, KeyboardEvent } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { EditorModalGuard } from "../components/EditorShell/EditorModalGuard";
+import { EditorModalGuard } from "../components/EditorShell/session/EditorModalGuard";
 
 vi.mock("react", async (importOriginal) => ({
   ...(await importOriginal<typeof import("react")>()),

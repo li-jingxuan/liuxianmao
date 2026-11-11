@@ -3,9 +3,9 @@ import { EXAMPLE_MVP_7_2_DOCUMENT } from "@liuxianmao/lxm-editor";
 import {
   createChordEditSession,
   type ChordEditContext,
-} from "../components/EditorShell/chord-edit-session";
-import { createEditorDraftOwner } from "../components/EditorShell/editor-draft-coordinator";
-import { captureEditorVersion } from "../components/EditorShell/editor-session-version";
+} from "../components/EditorShell/chords/chord-edit-session";
+import { createEditorDraftOwner } from "../components/EditorShell/session/editor-draft-coordinator";
+import { captureEditorVersion } from "../components/EditorShell/session/editor-session-version";
 import { createEditorSession } from "../stores/editor-store";
 
 const setup = () => {

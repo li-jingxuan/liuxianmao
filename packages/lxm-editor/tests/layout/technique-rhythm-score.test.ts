@@ -4,7 +4,7 @@ import {
   LXM_RHYTHM_BASES,
   LXM_TECHNIQUE_TYPES,
 } from "../../src/core/constants";
-import { loadDocument } from "../../src/core/loader";
+import { loadDocument } from "../../src/core/document/loader";
 import { buildLayout, hitTestTechnique } from "../../src/layout";
 
 describe("常用技巧与时值规范测试谱", () => {

@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 import { EXAMPLE_MVP_7_2_DOCUMENT, LXMScoreCommandEnum as C, getFirstTabCellReference } from "@liuxianmao/lxm-editor";
 import { createEditorSession } from "../stores/editor-store";
-import { captureEditorToolIntent, editorToolSubmissionReason, tabToolTargetReason } from "../components/EditorShell/editor-tool-guard";
-import { createEditorCommandAdapter } from "../components/EditorShell/editor-command-adapter";
-import { createEditorModalController } from "../components/EditorShell/editor-modal-controller";
-import { createEditorDraftCoordinator, createEditorDraftOwner } from "../components/EditorShell/editor-draft-coordinator";
-import { captureEditorVersion } from "../components/EditorShell/editor-session-version";
-import { createTechniqueParameterOwner } from "../components/EditorShell/technique-parameter-owner";
-import type { MusicTextTarget } from "../components/EditorShell/music-text-draft";
+import { captureEditorToolIntent, editorToolSubmissionReason, tabToolTargetReason } from "../components/EditorShell/tools/editor-tool-guard";
+import { createEditorCommandAdapter } from "../components/EditorShell/session/editor-command-adapter";
+import { createEditorModalController } from "../components/EditorShell/session/editor-modal-controller";
+import { createEditorDraftCoordinator, createEditorDraftOwner } from "../components/EditorShell/session/editor-draft-coordinator";
+import { captureEditorVersion } from "../components/EditorShell/session/editor-session-version";
+import { createTechniqueParameterOwner } from "../components/EditorShell/tools/technique-parameter-owner";
+import type { MusicTextTarget } from "../components/EditorShell/music-text/music-text-draft";
 
 const setup = () => {
   const session = createEditorSession(EXAMPLE_MVP_7_2_DOCUMENT);

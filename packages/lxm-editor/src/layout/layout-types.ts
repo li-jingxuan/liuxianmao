@@ -1,12 +1,12 @@
-import type { NumberedMarkLayout } from "./numbered-mark-layout";
-import type { NumberedLayout } from "./numbered-notation-layout";
+import type { NumberedMarkLayout } from "./music-text/numbered-mark-layout";
+import type { NumberedLayout } from "./music-text/numbered-notation-layout";
 import type { ILXMFret } from "../core/types";
 import type {
   ILXMMusicTextMetrics,
   MusicTextRect,
   MusicTextGlyph,
-} from "./music-text-metrics";
-import type { LyricLayout, ChordSymbolLayout } from "./music-text-layout";
+} from "./music-text/music-text-metrics";
+import type { LyricLayout, ChordSymbolLayout } from "./music-text/music-text-layout";
 /**
  * MVP layout 类型定义模块。
  *
@@ -174,7 +174,7 @@ export interface ILXMTechniqueSegmentLayout {
 /** 小节布局结果，包含弦线、beat slot 和音符坐标。 */
 export interface ILXMMeasureLayout {
   /** 编辑空位与命中共用，同一窗口不重复存储在谱行和命中索引中。 */
-  numberedInputSlots?: import("./numbered-input-layout").NumberedInputSlot[];
+  numberedInputSlots?: import("./music-text/numbered-input-layout").NumberedInputSlot[];
   numberedNotation?: NumberedLayout[];
   numberedSlots: ILXMNumberedSlotLayout[];
   timeAnchors: { tick: number; x: number }[];
@@ -265,7 +265,7 @@ export interface ILXMMeasureHitBounds {
 
 /** 由 layout 构建的命中索引；当前数据量较小，顺序扫描已足够。 */
 export interface ILXMHitIndex {
-  numberedMarkBounds?: import("./numbered-mark-layout").NumberedMarkLayout[];
+  numberedMarkBounds?: import("./music-text/numbered-mark-layout").NumberedMarkLayout[];
   numberedBounds?: (MusicTextRect & {
     target: import("../core/types").ILXMNumberedTarget;
   })[];

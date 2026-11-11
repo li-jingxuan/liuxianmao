@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import EXAMPLE_MVP_2 from "../../example/example-mvp2.json";
-import { loadDocument } from "../../src/core/loader";
+import { loadDocument } from "../../src/core/document/loader";
 import type { ILXMBeat } from "../../src/core/types";
 import { buildLayout } from "../../src/layout";
 import {
   layoutBeamSegments,
   LXM_DURATION_PARTIAL_BEAM_LENGTH,
-} from "../../src/layout/duration-beam-layout";
+} from "../../src/layout/rhythm/duration-beam-layout";
 import { LXM_DURATION_STEM_STROKE_WIDTH } from "../../src/layout/layout-constants";
 import type { ILXMDurationMarkLayout } from "../../src/layout/layout-types";
 

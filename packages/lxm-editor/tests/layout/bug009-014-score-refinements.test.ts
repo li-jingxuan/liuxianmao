@@ -6,9 +6,9 @@ import {
   musicTextRequest,
   type ILXMNumberedEvent,
 } from "../../src";
-import { musicTextInkBounds } from "../../src/layout/music-text-metrics";
-import { numberedLayoutProfile } from "../../src/layout/numbered-layout-profile";
-import { getMeasureContentBottom } from "../../src/layout/rhythm-bounds";
+import { musicTextInkBounds } from "../../src/layout/music-text/music-text-metrics";
+import { numberedLayoutProfile } from "../../src/layout/music-text/numbered-layout-profile";
+import { getMeasureContentBottom } from "../../src/layout/rhythm/rhythm-bounds";
 
 const fixture = () => {
   const document = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);

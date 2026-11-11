@@ -5,8 +5,8 @@ import {
   applyScoreCommand,
   LXMScoreCommandEnum,
   type ILXMTabCellRange,
-} from "../../src/core/commands";
-import { validateDocumentSemantics } from "../../src/core/semantic-validation";
+} from "../../src/core/commands/commands";
+import { validateDocumentSemantics } from "../../src/core/document/semantic-validation";
 
 const endpoint = (measure: number, beat: number, string: number) => ({
   measureId: `mvp2-measure-${measure}`,

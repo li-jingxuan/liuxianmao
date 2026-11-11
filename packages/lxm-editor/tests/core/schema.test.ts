@@ -7,7 +7,7 @@ import {
   LXMRhythmSchema,
   LXMTechniqueSchema,
   LXMTrackSchema,
-} from "../../src/core/schema";
+} from "../../src/core/document/schema";
 
 const createValidMeasure = () => ({
   id: "measure-schema-test",

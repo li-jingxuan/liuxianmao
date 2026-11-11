@@ -2,9 +2,9 @@ import { isValidElement, type ComponentProps, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { EXAMPLE_MVP_6_DOCUMENT, type ILXMScoreCommand } from "@liuxianmao/lxm-editor";
-import { TupletToolDetails } from "../components/EditorShell/TupletToolDetails";
-import { MusicTextSidebar } from "../components/EditorShell/MusicTextSidebar";
-import { EditorSessionRuntime } from "../components/EditorShell/EditorSessionRuntime";
+import { TupletToolDetails } from "../components/EditorShell/tools/TupletToolDetails";
+import { MusicTextSidebar } from "../components/EditorShell/music-text/MusicTextSidebar";
+import { EditorSessionRuntime } from "../components/EditorShell/session/EditorSessionRuntime";
 import { createEditorSession } from "../stores/editor-store";
 import { EditorStoreContext } from "../stores/editor-context";
 

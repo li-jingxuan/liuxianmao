@@ -3,13 +3,13 @@ import {
   SCORE_DOCUMENT_SCHEMA,
   STANDARD_GUITAR_TUNING,
 } from "../src/core/constants";
-import { calculateRhythmTicks } from "../src/core/rhythm";
+import { calculateRhythmTicks } from "../src/core/rhythm/rhythm";
 import {
   applyScoreCommand,
   LXMScoreCommandEnum,
   type ILXMScoreCommand,
-} from "../src/core/commands";
-import { copyChordPreset } from "../src/core/chord-presets";
+} from "../src/core/commands/commands";
+import { copyChordPreset } from "../src/core/chords/chord-presets";
 import type { ILXMBeat, ILXMDocument, ILXMMeasure } from "../src/core/types";
 
 interface MockBeat {

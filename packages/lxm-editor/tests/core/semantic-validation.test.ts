@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import EXAMPLE_MVP_2 from "../../example/example-mvp2.json";
-import { validateDocumentSemantics } from "../../src/core/semantic-validation";
+import { validateDocumentSemantics } from "../../src/core/document/semantic-validation";
 
 /** 测试总是深拷贝 fixture，避免校验边界用例污染规范输入。 */
 const createDocument = () => structuredClone(EXAMPLE_MVP_2);

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createScoreSettingsComposition } from "../components/EditorShell/score-settings-composition";
+import { createScoreSettingsComposition } from "../components/EditorShell/settings/score-settings-composition";
 
 afterEach(() => vi.useRealTimers());
 

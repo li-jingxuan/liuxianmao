@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createChordCatalogResource } from "../components/EditorShell/chord-catalog-resource";
+import { createChordCatalogResource } from "../components/EditorShell/chords/chord-catalog-resource";
 
 const catalog = readFileSync(
   new URL("../public/assets/chords/catalog-2026.11.11.1.json", import.meta.url),

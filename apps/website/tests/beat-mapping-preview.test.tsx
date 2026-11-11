@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import { BeatMappingPreview, beatMappingLayout, type BeatMappingRow } from "../components/EditorShell/BeatMappingPreview";
+import { BeatMappingPreview, beatMappingLayout, type BeatMappingRow } from "../components/EditorShell/music-text/BeatMappingPreview";
 
 const measure = { key: "measure", label: "第 1 小节", durationTicks: 3840, beatTicks: 960 };
 const row = (key: string, startTick: number, endTick: number): BeatMappingRow => ({

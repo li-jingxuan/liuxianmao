@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { copyChordPreset } from "@liuxianmao/lxm-editor";
-import { ChordDiagramEditorModal } from "../components/EditorShell/ChordDiagramEditorModal";
+import { ChordDiagramEditorModal } from "../components/EditorShell/chords/ChordDiagramEditorModal";
 
 describe("自定义指法宿主正文", () => {
   it("真实组件输出独立语义网格和表单、最后合法预览及宿主底栏", () => {

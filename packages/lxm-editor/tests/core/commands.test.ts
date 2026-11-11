@@ -5,7 +5,7 @@ import {
   applyScoreCommand,
   LXMScoreCommandEnum,
   type ILXMScoreCommand,
-} from "../../src/core/commands";
+} from "../../src/core/commands/commands";
 import { buildLayout } from "../../src/layout";
 
 /** 每个测试使用新副本，避免命令结果和 fixture 共享可变引用。 */

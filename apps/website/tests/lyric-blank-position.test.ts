@@ -5,17 +5,17 @@ import {
   applyScoreCommand,
   LXMScoreCommandEnum,
 } from "@liuxianmao/lxm-editor";
-import { readMusicTextDraft } from "../components/EditorShell/music-text-draft";
+import { readMusicTextDraft } from "../components/EditorShell/music-text/music-text-draft";
 import {
   resolveNextLyricTarget,
   resolveParagraphInsertionTarget,
-} from "../components/EditorShell/music-text-target";
-import { resolveScorePointerAction } from "../components/EditorShell/editor-object-selection";
+} from "../components/EditorShell/music-text/music-text-target";
+import { resolveScorePointerAction } from "../components/EditorShell/session/editor-object-selection";
 import {
   resolveMusicTextHoverTarget,
   sameMusicTextTarget,
-} from "../components/EditorShell/music-text-hover";
-import { resolveParagraphFocus } from "../components/EditorShell/music-text-focus";
+} from "../components/EditorShell/music-text/music-text-hover";
+import { resolveParagraphFocus } from "../components/EditorShell/score/music-text-focus";
 
 describe("空简谱歌词入口", () => {
   it("空小节可添加歌词，点击、悬停、草稿和前进均使用同一时间位置", () => {

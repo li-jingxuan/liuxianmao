@@ -5,8 +5,8 @@ import {
   hitTestNumbered,
   type ILXMNumberedEvent,
 } from "../../src";
-import { musicTextInkBounds } from "../../src/layout/music-text-metrics";
-import { numberedLayoutProfile } from "../../src/layout/numbered-layout-profile";
+import { musicTextInkBounds } from "../../src/layout/music-text/music-text-metrics";
+import { numberedLayoutProfile } from "../../src/layout/music-text/numbered-layout-profile";
 
 const note = (
   tick: number,

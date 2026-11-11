@@ -9,8 +9,8 @@ import { createEditorStore } from "../stores/editor-store";
 import {
   readMusicTextDraft,
   resolveSidebarRequest,
-} from "../components/EditorShell/music-text-draft";
-import { resolveLyricFocus } from "../components/EditorShell/music-text-focus";
+} from "../components/EditorShell/music-text/music-text-draft";
+import { resolveLyricFocus } from "../components/EditorShell/score/music-text-focus";
 
 const fixture = () => {
   const document = structuredClone(EXAMPLE_MVP_6_DOCUMENT);

@@ -3,9 +3,9 @@ import {
   applyScoreCommand,
   LXMScoreCommandEnum,
   type ILXMScoreCommand,
-} from "../src/core/commands";
-import { loadDocument } from "../src/core/loader";
-import { copyChordPreset } from "../src/core/chord-presets";
+} from "../src/core/commands/commands";
+import { loadDocument } from "../src/core/document/loader";
+import { copyChordPreset } from "../src/core/chords/chord-presets";
 import type { ILXMDocument } from "../src/core/types";
 
 /** 固定混合谱通过领域复制生成唯一 ID，16/100 小节共用同一测试数据。 */

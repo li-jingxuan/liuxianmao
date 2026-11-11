@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import EXAMPLE_MVP_4 from "../../example/example-mvp4.json";
-import { getBeatCellBounds } from "../../src/layout/beat-cell-bounds";
+import { getBeatCellBounds } from "../../src/layout/rhythm/beat-cell-bounds";
 import { buildLayout } from "../../src/layout";
 
 describe("getBeatCellBounds", () => {
