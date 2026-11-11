@@ -8,6 +8,7 @@ import type {
   GuitarModuleId,
 } from "./model";
 
+/** 同步存储边界；实现可抛出读写异常，由 store 决定保护或重试策略。 */
 export interface ProgressStorage {
   read: (key: string) => string | null;
   write: (key: string, value: string) => void;
@@ -84,6 +85,7 @@ const isQuestion = (v: unknown): v is ExamQuestion => {
       return false;
   }
 };
+// 快照既要可渲染，也要符合固定卷题数、模块分值和标准答案约束。
 const isValidSnapshot = (attempt: ExamAttempt): boolean => {
   const questions = attempt.questionSnapshot;
   if (
@@ -172,6 +174,7 @@ const isAttempt = (v: unknown): v is ExamAttempt => {
     )
   )
     return false;
+  // 不直接信任已保存的汇总分：按快照重算，拒绝与逐题结果不一致的成绩。
   const scores: Record<GuitarModuleId, number> = {
     "rhythm-and-beat": 0,
     "chords-and-progressions": 0,
@@ -237,6 +240,7 @@ const isStoredProgress = (v: unknown): v is GuitarProgress => {
   if (new Set(attempts.map((attempt) => attempt.id)).size !== attempts.length)
     return false;
   const drafts = attempts.filter((attempt) => attempt.status === "draft");
+  // 恢复后只能有一个活动草稿；悬空活动 ID 或多个草稿都视为损坏记录。
   const validActiveDraft = drafts.length === 0
     ? v.activeExamAttemptId === null
     : drafts.length === 1 && v.activeExamAttemptId === drafts[0]?.id;
@@ -244,6 +248,7 @@ const isStoredProgress = (v: unknown): v is GuitarProgress => {
   if (v.schemaVersion === 3) return true;
   if (!record(v.examQuestionReviews)) return false;
   const attemptsById = new Map(attempts.map((attempt) => [attempt.id, attempt]));
+  // 复习必须指向已提交批次中的错题或未答题，且时间不能早于提交。
   return Object.entries(v.examQuestionReviews).every(([key, review]) => {
     if (
       !record(review) ||
@@ -276,8 +281,10 @@ export const parseProgress = (
     return { ok: false, error: "本地学习记录无法解析" };
   }
 };
+/** 隔离初始值与实例内存，避免多个 store 共享可变的嵌套记录。 */
 export const cloneProgress = <T extends GuitarProgress>(p: T): T =>
   structuredClone(p);
+/** SSR 读取视为无记录、写删为空操作；浏览器权限与容量异常保留给 store 处理。 */
 export const createBrowserProgressStorage = (): ProgressStorage => ({
   read: (key) =>
     typeof window === "undefined" ? null : window.localStorage.getItem(key),

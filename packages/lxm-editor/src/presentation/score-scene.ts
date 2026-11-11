@@ -277,6 +277,12 @@ const systemScene = (s: ILXMSystemLayout): ScorePrimitive[] => {
   }
   return items;
 };
+/**
+ * 将最终布局投影为与渲染框架无关的音乐图元，供编辑 SVG、教学谱例与图片输出复用。
+ * 坐标、分页和文字测量已由调用方准备；此处不访问 DOM、不重新排版、不改输入布局。
+ * 图元保留领域对象 ID 供网站叠加选中态，但不携带编辑焦点颜色或命中交互层。
+ * 数组顺序即绘制顺序，调整投影时需保持文字、线条及技巧的遮盖关系。
+ */
 export const buildScoreScene = (layout: ILXMLayout): ScoreScene => ({
   header: (layout.scoreHeader ?? []).map(glyph),
   systems: layout.systems.map((s) => ({

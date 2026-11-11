@@ -5,7 +5,10 @@ import type {
   GuitarAdvancedData,
   ScoreExampleRef,
 } from "../../lib/guitar-advanced/model";
-/** 解析、布局、场景一次准备；页面渲染和提交可用性共用此结果。 */
+/**
+ * 将课程谱例引用解析为文档，再生成只读布局和纯场景，不创建编辑会话或 React 元素。
+ * 页面渲染与素材可用性检查共用结果，引用错误和布局异常都转换为可展示的失败值。
+ */
 export const prepareScore = (
   reference: ScoreExampleRef,
   documents: GuitarAdvancedData["teachingDocuments"],
@@ -26,6 +29,10 @@ export const prepareScore = (
   }
 };
 export type PreparedScore = ReturnType<typeof prepareScore>;
+/**
+ * 汇总题干与选项谱例，并检查指板目标是否存在；ready 供调用方决定能否提交。
+ * 保留各谱例的准备结果供 React 图层复用，避免校验和展示走两套布局流程。
+ */
 export const prepareExerciseMaterials = (
   exercise: Exercise,
   data: GuitarAdvancedData,

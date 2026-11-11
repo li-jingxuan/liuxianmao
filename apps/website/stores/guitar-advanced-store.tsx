@@ -49,6 +49,7 @@ import type {
   LastVisitedContent,
 } from "../lib/guitar-advanced/model";
 
+/** ok 表示动作已在内存生效；是否落盘需单独检查 persisted。 */
 export type ActionResult =
   | { readonly ok: true; readonly persisted: boolean }
   | {
@@ -106,7 +107,11 @@ interface StoreOptions {
 }
 const unavailable = (reason: ActionFailure): ExamAttemptResult => ({ ok: false, reason });
 
-/** 独立进度 store：所有用户动作先恢复，再在同一 v4 快照上写入。 */
+/**
+ * 学习区独立进度容器：恢复与迁移本地记录，协调纯业务函数和持久化。
+ * 动作先恢复记录，再更新同一份 v4 内存快照；保存失败不撤销当前页面的操作。
+ * 存储、时钟与 ID 生成器由调用方提供，React Provider 只负责实例生命周期。
+ */
 export const createGuitarProgressStore = (
   options: StoreOptions,
 ): StoreApi<GuitarProgressStore> =>
@@ -135,10 +140,13 @@ export const createGuitarProgressStore = (
         return false;
       }
     };
+    // 先发布内存状态再写存储，失败时保留可重试的完整快照。
     const commit = (progress: GuitarProgressV4): boolean => {
       set({ progress, hasUnpersistedChanges: true });
       return persist(progress);
     };
+    // 读取失败时不能把初始空进度覆盖到未知旧记录上；本页仍允许临时学习。
+    // writable 在显式清除成功前保持关闭，普通重试保存不会解除这层保护。
     const protect = (message: string) => {
       writable = false;
       set({
@@ -164,10 +172,12 @@ export const createGuitarProgressStore = (
       if (started) return;
       started = true;
       try {
+        // 按最新到最旧查找；一旦发现记录就严格解析，不用旧版本绕过损坏的新记录。
         const v4Raw = options.storage.read(currentKey);
         if (v4Raw !== null) {
           const progress = expectVersion<GuitarProgressV4>(v4Raw, 4, currentKey);
           const learning = normalizeProgress(progress, options.catalog);
+          // 学习内容随目录整理，考试保留开考快照，避免课程更新改写历史试卷。
           const restored = {
             ...learning,
             examAttempts: progress.examAttempts,
@@ -209,6 +219,7 @@ export const createGuitarProgressStore = (
       }
     };
 
+    // 编辑入口必须同时匹配活动 ID 与 draft 状态，历史提交记录不能继续作答。
     const activeDraft = (attemptId: string): ExamAttempt | null => {
       const progress = get().progress;
       if (progress.activeExamAttemptId !== attemptId) return null;
@@ -277,6 +288,7 @@ export const createGuitarProgressStore = (
         if (lastVisited?.kind === content.kind && lastVisited.id === content.id) return;
         commit(setLastVisited(get().progress, content, options.now()));
       },
+      // 先恢复活动草稿；只有新开考才检查当前学习资格与发布卷内容。
       startExam: () => {
         hydrate();
         const progress = get().progress;
@@ -321,6 +333,7 @@ export const createGuitarProgressStore = (
         const progress = get().progress;
         const attempt = progress.examAttempts.find((item) => item.id === attemptId);
         if (!attempt) return unavailable("notFound");
+        // 重复提交返回既有记录，不重新计分或改写提交时间。
         if (attempt.status === "submitted") return { ok: true, persisted: !get().storageIssue, attempt };
         if (progress.activeExamAttemptId !== attemptId) return unavailable("notActive");
         const result = submitExamAttempt(attempt, options.exam, options.now());
@@ -345,6 +358,7 @@ export const createGuitarProgressStore = (
         const questionGrade = graded.grade.questionGrades.find((item) => item.questionId === questionId);
         if (!questionGrade) return { ok: false, reason: "notFound" };
         if (questionGrade.isCorrect) return { ok: false, reason: "invalidAnswer" };
+        // 同一考试题共享复习索引，值记录本次复习对应的提交批次。
         const reviewKey = `${attempt.examId}:${questionId}`;
         const existing = progress.examQuestionReviews[reviewKey];
         if (existing?.attemptId === attemptId)
@@ -369,6 +383,8 @@ export const createGuitarProgressStore = (
       clearProgress: () => {
         hydrate();
         try {
+          // 同时删除旧版本，防止下一次恢复又把旧进度迁回；删除并非事务操作。
+          // 仅当所有删除成功后重置内存，任一失败都保留当前页面进度。
           options.storage.remove(v1Key);
           options.storage.remove(v2Key);
           options.storage.remove(v3Key);
@@ -385,6 +401,7 @@ export const createGuitarProgressStore = (
   });
 
 const Context = createContext<StoreApi<GuitarProgressStore> | null>(null);
+/** 每次 Provider 挂载创建一个 store，共享布局内切换页面时复用内存进度。 */
 export const GuitarAdvancedStoreProvider = ({
   children,
   catalog,
@@ -404,6 +421,7 @@ export const GuitarAdvancedStoreProvider = ({
   }));
   return <Context.Provider value={store}>{children}</Context.Provider>;
 };
+/** 通过 selector 订阅学习状态；调用方必须处于学习区 Provider 内。 */
 export const useGuitarAdvancedStore = <T,>(selector: (state: GuitarProgressStore) => T): T => {
   const store = useContext(Context);
   if (!store) throw new Error("GuitarAdvancedStoreProvider is missing");

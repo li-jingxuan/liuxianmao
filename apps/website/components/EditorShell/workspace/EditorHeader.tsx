@@ -6,7 +6,10 @@ import { Button } from "antd";
 import { PictureOutlined } from "@ant-design/icons";
 import editorHeaderStyles from "./EditorHeader.module.scss";
 
-/** 头部组织曲谱标题及文件入口。 */
+/**
+ * 展示曲谱标题、跨产品导航与文件操作入口，不持有会话或草稿状态。
+ * 是否允许离开由宿主在点击时检查，避免头部缓存的状态漏掉刚产生的输入。
+ */
 export const EditorHeader = ({
   title,
   fileControls,
@@ -18,6 +21,7 @@ export const EditorHeader = ({
   fileControls: ReactNode;
   onImageExport: () => void;
   imageExportButtonRef: RefObject<HTMLButtonElement | null>;
+  /** 返回 false 时取消本次同页路由跳转；提示及草稿处理仍由宿主负责。 */
   canNavigateToLearning: () => boolean;
 }) => {
   return (
@@ -33,6 +37,7 @@ export const EditorHeader = ({
         <Link
           className={`${editorHeaderStyles.headerNativeAction} ${editorHeaderStyles.learningLink}`}
           href="/guitar-advanced"
+          // 只保护会卸载当前编辑器的客户端导航；新标签打开不需要清理当前会话。
           onNavigate={(event) => {
             if (!canNavigateToLearning()) event.preventDefault();
           }}

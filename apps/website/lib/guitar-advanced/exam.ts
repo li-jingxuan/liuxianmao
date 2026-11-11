@@ -1,3 +1,4 @@
+/** 考试领域的纯状态变换与评分；活动草稿选择和落盘由 store 负责。 */
 import { gradeExercise } from "./grading";
 import type {
   ExamAttempt,
@@ -184,6 +185,7 @@ export const setExamAnswer = (
   };
 };
 
+/** 只允许草稿切换到快照范围内的整数题号，不改变答案。 */
 export const setExamQuestionIndex = (
   attempt: ExamAttempt,
   index: number,
@@ -199,7 +201,10 @@ export const setExamQuestionIndex = (
   };
 };
 
-/** 未答题计零分；任何不合法的已保存答案都会拒绝整份评分。 */
+/**
+ * 逐题按开考快照全对或零分评分，未答题计零分；非法已存答案拒绝整份评分。
+ * 当前考试只提供身份、及格线及固定卷结构约束，不用新题目替换历史快照。
+ */
 export const gradeExamAttempt = (
   attempt: ExamAttempt,
   exam: GuitarAdvancedExam,
@@ -256,6 +261,7 @@ export const gradeExamAttempt = (
   };
 };
 
+/** 将合法草稿转为 submitted 并固化汇总成绩；已提交记录原样返回以支持重复调用。 */
 export const submitExamAttempt = (
   attempt: ExamAttempt,
   exam: GuitarAdvancedExam,
@@ -280,6 +286,7 @@ export const submitExamAttempt = (
   };
 };
 
+/** 仅统计已提交且有成绩的记录；没有成绩时返回 null，区别于零分。 */
 export const getBestExamScore = (attempts: readonly ExamAttempt[]): number | null => {
   const submitted = attempts
     .filter((attempt) => attempt.status === "submitted" && attempt.score !== null)
@@ -287,6 +294,7 @@ export const getBestExamScore = (attempts: readonly ExamAttempt[]): number | nul
   return submitted.length ? Math.max(...submitted) : null;
 };
 
+/** 按提交时间选最近记录，同时间用 ID 稳定排序；草稿不参与。 */
 export const getLatestExamAttempt = (
   attempts: readonly ExamAttempt[],
 ): ExamAttempt | null =>

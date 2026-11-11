@@ -69,6 +69,8 @@ button {
   }
 
   // 仅编辑器页面启用成品打印白名单；学习等页面继续使用普通文档打印。
+  // 不能仅按路由或全局 body 隐藏节点：同一应用的学习页没有成品层，
+  // 直接套用白名单会得到空白页；存在成品层时才隔离工具栏、侧栏与业务 Portal。
   // 离屏且透明的临时度量 SVG 必须保留布局，否则打印期间字体事件会得到零尺寸。
   body:has([data-score-print-layer]) *:not([data-score-print-layer]):not([data-score-print-layer] *):not(:has([data-score-print-layer])):not([data-score-text-measure]):not([data-score-text-measure] *) {
     display: none !important;

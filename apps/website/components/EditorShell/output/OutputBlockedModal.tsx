@@ -6,7 +6,11 @@ import type { EditorDraftCoordinator } from "../session/editor-draft-coordinator
 import { EditorModalGuard } from "../session/EditorModalGuard";
 import styles from "./image-export.module.scss";
 
-/** 输出与离开页面共用草稿提示；只提供返回编辑和明确放弃，不自动续跑原操作。 */
+/**
+ * 输出与离开页面共用的草稿处理入口：列出各表单登记的输入，提供定位与明确放弃。
+ * 不在这里批量应用内容，也不保存待续跑的导航/导出请求；用户处理完后重新发起，
+ * 让宿主重新核对当前会话。整体放弃需要绑定目录版本的二次确认。
+ */
 export const OutputBlockedModal = ({
   open,
   drafts,
@@ -34,6 +38,7 @@ export const OutputBlockedModal = ({
   const firstAction = useRef<HTMLButtonElement>(null);
 
   const close = (focusId?: string) => {
+    // 记录目标后先关闭；等退出动画完成再聚焦，避免被模态框焦点约束拉回。
     focusAfterClose.current = focusId ?? null;
     setConfirmation(null);
     setMessage(null);

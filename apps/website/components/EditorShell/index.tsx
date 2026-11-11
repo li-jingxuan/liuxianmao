@@ -964,6 +964,8 @@ export const EditorShell: React.FC = () => {
       : [],
   );
 
+  // 输出和离开页面共用即时检查：已登记草稿之外，还要覆盖品位延迟提交、
+  // 文字编辑控制器和仍占用会话的弹层。这里仅判断，不自动应用或丢弃输入。
   const isOutputBlocked = () =>
     !!imageExportSnapshot ||
     modals.isOpen() ||
@@ -1450,7 +1452,9 @@ export const EditorShell: React.FC = () => {
       <EditorHeader
         title={document.score.title}
         canNavigateToLearning={() => {
-          // 路由卸载同样受会话草稿及输出生命周期保护；处理后由用户重新点击入口。
+          // 学习路由会卸载编辑器 UI，未应用的表单输入不能随之消失。
+          // 先处理现有弹层/输出任务，避免叠加草稿提示；草稿处理后也不自动续跳，
+          // 由用户再次点击并检查最新状态，避免使用确认期间已过期的导航请求。
           if (!isOutputBlocked()) return true;
           if (modals.isOpen() || imageExportSnapshot) {
             setErrorMessage("请先完成当前弹层或图片导出，再进入吉他进阶。");

@@ -19,7 +19,12 @@ import type {
   ImageExportTaskOptions,
 } from "./image-export-task-types";
 
-/** 任务拥有准备快照、取消令牌与 URL；Modal 只决定失效时如何关闭。 */
+/**
+ * 管理一次导出预览的准备、生成、取消与下载资源，不直接修改曲谱或操作历史。
+ * snapshot 是打开预览时捕获的输入；isCurrent 在异步结果落地前复核会话版本。
+ * 字体变化使成品几何失效，需重新准备；会话失效则通知 Modal 决定如何关闭。
+ * AbortSignal 用于中止协作任务，递增令牌用于拒绝无法及时中止的迟到结果。
+ */
 export const useImageExportTask = ({
   snapshot,
   isCurrent,
@@ -44,6 +49,7 @@ export const useImageExportTask = ({
   const [download, setDownload] = useState<DownloadState | null>(null);
 
   useEffect(() => {
+    // 始终调用最新的宿主检查，但不因回调引用变化而重新执行字体测量与分页。
     currentRef.current = isCurrent;
     invalidRef.current = onInvalid;
   }, [isCurrent, onInvalid]);
@@ -64,6 +70,7 @@ export const useImageExportTask = ({
   }, []);
 
   const stop = useCallback(() => {
+    // 关闭动画开始即禁止新任务；现有预览与 URL 留到卸载统一释放，避免闪空。
     stopped.current = true;
     abortTask();
     setProgress(0);
@@ -85,6 +92,8 @@ export const useImageExportTask = ({
     let ready = false;
 
     const invalidate = () => {
+      // 初次等待字体期间的事件交给 prepareScoreImages；仅废弃已经就绪的几何，
+      // 防止字体刚加载完成就把同一次准备过程误判为过期。
       if (!ready || stopped.current) return;
       ready = false;
       controller.abort();
@@ -192,6 +201,7 @@ export const useImageExportTask = ({
   };
 
   const cancel = (): void => {
+    // 用户取消编码可继续使用已准备的预览；与关闭整个导出会话的 stop 区分。
     if (stopped.current) return;
     abortTask();
     setProgress(0);
@@ -199,6 +209,7 @@ export const useImageExportTask = ({
     setStatus(preparedRef.current ? "ready" : "preparing");
   };
   const reprepare = (): void => {
+    // 重新准备会改变页数及坐标，旧页码、范围和下载地址必须一起失效。
     if (!validateCurrent()) return;
     abortTask();
     preparedRef.current = null;

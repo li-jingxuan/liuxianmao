@@ -7,6 +7,10 @@ import type {
 import { ScoreMusicLayer } from "../EditorShell/score/ScoreMusicLayer";
 import { prepareScore, type PreparedScore } from "./score-presentation";
 import styles from "./TheoryLessonView.module.scss";
+/**
+ * React 展示层只消费已准备的布局与纯场景：负责 SVG 容器、无障碍文本和失败提示。
+ * 乐谱图元交给共享 ScoreMusicLayer，布局计算仍在 prepareScore 中完成。
+ */
 export const PreparedScoreView = ({
   prepared,
   title,
@@ -40,7 +44,10 @@ export const PreparedScoreView = ({
       谱例暂时无法加载：{prepared.error}
     </div>
   );
-/** 只读素材不创建 EditorSession，字幕可按理论上下文覆盖。 */
+/**
+ * 按引用与文档对象缓存准备结果，再交给展示层；只读素材不创建 EditorSession。
+ * 字幕可按理论上下文覆盖，默认使用谱例引用自带说明。
+ */
 export const GuitarScoreExample = ({
   reference,
   documents,

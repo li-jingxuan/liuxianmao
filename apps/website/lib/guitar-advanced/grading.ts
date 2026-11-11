@@ -3,6 +3,7 @@ export type GradeFailure = "unanswered" | "typeMismatch" | "invalidAnswer";
 export type GradeResult =
   | { readonly ok: true; readonly result: ExerciseResult }
   | { readonly ok: false; readonly reason: GradeFailure };
+/** 提取答案 ID，保留输入顺序；排序题依赖该顺序判分。 */
 export const getAnswerIds = (answer: ExerciseAnswer): readonly string[] => {
   switch (answer.type) {
     case "singleChoice":
@@ -15,13 +16,18 @@ export const getAnswerIds = (answer: ExerciseAnswer): readonly string[] => {
       return answer.targetIds;
   }
 };
+/** 统一获取题目允许的候选 ID，用于排除失效或越界答案。 */
 export const getCandidateIds = (exercise: Exercise): readonly string[] =>
   exercise.type === "targetSelection"
     ? exercise.targetIds
     : exercise.type === "ordering"
       ? exercise.items.map((item) => item.id)
       : exercise.options.map((item) => item.id);
-/** 校验结构后再评分；集合题忽略顺序，排序题严格比较顺序。 */
+/**
+ * 练习与考试共用的纯判分入口：先校验答案类型、重复 ID 和候选范围，再判断正误。
+ * 集合题忽略顺序，排序题必须包含全部候选且顺序一致；合法错答仍返回 ok。
+ * 返回结果深拷贝答案，避免后续界面编辑反向修改已提交记录。
+ */
 export const gradeExercise = (
   exercise: Exercise,
   answer: ExerciseAnswer | null,
@@ -56,6 +62,7 @@ export const gradeExercise = (
     },
   };
 };
+/** 将答案映射为可读标签；失效 ID 显式占位，排序题使用箭头保留顺序语义。 */
 export const formatExerciseAnswer = (
   exercise: Exercise,
   answer: ExerciseAnswer,

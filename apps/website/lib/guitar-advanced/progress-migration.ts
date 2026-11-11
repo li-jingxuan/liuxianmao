@@ -9,7 +9,11 @@ import type {
   GuitarProgressV4,
 } from "./model";
 const unique = (ids: readonly string[]) => [...new Set(ids)];
-/** 目录失效与存储损坏不同：前者保留有效完成记录，后者由读取层保护原文。 */
+/**
+ * 将已通过存储结构校验的学习记录对齐当前目录，去除失效 ID 并重新判定有效答案。
+ * 完成与曾错事实独立保留，考试字段随展开原样传递；不在这里重算历史试卷。
+ * 目录失效与存储损坏不同，后者由读取层保护原文，不能靠规范化掩盖。
+ */
 export const normalizeProgress = <
   T extends GuitarProgressV2 | GuitarProgressV3 | GuitarProgressV4,
 >(
@@ -112,9 +116,11 @@ export const migrateProgressV1ToV3 = (
   data: GuitarAdvancedData,
 ): GuitarProgressV3 =>
   migrateProgressV2ToV3(migrateProgressV1ToV2(p, data));
+/** 顺序补齐考试历史与复习索引；调用方负责先按当前目录规范化 v2 学习字段。 */
 export const migrateProgressV2ToV4 = (
   p: GuitarProgressV2,
 ): GuitarProgressV4 => migrateProgressV3ToV4(migrateProgressV2ToV3(p));
+/** 复用逐版本迁移链，先转换旧单选记录，再补齐 v4 新字段。 */
 export const migrateProgressV1ToV4 = (
   p: GuitarProgressV1,
   data: GuitarAdvancedData,
