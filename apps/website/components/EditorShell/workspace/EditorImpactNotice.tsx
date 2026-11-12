@@ -1,5 +1,6 @@
 import type { ILXMCommandEffect } from "@liuxianmao/lxm-editor";
 import styles from "./EditorImpactNotice.module.scss";
+import { formatTupletLabel } from "../shared/tuplet-label";
 
 export type EditorImpactContext =
   | "preview"
@@ -75,7 +76,7 @@ export const formatEditorImpact = (
       description = `${effect.mode === "insert" ? "插入" : "覆盖"}粘贴 ${effect.count} 拍`;
       break;
     case "tuplets.structured":
-      description = `${effect.operation === "set" ? "设置" : "移除"}连音组（${effect.ratio.actual}:${effect.ratio.normal}，${effect.count} 组）`;
+      description = `${effect.operation === "set" ? "设置" : "移除"}${formatTupletLabel(effect.ratio)}（${effect.count} 组）`;
       break;
     case "measures.copied":
       description = `复制第 ${effect.measureNumber}–${effect.endMeasureNumber} 小节（${effect.count} 小节）至${effect.afterMeasureNumber === 0 ? "谱首" : `原第 ${effect.afterMeasureNumber} 小节后`}`;

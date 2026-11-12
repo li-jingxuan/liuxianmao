@@ -1,6 +1,7 @@
 import { A4_CONTENT_WIDTH } from "@liuxianmao/lxm-editor";
 
-export type ScoreViewMode = "fit" | "actual";
+export const SCORE_ZOOM_LEVELS = [100, 125, 150, 200] as const;
+export type ScoreZoom = (typeof SCORE_ZOOM_LEVELS)[number];
 
 export const SCORE_PAPER_WIDTH = 780;
 export const SCORE_PAPER_PADDING = 42;
@@ -10,14 +11,14 @@ export const SCORE_CONTENT_SCALE =
   (SCORE_PAPER_WIDTH - 2 * SCORE_PAPER_PADDING) / A4_CONTENT_WIDTH;
 
 export interface ScoreViewGeometry {
-  /** Fixed logical-unit to CSS-pixel ratio; independent of mode, viewport and DPR. */
+  /** 固定逻辑单位到 CSS 像素的比例，不随倍率、视口或 DPR 改变。 */
   contentScale: number;
   svgWidth: number;
   svgHeight: number;
   baseWidth: number;
   baseHeight: number;
   scale: number;
-  /** The stage occupies these dimensions, including the overflowing SVG. */
+  /** 包含 SVG 外延的真实滚动占位尺寸。 */
   width: number;
   height: number;
 }
@@ -28,18 +29,13 @@ const positive = (value: number, fallback: number) =>
 export function calculateScoreView({
   layoutWidth,
   layoutHeight,
-  viewportWidth,
-  mode = "fit",
-  gutter = SCORE_VIEW_GUTTER,
+  zoom = 125,
   visibleWidth = 0,
   visibleHeight = 0,
 }: {
   layoutWidth: number;
   layoutHeight: number;
-  /** clientWidth, after the vertical scrollbar, including CSS padding. */
-  viewportWidth: number;
-  mode?: ScoreViewMode;
-  gutter?: number;
+  zoom?: ScoreZoom;
   /** Optional measured visual bounds, in unscaled CSS px, including padding. */
   visibleWidth?: number;
   visibleHeight?: number;
@@ -56,11 +52,8 @@ export function calculateScoreView({
     2 * SCORE_PAPER_PADDING + svgHeight,
     positive(visibleHeight, 0),
   );
-  const availableWidth = viewportWidth - 2 * Math.max(0, positive(gutter, 0));
-  // Hidden/unmeasured hosts must never create zero/negative transforms or NaN CTMs.
-  const scale = mode === "fit" && Number.isFinite(availableWidth) && availableWidth > 0
-    ? Math.min(1, availableWidth / baseWidth)
-    : 1;
+  // 倍率只作用于外层纸张和占位，不改变内部排版及命中坐标。
+  const scale = zoom / 100;
   return {
     contentScale: SCORE_CONTENT_SCALE,
     svgWidth,
@@ -85,7 +78,7 @@ export interface ScoreViewAnchor {
   y: number;
 }
 
-/** Preserve the logical point at the visible center, including centered stage margins. */
+/** 保持视口中心对应的纸张点，计入舞台居中产生的边距。 */
 export function captureScoreViewAnchor(
   geometry: ScoreViewGeometry,
   scroll: ScoreViewScroll,

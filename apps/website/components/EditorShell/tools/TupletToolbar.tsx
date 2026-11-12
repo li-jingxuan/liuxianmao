@@ -13,6 +13,7 @@ import type { EditorCommandAdapter } from "../session/editor-command-adapter";
 import { MusicAssetIcon } from "../../MusicAssetIcon";
 import type { MusicControlIcon } from "../../../assets/svg/svg-assets-manifest";
 import editorToolPanelStyles from "../shared/editor-tool-panel.module.scss";
+import { formatTupletExplanation, formatTupletLabel } from "../shared/tuplet-label";
 const ICONS: Record<string, MusicControlIcon> = {
   "2:3": "duplet",
   "3:2": "triplet",
@@ -50,7 +51,7 @@ export const TupletToolbar = ({
           ? "先完成属性编辑，再修改 TAB。"
           : `需要同小节内连续 ${ratio.actual} 拍。`;
         return (
-          <Tooltip key={label} title={unavailable ? reason : undefined}>
+          <Tooltip key={label} title={`${formatTupletExplanation(ratio)}${unavailable ? `；${reason}` : ""}`}>
             <span
               tabIndex={unavailable ? 0 : undefined}
               aria-label={unavailable ? reason : undefined}
@@ -61,8 +62,8 @@ export const TupletToolbar = ({
                 }
                 size="middle"
                 htmlType="button"
-                aria-label={`连音 ${label}`}
-                title={`${ratio.actual} 个同值音符占 ${ratio.normal} 个音符的时间`}
+                aria-label={formatTupletLabel(ratio)}
+                title={formatTupletExplanation(ratio)}
                 aria-pressed={
                   range?.group?.ratio.actual === ratio.actual &&
                   range.group.ratio.normal === ratio.normal
@@ -89,7 +90,7 @@ export const TupletToolbar = ({
                   assetId={ICONS[label]!}
                   className={editorToolPanelStyles.toolbarIcon}
                 />
-                应用 {label}
+                应用{formatTupletLabel(ratio)}
               </Button>
             </span>
           </Tooltip>

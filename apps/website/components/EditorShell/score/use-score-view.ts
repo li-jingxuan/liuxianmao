@@ -10,7 +10,7 @@ import {
   SCORE_VIEW_GUTTER,
   type ScoreViewAnchor,
   type ScoreViewGeometry,
-  type ScoreViewMode,
+  type ScoreZoom,
   type ScoreViewScroll,
 } from "./score-view";
 
@@ -29,7 +29,7 @@ export interface UseScoreViewOptions {
   onGeometryChange?: (next: ScoreViewGeometry, previous: ScoreViewGeometry) => void;
 }
 
-/** Screen-only geometry. Export and print must keep using presentation layouts. */
+/** 仅供编辑视图使用；打印和导出继续使用独立的成品排版。 */
 export function useScoreView({
   viewportRef,
   layoutWidth,
@@ -41,29 +41,30 @@ export function useScoreView({
   visibleHeight,
   onGeometryChange,
 }: UseScoreViewOptions) {
-  const [modeState, setModeState] = useState<{ sessionKey: unknown; mode: ScoreViewMode }>(
-    () => ({ sessionKey, mode: "fit" }),
+  const [zoomState, setZoomState] = useState<{ sessionKey: unknown; zoom: ScoreZoom }>(
+    () => ({ sessionKey, zoom: 125 }),
   );
-  // Adjust during render so revisiting a previous session cannot revive its old mode.
-  if (!Object.is(modeState.sessionKey, sessionKey)) setModeState({ sessionKey, mode: "fit" });
-  const mode = Object.is(modeState.sessionKey, sessionKey) ? modeState.mode : "fit";
+  // 替换会话时恢复默认倍率；普通修订和撤销不会改变 sessionKey。
+  if (!Object.is(zoomState.sessionKey, sessionKey)) setZoomState({ sessionKey, zoom: 125 });
+  const zoom = Object.is(zoomState.sessionKey, sessionKey) ? zoomState.zoom : 125;
   const [viewportWidth, setViewportWidth] = useState(0);
   const geometry = useMemo(() => calculateScoreView({
-    layoutWidth, layoutHeight, viewportWidth, mode, gutter, visibleWidth, visibleHeight,
-  }), [layoutWidth, layoutHeight, viewportWidth, mode, gutter, visibleWidth, visibleHeight]);
+    layoutWidth, layoutHeight, zoom, visibleWidth, visibleHeight,
+  }), [layoutWidth, layoutHeight, zoom, visibleWidth, visibleHeight]);
   const previous = useRef<{ geometry: ScoreViewGeometry; sessionKey: unknown; viewportWidth: number } | null>(null);
   const lastScroll = useRef<ScoreViewScroll | null>(null);
   const pendingAnchor = useRef<ScoreViewAnchor | null>(null);
   const latest = useRef({ geometry, gutter, topInset, sessionKey, viewportWidth, onGeometryChange });
 
-  const setMode = useCallback((next: ScoreViewMode) => {
+  const setZoom = useCallback((next: ScoreZoom) => {
+    // 在倍率提交前捕获中心点，DOM 变换后沿用既有滚动恢复链路。
     if (lastScroll.current) {
       pendingAnchor.current = captureScoreViewAnchor(
         latest.current.geometry, lastScroll.current,
         latest.current.gutter, latest.current.topInset,
       );
     }
-    setModeState({ sessionKey: latest.current.sessionKey, mode: next });
+    setZoomState({ sessionKey: latest.current.sessionKey, zoom: next });
   }, []);
 
   useLayoutEffect(() => {
@@ -84,7 +85,7 @@ export function useScoreView({
           viewportWidth: viewport.clientWidth,
           viewportHeight: viewport.clientHeight,
         }, gutter, topInset);
-        // Direct assignment avoids inherited smooth-scroll animation while matrices change.
+        // 直接赋值，避免矩阵变化期间继承平滑滚动造成视图跳动。
         viewport.scrollLeft = position.left;
         viewport.scrollTop = position.top;
       }
@@ -96,7 +97,7 @@ export function useScoreView({
       left: viewport.scrollLeft, top: viewport.scrollTop,
       viewportWidth: viewport.clientWidth, viewportHeight: viewport.clientHeight,
     };
-  }, [geometry, sessionKey, gutter, topInset, viewportWidth, viewportRef, onGeometryChange, modeState.sessionKey]);
+  }, [geometry, sessionKey, gutter, topInset, viewportWidth, viewportRef, onGeometryChange, zoomState.sessionKey]);
 
   useLayoutEffect(() => {
     const viewport = viewportRef.current;
@@ -145,5 +146,5 @@ export function useScoreView({
   };
   const svgStyle: CSSProperties = { width: geometry.svgWidth };
   const viewportStyle: CSSProperties = { paddingInline: gutter, paddingTop: topInset };
-  return { mode, setMode, geometry, stageStyle, paperStyle, svgStyle, viewportStyle };
+  return { zoom, setZoom, geometry, stageStyle, paperStyle, svgStyle, viewportStyle };
 }

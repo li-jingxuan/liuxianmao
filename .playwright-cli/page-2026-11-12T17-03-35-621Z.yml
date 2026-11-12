@@ -1,0 +1,404 @@
+- generic [active] [ref=f5e1]:
+  - main "六线猫吉他谱编辑器" [ref=f5e2]:
+    - generic [ref=f5e3]:
+      - generic [ref=f5e4]: 六线猫
+      - generic [ref=f5e8]:
+        - generic [ref=f5e9]:
+          - text: 风吹过山谷
+          - generic [ref=f5e10]: 编辑
+        - paragraph [ref=f5e11]: 吉他弹唱谱 · 1 = C · 4/4
+      - generic [ref=f5e12]: 谱面就绪
+    - navigation "谱面工具栏" [ref=f5e15]:
+      - button "撤销" [disabled] [ref=f5e17]
+      - generic [ref=f5e19]:
+        - button "全音符" [ref=f5e20] [cursor=pointer]
+        - button "二分音符" [ref=f5e21] [cursor=pointer]
+        - button "四分音符" [ref=f5e22] [cursor=pointer]
+        - button "八分音符" [ref=f5e23] [cursor=pointer]
+        - button "十六分音符" [ref=f5e24] [cursor=pointer]
+        - button "三十二分音符" [ref=f5e25] [cursor=pointer]
+      - generic [ref=f5e27]:
+        - button "切换附点" [ref=f5e28] [cursor=pointer]:
+          - generic [ref=f5e29]: ·
+        - button "设为整拍休止" [ref=f5e30] [cursor=pointer]
+      - generic [ref=f5e32]:
+        - button "小节" [ref=f5e33] [cursor=pointer]:
+          - text: 小节
+          - generic [aria-hidden] [ref=f5e34]: ⌄
+        - button "音符" [ref=f5e35] [cursor=pointer]:
+          - text: 音符
+          - generic [aria-hidden] [ref=f5e36]: ⌄
+        - button "连音" [ref=f5e37] [cursor=pointer]:
+          - text: 连音
+          - generic [aria-hidden] [ref=f5e38]: ⌄
+      - generic [ref=f5e39]:
+        - button "演奏技法，交互稿暂不演示" [disabled] [ref=f5e41]: H
+        - button "滑音，交互稿暂不演示" [disabled] [ref=f5e42]: S
+    - generic [ref=f5e46]:
+      - region "谱面画布" [ref=f5e47]:
+        - generic: A4 · 纵向
+        - img "风吹过山谷吉他六线谱，点击音符或小节编号选择" [ref=f5e51]:
+          - generic [ref=f5e53]: 风吹过山谷
+          - generic [ref=f5e54]: 吉 他 弹 唱 谱
+          - generic [ref=f5e55]: 编谱：六线猫
+          - generic [ref=f5e56]: 1 = C
+          - generic [ref=f5e57]: 4/4
+          - generic [ref=f5e58]: ♩ = 76
+          - generic [ref=f5e59] [cursor=pointer]
+          - button "选择第 1 小节" [ref=f5e60] [cursor=pointer]:
+            - generic [ref=f5e62]: "1"
+          - generic [ref=f5e63]: 前奏
+          - generic [ref=f5e64]: G
+          - generic [ref=f5e68]: T
+          - generic [ref=f5e69]: A
+          - generic [ref=f5e70]: B
+          - button "第 1 小节，第 1 拍，第 6 弦，3 品" [ref=f5e71] [cursor=pointer]:
+            - generic [ref=f5e74]: "3"
+          - button "第 1 小节，第 1 拍，第 3 弦，0 品" [ref=f5e75] [cursor=pointer]:
+            - generic [ref=f5e78]: "0"
+          - button "第 1 小节，第 2 拍，第 2 弦，2 品" [ref=f5e80] [cursor=pointer]:
+            - generic [ref=f5e83]: "2"
+          - button "第 1 小节，第 2 拍，第 4 弦，0 品" [ref=f5e85] [cursor=pointer]:
+            - generic [ref=f5e88]: "0"
+          - button "第 1 小节，第 3 拍，第 3 弦，1 品" [ref=f5e89] [cursor=pointer]:
+            - generic [ref=f5e92]: "1"
+          - button "第 1 小节，第 3 拍，第 1 弦，0 品" [ref=f5e94] [cursor=pointer]:
+            - generic [ref=f5e97]: "0"
+          - button "第 1 小节，第 4 拍，第 2 弦，3 品" [ref=f5e99] [cursor=pointer]:
+            - generic [ref=f5e102]: "3"
+          - button "第 1 小节，第 4 拍，第 4 弦，2 品" [ref=f5e103] [cursor=pointer]:
+            - generic [ref=f5e106]: "2"
+          - generic [ref=f5e109]: H
+          - generic [ref=f5e110]: "1"
+          - generic [ref=f5e111]: 轻轻
+          - generic [ref=f5e112]: "2"
+          - generic [ref=f5e113]: 唱起
+          - generic [ref=f5e114]: "3"
+          - generic [ref=f5e115]: 风的
+          - generic [ref=f5e116]: "5"
+          - generic [ref=f5e117]: 歌
+          - generic [ref=f5e118] [cursor=pointer]
+          - button "选择第 2 小节" [ref=f5e119] [cursor=pointer]:
+            - generic [ref=f5e121]: "2"
+          - generic [ref=f5e122]: C
+          - button "第 2 小节，第 1 拍，第 3 弦，0 品" [ref=f5e126] [cursor=pointer]:
+            - generic [ref=f5e129]: "0"
+          - button "第 2 小节，第 1 拍，第 2 弦，2 品" [ref=f5e130] [cursor=pointer]:
+            - generic [ref=f5e133]: "2"
+          - button "第 2 小节，第 2 拍，第 4 弦，0 品" [ref=f5e135] [cursor=pointer]:
+            - generic [ref=f5e138]: "0"
+          - button "第 2 小节，第 2 拍，第 3 弦，1 品" [ref=f5e140] [cursor=pointer]:
+            - generic [ref=f5e143]: "1"
+          - button "第 2 小节，第 3 拍，第 1 弦，0 品" [ref=f5e144] [cursor=pointer]:
+            - generic [ref=f5e147]: "0"
+          - button "第 2 小节，第 3 拍，第 2 弦，3 品" [ref=f5e149] [cursor=pointer]:
+            - generic [ref=f5e152]: "3"
+          - button "第 2 小节，第 4 拍，第 4 弦，2 品" [ref=f5e154] [cursor=pointer]:
+            - generic [ref=f5e157]: "2"
+          - button "第 2 小节，第 4 拍，第 6 弦，3 品" [ref=f5e158] [cursor=pointer]:
+            - generic [ref=f5e161]: "3"
+          - generic [ref=f5e163]: "2"
+          - generic [ref=f5e164]: 旋律
+          - generic [ref=f5e165]: "3"
+          - generic [ref=f5e166]: 随风
+          - generic [ref=f5e167]: "5"
+          - generic [ref=f5e168]: 慢升
+          - generic [ref=f5e169]: "6"
+          - generic [ref=f5e170]: 起
+          - generic [ref=f5e171] [cursor=pointer]
+          - button "选择第 3 小节" [ref=f5e172] [cursor=pointer]:
+            - generic [ref=f5e174]: "3"
+          - generic [ref=f5e175]: Em
+          - button "第 3 小节，第 1 拍，第 2 弦，2 品" [ref=f5e179] [cursor=pointer]:
+            - generic [ref=f5e182]: "2"
+          - button "第 3 小节，第 1 拍，第 4 弦，0 品" [ref=f5e183] [cursor=pointer]:
+            - generic [ref=f5e186]: "0"
+          - button "第 3 小节，第 2 拍，第 3 弦，1 品" [ref=f5e188] [cursor=pointer]:
+            - generic [ref=f5e191]: "1"
+          - button "第 3 小节，第 2 拍，第 1 弦，0 品" [ref=f5e193] [cursor=pointer]:
+            - generic [ref=f5e196]: "0"
+          - button "第 3 小节，第 3 拍，第 2 弦，3 品" [ref=f5e197] [cursor=pointer]:
+            - generic [ref=f5e200]: "3"
+          - button "第 3 小节，第 3 拍，第 4 弦，2 品" [ref=f5e202] [cursor=pointer]:
+            - generic [ref=f5e205]: "2"
+          - button "第 3 小节，第 4 拍，第 6 弦，3 品" [ref=f5e207] [cursor=pointer]:
+            - generic [ref=f5e210]: "3"
+          - button "第 3 小节，第 4 拍，第 3 弦，0 品" [ref=f5e211] [cursor=pointer]:
+            - generic [ref=f5e214]: "0"
+          - generic [ref=f5e216]: "3"
+          - generic [ref=f5e217]: 和声
+          - generic [ref=f5e218]: "5"
+          - generic [ref=f5e219]: 轻响
+          - generic [ref=f5e220]: "6"
+          - generic [ref=f5e221]: 在山
+          - generic [ref=f5e222]: "5"
+          - generic [ref=f5e223]: 谷
+          - generic [ref=f5e224] [cursor=pointer]
+          - button "选择第 4 小节" [ref=f5e225] [cursor=pointer]:
+            - generic [ref=f5e227]: "4"
+          - generic [ref=f5e228]: 主歌
+          - generic [ref=f5e229]: Am
+          - generic [ref=f5e233]: T
+          - generic [ref=f5e234]: A
+          - generic [ref=f5e235]: B
+          - button "第 4 小节，第 1 拍，第 4 弦，0 品" [ref=f5e236] [cursor=pointer]:
+            - generic [ref=f5e239]: "0"
+          - button "第 4 小节，第 1 拍，第 3 弦，1 品" [ref=f5e240] [cursor=pointer]:
+            - generic [ref=f5e243]: "1"
+          - button "第 4 小节，第 2 拍，第 1 弦，0 品" [ref=f5e245] [cursor=pointer]:
+            - generic [ref=f5e248]: "0"
+          - button "第 4 小节，第 2 拍，第 2 弦，3 品" [ref=f5e250] [cursor=pointer]:
+            - generic [ref=f5e253]: "3"
+          - button "第 4 小节，第 3 拍，第 4 弦，2 品" [ref=f5e254] [cursor=pointer]:
+            - generic [ref=f5e257]: "2"
+          - button "第 4 小节，第 3 拍，第 6 弦，3 品" [ref=f5e259] [cursor=pointer]:
+            - generic [ref=f5e262]: "3"
+          - button "第 4 小节，第 4 拍，第 3 弦，0 品" [ref=f5e264] [cursor=pointer]:
+            - generic [ref=f5e267]: "0"
+          - button "第 4 小节，第 4 拍，第 2 弦，2 品" [ref=f5e268] [cursor=pointer]:
+            - generic [ref=f5e271]: "2"
+          - generic [ref=f5e274]: H
+          - generic [ref=f5e275]: "5"
+          - generic [ref=f5e276]: 你听
+          - generic [ref=f5e277]: "6"
+          - generic [ref=f5e278]: 见远
+          - generic [ref=f5e279]: "5"
+          - generic [ref=f5e280]: 方的
+          - generic [ref=f5e281]: "3"
+          - generic [ref=f5e282]: 风
+          - generic [ref=f5e283] [cursor=pointer]
+          - button "选择第 5 小节" [ref=f5e284] [cursor=pointer]:
+            - generic [ref=f5e286]: "5"
+          - generic [ref=f5e287]: D
+          - button "第 5 小节，第 1 拍，第 3 弦，1 品" [ref=f5e291] [cursor=pointer]:
+            - generic [ref=f5e294]: "1"
+          - button "第 5 小节，第 1 拍，第 1 弦，0 品" [ref=f5e296] [cursor=pointer]:
+            - generic [ref=f5e299]: "0"
+          - button "第 5 小节，第 2 拍，第 2 弦，3 品" [ref=f5e301] [cursor=pointer]:
+            - generic [ref=f5e304]: "3"
+          - button "第 5 小节，第 2 拍，第 4 弦，2 品" [ref=f5e306] [cursor=pointer]:
+            - generic [ref=f5e309]: "2"
+          - button "第 5 小节，第 3 拍，第 6 弦，3 品" [ref=f5e311] [cursor=pointer]:
+            - generic [ref=f5e314]: "3"
+          - button "第 5 小节，第 3 拍，第 3 弦，0 品" [ref=f5e316] [cursor=pointer]:
+            - generic [ref=f5e319]: "0"
+          - button "第 5 小节，第 4 拍，第 2 弦，2 品" [ref=f5e321] [cursor=pointer]:
+            - generic [ref=f5e324]: "2"
+          - button "第 5 小节，第 4 拍，第 4 弦，0 品" [ref=f5e326] [cursor=pointer]:
+            - generic [ref=f5e329]: "0"
+          - button "选择第 5 小节 3:2 连音组" [ref=f5e331] [cursor=pointer]:
+            - generic [ref=f5e334]: 3:2
+          - generic [ref=f5e335]: "6"
+          - generic [ref=f5e336]: 越过
+          - generic [ref=f5e337]: "5"
+          - generic [ref=f5e338]: 森林
+          - generic [ref=f5e339]: "3"
+          - generic [ref=f5e340]: 与河
+          - generic [ref=f5e341]: "2"
+          - generic [ref=f5e342]: 流
+          - generic [ref=f5e343] [cursor=pointer]
+          - button "选择第 6 小节" [ref=f5e344] [cursor=pointer]:
+            - generic [ref=f5e346]: "6"
+          - generic [ref=f5e347]: G
+          - button "第 6 小节，第 1 拍，第 1 弦，0 品" [ref=f5e351] [cursor=pointer]:
+            - generic [ref=f5e354]: "0"
+          - button "第 6 小节，第 1 拍，第 2 弦，3 品" [ref=f5e355] [cursor=pointer]:
+            - generic [ref=f5e358]: "3"
+          - button "第 6 小节，第 2 拍，第 4 弦，2 品" [ref=f5e360] [cursor=pointer]:
+            - generic [ref=f5e363]: "2"
+          - button "第 6 小节，第 2 拍，第 6 弦，3 品" [ref=f5e365] [cursor=pointer]:
+            - generic [ref=f5e368]: "3"
+          - button "第 6 小节，第 3 拍，第 3 弦，0 品" [ref=f5e369] [cursor=pointer]:
+            - generic [ref=f5e372]: "0"
+          - button "第 6 小节，第 3 拍，第 2 弦，2 品" [ref=f5e374] [cursor=pointer]:
+            - generic [ref=f5e377]: "2"
+          - button "第 6 小节，第 4 拍，第 4 弦，0 品" [ref=f5e379] [cursor=pointer]:
+            - generic [ref=f5e382]: "0"
+          - button "第 6 小节，第 4 拍，第 3 弦，1 品" [ref=f5e383] [cursor=pointer]:
+            - generic [ref=f5e386]: "1"
+          - generic [ref=f5e388]: "5"
+          - generic [ref=f5e389]: 把故
+          - generic [ref=f5e390]: "3"
+          - generic [ref=f5e391]: 事轻
+          - generic [ref=f5e392]: "2"
+          - generic [ref=f5e393]: 轻诉
+          - generic [ref=f5e394]: "1"
+          - generic [ref=f5e395]: 说
+          - generic [ref=f5e396] [cursor=pointer]
+          - button "选择第 7 小节" [ref=f5e397] [cursor=pointer]:
+            - generic [ref=f5e399]: "7"
+          - generic [ref=f5e400]: 副歌
+          - generic [ref=f5e401]: C
+          - generic [ref=f5e405]: T
+          - generic [ref=f5e406]: A
+          - generic [ref=f5e407]: B
+          - button "第 7 小节，第 1 拍，第 2 弦，3 品" [ref=f5e408] [cursor=pointer]:
+            - generic [ref=f5e411]: "3"
+          - button "第 7 小节，第 1 拍，第 4 弦，2 品" [ref=f5e412] [cursor=pointer]:
+            - generic [ref=f5e415]: "2"
+          - button "第 7 小节，第 2 拍，第 6 弦，3 品" [ref=f5e417] [cursor=pointer]:
+            - generic [ref=f5e420]: "3"
+          - button "第 7 小节，第 2 拍，第 3 弦，0 品" [ref=f5e422] [cursor=pointer]:
+            - generic [ref=f5e425]: "0"
+          - button "第 7 小节，第 3 拍，第 2 弦，2 品" [ref=f5e426] [cursor=pointer]:
+            - generic [ref=f5e429]: "2"
+          - button "第 7 小节，第 3 拍，第 4 弦，0 品" [ref=f5e431] [cursor=pointer]:
+            - generic [ref=f5e434]: "0"
+          - button "第 7 小节，第 4 拍，第 3 弦，1 品" [ref=f5e436] [cursor=pointer]:
+            - generic [ref=f5e439]: "1"
+          - button "第 7 小节，第 4 拍，第 1 弦，0 品" [ref=f5e440] [cursor=pointer]:
+            - generic [ref=f5e443]: "0"
+          - generic [ref=f5e445]: "3"
+          - generic [ref=f5e446]: 歌声
+          - generic [ref=f5e447]: "2"
+          - generic [ref=f5e448]: 落在
+          - generic [ref=f5e449]: "1"
+          - generic [ref=f5e450]: 你心
+          - generic [ref=f5e451]: "2"
+          - generic [ref=f5e452]: 上
+          - generic [ref=f5e453] [cursor=pointer]
+          - button "选择第 8 小节" [ref=f5e454] [cursor=pointer]:
+            - generic [ref=f5e456]: "8"
+          - generic [ref=f5e457]: Em
+          - button "第 8 小节，第 1 拍，第 4 弦，2 品" [ref=f5e461] [cursor=pointer]:
+            - generic [ref=f5e464]: "2"
+          - button "第 8 小节，第 1 拍，第 6 弦，3 品" [ref=f5e465] [cursor=pointer]:
+            - generic [ref=f5e468]: "3"
+          - button "第 8 小节，第 2 拍，第 3 弦，0 品" [ref=f5e470] [cursor=pointer]:
+            - generic [ref=f5e473]: "0"
+          - button "第 8 小节，第 2 拍，第 2 弦，2 品" [ref=f5e475] [cursor=pointer]:
+            - generic [ref=f5e478]: "2"
+          - button "第 8 小节，第 3 拍，第 4 弦，0 品" [ref=f5e479] [cursor=pointer]:
+            - generic [ref=f5e482]: "0"
+          - button "第 8 小节，第 3 拍，第 3 弦，1 品" [ref=f5e484] [cursor=pointer]:
+            - generic [ref=f5e487]: "1"
+          - button "第 8 小节，第 4 拍，第 1 弦，0 品" [ref=f5e489] [cursor=pointer]:
+            - generic [ref=f5e492]: "0"
+          - button "第 8 小节，第 4 拍，第 2 弦，3 品" [ref=f5e493] [cursor=pointer]:
+            - generic [ref=f5e496]: "3"
+          - generic [ref=f5e499]: P
+          - generic [ref=f5e500]: "2"
+          - generic [ref=f5e501]: 余音
+          - generic [ref=f5e502]: "1"
+          - generic [ref=f5e503]: 伴着
+          - generic [ref=f5e504]: "2"
+          - generic [ref=f5e505]: 云流
+          - generic [ref=f5e506]: "3"
+          - generic [ref=f5e507]: 淌
+          - generic [ref=f5e508] [cursor=pointer]
+          - button "选择第 9 小节" [ref=f5e509] [cursor=pointer]:
+            - generic [ref=f5e511]: "9"
+          - generic [ref=f5e512]: 尾奏
+          - generic [ref=f5e513]: G
+          - button "第 9 小节，第 1 拍，第 6 弦，3 品" [ref=f5e517] [cursor=pointer]:
+            - generic [ref=f5e520]: "3"
+          - button "第 9 小节，第 1 拍，第 3 弦，0 品" [ref=f5e521] [cursor=pointer]:
+            - generic [ref=f5e524]: "0"
+          - button "第 9 小节，第 2 拍，第 2 弦，2 品" [ref=f5e526] [cursor=pointer]:
+            - generic [ref=f5e529]: "2"
+          - button "第 9 小节，第 2 拍，第 4 弦，0 品" [ref=f5e531] [cursor=pointer]:
+            - generic [ref=f5e534]: "0"
+          - button "第 9 小节，第 3 拍，第 3 弦，1 品" [ref=f5e535] [cursor=pointer]:
+            - generic [ref=f5e538]: "1"
+          - button "第 9 小节，第 3 拍，第 1 弦，0 品" [ref=f5e540] [cursor=pointer]:
+            - generic [ref=f5e543]: "0"
+          - button "第 9 小节，第 4 拍，第 2 弦，3 品" [ref=f5e545] [cursor=pointer]:
+            - generic [ref=f5e548]: "3"
+          - button "第 9 小节，第 4 拍，第 4 弦，2 品" [ref=f5e549] [cursor=pointer]:
+            - generic [ref=f5e552]: "2"
+          - generic [ref=f5e554]: "1"
+          - generic [ref=f5e555]: 等风
+          - generic [ref=f5e556]: "2"
+          - generic [ref=f5e557]: 吹过
+          - generic [ref=f5e558]: "3"
+          - generic [ref=f5e559]: 这山
+          - generic [ref=f5e560]: "5"
+          - generic [ref=f5e561]: 谷
+          - generic [ref=f5e562]: 六线猫 · 风吹过山谷
+          - generic [ref=f5e563]: "1"
+        - generic "谱面缩放" [ref=f5e564]:
+          - button "缩小谱面" [ref=f5e565] [cursor=pointer]: −
+          - button "选择缩放比例" [ref=f5e566] [cursor=pointer]:
+            - generic [ref=f5e567]: 125%
+            - generic [ref=f5e568]: ⌄
+          - button "放大谱面" [ref=f5e569] [cursor=pointer]: +
+      - complementary "选区属性" [ref=f5e570]:
+        - generic [ref=f5e571]:
+          - generic [ref=f5e572]: 选区
+          - generic [ref=f5e576]: ♫ 简谱与歌词
+          - generic [ref=f5e577]: ▦ 和弦
+        - generic [ref=f5e578]:
+          - generic [ref=f5e579]:
+            - generic [ref=f5e580]:
+              - heading "TAB 音符" [level=2] [ref=f5e581]
+              - button "定位所选音符到谱面" [ref=f5e582] [cursor=pointer]:
+                - generic [aria-hidden] [ref=f5e583]: ⌾
+                - text: 定位谱面
+            - paragraph [ref=f5e584]: 第 5 小节 · 第 2 拍 · 第 2 弦
+          - generic [ref=f5e585]:
+            - tablist "选区编辑类型" [ref=f5e586]:
+              - tab "音符" [selected] [ref=f5e587] [cursor=pointer]
+              - tab "小节" [ref=f5e588] [cursor=pointer]
+              - tab "连音" [ref=f5e589] [cursor=pointer]
+            - generic [ref=f5e590]:
+              - generic [ref=f5e591]:
+                - heading "时值" [level=3] [ref=f5e592]
+                - generic [ref=f5e593]: 当前单拍
+              - generic [ref=f5e594]:
+                - button "全音符" [ref=f5e595] [cursor=pointer]
+                - button "二分音符" [ref=f5e596] [cursor=pointer]
+                - button "四分音符" [ref=f5e597] [cursor=pointer]
+                - button "八分音符" [pressed] [ref=f5e598] [cursor=pointer]
+                - button "十六分音符" [ref=f5e599] [cursor=pointer]
+                - button "三十二分音符" [ref=f5e600] [cursor=pointer]
+            - generic [ref=f5e601]:
+              - heading "附点" [level=3] [ref=f5e603]
+              - generic [ref=f5e604]:
+                - button "无附点" [pressed] [ref=f5e605] [cursor=pointer]
+                - button "附点" [ref=f5e607] [cursor=pointer]
+                - button "复附点" [ref=f5e609] [cursor=pointer]
+            - generic [ref=f5e612]:
+              - generic [ref=f5e613]:
+                - heading "音符状态" [level=3] [ref=f5e614]
+                - generic [ref=f5e615]: 即时生效
+              - generic [ref=f5e616]:
+                - button "弹奏标记" [ref=f5e618] [cursor=pointer]:
+                  - generic [ref=f5e620]: ×
+                - button "延音标记" [ref=f5e623] [cursor=pointer]:
+                  - generic [ref=f5e625]: —
+                - button "整拍休止" [ref=f5e628] [cursor=pointer]
+            - paragraph [ref=f5e632]: 已选择 1 个 TAB 音符
+    - generic [ref=f5e634]:
+      - generic [ref=f5e635]:
+        - generic [ref=f5e636]: 当前位置：第 5 小节，第 2 拍
+        - generic [ref=f5e637]: 已选择 1 个音符
+      - generic [ref=f5e638]: 点击音符选择 · Shift 点击多选 · Esc 取消选择
+  - region "交互稿评审控制" [ref=f5e639]:
+    - generic [ref=f5e640]:
+      - strong [ref=f5e641]: 交互评审
+      - text: 仅用于切换示例状态
+    - generic [ref=f5e642]:
+      - button "未选择" [ref=f5e643] [cursor=pointer]
+      - button "音符" [ref=f5e644] [cursor=pointer]
+      - button "多拍选区" [ref=f5e645] [cursor=pointer]
+      - button "小节" [ref=f5e646] [cursor=pointer]
+      - button "连音" [ref=f5e647] [cursor=pointer]
+    - generic [ref=f5e648]:
+      - generic [ref=f5e649]:
+        - text: 连音选区
+        - combobox "评审：连音成员数" [ref=f5e650]:
+          - option "2 个音符"
+          - option "3 个音符" [selected]
+          - option "4 个音符"
+          - option "5 个音符"
+          - option "6 个音符"
+      - generic [ref=f5e651]:
+        - text: 条件
+        - combobox "评审：连音选区条件" [ref=f5e652]:
+          - option "同小节 · 等时值" [selected]
+          - option "跨小节"
+          - option "时值不同"
+          - option "附点不同"
+    - generic [ref=f5e653]: REQ002—006 · 离线交互稿
+  - tooltip
+  - status

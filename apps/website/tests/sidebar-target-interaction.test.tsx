@@ -3,6 +3,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { EXAMPLE_MVP_6_DOCUMENT, type ILXMScoreCommand } from "@liuxianmao/lxm-editor";
 import { TupletToolDetails } from "../components/EditorShell/tools/TupletToolDetails";
+import { NoteToolDetails } from "../components/EditorShell/tools/NoteToolDetails";
+import { MeasureToolDetails } from "../components/EditorShell/tools/MeasureToolDetails";
 import { MusicTextSidebar } from "../components/EditorShell/music-text/MusicTextSidebar";
 import { EditorSessionRuntime } from "../components/EditorShell/session/EditorSessionRuntime";
 import { createEditorSession } from "../stores/editor-store";
@@ -44,7 +46,7 @@ describe("简谱连音入口的真实目标", () => {
       return tree;
     };
     const markup = renderToStaticMarkup(<Harness />);
-    expect(markup).toContain("3:2 · 3 个成员");
+    expect(markup).toContain("三连音 · 3 个成员");
     expect(markup).not.toContain("待应用连音比例");
     remove!();
     await Promise.resolve();
@@ -70,12 +72,12 @@ describe("简谱连音入口的真实目标", () => {
   it("无简谱选区时仍保留TAB六种连音比例", () => {
     const { document, selection } = fixture();
     const markup = renderToStaticMarkup(<TupletToolDetails document={document} selection={selection} blocked={false} execute={async () => ({ status: "cancelled", message: "test" })} />);
-    expect(markup).toContain("待应用连音比例");
+    expect(markup).toContain("连音类型");
     expect(markup).toContain("删除当前连音组");
   });
 });
 
-const renderSidebar = (selected: boolean, tab?: "chord", numbered = false) => {
+const renderSidebar = (selected: boolean, tab?: "chord" | "song", numbered = false, task?: "measure") => {
   const { document, selection, track, measure } = fixture();
   const session = createEditorSession(document);
   if (selected) session.getState().setSelection(selection);
@@ -95,7 +97,19 @@ const renderSidebar = (selected: boolean, tab?: "chord", numbered = false) => {
       switched = true;
       const tabs = find(tree, (value) => value.activeKey === "selection" && Array.isArray(value.items));
       (tabs!.onChange as (key: string) => void)(tab);
+      return tree;
     }
+    if (task && !switched) {
+      switched = true;
+      const tasks = find(tree, (value) => value["aria-label"] === "选区任务");
+      (tasks!.onChange as (key: string) => void)(task);
+      return tree;
+    }
+    const activeSurface = tab === "song" ? "song" : task && selected ? "measure" : null;
+    const settings = find(tree, (value) => "activeSurface" in value);
+    expect(settings?.activeSurface).toBe(activeSurface);
+    const actions = find(tree, (value) => "data-editor-actions-host" in value);
+    expect(actions?.hidden).toBe(activeSurface === null);
     return tree;
   };
   return renderToStaticMarkup(<EditorStoreContext.Provider value={{ ...session, getInitialState: session.getState }}><EditorSessionRuntime session={session}><Harness /></EditorSessionRuntime></EditorStoreContext.Provider>);
@@ -104,11 +118,15 @@ const renderSidebar = (selected: boolean, tab?: "chord", numbered = false) => {
 describe("侧栏浏览与显式编辑分离", () => {
   it("初始无选区显示紧凑邀请，不显示禁用音符表单与任务切换", () => {
     const markup = renderSidebar(false);
-    expect(markup).toContain("从谱面上的一个位置开始");
-    expect(markup).toContain("查看歌曲设置");
-    expect(markup).toContain("浏览小节工具");
+    expect(markup).toContain("点击谱面中的音符或小节开始编辑");
+    for (const label of ["前往谱面选择", "浏览简谱与歌词", "查看歌曲设置", "浏览小节工具", "原编辑位置已失效"]) expect(markup).not.toContain(label);
     expect(markup).not.toContain('aria-label="选区任务"');
     expect(markup).not.toContain('aria-label="音符属性详情"');
+  });
+
+  it("真实歌曲和小节表单保留设置操作表面", () => {
+    renderSidebar(false, "song");
+    renderSidebar(true, undefined, false, "measure");
   });
 
   it("已有TAB选区仅浏览和弦页签时保持显式编辑入口", () => {
@@ -122,5 +140,74 @@ describe("侧栏浏览与显式编辑分离", () => {
     const markup = renderSidebar(true, "chord", true);
     expect(markup).toMatch(/<button[^>]*disabled[^>]*><span>编辑当前拍和弦<\/span>/);
     expect(markup).not.toContain('aria-label="和弦名称"');
+  });
+});
+
+describe("紧凑选区详情的即时命令", () => {
+  it("附点与音符状态通过原动作提交，并移除 TAB 下方的旧功能块", () => {
+    const { document, selection, measure } = fixture();
+    measure.beats[0]!.notes = [{ id: "note-x", string: 1, fret: "x" }];
+    const action = vi.fn(async () => true);
+    let tree: ReactNode;
+    const Harness = () => {
+      tree = NoteToolDetails({ document, selection, blocked: false, onAction: action });
+      return tree;
+    };
+    const markup = renderToStaticMarkup(<Harness />);
+    expect(markup).toMatch(/aria-label="弹奏标记"[^>]*aria-pressed="true"/);
+    for (const label of ["延续一拍", "编辑此拍和弦", "演奏技巧", "删除所选弦音符"]) expect(markup).not.toContain(label);
+    for (const [label, command] of [["复附点", { type: "dots", dots: 2 }], ["弹奏标记", { type: "muted" }], ["延音标记", { type: "continuation" }], ["整拍休止", { type: "rest" }]] as const) {
+      const button = find(tree!, (props) => props["aria-label"] === label && typeof props.onClick === "function");
+      expect(button?.disabled).toBe(false);
+      (button!.onClick as () => void)();
+      expect(action).toHaveBeenLastCalledWith(command);
+    }
+  });
+
+  it("多拍禁用时值和附点，并提供可聚焦的原因提示", () => {
+    const { document, selection, measure } = fixture();
+    selection.focus = { ...selection.focus, beatId: measure.beats[1]!.id };
+    const markup = renderToStaticMarkup(<NoteToolDetails document={document} selection={selection} blocked={false} onAction={async () => true} />);
+    for (const label of ["四分音符", "无附点", "附点", "复附点"]) {
+      expect(markup).toMatch(new RegExp(`<span[^>]*tabindex="0"[^>]*aria-label="${label}"`));
+      expect(markup).toMatch(new RegExp(`<button[^>]*aria-label="${label}"[^>]*disabled`));
+    }
+  });
+
+  it.each([false, true])("混合/全部休止保留恢复动作（全部=%s）", (all) => {
+    const { document, selection, measure } = fixture();
+    measure.beats[0]!.kind = "rest";
+    measure.beats[0]!.notes = [];
+    selection.focus = { ...selection.focus, beatId: measure.beats[1]!.id };
+    measure.beats[1]!.kind = all ? "rest" : "notes";
+    if (all) measure.beats[1]!.notes = [];
+    const action = vi.fn(async () => true);
+    const Harness = () => {
+      const tree = NoteToolDetails({ document, selection, blocked: false, onAction: action });
+      const restore = find(tree, (props) => all ? props["aria-label"] === "取消休止" && typeof props.onClick === "function" : props.children === "取消选区休止");
+      expect(restore?.disabled).toBe(false);
+      (restore!.onClick as () => void)();
+      return tree;
+    };
+    renderToStaticMarkup(<Harness />);
+    expect(action).toHaveBeenCalledWith({ type: "restore" });
+  });
+
+  it("末小节仅禁用开始/双向反复，符号保留名字与选中态", () => {
+    const { document, track, selection } = fixture();
+    const measure = track.measures.at(-1)!;
+    const action = vi.fn(async () => true);
+    const Harness = () => {
+      const tree = MeasureToolDetails({ document, selection, target: { trackId: track.id, measureId: measure.id }, blocked: false, onAction: action, navigate: () => {} });
+      for (const label of ["开始反复线", "双向反复线"]) expect(find(tree, (props) => props["aria-label"] === label)?.disabled).toBe(true);
+      const single = find(tree, (props) => props["aria-label"] === "单小节线");
+      expect(single?.disabled).toBe(false);
+      (single!.onClick as () => void)();
+      return tree;
+    };
+    const markup = renderToStaticMarkup(<Harness />);
+    expect(markup).not.toContain("ant-alert");
+    expect(markup).toContain("谱尾右边界没有下一小节，不能开始反复");
+    expect(action).toHaveBeenCalledWith({ type: "barline", value: "single", target: { trackId: track.id, measureId: measure.id } });
   });
 });

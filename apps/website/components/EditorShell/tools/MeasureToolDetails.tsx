@@ -15,7 +15,6 @@ import type {
 } from "./editor-tool-actions";
 import type { ToolNavigation } from "./editor-tool-catalog";
 import editorFormStyles from "../shared/editor-form.module.scss";
-import editorToolPanelStyles from "../shared/editor-tool-panel.module.scss";
 import taskStyles from "../shared/SelectionTaskDetails.module.scss";
 export const BARLINES: { value: ILXMBarlineType; label: string }[] = [
   { value: "single", label: "单小节线" },
@@ -136,7 +135,7 @@ export const MeasureToolDetails = ({
   const atEnd = index === (track?.measures.length ?? 0) - 1;
   const boundaryTools = track && measure ? <div className={taskStyles.boundaryBody}>
       <div
-        className={editorToolPanelStyles.barlineOptions}
+        className={taskStyles.barlinePicker}
         role="group"
         aria-label="六类小节线"
       >
@@ -144,19 +143,21 @@ export const MeasureToolDetails = ({
           const unavailable =
             atEnd &&
             (barline.value === "repeatStart" || barline.value === "repeatBoth");
+          const disabled = blocked || unavailable;
+          const reason = unavailable ? "谱尾右边界没有下一小节，不能开始反复"
+            : blocked ? "请先完成当前编辑或等待提交结束" : null;
           return (
             <Tooltip
               key={barline.value}
-              title={
-                unavailable
-                  ? "谱尾没有下一小节，不能设置开始或双向反复。"
-                  : undefined
-              }
+              trigger={["hover", "focus"]}
+              title={`${barline.label}${reason ? `：${reason}` : ""}`}
             >
-              <span tabIndex={unavailable ? 0 : undefined}>
+              {/* 原生 disabled 保留命令保护；外层焦点让键盘也能查看禁用原因。 */}
+              <span className={taskStyles.symbolWrapper} tabIndex={disabled ? 0 : undefined} aria-label={disabled ? `${barline.label}：${reason}` : undefined}>
                 <Button
                   block
-                  disabled={blocked || unavailable}
+                  disabled={disabled}
+                  aria-label={barline.label}
                   aria-pressed={measure.barline === barline.value}
                   color={
                     measure.barline === barline.value ? "primary" : "default"
@@ -172,23 +173,12 @@ export const MeasureToolDetails = ({
                       target,
                     })
                   }
-                >
-                  {barline.label}
-                </Button>
+                />
               </span>
             </Tooltip>
           );
         })}
       </div>
-      {atEnd && (
-        <Alert
-          variant="filled"
-          type="warning"
-          showIcon
-          title="谱尾没有下一小节"
-          description="开始/双向反复不能写入；谱首反复只能在首小节设置。"
-        />
-      )}
       <Button
         block
         disabled={blocked || index !== 0}

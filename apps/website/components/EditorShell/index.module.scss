@@ -88,6 +88,38 @@
 .historyRail,
 .historyPanel { min-width: 0; min-height: 0; }
 
+// 仅控件自身接收事件，覆盖层位于谱面列且低于抽屉遮罩（20）。
+.scoreZoom {
+  grid-area: 1 / 3;
+  align-self: end;
+  justify-self: end;
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  margin: 16px;
+  padding: 2px;
+  pointer-events: auto;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgb(15 23 42 / 10%);
+
+  .scoreZoomStep,
+  .scoreZoomValue {
+    height: 28px;
+    padding: 0;
+    font-size: 12px;
+  }
+  .scoreZoomStep { width: 26px; }
+  .scoreZoomValue {
+    width: 60px;
+    gap: 4px;
+    font-variant-numeric: tabular-nums;
+    :global(.anticon) { font-size: 10px; }
+  }
+}
+
 .workspaceBackdrop,
 .drawerMask,
 .editorWorkspace > [data-drawer-mask] {

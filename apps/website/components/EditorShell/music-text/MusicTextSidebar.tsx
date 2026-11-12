@@ -1549,15 +1549,25 @@ export const MusicTextSidebar = ({
       if (position) onLocate({ kind: "lyric", verse: target.verse, trackId: target.trackId, measureId: target.measureId, eventId: position.eventId, startTick: position.tick, endTick: position.endTick });
     },
   };
+  // 只把真实目标交给摘要；初始空选区不能用空 ID 伪造一个失效的小节。
+  const measureTarget = detailTarget ?? numberedSelection ?? selection?.focus;
   const context = deriveSidebarContext({ document: score, target: activeObject,
     task: propertyTab === "selection" ? selectionDetail : undefined,
     selection, numberedSelection, song: propertyTab === "song",
     measureTarget: propertyTab === "selection" && selectionDetail === "measure"
-      ? { trackId: detailTarget?.trackId ?? numberedSelection?.trackId ?? selection?.focus.trackId ?? "", measureId: settingsStatus?.measureId ?? detailTarget?.measureId ?? numberedSelection?.measureId ?? selection?.focus.measureId ?? "" } : undefined });
+      ? measureTarget : undefined });
   const hasExplicitSelection = numberedSelection
     ? !!score && !!resolveNumberedEditorTarget(score, numberedSelection)
     : !!selection && isScoreSelectionValid(score, selection);
-  const showSelectionInvitation = !hasExplicitSelection && !selectionToolsRequested;
+  const hasRequestedMeasure = selectionToolsRequested && !!detailTarget && !!score?.score.tracks
+    .find((track) => track.id === detailTarget.trackId)?.measures.some((measure) => measure.id === detailTarget.measureId);
+  const showSelectionInvitation = !hasExplicitSelection && !hasRequestedMeasure;
+  // 正文、设置动作 Portal 与底栏共用实际活动表单，owner 和 host 仍常驻以保留草稿。
+  const settingsSurface = score && propertyTab === "song" ? "song"
+    : score && propertyTab === "selection" && selectionDetail === "measure" && !showSelectionInvitation && context.valid
+      ? "measure" : null;
+  const numberedFormActive = !!score && propertyTab === "paragraph" && kind === "numbered" && activeObject?.kind === "numbered";
+  const hasActionsForm = !!settingsSurface || numberedFormActive;
   return (
     <ConfigProvider
       getPopupContainer={(trigger) => trigger?.closest<HTMLElement>("#music-text-sidebar,[data-editor-associated-panel]") ?? globalThis.document.body}
@@ -1818,7 +1828,7 @@ export const MusicTextSidebar = ({
                 songHost={songHost}
                 measureHost={measureHost}
                 actionsHost={actionsHost}
-                activeSurface={propertyTab === "song" ? "song" : propertyTab === "selection" && selectionDetail === "measure" ? "measure" : null}
+                activeSurface={settingsSurface}
                 onDirty={setSettingsDirty}
                 onStatus={setSettingsStatus}
                 commit={commit}
@@ -1847,12 +1857,7 @@ export const MusicTextSidebar = ({
             {showSelectionInvitation ? (
               <div className={musicTextSidebarStyles.sidebarEmpty}>
                 <div className={musicTextSidebarStyles.emptyIllustration} aria-hidden="true"><svg viewBox="0 0 110 70"><path d="M8 18h94M8 28h94M8 38h94M8 48h94M8 58h94" /><rect x="36" y="12" width="28" height="51" rx="5" /><path d="M50 28v20m-10-10h20" /></svg></div>
-                <h3>从谱面上的一个位置开始</h3>
-                <p>点击音符、简谱、歌词或和弦，这里会显示对应的编辑内容。</p>
-                <Button block onClick={onScoreFocus}>前往谱面选择</Button>
-                <Button block onClick={() => request({ type: "tab", kind: "numbered", propertyTab: "paragraph" })}>浏览简谱与歌词</Button>
-                <Button block onClick={() => request({ type: "tab", kind: "score", propertyTab: "song" })}>查看歌曲设置</Button>
-                {score && onToolAction && executeTool && <Button type="link" onClick={() => request({ type: "tool", kind: "score", destination: "measure", sessionId: editorStore.getState().sessionId, sessionVersion: editorStore.getState().sessionVersion })}>浏览小节工具</Button>}
+                <p>点击谱面中的音符或小节开始编辑</p>
               </div>
             ) : score && onToolAction && executeTool ? (
               <>
@@ -2023,10 +2028,7 @@ export const MusicTextSidebar = ({
               <p className={musicTextSidebarStyles.emptyHelp}>空格分隔先后音，+ 表示同时发声；应用后才写入曲谱。</p>
             </div>
           )}
-          {propertyTab === "paragraph" &&
-            kind === "numbered" &&
-            score &&
-            activeObject?.kind === "numbered" && (
+          {numberedFormActive && score && (
               <div
                 id="paragraph-fields"
                 role="tabpanel"
@@ -2039,7 +2041,7 @@ export const MusicTextSidebar = ({
                   onRequestSidebar={focusSidebar}
                   // 不再把 stateVersion 放进 key：自身提交后保持同一输入 owner，避免其他分组被重挂载清空。
                    key={`${numberedMode}/${numberedTarget ? JSON.stringify(numberedTarget) : ""}`}
-                   actionsHost={propertyTab === "paragraph" && kind === "numbered" ? actionsHost : null}
+                    actionsHost={actionsHost}
                   onBusyChange={setNumberedBusy}
                   onGroupsChange={setNumberedGroups}
                   onCancel={cancelTextEditing}
@@ -2189,7 +2191,7 @@ export const MusicTextSidebar = ({
             <p className={editorToolPanelStyles.selectionTip}>快捷操作直接作用于选区，可使用撤销。</p>
           </div>
         )}
-        <div ref={setActionsHost} className={musicTextSidebarStyles.sidebarFooter} hidden={!!pending || !(kind === "numbered" || kind === "score")} />
+        <div ref={setActionsHost} data-editor-actions-host className={musicTextSidebarStyles.sidebarFooter} hidden={!!pending || !hasActionsForm} />
         {/* 无编辑操作或提示时隐藏底栏，避免移除历史按钮后留下空白条。 */}
         <footer
           className={musicTextSidebarStyles.sidebarFooter}

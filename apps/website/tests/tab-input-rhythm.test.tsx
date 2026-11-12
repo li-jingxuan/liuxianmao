@@ -36,7 +36,7 @@ describe("BUG016 TAB 首次录入与默认时值", () => {
     expect(resolveEditorRhythmTarget(document, selection, null, { base: "quarter", dots: 0 }, false).rhythm).toEqual({ base: "eighth", dots: 1 });
     const html = renderToStaticMarkup(<NoteToolDetails document={document} selection={selection} blocked={false} onAction={async () => true} />);
     expect(html).toMatch(/aria-label="八分音符"[^>]*aria-pressed="true"/);
-    expect(html).toContain("单附点");
+    expect(html).toMatch(/aria-label="附点"[^>]*aria-pressed="true"/);
   });
 
   it.each([false, true])("首次录入及细分只有一条可完整撤销的历史（rect=%s）", (rect) => {

@@ -4,6 +4,7 @@ import type { ILXMScoreCommand } from "@liuxianmao/lxm-editor";
 import { useEditorHostWidth } from "./workspace/use-editor-host-width";
 import { useWorkspaceOverlays } from "./workspace/use-workspace-overlays";
 import { useScoreView } from "./score/use-score-view";
+import { SCORE_ZOOM_LEVELS } from "./score/score-view";
 import { EditorHistoryPanel, EditorHistoryRail } from "./workspace/EditorHistoryPanel";
 import { EditorFeedback } from "./workspace/EditorFeedback";
 
@@ -35,7 +36,8 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import { theme } from "antd";
+import { Button, Dropdown, theme } from "antd";
+import { DownOutlined, MinusOutlined, PlusOutlined } from "@ant-design/icons";
 import {
   useEditorSessionStore,
   useEditorStore,
@@ -529,6 +531,7 @@ export const EditorShell: React.FC = () => {
     sessionKey: `${session.getState().sessionId}/${session.getState().sessionVersion}`,
     onGeometryChange: onScoreGeometryChange,
   });
+  const scoreZoomTriggerRef = useRef<HTMLButtonElement>(null);
 
   /** 音乐图元与图片渲染共享，选区变化不重新生成全部音乐。 */
   const scoreScene = useMemo(
@@ -1585,7 +1588,7 @@ export const EditorShell: React.FC = () => {
             className={scoreInteractionStyles.scoreStage}
             style={scoreView.stageStyle}
             data-score-scale={scoreView.geometry.scale}
-            data-score-view={scoreView.mode}
+            data-score-zoom={scoreView.zoom}
           >
             <main
               className={scoreInteractionStyles.paper}
@@ -1703,6 +1706,49 @@ export const EditorShell: React.FC = () => {
               </svg>
             </main>
           </div>
+        </div>
+        {/* 同级覆盖层不经过谱面 pointerdown，缩放不会清空选区或提交草稿。 */}
+        <div className={styles.scoreZoom} role="group" aria-label="谱面缩放" data-score-zoom-controls>
+          <Button
+            type="text"
+            className={styles.scoreZoomStep}
+            aria-label="缩小谱面"
+            icon={<MinusOutlined />}
+            disabled={scoreView.zoom === SCORE_ZOOM_LEVELS[0]}
+            onClick={() => scoreView.setZoom(SCORE_ZOOM_LEVELS[SCORE_ZOOM_LEVELS.indexOf(scoreView.zoom) - 1])}
+          />
+          <Dropdown
+            autoFocus
+            trigger={["click"]}
+            placement="topRight"
+            align={{ offset: [29, -4] }}
+            getPopupContainer={(trigger) => trigger.parentElement!}
+            menu={{
+              selectable: true,
+              selectedKeys: [String(scoreView.zoom)],
+              items: SCORE_ZOOM_LEVELS.map((zoom) => ({
+                key: String(zoom),
+                label: `${zoom}%`,
+                onClick: () => {
+                  scoreView.setZoom(zoom);
+                  // 选择档位后归还焦点；方向键和 Escape 仍由 Dropdown 处理。
+                  scoreZoomTriggerRef.current?.focus();
+                },
+              })),
+            }}
+          >
+            <Button ref={scoreZoomTriggerRef} type="text" className={styles.scoreZoomValue} aria-label={`谱面缩放：${scoreView.zoom}%`}>
+              {scoreView.zoom}%<DownOutlined />
+            </Button>
+          </Dropdown>
+          <Button
+            type="text"
+            className={styles.scoreZoomStep}
+            aria-label="放大谱面"
+            icon={<PlusOutlined />}
+            disabled={scoreView.zoom === SCORE_ZOOM_LEVELS[SCORE_ZOOM_LEVELS.length - 1]}
+            onClick={() => scoreView.setZoom(SCORE_ZOOM_LEVELS[SCORE_ZOOM_LEVELS.indexOf(scoreView.zoom) + 1])}
+          />
         </div>
         <MusicTextSidebar
           showChordDiagrams={showChordDiagrams}

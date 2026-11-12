@@ -177,7 +177,7 @@ describe("影响详情语境", () => {
         ratio: { actual: 3, normal: 2 },
         count: 1,
       }),
-    ).toContain("设置连音组（3:2，1 组）");
+    ).toContain("设置三连音（1 组）");
     const unknown = {
       kind: "future.effect",
       measureNumber: 8,
@@ -187,6 +187,19 @@ describe("影响详情语境", () => {
     expect(
       renderToStaticMarkup(<EditorImpactNotice effects={[]} preview />),
     ).toBe("");
+  });
+  it.each([
+    [{ actual: 2, normal: 3 }, "二连音"], [{ actual: 3, normal: 2 }, "三连音"], [{ actual: 4, normal: 3 }, "四连音"],
+    [{ actual: 5, normal: 4 }, "五连音（5:4）"], [{ actual: 5, normal: 3 }, "五连音（5:3）"], [{ actual: 6, normal: 4 }, "六连音"],
+  ] as const)("连音反馈 %j 中文化且保留原效果比例与撤销语义", (ratio, name) => {
+    const tuplet: ILXMCommandEffect = {
+      kind: "tuplets.structured", trackId: "t", measureId: "m", measureNumber: 3,
+      operation: "remove", ratio, count: 1,
+    };
+    const before = JSON.stringify(tuplet);
+    expect(formatEditorImpact(tuplet)).toContain(`移除${name}（1 组）`);
+    expect(formatEditorImpact(tuplet, "undone")).toContain("（已撤销）");
+    expect(JSON.stringify(tuplet)).toBe(before);
   });
 });
 

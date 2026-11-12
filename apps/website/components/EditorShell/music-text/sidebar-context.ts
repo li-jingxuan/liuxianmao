@@ -4,6 +4,7 @@ import { normalizeMusicTextTarget, type MusicTextTarget } from "./music-text-dra
 import { sameMusicTextTarget } from "./music-text-hover";
 import { formatNumberedBeatPosition } from "../numbered/numbered-editor-target";
 import type { MeasureToolTarget } from "../tools/editor-tool-actions";
+import { formatTupletLabel } from "../shared/tuplet-label";
 
 /** 只读定位引用，与可编辑业务目标分离。 */
 export type SidebarLocation = {
@@ -56,7 +57,7 @@ export function deriveSidebarContext({ document, target, selection, numberedSele
       if (task === "tuplet") {
         const group = event && measure.numberedVoice.tuplets.find((item) => item.eventIds.includes(event.id));
         title = "简谱连音组";
-        scope = group ? `${group.eventIds.length} 个成员 · ${group.ratio.actual}:${group.ratio.normal}` : "当前简谱位置没有连音组";
+        scope = group ? `${group.eventIds.length} 个成员 · ${formatTupletLabel(group.ratio)}` : "当前简谱位置没有连音组";
       }
     }
   } else if (!measureTarget) {
@@ -81,7 +82,7 @@ export function deriveSidebarContext({ document, target, selection, numberedSele
       if (task === "tuplet") {
         const range = resolveTupletSelection(document, selection);
         title = "连音组";
-        scope = range ? `${range.beatIds.length} 个成员${range.group ? ` · ${range.group.ratio.actual}:${range.group.ratio.normal}` : ""}` : "请选择同小节连续成员";
+        scope = range ? `${range.beatIds.length} 个成员${range.group ? ` · ${formatTupletLabel(range.group.ratio)}` : ""}` : "请选择同小节内的连续拍点";
       }
     }
   }

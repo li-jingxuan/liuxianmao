@@ -32,8 +32,10 @@ try {
   const stage = page.locator("[data-stage]");
   const viewport = page.locator("[data-viewport]");
   const initialTop = (await stage.boundingBox()).y;
-  await page.getByRole("button", { name: "actual", exact: true }).click();
-  assert.equal((await status()).scale, 1);
+   assert.equal((await status()).zoom, 125);
+   assert.equal((await status()).width, 975);
+   await page.getByRole("button", { name: "100%", exact: true }).click();
+   assert.equal((await status()).scale, 1);
   assert.equal((await stage.boundingBox()).y, initialTop, "controls do not alter stage origin");
   await page.evaluate(() => window.scoreViewTest.wide(true));
   await page.waitForFunction(() => window.scoreViewTest.status().baseWidth > 1400);
@@ -41,9 +43,9 @@ try {
   await page.waitForFunction(() => document.querySelector('[data-layout="narrow"]'));
   assert.equal((await page.locator("[data-paper]").boundingBox()).width, 780);
   assert.equal(await viewport.evaluate((element) => element.scrollWidth > element.clientWidth), true);
-  await page.getByRole("button", { name: "fit", exact: true }).click();
-  await page.waitForFunction(() => window.scoreViewTest.status().scale < 1);
-  await page.waitForFunction(() => { const element = document.querySelector("[data-viewport]"); return element.scrollWidth <= element.clientWidth + 1; });
+   await page.getByRole("button", { name: "125%", exact: true }).click();
+   await page.waitForFunction(() => window.scoreViewTest.status().scale === 1.25);
+   assert.equal(await viewport.evaluate((element) => element.scrollWidth > element.clientWidth), true);
 
   await page.evaluate(() => window.scoreViewTest.resize(1600));
   await page.waitForFunction(() => window.scoreViewTest.status().width > 1000);
@@ -51,10 +53,37 @@ try {
   await page.waitForFunction(() => document.querySelector("[data-viewport]").scrollTop === 900);
   const logicalCenter = await viewport.evaluate((element) => (element.scrollTop + element.clientHeight / 2 - 30) / window.scoreViewTest.status().scale);
   await page.evaluate(() => window.scoreViewTest.history(true));
-  await page.waitForFunction(() => window.scoreViewTest.status().width < 1250);
+   await page.waitForFunction(() => getComputedStyle(document.querySelector("[data-history-panel]")).position === "relative");
+   await page.waitForFunction((center) => {
+     const element = document.querySelector("[data-viewport]");
+     return Math.abs((element.scrollTop + element.clientHeight / 2 - 30) / window.scoreViewTest.status().scale - center) < 2;
+   }, logicalCenter);
   const afterCenter = await viewport.evaluate((element) => (element.scrollTop + element.clientHeight / 2 - 30) / window.scoreViewTest.status().scale);
   assert.ok(Math.abs(afterCenter - logicalCenter) < 2, "later-page logical center survives panel resize");
-  assert.ok((await status()).changes > 0);
+   assert.ok((await status()).changes > 0);
+
+   // 四档均验证物理占位、中心锚点，以及浏览器真实 CTM 下的指针往返。
+   for (const zoom of [100, 125, 150, 200]) {
+     await page.getByRole("button", { name: `${zoom}%`, exact: true }).click();
+     await page.waitForFunction((value) => window.scoreViewTest.status().zoom === value, zoom);
+     const geometry = await status();
+     const bounds = await stage.boundingBox();
+     assert.ok(Math.abs(bounds.width - geometry.baseWidth * zoom / 100) < 1);
+     assert.ok(Math.abs(bounds.height - geometry.baseHeight * zoom / 100) < 1);
+     const center = await viewport.evaluate((element) => (element.scrollTop + element.clientHeight / 2 - 30) / window.scoreViewTest.status().scale);
+     assert.ok(Math.abs(center - logicalCenter) < 2, `${zoom}% preserves the vertical center`);
+     const point = await viewport.evaluate((element) => {
+       const svg = element.querySelector("svg");
+       const rect = element.getBoundingClientRect();
+       const screen = new DOMPoint(rect.x + element.clientWidth / 2, rect.y + element.clientHeight / 2);
+       const logical = screen.matrixTransform(svg.getScreenCTM().inverse());
+       return { x: screen.x, y: screen.y, logicalX: logical.x, logicalY: logical.y };
+     });
+     await page.mouse.click(point.x, point.y);
+     const hit = (await status()).hit;
+     assert.ok(Math.abs(hit.x - point.logicalX) < 1);
+     assert.ok(Math.abs(hit.y - point.logicalY) < 1);
+   }
 
   for (const width of [375, 768, 959, 960, 1199, 1200, 1599, 1600, 1920]) {
     await page.evaluate((value) => window.scoreViewTest.resize(value), width);
@@ -77,15 +106,22 @@ try {
     assert.ok(outer.scroll <= outer.width + 1, `sidebar at ${width}: ${JSON.stringify(outer)}`);
     await page.evaluate(() => window.scoreViewTest.sidebar(false));
   }
-  await page.getByRole("button", { name: "actual", exact: true }).click();
-  await page.evaluate(() => window.scoreViewTest.session());
-  await page.waitForFunction(() => window.scoreViewTest.status().mode === "fit");
+   await page.getByRole("button", { name: "200%", exact: true }).click();
+   await page.evaluate(() => window.scoreViewTest.wide(false));
+   await page.waitForFunction(() => window.scoreViewTest.status().baseWidth === 780);
+   assert.equal((await status()).zoom, 200, "ordinary layout changes preserve zoom");
+   await page.evaluate(() => window.scoreViewTest.session());
+   await page.waitForFunction(() => window.scoreViewTest.status().zoom === 125);
+   assert.equal(await viewport.evaluate((element) => element.scrollTop), 0);
+   await page.getByRole("button", { name: "150%", exact: true }).click();
+   await page.evaluate(() => window.scoreViewTest.session(0));
+   await page.waitForFunction(() => window.scoreViewTest.status().zoom === 125);
   await page.emulateMedia({ media: "print" });
   assert.equal(await page.locator("[data-score-print-layer]").isVisible(), true);
   assert.equal(await page.locator("[data-external-portal]").isVisible(), false);
   assert.equal(await stage.isVisible(), false);
   assert.deepEqual(errors, []);
-  console.log("score view browser: fit/actual, scroll anchor, responsive host, print portal isolation passed");
+   console.log("score view browser: four zoom levels, physical stage, CTM hit, scroll anchor, session reset, responsive host, print portal isolation passed");
 } finally {
   await browser?.close();
   await server.close();
