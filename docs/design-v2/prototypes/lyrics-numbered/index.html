@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>六线猫 · 简谱与歌词交互设计稿</title><link rel="stylesheet" href="prototype.css"></head>
+<body>
+<main class="app" aria-label="六线猫曲谱编辑器">
+  <header class="app-header"><div class="brand"><svg viewBox="0 0 28 30" aria-hidden="true"><path d="M4 15V5l7 4a12 12 0 0 1 6 0l7-4v10c0 7-4 11-10 11S4 22 4 15Z"/><path d="M8 16h3m6 0h3m-8 5h4M1 18l5 1m16 0 5-1"/></svg>六线猫</div><div class="document"><strong>风吹过山谷</strong><span>吉他弹唱谱 · 1 = C · 4/4</span></div><span class="saved"><i></i><span id="save-status">谱面就绪</span></span><span class="local-tag">本地谱稿</span></header>
+  <div class="toolbar"><button data-action="undo" aria-label="撤销" title="撤销 · Ctrl / ⌘ Z" disabled><svg viewBox="0 0 24 24"><path d="M8 7H3V2M3 7a9 9 0 1 1 1 12"/></svg><span>撤销</span></button><span class="divider"></span><span class="toolbar-label">谱面编辑</span><button class="selected-tool" data-action="focus-editor"><svg viewBox="0 0 24 24"><path d="M8 18V5l11-2v13M8 8l11-2"/><ellipse cx="5" cy="18" rx="3" ry="2"/><ellipse cx="16" cy="16" rx="3" ry="2"/></svg>简谱与歌词</button><span class="toolbar-end">点击谱面选择编辑位置</span></div>
+  <div class="workspace">
+    <section class="canvas" aria-label="谱面画布"><div class="canvas-label">A4 · 纵向</div><div class="paper-scroll" id="paper-scroll"><div class="paper" id="paper"></div></div><div class="paper-badge">100% <span>·</span> 谱纸视图</div><div id="popover" class="popover" hidden></div></section>
+    <aside class="inspector" aria-label="简谱与歌词侧栏"><nav class="primary-tabs" aria-label="属性类别"><button disabled title="本设计稿仅演示简谱与歌词">⌖ 选区</button><button class="active" aria-current="page">♫ 简谱与歌词</button><button disabled title="本设计稿仅演示简谱与歌词">▦ 和弦</button><button disabled title="本设计稿仅演示简谱与歌词">⇅ 歌曲</button></nav><div class="segments" role="tablist" aria-label="编辑内容"><button data-mode="numbered" role="tab">简谱</button><button data-mode="lyrics" role="tab">歌词</button></div><div id="context" class="context"></div><div id="editor" class="editor"></div><footer id="actions" class="actions"></footer></aside>
+  </div><footer class="statusbar"><span id="selection-status"></span><span>Enter 应用 · Esc 关闭浮窗</span></footer>
+</main>
+<section class="review" aria-label="设计稿控制"><div><strong>设计稿控制</strong><span>切换示例状态</span></div><div class="review-states"><button data-scene="numbered">简谱编辑</button><button data-scene="empty">未选择</button><button data-scene="tab">仅选 TAB</button><button data-scene="lyrics">歌词编辑</button><button data-scene="invalid">无效输入</button><button data-scene="chord">多音 1 + 3</button><button data-scene="boundary">跨断事件</button><button data-scene="tuplet">连音组</button></div><p>可直接点击谱面简谱、歌词与占位框；点多音中的单个数字选择该音。</p></section>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<script src="prototype.js"></script>
+</body></html>

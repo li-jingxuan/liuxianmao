@@ -2,6 +2,8 @@
 
 **当前维护版本：design-v2。** `docs/design/` 已完结并停止维护，只保留历史资料。新增设计稿、技术方案和评审记录统一放入本目录；原型放 `prototypes/`，技术方案放 `implementation/`。
 
+本轮设计：[REQ-007～016 · 歌词与简谱侧栏](prototypes/lyrics-numbered/README.md) · [可点击设计稿](prototypes/lyrics-numbered/index.html) · [交互规格与已确认口径](specs/13-歌词与简谱侧栏设计.md)。简谱按输入时值自动替换，歌词空输入与 `_` 留空，八度／变音跟随谱面单音；本轮只交付设计，尚未实施到产品。
+
 已撤销节奏同步专项：按用户最新决定，移除“细分简谱”“拆分并同步”入口及专用实现、原型和规格，普通 TAB 编辑继续保留简谱独立时值。[历史与撤销记录](../mvp/v8/20261109_TAB节奏细分与简谱歌词占位同步修复方案.md#12-撤销显式同步操作)。
 
 最新实施：[和弦库与指法编辑交互稿 v2.3](prototypes/chord-library/README.md)、[可点击原型](prototypes/chord-library/prototype.html)、[配套技术方案](implementation/20261107_和弦库与指法编辑优化技术方案.md)、[设计回溯记录](records/20261111_和弦设计与近期改动对齐复核.md)、[实施验收与归档记录](records/20261111_和弦库实施验收与归档.md)。独立 worktree 已实现共享“更多”、完整库、配置、图形编辑与曲谱调性；192 identities/212 voicings 通过自动校验，人工演奏性、真实 IME 与辅助技术验收待完成。紧凑排版及并行节奏录入仍属于原专项。

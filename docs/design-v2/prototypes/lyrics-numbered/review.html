@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>歌词与简谱 · 设计评审</title>
+  <link rel="icon" href="data:,">
+  <style>
+    :root { color: #202b3d; background: #f1f5f8; font: 14px -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    main { max-width: 1504px; padding: 32px; margin: auto; }
+    header { display: flex; gap: 24px; align-items: center; justify-content: space-between; margin-bottom: 28px; }
+    h1 { font-size: 24px; margin: 0 0 8px; font-weight: 600; }
+    p { color: #687587; margin: 0; line-height: 1.7; }
+    a { color: #2459ef; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    a:focus-visible { outline: 2px solid #2459ef; outline-offset: 4px; }
+    .open { flex-shrink: 0; color: white; background: #2459ef; border-radius: 6px; padding: 11px 16px; }
+    .open:hover { text-decoration: none; background: #1948d0; }
+    nav { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
+    nav a { color: #687587; padding: 7px 11px; background: white; border-radius: 5px; }
+    section { margin-bottom: 32px; scroll-margin-top: 20px; }
+    .caption { display: flex; gap: 20px; justify-content: space-between; align-items: baseline; margin: 0 0 12px; }
+    h2 { font-size: 16px; font-weight: 600; margin: 0; }
+    .caption p { font-size: 12px; }
+    .shot { display: block; width: 100%; background: white; border-radius: 8px; box-shadow: 0 4px 28px #2539520b; }
+    .mobile { width: min(390px,100%); }
+    footer { font-size: 12px; color: #687587; line-height: 1.8; }
+    @media(max-width:720px) { main { padding: 22px 16px; } header { flex-wrap: wrap; } .caption { display: block; } .caption p { margin-top: 5px; } h1 { font-size: 21px; } }
+  </style>
+</head>
+<body><main>
+  <header><div><h1>歌词与简谱</h1><p>REQ-007～016 · 侧栏与谱面气泡设计</p></div><a class="open" href="index.html">打开可点击设计稿 ↗</a></header>
+  <nav aria-label="设计画面"><a href="#numbered">简谱编辑</a><a href="#lyrics">连续歌词</a><a href="#empty">未选择状态</a><a href="#mobile">窄屏布局</a><a href="../../specs/13-歌词与简谱侧栏设计.md">交互规格</a></nav>
+  <section id="numbered"><div class="caption"><h2>01 · 简谱编辑</h2><p>连续录入、节奏符号与映射预览</p></div><a href="screenshots/01-numbered-desktop.png"><img class="shot" src="screenshots/01-numbered-desktop.png" alt="桌面简谱侧栏与谱面气泡设计"></a></section>
+  <section id="lyrics"><div class="caption"><h2>02 · 连续歌词</h2><p>侧栏与气泡同步，空位置显示占位框</p></div><a href="screenshots/02-lyrics-desktop.png"><img class="shot" src="screenshots/02-lyrics-desktop.png" alt="桌面连续歌词编辑设计" loading="lazy"></a></section>
+  <section id="empty"><div class="caption"><h2>03 · 未选择状态</h2><p>保留清楚的起点，减少长说明</p></div><a href="screenshots/03-numbered-empty.png"><img class="shot" src="screenshots/03-numbered-empty.png" alt="未选择简谱时的精简侧栏" loading="lazy"></a></section>
+  <section id="mobile"><div class="caption"><h2>04 · 窄屏布局</h2><p>390px，谱面内部滚动，侧栏下移</p></div><a href="screenshots/04-mobile.png"><img class="shot mobile" src="screenshots/04-mobile.png" alt="390像素窄屏设计" loading="lazy"></a></section>
+  <footer>独立设计原型，使用固定示例数据。产品功能尚未在本轮实施。<br><a href="README.md">交付说明及原始需求参考图</a> · <a href="../../index.html">返回设计导航</a></footer>
+</main></body>
+</html>
