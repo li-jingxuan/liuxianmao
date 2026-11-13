@@ -6,6 +6,8 @@
 
 ## 已确认口径
 
+本次参考图修订：歌词的四个段落按钮改为“段落”下拉框＋“添加段落”。初始第一段，添加后选中新空白段并保留谱面位置；最多四段，支持撤销新增。侧栏、气泡与位置预览同步切换。
+
 - 移除拆分与合并。
 - 简谱按输入时值自动替换，覆盖默认允许，无固定范围、手动覆盖开关及强制填满。
 - 歌词空输入清空当前位置；`_` 清空一个位置；普通空格仅分词。
@@ -48,6 +50,8 @@ python3 -m http.server 4178 --bind 127.0.0.1
 
 - [01 · 简谱与气泡同步编辑](screenshots/01-numbered-desktop.png)
 - [02 · 连续歌词及空位置](screenshots/02-lyrics-desktop.png)
+- [05 · 添加并选中新段落](screenshots/05-lyrics-added-verse.png)
+- [06 · 歌词段落组合的窄屏画面](screenshots/06-lyrics-mobile.png)
 - [03 · 未选简谱、已有 TAB 位置](screenshots/03-numbered-empty.png)
 - [04 · 390px 窄屏完整画面](screenshots/04-mobile.png)
 
@@ -55,7 +59,9 @@ python3 -m http.server 4178 --bind 127.0.0.1
 
 脚本语法检查、交付文件链接与截图检查通过；最终原型浏览器控制台无错误。上述结果仅适用于设计原型，模拟 composition 事件不能代替真实系统中文输入法验收。
 
-自动化定位：`#sidebar-input`、`#popover-input`、`[data-template="eighth"]`、`#actions [data-action="apply"]`、`[data-action="restore"]`、`[data-action="undo"]`、`[data-note-target="7"][data-member="1"]`、`[data-accidental="#"]`、`[data-lyric-target="4"]`、`[data-scene]`、`[data-verse]`。`window.designDemo` 提供只用于设计演示的状态查看和场景重置方法。
+参考图修订另通过 11 项浏览器断言：初始段落、旧按钮移除、添加与原地选中、气泡同步、已应用歌词隔离、切换读取、四段上限、撤销新增、720px／390px 组合控件无溢出及无脚本错误。
+
+自动化定位：`#sidebar-input`、`#popover-input`、`[data-template="eighth"]`、`#actions [data-action="apply"]`、`[data-action="restore"]`、`[data-action="undo"]`、`[data-note-target="7"][data-member="1"]`、`[data-accidental="#"]`、`[data-lyric-target="4"]`、`[data-scene]`、`#verse-select`、`[data-action="add-verse"]`。`window.designDemo` 提供只用于设计演示的状态查看和场景重置方法。
 
 ## 范围边界
 
