@@ -18,18 +18,29 @@ try {
   page.on("pageerror", (error) => errors.push(error.message));
   const open = async () => { await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/__settings-test__`); await page.locator("#settings-title").waitFor(); await page.waitForFunction(() => !!window.settingsTest); };
   const status = () => page.evaluate(() => window.settingsTest.status());
+  const snapshot = () => page.evaluate(() => ({ document: window.settingsTest.document(), commands: window.settingsTest.commands(), history: window.settingsTest.history() }));
+  const label = page.locator("#settings-label");
+  const help = page.getByRole("button", { name: "段落标记说明", exact: true });
   await open();
-  // 边界入口保留完整小节表面，重复导航仍展开并聚焦同一个分组。
+  // 边界入口保留完整小节表面；重复导航聚焦常驻分组标题。
   await page.evaluate(() => window.settingsTest.surface("measure"));
-  const boundary = page.locator("details").filter({ has: page.locator('[aria-label="六类小节线"]') });
+  const boundary = page.getByRole("region", { name: "小节线与反复", exact: true });
   for (let repeat = 0; repeat < 2; repeat += 1) {
     assert.equal(await page.evaluate(() => window.settingsTest.boundary()), true);
-    await page.waitForFunction(() => document.activeElement?.tagName === "SUMMARY");
-    assert.equal(await boundary.getAttribute("open"), "");
+    await page.waitForFunction(() => document.activeElement?.tagName === "H3" && document.activeElement.textContent === "小节线与反复");
+    assert.equal(await boundary.locator("summary").count(), 0);
+    assert.equal(await boundary.getByRole("group", { name: "六类小节线" }).isVisible(), true);
     assert.equal(await page.locator("#tool-measure-signature").isVisible(), true);
     assert.equal(await page.locator("#settings-label").isVisible(), true);
-    await boundary.locator("summary").click();
+    await label.focus();
   }
+  assert.equal(await page.locator('[data-settings-group="label"]').getByRole("button", { name: /应用|恢复/ }).count(), 0);
+  assert.equal(await page.locator('[data-settings-surface="actions"]').count(), 0);
+  assert.equal(await page.locator('[data-settings-surface="measure"]').getByText("段落名称是小节标记，不会新增歌词或简谱行。", { exact: true }).count(), 0);
+  await help.focus();
+  await page.getByRole("tooltip").waitFor();
+  assert.equal(await page.getByRole("tooltip").innerText(), "段落名称是小节标记，不会新增歌词或简谱行。");
+  assert.equal(await help.evaluate((element) => element === document.activeElement), true);
   await page.evaluate(() => window.settingsTest.surface("song"));
   assert.equal(await page.locator("#settings-label").count(), 1);
   assert.equal(await page.locator('[data-settings-surface="song"] #settings-label').count(), 0);
@@ -85,12 +96,61 @@ try {
 
   await page.evaluate(() => window.settingsTest.focus("label"));
   await page.waitForFunction(() => document.activeElement?.id === "settings-label");
-  await page.locator("#settings-label").fill("原小节标记");
+  // Enter 与真实失焦立即走 owner 提交；无变化的 Enter/失焦不新增历史。
+  const beforeLabel = await snapshot();
+  await label.fill("Enter 标记");
+  await label.press("Enter");
+  assert.equal((await status()).groups.label.dirty, false);
+  let saved = await snapshot();
+  assert.deepEqual(saved.commands.slice(beforeLabel.commands.length).map((command) => command.type), ["measure.setSectionLabel"]);
+  assert.equal(saved.history, beforeLabel.history + 1);
+  assert.equal(saved.document.score.tracks[0].measures[0].sectionLabel, "Enter 标记");
+  await label.press("Enter");
+  await help.focus();
+  assert.deepEqual(await snapshot(), saved);
+  await label.fill("失焦标记");
+  await help.focus();
+  assert.equal((await status()).groups.label.dirty, false);
+  assert.equal(await page.evaluate(() => window.settingsTest.document().score.tracks[0].measures[0].sectionLabel), "失焦标记");
+  assert.equal(await page.evaluate(() => window.settingsTest.history()), beforeLabel.history + 2);
+  assert.equal(await page.locator('[data-settings-surface="actions"]').count(), 0);
+  await label.fill("   ");
+  await label.press("Enter");
+  assert.equal(await page.evaluate(() => window.settingsTest.document().score.tracks[0].measures[0].sectionLabel), undefined);
+  assert.equal((await status()).groups.label.dirty, false);
+  saved = await snapshot();
+  await label.press("Enter");
+  await help.focus();
+  assert.deepEqual(await snapshot(), saved);
+
+  // 请求新目标不制造失焦；脏输入仍绑定原小节，提交后才跟随新目标。
+  await label.fill("原小节标记");
   const bound = (await status()).measureId;
+  const secondLabel = await page.evaluate(() => window.settingsTest.document().score.tracks[0].measures[1].sectionLabel);
   await page.evaluate(() => window.settingsTest.measure(1));
   assert.equal((await status()).measureId, bound);
-  assert.equal(await page.evaluate(() => window.settingsTest.apply("label")), true);
+  assert.equal(await label.evaluate((element) => element === document.activeElement), true);
+  await help.focus();
   assert.equal(await page.evaluate((id) => window.settingsTest.document().score.tracks[0].measures.find((measure) => measure.id === id).sectionLabel, bound), "原小节标记");
+  assert.equal(await page.evaluate(() => window.settingsTest.document().score.tracks[0].measures[1].sectionLabel), secondLabel);
+  assert.notEqual((await status()).measureId, bound);
+  assert.equal((await status()).groups.label.dirty, false);
+  await label.fill("切换表面保存");
+  await page.evaluate(() => window.settingsTest.focus("info"));
+  assert.equal(await page.evaluate(() => window.settingsTest.document().score.tracks[0].measures[1].sectionLabel), "切换表面保存");
+  assert.equal((await status()).groups.label.dirty, false);
+  // 标签外部改写与目标删除都保留用户输入，失败提交不改写原文档。
+  await page.evaluate(() => window.settingsTest.focus("label"));
+  await label.fill("冲突本地输入");
+  await page.evaluate(() => window.settingsTest.externalLabel("冲突外部输入"));
+  await page.waitForFunction(() => !!window.settingsTest.status().groups.label.blockedReason);
+  assert.equal(await label.inputValue(), "冲突本地输入");
+  assert.equal(await page.evaluate(() => window.settingsTest.apply("label")), false);
+  assert.equal(await page.evaluate(() => window.settingsTest.document().score.tracks[0].measures[1].sectionLabel), "冲突外部输入");
+  assert.equal(await label.inputValue(), "冲突本地输入");
+  assert.equal(await page.evaluate(() => window.settingsTest.restore("label")), true);
+  assert.equal(await label.inputValue(), "冲突外部输入");
+  assert.equal((await status()).groups.label.dirty, false);
   await page.evaluate(() => window.settingsTest.focus("info"));
   await page.locator("#settings-title").fill("另一个未应用名称");
   await page.evaluate(() => window.settingsTest.focus("label"));
@@ -113,6 +173,33 @@ try {
     await page.waitForFunction(() => !window.settingsTest.status().composing);
   }
   await page.evaluate(() => window.settingsTest.discard());
+  // compositionend 后仍有 50ms 闸门；前后发生的失焦都必须延迟保存最终文本。
+  for (const blurFirst of [true, false]) {
+    await page.evaluate(() => window.settingsTest.focus("label"));
+    await label.dispatchEvent("compositionstart");
+    const text = blurFirst ? "输入法失焦后结束" : "输入法结束后失焦";
+    await label.fill(text);
+    const beforeComposition = await snapshot();
+    const during = await page.evaluate(async (blurFirst) => {
+      const input = document.querySelector("#settings-label");
+      const help = document.querySelector('[aria-label="段落标记说明"]');
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", keyCode: 229, isComposing: true, bubbles: true }));
+      if (blurFirst) help.focus();
+      input.dispatchEvent(new CompositionEvent("compositionend", { bubbles: true }));
+      if (!blurFirst) help.focus();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      return { composing: window.settingsTest.status().composing, commands: window.settingsTest.commands().length, history: window.settingsTest.history() };
+    }, blurFirst);
+    assert.equal(during.composing, true);
+    assert.equal(during.commands, beforeComposition.commands.length);
+    assert.equal(during.history, beforeComposition.history);
+    await page.waitForFunction(() => !window.settingsTest.status().composing && !window.settingsTest.status().groups.label.dirty);
+    const afterComposition = await snapshot();
+    assert.equal(afterComposition.history, beforeComposition.history + 1);
+    assert.deepEqual(afterComposition.commands.slice(beforeComposition.commands.length).map((command) => command.type), ["measure.setSectionLabel"]);
+    assert.equal(afterComposition.document.score.tracks[0].measures[1].sectionLabel, text);
+    assert.equal(await label.inputValue(), text);
+  }
   // 收起仅隐藏 Portal，重新打开不重读或丢弃输入。
   await page.evaluate(() => window.settingsTest.focus("info"));
   await page.locator("#settings-title").fill("收起后保留");

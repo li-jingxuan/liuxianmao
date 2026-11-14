@@ -31,6 +31,7 @@ import { layoutTuplets } from "../rhythm/tuplet-layout";
 import { LXM_TUPLET_BOTTOM_PADDING } from "../layout-constants";
 import { layoutTimeSignature } from "./time-signature-layout";
 import { getRhythmBottom } from "../rhythm/rhythm-bounds";
+import { isPureTabContinuationBeat } from "../../core/rhythm/tab-continuation";
 
 export interface ILXMLayoutMeasureContext {
   musicTextMetrics?: ILXMMusicTextMetrics;
@@ -100,7 +101,8 @@ export const layoutNodes = (
   return beats.flatMap((beat) => {
     const slot = slotsByBeatId[beat.id];
 
-    return beat.notes.map((note) => ({
+    const continuation = isPureTabContinuationBeat(beat);
+    return (continuation ? beat.notes.slice(0, 1) : beat.notes).map((note) => ({
       id: note.id,
       beatId: beat.id,
       measureId,
@@ -108,7 +110,8 @@ export const layoutNodes = (
       fret: note.fret,
       fretText: note.fret.toString(),
       x: slot.x,
-      y: getStringY(measureY, note.string),
+      y: getStringY(measureY, continuation ? 3.5 : note.string),
+      ...(continuation ? { tabContinuation: true } : {}),
       width: slot.width,
     }));
   });

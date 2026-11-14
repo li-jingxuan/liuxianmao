@@ -178,14 +178,15 @@ export const layoutTabCellSelection = (
   return layout.systems.flatMap((system) =>
     system.measures.flatMap((measure) => {
       const span = getBeatSpan(measure, selectedBeatIds);
+      const wholeBeat = span?.beats.length === 1 && measure.notes.some((note) => note.beatId === span.beats[0]!.id && note.tabContinuation);
       // 单 Beat range 与固定 caret 使用同一个垂直尺寸基准；多 Beat range 仍按
       // 弦单元格中点切分，保持既有矩形范围语义。
       const singleBeatStringSpan =
         span?.beats.length === 1
           ? getSingleBeatStringSpan(
               measure.strings,
-              selection.startString,
-              selection.endString,
+              wholeBeat ? 1 : selection.startString,
+              wholeBeat ? 6 : selection.endString,
             )
           : null;
       const startBounds =
@@ -195,14 +196,24 @@ export const layoutTabCellSelection = (
         singleBeatStringSpan ??
         getStringCellBounds(measure.strings, selection.endString);
       if (!span || !startBounds || !endBounds) return [];
+      if (span.beats.length > 1 && measure.notes.some((note) => note.tabContinuation && selectedBeatIds.has(note.beatId))) {
+        return span.beats.map((beat) => {
+          const continuation = measure.notes.some((note) => note.beatId === beat.id && note.tabContinuation);
+          const vertical = continuation ? getSingleBeatStringSpan(measure.strings, 1, 6)! : { top: startBounds.top, bottom: endBounds.bottom };
+          const horizontal = getBeatCellBounds(measure, beat.id)!;
+          return { systemIndex: system.index, measureId: measure.id, beatIds: [beat.id],
+            startString: continuation ? 1 : selection.startString, endString: continuation ? 6 : selection.endString,
+            x: horizontal.left, y: vertical.top, width: horizontal.right - horizontal.left, height: vertical.bottom - vertical.top };
+        });
+      }
 
       return [
         {
           systemIndex: system.index,
           measureId: measure.id,
           beatIds: span.beats.map((beat) => beat.id),
-          startString: selection.startString,
-          endString: selection.endString,
+          startString: wholeBeat ? 1 : selection.startString,
+          endString: wholeBeat ? 6 : selection.endString,
           x: span.x,
           y: startBounds.top,
           width: span.width,
@@ -239,6 +250,11 @@ export const layoutTabCellCaret = (
     if (!beat || !string) return null;
     const caretRect = getFixedFocusCaretRect(beat, string);
     if (!caretRect) return null;
+    if (measure.notes.some((note) => note.beatId === beat.id && note.tabContinuation)) {
+      const span = getSingleBeatStringSpan(measure.strings, 1, 6)!;
+      caretRect.y = span.top;
+      caretRect.height = span.bottom - span.top;
+    }
 
     return {
       systemIndex: system.index,

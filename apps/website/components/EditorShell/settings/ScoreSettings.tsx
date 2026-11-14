@@ -1,4 +1,4 @@
-import { useState, useRef, useImperativeHandle, useEffect, useLayoutEffect, useMemo, useId, type Ref, type ReactNode, type FocusEvent, type KeyboardEvent } from "react";
+import { useState, useRef, useImperativeHandle, useEffect, useLayoutEffect, useMemo, useId, useCallback, type Ref, type ReactNode, type FocusEvent, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import { Alert, Button } from "antd";
 import { LXMScoreCommandEnum, type ILXMDocument, type ILXMApplyScoreCommandResult, type ILXMScoreCommand } from "@liuxianmao/lxm-editor";
@@ -79,10 +79,15 @@ export const ScoreSettings = ({ ref, document, measureId, requestedMeasureId = m
   };
   const [state, setState] = useState(fresh);
   const current = useRef(state);
+  const synchronizeRef = useRef<(() => typeof state | null) | null>(null);
+  const statusForRef = useRef<((draft: typeof state) => ScoreSettingsStatus) | null>(null);
+  const applyRef = useRef<((group?: SettingsGroup) => boolean) | null>(null);
   const publish = (next: typeof state) => { current.current = next; setState(next); };
   const [issues, setIssues] = useState<SettingsIssues>({});
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
+  const pendingLabelBlur = useRef<{ sessionId: number; measureId?: string; identity: EditorDraftRegistration } | null>(null);
+  const draftHandle = useRef<ReturnType<typeof useEditorDraftRecords> | null>(null);
   const roots = useRef<Partial<Record<"song" | "measure" | "actions", HTMLDivElement | null>>>({});
   const lastControls = useRef<Partial<Record<SettingsFocusGroup, HTMLElement>>>({});
   const [activeGroup, setActiveGroup] = useState<SettingsFocusGroup>("info");
@@ -212,7 +217,7 @@ export const ScoreSettings = ({ ref, document, measureId, requestedMeasureId = m
     const latest = statusFor(draft);
     const blocked = groups.find((item) => latest.groups[item].blockedReason);
     if (blocked) { setIssues((previous) => ({ ...previous, [blocked]: latest.groups[blocked].blockedReason! })); return false; }
-    if (guardApply && !guardApply(group, draftRegistration.captureIdentity())) {
+    if (guardApply && !guardApply(group, draftHandle.current?.captureIdentity())) {
       setIssues((previous) => ({ ...previous, [group ?? "all"]: "当前交接状态不允许提交此设置组，请返回和弦编辑或重新打开曲谱信息。" }));
       onApplySettled?.(group);
       return false;
@@ -232,6 +237,31 @@ export const ScoreSettings = ({ ref, document, measureId, requestedMeasureId = m
       return true;
     } finally { busyRef.current = false; setBusy(false); onApplySettled?.(group); }
   };
+  // 这些函数绑定当前草稿 owner；只把最新实现放进 ref，失焦回调本身保持稳定。
+  useLayoutEffect(() => {
+    synchronizeRef.current = synchronize;
+    statusForRef.current = statusFor;
+    applyRef.current = apply;
+  });
+
+  // 段落标记失焦沿用同一个 owner 提交，不绕过冲突、目标绑定和历史校验。
+  const saveLabelOnBlur = useCallback(() => {
+    const draft = synchronizeRef.current?.();
+    if (!draft || busyRef.current) return;
+    if (composition.isComposing()) {
+      if (draftHandle.current) pendingLabelBlur.current = { sessionId: draft.sessionId, measureId: draft.measureId, identity: draftHandle.current.captureIdentity() };
+      return;
+    }
+    if (statusForRef.current?.(draft).groups.label.dirty) applyRef.current?.("label");
+  }, [composition]);
+  useEffect(() => {
+    if (compositionActive) return;
+    const pending = pendingLabelBlur.current;
+    pendingLabelBlur.current = null;
+    // 输入法结束后再处理失焦，旧会话或旧目标不能提交到新位置。
+    if (pending && pending.sessionId === store.getState().sessionId && pending.measureId === current.current.measureId && draftHandle.current?.isCurrent(pending.identity))
+      saveLabelOnBlur();
+  }, [compositionActive, saveLabelOnBlur, store]);
 
   const copyMeasures = async () => {
     const latest = readStatus();
@@ -272,6 +302,9 @@ export const ScoreSettings = ({ ref, document, measureId, requestedMeasureId = m
     focus: () => focus(group), apply: ({ isCurrent }: { isCurrent: () => boolean }) => isCurrent() ? apply(group) ? "applied" as const : "blocked" as const : "stale" as const,
     discard: () => restoreGroup(group),
   })));
+  useLayoutEffect(() => {
+    draftHandle.current = draftRegistration;
+  }, [draftRegistration]);
   const discard = () => {
     if (composition.isComposing() || busyRef.current) return false;
     const snapshot = store.getState();
@@ -286,7 +319,11 @@ export const ScoreSettings = ({ ref, document, measureId, requestedMeasureId = m
   const handleFocusCapture = (event: FocusEvent<HTMLDivElement>) => {
     const group = (event.target as HTMLElement).closest<HTMLElement>("[data-settings-group]")?.dataset.settingsGroup as SettingsFocusGroup | undefined;
     if (!group) return;
-    lastControls.current[group] = event.target as HTMLElement;
+    // 说明问号属于段落分组，但不能取代段落输入框成为“重新打开”后的焦点目标。
+    if ((event.target as HTMLElement).matches("input, select, textarea")) {
+      lastControls.current[group] = event.target as HTMLElement;
+      if (group === "label") pendingLabelBlur.current = null;
+    }
     activeGroupRef.current = group;
     setActiveGroup(group);
   };
@@ -310,7 +347,7 @@ export const ScoreSettings = ({ ref, document, measureId, requestedMeasureId = m
   >{children}</div>;
   const props = { document, value: rendered.value, composing: compositionActive, busy, issues, groups: status.groups, inlineActions: !actionsHost, onChange: update, onApply: apply, onRestore: restoreGroup };
   const song = surface("song", <ScoreSettingsForm {...props} measureId={requestedMeasureId} onEditMeasure={() => focus("label")} infoConflict={rendered.conflicts.info ? { previous: scoreInfoSnapshot(rendered.initial), current: scoreInfoSnapshot(readScoreSettings(document, rendered.measureId)) } : undefined} onAcknowledgeInfo={acknowledgeInfo} />);
-  const measure = surface("measure", <MeasureSettingsForm {...props} measureId={rendered.measureId} selectedMeasureId={requestedMeasureId} dirty={dirty} copy={copy} onCopyChange={(next) => { if (!busyRef.current) { setCopy(next); setIssues((previous) => ({ ...previous, copy: undefined })); } }} onCopy={copyMeasures} />);
+  const measure = surface("measure", <MeasureSettingsForm {...props} measureId={rendered.measureId} selectedMeasureId={requestedMeasureId} dirty={dirty} copy={copy} onCopyChange={(next) => { if (!busyRef.current) { setCopy(next); setIssues((previous) => ({ ...previous, copy: undefined })); } }} onCopy={copyMeasures} onLabelBlur={saveLabelOnBlur} />);
   const portalMode = songHost !== undefined || measureHost !== undefined;
   const actionGroup: SettingsGroup = activeSurface === "measure" ? "label" : activeGroup === "copy" || activeGroup === "label" ? "info" : activeGroup;
   const actionStatus = status.groups[actionGroup];
@@ -319,7 +356,8 @@ export const ScoreSettings = ({ ref, document, measureId, requestedMeasureId = m
   const copyStart = measures.findIndex((measure) => measure.id === copy.start);
   const copyEnd = measures.findIndex((measure) => measure.id === copy.end);
   const canCopy = !dirty && !busy && !compositionActive && copyStart >= 0 && copyEnd >= copyStart && (!copy.after || measures.some((measure) => measure.id === copy.after));
-  const actions = activeSurface && actionsHost ? createPortal(surface("actions", <div className={styles.footer} aria-label="设置操作">
+  // 小节标记不再显示应用/状态行；范围复制仍保留独立的显式操作。
+  const actions = activeSurface && actionsHost && (activeSurface !== "measure" || copyAction) ? createPortal(surface("actions", <div className={styles.footer} aria-label="设置操作">
     {copyAction ? <>
       <div className={styles.actionState} role="status"><strong>范围复制</strong><span>{canCopy ? "可复制所选小节" : "请检查复制范围与未应用设置"}</span></div>
       {issues.copy && <Alert type="error" title={issues.copy} />}

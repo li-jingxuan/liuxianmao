@@ -190,7 +190,7 @@ describe("影响详情语境", () => {
   });
   it.each([
     [{ actual: 2, normal: 3 }, "二连音"], [{ actual: 3, normal: 2 }, "三连音"], [{ actual: 4, normal: 3 }, "四连音"],
-    [{ actual: 5, normal: 4 }, "五连音（5:4）"], [{ actual: 5, normal: 3 }, "五连音（5:3）"], [{ actual: 6, normal: 4 }, "六连音"],
+    [{ actual: 5, normal: 4 }, "5:4连音"], [{ actual: 5, normal: 3 }, "5:3连音"], [{ actual: 6, normal: 4 }, "六连音"],
   ] as const)("连音反馈 %j 中文化且保留原效果比例与撤销语义", (ratio, name) => {
     const tuplet: ILXMCommandEffect = {
       kind: "tuplets.structured", trackId: "t", measureId: "m", measureNumber: 3,

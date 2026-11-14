@@ -10,7 +10,6 @@ import { buildScoreScene } from "@liuxianmao/lxm-editor";
 import { inspectScoreFile, serializeScoreFile } from "../components/EditorShell/output/score-file";
 import { deriveEditorToolState } from "../components/EditorShell/tools/editor-tool-state";
 import { resolveTechniqueDraft } from "../components/EditorShell/tools/editor-technique-target";
-import { LXM_FRET_TEXT_BASELINE_OFFSET_Y } from "../../../packages/lxm-editor/src/layout/layout-constants";
 
 describe("TAB 横线延音标记", () => {
   it("默认谱末拍写入横线、文件重开及图片图元保留标记，并可一次撤销", () => {
@@ -33,7 +32,7 @@ describe("TAB 横线延音标记", () => {
     const changed = after.score.tracks[0]!.measures.at(-1)!;
     expect(changed.beats.at(-1)!).toMatchObject({
       tick: 2880, rhythm: { base: "quarter", dots: 0 },
-      notes: [{ string: 4, fret: "-" }],
+      notes: [{ string: 3, fret: "-" }],
     });
     expect(changed.beats.slice(0, -1)).toEqual(measure.beats.slice(0, -1));
     expect(changed.numberedVoice).toEqual(measure.numberedVoice);
@@ -54,12 +53,12 @@ describe("TAB 横线延音标记", () => {
       const layout = buildLayout(reopened.document, { density });
       const mark = layout.systems.flatMap((system) => system.measures)
         .find((item) => item.id === measure.id)!.notes
-        .find((item) => item.beatId === lastBeat.id && item.string === 4)!;
+        .find((item) => item.beatId === lastBeat.id && item.tabContinuation)!;
       expect(mark.fret).toBe("-");
       expect(buildScoreScene(layout).systems.flatMap((system) => system.items))
         .toContainEqual(expect.objectContaining({
-          kind: "text", text: "-", x: mark.x,
-          y: mark.y + LXM_FRET_TEXT_BASELINE_OFFSET_Y,
+          kind: "line", x1: mark.x - 6, x2: mark.x + 6,
+          y1: mark.y, y2: mark.y,
         }));
     }
     expect(session.getState().historyDepth.past).toBe(1);

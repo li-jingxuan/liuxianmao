@@ -55,22 +55,23 @@ const items = (raw: string) => {
 };
 
 describe("连续填词语法与原子领域命令", () => {
-  it("半角/全角、重复、首尾空格合并；独立下划线才跳拍，NFC 与码点规范化", () => {
+  it("半角/全角、重复、首尾空格合并；独立下划线清空，NFC 与码点规范化", () => {
     expect(items("  风　 _   e\u0301 a_b __ | ")).toEqual([
       { kind: "set", text: "风" },
-      { kind: "skip" },
+      { kind: "clear" },
       { kind: "set", text: "é" },
       { kind: "set", text: "a_b" },
       { kind: "set", text: "__" },
       { kind: "set", text: "|" },
     ]);
     expect(items("Sing a song")).toHaveLength(3);
+    expect(items("风吹  过山岗")).toEqual([
+      { kind: "set", text: "风吹" },
+      { kind: "set", text: "过山岗" },
+    ]);
     expect(items("😀".repeat(64))).toHaveLength(1);
   });
   it.each([
-    "",
-    " 　 ",
-    "_ _",
     "风\n过",
     "风\t过",
     "\r风",
@@ -83,7 +84,47 @@ describe("连续填词语法与原子领域命令", () => {
   ])("拒绝无效或超限输入 %j", (raw) => {
     expect(parseLyricSequence(raw).ok).toBe(false);
   });
-  it("跨小节跳过歌词位置，保持其他段与节奏，ID 唯一，一次 revision，规范 loader 往返", () => {
+  it.each(["", " ", "　   ", "_"])("%j 只清空当前位置的当前段，保留其他位置和段落", (raw) => {
+    const { document, track, target } = fixture();
+    const first = track.measures[0]!;
+    const next = track.measures[1]!;
+    const current = { id: "current", eventId: target.eventId, verse: 2 as const, text: "旧词" };
+    const otherVerse = { id: "verse-1", eventId: target.eventId, verse: 1 as const, text: "第一段" };
+    const following = { id: "following", eventId: next.numberedVoice.events[0]!.id, verse: 2 as const, text: "后词" };
+    first.lyrics = [otherVerse, current];
+    next.lyrics = [following];
+    const command = { type: C.SetLyricSequence as const, ...target, items: items(raw), allowOverwrite: true };
+    expect(command.items).toEqual([{ kind: "clear" }]);
+    const plan = planLyricSequence(document, target, command.items, true);
+    expect(plan).toMatchObject({ changes: 1, overwrites: 1, issue: null });
+    const result = run(document, command);
+    expect(result.document.score.tracks[0]!.measures[0]!.lyrics).toEqual([otherVerse]);
+    expect(result.document.score.tracks[0]!.measures[1]!.lyrics).toEqual([following]);
+    expect(first.lyrics).toEqual([otherVerse, current]);
+    expect(loadDocument(JSON.stringify(result.document)).ok).toBe(true);
+    expect(run(result.document, command).changed).toBe(false);
+  });
+  it("全下划线可清空；覆盖、版本及非法后项检查不允许部分删除", () => {
+    const { document, track, target } = fixture();
+    const first = track.measures[0]!;
+    const next = track.measures[1]!;
+    first.lyrics = [{ id: "clear-first", eventId: target.eventId, verse: 2, text: "风" }];
+    next.lyrics = [{ id: "clear-next", eventId: next.numberedVoice.events[0]!.id, verse: 2, text: "过" }];
+    const before = structuredClone(document);
+    const command = { type: C.SetLyricSequence as const, ...target, items: items("_ _"), allowOverwrite: true };
+    for (const patch of [
+      { allowOverwrite: false },
+      { expectedRevision: document.documentRevision + 1 },
+      { items: [{ kind: "clear" }, { kind: "set", text: "\n非法" }] as LyricSequenceItem[] },
+    ]) {
+      expect(applyScoreCommand(document, { ...command, ...patch }).ok).toBe(false);
+      expect(document).toEqual(before);
+    }
+    const result = run(document, command);
+    expect(result.document.score.tracks[0]!.measures.flatMap((m) => m.lyrics)).toEqual([]);
+    expect(result.document.documentRevision).toBe(document.documentRevision + 1);
+  });
+  it("跨小节混合清空，保持其他段与节奏，ID 唯一，一次 revision，规范 loader 往返", () => {
     const { document, track, target } = fixture();
     const m2 = track.measures[1]!;
     const skipEvent = m2.numberedVoice.events[0]!;
@@ -98,7 +139,7 @@ describe("连续填词语法与原子领域命令", () => {
     ];
     const before = JSON.stringify(document);
     const sequence = items("风 _ 过 山");
-    const plan = planLyricSequence(document, target, sequence);
+    const plan = planLyricSequence(document, target, sequence, true);
     expect(plan.issue).toBeNull();
     expect(plan.rows.map((r) => [r.measureNumber, r.beatNumber])).toEqual([
       [1, track.measures[0]!.beats.length],
@@ -108,23 +149,22 @@ describe("连续填词语法与原子领域命令", () => {
     ]);
     expect(plan.rows[1]).toMatchObject({
       rest: false,
-      status: "skip",
+      status: "clear",
       previous: "保留",
     });
     const result = run(document, {
       type: C.SetLyricSequence,
       ...target,
       items: sequence,
-      allowOverwrite: false,
+      allowOverwrite: true,
     });
     expect(result.document.documentRevision).toBe(
       document.documentRevision + 1,
     );
     expect(JSON.stringify(document)).toBe(before);
     expect(result.document.score.tracks[0]!.measures[1]!.beats).toBe(m2.beats);
-    expect(result.document.score.tracks[0]!.measures[1]!.lyrics).toEqual(
-      expect.arrayContaining(m2.lyrics),
-    );
+    expect(result.document.score.tracks[0]!.measures[1]!.lyrics).toContainEqual(m2.lyrics[1]);
+    expect(result.document.score.tracks[0]!.measures[1]!.lyrics.some((l) => l.id === "skip-existing")).toBe(false);
     const lyrics = result.document.score.tracks[0]!.measures.flatMap(
       (m) => m.lyrics,
     );
@@ -179,7 +219,7 @@ describe("连续填词语法与原子领域命令", () => {
       },
       { eventId: "missing" },
       { verse: 5 as 2 },
-      { items: [{ kind: "skip" }] as LyricSequenceItem[] },
+      { items: [] },
       {
         items: Array.from({ length: 257 }, () => ({
           kind: "set" as const,
@@ -193,7 +233,7 @@ describe("连续填词语法与原子领域命令", () => {
       expect(JSON.stringify(document)).toBe(before);
     }
   });
-  it("谱尾预览保留越界项，显式 skip 不过滤位置", () => {
+  it("谱尾预览保留越界项，显式清空不减少位置", () => {
     const { document, track, target } = fixture();
     const last = track.measures.at(-1)!;
     const plan = planLyricSequence(
@@ -206,7 +246,7 @@ describe("连续填词语法与原子领域命令", () => {
       items("_ 词"),
     );
     expect(plan.rows).toHaveLength(2);
-    expect(plan.rows[0]!.status).toBe("skip");
+    expect(plan.rows[0]!.status).toBe("same");
     expect(plan.rows[1]).toMatchObject({ target: null, status: "error" });
     expect(plan.issue).toContain("还缺 1 个歌词位置");
   });

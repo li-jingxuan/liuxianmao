@@ -1,7 +1,7 @@
 import {
-  createMeasureRhythmContext,
   createNumberedRhythmContext,
   getMeasureCapacityTicks,
+  planNumberedInputRanges,
   type ILXMDocument,
   type ILXMNumberedTarget,
   type ILXMTabCellReference,
@@ -42,6 +42,35 @@ export const resolveNumberedEditorTarget = (
     .find((t) => t.id === target.trackId)
     ?.measures.find((m) => m.id === target.measureId);
   if (!measure) return null;
+  // TAB 入口以当前简谱声部为准；区间采用半开边界，避免末端误选前音。
+  const resolveTick = (tick: number): ILXMNumberedTarget | null => {
+    const context = createNumberedRhythmContext(measure.numberedVoice);
+    const existing = measure.numberedVoice.events.find((event) => {
+      const duration = context.getEventDurationTicks(event);
+      return duration.ok && event.tick <= tick && tick < event.tick + duration.ticks;
+    });
+    if (existing)
+      return {
+        kind: "numberedEvent",
+        trackId: target.trackId,
+        measureId: measure.id,
+        eventId: existing.id,
+        itemId: existing.items[0]?.id,
+      };
+    const range = planNumberedInputRanges(measure).find(
+      (item) => item.startTick === tick,
+    );
+    // 不为缺少可靠节奏映射的 TAB 连音内部位置伪造普通录入窗口。
+    return range?.rhythm
+      ? {
+          kind: "numberedTime",
+          trackId: target.trackId,
+          measureId: measure.id,
+          tick: range.startTick,
+          endTick: range.endTick,
+        }
+      : null;
+  };
   if ("eventId" in target && target.eventId)
     return measure.numberedVoice.events.some(
       (e) =>
@@ -75,6 +104,7 @@ export const resolveNumberedEditorTarget = (
       target.tick < target.endTick &&
       target.endTick <= getMeasureCapacityTicks(measure.timeSignature)
       ? {
+          // 显式范围还用于高级替换，必须保留范围身份；占用检查由操作规划完成。
           kind: "numberedTime",
           trackId: target.trackId,
           measureId: target.measureId,
@@ -87,28 +117,7 @@ export const resolveNumberedEditorTarget = (
       ? measure.beats.find((b) => b.id === target.beatId)
       : undefined;
   if (!beat) return null;
-  const existing = measure.numberedVoice.events.find(
-    (e) => e.tick === beat.tick,
-  );
-  if (existing)
-    return {
-      kind: "numberedEvent",
-      trackId: target.trackId,
-      measureId: measure.id,
-      eventId: existing.id,
-      itemId: existing.items[0]?.id,
-    };
-  const duration =
-    createMeasureRhythmContext(measure).getBeatDurationTicks(beat);
-  return duration.ok
-    ? {
-        kind: "numberedTime",
-        trackId: target.trackId,
-        measureId: measure.id,
-        tick: beat.tick,
-        endTick: beat.tick + duration.ticks,
-      }
-    : null;
+  return resolveTick(beat.tick);
 };
 /** 已有事件窗口读取自身比例，不能退回 TAB 四分音时值。 */
 export const numberedTargetWindow = (

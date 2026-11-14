@@ -853,6 +853,12 @@ export const EditorShell: React.FC = () => {
       setErrorMessage("请先选择谱面中的 TAB 单元格，再输入品位或标记。");
       return;
     }
+    if (fret === "-") {
+      execute({ type: LXMScoreCommandEnum.SetTabContinuation, range: {
+        trackId: selection.anchor.trackId, anchor: selection.anchor, focus: selection.focus,
+      } });
+      return;
+    }
     execute({
       type: LXMScoreCommandEnum.SetNotesInRect,
       range: {

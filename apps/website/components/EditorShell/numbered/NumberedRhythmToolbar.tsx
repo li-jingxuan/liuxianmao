@@ -1,8 +1,8 @@
 import type { ILXMRhythmBase } from "@liuxianmao/lxm-editor";
 import type { MusicControlIcon } from "../../../assets/svg/svg-assets-manifest";
 import { MusicAssetIcon } from "../../MusicAssetIcon";
-import styles from "./NumberedEditor.module.scss";
-import editorToolPanelStyles from "../shared/editor-tool-panel.module.scss";
+import { EditorToolSymbolButton } from "../tools/EditorToolSymbolButton";
+import styles from "./NumberedSymbolControls.module.scss";
 
 const rhythms: { base: ILXMRhythmBase; label: string; icon: MusicControlIcon }[] = [
   { base: "whole", label: "全音符", icon: "noteWhole" },
@@ -13,44 +13,73 @@ const rhythms: { base: ILXMRhythmBase; label: string; icon: MusicControlIcon }[]
   { base: "thirtySecond", label: "三十二分音符", icon: "noteThirtySecond" },
 ];
 
-/** 与顶部工具栏共用音乐图标资源和尺寸；这里只更新草稿。 */
+export interface NumberedRhythmToolbarProps {
+  base: ILXMRhythmBase;
+  dots: number;
+  disabled?: boolean;
+  disabledReason?: string;
+  onChange: (base: ILXMRhythmBase, dots: number) => void;
+  onSustain?: () => void;
+  sustain?: boolean;
+}
+
+/** 仅呈现所选时值；所有编辑动作由调用方提供。 */
 export const NumberedRhythmToolbar = ({
   base,
   dots,
   disabled,
+  disabledReason,
   onChange,
-}: {
-  base: ILXMRhythmBase;
-  dots: number;
-  disabled?: boolean;
-  onChange: (base: ILXMRhythmBase, dots: number) => void;
-}) => (
-  <div className={styles.rhythmToolbar} role="group" aria-label="常用时值">
-    <span className={styles.rhythmLabel}>时值</span>
-    {rhythms.map((rhythm) => (
-      <button
-        key={rhythm.base}
-        type="button"
-        title={rhythm.label}
-        aria-label={rhythm.label}
-        aria-pressed={base === rhythm.base}
-        disabled={disabled}
-        onMouseDown={(event) => event.preventDefault()}
-        onClick={() => onChange(rhythm.base, dots)}
-      >
-        <MusicAssetIcon assetId={rhythm.icon} className={editorToolPanelStyles.toolbarIcon} />
-      </button>
-    ))}
-    <button
-      type="button"
-      title="附点"
-      aria-label="附点"
-      aria-pressed={dots === 1}
-      disabled={disabled}
+  onSustain,
+  sustain = false,
+}: NumberedRhythmToolbarProps) => {
+  const availability = {
+    enabled: !disabled,
+    reason: disabled ? disabledReason || "当前位置无法修改时值" : "",
+  };
+  return (
+    <div
+      className={styles.rhythmToolbar}
+      role="group"
+      aria-label="常用时值"
       onMouseDown={(event) => event.preventDefault()}
-      onClick={() => onChange(base, dots === 1 ? 0 : 1)}
     >
-      <span aria-hidden="true">·</span>
-    </button>
-  </div>
-);
+      {rhythms.map((rhythm) => (
+        <EditorToolSymbolButton
+          key={rhythm.base}
+          label={rhythm.label}
+          pressed={base === rhythm.base}
+          availability={availability}
+          onClick={() => {
+            if (!disabled) onChange(rhythm.base, dots);
+          }}
+        >
+          <MusicAssetIcon assetId={rhythm.icon} className={styles.durationIcon} />
+        </EditorToolSymbolButton>
+      ))}
+      <EditorToolSymbolButton
+        label="单附点"
+        pressed={dots === 1}
+        availability={availability}
+        onClick={() => {
+          if (!disabled) onChange(base, dots === 1 ? 0 : 1);
+        }}
+      >
+        <span className={styles.musicGlyph} aria-hidden="true">{"\uE1E7"}</span>
+      </EditorToolSymbolButton>
+      <EditorToolSymbolButton
+        label="延音"
+        pressed={sustain}
+        availability={onSustain ? availability : {
+          enabled: false,
+          reason: disabledReason || "当前位置无法设置延音",
+        }}
+        onClick={() => {
+          if (!disabled) onSustain?.();
+        }}
+      >
+        <span className={styles.musicGlyph} aria-hidden="true">{"\uE874"}</span>
+      </EditorToolSymbolButton>
+    </div>
+  );
+};

@@ -9,7 +9,7 @@ export interface BeatMappingPosition {
   startTick: number;
   endTick: number;
 }
-export type BeatMappingStatus = "add" | "change" | "same" | "remove" | "skip" | "release" | "error";
+export type BeatMappingStatus = "add" | "change" | "same" | "remove" | "skip" | "clear" | "release" | "error";
 export interface BeatMappingRow {
   key: string;
   before: string;
@@ -33,7 +33,7 @@ export interface BeatMappingMeasure {
 
 const labels: Record<BeatMappingStatus, string> = {
   add: "新增", change: "修改", same: "未变化", remove: "删除",
-  skip: "跳过，保留原值", release: "释放空位", error: "错误",
+  skip: "跳过，保留原值", clear: "清空", release: "释放空位", error: "错误",
 };
 
 /** 所有坐标直接取领域候选的 tick；重叠的新旧范围分行，保留相同时间轴。 */
@@ -61,16 +61,17 @@ export function beatMappingLayout(rows: readonly BeatMappingRow[], measure: Beat
 }
 
 /** 简谱和歌词共用的纯展示视图；不解析原文，也不改变批次起点。 */
-export function BeatMappingPreview({ rows, measures, onInspect, label = "节拍映射预览", notice }: {
+export function BeatMappingPreview({ rows, measures, onInspect, label = "节拍映射预览", notice, compact = false }: {
   rows: readonly BeatMappingRow[];
   measures: readonly BeatMappingMeasure[];
   onInspect?: (position: BeatMappingPosition) => void;
   label?: string;
   notice?: string;
+  compact?: boolean;
 }) {
   if (!rows.length) return null;
   return (
-    <section className={styles.preview} aria-label={label}>
+    <section className={`${styles.preview} ${compact ? styles.compact : ""}`} aria-label={label}>
       <div className={styles.heading}>{label}<span>{rows.length} 项</span></div>
       {measures.map((measure) => {
         const layout = beatMappingLayout(rows, measure);
@@ -89,12 +90,12 @@ export function BeatMappingPreview({ rows, measures, onInspect, label = "节拍�
                   return (
                     <div key={row.key} className={styles.mapping} data-status={row.status} data-start-tick={position.startTick} data-end-tick={position.endTick}
                       style={{ gridColumn: `${startColumn} / ${endColumn}`, gridRow: lane + 1 }}>
-                      <strong className={styles.music}>{row.music ?? (row.after === "—" ? row.before : row.after)}</strong>
+                      <strong className={styles.music}>{compact ? row.after || <span className={styles.blank} aria-label="清空为占位" /> : row.music ?? (row.after === "—" ? row.before : row.after)}</strong>
                       <button className={styles.position} type="button" disabled={!row.canInspect || !onInspect} title={`${row.positionLabel} · ${!row.canInspect ? "应用后出现" : "定位谱面，不改变录入起点"}`} onPointerDown={(event) => event.preventDefault()} onClick={() => source && onInspect?.(source)}>{beat(position.startTick)}</button>
-                      <div className={styles.description}>
+                      {!compact && <div className={styles.description}>
                         {row.before !== row.after && <span>{row.before} → {row.after}</span>}
                         <span className={styles.status}>{row.impactLabel ?? labels[row.status]}{moved ? " · 时间范围改变" : ""} · {row.rhythm ?? `${Number(((position.endTick - position.startTick) / measure.beatTicks).toFixed(3))} 拍`}</span>
-                      </div>
+                      </div>}
                     </div>
                   );
                 })}

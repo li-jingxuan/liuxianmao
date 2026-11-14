@@ -12,6 +12,7 @@ import {
   createMeasureRhythmContext,
 } from "./tuplet";
 import { reconcileMeasureTimeline } from "./measure-timeline";
+import { isPureTabContinuationBeat } from "./tab-continuation";
 
 type Result =
   | { ok: true; changed: boolean; measure: ILXMMeasure }
@@ -32,6 +33,8 @@ export const editMeasureTuplet = (
   if (command.type === "tuplet.remove") {
     const group = tuplets.find((group) => group.id === command.tupletId);
     if (!group) return fail("TUPLET_NOT_FOUND", "目标连音组不存在");
+    if (measure.beats.some((beat) => group.beatIds.includes(beat.id) && isPureTabContinuationBeat(beat)))
+      return fail("INVALID_BEAT_OPERATION", "请先把连音组中的延音标记改为普通音符或休止，再修改连音组");
     memberIds = group.beatIds;
     tuplets = tuplets.filter((item) => item.id !== group.id);
   } else {
@@ -46,6 +49,8 @@ export const editMeasureTuplet = (
     if (start < 0 || end < start)
       return fail("TUPLET_RANGE_INVALID", "请选择同小节内按时间排序的连续节拍");
     const members = measure.beats.slice(start, end + 1);
+    if (members.some(isPureTabContinuationBeat))
+      return fail("INVALID_BEAT_OPERATION", "延音标记固定占一个单位拍，不能设为连音成员");
     memberIds = members.map((beat) => beat.id);
     if (members.length !== command.ratio.actual)
       return fail(

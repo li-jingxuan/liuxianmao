@@ -110,7 +110,7 @@ export const lyricDraftMappingDependency = (
   const measures = new Map(track?.measures.map((measure) => [measure.id, measure]));
   const parsed = parseLyricSequence(draft.text);
   const targets = draft.lyricMode === "sequence"
-    ? planLyricSequence(document, target, parsed.ok ? parsed.items : [{ kind: "skip" }], true)
+    ? planLyricSequence(document, target, parsed.ok ? parsed.items : [{ kind: "clear" }], true)
         .rows.map((row) => row.target)
     : [target];
   return JSON.stringify({
@@ -227,7 +227,7 @@ export const readMusicTextDraft = (
       verse,
     },
     lyricMode,
-    allowOverwrite: false,
+    allowOverwrite: target.kind === "lyric",
     text: lyric?.text ?? "",
     chord: chord
       ? structuredClone({ display: chord.display, chord: chord.chord })

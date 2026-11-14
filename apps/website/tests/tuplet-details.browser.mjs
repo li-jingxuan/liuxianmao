@@ -1,4 +1,4 @@
-// 与现有浏览器回归共用 Vite / Playwright，聚焦连音草稿与异步结果。
+// 与现有浏览器回归共用 Vite / Playwright，聚焦点击即应用与异步结果。
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -18,60 +18,94 @@ try {
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/__tuplet-test__`);
   await page.waitForFunction(() => !!window.tupletTest);
-  const group = page.getByRole("group", { name: "待应用连音类型" });
+  const group = page.getByRole("group", { name: "连音类型", exact: true });
   const type = (name) => group.getByRole("button", { name, exact: true });
-  const pending = page.getByRole("status");
-  const apply = () => page.getByRole("button", { name: /应用/ });
+  const snapshot = () => page.evaluate(() => ({ document: window.tupletTest.document(), history: window.tupletTest.history() }));
+  const waitIdle = () => page.waitForFunction(() => !document.querySelector('button[aria-label="5:4连音"]')?.disabled);
   assert.equal(await group.getByRole("button").count(), 6);
-  assert.equal(await type("五连音（5:4）").getAttribute("aria-pressed"), "true");
-  assert.equal(await pending.count(), 0);
-  assert.equal(await apply().isDisabled(), true);
-  // 选类型只改本地草稿；同值 noop 也显式清理，不创建历史。
-  await type("五连音（5:4）").click();
-  assert.equal(await pending.innerText(), "待应用五连音（5:4）");
-  assert.equal(await page.evaluate(() => window.tupletTest.commands().length), 0);
-  await apply().click();
-  await pending.waitFor({ state: "detached" });
+  assert.deepEqual(await group.getByRole("button").allTextContents(), ["二连音", "三连音", "四连音", "5:4连音", "5:3连音", "六连音"]);
+  assert.equal(await type("5:4连音").getAttribute("aria-pressed"), "true");
+  assert.equal(await page.getByRole("status").count(), 0);
+  assert.equal(await page.getByRole("button", { name: /应用/ }).count(), 0);
+  // 可用与禁用类型都没有悬停/聚焦提示，也不增加可聚焦包装。
+  assert.equal(await group.locator('[tabindex="0"], [title], [aria-describedby]').count(), 0);
+  await type("5:3连音").hover();
+  await type("5:3连音").focus();
+  assert.equal(await page.getByRole("tooltip").count(), 0);
+  await type("三连音").hover();
+  assert.equal(await type("三连音").getAttribute("aria-description"), "需要 3 个连续拍点，当前选中 5 个");
+  assert.equal(await page.getByRole("tooltip").count(), 0);
+  // 同值仍提交适配器，核心返回 noop，文档与历史不变。
+  const initial = await snapshot();
+  await type("5:4连音").click();
+  await waitIdle();
+  assert.equal(await page.evaluate(() => window.tupletTest.commands().length), 1);
+  assert.deepEqual(await snapshot(), initial);
   assert.equal(await page.evaluate(() => window.tupletTest.history().past), 0);
-  // 失败和取消保留合法草稿，允许重试；最终应用只创建一条记录。
-  await type("五连音（5:3）").click();
+  // 失败和取消继续显示真实当前组；再次点选直接重试。
   for (const mode of ["blocked", "cancelled"]) {
     await page.evaluate((mode) => window.tupletTest.mode(mode), mode);
-    await apply().click();
+    await type("5:3连音").click();
     await page.getByRole("alert").waitFor();
-    assert.equal(await pending.innerText(), "待应用五连音（5:3）");
-    assert.equal(await page.evaluate(() => window.tupletTest.history().past), 0);
+    await waitIdle();
+    assert.equal(await type("5:4连音").getAttribute("aria-pressed"), "true");
+    assert.equal(await type("5:3连音").getAttribute("aria-pressed"), "false");
+    assert.deepEqual(await snapshot(), initial);
   }
   await page.evaluate(() => window.tupletTest.mode("normal"));
-  await apply().click();
-  await pending.waitFor({ state: "detached" });
+  await type("5:3连音").click();
+  await waitIdle();
   assert.equal(await page.evaluate(() => window.tupletTest.history().past), 1);
-  assert.equal(await type("五连音（5:3）").getAttribute("aria-pressed"), "true");
+  assert.equal(await type("5:3连音").getAttribute("aria-pressed"), "true");
   await page.evaluate(() => window.tupletTest.undo());
-  await page.waitForFunction(() => document.querySelector('button[aria-label="五连音（5:4）"]')?.getAttribute("aria-pressed") === "true");
-  // 选区改变立即取消草稿；提交中锁住重复操作，旧 noop 不污染新范围。
-  await type("五连音（5:3）").click();
-  await page.evaluate(() => window.tupletTest.select(4));
-  await pending.waitFor({ state: "detached" });
-  await type("五连音（5:3）").click();
+  await page.waitForFunction(() => document.querySelector('button[aria-label="5:4连音"]')?.getAttribute("aria-pressed") === "true");
+  // 提交中禁用所有操作，同一事件批次也只能提交一次；切换选区后仍写入原目标。
   await page.evaluate(() => window.tupletTest.mode("deferred"));
-  await apply().click();
-  assert.equal(await apply().isDisabled(), true);
-  assert.equal(await type("五连音（5:4）").isDisabled(), true);
-  await page.evaluate(() => window.tupletTest.select(3));
-  await pending.waitFor({ state: "detached" });
+  const commandCount = await page.evaluate(() => window.tupletTest.commands().length);
+  const originalMeasureId = initial.document.score.tracks[0].measures[3].id;
+  await type("5:3连音").evaluate((button) => { button.click(); button.click(); });
+  assert.equal(await page.evaluate(() => window.tupletTest.commands().length), commandCount + 1);
+  assert.equal(await group.locator("button:disabled").count(), 6);
+  assert.equal(await page.getByRole("button", { name: /删除当前连音组/ }).isDisabled(), true);
+  assert.equal(await type("5:4连音").getAttribute("aria-pressed"), "true");
+  await page.evaluate(() => window.tupletTest.select(4));
+  assert.equal(await page.evaluate(() => window.tupletTest.commands().at(-1).measureId), originalMeasureId);
+  assert.equal(await type("5:3连音").getAttribute("aria-pressed"), "true");
+  const newTargetBefore = await page.evaluate(() => window.tupletTest.document().score.tracks[0].measures[4]);
   await page.evaluate(() => window.tupletTest.finish());
-  await page.waitForFunction(() => !document.querySelector('button[aria-label="五连音（5:4）"]')?.disabled);
-  assert.equal(await pending.count(), 0);
-  assert.equal(await type("五连音（5:4）").getAttribute("aria-pressed"), "true");
+  await waitIdle();
+  assert.deepEqual(await page.evaluate(() => window.tupletTest.document().score.tracks[0].measures[4]), newTargetBefore);
+  assert.equal(await type("5:3连音").getAttribute("aria-pressed"), "true");
+  assert.equal(await page.evaluate(() => window.tupletTest.history().past), 1);
+  await page.evaluate(() => window.tupletTest.select(3));
+  assert.equal(await type("5:3连音").getAttribute("aria-pressed"), "true");
+  await page.evaluate(() => window.tupletTest.undo());
+  await page.waitForFunction(() => document.querySelector('button[aria-label="5:4连音"]')?.getAttribute("aria-pressed") === "true");
+  // 删除成功只产生一条历史；撤销恢复真实组和高亮。
+  await page.evaluate(() => window.tupletTest.mode("normal"));
+  await page.getByRole("button", { name: /删除当前连音组/ }).click();
+  await waitIdle();
+  assert.equal(await group.locator('button[aria-pressed="true"]').count(), 0);
+  assert.equal(await page.evaluate(() => window.tupletTest.history().past), 1);
+  await page.evaluate(() => window.tupletTest.undo());
+  await page.waitForFunction(() => document.querySelector('button[aria-label="5:4连音"]')?.getAttribute("aria-pressed") === "true");
+  // 扩张比例的容量失败同样由核心裁定，保留文档当前比例和历史。
+  await page.evaluate(() => window.tupletTest.overflow(5));
+  await page.waitForFunction(() => document.querySelector('button[aria-label="5:3连音"]')?.getAttribute("aria-pressed") === "true");
+  const beforeSetFailure = await snapshot();
+  await type("5:4连音").click();
+  assert.match(await page.getByRole("alert").innerText(), /容量不足/);
+  await waitIdle();
+  assert.deepEqual(await snapshot(), beforeSetFailure);
+  assert.equal(await type("5:3连音").getAttribute("aria-pressed"), "true");
   // 删除由核心拒绝时，摘要、音乐及历史均原样保留。
   await page.evaluate(() => window.tupletTest.overflow());
   await page.waitForFunction(() => document.querySelector('button[aria-label="三连音"]')?.getAttribute("aria-pressed") === "true");
-  const before = await page.evaluate(() => ({ document: window.tupletTest.document(), history: window.tupletTest.history() }));
+  const before = await snapshot();
   await page.getByRole("button", { name: /删除当前连音组/ }).click();
   assert.match(await page.getByRole("alert").innerText(), /容量不足/);
-  assert.deepEqual(await page.evaluate(() => ({ document: window.tupletTest.document(), history: window.tupletTest.history() })), before);
+  assert.deepEqual(await snapshot(), before);
   assert.equal(await type("三连音").getAttribute("aria-pressed"), "true");
   assert.deepEqual(errors, []);
-  console.log("tuplet details: draft isolation, noop, retry, async selection, busy lock and delete overflow passed");
+  console.log("tuplet details: immediate apply, noop, retry, async selection, busy lock, delete/undo and overflow passed");
 } finally { await browser?.close(); await server.close(); }

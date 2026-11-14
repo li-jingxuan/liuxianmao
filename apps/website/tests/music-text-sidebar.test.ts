@@ -38,9 +38,9 @@ const fixture = () => {
 };
 
 describe("音乐文本侧栏未应用内容的离开策略", () => {
-  it("新歌词会话保护覆盖，和弦仅改显示配置可直接离开", () => {
+  it("新歌词会话默认允许覆盖，和弦仅改显示配置可直接离开", () => {
     const { document, target, chordTarget } = fixture();
-    expect(readMusicTextDraft(document, target)!.allowOverwrite).toBe(false);
+    expect(readMusicTextDraft(document, target)!.allowOverwrite).toBe(true);
     const chord = readMusicTextDraft(document, chordTarget)!;
     chord.chord.display = chord.chord.display === "name" ? "nameAndDiagram" : "name";
     expect(musicTextDraftValue(chord)).not.toBe(chord.initial);

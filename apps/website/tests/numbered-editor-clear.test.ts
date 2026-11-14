@@ -164,10 +164,7 @@ const setup = (
     const editor = NumberedEditor(props);
     if (!entered) {
       entered = true;
-      findInput(
-        editor,
-        mode === "single" ? "单音组简谱" : "音符内容",
-      )!.onChange({ target: { value: raw } });
+      findInput(editor, "简谱内容")!.onChange({ target: { value: raw } });
     }
     return editor;
   };
@@ -220,7 +217,7 @@ describe("clearing a single numbered event", () => {
       expect(html).toContain("→ 空白");
       expect(html).not.toContain("简谱音高无效");
       expect(html).toMatch(
-        /<button(?![^>]*disabled)[^>]*><span>应用简谱内容<\/span>/,
+        /<button(?![^>]*disabled)[^>]*aria-label="应用简谱内容"[^>]*>/,
       );
       expect(await ref.current!.apply()).toMatchObject({ status: "applied" });
       expect(commit).toHaveBeenCalledWith(
@@ -272,7 +269,7 @@ describe("clearing a single numbered event", () => {
             "kind" in value &&
             value.kind === "numbered",
         ),
-      ).toBe(advance !== false);
+      ).toBe(advance === true);
     },
   );
 
@@ -280,7 +277,7 @@ describe("clearing a single numbered event", () => {
     const { ref, commit, session, document, html } = setup(raw, "gap");
     expect(ref.current!.dirty).toBe(false);
     expect(ref.current!.dirtyGroups).toEqual([]);
-    expect(html).toMatch(/<button[^>]*disabled[^>]*><span>应用简谱内容<\/span>/);
+    expect(html.match(/<button[^>]*aria-label="应用简谱内容"[^>]*>/)?.[0]).toContain("disabled");
     expect(await ref.current!.applyGroup("content")).toMatchObject({
       status: "noop",
     });

@@ -346,6 +346,8 @@ export interface ILXMStringLineLayout {
 
 /** 音符布局结果，fretText 供渲染层直接显示。 */
 export interface ILXMNoteLayout {
+  /** 纯横线是拍级对象，string 仅保留旧编码身份。 */
+  tabContinuation?: boolean;
   id: string;
   beatId: string;
   measureId: string;

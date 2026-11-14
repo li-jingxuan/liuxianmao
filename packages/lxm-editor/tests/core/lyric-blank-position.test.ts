@@ -23,6 +23,22 @@ const fixture = () => {
 };
 
 describe("空简谱位置填词", () => {
+  it.each(["", "  　", "_"])("空白位置应用 %j 不创建歌词或占位事件", (text) => {
+    const { document, track, measure } = fixture();
+    const position = planLyricPositions(measure)[0]!;
+    const result = applyScoreCommand(document, {
+      type: LXMScoreCommandEnum.SetLyric,
+      trackId: track.id,
+      measureId: measure.id,
+      tick: position.tick,
+      endTick: position.endTick,
+      verse: 1,
+      text,
+    });
+    expect(result).toEqual({ ok: true, changed: false, document });
+    expect(measure.numberedVoice.events).toEqual([]);
+    expect(measure.lyrics).toEqual([]);
+  });
   it("整小节没有简谱时提供歌词占位，填词保存空事件，补音后歌词仍在原位", () => {
     const { document, track, measure } = fixture();
     const before = structuredClone(document);
@@ -79,7 +95,7 @@ describe("空简谱位置填词", () => {
     expect(rendered.lyrics![0]!.label.x).toBe(rendered.numberedSlots[0]!.x);
   });
 
-  it("空白时间窗连续填词与预览一致，跳过的位置不创建事件且整批只增加一次 revision", () => {
+  it("空白时间窗连续填词与预览一致，清空的位置不创建事件且整批只增加一次 revision", () => {
     const { document, track, measure } = fixture();
     const positions = planLyricPositions(measure);
     const result = applyScoreCommand(document, {
@@ -91,7 +107,7 @@ describe("空简谱位置填词", () => {
       verse: 2,
       items: [
         { kind: "set", text: "轻" },
-        { kind: "skip" },
+        { kind: "clear" },
         { kind: "set", text: "唱" },
       ],
       allowOverwrite: false,

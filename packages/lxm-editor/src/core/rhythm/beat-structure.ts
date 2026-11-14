@@ -9,6 +9,7 @@ import { LXM_RHYTHM_BASES } from "../constants";
 import { calculateRhythmTicks } from "./rhythm";
 import { createMeasureRhythmContext } from "./tuplet";
 import { validateTechnique } from "../techniques/technique-rules";
+import { isPureTabContinuationBeat } from "./tab-continuation";
 export type BeatStructureResult =
   | {
       ok: true;
@@ -47,6 +48,7 @@ export const splitBeat = (
     i = m?.beats.findIndex((b) => b.id === beatId) ?? -1;
   if (!m || i < 0) return { ok: false, message: "拆分目标拍不存在。" };
   const b = m.beats[i]!;
+  if (isPureTabContinuationBeat(b)) return { ok: false, message: "延音标记固定占一个单位拍，不能拆分。" };
   if (createMeasureRhythmContext(m).tupletByBeatId.has(b.id))
     return { ok: false, message: "连音成员不能拆分，请先移除连音组。" };
   const index = LXM_RHYTHM_BASES.indexOf(b.rhythm.base),
@@ -112,6 +114,7 @@ export const mergeBeats = (
     last = range.at(-1)!,
     ids = new Set(range.map((b) => b.id));
   const context = createMeasureRhythmContext(m);
+  if (range.some(isPureTabContinuationBeat)) return reject("延音标记固定占一个单位拍，不能合并。");
   if (range.some((b) => context.tupletByBeatId.has(b.id)))
     return reject("连音成员不能合并。");
   const ticks = range.reduce((sum, b) => {

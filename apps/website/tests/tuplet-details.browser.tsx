@@ -24,6 +24,14 @@ const Harness = () => {
   const document = useEditorStore((state) => state.document)!;
   const selection = useEditorStore((state) => state.selection);
   const [message, setMessage] = useState("");
+  const commit = (command: ILXMScoreCommand): EditorCommandResult => {
+    const result = store.getState().execute(command)!;
+    if (!result.ok) {
+      setMessage(result.message);
+      return { status: "blocked", message: result.message };
+    }
+    return { status: result.changed ? "applied" : "noop", result };
+  };
   const execute: EditorCommandAdapter = async (command) => {
     commands.push(command);
     setMessage("");
@@ -32,16 +40,13 @@ const Harness = () => {
       return { status: mode, message: mode };
     }
     if (mode === "deferred") {
-      const result = applyScoreCommand(document, command);
-      if (!result.ok) throw new Error(result.message);
-      return new Promise<EditorCommandResult>((resolve) => { finish = () => resolve({ status: "noop", result }); });
+      // 保留已捕获的命令；完成时通过真实核心写入原目标。
+      return new Promise<EditorCommandResult>((resolve) => { finish = () => {
+        finish = undefined;
+        resolve(commit(command));
+      }; });
     }
-    const result = store.getState().execute(command)!;
-    if (!result.ok) {
-      setMessage(result.message);
-      return { status: "blocked", message: result.message };
-    }
-    return { status: result.changed ? "applied" : "noop", result };
+    return commit(command);
   };
   useEffect(() => {
     Object.assign(window, { tupletTest: {
@@ -52,8 +57,8 @@ const Harness = () => {
       document: () => store.getState().document,
       history: () => store.getState().historyDepth,
       undo: () => store.getState().undo(),
-      overflow: () => {
-        // 真实核心路径：三连音压缩出的尾休止转为音乐，删除时无法再腾出容量。
+      overflow: (actual: 3 | 5 = 3) => {
+        // 真实核心路径：压缩出的尾休止转为音乐，扩张比例或删除时无法再腾出容量。
         const next = structuredClone(EXAMPLE_MVP_5_1_DOCUMENT);
         const track = next.score.tracks[0]!;
         track.techniques = [];
@@ -65,11 +70,13 @@ const Harness = () => {
         measure.lyrics = [];
         measure.chordSymbols = [];
         measure.numberedVoice = { events: [], tuplets: [] };
-        measure.beats = [0, 960, 1920, 2880].map((tick, i) => ({
-          id: `full-${i}`, tick, rhythm: { base: "quarter", dots: 0 }, kind: "notes", notes: [],
+        measure.beats = Array.from({ length: actual === 3 ? 4 : 8 }, (_, i) => ({
+          id: `full-${i}`, tick: i * (actual === 3 ? 960 : 480),
+          rhythm: { base: actual === 3 ? "quarter" : "eighth", dots: 0 }, kind: "notes", notes: [],
         }));
         const result = applyScoreCommand(next, { type: C.SetTuplet, trackId: track.id, measureId: measure.id,
-          startBeatId: "full-0", endBeatId: "full-2", ratio: { actual: 3, normal: 2 } });
+          startBeatId: "full-0", endBeatId: `full-${actual - 1}`,
+          ratio: actual === 3 ? { actual: 3, normal: 2 } : { actual: 5, normal: 3 } });
         if (!result.ok) throw new Error(result.message);
         const full = applyScoreCommand(result.document, { type: C.SetBeatKind, trackId: track.id,
           measureId: measure.id, beatId: result.document.score.tracks[0]!.measures[0]!.beats.at(-1)!.id, kind: "notes" });

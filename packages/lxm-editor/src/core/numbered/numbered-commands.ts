@@ -16,6 +16,8 @@ import {
 } from "./numbered-rhythm";
 import { validateNumberedMarks } from "./numbered-marks";
 import { planNumberedEventRhythm } from "./numbered-timeline";
+import { planNumberedSequenceOverwrite, numberedSequenceContent, type NumberedSequenceTarget } from "./numbered-sequence-overwrite";
+export { planNumberedSequenceOverwrite, planNumberedSequenceSlots } from "./numbered-sequence-overwrite";
 import type { ILXMIdFactory } from "../id-factory";
 import type {
   ILXMNumberedEvent,
@@ -38,6 +40,14 @@ export type ILXMNumberedVoiceCommand = Base &
         measureId: string;
         eventId: string;
         items: NumberedSequenceItem[];
+        allowOverwrite: boolean;
+      }
+    | {
+        type: "numbered.sequence.overwrite";
+        measureId: string;
+        startTick: number;
+        items: NumberedSequenceItem[];
+        rhythms?: ILXMRhythm[];
         allowOverwrite: boolean;
       }
     | {
@@ -110,6 +120,8 @@ export type NumberedCandidate =
       resizedEventIds: string[];
       releasedRange?: { startTick: number; endTick: number };
       nextFocus?: { eventId: string } | { tick: number; endTick: number };
+      sequenceTargets?: NumberedSequenceTarget[];
+      sequenceAvailableTicks?: number;
     }
   | {
       ok: false;
@@ -152,6 +164,8 @@ export const editNumberedTrack = (
   let resizedEventIds: string[] = [];
   let releasedRange: { startTick: number; endTick: number } | undefined;
   let nextFocus: Extract<NumberedCandidate, { ok: true }>["nextFocus"];
+  let sequenceTargets: NumberedSequenceTarget[] | undefined;
+  let sequenceAvailableTicks: number | undefined;
   if (command.type.startsWith("numbered.mark.")) {
     if (!("markId" in command) && !("mark" in command))
       return failure("简谱标记命令无效");
@@ -186,47 +200,43 @@ export const editNumberedTrack = (
     }
     const error = validateNumberedMarks(next);
     if (error) return failure(error);
-  } else if (command.type === "numbered.sequence.set") {
-    const rows = track.measures.flatMap((m) =>
-      m.numberedVoice.events.map((e) => ({ m, e })),
-    );
-    const start = rows.findIndex(
-      ({ m, e }) => m.id === command.measureId && e.id === command.eventId,
-    );
-    if (
-      start < 0 ||
-      !command.items.length ||
-      command.items.length > 256 ||
-      start + command.items.length > rows.length
-    )
-      return failure("简谱事件不足或目标失效，整批未应用");
-    const updates = new Map<string, ILXMNumberedEvent>();
-    for (const [i, item] of command.items.entries()) {
-      if (item.kind === "skip") continue;
-      if (item.tokens.length && !validNumberedTokens(item.tokens))
-        return failure("简谱内容无效");
-      const e = rows[start + i]!.e;
-      if (
-        JSON.stringify(e.items.map((x) => x.token)) ===
-        JSON.stringify(item.tokens)
-      )
-        continue;
-      if (e.items.length && !command.allowOverwrite)
-        return failure("请确认允许覆盖已有简谱");
-      updates.set(e.id, { ...e, ...content(item.tokens, factory) });
-    }
+  } else if (command.type === "numbered.sequence.set" || command.type === "numbered.sequence.overwrite") {
+    const planned = planNumberedSequenceOverwrite(track, command);
+    if (!planned.ok) return failure(planned.message);
+    sequenceTargets = planned.targets;
+    sequenceAvailableTicks = planned.availableTicks;
+    const removed = new Set(planned.removedEventIds);
     next = {
       ...track,
-      measures: track.measures.map((m) => ({
-        ...m,
-        numberedVoice: {
-          ...m.numberedVoice,
-          events: m.numberedVoice.events.map((e) => updates.get(e.id) ?? e),
-        },
-      })),
+      measures: track.measures.map(m => {
+        const targets = planned.targets.filter(target => target.measureId === m.id);
+        if (!targets.length) return m;
+        const updates = new Map<string, ILXMNumberedEvent>();
+        const created: ILXMNumberedEvent[] = [];
+        for (const target of targets) {
+          if (target.item.kind === "skip") continue;
+          const previous = m.numberedVoice.events.find(event => event.id === target.eventId);
+          const same = previous && JSON.stringify(previous.items.map(item => item.token)) === JSON.stringify(target.item.tokens);
+          const event: ILXMNumberedEvent = {
+            ...(same ? previous : numberedSequenceContent(previous, target.item.tokens, () => factory.createNumberedItemId())),
+            id: previous?.id ?? factory.createNumberedEventId(), tick: target.startTick,
+            rhythm: target.rhythm,
+          };
+          if (previous) updates.set(previous.id, event);
+          else created.push(event);
+        }
+        return { ...m, numberedVoice: { ...m.numberedVoice, events: [...m.numberedVoice.events.filter(event => !removed.has(event.id)).map(event => updates.get(event.id) ?? event), ...created].sort((a, b) => a.tick - b.tick) } };
+      }),
     };
+    for (const m of next.measures) {
+      const invalid = validateNumberedVoice(m.numberedVoice, getMeasureCapacityTicks(m.timeSignature));
+      if (invalid) return failure(invalid, "NUMBERED_OVERLAP");
+    }
     measureId = command.measureId;
-    focusEventId = command.eventId;
+    const first = planned.targets[0]!;
+    focusEventId = next.measures.find(m => m.id === first.measureId)?.numberedVoice.events.find(event => event.tick === first.startTick)?.id;
+    if (focusEventId) nextFocus = { eventId: focusEventId };
+    else nextFocus = { tick: first.startTick, endTick: first.endTick };
   } else if ("measureId" in command) {
     measureId = command.measureId;
     const measure = track.measures.find((m) => m.id === measureId);
@@ -855,5 +865,7 @@ export const editNumberedTrack = (
     resizedEventIds,
     releasedRange,
     nextFocus,
+    sequenceTargets,
+    sequenceAvailableTicks,
   };
 };

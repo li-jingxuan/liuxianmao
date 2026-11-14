@@ -57,6 +57,14 @@ const omissionFixture = () => {
 };
 
 describe("history metadata transactions", () => {
+  it("歌词新增段落与简谱自动替换提供明确历史名称", () => {
+    const document = fixture();
+    expect(createHistoryEntry("verse", document, { type: C.AddLyricVerse }, []).label).toBe("添加歌词段落");
+    expect(createHistoryEntry("numbered", document, {
+      type: "numbered.sequence.overwrite", ...target, startTick: 0,
+      items: [{ kind: "set", tokens: ["1"] }], rhythms: [{ base: "quarter", dots: 0 }], allowOverwrite: true,
+    }, []).label).toBe("替换简谱序列");
+  });
   it("每次订阅发布同步快照与 metadata；全撤销顺序和 redo 复用条目身份", () => {
     const store = createEditorStore(fixture());
     const check = vi.fn(assertHistory);

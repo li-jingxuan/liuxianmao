@@ -152,7 +152,7 @@ export const buildEditorToolCommand = (
   if (action.type === "muted")
     return { type: C.SetNotesInRect, range, fret: "x" };
   if (action.type === "continuation")
-    return { type: C.SetNotesInRect, range, fret: "-" };
+    return { type: C.SetTabContinuation, range };
   if (action.type === "removeNotes")
     return { type: C.RemoveNotesInRect, range };
   return {

@@ -4,7 +4,7 @@ import type { ILXMDocument, ILXMLyricVerse } from "../types";
 
 export type LyricSequenceItem =
   | { kind: "set"; text: string }
-  | { kind: "skip" };
+  | { kind: "clear" };
 export interface LyricSequenceTarget {
   trackId: string;
   measureId: string;
@@ -21,12 +21,12 @@ export interface LyricSequenceRow {
   beatNumber: number | null;
   rest: boolean;
   previous: string | null;
-  status: "add" | "change" | "same" | "skip" | "error";
+  status: "add" | "change" | "same" | "clear" | "error";
 }
 export const MAX_LYRIC_SEQUENCE_ITEMS = 256;
 export const MAX_LYRIC_SEQUENCE_INPUT = 16384;
 
-/** 只接受半角/全角空格；保留显式跳拍，不让控制字符被 trim 吞掉。 */
+/** 空格只分词；空输入与独立下划线清空位置，不让控制字符被 trim 吞掉。 */
 export const parseLyricSequence = (
   raw: string,
 ):
@@ -46,13 +46,12 @@ export const parseLyricSequence = (
       message: "只支持半角或全角空格分隔，不接受换行、制表符或其他控制字符。",
     };
   const tokens = raw.split(/[ \u3000]+/u).filter(Boolean);
-  if (!tokens.length || tokens.every((t) => t === "_"))
-    return { ok: false, message: "请至少输入一项有效歌词，不能全部跳过。" };
+  if (!tokens.length) return { ok: true, items: [{ kind: "clear" }] };
   if (tokens.length > MAX_LYRIC_SEQUENCE_ITEMS)
     return { ok: false, message: "单批最多对应 256 拍。" };
   const items: LyricSequenceItem[] = [];
   for (const [index, token] of tokens.entries()) {
-    if (token === "_") items.push({ kind: "skip" });
+    if (token === "_") items.push({ kind: "clear" });
     else {
       const text = normalizeMusicText(token, 64);
       if (!text)
@@ -114,7 +113,6 @@ export const planLyricSequence = (
   let issue: string | null = null;
   let changes = 0;
   let overwrites = 0;
-  let sets = 0;
   const rows = items.map((item, index): LyricSequenceRow => {
     const targetEvent = events[offset + index];
     const text =
@@ -122,8 +120,7 @@ export const planLyricSequence = (
         ? normalizeMusicText(item.text, 64)
         : null;
     const valid =
-      item.kind === "skip" || (item.kind === "set" && text !== null);
-    if (item.kind === "set") sets++;
+      item.kind === "clear" || (item.kind === "set" && text !== null && text !== "_");
     if (!valid && !issue) issue = `第 ${index + 1} 项歌词无效。`;
     const previous =
       targetEvent?.m.lyrics.find(
@@ -133,15 +130,15 @@ export const planLyricSequence = (
     const status =
       !targetEvent || !valid
         ? "error"
-        : item.kind === "skip"
-          ? "skip"
+        : item.kind === "clear"
+          ? previous === null ? "same" : "clear"
           : previous === text
             ? "same"
             : previous !== null
               ? "change"
               : "add";
-    if (status === "change") overwrites++;
-    if (status === "change" || status === "add") changes++;
+    if (status === "change" || status === "clear") overwrites++;
+    if (status === "change" || status === "add" || status === "clear") changes++;
     return {
       index,
       item: item.kind === "set" && text ? { kind: "set", text } : { ...item },
@@ -165,7 +162,6 @@ export const planLyricSequence = (
       status,
     };
   });
-  if (!sets) issue ??= "请至少输入一项有效歌词，不能全部跳过。";
   if (offset + items.length > events.length)
     issue ??= `谱尾位置不足，还缺 ${offset + items.length - events.length} 个歌词位置；整批未应用。`;
   if (overwrites && !allowOverwrite)

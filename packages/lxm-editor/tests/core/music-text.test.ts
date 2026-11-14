@@ -48,7 +48,6 @@ describe("MVP6 音乐文本领域", () => {
     );
   });
   it.each([
-    "",
     " \t",
     "a\nb",
     "a\rb",
@@ -67,6 +66,17 @@ describe("MVP6 音乐文本领域", () => {
   it("NFC 和首尾空格标准化，内部空格保留，按码点计数", () => {
     expect(normalizeMusicText("  e\u0301  a  ", 64)).toBe("é  a");
     expect(normalizeMusicText("😀".repeat(64), 64)).toHaveLength(128);
+  });
+  it.each(["", " 　", "_"])("单点输入 %j 删除歌词实体，通用音乐文本仍严格拒绝空白", (text) => {
+    const d = run(fresh(), { type: C.SetLyric, ...target, verse: 1, text: "旧词" });
+    const next = run(d, { type: C.SetLyric, ...target, verse: 1, text });
+    expect(next.score.tracks[0]!.measures[0]!.lyrics).toEqual([]);
+    expect(d.score.tracks[0]!.measures[0]!.lyrics[0]!.text).toBe("旧词");
+    expect(normalizeMusicText("", 64)).toBeNull();
+    expect(normalizeMusicText(" 　", 64)).toBeNull();
+    const chord = copyChordPreset("F")!;
+    chord.name = " ";
+    expect(applyScoreCommand(next, { type: C.SetChordSymbol, ...target, display: "name", chord })).toMatchObject({ ok: false, code: "INVALID_CHORD_NAME" });
   });
   it("同拍四段排序、更新保持 ID、标准化 no-op 不产生 revision", () => {
     let d = fresh();

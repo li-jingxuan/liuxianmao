@@ -75,14 +75,13 @@ export const MeasureToolDetails = ({
   measureHost?: (node: HTMLDivElement | null) => void;
 }) => {
   const settingsRoot = useRef<HTMLDivElement>(null);
-  const boundaryRoot = useRef<HTMLDetailsElement>(null);
+  const boundaryRoot = useRef<HTMLElement>(null);
   const boundaryFocusPending = useRef(false);
   const focusBoundary = useCallback(() => {
     const root = boundaryRoot.current;
     if (!root) return false;
-    root.open = true;
     root.scrollIntoView({ block: "nearest" });
-    root.querySelector<HTMLElement>("summary")?.focus({ preventScroll: true });
+    root.querySelector<HTMLElement>("h3")?.focus({ preventScroll: true });
     return true;
   }, []);
   useImperativeHandle(ref, () => ({ focusBoundary: () => {
@@ -90,7 +89,7 @@ export const MeasureToolDetails = ({
     return focusBoundary();
   } }));
   const [boundaryHost, setBoundaryHost] = useState<HTMLElement | null>(null);
-  // 设置 owner 的插槽稍后挂载时，恢复同一次显式边界导航的展开与焦点。
+  // 设置 owner 的插槽稍后挂载时，恢复同一次显式边界导航的标题焦点。
   useLayoutEffect(() => {
     if (boundaryFocusPending.current) {
       focusBoundary();
@@ -189,10 +188,13 @@ export const MeasureToolDetails = ({
       </Button>
       {index !== 0 && <p data-editor-form-hint className={editorFormStyles.settingsHint}>{tools.startRepeat.reason || "谱首反复仅对第一小节可用。"}</p>}
     </div> : null;
-  const boundary = <details ref={boundaryRoot} className={`${taskStyles.disclosure} ${taskStyles.noteDisclosure}`}>
-    <summary>小节线与反复<small>右边界：{BARLINES.find((item) => item.value === measure?.barline)?.label ?? "未选择"}</small></summary>
+  const boundary = <section ref={boundaryRoot} className={taskStyles.boundarySection} aria-label="小节线与反复">
+    <div className={taskStyles.sectionHeading}>
+      <h3 tabIndex={-1}>小节线与反复</h3>
+      <span>{BARLINES.find((item) => item.value === measure?.barline)?.label ?? "未选择"}</span>
+    </div>
     {boundaryTools}
-  </details>;
+  </section>;
   return (
     <section className={`${taskStyles.noteDetails} ${taskStyles.measureDetails}`} aria-label="小节属性详情">
       {track && measure ? <>
@@ -209,7 +211,6 @@ export const MeasureToolDetails = ({
             options={options}
             onChange={(value) => void onAction({ type: "signature", value, target })}
           />
-          <p data-editor-form-hint className={editorFormStyles.settingsHint}>选择后生效：从第 {index + 1} 小节起，直到下一拍号变化点。</p>
         </Form.Item>
       {!measureHost && <>
       <h3 tabIndex={-1}>段落标记与小节复用</h3>

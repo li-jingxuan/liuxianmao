@@ -47,6 +47,7 @@ export { default as EXAMPLE_MVP_6_DOCUMENT } from "../example/example-mvp6.json"
 
 export * from "./core/lyrics/lyric-sequence";
 export * from "./core/lyrics/lyric-positions";
+export * from "./core/lyrics/lyric-verses";
 
 export { default as EXAMPLE_TECHNIQUE_RHYTHM_DOCUMENT } from "../example/example-technique-rhythm";
 
@@ -82,3 +83,4 @@ export * from "./core/numbered/numbered-input-ranges";
 export * from "./core/chords/chord-catalog";
 export * from "./core/document/score-tonality";
 export * from "./core/chords/chord-diagram-edit";
+export { isPureTabContinuationBeat, tabContinuationRhythm } from "./core/rhythm/tab-continuation";

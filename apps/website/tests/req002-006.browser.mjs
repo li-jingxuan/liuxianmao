@@ -65,7 +65,10 @@ try {
   const capture = async name => {
     await page.evaluate(() => document.activeElement?.blur());
     await page.mouse.move(20, 30);
-    await page.locator(".ant-tooltip:visible").waitFor({ state: "hidden" });
+    await page.waitForFunction(() => [...document.querySelectorAll(".ant-tooltip")].every((element) => {
+      const style = getComputedStyle(element);
+      return style.display === "none" || style.visibility === "hidden" || element.getBoundingClientRect().width === 0;
+    }));
     await page.screenshot({ path: path.join(artifacts, `${name}.png`), animations: "disabled" });
   };
 
@@ -122,9 +125,11 @@ try {
     const dot = await dots[column].boundingBox(), state = await states[column].boundingBox();
     assert.ok(Math.abs(dot.x - state.x) < 1 && Math.abs(dot.width - state.width) < 1, "附点和状态按钮逐列对齐");
     assert.ok(Math.abs(state.y - (await states[0].boundingBox()).y) < 1, "三个状态按钮同一行");
+    assert.equal(dot.height, 36);
+    assert.equal(state.height, 36);
   }
   await select(0, 0, 1);
-  const disabledDot = notes.getByRole("button", { name: "附点", exact: true });
+  const disabledDot = notes.getByRole("button", { name: "单附点", exact: true });
   assert.equal(await disabledDot.isDisabled(), true);
   await disabledDot.locator("..").focus();
   await page.getByRole("tooltip").filter({ hasText: "时值与附点需要单拍选区" }).waitFor();
@@ -138,12 +143,11 @@ try {
   await select(0, 1, 3);
   await task("连音");
   const tuplets = sidebar.locator('[data-selection-detail="tuplet"]');
-  for (const name of ["二连音", "三连音", "四连音", "五连音（5:4）", "五连音（5:3）", "六连音"])
+  for (const name of ["二连音", "三连音", "四连音", "5:4连音", "5:3连音", "六连音"])
     assert.equal(await tuplets.getByRole("button", { name, exact: true }).count(), 1);
-  const beforeDraft = await snapshot();
+  const beforeTuplet = await snapshot();
+  assert.equal(await tuplets.getByRole("button", { name: /^应用/ }).count(), 0);
   await tuplets.getByRole("button", { name: "三连音", exact: true }).click();
-  assert.deepEqual(await snapshot(), beforeDraft, "待应用类型不写入音乐与历史");
-  await tuplets.getByRole("button", { name: "应用三连音", exact: true }).click();
   await page.waitForFunction(() => window.coexistStore.getState().document.score.tracks[0].measures[0].tuplets.length === 1);
   await page.waitForFunction(() => {
     const type = document.querySelector('[data-selection-detail="tuplet"] button[aria-label="三连音"]');
@@ -151,6 +155,13 @@ try {
       !document.querySelector('[data-selection-detail="tuplet"] [role="status"]');
   });
   assert.deepEqual((await snapshot()).score.tracks[0].measures[0].tuplets[0].ratio, { actual: 3, normal: 2 });
+  assert.equal((await snapshot()).history.past, beforeTuplet.history.past + 1, "点击类型立即写入一步历史");
+  await tuplets.getByRole("button", { name: "三连音", exact: true }).hover();
+  await tuplets.getByRole("button", { name: "三连音", exact: true }).focus();
+  assert.equal(await page.getByRole("tooltip").count(), 0, "连音类型不再显示悬停或聚焦解释");
+  await tuplets.getByRole("button", { name: "三连音", exact: true }).click();
+  await page.waitForFunction(() => document.querySelector('[data-selection-detail="tuplet"] button[aria-label="三连音"]')?.disabled === false);
+  assert.equal((await snapshot()).history.past, beforeTuplet.history.past + 1, "同值命令不增加历史");
   await capture("tuplet");
   await page.getByRole("button", { name: "撤销", exact: true }).click();
   assert.deepEqual((await snapshot()).score, baseline.score);
@@ -165,11 +176,30 @@ try {
   await task("小节");
   const measures = sidebar.locator('[data-selection-detail="measure"]');
   const boundaries = measures.getByRole("group", { name: "六类小节线" });
-  if (!(await boundaries.isVisible())) await measures.locator("summary").filter({ hasText: "小节线与反复" }).click();
+  assert.equal(await boundaries.isVisible(), true, "小节线始终展开");
+  assert.equal(await boundaries.evaluate(el => !!el.closest("details")), false);
+  assert.equal(await measures.getByText(/选择后生效：/).count(), 0);
   assert.equal(await boundaries.getByRole("button", { name: "开始反复线", exact: true }).isDisabled(), true);
   assert.equal(await boundaries.getByRole("button", { name: "双向反复线", exact: true }).isDisabled(), true);
   await boundaries.getByRole("button", { name: "开始反复线", exact: true }).locator("..").focus();
   await page.getByRole("tooltip").filter({ hasText: "谱尾右边界没有下一小节，不能开始反复" }).waitFor();
+  const labelHelp = measures.getByRole("button", { name: "段落标记说明", exact: true });
+  await labelHelp.focus();
+  await page.getByRole("tooltip").filter({ hasText: "段落名称是小节标记，不会新增歌词或简谱行。" }).waitFor();
+  const label = measures.getByRole("textbox", { name: "段落标记", exact: true });
+  await label.fill("回车保存段落");
+  await label.press("Enter");
+  await page.waitForFunction(() => window.coexistStore.getState().document.score.tracks[0].measures.at(-1).sectionLabel === "回车保存段落");
+  const labelHistory = (await snapshot()).history;
+  await label.press("Enter");
+  assert.deepEqual((await snapshot()).history, labelHistory);
+  await label.fill("失焦保存段落");
+  await measures.getByRole("heading", { name: "小节线与反复", exact: true }).click();
+  await page.waitForFunction(() => window.coexistStore.getState().document.score.tracks[0].measures.at(-1).sectionLabel === "失焦保存段落");
+  await page.getByRole("button", { name: "撤销", exact: true }).click();
+  await page.getByRole("button", { name: "撤销", exact: true }).click();
+  assert.deepEqual((await snapshot()).score, baseline.score, "段落自动保存仍能逐步撤销");
+  assert.equal(await sidebar.getByRole("button", { name: "应用段落标记", exact: true }).count(), 0);
   // 从真实谱面空白清选区，不能仅清 store 却留下工具的显式小节目标。
   await page.locator("[data-score-viewport]").click({ position: { x: 5, y: 5 } });
   await page.waitForFunction(() => window.coexistStore.getState().selection === null);
@@ -178,8 +208,8 @@ try {
   assert.equal(await sidebar.getByRole("button", { name: "恢复本组", exact: true }).count(), 0);
   await select(lastMeasure);
   await task("小节");
-  assert.equal(await sidebar.getByRole("button", { name: "应用段落标记", exact: true }).isVisible(), true);
-  if (!(await boundaries.isVisible())) await measures.locator("summary").filter({ hasText: "小节线与反复" }).click();
+  assert.equal(await sidebar.getByRole("textbox", { name: "段落标记", exact: true }).isVisible(), true);
+  assert.equal(await sidebar.getByRole("button", { name: "应用段落标记", exact: true }).count(), 0);
   await capture("measure");
 
   // 缩放只重测真实歌词气泡，保留同一输入节点与未应用文本。
@@ -209,7 +239,7 @@ try {
   assert.equal(await svg.isVisible(), false);
   assert.equal(await page.locator("[data-score-print-layer]").isVisible(), true);
   assert.deepEqual(errors, []);
-  console.log("PASS REQ002–006：真实编辑器缩放/命中、空状态、音符与撤销、连音待选/提交、谱尾边界、打印隔离");
+  console.log("PASS REQ002–006：缩放/命中、紧凑音符、连音即时应用、段落自动保存与撤销、问号提示、常驻边界、空状态、打印隔离");
 } finally {
   await browser?.close();
   await server.close();

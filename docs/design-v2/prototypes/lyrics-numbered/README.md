@@ -2,7 +2,17 @@
 
 [打开交互设计稿](index.html) · [截图评审页](review.html) · [完整交互规格](../../specs/13-歌词与简谱侧栏设计.md) · [飞书原需求](https://pcnhehlhivqu.feishu.cn/wiki/UEivw1G7Liuaqnk20d1cqCoxnHb?sheet=tcgLfi)
 
-本轮交付为独立交互设计稿，使用固定示例数据；未修改产品源码。沿用编辑器蓝白视觉，展示侧栏与谱面气泡的同步编辑、连续输入、符号按钮和紧凑布局。
+[直接查看歌词段落下拉框与添加段落](index.html?scene=lyrics&v=verse-dropdown-2)。预览入口的 CSS／JS 引用已加版本参数，解决浏览器仍运行旧稿的问题；已在浏览器面板确认显示新控件，并验证新增、气泡同步及撤销。
+
+设计阶段交付为独立交互设计稿，使用固定示例数据。沿用编辑器蓝白视觉，展示侧栏与谱面气泡的同步编辑、连续输入、符号按钮和紧凑布局。
+
+当前状态：**REQ-007～016 已完成（用户确认）**。设计已实施到真实产品，并完成[本地产品实现与验收](../../records/13-歌词与简谱侧栏实施验收.md)，未提交、未推送。下面的设计阶段记录与固定数据原型继续保留供对照。
+
+最新简谱参考图修订：合并重复节奏区，仅一排纯符号，含单附点“·”和延音“−”；八度与变音始终展开，无折叠。简谱正文按用户补充保留输入框旁“应用”，其余符号点击即应用；简谱底部恢复／应用栏移除。此次修改仅保留本地，不提交、不推送。
+
+符号优化：悬停／键盘聚焦显示简短名称，例如“八分音符”。附点和延音采用本地 `assets/Bravura.otf`（复制仓库现有字体，SIL OFL 1.1，版权及完整许可保留在字体元数据中），分别使用 augmentationDot 与横线字形 csymMinor；延音点击后把简谱正文改为 `-` 并立即应用，保持当前时值和位置，支持撤销。
+
+符号优化已通过 15 项浏览器检查：字体加载、音乐字形、悬停和键盘提示、延音直接应用、时值及位置保持、两处输入与预览同步、重复点击无写入、撤销、气泡入口、草稿保护、窄屏及歌词段落回归。截图：[名称提示](screenshots/07-symbol-hover.png)。
 
 ## 已确认口径
 
@@ -27,18 +37,18 @@ python3 -m http.server 4178 --bind 127.0.0.1
 
 ## 需求覆盖
 
-| 需求 | 本轮设计内容 | 原参考图 |
-| --- | --- | --- |
-| REQ-007 | 简谱未选择态精简，按钮改为“录入简谱” | [参考图](references/REQ-007.png) |
-| REQ-008 | 删除单音组模式，只保留连续录入 | [参考图](references/REQ-008.png) |
-| REQ-009 | 问号按需展示语法，移除重复摘要 | [参考图](references/REQ-009.png) |
-| REQ-010 | 单行 Input、默认展开节奏、时值附点符号按钮 | [参考图](references/REQ-010.png) |
-| REQ-011 | 紧凑位置与底栏，移除拆分合并及高级固定范围 | [参考图](references/REQ-011.png) |
-| REQ-012 | 八度变音符号按钮即时应用，移除音高选择与连接 | [参考图](references/REQ-012.png) |
-| REQ-013 | 删除专用复制粘贴及移除当前事件区域 | [参考图](references/REQ-013.png) |
-| REQ-014 | 精简歌词未选择态，删除长说明与返回简谱 | [参考图](references/REQ-014.png) |
-| REQ-015 | 连续歌词、空位置、侧栏气泡同步、“应用”原地停留 | [参考图](references/REQ-015.png) |
-| REQ-016 | 删除下一处、移除歌词和冗余提示，收紧上下区域 | [参考图](references/REQ-016.png) |
+| 需求 | 状态 | 已实现内容 | 原参考图 |
+| --- | --- | --- | --- |
+| REQ-007 | 已完成 | 简谱未选择态精简，按钮改为“录入简谱” | [参考图](references/REQ-007.png) |
+| REQ-008 | 已完成 | 删除单音组模式，只保留连续录入 | [参考图](references/REQ-008.png) |
+| REQ-009 | 已完成 | 问号按需展示语法，移除重复摘要 | [参考图](references/REQ-009.png) |
+| REQ-010 | 已完成 | 单行 Input 保留应用；一排时值、单附点及延音符号，合并重复节奏区 | [参考图](references/REQ-010.png) |
+| REQ-011 | 已完成 | 紧凑位置与底栏，移除拆分合并及高级固定范围 | [参考图](references/REQ-011.png) |
+| REQ-012 | 已完成 | 八度变音符号按钮即时应用，移除音高选择与连接 | [参考图](references/REQ-012.png) |
+| REQ-013 | 已完成 | 删除专用复制粘贴及移除当前事件区域 | [参考图](references/REQ-013.png) |
+| REQ-014 | 已完成 | 精简歌词未选择态，删除长说明与返回简谱 | [参考图](references/REQ-014.png) |
+| REQ-015 | 已完成 | 连续歌词、空位置、侧栏气泡同步、“应用”原地停留 | [参考图](references/REQ-015.png) |
+| REQ-016 | 已完成 | 删除下一处、移除歌词和冗余提示，收紧上下区域 | [参考图](references/REQ-016.png) |
 
 十张参考图通过 `lark-cli` 从飞书表格下载并归档，后续评审可直接对照。
 
@@ -61,10 +71,12 @@ python3 -m http.server 4178 --bind 127.0.0.1
 
 参考图修订另通过 11 项浏览器断言：初始段落、旧按钮移除、添加与原地选中、气泡同步、已应用歌词隔离、切换读取、四段上限、撤销新增、720px／390px 组合控件无溢出及无脚本错误。
 
-自动化定位：`#sidebar-input`、`#popover-input`、`[data-template="eighth"]`、`#actions [data-action="apply"]`、`[data-action="restore"]`、`[data-action="undo"]`、`[data-note-target="7"][data-member="1"]`、`[data-accidental="#"]`、`[data-lyric-target="4"]`、`[data-scene]`、`#verse-select`、`[data-action="add-verse"]`。`window.designDemo` 提供只用于设计演示的状态查看和场景重置方法。
+本次简谱修订通过 24 项浏览器检查：合并重复区、一排八个符号、单附点与延音、八度常驻、正文保留应用、底栏移除、即时属性与撤销、共享草稿、正文提交隔离、歌词回归及三种屏宽。此前 34 项为首版历史记录，其中模板选择、简谱恢复按钮和折叠八度已由本次方案替代。
+
+自动化定位：`#sidebar-input`、`#popover-input`、`#editor .content-entry [data-action="apply"]`、`#popover .content-entry [data-action="apply"]`、`[data-duration="eighth"]`、`[data-action="dot"]`、`[data-action="sustain"]`、`[data-action="undo"]`、`[data-note-target="7"][data-member="1"]`、`[data-accidental="#"]`、`[data-lyric-target="4"]`、`[data-scene]`、`#verse-select`、`[data-action="add-verse"]`。歌词底栏继续使用 `#actions [data-action="apply"]` 和 `[data-action="restore"]`。`window.designDemo` 提供只用于设计演示的状态查看和场景重置方法。
 
 ## 范围边界
 
-原型演示输入、预览、应用、恢复与撤销；不承担生产编辑器的文件保存、导出、完整音乐排版和复杂连音保真。REQ-018 的连续范围选择不在本轮范围。自动替换和 `_` 的新语义需要后续在真实核心、解析器与表单中一起实施。
+原型演示输入、预览、应用、恢复与撤销；不承担生产编辑器的文件保存、导出、完整音乐排版和复杂连音保真。REQ-018 的连续范围选择不在本轮范围。自动替换和 `_` 的新语义已在真实核心、解析器与表单中同步实施，产品验证见验收记录。
 
 文件组织：`index.html` 为原型页面，`prototype.css`／`prototype.js` 为可编辑设计源文件，`review.html` 为截图评审页，`screenshots/` 保存交付画面，`references/` 保存飞书原始参考图。

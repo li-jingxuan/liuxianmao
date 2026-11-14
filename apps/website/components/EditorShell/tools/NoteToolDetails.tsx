@@ -5,7 +5,7 @@ import type {
   ILXMRhythm,
   ILXMTabCellSelection,
 } from "@liuxianmao/lxm-editor";
-import { tabInputRhythmFromNumbered } from "@liuxianmao/lxm-editor";
+import { isPureTabContinuationBeat, tabInputRhythmFromNumbered } from "@liuxianmao/lxm-editor";
 import { useEditorStore } from "../../../stores/editor-store";
 import { MusicAssetIcon } from "../../MusicAssetIcon";
 import type { MusicControlIcon } from "../../../assets/svg/svg-assets-manifest";
@@ -58,7 +58,7 @@ export const NoteToolDetails = ({
     ) ?? [];
   const rests = beats.filter((beat) => beat.kind === "rest").length;
   const selectedNotes = beats.flatMap((beat) =>
-    beat.notes.filter(
+    isPureTabContinuationBeat(beat) ? beat.notes.slice(0, 1) : beat.notes.filter(
       (note) =>
         tools.range &&
         note.string >= tools.range.startString &&
@@ -137,7 +137,7 @@ export const NoteToolDetails = ({
         <div>
           <strong>
             {selectedNotes.length === 1
-              ? `第 ${selectedNotes[0]!.string} 弦 · ${selectedNotes[0]!.fret === "x" ? "x 弹奏标记" : selectedNotes[0]!.fret === "-" ? "- 延音标记" : `第 ${selectedNotes[0]!.fret} 品`}`
+              ? (beat && isPureTabContinuationBeat(beat) ? "- 延音标记 · 占一个单位拍" : `第 ${selectedNotes[0]!.string} 弦 · ${selectedNotes[0]!.fret === "x" ? "x 弹奏标记" : selectedNotes[0]!.fret === "-" ? "- 延音标记" : `第 ${selectedNotes[0]!.fret} 品`}`)
               : beats.length
                 ? `已选 ${beats.length} 拍 · ${selectedNotes.length} 个音符`
                 : "在谱面选择音符或小节"}
@@ -189,7 +189,7 @@ export const NoteToolDetails = ({
         <h3>附点</h3>
         <div className={taskStyles.dotsPicker} role="group" aria-label="音符附点">
           {([0, 1, 2] as const).map((dots) => {
-            const label = ["无附点", "附点", "复附点"][dots];
+            const label = ["无附点", "单附点", "双附点"][dots];
             return <Tooltip key={dots} trigger={["hover", "focus"]} title={`${label}${rhythmDisabled ? `：${blocked ? blockedReason : rhythmReason}` : ""}`}>
               <span className={taskStyles.symbolWrapper} tabIndex={rhythmDisabled ? 0 : undefined} aria-label={rhythmDisabled ? label : undefined}>
                 <Button block aria-label={label} aria-pressed={inputRhythm?.dots === dots} disabled={rhythmDisabled}
@@ -210,9 +210,9 @@ export const NoteToolDetails = ({
         <div className={taskStyles.statePicker} role="group" aria-label="音符状态">
           {/* x 与横线始终是设置动作；只有全休止选区复用原来的 restore 语义。 */}
           {([
-            { type: "muted", label: "弹奏标记", hint: "设为 x 弹奏标记：只修改所选弦格", icon: <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" stroke="currentColor" strokeWidth="1.6" /></svg>, enabled: tools.note.enabled, reason: tools.note.reason, pressed: allCellsHaveNotes && selectedNotes.length > 0 && selectedNotes.every((note) => note.fret === "x") && rests === 0 },
-            { type: "continuation", label: "延音标记", hint: "设为 - 延音标记：只修改所选弦格", icon: <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h16" stroke="currentColor" strokeWidth="1.6" /></svg>, enabled: tools.note.enabled, reason: tools.note.reason, pressed: allCellsHaveNotes && selectedNotes.length > 0 && selectedNotes.every((note) => note.fret === "-") && rests === 0 },
-            { type: allRest ? "restore" : "rest", label: allRest ? "取消休止" : "整拍休止", hint: allRest ? "取消整拍休止；不会恢复已清空的原音符，恢复原内容请使用撤销" : "设为整拍休止：清空所选拍的全部弦音符", icon: <TechniqueSymbol kind="rest" />, enabled: tools.beatRange.enabled, reason: tools.beatRange.reason, pressed: allRest },
+            { type: "muted", label: "弹奏标记", text: "弹奏", hint: "设为 x 弹奏标记：只修改所选弦格", icon: <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" stroke="currentColor" strokeWidth="1.6" /></svg>, enabled: tools.note.enabled, reason: tools.note.reason, pressed: allCellsHaveNotes && selectedNotes.length > 0 && selectedNotes.every((note) => note.fret === "x") && rests === 0 },
+            { type: "continuation", label: "延音标记", text: "延音", hint: "设为 - 延音标记：替换整拍内容，占一个单位拍，无附点", icon: <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h16" stroke="currentColor" strokeWidth="1.6" /></svg>, enabled: tools.note.enabled, reason: tools.note.reason, pressed: beats.length > 0 && beats.every(isPureTabContinuationBeat) },
+            { type: allRest ? "restore" : "rest", label: allRest ? "取消休止" : "整拍休止", text: allRest ? "取消休止" : "休止符", hint: allRest ? "取消休止：当前选中整拍休止；不会恢复已清空的原音符，恢复原内容请使用撤销" : "设为整拍休止：清空所选拍的全部弦音符", icon: <TechniqueSymbol kind="rest" />, enabled: tools.beatRange.enabled, reason: tools.beatRange.reason, pressed: allRest },
           ] as const).map((state) => {
             const disabled = blocked || !state.enabled;
             return <Tooltip key={state.type} trigger={["hover", "focus"]} title={`${state.hint}${disabled ? `：${blocked ? blockedReason : state.reason}` : ""}`}>
@@ -220,7 +220,8 @@ export const NoteToolDetails = ({
                 <Button block disabled={disabled} aria-label={state.label} aria-pressed={state.pressed}
                   color={state.pressed ? "primary" : "default"} variant={state.pressed ? "filled" : "outlined"}
                   onClick={() => void onAction({ type: state.type })}>
-                  <span className={taskStyles.buttonContent}><span className={taskStyles.stateIcon}>{state.icon}</span><span>{state.label}</span></span>
+                  {/* 状态符号与文案同行，休止按钮保留原有整拍作用范围及恢复动作。 */}
+                  <span className={taskStyles.buttonContent}><span className={taskStyles.stateIcon}>{state.icon}</span>{state.text && <span>{state.text}</span>}</span>
                 </Button>
               </span>
             </Tooltip>;

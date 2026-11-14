@@ -272,6 +272,11 @@ export const hitTestLayout = (
   });
   if (!beat) return null;
 
+  const continuation = measure.notes.find((note) => note.beatId === beat.id && note.tabContinuation);
+  if (continuation && point.y >= measure.strings[0]!.y1 - LXM_STRING_HIT_RADIUS_Y &&
+    point.y <= measure.strings.at(-1)!.y1 + LXM_STRING_HIT_RADIUS_Y)
+    return { trackId: layout.trackId, systemIndex: bounds.systemIndex, measureId: measure.id, beatId: beat.id, string: 3 };
+
   const string = measure.strings.find(
     (item) => Math.abs(point.y - item.y1) <= LXM_STRING_HIT_RADIUS_Y + 1e-9,
   );

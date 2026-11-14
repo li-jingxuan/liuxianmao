@@ -1,5 +1,5 @@
 "use client";
-import { Button, Tooltip } from "antd";
+import { Button } from "antd";
 import { DeleteOutlined } from "@ant-design/icons";
 import { useRef, useState } from "react";
 import {
@@ -9,6 +9,8 @@ import {
   type ILXMDocument,
   type ILXMNumberedTarget,
   type ILXMTabCellSelection,
+  type ILXMScoreCommand,
+  type ILXMTupletRatio,
 } from "@liuxianmao/lxm-editor";
 import type { EditorCommandAdapter } from "../session/editor-command-adapter";
 import editorFormStyles from "../shared/editor-form.module.scss";
@@ -65,7 +67,7 @@ export const TupletToolDetails = ({ numberedSelection, onEditNumberedRhythm, ...
   </section>;
 };
 
-/** 待选比例不写音乐，只有明确应用才执行；详情始终挂载，收纳不丢准备状态。 */
+/** 点击类型即提交；当前组和高亮只读取文档，不预先显示提交结果。 */
 const TabTupletToolDetails = ({
   document,
   selection,
@@ -83,8 +85,6 @@ const TabTupletToolDetails = ({
   const measure = track?.measures[measureIndex];
   const first = measure?.beats.find((item) => item.id === range?.startBeatId);
   const last = measure?.beats.find((item) => item.id === range?.endBeatId);
-  const key = JSON.stringify(selection);
-  const [choice, setChoice] = useState<{ key: string; value: string | null }>({ key, value: null });
   const [busy, setBusy] = useState(false);
   const lock = useRef(false);
   // 只派生成员可用性；整数 tick 和容量仍交给核心命令最终裁定。
@@ -98,42 +98,28 @@ const TabTupletToolDetails = ({
     if (overlaps) return "连音组不能部分重叠或嵌套，请先删除原组";
     return null;
   };
-  const ratio = LXM_TUPLET_RATIOS.find(
-    (item) => choice.key === key && `${item.actual}:${item.normal}` === choice.value,
-  );
-  // 当前组不是草稿；换目标或文档使草稿失效时，立即取消待应用选择。
-  if (choice.key !== key || (choice.value !== null && (!ratio || unavailableReason(ratio.actual))))
-    setChoice({ key, value: null });
-  const pending = ratio && !unavailableReason(ratio.actual) ? ratio : null;
-  const highlighted = pending ?? range?.group?.ratio;
-  const run = async (remove = false) => {
-    if (blocked || lock.current || !range || (remove ? !range.group : !pending)) return;
-    const submittedKey = key;
-    const submittedValue = choice.value;
+  const highlighted = range?.group?.ratio;
+  const run = async (ratio?: ILXMTupletRatio) => {
+    if (blocked || lock.current || !range || (ratio ? unavailableReason(ratio.actual) : !range.group)) return;
+    // 先捕获本次选区的完整命令；等待期间切换目标不会改写提交范围。
+    const command: ILXMScoreCommand = ratio ? {
+      type: C.SetTuplet,
+      trackId: range.trackId,
+      measureId: range.measureId,
+      startBeatId: range.startBeatId,
+      endBeatId: range.endBeatId,
+      ratio,
+    } : {
+      type: C.RemoveTuplet,
+      trackId: range.trackId,
+      measureId: range.measureId,
+      tupletId: range.group!.id,
+    };
     lock.current = true;
     setBusy(true);
     try {
-      let result;
-      if (remove && range.group)
-        result = await execute({
-          type: C.RemoveTuplet,
-          trackId: range.trackId,
-          measureId: range.measureId,
-          tupletId: range.group.id,
-        });
-      else if (pending)
-        result = await execute({
-          type: C.SetTuplet,
-          trackId: range.trackId,
-          measureId: range.measureId,
-          startBeatId: range.startBeatId,
-          endBeatId: range.endBeatId,
-          ratio: pending,
-        });
-      // noop 不会换文档，也必须清理草稿；旧提交不能清掉新目标的待选值。
-      if (result?.status === "applied" || result?.status === "noop")
-        setChoice((current) => current.key === submittedKey && current.value === submittedValue
-          ? { key: current.key, value: null } : current);
+      // 同值也交给适配器；是否产生历史由核心命令决定。
+      await execute(command);
     } finally {
       lock.current = false;
       setBusy(false);
@@ -152,42 +138,28 @@ const TabTupletToolDetails = ({
       </div>
       <div className={taskStyles.field}>
         <h3 tabIndex={-1}>连音类型</h3>
-        <div className={styles.typePicker} role="group" aria-label="待应用连音类型">
+        <div className={styles.typePicker} role="group" aria-label="连音类型">
           {LXM_TUPLET_RATIOS.map((item) => {
             const value = `${item.actual}:${item.normal}`;
             const label = formatTupletLabel(item);
             const reason = unavailableReason(item.actual) ?? (blocked ? "先完成属性编辑，再修改 TAB。" : busy ? "正在提交，请稍候" : null);
-            const tooltip = `${formatTupletExplanation(item)}${reason ? `；${reason}` : ""}`;
-            return <Tooltip key={value} title={tooltip} trigger={["hover", "focus"]}>
-              <span tabIndex={reason ? 0 : undefined} aria-label={reason ? `${label}：${tooltip}` : undefined}>
-                <Button htmlType="button" aria-label={label} disabled={!!reason}
+            return <Button key={value} htmlType="button" aria-label={label} disabled={!!reason}
+                  aria-description={reason ?? undefined}
                   aria-pressed={highlighted?.actual === item.actual && highlighted.normal === item.normal}
-                  onClick={() => setChoice({ key, value })}>
-                  <span className={styles.typeLabel}>{item.actual === 5 ? <>五连音<small>（{value}）</small></> : label}</span>
-                </Button>
-              </span>
-            </Tooltip>;
+                  onClick={() => void run(item)}>
+                  <span className={styles.typeLabel}>{label}</span>
+                </Button>;
           })}
         </div>
       </div>
-      {pending && <p role="status">待应用{formatTupletLabel(pending)}</p>}
       <div className={taskStyles.tupletActions}>
-      <Button
-        loading={busy}
-        disabled={
-          blocked || busy || !pending || !range
-        }
-        onClick={() => void run()}
-      >
-        {pending ? `应用${formatTupletLabel(pending)}` : "应用所选连音"}
-      </Button>
       <Button
         danger
         type="text"
         icon={<DeleteOutlined />}
         className={taskStyles.deleteNote}
         disabled={blocked || busy || !range?.group}
-        onClick={() => void run(true)}
+        onClick={() => void run()}
       >
         删除当前连音组
       </Button>

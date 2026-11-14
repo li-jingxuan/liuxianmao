@@ -22,10 +22,9 @@ function fixture() {
   const target = { kind: "lyric" as const, trackId: track.id, measureId: measure.id, eventId: event.id, verse: 1 as const, string: 1 };
   const parsed = parseLyricSequence("新词 _ 续词");
   if (!parsed.ok) throw new Error(parsed.message);
-  const plan = planLyricSequence(document, target, parsed.items, false);
+  const plan = planLyricSequence(document, target, parsed.items, true);
   const draft = readMusicTextDraft(document, target, "sequence")!;
   draft.text = "新词 _ 续词";
-  draft.allowOverwrite = false;
   return { document, track, measure, event, target, plan, draft };
 }
 
@@ -36,13 +35,10 @@ function renderView(value: ReturnType<typeof fixture>, text = value.draft.text) 
     draft={{ ...value.draft, text }}
     plan={value.plan}
     issue={value.plan.issue}
-    inspection={0}
     inputRef={noop}
-    sequenceInputRef={noop}
-    onModeChange={noop}
+    onAddVerse={noop}
     onVerseChange={noop}
     onTextChange={noop}
-    onOverwriteChange={noop}
     onInspect={noop}
   />);
 }
@@ -57,25 +53,38 @@ describe("歌词视图的真实规划适配", () => {
     const blankRow = value.plan.rows.find((row) => row.target && !row.target.eventId)!;
     expect(mapping.rows[blankRow.index]!.positionLabel).toContain("～");
     expect(mapping.rows[blankRow.index]!.sourcePosition).toMatchObject({ startTick: blankRow.target!.tick, endTick: blankRow.target!.endTick });
-    expect(mapping.rows[blankRow.index]!.after).toBe("保留原词");
+    expect(mapping.rows[blankRow.index]!.after).toBe("");
   });
 
-  it("覆盖许可不足保留完整 rows、领域摘要和音符映射；解析失败撤图", () => {
+  it("单行连续输入展示紧凑映射和空位，移除模式、覆盖勾选和逐项长表格", () => {
     const value = fixture();
-    expect(value.plan.issue).toContain("允许覆盖");
+    expect(value.plan.issue).toBeNull();
     const markup = renderView(value);
     expect(markup).toContain("音符与歌词映射");
-    expect(markup).toContain("待允许覆盖");
-    expect(markup).toContain(`覆盖与逐项预览 <span>${value.plan.rows.length} 个字词 · 第 1 段 · 待允许覆盖</span>`);
-    const disclosure = markup.slice(markup.indexOf("<summary>覆盖与逐项预览"), markup.indexOf("</details>", markup.indexOf("<summary>覆盖与逐项预览")));
-    expect(disclosure).toContain('type="checkbox"');
-    expect(disclosure).toContain("原词 → 新词");
-    expect(disclosure).toContain("1 小节 / 第1拍 + 1/2");
-    value.draft.allowOverwrite = true;
-    expect(renderView(value)).toContain("· 已允许覆盖</span>");
-    expect(markup).toContain("覆盖已有歌词");
+    expect(markup).toContain('aria-label="连续歌词"');
+    expect(markup).toContain('aria-label="歌词输入规则"');
+    expect(markup).toContain('aria-label="清空为占位"');
+    expect(markup).toContain('type="text"');
+    for (const removed of ["textarea", "type=\"checkbox\"", "歌词录入方式", "覆盖与逐项预览", "下一歌词位置", "保留原词", "原词 → 新词"]) expect(markup).not.toContain(removed);
     expect(renderView(value, "新词\n续词")).not.toContain("音符与歌词映射");
     expect(renderView(value, "新词\n续词")).not.toContain("覆盖与逐项预览");
+  });
+
+  it("仅显示已有段落，第四段禁用新增并提供原因；气泡也使用同一单行表单", () => {
+    const value = fixture();
+    value.document.score.tracks.forEach((track) => track.measures.forEach((measure) => { measure.lyrics = []; }));
+    value.document.score.meta.lyricVerseCount = 1;
+    expect(renderView(value)).toContain("第一段");
+    expect(renderView(value)).not.toContain("第二段");
+    value.document.score.meta.lyricVerseCount = 4;
+    const markup = renderView(value);
+    expect(markup).toContain("最多支持四段歌词");
+    expect(markup).toMatch(/<button[^>]*disabled[^>]*><span>添加段落<\/span>/);
+    const popover = renderToStaticMarkup(<LyricFormView presentation="popover" document={value.document} draft={value.draft} plan={value.plan} issue={null} inputRef={noop} onAddVerse={noop} onVerseChange={noop} onTextChange={noop} onInspect={noop} />);
+    expect(popover).toContain('id="lyric-popover-body"');
+    expect(popover).not.toContain("textarea");
+    expect(popover).not.toContain("添加段落");
+    expect(popover).not.toContain("音符与歌词映射");
   });
 
   it("目标失效撤图；超谱尾行只显示错误且不虚构拍位", () => {

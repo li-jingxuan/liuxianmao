@@ -156,7 +156,7 @@ describe("紧凑选区详情的即时命令", () => {
     const markup = renderToStaticMarkup(<Harness />);
     expect(markup).toMatch(/aria-label="弹奏标记"[^>]*aria-pressed="true"/);
     for (const label of ["延续一拍", "编辑此拍和弦", "演奏技巧", "删除所选弦音符"]) expect(markup).not.toContain(label);
-    for (const [label, command] of [["复附点", { type: "dots", dots: 2 }], ["弹奏标记", { type: "muted" }], ["延音标记", { type: "continuation" }], ["整拍休止", { type: "rest" }]] as const) {
+    for (const [label, command] of [["双附点", { type: "dots", dots: 2 }], ["弹奏标记", { type: "muted" }], ["延音标记", { type: "continuation" }], ["整拍休止", { type: "rest" }]] as const) {
       const button = find(tree!, (props) => props["aria-label"] === label && typeof props.onClick === "function");
       expect(button?.disabled).toBe(false);
       (button!.onClick as () => void)();
@@ -168,7 +168,7 @@ describe("紧凑选区详情的即时命令", () => {
     const { document, selection, measure } = fixture();
     selection.focus = { ...selection.focus, beatId: measure.beats[1]!.id };
     const markup = renderToStaticMarkup(<NoteToolDetails document={document} selection={selection} blocked={false} onAction={async () => true} />);
-    for (const label of ["四分音符", "无附点", "附点", "复附点"]) {
+    for (const label of ["四分音符", "无附点", "单附点", "双附点"]) {
       expect(markup).toMatch(new RegExp(`<span[^>]*tabindex="0"[^>]*aria-label="${label}"`));
       expect(markup).toMatch(new RegExp(`<button[^>]*aria-label="${label}"[^>]*disabled`));
     }

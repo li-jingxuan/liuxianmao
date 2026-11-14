@@ -174,7 +174,7 @@ const systemScene = (s: ILXMSystemLayout): ScorePrimitive[] => {
     );
     items.push(
       ...m.notes.map((n) =>
-        textPrimitive(
+        n.tabContinuation ? line(n.x - 6, n.y, n.x + 6, n.y, 1.6) : textPrimitive(
           n.fretText,
           n.x,
           n.y + LXM_FRET_TEXT_BASELINE_OFFSET_Y,

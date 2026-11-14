@@ -2,6 +2,7 @@ import {
   findNextNoteOnSameStringInTrack,
   resolveTabCellSelection,
   validateTechnique,
+  isPureTabContinuationBeat,
   LXMScoreCommandEnum as C,
   type ILXMDocument,
   type ILXMTabCellReference,
@@ -42,6 +43,10 @@ export const resolveTechniqueDraft = (
   if (!resolved.ok) return fail(resolved.message);
   const track = document.score.tracks.find((item) => item.id === resolved.range.trackId);
   if (!track) return fail("技巧目标轨道不存在。");
+  const focusBeat = track.measures.find((measure) => measure.id === selection.focus.measureId)
+    ?.beats.find((beat) => beat.id === selection.focus.beatId);
+  if (focusBeat && isPureTabContinuationBeat(focusBeat) && type !== "palmMute" && type !== "letRing")
+    return fail("横线延音标记没有实际起音，不能作为弹奏技巧的目标。");
   const focus = findTechniqueNote(document, selection.focus);
   const result = (draft: ILXMTechniqueDraft): TargetResult => ({ ok: true, trackId: track.id, draft });
   switch (type) {

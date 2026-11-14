@@ -10,6 +10,7 @@ import {
   reconcileMeasureTimeline,
 } from "./measure-timeline";
 import { createMeasureRhythmContext } from "./tuplet";
+import { isPureTabContinuationBeat } from "./tab-continuation";
 import {
   calculateRhythmTicks,
   getMeasureCapacityTicks,
@@ -90,6 +91,7 @@ const getBeatCompressionChoices = (
 ): BeatCompressionChoice[] | null => {
   const originalDuration = calculateRhythmTicks(beat.rhythm);
   if (!originalDuration.ok) return null;
+  if (isPureTabContinuationBeat(beat)) return [{ rhythm: beat.rhythm, level: 0, releasedTicks: 0 }];
 
   return [
     { rhythm: beat.rhythm, level: 0, releasedTicks: 0 },
@@ -239,6 +241,9 @@ export const changeMeasureBeatRhythm = (
   if (context.tupletByBeatId.has(beatId))
     return { ok: false, code: "BEAT_IN_TUPLET" };
   const target = measure.beats[targetIndex]!;
+  if (isPureTabContinuationBeat(target) &&
+    (target.rhythm.base !== rhythm.base || target.rhythm.dots !== rhythm.dots))
+    return { ok: false, code: "INVALID_RHYTHM" };
   const previousDuration = calculateRhythmTicks(target.rhythm);
   const nextDuration = calculateRhythmTicks(rhythm);
   if (!previousDuration.ok || !nextDuration.ok)

@@ -1,19 +1,20 @@
 "use client";
-import { Button, Tooltip } from "antd";
+import { Button } from "antd";
 
 import {
   LXM_TUPLET_RATIOS,
   LXMScoreCommandEnum,
   resolveTupletSelection,
   type ILXMDocument,
+  type ILXMScoreCommand,
   type ILXMTabCellSelection,
 } from "@liuxianmao/lxm-editor";
-import { useMemo } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { EditorCommandAdapter } from "../session/editor-command-adapter";
 import { MusicAssetIcon } from "../../MusicAssetIcon";
 import type { MusicControlIcon } from "../../../assets/svg/svg-assets-manifest";
 import editorToolPanelStyles from "../shared/editor-tool-panel.module.scss";
-import { formatTupletExplanation, formatTupletLabel } from "../shared/tuplet-label";
+import { formatTupletLabel } from "../shared/tuplet-label";
 const ICONS: Record<string, MusicControlIcon> = {
   "2:3": "duplet",
   "3:2": "triplet",
@@ -40,78 +41,78 @@ export const TupletToolbar = ({
     () => resolveTupletSelection(document, selection),
     [document, selection],
   );
+  const [busy, setBusy] = useState(false);
+  const lock = useRef(false);
+  const run = async (command: ILXMScoreCommand) => {
+    if (lock.current) return;
+    lock.current = true;
+    setBusy(true);
+    try {
+      const result = await execute(command);
+      if (result.status === "applied" || result.status === "noop") onSuccess();
+    } finally {
+      lock.current = false;
+      setBusy(false);
+    }
+  };
   return (
     <div className={editorToolPanelStyles.toolMenu} role="group" aria-label="连音组工具">
       <span>连音组</span>
       {LXM_TUPLET_RATIOS.map((ratio) => {
         const label = `${ratio.actual}:${ratio.normal}`;
         const unavailable =
-          blocked || !range || range.beatIds.length !== ratio.actual;
-        const reason = blocked
-          ? "先完成属性编辑，再修改 TAB。"
-          : `需要同小节内连续 ${ratio.actual} 拍。`;
+          blocked || busy || !range || range.beatIds.length !== ratio.actual;
+        const reason = unavailable
+          ? blocked
+            ? "先完成属性编辑，再修改 TAB。"
+            : busy
+              ? "正在提交，请稍候。"
+              : `需要同小节内连续 ${ratio.actual} 拍。`
+          : undefined;
         return (
-          <Tooltip key={label} title={`${formatTupletExplanation(ratio)}${unavailable ? `；${reason}` : ""}`}>
-            <span
-              tabIndex={unavailable ? 0 : undefined}
-              aria-label={unavailable ? reason : undefined}
-            >
-              <Button
-                data-tool-action={
-                  label === "2:3" ? "tuplet-actions" : undefined
-                }
-                size="middle"
-                htmlType="button"
-                aria-label={formatTupletLabel(ratio)}
-                title={formatTupletExplanation(ratio)}
-                aria-pressed={
-                  range?.group?.ratio.actual === ratio.actual &&
-                  range.group.ratio.normal === ratio.normal
-                }
-                disabled={
-                  blocked || !range || range.beatIds.length !== ratio.actual
-                }
-                onClick={async () => {
-                  if (range) {
-                    const result = await execute({
-                      type: LXMScoreCommandEnum.SetTuplet,
-                      trackId: range.trackId,
-                      measureId: range.measureId,
-                      startBeatId: range.startBeatId,
-                      endBeatId: range.endBeatId,
-                      ratio,
-                    });
-                    if (result.status === "applied" || result.status === "noop")
-                      onSuccess();
-                  }
-                }}
-              >
-                <MusicAssetIcon
-                  assetId={ICONS[label]!}
-                  className={editorToolPanelStyles.toolbarIcon}
-                />
-                应用{formatTupletLabel(ratio)}
-              </Button>
-            </span>
-          </Tooltip>
+          <Button
+            key={label}
+            data-tool-action={label === "2:3" ? "tuplet-actions" : undefined}
+            size="middle"
+            htmlType="button"
+            aria-label={formatTupletLabel(ratio)}
+            aria-description={reason}
+            aria-pressed={
+              range?.group?.ratio.actual === ratio.actual &&
+              range.group.ratio.normal === ratio.normal
+            }
+            disabled={unavailable}
+            onClick={() => {
+              if (range) void run({
+                type: LXMScoreCommandEnum.SetTuplet,
+                trackId: range.trackId,
+                measureId: range.measureId,
+                startBeatId: range.startBeatId,
+                endBeatId: range.endBeatId,
+                ratio,
+              });
+            }}
+          >
+            <MusicAssetIcon
+              assetId={ICONS[label]!}
+              className={editorToolPanelStyles.toolbarIcon}
+            />
+            应用{formatTupletLabel(ratio)}
+          </Button>
         );
       })}
       <Button
         htmlType="button"
         size="middle"
         aria-label="删除连音组"
-        disabled={blocked || !range?.group}
-        onClick={async () => {
-          if (range?.group) {
-            const result = await execute({
-              type: LXMScoreCommandEnum.RemoveTuplet,
-              trackId: range.trackId,
-              measureId: range.measureId,
-              tupletId: range.group.id,
-            });
-            if (result.status === "applied" || result.status === "noop")
-              onSuccess();
-          }
+        disabled={blocked || busy || !range?.group}
+        onClick={() => {
+          if (range?.group) void run({
+            type: LXMScoreCommandEnum.RemoveTuplet,
+            trackId: range.trackId,
+            measureId: range.measureId,
+            tupletId: range.group.id,
+          });
         }}
       >
         删除连音组

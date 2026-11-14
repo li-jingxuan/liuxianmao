@@ -1,6 +1,7 @@
 import {
   resolveTabCellSelection,
   resolveTupletSelection,
+  isPureTabContinuationBeat,
   type ILXMDocument,
   type ILXMTabCellSelection,
 } from "@liuxianmao/lxm-editor";
@@ -81,6 +82,7 @@ export const deriveEditorToolState = (
     track?.measures.find((measure) => measure.id === reference.measureId)
       ?.beats.filter((beat) => beat.id === reference.beatId) ?? []) ?? [];
   const rests = selectedBeats.filter((beat) => beat.kind === "rest").length;
+  const hasContinuation = selectedBeats.some(isPureTabContinuationBeat);
   const restState: "all" | "mixed" | "none" = selectedBeats.length && rests === selectedBeats.length
     ? "all" : rests ? "mixed" : "none";
   return {
@@ -91,8 +93,8 @@ export const deriveEditorToolState = (
     sustainBeatId: sustainSource?.id,
     note: available(!!range, "请先选择 TAB 单元格。"),
     rhythm: available(
-      range?.beats.length === 1,
-      "时值与附点需要单拍选区，可同时选择多根弦。",
+      range?.beats.length === 1 && !hasContinuation,
+      hasContinuation ? "延音标记固定占一个单位拍，无附点。" : "时值与附点需要单拍选区，可同时选择多根弦。",
     ),
     beatRange: available(!!range?.beats.length, "请先选择目标拍点。"),
     singleMeasure: available(measureIds.size === 1, "请选择同一小节内的选区。"),
@@ -101,10 +103,10 @@ export const deriveEditorToolState = (
       "请选择一个小节，且至少保留一个小节。",
     ),
     copyMeasures: available(contiguous, "请选择连续的小节范围。"),
-    splitBeat: available(range?.beats.length === 1, "拆分需要选择单拍。"),
+    splitBeat: available(range?.beats.length === 1 && !hasContinuation, hasContinuation ? "延音标记固定占一个单位拍，不能拆分。" : "拆分需要选择单拍。"),
     mergeBeats: available(
-      measureIds.size === 1 && !!range && range.beats.length > 1,
-      "合并需要同小节内的连续多拍。",
+      measureIds.size === 1 && !!range && range.beats.length > 1 && !hasContinuation,
+      hasContinuation ? "延音标记固定占一个单位拍，不能合并。" : "合并需要同小节内的连续多拍。",
     ),
     copyBeats: available(
       measureIds.size === 1,
@@ -114,8 +116,8 @@ export const deriveEditorToolState = (
     tuplet,
     tupletRatio: (actual: number) =>
       available(
-        !!tuplet && tuplet.beatIds.length === actual,
-        `请选择同小节内连续的 ${actual} 拍。`,
+        !!tuplet && tuplet.beatIds.length === actual && !hasContinuation,
+        hasContinuation ? "延音标记不能设为连音成员。" : `请选择同小节内连续的 ${actual} 拍。`,
       ),
   };
 };

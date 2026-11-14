@@ -1,6 +1,7 @@
 "use client";
 
-import { Alert, Button, Form, Input, Select } from "antd";
+import { Alert, Button, Form, Input, Select, Tooltip } from "antd";
+import { QuestionCircleOutlined } from "@ant-design/icons";
 import type { SettingsCopyRange, SettingsFormProps } from "./ScoreSettingsForm";
 import measureSettingsFormStyles from "./MeasureSettingsForm.module.scss";
 import editorFormStyles from "../shared/editor-form.module.scss";
@@ -9,8 +10,8 @@ import taskStyles from "../shared/SelectionTaskDetails.module.scss";
 /** 小节表面沿用 owner 的原小节 ID，复制参数不作为音乐草稿登记。 */
 export const MeasureSettingsForm = ({
   document, value, measureId, selectedMeasureId, dirty, composing, busy,
-  issues, groups, copy, inlineActions = true, onChange, onApply, onRestore,
-  onCopyChange, onCopy,
+  issues, groups, copy, inlineActions = true, onChange, onApply,
+  onCopyChange, onCopy, onLabelBlur,
 }: SettingsFormProps & {
   measureId?: string;
   selectedMeasureId?: string;
@@ -18,6 +19,7 @@ export const MeasureSettingsForm = ({
   copy: SettingsCopyRange;
   onCopyChange: (value: SettingsCopyRange) => void;
   onCopy: () => void | Promise<void>;
+  onLabelBlur?: () => void;
 }) => {
   const measures = document.score.tracks[0]!.measures;
   const index = measures.findIndex((measure) => measure.id === measureId);
@@ -28,12 +30,10 @@ export const MeasureSettingsForm = ({
   return <div className={`${measureSettingsFormStyles.settingsForms} ${taskStyles.measureForms}`}>
     {issues.all && <Alert type="error" showIcon title={issues.all} />}
     <Form layout="vertical" data-settings-group="label" onFinish={() => onApply("label")} requiredMark={false}>
-      <div className={taskStyles.sectionHeading}><h3 tabIndex={-1}>段落标记</h3><span>当前位置</span></div>
+      <div className={taskStyles.sectionHeading}><div className={measureSettingsFormStyles.labelHeading}><h3 tabIndex={-1}>段落标记</h3><Tooltip title="段落名称是小节标记，不会新增歌词或简谱行。" trigger={["hover", "focus"]}><Button type="text" size="small" className={measureSettingsFormStyles.labelHelp} aria-label="段落标记说明" icon={<QuestionCircleOutlined />} /></Tooltip></div><span>当前位置</span></div>
       {(index < 0 || (measureId && measureId !== selectedMeasureId)) && <p data-editor-form-hint className={editorFormStyles.settingsHint}>{index >= 0 ? `段落标记作用于第 ${index + 1} 小节` : measureId ? `原目标小节已失效（${measureId}），输入已保留` : "请先选择目标小节"}{measureId && measureId !== selectedMeasureId ? "；正在编辑原位置" : ""}</p>}
-      <Form.Item label="段落标记" htmlFor="settings-label"><Input id="settings-label" aria-label="段落标记" placeholder="例如：主歌、副歌" disabled={busy || !measureId} value={value.label} onChange={(event) => onChange("label", event.target.value)} /></Form.Item>
-      <p data-editor-form-hint className={editorFormStyles.settingsHint}>段落名称是小节标记，不会新增歌词或简谱行。</p>
+      <Form.Item label="段落标记" htmlFor="settings-label"><Input id="settings-label" aria-label="段落标记" placeholder="例如：主歌、副歌" disabled={busy || !measureId} value={value.label} onChange={(event) => onChange("label", event.target.value)} onBlur={onLabelBlur} /></Form.Item>
       {(issues.label || groups.label.blockedReason) && <Alert type="error" showIcon title={issues.label || groups.label.blockedReason} />}
-      {inlineActions && <div className={measureSettingsFormStyles.settingsActions}><Button htmlType="submit" block type="primary" disabled={!groups.label.canApply}>应用段落标记</Button><Button block disabled={composing || busy || !groups.label.dirty} onClick={() => onRestore("label")}>恢复本组</Button></div>}
     </Form>
     <div data-measure-boundary-host />
     <details className={`${taskStyles.disclosure} ${taskStyles.noteDisclosure}`} data-settings-group="copy">

@@ -6,14 +6,14 @@ import {
 } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { EXAMPLE_MVP_7_2_DOCUMENT } from "@liuxianmao/lxm-editor";
+import { EXAMPLE_MVP_7_2_DOCUMENT, type ILXMRhythm } from "@liuxianmao/lxm-editor";
 import { NumberedEditor } from "../components/EditorShell/numbered/NumberedEditor";
 import { createEditorSession } from "../stores/editor-store";
 import { EditorStoreContext } from "../stores/editor-context";
 
 const renderEditor = (
   props: Partial<ComponentProps<typeof NumberedEditor>> = {},
-  explicit = false,
+  explicit: boolean | ILXMRhythm = false,
   edits: { label: string; value: unknown }[] = [],
 ) => {
   const document = props.document ?? structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);
@@ -23,7 +23,7 @@ const renderEditor = (
     measure.numberedVoice.events[0]!.rhythm = { base: "eighth", dots: 0 };
   const session = createEditorSession(document);
   if (explicit)
-    session.getState().setNumberedInputRhythm({ base: "quarter", dots: 0 });
+    session.getState().setNumberedInputRhythm(typeof explicit === "object" ? explicit : { base: "quarter", dots: 0 });
   let edited = false;
   const change = (node: ReactNode, label: string, value: unknown): boolean => {
     if (Array.isArray(node))
@@ -87,37 +87,29 @@ const renderEditor = (
 describe("简谱当前目标初始化", () => {
   it("空位从空文本和均匀模板初始化，不产生未应用修改", () => {
     const html = renderEditor();
-    expect(html).toContain('aria-label="音符内容"');
-    expect(html).toContain('title="自选时值"');
+    expect(html).toContain('aria-label="简谱内容"');
+    expect(html.match(/role="group" aria-label="常用时值"/g)).toHaveLength(1);
+    expect(html).not.toContain("录入方式");
     expect(html).not.toContain('aria-label="节拍映射预览"');
     expect(html).not.toContain("允许覆盖此时间范围的简谱");
-    expect(html).toMatch(/<button[^>]*disabled[^>]*><span>应用简谱内容<\/span>/);
+    expect(html.match(/<button[^>]*aria-label="应用简谱内容"[^>]*>/)?.[0]).toContain("disabled");
   });
 
   it("默认时值适应短空位，显式时值保留用户选择", () => {
     const implicit = renderEditor();
-    expect(implicit).toContain('title="八分"');
+    expect(implicit.match(/<button[^>]*aria-label="八分音符"[^>]*>/)?.[0]).toContain('aria-pressed="true"');
     const explicit = renderEditor({}, true);
-    expect(explicit).toContain('title="四分"');
+    expect(explicit.match(/<button[^>]*aria-label="四分音符"[^>]*>/)?.[0]).toContain('aria-pressed="true"');
   });
 
-  it("普通空位允许部分填入，固定范围仍要求填满范围", () => {
-    const edits = [
-      { label: "音符内容", value: { target: { value: "6" } } },
-      { label: "模板成员时值", value: "sixteenth" },
-    ];
-    const partial = renderEditor({}, false, edits);
-    expect(partial).toContain('aria-label="节拍映射预览"');
-    expect(partial).not.toContain("允许覆盖此时间范围的简谱");
-    const fixed = renderEditor({}, false, [
-      ...edits,
-      {
-        label: "固定范围替换（高级）",
-        value: { target: { checked: true } },
-      },
+  it("普通空位允许部分填入，不强制填满原范围", () => {
+    const partial = renderEditor({}, { base: "sixteenth", dots: 0 }, [
+      { label: "简谱内容", value: { target: { value: "6" } } },
     ]);
-    expect(fixed).not.toContain('aria-label="节拍映射预览"');
-    expect(fixed).toContain("允许覆盖此时间范围的简谱");
+    expect(partial).toContain('aria-label="节拍映射预览"');
+    expect(partial).toContain('data-start-tick="480" data-end-tick="720"');
+    expect(partial).not.toContain("允许覆盖此时间范围的简谱");
+    expect(partial).not.toContain("固定范围替换");
   });
 
   it("事件回填曲谱内容和自身时值，独立于创建模板偏好", () => {
@@ -139,15 +131,15 @@ describe("简谱当前目标初始化", () => {
       },
       true,
     );
-    expect(html.match(/<input\b[^>]*aria-label="单音组简谱"[^>]*>/)?.[0]).toContain(
+    expect(html.match(/<input\b[^>]*aria-label="简谱内容"[^>]*>/)?.[0]).toContain(
       `value="${event.items.map((item) => item.token).join("+")}"`,
     );
-    expect(html).toContain('title="八分"');
+    expect(html.match(/<button[^>]*aria-label="八分音符"[^>]*>/)?.[0]).toContain('aria-pressed="true"');
     expect(html).not.toContain("应用前需确认");
-    expect(html).toMatch(/<button[^>]*disabled[^>]*><span>应用简谱内容<\/span>/);
+    expect(html.match(/<button[^>]*aria-label="应用简谱内容"[^>]*>/)?.[0]).toContain("disabled");
   });
 
-  it("延长事件时值显示后续移动和压缩，未误报为覆盖", () => {
+  it("正文草稿保留时值并禁用即时属性，八度与变音始终展开", () => {
     const document = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);
     const track = document.score.tracks[0]!;
     const measure = track.measures[0]!;
@@ -163,13 +155,13 @@ describe("简谱当前目标初始化", () => {
         },
       },
       false,
-      [{ label: "简谱时值", value: "half" }],
+      [{ label: "简谱内容", value: { target: { value: "5" } } }],
     );
-    expect(html).toContain('aria-label="简谱时值修改预览"');
-    expect(html).toMatch(
-      /移动 \d+ 个后续事件，缩短 \d+ 个后续事件；应用前需确认/,
-    );
-    expect(html).not.toMatch(/覆盖 \d+ 个后续音符/);
+    expect(html.match(/<button[^>]*aria-label="二分音符"[^>]*>/)?.[0]).toContain("disabled");
+    expect(html.match(/<button[^>]*aria-label="高八度"[^>]*>/)?.[0]).toContain("disabled");
+    expect(html).toContain('aria-label="八度与变音"');
+    expect(html).not.toContain("<details");
+    expect(html).not.toContain("恢复简谱内容");
   });
 
   it("连续简谱回填选中拍点内的已有音符", () => {
@@ -201,6 +193,6 @@ describe("简谱当前目标初始化", () => {
         },
       },
     });
-    expect(html).toContain("1 2</textarea>");
+    expect(html.match(/<input\b[^>]*aria-label="简谱内容"[^>]*>/)?.[0]).toContain('value="1 2"');
   });
 });

@@ -35,6 +35,7 @@ import {
 import { Button, ConfigProvider, Segmented, Tabs, type TabsProps } from "antd";
 import {
   createCollapsedTabCellSelection,
+  getLyricVerseCount,
   LXMScoreCommandEnum,
   normalizeMusicText,
   parseLyricSequence,
@@ -99,10 +100,7 @@ import type { EditorCommandAdapter } from "../session/editor-command-adapter";
 import { NoteToolDetails } from "../tools/NoteToolDetails";
 import { MeasureToolDetails } from "../tools/MeasureToolDetails";
 import { TupletToolDetails } from "../tools/TupletToolDetails";
-import {
-  resolveParagraphInsertionTarget,
-  resolveNextLyricTarget,
-} from "./music-text-target";
+import { resolveParagraphInsertionTarget } from "./music-text-target";
 
 type LyricFocusSurface = "sidebar" | "popover";
 type SidebarAction = DraftSidebarAction & {
@@ -250,9 +248,7 @@ export const MusicTextSidebar = ({
   const [chordPresetMenuOrigin, setChordPresetMenuOrigin] = useState<"quick" | "sidebar" | null>(null);
   const chordPresetMenuOpen = chordPresetMenuOrigin !== null;
   const inputRef = useRef<HTMLInputElement>(null);
-  const sequenceInputRef = useRef<HTMLTextAreaElement>(null);
   const popoverInputRef = useRef<HTMLInputElement>(null);
-  const popoverSequenceInputRef = useRef<HTMLTextAreaElement>(null);
   const lyricFocusSurface = useRef<LyricFocusSurface>("popover");
   const [popoverContainer, setPopoverContainer] = useState<HTMLDivElement | null>(null);
   const [inspection, setInspection] = useState(0);
@@ -413,7 +409,7 @@ export const MusicTextSidebar = ({
   const removingChord = draft?.target.kind === "chord" && !!existing &&
     draft.chord.chord.name.trim() === "";
   const sequence =
-    draft?.target.kind === "lyric" && draft.lyricMode === "sequence";
+    draft?.target.kind === "lyric";
   const parsed = useMemo(
     () =>
       sequence && draft?.text !== undefined
@@ -428,7 +424,7 @@ export const MusicTextSidebar = ({
             score,
             { ...draft.target, verse: draft.target.verse! },
             parsed.items,
-            draft.allowOverwrite,
+            true,
           )
         : null,
     [parsed, score, draft, textConflict],
@@ -496,7 +492,7 @@ export const MusicTextSidebar = ({
   ): SelectionRequestResult => {
     if (!textSession || surfaceBlocked()) return "blocked";
     const generation = ownerGeneration.current;
-    const source = (sequence ? popoverSequenceInputRef : popoverInputRef).current;
+    const source = popoverInputRef.current;
     const caret = source ? { start: source.selectionStart, end: source.selectionEnd, direction: source.selectionDirection } : null;
     onExpandSidebar();
     focusDestination.current = "input";
@@ -505,13 +501,13 @@ export const MusicTextSidebar = ({
       if (kind === "numbered") numberedRef.current?.focus(group ?? "content");
       else {
         lyricFocusSurface.current = "sidebar";
-        const input = (sequence ? sequenceInputRef : inputRef).current;
+        const input = inputRef.current;
         input?.focus({ preventScroll: true });
         if (caret && caret.start !== null && caret.end !== null && input) input.setSelectionRange(caret.start, caret.end, caret.direction ?? undefined);
       }
     });
     return "accepted";
-  }, [textSession, surfaceBlocked, kind, sequence, onExpandSidebar]);
+  }, [textSession, surfaceBlocked, kind, onExpandSidebar]);
   const focusChordDiagramIssue = () => {
     if (focusSidebar() !== "accepted") return;
     const generation = ownerGeneration.current;
@@ -548,7 +544,7 @@ export const MusicTextSidebar = ({
 
   const loadTarget = (
     next: MusicTextTarget,
-    mode = draft?.lyricMode ?? "single",
+    mode: MusicTextDraft["lyricMode"] = "sequence",
     focus: "score" | "input" = "input",
     lyricSurface: LyricFocusSurface = "popover",
   ) => {
@@ -557,7 +553,7 @@ export const MusicTextSidebar = ({
     const value = readMusicTextDraft(
       editorStore.getState().document,
       next,
-      mode,
+      next.kind === "lyric" ? "sequence" : mode,
       editorStore.getState().selection,
     );
     setInspection(0);
@@ -723,7 +719,7 @@ export const MusicTextSidebar = ({
       }
     } else if (action.type === "numberedMode") {
       activeTextOwner.current = true;
-      setNumberedMode(action.mode);
+      setNumberedMode("sequence");
     } else if (action.type === "mode") {
       if (draft) loadTarget(draft.target, action.mode, "input", action.lyricFocusSurface ?? lyricFocusSurface.current);
     } else {
@@ -838,6 +834,14 @@ export const MusicTextSidebar = ({
     request({ type: "close" });
   const cancelTextEditing = (): SelectionRequestResult => {
     if (surfaceBlocked()) return "blocked";
+    if (kind === "lyric" || kind === "numbered") {
+      setDismissed(true);
+      setInputEditing(false);
+      setNumberedInputActive(false);
+      focusDestination.current = "score";
+      onScoreFocus();
+      return "accepted";
+    }
     return request({ type: "close" });
   };
   useImperativeHandle(ref, () => ({
@@ -845,7 +849,7 @@ export const MusicTextSidebar = ({
       // 窄屏气泡回退到侧栏时延续原输入意图，不能由抽屉默认焦点抢到关闭按钮。
       if (textSession && focusDestination.current === "input") {
         if (kind === "numbered") { numberedRef.current?.focus(); return; }
-        const input = (sequence ? sequenceInputRef : inputRef).current;
+        const input = inputRef.current;
         if (input?.isConnected && !input.closest("[hidden],[inert]")) {
           input.focus({ preventScroll: true });
           return;
@@ -935,10 +939,20 @@ export const MusicTextSidebar = ({
           setNumberedPreview(null);
           setDraft((previous) => {
             if (!previous) return previous;
-            const fresh = readMusicTextDraft(state.document, previous.target, previous.lyricMode);
+            const verseCount = state.document ? getLyricVerseCount(state.document) : 1;
+            const removedVerse = previous.target.kind === "lyric" && (previous.target.verse ?? 1) > verseCount;
+            const fresh = readMusicTextDraft(state.document, removedVerse
+              ? { ...previous.target, verse: verseCount as ILXMLyricVerse }
+              : previous.target, previous.lyricMode);
+            if (removedVerse && fresh) {
+              setActiveObject(fresh.target);
+              setTextConflict(false);
+              setInspection(0);
+              return fresh;
+            }
             if (!fresh) { setMessage("原编辑目标已失效，当前原文仅供查看，请重新选择。"); return previous; }
             if (musicTextDraftValue(previous) === previous.initial) return fresh;
-            if (fresh.initial !== previous.initial ||
+            if ((previous.target.kind !== "lyric" && fresh.initial !== previous.initial) ||
               lyricDraftMappingDependency(previousDocument, previous) !== lyricDraftMappingDependency(state.document, previous)) {
               setTextConflict(true);
               setInspection(0);
@@ -1033,11 +1047,17 @@ export const MusicTextSidebar = ({
       measureId: activeObject.measureId, eventId: event.id, itemId: event.items[0]?.id,
     } });
   };
-  const nextLyricTarget =
-    draft?.target.kind === "lyric" && score
-      ? resolveNextLyricTarget(score, draft.target)
-      : null;
   const lyricDirty = !!draft && musicTextDraftValue(draft) !== draft.initial;
+  const restoreTextDraft = () => {
+    if (!draft || surfaceBlocked()) return;
+    // 连续提交的原文可包含多个位置；恢复保留本次已应用的整条原文。
+    setDraft(draft.target.kind === "lyric" && !textConflict
+      ? { ...draft, text: (JSON.parse(draft.initial) as { text: string }).text }
+      : readMusicTextDraft(editorStore.getState().document, draft.target, draft.lyricMode));
+    setTextConflict(false);
+    setInspection(0);
+    setMessage(null);
+  };
   /** 取消待切换时恢复原控件，不把设置字段或 checkbox 的焦点统一抢到文字框。 */
   const continueEditing = () => {
     restoreInputFocus.current = true;
@@ -1061,9 +1081,7 @@ export const MusicTextSidebar = ({
       } else {
         const focusPopover = floating && lyricFocusSurface.current === "popover";
         if (focusPopover && popoverHidden) return;
-        (focusPopover
-          ? sequence ? popoverSequenceInputRef : popoverInputRef
-          : sequence ? sequenceInputRef : inputRef).current?.focus({
+        (focusPopover ? popoverInputRef : inputRef).current?.focus({
           preventScroll: true,
         });
       }
@@ -1168,6 +1186,10 @@ export const MusicTextSidebar = ({
         if (navigationApplying.current) pendingVersion.current = captureEditorVersion(editorStore.getState());
         if (
           result.nextNumberedFocus &&
+          // 正文替换可能重建选中的多音成员；NumberedEditor 在同一 owner 内重绑，
+          // 这里切换 target 会重挂载输入并丢失刚应用的完整连续内容。
+          command.type !== "numbered.sequence.overwrite" &&
+          command.type !== "numbered.event.set" &&
           (!numberedTarget ||
             !resolveNumberedEditorTarget(result.document, numberedTarget))
         ) {
@@ -1184,7 +1206,7 @@ export const MusicTextSidebar = ({
       committing.current = false;
     }
   };
-  const apply = (advance = false): boolean => {
+  const apply = (): boolean => {
     if (modals.isOpen() || suspendedChord.current) return false;
     if (!draft || issue || committing.current || composing.current || compositionCoolingRef.current || compositionCooling) return false;
     if (draft.target.kind === "lyric" &&
@@ -1204,7 +1226,7 @@ export const MusicTextSidebar = ({
               ...target,
               verse: target.verse!,
               items: parsed.items,
-              allowOverwrite: draft.allowOverwrite,
+              allowOverwrite: true,
             }
           : {
               type: LXMScoreCommandEnum.SetLyric,
@@ -1234,25 +1256,12 @@ export const MusicTextSidebar = ({
         initial: musicTextDraftValue(draft),
       });
     } else setDraft(saved);
-    setMessage(result.changed ? removingChord ? "已删除，保留当前拍点。" : "已应用" : "内容未变化");
-    if (advance && target.kind === "lyric" && !sequence) {
-      const next = resolveNextLyricTarget(
-        result.document,
-        saved?.target.kind === "lyric" ? saved.target : target,
-      );
-      if (next) loadTarget(next);
-      else setMessage("已应用，已到最后一个歌词位置。");
-    }
+    setMessage(target.kind === "lyric" ? null : result.changed ? removingChord ? "已删除，保留当前拍点。" : "已应用" : "内容未变化");
     return true;
   };
-  const applyLyricPrimary = (advance = true) => {
+  const applyLyricPrimary = () => {
     if (surfaceBlocked() || !draft || draft.target.kind !== "lyric") return false;
-    if (!lyricDirty) {
-      if (advance && !sequence && nextLyricTarget)
-        return request({ type: "target", target: nextLyricTarget }) === "accepted";
-      return false;
-    }
-    return apply(advance && !sequence);
+    return lyricDirty && apply();
   };
   const remove = () => {
     if (!draft || !existing || composing.current || compositionCoolingRef.current) return;
@@ -1516,30 +1525,34 @@ export const MusicTextSidebar = ({
     selectionTrack?.measures[selectionMeasureIndex]?.beats.findIndex(
       (beat) => beat.id === selection?.focus.beatId,
     ) ?? -1;
-  const changeLyricMode = (mode: MusicTextDraft["lyricMode"], focusSurface: LyricFocusSurface) => {
-    lyricFocusSurface.current = focusSurface;
-    return request({ type: "mode", mode, lyricFocusSurface: focusSurface });
-  };
   const changeLyricVerse = (verse: ILXMLyricVerse, focusSurface: LyricFocusSurface) => {
-    if (!draft) return;
+    if (!draft || !score || verse > getLyricVerseCount(score)) return;
     lyricFocusSurface.current = focusSurface;
     return request({ type: "target", target: { ...draft.target, verse }, lyricFocusSurface: focusSurface });
+  };
+  const addLyricVerse = (focusSurface: LyricFocusSurface) => {
+    if (surfaceBlocked() || !draft || draft.target.kind !== "lyric") return;
+    const current = editorStore.getState().document;
+    if (!current || getLyricVerseCount(current) >= 4) return;
+    const result = commit({ type: LXMScoreCommandEnum.AddLyricVerse });
+    if (result?.ok && result.changed) {
+      ownerGeneration.current += 1;
+      draftRegistrationRef.current?.invalidateOwner();
+      loadTarget({ ...draft.target, verse: getLyricVerseCount(result.document) as ILXMLyricVerse }, "sequence", "input", focusSurface);
+    }
   };
   const lyricFormProps = draft && {
     document: score ?? undefined,
     draft,
     plan,
     issue,
-    inspection,
-    nextLocation: nextLyricTarget ? draftLocation(nextLyricTarget) : undefined,
-    existingText: existing && "text" in existing ? existing.text : undefined,
+    disabled: surfaceDisabled,
     onTextChange: (text: string) => {
       if (text !== draft.text) setTextConflict(false);
       setDraft({ ...draft, text });
       setInspection(0);
       setMessage(null);
     },
-    onOverwriteChange: (allowOverwrite: boolean) => setDraft({ ...draft, allowOverwrite }),
     onInspect: (index: number) => {
       setInspection(index);
       const target = plan?.rows[index]?.target;
@@ -1551,7 +1564,8 @@ export const MusicTextSidebar = ({
   };
   // 只把真实目标交给摘要；初始空选区不能用空 ID 伪造一个失效的小节。
   const measureTarget = detailTarget ?? numberedSelection ?? selection?.focus;
-  const context = deriveSidebarContext({ document: score, target: activeObject,
+  const context = deriveSidebarContext({ document: score,
+    target: activeObject?.kind === "numbered" ? numberedPreview ?? activeObject : activeObject,
     task: propertyTab === "selection" ? selectionDetail : undefined,
     selection, numberedSelection, song: propertyTab === "song",
     measureTarget: propertyTab === "selection" && selectionDetail === "measure"
@@ -1567,7 +1581,7 @@ export const MusicTextSidebar = ({
     : score && propertyTab === "selection" && selectionDetail === "measure" && !showSelectionInvitation && context.valid
       ? "measure" : null;
   const numberedFormActive = !!score && propertyTab === "paragraph" && kind === "numbered" && activeObject?.kind === "numbered";
-  const hasActionsForm = !!settingsSurface || numberedFormActive;
+  const hasActionsForm = !!settingsSurface;
   return (
     <ConfigProvider
       getPopupContainer={(trigger) => trigger?.closest<HTMLElement>("#music-text-sidebar,[data-editor-associated-panel]") ?? globalThis.document.body}
@@ -1646,7 +1660,7 @@ export const MusicTextSidebar = ({
             animated={false}
           />
         </header>
-        <SidebarObjectContext context={context} onLocate={onLocate}
+        <SidebarObjectContext context={context} onLocate={onLocate} compact={propertyTab === "paragraph" && (kind === "numbered" || kind === "lyric")}
           onCurrentSelection={() => numberedSelection
             ? request({ type: "target", target: { ...numberedSelection, kind: "numbered" } })
             : request({ type: "selection", selection })} />
@@ -1763,12 +1777,11 @@ export const MusicTextSidebar = ({
           if (
             e.key === "Enter" &&
             !e.altKey &&
-            (e.target === inputRef.current || e.target === popoverInputRef.current ||
-              e.target === sequenceInputRef.current || e.target === popoverSequenceInputRef.current) &&
+            (e.target === inputRef.current || e.target === popoverInputRef.current) &&
             draft?.target.kind === "lyric"
           ) {
             e.preventDefault();
-            if (!e.repeat) applyLyricPrimary(!e.shiftKey);
+            if (!e.repeat) applyLyricPrimary();
             return;
           }
           if (kind === "chord" && draft?.target.kind === "chord" && isEditorInputEnter(e)) {
@@ -1802,6 +1815,7 @@ export const MusicTextSidebar = ({
                 event.target instanceof HTMLTextAreaElement ||
                 event.target instanceof HTMLSelectElement)
             ) {
+              if (draft.target.kind === "lyric") lyricFocusSurface.current = "sidebar";
               focusDestination.current = "input";
               setInputEditing(true);
             }
@@ -2018,14 +2032,12 @@ export const MusicTextSidebar = ({
             <div className={musicTextSidebarStyles.sidebarEmpty}>
               <div className={musicTextSidebarStyles.emptyIllustration} aria-hidden="true"><svg viewBox="0 0 110 70"><path d="M8 18h94M8 28h94M8 38h94M8 48h94M8 58h94" /><rect x="36" y="12" width="28" height="51" rx="5" /><path d="M50 28v20m-10-10h20" /></svg></div>
               <h3>{numberedEntry ? "从当前谱面位置开始" : "先选择简谱位置"}</h3>
-              <p>{numberedEntry ? "在编辑面板录入简谱，查看节拍映射并分别应用修改。" : "点击谱面上的简谱音符或空白位置，即可在这里编辑。"}</p>
               {numberedEntry && <Button type="primary" onClick={() => {
                 if (request({ type: "target", target: { ...numberedEntry, kind: "numbered" } }) === "accepted") {
                   onExpandSidebar();
                   surfaceFocusGroup.current = "content";
                 }
-              }}>在当前位置录入简谱</Button>}
-              <p className={musicTextSidebarStyles.emptyHelp}>空格分隔先后音，+ 表示同时发声；应用后才写入曲谱。</p>
+              }}>录入简谱</Button>}
             </div>
           )}
           {numberedFormActive && score && (
@@ -2112,12 +2124,8 @@ export const MusicTextSidebar = ({
                       <CustomerServiceOutlined style={{ fontSize: 36 }} />
                     )}
                     <h3>{kind === "lyric" ? "先选择歌词位置" : "先选择 TAB 拍点"}</h3>
-                    <p>
-                      {kind === "lyric"
-                        ? "歌词跟随简谱。选择可填写歌词的简谱音符或空白位置，在这里编辑第 1–4 段。"
-                        : "点击六线谱中的拍点，在这里设置和弦名称与指法。"}
-                    </p>
-                    <Button
+                    {kind !== "lyric" && <p>点击六线谱中的拍点，在这里设置和弦名称与指法。</p>}
+                    {(kind !== "lyric" || lyricStart) && <Button
                       ref={editButtonRef}
                       disabled={kind === "lyric" ? !lyricStart : !validTarget}
                       type="primary"
@@ -2141,16 +2149,14 @@ export const MusicTextSidebar = ({
                       }}
                     >
                       {kind === "lyric" ? "为当前简谱填写歌词" : "编辑当前拍和弦"}
-                    </Button>
-                    {kind === "lyric" && <Button type="link" onClick={() => request({ type: "tab", kind: "numbered", propertyTab: "paragraph" })}>返回简谱</Button>}
+                    </Button>}
                   </div>
                 ) : kind === "lyric" ? (
                   <LyricFormView
                     {...lyricFormProps!}
-                    onModeChange={(mode) => changeLyricMode(mode, "sidebar")}
+                    onAddVerse={() => addLyricVerse("sidebar")}
                     onVerseChange={(verse) => changeLyricVerse(verse, "sidebar")}
                     inputRef={(element) => { inputRef.current = element; }}
-                    sequenceInputRef={(element) => { sequenceInputRef.current = element; }}
                   />
                  ) : (
                   <div data-chord-full-editor inert={(compositionActive || compositionCooling) && compositionOrigin === "popover"}>
@@ -2178,10 +2184,10 @@ export const MusicTextSidebar = ({
                   />
                   </div>
                 )}
-                {draft && <details className={`${musicTextSidebarStyles.sidebarDisclosure} ${kind === "lyric" ? musicTextSidebarStyles.lyricRemoval : ""}`}>
-                  <summary>移除{kind === "lyric" ? "歌词" : "和弦"}{kind === "lyric" && <span>仅当前段，保留简谱</span>}</summary>
-                  <p>{kind === "lyric" ? `只删除当前第 ${draft.target.verse ?? 1} 段歌词，简谱保持原样。${sequence ? "请先切换到单点模式。" : ""}` : "删除当前 TAB 拍的和弦名称与指法。仅清除指法图请使用上方的指法操作。"}</p>
-                  <Button type={kind === "lyric" ? "text" : "default"} danger disabled={!existing || sequence || surfaceDisabled} onClick={remove} icon={kind === "lyric" ? undefined : <DeleteOutlined />}>删除{kind === "lyric" ? "当前歌词" : "当前和弦"}</Button>
+                {draft && kind === "chord" && <details className={musicTextSidebarStyles.sidebarDisclosure}>
+                  <summary>移除和弦</summary>
+                  <p>删除当前 TAB 拍的和弦名称与指法。仅清除指法图请使用上方的指法操作。</p>
+                  <Button danger disabled={!existing || surfaceDisabled} onClick={remove} icon={<DeleteOutlined />}>删除当前和弦</Button>
                 </details>}
               </div>
             )}
@@ -2260,7 +2266,7 @@ export const MusicTextSidebar = ({
             </div>
           ) : (
             <>
-              {issue && !chordSuspended && (
+              {issue && kind !== "lyric" && !chordSuspended && (
                 <p className={musicTextSidebarStyles.sidebarError} role="alert">
                   {issue}
                 </p>
@@ -2273,32 +2279,18 @@ export const MusicTextSidebar = ({
               {chordSuspended && <p data-editor-form-hint className={editorFormStyles.settingsHint}>和弦草稿已暂停并保留；处理曲谱信息后可返回和弦编辑。</p>}
               {draft && !chordSuspended && (
                 <>
-                <p className={musicTextSidebarStyles.actionSummary}>{lyricDirty ? `${kind === "lyric" ? "歌词" : "和弦"}有未应用修改${sequence && plan ? ` · ${plan.changes} 项变化${plan.overwrites ? ` · ${plan.overwrites} 项覆盖` : ""}` : ""}` : "当前内容已应用"}</p>
-                {kind === "lyric" && <p data-editor-form-hint className={editorFormStyles.settingsHint}>切换位置、段号或模式会丢弃未应用歌词。</p>}
+                {kind !== "lyric" && <p className={musicTextSidebarStyles.actionSummary}>{lyricDirty ? "和弦有未应用修改" : "当前内容已应用"}</p>}
                 <div data-editor-form-actions className={editorFormStyles.sidebarActions}>
-                  <Button disabled={surfaceDisabled || !lyricDirty} onClick={() => {
-                    if (draft) { setDraft(readMusicTextDraft(editorStore.getState().document, draft.target, draft.lyricMode)); setTextConflict(false); }
-                  }}>
-                    恢复{kind === "chord" ? "和弦修改" : "歌词"}
+                  <Button disabled={surfaceDisabled || !lyricDirty} onClick={restoreTextDraft}>
+                    {kind === "chord" ? "恢复和弦修改" : "恢复"}
                   </Button>
                   <Button
                     disabled={!!issue || surfaceDisabled || !lyricDirty}
                     type={kind === "chord" || sequence ? "primary" : "default"}
                     onClick={() => apply()}
                   >
-                    {sequence
-                      ? `应用歌词${draft.allowOverwrite && plan?.overwrites ? `（覆盖 ${plan.overwrites} 项）` : ""}`
-                      : kind === "chord" ? existing && !draft.chord.chord.name.trim() ? "应用删除" : "应用和弦" : "应用歌词"}
+                    {kind === "chord" ? existing && !draft.chord.chord.name.trim() ? "应用删除" : "应用和弦" : "应用"}
                   </Button>
-                  {kind === "lyric" && !sequence && (
-                    <Button
-                      disabled={surfaceDisabled || (lyricDirty ? !!issue : !nextLyricTarget)}
-                      type="primary"
-                      onClick={() => applyLyricPrimary(true)}
-                    >
-                      {!lyricDirty && nextLyricTarget ? "下一处" : nextLyricTarget ? "应用并下一处" : "应用"}
-                    </Button>
-                  )}
                 </div>
                 </>
               )}
@@ -2353,9 +2345,9 @@ export const MusicTextSidebar = ({
                   />
                 </div>
               )}
-               <Button type="text" disabled={surfaceDisabled} aria-label={kind === "chord" ? "关闭快捷编辑" : "结束文字编辑"} title={kind === "chord" ? "关闭快捷编辑" : "结束文字编辑"} onClick={() => {
+               <Button type="text" disabled={surfaceDisabled} aria-label={kind === "chord" ? "关闭快捷编辑" : kind === "lyric" ? "关闭歌词浮窗" : "结束文字编辑"} title={kind === "chord" ? "关闭快捷编辑" : kind === "lyric" ? "关闭歌词浮窗" : "结束文字编辑"} onClick={() => {
                  if (kind === "chord") { setSurface("sidebar"); setDismissed(true); setInputEditing(false); onScoreFocus(); }
-                 else returnToScore();
+                 else cancelTextEditing();
                }}>
                 ×
               </Button>
@@ -2365,7 +2357,7 @@ export const MusicTextSidebar = ({
             className={musicTextSidebarStyles.sidebarBody}
            onFocusCapture={(event) => {
              if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
-               if (kind === "chord") lyricFocusSurface.current = "popover";
+                lyricFocusSurface.current = "popover";
                lastInputFocus.current = event.target;
                 focusDestination.current = "input";
                 if (draft) setInputEditing(true);
@@ -2375,11 +2367,10 @@ export const MusicTextSidebar = ({
             <div ref={setPopoverContainer} data-numbered-active-target={floating ? numberedEvent?.id : undefined} />
              {floating && kind === "lyric" && draft && <LyricFormView
               {...lyricFormProps!}
-              onModeChange={(mode) => changeLyricMode(mode, "popover")}
+               onAddVerse={() => addLyricVerse("popover")}
               onVerseChange={(verse) => changeLyricVerse(verse, "popover")}
               presentation="popover"
               inputRef={(element) => { popoverInputRef.current = element; }}
-              sequenceInputRef={(element) => { popoverSequenceInputRef.current = element; }}
              />}
              {floating && kind === "chord" && draft && <div inert={(compositionActive || compositionCooling) && compositionOrigin === "sidebar"}>
                  <ChordQuickEditor
@@ -2412,21 +2403,8 @@ export const MusicTextSidebar = ({
           {floating && kind === "lyric" && draft && (
             <footer className={musicTextSidebarStyles.sidebarFooter}>
               {message && <p className={musicTextSidebarStyles.sidebarMessage} role="status">{message}</p>}
-              <p data-editor-form-hint className={editorFormStyles.settingsHint}>结束编辑或切换位置会丢弃未应用歌词。</p>
               <div data-editor-form-actions className={editorFormStyles.sidebarActions}>
-                <Button type="link" disabled={surfaceDisabled} onClick={() => focusSidebar()}>完整设置</Button>
-                <Button disabled={surfaceDisabled} onClick={cancelTextEditing}>结束编辑</Button>
-                {sequence ? (
-                  <Button type="primary" disabled={!!issue || !lyricDirty || surfaceDisabled} onClick={() => apply()}>应用</Button>
-                ) : (
-                  <Button
-                    type="primary"
-                    disabled={surfaceDisabled || (lyricDirty ? !!issue : !nextLyricTarget)}
-                    onClick={() => applyLyricPrimary(true)}
-                  >
-                    {!lyricDirty && nextLyricTarget ? "下一处" : nextLyricTarget ? "应用并下一处" : "应用"}
-                  </Button>
-                )}
+                <Button type="primary" disabled={!!issue || !lyricDirty || surfaceDisabled} onClick={() => applyLyricPrimary()}>应用</Button>
               </div>
             </footer>
           )}

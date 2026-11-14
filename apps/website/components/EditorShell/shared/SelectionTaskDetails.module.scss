@@ -48,6 +48,12 @@
   gap: 12px;
 }
 
+.boundarySection {
+  min-width: 0;
+  padding: 14px 0;
+  border-top: 1px solid var(--ant-color-border-secondary, #e7ebf0);
+}
+
 .noteDetails {
   min-width: 0;
   color: #202838;
@@ -107,7 +113,7 @@
   button {
     width: 100%;
     min-width: 0;
-    height: 62px;
+    height: 36px;
     padding: 6px 2px;
     border-radius: 5px;
     font-size: 12px;
@@ -135,10 +141,10 @@
 
 .buttonContent {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 6px;
   line-height: 18px;
 }
 
@@ -146,7 +152,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 24px;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+
+  svg {
+    width: 14px;
+    height: 14px;
+  }
 }
 
 .restoreRest {

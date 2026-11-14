@@ -53,6 +53,14 @@ export const editMeasureMusicText = (
     if (![1, 2, 3, 4].includes(command.verse))
       return fail("INVALID_LYRIC_VERSE", "歌词段号应为 1–4");
     const text = normalizeMusicText(command.text, 64);
+    if (/^[ \u3000]*$/u.test(command.text) || text === "_") {
+      const lyrics = measure.lyrics.filter(
+        (item) => item.eventId !== position.eventId || item.verse !== command.verse,
+      );
+      return lyrics.length === measure.lyrics.length
+        ? { ok: true, changed: false, measure }
+        : { ok: true, changed: true, measure: { ...measure, lyrics } };
+    }
     if (text === null)
       return fail("INVALID_LYRIC_TEXT", "歌词须为单行非空文字，最多 64 个字符");
     let eventId = position.eventId;

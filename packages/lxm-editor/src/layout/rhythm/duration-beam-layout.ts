@@ -10,6 +10,7 @@ import {
   ILXMStringLineLayout,
 } from "../layout-types";
 import { createMeasureRhythmContext } from "../../core/rhythm/tuplet";
+import { isPureTabContinuationBeat } from "../../core/rhythm/tab-continuation";
 import { getDurationFlagTop } from "./rhythm-bounds";
 import { arraySortByKey } from "../layout-helpers";
 import {
@@ -459,7 +460,7 @@ export const layoutDurationBeams = (
     "tick",
   ).filter(
     // 休止符没有 TAB 音头，不能生成符干或连梁；空 notes beat 同样跳过。
-    (beat) => beat.kind === "notes" && beat.notes.length > 0,
+    (beat) => beat.kind === "notes" && beat.notes.length > 0 && !isPureTabContinuationBeat(beat),
   );
   const beatLayoutMap = new Map(
     beatLayouts.map((layout) => [layout.id, layout]),

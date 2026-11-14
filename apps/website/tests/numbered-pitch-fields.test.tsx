@@ -12,43 +12,45 @@ const find = (tree: ReactNode, label: string): Record<string, unknown> | null =>
     return null;
   }
   if (!isValidElement<Record<string, unknown>>(tree)) return null;
-  return tree.props["aria-label"] === label ? tree.props : find(tree.props.children as ReactNode, label);
+  return tree.props.label === label ? tree.props : find(tree.props.children as ReactNode, label);
 };
 
 describe("简谱音高分项字段", () => {
-  it("修改音级保留现有变音编码与三层八度，读取不产生修改", () => {
+  it("读取不产生修改，八度修改保留现有变音编码与音级", () => {
     const onChange = vi.fn();
     const tree = NumberedPitchFields({ value: "♯5'''", onChange });
     expect(onChange).not.toHaveBeenCalled();
-    expect(find(tree, "简谱单音符八度")?.value).toBe(3);
-    expect(find(tree, "简谱单音符变音")?.value).toBe("#");
-    (find(tree, "简谱单音符音高")!.onChange as (value: string) => void)("2");
-    expect(onChange).toHaveBeenCalledWith("♯2'''");
+    expect(find(tree, "高3八度")?.pressed).toBe(true);
+    expect(find(tree, "升号")?.pressed).toBe(true);
+    (find(tree, "低八度")!.onClick as () => void)();
+    expect(onChange).toHaveBeenCalledWith("♯5.");
   });
 
   it("八度选项仅支持低两八度至高三八度", () => {
     const tree = NumberedPitchFields({ value: "1", onChange: vi.fn() });
-    expect(find(tree, "简谱单音符八度")?.options).toEqual([
-      { value: -2, label: "低2八度" },
-      { value: -1, label: "低八度" },
-      { value: 0, label: "本位" },
-      { value: 1, label: "高八度" },
-      { value: 2, label: "高2八度" },
-      { value: 3, label: "高3八度" },
-    ]);
+    const markup = renderToStaticMarkup(tree);
+    expect((markup.match(/<button\b/g) ?? []).length).toBe(10);
+    expect(markup).not.toContain("<select");
+    expect(markup).not.toContain('aria-label="简谱单音符音高"');
+    for (const label of ["低2八度", "低八度", "本位", "高八度", "高2八度", "高3八度"]) {
+      expect(find(tree, label)).not.toBeNull();
+    }
   });
 
-  it.each([-2, -1, 0, 1, 2, 3])("八度 %i 使用绝对值，并保留还原号和音级", (octave) => {
+  it.each([
+    [-2, "低2八度"], [-1, "低八度"], [0, "本位"],
+    [1, "高八度"], [2, "高2八度"], [3, "高3八度"],
+  ] as const)("八度 %i 使用绝对值，并保留还原号和音级", (octave, label) => {
     const onChange = vi.fn();
     const tree = NumberedPitchFields({ value: "n4..", onChange });
-    (find(tree, "简谱单音符八度")!.onChange as (value: number) => void)(octave);
+    (find(tree, label)!.onClick as () => void)();
     expect(onChange).toHaveBeenCalledWith(`n4${octave > 0 ? "'".repeat(octave) : ".".repeat(-octave)}`);
   });
 
-  it.each(["", "#", "b", "n"])("变音可明确设为 %j，不改变音级和八度", (accidental) => {
+  it.each([["", "无变音"], ["n", "还原号"], ["#", "升号"], ["b", "降号"]])("变音可明确设为 %j，不改变音级和八度", (accidental, label) => {
     const onChange = vi.fn();
     const tree = NumberedPitchFields({ value: "b6..", onChange });
-    (find(tree, "简谱单音符变音")!.onChange as (value: string) => void)(accidental);
+    (find(tree, label!)!.onClick as () => void)();
     expect(onChange).toHaveBeenCalledWith(`${accidental}6..`);
   });
 
@@ -56,17 +58,32 @@ describe("简谱音高分项字段", () => {
     for (const value of ["0", "-", "#9", "1+3", "1...", "1''''"]) {
       const onChange = vi.fn();
       const tree = NumberedPitchFields({ value, onChange });
-      for (const label of ["简谱单音符音高", "简谱单音符八度", "简谱单音符变音"]) {
-        expect(find(tree, label)?.disabled).toBe(true);
+      for (const label of ["本位", "低2八度", "升号", "无变音"]) {
+        expect(find(tree, label)?.availability).toMatchObject({ enabled: false });
+        (find(tree, label)!.onClick as () => void)();
       }
       expect(onChange).not.toHaveBeenCalled();
     }
   });
 
+  it("外部禁用原因为工具提示提供说明，禁用期间不修改 token", () => {
+    const onChange = vi.fn();
+    const tree = NumberedPitchFields({ value: "b6..", disabled: true, disabledReason: "请先应用简谱内容", onChange });
+    for (const label of ["本位", "低2八度", "升号", "无变音"]) {
+      expect(find(tree, label)?.availability).toEqual({ enabled: false, reason: "请先应用简谱内容" });
+      (find(tree, label)!.onClick as () => void)();
+    }
+    expect(onChange).not.toHaveBeenCalled();
+    const markup = renderToStaticMarkup(tree);
+    expect((markup.match(/tabindex="0"/g) ?? []).length).toBe(10);
+    expect((markup.match(/disabled=""/g) ?? []).length).toBe(10);
+  });
+
   it("分项字段具有可访问名称", () => {
     const markup = renderToStaticMarkup(<NumberedPitchFields value="1" onChange={() => {}} />);
     expect(markup).toContain('aria-label="简谱单音符八度"');
-    expect(markup).toContain('aria-label="简谱单音符音高"');
     expect(markup).toContain('aria-label="简谱单音符变音"');
+    expect(markup).toContain('aria-label="本位" aria-pressed="true"');
+    expect(markup).toContain('aria-label="无变音" aria-pressed="true"');
   });
 });

@@ -4,6 +4,7 @@ import {
   LXMScoreCommandEnum as C,
   parseLyricSequence,
   buildLayout,
+  getLyricVerseCount,
 } from "@liuxianmao/lxm-editor";
 import { createEditorStore } from "../stores/editor-store";
 import {
@@ -58,7 +59,7 @@ describe("连续填词历史、草稿与歌词焦点", () => {
     store.getState().redo();
     expect(store.getState().document).toBe(saved);
   });
-  it("换模式或关闭直接丢弃未应用输入与覆盖许可，换目标重新读取内容", () => {
+  it("更换目标读取独立内容，连续歌词默认允许覆盖", () => {
     const { document, track, target } = fixture();
     const single = readMusicTextDraft(document, target, "single")!;
     expect(
@@ -70,9 +71,8 @@ describe("连续填词历史、草稿与歌词焦点", () => {
     ).toBe("execute");
     const batch = readMusicTextDraft(document, target, "sequence")!;
     expect(batch.text).toBe("");
-    expect(batch.allowOverwrite).toBe(false);
+    expect(batch.allowOverwrite).toBe(true);
     expect(resolveSidebarRequest(batch, { type: "close" })).toBe("execute");
-    batch.allowOverwrite = true;
     expect(resolveSidebarRequest(batch, { type: "close" })).toBe("execute");
     const next = readMusicTextDraft(
       document,
@@ -83,8 +83,30 @@ describe("连续填词历史、草稿与歌词焦点", () => {
       },
       "sequence",
     )!;
-    expect(next.allowOverwrite).toBe(false);
+    expect(next.allowOverwrite).toBe(true);
     expect(next.text).toBe("Sing");
+  });
+  it("新增空白段落在真实 store 中形成独立历史，撤销重做保留空段与既有歌词", () => {
+    const { document } = fixture();
+    document.score.tracks.forEach((track) => track.measures.forEach((measure) => {
+      measure.lyrics = measure.lyrics.filter((lyric) => lyric.verse === 1);
+    }));
+    document.score.meta.lyricVerseCount = 1;
+    const store = createEditorStore(document);
+    const lyrics = structuredClone(document.score.tracks.map((track) => track.measures.map((measure) => measure.lyrics)));
+    for (const count of [2, 3, 4]) {
+      expect(store.getState().execute({ type: C.AddLyricVerse })).toMatchObject({ ok: true, changed: true });
+      expect(getLyricVerseCount(store.getState().document!)).toBe(count);
+      expect(store.getState().historyView.entries.at(-1)?.label).toBe("添加歌词段落");
+    }
+    expect(store.getState().historyDepth.past).toBe(3);
+    expect(store.getState().execute({ type: C.AddLyricVerse })).toMatchObject({ ok: true, changed: false });
+    expect(store.getState().historyDepth.past).toBe(3);
+    store.getState().undo();
+    expect(getLyricVerseCount(store.getState().document!)).toBe(3);
+    store.getState().redo();
+    expect(getLyricVerseCount(store.getState().document!)).toBe(4);
+    expect(store.getState().document!.score.tracks.map((track) => track.measures.map((measure) => measure.lyrics))).toEqual(lyrics);
   });
   it("只定位当前段真实歌词，重排后重新解析；空拍与和弦不产生假歌词框", () => {
     const { document, track, target } = fixture();

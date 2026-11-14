@@ -5,6 +5,7 @@ import { splitBeat, mergeBeats } from "../rhythm/beat-structure";
 import { extendBeat } from "../rhythm/beat-sustain";
 import { techniqueBeatIds } from "../techniques/content-protection";
 import { prepareTabInputRhythm } from "../rhythm/tab-input-rhythm";
+import { isPureTabContinuationBeat, planTabContinuation } from "../rhythm/tab-continuation";
 import { type NumberedSequenceItem } from "../numbered/numbered-notation";
 import { validateTuning } from "../document/tuning";
 import { normalizeMusicText, hasMusicTextControlCharacter } from "../music-text/music-text";
@@ -22,6 +23,7 @@ import {
   type LyricSequenceItem,
   type LyricSequenceTarget,
 } from "../lyrics/lyric-sequence";
+import { getLyricVerseCount } from "../lyrics/lyric-verses";
 import {
   editNumberedTrack,
   type ILXMNumberedVoiceCommand,
@@ -83,6 +85,7 @@ export enum LXMScoreCommandEnum {
   SetScoreInfo = "score.setInfo",
   SetLyric = "lyric.set",
   SetLyricSequence = "lyrics.setSequence",
+  AddLyricVerse = "lyric.verse.add",
   RemoveLyric = "lyric.remove",
   SetChordSymbol = "chordSymbol.set",
   RemoveChordSymbol = "chordSymbol.remove",
@@ -93,6 +96,7 @@ export enum LXMScoreCommandEnum {
   SetBeatRhythm = "beat.setRhythm",
   SetBeatKind = "beat.setKind",
   SetBeatKindRange = "beat.setKindRange",
+  SetTabContinuation = "beat.setTabContinuation",
   InsertMeasure = "measure.insert",
   CopyMeasure = "measure.copy",
   CopyMeasureRange = "measure.copyRange",
@@ -163,6 +167,10 @@ export interface ILXMSetBeatKindRangeCommand {
   type: LXMScoreCommandEnum.SetBeatKindRange;
   range: ILXMBeatRange;
   kind: ILXMBeat["kind"];
+}
+export interface ILXMSetTabContinuationCommand {
+  type: LXMScoreCommandEnum.SetTabContinuation;
+  range: ILXMBeatRange;
 }
 export interface ILXMInsertMeasureCommand extends ILXMScoreCommandBase {
   type: LXMScoreCommandEnum.InsertMeasure;
@@ -280,6 +288,11 @@ export type ILXMSetLyricSequenceCommand = LyricSequenceTarget & {
   allowOverwrite: boolean;
 };
 
+/** 新增全谱空白歌词段，不创建占位歌词实体。 */
+export interface ILXMAddLyricVerseCommand {
+  type: LXMScoreCommandEnum.AddLyricVerse;
+}
+
 export type ILXMSetNotationInfoCommand = {
   type: LXMScoreCommandEnum.SetNotationInfo;
   title: string;
@@ -342,6 +355,7 @@ export interface ILXMBeatPasteCommand {
 }
 
 type ScoreCommandOperation =
+  | ILXMSetTabContinuationCommand
   | ILXMExtendBeatCommand
   | ILXMBeatPasteCommand
   | ILXMNumberedCommand
@@ -350,6 +364,7 @@ type ScoreCommandOperation =
   | ILXMSetNotationInfoCommand
   | ILXMSetScoreInfoCommand
   | ILXMSetLyricSequenceCommand
+  | ILXMAddLyricVerseCommand
   | ILXMMusicTextCommand
   | ILXMSetTupletCommand
   | ILXMRemoveTupletCommand
@@ -754,6 +769,8 @@ const setBeatRhythm = (
     target.beat.rhythm.dots === command.rhythm.dots
   )
     return unchanged(document);
+  if (isPureTabContinuationBeat(target.beat))
+    return fail("INVALID_RHYTHM", "延音标记固定占一个单位拍，无附点；请先改为普通音符或休止");
   const factory = createDocumentIdFactory(document);
   const rhythmChange = changeMeasureBeatRhythm(
     target.measure,
@@ -867,7 +884,7 @@ const editNotesInRect = (
       if (!targetBeatIds.has(beat.id)) return beat;
 
       if (command.type === LXMScoreCommandEnum.RemoveNotesInRect) {
-        const nextNotes = beat.notes.filter(
+        const nextNotes = isPureTabContinuationBeat(beat) ? [] : beat.notes.filter(
           (note) => !targetStrings.includes(note.string),
         );
         if (nextNotes.length === beat.notes.length) return beat;
@@ -877,9 +894,10 @@ const editNotesInRect = (
         return { ...beat, notes: nextNotes };
       }
 
-      let beatChanged = beat.kind === "rest";
+      const replacingContinuation = command.fret !== "-" && isPureTabContinuationBeat(beat);
+      let beatChanged = beat.kind === "rest" || replacingContinuation;
       const notesByString = new Map(
-        beat.notes.map((note) => [note.string, note]),
+        (replacingContinuation ? [] : beat.notes).map((note) => [note.string, note]),
       );
       for (const string of targetStrings) {
         const existing = notesByString.get(string);
@@ -1099,6 +1117,9 @@ const editTechnique = (
   }
 
   const draft = command.technique;
+  if ("beatId" in draft && track.measures.some((measure) => measure.beats.some((beat) =>
+    beat.id === draft.beatId && isPureTabContinuationBeat(beat))))
+    return fail("TECHNIQUE_TARGET_INVALID", "延音标记没有实际起音，不能添加弹奏技巧");
   const replacements = track.techniques.filter(
     (item) =>
       (draft.type === "strum" || draft.type === "arpeggio") &&
@@ -1437,6 +1458,22 @@ const applyScoreCommandInternal = (
       command,
     );
   }
+  if (command.type === LXMScoreCommandEnum.AddLyricVerse) {
+    const count = getLyricVerseCount(document);
+    if (count === 4) return unchanged(document);
+    return finalize(
+      {
+        ...document,
+        documentRevision: document.documentRevision + 1,
+        score: {
+          ...document.score,
+          meta: { ...document.score.meta, lyricVerseCount: count + 1 },
+        },
+      },
+      document,
+      command,
+    );
+  }
   // 整批先规划，再使用同一 ID 工厂更新隔离分支；只 finalize 一次、增加一次 revision。
   if (command.type === LXMScoreCommandEnum.SetLyricSequence) {
     const plan = planLyricSequence(
@@ -1451,14 +1488,14 @@ const applyScoreCommandInternal = (
     const factory = createDocumentIdFactory(document);
     const candidates = new Map(track.measures.map((m) => [m.id, m]));
     for (const row of plan.rows) {
-      if (row.item.kind !== "set" || row.status === "same") continue;
+      if (row.status === "same") continue;
       const target = row.target!;
       const result = editMeasureMusicText(
         candidates.get(target.measureId)!,
         {
           type: LXMScoreCommandEnum.SetLyric,
           ...target,
-          text: row.item.text,
+          text: row.item.kind === "clear" ? "" : row.item.text,
         },
         factory,
       );
@@ -1548,6 +1585,28 @@ const applyScoreCommandInternal = (
     return setBarlineBoundary(document, command);
   if (command.type === LXMScoreCommandEnum.SetBeatKindRange)
     return setBeatKindInRange(document, command);
+  if (command.type === LXMScoreCommandEnum.SetTabContinuation) {
+    const resolved = resolveBeatRange(document, command.range);
+    if (!resolved.ok) return fail(resolved.code, resolved.message);
+    const track = document.score.tracks.find((item) => item.id === command.range.trackId)!;
+    const factory = createDocumentIdFactory(document);
+    let candidate = document;
+    // 右到左规划，后续已选拍也作为实际内容受保护，禁止吞掉相邻选择。
+    for (const cell of [...resolved.range.beats].reverse()) {
+      const measure = candidate.score.tracks.find((item) => item.id === track.id)!.measures.find((item) => item.id === cell.measureId)!;
+      const next = planTabContinuation(track, measure, cell.beatId, factory.createBeatId, factory.createNoteId);
+      if (!next) return fail("INVALID_BEAT_OPERATION", "延音标记占一个单位拍；请先清理该时间窗内的后续内容、技巧或连音组");
+      if (next !== measure) {
+        candidate = replaceMeasure(candidate, track.id, measure.id, next);
+        candidate = { ...candidate, score: { ...candidate.score, tracks: candidate.score.tracks.map((item) => item.id !== track.id ? item : {
+          ...item, techniques: item.techniques.filter((technique) => !("beatId" in technique && technique.beatId === cell.beatId)),
+        }) } };
+      }
+    }
+    if (candidate === document) return unchanged(document);
+    candidate = { ...candidate, documentRevision: document.documentRevision + 1 };
+    return finalize(candidate, document, command);
+  }
   if (
     command.type === LXMScoreCommandEnum.SetNotesInRect ||
     command.type === LXMScoreCommandEnum.RemoveNotesInRect
@@ -1589,15 +1648,17 @@ const applyScoreCommandInternal = (
           ? { ...target.beat, kind: "rest", notes: [] }
           : { ...target.beat, kind: "notes" };
     } else if (command.type === LXMScoreCommandEnum.RemoveNote) {
-      if (!target.beat.notes.some((note) => note.string === command.string))
+      if (!isPureTabContinuationBeat(target.beat) && !target.beat.notes.some((note) => note.string === command.string))
         return unchanged(document);
       nextBeat = {
         ...target.beat,
-        notes: target.beat.notes.filter(
+        notes: isPureTabContinuationBeat(target.beat) ? [] : target.beat.notes.filter(
           (note) => note.string !== command.string,
         ),
       };
     } else {
+      const replacingContinuation = command.fret !== "-" && isPureTabContinuationBeat(target.beat);
+      const sourceNotes = replacingContinuation ? target.beat.notes.filter((note) => note.string === command.string) : target.beat.notes;
       const existing = target.beat.notes.find(
         (note) => note.string === command.string,
       );
@@ -1619,13 +1680,13 @@ const applyScoreCommandInternal = (
       )
         return unchanged(document);
       const notes: ILXMNote[] = existing
-        ? target.beat.notes.map((note) =>
+        ? sourceNotes.map((note) =>
             note.string === command.string
               ? { ...note, fret: command.fret }
               : note,
           )
         : [
-            ...target.beat.notes,
+            ...sourceNotes,
             {
               id: factory.createNoteId(),
               string: command.string,

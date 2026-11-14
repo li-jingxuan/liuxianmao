@@ -60,3 +60,15 @@
 .description { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 6px; margin-top: 4px; font-size: 0.75rem; line-height: 1.4; }
 .status { color: var(--ant-color-text-secondary, #595959); font-size: 0.75rem; }
 .notice { margin: 8px 0 0; line-height: 1.5; }
+.compact {
+  .music { font-size: 0.875rem; }
+  .mapping { padding: 6px; }
+}
+.blank {
+  display: inline-block;
+  width: 1em;
+  height: 1.15em;
+  border: 1px dashed var(--ant-color-border, #b7c8df);
+  border-radius: 2px;
+  vertical-align: middle;
+}

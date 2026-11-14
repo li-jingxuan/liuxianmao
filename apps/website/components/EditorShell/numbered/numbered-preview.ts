@@ -116,23 +116,28 @@ export const buildNumberedPreviewRows = (
           : "none",
     });
   };
-  if (command.type === "numbered.sequence.set") {
-    const events = beforeTrack.measures.flatMap((measure) =>
-      measure.numberedVoice.events.map((event) => ({ measure, event })),
-    );
-    const start = events.findIndex(
-      ({ measure, event }) =>
-        measure.id === command.measureId && event.id === command.eventId,
-    );
-    if (start < 0) return [];
-    command.items.forEach((item, index) => {
-      const original = events[start + index];
-      if (!original) return;
-      const next = candidate.track.measures
-        .find((m) => m.id === original.measure.id)
-        ?.numberedVoice.events.find((e) => e.id === original.event.id);
-      append(original.measure.id, original.event, next, item.kind === "skip");
-    });
+  if (candidate.sequenceTargets) {
+    for (const target of candidate.sequenceTargets) {
+      const before = beforeTrack.measures.find(m => m.id === target.measureId)?.numberedVoice.events.find(event => event.id === target.eventId);
+      const after = candidate.track.measures.find(m => m.id === target.measureId)?.numberedVoice.events.find(event => event.tick === target.startTick);
+      if (before || after) append(target.measureId, before, after, target.item.kind === "skip");
+      else {
+        // Virtual skips consume time without creating an event in either document.
+        const virtual: ILXMNumberedEvent = { id: `virtual-${target.startTick}`, tick: target.startTick, rhythm: target.rhythm, kind: "gap", items: [] };
+        append(target.measureId, undefined, virtual, true);
+        rows.at(-1)!.eventId = undefined;
+        rows.at(-1)!.plannedPosition = null;
+        rows.at(-1)!.after = "—";
+      }
+      rows.at(-1)!.endTick = target.endTick;
+    }
+    // Explicit reflow can consume complete events between new onsets.
+    for (const measure of beforeTrack.measures) {
+      const after = candidate.track.measures.find(m => m.id === measure.id)!;
+      for (const event of measure.numberedVoice.events) {
+        if (!after.numberedVoice.events.some(next => next.id === event.id)) append(measure.id, event, undefined);
+      }
+    }
     return rows;
   }
   if (!("measureId" in command)) return rows;

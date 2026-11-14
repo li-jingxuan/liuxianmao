@@ -1,0 +1,104 @@
+.rhythmToolbar,
+.octaveRow,
+.accidentalRow {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+
+  > span {
+    display: flex;
+    min-width: 0;
+    border-radius: 6px;
+
+    &:focus-visible {
+      outline: 2px solid var(--ant-color-primary, #2459ef);
+      outline-offset: 2px;
+    }
+
+    > button {
+      width: 100% !important;
+      min-width: 0 !important;
+      height: 40px !important;
+      padding: 3px !important;
+      border: 1px solid var(--ant-color-border-secondary, #e4e9f1);
+      border-radius: 6px;
+
+      &[aria-pressed="true"]:not(:disabled) {
+        border-color: var(--ant-color-primary-border, #b9cdfc);
+        color: var(--ant-color-primary, #2459ef);
+        background: var(--ant-color-primary-bg, #edf3ff);
+      }
+    }
+  }
+}
+
+.rhythmToolbar {
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 2px;
+}
+
+.durationIcon {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  background: currentColor;
+  mask: var(--music-icon-url) center / contain no-repeat;
+}
+
+.musicGlyph {
+  font-family: Bravura, serif;
+  font-size: 26px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.rhythmToolbar > span:last-child .musicGlyph {
+  font-size: 32px;
+  transform: translateY(0.25em);
+}
+
+.pitchFields {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 12px;
+  min-width: 0;
+  width: 100%;
+}
+
+.fieldLabel {
+  margin-bottom: 7px;
+  color: var(--ant-color-text-secondary, #68778e);
+  font-size: 12px;
+}
+
+.octaveRow {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+
+  > span > button {
+    height: 44px !important;
+
+    .octaveIcon {
+      width: 28px;
+      height: 40px;
+      flex: 0 1 auto;
+    }
+  }
+}
+
+.accidentalRow {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.accidentalSymbol {
+  font-size: 22px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+@media (pointer: coarse) {
+  .rhythmToolbar > span > button,
+  .accidentalRow > span > button {
+    height: 44px !important;
+  }
+}

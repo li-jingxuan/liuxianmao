@@ -47,6 +47,7 @@ const Harness = () => {
       history: () => session.getState().historyDepth.past,
       external: (title: string) => session.getState().execute({ type: LXMScoreCommandEnum.SetNotationInfo, title, arranger: session.getState().document!.score.arranger, keySignature: session.getState().document!.score.keySignature }),
       externalCapo: (capo: number) => session.getState().execute({ type: LXMScoreCommandEnum.SetCapo, trackId, capo }),
+      externalLabel: (label: string) => session.getState().execute({ type: LXMScoreCommandEnum.SetSectionLabel, trackId, measureId: requestedMeasureId!, label }),
       remove: () => session.getState().execute({ type: LXMScoreCommandEnum.RemoveMeasure, trackId, measureId: requestedMeasureId! }),
       undo: () => session.getState().undo(),
       finishCopy: () => finishCopy?.({ status: "cancelled", message: "已取消复制" }),
