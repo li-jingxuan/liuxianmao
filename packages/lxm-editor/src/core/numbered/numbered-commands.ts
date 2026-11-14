@@ -88,6 +88,7 @@ export type ILXMNumberedVoiceCommand = Base &
         measureId: string;
         eventId: string;
         rhythm: ILXMRhythm;
+        /** 兼容旧调用参数；两种值均使用固定窗和相邻附点互补规划。 */
         timeline?: "preservePositions" | "editTimeline";
       }
     | {
@@ -348,60 +349,20 @@ export const editNumberedTrack = (
       focusEventId = event!.id;
     } else if (command.type === "numbered.event.setRhythm") {
       if (grouped(event!.id)) return failure("连音成员须整组修改时值");
-      if (command.timeline === "editTimeline") {
-        const planned = planNumberedEventRhythm(
-          measure,
-          event!.id,
-          command.rhythm,
-        );
-        if (!planned.ok) return failure(planned.message, "NUMBERED_OVERLAP");
-        events = planned.voice.events;
-        movedEventIds = planned.movedEventIds;
-        resizedEventIds = planned.resizedEventIds.filter(
-          (id) => id !== event!.id,
-        );
-        releasedRange = planned.releasedRange;
-        focusEventId = event!.id;
-      } else {
-        const previous = context.getEventDurationTicks(event!),
-          duration = calculateRhythmTicks(command.rhythm);
-        if (!previous.ok || !duration.ok) return failure("简谱时值无效");
-        const endTick = event!.tick + duration.ticks;
-        if (endTick > getMeasureCapacityTicks(measure.timeSignature))
-          return failure("简谱时值超出小节容量", "NUMBERED_OVERLAP");
-        const covered = events.filter(
-          (e) => e !== event && e.tick >= event!.tick && e.tick < endTick,
-        );
-        if (
-          covered.some((e) => {
-            const d = context.getEventDurationTicks(e);
-            return !d.ok || e.tick + d.ticks > endTick;
-          })
-        )
-          return failure(
-            "新时值终点切断后续音符，请调整范围",
-            "NUMBERED_PARTIAL_RANGE",
-          );
-        if (covered.some((e) => grouped(e.id)))
-          return failure(
-            "时值扩展不能覆盖连音组，请使用整组窗口编辑",
-            "NUMBERED_PARTIAL_RANGE",
-          );
-        overwrittenEventIds = covered.map((e) => e.id);
-        if (duration.ticks < previous.ticks)
-          releasedRange = {
-            startTick: endTick,
-            endTick: event!.tick + previous.ticks,
-          };
-        const removed = new Set(overwrittenEventIds);
-        // 保留当前音符身份与起点；完整覆盖后续事件，不推移其后的音乐时间。
-        events = events
-          .filter((e) => !removed.has(e.id))
-          .map((e) =>
-            e !== event ? e : { ...e, rhythm: { ...command.rhythm } },
-          );
-        focusEventId = event!.id;
-      }
+      const planned = planNumberedEventRhythm(
+        measure,
+        event!.id,
+        command.rhythm,
+      );
+      if (!planned.ok) return failure(planned.message, "NUMBERED_OVERLAP");
+      events = planned.voice.events;
+      movedEventIds = planned.movedEventIds;
+      overwrittenEventIds = planned.overwrittenEventIds;
+      resizedEventIds = planned.resizedEventIds.filter(
+        (id) => id !== event!.id,
+      );
+      releasedRange = planned.releasedRange;
+      focusEventId = event!.id;
     } else if (command.type === "numbered.event.remove") {
       events = grouped(event!.id)
         ? events.map((e) =>

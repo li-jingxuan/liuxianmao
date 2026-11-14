@@ -69,7 +69,7 @@ describe("简谱独立时间轴", () => {
     expect(result.resizedEventIds).toEqual(["a"]);
     expect(result.movedEventIds).toEqual([]);
   });
-  it("空白不足时只移动剩余增长量，保留后续内部空白", () => {
+  it("空白不足时吞并被新时间窗占用的后音，保留更后事件的 tick", () => {
     const result = plan(
       measure([
         note("a", 0, "eighth"),
@@ -78,10 +78,12 @@ describe("简谱独立时间轴", () => {
       ]),
       rhythm("quarter"),
     );
-    expect(result.voice.events.map((e) => e.tick)).toEqual([0, 960, 1920]);
+    expect(result.voice.events.map((e) => e.tick)).toEqual([0, 1680]);
+    expect(result.overwrittenEventIds).toEqual(["b"]);
+    expect(result.movedEventIds).toEqual([]);
     expect(result.resizedEventIds).toEqual(["a"]);
   });
-  it("满小节精确压缩后续音符，保留全部身份及歌词", () => {
+  it("满小节延长吞并后音，不压缩或推移尾部", () => {
     const m = measure([
       note("a", 0, "eighth"),
       note("b", 480, "eighth"),
@@ -93,18 +95,18 @@ describe("简谱独立时间轴", () => {
     const result = plan(m, rhythm("quarter"));
     expect(result.voice.events.map((e) => e.id)).toEqual([
       "a",
-      "b",
       "c",
       "d",
       "e",
     ]);
     expect(result.voice.events.map((e) => e.tick)).toEqual([
-      0, 960, 1440, 1920, 2880,
+      0, 960, 1920, 2880,
     ]);
-    expect(result.resizedEventIds).toEqual(["a", "c"]);
+    expect(result.resizedEventIds).toEqual(["a"]);
+    expect(result.overwrittenEventIds).toEqual(["b"]);
     expect(m.lyrics[0]!.eventId).toBe("c");
   });
-  it("完整后续连音组按实际时长平移，不压缩成员", () => {
+  it("延长不能吞并后续连音组或单改连音成员", () => {
     const m = measure([
       note("a", 0, "eighth"),
       note("b", 480, "eighth"),
@@ -118,17 +120,15 @@ describe("简谱独立时间轴", () => {
         eventIds: ["b", "c", "d"],
       },
     ];
-    const result = plan(m, rhythm("quarter"));
-    expect(result.voice.events.map((e) => e.tick)).toEqual([
-      0, 960, 1280, 1600,
-    ]);
-    expect(result.resizedEventIds).toEqual(["a"]);
+    expect(planNumberedEventRhythm(m, "a", rhythm("quarter"))).toMatchObject({
+      ok: false, code: "EVENT_IN_TUPLET",
+    });
     expect(planNumberedEventRhythm(m, "b", rhythm("quarter"))).toMatchObject({
       ok: false,
       code: "EVENT_IN_TUPLET",
     });
   });
-  it("尾部容量不足且无法精确压缩时拒绝，不修改原数据", () => {
+  it("时值超出小节容量时拒绝，不修改原数据", () => {
     const m = measure([
       note("a", 3360, "eighth"),
       note("b", 3840 - 120, "thirtySecond"),
@@ -136,7 +136,7 @@ describe("简谱独立时间轴", () => {
     const original = structuredClone(m);
     expect(planNumberedEventRhythm(m, "a", rhythm("quarter"))).toMatchObject({
       ok: false,
-      code: "CANNOT_COMPRESS",
+      code: "TIMELINE_OVERFLOW",
     });
     expect(m).toEqual(original);
   });
@@ -145,6 +145,7 @@ describe("简谱独立时间轴", () => {
     m.timeSignature = { numerator: 3, denominator: 8 };
     const result = plan(m, rhythm("eighth", 1));
     expect(result.voice.events[1]!.tick).toBe(720);
+    expect(result.voice.events[1]!.rhythm).toEqual(rhythm("sixteenth"));
     expect(planNumberedEventRhythm(m, "a", rhythm("whole"))).toMatchObject({
       ok: false,
     });
@@ -294,10 +295,11 @@ describe("简谱独立时间轴", () => {
           }
           successes++;
           expect(validateNumberedVoice(result.voice, 3840)).toBeNull();
-          expect(result.voice.events.map((e) => e.id)).toEqual(["a", "b", "c"]);
-          expect(result.voice.events.map((e) => e.items)).toEqual(
-            m.numberedVoice.events.map((e) => e.items),
-          );
+          for (const event of result.voice.events) {
+            const originalEvent = m.numberedVoice.events.find(e => e.id === event.id)!;
+            expect(event.items).toEqual(originalEvent.items);
+            if (!result.movedEventIds.includes(event.id)) expect(event.tick).toBe(originalEvent.tick);
+          }
         }
     expect(successes).toBeGreaterThan(100);
     expect(failures).toBeGreaterThan(0);

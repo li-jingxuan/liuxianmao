@@ -293,14 +293,40 @@ describe("clearing a single numbered event", () => {
     expect(commit).not.toHaveBeenCalled();
   });
 
-  it("blank sequence input remains invalid", async () => {
-    const { ref, commit, html } = setup("", "notes", "sequence");
+  it.each(["", "　 ", " \n\t "])("blank sequence %j clears the current event without moving later events", async (raw) => {
+    const { ref, commit, html, session, event, document } = setup(raw, "notes", "sequence");
     expect(parseNumberedSequence("").ok).toBe(false);
-    expect(ref.current!.canApply).toBe(false);
-    expect(html).not.toContain('aria-label="节拍映射预览"');
+    expect(ref.current!.canApply).toBe(true);
+    expect(html).not.toContain("简谱输入错误");
     expect(await ref.current!.applyGroup("content")).toMatchObject({
-      status: "blocked",
+      status: "applied",
     });
+    expect(commit.mock.calls[0]![0]).toMatchObject({ type: "numbered.event.set", eventId: event.id, tokens: [] });
+    const before = document.score.tracks[0]!.measures[0]!;
+    const after = session.getState().document!.score.tracks[0]!.measures[0]!;
+    expect(after.numberedVoice.events).toEqual(before.numberedVoice.events.map(item => item.id === event.id ? { ...event, kind: "gap", items: [] } : item));
+    expect(after.lyrics).toEqual(before.lyrics);
+    session.getState().undo();
+    expect(session.getState().document).toEqual(document);
+    session.getState().redo();
+    expect(session.getState().document!.score.tracks[0]!.measures[0]!.numberedVoice.events.find(item => item.id === event.id)?.kind).toBe("gap");
+  });
+
+  it("invalid sequence uses the concise error and cannot submit", async () => {
+    const { ref, commit, html } = setup("8", "notes", "sequence");
+    expect(html).toContain("简谱输入错误");
+    expect(html).toContain('aria-invalid="true"');
+    expect(html).not.toContain("每批须有有效简谱");
+    expect(ref.current!.canApply).toBe(false);
+    expect(await ref.current!.applyGroup("content")).toMatchObject({ status: "blocked" });
+    expect(commit).not.toHaveBeenCalled();
+  });
+
+  it("blank sequence at an existing gap creates no history", async () => {
+    const { ref, commit, html } = setup("　", "gap", "sequence");
+    expect(ref.current!.dirty).toBe(false);
+    expect(html).not.toContain("简谱输入错误");
+    expect(await ref.current!.applyGroup("content")).toMatchObject({ status: "noop" });
     expect(commit).not.toHaveBeenCalled();
   });
 

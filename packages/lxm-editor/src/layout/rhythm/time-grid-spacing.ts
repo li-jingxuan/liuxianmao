@@ -297,6 +297,15 @@ export const summarizeTimeGrid = (
     const numberedExtents = extents
       .filter((e) => e.lane === "numbered")
       .sort((a, b) => a.tick - b.tick);
+    // 紧凑布局允许空框退化为竖标记，但真实 gap 的标记仍须避开两侧数字。
+    // 仅增加理想宽度会在谱行压缩时降到 1px，把非格点空位藏在前音正文里。
+    for (const range of inputRanges) {
+      const previous = numberedExtents.filter(e => e.tick < range.startTick).at(-1);
+      const next = numberedExtents.find(e => e.tick > range.startTick);
+      edge(range.startTick, range.endTick, 5);
+      if (previous) edge(previous.tick, range.startTick, previous.right + 3);
+      if (next) edge(range.startTick, next.tick, next.left + 3);
+    }
     // 较宽槽优先；每次候选仅追加入边，超出预算便回退，密集细分继续用窄标记。
     for (const range of [...inputRanges].sort(
       (a, b) =>

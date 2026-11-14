@@ -1,4 +1,5 @@
 import { Button, Dropdown, Input } from "antd";
+import { DownOutlined } from "@ant-design/icons";
 import {
   useEffect,
   useMemo,
@@ -434,7 +435,7 @@ export const ChordPresetControls = ({
             aria-label="更多和弦"
             aria-expanded={active}
           >
-            更多 ⌄
+            <span>更多</span><DownOutlined aria-hidden="true" />
           </Button>
         </Dropdown>
       </div>

@@ -58,7 +58,8 @@ try {
   assert.equal(await page.locator(".ant-select-dropdown:visible .ant-select-item-option").count(), 1);
   await sidebar.getByRole("combobox").press("Escape");
   assert.equal(await apply.isDisabled(), true);
-  assert.deepEqual((await popover.locator("footer button").allTextContents()).map(text => text.replaceAll(/\s/g, "")), ["应用"]);
+  assert.equal(await popover.locator("footer button").count(), 0);
+  assert.equal(await popover.getByRole("button", { name: /^应\s*用$/ }).count(), 1);
   for (const name of ["歌词录入方式", "允许替换", "下一歌词位置", "完整设置", "应用并下一处", "移除歌词"]) assert.equal((await sidebar.innerText()).includes(name), false);
   await input.fill("风 _ 过");
   assert.equal(await popInput.inputValue(), "风 _ 过");
@@ -69,9 +70,7 @@ try {
   assert.equal(saved.target.eventId, saved.events[0]);
   assert.deepEqual(saved.words.filter(w => w.verse === 1).map(w => w.text), ["风", "过"]);
   assert.equal(await apply.isDisabled(), true);
-  await input.fill("恢复草稿");
-  await sidebar.getByRole("button", { name: /^恢\s*复$/ }).click();
-  assert.equal(await popInput.inputValue(), "风 _ 过");
+  assert.equal(await sidebar.getByRole("button", { name: /^恢\s*复$/ }).count(), 0);
   await input.fill("");
   await apply.click();
   saved = await snapshot();
@@ -148,7 +147,7 @@ try {
     node.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", keyCode: 229, bubbles: true }));
   });
   assert.equal((await snapshot()).history, history);
-  await page.waitForFunction(() => !document.querySelector('#music-text-sidebar [data-editor-form-actions] button:last-child')?.disabled);
+  await page.waitForFunction(() => !document.querySelector('#music-text-sidebar button[aria-label="应用"]')?.disabled);
   await input.press("Enter");
   await page.waitForFunction(history => window.lyricTest.session.getState().historyDepth.past === history + 1, history);
   assert.equal((await snapshot()).target.eventId, beforeAdd.target.eventId);

@@ -15,6 +15,7 @@ import {
   sameEditorVersion,
 } from "./editor-session-version";
 import { formatNumberedBeatPosition } from "../numbered/numbered-editor-target";
+import { numberedRhythmMergeMessage } from "../numbered/numbered-preview";
 import { isTabOnlyToolCommand, tabToolTargetReason, type EditorToolSubmission } from "../tools/editor-tool-guard";
 
 const rhythmName = (rhythm: { base: string; dots: number }) =>
@@ -71,8 +72,7 @@ export const createEditorCommandAdapter =
       return { status: "blocked", message: "当前没有可编辑的乐谱。" };
 
     if (
-      command.type === "numbered.event.setRhythm" &&
-      command.timeline === "editTimeline"
+      command.type === "numbered.event.setRhythm" && impact === "modal"
     ) {
       const track = snapshot.document.score.tracks.find(
         (item) => item.id === command.trackId,
@@ -87,6 +87,8 @@ export const createEditorCommandAdapter =
       if (!candidate.ok)
         return { status: "blocked", message: candidate.message };
       if (
+        candidate.overwrittenEventIds.length ||
+        candidate.movedEventIds.length ||
         candidate.resizedEventIds.length ||
         candidate.removedMarkIds.length ||
         candidate.changedMarkIds.length
@@ -117,7 +119,11 @@ export const createEditorCommandAdapter =
           const id = modals.open({
             kind: "structure-impact",
             title: "简谱时值影响确认",
-            message: `将顺移 ${candidate.movedEventIds.length} 个后续事件，压缩 ${candidate.resizedEventIds.length} 个后续事件；歌词随事件移动。${changes.join("；")}。删除 ${candidate.removedMarkIds.length} 个、调整 ${candidate.changedMarkIds.length} 个连接记号。`,
+            message: [
+              numberedRhythmMergeMessage(track, candidate),
+              candidate.movedEventIds.length ? `附点修改将互补调整紧邻后音的起点与时值，保留音符内容及其结束拍位。${changes.join("；")}。确认修改吗？` : null,
+              candidate.removedMarkIds.length || candidate.changedMarkIds.length ? `删除 ${candidate.removedMarkIds.length} 个、调整 ${candidate.changedMarkIds.length} 个连接记号。` : null,
+            ].filter(Boolean).join(" "),
             version: snapshot,
             isValid: () => !currentReason() &&
               capturedSelection ===

@@ -183,7 +183,7 @@ try {
   const dialog = page.getByRole("dialog", { name: "确认简谱修改影响" });
   await rhythm(page).getByRole("button", { name: "二分音符", exact: true }).click();
   await dialog.waitFor();
-  assert.match(await dialog.textContent(), /将移动 1 个后续事件/);
+  assert.match(await dialog.textContent(), /将合并第1拍、第2拍，确认修改吗？/);
   assert.deepEqual(await events(), originalEvents);
   assert.equal(await page.evaluate(() => window.numberedSequenceTest.commands.length), 0);
   assert.equal(await input().isDisabled(), true);
@@ -195,7 +195,7 @@ try {
   await dialog.getByRole("button", { name: "确认修改", exact: true }).click();
   await page.waitForFunction(() => window.numberedSequenceTest.commands.length === 1 && !Object.values(window.numberedSequenceTest.groups()).some(group => group.dirty));
   assert.equal((await events())[0].rhythm.base, "half");
-  assert.equal((await events()).find(event => event.id === "later").tick, 1920);
+  assert.equal((await events()).some(event => event.id === "later"), false);
   await page.evaluate(() => window.numberedSequenceTest.undo());
   assert.deepEqual(await events(), originalEvents);
 
@@ -214,6 +214,27 @@ try {
   await page.evaluate(() => window.numberedSequenceTest.undo());
   assert.deepEqual(await events(), originalEvents);
   assert.equal(await page.evaluate(() => window.numberedSequenceTest.document().score.tracks[0].numberedMarks[0].id), "property-slur");
+  for (const tick of [0, 240, 480]) {
+    await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/__sequence__?scenario=dots&tick=${tick}`);
+    await input().waitFor();
+    const original = await page.evaluate(() => window.numberedSequenceTest.document().score.tracks[0]);
+    await rhythm(page).getByRole("button", { name: "单附点", exact: true }).click();
+    await dialog.waitFor();
+    assert.match(await dialog.textContent(), /互补调整紧邻后音/);
+    assert.deepEqual(await events(), original.measures[0].numberedVoice.events);
+    await dialog.getByRole("button", { name: "确认修改", exact: true }).click();
+    await page.waitForFunction(() => window.numberedSequenceTest.commands.length === 1 && !Object.values(window.numberedSequenceTest.groups()).some(group => group.dirty));
+    assert.deepEqual((await events()).map(event => event.tick), [0, 240, 480, 720, 960].map(value => value === tick + 240 ? value + 120 : value));
+    await rhythm(page).getByRole("button", { name: "单附点", exact: true }).click();
+    await dialog.waitFor();
+    await dialog.getByRole("button", { name: "确认修改", exact: true }).click();
+    await page.waitForFunction(() => window.numberedSequenceTest.commands.length === 2 && !Object.values(window.numberedSequenceTest.groups()).some(group => group.dirty));
+    assert.deepEqual(await page.evaluate(() => window.numberedSequenceTest.document().score.tracks[0]), original);
+    await page.evaluate(() => window.numberedSequenceTest.undo());
+    assert.equal((await events()).find(event => event.id === `dot-${tick}`).rhythm.dots, 1);
+    await page.evaluate(() => window.numberedSequenceTest.redo());
+    assert.deepEqual(await page.evaluate(() => window.numberedSequenceTest.document().score.tracks[0]), original);
+  }
   assert.deepEqual(errors, []);
-  console.log("BUG017/020 + numbered properties browser: overwrite, repeated Enter, stable IDs, undo/redo, selection skips, external conflict, portal sync, member pitch, immediate rhythm/dots/sustain, dirty protection, no advance, movement and mark confirmation guards passed");
+  console.log("BUG017/020 + numbered properties browser: overwrite, repeated Enter, stable IDs, undo/redo, selection skips, external conflict, portal sync, member pitch, immediate rhythm/dots/sustain, dirty protection, no advance, fixed-window merge and mark confirmation guards passed");
 } finally { await browser?.close(); await server.close(); }

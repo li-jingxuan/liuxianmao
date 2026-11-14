@@ -1,0 +1,13 @@
+{
+  "viewport": [
+    1400,
+    1600
+  ],
+  "results": [
+    "BUG026/027: both inline rows, one shared draft, disabled no-op Apply, IME guard, sidebar click, popover click, Enter, undo and paste failure feedback",
+    "BUG021: sidebar and chord popover chevrons centered within 2px, both dropdowns open and Escape closes",
+    "BUG028: all four sidebar tabs omit Locate and retain context text",
+    "BUG029: copy range permanently open, range and insertion share a row at 1400/1600, local confirmation, no bottom copy toolbar, actual measure count +1 and undo"
+  ],
+  "pageErrors": []
+}

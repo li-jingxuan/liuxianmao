@@ -11,7 +11,11 @@
   button { flex: 1; min-width: 36px; height: 32px; padding: 4px 7px; border-radius: 6px; font-size: 13px; }
   button[aria-pressed="true"] { color: #2457eb; border-color: #2457eb; background: #eef3ff; }
 }
-.more { flex: none; height: 32px; padding-inline: 10px; border-radius: 6px; font-size: 13px; }
+.more {
+  flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  height: 32px; padding-inline: 10px; border-radius: 6px; font-size: 13px;
+  :global(.anticon) { display: inline-flex; align-items: center; font-size: 10px; line-height: 1; }
+}
 .popup {
   display: flex; flex-direction: column;
   width: 328px; max-width: calc(100vw - 24px); max-height: calc(100dvh - 24px);

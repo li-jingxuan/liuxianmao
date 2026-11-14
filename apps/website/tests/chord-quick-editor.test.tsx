@@ -87,7 +87,9 @@ describe("和弦快捷表单", () => {
     expect(control.props.draft).toBe(value.props.draft);
     expect(control.props.onChange).toBe(value.props.onChange);
     expect(value.html).toContain("我的常用");
-    expect(value.html).toContain("更多 ⌄");
+    expect(value.html).toContain('aria-label="更多和弦"');
+    expect(value.html).toContain("<span>更多</span>");
+    expect(value.html).not.toContain("更多 ⌄");
     expect(value.html).toContain("和弦库加载中");
     expect(value.props.onChange).not.toHaveBeenCalled();
   });

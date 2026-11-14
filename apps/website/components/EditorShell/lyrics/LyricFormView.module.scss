@@ -12,6 +12,13 @@
   :global(.ant-select) { flex: 1; min-width: 76px; }
 }
 .fieldLabel { display: flex; align-items: center; gap: 6px; width: 100%; }
+.inputRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  > input { flex: 1; min-width: 0; }
+  > button { flex: none; }
+}
 .continuous { color: var(--ant-color-text-secondary, #595959); font-size: 0.75rem; font-weight: normal; margin-left: 4px; }
 .helpButton {
   display: inline-flex;

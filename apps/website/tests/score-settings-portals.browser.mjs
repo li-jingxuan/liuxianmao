@@ -209,13 +209,13 @@ try {
   assert.equal(await page.locator("#settings-title").inputValue(), "收起后保留");
   await page.evaluate(() => window.settingsTest.focus("copy"));
   await page.waitForFunction(() => document.activeElement?.id === "settings-copy-start");
-  assert.equal(await page.getByRole("button", { name: "复制小节范围", exact: true }).isDisabled(), true);
+  assert.equal(await page.getByRole("button", { name: /确认复制/ }).isDisabled(), true);
   await page.evaluate(() => window.settingsTest.discard());
   const commandsBeforeCopy = await page.evaluate(() => window.settingsTest.commands().length);
   const historyBeforeCopy = await page.evaluate(() => window.settingsTest.history());
-  await page.getByRole("button", { name: "复制小节范围", exact: true }).click();
+  await page.getByRole("button", { name: "确认复制", exact: true }).click();
   assert.equal((await status()).busy, true);
-  assert.equal(await page.getByRole("button", { name: /复制小节范围/ }).isDisabled(), true);
+  assert.equal(await page.getByRole("button", { name: /确认复制/ }).isDisabled(), true);
   assert.equal(await page.evaluate(() => window.settingsTest.focus("label")), false);
   assert.equal(await page.evaluate(() => window.settingsTest.commands().length), commandsBeforeCopy + 1);
   await page.evaluate(() => window.settingsTest.finishCopy());

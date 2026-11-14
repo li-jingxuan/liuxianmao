@@ -68,7 +68,7 @@ export function buildLyricMappingPreview(
 /** 两个表面共享唯一草稿、输入法保护和命令入口。 */
 export const LyricFormView = ({
   presentation = "sidebar", document, draft, plan, issue, disabled = false,
-  inputRef, onVerseChange, onAddVerse, onTextChange, onInspect,
+  inputRef, onVerseChange, onAddVerse, onTextChange, onInspect, onApply, canApply = false,
 }: {
   presentation?: "popover" | "sidebar";
   document?: ILXMDocument | null;
@@ -81,6 +81,8 @@ export const LyricFormView = ({
   onAddVerse: () => void;
   onTextChange: (value: string) => void;
   onInspect: (index: number) => void;
+  onApply?: () => void;
+  canApply?: boolean;
 }) => {
   const compact = presentation === "popover";
   const fieldId = (field: string) => `lyric-${presentation === "popover" ? "popover-" : ""}${field}`;
@@ -113,10 +115,13 @@ export const LyricFormView = ({
           </Popover>
           <span className={formStyles.continuous}>连续录入</span>
         </span>}>
+        <div className={formStyles.inputRow}>
         <Input id={fieldId("body")} aria-label="连续歌词" aria-invalid={!!issue}
           title="Enter 应用，停留当前位置"
           ref={(control) => inputRef(control?.input ?? null)} value={draft.text}
-          onChange={(event) => onTextChange(event.target.value)} placeholder="例如：风 吹 _ 过 山 谷" />
+           onChange={(event) => onTextChange(event.target.value)} placeholder="例如：风 吹 _ 过 山 谷" />
+        <Button aria-label="应用" type="primary" disabled={disabled || !!issue || !canApply} onClick={onApply}>应用</Button>
+        </div>
       </Form.Item>
       {issue && <p className={formStyles.error} role="status">{issue}</p>}
       {!compact && mapping && <BeatMappingPreview compact rows={mapping.rows} measures={mapping.measures} label="音符与歌词映射"

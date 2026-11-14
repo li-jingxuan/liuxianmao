@@ -39,3 +39,32 @@
   padding: 0;
   color: var(--muted);
 }
+
+.settingsForms .copySection {
+  padding-top: 14px;
+  border-top: 1px solid #e6ebf3;
+  border-bottom: 0;
+  .copyFields {
+    display: grid;
+    grid-template-columns: minmax(0, 2.15fr) minmax(0, 1fr);
+    gap: 8px;
+    align-items: start;
+    > :global(.ant-form-item) { min-width: 0; margin-bottom: 0; }
+  }
+}
+.copyRange {
+  min-width: 0;
+  > span { display: block; margin-bottom: 8px; font-size: 12px; line-height: 22px; }
+}
+.rangeInputs { display: flex; gap: 12px; }
+.rangeField {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  > span { position: absolute; left: -10px; color: #626e82; }
+  :global(.ant-select) { flex: 1; min-width: 0; }
+}
+.copyConfirm { grid-column: 2; justify-self: end; padding-inline: 12px; }

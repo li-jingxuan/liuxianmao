@@ -1,15 +1,11 @@
 import {
   calculateRhythmTicks,
   getMeasureCapacityTicks,
-  getShorterRhythmOptions,
+  getTimeSignatureBeatGroupTicks,
 } from "../rhythm/rhythm";
 import { createNumberedRhythmContext } from "./numbered-rhythm";
-import type {
-  ILXMMeasure,
-  ILXMNumberedEvent,
-  ILXMNumberedVoice,
-  ILXMRhythm,
-} from "../types";
+import { numberedRhythmForTicks } from "./numbered-input-ranges";
+import type { ILXMMeasure, ILXMNumberedVoice, ILXMRhythm } from "../types";
 
 export type NumberedTimelineErrorCode =
   | "EVENT_NOT_FOUND"
@@ -24,83 +20,16 @@ export type NumberedTimelineResult =
       voice: ILXMNumberedVoice;
       movedEventIds: string[];
       resizedEventIds: string[];
+      overwrittenEventIds: string[];
       releasedRange?: { startTick: number; endTick: number };
     }
   | { ok: false; code: NumberedTimelineErrorCode; message: string };
 
-type Choice = {
-  rhythm: ILXMRhythm;
-  release: number;
-  level: number;
-};
-
-type Plan = {
-  choices: Choice[];
-  totalRelease: number;
-  totalLevel: number;
-  changed: number;
-};
-
-const better = (candidate: Plan, current: Plan): boolean => {
-  if (candidate.totalLevel !== current.totalLevel)
-    return candidate.totalLevel < current.totalLevel;
-  if (candidate.changed !== current.changed)
-    return candidate.changed < current.changed;
-  for (const [index, choice] of candidate.choices.entries()) {
-    const other = current.choices[index]?.level ?? 0;
-    if (choice.level !== other) return choice.level > other;
-  }
-  return false;
-};
-
-const chooseCompression = (
-  events: ILXMNumberedEvent[],
-  grouped: ReadonlySet<string>,
-  release: number,
-): Plan | null => {
-  let plans = new Map<number, Plan>([
-    [0, { choices: [], totalRelease: 0, totalLevel: 0, changed: 0 }],
-  ]);
-  for (const event of events) {
-    const duration = calculateRhythmTicks(event.rhythm);
-    if (!duration.ok) return null;
-    const options: Choice[] = [
-      { rhythm: event.rhythm, release: 0, level: 0 },
-      ...(grouped.has(event.id)
-        ? []
-        : getShorterRhythmOptions(event.rhythm).map((option) => ({
-            rhythm: option.rhythm,
-            release: duration.ticks - option.ticks,
-            level: option.level,
-          }))),
-    ];
-    const next = new Map<number, Plan>();
-    for (const plan of plans.values()) {
-      for (const option of options) {
-        const totalRelease = plan.totalRelease + option.release;
-        if (totalRelease > release) continue;
-        const candidate: Plan = {
-          choices: [...plan.choices, option],
-          totalRelease,
-          totalLevel: plan.totalLevel + option.level,
-          changed: plan.changed + (option.level ? 1 : 0),
-        };
-        const existing = next.get(totalRelease);
-        if (!existing || better(candidate, existing))
-          next.set(totalRelease, candidate);
-      }
-    }
-    plans = next;
-  }
-  return plans.get(release) ?? null;
-};
-
 /**
- * 规划简谱事件时值变化。
- *
- * 缩短只释放原事件尾部的可录入区间；延长则保留后续事件内容，先平移后续事件，
- * 必要时用与 TAB 相同的“精确释放量”策略缩短后续事件。这个规划器只读 voice，
- * 预览和实际提交共用同一结果。
+ * 普通时值修改使用固定时间窗：延长吞并覆盖的后音，缩短释放空位。
+ * 同 base 的附点调整只与紧邻后音互补，保持后音结束与其后的时间不变；
+ * 这样连续四个十六分音符加点再减点可恢复原来的四个起点。
+ * 预览与提交必须消费这一份规划，不能在 UI 另做时间推移。
  */
 export const planNumberedEventRhythm = (
   measure: ILXMMeasure,
@@ -115,127 +44,52 @@ export const planNumberedEventRhythm = (
   const target = events[index]!;
   const context = createNumberedRhythmContext(voice);
   if (context.tupletByEventId.has(eventId))
-    return {
-      ok: false,
-      code: "EVENT_IN_TUPLET",
-      message: "连音成员须整组修改时值",
-    };
+    return { ok: false, code: "EVENT_IN_TUPLET", message: "连音成员须整组修改时值" };
   const previous = context.getEventDurationTicks(target);
   const next = calculateRhythmTicks(rhythm);
   if (!previous.ok || !next.ok)
-    return {
-      ok: false,
-      code: "INVALID_RHYTHM",
-      message: "简谱时值无效",
-    };
-  if (previous.ticks === next.ticks)
-    return {
-      ok: true,
-      voice,
-      movedEventIds: [],
-      resizedEventIds: [],
-    };
-
-  const capacity = getMeasureCapacityTicks(measure.timeSignature);
-  if (next.ticks < previous.ticks) {
-    const endTick = target.tick + next.ticks;
-    return {
-      ok: true,
-      voice: {
-        ...voice,
-        events: events.map((event) =>
-          event.id === eventId ? { ...event, rhythm: { ...rhythm } } : event,
-        ),
-      },
-      movedEventIds: [],
-      resizedEventIds: [eventId],
-      releasedRange: {
-        startTick: endTick,
-        endTick: target.tick + previous.ticks,
-      },
-    };
-  }
-
-  const tail = events.slice(index + 1);
-  const delta = next.ticks - previous.ticks;
-  const leadingGap = tail.length
-    ? tail[0]!.tick - (target.tick + previous.ticks)
-    : 0;
-  const shift = Math.max(0, delta - leadingGap);
-  const originalEnd = tail.reduce((end, event) => {
-    const duration = context.getEventDurationTicks(event);
-    return duration.ok ? Math.max(end, event.tick + duration.ticks) : end;
-  }, target.tick + previous.ticks);
-  const overflow = Math.max(0, originalEnd + shift - capacity);
-  const compression = chooseCompression(
-    tail,
-    new Set(context.tupletByEventId.keys()),
-    overflow,
-  );
-  if (overflow && !compression)
-    return {
-      ok: false,
-      code: "CANNOT_COMPRESS",
-      message: "后续简谱无法压缩以容纳新的时值",
-    };
-  const choices =
-    compression?.choices ??
-    tail.map((event) => ({
-      rhythm: event.rhythm,
-      release: 0,
-      level: 0,
-    }));
-  const choiceById = new Map(tail.map((event, i) => [event.id, choices[i]!]));
-  const changed = new Set<string>([eventId]);
-  const moved = new Set<string>();
-  let previousOriginalEnd = target.tick + previous.ticks;
-  let cursor = target.tick + next.ticks;
-  const rebuiltTail = tail.map((event, index) => {
-    const duration = context.getEventDurationTicks(event);
-    if (!duration.ok) return event;
-    const gap =
-      index === 0
-        ? Math.max(0, leadingGap - delta)
-        : event.tick - previousOriginalEnd;
-    const choice = choiceById.get(event.id)!;
-    const nextEvent = {
-      ...event,
-      tick: cursor + gap,
-      rhythm: { ...choice.rhythm },
-    };
-    if (nextEvent.tick !== event.tick) moved.add(event.id);
-    if (choice.level) changed.add(event.id);
-    previousOriginalEnd = event.tick + duration.ticks;
-    const nextDuration = calculateRhythmTicks(choice.rhythm);
-    cursor =
-      nextEvent.tick +
-      (choice.level && nextDuration.ok ? nextDuration.ticks : duration.ticks);
-    return nextEvent;
-  });
-  const updatedTarget = { ...target, rhythm: { ...rhythm } };
-  const updated = [
-    ...events.slice(0, index),
-    updatedTarget,
-    ...rebuiltTail,
-  ].sort((a, b) => a.tick - b.tick);
-  const updatedContext = createNumberedRhythmContext({
-    ...voice,
-    events: updated,
-  });
-  const finalEnd = rebuiltTail.reduce((end, event) => {
-    const d = updatedContext.getEventDurationTicks(event);
-    return d.ok ? Math.max(end, event.tick + d.ticks) : end;
-  }, updatedTarget.tick + next.ticks);
-  if (finalEnd > capacity)
-    return {
-      ok: false,
-      code: "TIMELINE_OVERFLOW",
-      message: "简谱时值超出小节容量",
-    };
-  return {
-    ok: true,
-    voice: { ...voice, events: updated },
-    movedEventIds: [...moved],
-    resizedEventIds: [...changed],
+    return { ok: false, code: "INVALID_RHYTHM", message: "简谱时值无效" };
+  const result: Extract<NumberedTimelineResult, { ok: true }> = {
+    ok: true, voice, movedEventIds: [], resizedEventIds: [], overwrittenEventIds: [],
   };
+  if (target.rhythm.base === rhythm.base && target.rhythm.dots === rhythm.dots) return result;
+  const oldEnd = target.tick + previous.ticks;
+  const endTick = target.tick + next.ticks;
+  if (endTick > getMeasureCapacityTicks(measure.timeSignature))
+    return { ok: false, code: "TIMELINE_OVERFLOW", message: "简谱时值超出小节容量" };
+  const updates = new Map([[target.id, { ...target, rhythm: { ...rhythm } }]]);
+  result.resizedEventIds.push(target.id);
+  if (target.rhythm.base === rhythm.base && target.rhythm.dots !== rhythm.dots) {
+    const following = events[index + 1];
+    const growing = next.ticks > previous.ticks;
+    // 有空白时先消耗/释放空白；只有真正相接或被新附点占用的后音参与互补。
+    const adjust = following && (growing ? following.tick < endTick : following.kind !== "gap" && following.tick === oldEnd);
+    if (adjust) {
+      const duration = context.getEventDurationTicks(following);
+      const followingEnd = duration.ok ? following.tick + duration.ticks : NaN;
+      let boundary = 0;
+      for (const ticks of getTimeSignatureBeatGroupTicks(measure.timeSignature) ?? [getMeasureCapacityTicks(measure.timeSignature)]) {
+        boundary += ticks;
+        if (boundary > target.tick) break;
+      }
+      const complement = numberedRhythmForTicks(followingEnd - endTick);
+      if (context.tupletByEventId.has(following.id))
+        return { ok: false, code: "EVENT_IN_TUPLET", message: "附点调整不能改变后续连音成员" };
+      if (!complement || followingEnd > boundary || endTick >= followingEnd)
+        return { ok: false, code: "CANNOT_COMPRESS", message: "本拍内相邻音符没有可互补的时值，请先调整相邻音符或空位" };
+      updates.set(following.id, { ...following, tick: endTick, rhythm: { ...complement } });
+      result.movedEventIds.push(following.id);
+      result.resizedEventIds.push(following.id);
+    }
+  } else if (next.ticks > previous.ticks) {
+    const covered = events.filter(event => event.id !== eventId && event.tick >= target.tick && event.tick < endTick);
+    if (covered.some(event => context.tupletByEventId.has(event.id)))
+      return { ok: false, code: "EVENT_IN_TUPLET", message: "时值扩展不能覆盖连音组，请使用整组窗口编辑" };
+    result.overwrittenEventIds = covered.map(event => event.id);
+  }
+  const removed = new Set(result.overwrittenEventIds);
+  result.voice = { ...voice, events: events.filter(event => !removed.has(event.id)).map(event => updates.get(event.id) ?? event) };
+  if (next.ticks < previous.ticks && !result.movedEventIds.length)
+    result.releasedRange = { startTick: endTick, endTick: oldEnd };
+  return result;
 };

@@ -1404,7 +1404,7 @@ export const EditorShell: React.FC = () => {
           measureId: target.target.measureId,
           eventId: target.target.eventId,
           rhythm,
-          timeline: "editTimeline",
+          timeline: "preservePositions",
         });
         return result.status === "applied" || result.status === "noop";
       }

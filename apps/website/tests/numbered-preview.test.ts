@@ -4,7 +4,7 @@ import {
   createDocumentIdFactory,
   editNumberedTrack,
 } from "@liuxianmao/lxm-editor";
-import { buildNumberedPreviewRows, numberedPreviewMapping } from "../components/EditorShell/numbered/numbered-preview";
+import { buildNumberedPreviewRows, numberedPreviewMapping, numberedRhythmMergeMessage } from "../components/EditorShell/numbered/numbered-preview";
 
 describe("简谱修改预览 adapter", () => {
   it("按事件身份显示单音组修改前后值", () => {
@@ -138,7 +138,7 @@ it("时值缩短显示释放空位而不伪造休止", () => {
   );
 });
 
-it("时间线保留未改音高事件的原位置和规划位置，不把位移当作无影响", () => {
+it("吞并预览显示实际被移除的原拍位，未覆盖事件不移动", () => {
   const document = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);
   const track = document.score.tracks[0]!;
   track.numberedMarks = [];
@@ -154,14 +154,18 @@ it("时间线保留未改音高事件的原位置和规划位置，不把位移�
   expect(candidate.ok).toBe(true);
   if (!candidate.ok) return;
   const rows = buildNumberedPreviewRows(track, candidate, command);
-  for (const id of candidate.movedEventIds) {
+  for (const id of candidate.overwrittenEventIds) {
     const row = rows.find((item) => item.eventId === id)!;
     expect(row).toBeDefined();
-    expect(row.sourcePosition?.startTick).not.toBe(row.plannedPosition?.startTick);
-    expect(row.before).toBe(row.after);
+    expect(row.sourcePosition?.startTick).toBe(measure.numberedVoice.events.find(event => event.id === id)!.tick);
+    expect(row.plannedPosition).toBeNull();
+    expect(row.status).toBe("remove");
+    expect(row.impact).toBe("overwrite");
     expect(numberedPreviewMapping([row])[0]!.canInspect).toBe(true);
   }
-  expect(candidate.movedEventIds.length).toBeGreaterThan(0);
+  expect(candidate.overwrittenEventIds.length).toBeGreaterThan(0);
+  expect(candidate.movedEventIds).toEqual([]);
+  expect(numberedRhythmMergeMessage(track, candidate)).toBe("将合并第1拍、第2拍，确认修改吗？");
 });
 
 it("尚未应用的新事件没有伪造的原谱定位", () => {

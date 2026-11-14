@@ -174,6 +174,7 @@ export const createNumberedSubmission = (options: {
           resolve,
         };
         if (
+          candidate.overwrittenEventIds.length ||
           candidate.movedEventIds.length ||
           candidate.resizedEventIds.length ||
           (frozen.type !== "numbered.mark.remove" &&

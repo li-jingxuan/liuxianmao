@@ -9,7 +9,7 @@ import { createEditorModalController } from "../components/EditorShell/session/e
 import { createEditorSession } from "../stores/editor-store";
 
 describe("统一结构命令适配器", () => {
-  it("简谱后续压缩先预览，确认后一起提交并可一次撤销", async () => {
+  it("简谱吞并无记号影响也先预览，取消零写入，确认后可一次撤销", async () => {
     const original = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);
     const track = original.score.tracks[0]!;
     track.numberedMarks = [];
@@ -46,14 +46,22 @@ describe("统一结构命令适配器", () => {
     const session = createEditorSession(original);
     const modals = createEditorModalController(session.getState, () => vi.fn());
     const execute = createEditorCommandAdapter(session, modals);
-    const pending = execute({
-      type: "numbered.event.setRhythm",
+    const command = {
+      type: "numbered.event.setRhythm" as const,
       trackId: track.id,
       measureId: measure.id,
       eventId: "a",
-      rhythm: { base: "quarter", dots: 0 },
-      timeline: "editTimeline",
-    });
+      rhythm: { base: "quarter" as const, dots: 0 },
+      timeline: "preservePositions" as const,
+    };
+    const cancelled = execute(command);
+    expect(modals.getSnapshot()?.request.message).toContain("将合并第1拍、第1拍 + 1/2，确认修改吗？");
+    await modals.close(modals.getSnapshot()!.id, "cancel");
+    modals.restoreFocus();
+    expect(await cancelled).toMatchObject({ status: "cancelled" });
+    expect(session.getState().document).toEqual(original);
+    expect(session.getState().historyDepth.past).toBe(0);
+    const pending = execute(command);
     expect(modals.getSnapshot()?.request.title).toBe("简谱时值影响确认");
     expect(session.getState().historyDepth.past).toBe(0);
     await modals.confirm(modals.getSnapshot()!.id);
@@ -65,11 +73,27 @@ describe("统一结构命令适配器", () => {
         .document!.score.tracks[0]!.measures[0]!.numberedVoice.events.map(
           (e) => e.tick,
         ),
-    ).toEqual([0, 960, 1440, 1920, 2880]);
+    ).toEqual([0, 960, 1920, 2880]);
     session.getState().undo();
     expect(session.getState().document!.score.tracks[0]!.measures[0]!).toEqual(
       measure,
     );
+  });
+  it("安全缩短或延长到空白直接提交，无空正文确认弹窗", async () => {
+    const original = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);
+    const track = original.score.tracks[0]!;
+    track.numberedMarks = [];
+    const measure = track.measures[0]!;
+    measure.lyrics = [];
+    const first = measure.numberedVoice.events[0]!;
+    measure.numberedVoice = { events: [{ ...first, tick: 0, rhythm: { base: "quarter", dots: 0 } }], tuplets: [] };
+    const session = createEditorSession(original);
+    const modals = createEditorModalController(session.getState, () => vi.fn());
+    const execute = createEditorCommandAdapter(session, modals);
+    for (const base of ["eighth", "quarter"] as const) {
+      expect(await execute({ type: "numbered.event.setRhythm", trackId: track.id, measureId: measure.id, eventId: first.id, rhythm: { base, dots: 0 } })).toMatchObject({ status: "applied" });
+      expect(modals.getSnapshot()).toBeNull();
+    }
   });
   it("无影响的范围复制直接提交且只产生一条历史", async () => {
     const session = createEditorSession(EXAMPLE_MVP_7_2_DOCUMENT);

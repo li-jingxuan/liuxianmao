@@ -168,7 +168,7 @@ describe("简谱行高与拍号回归", () => {
       rhythm: { base: "eighth", dots: 0 },
     });
   });
-  it("时值扩展切断后续长音或覆盖 Tuplet 时原子拒绝", () => {
+  it("时值扩展吞并后续长音，但覆盖 Tuplet 时原子拒绝", () => {
     const score = scoreWithToken("1"),
       track = score.score.tracks[0]!,
       m = track.measures[0]!;
@@ -188,10 +188,9 @@ describe("简谱行高与拍号回归", () => {
         eventId: "numbered-event",
         rhythm: { base: "quarter" as const, dots: 0 },
       };
-    expect(applyScoreCommand(score, command)).toMatchObject({
-      ok: false,
-      code: "NUMBERED_PARTIAL_RANGE",
-    });
+    const enlarged = applyScoreCommand(score, command);
+    expect(enlarged.ok).toBe(true);
+    if (enlarged.ok) expect(enlarged.document.score.tracks[0]!.measures[0]!.numberedVoice.events).toHaveLength(1);
     expect(JSON.stringify(score)).toBe(snapshot);
     m.numberedVoice.events[0]!.rhythm = { base: "quarter", dots: 0 };
     m.numberedVoice.events.splice(
@@ -217,6 +216,6 @@ describe("简谱行高与拍号回归", () => {
         ...command,
         rhythm: { base: "half", dots: 0 },
       }),
-    ).toMatchObject({ ok: false, code: "NUMBERED_PARTIAL_RANGE" });
+    ).toMatchObject({ ok: false, code: "NUMBERED_OVERLAP" });
   });
 });

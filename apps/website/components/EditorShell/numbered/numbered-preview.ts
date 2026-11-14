@@ -54,6 +54,21 @@ const eventEnd = (
   return duration.ok ? event.tick + duration.ticks : event.tick;
 };
 
+/** 合并位置来自原事件的真实 tick，包括起始音；不按音符个数猜拍号。 */
+export const numberedRhythmMergeMessage = (
+  track: ILXMTrack,
+  candidate: Extract<NumberedCandidate, { ok: true }>,
+): string | null => {
+  if (!candidate.overwrittenEventIds.length) return null;
+  const ids = new Set([candidate.focusEventId, ...candidate.overwrittenEventIds]);
+  const positions = track.measures.flatMap(measure =>
+    [...measure.numberedVoice.events].sort((a, b) => a.tick - b.tick)
+      .filter(event => ids.has(event.id))
+      .map(event => formatNumberedBeatPosition(event.tick, measure.timeSignature.denominator)),
+  );
+  return `将合并${positions.join("、")}，确认修改吗？`;
+};
+
 /** 仅解释 core 的候选：连续内容逐事件遍历真实跨小节结果，跳拍与同值分别保留。 */
 export const buildNumberedPreviewRows = (
   beforeTrack: ILXMTrack,

@@ -113,7 +113,9 @@ describe("和弦草稿编辑布局", () => {
     expect(control.props.onChange).toBe(value.onChange);
     const html = renderToStaticMarkup(value.tree);
     expect(html).toContain("我的常用");
-    expect(html).toContain("更多 ⌄");
+    expect(html).toContain('aria-label="更多和弦"');
+    expect(html).toContain("<span>更多</span>");
+    expect(html).not.toContain("更多 ⌄");
     expect(html).toContain("等待和弦库，暂不可用");
     expect(html).toContain("和弦库加载中");
     expect(value.onChange).not.toHaveBeenCalled();

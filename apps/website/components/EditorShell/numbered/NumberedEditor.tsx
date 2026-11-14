@@ -41,6 +41,7 @@ import {
 import editorFormStyles from "../shared/editor-form.module.scss";
 import {
   buildNumberedPreviewRows,
+  numberedRhythmMergeMessage,
   numberedPreviewMapping,
   type NumberedPreviewRow,
 } from "./numbered-preview";
@@ -436,9 +437,8 @@ export const NumberedEditor = ({
     else if (!pending) impactDialog.current?.close();
   }, [pending]);
   const parsed = useMemo(() => parseNumberedSequence(raw), [raw]);
-  // 单音留空只清除已有事件的内容，保留该事件占用的时间。
+  // 两种录入模式留空均清除当前事件内容，保留其时值与歌词锚点。
   const clearSingleEvent =
-    mode === "single" &&
     !raw.trim() &&
     !!event &&
     template === "uniform" &&
@@ -665,8 +665,8 @@ export const NumberedEditor = ({
   );
   const issue =
     !parsed.ok && !clearSingleEvent
-      ? parsed.message
-      : mode === "single" && parsed.ok && parsed.items.length !== 1
+      ? "简谱输入错误"
+      : !clearSingleEvent && mode === "single" && parsed.ok && parsed.items.length !== 1
         ? "单音组只接受一项；先后音请使用节奏模板"
         : plan && !plan.ok
           ? plan.message
@@ -776,7 +776,7 @@ export const NumberedEditor = ({
             measureId: measure.id,
             eventId: event.id,
             rhythm: { base, dots },
-            timeline: "editTimeline",
+            timeline: "preservePositions",
           }
         : null,
     [event, track, measure, base, dots],
@@ -1367,7 +1367,7 @@ export const NumberedEditor = ({
               measureId: measure.id,
               eventId: event.id,
               rhythm,
-              timeline: "editTimeline",
+              timeline: "preservePositions",
             },
              "rhythm",
              undefined,
@@ -1458,12 +1458,12 @@ export const NumberedEditor = ({
   const renderInput = (compact: boolean, portal = false) => {
     const id = `numbered-${compact ? 'popover' : 'sidebar'}-content`;
     const inputIssue = !inputIsEmpty ? groups.content.blockedReason ?? issue : null;
-    return <Form.Item layout="vertical" label={<span className={floatingStyles.inputLabel}>简谱内容<Tooltip trigger={['hover','focus','click']} title={<span>空格分隔先后音，+ 表示多音；1–7 音级，0 休止，- 延音；&apos; 高八度，. 低八度；# 升、b 降、n 还原。Enter 应用并停留当前位置。</span>}><button type="button" className={floatingStyles.helpButton} aria-label="简谱输入规则">?</button></Tooltip><span>连续录入</span></span>} htmlFor={id} validateStatus={inputIssue ? 'error' : undefined}>
+    return <Form.Item layout="vertical" label={<span className={floatingStyles.inputLabel}>简谱内容<Tooltip trigger={['hover','focus','click']} title={<span>空格分隔先后音，+ 表示多音；1–7 音级，0 休止，- 延音；&apos; 高八度，. 低八度；# 升、b 降、n 还原。留空应用可清除当前音符并保留占位。Enter 应用并停留当前位置。</span>}><button type="button" className={floatingStyles.helpButton} aria-label="简谱输入规则">?</button></Tooltip><span>连续录入</span></span>} htmlFor={id} validateStatus={inputIssue ? 'error' : undefined}>
       <div className={floatingStyles.contentEntry}>
         <Input id={id} ref={(control) => { (portal ? popoverInput : input).current = control?.input ?? null; }} aria-label="简谱内容" aria-invalid={!!inputIssue} aria-describedby={inputIssue ? `${id}-error` : undefined} value={raw} onChange={(e) => setRaw(e.target.value)} placeholder="1 2 3；多音用 1+3" />
         <Button type="primary" aria-label="应用简谱内容" disabled={!!pending || compositionGuard || !groups.content.canApply} onClick={() => void applyContent()}>应用</Button>
       </div>
-      {inputIssue && <p id={`${id}-error`} className={floatingStyles.actionReason} role="status">{inputIssue}</p>}
+      {inputIssue && <p id={`${id}-error`} className={floatingStyles.actionReason} role="status" title={!parsed.ok && !clearSingleEvent ? parsed.message : undefined}>{inputIssue}</p>}
     </Form.Item>;
   }
    const immediateBlockedReason = targetInvalid ? "请先选择有效简谱位置"
@@ -1484,7 +1484,7 @@ export const NumberedEditor = ({
      if (immediateBlockedReason) return;
      if (event && track && measure) {
         const result = await submit({ type: "numbered.event.setRhythm", trackId: track.id, measureId: measure.id,
-          eventId: event.id, rhythm: { base: nextBase, dots: nextDots }, timeline: "editTimeline" }, "rhythm", undefined, false, false);
+           eventId: event.id, rhythm: { base: nextBase, dots: nextDots }, timeline: "preservePositions" }, "rhythm", undefined, false, false);
         if (result.status !== "applied" && result.status !== "noop") return;
       } else {
         // Empty positions only change the input preference; no score command.
@@ -1571,12 +1571,14 @@ export const NumberedEditor = ({
         {pending && (
           <>
             <h3>确认简谱修改影响</h3>
+            {track && pending.overwrittenEventIds.length > 0 && (
+              <p>{numberedRhythmMergeMessage(track, pending)}</p>
+            )}
             {(pending.movedEventIds.length > 0 ||
               pending.resizedEventIds.length > 0) && (
               <>
                 <p>
-                  将移动 {pending.movedEventIds.length} 个后续事件，缩短{" "}
-                  {pending.resizedEventIds.length} 个后续事件，保留其音符内容。
+                  附点修改将互补调整紧邻后音的起点与时值，保留音符内容及其结束拍位。确认修改吗？
                 </p>
                 <ul aria-label="后续事件调整">
                   {[

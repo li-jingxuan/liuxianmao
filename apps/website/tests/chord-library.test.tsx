@@ -377,7 +377,9 @@ describe("和弦库与两处入口", () => {
         onChange={onChange}
       />,
     );
-    expect(html).toContain("更多 ⌄");
+    expect(html).toContain('aria-label="更多和弦"');
+    expect(html).toContain("<span>更多</span>");
+    expect(html).not.toContain("更多 ⌄");
     expect(html).toContain("我的常用");
     expect(html).not.toContain("和弦库加载中");
     expect(onChange).not.toHaveBeenCalled();

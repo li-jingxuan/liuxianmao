@@ -25,6 +25,11 @@ if (scenario === "confirmation") {
   measure.numberedVoice.events[0]!.rhythm = { base: "quarter", dots: 0 };
   track.numberedMarks = [{ id: "property-slur", type: "slur", fromEventId: "first", toEventId: "later" }];
 }
+if (scenario === "dots") {
+  measure.numberedVoice.events = [0, 240, 480, 720, 960].map(tick => ({ id: `dot-${tick}`, tick, kind: "notes", rhythm: { base: "sixteenth", dots: 0 }, items: [{ id: `dot-item-${tick}`, token: "3" }] }));
+  measure.lyrics = [{ id: "dot-lyric", eventId: "dot-480", verse: 1, text: "词" }];
+  track.numberedMarks = [{ id: "dot-slur", type: "slur", fromEventId: "dot-0", toEventId: "dot-720" }];
+}
 const session = createEditorSession(fixture);
 const commands: ILXMScoreCommand[] = [];
 const selections: unknown[] = [];
@@ -45,7 +50,7 @@ const Harness = () => {
   }, []);
   return <><div data-testid="numbered-portal" ref={setPopoverContainer} /><NumberedEditor ref={controller} document={document} presentation={presentation}
     popoverContainer={scenario === "properties" ? popoverContainer : null}
-    target={{ kind: "numbered", trackId: track.id, measureId: measure.id, ...(scenario === "blank" || scenario === "dependency" ? { tick: 0, endTick: 240 } : scenario === "selection" ? { beatId: "tab-3" } : { eventId: "first", ...(scenario === "properties" ? { itemId: "second-item" } : {}) }) }}
+    target={{ kind: "numbered", trackId: track.id, measureId: measure.id, ...(scenario === "dots" ? { eventId: `dot-${new URLSearchParams(location.search).get("tick") ?? 0}` } : scenario === "blank" || scenario === "dependency" ? { tick: 0, endTick: 240 } : scenario === "selection" ? { beatId: "tab-3" } : { eventId: "first", ...(scenario === "properties" ? { itemId: "second-item" } : {}) }) }}
     selection={scenario === "selection" ? { anchor: { trackId: track.id, measureId: measure.id, beatId: "tab-0", string: 1 }, focus: { trackId: track.id, measureId: measure.id, beatId: "tab-3", string: 1 } } : null}
     mode="sequence" onModeChange={() => {}} commit={command => { commands.push(command); return session.getState().execute(command); }}
     onDirty={() => {}} onInputActive={() => {}} onPreviewTargetChange={() => {}} onActivate={() => {}} onCanApply={() => {}} onSelectTarget={target => selections.push(target)} onCancel={() => {}} getClipboard={() => null} copyRange={() => false} selectedMarkId={null} /></>;

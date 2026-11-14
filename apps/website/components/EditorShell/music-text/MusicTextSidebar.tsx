@@ -1547,6 +1547,8 @@ export const MusicTextSidebar = ({
     plan,
     issue,
     disabled: surfaceDisabled,
+    canApply: lyricDirty,
+    onApply: applyLyricPrimary,
     onTextChange: (text: string) => {
       if (text !== draft.text) setTextConflict(false);
       setDraft({ ...draft, text });
@@ -1581,7 +1583,7 @@ export const MusicTextSidebar = ({
     : score && propertyTab === "selection" && selectionDetail === "measure" && !showSelectionInvitation && context.valid
       ? "measure" : null;
   const numberedFormActive = !!score && propertyTab === "paragraph" && kind === "numbered" && activeObject?.kind === "numbered";
-  const hasActionsForm = !!settingsSurface;
+  const hasActionsForm = settingsSurface === "song";
   return (
     <ConfigProvider
       getPopupContainer={(trigger) => trigger?.closest<HTMLElement>("#music-text-sidebar,[data-editor-associated-panel]") ?? globalThis.document.body}
@@ -2201,7 +2203,7 @@ export const MusicTextSidebar = ({
         {/* 无编辑操作或提示时隐藏底栏，避免移除历史按钮后留下空白条。 */}
         <footer
           className={musicTextSidebarStyles.sidebarFooter}
-          hidden={!pending && !issue && !message && !draft}
+          hidden={!pending && !message && (kind === "lyric" || (!issue && !draft))}
         >
           {pending ? (
             <div
@@ -2277,16 +2279,16 @@ export const MusicTextSidebar = ({
                 </p>
               )}
               {chordSuspended && <p data-editor-form-hint className={editorFormStyles.settingsHint}>和弦草稿已暂停并保留；处理曲谱信息后可返回和弦编辑。</p>}
-              {draft && !chordSuspended && (
+              {draft && kind !== "lyric" && !chordSuspended && (
                 <>
-                {kind !== "lyric" && <p className={musicTextSidebarStyles.actionSummary}>{lyricDirty ? "和弦有未应用修改" : "当前内容已应用"}</p>}
+                <p className={musicTextSidebarStyles.actionSummary}>{lyricDirty ? "和弦有未应用修改" : "当前内容已应用"}</p>
                 <div data-editor-form-actions className={editorFormStyles.sidebarActions}>
                   <Button disabled={surfaceDisabled || !lyricDirty} onClick={restoreTextDraft}>
-                    {kind === "chord" ? "恢复和弦修改" : "恢复"}
+                    恢复和弦修改
                   </Button>
                   <Button
                     disabled={!!issue || surfaceDisabled || !lyricDirty}
-                    type={kind === "chord" || sequence ? "primary" : "default"}
+                    type="primary"
                     onClick={() => apply()}
                   >
                     {kind === "chord" ? existing && !draft.chord.chord.name.trim() ? "应用删除" : "应用和弦" : "应用"}
@@ -2400,12 +2402,9 @@ export const MusicTextSidebar = ({
                 <Button type="primary" disabled={surfaceDisabled || !!issue || !lyricDirty} onClick={() => apply()}>{existing && !draft.chord.chord.name.trim() ? "应用删除" : "应用和弦"}</Button>
              </div>
            </footer>}
-          {floating && kind === "lyric" && draft && (
+          {floating && kind === "lyric" && draft && message && (
             <footer className={musicTextSidebarStyles.sidebarFooter}>
               {message && <p className={musicTextSidebarStyles.sidebarMessage} role="status">{message}</p>}
-              <div data-editor-form-actions className={editorFormStyles.sidebarActions}>
-                <Button type="primary" disabled={!!issue || !lyricDirty || surfaceDisabled} onClick={() => applyLyricPrimary()}>应用</Button>
-              </div>
             </footer>
           )}
         </section>, portalRoot)}

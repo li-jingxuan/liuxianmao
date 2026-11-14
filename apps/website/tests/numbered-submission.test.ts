@@ -60,7 +60,7 @@ const setup = (prepare?: (document: ILXMDocument) => void) => {
 };
 
 describe("S3 简谱提交终态", () => {
-  it("压缩后续事件即使无技巧影响也先确认，提交与核心预览一致并可一次撤销", async () => {
+  it("吞并后续事件即使无技巧影响也先确认，提交与核心预览一致并可一次撤销", async () => {
     const { owner, session, track, measure, event, commit, onPending } =
       setup();
     const original = session.getState().document!;
@@ -82,10 +82,10 @@ describe("S3 简谱提交终态", () => {
     if (!candidate.ok) return;
     expect(candidate.removedMarkIds).toEqual([]);
     expect(candidate.changedMarkIds).toEqual([]);
-    expect(candidate.movedEventIds.length).toBeGreaterThan(0);
-    expect(candidate.resizedEventIds.length).toBeGreaterThan(0);
+    expect(candidate.movedEventIds).toEqual([]);
+    expect(candidate.resizedEventIds).toEqual([]);
     expect(candidate.resizedEventIds).not.toContain(event.id);
-    expect(candidate.overwrittenEventIds).toEqual([]);
+    expect(candidate.overwrittenEventIds.length).toBeGreaterThan(0);
     const result = owner.request(operation, "rhythm");
     expect(onPending).toHaveBeenCalledWith(candidate);
     expect(commit).not.toHaveBeenCalled();
@@ -96,15 +96,15 @@ describe("S3 简谱提交终态", () => {
     const after = session.getState().document!.score.tracks[0]!;
     expect(after).toEqual(candidate.track);
     expect(after.measures[0]!.numberedVoice.events.map((e) => e.items)).toEqual(
-      measure.numberedVoice.events.map((e) => e.items),
+      measure.numberedVoice.events.filter(e => !candidate.overwrittenEventIds.includes(e.id)).map((e) => e.items),
     );
-    expect(after.measures[0]!.lyrics).toEqual(measure.lyrics);
+    expect(after.measures[0]!.lyrics).toEqual(measure.lyrics.filter(lyric => !candidate.overwrittenEventIds.includes(lyric.eventId)));
     expect(after.measures[0]!.beats).toEqual(measure.beats);
     session.getState().undo();
     expect(session.getState().document).toEqual(original);
   });
 
-  it("取消后续压缩确认保留原文档和历史", async () => {
+  it("取消后续吞并确认保留原文档和历史", async () => {
     const { owner, session, track, measure, event, commit } = setup();
     const original = session.getState().document;
     const result = owner.request(

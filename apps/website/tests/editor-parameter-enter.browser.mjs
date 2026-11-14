@@ -3,18 +3,23 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import path from "node:path";
+import { nextBrowserDefines } from "./next-browser-env.fixture.mjs";
 const require = createRequire(import.meta.url);
 const viteRequire = createRequire(require.resolve("vitest/package.json"));
 const { createServer } = await import(pathToFileURL(viteRequire.resolve("vite")).href);
 const { chromium } = await import(process.env.LXM_PLAYWRIGHT_MODULE ?? "playwright");
 const website = fileURLToPath(new URL("..", import.meta.url));
-const server = await createServer({ root: website, configFile: false, esbuild: { jsx: "automatic" }, server: { host: "127.0.0.1", port: 0, fs: { allow: [path.resolve(website, "../..")] } }, plugins: [{ name: "parameter-enter-fixture", configureServer(dev) { dev.middlewares.use((request, response, next) => { if (!request.url?.startsWith("/__parameter-enter-test__")) return next(); response.setHeader("Content-Type", "text/html"); response.end('<!doctype html><div id="root"></div><script type="module" src="/tests/editor-parameter-enter.browser.tsx"></script>'); }); } }] });
+const server = await createServer({ root: website, configFile: false, define: nextBrowserDefines,
+  cacheDir: path.resolve(website, "node_modules/.vite/editor-parameter-enter"),
+  optimizeDeps: { entries: ["tests/editor-parameter-enter.browser.tsx"], include: ["react/jsx-dev-runtime"] },
+  esbuild: { jsx: "automatic" }, server: { host: "127.0.0.1", port: 0, watch: null, hmr: false, fs: { allow: [path.resolve(website, "../..")] } }, plugins: [{ name: "parameter-enter-fixture", configureServer(dev) { dev.middlewares.use(async (request, response, next) => { if (!request.url?.startsWith("/__parameter-enter-test__")) return next(); response.setHeader("Content-Type", "text/html"); response.end(await dev.transformIndexHtml(request.url, '<!doctype html><div id="root"></div><script type="module" src="/tests/editor-parameter-enter.browser.tsx"></script>')); }); } }] });
 let browser;
+let page;
+const errors = [];
 try {
   await server.listen();
   browser = await chromium.launch({ headless: true, executablePath: process.env.LXM_CHROMIUM_EXECUTABLE });
-  const page = await browser.newPage();
-  const errors = [];
+  page = await browser.newPage();
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/__parameter-enter-test__`);
   await page.waitForFunction(() => !!window.parameterEnterTest);
@@ -23,9 +28,9 @@ try {
   const title = page.locator("#settings-title");
   const label = page.locator("#settings-label");
   await title.fill("Enter 歌曲");
-  await label.fill("Enter 段落");
   await title.press("Enter");
   assert.deepEqual((await commands()).map((command) => command.type), ["score.setInfo"]);
+  await label.fill("Enter 段落");
   assert.equal(await page.evaluate(() => window.parameterEnterTest.status().groups.label.dirty), true);
   await label.press("Enter");
   assert.deepEqual((await commands()).map((command) => command.type), ["score.setInfo", "measure.setSectionLabel"]);
@@ -41,7 +46,7 @@ try {
   await page.locator("#settings-capo").press("Enter");
   assert.equal(await count(), beforeSelect);
   assert.equal(await page.evaluate(() => window.parameterEnterTest.status().groups.capo.dirty), true);
-  await page.locator("#settings-copy-start").evaluate((element) => { element.closest("details").open = true; });
+  assert.equal(await page.locator("#settings-copy-start").evaluate((element) => !!element.closest("details")), false);
   await page.locator("#settings-copy-start").click();
   await page.locator("#settings-copy-start").press("ArrowDown");
   await page.locator("#settings-copy-start").press("Enter");
@@ -125,4 +130,7 @@ try {
   assert.equal((await commands()).at(-1).type, "technique.remove", "explicitly focused delete keeps its native behavior");
   assert.deepEqual(errors, []);
   console.log("parameter Enter: settings Portal groups, Select/copy isolation, IME/cooldown, technique add/update, domain validation, busy and native buttons passed");
+} catch (error) {
+  console.error("Parameter fixture errors:", errors, "Body:", await page?.locator("body").innerText());
+  throw error;
 } finally { await browser?.close(); await server.close(); }

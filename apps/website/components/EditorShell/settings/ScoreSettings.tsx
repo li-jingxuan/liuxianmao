@@ -351,27 +351,15 @@ export const ScoreSettings = ({ ref, document, measureId, requestedMeasureId = m
   const portalMode = songHost !== undefined || measureHost !== undefined;
   const actionGroup: SettingsGroup = activeSurface === "measure" ? "label" : activeGroup === "copy" || activeGroup === "label" ? "info" : activeGroup;
   const actionStatus = status.groups[actionGroup];
-  const copyAction = activeSurface === "measure" && activeGroup === "copy";
-  const measures = document.score.tracks[0]!.measures;
-  const copyStart = measures.findIndex((measure) => measure.id === copy.start);
-  const copyEnd = measures.findIndex((measure) => measure.id === copy.end);
-  const canCopy = !dirty && !busy && !compositionActive && copyStart >= 0 && copyEnd >= copyStart && (!copy.after || measures.some((measure) => measure.id === copy.after));
-  // 小节标记不再显示应用/状态行；范围复制仍保留独立的显式操作。
-  const actions = activeSurface && actionsHost && (activeSurface !== "measure" || copyAction) ? createPortal(surface("actions", <div className={styles.footer} aria-label="设置操作">
-    {copyAction ? <>
-      <div className={styles.actionState} role="status"><strong>范围复制</strong><span>{canCopy ? "可复制所选小节" : "请检查复制范围与未应用设置"}</span></div>
-      {issues.copy && <Alert type="error" title={issues.copy} />}
-      {dirty && <p className={styles.footerHint}>请先处理未应用的设置，再复制小节。</p>}
-      <div className={styles.footerActions}><Button type="primary" disabled={!canCopy} loading={busy} onClick={copyMeasures}>复制小节范围</Button></div>
-    </> : <>
+  // 小节标记自动保存，范围复制在范围区内确认；底部只承载歌曲分组操作。
+  const actions = activeSurface === "song" && actionsHost ? createPortal(surface("actions", <div className={styles.footer} aria-label="设置操作">
     <div className={styles.actionState} role="status"><strong>{labels[actionGroup]}</strong><span>{actionStatus.dirty ? "有未应用的修改" : "已应用到曲谱"}</span></div>
     {(issues[actionGroup] || actionStatus.blockedReason) && <Alert type="error" title={issues[actionGroup] || actionStatus.blockedReason} />}
     <div className={styles.footerActions}>
       <Button disabled={!actionStatus.dirty || busy || compositionActive} onClick={() => restoreGroup(actionGroup)}>恢复本组</Button>
       <Button type="primary" disabled={!actionStatus.canApply} onClick={() => apply(actionGroup)}>应用{labels[actionGroup]}</Button>
     </div>
-    </>}
-    {settingsGroups.some((group) => (copyAction || group !== actionGroup) && status.groups[group].dirty) && <div className={styles.otherGroups}>{settingsGroups.filter((group) => (copyAction || group !== actionGroup) && status.groups[group].dirty).map((group) => <Button key={group} type="link" onClick={() => focus(group)}>{labels[group]}未应用</Button>)}</div>}
+    {settingsGroups.some((group) => group !== actionGroup && status.groups[group].dirty) && <div className={styles.otherGroups}>{settingsGroups.filter((group) => group !== actionGroup && status.groups[group].dirty).map((group) => <Button key={group} type="link" onClick={() => focus(group)}>{labels[group]}未应用</Button>)}</div>}
   </div>), actionsHost) : null;
   return <>{portalMode ? <>{songHost && createPortal(song, songHost)}{measureHost && createPortal(measure, measureHost)}</> : <>{song}{measure}</>}{actions}</>;
 };

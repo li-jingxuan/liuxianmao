@@ -72,21 +72,21 @@ describe("歌词以简谱事件定位", () => {
     checkAnchor(document, 480);
   });
 
-  it("真实时值命令移动后续事件后，歌词身份、命中与成品位置一起跟随", () => {
+  it("附点互补调整紧邻后音后，歌词身份、命中与成品位置一起跟随", () => {
     const { document, track, measure } = fixture();
     const result = applyScoreCommand(document, {
       type: "numbered.event.setRhythm",
       trackId: track.id,
       measureId: measure.id,
       eventId: "event-0",
-      rhythm: { base: "quarter", dots: 0 },
+      rhythm: { base: "eighth", dots: 1 },
       timeline: "editTimeline",
     });
     if (!result.ok) throw new Error(result.message);
     const saved = result.document.score.tracks[0]!.measures[0]!;
     expect(saved.beats).toEqual(measure.beats);
     expect(saved.lyrics).toEqual(measure.lyrics);
-    expect(saved.numberedVoice.events[1]!.tick).toBe(960);
+    expect(saved.numberedVoice.events[1]!.tick).toBe(720);
     const layout = buildLayout(result.document);
     const rendered = layout.systems[0]!.measures[0]!;
     expect(rendered.lyrics![0]!.label.x).toBe(
