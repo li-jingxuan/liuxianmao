@@ -218,6 +218,8 @@ export const summarizeTimeGrid = (
   for (const range of inputRanges) {
     tickSet.add(range.startTick);
     tickSet.add(range.endTick);
+    // 已存的 gap 是用户明确分出的录入格；编辑时给每格保留独立空框净空。
+    if (range.eventId) extents.push({ tick: range.startTick, left: 12, right: 12, lane: "numbered" });
   }
   const ticks = [...tickSet].sort((a, b) => a - b);
   const index = new Map(ticks.map((t, i) => [t, i]));
@@ -302,7 +304,7 @@ export const summarizeTimeGrid = (
     for (const range of inputRanges) {
       const previous = numberedExtents.filter(e => e.tick < range.startTick).at(-1);
       const next = numberedExtents.find(e => e.tick > range.startTick);
-      edge(range.startTick, range.endTick, 5);
+      edge(range.startTick, range.endTick, range.eventId ? 28 : 5);
       if (previous) edge(previous.tick, range.startTick, previous.right + 3);
       if (next) edge(range.startTick, next.tick, next.left + 3);
     }

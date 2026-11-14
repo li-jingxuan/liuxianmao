@@ -46,25 +46,35 @@
   border-bottom: 0;
   .copyFields {
     display: grid;
-    grid-template-columns: minmax(0, 2.15fr) minmax(0, 1fr);
-    gap: 8px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
     align-items: start;
-    > :global(.ant-form-item) { min-width: 0; margin-bottom: 0; }
   }
+  .insertionRow > :global(.ant-form-item) { margin-bottom: 0; }
 }
 .copyRange {
   min-width: 0;
   > span { display: block; margin-bottom: 8px; font-size: 12px; line-height: 22px; }
 }
-.rangeInputs { display: flex; gap: 12px; }
+.rangeInputs {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 12px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+
+  > span { color: #626e82; text-align: center; }
+}
 .rangeField {
-  position: relative;
   display: flex;
-  flex: 1;
   min-width: 0;
   align-items: center;
-  gap: 6px;
-  > span { position: absolute; left: -10px; color: #626e82; }
   :global(.ant-select) { flex: 1; min-width: 0; }
 }
-.copyConfirm { grid-column: 2; justify-self: end; padding-inline: 12px; }
+.insertionRow {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+
+  > :global(.ant-form-item) { flex: 1; min-width: 0; }
+}
+.copyConfirm { flex: none; height: 37px; padding-inline: 16px; }

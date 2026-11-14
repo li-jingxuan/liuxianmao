@@ -7,7 +7,7 @@ import {
   validNumberedTokens,
   type NumberedSequenceItem,
 } from "./numbered-notation";
-import { calculateRhythmTicks, getMeasureCapacityTicks } from "../rhythm/rhythm";
+import { calculateRhythmTicks, createRestRhythmsForTicks, getMeasureCapacityTicks } from "../rhythm/rhythm";
 import { LXM_RHYTHM_BASES } from "../constants";
 import {
   createNumberedRhythmContext,
@@ -16,6 +16,7 @@ import {
 } from "./numbered-rhythm";
 import { validateNumberedMarks } from "./numbered-marks";
 import { planNumberedEventRhythm } from "./numbered-timeline";
+import { numberedRhythmForTicks } from "./numbered-input-ranges";
 import { planNumberedSequenceOverwrite, numberedSequenceContent, type NumberedSequenceTarget } from "./numbered-sequence-overwrite";
 export { planNumberedSequenceOverwrite, planNumberedSequenceSlots } from "./numbered-sequence-overwrite";
 import type { ILXMIdFactory } from "../id-factory";
@@ -362,6 +363,31 @@ export const editNumberedTrack = (
         (id) => id !== event!.id,
       );
       releasedRange = planned.releasedRange;
+      // 普通时值缩短后保留所选网格，避免释放区被 TAB/贪心规划合回一个长空位。
+      // 附点仍沿用相邻互补与原有空白语义，保证加点/取消的往返不产生新事件。
+      if (releasedRange && event!.rhythm.base !== command.rhythm.base) {
+        const duration = calculateRhythmTicks(command.rhythm);
+        if (duration.ok) {
+          const blanks: ILXMNumberedEvent[] = [];
+          let tick = releasedRange.startTick;
+          for (; tick + duration.ticks <= releasedRange.endTick; tick += duration.ticks) {
+            blanks.push({ id: factory.createNumberedEventId(), tick, rhythm: { ...command.rhythm }, kind: "gap", items: [] });
+          }
+          const remaining = releasedRange.endTick - tick;
+          if (remaining > 0) {
+            const exact = numberedRhythmForTicks(remaining);
+            const parts = exact ? { ok: true as const, rhythms: [exact] } : createRestRhythmsForTicks(remaining);
+            // 不可编码的小尾量保留为原有隐式空白，不取整或扩展时间窗。
+            if (parts.ok) for (const rhythm of parts.rhythms) {
+              const span = calculateRhythmTicks(rhythm);
+              if (!span.ok) break;
+              blanks.push({ id: factory.createNumberedEventId(), tick, rhythm: { ...rhythm }, kind: "gap", items: [] });
+              tick += span.ticks;
+            }
+          }
+          events = [...events, ...blanks].sort((a, b) => a.tick - b.tick);
+        }
+      }
       focusEventId = event!.id;
     } else if (command.type === "numbered.event.remove") {
       events = grouped(event!.id)

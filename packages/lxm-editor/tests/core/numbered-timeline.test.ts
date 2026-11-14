@@ -239,14 +239,14 @@ describe("简谱独立时间轴", () => {
     });
     expect(shortened.ok, JSON.stringify(shortened)).toBe(true);
     if (!shortened.ok) return;
+    const blank = shortened.document.score.tracks[0]!.measures[0]!.numberedVoice.events.find(event => event.kind === "gap" && event.tick === 480)!;
+    expect(blank.rhythm).toEqual(rhythm("eighth"));
     const filled = applyScoreCommand(shortened.document, {
-      type: "numbered.sequence.insert",
+      type: "numbered.event.set",
       trackId: track.id,
       measureId: "measure",
-      startTick: 480,
-      endTick: 960,
-      items: [{ kind: "set", tokens: ["2"] }],
-      rhythms: [rhythm("eighth")],
+      eventId: blank.id,
+      tokens: ["2"],
     });
     expect(filled.ok, JSON.stringify(filled)).toBe(true);
     if (!filled.ok) return;

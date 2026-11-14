@@ -54,16 +54,25 @@ const eventEnd = (
   return duration.ok ? event.tick + duration.ticks : event.tick;
 };
 
+/** 只有无歌词的空位可直接吞并；关联记号仍另行检查。 */
+export const hasNumberedContentOverwrite = (
+  track: ILXMTrack,
+  candidate: Extract<NumberedCandidate, { ok: true }>,
+): boolean => track.measures.some(measure => measure.numberedVoice.events.some(event =>
+  candidate.overwrittenEventIds.includes(event.id) &&
+  (event.kind !== "gap" || measure.lyrics.some(lyric => lyric.eventId === event.id)),
+));
+
 /** 合并位置来自原事件的真实 tick，包括起始音；不按音符个数猜拍号。 */
 export const numberedRhythmMergeMessage = (
   track: ILXMTrack,
   candidate: Extract<NumberedCandidate, { ok: true }>,
 ): string | null => {
-  if (!candidate.overwrittenEventIds.length) return null;
+  if (!hasNumberedContentOverwrite(track, candidate)) return null;
   const ids = new Set([candidate.focusEventId, ...candidate.overwrittenEventIds]);
   const positions = track.measures.flatMap(measure =>
     [...measure.numberedVoice.events].sort((a, b) => a.tick - b.tick)
-      .filter(event => ids.has(event.id))
+      .filter(event => ids.has(event.id) && (event.kind !== "gap" || measure.lyrics.some(lyric => lyric.eventId === event.id)))
       .map(event => formatNumberedBeatPosition(event.tick, measure.timeSignature.denominator)),
   );
   return `将合并${positions.join("、")}，确认修改吗？`;

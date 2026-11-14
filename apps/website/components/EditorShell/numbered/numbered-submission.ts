@@ -10,6 +10,7 @@ import {
   sameEditorVersion,
   type EditorSessionVersion,
 } from "../session/editor-session-version";
+import { hasNumberedContentOverwrite } from "./numbered-preview";
 
 export type NumberedDraftGroup = "content" | "rhythm" | "itemPitch";
 export type NumberedPropertyApplyResult =
@@ -174,7 +175,7 @@ export const createNumberedSubmission = (options: {
           resolve,
         };
         if (
-          candidate.overwrittenEventIds.length ||
+          hasNumberedContentOverwrite(track, candidate) ||
           candidate.movedEventIds.length ||
           candidate.resizedEventIds.length ||
           (frozen.type !== "numbered.mark.remove" &&

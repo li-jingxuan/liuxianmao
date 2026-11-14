@@ -134,8 +134,9 @@ it("时值缩短显示释放空位而不伪造休止", () => {
     ]),
   );
   expect(candidate.track.measures[0]!.numberedVoice.events.length).toBe(
-    measure.numberedVoice.events.length,
+    measure.numberedVoice.events.length + 1,
   );
+  expect(candidate.track.measures[0]!.numberedVoice.events.find(event => event.tick === 480)).toMatchObject({ kind: "gap", rhythm: { base: "eighth", dots: 0 }, items: [] });
 });
 
 it("吞并预览显示实际被移除的原拍位，未覆盖事件不移动", () => {

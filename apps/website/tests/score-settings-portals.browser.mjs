@@ -3,12 +3,16 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import path from "node:path";
+import { nextBrowserDefines } from "./next-browser-env.fixture.mjs";
 const require = createRequire(import.meta.url);
 const viteRequire = createRequire(require.resolve("vitest/package.json"));
 const { createServer } = await import(pathToFileURL(viteRequire.resolve("vite")).href);
 const { chromium } = await import(process.env.LXM_PLAYWRIGHT_MODULE ?? "playwright");
 const website = fileURLToPath(new URL("..", import.meta.url));
-const server = await createServer({ root: website, configFile: false, esbuild: { jsx: "automatic" }, server: { host: "127.0.0.1", port: 0, fs: { allow: [path.resolve(website, "../..")] } }, plugins: [{ name: "settings-fixture", configureServer(dev) { dev.middlewares.use((request, response, next) => { if (!request.url?.startsWith("/__settings-test__")) return next(); response.setHeader("Content-Type", "text/html"); response.end('<!doctype html><div id="root"></div><script type="module" src="/tests/score-settings-portals.browser.tsx"></script>'); }); } }] });
+const server = await createServer({ root: website, configFile: false, define: nextBrowserDefines,
+  cacheDir: path.resolve(website, "node_modules/.vite/score-settings-portals"),
+  optimizeDeps: { entries: ["tests/score-settings-portals.browser.tsx"], include: ["react/jsx-dev-runtime"] },
+  esbuild: { jsx: "automatic" }, server: { host: "127.0.0.1", port: 0, watch: null, hmr: false, fs: { allow: [path.resolve(website, "../..")] } }, plugins: [{ name: "settings-fixture", configureServer(dev) { dev.middlewares.use(async (request, response, next) => { if (!request.url?.startsWith("/__settings-test__")) return next(); response.setHeader("Content-Type", "text/html"); response.end(await dev.transformIndexHtml(request.url, '<!doctype html><div id="root"></div><script type="module" src="/tests/score-settings-portals.browser.tsx"></script>')); }); } }] });
 let browser;
 try {
   await server.listen();
@@ -209,13 +213,13 @@ try {
   assert.equal(await page.locator("#settings-title").inputValue(), "收起后保留");
   await page.evaluate(() => window.settingsTest.focus("copy"));
   await page.waitForFunction(() => document.activeElement?.id === "settings-copy-start");
-  assert.equal(await page.getByRole("button", { name: /确认复制/ }).isDisabled(), true);
+  assert.equal(await page.getByRole("button", { name: "应用复制小节范围", exact: true }).isDisabled(), true);
   await page.evaluate(() => window.settingsTest.discard());
   const commandsBeforeCopy = await page.evaluate(() => window.settingsTest.commands().length);
   const historyBeforeCopy = await page.evaluate(() => window.settingsTest.history());
-  await page.getByRole("button", { name: "确认复制", exact: true }).click();
+  await page.getByRole("button", { name: "应用复制小节范围", exact: true }).click();
   assert.equal((await status()).busy, true);
-  assert.equal(await page.getByRole("button", { name: /确认复制/ }).isDisabled(), true);
+  assert.equal(await page.getByRole("button", { name: "应用复制小节范围", exact: true }).isDisabled(), true);
   assert.equal(await page.evaluate(() => window.settingsTest.focus("label")), false);
   assert.equal(await page.evaluate(() => window.settingsTest.commands().length), commandsBeforeCopy + 1);
   await page.evaluate(() => window.settingsTest.finishCopy());

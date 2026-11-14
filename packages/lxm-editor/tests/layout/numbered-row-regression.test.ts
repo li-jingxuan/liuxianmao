@@ -121,7 +121,7 @@ describe("简谱行高与拍号回归", () => {
       startTick: 480,
       endTick: 960,
       rhythm: { base: "eighth", dots: 0 },
-      target: { kind: "numberedTime", tick: 480, endTick: 960 },
+      target: { kind: "numberedEvent", eventId: result.document.score.tracks[0]!.measures[0]!.numberedVoice.events.find(event => event.tick === 480)!.id },
     });
     expect(
       hitTestNumbered(layout, { x: slot.anchorX, y: slot.y + slot.height / 2 }),

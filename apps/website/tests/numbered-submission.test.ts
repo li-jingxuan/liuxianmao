@@ -147,6 +147,38 @@ describe("S3 简谱提交终态", () => {
     expect(onSuccess).toHaveBeenCalledOnce();
   });
 
+  it("缩短再扩回只吞并新空位时不确认，撤销仍恢复三个独立空位", async () => {
+    const { owner, session, track, measure, event, onPending } = setup();
+    const operation = { type: "numbered.event.setRhythm" as const, trackId: track.id, measureId: measure.id, eventId: event.id };
+    expect(await owner.request({ ...operation, rhythm: { base: "sixteenth", dots: 0 } }, "rhythm")).toMatchObject({ status: "applied" });
+    const shortened = session.getState().document;
+    expect(shortened!.score.tracks[0]!.measures[0]!.numberedVoice.events.filter(item => item.kind === "gap" && item.tick < 960)).toHaveLength(3);
+    onPending.mockClear();
+    expect(await owner.request({ ...operation, rhythm: event.rhythm }, "rhythm")).toMatchObject({ status: "applied" });
+    expect(onPending.mock.calls.every(([candidate]) => candidate === null)).toBe(true);
+    expect(session.getState().document!.score.tracks[0]!.measures[0]).toEqual(measure);
+    session.getState().undo();
+    expect(session.getState().document!.score.tracks[0]!.measures[0]).toEqual(shortened!.score.tracks[0]!.measures[0]);
+  });
+
+  it("扩回长音会删除空位上的歌词时仍须确认，取消保留词与历史", async () => {
+    const { owner, session, track, measure, event, onPending } = setup();
+    const operation = { type: "numbered.event.setRhythm" as const, trackId: track.id, measureId: measure.id, eventId: event.id };
+    expect(await owner.request({ ...operation, rhythm: { base: "sixteenth", dots: 0 } }, "rhythm")).toMatchObject({ status: "applied" });
+    const gap = session.getState().document!.score.tracks[0]!.measures[0]!.numberedVoice.events.find(item => item.kind === "gap" && item.tick === 240)!;
+    expect(session.getState().execute({ type: LXMScoreCommandEnum.SetLyric, trackId: track.id, measureId: measure.id, eventId: gap.id, verse: 2, text: "保留词" })?.ok).toBe(true);
+    const before = session.getState().document;
+    const history = session.getState().historyDepth;
+    onPending.mockClear();
+    const pending = owner.request({ ...operation, rhythm: event.rhythm }, "rhythm");
+    expect(onPending).toHaveBeenCalledWith(expect.objectContaining({ overwrittenEventIds: expect.arrayContaining([gap.id]) }));
+    expect(session.getState().document).toEqual(before);
+    owner.cancel();
+    expect(await pending).toMatchObject({ status: "cancelled" });
+    expect(session.getState().document).toEqual(before);
+    expect(session.getState().historyDepth).toEqual(history);
+  });
+
   it.each([
     { base: "sixteenth" as const, next: { tick: 720, endTick: 960 } },
     { base: "eighth" as const, next: { eventId: "mvp72-beat-1-2-numbered" } },

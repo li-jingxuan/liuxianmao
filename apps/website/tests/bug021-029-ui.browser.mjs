@@ -16,7 +16,7 @@ const server = await createServer({
   cacheDir: path.resolve(website, "node_modules/.vite/bug021-029-ui"),
   optimizeDeps: { entries: ["tests/music-text-coexist.browser.tsx"], include: ["react/jsx-dev-runtime"] },
   esbuild: { jsx: "automatic" },
-  server: { host: "127.0.0.1", port: 0, watch: { ignored: ["**/.next/**"] }, fs: { allow: [path.resolve(website, "../..")] } },
+  server: { host: "127.0.0.1", port: 0, watch: null, hmr: false, fs: { allow: [path.resolve(website, "../..")] } },
   plugins: [{ name: "bug021-029-ui", configureServer(dev) {
     dev.middlewares.use(async (request, response, next) => {
       if (request.url !== "/__bug021-029-ui__") return next();
@@ -127,30 +127,58 @@ try {
   await sidebar.getByRole("tab", { name: "选区", exact: true }).click();
   await sidebar.getByRole("radio", { name: "小节", exact: true }).locator("..").click();
   const start = sidebar.locator("#settings-copy-start");
-  const end = sidebar.locator("#settings-copy-end");
   const after = sidebar.locator("#settings-copy-after");
-  const confirm = sidebar.getByRole("button", { name: "确认复制", exact: true });
+  const confirm = sidebar.getByRole("button", { name: "应用复制小节范围", exact: true });
+  const copyForm = sidebar.locator('[data-settings-group="copy"]');
+  const startControl = copyForm.locator(".ant-select").filter({ has: page.locator("#settings-copy-start") });
+  const endControl = copyForm.locator(".ant-select").filter({ has: page.locator("#settings-copy-end") });
+  const afterControl = copyForm.locator(".ant-select").filter({ has: page.locator("#settings-copy-after") });
   await start.waitFor();
   assert.equal(await start.evaluate(element => !!element.closest("details")), false);
-  await sameRow(start.locator(".."), end.locator(".."));
-  await sameRow(end.locator(".."), after.locator(".."));
+  assert.equal((await confirm.innerText()).replace(/\s/g, ""), "应用");
   assert.equal(await confirm.evaluate(element => element.closest('form')?.dataset.settingsGroup), "copy");
   assert.equal(await sidebar.locator('[data-editor-actions-host]').innerText(), "");
+  const verifyCopyLayout = async () => {
+    await sameRow(startControl, endControl);
+    await sameRow(afterControl, confirm);
+    const rangeLabel = await copyForm.getByText("复制范围", { exact: true }).boundingBox();
+    const insertionLabel = await copyForm.locator('label[for="settings-copy-after"]').boundingBox();
+    const a = await startControl.boundingBox(), b = await endControl.boundingBox();
+    const c = await afterControl.boundingBox(), button = await confirm.boundingBox();
+    const form = await copyForm.boundingBox();
+    assert.ok(rangeLabel && insertionLabel && a && b && c && button && form);
+    assert.ok(rangeLabel.y + rangeLabel.height <= a.y, "复制范围标签位于第一行选择器上方");
+    assert.ok(insertionLabel.y >= a.y + a.height && insertionLabel.y + insertionLabel.height <= c.y, "插入位置独立第二行，标签在选择器上方");
+    assert.ok(Math.abs(a.x - c.x) <= 1 && Math.abs(b.x + b.width - button.x - button.width) <= 1, "两行左右对齐");
+    assert.ok(c.width > a.width, "插入位置使用比起止小节更宽的选择器");
+    const separator = await copyForm.locator('[role="group"] [aria-hidden="true"]').filter({ hasText: "–" }).boundingBox();
+    assert.ok(separator && separator.x >= a.x + a.width && separator.x + separator.width <= b.x, "短横位于两个选择器之间");
+    for (const control of [startControl, endControl, afterControl]) {
+      const bounds = await control.boundingBox();
+      assert.ok(bounds.x >= form.x && bounds.x + bounds.width <= form.x + form.width + 1, "控件位于复制区内");
+      assert.equal(await control.locator(".ant-select-content").evaluate(element => element.scrollWidth <= element.clientWidth), true, "选中值完整可读");
+    }
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  };
   const count = () => page.evaluate(() => window.coexistStore.getState().document.score.tracks[0].measures.length);
   const originalCount = await count();
-  await screenshot("bug029-copy-range-1400.png");
-  await confirm.click();
-  await page.waitForFunction(original => window.coexistStore.getState().document.score.tracks[0].measures.length === original + 1, originalCount);
-  await page.getByRole("button", { name: "撤销", exact: true }).click();
-  await page.waitForFunction(original => window.coexistStore.getState().document.score.tracks[0].measures.length === original, originalCount);
+  await after.click();
+  const insertionOption = page.locator(".ant-select-dropdown:visible").getByText(`第${originalCount}小节后`, { exact: true });
+  await insertionOption.click();
   for (const width of [1400, 1600]) {
     await page.setViewportSize({ width, height: 1000 });
-    await sameRow(start.locator(".."), end.locator(".."));
-    await sameRow(end.locator(".."), after.locator(".."));
-    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    await verifyCopyLayout();
+    await screenshot(`bug029-copy-range-${width}.png`);
   }
-  await screenshot("bug029-copy-range-1600.png");
-  results.push("BUG029: copy range permanently open, range and insertion share a row at 1400/1600, local confirmation, no bottom copy toolbar, actual measure count +1 and undo");
+  const originalDocument = await page.evaluate(() => window.coexistStore.getState().document);
+  const originalHistory = await history();
+  await confirm.click();
+  await page.waitForFunction(original => window.coexistStore.getState().document.score.tracks[0].measures.length === original + 1, originalCount);
+  assert.equal(await history(), originalHistory + 1, "复制只新增一条历史");
+  await page.getByRole("button", { name: "撤销", exact: true }).click();
+  await page.waitForFunction(original => window.coexistStore.getState().document.score.tracks[0].measures.length === original, originalCount);
+  assert.deepEqual(await page.evaluate(() => window.coexistStore.getState().document), originalDocument, "撤销完整恢复复制前文档");
+  results.push("BUG029: permanently open two-row layout at 1400/1600; labeled start/end with separator; wide insertion selector and visible 应用 button share second row; readable values, no overflow or bottom toolbar; real copy adds one measure/history entry, undo restores full document");
   assert.deepEqual(errors, []);
   await writeFile(path.join(output, "results.json"), JSON.stringify({ viewport: [1400, 1600], results, pageErrors: errors }, null, 2) + "\n");
   console.log(results.join("\n"));

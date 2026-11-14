@@ -7,7 +7,7 @@
     "BUG026/027: both inline rows, one shared draft, disabled no-op Apply, IME guard, sidebar click, popover click, Enter, undo and paste failure feedback",
     "BUG021: sidebar and chord popover chevrons centered within 2px, both dropdowns open and Escape closes",
     "BUG028: all four sidebar tabs omit Locate and retain context text",
-    "BUG029: copy range permanently open, range and insertion share a row at 1400/1600, local confirmation, no bottom copy toolbar, actual measure count +1 and undo"
+    "BUG029: permanently open two-row layout at 1400/1600; labeled start/end with separator; wide insertion selector and visible 应用 button share second row; readable values, no overflow or bottom toolbar; real copy adds one measure/history entry, undo restores full document"
   ],
   "pageErrors": []
 }

@@ -95,6 +95,28 @@ describe("统一结构命令适配器", () => {
       expect(modals.getSnapshot()).toBeNull();
     }
   });
+  it("吞并带歌词的空位仍显示实际拍位并要求确认，取消无变化", async () => {
+    const original = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);
+    const track = original.score.tracks[0]!;
+    track.numberedMarks = [];
+    const measure = track.measures[0]!;
+    const first = measure.numberedVoice.events[0]!;
+    measure.numberedVoice = { events: [
+      { ...first, tick: 0, rhythm: { base: "eighth", dots: 0 } },
+      { id: "lyric-gap", tick: 480, kind: "gap", rhythm: { base: "eighth", dots: 0 }, items: [] },
+    ], tuplets: [] };
+    measure.lyrics = [{ id: "gap-lyric", eventId: "lyric-gap", verse: 2, text: "留" }];
+    const session = createEditorSession(original);
+    const modals = createEditorModalController(session.getState, () => vi.fn());
+    const execute = createEditorCommandAdapter(session, modals);
+    const pending = execute({ type: "numbered.event.setRhythm", trackId: track.id, measureId: measure.id, eventId: first.id, rhythm: { base: "quarter", dots: 0 } });
+    expect(modals.getSnapshot()?.request.message).toContain("将合并第1拍、第1拍 + 1/2，确认修改吗？");
+    expect(session.getState().historyDepth.past).toBe(0);
+    await modals.close(modals.getSnapshot()!.id, "cancel");
+    expect(await pending).toMatchObject({ status: "cancelled" });
+    expect(session.getState().document).toEqual(original);
+  });
+
   it("无影响的范围复制直接提交且只产生一条历史", async () => {
     const session = createEditorSession(EXAMPLE_MVP_7_2_DOCUMENT);
     const modals = createEditorModalController(session.getState, () => vi.fn());

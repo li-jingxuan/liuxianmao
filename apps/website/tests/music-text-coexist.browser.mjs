@@ -292,7 +292,7 @@ try {
   assert.equal((await history()).past, beforeLabel.past + 1);
   const countBeforeCopy = await page.evaluate(() => window.coexistStore.getState().document.score.tracks[0].measures.length);
   const copyHistoryBefore = await history();
-  await sidebar.getByRole("button", { name: "确认复制", exact: true }).click();
+  await sidebar.getByRole("button", { name: "应用复制小节范围", exact: true }).click();
   await page.waitForFunction(count => window.coexistStore.getState().document.score.tracks[0].measures.length === count + 1, countBeforeCopy);
   assert.equal((await history()).past, copyHistoryBefore.past + 1);
   checks.push("settings export gate survives sidebar collapse and restores panel with draft intact; restore clears gate; section label blur saves once; inline range copy writes once");

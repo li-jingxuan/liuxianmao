@@ -135,7 +135,8 @@ describe("简谱空位与 hover 接入", () => {
     const slot = m.numberedInputSlots!.find((s) => s.startTick === 480)!;
     const point = { x: slot.anchorX, y: slot.y + slot.height / 2 };
     const hover = resolveMusicTextHoverTarget(layout, point)!;
-    expect(hover).toMatchObject({ kind: "numbered", tick: 480, endTick: 960 });
+    const gap = document.score.tracks[0]!.measures[0]!.numberedVoice.events.find(event => event.kind === "gap" && event.tick === 480)!;
+    expect(hover).toMatchObject({ kind: "numbered", eventId: gap.id });
     expect(
       resolveScorePointerAction(document, layout, point, null, false),
     ).toMatchObject({ type: "target", target: hover });
@@ -154,14 +155,11 @@ describe("简谱空位与 hover 接入", () => {
     expect(hint).toContain(`data-paragraph-cell="numbered/${slot.key}"`);
     expect(hint).toContain('data-paragraph-hover="numbered"');
     const filled = applyScoreCommand(document, {
-      type: "numbered.range.replace",
+      type: "numbered.event.set",
       trackId: track.id,
       measureId: measure.id,
-      startTick: 480,
-      endTick: 960,
-      items: [{ kind: "set", tokens: ["3"] }],
-      rhythms: [{ base: "eighth", dots: 0 }],
-      allowOverwrite: false,
+      eventId: gap.id,
+      tokens: ["3"],
     });
     if (!filled.ok) throw Error(filled.message);
     expect(

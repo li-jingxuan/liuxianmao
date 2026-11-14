@@ -64,7 +64,24 @@ export const planNumberedEventRhythm = (
     const growing = next.ticks > previous.ticks;
     // 有空白时先消耗/释放空白；只有真正相接或被新附点占用的后音参与互补。
     const adjust = following && (growing ? following.tick < endTick : following.kind !== "gap" && following.tick === oldEnd);
-    if (adjust) {
+    if (adjust && growing && following.kind === "gap") {
+      // 显式空格仍是空白，不能因附点切出不可编码的小尾量而阻止原本合法的延长。
+      // 可编码尾格保留身份；不可编码尾格退回隐式空白，关联内容由提交层确认。
+      const covered = events.filter(event => event.id !== target.id && event.tick >= oldEnd && event.tick < endTick);
+      if (covered.some(event => context.tupletByEventId.has(event.id)))
+        return { ok: false, code: "EVENT_IN_TUPLET", message: "附点调整不能改变后续连音成员" };
+      if (covered.some(event => event.kind !== "gap"))
+        return { ok: false, code: "CANNOT_COMPRESS", message: "附点修改超出后方空白，请先调整相邻音符或空位" };
+      for (const gap of covered) {
+        const duration = context.getEventDurationTicks(gap);
+        const complement = duration.ok ? numberedRhythmForTicks(gap.tick + duration.ticks - endTick) : undefined;
+        if (complement) {
+          updates.set(gap.id, { ...gap, tick: endTick, rhythm: { ...complement } });
+          result.movedEventIds.push(gap.id);
+          result.resizedEventIds.push(gap.id);
+        } else result.overwrittenEventIds.push(gap.id);
+      }
+    } else if (adjust) {
       const duration = context.getEventDurationTicks(following);
       const followingEnd = duration.ok ? following.tick + duration.ticks : NaN;
       let boundary = 0;

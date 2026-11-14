@@ -15,7 +15,7 @@ import {
   sameEditorVersion,
 } from "./editor-session-version";
 import { formatNumberedBeatPosition } from "../numbered/numbered-editor-target";
-import { numberedRhythmMergeMessage } from "../numbered/numbered-preview";
+import { hasNumberedContentOverwrite, numberedRhythmMergeMessage } from "../numbered/numbered-preview";
 import { isTabOnlyToolCommand, tabToolTargetReason, type EditorToolSubmission } from "../tools/editor-tool-guard";
 
 const rhythmName = (rhythm: { base: string; dots: number }) =>
@@ -87,7 +87,7 @@ export const createEditorCommandAdapter =
       if (!candidate.ok)
         return { status: "blocked", message: candidate.message };
       if (
-        candidate.overwrittenEventIds.length ||
+        hasNumberedContentOverwrite(track, candidate) ||
         candidate.movedEventIds.length ||
         candidate.resizedEventIds.length ||
         candidate.removedMarkIds.length ||

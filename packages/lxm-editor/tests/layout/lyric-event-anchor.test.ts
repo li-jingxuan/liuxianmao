@@ -194,7 +194,7 @@ describe("歌词以简谱事件定位", () => {
     const released = editing.systems[0]!.measures[0]!.numberedInputSlots!.find(
       (slot) => slot.startTick === 720 && slot.endTick === 960,
     )!;
-    expect(released.target.kind).toBe("numberedTime");
+    expect(released.target).toMatchObject({ kind: "numberedEvent", eventId: result.document.score.tracks[0]!.measures[0]!.numberedVoice.events.find(event => event.tick === 720)!.id });
     expect(
       editing.systems[0]!.musicTextCells!.some(
         (cell) => cell.tick === 720 && cell.endTick === 960,
