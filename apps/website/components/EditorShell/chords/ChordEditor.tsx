@@ -63,6 +63,8 @@ const emptyDiagram = (): ILXMChordDiagram => ({
   })),
 });
 export interface ChordEditorProps extends ChordEditorLibraryProps {
+  /** 全谱视图配置即时生效，独立于当前和弦草稿的应用。 */
+  onShowChordDiagramsChange?: (show: boolean) => void;
   inputRef: RefCallback<HTMLInputElement>;
   draft: ChordDraft;
   onChange: (draft: ChordDraft) => void;
@@ -78,7 +80,7 @@ export interface ChordEditorProps extends ChordEditorLibraryProps {
   presetMenuOpen?: boolean;
   onPresetMenuOpenChange?: (open: boolean) => void;
 }
-/** 控件变化只更新本地值对象，所有字段一起应用成一条领域命令。 */
+/** 和弦内容作为草稿应用；全谱显示偏好由宿主管理并即时生效。 */
 export const ChordEditor = ({
   inputRef,
   draft,
@@ -99,6 +101,8 @@ export const ChordEditor = ({
   onOpenLibrary,
   onOpenCustom,
   onOpenSettings,
+  showChordDiagrams,
+  onShowChordDiagramsChange,
 }: ChordEditorProps) => {
   // InputNumber 清空时以 NaN 保留非法草稿，统一校验阻止提交，不把空值转成 0。
   const diagram = draft.chord.diagram;
@@ -425,19 +429,22 @@ export const ChordEditor = ({
               disabled={disabled}
               id="chord-display"
               aria-label="和弦显示方式"
-              value={draft.display}
-              onChange={(event) =>
-                onChange({ ...draft, display: event.target.value })
-              }
+              value={showChordDiagrams === undefined ? draft.display : showChordDiagrams ? "nameAndDiagram" : "name"}
+              onChange={(event) => {
+                if (onShowChordDiagramsChange)
+                  onShowChordDiagramsChange(event.target.value === "nameAndDiagram");
+                else onChange({ ...draft, display: event.target.value });
+              }}
               options={[
                 { value: "name", label: "仅名称" },
                 {
                   value: "nameAndDiagram",
                    label: "名称与指法",
-                  disabled: !diagram,
+                   disabled: !onShowChordDiagramsChange && !diagram,
                 },
               ]}
             />
+            <small className={viewStyles.help}>Tips: 谱面显示配置全局生效。</small>
           </Form.Item>
       </section>
       {issue && !removing && (

@@ -279,7 +279,9 @@ export const ChordPresetControls = ({
         </div>
         {presentation === "quick" && <Dropdown
           autoFocus
-          destroyOnHidden
+          // rc-trigger retains its popup element reference after destruction.
+          // Keep the hidden popup mounted so reopening never compares a detached
+          // popup with the live trigger (BUG-031/032). The editor owns cleanup.
           placement={placement}
           open={active}
           onOpenChange={changeOpen}

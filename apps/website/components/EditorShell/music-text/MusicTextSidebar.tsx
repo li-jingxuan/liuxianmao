@@ -147,6 +147,7 @@ export const MusicTextSidebar = ({
   collapsed = false,
   modal = false,
   showChordDiagrams,
+  onShowChordDiagramsChange,
   onExpandSidebar = () => {},
   onLocate = () => {},
   continuousRange = null,
@@ -154,6 +155,7 @@ export const MusicTextSidebar = ({
 }: {
   modal?: boolean;
   showChordDiagrams?: boolean;
+  onShowChordDiagramsChange?: (show: boolean) => void;
   ref: Ref<MusicTextController>;
   onToolAction?: ToolActionHandler;
   executeTool?: EditorCommandAdapter;
@@ -1539,6 +1541,7 @@ export const MusicTextSidebar = ({
   };
   const chordLibraryProps = {
     document: score ?? undefined, tuning: track?.tuning.strings, showChordDiagrams,
+    onShowChordDiagramsChange,
     onOpenLibrary: (tab?: ChordLibraryTab, seed?: ChordDraft) => openChordModal("library", tab, seed),
     onOpenCustom: (seed?: ChordDraft) => openChordModal("custom", "all", seed),
     onOpenSettings: () => { if (!surfaceBlocked()) suspendForSettings(); },

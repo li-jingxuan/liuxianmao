@@ -13,7 +13,7 @@ import { ScorePresentationPage } from "../components/EditorShell/output/ScorePre
 
 afterEach(() => vi.unstubAllGlobals());
 describe("成品快照供预览、图片与打印消费", () => {
-  it("字体就绪后重新生成成品坐标，而非沿用编辑布局", async () => {
+  it.each([true, false])("字体就绪后使用全局和弦显示 %s 重新生成成品坐标", async (showChordDiagrams) => {
     const bbox = { x: -4, y: -12, width: 8, height: 15.5 };
     vi.stubGlobal("document", {
       fonts: {
@@ -42,7 +42,7 @@ describe("成品快照供预览、图片与打印消费", () => {
     });
     const score = EXAMPLE_MVP_7_2_DOCUMENT;
     const metrics = Object.fromEntries(
-      collectMusicTextMeasureRequests(score, true).map((r) => [
+      collectMusicTextMeasureRequests(score, showChordDiagrams).map((r) => [
         r.key,
         r.fontFamily === "Bravura"
           ? { x: -2, y: -9, width: 4, height: 14 }
@@ -52,13 +52,13 @@ describe("成品快照供预览、图片与打印消费", () => {
     const prepared = await prepareScorePresentation(
       score,
       "compact",
-      true,
+      showChordDiagrams,
       new AbortController().signal,
     );
     const options = {
       systemWidth: A4_CONTENT_WIDTH,
       density: "compact" as const,
-      showChordDiagrams: true,
+      showChordDiagrams,
       musicTextMetrics: metrics,
     };
     expect(prepared.scene).toEqual(

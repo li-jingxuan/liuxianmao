@@ -101,9 +101,8 @@ import {
 /** 两位品位输入等待第二个数字的时间，超时后提交一位品位。 */
 const FRET_DRAFT_TIMEOUT_MS = 600;
 
-/** 编辑、图片导出和打印统一使用固定的默认排版。 */
+/** 编辑、图片导出和打印统一使用固定的默认排版密度。 */
 const density = "compact";
-const showChordDiagrams = true;
 
 /** layout 命中结果含视觉 systemIndex；selection 只保留稳定业务 ID。 */
 const toCellReference = (target: ILXMHitTarget): ILXMTabCellReference => ({
@@ -226,6 +225,8 @@ export const EditorShell: React.FC = () => {
     useState<ImageExportSnapshot | null>(null);
   const [outputBlockedOpen, setOutputBlockedOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  /** 全谱共享的会话视图偏好，不修改和弦指法或音乐历史。 */
+  const [showChordDiagrams, setShowChordDiagrams] = useState(true);
   const editorRootRef = useRef<HTMLDivElement>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
   const { width: hostWidth, mode: layoutMode } =
@@ -519,7 +520,7 @@ export const EditorShell: React.FC = () => {
           ? { ...activeMusicTextTarget, kind: activeMusicTextTarget.kind }
           : undefined,
     });
-  }, [document, musicTextMetrics, activeMusicTextTarget, continuousRange]);
+  }, [document, musicTextMetrics, showChordDiagrams, activeMusicTextTarget, continuousRange]);
   const rangeRects = useMemo(() => document && lxmLayout && continuousRange
     ? musicTextRangeRects(document, lxmLayout, continuousRange) : [], [document, lxmLayout, continuousRange]);
 
@@ -1858,6 +1859,7 @@ export const EditorShell: React.FC = () => {
           continuousRange={continuousRange}
           onRangeChange={setContinuousRange}
           showChordDiagrams={showChordDiagrams}
+          onShowChordDiagramsChange={setShowChordDiagrams}
           modal={narrowPanels && !sidebarCollapsed}
           collapsed={sidebarCollapsed}
           onExpandSidebar={openSidebar}
