@@ -18,6 +18,7 @@ import {
 } from "../components/EditorShell/chords/ChordPresetControls";
 import { createDefaultChordPreferences } from "../components/EditorShell/chords/chord-preferences";
 import type { ChordDraft } from "../components/EditorShell/chords/ChordEditor";
+import { quickChordMatches } from "../components/EditorShell/chords/chord-recommendations";
 
 const state = vi.hoisted(() => ({
   snapshot: {
@@ -77,6 +78,25 @@ const draft: ChordDraft = {
   chord: { name: "Bm", diagram: null },
 };
 describe("和弦库与两处入口", () => {
+  it.each([
+    [0, "C", "major", ["C", "G", "Am", "F", "Dm", "Em", "G7", "Cmaj7"]],
+    [7, "G", "major", ["G", "D", "Em", "C", "Am", "Bm", "D7", "Gmaj7"]],
+    [9, "A", "minor", ["Am", "Dm", "E", "C", "G", "F", "Em", "E7"]],
+  ] as const)("快捷推荐跟随%s/%s/%s并提供8项真实指法", (tonicPc, tonicSpelling, mode, names) => {
+    const matches = quickChordMatches(catalog, { tonicPc, tonicSpelling, mode });
+    expect(matches.map(match => match.name)).toEqual(names);
+    for (const match of matches) {
+      const result = selectedCatalogChord(catalog, match);
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.chord.diagram.strings).toHaveLength(6);
+        if (["C", "G", "Am", "F", "Dm", "Em"].includes(match.name)) {
+          expect(result.chord.diagram.strings.every(string => string.fret === "x" || string.fret <= 3)).toBe(true);
+        }
+      }
+    }
+    if (mode === "minor") expect(matches.filter(match => match.group === "harmonic").map(match => match.name)).toEqual(["E", "E7"]);
+  });
   it("默认六项均解析为低把位常用指法，F 使用一品横按", () => {
     const defaults = createDefaultChordPreferences();
     const chords = defaults.quickItems.map((reference) => resolveChordReference(reference, catalog, [], STANDARD_GUITAR_TUNING, true).chord);
@@ -220,9 +240,10 @@ describe("和弦库与两处入口", () => {
         onOpenCustom={onCustom}
       />,
     );
-    expect(html).toContain("按调性");
+    expect(html).toContain("按调性浏览");
     expect(html).toContain("我的指法");
-    expect(html).toContain("常用配置");
+    expect(html).not.toContain("常用配置");
+    expect(html).not.toContain('id="chord-library-tab-key"');
     expect(html).toContain("选用此指法");
     expect(html).toContain("尚未改变当前草稿");
     expect(html).not.toContain('role="dialog"');
@@ -261,7 +282,7 @@ describe("和弦库与两处入口", () => {
       />,
     );
     const sections = html.match(/<section[^>]*>[\s\S]*?<\/section>/g)!;
-    expect(sections).toHaveLength(3);
+    expect(sections).toHaveLength(4);
     expect(sections[0]).toContain("A 小调 · 自然三和弦");
     expect(sections[0]!.match(/<b>/g)).toHaveLength(7);
     expect(sections[0]).toContain(">ii°</span>");
@@ -294,12 +315,12 @@ describe("和弦库与两处入口", () => {
       />,
     );
     const escaped = voicing.label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    expect(html).toContain('aria-label="G指法预览"');
+    expect(html).toContain('aria-label="指法图预览"');
     expect(html).toMatch(
       new RegExp(`aria-pressed="true"[^>]*><b>${escaped}</b>`),
     );
     expect(html).toContain("6 → 1 弦");
-    expect(html).toContain("更新常用指法");
+    expect(html).not.toContain("更新常用指法");
     expect(html).not.toMatch(/<button[^>]*disabled=""[^>]*><span>选用此指法/);
     expect(onConfirm).not.toHaveBeenCalled();
     expect(seed).toEqual(original);
@@ -316,7 +337,7 @@ describe("和弦库与两处入口", () => {
       />,
     );
     expect(unmatched).toContain("尚未改变当前草稿");
-    expect(unmatched).not.toContain('aria-label="G指法预览"');
+    expect(unmatched).not.toContain('aria-current="true"');
   });
   it("非标准调弦可暂存并查看精确指法，但不能确认写回", () => {
     const match = queryChordCatalog(catalog, { text: "G" }).items.find(
@@ -337,35 +358,26 @@ describe("和弦库与两处入口", () => {
         onCancel={vi.fn()}
       />,
     );
-    expect(html).toContain('aria-label="G指法预览"');
+    expect(html).toContain('aria-label="指法图预览"');
     expect(html).toContain("系统指法仅供标准调弦");
     expect(html).toMatch(/<button[^>]*disabled=""[^>]*><span>选用此指法/);
   });
-  it("配置直接提供添加候选、六槽实时预览和已选指法版本", () => {
+  it("全部和弦合并调性分类并完整展示真实目录图形", () => {
     const html = renderToStaticMarkup(
       <ChordLibraryModal
         draft={draft}
         document={committed()}
         presetsEnabled
-        initialTab="config"
+        initialTab="all"
         onConfirm={vi.fn()}
         onCancel={vi.fn()}
       />,
     );
-    expect(html).toContain('aria-label="搜索常用配置"');
-    expect(html).toContain('aria-label="添加常用候选"');
-    const preview = html.match(
-      /aria-label="常用入口实时预览"><div[^>]*>([\s\S]*?)<\/div>/,
-    )![1]!;
-    expect(preview.match(/<span/g)).toHaveLength(6);
-    for (const ref of createDefaultChordPreferences().quickItems) {
-      const voicing = catalog.items
-        .find((item) => item.id === ref.identityId)!
-        .voicings.find((v) => v.id === ref.defaultVoicingId)!;
-      expect(html).toContain(voicing.label);
-    }
-    expect(html).toContain("恢复默认 6 项");
-    expect(html).toMatch(/<button[^>]*disabled=""[^>]*><span>保存常用配置/);
+    expect(html).toContain('aria-label="临时浏览主音"');
+    expect(html).toContain("C 大调 · 自然三和弦");
+    expect(html).toContain("其他和弦");
+    expect(html.match(/aria-label="指法图预览"/g)).toHaveLength(catalog.items.length);
+    expect(html).not.toContain("保存常用配置");
   });
   it("固定更多、我的常用与全库加载来自同一资源，名称 Bm 不替换入口文字", () => {
     const onChange = vi.fn();
@@ -374,31 +386,32 @@ describe("和弦库与两处入口", () => {
         draft={draft}
         document={committed()}
         presetsEnabled
+        presentation="quick"
         onChange={onChange}
       />,
     );
     expect(html).toContain('aria-label="更多和弦"');
     expect(html).toContain("<span>更多</span>");
     expect(html).not.toContain("更多 ⌄");
-    expect(html).toContain("我的常用");
+    expect(html).toContain("本调常用和弦");
     expect(html).not.toContain("和弦库加载中");
     expect(onChange).not.toHaveBeenCalled();
   });
-  it("配置与收藏在没有 HTTP 目录时也保留可操作页面", () => {
+  it("收藏在没有 HTTP 目录时仍可独立浏览", () => {
     state.snapshot = { status: "error", catalog: null, error: "offline" };
     const html = renderToStaticMarkup(
       <ChordLibraryModal
         draft={draft}
         document={committed()}
         presetsEnabled
-        initialTab="config"
+        initialTab="mine"
         onConfirm={vi.fn()}
         onCancel={vi.fn()}
       />,
     );
-    expect(html).toContain("导入 JSON 预览");
-    expect(html).toContain("导出已保存配置");
-    expect(html).toContain("保存常用配置");
+    expect(html).toContain("我的指法");
+    expect(html).toContain("还没有保存的指法");
+    expect(html).not.toContain("保存常用配置");
     state.snapshot = { status: "ready", catalog, error: null };
   });
 });

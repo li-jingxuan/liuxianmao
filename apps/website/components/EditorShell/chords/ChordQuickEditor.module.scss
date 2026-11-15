@@ -2,6 +2,7 @@
   min-width: 0;
   color: var(--foreground);
   font-size: 13px;
+  padding-bottom: 12px;
 
   p {
     margin: 0;
@@ -12,13 +13,13 @@
   display: flex;
   flex-direction: column;
   gap: 7px;
-  margin-bottom: 18px;
+  margin-bottom: 12px;
 
   label {
     font-size: 13px;
   }
   input {
-    height: 36px;
+    height: 32px;
     font-size: 14px;
   }
 }
@@ -54,12 +55,13 @@
 .summary {
   display: flex;
   align-items: center;
-  gap: 20px;
-  min-height: 98px;
-  margin: 18px 0;
-  padding: 10px 14px;
+  gap: 12px;
+  min-height: 70px;
+  margin: 12px 0 0;
+  padding: 8px 10px;
   border-radius: 8px;
   background: #f3f6fa;
+  > button { flex: none; height: auto; padding: 0; font-size: 12px; }
 
   > svg {
     flex: 0 0 68px;
@@ -128,3 +130,4 @@
   // 气泡从 hidden 变为 visible 时，不能让输入的 all 过渡延迟可聚焦状态。
   transition-property: border-color, box-shadow, background-color, color;
 }
+.nameRow { display: flex; align-items: center; gap: 8px; > input { min-width: 0; } > button { flex: none; } }

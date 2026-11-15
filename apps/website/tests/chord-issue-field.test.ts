@@ -9,10 +9,10 @@ describe("和弦错误字段定位", () => {
     diagram.startFret = Number.NaN;
     expect(chordIssueField(diagram)).toBe("起始品位");
   });
-  it("没有横按时重复手指仍定位实际冲突弦的手指控件", () => {
+  it("重复手指不再视为冲突", () => {
     const diagram = copyChordPreset("C")!.diagram!;
     diagram.strings[4]!.finger = 2;
-    expect(chordIssueField(diagram)).toBe("5弦手指");
+    expect(chordIssueField(diagram)).toBeNull();
   });
   it("定位无效的实际品位、手指以及可修改的空弦控件", () => {
     const diagram = copyChordPreset("C")!.diagram!;

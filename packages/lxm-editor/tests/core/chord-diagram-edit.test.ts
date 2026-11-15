@@ -17,18 +17,17 @@ describe("指法编辑的纯原子事务", () => {
     expect(diagram.barres).toEqual([{ fret: 2, minString: 1, maxString: 6, finger: 1 }]);
     expect(diagram.strings[0]).not.toBe(before.strings[0]);
   });
-  it("覆盖更高品保留实际品位与原手指，同横按手指冲突整体拒绝", () => {
+  it("覆盖更高品保留实际品位与原手指，相同手指不判冲突", () => {
     const before = open(); before.strings[2] = { string: 3, fret: 3, finger: 2 };
     const b = { fret: 1, minString: 1, maxString: 6, finger: 1 as const };
     expect(success(editChordDiagram(before, { type: "add-barre", barre: b })).diagram.strings[2]).toEqual(before.strings[2]);
     before.strings[2]!.finger = 1;
     const snapshot = structuredClone(before);
-    const result = editChordDiagram(before, { type: "add-barre", barre: b });
-    expect(result).toMatchObject({ ok: false, issues: expect.arrayContaining([expect.objectContaining({ code: "barre-conflict", string: 3, barreIndex: 0 })]) });
+    const result = success(editChordDiagram(before, { type: "add-barre", barre: b }));
+    expect(result.diagram.strings[2]).toEqual(before.strings[2]);
     expect(before).toEqual(snapshot);
   });
   it.each([
-    { fret: 2, minString: 1, maxString: 6, finger: 1 as const },
     { fret: 1, minString: 2, maxString: 4, finger: 2 as const },
     { fret: 2, minString: 3, maxString: 3, finger: 2 as const },
     { fret: 7, minString: 1, maxString: 2, finger: 2 as const },
@@ -38,12 +37,12 @@ describe("指法编辑的纯原子事务", () => {
     expect(editChordDiagram(before, { type: "add-barre", barre }).ok).toBe(false);
     expect(before).toEqual(snapshot);
   });
-  it("删除横按仅清失去解释的重复手指，不改品位，独立手指保留", () => {
+  it("删除横按保留品位和所有显式手指", () => {
     const before = fullBarre(); before.strings[0] = { string: 1, fret: 3, finger: 2 };
     const result = success(editChordDiagram(before, { type: "delete-barre", index: 0 }));
     expect(result.diagram.strings.map((s) => s.fret)).toEqual(before.strings.map((s) => s.fret));
-    expect(result.diagram.strings.map((s) => s.finger)).toEqual([2, null, null, null, null, null]);
-    expect(result.clearedStrings).toEqual([2, 3, 4, 5, 6]);
+    expect(result.diagram.strings.map((s) => s.finger)).toEqual([2, 1, 1, 1, 1, 1]);
+    expect(result.clearedStrings).toEqual([]);
   });
   it("删除后仅一根弦仍使用该手指时保留合法独立手指", () => {
     const before = fullBarre(); before.strings.forEach((s, i) => { if (i > 0) s.finger = null; });
@@ -60,7 +59,7 @@ describe("指法编辑的纯原子事务", () => {
     for (const s of result.diagram.strings) {
       const covered = s.string >= barre.minString && s.string <= barre.maxString;
       expect(s.fret).toBe(covered ? barre.fret : 1);
-      expect(s.finger).toBe(covered ? barre.finger : null);
+      expect(s.finger).toBe(covered ? barre.finger : 1);
     }
   });
   it("不同品位横按可覆盖相同弦，删除一条不清另一条的解释", () => {
@@ -103,5 +102,12 @@ describe("指法编辑的纯原子事务", () => {
     const result = editChordDiagram(before, { type: "add-barre", barre: { fret: 5, minString: 3, maxString: 4, finger: 1 } });
     expect(result).toMatchObject({ ok: false, issues: expect.arrayContaining([expect.objectContaining({ code: "barre-limit" })]) });
     expect(before).toEqual(snapshot);
+  });
+  it.each([null, "T", 1] as const)("支持 %s 横按和相同手指的独立按点/多条横按", (finger) => {
+    const one = success(editChordDiagram(open(), { type: "add-barre", barre: { fret: 1, minString: 1, maxString: 3, finger } })).diagram;
+    const two = success(editChordDiagram(one, { type: "add-barre", barre: { fret: 2, minString: 4, maxString: 6, finger } })).diagram;
+    const point = success(editChordDiagram(two, { type: "set-string", string: 6, fret: 3, finger })).diagram;
+    expect(point.strings[5]!.finger).toBe(finger);
+    expect(point.barres.map((b) => b.finger)).toEqual([finger, finger]);
   });
 });

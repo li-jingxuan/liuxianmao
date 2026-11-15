@@ -69,6 +69,7 @@ const labels: Readonly<Record<string, string>> = {
   "score.setInfo": "修改曲谱信息",
   "lyric.set": "设置歌词",
   "lyrics.setSequence": "设置歌词序列",
+  "musicText.range.replace": "替换文字范围",
   "lyric.remove": "删除歌词",
   "lyric.verse.add": "添加歌词段落",
   "chordSymbol.set": "设置和弦",
@@ -139,6 +140,7 @@ const describeCommand = (document: ILXMDocument, command: ILXMScoreCommand) => {
   const trackIndex = document.score.tracks.findIndex((track) => track.id === trackId);
   const track = document.score.tracks[trackIndex];
   let label = labels[c.type]!;
+  if (command.type === "musicText.range.replace") label = command.range.kind === "lyric" ? "替换歌词范围" : "替换简谱范围";
   if (c.type === "beat.setKind" || c.type === "beat.setKindRange")
     label = c.kind === "rest" ? "设置休止" : "取消休止（不恢复音符）";
   if (!track) return { label, target: { summary: "当前曲谱" } };

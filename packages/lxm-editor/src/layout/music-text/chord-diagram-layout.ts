@@ -77,7 +77,7 @@ export const layoutChordDiagram = (
       height: barreHeight,
       rx: barreHeight / 2,
     });
-    texts.push({
+    if (b.finger !== null) texts.push({
       ...musicTextGlyph(
         musicTextRequest(String(b.finger), 7),
         (left + right) / 2,

@@ -1,0 +1,18 @@
+"use client";
+
+import { EditorSession } from "../../components/EditorShell/session/EditorSession";
+import { editorStore } from "../../stores/editor-store";
+import styles from "./page.module.scss";
+
+/** 编辑器使用独立会话壳；导入曲谱后重建编辑器，清理旧输入与异步任务。 */
+const EditorPage: React.FC = () => (
+  <div className={styles.editorShell}>
+    <div className={styles.editorContentWrapper}>
+      <div className={styles.editorContentContainer}>
+        <EditorSession session={editorStore} />
+      </div>
+    </div>
+  </div>
+);
+
+export default EditorPage;

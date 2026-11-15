@@ -48,6 +48,14 @@ export { default as EXAMPLE_MVP_6_DOCUMENT } from "../example/example-mvp6.json"
 export * from "./core/lyrics/lyric-sequence";
 export * from "./core/lyrics/lyric-positions";
 export * from "./core/lyrics/lyric-verses";
+export {
+  collectMusicTextRangeSlots,
+  resolveMusicTextRange,
+  readMusicTextRange,
+  type MusicTextRange,
+  type MusicTextRangePosition,
+  type MusicTextRangeSlot,
+} from "./core/music-text-range/music-text-range";
 
 export { default as EXAMPLE_TECHNIQUE_RHYTHM_DOCUMENT } from "../example/example-technique-rhythm";
 

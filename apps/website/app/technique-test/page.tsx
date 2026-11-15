@@ -14,7 +14,7 @@ import { EditorSession } from "../../components/EditorShell/session/EditorSessio
 import { createEditorSession } from "../../stores/editor-store";
 import styles from "./page.module.scss";
 
-/** 测试页独立会话；恢复只替换本页文档，不触碰首页谱面与历史。 */
+/** 测试页独立会话；恢复只替换本页文档，不触碰编辑器谱面与历史。 */
 const TechniqueTestPage = () => {
   const [session] = useState(() =>
     createEditorSession(EXAMPLE_TECHNIQUE_RHYTHM_DOCUMENT),
@@ -71,7 +71,7 @@ const TechniqueTestPage = () => {
           >
             载入 100 小节基线谱
           </button>
-          <Link href="/">返回编辑器</Link>
+          <Link href="/editor">返回编辑器</Link>
           <button
             type="button"
             onClick={() =>

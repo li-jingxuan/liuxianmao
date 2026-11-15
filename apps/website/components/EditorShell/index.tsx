@@ -20,12 +20,14 @@ import {
   layoutNumberedBeatContext,
   LXMScoreCommandEnum,
   navigateTabCellSelection,
+  resolveMusicTextRange,
   resolveTabCellSelection,
   type ILXMHitTarget,
   type ILXMLayout,
   type ILXMFret,
   type ILXMTabCellReference,
   type ILXMTabCellSelection,
+  type MusicTextRange,
 } from "@liuxianmao/lxm-editor";
 import {
   useCallback,
@@ -59,6 +61,7 @@ import { ScoreFileControls } from "./output/ScoreFileControls";
 import { MusicTextSidebar, type MusicTextController } from "./music-text/MusicTextSidebar";
 import { deriveSidebarContext, type SidebarLocation } from "./music-text/sidebar-context";
 import type { MusicTextTarget } from "./music-text/music-text-draft";
+import { rangeFromTarget, hitMusicTextRangePoint, sameRangePoint, navigateMusicTextRange, musicTextRangeRects } from "./music-text/music-text-range-selection";
 import { resolveChordFocus, resolveParagraphFocus } from "./score/music-text-focus";
 import { MusicTextEditingHints } from "./score/MusicTextEditingHints";
 import { useMusicTextMetrics } from "./score/music-text-metrics";
@@ -449,6 +452,9 @@ export const EditorShell: React.FC = () => {
   const pageViewportRef = useRef<HTMLDivElement>(null);
   const [activeMusicTextTarget, setActiveMusicTextTarget] =
     useState<MusicTextTarget | null>(null);
+  const [continuousRange, setContinuousRange] = useState<MusicTextRange | null>(null);
+  const rangeDragRef = useRef<MusicTextRange | null>(null);
+  const pendingTextClickRef = useRef<MusicTextTarget | null>(null);
   useLayoutEffect(() => {
     activeMusicTextTargetRef.current = activeMusicTextTarget;
   }, [activeMusicTextTarget]);
@@ -490,6 +496,7 @@ export const EditorShell: React.FC = () => {
   const dragAnchorRef = useRef<ILXMTabCellReference | null>(null);
   const activePointerIdRef = useRef<number | null>(null);
   const focusCaretRef = useRef<SVGRectElement | null>(null);
+  const rangeFocusRef = useRef<SVGRectElement | null>(null);
   const scoreSvgRef = useRef<SVGSVGElement | null>(null);
   const imageExportButtonRef = useRef<HTMLButtonElement | null>(null);
 
@@ -506,12 +513,15 @@ export const EditorShell: React.FC = () => {
       musicTextMetrics,
       showChordDiagrams,
       paragraphEditing:
+        continuousRange ? { ...continuousRange.focus, trackId: continuousRange.trackId, kind: continuousRange.kind, verse: continuousRange.verse } :
         activeMusicTextTarget?.kind === "lyric" ||
         activeMusicTextTarget?.kind === "numbered"
           ? { ...activeMusicTextTarget, kind: activeMusicTextTarget.kind }
           : undefined,
     });
-  }, [document, musicTextMetrics, activeMusicTextTarget]);
+  }, [document, musicTextMetrics, activeMusicTextTarget, continuousRange]);
+  const rangeRects = useMemo(() => document && lxmLayout && continuousRange
+    ? musicTextRangeRects(document, lxmLayout, continuousRange) : [], [document, lxmLayout, continuousRange]);
 
   const onScoreGeometryChange = useCallback(() => {
     const svg = scoreSvgRef.current;
@@ -520,6 +530,8 @@ export const EditorShell: React.FC = () => {
       svg.releasePointerCapture(pointer);
     activePointerIdRef.current = null;
     dragAnchorRef.current = null;
+    rangeDragRef.current = null;
+    pendingTextClickRef.current = null;
     clearHover();
     // transform 不会触发 ResizeObserver；浮层必须在同一次实际矩阵变化后重定位。
     window.dispatchEvent(new Event("resize"));
@@ -750,7 +762,7 @@ export const EditorShell: React.FC = () => {
     // 气泡隐藏时保留用户滚动位置，未提交草稿也不能把视口拉回。
     if (!viewport || (activeMusicTextTarget && musicTextPopoverHidden)) return;
     const revealTarget = () => {
-      const caret = focusCaretRef.current;
+      const caret = continuousRange ? rangeFocusRef.current : focusCaretRef.current;
       const matrix = scoreSvgRef.current?.getScreenCTM();
       if (!caret && !(lyricFocus && matrix)) return;
       // 有歌词优先滚动到当前段文字；空拍使用临时 caret，不合并其他段与和弦。
@@ -832,6 +844,8 @@ export const EditorShell: React.FC = () => {
     lyricFocus,
     lyricEditing,
     activeMusicTextTarget,
+    continuousRange,
+    rangeRects,
   ]);
 
   /** 清理当前品位草稿和对应的延时提交。 */
@@ -1015,6 +1029,8 @@ export const EditorShell: React.FC = () => {
       svg.releasePointerCapture(pointerId);
     dragAnchorRef.current = null;
     activePointerIdRef.current = null;
+    rangeDragRef.current = null;
+    pendingTextClickRef.current = null;
   };
 
   /** 确认期间不修改选区，只有接受请求后才更新六线谱对象与焦点。 */
@@ -1023,6 +1039,7 @@ export const EditorShell: React.FC = () => {
     techniqueId: string | null,
   ) => {
     clearScoreInteraction();
+    setContinuousRange(null);
     setActiveMusicTextTarget(null);
     setSelection(next);
     setSelectedTechniqueId(techniqueId);
@@ -1052,6 +1069,31 @@ export const EditorShell: React.FC = () => {
     }
     event.preventDefault();
     if (action.type === "target") {
+      if (musicTextController.current?.isTransitionBlocked()) return;
+      const candidate = rangeFromTarget(action.target);
+      if (candidate && !action.numberedMarkId) {
+        const previous = continuousRange ?? (activeMusicTextTarget ? rangeFromTarget(activeMusicTextTarget) : null);
+        const extend = event.shiftKey && previous?.kind === candidate.kind && previous.trackId === candidate.trackId &&
+          (candidate.kind !== "lyric" || (previous.verse ?? 1) === (candidate.verse ?? 1));
+        if (musicTextController.current?.returnToScore() !== "accepted") return;
+        if (extend) {
+          const next = { ...candidate, anchor: previous.anchor };
+          if (!resolveMusicTextRange(document, next).ok) return;
+          setContinuousRange(next);
+          setSelection(null);
+          session.getState().setNumberedSelection(null);
+          rangeDragRef.current = next;
+          openSidebar();
+          focusScore();
+        } else {
+          setContinuousRange(null);
+          rangeDragRef.current = candidate;
+          pendingTextClickRef.current = action.target;
+        }
+        activePointerIdRef.current = event.pointerId;
+        event.currentTarget.setPointerCapture(event.pointerId);
+        return;
+      }
       musicTextController.current?.open(action.target);
       return;
     }
@@ -1086,6 +1128,24 @@ export const EditorShell: React.FC = () => {
   const handlePointerMove: React.PointerEventHandler<SVGSVGElement> = (
     event,
   ) => {
+    if (activePointerIdRef.current === event.pointerId && rangeDragRef.current && lxmLayout && document) {
+      const point = getLayoutPoint(event.currentTarget, event);
+      const drag = rangeDragRef.current;
+      const focus = point && hitMusicTextRangePoint(lxmLayout, point, drag);
+      if (!focus || sameRangePoint(focus, drag.focus)) return;
+      const next = { ...drag, focus };
+      if (!resolveMusicTextRange(document, next).ok) return;
+      pendingTextClickRef.current = null;
+      setContinuousRange(next);
+      setSelection(null);
+      session.getState().setNumberedSelection(null);
+      rangeDragRef.current = next;
+      activePointerIdRef.current = event.pointerId;
+      if (!event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.setPointerCapture(event.pointerId);
+      openSidebar();
+      focusScore();
+      return;
+    }
     if (
       activePointerIdRef.current !== event.pointerId ||
       !dragAnchorRef.current
@@ -1147,8 +1207,13 @@ export const EditorShell: React.FC = () => {
     if (activePointerIdRef.current !== event.pointerId) return;
     if (event.currentTarget.hasPointerCapture(event.pointerId))
       event.currentTarget.releasePointerCapture(event.pointerId);
+    const pendingClick = pendingTextClickRef.current;
+    pendingTextClickRef.current = null;
     activePointerIdRef.current = null;
     dragAnchorRef.current = null;
+    rangeDragRef.current = null;
+    if (pendingClick && event.type !== "pointercancel") musicTextController.current?.open(pendingClick);
+    else if (continuousRange) focusScore();
   };
 
   /** 编辑器级历史快捷键在 SVG 或 Toolbar 持有焦点时都生效。 */
@@ -1162,7 +1227,6 @@ export const EditorShell: React.FC = () => {
       event.target.closest('dialog, [role="dialog"], [role="alertdialog"]')
     )
       return;
-
     const action = resolveEditorHistoryShortcut(event, { canUndo, canRedo });
     if (!action) return;
 
@@ -1183,6 +1247,36 @@ export const EditorShell: React.FC = () => {
       event.nativeEvent.isComposing
     )
       return;
+    if (document && (continuousRange || event.shiftKey && activeMusicTextTarget && rangeFromTarget(activeMusicTextTarget))) {
+      const range = continuousRange ?? rangeFromTarget(activeMusicTextTarget!)!;
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      if (musicTextController.current?.isTransitionBlocked()) return;
+      if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+        event.preventDefault();
+        const next = navigateMusicTextRange(document, range, event.key === "ArrowLeft" ? -1 : 1, event.shiftKey);
+        if (next) {
+          if (!continuousRange && musicTextController.current?.returnToScore() !== "accepted") return;
+          setContinuousRange(next);
+          setSelection(null);
+          session.getState().setNumberedSelection(null);
+          openSidebar();
+          focusScore();
+        }
+        return;
+      }
+      if (continuousRange && event.key === "Escape") {
+        event.preventDefault();
+        setContinuousRange({ ...range, anchor: range.focus });
+        focusScore();
+        return;
+      }
+      if (continuousRange && (event.key === "Delete" || event.key === "Backspace")) {
+        event.preventDefault();
+        musicTextController.current?.clearRange();
+        return;
+      }
+      if (continuousRange) return;
+    }
     // 段落活动对象上的 Esc 也走草稿保护，不能被文字输入锁提前拦住。
     if (event.key === "Escape" && activeMusicTextTarget) {
       event.preventDefault();
@@ -1626,6 +1720,10 @@ export const EditorShell: React.FC = () => {
                 />
                 {/* 选区层位于音乐元素下方，且永不参与指针命中。 */}
                 <g className={scoreInteractionStyles.selectionLayer} pointerEvents="none">
+                  {rangeRects.map((rect) => <rect key={rect.key} ref={rect.focused ? rangeFocusRef : undefined} data-music-text-range-cell={rect.key} data-range-focus={rect.focused || undefined}
+                    x={rect.x} y={rect.y} width={rect.width} height={rect.height} rx={3}
+                    fill={rect.focused ? "#dce7ff" : "#edf3ff"} fillOpacity={0.72}
+                    stroke={rect.focused ? "#285be0" : "#9cb5fa"} strokeWidth={rect.focused ? 1.5 : 1} />)}
                   {chordFocus && (
                     <rect
                       data-chord-focus
@@ -1757,6 +1855,8 @@ export const EditorShell: React.FC = () => {
           />
         </div>
         <MusicTextSidebar
+          continuousRange={continuousRange}
+          onRangeChange={setContinuousRange}
           showChordDiagrams={showChordDiagrams}
           modal={narrowPanels && !sidebarCollapsed}
           collapsed={sidebarCollapsed}
@@ -1799,7 +1899,9 @@ export const EditorShell: React.FC = () => {
       />
       <EditorStatusBar
         position={
-          numberedSelection && currentPosition.valid
+          continuousRange
+            ? `已选择 ${rangeRects.length} 个${continuousRange.kind === "numbered" ? "简谱事件" : `歌词位置 · 第 ${continuousRange.verse ?? 1} 段`}`
+            : numberedSelection && currentPosition.valid
             ? `${currentPosition.title}：${currentPosition.position}${currentPosition.scope ? ` · ${currentPosition.scope}` : ""}`
             : selection && focusedMeasureContext
               ? `当前位置：第 ${focusedMeasureContext.measureIndex + 1} 小节，第 ${focusedMeasureContext.measure.beats.findIndex((beat) => beat.id === selection.focus.beatId) + 1} 拍点，第 ${selection.focus.string} 弦。`

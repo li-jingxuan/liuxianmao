@@ -1,4 +1,4 @@
-import { Alert, Button, Form, Input, InputNumber, Select } from "antd";
+import { Alert, Button, Form, Input, InputNumber, Radio, Select } from "antd";
 import {
   layoutChordDiagram,
   validateChordDiagram,
@@ -70,6 +70,11 @@ export interface ChordEditorProps extends ChordEditorLibraryProps {
   disabled?: boolean;
   inputReadOnly?: boolean;
   allowEmptyName?: boolean;
+  onApply?: () => void;
+  onRemove?: () => void;
+  canApply?: boolean;
+  canRemove?: boolean;
+  error?: string | null;
   presetMenuOpen?: boolean;
   onPresetMenuOpenChange?: (open: boolean) => void;
 }
@@ -84,12 +89,16 @@ export const ChordEditor = ({
   onPresetMenuOpenChange,
   inputReadOnly = disabled,
   allowEmptyName = false,
+  onApply,
+  onRemove,
+  canApply = false,
+  canRemove = false,
+  error,
   document,
   tuning,
   onOpenLibrary,
   onOpenCustom,
   onOpenSettings,
-  showChordDiagrams,
 }: ChordEditorProps) => {
   // InputNumber 清空时以 NaN 保留非法草稿，统一校验阻止提交，不把空值转成 0。
   const diagram = draft.chord.diagram;
@@ -106,15 +115,16 @@ export const ChordEditor = ({
           <span>{presetsEnabled ? "标准调弦　E A D G B E" : "自定义调弦"}</span>
         </div>
         {issue && !removing && <p role="alert">{issue}</p>}
-        <ChordDiagramPreview diagram={diagram} width={90} height={110} />
+        <ChordDiagramPreview diagram={diagram} width={52} height={64} />
+        {onOpenCustom && <Button type="link" disabled={disabled} onClick={() => onOpenCustom()}>{diagram ? "编辑指法" : "自定义指法"}</Button>}
       </section>
       <section className={viewStyles.presets} aria-label="名称与常用指法">
         <Form.Item
           layout="vertical"
-          label="和弦名称"
+          label={<span className={viewStyles.nameLabel}>和弦名称{onRemove && <Button type="link" danger disabled={disabled || !canRemove} onClick={onRemove}>删除</Button>}</span>}
           htmlFor={"editor-field-" + "和弦名称"}
         >
-          <Input
+          <div className={viewStyles.nameRow}><Input
             id={"editor-field-" + "和弦名称"}
             ref={(control) => {
               inputRef(control?.input ?? null);
@@ -129,13 +139,9 @@ export const ChordEditor = ({
                 chord: { ...draft.chord, name: e.target.value },
               })
             }
-          />
+          />{onApply && <Button type="primary" disabled={disabled || !canApply} onClick={onApply}>应用</Button>}</div>
         </Form.Item>
-        {removing && (
-          <p className={viewStyles.help}>
-            应用后删除当前拍的和弦名称与指法，保留拍点。
-          </p>
-        )}
+        {error && error !== issue && <p className={viewStyles.help} role="alert">{error}</p>}
         <ChordPresetControls
           draft={draft}
           onChange={onChange}
@@ -165,14 +171,6 @@ export const ChordEditor = ({
           </Button>
         )}
       </section>
-      {onOpenCustom && <section className={viewStyles.customEntry} aria-label="指法图">
-        <div className={viewStyles.sectionHeading}><h3>指法图</h3><span className={viewStyles.typeTag}>{diagram ? diagram.barres?.length ? "横按指法" : "开放指法" : "尚无指法"}</span></div>
-        <p>从和弦库选一种指法，也可以直接在图上调整。</p>
-        <div className={viewStyles.buttonPair}>
-          <Button disabled={disabled || !onOpenLibrary} onClick={() => onOpenLibrary?.("key")}>选择其他指法</Button>
-          <Button disabled={disabled} onClick={() => onOpenCustom()}>{diagram ? "编辑指法" : "自定义指法"}</Button>
-        </div>
-      </section>}
       {diagram && !onOpenCustom && (
         <>
           <details className={viewStyles.disclosure} open>
@@ -423,61 +421,25 @@ export const ChordEditor = ({
             label="谱面显示"
             htmlFor="chord-display"
           >
-            <Select
+            <Radio.Group
               disabled={disabled}
               id="chord-display"
               aria-label="和弦显示方式"
               value={draft.display}
-              onChange={(display: ChordDraft["display"]) =>
-                onChange({ ...draft, display })
+              onChange={(event) =>
+                onChange({ ...draft, display: event.target.value })
               }
               options={[
                 { value: "name", label: "仅名称" },
                 {
                   value: "nameAndDiagram",
-                  label: "名称与指法图",
+                   label: "名称与指法",
                   disabled: !diagram,
                 },
               ]}
             />
-            {!diagram && <small>创建指法图后可在谱面显示指法。</small>}
-            {diagram && draft.display === "name" && (
-              <small>指法已保留，谱面当前保存为仅名称。</small>
-            )}
-            {diagram && showChordDiagrams === false && (
-              <small>指法已保留；全局已隐藏指法图，编辑预览仍可见。</small>
-            )}
-            {diagram &&
-              showChordDiagrams === true &&
-              draft.display === "name" && (
-                <small>保存为仅名称；全局已开启指法图。</small>
-              )}
           </Form.Item>
       </section>
-      <p className={viewStyles.help}>同一和弦的不同位置可使用不同指法。</p>
-      {diagram && (
-        <details className={viewStyles.disclosure}>
-          <summary>
-            清除指法<span>保留和弦名称</span>
-          </summary>
-          <div className={viewStyles.disclosureContent}>
-            <Button
-              disabled={disabled}
-              onClick={() =>
-                onChange({
-                  display: "name",
-                  chord: { ...draft.chord, diagram: null },
-                })
-              }
-            >
-              仅清除指法图
-            </Button>
-            <p className={viewStyles.help}>
-              应用后生效；应用前可恢复和弦修改。
-            </p>
-          </div>
-        </details>
-      )}
       {issue && !removing && (
         <Alert type="error" showIcon title="指法尚未应用" description={issue} />
       )}

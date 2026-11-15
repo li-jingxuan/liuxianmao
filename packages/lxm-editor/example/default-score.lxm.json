@@ -9,7 +9,12 @@
     "keySignature": "C",
     "meta": {
       "fixture": "mvp-v7.2-numbered",
-      "purpose": "简谱编辑与布局验收"
+      "purpose": "简谱编辑与布局验收",
+      "lxm:tonality": {
+        "version": 1,
+        "tonic": "C",
+        "mode": "major"
+      }
     },
     "tracks": [
       {

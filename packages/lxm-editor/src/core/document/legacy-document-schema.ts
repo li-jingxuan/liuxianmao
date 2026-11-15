@@ -91,6 +91,7 @@ const fingerSchema = z.union([
   z.literal(2),
   z.literal(3),
   z.literal(4),
+  z.literal("T"),
 ]);
 export const LXMChordDiagramSchema = z
   .object({
@@ -121,7 +122,7 @@ export const LXMChordDiagramSchema = z
             fret: z.number().int().min(1).max(24),
             minString: z.number().int().min(1).max(6),
             maxString: z.number().int().min(1).max(6),
-            finger: fingerSchema,
+            finger: fingerSchema.nullable(),
           })
           .strict(),
       )

@@ -142,13 +142,13 @@ export interface ILXMLyric {
 export interface ILXMChordString {
   string: 1 | 2 | 3 | 4 | 5 | 6;
   fret: number | "x";
-  finger: 1 | 2 | 3 | 4 | null;
+  finger: 1 | 2 | 3 | 4 | "T" | null;
 }
 export interface ILXMChordBarre {
   fret: number;
   minString: number;
   maxString: number;
-  finger: 1 | 2 | 3 | 4;
+  finger: ILXMChordString["finger"];
 }
 export interface ILXMChordDiagram {
   startFret: number;

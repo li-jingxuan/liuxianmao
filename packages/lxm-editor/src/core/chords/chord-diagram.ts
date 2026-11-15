@@ -51,40 +51,31 @@ export const validateChordDiagramIssues = (
     )
       add("fret", "品位应为 x、0 或 1–24 的整数", { string: s.string, field: "fret" });
     if (
-      s.finger !== null &&
+      s.finger !== null && s.finger !== "T" &&
       (!Number.isInteger(s.finger) || s.finger < 1 || s.finger > 4)
     )
-      add("finger", "手指编号应为 1–4 或未指定", { string: s.string, field: "finger" });
+      add("finger", "手指编号应为 1–4、T 或未指定", { string: s.string, field: "finger" });
     if ((s.fret === "x" || s.fret === 0) && s.finger !== null)
       add("open-finger", "空弦与禁奏弦不应指定手指", { string: s.string, field: "finger" });
   }
   if (barres.length > 4) add("barre-limit", "最多支持四条横按", { field: "barres" });
-  const usedFingers = new Set<number>();
   for (const [barreIndex, b] of barres.entries()) {
+    const validFinger = b.finger === null || b.finger === "T" || (Number.isInteger(b.finger) && b.finger >= 1 && b.finger <= 4);
     if (
-      ![b.fret, b.minString, b.maxString, b.finger].every(Number.isInteger) ||
+      ![b.fret, b.minString, b.maxString].every(Number.isInteger) ||
       b.minString < 1 ||
       b.maxString > 6 ||
       b.minString >= b.maxString ||
       b.fret < 1 ||
       b.fret > 24 ||
-      b.finger < 1 ||
-      b.finger > 4
+      !validFinger
     ) {
-      add("barre-range", "横按弦范围、品位或手指编号无效", { barreIndex, field: !Number.isInteger(b.fret) || b.fret < 1 || b.fret > 24 ? "fret" : !Number.isInteger(b.finger) || b.finger < 1 || b.finger > 4 ? "finger" : "minString" });
+      add("barre-range", "横按弦范围、品位或手指编号无效", { barreIndex, field: !Number.isInteger(b.fret) || b.fret < 1 || b.fret > 24 ? "fret" : !validFinger ? "finger" : "minString" });
       continue;
     }
-    if (usedFingers.has(b.finger)) add("barre-finger", "同一手指只能定义一条横按", { barreIndex, field: "finger" });
-    usedFingers.add(b.finger);
     for (const s of strings.slice(b.minString - 1, b.maxString)) {
       if (s.fret === "x" || s.fret < b.fret)
         add("barre-low-fret", "横按区间不能包含空弦、禁奏或更低品位", { barreIndex, string: s.string, field: "fret" });
-      if (
-        s.finger !== null &&
-        ((s.fret === b.fret && s.finger !== b.finger) ||
-          (typeof s.fret === "number" && s.fret > b.fret && s.finger === b.finger))
-      )
-        add("barre-conflict", "横按与手指编号冲突", { barreIndex, string: s.string, field: "finger" });
     }
     if (
       barres.some(
@@ -96,23 +87,6 @@ export const validateChordDiagramIssues = (
       )
     )
       add("barre-overlap", "同品位横按不能重叠", { barreIndex, field: "barres" });
-  }
-  for (const finger of [1, 2, 3, 4]) {
-    const members = strings.filter((s) => s.finger === finger);
-    if (
-      members.length > 1 &&
-      !barres.some(
-        (b) =>
-          b.finger === finger &&
-          members.every(
-            (s) =>
-              s.fret === b.fret &&
-              s.string >= b.minString &&
-              s.string <= b.maxString,
-          ),
-      )
-    )
-      for (const s of members) add("repeated-finger", "重复手指编号需要显式横按解释", { string: s.string, field: "finger" });
   }
   const frets = getPressedFrets(diagram);
   // 先区分指法自身跨度与观察窗口问题，用户才能知道是否可通过起始品位修复。

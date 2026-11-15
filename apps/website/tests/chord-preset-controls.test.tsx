@@ -63,6 +63,7 @@ function view() {
     draft: { display: "name", chord: { name: "Bm", diagram: null } },
     onChange: vi.fn(),
     presetsEnabled: true,
+    presentation: "quick",
     menuOpen: true,
     onOpenLibrary,
     onOpenSettings,
@@ -158,7 +159,7 @@ describe("更多和弦键盘交互", () => {
     const start = value.popup.props.onCompositionStart as () => void,
       end = value.popup.props.onCompositionEnd as () => void;
     const library = value.nodes.find(
-      (node) => node.props.children === "浏览完整和弦库 →",
+      (node) => node.props.children === "浏览完整和弦库",
     )!;
     start();
     const composing = key("Enter");
@@ -175,7 +176,7 @@ describe("更多和弦键盘交互", () => {
     value.capture(released);
     expect(released.preventDefault).not.toHaveBeenCalled();
     (library.props.onClick as () => void)();
-    expect(value.onOpenLibrary).toHaveBeenCalledWith("key");
+    expect(value.onOpenLibrary).toHaveBeenCalledWith("all");
     end();
     expect(vi.getTimerCount()).toBe(1);
     effectCleanups.forEach((cleanup) => cleanup());

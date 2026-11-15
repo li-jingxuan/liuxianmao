@@ -46,7 +46,7 @@ function view(overrides: Partial<ChordQuickEditorProps> = {}) {
 }
 
 describe("和弦快捷表单", () => {
-  it("已有和弦允许清空名称并提示删除，新建空名称仍报错", () => {
+  it("已有和弦允许清空名称，新建空名称仍报错且无常驻说明", () => {
     const draft = {
       display: "nameAndDiagram" as const,
       chord: { ...copyChordPreset("C")!, name: "" },
@@ -56,7 +56,7 @@ describe("和弦快捷表单", () => {
       (element) => element.props.id === "chord-popover-name",
     )!;
     expect(input.props["aria-invalid"]).toBe(false);
-    expect(existing.html).toContain("应用后将删除当前拍的和弦名称与指法");
+    expect(existing.html).not.toContain("应用后将删除当前拍的和弦名称与指法");
     expect(view({ draft }).html).toContain("不能为空");
     const invalid = view({
       draft: { ...draft, chord: { ...draft.chord, name: "C".repeat(33) } },
@@ -86,7 +86,7 @@ describe("和弦快捷表单", () => {
     )!;
     expect(control.props.draft).toBe(value.props.draft);
     expect(control.props.onChange).toBe(value.props.onChange);
-    expect(value.html).toContain("我的常用");
+    expect(value.html).toContain("本调常用和弦");
     expect(value.html).toContain('aria-label="更多和弦"');
     expect(value.html).toContain("<span>更多</span>");
     expect(value.html).not.toContain("更多 ⌄");
@@ -100,12 +100,12 @@ describe("和弦快捷表单", () => {
     });
     expect(empty.button("名称与指法")).toBeUndefined();
     expect(empty.button("仅名称")).toBeUndefined();
-    expect(empty.html).toContain("尚未设置指法");
+    expect(empty.html).toContain("暂无指法");
     expect(empty.html).not.toContain('aria-label="指法图预览"');
     const named = view({
       draft: { display: "name", chord: copyChordPreset("C")! },
     });
-    expect(named.html).toContain("指法已保留；和弦保存方式为仅名称");
+    expect(named.html).not.toContain("指法已保留；和弦保存方式为仅名称");
     expect(named.html).toContain('aria-label="指法图预览"');
     expect(named.html).not.toContain('aria-label="和弦显示方式"');
     expect(named.props.onChange).not.toHaveBeenCalled();

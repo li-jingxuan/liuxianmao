@@ -20,14 +20,15 @@ import {
 import type { ChordDraft } from "./ChordEditor";
 import { chordCatalogResource } from "./chord-catalog-resource";
 import {
-  useChordPreferences,
   type ChordQuickReference,
   type CustomChordVoicing,
 } from "./chord-preferences";
 import styles from "./ChordPresetControls.module.scss";
 import { createScoreSettingsComposition } from "../settings/score-settings-composition";
+import { ChordDiagramPreview } from "./ChordEditor";
+import { quickChordMatches, recommendedVoicing } from "./chord-recommendations";
 
-export type ChordLibraryTab = "key" | "all" | "mine" | "config";
+export type ChordLibraryTab = "all" | "mine";
 export interface ChordEditorLibraryProps {
   /** The committed Runtime document, never the score-settings draft. */
   document?: ILXMDocument;
@@ -101,7 +102,7 @@ export const resolveChordReference = (
 export const selectedCatalogChord = (
   catalog: ChordCatalog,
   match: ChordCatalogMatch,
-  voicingId = match.item.defaultVoicingId,
+  voicingId = recommendedVoicing(match).id,
 ) => {
   const spelling = /^([A-G](?:#+|b+)?)/.exec(match.name)?.[1];
   return copyCatalogVoicing(catalog, match.item.id, voicingId, spelling);
@@ -138,8 +139,7 @@ export const ChordPresetControls = ({
   onOpenSettings,
   presentation = "sidebar",
 }: ChordPresetControlsProps) => {
-  const resource = useChordCatalog(),
-    { preferences } = useChordPreferences();
+  const resource = useChordCatalog();
   const [open, setOpen] = useState(false),
     [text, setText] = useState(""),
     [protectedInput, setProtectedInput] = useState(false);
@@ -185,20 +185,7 @@ export const ChordPresetControls = ({
     ? readScoreTonality(document)
     : ({ kind: "unset", title: "曲谱调性未设置" } as const);
   const catalog = resource.catalog;
-  const unavailable = preferences.quickItems.flatMap((ref) => {
-    const result = resolveChordReference(
-      ref,
-      catalog,
-      preferences.customVoicings,
-      tuning,
-      presetsEnabled,
-    );
-    return result.reason && !result.reason.startsWith("等待")
-      ? [
-          `${chordReferenceLabel(ref, catalog, preferences.customVoicings)}：${result.reason}`,
-        ]
-      : [];
-  });
+  const recommendations = catalog && tonality.kind === "confirmed" ? quickChordMatches(catalog, tonality.key) : [];
   const results =
     catalog && (text.trim() || tonality.kind === "confirmed")
       ? queryChordCatalog(catalog, {
@@ -240,8 +227,8 @@ export const ChordPresetControls = ({
             if (result.ok) choose(result.chord);
           }}
         >
-          {match.name}
-          {match.degree && <small>{match.degree}</small>}
+          <ChordDiagramPreview diagram={recommendedVoicing(match).diagram} width={54} height={60} />
+          <strong>{match.name}</strong>
         </Button>
         {(!presetsEnabled || !standardChordTuning(tuning)) && (
           <Button
@@ -260,44 +247,37 @@ export const ChordPresetControls = ({
   return (
     <section
       className={styles.controls}
-      aria-label="我的常用"
+      aria-label="常用和弦"
       onKeyDownCapture={protectActivation}
     >
       <div className={styles.heading}>
         <h3>常用和弦</h3>
-        {presentation === "quick" ? <span>{presetsEnabled ? "标准调弦" : "自定义调弦"}</span> : (
-          <Button type="link" disabled={disabled || protectedInput || !onOpenLibrary} onClick={() => openLibrary("config")}>配置</Button>
+        {presentation === "quick" ? <span>{tonality.title.replace("曲谱 ", "")}</span> : (
+          <Button type="link" disabled={disabled || protectedInput || !onOpenLibrary} onClick={() => openLibrary("all")}>更多配置</Button>
         )}
       </div>
-      <div className={styles.row} role="group" aria-label="我的常用和弦">
-        <div className={styles.quick}>
-          {preferences.quickItems.map((ref) => {
-            const resolved = resolveChordReference(
-              ref,
-              catalog,
-              preferences.customVoicings,
-              tuning,
-              presetsEnabled,
-            );
-            const selected =
-              resolved.chord &&
-              JSON.stringify(resolved.chord) === JSON.stringify(draft.chord);
+      {presentation === "sidebar" && <p className={styles.keyCaption}>{tonality.title}</p>}
+      <div className={styles.row} role="group" aria-label="本调常用和弦">
+        <div className={presentation === "sidebar" ? styles.sidebarQuick : styles.quick}>
+          {recommendations.slice(0, presentation === "quick" ? 6 : 8).map((match) => {
+            const result = selectedCatalogChord(catalog!, match);
+            const selected = result.ok && JSON.stringify(result.chord) === JSON.stringify(draft.chord);
             return (
               <Button
-                key={ref.identityId}
-                disabled={disabled || protectedInput || !resolved.chord}
-                title={resolved.reason ?? undefined}
+                key={match.item.id}
+                disabled={disabled || protectedInput || !result.ok || !presetsEnabled || !standardChordTuning(tuning)}
                 aria-pressed={!!selected}
                 onClick={() => {
-                  if (resolved.chord) choose(resolved.chord);
+                  if (result.ok) choose(result.chord);
                 }}
               >
-                {chordReferenceLabel(ref, catalog, preferences.customVoicings)}
+                {presentation === "sidebar" && <ChordDiagramPreview diagram={result.ok ? result.chord.diagram : null} width={37} height={48} />}
+                <span>{match.name}</span>
               </Button>
             );
           })}
         </div>
-        <Dropdown
+        {presentation === "quick" && <Dropdown
           autoFocus
           destroyOnHidden
           placement={placement}
@@ -359,20 +339,7 @@ export const ChordPresetControls = ({
                  changeOpen(false); onOpenSettings?.();
                }}>设置调性</Button>
                </div>
-              {document && (
-                <p className={styles.help}>
-                   {text.trim() ? "曲谱基准 · " : "本调推荐 · "}
-                  {document.score.keySignature
-                    ? `1=${document.score.keySignature}`
-                    : "未设置"}
-                  {tonality.kind === "confirmed" &&
-                  tonality.tonality.mode === "minor" &&
-                  tonality.tonality.minorTonicDegree === 6
-                    ? ` · 6=${tonality.tonality.tonic}`
-                    : ""}
-                </p>
-              )}
-              <div className={styles.results}>
+               <div className={styles.results}>
                  {resource.status === "error" && <p className={styles.loadError} role="status">
                    {catalog ? "更新失败，继续使用已加载的和弦库。" : "和弦库暂不可用，可重试或使用收藏。"}
                    <Button type="link" disabled={disabled || protectedInput} onClick={() => { void chordCatalogResource.retry(); }}>重试</Button>
@@ -386,19 +353,10 @@ export const ChordPresetControls = ({
                   </p>
                 ) : !text.trim() && tonality.kind !== "confirmed" ? (
                    <p>确认曲谱调性后显示本调推荐。可先搜索全部和弦，或使用我的常用。</p>
-                ) : results?.groups.length ? (
-                  results.groups.map((group) => (
-                     <section key={group.id}>
-                       <p className={styles.groupTitle}>{group.id === "natural" ? "调内三和弦与七和弦" : group.label}</p>
-                      <div className={styles.candidates}>
-                        {rows(group.items)}
-                      </div>
-                    </section>
-                  ))
-                ) : (
-                  <div className={styles.candidates}>
-                    {rows(results?.items ?? [])}
-                    {!results?.items.length && (
+                 ) : (
+                   <div className={styles.candidates}>
+                     {rows(text.trim() ? (results?.items ?? []).slice(0, 8) : recommendations)}
+                     {text.trim() && !results?.items.length && (
                       <p>没有匹配项，可清空搜索或浏览完整库。</p>
                     )}
                   </div>
@@ -413,17 +371,10 @@ export const ChordPresetControls = ({
                  <Button
                    type="link"
                   disabled={!onOpenLibrary || disabled || protectedInput}
-                  onClick={() => openLibrary("key")}
+                   onClick={() => openLibrary("all")}
                 >
-                   浏览完整和弦库 →
-                </Button>
-                 <Button
-                   type="link"
-                  disabled={!onOpenLibrary || disabled || protectedInput}
-                  onClick={() => openLibrary("config")}
-                >
-                   配置常用
-                </Button>
+                    浏览完整和弦库
+                 </Button>
               </div>
             </div>
           )}
@@ -437,11 +388,9 @@ export const ChordPresetControls = ({
           >
             <span>更多</span><DownOutlined aria-hidden="true" />
           </Button>
-        </Dropdown>
+        </Dropdown>}
       </div>
-      {unavailable.length > 0 && (
-        <p className={styles.help}>{unavailable.join("；")}</p>
-      )}
+      {tonality.kind !== "confirmed" && <p className={styles.help}>确认曲谱调性后显示本调推荐。<Button type="link" disabled={!onOpenSettings || disabled || protectedInput} onClick={() => { if (!composition.isComposing()) onOpenSettings?.(); }}>设置调性</Button></p>}
       {resource.status !== "ready" && (
         <div className={styles.help} role="status">
           {catalog

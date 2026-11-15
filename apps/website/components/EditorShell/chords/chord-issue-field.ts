@@ -20,7 +20,7 @@ export const chordIssueField = (diagram: ILXMChordDiagram): string | null => {
     return invalid ? fret(invalid.string) : null;
   }
   if (issue.startsWith("手指编号")) {
-    const invalid = diagram.strings.find((string) => string.finger !== null &&
+    const invalid = diagram.strings.find((string) => string.finger !== null && string.finger !== "T" &&
       (!Number.isInteger(string.finger) || string.finger < 1 || string.finger > 4));
     return invalid ? (invalid.fret === 0 || invalid.fret === "x" ? fret(invalid.string) : finger(invalid.string)) : null;
   }
@@ -33,7 +33,9 @@ export const chordIssueField = (diagram: ILXMChordDiagram): string | null => {
     for (const [index, value] of diagram.barres.entries()) {
       for (const field of ["fret", "minString", "maxString", "finger"] as const) {
         const max = field === "fret" ? 24 : field === "finger" ? 4 : 6;
-        if (!Number.isInteger(value[field]) || value[field] < 1 || value[field] > max) return barre(index, field);
+        const entry = value[field];
+        if (field === "finger" && (entry === null || entry === "T")) continue;
+        if (typeof entry !== "number" || !Number.isInteger(entry) || entry < 1 || entry > max) return barre(index, field);
       }
       if (value.minString >= value.maxString) return barre(index, "minString");
     }

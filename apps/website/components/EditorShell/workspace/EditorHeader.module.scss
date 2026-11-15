@@ -19,6 +19,11 @@
   color: var(--accent);
   font-size: 18px;
   white-space: nowrap;
+  width: fit-content;
+  text-decoration: none;
+
+  &:hover { color: var(--accent); }
+  &:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
 }
 
 .editorHeading {

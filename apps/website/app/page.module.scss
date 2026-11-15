@@ -1,46 +1,204 @@
-.editorShell {
+.home {
   height: 100dvh;
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow: auto;
+  background: #fff;
+  color: #202838;
+  font-size: 14px;
+  line-height: normal;
+
+  a {
+    color: inherit;
+    text-decoration: none;
+
+    &:focus-visible {
+      outline: 3px solid #285be0;
+      outline-offset: 4px;
+    }
+  }
 }
 
-.editorContentWrapper {
-  background-color: #fff;
-  border-radius: 5px;
+.siteHeader {
+  max-width: 1240px;
+  padding: 34px 48px;
+  margin: auto;
   display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  nav {
+    display: flex;
+    gap: 34px;
+    font-size: 14px;
+
+    a:hover { color: #285be0; }
+  }
+}
+
+.home .brand {
+  font-size: 23px;
+  letter-spacing: 1px;
+  font-weight: 650;
+  color: #285be0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  svg { width: 32px; height: 32px; }
+}
+
+.welcome {
+  max-width: 1240px;
+  min-height: 650px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  margin: auto;
+  padding: 28px 48px 65px;
+  gap: 64px;
+
+  h1 {
+    font-size: 42px;
+    font-weight: 600;
+    line-height: 1.4;
+    letter-spacing: -1px;
+    margin: 0 0 22px;
+  }
+}
+
+.welcomeCopy > p {
+  font-size: 23px;
+  line-height: 1.85;
+  margin: 0 0 36px;
+  color: #626e82;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
   flex-wrap: wrap;
-  height: 100%;
-  // 窄窗口滚动浏览完整桌面工作区，不触发移动端布局。
-  min-width: 1400px;
-  min-height: 0;
-  .editorContentContainer {
-    flex: 1;
-    min-width: 0;
-    height: 100%;
-    min-height: 0;
-    overflow-x: hidden;
-    overflow-y: hidden;
+}
+
+.primary, .secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  font-size: 14px;
+  height: 44px;
+  padding: 0 20px;
+  gap: 12px;
+}
+
+.home .primary {
+  background: #285be0;
+  color: #fff;
+
+  &:hover { background: #1747c5; }
+  svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.5; }
+}
+
+.secondary {
+  border: 1px solid #dce2ec;
+  &:hover { border-color: #285be0; color: #285be0; }
+}
+
+.capabilities {
+  font-size: 12px;
+  color: #626e82;
+  margin-top: 24px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+
+  span { border-left: 1px solid #dce2ec; padding-left: 14px; }
+}
+
+.scoreArt { position: relative; padding: 15px 8px 35px 0; }
+
+.paper {
+  position: relative;
+  transform: rotate(-3deg);
+  background: white;
+  box-shadow: 0 14px 65px #23355212, 0 0 0 1px #e7ebf2;
+  min-height: 420px;
+  padding: 34px 16px 10px;
+
+  > svg { width: 100%; height: auto; display: block; }
+}
+
+.paperTitle { text-align: center; font-size: 22px; font-weight: 550; letter-spacing: 3px; }
+.paperMeta { font-size: 12px; margin: 24px 0 0 22px; }
+.paperCorner { position: absolute; bottom: -9px; right: -9px; width: 70px; height: 70px; background: #edf3ff; z-index: -1; }
+
+.chordChip {
+  position: absolute;
+  bottom: 6px;
+  right: -15px;
+  border: 1px solid #dce2ec;
+  background: #fff;
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 8px 24px 8px 10px;
+  box-shadow: 0 6px 30px #2335520b;
+  border-radius: 10px;
+  transform: rotate(2deg);
+
+  > svg { width: 65px; height: 78px; }
+  strong { font-family: Georgia, serif; font-size: 28px; font-weight: 700; display: block; margin-bottom: 8px; }
+  span { font-size: 12px; color: #626e82; }
+}
+
+.siteFooter {
+  max-width: 1144px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid #e8ecf2;
+  padding: 24px 0;
+  color: #626e82;
+  font-size: 12px;
+}
+
+@media (min-width: 1600px) {
+  .welcome { min-height: 740px; }
+}
+
+@media (max-width: 900px) {
+  .siteHeader { padding: 24px; }
+  .welcome { padding: 45px 28px; gap: 32px; }
+  .welcome h1 { font-size: 30px; }
+  .welcomeCopy > p { font-size: 18px; }
+  .paper { min-height: 0; }
+  .siteFooter { margin: 0 24px; }
+}
+
+@media (max-width: 650px) {
+  .siteHeader nav { gap: 16px; font-size: 12px; }
+  .home .brand { font-size: 20px; }
+  .home .brand svg { width: 27px; }
+  .welcome { grid-template-columns: 1fr; padding-top: 35px; gap: 45px; }
+  .welcome h1 { font-size: 32px; }
+  .scoreArt { max-width: 470px; width: 100%; margin: 0 auto; padding-bottom: 0; }
+  .welcomeCopy > p { font-size: 20px; }
+  .welcomeCopy > p br { display: none; }
+  .siteFooter { padding-bottom: 30px; }
+  .chordChip {
+    position: relative;
+    right: auto;
+    bottom: auto;
+    width: max-content;
+    max-width: 100%;
+    margin: 20px 0 0 auto;
+    transform: none;
+    padding: 7px 18px 7px 10px;
+
+    > svg { width: 52px; height: 64px; }
+    strong { font-size: 25px; margin-bottom: 5px; }
   }
 }
 
 @media print {
-  .editorShell,
-  .editorContentWrapper,
-  .editorContentContainer {
-    height: auto;
-    min-width: 0;
-  }
-
-  .editorShell {
-    overflow: visible;
-  }
-
-  .editorContentWrapper {
-    margin: 0;
-    border-radius: 0;
-  }
-
-  .editorContentContainer {
-    overflow: visible;
-  }
+  .home { height: auto; overflow: visible; }
 }

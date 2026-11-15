@@ -96,7 +96,7 @@ const GuitarAdvancedShellContent = ({
           <span>六线猫</span>
         </Link>
         <nav className={styles.productNav} aria-label="产品导航">
-          <Link href="/" onClick={(event) => { if (!requestProductExit()) event.preventDefault(); }}>曲谱工作台</Link>
+          <Link href="/editor" onClick={(event) => { if (!requestProductExit()) event.preventDefault(); }}>曲谱工作台</Link>
           <span className={styles.productNavActive}>吉他进阶</span>
         </nav>
         <span className={styles.localBadge}>当前浏览器</span>

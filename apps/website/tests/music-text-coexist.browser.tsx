@@ -1,5 +1,5 @@
 import { createRoot } from "react-dom/client";
-import HomePage from "../app/page";
+import HomePage from "../app/editor/page";
 import { editorStore } from "../stores/editor-store";
 import "../app/globals.scss";
 

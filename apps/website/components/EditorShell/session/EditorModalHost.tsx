@@ -101,11 +101,11 @@ export const EditorModalHost = ({
       getPopupContainer={chord ? (trigger) => trigger?.closest<HTMLElement>(".ant-modal") ?? document.body : undefined}
       theme={chord ? { token: { colorPrimary: "#2457eb", colorText: "#202938", colorTextSecondary: "#607084", colorBorder: "#ccd5e1", borderRadius: 6, fontSize: 14, controlHeight: 36 }, components: { Select: { zIndexPopup: 1100 }, Dropdown: { zIndexPopup: 1100 } } } : {}}><Modal
       className={chord ? styles.chordModal : undefined}
-      title={chord && request ? <div className={styles.heading}><h2>{request.title}</h2><p aria-hidden="true">{request.subtitle ?? (request.kind === "chord-library" ? "选择和弦与指法，带回当前编辑位置。" : "调整按点与横按，完成后带回当前和弦草稿。")}</p></div> : request?.title}
+      title={chord && request ? <div className={styles.heading}><h2>{request.title}</h2>{request.kind === "chord-custom" ? <span data-chord-custom-error /> : <p aria-hidden="true">{request.subtitle ?? "选择和弦与指法，带回当前编辑位置。"}</p>}</div> : request?.title}
       open={!!active && !active.closing}
       width={
         chord
-          ? request?.kind === "chord-custom" ? 850 : 1000
+          ? request?.kind === "chord-custom" ? 1120 : 1080
           : request?.kind === "beat-paste"
             ? 660
             : request?.kind === "technique-type"

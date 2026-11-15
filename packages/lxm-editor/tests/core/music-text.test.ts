@@ -10,6 +10,8 @@ import {
   validateChordDiagram,
   loadDocument,
   EXAMPLE_MVP_6_DOCUMENT,
+  LXMLyricSchema,
+  LXMChordDiagramSchema,
 } from "../../src";
 import source from "../../example/example-mvp2.json";
 const fresh = (): ILXMDocument => {
@@ -247,7 +249,6 @@ describe("MVP6 音乐文本领域", () => {
     "wrongOrder",
     "outOfWindow",
     "openFinger",
-    "duplicateFinger",
     "barreConflict",
   ])("拒绝无效指法 %s", (kind) => {
     const diagram = structuredClone(copyChordPreset("C")!.diagram);
@@ -259,9 +260,26 @@ describe("MVP6 音乐文本领域", () => {
     if (kind === "wrongOrder") diagram.strings.reverse();
     if (kind === "outOfWindow") diagram.startFret = 5;
     if (kind === "openFinger") diagram.strings[0]!.finger = 1;
-    if (kind === "duplicateFinger") diagram.strings[1]!.finger = 3;
     if (kind === "barreConflict")
       diagram.barres = [{ fret: 1, minString: 1, maxString: 6, finger: 1 }];
+    expect(validateChordDiagram(diagram)).not.toBeNull();
+  });
+  it.each([null, "T", 1] as const)("命令与文档 schema 往返保留 %s 手指和不冲突的重复指号", (finger) => {
+    const chord = copyChordPreset("F")!;
+    chord.diagram.strings.forEach((s) => { s.finger = finger; });
+    chord.diagram.barres[0]!.finger = finger;
+    const d = run(fresh(), { type: C.SetChordSymbol, ...target, display: "nameAndDiagram", chord });
+    const loaded = loadDocument(JSON.stringify(d));
+    expect(loaded.ok, JSON.stringify(loaded)).toBe(true);
+    expect(d.score.tracks[0]!.measures[0]!.chordSymbols[0]!.chord.diagram).toEqual(chord.diagram);
+  });
+  it("扩展手指编号不扩展歌词段号", () => {
+    expect(LXMLyricSchema.safeParse({ id: "lyric", eventId: "event", verse: "T", text: "词" }).success).toBe(false);
+  });
+  it.each([0, 5, "1", "t"])("schema 与领域校验仍拒绝非法手指 %s", (finger) => {
+    const diagram = copyChordPreset("F")!.diagram;
+    diagram.barres[0]!.finger = finger as typeof diagram.barres[0]["finger"];
+    expect(LXMChordDiagramSchema.safeParse(diagram).success).toBe(false);
     expect(validateChordDiagram(diagram)).not.toBeNull();
   });
 });

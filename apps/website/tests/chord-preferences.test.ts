@@ -122,6 +122,19 @@ describe("和弦偏好事务", () => {
     );
     expect(store.parseImport(store.export()).ok).toBe(true);
   });
+  it.each([null, "T"] as const)("我的指法保存与导入保留 %s 横按和拇指按点", (finger) => {
+    const { store, read } = setup();
+    store.load();
+    const voicing = custom();
+    voicing.diagram = copyChordPreset("F")!.diagram;
+    voicing.diagram.barres[0]!.finger = finger;
+    voicing.diagram.strings[5]!.finger = "T";
+    expect(store.save({ quickItems: [], customVoicings: [voicing] }, "initial").ok).toBe(true);
+    expect(store.parseImport(store.export()).ok).toBe(true);
+    const restored = setup(read());
+    restored.store.load();
+    expect(restored.store.getSnapshot().preferences.customVoicings[0]!.diagram).toEqual(voicing.diagram);
+  });
   it.each([
     [
       "未知字段",

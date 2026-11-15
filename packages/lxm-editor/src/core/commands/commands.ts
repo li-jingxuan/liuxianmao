@@ -1,4 +1,5 @@
 import { buildNumberedIndex } from "../numbered/numbered-rhythm";
+import { replaceMusicTextRange, type MusicTextRange } from "../music-text-range/music-text-range";
 import { sameTechniqueDraft } from "../techniques/technique-equality";
 import { planBeatPaste, type BeatClipboard } from "../rhythm/beat-clipboard";
 import { splitBeat, mergeBeats } from "../rhythm/beat-structure";
@@ -85,6 +86,7 @@ export enum LXMScoreCommandEnum {
   SetScoreInfo = "score.setInfo",
   SetLyric = "lyric.set",
   SetLyricSequence = "lyrics.setSequence",
+  ReplaceMusicTextRange = "musicText.range.replace",
   AddLyricVerse = "lyric.verse.add",
   RemoveLyric = "lyric.remove",
   SetChordSymbol = "chordSymbol.set",
@@ -288,6 +290,12 @@ export type ILXMSetLyricSequenceCommand = LyricSequenceTarget & {
   allowOverwrite: boolean;
 };
 
+export interface ILXMReplaceMusicTextRangeCommand {
+  type: LXMScoreCommandEnum.ReplaceMusicTextRange;
+  range: MusicTextRange;
+  text: string;
+}
+
 /** 新增全谱空白歌词段，不创建占位歌词实体。 */
 export interface ILXMAddLyricVerseCommand {
   type: LXMScoreCommandEnum.AddLyricVerse;
@@ -364,6 +372,7 @@ type ScoreCommandOperation =
   | ILXMSetNotationInfoCommand
   | ILXMSetScoreInfoCommand
   | ILXMSetLyricSequenceCommand
+  | ILXMReplaceMusicTextRangeCommand
   | ILXMAddLyricVerseCommand
   | ILXMMusicTextCommand
   | ILXMSetTupletCommand
@@ -404,6 +413,7 @@ export type ILXMScoreCommandErrorCode =
   | "INVALID_NUMBERED_NOTATION"
   | "INVALID_NOTATION_INFO"
   | "INVALID_LYRIC_SEQUENCE"
+  | "INVALID_MUSIC_TEXT_RANGE"
   | "LYRIC_NOT_FOUND"
   | "CHORD_SYMBOL_NOT_FOUND"
   | "INVALID_LYRIC_VERSE"
@@ -1258,6 +1268,16 @@ const applyScoreCommandInternal = (
           },
         }
       : result;
+  }
+  if (command.type === LXMScoreCommandEnum.ReplaceMusicTextRange) {
+    const candidate = replaceMusicTextRange(document, command.range, command.text, createDocumentIdFactory(document));
+    if (!candidate.ok) return fail("INVALID_MUSIC_TEXT_RANGE", candidate.message);
+    if (!candidate.changed) return unchanged(document);
+    return finalize({
+      ...document,
+      documentRevision: document.documentRevision + 1,
+      score: { ...document.score, tracks: document.score.tracks.map(track => track.id === command.range.trackId ? candidate.track : track) },
+    }, document, command);
   }
   if (command.type === LXMScoreCommandEnum.PasteBeats) {
     const plan = planBeatPaste(document, command, command.clipboard);

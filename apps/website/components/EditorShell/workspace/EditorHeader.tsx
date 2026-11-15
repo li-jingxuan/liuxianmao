@@ -26,9 +26,16 @@ export const EditorHeader = ({
 }) => {
   return (
     <header className={editorHeaderStyles.editorHeader}>
-      <div className={editorHeaderStyles.editorBrand}>
+      <Link
+        className={editorHeaderStyles.editorBrand}
+        href="/"
+        aria-label="六线猫首页"
+        onNavigate={(event) => {
+          if (!canNavigateToLearning()) event.preventDefault();
+        }}
+      >
         <strong>六线猫</strong>
-      </div>
+      </Link>
       <div className={editorHeaderStyles.editorHeading}>
         <strong title={title || "未命名曲谱"}>{title || "未命名曲谱"}</strong>
         <span>吉他弹唱谱</span>
