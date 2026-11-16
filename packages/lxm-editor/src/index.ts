@@ -89,6 +89,7 @@ export * from "./core/numbered/numbered-clipboard";
 export { getMeasureCapacityTicks, calculateRhythmTicks } from "./core/rhythm/rhythm";
 export * from "./core/numbered/numbered-input-ranges";
 export * from "./core/chords/chord-catalog";
+export * from "./core/chords/chord-catalog-browse";
 export * from "./core/document/score-tonality";
 export * from "./core/chords/chord-diagram-edit";
 export { isPureTabContinuationBeat, tabContinuationRhythm } from "./core/rhythm/tab-continuation";

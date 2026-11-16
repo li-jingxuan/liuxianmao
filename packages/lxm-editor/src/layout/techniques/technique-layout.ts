@@ -26,9 +26,8 @@ import {
   LXM_TECHNIQUE_CURVE_HEIGHT,
   LXM_TECHNIQUE_CURVE_FRET_GAP_Y,
   LXM_TECHNIQUE_STAFF_CLEARANCE_Y,
-  LXM_FRET_TEXT_FONT_SIZE,
+  LXM_NATURAL_HARMONIC_TEXT_FONT_SIZE,
   LXM_FRET_TEXT_BASELINE_OFFSET_Y,
-  LXM_FRET_TEXT_HALO_WIDTH,
 } from "../layout-constants";
 import type {
   ILXMNoteLayout,
@@ -43,10 +42,8 @@ import {
   boundsIntersect,
   compactRangeTechnique,
   getFretTextBounds,
-  getTextBounds,
   getTechniqueInkBounds,
   placeCurveLabelAboveApex,
-  padBounds,
   translateTechniqueSegment,
   withTechniqueBounds,
 } from "./technique-geometry";
@@ -770,7 +767,8 @@ const createNaturalSegmentLayout = (
       dashArray: "4 3",
     };
     if (candidate.segmentIndex === 0)
-      texts = [text(label, candidate.x1 + labelWidth / 2, laneY + 3)];
+      // 左端锚定让视觉测量缩小时，原字号的命中包络仍覆盖完整旧标签范围。
+      texts = [{ ...text(label, candidate.x1, laneY + 3), textAnchor: "start" }];
   } else if ("beatId" in technique) {
     const beat = anchors.beats.get(technique.beatId);
     if (beat) {
@@ -884,25 +882,19 @@ const createNaturalSegmentLayout = (
             note.x,
             note.y + LXM_FRET_TEXT_BASELINE_OFFSET_Y,
           ),
-          fontSize: LXM_FRET_TEXT_FONT_SIZE,
+          fontSize: LXM_NATURAL_HARMONIC_TEXT_FONT_SIZE,
         };
         // 泛音替代基础数字，但保留技巧 segment 的 ID、完整描边边界和点击能力。
-        const visualBounds = getTextBounds(label, LXM_FRET_TEXT_HALO_WIDTH);
-        return {
-          ...withTechniqueBounds({
-            techniqueId: technique.id,
-            type: technique.type,
-            systemIndex: candidate.systemIndex,
-            segmentIndex: candidate.segmentIndex,
-            continuation: candidate.continuation,
-            lane: -1,
-            path: null,
-            texts: [label],
-          }),
-          visualBounds,
-          collisionBounds: padBounds(visualBounds, 2),
-          bounds: padBounds(visualBounds, 4),
-        };
+        return withTechniqueBounds({
+          techniqueId: technique.id,
+          type: technique.type,
+          systemIndex: candidate.systemIndex,
+          segmentIndex: candidate.segmentIndex,
+          continuation: candidate.continuation,
+          lane: -1,
+          path: null,
+          texts: [label],
+        });
       } else if (technique.type === "artificialHarmonic") {
         texts = [text("A.H.", note.x, annotationY)];
       } else if (technique.type === "vibrato") {

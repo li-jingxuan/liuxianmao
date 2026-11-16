@@ -1,9 +1,9 @@
 .controls { min-width: 0; }
 .heading {
-  display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 9px;
-  h3 { margin: 0; color: #202938; font-size: 13px; font-weight: 600; }
+  display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 9px;
+  h3 { margin: 0; color: #202938; font-size: 13px; line-height: 20px; font-weight: 600; }
   > span { color: #607084; font-size: 12px; }
-  button { height: auto; padding: 0 4px; font-size: 12px; color: #2457eb; }
+  button { height: auto; padding: 0 4px; font-size: 12px; line-height: 20px; color: #2457eb; }
 }
 .row { display: flex; align-items: flex-start; gap: 6px; }
 .quick {
@@ -26,6 +26,12 @@
   button:focus-visible { outline: 3px solid #91b4ff; outline-offset: 2px; }
 }
 .search { flex-shrink: 0; height: 36px; margin-bottom: 12px; }
+.recommendationHeading {
+  flex-shrink: 0; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 4px;
+  strong { font-size: 12px; line-height: 20px; }
+  button { height: auto; padding: 0; color: #2457eb; line-height: 20px; gap: 4px; }
+  :global(.anticon) { font-size: 10px; }
+}
 .keySource { flex-shrink: 0; display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
   strong { font-size: 12px; line-height: 1.8; }
   button { flex: none; height: auto; padding: 0 4px; color: #2457eb; }
@@ -33,24 +39,14 @@
 .help { flex-shrink: 0; color: #607084; font-size: 12px; line-height: 1.7; margin: 5px 0 0;
   button { height: 24px; padding: 0 5px; font-size: inherit; }
 }
-.results { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; margin-top: 12px; font-size: 12px; p { line-height: 1.7; } }
+.results { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; margin-top: 8px; font-size: 12px; p { line-height: 1.7; } }
 .groupTitle { font-size: 11px; color: #607084; margin: 12px 0 7px; }
-.candidates { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.candidates { width: 100%; min-width: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }
 .candidate {
   min-width: 0; display: flex; flex-direction: column;
-  button { display: flex; flex-direction: column; gap: 4px; width: 100%; min-width: 0; height: 94px; padding: 6px 4px; }
-  small { display: none; }
+  > :global(.ant-btn-link) { height: auto; padding: 2px 0; font-size: 11px; }
 }
 .keyCaption { margin: -2px 0 8px; font-size: 11px; color: #607084; }
-.sidebarQuick {
-  width: 100%; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px;
-  button { display: flex; align-items: center; justify-content: center; gap: 3px; height: 66px; min-width: 0; padding: 4px; font-size: 12px; }
-  button[aria-pressed="true"] { color: #2457eb; border-color: #2457eb; background: #eef3ff; }
-  svg { flex: none; }
-}
 .loadError { padding: 8px; border-radius: 6px; background: #fff6e7; color: #856125;
   button { padding: 0 4px; height: auto; }
-}
-.actions { flex-shrink: 0; display: flex; justify-content: space-between; gap: 6px; border-top: 1px solid #dce3eb; margin-top: 12px; padding-top: 8px;
-  button { padding-inline: 0; color: #2457eb; height: 28px; }
 }

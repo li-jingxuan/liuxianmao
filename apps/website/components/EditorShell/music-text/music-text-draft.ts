@@ -53,6 +53,18 @@ export interface MusicTextDraft {
   initial: string;
 }
 export type SidebarTab = "score" | "lyric" | "chord" | "numbered";
+/** 弦号可以不同；只有同一轨道、小节、拍的选区才能绑定一个和弦。 */
+export const selectedChordTarget = (
+  document: ILXMDocument | null,
+  selection: ILXMTabCellSelection | null,
+): Extract<MusicTextTarget, { kind: "chord" }> | null => {
+  if (!selection) return null;
+  const { anchor, focus } = selection;
+  if (anchor.trackId !== focus.trackId || anchor.measureId !== focus.measureId || anchor.beatId !== focus.beatId)
+    return null;
+  const target = normalizeMusicTextTarget(document, { ...focus, kind: "chord" });
+  return target?.kind === "chord" ? target : null;
+};
 export type SidebarAction =
   | {
       type: "tool";

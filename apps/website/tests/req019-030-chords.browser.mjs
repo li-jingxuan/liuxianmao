@@ -3,6 +3,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { nextBrowserDefines } from "./next-browser-env.fixture.mjs";
 
 const require = createRequire(import.meta.url);
 const viteRequire = createRequire(require.resolve("vitest/package.json"));
@@ -14,7 +15,7 @@ const server = await createServer({
   root: website, configFile: false, cacheDir: path.resolve(website, "node_modules/.vite/req019-030-chords"),
   resolve: { dedupe: ["react", "react-dom"] }, esbuild: { jsx: "automatic" },
   optimizeDeps: { entries: ["tests/req019-030-chords.browser.tsx"], include: ["react", "react-dom", "react-dom/client", "react/jsx-runtime", "next/link"] },
-  define: { "process.env.NEXT_PUBLIC_BASE_PATH": '""' },
+  define: nextBrowserDefines,
   server: { host: "127.0.0.1", port: 0, hmr: false, watch: null, fs: { allow: [path.resolve(website, "../..")] } },
   plugins: [{ name: "req019-030-chords", configureServer(dev) {
     dev.middlewares.use(async (request, response, next) => {
@@ -43,6 +44,12 @@ try {
   const svg = page.getByRole("application", { name: "六线谱编辑器" });
   const popover = page.locator("#chord-edit-popover");
   const library = page.getByRole("dialog", { name: /^和弦库/ });
+  const selectLibraryCategory = async (name) => {
+    const radio = library.getByRole("radio", { name, exact: true });
+    // Segmented keeps its native radio visually hidden; click its visible label.
+    await radio.locator("..").click();
+    assert.equal(await radio.isChecked(), true);
+  };
   const custom = page.getByRole("dialog", { name: /^自定义指法/ });
   await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/__chords__`, { waitUntil: "commit" });
   await sidebar.waitFor({ timeout: 90000 });
@@ -73,9 +80,9 @@ try {
   assert.equal(new Set(cardBoxes.map(box => Math.round(box.y))).size, 2);
   assert.equal(new Set(cardBoxes.map(box => Math.round(box.x))).size, 4);
   checks.push("气泡更多真实图卡为4列2行");
-  await button(popup, "浏览完整和弦库").click();
+  await button(popup, "和弦库").click();
   await library.waitFor();
-  assert.deepEqual(await library.getByRole("tab").allTextContents(), ["全部和弦", "我的指法"]);
+  assert.deepEqual(await library.getByRole("radio").evaluateAll(nodes => nodes.map(node => node.closest("label").textContent)), ["全部和弦", "我的指法"]);
   const list = library.getByTestId("chord-library-scroll");
   const detail = library.getByTestId("chord-library-detail");
   await library.getByLabel("和弦候选", { exact: true }).getByRole("button").filter({ has: page.getByText("C", { exact: true }) }).click();
@@ -90,15 +97,17 @@ try {
   await page.screenshot({ path: path.join(artifacts, "chords-library-scroll-1440.png"), animations: "disabled" });
   await library.getByLabel("临时浏览大小调", { exact: true }).click();
   await page.locator(".ant-select-dropdown:visible").getByText("小调", { exact: true }).click();
-  await library.getByText("和声小调补充", { exact: true }).waitFor();
+  await library.getByRole("heading", { name: /C 小调 · I 级根音 C/ }).waitFor();
+  assert.equal(await list.getByRole("button").count(), 192);
+  assert.equal(await library.getByText("其他和弦", { exact: true }).count(), 0);
   await page.locator(".ant-select-dropdown:visible").waitFor({ state: "hidden" });
   assert.deepEqual(await snapshot(), baseline);
   await page.screenshot({ path: path.join(artifacts, "chords-library-1440.png"), animations: "disabled" });
-  checks.push("库仅两页签、自然/和声小调分类、浏览不改曲谱、左滚动右固定");
-  await library.getByRole("tab", { name: "我的指法", exact: true }).click();
+  checks.push("库仅两项单选分类、完整小调根音分类、浏览不改曲谱、左滚动右固定");
+  await selectLibraryCategory("我的指法");
   await library.getByText("还没有保存的指法。可在“自定义指法”中另存。", { exact: true }).waitFor();
   await page.screenshot({ path: path.join(artifacts, "chords-library-mine-1440.png"), animations: "disabled" });
-  await library.getByRole("tab", { name: "全部和弦", exact: true }).click();
+  await selectLibraryCategory("全部和弦");
   await button(library, "选用此指法").click();
   await library.waitFor({ state: "hidden" });
   assert.equal(await quickName.inputValue(), "G7");
@@ -113,12 +122,15 @@ try {
   await button(custom, "另存为我的指法").click();
   await custom.getByText(/已保存到我的指法/).waitFor();
   await button(custom, "取消").click();
+  const discard = page.getByRole("dialog", { name: "放弃本次修改？", exact: true });
+  await discard.waitFor();
+  await button(discard, "放弃修改").click();
   await custom.waitFor({ state: "hidden" });
   assert.equal(await quickName.inputValue(), "G7");
   assert.deepEqual(await snapshot(), applied);
   await button(sidebar, "更多配置").click();
   await library.waitFor();
-  await library.getByRole("tab", { name: "我的指法", exact: true }).click();
+  await selectLibraryCategory("我的指法");
   await library.getByRole("button").filter({ has: page.getByText("我的G7", { exact: true }) }).click();
   await page.screenshot({ path: path.join(artifacts, "chords-library-mine-saved-1440.png"), animations: "disabled" });
   await button(library, "选用此指法").click();
@@ -137,8 +149,10 @@ try {
   checks.push("自定义完成只回填共享草稿且不写谱面");
   await sidebar.getByRole("radio", { name: "仅名称", exact: true }).check();
   assert.deepEqual(await snapshot(), applied);
+  assert.equal(await sidebar.getByRole("radio", { name: "仅名称", exact: true }).isChecked(), true);
+  assert.equal(await quickName.inputValue(), "完成G7");
   await button(sidebar, "应用").click();
-  checks.push("自定义取消保持草稿，显示单选等待统一应用");
+  checks.push("自定义取消确认放弃后保持父草稿；全局显示即时生效且不写文档，名称等待应用");
   const beforeDelete = await snapshot();
   await button(sidebar, "删除").click();
   assert.equal(await sideName.inputValue(), "");

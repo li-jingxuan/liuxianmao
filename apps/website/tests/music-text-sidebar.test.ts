@@ -9,6 +9,7 @@ import {
   normalizeMusicTextTarget,
   musicTextDraftValue,
   resolveSidebarRequest,
+  selectedChordTarget,
   type SidebarAction,
 } from "../components/EditorShell/music-text/music-text-draft";
 import {
@@ -38,6 +39,15 @@ const fixture = () => {
 };
 
 describe("音乐文本侧栏未应用内容的离开策略", () => {
+  it("和弦页签仅绑定一个有效拍，跨弦保持同一和弦目标", () => {
+    const { document, chordTarget, measure } = fixture();
+    const cell = { ...chordTarget };
+    expect(selectedChordTarget(document, { anchor: cell, focus: { ...cell, string: 6 } })).toEqual(chordTarget);
+    expect(selectedChordTarget(document, null)).toBeNull();
+    expect(selectedChordTarget(document, { anchor: cell, focus: { ...cell, beatId: measure.beats[1]!.id } })).toBeNull();
+    expect(selectedChordTarget(document, { anchor: cell, focus: { ...cell, measureId: "another-measure" } })).toBeNull();
+    expect(selectedChordTarget(document, { anchor: { ...cell, beatId: "deleted" }, focus: { ...cell, beatId: "deleted" } })).toBeNull();
+  });
   it("新歌词会话默认允许覆盖，和弦仅改显示配置可直接离开", () => {
     const { document, target, chordTarget } = fixture();
     expect(readMusicTextDraft(document, target)!.allowOverwrite).toBe(true);

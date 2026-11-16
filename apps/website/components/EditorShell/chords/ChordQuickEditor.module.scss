@@ -2,7 +2,6 @@
   min-width: 0;
   color: var(--foreground);
   font-size: 13px;
-  padding-bottom: 12px;
 
   p {
     margin: 0;
@@ -130,4 +129,4 @@
   // 气泡从 hidden 变为 visible 时，不能让输入的 all 过渡延迟可聚焦状态。
   transition-property: border-color, box-shadow, background-color, color;
 }
-.nameRow { display: flex; align-items: center; gap: 8px; > input { min-width: 0; } > button { flex: none; } }
+.nameRow { display: flex; align-items: center; gap: 8px; > input { min-width: 0; } > button { flex: none; height: 32px; } }

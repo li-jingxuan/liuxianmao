@@ -3,13 +3,16 @@ import {
   LXM_FRET_TEXT_BASELINE_OFFSET_Y,
   LXM_FRET_TEXT_FONT_SIZE,
   LXM_FRET_TEXT_HALO_WIDTH,
+  LXM_NATURAL_HARMONIC_TEXT_FONT_SIZE,
   LXM_TECHNIQUE_ARROW_HEIGHT,
   LXM_TECHNIQUE_ARROW_WIDTH,
   LXM_TECHNIQUE_COLLISION_PADDING,
   LXM_TECHNIQUE_CURVE_LABEL_GAP,
   LXM_TECHNIQUE_HIT_PADDING,
+  LXM_TECHNIQUE_INLINE_TEXT_FONT_SIZE,
   LXM_TECHNIQUE_RANGE_INK_GAP,
   LXM_TECHNIQUE_TEXT_HALO_WIDTH,
+  LXM_TECHNIQUE_TEXT_HIT_FONT_SIZE,
 } from "../layout-constants";
 import type {
   ILXMNoteLayout,
@@ -69,7 +72,9 @@ export const getFretTextBounds = (note: ILXMNoteLayout): Rect =>
       text: note.fretText,
       x: note.x,
       y: note.y + LXM_FRET_TEXT_BASELINE_OFFSET_Y,
-      fontSize: LXM_FRET_TEXT_FONT_SIZE,
+      fontSize: note.fretText.startsWith("<")
+        ? LXM_NATURAL_HARMONIC_TEXT_FONT_SIZE
+        : LXM_FRET_TEXT_FONT_SIZE,
       textAnchor: "middle",
     },
     LXM_FRET_TEXT_HALO_WIDTH,
@@ -106,10 +111,12 @@ const getPathPoints = (d: string): [number, number][] => {
 
 /** 弧线逐段使用子曲线控制点凸包，避免把控制点和标签间的空白算成墨迹。 */
 export const getTechniqueInkBounds = (
-  segment: Pick<ILXMTechniqueSegmentLayout, "path" | "texts" | "arrowHead">,
+  segment: Pick<ILXMTechniqueSegmentLayout, "path" | "texts" | "arrowHead"> &
+    Partial<Pick<ILXMTechniqueSegmentLayout, "type">>,
 ): Rect[] => {
   const rects = segment.texts.map((label) =>
-    getTextBounds(label, LXM_TECHNIQUE_TEXT_HALO_WIDTH),
+    getTextBounds(label, segment.type === "naturalHarmonic"
+      ? LXM_FRET_TEXT_HALO_WIDTH : LXM_TECHNIQUE_TEXT_HALO_WIDTH),
   );
   if (!segment.path) {
     if (segment.arrowHead) rects.push(pointsBounds(segment.arrowHead.points));
@@ -205,9 +212,10 @@ export const getTechniqueVisualBounds = (
   path: ILXMTechniqueSegmentLayout["path"],
   texts: ILXMTextLayout[],
   arrowHead: ILXMTechniqueSegmentLayout["arrowHead"],
+  textHalo = LXM_TECHNIQUE_TEXT_HALO_WIDTH,
 ): Rect => {
   const rects = texts.map((label) =>
-    getTextBounds(label, LXM_TECHNIQUE_TEXT_HALO_WIDTH),
+    getTextBounds(label, textHalo),
   );
   if (path) {
     const points = getPathPoints(path.d);
@@ -270,16 +278,40 @@ export const withTechniqueBounds = (
       },
     };
   }
+  const textHalo = segment.type === "naturalHarmonic"
+    ? LXM_FRET_TEXT_HALO_WIDTH : LXM_TECHNIQUE_TEXT_HALO_WIDTH;
   const visualBounds = getTechniqueVisualBounds(
     segment.path,
     segment.texts,
     segment.arrowHead,
+    textHalo,
   );
+  // 用原字号的完整文字轮廓（含原描边和 padding）保留可点区域。
+  // 密集内嵌 H/P 原本就是 6，继续按 6；路径、箭头也纳入同一包络。
+  const hitTexts = segment.texts.map((label) => ({
+    ...label,
+    fontSize: Math.max(label.fontSize, segment.type === "naturalHarmonic"
+      ? LXM_FRET_TEXT_FONT_SIZE
+      : label.fontSize === LXM_TECHNIQUE_INLINE_TEXT_FONT_SIZE
+        ? LXM_TECHNIQUE_INLINE_TEXT_FONT_SIZE
+        : LXM_TECHNIQUE_TEXT_HIT_FONT_SIZE),
+  }));
+  const hitBounds = getTechniqueVisualBounds(
+    segment.path,
+    hitTexts,
+    segment.arrowHead,
+    textHalo,
+  );
+  if (segment.type === "trill" && segment.path) {
+    // tr 字宽缩短也会把后接波浪线向左收紧，命中右缘仍覆盖原波浪线尾端。
+    hitBounds.width += Math.max(0, ...segment.texts.map((label, index) =>
+      getTextBounds(hitTexts[index]!).width - getTextBounds(label).width));
+  }
   return {
     ...segment,
     visualBounds,
     collisionBounds: padBounds(visualBounds, LXM_TECHNIQUE_COLLISION_PADDING),
-    bounds: padBounds(visualBounds, LXM_TECHNIQUE_HIT_PADDING),
+    bounds: padBounds(hitBounds, LXM_TECHNIQUE_HIT_PADDING),
   };
 };
 

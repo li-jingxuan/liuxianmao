@@ -168,6 +168,7 @@ export interface ILXMTechniqueSegmentLayout {
   visualBounds: { x: number; y: number; width: number; height: number };
   /** 可见范围加净空；二维 lane 分配与回归检查共用此范围。 */
   collisionBounds: { x: number; y: number; width: number; height: number };
+  /** 独立命中范围：文字至少保留原字号轮廓及点击 padding，不随视觉字号缩小。 */
   bounds: { x: number; y: number; width: number; height: number };
 }
 

@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import {
+  CHORD_QUALITIES,
   CURRENT_SCHEMA_VERSION,
   SCORE_DOCUMENT_SCHEMA,
   STANDARD_GUITAR_TUNING,
@@ -263,15 +264,27 @@ describe("和弦库与两处入口", () => {
       <ChordLibraryModal {...props} document={committed("A", "minor")} />,
     );
     expect(minor).toContain("曲谱 A小调");
-    expect(minor).toContain("和声小调补充");
+    expect(minor).toContain("A 小调 · I 级根音 A");
+    expect(minor).toContain("A 小调 · ♯VII 级根音 G#");
+    expect(minor.match(/<section[^>]*>/g)).toHaveLength(12);
     const legacy = renderToStaticMarkup(
       <ChordLibraryModal {...props} document={committed(null, "major", "G")} />,
     );
     expect(legacy).toContain("大小调未确认");
     expect(legacy).toContain("暂停本调推荐");
     expect(legacy).not.toContain("曲谱 G大调");
+    const absoluteSections = legacy.match(/<section[^>]*>[\s\S]*?<\/section>/g)!;
+    expect(absoluteSections).toHaveLength(12);
+    expect(absoluteSections.map(section => section.match(/<h4>([^<]+)<\/h4>/)?.[1])).toEqual(
+      ["C", "Db", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"].map(root => `根音 ${root}`),
+    );
+    for (const section of absoluteSections) {
+      expect(section.match(/<b>/g)).toHaveLength(16);
+      // With no confirmed key, cards have names but no fabricated degree spans.
+      expect(section.match(/<b>[^<]+<\/b><\/span>/g)).toHaveLength(16);
+    }
   });
-  it("自然三和弦、七和弦与和声小调补充分组独立，级数保持正确", () => {
+  it("A 小调完整目录按自然根音优先分十二组，卡片级数表达根音与和弦性质", () => {
     const html = renderToStaticMarkup(
       <ChordLibraryModal
         draft={draft}
@@ -282,16 +295,54 @@ describe("和弦库与两处入口", () => {
       />,
     );
     const sections = html.match(/<section[^>]*>[\s\S]*?<\/section>/g)!;
-    expect(sections).toHaveLength(4);
-    expect(sections[0]).toContain("A 小调 · 自然三和弦");
-    expect(sections[0]!.match(/<b>/g)).toHaveLength(7);
-    expect(sections[0]).toContain(">ii°</span>");
-    expect(sections[0]).not.toContain("Am7");
-    expect(sections[1]).toContain(">七和弦</h4>");
-    expect(sections[1]!.match(/<b>/g)).toHaveLength(7);
-    expect(sections[1]).toContain("Am7");
-    expect(sections[2]).toContain("和声小调补充");
-    expect(sections[2]!.match(/<b>/g)).toHaveLength(4);
+    const roots = ["A", "B", "C", "D", "E", "F", "G", "Bb", "C#", "D#", "F#", "G#"];
+    const degrees = ["I", "II", "III", "IV", "V", "VI", "VII", "♭II", "♯III", "♯IV", "♯VI", "♯VII"];
+    expect(sections).toHaveLength(12);
+    expect(sections.map(section => section.match(/<h4>([^<]+)<\/h4>/)?.[1])).toEqual(
+      roots.map((root, index) => `A 小调 · ${degrees[index]} 级根音 ${root}`),
+    );
+    for (const [index, section] of sections.entries()) {
+      expect([...section.matchAll(/<b>([^<]+)<\/b>/g)].map(match => match[1])).toEqual(
+        CHORD_QUALITIES.map(quality => roots[index] + (quality === "major" ? "" : quality)),
+      );
+    }
+    for (const [index, name, degree] of [
+      [0, "A", "I"], [0, "Am", "i"], [0, "A7", "I7"], [0, "Amaj7", "Imaj7"], [0, "Am7", "i7"],
+      [1, "Bdim", "ii°"], [1, "Bm7b5", "iiø7"], [2, "C", "III"], [2, "Caug", "III+"],
+      [4, "E", "V"], [4, "E7", "V7"], [5, "F", "VI"], [6, "G", "VII"],
+      [11, "G#dim", "♯vii°"], [11, "G#dim7", "♯vii°7"],
+    ] as const) {
+      const cards = [...sections[index]!.matchAll(/<b>([^<]+)<\/b><span[^>]*>([^<]+)<\/span>/g)]
+        .map(card => [card[1], card[2]]);
+      expect(cards).toContainEqual([name, degree]);
+    }
+    expect(html).not.toContain("和声小调补充");
+    expect(html).not.toContain("其他和弦");
+  });
+  it.each([
+    ["C", "major", "C", "I", "自然三和弦"],
+    ["C", "major", "C7", "I7", "含调外音"],
+    ["C", "major", "Cmaj7", "Imaj7", "自然七和弦"],
+    ["C", "major", "Csus4", "Isus4", "自然调内"],
+    ["C", "major", "D7", "II7", "含调外音"],
+    ["A", "minor", "Am7", "i7", "自然七和弦"],
+    ["A", "minor", "E7", "V7", "和声小调内"],
+    ["A", "minor", "G#dim7", "♯vii°7", "和声小调内"],
+    ["A", "minor", "Caug", "III+", "和声小调内"],
+    ["A", "minor", "A7", "I7", "含调外音"],
+  ] as const)("详情按 %s %s 解释 %s 的级数与完整构成音关系", (tonic, mode, name, degree, relationship) => {
+    const match = queryChordCatalog(catalog, { text: name }).items.find(item => item.name === name)!;
+    const copied = selectedCatalogChord(catalog, match);
+    if (!copied.ok) throw new Error(copied.error);
+    const html = renderToStaticMarkup(<ChordLibraryModal
+      draft={{ display: "name", chord: copied.chord }} document={committed(tonic, mode)} presetsEnabled
+      onConfirm={vi.fn()} onCancel={vi.fn()}
+    />);
+    const detail = html.match(/<aside[^>]*data-testid="chord-library-detail"[^>]*>([\s\S]*?)<\/aside>/)?.[1];
+    expect(detail).toBeDefined();
+    expect(detail).toContain(`<h3>${name}</h3>`);
+    expect(detail).toContain(`>${degree}</span>`);
+    expect(detail).toContain(`${tonic} ${mode === "major" ? "大调" : "小调"} · ${relationship}<br/>`);
   });
   it("精确暂存当前草稿的非默认指法，预览和六到一弦说明不重置版本", () => {
     const match = queryChordCatalog(catalog, { text: "G" }).items.find(
@@ -362,7 +413,7 @@ describe("和弦库与两处入口", () => {
     expect(html).toContain("系统指法仅供标准调弦");
     expect(html).toMatch(/<button[^>]*disabled=""[^>]*><span>选用此指法/);
   });
-  it("全部和弦合并调性分类并完整展示真实目录图形", () => {
+  it("C 大调全库按十二根音分组，192 个身份与真实图形无缺失或重复", () => {
     const html = renderToStaticMarkup(
       <ChordLibraryModal
         draft={draft}
@@ -374,8 +425,22 @@ describe("和弦库与两处入口", () => {
       />,
     );
     expect(html).toContain('aria-label="临时浏览主音"');
-    expect(html).toContain("C 大调 · 自然三和弦");
-    expect(html).toContain("其他和弦");
+    const sections = html.match(/<section[^>]*>[\s\S]*?<\/section>/g)!;
+    const roots = ["C", "D", "E", "F", "G", "A", "B", "Db", "Eb", "F#", "Ab", "Bb"];
+    const degrees = ["I", "II", "III", "IV", "V", "VI", "VII", "♭II", "♭III", "♯IV", "♭VI", "♭VII"];
+    expect(sections).toHaveLength(12);
+    expect(sections.map(section => section.match(/<h4>([^<]+)<\/h4>/)?.[1])).toEqual(
+      roots.map((root, index) => `C 大调 · ${degrees[index]} 级根音 ${root}`),
+    );
+    const renderedNames = sections.flatMap((section, index) => {
+      const names = [...section.matchAll(/<b>([^<]+)<\/b>/g)].map(match => match[1]);
+      expect(names).toEqual(CHORD_QUALITIES.map(quality => roots[index] + (quality === "major" ? "" : quality)));
+      expect(section.match(/aria-label="指法图预览"/g)).toHaveLength(16);
+      return names;
+    });
+    expect(renderedNames).toHaveLength(192);
+    expect(new Set(renderedNames).size).toBe(192);
+    expect(html).not.toContain("其他和弦");
     expect(html.match(/aria-label="指法图预览"/g)).toHaveLength(catalog.items.length);
     expect(html).not.toContain("保存常用配置");
   });
@@ -413,5 +478,17 @@ describe("和弦库与两处入口", () => {
     expect(html).toContain("还没有保存的指法");
     expect(html).not.toContain("保存常用配置");
     state.snapshot = { status: "ready", catalog, error: null };
+  });
+  it("从自定义进入空收藏时不把系统指法冒充为已选择的收藏", () => {
+    const match = queryChordCatalog(catalog, { text: "C" }).items.find(item => item.name === "C")!;
+    const copied = selectedCatalogChord(catalog, match);
+    if (!copied.ok) throw new Error(copied.error);
+    const html = renderToStaticMarkup(<ChordLibraryModal
+      draft={{ display: "nameAndDiagram", chord: copied.chord }} document={committed()} presetsEnabled
+      initialTab="mine" onConfirm={vi.fn()} onCancel={vi.fn()} />);
+    expect(html).toContain("还没有保存的指法");
+    expect(html).toContain("选择一个和弦查看指法");
+    expect(html).not.toContain("指法版本");
+    expect(html).not.toContain("自然三和弦");
   });
 });

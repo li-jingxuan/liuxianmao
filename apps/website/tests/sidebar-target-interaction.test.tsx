@@ -129,16 +129,17 @@ describe("侧栏浏览与显式编辑分离", () => {
     renderSidebar(true, undefined, false, "measure");
   });
 
-  it("已有TAB选区仅浏览和弦页签时保持显式编辑入口", () => {
+  it("已有单拍TAB选区进入和弦页签直接出现表单", () => {
     const markup = renderSidebar(true, "chord");
-    expect(markup).toContain("编辑当前拍和弦");
-    expect(markup).not.toContain('aria-label="和弦名称"');
+    expect(markup).not.toContain("编辑当前拍和弦");
+    expect(markup).toContain('aria-label="和弦名称"');
     expect(markup).not.toContain("当前内容已应用");
   });
 
   it("当前简谱选区不能把仍保留的TAB拍点作为和弦默认目标", () => {
     const markup = renderSidebar(true, "chord", true);
-    expect(markup).toMatch(/<button[^>]*disabled[^>]*><span>编辑当前拍和弦<\/span>/);
+    expect(markup).not.toContain("编辑当前拍和弦");
+    expect(markup).toContain("先选择单个 TAB 拍点");
     expect(markup).not.toContain('aria-label="和弦名称"');
   });
 });

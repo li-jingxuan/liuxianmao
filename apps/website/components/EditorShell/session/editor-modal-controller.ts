@@ -8,6 +8,7 @@ import {
 } from "./editor-session-version";
 
 type CloseReason = "cancel" | "resolved" | "stale" | "handoff";
+export type EditorModalCloseSource = "escape" | "cancel";
 interface EditorModalBase {
   title: string;
   message: string;
@@ -18,6 +19,8 @@ interface EditorModalBase {
     isCurrent: () => boolean;
   }) => boolean | Promise<boolean>;
   onClose?: (reason: CloseReason) => void;
+  /** 用户点 X 或按 Esc 时先交给内容决定；程序关闭、失效与交接仍直接 close。 */
+  onRequestClose?: (source?: EditorModalCloseSource) => void;
   restoreFocus?: () => void;
   /** 已完成的参数交接优先于普通触发器焦点恢复。 */
   afterClose?: () => boolean;

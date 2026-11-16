@@ -1284,6 +1284,18 @@ export const EditorShell: React.FC = () => {
       musicTextController.current?.returnToScore();
       return;
     }
+    // 和弦页签自动绑定单拍后，谱面仍允许方向键选拍；目标迁移经过草稿入口。
+    if (musicTextEditing && activeMusicTextTarget?.kind === "chord" && document && selection &&
+      !event.metaKey && !event.ctrlKey && !event.altKey &&
+      ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) {
+      const direction = ({ ArrowLeft: "left", ArrowRight: "right", ArrowUp: "up", ArrowDown: "down" } as const)[event.key as "ArrowLeft" | "ArrowRight" | "ArrowUp" | "ArrowDown"];
+      const result = navigateTabCellSelection(document, selection, direction, event.shiftKey);
+      if (result.ok && result.changed) {
+        event.preventDefault();
+        if (musicTextController.current?.select(result.selection) === "accepted") clearFretDraft();
+      }
+      return;
+    }
     if (musicTextEditing) return;
     const isPrimaryModifier = event.metaKey || event.ctrlKey;
     // 历史快捷键向上冒泡到编辑器根节点统一处理。
@@ -1306,7 +1318,7 @@ export const EditorShell: React.FC = () => {
       if (result.ok && result.changed) {
         event.preventDefault();
         clearFretDraft();
-        setSelection(result.selection);
+        musicTextController.current?.select(result.selection);
       } else if (!result.ok) setErrorMessage(result.message);
       return;
     }

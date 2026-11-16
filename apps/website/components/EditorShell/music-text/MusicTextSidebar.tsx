@@ -56,7 +56,7 @@ import { ChordEditor } from "../chords/ChordEditor";
 import { ChordQuickEditor } from "../chords/ChordQuickEditor";
 import type { ChordDraft } from "../chords/ChordEditor";
 import { ChordLibraryModal } from "../chords/ChordLibraryModal";
-import { ChordDiagramEditorModal } from "../chords/ChordDiagramEditorModal";
+import { ChordCustomSurface } from "../chords/ChordCustomSurface";
 import type { ChordLibraryTab } from "../chords/ChordPresetControls";
 import { saveCustomChordVoicing } from "../chords/chord-preferences";
 import { createChordEditSession } from "../chords/chord-edit-session";
@@ -70,6 +70,7 @@ import {
   normalizeMusicTextTarget,
   musicTextDraftValue,
   resolveSidebarRequest,
+  selectedChordTarget,
   type MusicTextTarget,
   type MusicTextDraft,
   type SidebarAction as DraftSidebarAction,
@@ -339,13 +340,6 @@ export const MusicTextSidebar = ({
     ? score?.score.tracks.find((t) => t.id === target.trackId)
     : score?.score.tracks[0];
   const measure = track?.measures.find((m) => m.id === target?.measureId);
-  const validTarget =
-    target &&
-    ("kind" in target && target.kind === "lyric"
-      ? measure && resolveLyricPosition(measure, target)
-      : measure?.beats.some((b) => b.id === target.beatId))
-      ? target
-      : null;
   /** 输出闸门只展示可解析位置；无法定位时保留 label，不猜测邻近小节。 */
   const draftLocation = (
     value:
@@ -680,11 +674,20 @@ export const MusicTextSidebar = ({
             ? createCollapsedTabCellSelection(activeObject)
             : current.selection;
       settingsRef.current?.discard();
-      // 选拍仅改变 TAB 选区；和弦输入须通过工具栏或已有和弦显式打开。
+      // 和弦页签直接绑定单拍；不展开侧栏，也不把焦点移入输入框。
       current.setNumberedSelection(null);
-      setDraft(null);
+      const chordTarget = action.type === "selection" && propertyTab === "chord"
+        ? selectedChordTarget(current.document, nextSelection) : null;
+      const chordDraft = chordTarget ? readMusicTextDraft(current.document, chordTarget) : null;
+      setDraft(chordDraft);
       setNumberedTarget(null);
-      setActiveObject(null);
+      setActiveObject(chordDraft?.target ?? null);
+      activeTextOwner.current = !!chordDraft;
+      if (chordDraft) {
+        baseline.current = current.document;
+        setKind("chord");
+        setSurface("sidebar");
+      }
       setInputEditing(false);
       focusDestination.current = "score";
       setMessage(null);
@@ -732,10 +735,17 @@ export const MusicTextSidebar = ({
     } else if (action.type === "mode") {
       if (draft) loadTarget(draft.target, action.mode, "input", action.lyricFocusSurface ?? lyricFocusSurface.current);
     } else {
-      // 页签只展示工具，保留谱面对象；显式输入／编辑按钮才加载文字草稿。
-      setDraft(null);
+      const chordTarget = action.kind === "chord" && !current.numberedSelection
+        ? selectedChordTarget(current.document, current.selection) : null;
+      const chordDraft = chordTarget ? readMusicTextDraft(current.document, chordTarget) : null;
+      setDraft(chordDraft);
       setNumberedTarget(null);
-      setActiveObject(null);
+      setActiveObject(chordDraft?.target ?? null);
+      activeTextOwner.current = !!chordDraft;
+      if (chordDraft) {
+        baseline.current = current.document;
+        setSurface("sidebar");
+      }
       setInputEditing(false);
       setMessage(null);
       focusDestination.current = "score";
@@ -780,6 +790,14 @@ export const MusicTextSidebar = ({
         if (action.destination === "section" || action.destination === "copy") {
           settingsRef.current?.focusField(action.destination === "section" ? "label" : "copy");
         } else if (action.destination === "barline") measureDetailsRef.current?.focusBoundary();
+        return "accepted";
+      }
+    }
+    if (action.type === "selection" && propertyTab === "chord" && draft?.target.kind === "chord") {
+      const next = selectedChordTarget(editorStore.getState().document, action.selection);
+      if (next && next.trackId === draft.target.trackId && next.measureId === draft.target.measureId && next.beatId === draft.target.beatId) {
+        onScoreSelection(action.selection, action.techniqueId ?? null);
+        onTargetChange(draft.target);
         return "accepted";
       }
     }
@@ -841,6 +859,29 @@ export const MusicTextSidebar = ({
   };
   const returnToScore = (): SelectionRequestResult =>
     request({ type: "close" });
+  // 拖选等谱面操作会直接更新 store 选区；只同步目标，不打断 pointer capture。
+  useLayoutEffect(() => {
+    if (propertyTab !== "chord" || activeModal || pending || suspendedChord.current) return;
+    const current = editorStore.getState();
+    const next = !numberedSelection && !continuousRange ? selectedChordTarget(current.document, selection) : null;
+    const previous = draftLive.current;
+    if (next && previous?.target.kind === "chord" &&
+      next.trackId === previous.target.trackId && next.measureId === previous.target.measureId && next.beatId === previous.target.beatId) return;
+    if (!next && !previous) return;
+    const value = next ? readMusicTextDraft(current.document, next) : null;
+    ownerGeneration.current += 1;
+    draftRegistrationRef.current?.invalidateOwner();
+    activeTextOwner.current = !!value;
+    baseline.current = current.document;
+    setDraft(value);
+    setActiveObject(value?.target ?? null);
+    setInputEditing(false);
+    setTextConflict(false);
+    setMessage(null);
+    setChordPresetMenuOrigin(null);
+    setSurface("sidebar");
+    focusDestination.current = "score";
+  }, [selection, numberedSelection, continuousRange, propertyTab, activeModal, pending, editorStore]);
   const cancelTextEditing = (): SelectionRequestResult => {
     if (surfaceBlocked()) return "blocked";
     if (kind === "lyric" || kind === "numbered") {
@@ -1013,7 +1054,7 @@ export const MusicTextSidebar = ({
   useEffect(() => onPopoverHiddenChange(popoverHidden), [popoverHidden, onPopoverHiddenChange]);
   // 隐藏的干净气泡释放谱面操作；未提交草稿继续走原有阻断链。
   const editing =
-    (!!activeObject && !popoverHidden) ||
+    (!!activeObject && !popoverHidden && !(activeObject.kind === "chord" && surface === "sidebar")) ||
     settingsDirty ||
     numberedDirty ||
     numberedInputActive ||
@@ -1493,7 +1534,10 @@ export const MusicTextSidebar = ({
     const openSurface = (nextMode: "library" | "custom", value: ChordDraft): boolean => {
       if (!chordSession.isCurrent(token)) return failedHandoff();
       let requestId: number | null = null;
-      const cancel = () => { if (requestId !== null) modals.close(requestId, "cancel"); };
+      const closeRef = { current: null as ((reason?: "escape" | "cancel") => void) | null };
+      const cancel = () => {
+        if (requestId !== null) modals.close(requestId, "cancel");
+      };
       const complete = (next: ChordDraft) => {
         if (requestId === null) return;
         const updated = chordSession.complete(token, () => {
@@ -1511,7 +1555,9 @@ export const MusicTextSidebar = ({
         });
       };
       const content = nextMode === "custom" ? (
-        <ChordDiagramEditorModal seed={value} tuning={tuning} onComplete={complete} onCancel={cancel}
+        <ChordCustomSurface seed={value} tuning={tuning} onComplete={complete} onCancel={cancel}
+          document={score} presetsEnabled={JSON.stringify(tuning.map(s => [s.pitch, s.midi])) === JSON.stringify([["E4",64],["B3",59],["G3",55],["D3",50],["A2",45],["E2",40]])}
+          requestCloseRef={closeRef}
           onSave={async chord => {
             if (!chordSession.isCurrent(token)) return { ok: false, message: "原编辑目标已变化。" };
             const result = saveCustomChordVoicing(chord, tuning);
@@ -1529,6 +1575,7 @@ export const MusicTextSidebar = ({
         title: nextMode === "custom" ? "自定义指法" : "和弦库", message: "",
         subtitle: nextMode === "custom" ? `${draftLocation(parent.target) ?? "当前和弦"} ／ ${JSON.stringify(tuning.map(s => s.pitch)) === JSON.stringify(["E4","B3","G3","D3","A2","E2"]) ? "标准调弦 E A D G B E" : "当前轨道调弦"}` : undefined,
         content, version: captureEditorVersion(editorStore.getState()),
+        onRequestClose: nextMode === "custom" ? reason => closeRef.current?.(reason) : undefined,
         isValid: () => chordSession.isCurrent(token), restoreFocus: restore,
         onClose: reason => {
           if (reason !== "handoff") { chordSession.cancel(token); setChordModalActive(false); setDismissed(false); }
@@ -2167,32 +2214,20 @@ export const MusicTextSidebar = ({
                     ) : (
                       <CustomerServiceOutlined style={{ fontSize: 36 }} />
                     )}
-                    <h3>{kind === "lyric" ? "先选择歌词位置" : "先选择 TAB 拍点"}</h3>
-                    {kind !== "lyric" && <p>点击六线谱中的拍点，在这里设置和弦名称与指法。</p>}
-                    {(kind !== "lyric" || lyricStart) && <Button
+                    <h3>{kind === "lyric" ? "先选择歌词位置" : "先选择单个 TAB 拍点"}</h3>
+                    {kind !== "lyric" && <p>选择六线谱中的单个拍点，在这里设置和弦名称与指法。</p>}
+                    {kind === "lyric" && lyricStart && <Button
                       ref={editButtonRef}
-                      disabled={kind === "lyric" ? !lyricStart : !validTarget}
                       type="primary"
                       onClick={() => {
-                        if (kind === "lyric") {
-                          if (lyricStart)
-                            request({
-                              type: "target",
-                              lyricFocusSurface: "sidebar",
-                              target: {
-                                ...lyricStart,
-                                kind: "lyric",
-                                verse: 1,
-                              },
-                            });
-                        } else if (!numberedSelection && selection?.focus)
-                          request({
-                            type: "target",
-                            target: { ...selection.focus, kind: "chord" },
-                          });
+                        request({
+                          type: "target",
+                          lyricFocusSurface: "sidebar",
+                          target: { ...lyricStart, kind: "lyric", verse: 1 },
+                        });
                       }}
                     >
-                      {kind === "lyric" ? "为当前简谱填写歌词" : "编辑当前拍和弦"}
+                      为当前简谱填写歌词
                     </Button>}
                   </div>
                 ) : kind === "lyric" ? (

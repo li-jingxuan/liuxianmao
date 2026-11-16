@@ -159,7 +159,7 @@ describe("更多和弦键盘交互", () => {
     const start = value.popup.props.onCompositionStart as () => void,
       end = value.popup.props.onCompositionEnd as () => void;
     const library = value.nodes.find(
-      (node) => node.props.children === "浏览完整和弦库",
+      (node) => node.type === Button && node.props["aria-label"] === "和弦库",
     )!;
     start();
     const composing = key("Enter");

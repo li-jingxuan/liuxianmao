@@ -1,9 +1,10 @@
 "use client";
 
 import { Alert, Button, ConfigProvider, Modal } from "antd";
-import { Fragment, useState, useSyncExternalStore } from "react";
+import { Fragment, useRef, useState, useSyncExternalStore } from "react";
 import type {
   EditorModalController,
+  EditorModalCloseSource,
   EditorModalState,
 } from "./editor-modal-controller";
 import { BeatPastePreview } from "../tools/BeatPastePreview";
@@ -96,6 +97,12 @@ export const EditorModalHost = ({
   const chord =
     request?.kind === "chord-library" || request?.kind === "chord-custom";
   const dismissable = request?.kind === "technique-type" || chord;
+  const modalContent = useRef<HTMLDivElement>(null);
+  const requestClose = (source: EditorModalCloseSource) => {
+    if (!active || active.busy || active.closing) return;
+    if (active.request.onRequestClose) active.request.onRequestClose(source);
+    else controller.close(active.id, "cancel");
+  };
   return (
     <ConfigProvider
       getPopupContainer={chord ? (trigger) => trigger?.closest<HTMLElement>(".ant-modal") ?? document.body : undefined}
@@ -103,6 +110,7 @@ export const EditorModalHost = ({
       className={chord ? styles.chordModal : undefined}
       title={chord && request ? <div className={styles.heading}><h2>{request.title}</h2>{request.kind === "chord-custom" ? <span data-chord-custom-error /> : <p aria-hidden="true">{request.subtitle ?? "选择和弦与指法，带回当前编辑位置。"}</p>}</div> : request?.title}
       open={!!active && !active.closing}
+      destroyOnHidden={chord}
       width={
         chord
           ? request?.kind === "chord-custom" ? 1120 : 1080
@@ -133,17 +141,23 @@ export const EditorModalHost = ({
       }}
       modalRender={(content) => (
         <EditorModalGuard
+          ref={modalContent}
           dismissable={dismissable}
           busy={display?.busy}
-          onDismiss={() => {
-            if (active) controller.close(active.id, "cancel");
-          }}
+          onDismiss={() => requestClose("escape")}
         >
           {content}
         </EditorModalGuard>
       )}
-      onCancel={() => {
-        if (active) controller.close(active.id, "cancel");
+      onCancel={() => requestClose("cancel")}
+      afterOpenChange={open => {
+        if (!open || !chord) return;
+        // AntD 6 的动画完成时会聚焦外层 dialog；将焦点放回受 Esc 守卫的实际控件。
+        const root = modalContent.current;
+        const preferred = request?.kind === "chord-custom"
+          ? root?.querySelector<HTMLInputElement>('input[aria-label="自定义和弦名称"]')
+          : root?.querySelector<HTMLInputElement>('input[aria-label*="搜索"]');
+        preferred?.focus({ preventScroll: true });
       }}
       afterClose={() => controller.restoreFocus(display?.id)}
       footer={

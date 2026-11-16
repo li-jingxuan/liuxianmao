@@ -111,16 +111,23 @@ export const ChordEditor = ({
   const issue = diagram ? validateChordDiagram(diagram) : null;
   // 非法中间值只显示校验信息，不交给图形布局生成误导性预览。
   const removing = allowEmptyName && draft.chord.name.trim() === "";
+  const empty = !draft.chord.name.trim() && !diagram;
   return (
     <div className={viewStyles.editor}>
-      <section className={viewStyles.preview} aria-label="和弦预览">
-        <div className={viewStyles.previewCaption}>
-          <strong>{draft.chord.name || "未命名"}</strong>
-          <span>{presetsEnabled ? "标准调弦　E A D G B E" : "自定义调弦"}</span>
-        </div>
-        {issue && !removing && <p role="alert">{issue}</p>}
-        <ChordDiagramPreview diagram={diagram} width={52} height={64} />
-        {onOpenCustom && <Button type="link" disabled={disabled} onClick={() => onOpenCustom()}>{diagram ? "编辑指法" : "自定义指法"}</Button>}
+      <section className={`${viewStyles.preview}${empty ? ` ${viewStyles.emptyPreview}` : ""}`} aria-label="和弦预览">
+        {empty ? (
+          <span className={viewStyles.emptyDiagram}>尚未配置和弦</span>
+        ) : (
+          <>
+            <div className={viewStyles.previewCaption}>
+              <strong>{draft.chord.name || "未命名"}</strong>
+              <span>{presetsEnabled ? "标准调弦　E A D G B E" : "自定义调弦"}</span>
+            </div>
+            {issue && !removing && <p role="alert">{issue}</p>}
+            <ChordDiagramPreview diagram={diagram} width={47} height={54} />
+            {onOpenCustom && <Button type="link" disabled={disabled} onClick={() => onOpenCustom()}>{diagram ? "编辑指法" : "自定义指法"}</Button>}
+          </>
+        )}
       </section>
       <section className={viewStyles.presets} aria-label="名称与常用指法">
         <Form.Item
@@ -145,6 +152,7 @@ export const ChordEditor = ({
             }
           />{onApply && <Button type="primary" disabled={disabled || !canApply} onClick={onApply}>应用</Button>}</div>
         </Form.Item>
+        {empty && onOpenCustom && <Button className={viewStyles.emptyCustomAction} type="link" disabled={disabled} onClick={() => onOpenCustom()}>自定义指法</Button>}
         {error && error !== issue && <p className={viewStyles.help} role="alert">{error}</p>}
         <ChordPresetControls
           draft={draft}

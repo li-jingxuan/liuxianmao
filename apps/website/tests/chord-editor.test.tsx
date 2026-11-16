@@ -51,6 +51,60 @@ function view(name = "C", presetsEnabled = true) {
 }
 
 describe("和弦草稿编辑布局", () => {
+  it.each(["", "   "])("空拍 %j 的顶部只显示空状态，自定义入口留在表单且应用禁用", (name) => {
+    const onOpenCustom = vi.fn();
+    const onChange = vi.fn();
+    const tree = ChordEditor({
+      draft: { display: "name", chord: { name, diagram: null } },
+      onChange,
+      presetsEnabled: true,
+      inputRef: () => {},
+      onOpenCustom,
+      onApply: vi.fn(),
+    });
+    const elements = descendants(tree);
+    const preview = elements.find((element) => element.props["aria-label"] === "和弦预览")!;
+    const previewMarkup = renderToStaticMarkup(preview);
+    expect(previewMarkup).toContain("尚未配置和弦");
+    for (const text of ["未命名", "标准调弦", "尚未设置指法", "自定义指法", "编辑指法"]) {
+      expect(previewMarkup).not.toContain(text);
+    }
+    const custom = elements.find((element) => element.type === Button && element.props.children === "自定义指法")!;
+    expect(descendants(preview)).not.toContain(custom);
+    expect(custom.props.disabled).toBe(false);
+    (custom.props.onClick as () => void)();
+    expect(onOpenCustom).toHaveBeenCalledOnce();
+    const apply = elements.find((element) => element.type === Button && element.props.children === "应用")!;
+    expect(apply.props.disabled).toBe(true);
+    expect(renderToStaticMarkup(tree)).toContain('aria-label="和弦名称"');
+    expect(renderToStaticMarkup(tree)).toContain("本调常用和弦");
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("具名或带指法草稿恢复正常预览，切回空拍恢复空状态", () => {
+    const preset = copyChordPreset("C")!;
+    const drafts: ChordDraft[] = [
+      { display: "name", chord: { name: "C", diagram: null } },
+      { display: "nameAndDiagram", chord: { ...preset, name: "" } },
+      { display: "nameAndDiagram", chord: preset },
+      { display: "name", chord: { name: "", diagram: null } },
+    ];
+    const previews = drafts.map((draft) => {
+      const tree = ChordEditor({ draft, onChange: vi.fn(), presetsEnabled: true, inputRef: () => {}, onOpenCustom: vi.fn() });
+      return renderToStaticMarkup(descendants(tree).find((element) => element.props["aria-label"] === "和弦预览")!);
+    });
+    for (const preview of previews.slice(0, 3)) {
+      expect(preview).not.toContain("尚未配置和弦");
+      expect(preview).toContain("标准调弦");
+    }
+    expect(previews[0]).toContain("尚未设置指法");
+    expect(previews[0]).toContain("自定义指法");
+    expect(previews[1]).toContain("未命名");
+    expect(previews[1]).toContain('aria-label="指法图预览"');
+    expect(previews[2]).toContain("编辑指法");
+    expect(previews[3]).toContain("尚未配置和弦");
+  });
+
   it("六弦以 6→1 显示，编辑按弦号更新且不改变领域的 1→6 保存顺序", () => {
     const value = view();
     const before = structuredClone(value.draft);

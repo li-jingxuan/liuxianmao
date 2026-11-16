@@ -1,0 +1,27 @@
+{
+  "result": "passed",
+  "catalogItems": 192,
+  "groups": 12,
+  "columns": 5,
+  "empty": {
+    "height": 88,
+    "background": "rgb(244, 246, 249)"
+  },
+  "errors": [],
+  "checks": [
+    "actual AntD hover without geometry shift",
+    "complete major/minor grouping",
+    "search retains relative-root grouping",
+    "harmonic-minor relation",
+    "fixed detail while list scrolls",
+    "custom DOM node preserved under overlay",
+    "invalid input retained after Escape",
+    "select previews before replacement confirmation",
+    "confirmation Escape closes one layer",
+    "replacement undo restores buffer",
+    "empty beat background retained",
+    "draft then apply",
+    "1400×720 actions visible",
+    "390px sidebar no overflow"
+  ]
+}

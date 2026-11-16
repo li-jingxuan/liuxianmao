@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, type ReactNode } from "react";
+import { useRef, useEffect, type ReactNode, type Ref } from "react";
 import { createScoreSettingsComposition } from "../settings/score-settings-composition";
 
 /** 同一 Tab 首尾循环与 Escape 语义供所有受控 Modal 复用。 */
@@ -9,19 +9,44 @@ export const EditorModalGuard = ({
   busy = false,
   onDismiss,
   children,
+  ref,
 }: {
   dismissable: boolean;
   busy?: boolean;
   onDismiss: () => void;
   children: ReactNode;
+  ref?: Ref<HTMLDivElement>;
 }) => {
   const composition = useRef(createScoreSettingsComposition(() => {}));
+  const root = useRef<HTMLDivElement>(null);
   useEffect(() => () => composition.current.dispose(), []);
+  useEffect(() => {
+    // AntD 6 的初始焦点在 modalRender 外层 dialog；这一路也必须消费 Esc。
+    const dialog = root.current?.closest<HTMLElement>('[role="dialog"]');
+    if (!dialog) return;
+    const handleDialogKey = (event: globalThis.KeyboardEvent) => {
+      if (event.target !== dialog || event.key !== "Escape") return;
+      event.stopPropagation();
+      if (event.defaultPrevented || event.isComposing || event.keyCode === 229 || composition.current.isComposing()) return;
+      event.preventDefault();
+      if (!event.repeat && dismissable && !busy) onDismiss();
+    };
+    dialog.addEventListener("keydown", handleDialogKey);
+    return () => dialog.removeEventListener("keydown", handleDialogKey);
+  }, [busy, dismissable, onDismiss]);
   return (
     <div
+      ref={node => {
+        root.current = node;
+        if (typeof ref === "function") ref(node);
+        else if (ref) ref.current = node;
+      }}
       onCompositionStart={() => composition.current.start()}
       onCompositionEnd={() => composition.current.end()}
       onKeyDown={(event) => {
+        // 子 Modal 的 portal 在 React 树内冒泡；只处理当前实际 dialog 的按键。
+        const targetDialog = (event.target as HTMLElement | undefined)?.closest?.('[role="dialog"]');
+        if (targetDialog && targetDialog !== root.current?.closest('[role="dialog"]')) return;
         composition.current.observeKey(event.nativeEvent);
         if (event.repeat && ["Enter", " ", "Escape"].includes(event.key)) {
           event.preventDefault();

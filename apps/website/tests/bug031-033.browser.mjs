@@ -62,7 +62,7 @@ try {
   checks.push("更多和弦可搜索，Escape 关闭并恢复触发按钮焦点，文档与历史不变");
   await button(popover, "更多和弦").click();
   await popup.getByRole("textbox").waitFor();
-  await button(popup, "浏览完整和弦库").click();
+  await button(popup, "和弦库").click();
   const library = page.getByRole("dialog", { name: /^和弦库/ });
   await library.waitFor();
   await library.getByLabel("临时浏览大小调", { exact: true }).click();

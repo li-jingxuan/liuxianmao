@@ -3,10 +3,12 @@ import type { ILXMFret, ILXMTrack } from "../../core/types";
 import {
   LXM_FRET_TEXT_FONT_SIZE,
   LXM_FRET_TEXT_HALO_WIDTH,
+  LXM_NATURAL_HARMONIC_TEXT_FONT_SIZE,
   LXM_TECHNIQUE_ARROW_HEIGHT,
   LXM_TECHNIQUE_ARROW_WIDTH,
   LXM_TECHNIQUE_FRET_GAP_X,
   LXM_TECHNIQUE_TEXT_FONT_SIZE,
+  LXM_TECHNIQUE_TEXT_HIT_FONT_SIZE,
   LXM_TECHNIQUE_TEXT_HALO_WIDTH,
   LXM_TECHNIQUE_CURVE_WING_WIDTH,
   LXM_TECHNIQUE_CURVE_INK_GAP,
@@ -26,7 +28,11 @@ export const vibratoStartOffset = (half: number, hasBend: boolean): number =>
   LXM_TECHNIQUE_FRET_GAP_X +
   (hasBend
     ? TECHNIQUE_BEND_RUN +
-      Math.max(techniqueLabelWidth("Full"), techniqueLabelWidth("1/2")) / 2 +
+      // 文字缩小不移动既有揉弦的点击区；保留原 Full/half 的展开起点。
+      Math.max(
+        techniqueLabelWidth("Full", LXM_TECHNIQUE_TEXT_HIT_FONT_SIZE),
+        techniqueLabelWidth("1/2", LXM_TECHNIQUE_TEXT_HIT_FONT_SIZE),
+      ) / 2 +
       6
     : 0);
 
@@ -42,18 +48,22 @@ export const fretHalfWidth = (fret: ILXMFret, natural = false): number =>
       text: natural ? `<${fret}>` : String(fret),
       x: 0,
       y: 0,
-      fontSize: LXM_FRET_TEXT_FONT_SIZE,
+      fontSize: natural
+        ? LXM_NATURAL_HARMONIC_TEXT_FONT_SIZE : LXM_FRET_TEXT_FONT_SIZE,
       textAnchor: "middle",
     },
     LXM_FRET_TEXT_HALO_WIDTH,
   ).width / 2;
 
-export const techniqueLabelWidth = (label: string): number =>
+export const techniqueLabelWidth = (
+  label: string,
+  fontSize = LXM_TECHNIQUE_TEXT_FONT_SIZE,
+): number =>
   getTextBounds({
     text: label,
     x: 0,
     y: 0,
-    fontSize: LXM_TECHNIQUE_TEXT_FONT_SIZE,
+    fontSize,
     textAnchor: "start",
   }).width;
 

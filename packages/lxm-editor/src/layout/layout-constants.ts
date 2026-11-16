@@ -34,7 +34,9 @@ export const LXM_TECHNIQUE_LANE_HEIGHT = 12;
 export const LXM_TECHNIQUE_AREA_PADDING_TOP = 4;
 export const LXM_TECHNIQUE_AREA_PADDING_BOTTOM = 6;
 export const LXM_TECHNIQUE_HORIZONTAL_CLEARANCE = 6;
-export const LXM_TECHNIQUE_TEXT_FONT_SIZE = 9;
+/** 谱面技巧默认 9→7；命中仍按原字号计算，不随字形缩小。 */
+export const LXM_TECHNIQUE_TEXT_HIT_FONT_SIZE = 9;
+export const LXM_TECHNIQUE_TEXT_FONT_SIZE = 7;
 /** 局部文字可能穿过相邻弦线，细白描边保证 T/A.H./tr 的可读性。 */
 export const LXM_TECHNIQUE_TEXT_HALO_WIDTH = 1;
 export const LXM_TECHNIQUE_PATH_STROKE_WIDTH = 1.2;
@@ -57,6 +59,12 @@ export const LXM_TECHNIQUE_CURVE_INK_GAP = 1;
 export const LXM_TECHNIQUE_COLLISION_PADDING = 2;
 /** 品位文字与页面白色描边共用同一尺寸契约。 */
 export const LXM_FRET_TEXT_FONT_SIZE = 8;
+/** 自然泛音替代品位按同一比例缩小，最低保留 6；普通品位不变。 */
+export const LXM_NATURAL_HARMONIC_TEXT_FONT_SIZE = Math.max(
+  6,
+  LXM_FRET_TEXT_FONT_SIZE * LXM_TECHNIQUE_TEXT_FONT_SIZE /
+    LXM_TECHNIQUE_TEXT_HIT_FONT_SIZE,
+);
 export const LXM_FRET_TEXT_HALO_WIDTH = 0.4;
 export const LXM_FRET_TEXT_BASELINE_OFFSET_Y = 2.5;
 export const LXM_NUMBERED_TEXT_FONT_SIZE = 11;

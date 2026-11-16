@@ -16,7 +16,7 @@ const sass = websiteRequire('sass');
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || '/Users/nice02/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
 (async () => {
   const css = sass.compile(path.join(repo, 'apps/website/components/EditorShell/chords/ChordDiagramEditorModal.module.scss')).css;
-  const result = await build({ entryPoints: [path.join(__dirname, 'chord-diagram-editor.browser.tsx')], bundle: true, write: false, platform: 'browser', format: 'iife', jsx: 'automatic', loader: { '.scss': 'empty' }, define: { 'process.env.NODE_ENV': '"development"' }, plugins: [{ name: 'actual-editor-styles', setup(build) { build.onLoad({ filter: /ChordDiagramEditorModal\.module\.scss$/ }, () => { const names = [...new Set([...css.matchAll(/\.([a-zA-Z][\w-]*)/g)].map((m) => m[1]))]; return { loader: 'js', contents: `const sheet=document.createElement('style');sheet.textContent=${JSON.stringify(css)};document.head.append(sheet);export default ${JSON.stringify(Object.fromEntries(names.map((name) => [name, name])))};` }; }); } }] });
+   const result = await build({ entryPoints: [path.join(__dirname, 'chord-diagram-editor.browser.tsx')], bundle: true, write: false, platform: 'browser', format: 'iife', jsx: 'automatic', loader: { '.scss': 'empty' }, define: { 'process.env.NODE_ENV': '"development"' }, plugins: [{ name: 'actual-editor-styles', setup(build) { build.onLoad({ filter: /ChordDiagramEditorModal\.module\.scss$/ }, () => { const names = [...new Set([...css.matchAll(/\.([a-zA-Z][\w-]*)/g)].map((m) => m[1]))]; return { loader: 'js', contents: `const sheet=document.createElement('style');sheet.textContent=${JSON.stringify(css.replace(/:global\(([^)]+)\)/g, '$1'))};document.head.append(sheet);export default ${JSON.stringify(Object.fromEntries(names.map((name) => [name, name])))};` }; }); } }] });
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
   const page = await browser.newPage({ viewport: { width: 1440, height: 650 } });
   const errors = [];
@@ -25,7 +25,12 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || '/Users/nice02/.ca
   const label = (name) => page.getByLabel(name, { exact: true });
   const button = (name) => page.getByRole('button', { name, exact: true });
   const cell = (name) => page.getByRole('gridcell', { name, exact: true });
-  const reset = () => button('重置测试').click();
+   const reset = () => button('重置测试').click();
+   const fingerText = () => label('按弦手指').locator('xpath=ancestor::*[contains(@class,"ant-select")][1]').innerText();
+   const selectFinger = async (value) => {
+     await label('按弦手指').click();
+     await page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)').getByText(value, { exact: true }).click();
+   };
   try {
     // Actual component and compiled Sass, with identity CSS-module class names.
     await page.setContent('<main id="root"></main>');
@@ -37,15 +42,15 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || '/Users/nice02/.ca
     assert.ok((await cell('第 6 弦 1 品').boundingBox()).width >= 32);
     assert.ok((await button('完成编辑').boundingBox()).y < 650);
     assert.equal((await page.getByRole('grid').boundingBox()).width, 386);
-    assert.equal(await label('按弦手指').inputValue(), '');
-    await label('按弦手指').selectOption('2');
+    assert.match(await fingerText(), /未指定/);
+    await selectFinger('2 · 中指');
     await page.locator('[data-chord-cell="0"]').focus();
     await page.keyboard.press('ArrowDown'); await page.keyboard.press('Enter');
     assert.equal(await cell('第 6 弦 1 品').getAttribute('data-finger'), '2');
     assert.equal(await cell('第 6 弦 1 品').getAttribute('aria-selected'), 'true');
     assert.ok((await cell('第 6 弦 1 品').locator('span').evaluate(el => window.getComputedStyle(el).boxShadow)).includes('5px'));
     await page.keyboard.press('t');
-    assert.equal(await label('按弦手指').inputValue(), 'T');
+    assert.match(await fingerText(), /T · 拇指/);
     await page.screenshot({ path: '/tmp/req024-custom-modal.png' });
     await page.keyboard.press('0');
     assert.equal(await cell('第 6 弦 1 品').getAttribute('data-finger'), '');
@@ -53,7 +58,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || '/Users/nice02/.ca
     // A newly placed point must not inherit the last selected point's finger.
     await cell('第 5 弦 1 品').click();
     assert.equal(await cell('第 5 弦 1 品').getAttribute('data-finger'), '');
-    await label('按弦手指').selectOption('4');
+    await selectFinger('4 · 小指');
     assert.equal(await cell('第 5 弦 1 品').getAttribute('data-finger'), '4');
     assert.equal(await button('完成编辑').isEnabled(), true);
     // Input digits and native undo remain native while a point is selected.
@@ -67,7 +72,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || '/Users/nice02/.ca
     await cell('第 5 弦 1 品').dispatchEvent('compositionend');
     await page.waitForTimeout(65);
     await button('横按').click();
-    assert.equal(await label('按弦手指').inputValue(), '');
+    assert.match(await fingerText(), /未指定/);
     await cell('第 6 弦 1 品').click();
     assert.equal(await cell('第 1 弦 1 品').getAttribute('data-pressed'), 'false');
     assert.equal(await button('完成编辑').isDisabled(), true);
@@ -75,9 +80,9 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || '/Users/nice02/.ca
     assert.equal((await state()).cancelled, 0);
     await cell('第 6 弦 1 品').click(); await cell('第 1 弦 1 品').click();
     assert.equal(await cell('第 1 弦 1 品').getAttribute('data-pressed'), 'true');
-    assert.equal(await label('按弦手指').inputValue(), '');
+    assert.match(await fingerText(), /未指定/);
     assert.equal((await page.locator('.barreLine').boundingBox()).width, 324);
-    await label('按弦手指').selectOption('T');
+    await selectFinger('T · 拇指');
     assert.equal(await page.locator('.barreLine').innerText(), 'T');
     await button('撤销').click(); assert.equal(await page.locator('.barreLine').innerText(), '');
     await button('重做').click(); assert.equal(await page.locator('.barreLine').innerText(), 'T');
@@ -138,10 +143,91 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || '/Users/nice02/.ca
     assert.equal(await page.locator('[data-chord-cell="0"]').innerText(), '×');
     await page.locator('[data-chord-cell="0"]').click();
     assert.equal(await page.locator('[data-chord-cell="0"]').innerText(), '○');
+    // Empty and existing points use a solid 22px blue circle, without cell fill.
+    await cell('第 6 弦 1 品').hover();
+    const emptyHover = await cell('第 6 弦 1 品').evaluate((element) => {
+      const hover = window.getComputedStyle(element, '::after');
+      return { width: hover.width, height: hover.height, color: hover.backgroundColor, background: window.getComputedStyle(element).backgroundColor };
+    });
+    assert.deepEqual(emptyHover, { width: '22px', height: '22px', color: 'rgb(40, 91, 224)', background: 'rgba(0, 0, 0, 0)' });
+    await cell('第 6 弦 1 品').click();
+    assert.equal(await cell('第 6 弦 1 品').locator('.dot').evaluate((element) => window.getComputedStyle(element).backgroundColor), 'rgb(40, 91, 224)');
+    // Dropdown Escape is consumed before the pending barre endpoint or exit.
+    await reset();
+    await button('横按').click();
+    await cell('第 6 弦 1 品').click();
+    await label('按弦手指').click();
+    await page.waitForFunction(() => document.querySelector('[aria-label="按弦手指"]')?.getAttribute('aria-expanded') === 'true');
+    await label('按弦手指').press('Escape');
+    await page.waitForFunction(() => document.querySelector('[aria-label="按弦手指"]')?.getAttribute('aria-expanded') === 'false');
+    assert.equal(await cell('第 6 弦 1 品').getAttribute('data-pending'), 'true');
+    assert.equal(await page.getByRole('dialog').count(), 0);
+    await label('按弦手指').press('Escape');
+    assert.equal(await cell('第 6 弦 1 品').getAttribute('data-pending'), 'false');
+    await label('按弦手指').press('Escape');
+    assert.equal((await state()).cancelled, 1);
+    await reset();
+    await button('横按').click();
+    await cell('第 6 弦 1 品').click();
+    await button('模拟宿主关闭').focus();
+    await button('模拟宿主关闭').press('Escape');
+    assert.equal(await cell('第 6 弦 1 品').getAttribute('data-pending'), 'false');
+    assert.equal((await state()).cancelled, 0);
+    await button('模拟宿主关闭').press('Escape');
+    assert.equal((await state()).cancelled, 1);
+    // Esc, footer cancel and host X share dirty confirmation; confirmation Esc only continues.
+    await reset();
+    await label('自定义和弦名称').fill('未完成修改');
+    await label('自定义和弦名称').press('Escape');
+    await page.getByRole('dialog', { name: '放弃本次修改？' }).waitFor();
+    assert.equal((await state()).cancelled, 0);
+    await button('继续编辑').press('Escape');
+    await page.getByRole('dialog', { name: '放弃本次修改？' }).waitFor({ state: 'hidden' });
+    assert.equal((await state()).cancelled, 0);
+    assert.equal(await label('自定义和弦名称').inputValue(), '未完成修改');
+    await button('模拟宿主关闭').click();
+    await button('继续编辑').click();
+    await page.getByRole('dialog', { name: '放弃本次修改？' }).waitFor({ state: 'hidden' });
+    await button('取消').click();
+    await button('放弃修改').click();
+    await page.getByRole('dialog', { name: '放弃本次修改？' }).waitFor({ state: 'hidden' });
+    assert.equal((await state()).cancelled, 1);
+    // A remount from the library restores invalid strings, history, finger preference and tool.
+    await reset();
+    await button('横按').click();
+    await selectFinger('T · 拇指');
+    await label('观察窗口起始品位').fill('abc');
+    await label('自定义和弦名称').fill('暂存名称');
+    await button('查看我的指法').click();
+    const snapshot = (await state()).snapshot;
+    assert.equal(snapshot.history.present.startFret, 'abc');
+    assert.equal(snapshot.tool, 'barre');
+    assert.equal(snapshot.nextFinger, 'T');
+    await button('返回暂存').click();
+    assert.equal(await label('观察窗口起始品位').inputValue(), 'abc');
+    assert.equal(await label('自定义和弦名称').inputValue(), '暂存名称');
+    assert.equal(await button('横按').getAttribute('aria-pressed'), 'true');
+    assert.match(await fingerText(), /T · 拇指/);
+    await button('撤销').click();
+    assert.equal(await label('自定义和弦名称').inputValue(), 'C');
+    await button('重做').click();
+    assert.equal(await label('自定义和弦名称').inputValue(), '暂存名称');
+    await button('查看我的指法').click();
+    await button('确认替换测试指法').click();
+    assert.equal(await label('自定义和弦名称').inputValue(), '库选用');
+    assert.equal((await state()).completed.length, 0);
+    await button('撤销').click();
+    assert.equal(await label('观察窗口起始品位').inputValue(), 'abc');
+    assert.equal(await label('自定义和弦名称').inputValue(), '暂存名称');
+    await button('重做').click();
+    await button('取消').click();
+    await button('继续编辑').click();
+    await page.getByRole('dialog', { name: '放弃本次修改？' }).waitFor({ state: 'hidden' });
+    assert.equal((await state()).cancelled, 0);
     await page.setViewportSize({ width: 1440, height: 600 });
     assert.ok((await button('完成编辑').boundingBox()).y + (await button('完成编辑').boundingBox()).height < 600);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true);
     assert.deepEqual(errors, []);
-    console.log('PASS: compact grid, point selection ring, 1–4/T/0, explicit next finger, null/T barres, latest header error, last valid preview, local/native undo, IME/cooling/229/repeat, independent save/cancel, display preservation and low height footer.');
+    console.log('PASS: compact grid, 1–4/T/0, native/local undo, IME, preview, save/cancel, 22px solid hover, dropdown/barre/confirmation Esc layers, host close interception, full invalid snapshot return and undoable library replacement.');
   } finally { await browser.close(); }
 })().catch((error) => { console.error(error); process.exitCode = 1; });

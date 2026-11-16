@@ -10,12 +10,12 @@
   *, *::before, *::after { box-sizing: border-box; }
   p { margin: 0; }
   input, select, button { font: inherit; color: inherit; }
-  input, select { width: 100%; min-width: 0; height: 36px; border: 1px solid #bfcbdb; border-radius: 5px; padding: 6px 10px; background: #fff; }
+  input:not([role=combobox]), select { width: 100%; min-width: 0; height: 36px; border: 1px solid #bfcbdb; border-radius: 5px; padding: 6px 10px; background: #fff; }
   button { min-height: 32px; border: 1px solid #cad3e1; border-radius: 5px; padding: 5px 12px; background: #fff; cursor: pointer; white-space: nowrap; }
   button:hover:not(:disabled) { color: #285be0; border-color: #8fa6d4; background-color: #f8faff; }
   button:disabled { cursor: default; color: #8e98a6; background-color: #f3f5f7; border-color: #e1e5eb; }
   input:disabled, select:disabled { color: #8e98a6; background: #f3f5f7; }
-  :focus-visible { outline: 3px solid #8fb4ff; outline-offset: 2px; }
+  input:not([role=combobox]):focus-visible, button:focus-visible { outline: 3px solid #8fb4ff; outline-offset: 2px; }
   [aria-invalid=true] { border-color: #bc3547; }
   label { display: grid; gap: 7px; font-size: 13px; }
 }
@@ -46,9 +46,12 @@
   padding: 0;
   background: transparent;
 }
-.editor .gridRow button:hover:not(:disabled) { background-color: #edf3ff; border-color: #aab7ca; }
+.editor .gridRow button:hover:not(:disabled) { background: transparent; }
+.editor .gridRow button:hover:not(:disabled)::after { content: ""; position: absolute; z-index: 2; width: 22px; height: 22px; border-radius: 50%; background: var(--accent, #285be0); pointer-events: none; }
+.editor .gridRow button:hover:not(:disabled) .dot { width: 22px; height: 22px; background: var(--accent, #285be0); }
+.editor .gridRow button:has(.dot):hover:not(:disabled)::after { display: none; }
 .editor .gridRow button:focus-visible { z-index: 3; outline-offset: -3px; }
-.dot { position: relative; z-index: 2; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: #29405e; color: #fff; font-size: 12px; }
+.dot { position: relative; z-index: 2; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: #29405e; color: #fff; font-size: 12px; }
 [data-pending=true] .dot, [aria-selected=true] .dot { background: #285be0; box-shadow: 0 0 0 5px #bcd2ff; }
 .editor .barreLine { position: absolute; height: 24px; min-height: 24px; border: 0; border-radius: 12px; padding: 0; background: #29405e; color: white; z-index: 2; font-size: 12px; }
 .editor .barreLine:hover:not(:disabled) { background: #29405e; color: white; }
@@ -56,7 +59,15 @@
 .fretLabel { display: grid; place-items: center; color: #68778e; font-size: 12px; }
 .stringLabels { height: 28px; align-items: end; text-align: center; color: #68778e; font-size: 11px; }
 .editor .fingerControl { display: flex; align-items: center; gap: 10px; margin-top: 8px; font-size: 12px; }
-.fingerControl select { width: 112px; height: 32px; font-size: 12px; }
+.fingerControl :global(.ant-select) { width: 128px; font-size: 12px; }
+.fingerControl :global(.ant-select-input) { padding: 0; height: auto; border: 0; outline: none; }
+.editor .libraryLink { justify-self: center; color: var(--accent, #285be0); background: transparent; border-color: transparent; }
+.editor .libraryLink:hover:not(:disabled) { color: var(--accent, #285be0); background: #edf3ff; border-color: transparent; }
+.discardMessage { margin: 0; color: #68778e; font-size: 14px; }
+.discardActions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; }
+.discardActions button { min-height: 32px; border: 1px solid #cad3e1; border-radius: 5px; padding: 5px 12px; background: #fff; color: #202838; cursor: pointer; font: inherit; }
+.discardActions button:focus-visible { outline: 3px solid #8fb4ff; outline-offset: 2px; }
+.discardActions .primary { color: #fff; border-color: var(--accent, #285be0); background: var(--accent, #285be0); }
 .help { color: #68778e; font-size: 12px; line-height: 1.7; }
 .shortcuts { display: flex; align-items: center; gap: 5px; color: #68778e; font-size: 11px; }
 .shortcuts kbd { border: 1px solid #dce3eb; border-radius: 3px; padding: 0 4px; background: white; font: inherit; }

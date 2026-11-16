@@ -186,7 +186,7 @@ it("同弦连续 H 共享端点时仍保留两条完整弧线", () => {
       (s) =>
         s.techniqueId === added.document.score.tracks[0]!.techniques.at(-1)!.id,
     )!;
-  expect(last.texts[0]!.fontSize).toBe(9);
+  expect(last.texts[0]!.fontSize).toBe(7);
   expect(last.path!.d.match(/M/g)).toHaveLength(1);
 });
 

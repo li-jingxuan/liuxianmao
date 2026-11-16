@@ -28,14 +28,14 @@
   align-items: center;
   justify-content: space-between;
    gap: 10px;
-   min-height: 84px;
-   padding: 10px 12px;
+   min-height: 74px;
+   padding: 8px 10px;
   border-radius: 8px;
   background: #f3f6fa;
   color: var(--foreground);
 
   svg {
-    flex: 0 0 52px;
+    flex: 0 0 47px;
     max-width: 100%;
   }
 
@@ -44,6 +44,16 @@
     color: var(--danger, #b42318);
     font-size: 0.875rem;
   }
+}
+
+.emptyPreview {
+  justify-content: center;
+}
+
+.emptyCustomAction {
+  justify-self: start;
+  padding-inline: 0;
+  font-size: 12px;
 }
 
 .previewCaption {
