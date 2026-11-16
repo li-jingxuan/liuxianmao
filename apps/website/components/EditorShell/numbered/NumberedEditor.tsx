@@ -306,7 +306,15 @@ export const NumberedEditor = ({
   const targetEvent =
     resolved?.kind === "numberedEvent"
       ? measure?.numberedVoice.events.find((e) => e.id === resolved.eventId)
-      : undefined;
+      // 精确命中已有 gap 的时间窗口按原事件编辑，继承已保存的模板时值和歌词引用；
+      // 更大的时间范围仍走原来的范围替换流程，保留用户显式调整范围的能力。
+      : resolved?.kind === "numberedTime"
+        ? measure?.numberedVoice.events.find((event) => {
+            if (event.kind !== "gap" || event.tick !== resolved.tick) return false;
+            const duration = createNumberedRhythmContext(measure.numberedVoice).getEventDurationTicks(event);
+            return duration.ok && event.tick + duration.ticks === resolved.endTick;
+          })
+        : undefined;
   const sourceBeat =
     target && "beatId" in target && target.beatId
       ? measure?.beats.find((beat) => beat.id === target.beatId)

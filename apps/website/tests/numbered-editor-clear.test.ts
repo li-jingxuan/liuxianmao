@@ -110,6 +110,7 @@ const setup = (
   kind: ILXMNumberedEvent["kind"] | "missing" = "notes",
   mode: "single" | "sequence" = "single",
   tied = false,
+  gapTimeWithOldPreference = false,
 ) => {
   const document = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);
   const track = document.score.tracks[0]!;
@@ -148,6 +149,7 @@ const setup = (
       ]
     : [];
   const session = createEditorSession(document);
+  if (gapTimeWithOldPreference) session.getState().setNumberedInputRhythm({ base: "quarter", dots: 0 });
   expect(
     session.getState().document,
     session.getState().errorMessage ?? "valid fixture",
@@ -179,7 +181,7 @@ const setup = (
           kind: "numbered",
           trackId: track.id,
           measureId: measure.id,
-          ...(kind === "missing"
+          ...(kind === "missing" || gapTimeWithOldPreference
             ? { tick: event.tick, endTick: event.tick + 720 }
             : { eventId: event.id, itemId: event.items[0]?.id }),
         },
@@ -291,6 +293,20 @@ describe("clearing a single numbered event", () => {
     expect(html).not.toContain('aria-label="节拍映射预览"');
     expect(await ref.current!.apply()).toMatchObject({ status: "noop" });
     expect(commit).not.toHaveBeenCalled();
+  });
+
+  it.each(["single", "sequence"] as const)("an exact gap time target keeps saved rhythm despite an old preference in %s mode", async (mode) => {
+    const { ref, session, event, document } = setup("7", "gap", mode, false, true);
+    expect(ref.current!.dirty).toBe(true);
+    const result = await ref.current!.applyGroup("content");
+    expect(result.status).toBe("applied");
+    const measure = session.getState().document!.score.tracks[0]!.measures[0]!;
+    expect(measure.numberedVoice.events.find(item => item.id === event.id)).toMatchObject({
+      kind: "notes", tick: event.tick, rhythm: { base: "eighth", dots: 1 },
+      items: [{ token: "7" }],
+    });
+    expect(measure.lyrics).toEqual(document.score.tracks[0]!.measures[0]!.lyrics);
+    expect(measure.beats).toEqual(document.score.tracks[0]!.measures[0]!.beats);
   });
 
   it.each(["", "　 ", " \n\t "])("blank sequence %j clears the current event without moving later events", async (raw) => {

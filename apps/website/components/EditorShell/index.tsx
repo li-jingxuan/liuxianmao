@@ -29,6 +29,7 @@ import {
   type ILXMTabCellReference,
   type ILXMTabCellSelection,
   type MusicTextRange,
+  type RhythmPatternTarget,
 } from "@liuxianmao/lxm-editor";
 import {
   useCallback,
@@ -94,6 +95,7 @@ import {
 import { buildEditorToolCommand } from "./tools/editor-tool-actions";
 import { resolveEditorRhythmTarget } from "./tools/editor-rhythm-target";
 import { isNumberedTieTarget, resolveEditorTieTarget } from "./tools/editor-tie-target";
+import { rhythmPatternScopeRect } from "./tools/rhythm-pattern-scope-layout";
 import {
   captureEditorToolIntent,
   editorToolSubmissionReason,
@@ -457,6 +459,7 @@ export const EditorShell: React.FC = () => {
     useState<MusicTextTarget | null>(null);
   const [continuousRange, setContinuousRange] = useState<MusicTextRange | null>(null);
   const continuousRangeRef = useRef<MusicTextRange | null>(null);
+  const [rhythmPatternScope, setRhythmPatternScope] = useState<RhythmPatternTarget | null>(null);
   const [paragraphEditingSession, setParagraphEditingSession] =
     useState<ILXMLayoutOptions["paragraphEditing"] | null>(null);
   const rangeDragRef = useRef<MusicTextRange | null>(null);
@@ -529,6 +532,8 @@ export const EditorShell: React.FC = () => {
   }, [document, musicTextMetrics, showChordDiagrams, activeMusicTextTarget, continuousRange, paragraphEditingSession]);
   const rangeRects = useMemo(() => document && lxmLayout && continuousRange
     ? musicTextRangeRects(document, lxmLayout, continuousRange) : [], [document, lxmLayout, continuousRange]);
+  const rhythmPatternRect = useMemo(() => lxmLayout && rhythmPatternScope
+    ? rhythmPatternScopeRect(lxmLayout, rhythmPatternScope) : null, [lxmLayout, rhythmPatternScope]);
 
   const onScoreGeometryChange = useCallback(() => {
     const svg = scoreSvgRef.current;
@@ -1646,6 +1651,7 @@ export const EditorShell: React.FC = () => {
       />
       <EditorToolbar
         continuousRange={continuousRange}
+        onRhythmPatternScopeChange={setRhythmPatternScope}
         sidebarCollapsed={sidebarCollapsed}
         sidebarToggleRef={sidebarToggleRef}
         onToggleSidebar={() => {
@@ -1665,6 +1671,7 @@ export const EditorShell: React.FC = () => {
         onOpenChord={(target) => musicTextController.current?.open(target)}
         onAction={handleToolbarAction}
         beforeAction={clearFretDraft}
+        beforeRhythmPatternAction={() => { musicTextController.current?.dismissCleanPopover(); }}
         execute={executeTool}
         onNavigate={(destination) =>
           musicTextController.current?.navigateTool(destination) ?? "blocked"
@@ -1729,6 +1736,7 @@ export const EditorShell: React.FC = () => {
           ref={pageViewportRef}
           className={scoreInteractionStyles.pageViewport}
           data-score-viewport
+          onPointerDownCapture={() => setRhythmPatternScope(null)}
           onPointerDown={handleWorkspacePointerDown}
           onScroll={clearHover}
         >
@@ -1758,7 +1766,7 @@ export const EditorShell: React.FC = () => {
                 onPointerLeave={clearHover}
                 onPointerUp={finishPointerDrag}
                 onPointerCancel={finishPointerDrag}
-                onKeyDown={handleScoreKeyDown}
+                onKeyDown={(event) => { setRhythmPatternScope(null); handleScoreKeyDown(event); }}
               >
                 <MusicTextEditingHints
                   layout={lxmLayout}
@@ -1768,6 +1776,10 @@ export const EditorShell: React.FC = () => {
                 />
                 {/* 选区层位于音乐元素下方，且永不参与指针命中。 */}
                 <g className={scoreInteractionStyles.selectionLayer} pointerEvents="none">
+                  {rhythmPatternRect && <rect data-rhythm-pattern-scope
+                    data-rhythm-pattern-layer={rhythmPatternScope?.layer}
+                    {...rhythmPatternRect} rx={3} fill="#e6f4ff" fillOpacity={0.65}
+                    stroke="#69b1ff" strokeDasharray="4 3" />}
                   {rangeRects.map((rect) => <rect key={rect.key} ref={rect.focused ? rangeFocusRef : undefined} data-music-text-range-cell={rect.key} data-range-focus={rect.focused || undefined}
                     x={rect.x} y={rect.y} width={rect.width} height={rect.height} rx={3}
                     fill={rect.focused ? "#dce7ff" : "#edf3ff"} fillOpacity={0.72}

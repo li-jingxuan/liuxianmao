@@ -282,6 +282,7 @@ export const LXMBeatSchema = z
     rhythm: LXMRhythmSchema,
     kind: z.enum(LXM_BEAT_KINDS),
     notes: z.array(LXMNoteSchema),
+    preserveInputRhythm: z.literal(true).optional(),
   })
   .strict() satisfies z.ZodType<ILXMBeat>;
 

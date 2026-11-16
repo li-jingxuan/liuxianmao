@@ -62,6 +62,7 @@ const labels: Readonly<Record<string, string>> = {
   "beat.sustain": "延长拍点",
   "beat.mergeRange": "合并拍点",
   "beat.paste": "粘贴拍点",
+  "rhythmPattern.apply": "应用节奏型",
   "numberedNotation.set": "设置简谱",
   "numberedNotation.remove": "删除简谱",
   "numberedNotation.setSequence": "设置简谱序列",
@@ -136,6 +137,15 @@ const describeCommand = (document: ILXMDocument, command: ILXMScoreCommand) => {
   const c = command as unknown as CommandReferences;
   if (!Object.hasOwn(labels, c.type))
     return { label: "编辑曲谱", target: { summary: "当前曲谱" } };
+  if (command.type === "rhythmPattern.apply") {
+    const { trackId, measureId, layer } = command.target;
+    const trackIndex = document.score.tracks.findIndex(track => track.id === trackId);
+    const measureIndex = document.score.tracks[trackIndex]?.measures.findIndex(measure => measure.id === measureId) ?? -1;
+    return { label: labels[command.type]!, target: {
+      trackId, measureIds: [measureId],
+      summary: `第 ${trackIndex + 1} 轨 · 第 ${measureIndex + 1} 小节 · ${layer === "numbered" ? "简谱" : "六线谱"}`,
+    } };
+  }
   const trackId = c.trackId ?? c.range?.trackId;
   const trackIndex = document.score.tracks.findIndex((track) => track.id === trackId);
   const track = document.score.tracks[trackIndex];

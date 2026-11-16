@@ -8,7 +8,7 @@ export type ToolNavigation =
   | "copy";
 export const TOOL_GROUPS: { id: ToolGroupId; label: string }[] = [
   { id: "measure", label: "小节" },
-  { id: "beat", label: "拍点" },
+  { id: "beat", label: "节奏型" },
   { id: "tuplet", label: "连音" },
   { id: "technique", label: "技巧" },
 ];

@@ -6,7 +6,7 @@ import type { ILXMBeat, ILXMMeasure, ILXMRhythm, ILXMTrack } from "../types";
 const planTabInputRhythm = (track: ILXMTrack, measure: ILXMMeasure, beatId: string) => {
   const index = measure.beats.findIndex((beat) => beat.id === beatId);
   const beat = measure.beats[index];
-  if (!beat) return;
+  if (!beat || beat.preserveInputRhythm) return;
   const event = measure.numberedVoice.events.find((item) => item.tick === beat.tick && item.kind !== "gap");
   if (!event || measure.numberedVoice.tuplets.some((group) => group.eventIds.includes(event.id))) return;
   const duration = calculateRhythmTicks(event.rhythm);
@@ -26,7 +26,7 @@ const planTabInputRhythm = (track: ILXMTrack, measure: ILXMMeasure, beatId: stri
   let coveredEnd = beat.tick;
   for (const candidate of measure.beats.slice(index)) {
     if (coveredEnd >= endTick) break;
-    if (candidate.tick !== coveredEnd || candidate.kind !== "notes" || candidate.notes.length ||
+    if (candidate.tick !== coveredEnd || candidate.kind !== "notes" || candidate.notes.length || candidate.preserveInputRhythm ||
       protectedIds.has(candidate.id) || measure.chordSymbols.some((chord) => chord.beatId === candidate.id) ||
       measure.tuplets.some((group) => group.beatIds.includes(candidate.id))) return;
     const ticks = calculateRhythmTicks(candidate.rhythm);
