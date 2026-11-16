@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import DEFAULT_MOCK_DOCUMENT from "../../example/default-score";
+import historicalSource from "../../example/default-score.lxm.json";
 import {
   applyScoreCommand,
   LXMScoreCommandEnum as C,
@@ -62,8 +63,10 @@ const draftFor = (type: typeof connections[number] | typeof singles[number]): IL
 } as ILXMTechniqueDraft);
 
 describe("TAB 横线延音标记 -", () => {
-  it("真实默认谱末拍 tick2880 空 quarter 可输入横线，保持时值、简谱、歌词并保存加载往返", () => {
-    const document = DEFAULT_MOCK_DOCUMENT;
+  it("历史谱末拍 tick2880 空 quarter 可输入横线，保持时值、简谱、歌词并保存加载往返", () => {
+    const loaded = loadDocument(JSON.stringify(historicalSource));
+    if (!loaded.ok) throw new Error(loaded.errors.join("；"));
+    const document = loaded.document;
     const before = structuredClone(document);
     const command = lastCell(document);
     const previous = document.score.tracks[0]!.measures.at(-1)!.beats.at(-1)!;

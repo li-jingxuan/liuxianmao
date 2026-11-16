@@ -64,6 +64,7 @@ import { numberedInputRhythmForWindow, numberedInputRhythmFromTab } from "../too
 import { shouldIgnoreMusicTextKey } from "../music-text/music-text-interaction";
 import floatingStyles from "./NumberedEditor.module.scss";
 import { NumberedRhythmToolbar } from "./NumberedRhythmToolbar";
+import { numberedRhythmIssue } from "./numbered-rhythm-issue";
 import { NumberedPitchFields } from "./NumberedPitchFields";
 import { BeatMappingPreview, type BeatMappingPosition } from "../music-text/BeatMappingPreview";
 
@@ -870,7 +871,7 @@ export const NumberedEditor = ({
   };
   const groups: Record<NumberedDraftGroup, NumberedGroupState> = {
     content: groupState("content", plan, issue),
-    rhythm: groupState("rhythm", rhythmPlan),
+    rhythm: groupState("rhythm", rhythmPlan, rhythmPlan && !rhythmPlan.ok ? numberedRhythmIssue(rhythmPlan.message) : null),
     itemPitch: groupState("itemPitch", itemPitchPlan, itemPitchIssue),
   };
   const canApplyByGroup: Record<NumberedDraftGroup, boolean> = {
@@ -1216,12 +1217,14 @@ export const NumberedEditor = ({
       (isCurrent?.() ?? true);
     // 确认等待期间的重复请求不能改变原提交是否前进。
     if (!submissionRef.current?.isBusy()) submissionAdvance.current = advance;
-    const result = (await submissionRef.current?.request(
+    const submitted = (await submissionRef.current?.request(
       op,
       group,
       current,
       grouped,
     )) ?? { status: "stale" as const, group, message: "简谱编辑器已关闭。" };
+    const result = op.type === "numbered.event.setRhythm" && "message" in submitted
+      ? { ...submitted, message: numberedRhythmIssue(submitted.message) } : submitted;
     if (candidateGeneration.current.mounted && candidateGeneration.current.revision === revision && "message" in result)
       setMessage(result.message);
     return result;

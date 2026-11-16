@@ -24,6 +24,7 @@ import {
   resolveTabCellSelection,
   type ILXMHitTarget,
   type ILXMLayout,
+  type ILXMLayoutOptions,
   type ILXMFret,
   type ILXMTabCellReference,
   type ILXMTabCellSelection,
@@ -92,6 +93,7 @@ import {
 } from "./session/editor-command-adapter";
 import { buildEditorToolCommand } from "./tools/editor-tool-actions";
 import { resolveEditorRhythmTarget } from "./tools/editor-rhythm-target";
+import { isNumberedTieTarget, resolveEditorTieTarget } from "./tools/editor-tie-target";
 import {
   captureEditorToolIntent,
   editorToolSubmissionReason,
@@ -454,11 +456,15 @@ export const EditorShell: React.FC = () => {
   const [activeMusicTextTarget, setActiveMusicTextTarget] =
     useState<MusicTextTarget | null>(null);
   const [continuousRange, setContinuousRange] = useState<MusicTextRange | null>(null);
+  const continuousRangeRef = useRef<MusicTextRange | null>(null);
+  const [paragraphEditingSession, setParagraphEditingSession] =
+    useState<ILXMLayoutOptions["paragraphEditing"] | null>(null);
   const rangeDragRef = useRef<MusicTextRange | null>(null);
   const pendingTextClickRef = useRef<MusicTextTarget | null>(null);
   useLayoutEffect(() => {
     activeMusicTextTargetRef.current = activeMusicTextTarget;
-  }, [activeMusicTextTarget]);
+    continuousRangeRef.current = continuousRange;
+  }, [activeMusicTextTarget, continuousRange]);
   /** 悬停只属于当前布局快照，换谱或重排后不沿用旧坐标。 */
   const [hoveredMusicText, setHoveredMusicText] = useState<{
     layout: ILXMLayout;
@@ -514,13 +520,13 @@ export const EditorShell: React.FC = () => {
       musicTextMetrics,
       showChordDiagrams,
       paragraphEditing:
-        continuousRange ? { ...continuousRange.focus, trackId: continuousRange.trackId, kind: continuousRange.kind, verse: continuousRange.verse } :
+        continuousRange ? { ...continuousRange.focus, kind: continuousRange.kind, verse: continuousRange.verse } :
         activeMusicTextTarget?.kind === "lyric" ||
         activeMusicTextTarget?.kind === "numbered"
           ? { ...activeMusicTextTarget, kind: activeMusicTextTarget.kind }
-          : undefined,
+          : paragraphEditingSession ?? undefined,
     });
-  }, [document, musicTextMetrics, showChordDiagrams, activeMusicTextTarget, continuousRange]);
+  }, [document, musicTextMetrics, showChordDiagrams, activeMusicTextTarget, continuousRange, paragraphEditingSession]);
   const rangeRects = useMemo(() => document && lxmLayout && continuousRange
     ? musicTextRangeRects(document, lxmLayout, continuousRange) : [], [document, lxmLayout, continuousRange]);
 
@@ -1434,7 +1440,10 @@ export const EditorShell: React.FC = () => {
     );
     if (reason) return { status: "blocked", message: reason };
     if (
-      command.type === "numbered.event.setRhythm"
+      (command.type === "numbered.event.setRhythm" ||
+        command.type === "numbered.mark.add" ||
+        command.type === "numbered.mark.update" ||
+        command.type === "numbered.mark.remove")
         ? musicTextController.current?.isNumberedActionBlocked()
         : musicTextController.current?.isOutputBlocked({
             allowSettingsBusy:
@@ -1467,8 +1476,10 @@ export const EditorShell: React.FC = () => {
       else now.redo();
       return true;
     }
+    const numberedTie = action.type === "quickTechnique" && action.technique === "tie" &&
+      isNumberedTieTarget(continuousRangeRef.current, activeMusicTextTargetRef.current);
     const tabQuick =
-      action.type === "restToggle" || action.type === "quickTechnique";
+      action.type === "restToggle" || action.type === "quickTechnique" && !numberedTie;
     if (tabQuick) {
       const reason = tabToolTargetReason(
         session.getState(),
@@ -1483,6 +1494,26 @@ export const EditorShell: React.FC = () => {
       session.getState,
       () => activeMusicTextTargetRef.current,
     );
+    if (numberedTie) {
+      if (musicTextController.current?.isNumberedActionBlocked()) {
+        setErrorMessage("请先应用或取消当前草稿。");
+        return false;
+      }
+      const now = session.getState();
+      if (!now.document) return false;
+      const range = continuousRangeRef.current;
+      const capturedRange = JSON.stringify(range);
+      const target = resolveEditorTieTarget(now.document, now.selection, range, activeMusicTextTargetRef.current);
+      if (!target.ok) {
+        setErrorMessage(target.message);
+        return false;
+      }
+      const result = await executeTool(target.command, "modal", {
+        isCurrent: () => intentIsCurrent() && capturedRange === JSON.stringify(continuousRangeRef.current),
+      });
+      if (result.status === "blocked") setErrorMessage(result.message);
+      return result.status === "applied" || result.status === "noop";
+    }
     if (action.type === "rhythm" || action.type === "dots") {
       const now = session.getState();
       if (!now.document) return false;
@@ -1614,6 +1645,7 @@ export const EditorShell: React.FC = () => {
         }}
       />
       <EditorToolbar
+        continuousRange={continuousRange}
         sidebarCollapsed={sidebarCollapsed}
         sidebarToggleRef={sidebarToggleRef}
         onToggleSidebar={() => {
@@ -1892,6 +1924,7 @@ export const EditorShell: React.FC = () => {
           onNumberedActionBlockedChange={setNumberedActionBlocked}
           onTransitionBlockedChange={setChordEntryBlocked}
           onTargetChange={setActiveMusicTextTarget}
+          onParagraphEditingChange={setParagraphEditingSession}
           onScoreFocus={focusScore}
           onPopoverHiddenChange={setMusicTextPopoverHidden}
           onScoreSelection={acceptScoreSelection}

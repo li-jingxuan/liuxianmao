@@ -1,22 +1,16 @@
 import { createNumberedRhythmContext } from "../../core/numbered/numbered-rhythm";
-import {
-  calculateRhythmTicks,
-  getTimeSignatureBeatGroupTicks,
-} from "../../core/rhythm/rhythm";
+import { calculateRhythmTicks } from "../../core/rhythm/rhythm";
 import { TICKS_PER_QUARTER } from "../../core/constants";
-import type { ILXMMeasure, ILXMRhythmBase } from "../../core/types";
+import type { ILXMMeasure } from "../../core/types";
 import type { ILXMMeasureLayout } from "../layout-types";
 import type { NumberedLayout } from "./numbered-notation-layout";
 import { musicTextInkBounds, unionMusicBounds } from "./music-text-metrics";
 import { LXM_NUMBERED_REDUCTION_LINE_CLEARANCE } from "../layout-constants";
-const levels: Record<ILXMRhythmBase, number> = {
-  whole: 0,
-  half: 0,
-  quarter: 0,
-  eighth: 1,
-  sixteenth: 2,
-  thirtySecond: 3,
-};
+import {
+  numberedReductionExtent,
+  numberedReductionGroups,
+  numberedReductionLevels,
+} from "./numbered-reduction-groups";
 /** 独立简谱时值图元；减时线在数字下方，低音点置于最后一层下面。 */
 export const layoutNumberedRhythm = (
   source: ILXMMeasure,
@@ -40,24 +34,12 @@ export const layoutNumberedRhythm = (
           }),
       ),
     ) + LXM_NUMBERED_REDUCTION_LINE_CLEARANCE + 1.1 / 2;
-  const groupTicks = getTimeSignatureBeatGroupTicks(source.timeSignature) ?? [
-    Infinity,
-  ];
-  const groupIndex = (tick: number) => {
-    let sum = 0;
-    for (let i = 0; i < groupTicks.length; i++) {
-      sum += groupTicks[i]!;
-      if (tick < sum) return i;
-    }
-    return groupTicks.length;
-  };
   for (const event of events) {
     const n = byId.get(event.id);
     if (!n) continue;
-    const level = levels[event.rhythm.base];
+    const level = numberedReductionLevels[event.rhythm.base];
     const body = n.labels.filter((g) => g.fontFamily !== "Bravura");
-    const left = Math.min(...body.map((g) => g.bounds.x)) - 1,
-      right = Math.max(...body.map((g) => g.bounds.x + g.bounds.width)) + 1;
+    const { left, right } = numberedReductionExtent(n);
     n.lines = Array.from({ length: level }, (_, i) => ({
       x1: left,
       x2: right,
@@ -134,50 +116,27 @@ export const layoutNumberedRhythm = (
       ]),
     }));
   }
-  // 逐层合并连续成员；gap、休止与不同实际拍组中断共享连梁。
+  // 逐层合并 notes/rest；gap、continuation、隐式空白与不同实际拍组断开。
   const coveredLines = new Set<NonNullable<NumberedLayout["lines"]>[number]>();
-  for (let level = 1; level <= 3; level++) {
-    let group: typeof events = [];
-    const flush = () => {
+  numberedReductionGroups(source).forEach((groups, layer) => {
+    for (const group of groups) {
       if (group.length > 1) {
         const first = byId.get(group[0]!.id)!,
           last = byId.get(group.at(-1)!.id)!;
-        const firstLine = first.lines![level - 1]!,
-          lastLine = last.lines![level - 1]!;
+        const firstLine = first.lines![layer]!,
+          lastLine = last.lines![layer]!;
         first.lines!.push({
           x1: firstLine.x1,
           x2: lastLine.x2,
-          y: baseY + (level - 1) * 3,
+          y: baseY + layer * 3,
           thickness: 1.1,
           shared: true,
         });
         for (const event of group)
-          coveredLines.add(byId.get(event.id)!.lines![level - 1]!);
+          coveredLines.add(byId.get(event.id)!.lines![layer]!);
       }
-      group = [];
-    };
-    for (const e of events) {
-      const previous = group.at(-1);
-      const oldDuration = previous && context.getEventDurationTicks(previous);
-      const currentGroup = context.tupletByEventId.get(e.id)?.id;
-      const previousGroup =
-        previous && context.tupletByEventId.get(previous.id)?.id;
-      if (e.kind !== "notes" || levels[e.rhythm.base] < level) {
-        flush();
-        continue;
-      }
-      if (
-        previous &&
-        (!oldDuration?.ok ||
-          previous.tick + oldDuration.ticks !== e.tick ||
-          currentGroup !== previousGroup ||
-          (!currentGroup && groupIndex(previous.tick) !== groupIndex(e.tick)))
-      )
-        flush();
-      group.push(e);
     }
-    flush();
-  }
+  });
   for (const n of frames) {
     // 命中范围仍包含每个音符自身的减时线，不扩张到整条公共连梁。
     n.bounds = unionMusicBounds([

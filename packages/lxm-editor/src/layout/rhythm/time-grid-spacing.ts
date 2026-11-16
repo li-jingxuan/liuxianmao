@@ -24,6 +24,11 @@ import {
   type ILXMMusicTextMetrics,
 } from "../music-text/music-text-metrics";
 import { layoutNumbered } from "../music-text/numbered-notation-layout";
+import {
+  NUMBERED_REDUCTION_GROUP_GAP,
+  numberedReductionExtent,
+  numberedReductionGroups,
+} from "../music-text/numbered-reduction-groups";
 import { fretHalfWidth, type TechniqueInsets } from "../techniques/technique-spacing";
 import { createChordBlock } from "../music-text/music-text-layout";
 
@@ -65,6 +70,7 @@ export const summarizeTimeGrid = (
   const tickSet = new Set([0, capacity]);
   const sources: Source[] = [],
     extents: Extent[] = [];
+  const reductionExtents = new Map<string, ReturnType<typeof numberedReductionExtent>>();
   const addSource = (
     id: string,
     layer: Source["layer"],
@@ -162,7 +168,9 @@ export const summarizeTimeGrid = (
       metrics,
       numberedProfile,
     );
-    // numbered-rhythm-layout 的点心：正文 bounds.right + 1（减时线）+ 4，
+    const reduction = numberedReductionExtent(glyph);
+    reductionExtents.set(e.id, reduction);
+    // numbered-rhythm-layout 的点心：正文墨迹 right + 1（减时线）+ 4，
     // 半径 1.3；后续点心间隔 4。按真实圆点外缘约束，不能只累加 dots * 4。
     const written = calculateRhythmTicks(e.rhythm);
     const units = written.ok ? written.ticks / TICKS_PER_QUARTER : 0;
@@ -170,15 +178,12 @@ export const summarizeTimeGrid = (
     const dotCount = units > 1
       ? (units % 1 === 0.5 ? 1 : units % 1 === 0.75 ? 2 : 0)
       : e.rhythm.dots;
-    const bodyRight = Math.max(...glyph.labels
-      .filter((g) => g.fontFamily !== "Bravura")
-      .map((g) => g.bounds.x + g.bounds.width));
     let right = glyph.bounds.x + glyph.bounds.width - 2;
     if (density === "compact" && dotCount > 0) {
       if (lastSustainUnit > 0) {
         const tick = e.tick + duration.ticks * lastSustainUnit / units;
         extents.push({ tick, left: 6, right: 9 + (dotCount - 1) * 4 + 1.3, lane: "numbered" });
-      } else right = Math.max(right, bodyRight + 1 + 4 + (dotCount - 1) * 4 + 1.3);
+      } else right = Math.max(right, reduction.right + 4 + (dotCount - 1) * 4 + 1.3);
     } else if (density !== "compact") right += e.rhythm.dots * 4;
     extents.push({
       tick: e.tick,
@@ -257,6 +262,16 @@ export const summarizeTimeGrid = (
     edge(a, b, 1, ideal);
   }
   sources.forEach((s) => edge(s.start, s.end, s.min, s.ideal));
+  // 独立减时线组之间保留可见净空；约束同时进入硬/理想 DAG，窄行压缩也不能粘连。
+  for (const groups of numberedReductionGroups(measure)) {
+    for (let i = 1; i < groups.length; i++) {
+      const previous = groups[i - 1]!.at(-1)!;
+      const next = groups[i]![0]!;
+      edge(previous.tick, next.tick,
+        reductionExtents.get(previous.id)!.right -
+        reductionExtents.get(next.id)!.left + NUMBERED_REDUCTION_GROUP_GAP);
+    }
+  }
   for (const lane of new Set(extents.map((e) => e.lane))) {
     const values = extents
       .filter((e) => e.lane === lane)

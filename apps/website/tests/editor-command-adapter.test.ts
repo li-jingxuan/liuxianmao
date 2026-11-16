@@ -189,6 +189,7 @@ describe("统一结构命令适配器", () => {
 
     const pending = execute(command);
     const modal = modals.getSnapshot()!;
+    expect(modal.request).toMatchObject({ confirmLabel: "删除", confirmDanger: true });
     expect(await execute(command)).toMatchObject({ status: "blocked" });
     expect(session.getState().document).toBe(original);
     expect(await modals.confirm(modal.id)).toBe(true);

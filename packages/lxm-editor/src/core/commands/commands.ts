@@ -1878,6 +1878,7 @@ const applyScoreCommandInternal = (
       const copiedBeats = copySource.beats.map((beat) => ({
         ...beat,
         id: factory.createBeatId(),
+        rhythm: { ...beat.rhythm },
         notes: beat.notes.map((note) => ({
           ...note,
           id: factory.createNoteId(),
@@ -1891,6 +1892,7 @@ const applyScoreCommandInternal = (
       );
       copiedMeasures.push({
         ...copySource,
+        timeSignature: { ...copySource.timeSignature },
         numberedVoice: numberedCopy.voices[sourceOffset]!,
         id: factory.createMeasureId(),
         beats: copiedBeats,
@@ -1898,6 +1900,7 @@ const applyScoreCommandInternal = (
         tuplets: copySource.tuplets.map((group) => ({
           ...group,
           id: factory.createTupletId(),
+          ratio: { ...group.ratio },
           beatIds: group.beatIds.map((id) => beatIds.get(id)!),
         })),
         lyrics: copySource.lyrics.map((lyric) => ({
@@ -2027,6 +2030,7 @@ const applyScoreCommandInternal = (
     const copiedBeats = copySource.beats.map((beat) => ({
       ...beat,
       id: factory.createBeatId(),
+      rhythm: { ...beat.rhythm },
       notes: beat.notes.map((note) => ({
         ...note,
         id: factory.createNoteId(),
@@ -2037,10 +2041,12 @@ const applyScoreCommandInternal = (
     );
     inserted = {
       ...copySource,
+      timeSignature: { ...copySource.timeSignature },
       numberedVoice: numberedCopy.voices[0]!,
       tuplets: copySource.tuplets.map((group) => ({
         ...group,
         id: factory.createTupletId(),
+        ratio: { ...group.ratio },
         beatIds: group.beatIds.map((id) => beatIds.get(id)!),
       })),
       id: factory.createMeasureId(),

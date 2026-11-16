@@ -102,7 +102,14 @@ import type { EditorCommandAdapter } from "../session/editor-command-adapter";
 import { NoteToolDetails } from "../tools/NoteToolDetails";
 import { MeasureToolDetails } from "../tools/MeasureToolDetails";
 import { TupletToolDetails } from "../tools/TupletToolDetails";
-import { resolveParagraphInsertionTarget } from "./music-text-target";
+import { resolveParagraphInsertionTarget, resolveParagraphLyricTarget } from "./music-text-target";
+
+export type ParagraphEditingSession = {
+  trackId: string;
+  measureId: string;
+  kind: "lyric" | "numbered";
+  verse: ILXMLyricVerse;
+};
 
 type LyricFocusSurface = "sidebar" | "popover";
 type SidebarAction = DraftSidebarAction & {
@@ -138,6 +145,7 @@ export const MusicTextSidebar = ({
   onNumberedActionBlockedChange,
   onTransitionBlockedChange,
   onTargetChange,
+  onParagraphEditingChange,
   onScoreFocus,
   onScoreSelection,
   getNumberedBeatEventIds,
@@ -167,6 +175,8 @@ export const MusicTextSidebar = ({
   onNumberedActionBlockedChange: (blocked: boolean) => void;
   onTransitionBlockedChange?: (blocked: boolean) => void;
   onTargetChange: (target: MusicTextTarget | null) => void;
+  /** 即使当前休止或延音不可写词，也保留当前小节的空歌词行。 */
+  onParagraphEditingChange?: (session: ParagraphEditingSession | null) => void;
   onScoreFocus: () => void;
   onScoreSelection: (
     selection: ILXMTabCellSelection | null,
@@ -233,6 +243,7 @@ export const MusicTextSidebar = ({
   const [numberedDirty, setNumberedDirty] = useState(false);
   const [numberedInputActive, setNumberedInputActive] = useState(false);
   const paragraphKind = useRef<"lyric" | "numbered">("numbered");
+  const [lyricVerse, setLyricVerse] = useState<ILXMLyricVerse>(1);
   const settingsRef = useRef<ScoreSettingsController>(null);
   const [settingsStatus, setSettingsStatus] = useState<ScoreSettingsStatus | null>(null);
   const settingsDirty = settingsStatus?.groups.label.dirty ?? false;
@@ -328,6 +339,15 @@ export const MusicTextSidebar = ({
   const lyricSource = activeObject?.kind === "lyric" || activeObject?.kind === "numbered"
     ? activeObject : numberedTarget ?? (numberedSelection ? { ...numberedSelection, kind: "numbered" as const } : null);
   const lyricStart = lyricSource ? resolveParagraphInsertionTarget(score, lyricSource) : null;
+  const paragraphSource = activeObject ?? numberedSelection ?? selection?.focus;
+  const paragraphTrackId = propertyTab === "paragraph" ? paragraphSource?.trackId : undefined;
+  const paragraphMeasureId = propertyTab === "paragraph" ? paragraphSource?.measureId : undefined;
+  const paragraphVerse = score && lyricVerse <= getLyricVerseCount(score) ? lyricVerse : 1;
+  useEffect(() => {
+    onParagraphEditingChange?.(paragraphTrackId && paragraphMeasureId && (kind === "lyric" || kind === "numbered")
+      ? { trackId: paragraphTrackId, measureId: paragraphMeasureId, kind, verse: paragraphVerse }
+      : null);
+  }, [onParagraphEditingChange, paragraphTrackId, paragraphMeasureId, kind, paragraphVerse]);
   const numberedEntry = score ? resolveNumberedEditorTarget(score,
     numberedSelection ?? selection?.focus ?? null) : null;
   const target =
@@ -569,6 +589,7 @@ export const MusicTextSidebar = ({
     setPropertyTab(next.kind === "chord" ? "chord" : "paragraph");
     if (next.kind === "lyric") {
       paragraphKind.current = "lyric";
+      setLyricVerse(value?.target.verse ?? 1);
     }
     baseline.current = editorStore.getState().document;
     if (value) {
@@ -735,13 +756,32 @@ export const MusicTextSidebar = ({
     } else if (action.type === "mode") {
       if (draft) loadTarget(draft.target, action.mode, "input", action.lyricFocusSurface ?? lyricFocusSurface.current);
     } else {
+      const source = activeObject?.kind === "numbered" ? numberedPreview ?? activeObject
+        : activeObject?.kind === "lyric" ? activeObject
+        : current.numberedSelection ? { ...current.numberedSelection, kind: "numbered" as const }
+        : numberedTarget;
+      const lyricTarget = action.kind === "lyric"
+        ? resolveParagraphLyricTarget(current.document, source, lyricVerse) : null;
+      if (lyricTarget) {
+        current.setNumberedSelection(null);
+        loadTarget(lyricTarget, "sequence", "input", "sidebar");
+        setSurface("sidebar");
+        return true;
+      }
+      const numberedEntry = action.kind === "numbered" && current.document && source
+        ? resolveNumberedEditorTarget(current.document, source) : null;
       const chordTarget = action.kind === "chord" && !current.numberedSelection
         ? selectedChordTarget(current.document, current.selection) : null;
       const chordDraft = chordTarget ? readMusicTextDraft(current.document, chordTarget) : null;
       setDraft(chordDraft);
-      setNumberedTarget(null);
-      setActiveObject(chordDraft?.target ?? null);
-      activeTextOwner.current = !!chordDraft;
+      const nextNumbered = numberedEntry ? { ...numberedEntry, kind: "numbered" as const } : null;
+      setNumberedTarget(nextNumbered);
+      setActiveObject(chordDraft?.target ?? nextNumbered);
+      activeTextOwner.current = !!chordDraft || !!nextNumbered;
+      if (numberedEntry) {
+        current.setNumberedSelection(numberedEntry);
+        setSurface("sidebar");
+      }
       if (chordDraft) {
         baseline.current = current.document;
         setSurface("sidebar");
@@ -1010,6 +1050,7 @@ export const MusicTextSidebar = ({
               ? { ...previous.target, verse: verseCount as ILXMLyricVerse }
               : previous.target, previous.lyricMode);
             if (removedVerse && fresh) {
+              setLyricVerse(fresh.target.verse ?? 1);
               setActiveObject(fresh.target);
               setTextConflict(false);
               setInspection(0);
@@ -2206,7 +2247,7 @@ export const MusicTextSidebar = ({
                         request({
                           type: "target",
                           lyricFocusSurface: "sidebar",
-                          target: { ...lyricStart, kind: "lyric", verse: 1 },
+                           target: { ...lyricStart, kind: "lyric", verse: paragraphVerse },
                         });
                       }}
                     >

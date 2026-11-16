@@ -67,7 +67,7 @@ describe("简谱减时线合并", () => {
       const lines = frames.flatMap((frame) => frame.lines!);
       expect(lines).toHaveLength(1);
       expect(lines[0]!.shared).toBe(true);
-      expect(lines[0]!.x1).toBeLessThan(frames[0]!.labels[0]!.bounds.x);
+      expect(lines[0]!.x1).toBeCloseTo(musicTextInkBounds(frames[0]!.labels[0]!).x - 1);
       expect(lines[0]!.x2).toBeGreaterThan(frames[1]!.labels[0]!.x);
       for (const frame of frames) {
         expect(frame.bounds.width).toBeLessThan(lines[0]!.x2 - lines[0]!.x1);
@@ -118,12 +118,17 @@ describe("简谱减时线合并", () => {
     expect(frames[0]!.lines![0]!.x2).toBeLessThan(frames[2]!.lines![0]!.x1);
   });
 
-  it.each(["gap", "rest", "empty"] as const)(
+  it.each(["gap", "continuation", "empty"] as const)(
     "%s 中断公共线，保留孤立音符的减时线",
     (kind) => {
       const events = [note(0, "sixteenth"), note(480, "sixteenth")];
-      if (kind !== "empty")
+      if (kind === "gap")
         events.splice(1, 0, { ...note(240, "sixteenth"), kind, items: [] });
+      if (kind === "continuation")
+        events.splice(1, 0, {
+          ...note(240, "sixteenth"), kind,
+          items: [{ id: "continuation", token: "-" }],
+        });
       const { document } = fixture(events);
       const frames =
         buildLayout(document).systems[0]!.measures[0]!.numberedNotation!;

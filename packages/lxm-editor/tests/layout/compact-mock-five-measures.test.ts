@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import DEFAULT_SCORE from "../../example/default-score.lxm.json";
+import HISTORICAL_SCORE from "../../example/default-score.lxm.json";
+import DEFAULT_MOCK_DOCUMENT from "../../example/default-score";
 import { buildLayout } from "../../src/layout";
 import { loadDocument } from "../../src/core/document/loader";
 import { layoutMeasureSpacing, summarizeMeasureSpacingWidth } from "../../src/layout/structure/measure-spacing";
@@ -13,8 +14,8 @@ import { layoutMeasure } from "../../src/layout/structure/measure-layout";
 import { layoutNumberedRhythm } from "../../src/layout/music-text/numbered-rhythm-layout";
 
 const document = () => {
-  const loaded = loadDocument(JSON.stringify(DEFAULT_SCORE));
-  if (!loaded.ok) throw new Error("Default score must load");
+  const loaded = loadDocument(JSON.stringify(HISTORICAL_SCORE));
+  if (!loaded.ok) throw new Error("Historical score must load");
   return loaded.document;
 };
 
@@ -69,7 +70,21 @@ const verifyHardClearance = (
   return spansMultipleColumns;
 };
 
-describe("compact default mock: five original measures", () => {
+describe("compact historical mock: five original measures", () => {
+  it.each(["editing", "presentation"] as const)("%s retains all eleven default 理想 measures and numbered events within A4", (purpose) => {
+    const score = structuredClone(DEFAULT_MOCK_DOCUMENT);
+    const before = structuredClone(score);
+    const track = score.score.tracks[0]!;
+    const layout = buildLayout(score, { density: "compact", purpose, systemWidth: 733.228 });
+    expect(track.measures).toHaveLength(11);
+    expect(layout.systems[0]!.measures.map((m) => m.id)).toEqual(track.measures.slice(0, 5).map((m) => m.id));
+    expect(layout.systems.flatMap((s) => s.measures.map((m) => m.id))).toEqual(track.measures.map((m) => m.id));
+    expect(layout.systems.every((s) => s.measures.length <= 5 && s.width <= 733.228 + 1e-8)).toBe(true);
+    expect(layout.systems.flatMap((s) => s.measures.flatMap((m) => (m.numberedNotation ?? []).map((n) => n.eventId))))
+      .toEqual(track.measures.flatMap((m) => m.numberedVoice.events.map((e) => e.id)));
+    expect(score).toEqual(before);
+  });
+
   it.each(["editing", "presentation"] as const)("%s fits five within A4 and retains every measure", (purpose) => {
     const score = document();
     const measures = score.score.tracks[0]!.measures;

@@ -38,11 +38,17 @@ const inspectStructure = (
   value: unknown,
   serializing = false,
 ): string | null => {
-  const stack = [{ value, depth: 0 }];
-  const seen = new WeakSet<object>();
+  const stack: { value: unknown; depth: number; exit?: boolean }[] = [
+    { value, depth: 0 },
+  ];
+  const ancestors = new WeakSet<object>();
   let nodes = 0;
   while (stack.length) {
     const current = stack.pop()!;
+    if (current.exit) {
+      ancestors.delete(current.value as object);
+      continue;
+    }
     if (++nodes > MAX_NODES) return `曲谱结构超过 ${MAX_NODES} 个节点`;
     if (current.depth > MAX_DEPTH) return `曲谱嵌套超过 ${MAX_DEPTH} 层`;
     const item = current.value;
@@ -51,17 +57,19 @@ const inspectStructure = (
       continue;
     if (typeof item === "number" && Number.isFinite(item)) continue;
     if (typeof item !== "object") return "曲谱包含无法保真保存的值";
+    if (ancestors.has(item)) return "曲谱包含循环对象，无法保真保存";
     if (serializing) {
       if (Object.getOwnPropertySymbols(item).length)
         return "曲谱包含无法保存的 Symbol 字段";
-      if (seen.has(item)) return "曲谱包含循环或共享对象，无法保真保存";
-      seen.add(item);
       if (
         !Array.isArray(item) &&
         Object.getPrototypeOf(item) !== Object.prototype
       )
         return "曲谱包含非普通对象，无法保真保存";
     }
+    // 只在当前路径内判环；共享 JSON 值在每条路径上都要完整检查并计入预算。
+    ancestors.add(item);
+    stack.push({ value: item, depth: current.depth, exit: true });
     if (Array.isArray(item)) {
       if (serializing && Object.keys(item).length !== item.length)
         return "曲谱包含稀疏数组或额外属性，无法保真保存";

@@ -12,6 +12,8 @@ export type EditorModalCloseSource = "escape" | "cancel";
 interface EditorModalBase {
   title: string;
   message: string;
+  confirmLabel?: string;
+  confirmDanger?: boolean;
   version?: EditorSessionVersion;
   /** 选区等不进入文档版本的请求条件也必须显式核验。 */
   isValid?: () => boolean;

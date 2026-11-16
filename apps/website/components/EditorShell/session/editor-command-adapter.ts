@@ -222,6 +222,8 @@ export const createEditorCommandAdapter =
           kind: "structure-impact",
           title,
           message,
+          confirmLabel: command.type === LXMScoreCommandEnum.RemoveMeasure ? "删除" : undefined,
+          confirmDanger: command.type === LXMScoreCommandEnum.RemoveMeasure,
           version: snapshot,
           isValid: () => !currentReason() &&
             capturedSelection ===

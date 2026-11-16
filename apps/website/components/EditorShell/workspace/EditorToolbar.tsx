@@ -15,7 +15,7 @@ import {
   RedoOutlined,
   UndoOutlined,
 } from "@ant-design/icons";
-import { LXMScoreCommandEnum, type ILXMRhythm } from "@liuxianmao/lxm-editor";
+import { LXMScoreCommandEnum, type ILXMRhythm, type MusicTextRange } from "@liuxianmao/lxm-editor";
 import {
   useEditorSessionStore,
   useEditorStore,
@@ -47,6 +47,7 @@ import { resolveEditorRhythmTarget } from "../tools/editor-rhythm-target";
 import { resolveEditorChordTarget } from "../chords/editor-chord-target";
 import { currentChordTechniqueDirection, resolveQuickTechnique } from "../tools/editor-technique-target";
 import { tabToolTargetReason } from "../tools/editor-tool-guard";
+import { isNumberedTieTarget, resolveEditorTieTarget } from "../tools/editor-tie-target";
 import { EditorToolSymbolButton, TechniqueSymbol } from "../tools/EditorToolSymbolButton";
 import symbolStyles from "../tools/EditorToolSymbolButton.module.scss";
 import toolbarStyles from "./EditorToolbar.module.scss";
@@ -69,6 +70,7 @@ const ToolButton = EditorToolSymbolButton;
 /** 桌面菜单只组织入口；预览控制器随会话存活。 */
 export const EditorToolbar = ({
   activeTarget,
+  continuousRange = null,
   blocked,
   numberedBlocked,
   onAction,
@@ -82,6 +84,7 @@ export const EditorToolbar = ({
   sidebarToggleRef,
 }: {
   activeTarget: MusicTextTarget | null;
+  continuousRange?: MusicTextRange | null;
   blocked: boolean;
   numberedBlocked: boolean;
   onAction: ToolActionHandler;
@@ -132,10 +135,11 @@ export const EditorToolbar = ({
     .inspect()
     .pending.some((item) => item.kind !== "beatPaste" && item.kind !== "fret");
   const editingBlocked = blocked || protectedDraft || drafts.inspect().busy;
+  const numberedEditingBlocked = numberedBlocked || protectedDraft || drafts.inspect().busy;
   const techniqueBlocked = blocked || drafts.inspect().pending.some(
     (item) => item.kind !== "beatPaste" && item.kind !== "fret" && item.kind !== "technique",
   );
-  const live = useRef({ editingBlocked, beforeAction, execute });
+  const live = useRef({ editingBlocked, numberedEditingBlocked, continuousRange, modal, beforeAction, execute });
   const executeLatest: EditorCommandAdapter = useCallback(
     (command, impact, submission) => live.current.execute(command, impact, submission),
     [],
@@ -161,15 +165,21 @@ export const EditorToolbar = ({
   );
   useEffect(() => paste.start(), [paste]);
   useLayoutEffect(() => {
-    live.current = { editingBlocked, beforeAction, execute };
+    live.current = { editingBlocked, numberedEditingBlocked, continuousRange, modal, beforeAction, execute };
     paste.invalidate();
-  }, [paste, editingBlocked, beforeAction, execute]);
+  }, [paste, editingBlocked, numberedEditingBlocked, continuousRange, modal, beforeAction, execute]);
   useEffect(() => {
     if (modal) host.current?.close();
   }, [modal]);
   if (!document) return null;
   const tools = deriveEditorToolState(document, selection);
   const tabReason = tabToolTargetReason(session.getState(), activeTarget);
+  const tieTarget = resolveEditorTieTarget(document, selection, continuousRange, activeTarget);
+  const tieAvailability: ToolAvailability = tieTarget.kind === "numbered"
+    ? modal || numberedEditingBlocked
+      ? { enabled: false, reason: "请先完成当前草稿或确认操作。" }
+      : { enabled: tieTarget.ok, reason: tieTarget.ok ? "" : tieTarget.message }
+    : { enabled: tieTarget.ok && !tabReason, reason: tabReason ?? (tieTarget.ok ? "" : tieTarget.message) };
   const chordTarget = resolveEditorChordTarget(document, selection, activeTarget, !!numberedSelection);
   const chordAvailability: ToolAvailability = modal || chordEntryBlocked
     ? { enabled: false, reason: "请先完成当前输入或弹层操作。" }
@@ -193,6 +203,16 @@ export const EditorToolbar = ({
       : value;
   const run: ToolActionHandler = async (action) => {
     beforeAction();
+    if (action.type === "quickTechnique" && action.technique === "tie" &&
+      isNumberedTieTarget(live.current.continuousRange, getActiveTarget())) {
+      const now = session.getState();
+      if (live.current.modal || live.current.numberedEditingBlocked || !now.document ||
+        !resolveEditorTieTarget(now.document, now.selection, live.current.continuousRange, getActiveTarget()).ok)
+        return false;
+      const success = await onAction(action);
+      if (success) host.current?.close(true);
+      return success;
+    }
     if ((action.type === "restToggle" || action.type === "quickTechnique") &&
       tabToolTargetReason(session.getState(), getActiveTarget())) return false;
     if (
@@ -325,11 +345,13 @@ export const EditorToolbar = ({
           title={`切换休止（${editorShortcutLabel("rest")}）；${tools.restState === "mixed" ? "当前为混合状态，点击统一设为休止。" : ""}休止影响整拍全部弦并清空音符；取消休止仅得到空普通拍，恢复音符请撤销。`}
           onClick={() => void run({ type: "restToggle" })}><TechniqueSymbol kind="rest" /></ToolButton>
         {(["hammerOn", "pullOff", "slide", "tie", "strumDown", "strumUp", "arpeggioDown", "arpeggioUp"] as const).map((quick) => {
-          const result = resolveQuickTechnique(document, selection, quick);
+          const result = quick === "tie" ? tieTarget : resolveQuickTechnique(document, selection, quick);
           const labels = { hammerOn: "击弦 H", pullOff: "勾弦 P", slide: "滑音", tie: "延音线", strumDown: "下扫：从低音弦到高音弦，箭头向上", strumUp: "上扫：从高音弦到低音弦，箭头向下", arpeggioDown: "下琶音：从低音弦到高音弦，箭头向上", arpeggioUp: "上琶音：从高音弦到低音弦，箭头向下" };
-          return <ToolButton key={quick} label={labels[quick]}
-            title={quick === "tie" ? "延音线：连接相邻拍上的同弦同品位音符；单选起音连接同弦下一音。" : undefined}
-            availability={available(tabReason ? { enabled: false, reason: tabReason } : { enabled: result.ok, reason: result.ok ? "" : result.message })}
+          return <ToolButton key={quick} label={quick === "tie" && tieTarget.kind === "numbered" ? "简谱延音线" : labels[quick]}
+            title={quick === "tie" ? tieTarget.kind === "numbered"
+              ? "简谱延音线：请选择两个相邻同音简谱音符；再次点击移除两音之间已有的延音线。"
+              : "延音线：连接相邻拍上的同弦同品位音符；单选起音连接同弦下一音。" : undefined}
+            availability={quick === "tie" && tieTarget.kind === "numbered" ? tieAvailability : available(tabReason ? { enabled: false, reason: tabReason } : { enabled: result.ok, reason: result.ok ? "" : result.message })}
             pressed={quick === "strumDown" || quick === "strumUp" || quick === "arpeggioDown" || quick === "arpeggioUp"
               ? currentChordTechniqueDirection(document, selection, quick.startsWith("strum") ? "strum" : "arpeggio") === (quick.endsWith("Down") ? "down" : "up")
               : quick === "tie" && result.ok ? result.pressed : undefined}
@@ -444,6 +466,18 @@ export const EditorToolbar = ({
             </div>
           ),
           technique: (
+            <>
+            {tieTarget.kind === "numbered" && (
+              <div className={editorToolPanelStyles.toolMenu}>
+                <Button block disabled={!tieAvailability.enabled}
+                  onClick={() => void run({ type: "quickTechnique", technique: "tie" })}>
+                  {tieTarget.ok && tieTarget.pressed ? "移除简谱延音线" : "简谱延音线"}
+                </Button>
+                <p data-editor-form-hint className={editorFormStyles.settingsHint}>
+                  {tieAvailability.reason || "连接所选两个相邻同音简谱音符；再次点击移除。"}
+                </p>
+              </div>
+            )}
             <TechniqueToolbar
               ref={techniquePanel}
               document={document}
@@ -463,6 +497,7 @@ export const EditorToolbar = ({
               }
               onSuccess={() => host.current?.close(true)}
             />
+            </>
           ),
         }}
       </EditorToolPanelHost>

@@ -1,8 +1,10 @@
 import {
+  getLyricVerseCount,
   planLyricPositions,
   resolveLyricPosition,
   type ILXMDocument,
   type ILXMTabCellReference,
+  type ILXMLyricVerse,
 } from "@liuxianmao/lxm-editor";
 import type { MusicTextTarget } from "./music-text-draft";
 
@@ -12,6 +14,22 @@ export type ParagraphInsertionTarget = {
   eventId?: string;
   tick?: number;
   endTick?: number;
+};
+
+/** 页签切换只解析当前显式位置，不寻找相邻可写歌词的音符。 */
+export const resolveParagraphLyricTarget = (
+  document: ILXMDocument | null,
+  preferred: MusicTextTarget | ILXMTabCellReference | null,
+  verse: number = 1,
+): Extract<MusicTextTarget, { kind: "lyric" }> | null => {
+  const position = resolveParagraphInsertionTarget(document, preferred);
+  if (!document || !position) return null;
+  return {
+    ...position,
+    kind: "lyric",
+    verse: (Number.isInteger(verse) && verse >= 1 && verse <= getLyricVerseCount(document)
+      ? verse : 1) as ILXMLyricVerse,
+  };
 };
 
 /** 只使用显式歌词事件或合法空窗；无来源时不猜测首小节或首个歌词位置。 */
