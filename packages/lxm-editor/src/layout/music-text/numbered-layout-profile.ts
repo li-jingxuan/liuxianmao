@@ -22,9 +22,9 @@ export const numberedLayoutProfile = (
                 whole: 32,
                 half: 26,
                 quarter: 22,
-                eighth: 18,
-                sixteenth: 16,
-                thirtySecond: 14,
+                eighth: 16,
+                sixteenth: 12,
+                thirtySecond: 11,
               }
             : {
                 whole: 40,
@@ -51,9 +51,9 @@ export const numberedLayoutProfile = (
                 whole: 28,
                 half: 22,
                 quarter: 20,
-                eighth: 17,
-                sixteenth: 14,
-                thirtySecond: 13,
+                eighth: 16,
+                sixteenth: 12,
+                thirtySecond: 11,
               }
             : {
                 whole: 32,
