@@ -10,7 +10,7 @@ const viteRequire = createRequire(require.resolve("vitest/package.json"));
 const { createServer } = await import(pathToFileURL(viteRequire.resolve("vite")).href);
 const { chromium } = await import(process.env.LXM_PLAYWRIGHT_MODULE ?? "playwright");
 const website = fileURLToPath(new URL("..", import.meta.url));
-const output = path.resolve(website, "../../output/playwright/req019-020-035");
+const output = path.resolve(process.env.LXM_CHORD_ARTIFACTS ?? path.resolve(website, "../../output/playwright/req019-020-035"));
 const server = await createServer({
   root: website, configFile: false, define: nextBrowserDefines,
   cacheDir: path.resolve(website, "node_modules/.vite/req019-020-035"),
@@ -80,7 +80,7 @@ try {
   const popupCards = popup.getByRole("button").filter({ has: page.getByRole("img", { name: "指法图预览", exact: true }) });
   assertGrid(await geometry(popupCards));
   assert.equal(await popup.getByText("浏览完整和弦库", { exact: true }).count(), 0);
-  const recommendationBox = await popup.getByText("和弦推荐", { exact: true }).boundingBox();
+  const recommendationBox = await popup.getByText("C大调·和弦推荐", { exact: true }).boundingBox();
   const libraryBox = await button(popup, "和弦库").boundingBox();
   assert.ok(Math.abs(recommendationBox.y - libraryBox.y) <= 2);
   await page.screenshot({ path: path.join(output, "more-recommendations.png"), animations: "disabled" });

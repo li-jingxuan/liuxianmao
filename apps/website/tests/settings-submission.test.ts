@@ -10,6 +10,7 @@ import {
   submitSettingsDraft,
   rebaseSettingsDraft,
   reconcileSettingsDraft,
+  reconcileEditorSettingsDraft,
   isSettingsGroupDirty,
   acknowledgeScoreInfo,
   changeScoreSettingsField,
@@ -24,6 +25,48 @@ const setup = () => {
 };
 
 describe("设置表单提交适配", () => {
+  it("编辑器名称草稿跟随外部只读调性，保存和撤销均不回写旧调性", () => {
+    const { session, initial, measureId } = setup();
+    const tonality = { version: 1 as const, tonic: "Gb", mode: "minor" as const, minorTonicDegree: 1 as const };
+    expect(session.getState().execute({ type: LXMScoreCommandEnum.SetScoreInfo, title: initial.title, arranger: initial.arranger, keySignature: "Gb", tonality })?.ok).toBe(true);
+    const document = session.getState().document!;
+    const result = reconcileEditorSettingsDraft({ ...initial, title: "新名称", capo: "2" }, initial, readScoreSettings(document));
+    expect(result.conflicts.info).toBeUndefined();
+    expect(result.value.keySignature).toBe("Gb");
+    expect(result.value.tonalityIntent).toEqual({ kind: "preserve" });
+    expect(submitSettingsDraft({ getState: session.getState, commit: session.getState().execute, ...result, measureId, group: "info" }).status).toBe("applied");
+    expect(session.getState().document!.score).toMatchObject({ title: "新名称", keySignature: "Gb", meta: { "lxm:tonality": tonality } });
+    expect(session.getState().document!.score.tracks[0]!.capo).toBe(Number(initial.capo));
+    session.getState().undo();
+    expect(session.getState().document).toEqual(document);
+  });
+  it.each([{ version: 9, future: "keep" }, { version: 1, tonic: "bad", mode: "minor" }])("旧调性资料不可编辑时仍允许保存名称，并原样保留 %j", (raw) => {
+    const doc = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);
+    doc.score.meta["lxm:tonality"] = raw;
+    const session = createEditorSession(doc);
+    const initial = readScoreSettings(session.getState().document!);
+    const draft = reconcileEditorSettingsDraft({ ...initial, title: "更新名称" }, initial, readScoreSettings(session.getState().document!));
+    expect(submitSettingsDraft({ getState: session.getState, commit: session.getState().execute, ...draft, group: "info" }).status).toBe("applied");
+    expect(session.getState().document!.score.meta["lxm:tonality"]).toEqual(raw);
+  });
+  it("名称冲突核对只保留文字输入，同时采纳最新只读调性与基础拍号", () => {
+    const { document, initial } = setup();
+    const next = structuredClone(document);
+    next.score.title = "外部名称";
+    next.score.keySignature = "D";
+    next.score.meta["lxm:tonality"] = { version: 1, tonic: "D", mode: "major" };
+    const fresh = { ...readScoreSettings(next), signature: "3/4" };
+    const conflict = reconcileEditorSettingsDraft({ ...initial, title: "本地名称" }, initial, fresh);
+    expect(conflict.conflicts.info).toBeTruthy();
+    expect(conflict.value.signature).toBe("3/4");
+    const acknowledged = acknowledgeScoreInfo(next, conflict.value, fresh);
+    expect(acknowledged.ok).toBe(true);
+    if (acknowledged.ok) {
+      expect(acknowledged.value.keySignature).toBe("D");
+      expect(acknowledged.value.tonalityIntent).toEqual({ kind: "preserve" });
+      expect(acknowledged.value.title).toBe("本地名称");
+    }
+  });
   it("info 整组保留并捕获作者外部修改，其他干净组继续刷新", () => {
     const { initial } = setup();
     const value = { ...initial, title: "未应用名称", capo: "3" };

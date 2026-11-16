@@ -60,43 +60,89 @@ try {
   assert.equal(await page.evaluate(() => window.settingsTest.apply("info")), false);
   await page.locator("#settings-title").fill("核对后的名称");
   assert.equal((await status()).groups.info.canApply, false);
-  await page.getByRole("button", { name: "核对并保留整组输入", exact: true }).click();
+  await page.getByRole("button", { name: "核对并保留输入", exact: true }).click();
   assert.equal((await status()).groups.info.canApply, true);
   assert.equal(await page.evaluate(() => window.settingsTest.apply("info")), true);
   assert.equal(await page.evaluate(() => window.settingsTest.document().score.title), "核对后的名称");
 
-  // 三个设置组共用底栏，只提交当前焦点组；非法拍号不阻挡其他组的独立提交。
-  const footer = page.locator('[data-settings-surface="actions"]');
+  // 正文中的曲谱信息与变调夹独立提交；基础拍号只读，不再有底栏或恢复本组。
+  const info = page.locator('[data-settings-group="info"]');
+  const capo = page.locator('[data-settings-group="capo"]');
+  const applyInfo = info.getByRole("button", { name: "应用曲谱信息", exact: true });
+  const applyCapo = capo.getByRole("button", { name: "应用变调夹", exact: true });
+  assert.equal(await page.locator('[data-settings-surface="actions"]').count(), 0);
+  assert.equal(await page.getByRole("button", { name: "恢复本组", exact: true }).count(), 0);
+  assert.equal(await page.locator("dd#settings-signature").count(), 1);
+  assert.equal(await page.locator("#settings-signature").innerText(), await page.evaluate(() => {
+    const signature = window.settingsTest.document().score.tracks[0].measures[0].timeSignature;
+    return `${signature.numerator}/${signature.denominator}`;
+  }));
+  assert.equal(await page.locator(".ant-select").filter({ has: page.locator("#settings-signature") }).count(), 0);
+  const beforeGroups = await snapshot();
   await page.locator("#settings-title").fill("独立提交的名称");
-  await page.locator("#settings-signature").click();
-  await page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item-option-content').getByText("3/4", { exact: true }).click();
+  await page.locator("#settings-arranger").fill("独立提交的作者");
   await page.locator("#settings-capo").click();
   for (let step = 0; step < 7; step += 1) await page.locator("#settings-capo").press("ArrowDown");
   await page.locator("#settings-capo").press("Enter");
   assert.match(await page.locator(".ant-select").filter({ has: page.locator("#settings-capo") }).innerText(), /12 品/);
-  assert.equal(await footer.getByRole("status").innerText(), "变调夹\n有未应用的修改");
-  const restoreBox = await footer.getByRole("button", { name: "恢复本组", exact: true }).boundingBox();
-  const applyBox = await footer.getByRole("button", { name: "应用变调夹", exact: true }).boundingBox();
-  assert.ok(restoreBox.x < applyBox.x);
-  assert.equal(restoreBox.y, applyBox.y);
-  const beforeGroups = await page.evaluate(() => ({ commands: window.settingsTest.commands().length, history: window.settingsTest.history() }));
-  await footer.getByRole("button", { name: "应用变调夹", exact: true }).click();
+   assert.equal(await applyInfo.isEnabled(), true);
+   assert.equal(await applyCapo.isEnabled(), true);
+   assert.deepEqual(await page.evaluate(() => window.settingsTest.pending()), []);
+   assert.equal(await page.evaluate(() => window.settingsTest.protectedDirty()), false);
+  await applyCapo.click();
   assert.equal(await page.evaluate(() => window.settingsTest.document().score.tracks[0].capo), 12);
-  assert.equal((await status()).groups.info.dirty, true);
-  assert.equal((await status()).groups.signature.dirty, true);
-  assert.equal((await status()).groups.capo.dirty, false);
-  await page.locator("#settings-signature").focus();
-  assert.equal(await footer.getByRole("button", { name: "应用基础拍号", exact: true }).isDisabled(), true);
-  assert.ok((await status()).groups.signature.blockedReason);
-  assert.equal(await page.evaluate(() => window.settingsTest.apply("signature")), false);
-  await footer.getByRole("button", { name: "恢复本组", exact: true }).click();
+  assert.equal(await page.evaluate(() => window.settingsTest.document().score.title), beforeGroups.document.score.title);
+  assert.equal(await page.evaluate(() => window.settingsTest.document().score.arranger), beforeGroups.document.score.arranger);
+  assert.equal(await page.locator("#settings-title").inputValue(), "独立提交的名称");
+  assert.equal(await page.locator("#settings-arranger").inputValue(), "独立提交的作者");
+   assert.equal((await status()).groups.info.dirty, true);
+   assert.equal(await applyInfo.isEnabled(), true);
+   assert.deepEqual(await page.evaluate(() => window.settingsTest.pending()), []);
   assert.equal((await status()).groups.signature.dirty, false);
-  assert.equal((await status()).groups.info.dirty, true);
-  await page.locator("#settings-title").focus();
-  await footer.getByRole("button", { name: "应用曲谱信息", exact: true }).click();
-  assert.deepEqual(await page.evaluate((start) => window.settingsTest.commands().slice(start).map((command) => command.type), beforeGroups.commands), ["track.setCapo", "score.setInfo"]);
+  assert.equal((await status()).groups.capo.dirty, false);
+  assert.equal(await applyCapo.isDisabled(), true);
+  await applyInfo.click();
+  assert.equal(await page.evaluate(() => window.settingsTest.document().score.title), "独立提交的名称");
+  assert.equal(await page.evaluate(() => window.settingsTest.document().score.arranger), "独立提交的作者");
+  assert.equal(await page.evaluate(() => window.settingsTest.document().score.tracks[0].capo), 12);
+  assert.deepEqual(await page.evaluate((start) => window.settingsTest.commands().slice(start).map((command) => command.type), beforeGroups.commands.length), ["track.setCapo", "score.setInfo"]);
   assert.equal(await page.evaluate(() => window.settingsTest.history()), beforeGroups.history + 2);
-  assert.equal((await status()).groups.info.dirty, false);
+   assert.equal((await status()).groups.info.dirty, false);
+   assert.equal(await applyInfo.isDisabled(), true);
+
+   // 应用信息仍保留变调夹草稿；离开到小节或收起时才丢弃所有未应用歌曲输入。
+   for (const surface of ["measure", null]) {
+     await page.locator("#settings-capo").click();
+     await page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item-option-content').getByText("11 品", { exact: true }).click();
+     const appliedTitle = `离开到 ${surface ?? "收起"} 前已应用`;
+     await page.locator("#settings-title").fill(appliedTitle);
+     await applyInfo.click();
+     const applied = await snapshot();
+     assert.equal(applied.document.score.title, appliedTitle);
+     assert.equal(applied.document.score.tracks[0].capo, 12);
+     assert.match(await page.locator(".ant-select").filter({ has: page.locator("#settings-capo") }).innerText(), /11 品/);
+     assert.equal((await status()).groups.capo.dirty, true);
+     assert.equal(await applyCapo.isEnabled(), true);
+     await page.locator("#settings-title").fill("离开即丢弃的名称");
+     await page.locator("#settings-arranger").fill("离开即丢弃的作者");
+     assert.equal((await status()).groups.info.dirty, true);
+     assert.deepEqual(await page.evaluate(() => window.settingsTest.pending()), []);
+     assert.equal(await page.evaluate(() => window.settingsTest.protectedDirty()), false);
+     assert.deepEqual(await page.evaluate(() => window.settingsTest.discardAll()), { status: "accepted", discarded: 0 });
+     assert.equal(await page.locator("#settings-title").inputValue(), "离开即丢弃的名称");
+     assert.equal((await status()).groups.capo.dirty, true);
+     await page.evaluate((surface) => window.settingsTest.surface(surface), surface);
+     assert.equal(await applyInfo.count(), 0);
+     for (const group of ["info", "capo", "signature"]) assert.equal((await status()).groups[group].dirty, false);
+     assert.deepEqual(await page.evaluate(() => window.settingsTest.pending()), []);
+     await page.evaluate(() => window.settingsTest.surface("song"));
+     assert.equal(await page.locator("#settings-title").inputValue(), appliedTitle);
+     assert.equal(await page.locator("#settings-arranger").inputValue(), applied.document.score.arranger ?? "");
+     assert.match(await page.locator(".ant-select").filter({ has: page.locator("#settings-capo") }).innerText(), /12 品/);
+     assert.equal(await applyInfo.isDisabled(), true);
+     assert.equal(await applyCapo.isDisabled(), true);
+     assert.deepEqual(await snapshot(), applied);
+   }
 
   await page.evaluate(() => window.settingsTest.focus("label"));
   await page.waitForFunction(() => document.activeElement?.id === "settings-label");
@@ -150,25 +196,56 @@ try {
   await page.waitForFunction(() => !!window.settingsTest.status().groups.label.blockedReason);
   assert.equal(await label.inputValue(), "冲突本地输入");
   assert.equal(await page.evaluate(() => window.settingsTest.apply("label")), false);
-  assert.equal(await page.evaluate(() => window.settingsTest.document().score.tracks[0].measures[1].sectionLabel), "冲突外部输入");
-  assert.equal(await label.inputValue(), "冲突本地输入");
-  assert.equal(await page.evaluate(() => window.settingsTest.restore("label")), true);
+   assert.equal(await page.evaluate(() => window.settingsTest.document().score.tracks[0].measures[1].sectionLabel), "冲突外部输入");
+   assert.equal(await label.inputValue(), "冲突本地输入");
+   // 冲突标签可与歌曲输入并存；丢弃歌曲及离开歌曲都保留标签保护和目录记录。
+   await page.evaluate(() => window.settingsTest.focus("info"));
+   const beforeSongDiscard = await snapshot();
+   const labelPending = await page.evaluate(() => window.settingsTest.pending());
+   assert.deepEqual(labelPending, [{ label: "段落标记", dirty: true, composing: false, canApply: false }]);
+   for (const destination of ["discardSong", "measure", null]) {
+     await page.locator("#settings-title").fill("与标签并存的歌曲草稿");
+     await page.locator("#settings-capo").click();
+     await page.locator("#settings-capo").press("ArrowUp");
+     await page.locator("#settings-capo").press("Enter");
+     assert.equal((await status()).groups.info.dirty, true);
+     assert.equal((await status()).groups.capo.dirty, true);
+     assert.equal((await status()).groups.label.dirty, true);
+     assert.deepEqual(await page.evaluate(() => window.settingsTest.pending()), labelPending);
+     if (destination === "discardSong") assert.equal(await page.evaluate(() => window.settingsTest.discardSong()), true);
+     else await page.evaluate((surface) => window.settingsTest.surface(surface), destination);
+     assert.equal((await status()).groups.info.dirty, false);
+     assert.equal((await status()).groups.capo.dirty, false);
+     assert.equal((await status()).groups.label.dirty, true);
+     assert.equal(await page.evaluate(() => window.settingsTest.protectedDirty()), true);
+     assert.deepEqual(await page.evaluate(() => window.settingsTest.pending()), labelPending);
+     assert.equal(await label.inputValue(), "冲突本地输入");
+     await page.evaluate(() => window.settingsTest.surface("song"));
+     assert.equal(await page.locator("#settings-title").inputValue(), beforeSongDiscard.document.score.title);
+     assert.match(await page.locator(".ant-select").filter({ has: page.locator("#settings-capo") }).innerText(), /12 品/);
+     assert.deepEqual(await snapshot(), beforeSongDiscard);
+   }
+   assert.equal(await page.evaluate(() => window.settingsTest.restore("label")), true);
   assert.equal(await label.inputValue(), "冲突外部输入");
   assert.equal((await status()).groups.label.dirty, false);
   await page.evaluate(() => window.settingsTest.focus("info"));
   await page.locator("#settings-title").fill("另一个未应用名称");
   await page.evaluate(() => window.settingsTest.focus("label"));
   await page.locator("#settings-label").fill("待处理标记");
-  assert.deepEqual((await page.evaluate(() => window.settingsTest.pending())).filter((entry) => entry.dirty).map((entry) => entry.label).sort(), ["曲谱信息", "段落标记"].sort());
-  assert.equal(await page.evaluate(() => window.settingsTest.restore("label")), true);
-  assert.equal((await status()).groups.info.dirty, true);
-  assert.equal((await status()).groups.label.dirty, false);
+   assert.deepEqual((await page.evaluate(() => window.settingsTest.pending())).filter((entry) => entry.dirty).map((entry) => entry.label), ["段落标记"]);
+   assert.equal(await page.evaluate(() => window.settingsTest.protectedDirty()), true);
+   assert.equal(await page.evaluate(() => window.settingsTest.restore("label")), true);
+   assert.equal((await status()).groups.info.dirty, false);
+   assert.equal((await status()).groups.label.dirty, false);
+   assert.equal(await page.evaluate(() => window.settingsTest.protectedDirty()), false);
 
   // 两个 Portal 的原生 composition 都必须经过同一个同步闸门。
   for (const [group, field] of [["info", "settings-title"], ["label", "settings-label"]]) {
     await page.evaluate((group) => window.settingsTest.focus(group), group);
-    await page.locator(`#${field}`).dispatchEvent("compositionstart");
-    assert.equal((await status()).composing, true);
+     await page.locator(`#${field}`).dispatchEvent("compositionstart");
+     assert.equal((await status()).composing, true);
+     assert.deepEqual(await page.evaluate(() => window.settingsTest.pending()), [{ label: group === "info" ? "曲谱信息" : "段落标记", dirty: false, composing: true, canApply: false }]);
+     assert.equal((await page.evaluate(() => window.settingsTest.discardAll())).status, "blocked");
     assert.equal(await page.evaluate((group) => window.settingsTest.apply(group), group), false);
     assert.equal(await page.evaluate((group) => window.settingsTest.restore(group), group), false);
     assert.equal(await page.evaluate(() => window.settingsTest.discard()), false);
@@ -204,16 +281,21 @@ try {
     assert.equal(afterComposition.document.score.tracks[0].measures[1].sectionLabel, text);
     assert.equal(await label.inputValue(), text);
   }
-  // 收起仅隐藏 Portal，重新打开不重读或丢弃输入。
-  await page.evaluate(() => window.settingsTest.focus("info"));
-  await page.locator("#settings-title").fill("收起后保留");
+   // 收起歌曲丢弃未应用名称；切到复制也不再被歌曲草稿阻塞。
+   await page.evaluate(() => window.settingsTest.focus("info"));
+   const beforeClose = await snapshot();
+   await page.locator("#settings-title").fill("收起后丢弃");
   await page.evaluate(() => window.settingsTest.surface(null));
   assert.equal(await page.getByRole("button", { name: "应用曲谱信息", exact: true }).count(), 0);
   await page.evaluate(() => window.settingsTest.focus("info"));
-  assert.equal(await page.locator("#settings-title").inputValue(), "收起后保留");
+   assert.equal(await page.locator("#settings-title").inputValue(), beforeClose.document.score.title);
+   assert.deepEqual(await snapshot(), beforeClose);
+   await page.locator("#settings-title").fill("切到复制后丢弃");
   await page.evaluate(() => window.settingsTest.focus("copy"));
   await page.waitForFunction(() => document.activeElement?.id === "settings-copy-start");
-  assert.equal(await page.getByRole("button", { name: "应用复制小节范围", exact: true }).isDisabled(), true);
+   assert.equal((await status()).groups.info.dirty, false);
+   assert.deepEqual(await page.evaluate(() => window.settingsTest.pending()), []);
+   assert.equal(await page.getByRole("button", { name: "应用复制小节范围", exact: true }).isEnabled(), true);
   await page.evaluate(() => window.settingsTest.discard());
   const commandsBeforeCopy = await page.evaluate(() => window.settingsTest.commands().length);
   const historyBeforeCopy = await page.evaluate(() => window.settingsTest.history());
@@ -239,28 +321,67 @@ try {
   assert.equal(await page.evaluate(() => window.settingsTest.applyAll()), false);
   assert.equal(await page.evaluate(() => window.settingsTest.commands().length), 0);
   assert.match(await page.locator('[data-settings-surface="song"]').innerText(), /不允许提交此设置组/);
-  await footer.getByRole("button", { name: "应用曲谱信息", exact: true }).click();
-  assert.deepEqual(await page.evaluate(() => window.settingsTest.commands().map((command) => command.type)), ["score.setInfo"]);
-  await page.locator("#settings-capo").click();
-  await page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item-option-content').getByText("1 品", { exact: true }).click();
+   await applyInfo.click();
+   assert.deepEqual(await page.evaluate(() => window.settingsTest.commands().map((command) => command.type)), ["score.setInfo"]);
+   await page.locator("#settings-capo").click();
+   await page.locator("#settings-capo").press("ArrowDown");
+   await page.locator("#settings-capo").press("Enter");
+   assert.match(await page.locator(".ant-select").filter({ has: page.locator("#settings-capo") }).innerText(), /1 品/);
   assert.equal(await page.evaluate(() => window.settingsTest.apply("capo")), false);
   assert.equal(await page.evaluate(() => window.settingsTest.commands().length), 1);
   await page.evaluate(() => window.settingsTest.restore("capo"));
-  await page.locator("#settings-mode").click();
-  await page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item-option-content').getByText("小调", { exact: true }).click();
-  await page.locator("#settings-tonic").fill("A");
-  assert.match(await page.locator('.ant-select').filter({ has: page.locator("#settings-minor-degree") }).innerText(), /主音记作 6/);
+  // 调性整组只读并跟随最新文档；外部调性更新不与已有信息草稿冲突。
+  const tonality = page.locator('dl[aria-label="曲谱调性（只读）"]');
+  const tonalityFields = () => tonality.locator("div").evaluateAll((rows) => rows.map((row) => [row.querySelector("dt").textContent, row.querySelector("dd").textContent]));
+  assert.equal(await tonality.count(), 1);
+  assert.equal(await tonality.locator("input, select, button, [role=combobox]").count(), 0);
+  assert.equal(await page.locator("#settings-mode, #settings-tonic, #settings-minor-degree, #settings-key-signature").count(), 0);
   assert.equal(await page.evaluate(() => window.settingsTest.document().score.meta["lxm:tonality"]), undefined);
-  assert.match(await page.locator('[data-settings-surface="song"]').innerText(), /设置预览：曲谱 A小调/);
-  await page.locator("#settings-tonic").press("Enter");
-  assert.equal(await page.evaluate(() => window.settingsTest.document().score.keySignature), "C");
-  assert.deepEqual(await page.evaluate(() => window.settingsTest.document().score.meta["lxm:tonality"]), { version: 1, tonic: "A", mode: "minor", minorTonicDegree: 6 });
+   assert.match(await tonality.innerText(), /调性未确认/);
+   const beforeTonality = await snapshot();
+   const readonlySignature = ["基础拍号", await page.locator("#settings-signature").innerText()];
+  await page.locator("#settings-title").fill("保留最新调性的名称");
+  await page.locator("#settings-arranger").fill("保留最新调性的作者");
+  const minor = { version: 1, tonic: "A", mode: "minor", minorTonicDegree: 6 };
+  const major = { version: 1, tonic: "D", mode: "major" };
+  for (const value of [minor, major]) {
+    await page.evaluate((value) => window.settingsTest.externalTonality(value), value);
+    await page.waitForFunction((tonic) => document.querySelector('dl[aria-label="曲谱调性（只读）"]')?.textContent.includes(`${tonic}${tonic === "A" ? "小调" : "大调"}`), value.tonic);
+    assert.deepEqual(await tonalityFields(), value.mode === "minor" ? [
+       ["数字 1 的音高", "1=C"], ["调性", "A小调"], ["主音拼写", "A"], readonlySignature, ["小调主音记法", "主音记作 6"],
+     ] : [["数字 1 的音高", "1=D"], ["调性", "D大调"], ["主音拼写", "D"], readonlySignature]);
+    assert.equal(await page.locator("#settings-title").inputValue(), "保留最新调性的名称");
+    assert.equal(await page.locator("#settings-arranger").inputValue(), "保留最新调性的作者");
+    assert.equal((await status()).groups.info.canApply, true);
+    assert.equal(await applyInfo.isEnabled(), true);
+    assert.equal(await page.getByRole("region", { name: "曲谱信息冲突核对", exact: true }).count(), 0);
+    assert.equal(await page.evaluate(() => window.settingsTest.document().score.keySignature), value.mode === "minor" ? "C" : "D");
+    assert.deepEqual(await page.evaluate(() => window.settingsTest.document().score.meta["lxm:tonality"]), value);
+  }
+  const latestTonality = await snapshot();
+  assert.equal(latestTonality.commands.length, beforeTonality.commands.length);
+  await page.locator("#settings-title").press("Enter");
+  const savedInfo = await snapshot();
+  assert.equal(savedInfo.document.score.title, "保留最新调性的名称");
+  assert.equal(savedInfo.document.score.arranger, "保留最新调性的作者");
+  assert.equal(savedInfo.document.score.keySignature, "D");
+  assert.deepEqual(savedInfo.document.score.meta["lxm:tonality"], major);
+  assert.equal(savedInfo.history, latestTonality.history + 1);
+  assert.equal((await status()).groups.info.dirty, false);
   assert.deepEqual(await page.evaluate(() => window.settingsTest.commands().map((command) => command.type)), ["score.setInfo", "score.setInfo"]);
+  await page.evaluate(() => window.settingsTest.undo());
+  const undoneInfo = await snapshot();
+  assert.equal(undoneInfo.document.score.title, latestTonality.document.score.title);
+  assert.equal(undoneInfo.document.score.arranger, latestTonality.document.score.arranger);
+  assert.equal(undoneInfo.document.score.keySignature, "D");
+  assert.deepEqual(undoneInfo.document.score.meta["lxm:tonality"], major);
+  assert.equal(undoneInfo.history, latestTonality.history);
+   assert.deepEqual(await tonalityFields(), [["数字 1 的音高", "1=D"], ["调性", "D大调"], ["主音拼写", "D"], readonlySignature]);
   const hooks = await page.evaluate(() => window.settingsTest.hooks());
   assert.deepEqual(hooks.guards.map((entry) => entry.group), [undefined, "info", "capo", "info"]);
   assert.ok(hooks.guards.every((entry) => entry.liveOwner));
   assert.equal(hooks.infoApplied.length, 2);
   assert.equal(hooks.settled.length, 4);
   assert.deepEqual(errors, []);
-  console.log("score-settings portals: rebasing, conflicts, group records, pinned/invalid target, focus and IME passed");
+   console.log("score-settings portals: independent actions, song navigation discard without global confirmation, readonly tonality rebasing/undo, conflicts, label protection, pinned/invalid target, focus and IME passed");
 } finally { await browser?.close(); await server.close(); }

@@ -121,6 +121,23 @@ export const reconcileSettingsDraft = (
   }
   return { value: nextValue, initial: nextInitial, conflicts: nextConflicts };
 };
+
+/** 编辑器内调性和基础拍号只读，随最新文档刷新，不能作为旧信息草稿回写。 */
+export const reconcileEditorSettingsDraft = (
+  value: ScoreSettingsDraft,
+  initial: ScoreSettingsDraft,
+  fresh: ScoreSettingsDraft,
+  conflicts: Partial<Record<SettingsGroup, string>> = {},
+  applied: readonly SettingsGroup[] = [],
+) => {
+  const readonlyFields = {
+    keySignature: fresh.keySignature,
+    tonalityNamespace: fresh.tonalityNamespace,
+    tonalityIntent: { kind: "preserve" } as const,
+    signature: fresh.signature,
+  };
+  return reconcileSettingsDraft({ ...value, ...readonlyFields }, { ...initial, ...readonlyFields }, fresh, conflicts, applied);
+};
 /** 按表单分组提交；用于提前验证“应用后继续”，不生成 UI 层时间轴算法。 */
 export const planSettingsCommands = (
   document: ILXMDocument,

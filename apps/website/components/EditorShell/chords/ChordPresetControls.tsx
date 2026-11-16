@@ -37,7 +37,7 @@ export interface ChordEditorLibraryProps {
   onOpenCustom?: (seed?: ChordDraft) => void;
   onOpenSettings?: () => void;
   showChordDiagrams?: boolean;
-  /** Only the compact entry shows tuning instead of the configuration shortcut. */
+  /** The compact entry shows tonality beside its common-chord heading. */
   presentation?: "quick" | "sidebar";
 }
 export const chordTuningMatches = (
@@ -136,7 +136,6 @@ export const ChordPresetControls = ({
   menuOpen,
   onMenuOpenChange,
   onOpenLibrary,
-  onOpenSettings,
   presentation = "sidebar",
 }: ChordPresetControlsProps) => {
   const resource = useChordCatalog();
@@ -184,6 +183,9 @@ export const ChordPresetControls = ({
   const tonality = document
     ? readScoreTonality(document)
     : ({ kind: "unset", title: "曲谱调性未设置" } as const);
+  const recommendationTitle = tonality.kind === "confirmed"
+    ? `${tonality.key.tonicSpelling}${tonality.key.mode === "major" ? "大调" : "小调"}·和弦推荐`
+    : "常用和弦推荐";
   const catalog = resource.catalog;
   const recommendations = catalog && tonality.kind === "confirmed" ? quickChordMatches(catalog, tonality.key) : [];
   const results =
@@ -252,12 +254,11 @@ export const ChordPresetControls = ({
       onKeyDownCapture={protectActivation}
     >
       <div className={styles.heading}>
-        <h3>常用和弦</h3>
+        <h3>{presentation === "quick" ? "常用和弦" : recommendationTitle}</h3>
         {presentation === "quick" ? <span>{tonality.title.replace("曲谱 ", "")}</span> : (
           <Button type="link" disabled={disabled || protectedInput || !onOpenLibrary} onClick={() => openLibrary("all")}>更多配置</Button>
         )}
       </div>
-      {presentation === "sidebar" && <p className={styles.keyCaption}>{tonality.title}</p>}
       <div className={styles.row} role="group" aria-label="本调常用和弦">
         <div className={presentation === "sidebar" ? styles.candidates : styles.quick}>
           {recommendations.slice(0, presentation === "quick" ? 6 : 8).map((match) => {
@@ -345,24 +346,16 @@ export const ChordPresetControls = ({
                  onKeyDown={(event) => { if (event.key === "Enter") event.preventDefault(); }}
                />
                 <div className={styles.recommendationHeading}>
-                  <strong>和弦推荐</strong>
+                   <strong>{text.trim() ? "搜索结果" : recommendationTitle}</strong>
                   <Button type="link" aria-label="和弦库" disabled={!onOpenLibrary || disabled || protectedInput} onClick={() => openLibrary("all")}>
                     和弦库 <RightOutlined aria-hidden="true" />
                   </Button>
                 </div>
-                <div className={styles.keySource}>
-               <strong>{tonality.title}</strong>
-               <Button type="link" disabled={!onOpenSettings || disabled || protectedInput} onClick={() => {
-                 if (disabled || composition.isComposing()) return;
-                 changeOpen(false); onOpenSettings?.();
-               }}>设置调性</Button>
-               </div>
                <div className={styles.results}>
                  {resource.status === "error" && <p className={styles.loadError} role="status">
                    {catalog ? "更新失败，继续使用已加载的和弦库。" : "和弦库暂不可用，可重试或使用收藏。"}
                    <Button type="link" disabled={disabled || protectedInput} onClick={() => { void chordCatalogResource.retry(); }}>重试</Button>
                  </p>}
-                 {text.trim() && <p className={styles.groupTitle}>搜索结果 · 全部和弦</p>}
                 {!catalog ? (
                   <p>
                     {resource.status === "error"
@@ -399,7 +392,7 @@ export const ChordPresetControls = ({
           </Button>
         </Dropdown>}
       </div>
-      {tonality.kind !== "confirmed" && <p className={styles.help}>确认曲谱调性后显示本调推荐。<Button type="link" disabled={!onOpenSettings || disabled || protectedInput} onClick={() => { if (!composition.isComposing()) onOpenSettings?.(); }}>设置调性</Button></p>}
+      {tonality.kind !== "confirmed" && <p className={styles.help}>曲谱调性未确认，可在和弦库中临时选择调性浏览。</p>}
       {resource.status !== "ready" && (
         <div className={styles.help} role="status">
           {catalog

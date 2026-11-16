@@ -26,8 +26,8 @@ try {
   const list = library.getByTestId("chord-library-scroll");
   await list.getByRole("button").first().waitFor();
   assert.equal(await list.getByRole("button").count(), 192);
-  assert.equal(await list.locator("section").count(), 12);
-  assert.equal(await library.getByText("其他和弦", { exact: true }).count(), 0);
+   assert.equal(await list.locator("section").count(), 3);
+   assert.equal(await library.getByText("其他和弦", { exact: true }).count(), 1);
   await list.getByRole("button").filter({ has: page.getByText("C7", { exact: true }) }).click();
   await library.getByText(/C 大调 · 含调外音/).waitFor();
   await page.waitForFunction(() => !document.querySelector('.ant-zoom-appear,.ant-zoom-enter,.ant-zoom-leave'));
@@ -67,7 +67,7 @@ try {
   assert.notEqual(background, "rgba(0, 0, 0, 0)");
   await page.screenshot({ path: new URL("next-empty-beat.png", output).pathname, animations: "disabled" });
   assert.deepEqual(errors, []);
-  const result = { passed: true, url, checks: ["实际 Next 页面192项12组与调外属性", "AntD默认页签hover", "库覆盖且保留同一自定义DOM", "无效输入保留与撤销", "真实空拍背景框及准确文案", "无页面错误或AntD弃用警告"], errors };
+   const result = { passed: true, url, checks: ["实际 Next 页面192项旧分组与调外属性", "AntD默认页签hover", "库覆盖且保留同一自定义DOM", "无效输入保留与撤销", "真实空拍背景框及准确文案", "无页面错误或AntD弃用警告"], errors };
   await writeFile(new URL("next-result.json", output), JSON.stringify(result, null, 2));
   console.log(JSON.stringify(result, null, 2));
 } catch (error) {

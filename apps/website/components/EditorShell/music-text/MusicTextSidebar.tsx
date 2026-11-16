@@ -111,6 +111,7 @@ type SidebarAction = DraftSidebarAction & {
 };
 
 export interface MusicTextController {
+  discardSong: () => boolean;
   navigateTool: (destination: ToolNavigation) => SelectionRequestResult;
   /** 输出前只读检查草稿，不自动提交或取消用户输入。 */
   isOutputBlocked: (options?: { allowSettingsBusy?: boolean; ignoreModalId?: number }) => boolean;
@@ -233,8 +234,8 @@ export const MusicTextSidebar = ({
   const [numberedInputActive, setNumberedInputActive] = useState(false);
   const paragraphKind = useRef<"lyric" | "numbered">("numbered");
   const settingsRef = useRef<ScoreSettingsController>(null);
-  const [settingsDirty, setSettingsDirty] = useState(false);
   const [settingsStatus, setSettingsStatus] = useState<ScoreSettingsStatus | null>(null);
+  const settingsDirty = settingsStatus?.groups.label.dirty ?? false;
   const [draft, setDraft] = useState<MusicTextDraft | null>(null);
   const [pending, setPending] = useState<SidebarAction | null>(null);
   const pendingVersion = useRef<EditorSessionVersion | null>(null);
@@ -244,7 +245,6 @@ export const MusicTextSidebar = ({
   const renderedGeneration = ownerGeneration.current;
   const [songHost, setSongHost] = useState<HTMLDivElement | null>(null);
   const [measureHost, setMeasureHost] = useState<HTMLDivElement | null>(null);
-  const [actionsHost, setActionsHost] = useState<HTMLDivElement | null>(null);
   const [portalRoot, setPortalRoot] = useState<HTMLElement | null>(null);
   const registerFrame = useCallback((node: HTMLElement | null) => {
     if (node) setPortalRoot(node.ownerDocument.body);
@@ -286,7 +286,6 @@ export const MusicTextSidebar = ({
   };
   const suspendedChord = useRef<SuspendedChord | null>(null);
   const [chordSuspended, setChordSuspended] = useState(false);
-  const [settingsLeaveRequested, setSettingsLeaveRequested] = useState(false);
   const infoAuthorization = useRef<{ identity: EditorDraftRegistration; version: EditorSessionVersion } | null>(null);
   const [chordSession] = useState(createChordEditSession);
   useLayoutEffect(() => { chordSession.setReader(() => {
@@ -621,6 +620,7 @@ export const MusicTextSidebar = ({
     }
     if (action.type === "tab" && action.focus)
       requestedTabFocus.current = `${action.focus === "paragraph" ? "paragraph" : "music"}-tab-${action.kind === "numbered" && action.focus !== "paragraph" ? "lyric" : action.kind}`;
+    if (propertyTab === "song" && settingsRef.current?.discardSong() === false) return false;
     setPending(null);
     ownerGeneration.current += 1;
     setChordPresetMenuOrigin(null);
@@ -818,8 +818,7 @@ export const MusicTextSidebar = ({
         return "accepted";
       }
     }
-    // “选区”和“歌曲”都映射到 score 目标，但歌曲表单仍可能有未应用草稿；
-    // 同一业务 kind 不能成为绕过草稿保护的捷径。
+    // 同一业务 kind 下仍需区分页签；歌曲未应用输入在请求接受后直接丢弃。
     if (
       action.type === "tab" &&
       action.kind === kind &&
@@ -831,7 +830,7 @@ export const MusicTextSidebar = ({
     const decision = resolveSidebarRequest(draft, action, {
       numberedTarget,
       numberedDirty: numberedRef.current?.dirty,
-      settingsDirty: action.settingsFocus ? false : settingsRef.current?.isDirty(),
+      settingsDirty: action.settingsFocus ? false : settingsRef.current?.isProtectedDirty(),
       visibleTaskChanged: action.type === "tab" && !!action.propertyTab && action.propertyTab !== propertyTab,
     });
     if (decision === "ignore" && action.type === "target") {
@@ -895,6 +894,7 @@ export const MusicTextSidebar = ({
     return request({ type: "close" });
   };
   useImperativeHandle(ref, () => ({
+    discardSong: () => settingsRef.current?.discardSong() ?? true,
     clearRange: () => rangeEditor.current?.clear() ?? false,
     restoreSidebarFocus: () => {
       if (continuousRange) { rangeEditor.current?.focus(); return; }
@@ -922,7 +922,7 @@ export const MusicTextSidebar = ({
       !!numberedRef.current?.readStatus().busy ||
       !!pending ||
       (activeTextOwner.current && renderedGeneration === ownerGeneration.current && !!numberedRef.current?.dirty) ||
-      !!settingsRef.current?.isDirty() ||
+      !!settingsRef.current?.isProtectedDirty() ||
       (activeTextOwner.current && renderedGeneration === ownerGeneration.current && !!draft && musicTextDraftValue(draft) !== draft.initial),
     isNumberedActionBlocked: (options) =>
       !!rangeEditor.current?.isDirty() || !!rangeEditor.current?.isComposing() ||
@@ -932,7 +932,7 @@ export const MusicTextSidebar = ({
       !!numberedRef.current?.readStatus().busy ||
       !!pending ||
       (activeTextOwner.current && renderedGeneration === ownerGeneration.current && !!numberedRef.current?.dirty) ||
-      !!settingsRef.current?.isDirty() ||
+      !!settingsRef.current?.isProtectedDirty() ||
       (activeTextOwner.current && renderedGeneration === ownerGeneration.current && !!draft && musicTextDraftValue(draft) !== draft.initial),
     open: (next) => {
       if (rangeEditor.current?.isComposing()) return;
@@ -1208,12 +1208,12 @@ export const MusicTextSidebar = ({
     };
     try {
       const result =
-        settingsRef.current?.isDirty()
-          ? settingsRef.current.apply() ? "applied" : "blocked"
+        settingsRef.current?.isProtectedDirty()
+          ? settingsRef.current.applyGroup("label") ? "applied" : "blocked"
           : kind === "numbered"
           ? await applyNumbered(isCurrent, false)
           : kind === "score"
-            ? settingsRef.current?.apply() ? "applied" : "blocked"
+            ? settingsRef.current?.applyGroup("label") ? "applied" : "blocked"
             : apply() ? "applied" : "blocked";
       if (result === "applied" && isCurrent())
         perform(action);
@@ -1450,11 +1450,7 @@ export const MusicTextSidebar = ({
   const resumeChord = () => {
     const paused = suspendedChord.current;
     if (!paused || settingsRef.current?.isComposing() || settingsRef.current?.readStatus().busy) return;
-    if (settingsRef.current?.isDirty()) {
-      setSettingsLeaveRequested(true);
-      setMessage("曲谱信息仍有未应用输入；请先应用，或在设置中恢复后返回。");
-      return;
-    }
+    if (!settingsRef.current?.discardSong()) return;
     if (!draftRegistration.isCurrent(paused.identity) ||
       !sameEditorVersion(captureEditorVersion(editorStore.getState()), paused.version) ||
       !normalizeMusicTextTarget(editorStore.getState().document, paused.draft.target)) {
@@ -1462,7 +1458,6 @@ export const MusicTextSidebar = ({
       setMessage("原和弦目标已变化，请重新选择。"); return;
     }
     suspendedChord.current = null; setChordSuspended(false);
-    setSettingsLeaveRequested(false);
     setDraft(paused.draft); setKind("chord"); setPropertyTab("chord");
     setSurface(paused.surface); setDismissed(false); setActiveObject(paused.draft.target);
     setMessage(null); focusTarget("input");
@@ -1657,12 +1652,11 @@ export const MusicTextSidebar = ({
   const hasRequestedMeasure = selectionToolsRequested && !!detailTarget && !!score?.score.tracks
     .find((track) => track.id === detailTarget.trackId)?.measures.some((measure) => measure.id === detailTarget.measureId);
   const showSelectionInvitation = !hasExplicitSelection && !hasRequestedMeasure;
-  // 正文、设置动作 Portal 与底栏共用实际活动表单，owner 和 host 仍常驻以保留草稿。
-  const settingsSurface = score && propertyTab === "song" ? "song"
+  // 正文 Portal 共用实际活动表单，owner 和 host 仍常驻以保留草稿。
+  const settingsSurface = collapsed ? null : score && propertyTab === "song" ? "song"
     : score && propertyTab === "selection" && selectionDetail === "measure" && !showSelectionInvitation && context.valid
       ? "measure" : null;
   const numberedFormActive = !!score && propertyTab === "paragraph" && kind === "numbered" && activeObject?.kind === "numbered";
-  const hasActionsForm = settingsSurface === "song";
   return (
     <ConfigProvider
       getPopupContainer={(trigger) => trigger?.closest<HTMLElement>("#music-text-sidebar,[data-editor-associated-panel]") ?? globalThis.document.body}
@@ -1916,14 +1910,6 @@ export const MusicTextSidebar = ({
             <div hidden={propertyTab !== "song"}>
               {chordSuspended && <div className={musicTextSidebarStyles.chordReturn}>
                 <Button onClick={resumeChord}>返回和弦编辑</Button>
-                {settingsLeaveRequested && <section role="alertdialog" aria-label="处理未应用的曲谱信息">
-                  <p>曲谱信息有未应用的修改，请选择如何返回和弦编辑。</p>
-                  <div>
-                    <Button onClick={() => { if (settingsRef.current?.applyGroup("info")) resumeChord(); }}>应用曲谱信息后返回</Button>
-                    <Button onClick={() => { if (settingsRef.current?.discard()) resumeChord(); }}>放弃设置修改并返回</Button>
-                    <Button onClick={() => { setSettingsLeaveRequested(false); setMessage(null); }}>继续编辑设置</Button>
-                  </div>
-                </section>}
               </div>}
               <div ref={setSongHost} />
               <ScoreSettings
@@ -1932,9 +1918,7 @@ export const MusicTextSidebar = ({
                 requestedMeasureId={detailTarget?.measureId ?? selection?.focus.measureId}
                 songHost={songHost}
                 measureHost={measureHost}
-                actionsHost={actionsHost}
                 activeSurface={settingsSurface}
-                onDirty={setSettingsDirty}
                 onStatus={setSettingsStatus}
                 commit={commit}
                 guardApply={guardSettingsApply}
@@ -2144,7 +2128,6 @@ export const MusicTextSidebar = ({
                   onRequestSidebar={focusSidebar}
                   // 不再把 stateVersion 放进 key：自身提交后保持同一输入 owner，避免其他分组被重挂载清空。
                    key={`${numberedMode}/${numberedTarget ? JSON.stringify(numberedTarget) : ""}`}
-                    actionsHost={actionsHost}
                   onBusyChange={setNumberedBusy}
                   onGroupsChange={setNumberedGroups}
                   onCancel={cancelTextEditing}
@@ -2276,7 +2259,6 @@ export const MusicTextSidebar = ({
             <p className={editorToolPanelStyles.selectionTip}>快捷操作直接作用于选区，可使用撤销。</p>
           </div>
         )}
-        <div ref={setActionsHost} data-editor-actions-host className={musicTextSidebarStyles.sidebarFooter} hidden={!!pending || !hasActionsForm} />
         {/* 无编辑操作或提示时隐藏底栏，避免移除历史按钮后留下空白条。 */}
         <footer
           className={musicTextSidebarStyles.sidebarFooter}
@@ -2310,7 +2292,7 @@ export const MusicTextSidebar = ({
                 </p>
               )}
               <div>
-                {!(kind === "numbered" && numberedGroups.length > 1) && Object.values(settingsStatus?.groups ?? {}).filter((group) => group.dirty).length <= 1 && (
+                {!(kind === "numbered" && numberedGroups.length > 1) && (
                   <Button
                     disabled={
                       !!issue || (kind === "numbered" && !numberedCanApply)

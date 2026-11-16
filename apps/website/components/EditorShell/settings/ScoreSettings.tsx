@@ -1,10 +1,9 @@
 import { useState, useRef, useImperativeHandle, useEffect, useLayoutEffect, useMemo, useId, useCallback, type Ref, type ReactNode, type FocusEvent, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
-import { Alert, Button } from "antd";
 import { LXMScoreCommandEnum, type ILXMDocument, type ILXMApplyScoreCommandResult, type ILXMScoreCommand } from "@liuxianmao/lxm-editor";
 import { useEditorSessionStore } from "../../../stores/editor-store";
 import type { EditorCommandAdapter } from "../session/editor-command-adapter";
-import { readScoreSettings, submitSettingsDraft, reconcileSettingsDraft, prepareSettingsSubmission, settingsGroups, settingsKeys, isSettingsGroupDirty, changeScoreSettingsField, acknowledgeScoreInfo, scoreInfoSnapshot, type ScoreSettingsDraft, type SettingsGroup, type SettingsGroupStatus } from "./score-settings-draft";
+import { readScoreSettings, submitSettingsDraft, reconcileEditorSettingsDraft, prepareSettingsSubmission, settingsGroups, settingsKeys, isSettingsGroupDirty, changeScoreSettingsField, acknowledgeScoreInfo, type ScoreSettingsDraft, type SettingsGroup, type SettingsGroupStatus } from "./score-settings-draft";
 import { ScoreSettingsForm, type SettingsCopyRange, type SettingsIssues } from "./ScoreSettingsForm";
 import { MeasureSettingsForm } from "./MeasureSettingsForm";
 import { useEditorDraftRecords } from "../session/EditorSessionRuntime";
@@ -12,7 +11,6 @@ import type { EditorDraftRegistration } from "../session/editor-draft-coordinato
 import { captureEditorVersion, sameEditorSession, sameEditorVersion } from "../session/editor-session-version";
 import { createScoreSettingsComposition } from "./score-settings-composition";
 import { isEditorInputEnter } from "../shared/editor-input-enter";
-import styles from "./ScoreSettingsForm.module.scss";
 
 type SettingsFocusGroup = SettingsGroup | "copy";
 export interface ScoreSettingsStatus {
@@ -26,12 +24,14 @@ export interface ScoreSettingsStatus {
 export interface ScoreSettingsController {
   dirty: boolean;
   isDirty: () => boolean;
+  isProtectedDirty: () => boolean;
   isComposing: () => boolean;
   apply: () => boolean;
   applyGroup: (group: SettingsGroup) => boolean;
   restoreGroup: (group: SettingsGroup) => boolean;
   readStatus: () => ScoreSettingsStatus;
   discard: () => boolean;
+  discardSong: () => boolean;
   focus: (group?: SettingsFocusGroup) => boolean;
   focusField: (field: "label" | "copy") => boolean;
 }
@@ -49,7 +49,7 @@ const buildStatus = (draft: { value: ScoreSettingsDraft; initial: ScoreSettingsD
 };
 
 /** 唯一设置 owner：两个正文 Portal 和动作 Portal 共享值、版本、组合输入和提交闸门。 */
-export const ScoreSettings = ({ ref, document, measureId, requestedMeasureId = measureId, songHost, measureHost, actionsHost, activeSurface, onDirty, onStatus, commit, executeTool, onFocusRequest, onOpen, guardApply, onInfoApplied, onApplySettled }: {
+export const ScoreSettings = ({ ref, document, measureId, requestedMeasureId = measureId, songHost, measureHost, activeSurface, onDirty, onStatus, commit, executeTool, onFocusRequest, onOpen, guardApply, onInfoApplied, onApplySettled }: {
   ref: Ref<ScoreSettingsController>;
   document: ILXMDocument;
   measureId?: string;
@@ -58,7 +58,7 @@ export const ScoreSettings = ({ ref, document, measureId, requestedMeasureId = m
   measureHost?: HTMLElement | null;
   actionsHost?: HTMLElement | null;
   activeSurface?: "song" | "measure" | null;
-  onDirty: (dirty: boolean) => void;
+  onDirty?: (dirty: boolean) => void;
   onStatus?: (status: ScoreSettingsStatus) => void;
   commit: (command: ILXMScoreCommand) => ILXMApplyScoreCommandResult | null;
   executeTool?: EditorCommandAdapter;
@@ -102,7 +102,7 @@ export const ScoreSettings = ({ ref, document, measureId, requestedMeasureId = m
     rendered = fresh(document, requestedMeasureId, state.generation + 1);
   } else if (state.document !== document) {
     const next = readScoreSettings(document, state.measureId);
-    rendered = { ...state, document, ...reconcileSettingsDraft(state.value, state.initial, next, state.conflicts), generation: state.generation + 1 };
+    rendered = { ...state, document, ...reconcileEditorSettingsDraft(state.value, state.initial, next, state.conflicts), generation: state.generation + 1 };
   }
   if (rendered.measureId !== requestedMeasureId && !isSettingsGroupDirty(rendered.value, rendered.initial, "label") && !busy) {
     const next = readScoreSettings(document, requestedMeasureId);
@@ -117,7 +117,7 @@ export const ScoreSettings = ({ ref, document, measureId, requestedMeasureId = m
     let draft = current.current;
     if (snapshot.sessionId !== draft.sessionId || !snapshot.document) return null;
     if (snapshot.document !== draft.document) {
-      draft = { ...draft, document: snapshot.document, ...reconcileSettingsDraft(draft.value, draft.initial, readScoreSettings(snapshot.document, draft.measureId), draft.conflicts), generation: draft.generation + 1 };
+      draft = { ...draft, document: snapshot.document, ...reconcileEditorSettingsDraft(draft.value, draft.initial, readScoreSettings(snapshot.document, draft.measureId), draft.conflicts), generation: draft.generation + 1 };
       publish(draft);
     }
     return draft;
@@ -132,7 +132,7 @@ export const ScoreSettings = ({ ref, document, measureId, requestedMeasureId = m
   const status = useMemo(() => buildStatus(rendered, compositionActive, busy), [rendered, compositionActive, busy]);
   const dirty = settingsGroups.some((group) => status.groups[group].dirty);
   const renderVersion = captureEditorVersion({ ...store.getState(), document });
-  useEffect(() => onDirty(dirty), [dirty, onDirty]);
+  useEffect(() => onDirty?.(dirty), [dirty, onDirty]);
   useEffect(() => { onStatus?.(status); }, [status, onStatus]);
 
   const focus = (requested?: SettingsFocusGroup) => {
@@ -172,6 +172,7 @@ export const ScoreSettings = ({ ref, document, measureId, requestedMeasureId = m
     return next;
   });
   const update = <K extends keyof ScoreSettingsDraft>(key: K, value: ScoreSettingsDraft[K]) => {
+    if (key !== "title" && key !== "arranger" && key !== "capo" && key !== "label") return;
     if (busyRef.current) return;
     const draft = synchronize();
     if (!draft || draft.value[key] === value) return;
@@ -229,7 +230,7 @@ export const ScoreSettings = ({ ref, document, measureId, requestedMeasureId = m
       const result = submitSettingsDraft({ getState: store.getState, commit, value: draft.value, initial: draft.initial, measureId: draft.measureId, group });
       if (!sameEditorSession(store.getState(), expected)) return false;
       const nextDocument = store.getState().document;
-      if (nextDocument) publish({ ...draft, document: nextDocument, ...reconcileSettingsDraft(draft.value, draft.initial, readScoreSettings(nextDocument, draft.measureId), draft.conflicts, result.submittedGroups), generation: draft.generation + 1 });
+      if (nextDocument) publish({ ...draft, document: nextDocument, ...reconcileEditorSettingsDraft(draft.value, draft.initial, readScoreSettings(nextDocument, draft.measureId), draft.conflicts, result.submittedGroups), generation: draft.generation + 1 });
       clearIssues(result.submittedGroups);
       if (result.issue) { setIssues((previous) => ({ ...previous, [result.issue!.group ?? "all"]: result.issue!.message })); store.getState().setErrorMessage(result.issue.message); return false; }
       if (nextDocument && result.submittedGroups.includes("info")) onInfoApplied?.(nextDocument);
@@ -296,8 +297,11 @@ export const ScoreSettings = ({ ref, document, measureId, requestedMeasureId = m
     kind: "settings" as const,
     targetKey: group === "label" ? `${state.sessionId}:${state.measureId ?? "missing"}` : String(state.sessionId),
     label: labels[group], location: group === "label" ? "选区 → 小节" : "歌曲",
-    dirty: status.groups[group].dirty, composing: compositionActive && (status.groups[group].dirty || activeGroup === group), canApply: status.groups[group].canApply,
-    error: status.groups[group].dirty ? issues[group] || status.groups[group].blockedReason : null, version: renderVersion,
+    // 歌曲输入只由区内应用提交，不进入全局草稿确认或批量应用。
+    dirty: group === "label" && status.groups[group].dirty,
+    composing: compositionActive && (status.groups[group].dirty || activeGroup === group),
+    canApply: group === "label" && status.groups[group].canApply,
+    error: group === "label" && status.groups[group].dirty ? issues[group] || status.groups[group].blockedReason : null, version: renderVersion,
     inputKey: `${state.generation}:${group}`,
     focus: () => focus(group), apply: ({ isCurrent }: { isCurrent: () => boolean }) => isCurrent() ? apply(group) ? "applied" as const : "blocked" as const : "stale" as const,
     discard: () => restoreGroup(group),
@@ -314,7 +318,32 @@ export const ScoreSettings = ({ ref, document, measureId, requestedMeasureId = m
     setIssues({});
     return true;
   };
-  useImperativeHandle(ref, () => ({ dirty, isDirty: () => settingsGroups.some((group) => readStatus().groups[group].dirty), isComposing: composition.isComposing, apply: () => apply(), applyGroup: apply, restoreGroup, readStatus, discard, focus, focusField: focus }));
+  const discardSong = () => {
+    if (composition.isComposing() || busyRef.current) return false;
+    const draft = synchronize();
+    if (!draft) return false;
+    const next = readScoreSettings(draft.document, draft.measureId);
+    const value = { ...draft.value }, initial = { ...draft.initial }, conflicts = { ...draft.conflicts };
+    for (const group of ["info", "capo", "signature"] as const) {
+      for (const key of settingsKeys[group]) {
+        Object.assign(value, { [key]: next[key] });
+        Object.assign(initial, { [key]: next[key] });
+      }
+      delete conflicts[group];
+    }
+    publish({ ...draft, value, initial, conflicts, generation: draft.generation + 1 });
+    clearIssues(["info", "capo", "signature"]);
+    return true;
+  };
+  // 收起或离开歌曲表面时放弃未应用输入；组合输入/提交期间仍沿用原闸门。
+  const songWasActive = useRef(activeSurface === "song");
+  useLayoutEffect(() => {
+    const active = activeSurface === "song";
+    if (songWasActive.current && !active && !compositionActive && !busy) {
+      if (discardSong()) songWasActive.current = false;
+    } else if (active) songWasActive.current = true;
+  });
+  useImperativeHandle(ref, () => ({ dirty, isDirty: () => settingsGroups.some((group) => readStatus().groups[group].dirty), isProtectedDirty: () => readStatus().groups.label.dirty, isComposing: composition.isComposing, apply: () => apply(), applyGroup: apply, restoreGroup, readStatus, discard, discardSong, focus, focusField: focus }));
 
   const handleFocusCapture = (event: FocusEvent<HTMLDivElement>) => {
     const group = (event.target as HTMLElement).closest<HTMLElement>("[data-settings-group]")?.dataset.settingsGroup as SettingsFocusGroup | undefined;
@@ -345,21 +374,10 @@ export const ScoreSettings = ({ ref, document, measureId, requestedMeasureId = m
     onKeyDown={handleKeyDown}
     onFocusCapture={handleFocusCapture}
   >{children}</div>;
-  const props = { document, value: rendered.value, composing: compositionActive, busy, issues, groups: status.groups, inlineActions: !actionsHost, onChange: update, onApply: apply, onRestore: restoreGroup };
-  const song = surface("song", <ScoreSettingsForm {...props} measureId={requestedMeasureId} onEditMeasure={() => focus("label")} infoConflict={rendered.conflicts.info ? { previous: scoreInfoSnapshot(rendered.initial), current: scoreInfoSnapshot(readScoreSettings(document, rendered.measureId)) } : undefined} onAcknowledgeInfo={acknowledgeInfo} />);
+  const props = { document, value: rendered.value, composing: compositionActive, busy, issues, groups: status.groups, onChange: update, onApply: apply, onRestore: restoreGroup };
+  const infoText = (value: ScoreSettingsDraft) => ({ title: value.title, arranger: value.arranger });
+  const song = surface("song", <ScoreSettingsForm {...props} infoConflict={rendered.conflicts.info ? { previous: infoText(rendered.initial), current: infoText(readScoreSettings(document, rendered.measureId)) } : undefined} onAcknowledgeInfo={acknowledgeInfo} />);
   const measure = surface("measure", <MeasureSettingsForm {...props} measureId={rendered.measureId} selectedMeasureId={requestedMeasureId} dirty={dirty} copy={copy} onCopyChange={(next) => { if (!busyRef.current) { setCopy(next); setIssues((previous) => ({ ...previous, copy: undefined })); } }} onCopy={copyMeasures} onLabelBlur={saveLabelOnBlur} />);
   const portalMode = songHost !== undefined || measureHost !== undefined;
-  const actionGroup: SettingsGroup = activeSurface === "measure" ? "label" : activeGroup === "copy" || activeGroup === "label" ? "info" : activeGroup;
-  const actionStatus = status.groups[actionGroup];
-  // 小节标记自动保存，范围复制在范围区内确认；底部只承载歌曲分组操作。
-  const actions = activeSurface === "song" && actionsHost ? createPortal(surface("actions", <div className={styles.footer} aria-label="设置操作">
-    <div className={styles.actionState} role="status"><strong>{labels[actionGroup]}</strong><span>{actionStatus.dirty ? "有未应用的修改" : "已应用到曲谱"}</span></div>
-    {(issues[actionGroup] || actionStatus.blockedReason) && <Alert type="error" title={issues[actionGroup] || actionStatus.blockedReason} />}
-    <div className={styles.footerActions}>
-      <Button disabled={!actionStatus.dirty || busy || compositionActive} onClick={() => restoreGroup(actionGroup)}>恢复本组</Button>
-      <Button type="primary" disabled={!actionStatus.canApply} onClick={() => apply(actionGroup)}>应用{labels[actionGroup]}</Button>
-    </div>
-    {settingsGroups.some((group) => group !== actionGroup && status.groups[group].dirty) && <div className={styles.otherGroups}>{settingsGroups.filter((group) => group !== actionGroup && status.groups[group].dirty).map((group) => <Button key={group} type="link" onClick={() => focus(group)}>{labels[group]}未应用</Button>)}</div>}
-  </div>), actionsHost) : null;
-  return <>{portalMode ? <>{songHost && createPortal(song, songHost)}{measureHost && createPortal(measure, measureHost)}</> : <>{song}{measure}</>}{actions}</>;
+  return <>{portalMode ? <>{songHost && createPortal(song, songHost)}{measureHost && createPortal(measure, measureHost)}</> : <>{song}{measure}</>}</>;
 };

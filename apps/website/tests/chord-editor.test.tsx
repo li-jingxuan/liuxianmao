@@ -170,7 +170,7 @@ describe("和弦草稿编辑布局", () => {
     expect(html).not.toContain('aria-label="更多和弦"');
     expect(html).toContain("更多配置");
     expect(html).not.toContain("更多 ⌄");
-    expect(html).toContain("确认曲谱调性后显示本调推荐");
+    expect(html).toContain("曲谱调性未确认，可在和弦库中临时选择调性浏览");
     expect(html).toContain("和弦库加载中");
     expect(value.onChange).not.toHaveBeenCalled();
   });

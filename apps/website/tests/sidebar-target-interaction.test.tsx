@@ -109,7 +109,7 @@ const renderSidebar = (selected: boolean, tab?: "chord" | "song", numbered = fal
     const settings = find(tree, (value) => "activeSurface" in value);
     expect(settings?.activeSurface).toBe(activeSurface);
     const actions = find(tree, (value) => "data-editor-actions-host" in value);
-    expect(actions?.hidden).toBe(activeSurface !== "song");
+    expect(actions).toBeNull();
     return tree;
   };
   return renderToStaticMarkup(<EditorStoreContext.Provider value={{ ...session, getInitialState: session.getState }}><EditorSessionRuntime session={session}><Harness /></EditorSessionRuntime></EditorStoreContext.Provider>);
@@ -124,7 +124,7 @@ describe("侧栏浏览与显式编辑分离", () => {
     expect(markup).not.toContain('aria-label="音符属性详情"');
   });
 
-  it("歌曲保留设置底栏，小节复制使用区内确认并隐藏设置底栏", () => {
+  it("歌曲移除设置底栏，小节复制继续使用区内确认", () => {
     renderSidebar(false, "song");
     renderSidebar(true, undefined, false, "measure");
   });

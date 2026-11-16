@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { EXAMPLE_MVP_7_2_DOCUMENT, LXMScoreCommandEnum, type ILXMScoreCommand } from "@liuxianmao/lxm-editor";
+import { EXAMPLE_MVP_7_2_DOCUMENT, keySignatureForTonality, LXMScoreCommandEnum, type ILXMScoreCommand, type ScoreTonalityV1 } from "@liuxianmao/lxm-editor";
 import { ScoreSettings, type ScoreSettingsController } from "../components/EditorShell/settings/ScoreSettings";
 import { MeasureToolDetails } from "../components/EditorShell/tools/MeasureToolDetails";
 import { EditorSessionRuntime, useEditorRuntime } from "../components/EditorShell/session/EditorSessionRuntime";
@@ -25,7 +25,6 @@ const Harness = () => {
   const measureController = useRef<{ focusBoundary: () => boolean }>(null);
   const [songHost, setSongHost] = useState<HTMLDivElement | null>(null);
   const [measureHost, setMeasureHost] = useState<HTMLDivElement | null>(null);
-  const [actionsHost, setActionsHost] = useState<HTMLDivElement | null>(null);
   const [activeSurface, setSurface] = useState<"song" | "measure" | null>("song");
   const [requestedMeasureId, setMeasure] = useState(measureIds[0]);
   useEffect(() => {
@@ -38,14 +37,18 @@ const Harness = () => {
       hooks: () => ({ guards, infoApplied, settled }),
       restore: (group: "info" | "label" | "capo" | "signature") => controller.current!.restoreGroup(group),
       focus: (group: "info" | "label" | "copy" | "capo") => controller.current!.focus(group),
-      discard: () => controller.current!.discard(),
-      pending: () => runtime.drafts.inspect().pending.map((record) => ({ label: record.label, dirty: record.dirty })),
+       discard: () => controller.current!.discard(),
+       discardSong: () => controller.current!.discardSong(),
+       protectedDirty: () => controller.current!.isProtectedDirty(),
+       pending: () => runtime.drafts.inspect().pending.map((record) => ({ label: record.label, dirty: record.dirty, composing: record.composing, canApply: record.canApply })),
+       discardAll: () => runtime.drafts.request({ type: "discardAll" }),
       surface: setSurface,
       measure: (index: number) => setMeasure(measureIds[index]),
       commands: () => commands,
       document: () => session.getState().document,
       history: () => session.getState().historyDepth.past,
       external: (title: string) => session.getState().execute({ type: LXMScoreCommandEnum.SetNotationInfo, title, arranger: session.getState().document!.score.arranger, keySignature: session.getState().document!.score.keySignature }),
+      externalTonality: (tonality: ScoreTonalityV1) => session.getState().execute({ type: LXMScoreCommandEnum.SetScoreInfo, title: session.getState().document!.score.title, arranger: session.getState().document!.score.arranger, keySignature: keySignatureForTonality(tonality), tonality }),
       externalCapo: (capo: number) => session.getState().execute({ type: LXMScoreCommandEnum.SetCapo, trackId, capo }),
       externalLabel: (label: string) => session.getState().execute({ type: LXMScoreCommandEnum.SetSectionLabel, trackId, measureId: requestedMeasureId!, label }),
       remove: () => session.getState().execute({ type: LXMScoreCommandEnum.RemoveMeasure, trackId, measureId: requestedMeasureId! }),
@@ -56,8 +59,7 @@ const Harness = () => {
   return <>
     <div hidden={activeSurface !== "song"}><div ref={setSongHost} /></div>
     <div hidden={activeSurface !== "measure"}><MeasureToolDetails ref={measureController} document={document} selection={null} target={{ trackId, measureId: requestedMeasureId! }} blocked={false} onAction={async () => false} navigate={noop} measureHost={setMeasureHost} /></div>
-    <div ref={setActionsHost} />
-    <ScoreSettings ref={controller} document={document} requestedMeasureId={requestedMeasureId} songHost={songHost} measureHost={measureHost} actionsHost={actionsHost} activeSurface={activeSurface} onDirty={noop} onFocusRequest={(group) => { setSurface(group === "label" || group === "copy" ? "measure" : "song"); return true; }} guardApply={(group, identity) => { guards.push({ group, liveOwner: !!identity && typeof identity.owner.token === "symbol" && identity.generation === identity.owner.generation }); return allowedGroups === "all" || group === "info"; }} onInfoApplied={(document) => infoApplied.push(document.documentRevision)} onApplySettled={(group) => { settled.push(group); }} executeTool={(command) => { commands.push(command); return new Promise((resolve) => { finishCopy = resolve; }); }} commit={(command) => { commands.push(command); return session.getState().execute(command); }} />
+    <ScoreSettings ref={controller} document={document} requestedMeasureId={requestedMeasureId} songHost={songHost} measureHost={measureHost} activeSurface={activeSurface} onDirty={noop} onFocusRequest={(group) => { setSurface(group === "label" || group === "copy" ? "measure" : "song"); return true; }} guardApply={(group, identity) => { guards.push({ group, liveOwner: !!identity && typeof identity.owner.token === "symbol" && identity.generation === identity.owner.generation }); return allowedGroups === "all" || group === "info"; }} onInfoApplied={(document) => infoApplied.push(document.documentRevision)} onApplySettled={(group) => { settled.push(group); }} executeTool={(command) => { commands.push(command); return new Promise((resolve) => { finishCopy = resolve; }); }} commit={(command) => { commands.push(command); return session.getState().execute(command); }} />
   </>;
 };
 createRoot(globalThis.document.getElementById("root")!).render(<EditorStoreContext.Provider value={session}><EditorSessionRuntime session={session}><Harness /></EditorSessionRuntime></EditorStoreContext.Provider>);

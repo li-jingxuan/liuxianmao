@@ -6,17 +6,20 @@ import {
 } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Button, Dropdown, Input } from "antd";
+import { CURRENT_SCHEMA_VERSION, SCORE_DOCUMENT_SCHEMA, type ILXMDocument } from "@liuxianmao/lxm-editor";
 import { ChordPresetControls } from "../components/EditorShell/chords/ChordPresetControls";
 
 const harness = vi.hoisted(() => ({
   effects: [] as (() => void | (() => void))[],
   refs: [] as { current: unknown }[],
   refsIndex: 0,
+  stateIndex: 0,
+  text: "",
 }));
 vi.mock("react", async (original) => ({
   ...(await original<typeof import("react")>()),
   useState: <T,>(initial: T | (() => T)) => [
-    typeof initial === "function" ? (initial as () => T)() : initial,
+    harness.stateIndex++ === 1 ? harness.text : typeof initial === "function" ? (initial as () => T)() : initial,
     vi.fn(),
   ],
   useMemo: <T,>(factory: () => T) => factory(),
@@ -53,10 +56,17 @@ const key = (value: string, extra: Record<string, unknown> = {}) => ({
   stopPropagation: vi.fn(),
   ...extra,
 });
-function view() {
+const committed = (tonic: string | null, mode: "major" | "minor" = "major"): ILXMDocument => ({
+  schema: SCORE_DOCUMENT_SCHEMA, schemaVersion: CURRENT_SCHEMA_VERSION, documentRevision: 0,
+  score: { id: "score", title: "song", arranger: "", keySignature: "C", tracks: [],
+    meta: tonic ? { "lxm:tonality": { version: 1, tonic, mode, ...(mode === "minor" ? { minorTonicDegree: 6 } : {}) } } : {} },
+});
+function view(options: { document?: ILXMDocument; text?: string } = {}) {
   harness.effects = [];
   harness.refs = [];
   harness.refsIndex = 0;
+  harness.stateIndex = 0;
+  harness.text = options.text ?? "";
   const onOpenLibrary = vi.fn(),
     onOpenSettings = vi.fn();
   const tree = ChordPresetControls({
@@ -67,6 +77,7 @@ function view() {
     menuOpen: true,
     onOpenLibrary,
     onOpenSettings,
+    document: options.document,
   });
   const elements = descendants(tree),
     dropdown = elements.find((element) => element.type === Dropdown)!;
@@ -100,6 +111,23 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 describe("更多和弦键盘交互", () => {
+  it.each([
+    [committed("C"), "", "C大调·和弦推荐"],
+    [committed("A", "minor"), "", "A小调·和弦推荐"],
+    [committed(null), "", "常用和弦推荐"],
+    [undefined, "", "常用和弦推荐"],
+    [committed("C"), "Bm", "搜索结果"],
+    [committed(null), "Bm", "搜索结果"],
+    [committed("C"), "  ", "C大调·和弦推荐"],
+  ])("更多主标题根据已提交调性和搜索显示，移除设置行 %#", (document, text, title) => {
+    const value = view({ document, text });
+    expect(value.nodes.filter(node => node.type === "strong").map(node => node.props.children)).toEqual([title]);
+    const allNodes = [...descendants(value.tree), ...value.nodes];
+    expect(allNodes.some(node => node.type === Button && node.props.children === "设置调性")).toBe(false);
+    expect(allNodes.some(node => node.type === "strong" && String(node.props.children).startsWith("曲谱"))).toBe(false);
+    expect(value.nodes.find(node => node.props["aria-label"] === "和弦库")).toBeDefined();
+    expect(value.onOpenSettings).not.toHaveBeenCalled();
+  });
   it("搜索 Enter 只阻止默认行为，箭头将焦点明确移动到可选按钮", () => {
     const value = view(),
       event = key("Enter");

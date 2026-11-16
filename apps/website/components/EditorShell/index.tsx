@@ -988,14 +988,17 @@ export const EditorShell: React.FC = () => {
       : [],
   );
 
-  // 输出和离开页面共用即时检查：已登记草稿之外，还要覆盖品位延迟提交、
-  // 文字编辑控制器和仍占用会话的弹层。这里仅判断，不自动应用或丢弃输入。
-  const isOutputBlocked = () =>
-    !!imageExportSnapshot ||
-    modals.isOpen() ||
-    drafts.isOutputBlocked() ||
-    !!fretDraft ||
-    !!musicTextController.current?.isOutputBlocked();
+  // 输出和离开页面先丢弃歌曲未应用输入；其他草稿继续走原有即时检查。
+  const isOutputBlocked = () => {
+    if (musicTextController.current?.discardSong() === false) return true;
+    return (
+      !!imageExportSnapshot ||
+      modals.isOpen() ||
+      drafts.isOutputBlocked() ||
+      !!fretDraft ||
+      !!musicTextController.current?.isOutputBlocked()
+    );
+  };
 
   /** 使用 SVG CTM 完成 client 坐标到 layout 逻辑坐标的唯一转换。 */
   const getLayoutPoint = (

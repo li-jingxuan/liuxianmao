@@ -50,7 +50,7 @@ type Selection = {
 
 /** The Runtime owns the transaction and Modal; selection here only stages a draft. */
 export const ChordLibraryModal = ({
-  draft, document, tuning, presetsEnabled, initialTab = "all", onConfirm, onCancel, onOpenCustom, onOpenSettings,
+  draft, document, tuning, presetsEnabled, initialTab = "all", onConfirm, onCancel, onOpenCustom,
   cancelLabel = "取消", confirmLabel = "选用此指法",
 }: ChordLibraryModalProps) => {
   const resource = useChordCatalog();
@@ -107,7 +107,19 @@ export const ChordLibraryModal = ({
   const selectedMatch = selected?.match ? fullBrowse?.items.find(match => match.item.id === selected.identityId) : undefined;
   const selectedName = selectedMatch?.name ?? selected?.name;
   const selectedChord = selected ? { ...selected.chord, name: selectedName! } : undefined;
-  const groups = query?.groups ?? [];
+  const classified = !text.trim() && rootPc === undefined && quality === undefined;
+  const tonal = catalog && key ? queryChordCatalog(catalog, { key }) : null;
+  // Restore tonal families while keeping the full catalog's spelling and degree metadata.
+  const tonalGroups = tonal?.groups.flatMap(group => group.id === "natural" ? [
+    { id: "triads", label: `${key?.tonicSpelling} ${key?.mode === "major" ? "大调" : "小调"} · 自然三和弦`, items: group.items.filter(match => ["major", "m", "dim"].includes(match.item.quality)) },
+    { id: "sevenths", label: "七和弦", items: group.items.filter(match => !["major", "m", "dim"].includes(match.item.quality)) },
+  ] : [group]) ?? [];
+  const classifiedIds = new Set(tonal?.items.map(match => match.item.id));
+  const browseMatches = new Map(fullBrowse?.items.map(match => [match.item.id, match]));
+  const groups = classified ? [
+    ...tonalGroups.map(group => ({ ...group, items: group.items.map(match => browseMatches.get(match.item.id) ?? match) })),
+    { id: "other", label: key ? "其他和弦" : "全部和弦", items: (query?.items ?? []).filter(match => !classifiedIds.has(match.item.id)) },
+  ] : [{ id: "search", label: "全部和弦搜索结果", items: query?.items ?? [] }];
   const customs = preferences.customVoicings.filter(c => !text.trim() || c.name.toLowerCase().includes(text.trim().toLowerCase()));
   const cards = (items: ChordCatalogMatch[]) => items.map(match => <Button
     key={match.item.id} className={styles.chordCard}
@@ -153,7 +165,6 @@ export const ChordLibraryModal = ({
           onChange={mode => { if (key) setBrowseKey({ ...key, mode }); }} />
         <span className={styles.help}>{tonality.title}</span>
         {browse && <Button type="link" disabled={composing} onClick={() => { if (!busy()) setBrowse(null); }}>跟随曲谱</Button>}
-        {tonality.kind !== "confirmed" && onOpenSettings && <Button type="link" disabled={composing} onClick={() => { if (!busy()) onOpenSettings(); }}>设置曲谱调性</Button>}
         {catalog && <span className={styles.resultCount}>{query?.items.length ?? 0} / {catalog.items.length} 项</span>}
       </div>}
       <div className={styles.workspace} role="region" aria-label={tab === "all" ? "全部和弦" : "我的指法"}>
@@ -164,7 +175,7 @@ export const ChordLibraryModal = ({
           {tab === "all" ? <div aria-label="和弦候选">
             {tonality.kind !== "confirmed" && !browse && <p className={styles.help}>大小调未确认，暂停本调推荐；可浏览全部和弦或临时选择调性。</p>}
             {!systemEnabled && <p className={styles.help}>当前为非标准调弦，系统指法仅供查看。</p>}
-            {groups.map(group => <section className={styles.resultSection} key={group.id} data-root={group.rootSpelling}>
+            {groups.filter(group => group.items.length).map(group => <section className={styles.resultSection} key={group.id}>
               <div className={styles.sectionHeading}><h4>{group.label}</h4><span className={styles.help}>{group.items.length} 项</span></div>
               <div className={styles.candidates}>{cards(group.items)}</div>
             </section>)}
