@@ -101,7 +101,8 @@ import type {
 import type { EditorCommandAdapter } from "../session/editor-command-adapter";
 import { NoteToolDetails } from "../tools/NoteToolDetails";
 import { MeasureToolDetails } from "../tools/MeasureToolDetails";
-import { TupletToolDetails } from "../tools/TupletToolDetails";
+import { TupletToolbar } from "../tools/TupletToolbar";
+import { SidebarRhythmPatternPanel } from "../tools/RhythmPatternPanel";
 import { resolveParagraphInsertionTarget, resolveParagraphLyricTarget } from "./music-text-target";
 
 export type ParagraphEditingSession = {
@@ -213,7 +214,7 @@ export const MusicTextSidebar = ({
   // 一级栏目只负责组织界面；真实业务目标仍由 kind 和现有草稿闸门维护。
   const [propertyTab, setPropertyTab] = useState<PropertyTab>("selection");
   const [selectionDetail, setSelectionDetail] =
-    useState<"note" | "measure" | "tuplet">("note");
+    useState<"note" | "measure">("note");
   const [detailTarget, setDetailTarget] = useState<MeasureToolTarget>();
   const [detailFocus, setDetailFocus] = useState(0);
   const [selectionToolsRequested, setSelectionToolsRequested] = useState(false);
@@ -680,7 +681,7 @@ export const MusicTextSidebar = ({
           action.destination === "section" ? "label" : "copy";
       } else {
         setPropertyTab("selection");
-        setSelectionDetail(action.destination === "barline" ? "measure" : action.destination);
+        setSelectionDetail(action.destination === "barline" ? "measure" : action.destination === "tuplet" ? "note" : action.destination);
       }
       setDetailFocus((value) => value + 1);
       onExpandSidebar();
@@ -822,7 +823,7 @@ export const MusicTextSidebar = ({
     }
     if (action.type === "tool" && propertyTab === "selection") {
       const destination = action.destination === "barline" || action.destination === "section" || action.destination === "copy"
-        ? "measure" : action.destination;
+        ? "measure" : action.destination === "tuplet" ? "note" : action.destination;
       const bound = settingsRef.current?.readStatus().measureId;
       const sameMeasure = !action.target || (action.target.measureId === (bound ?? detailTarget?.measureId ?? numberedSelection?.measureId ?? selection?.focus.measureId) &&
         action.target.trackId === (detailTarget?.trackId ?? numberedSelection?.trackId ?? selection?.focus.trackId));
@@ -1985,14 +1986,17 @@ export const MusicTextSidebar = ({
             inert={propertyTab !== "selection"}
           >
             {showSelectionInvitation ? (
+              <>
               <div className={musicTextSidebarStyles.sidebarEmpty}>
                 <div className={musicTextSidebarStyles.emptyIllustration} aria-hidden="true"><svg viewBox="0 0 110 70"><path d="M8 18h94M8 28h94M8 38h94M8 48h94M8 58h94" /><rect x="36" y="12" width="28" height="51" rx="5" /><path d="M50 28v20m-10-10h20" /></svg></div>
                 <p>点击谱面中的音符或小节开始编辑</p>
               </div>
+              <SidebarRhythmPatternPanel />
+              </>
             ) : score && onToolAction && executeTool ? (
               <>
                 <Segmented className={musicTextSidebarStyles.selectionTaskTabs} block aria-label="选区任务" value={selectionDetail}
-                  options={[{value:"note",label:"音符"},{value:"measure",label:"小节"},{value:"tuplet",label:"连音"}]}
+                  options={[{value:"note",label:"音符"},{value:"measure",label:"小节"}]}
                   onChange={(destination) => {
                     const state = editorStore.getState();
                     request({ type: "tool", kind: "score", destination: destination as ToolNavigation,
@@ -2012,7 +2016,15 @@ export const MusicTextSidebar = ({
                     selection={selection}
                     blocked={editing}
                     onAction={onToolAction}
+                    tupletTools={<section className={musicTextSidebarStyles.inlineTupletTools} aria-label="连音">
+                      <h3>连音</h3>
+                      <TupletToolbar document={score} selection={numberedSelection ? null : selection}
+                        presentation="sidebar" execute={executeTool} blocked={editing}
+                        blockedReason={numberedSelection ? "简谱暂不支持连音，请选择 TAB 同小节内连续拍点。" : undefined}
+                        onSuccess={onScoreFocus} />
+                    </section>}
                   />
+                  <SidebarRhythmPatternPanel />
                 </div>
                 <div
                   data-selection-detail="measure"
@@ -2043,25 +2055,6 @@ export const MusicTextSidebar = ({
                         sessionVersion: editorStore.getState().sessionVersion,
                       })
                     }
-                  />
-                </div>
-                <div
-                  data-selection-detail="tuplet"
-                  hidden={selectionDetail !== "tuplet"}
-                >
-                  <TupletToolDetails
-                    document={score}
-                    selection={selection}
-                    numberedSelection={numberedSelection}
-                    onEditNumberedRhythm={(target) => {
-                      if (request({ type: "target", target }) === "accepted") {
-                        surfaceFocusGroup.current = "rhythm";
-                        onExpandSidebar();
-                        requestAnimationFrame(() => numberedRef.current?.focus("rhythm"));
-                      }
-                    }}
-                    blocked={editing}
-                    execute={executeTool}
                   />
                 </div>
               </>

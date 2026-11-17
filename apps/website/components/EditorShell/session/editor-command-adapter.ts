@@ -207,6 +207,17 @@ export const createEditorCommandAdapter =
           status: "blocked",
           message: preview.message,
         };
+      if (command.type === LXMScoreCommandEnum.RemoveMeasure &&
+        submission?.confirmedMeasureRemoval && submission.isCurrent) {
+        const reason = currentReason();
+        if (reason) return { status: "stale", message: reason };
+        const next = session.getState().execute(confirmedCommand);
+        if (!sameEditorSession(session.getState(), snapshot))
+          return { status: "stale", message: "编辑会话已变化。" };
+        if (!next?.ok)
+          return { status: "blocked", message: next?.message ?? "当前无法提交修改。" };
+        return { status: next.changed ? "applied" : "noop", result: next };
+      }
       return new Promise<EditorCommandResult>((resolve) => {
         let outcome: EditorCommandResult | null = null;
         const effectCount = preview.effects?.length ?? 0;

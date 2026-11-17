@@ -1,10 +1,9 @@
 "use client";
-import { Alert, Button, Form, Select, Tooltip } from "antd";
+import { Alert, Button, Form, Select } from "antd";
 import { useCallback, useImperativeHandle, useLayoutEffect, useRef, useState, type Ref } from "react";
 import { createPortal } from "react-dom";
 import {
   LXM_EDITABLE_TIME_SIGNATURES,
-  type ILXMBarlineType,
   type ILXMDocument,
   type ILXMTabCellSelection,
 } from "@liuxianmao/lxm-editor";
@@ -16,43 +15,10 @@ import type {
 import type { ToolNavigation } from "./editor-tool-catalog";
 import editorFormStyles from "../shared/editor-form.module.scss";
 import taskStyles from "../shared/SelectionTaskDetails.module.scss";
-export const BARLINES: { value: ILXMBarlineType; label: string }[] = [
-  { value: "single", label: "单小节线" },
-  { value: "double", label: "双小节线" },
-  { value: "final", label: "终止线" },
-  { value: "repeatStart", label: "开始反复线" },
-  { value: "repeatEnd", label: "结束反复线" },
-  { value: "repeatBoth", label: "双向反复线" },
-];
-/** 边界示意图只用于控件辨识；谱面边界仍完全由核心 scene 绘制。 */
-const BarlineSymbol = ({ value }: { value: ILXMBarlineType }) => (
-  <svg width="30" height="24" viewBox="0 0 30 24" aria-hidden="true">
-    <path
-      d="M12 2V22"
-      stroke="currentColor"
-      strokeWidth={value === "repeatStart" || value === "repeatBoth" ? 3 : 1}
-    />
-    {value !== "single" && (
-      <path
-        d="M18 2V22"
-        stroke="currentColor"
-        strokeWidth={value === "final" || value === "repeatEnd" ? 3 : 1}
-      />
-    )}
-    {(value === "repeatEnd" || value === "repeatBoth") && (
-      <>
-        <circle cx="7" cy="9" r="1.5" fill="currentColor" />
-        <circle cx="7" cy="15" r="1.5" fill="currentColor" />
-      </>
-    )}
-    {(value === "repeatStart" || value === "repeatBoth") && (
-      <>
-        <circle cx="24" cy="9" r="1.5" fill="currentColor" />
-        <circle cx="24" cy="15" r="1.5" fill="currentColor" />
-      </>
-    )}
-  </svg>
-);
+import { MeasureBoundary } from "./MeasureBoundary";
+import { MeasureActions } from "./MeasureActions";
+import measureStyles from "./MeasureControls.module.scss";
+export { BARLINES } from "./MeasureBoundary";
 
 /** 立即生效的小节工具与设置 owner 的常驻局部表面共用任务区。 */
 export const MeasureToolDetails = ({
@@ -81,7 +47,7 @@ export const MeasureToolDetails = ({
     const root = boundaryRoot.current;
     if (!root) return false;
     root.scrollIntoView({ block: "nearest" });
-    root.querySelector<HTMLElement>("h3")?.focus({ preventScroll: true });
+    root.querySelector<HTMLElement>("button:not(:disabled), [tabindex='0']")?.focus({ preventScroll: true });
     return true;
   }, []);
   useImperativeHandle(ref, () => ({ focusBoundary: () => {
@@ -132,68 +98,11 @@ export const MeasureToolDetails = ({
       disabled: true,
     });
   const atEnd = index === (track?.measures.length ?? 0) - 1;
-  const boundaryTools = track && measure ? <div className={taskStyles.boundaryBody}>
-      <div
-        className={taskStyles.barlinePicker}
-        role="group"
-        aria-label="六类小节线"
-      >
-        {BARLINES.map((barline) => {
-          const unavailable =
-            atEnd &&
-            (barline.value === "repeatStart" || barline.value === "repeatBoth");
-          const disabled = blocked || unavailable;
-          const reason = unavailable ? "谱尾右边界没有下一小节，不能开始反复"
-            : blocked ? "请先完成当前编辑或等待提交结束" : null;
-          return (
-            <Tooltip
-              key={barline.value}
-              trigger={["hover", "focus"]}
-              title={`${barline.label}${reason ? `：${reason}` : ""}`}
-            >
-              {/* 原生 disabled 保留命令保护；外层焦点让键盘也能查看禁用原因。 */}
-              <span className={taskStyles.symbolWrapper} tabIndex={disabled ? 0 : undefined} aria-label={disabled ? `${barline.label}：${reason}` : undefined}>
-                <Button
-                  block
-                  disabled={disabled}
-                  aria-label={barline.label}
-                  aria-pressed={measure.barline === barline.value}
-                  color={
-                    measure.barline === barline.value ? "primary" : "default"
-                  }
-                  variant={
-                    measure.barline === barline.value ? "filled" : "outlined"
-                  }
-                  icon={<BarlineSymbol value={barline.value} />}
-                  onClick={() =>
-                    void onAction({
-                      type: "barline",
-                      value: barline.value,
-                      target,
-                    })
-                  }
-                />
-              </span>
-            </Tooltip>
-          );
-        })}
-      </div>
-      <Button
-        block
-        disabled={blocked || index !== 0}
-        aria-pressed={track.startBarline === "repeatStart"}
-        onClick={() => void onAction({ type: "startRepeat", target })}
-      >
-        谱首开始反复：{track.startBarline === "repeatStart" ? "开" : "关"}
-      </Button>
-      {index !== 0 && <p data-editor-form-hint className={editorFormStyles.settingsHint}>{tools.startRepeat.reason || "谱首反复仅对第一小节可用。"}</p>}
-    </div> : null;
-  const boundary = <section ref={boundaryRoot} className={taskStyles.boundarySection} aria-label="小节线与反复">
-    <div className={taskStyles.sectionHeading}>
-      <h3 tabIndex={-1}>小节线与反复</h3>
-      <span>{BARLINES.find((item) => item.value === measure?.barline)?.label ?? "未选择"}</span>
-    </div>
-    {boundaryTools}
+  const currentTarget = track && measure ? { trackId: track.id, measureId: measure.id } : undefined;
+  const boundary = <section ref={boundaryRoot} className={measureStyles.sidebarControls} aria-label="小节线与反复">
+    <MeasureBoundary document={document} target={currentTarget} blocked={blocked} onAction={onAction} />
+    <MeasureActions document={document} target={currentTarget} blocked={blocked} onAction={onAction}
+      getTargetIdentity={() => JSON.stringify({ selection, target: currentTarget })} />
   </section>;
   return (
     <section className={`${taskStyles.noteDetails} ${taskStyles.measureDetails}`} aria-label="小节属性详情">

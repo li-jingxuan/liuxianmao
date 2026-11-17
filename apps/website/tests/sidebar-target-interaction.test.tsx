@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { EXAMPLE_MVP_6_DOCUMENT, type ILXMScoreCommand } from "@liuxianmao/lxm-editor";
 import { TupletToolDetails } from "../components/EditorShell/tools/TupletToolDetails";
 import { NoteToolDetails } from "../components/EditorShell/tools/NoteToolDetails";
-import { MeasureToolDetails } from "../components/EditorShell/tools/MeasureToolDetails";
+import { MeasureBoundary } from "../components/EditorShell/tools/MeasureBoundary";
 import { MusicTextSidebar } from "../components/EditorShell/music-text/MusicTextSidebar";
 import { EditorSessionRuntime } from "../components/EditorShell/session/EditorSessionRuntime";
 import { createEditorSession } from "../stores/editor-store";
@@ -195,11 +195,11 @@ describe("紧凑选区详情的即时命令", () => {
   });
 
   it("末小节仅禁用开始/双向反复，符号保留名字与选中态", () => {
-    const { document, track, selection } = fixture();
+    const { document, track } = fixture();
     const measure = track.measures.at(-1)!;
     const action = vi.fn(async () => true);
     const Harness = () => {
-      const tree = MeasureToolDetails({ document, selection, target: { trackId: track.id, measureId: measure.id }, blocked: false, onAction: action, navigate: () => {} });
+      const tree = MeasureBoundary({ document, target: { trackId: track.id, measureId: measure.id }, blocked: false, onAction: action });
       for (const label of ["开始反复线", "双向反复线"]) expect(find(tree, (props) => props["aria-label"] === label)?.disabled).toBe(true);
       const single = find(tree, (props) => props["aria-label"] === "单小节线");
       expect(single?.disabled).toBe(false);

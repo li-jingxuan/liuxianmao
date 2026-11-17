@@ -1,5 +1,5 @@
 "use client";
-import { Button, Popover } from "antd";
+import { Button, Popover, Tooltip } from "antd";
 import { DownOutlined } from "@ant-design/icons";
 import {
   useEffect,
@@ -14,9 +14,10 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { TOOL_GROUPS, type ToolGroupId } from "./editor-tool-catalog";
-import editorFormStyles from "../shared/editor-form.module.scss";
 import editorToolPanelStyles from "../shared/editor-tool-panel.module.scss";
 import { EditorToolSymbolButton, TechniqueSymbol } from "./EditorToolSymbolButton";
+import { TupletSymbol } from "./TupletToolbar";
+import { BarlineSymbol } from "./MeasureBoundary";
 import type { TechniqueIntent } from "./editor-technique-target";
 import toolbarStyles from "../workspace/EditorToolbar.module.scss";
 
@@ -32,7 +33,6 @@ export const EditorToolPanelHost = ({
   children,
   beforeOpen,
   blocked,
-  reason,
   canHide,
   subscribeProtection,
   onTechniqueIntent,
@@ -112,7 +112,7 @@ export const EditorToolPanelHost = ({
     const anchor = visibleTrigger(group)?.getBoundingClientRect();
     if (!editor || !anchor) return;
     const bounds = editor.getBoundingClientRect();
-    const width = Math.min(group === "beat" && !moreMenu ? 724 : (group === "measure" ? 262 : group === "tuplet" ? 300 : 360) + 32,
+    const width = Math.min(group === "beat" && !moreMenu ? 724 : group === "measure" ? 410 : group === "tuplet" ? 300 : 392,
       Math.max(0, bounds.width - 16), window.innerWidth - 16);
     const minLeft = Math.max(8, bounds.left + 8);
     const maxRight = Math.min(window.innerWidth - 8, bounds.right - 8);
@@ -253,16 +253,11 @@ export const EditorToolPanelHost = ({
           }}
         >
           <div className={`${editorToolPanelStyles.toolPanelHost} ${toolbarStyles.popupContent}`} style={{ maxHeight: geometry.maxHeight, ...(group === "beat" && !moreMenu ? { padding: 0 } : {}) }}>
-          {(moreMenu || group !== "beat") && <h3>{moreMenu ? "更多工具" : `${TOOL_GROUPS.find((item) => item.id === group)!.label}工具`}</h3>}
+          {moreMenu && <h3>更多工具</h3>}
           {moreMenu && <div className={editorToolPanelStyles.toolMenu}>
             {TOOL_GROUPS.filter((item) => item.id !== "technique").map((item) =>
               <Button key={item.id} block onClick={() => show(item.id)}>{item.label}工具</Button>)}
           </div>}
-          {reason && (moreMenu || group !== "beat") && (
-            <p role="status" data-editor-form-hint className={editorFormStyles.settingsHint}>
-              {reason}
-            </p>
-          )}
           {TOOL_GROUPS.map((item) => (
             <div
               key={item.id}
@@ -270,7 +265,7 @@ export const EditorToolPanelHost = ({
               hidden={moreMenu || group !== item.id}
               inert={moreMenu || group !== item.id}
             >
-              {item.id === "beat" ? open && group === "beat" && !moreMenu ? children.beat : null : children[item.id]}
+              {item.id === "technique" ? children[item.id] : open && group === item.id && !moreMenu ? children[item.id] : null}
             </div>
           ))}
           </div>
@@ -322,15 +317,15 @@ export const EditorToolPanelHost = ({
           }
         }}
       >
-        {[...TOOL_GROUPS.filter((item) => item.id === "technique"), ...TOOL_GROUPS.filter((item) => item.id !== "technique")].map((item) => item.id === "technique" ? (
-          <EditorToolSymbolButton key={item.id} triggerId={item.id} label="技巧工具" title="全部 16 类吉他技巧"
+        {(["technique", "beat", "tuplet", "measure"] as ToolGroupId[]).map((id) => TOOL_GROUPS.find((item) => item.id === id)!).map((item) => item.id === "technique" ? (
+          <EditorToolSymbolButton key={item.id} triggerId={item.id} label="所有技巧" title="所有技巧"
             popup expanded={open && group === item.id} availability={{ enabled: !blocked, reason: blocked ? "请先完成当前弹层操作。" : "" }}
             onClick={() => { if (open && group === item.id) close(true); else show(item.id); }}>
             <TechniqueSymbol kind="technique" />
           </EditorToolSymbolButton>
         ) : (
           <span key={item.id} className={toolbarStyles.desktopTrigger}>{(() => {
-            const button = <Button
+            const button = <Tooltip title={item.id === "beat" ? "节奏型" : `${item.label}工具`} trigger={["hover", "focus"]}><Button
             key={item.id}
             data-tool-trigger={item.id}
             disabled={blocked}
@@ -345,9 +340,8 @@ export const EditorToolPanelHost = ({
               else show(item.id);
             }}
           >
-            {item.label}
-            <DownOutlined />
-          </Button>;
+            {item.id === "tuplet" ? <TupletSymbol actual={3} normal={2} /> : item.id === "measure" ? <BarlineSymbol value="final" /> : <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true" focusable="false"><path d="M7 17V6l13-3v11M7 9l13-3" /><ellipse cx="4.5" cy="17.5" rx="3" ry="2" fill="currentColor" stroke="none" /><ellipse cx="17.5" cy="14.5" rx="3" ry="2" fill="currentColor" stroke="none" /></svg>}
+          </Button></Tooltip>;
             return item.id === "beat" ? rhythmPopover(button) : button;
           })()}</span>
         ))}

@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>六线猫 · REQ-044–047 交互确认稿</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="./prototype.css">
+</head>
+<body>
+  <main class="prototype">
+    <section class="review" aria-label="原型评审工具（编辑器之外）">
+      <div class="review-top"><strong>编辑工具优化 <span>交互确认稿</span></strong><nav aria-label="需求跳转"><button data-req="044" aria-pressed="true">044 选区侧栏</button><button data-req="045" aria-pressed="false">045 所有技巧</button><button data-req="046" aria-pressed="false">046 连音</button><button data-req="047" aria-pressed="false">047 小节工具</button></nav><a id="reference-link" href="./references/REQ-044.jpg" target="_blank" rel="noopener">查看原图 ↗</a><button id="review-reset">重置样例</button></div>
+      <div class="review-options"><span class="review-label">评审场景</span><label>目标<select id="review-scenario"><option value="continuous">同小节连续拍</option><option value="none">无选区</option><option value="single">单音</option><option value="crossbar">跨小节</option><option value="technique">已有技巧（唯一对象）</option><option value="multi-technique">已有技巧（多项待定位）</option><option value="tuplet">已有连音</option><option value="first">首小节</option><option value="last">末小节</option><option value="only">仅剩一小节</option><option value="chord">同拍多弦（扫弦／琶音）</option></select></label><label>实际拍点<select id="review-count"><option>2</option><option selected>3</option><option>4</option><option>5</option><option>6</option></select></label><label>活动谱层<select id="review-layer"><option value="tab">TAB 六线谱</option><option value="jian">简谱与歌词</option></select></label><label>拍号<select id="review-meter"><option>4/4</option><option>3/4</option><option>6/8</option></select></label><span class="review-note">仅载入内存样例；谱层／范围不在产品面板重复选择</span></div>
+      <details id="requirement-note"><summary>当前需求说明 <span id="req-summary"></span></summary><p id="req-description"></p></details>
+    </section>
+
+    <div class="editor" id="editor">
+      <header class="app-header"><div class="brand"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="m5 13 1-9 8 6h4l8-6 1 9v8c0 6-22 6-22 0Z M9 17h3m8 0h3m-9 5 2 1 2-1"/></svg>六线猫</div><span class="vline"></span><strong>风吹过山谷</strong><span id="document-state" class="muted">交互确认稿 · 内存演示</span><div class="header-actions"><button id="undo" disabled aria-label="撤销上一次修改">↶ 撤销</button><span class="outline-tag">吉他弹唱谱</span><span class="outline-tag">导入曲谱</span><span class="outline-tag">导出曲谱</span><span class="outline-tag">导出图片</span></div></header>
+      <div class="menu-line"><span>文件</span><span>编辑</span><span>视图</span><span>插入</span><span>帮助</span><span class="menu-tip">点击谱面选音 · Shift + 点击扩选 · ⌘ / Ctrl Z 撤销</span></div>
+      <div class="toolbar" id="toolbar" role="toolbar" aria-label="谱面编辑工具栏">
+        <div id="main-duration" class="duration-row"></div><span class="vline"></span><div id="main-dots" class="dots-row"></div><span class="vline"></span><div id="quick-techniques" class="quick-techniques"></div>
+        <button id="trigger-technique" class="tool-icon" data-panel="technique" aria-label="所有技巧" data-tip="所有技巧" aria-haspopup="dialog" aria-expanded="false"></button>
+        <span class="vline"></span><button id="trigger-rhythm" class="tool-icon" data-panel="rhythm" aria-label="节奏型" data-tip="节奏型" aria-haspopup="dialog" aria-expanded="false"></button><button id="trigger-tuplet" class="tool-icon" data-panel="tuplet" aria-label="连音" data-tip="连音" aria-haspopup="dialog" aria-expanded="false"></button><button id="trigger-measure" class="tool-icon" data-panel="measure" aria-label="小节工具" data-tip="小节工具" aria-haspopup="dialog" aria-expanded="false"></button><button id="trigger-chord" class="tool-icon" data-panel="chord" aria-label="和弦" data-tip="和弦" aria-haspopup="dialog" aria-expanded="false"></button>
+        <span class="toolbar-fill"></span><span id="toolbar-meter">4/4</span><span class="vline"></span><label class="zoom-label">缩放<select id="zoom"><option value="100">100%</option><option value="125" selected>125%</option><option value="150">150%</option><option value="200">200%</option></select></label>
+      </div>
+
+      <div class="workspace">
+        <section class="canvas" aria-label="谱面工作区"><div class="canvas-caption"><span id="selection-caption"></span><span>标准吉他 · E A D G B E</span></div><article class="paper" id="paper"><h1>风吹过山谷</h1><p class="credit">词曲：山谷来信　　编谱：六线猫</p><div class="score-meta"><strong id="paper-meter">1 = C　4/4</strong><span>Moderato　♩ = 80</span></div><div id="score" aria-label="可选择的演示谱面"></div><p class="paper-end">选中的蓝色范围与右侧操作同步 · 虚线方框表示待填位置</p></article><div class="canvas-footer"><span>第 1 页 / 共 1 页</span><span id="canvas-layer"></span></div></section>
+        <aside class="sidebar" aria-label="选区侧栏"><div class="side-main-tabs" aria-label="编辑器既有主分区（本稿仅演示选区）"><strong>◎ 选区</strong><span>♫ 简谱与歌词</span><span>▦ 和弦</span><span>⇄ 歌曲</span></div><span id="side-layer" hidden></span><div class="side-context" id="side-context"></div><div class="segmented" role="tablist" aria-label="选区属性类型"><button id="tab-note" role="tab" aria-selected="true" data-tab="note">音符</button><button id="tab-measure" role="tab" aria-selected="false" data-tab="measure">小节</button></div><div class="side-content" id="side-content"></div><footer class="sidebar-footer">直接作用于当前选区，修改可一次撤销。</footer></aside>
+      </div>
+      <footer class="status-bar"><span id="status" role="status">就绪</span><span>仅演示当前页面内存 · 不写入产品数据</span></footer>
+      <section id="popover" class="popover" role="dialog" aria-modal="false" aria-labelledby="popover-title" hidden></section>
+      <div id="toast" class="toast" role="status" aria-live="polite" hidden><span id="toast-message"></span><button id="toast-undo">撤销</button></div>
+    </div>
+  </main>
+  <script src="./prototype.js"></script>
+</body>
+</html>

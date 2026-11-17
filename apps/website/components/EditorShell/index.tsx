@@ -96,6 +96,8 @@ import { buildEditorToolCommand } from "./tools/editor-tool-actions";
 import { resolveEditorRhythmTarget } from "./tools/editor-rhythm-target";
 import { isNumberedTieTarget, resolveEditorTieTarget } from "./tools/editor-tie-target";
 import { rhythmPatternScopeRect } from "./tools/rhythm-pattern-scope-layout";
+import { RhythmPatternProvider } from "./tools/RhythmPatternPanel";
+import { resolveEditorRhythmPatternTarget } from "./tools/editor-rhythm-pattern-target";
 import {
   captureEditorToolIntent,
   editorToolSubmissionReason,
@@ -1567,8 +1569,11 @@ export const EditorShell: React.FC = () => {
       return false;
     }
     const result = await executeTool(command, "modal", {
-      isCurrent: intentIsCurrent,
+      isCurrent: () => intentIsCurrent() &&
+        (action.type !== "removeMeasure" || !action.confirmation || action.confirmation.isCurrent()),
       tabOnly: tabQuick,
+      ...(action.type === "removeMeasure" && action.confirmation
+        ? { confirmedMeasureRemoval: true as const } : {}),
     });
     return result.status === "applied" || result.status === "noop";
   };
@@ -1588,8 +1593,42 @@ export const EditorShell: React.FC = () => {
     selection,
     numberedSelection,
   });
+  const rhythmTarget = resolveEditorRhythmPatternTarget(document, selection, continuousRange, activeMusicTextTarget);
+  const getRhythmTarget = () => {
+    const now = session.getState();
+    return now.document
+      ? resolveEditorRhythmPatternTarget(now.document, now.selection, continuousRangeRef.current, activeMusicTextTargetRef.current)
+      : { ok: false as const, message: "当前没有可编辑的乐谱。" };
+  };
+  const getRhythmBlocked = () => {
+    const target = getRhythmTarget();
+    return modals.isOpen() || drafts.inspect().busy || drafts.inspect().pending.length > 0 ||
+      !!(target.ok && target.target.layer === "numbered"
+        ? musicTextController.current?.isNumberedActionBlocked()
+        : musicTextController.current?.isOutputBlocked());
+  };
 
   return (
+    <RhythmPatternProvider
+      session={session}
+      document={document}
+      targetResult={rhythmTarget}
+      targetIdentity={JSON.stringify({ selection, numberedSelection, continuousRange, activeTarget: activeMusicTextTarget })}
+      getTargetResult={getRhythmTarget}
+      getTargetIdentity={() => {
+        const now = session.getState();
+        return JSON.stringify({ selection: now.selection, numberedSelection: now.numberedSelection,
+          continuousRange: continuousRangeRef.current, activeTarget: activeMusicTextTargetRef.current });
+      }}
+      execute={executeTool}
+      beforeAction={() => { clearFretDraft(); musicTextController.current?.dismissCleanPopover(); }}
+      blocked={!!activeModal || drafts.inspect().busy || drafts.inspect().pending.length > 0 ||
+        (rhythmTarget.ok && rhythmTarget.target.layer === "numbered" ? numberedActionBlocked : musicTextEditing)}
+      getBlocked={getRhythmBlocked}
+      onSuccess={focusScore}
+      onScopeChange={setRhythmPatternScope}
+      onBusyChange={() => {}}
+    >
     <div
       ref={editorRootRef}
       className={styles.editor}
@@ -1997,5 +2036,6 @@ export const EditorShell: React.FC = () => {
         />
       )}
     </div>
+    </RhythmPatternProvider>
   );
 };

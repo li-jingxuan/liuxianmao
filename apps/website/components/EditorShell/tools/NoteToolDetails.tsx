@@ -1,5 +1,6 @@
 "use client";
 import { Button, Tooltip } from "antd";
+import type { ReactNode } from "react";
 import type {
   ILXMDocument,
   ILXMRhythm,
@@ -16,6 +17,7 @@ import editorFormStyles from "../shared/editor-form.module.scss";
 import editorToolPanelStyles from "../shared/editor-tool-panel.module.scss";
 import type { MusicTextTarget } from "../music-text/music-text-draft";
 import taskStyles from "../shared/SelectionTaskDetails.module.scss";
+import sidebarStyles from "../music-text/MusicTextSidebar.module.scss";
 
 const rhythms: {
   base: ILXMRhythm["base"];
@@ -38,6 +40,7 @@ export const NoteToolDetails = ({
   onAction,
   numberedTarget,
   onEdit,
+  tupletTools,
 }: {
   document: ILXMDocument;
   selection: ILXMTabCellSelection | null;
@@ -45,6 +48,7 @@ export const NoteToolDetails = ({
   onAction: ToolActionHandler;
   numberedTarget?: Extract<MusicTextTarget, { kind: "numbered" }> | null;
   onEdit?: (target: MusicTextTarget) => void;
+  tupletTools?: ReactNode;
 }) => {
   const overrides = useEditorStore((state) => state.tabInputRhythmOverrides);
   const tools = deriveEditorToolState(document, selection);
@@ -122,6 +126,7 @@ export const NoteToolDetails = ({
             </Button>
           </div>
         )}
+        {tupletTools}
       </section>
     );
   return (
@@ -153,11 +158,11 @@ export const NoteToolDetails = ({
       </div>
       <div className={taskStyles.group}>
         <div className={taskStyles.sectionHeading}>
-          <h3 tabIndex={-1}>时值</h3>
-          <span>{beat ? "单拍选区" : `已选 ${beats.length} 拍`}</span>
+          <h3 tabIndex={-1}>时值与附点</h3>
         </div>
+        <div className={sidebarStyles.rhythmAndDots}>
         <div
-          className={taskStyles.durationPicker}
+          className={sidebarStyles.compactDurationPicker}
           role="group"
           aria-label="音符时值"
         >
@@ -167,11 +172,11 @@ export const NoteToolDetails = ({
             <Button
               block
               aria-label={rhythm.label}
-              aria-pressed={inputRhythm?.base === rhythm.base}
+               aria-pressed={!rhythmDisabled && inputRhythm?.base === rhythm.base}
               disabled={rhythmDisabled}
-              color={inputRhythm?.base === rhythm.base ? "primary" : "default"}
+               color={!rhythmDisabled && inputRhythm?.base === rhythm.base ? "primary" : "default"}
               variant={
-                inputRhythm?.base === rhythm.base ? "filled" : "outlined"
+                 !rhythmDisabled && inputRhythm?.base === rhythm.base ? "filled" : "outlined"
               }
               onClick={() =>
                 void onAction({ type: "rhythm", base: rhythm.base })
@@ -186,25 +191,23 @@ export const NoteToolDetails = ({
             </Tooltip>
           ))}
         </div>
-        <h3>附点</h3>
-        <div className={taskStyles.dotsPicker} role="group" aria-label="音符附点">
+        <div className={sidebarStyles.compactDotsPicker} role="group" aria-label="音符附点">
           {([0, 1, 2] as const).map((dots) => {
             const label = ["无附点", "单附点", "双附点"][dots];
             return <Tooltip key={dots} trigger={["hover", "focus"]} title={`${label}${rhythmDisabled ? `：${blocked ? blockedReason : rhythmReason}` : ""}`}>
               <span className={taskStyles.symbolWrapper} tabIndex={rhythmDisabled ? 0 : undefined} aria-label={rhythmDisabled ? label : undefined}>
-                <Button block aria-label={label} aria-pressed={inputRhythm?.dots === dots} disabled={rhythmDisabled}
-                  color={inputRhythm?.dots === dots ? "primary" : "default"} variant={inputRhythm?.dots === dots ? "filled" : "outlined"}
+                <Button block aria-label={label} aria-pressed={!rhythmDisabled && inputRhythm?.dots === dots} disabled={rhythmDisabled}
+                  color={!rhythmDisabled && inputRhythm?.dots === dots ? "primary" : "default"} variant={!rhythmDisabled && inputRhythm?.dots === dots ? "filled" : "outlined"}
                   onClick={() => void onAction({ type: "dots", dots })}>
-                  <span className={taskStyles.buttonContent}>
-                    <span className={taskStyles.stateIcon}><MusicAssetIcon assetId={dots === 0 ? "noteQuarter" : dots === 1 ? "noteDot" : "noteDoubleDotted"} className={editorToolPanelStyles.toolbarIcon} /></span>
-                    <span>{label}</span>
-                  </span>
+                  {dots === 0 ? <span aria-hidden="true">○</span> : <MusicAssetIcon assetId={dots === 1 ? "noteDot" : "noteDoubleDotted"} className={editorToolPanelStyles.toolbarIcon} />}
                 </Button>
               </span>
             </Tooltip>;
           })}
         </div>
+        </div>
       </div>
+      {tupletTools}
       <div className={taskStyles.group}>
         <h3 tabIndex={-1}>音符状态</h3>
         <div className={taskStyles.statePicker} role="group" aria-label="音符状态">

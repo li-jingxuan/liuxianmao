@@ -25,9 +25,10 @@ export type EditorToolbarAction =
         | "continuation";
     }
   | {
-      type: "insertMeasure" | "copyMeasures" | "removeMeasure" | "startRepeat";
+      type: "insertMeasure" | "copyMeasures" | "startRepeat";
       target?: MeasureToolTarget;
     }
+  | { type: "removeMeasure"; target?: MeasureToolTarget; confirmation?: { isCurrent: () => boolean } }
   | { type: "rhythm"; base: ILXMRhythm["base"] }
   | { type: "dots"; dots: 0 | 1 | 2 }
   | { type: "quickTechnique"; technique: QuickTechnique }

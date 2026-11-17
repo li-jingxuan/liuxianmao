@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { flushSync } from "react-dom";
 import { Button } from "antd";
 import { WarningOutlined } from "@ant-design/icons";
 import {
@@ -27,7 +28,7 @@ type TargetResult = ReturnType<typeof resolveEditorRhythmPatternTarget>;
 type Plan = Extract<ReturnType<typeof planRhythmPattern>, { ok: true }>;
 type Template = ReturnType<typeof getRhythmPatternTemplates>[number];
 type PreviewEvent = ILXMBeat | ILXMNumberedEvent;
-interface Props {
+export interface RhythmPatternConfig {
   session: StoreApi<EditorStoreState>;
   document: ILXMDocument;
   targetResult: TargetResult;
@@ -38,10 +39,13 @@ interface Props {
   beforeAction: () => void;
   blocked: boolean;
   getBlocked: () => boolean;
-  onClose: () => void;
   onSuccess: (scope: RhythmPatternTarget) => void;
   onScopeChange?: (scope: RhythmPatternTarget | null) => void;
   onBusyChange: (busy: boolean) => void;
+}
+interface Props extends RhythmPatternConfig {
+  onClose: () => void;
+  presentation?: "toolbar" | "sidebar";
 }
 
 const targetMeasure = (document: ILXMDocument, result: TargetResult) => result.ok
@@ -51,7 +55,7 @@ const templatesFor = (document: ILXMDocument, result: TargetResult) => {
   const measure = targetMeasure(document, result);
   return getRhythmPatternTemplates(measure?.timeSignature ?? document.score.tracks[0]?.measures[0]?.timeSignature ?? { numerator: 4, denominator: 4 });
 };
-const previewFor = (props: Props, explicitTemplateId?: string) => {
+const previewFor = (props: RhythmPatternConfig, explicitTemplateId?: string) => {
   const state = props.session.getState();
   // Render 以本次 props 为准：实时 getter 的 ref 要到 layout effect 才更新，
   // 不能在同次 render 的选区刷新中读取它们。getter 仅用于提交瞬时保护。
@@ -76,19 +80,22 @@ const previewFor = (props: Props, explicitTemplateId?: string) => {
   };
 };
 
-/** 预览仅保存在面板内；文档、标记与撤销历史由同一条核心命令原子提交。 */
-export function RhythmPatternPanel(props: Props) {
-  const { session, document, targetResult, blocked, onScopeChange, onBusyChange } = props;
+/** 一个 Provider 对应一个编辑会话；两处入口共享快照和同步提交锁。 */
+function useRhythmPatternController(props: RhythmPatternConfig, enabled = true) {
+  const { session, document, targetResult, onScopeChange, onBusyChange } = props;
   const current = useSyncExternalStore(session.subscribe, session.getState, session.getState);
-  const [snapshot, setPreview] = useState(() => previewFor(props));
+  const [localSnapshot, setPreview] = useState(() => enabled ? previewFor(props) : null);
+  const snapshot = localSnapshot ?? previewFor(props);
   const changed = snapshot.session !== session || !sameEditorVersion(current, snapshot.version) || snapshot.identity !== props.targetIdentity;
   // 在本次 render 即使用新快照，避免旧拍的手选和预览短暂显示在新选区上。
   const preview = changed ? previewFor(props) : snapshot;
-  if (changed) setPreview(preview);
+  if (enabled && changed) setPreview(preview);
   const [failure, setFailure] = useState<string | null>(null);
-  if (changed && failure !== null) setFailure(null);
+  if (enabled && changed && failure !== null) setFailure(null);
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
+  const generation = useRef(0);
+  const previewGeneration = generation.current;
   const succeeded = useRef(false);
   const mounted = useRef(true);
   const latest = useRef(props);
@@ -100,28 +107,31 @@ export function RhythmPatternPanel(props: Props) {
   const measure = preview.document ? targetMeasure(preview.document, preview.targetResult) : undefined;
   const scopeKey = plan && !stale ? JSON.stringify(plan.target) : null;
   useEffect(() => {
+    if (!enabled) return;
     onScopeChange?.(scopeKey ? JSON.parse(scopeKey) as RhythmPatternTarget : null);
-  }, [scopeKey, onScopeChange]);
+  }, [scopeKey, onScopeChange, enabled]);
   useEffect(() => {
+    if (!enabled) return;
     mounted.current = true;
     return () => {
       mounted.current = false;
       if (!succeeded.current) latest.current.onScopeChange?.(null);
       latest.current.onBusyChange(false);
     };
-  }, []);
+  }, [enabled]);
   const isCurrent = () => {
     // 既检查会话版本，也检查 Shell 的简谱连续选区；后者不保存在 store 中。
     const now = latest.current;
-    return mounted.current && now.session === preview.session && !now.blocked && !now.getBlocked() &&
+    return mounted.current && generation.current === previewGeneration && now.session === preview.session && !now.blocked && !now.getBlocked() &&
       sameEditorVersion(now.session.getState(), preview.version) && now.getTargetIdentity() === preview.identity;
   };
   const refresh = (templateId: string) => {
     if (busyRef.current) return;
+    generation.current += 1;
     setPreview(previewFor(latest.current, templateId));
     setFailure(null);
   };
-  const apply = async () => {
+  const apply = async (onApplied?: (scope: RhythmPatternTarget) => void) => {
     if (busyRef.current || !plan || !isCurrent()) return;
     busyRef.current = true;
     setBusy(true);
@@ -140,10 +150,14 @@ export function RhythmPatternPanel(props: Props) {
       if (!mounted.current) return;
       if (result.status === "applied" || result.status === "noop") {
         succeeded.current = true;
+        generation.current += 1;
         // 先同步释放 busy 保护，再关闭浮层回焦；否则 Host 会把成功关闭当作忙碌中操作。
         busyRef.current = false;
         onBusyChange(false);
+        // Host 同时读取共享 busy；提交更新后再调用成功关闭，不能被自己的锁阻挡。
+        flushSync(() => setBusy(false));
         latest.current.onSuccess(plan.target);
+        onApplied?.(plan.target);
         return;
       }
       setFailure("message" in result ? result.message : result.result.message);
@@ -156,66 +170,87 @@ export function RhythmPatternPanel(props: Props) {
       if (mounted.current) setBusy(false);
     }
   };
-  const layerName = plan?.target.layer === "tab" || (!plan && targetResult.ok && targetResult.target.layer === "tab") ? "六线谱" : "简谱";
+  return { preview, plan, templates, measure, stale, failure, busy, refresh, apply, applyButton };
+}
+
+type Controller = ReturnType<typeof useRhythmPatternController>;
+const RhythmPatternContext = createContext<{ config: RhythmPatternConfig; controller: Controller } | null>(null);
+
+export function useSharedRhythmPatternBusy(): boolean {
+  return useContext(RhythmPatternContext)?.controller.busy ?? false;
+}
+
+export function RhythmPatternProvider({ children, ...config }: RhythmPatternConfig & { children: ReactNode }) {
+  const controller = useRhythmPatternController(config);
+  return <RhythmPatternContext.Provider value={{ config, controller }}>{children}</RhythmPatternContext.Provider>;
+}
+
+/** 侧栏只消费根会话的真实目标与命令路径，不自行解析另一个目标。 */
+export function SidebarRhythmPatternPanel() {
+  const shared = useContext(RhythmPatternContext);
+  return shared ? <RhythmPatternPanel {...shared.config} presentation="sidebar" onClose={() => {}} /> : null;
+}
+
+/** 不提供 Provider 的既有调用仍保持独立面板兼容。 */
+export function RhythmPatternPanel(props: Props) {
+  const shared = useContext(RhythmPatternContext);
+  const local = useRhythmPatternController(shared?.config ?? props, !shared);
+  const { preview, plan, templates, measure, stale, failure, busy, refresh, apply, applyButton } = shared?.controller ?? local;
+  const { blocked } = shared?.config ?? props;
+  const sidebar = props.presentation === "sidebar";
+  const hasSharedController = shared !== null;
+  const onBusyChange = props.onBusyChange;
+  useEffect(() => {
+    if (!hasSharedController || sidebar) return;
+    onBusyChange(busy);
+    return () => onBusyChange(false);
+  }, [hasSharedController, sidebar, busy, onBusyChange]);
   const capturedTarget = preview.targetResult.ok ? preview.targetResult.target : null;
-  const lyricCount = measure && plan?.target.layer === "numbered" ? measure.lyrics.filter((lyric) => plan.before.some((event) => event.id === lyric.eventId)).length : 0;
-  const chordCount = measure && plan ? measure.chordSymbols.filter((chord) => {
-    const beat = measure.beats.find((item) => item.id === chord.beatId);
-    return beat && beat.tick >= plan.scope.startTick && beat.tick < plan.scope.endTick;
-  }).length : 0;
-  const retainedCount = plan?.perBeat.reduce((sum, beat) => sum + beat.retainedCount, 0) ?? 0;
-  const gapCount = plan?.perBeat.reduce((sum, beat) => sum + beat.gapCount, 0) ?? 0;
   const message = failure ?? (!preview.result.ok ? preview.result.message : blocked ? "请先完成当前编辑，再应用节奏型；可继续浏览模板。" : null);
 
-  return <section className={styles.root} aria-label="节奏型预览" aria-busy={busy} data-rhythm-pattern-panel>
+  return <section className={`${styles.root}${sidebar ? ` ${styles.sidebar}` : ""}`} aria-label={sidebar ? "常见节奏型" : "节奏型预览"} aria-busy={busy} data-rhythm-pattern-panel data-presentation={props.presentation ?? "toolbar"}>
     <header className={styles.header}>
-      <h2>节奏型</h2>
-      <button type="button" className={styles.close} aria-label="关闭节奏型" disabled={busy} onClick={props.onClose}>×</button>
+      {sidebar ? <h3>常见节奏型</h3> : <h2>节奏型</h2>}
+      {!sidebar && <button type="button" className={styles.close} aria-label="关闭节奏型" disabled={busy} onClick={props.onClose}>×</button>}
     </header>
-    <p className={styles.rules}><WarningOutlined aria-hidden="true" /> 按所选模板调整节奏，应用后会将相关技巧和连线移除。</p>
+    {!sidebar && <p className={styles.rules}><WarningOutlined aria-hidden="true" /> 按所选模板调整节奏，应用后会将相关技巧和连线移除。</p>}
     <div className={styles.templates}>
       <div className={styles.grid} role="group" aria-label="节奏型模板">
-        {templates.map((template, i) => <TemplateCard key={template.id} template={template} groupTitle={template.detail && !templates[i - 1]?.detail ? "三十二分细分" : null}
+        {templates.map((template) => <TemplateCard key={template.id} template={template}
           selected={preview.templateId === template.id} disabled={busy} onSelect={() => refresh(template.id)} />)}
       </div>
     </div>
     <div className={styles.preview}>
-      <div className={styles.sectionHeading}><strong>应用预览</strong><span>{plan?.template.name ?? (preview.templateId ? "范围待调整" : "请选择模板")}{plan ? ` · ${plan.scope.beatCount} 拍 · 逐拍套用` : ""}</span></div>
       <div className={styles.comparison}>
         <div className={styles.scoreBox}>
-          <div className={styles.scoreLabel}>当前 <span>{plan ? `${plan.scope.beatCount} 个演奏拍` : "无有效范围"}</span></div>
-          {plan && measure ? <ScorePreview plan={plan} events={plan.before} measure={measure} label="当前" /> : <div className={styles.empty}>{capturedTarget ? "选择模板后生成预览" : "请在谱面选择范围"}</div>}
+          <div className={styles.scoreLabel}>当前</div>
+          {plan && measure ? <ScorePreview plan={plan} events={plan.before} measure={measure} label="当前" compact={sidebar} /> : <div className={styles.empty}>{capturedTarget ? "选择模板后生成预览" : "请在谱面选择范围"}</div>}
         </div>
         <span className={styles.arrow} aria-hidden="true">→</span>
         <div className={`${styles.scoreBox} ${styles.after}`}>
-          <div className={styles.scoreLabel}>应用后 <span>□ 待填空位 · 休止独立保留</span></div>
-          {plan && measure ? <ScorePreview plan={plan} events={plan.after} measure={measure} label="应用后" /> : <div className={styles.empty}>调整范围或模板后生成预览</div>}
+          <div className={styles.scoreLabel}>应用后</div>
+          {plan && measure ? <ScorePreview plan={plan} events={plan.after} measure={measure} label="应用后" compact={sidebar} /> : <div className={styles.empty}>调整范围或模板后生成预览</div>}
         </div>
       </div>
-      {plan && <p className={styles.summary}>保留 {retainedCount} 个内容位置{gapCount ? `，模板含 ${gapCount} 个待填空位` : "，无待填空位"}。</p>}
-      {(lyricCount > 0 || chordCount > 0) && <p className={styles.contentNote}>{lyricCount > 0 ? `${lyricCount} 处歌词随原内容保留。` : ""}{chordCount > 0 ? `${chordCount} 个和弦保留原拍点。` : ""}</p>}
+      {sidebar && !!plan?.removedMarks.length && <p className={styles.warning} role="status">应用将移除：{[...new Set(plan.removedMarks.map((mark) => mark.name))].join("、")}。{plan.removedMarks.some((mark) => mark.crossesScope) ? "包含跨出当前范围的连接。" : ""}点击应用一并确认。</p>}
       {message && <p className={stale || blocked ? styles.warning : styles.error} role={stale || blocked ? "status" : "alert"}>{message}</p>}
     </div>
     <footer className={styles.footer}>
-      <span>{busy ? "正在应用…" : `${layerName} · ${plan ? `${plan.scope.beatCount} 拍` : "待选择"}`}</span>
       <div className={styles.actions}>
-          <Button disabled={busy} onClick={props.onClose}>取消</Button>
-          <Button ref={applyButton} type="primary" loading={busy} disabled={busy || blocked || stale || !plan} onClick={() => void apply()}>{failure ? "重试应用" : "应用节奏型"}</Button>
+          {!sidebar && <Button disabled={busy} onClick={props.onClose}>取消</Button>}
+          <Button ref={applyButton} type="primary" loading={busy} disabled={busy || blocked || stale || !plan} onClick={() => void apply(shared && !sidebar ? props.onSuccess : undefined)}>{failure ? "重试应用" : "应用节奏型"}</Button>
       </div>
     </footer>
   </section>;
 }
 
-function TemplateCard({ template, groupTitle, selected, disabled, onSelect }: {
-  template: Template; groupTitle: string | null; selected: boolean; disabled: boolean; onSelect: () => void;
+function TemplateCard({ template, selected, disabled, onSelect }: {
+  template: Template; selected: boolean; disabled: boolean; onSelect: () => void;
 }) {
-  return <>
-    {groupTitle && <div className={styles.groupTitle}>{groupTitle}</div>}
-    <button type="button" className={styles.card} aria-label={template.name} aria-pressed={selected} disabled={disabled} onClick={onSelect} data-rhythm-template={template.id}>
+  return <button type="button" className={styles.card} aria-label={template.name} aria-pressed={selected} disabled={disabled} onClick={onSelect} data-rhythm-template={template.id}>
       <span className={styles.templateName}>{template.name}</span>{selected && <span className={styles.check} aria-hidden="true">✓</span>}
       <RhythmSymbol values={template.values} />
-    </button>
-  </>;
+    </button>;
 }
 
 function RhythmSymbol({ values }: { values: readonly number[] }) {
@@ -241,7 +276,7 @@ const rhythmLabel = (rhythm: ILXMRhythm) => `${rhythm.dots ? "附点" : ""}${({ 
 const isGap = (event: PreviewEvent) => event.kind === "gap" || ("notes" in event && event.kind === "notes" && event.notes.length === 0);
 const beamCount = (rhythm: ILXMRhythm) => rhythm.base === "thirtySecond" ? 3 : rhythm.base === "sixteenth" ? 2 : rhythm.base === "eighth" ? 1 : 0;
 
-function ScorePreview({ plan, events, measure, label }: { plan: Plan; events: readonly PreviewEvent[]; measure: ILXMMeasure; label: string }) {
+function ScorePreview({ plan, events, measure, label, compact = false }: { plan: Plan; events: readonly PreviewEvent[]; measure: ILXMMeasure; label: string; compact?: boolean }) {
   const { startTick, endTick, beatTicks, beatCount } = plan.scope;
   const tab = plan.target.layer === "tab";
   const width = Math.max(294, beatCount * 210);
@@ -254,7 +289,7 @@ function ScorePreview({ plan, events, measure, label }: { plan: Plan; events: re
   const visible = events.filter((event) => event.tick >= startTick && event.tick < endTick);
   const describe = (event: PreviewEvent) => `${isGap(event) ? "待填空位" : event.kind === "rest" ? "明确休止" : "notes" in event ? event.notes.map((note) => `${note.string}弦${note.fret}品`).join("、") : event.items.map((item) => item.token).join("、")}，${rhythmLabel(event.rhythm)}`;
   return <div className={styles.scoreViewport} tabIndex={0} aria-label={`${label}谱面，可横向滚动`}>
-    <svg className={styles.scoreSvg} style={{ minWidth: Math.max(270, beatCount * 210) }} viewBox={`0 0 ${width} 124`} role="img" aria-label={`${label}${tab ? "六线谱" : "简谱"}：${visible.map(describe).join("；") || "纯空白"}`}>
+    <svg className={styles.scoreSvg} style={{ minWidth: compact ? Math.max(100, beatCount * 80) : Math.max(270, beatCount * 210) }} viewBox={`0 0 ${width} 124`} role="img" aria-label={`${label}${tab ? "六线谱" : "简谱"}：${visible.map(describe).join("；") || "纯空白"}`}>
       {tab && [0, 1, 2, 3, 4, 5].map((line) => <path key={line} d={`M12 ${28 + line * 7}H${width - 12}`} stroke="currentColor" opacity=".3" strokeWidth=".7" />)}
       {Array.from({ length: Math.max(0, beatCount - 1) }, (_, i) => <path key={i} d={`M${xAt(startTick + (i + 1) * beatTicks)} 18V91`} stroke="currentColor" opacity=".2" strokeDasharray="3 3" />)}
       {visible.length === 0 && <text x={width / 2} y="55" textAnchor="middle" className={styles.svgHint}>空白范围 · 无发声内容</text>}

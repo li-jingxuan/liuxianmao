@@ -2,7 +2,7 @@ import { isValidElement, type ComponentProps, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { EXAMPLE_MVP_7_2_DOCUMENT, planRhythmPattern, TICKS_PER_QUARTER as Q, type ILXMNumberedEvent } from "@liuxianmao/lxm-editor";
-import { RhythmPatternPanel } from "../components/EditorShell/tools/RhythmPatternPanel";
+import { RhythmPatternPanel, RhythmPatternProvider, useSharedRhythmPatternBusy, type RhythmPatternConfig } from "../components/EditorShell/tools/RhythmPatternPanel";
 import { resolveEditorRhythmPatternTarget } from "../components/EditorShell/tools/editor-rhythm-pattern-target";
 import type { MusicTextTarget } from "../components/EditorShell/music-text/music-text-draft";
 import { createEditorSession } from "../stores/editor-store";
@@ -209,7 +209,8 @@ describe("BUG044 节奏型面板初始选择", () => {
     const initial = panel.render();
     expect(initial.markup).toContain("按所选模板调整节奏，应用后会将相关技巧和连线移除。");
     for (const removed of ["选择模板", "常用", "每张覆盖", "确认调整节奏与标记", "应用时需确认", "第 1 小节"]) expect(initial.markup).not.toContain(removed);
-    expect(initial.markup).toContain("三十二分细分");
+    expect(initial.markup).not.toContain("三十二分细分");
+    expect(initial.markup.match(/data-rhythm-template=/g)).toHaveLength(12);
     (find(initial.tree, props => (props.template as { id?: string } | undefined)?.id === "eighths")!.onSelect as () => void)();
     (panel.render().apply.onClick as () => void)();
     await Promise.resolve(); await Promise.resolve();
@@ -247,5 +248,127 @@ describe("BUG044 节奏型面板初始选择", () => {
     await Promise.resolve();
     expect(panel.execute).not.toHaveBeenCalled();
     expect(panel.session.getState().historyDepth.past).toBe(0);
+  });
+});
+
+describe("REQ044 侧栏与工具栏共享节奏型", () => {
+  const mountShared = (fixture = setup(), executeOverride?: RhythmPatternConfig["execute"]) => {
+    const session = createEditorSession(fixture.document);
+    const getTargetResult = () => resolveEditorRhythmPatternTarget(session.getState().document!, null, null, fixture.input.active);
+    const getTargetIdentity = () => JSON.stringify(getTargetResult());
+    const execute = vi.fn<RhythmPatternConfig["execute"]>(executeOverride ?? (async command => {
+      const result = session.getState().execute(command);
+      if (!result) throw new Error("No result");
+      return result.ok ? { status: result.changed ? "applied" : "noop", result } : { status: "blocked", message: result.message };
+    }));
+    const onSuccess = vi.fn(), toolbarSuccess = vi.fn(), onBusyChange = vi.fn();
+    const render = () => {
+      const trees: Record<string, ReactNode> = {};
+      const config: RhythmPatternConfig = { session, document: session.getState().document!, targetResult: getTargetResult(),
+        targetIdentity: getTargetIdentity(), getTargetResult, getTargetIdentity, execute, beforeAction: () => {},
+        blocked: false, getBlocked: () => false, onSuccess, onBusyChange };
+      const Surface = ({ sidebar }: { sidebar: boolean }) => {
+        trees[sidebar ? "sidebar" : "toolbar"] = RhythmPatternPanel({ ...config, presentation: sidebar ? "sidebar" : "toolbar", onClose: () => {},
+          onSuccess: sidebar ? onSuccess : toolbarSuccess });
+        return trees[sidebar ? "sidebar" : "toolbar"];
+      };
+      const markup = renderToStaticMarkup(<RhythmPatternProvider {...config}><Surface sidebar /><Surface sidebar={false} /></RhythmPatternProvider>);
+      return { markup, trees, apply: (surface: string) => find(trees[surface], props => props.children === "应用节奏型")!,
+        choose: (surface: string, id: string) => (find(trees[surface], props => (props.template as { id?: string } | undefined)?.id === id)!.onSelect as () => void)() };
+    };
+    return { render, session, execute, onSuccess, toolbarSuccess, onBusyChange, fixture };
+  };
+
+  it("任一入口手选同步同一模板；双入口旧回调只能提交一次并同时通知根与发起工具栏", async () => {
+    const panel = mountShared();
+    panel.render().choose("sidebar", "eighths");
+    const selected = panel.render();
+    expect(selected.markup.match(/aria-pressed="true"[^>]*data-rhythm-template="eighths"/g)).toHaveLength(2);
+    (selected.apply("toolbar").onClick as () => void)();
+    (selected.apply("sidebar").onClick as () => void)();
+    await Promise.resolve(); await Promise.resolve();
+    expect(panel.execute).toHaveBeenCalledOnce();
+    expect(panel.onSuccess).toHaveBeenCalledOnce();
+    expect(panel.toolbarSuccess).toHaveBeenCalledOnce();
+    expect(panel.session.getState().historyDepth.past).toBe(1);
+    (selected.apply("sidebar").onClick as () => void)();
+    expect(panel.execute).toHaveBeenCalledOnce();
+  });
+
+  it("侧栏提交调用根成功回调，共享锁覆盖命令等待期间另一入口及模板切换", async () => {
+    let resolve!: (result: Awaited<ReturnType<RhythmPatternConfig["execute"]>>) => void;
+    const panel = mountShared(undefined, () => new Promise(done => { resolve = done; }));
+    const initial = panel.render();
+    (initial.apply("sidebar").onClick as () => void)();
+    initial.choose("toolbar", "eighths");
+    (initial.apply("toolbar").onClick as () => void)();
+    expect(panel.execute).toHaveBeenCalledOnce();
+    expect(panel.onBusyChange).toHaveBeenLastCalledWith(true);
+    resolve({ status: "cancelled", message: "已取消" });
+    await Promise.resolve(); await Promise.resolve();
+    expect(panel.onBusyChange).toHaveBeenLastCalledWith(false);
+    expect(panel.onSuccess).not.toHaveBeenCalled();
+    expect(panel.session.getState().historyDepth.past).toBe(0);
+  });
+
+  it("旧模板回调在手选变化后失效；同一预览的noop也不能被另一入口重复提交", async () => {
+    const panel = mountShared();
+    const initial = panel.render();
+    initial.choose("sidebar", "eighths");
+    (initial.apply("toolbar").onClick as () => void)();
+    expect(panel.execute).not.toHaveBeenCalled();
+    harness.preview = null;
+    const current = panel.render();
+    (current.apply("sidebar").onClick as () => void)();
+    await Promise.resolve(); await Promise.resolve();
+    (current.apply("toolbar").onClick as () => void)();
+    expect(panel.execute).toHaveBeenCalledOnce();
+    expect(panel.onSuccess).toHaveBeenCalledOnce();
+    expect(panel.toolbarSuccess).not.toHaveBeenCalled();
+  });
+
+  it.each([[4, 4, 12], [3, 4, 12], [6, 8, 5]])("%s/%s按真实核心模板数量%s平铺，无分组与结果说明", (numerator, denominator, count) => {
+    const fixture = setup();
+    fixture.measure.timeSignature = { numerator, denominator: denominator as 4 | 8 };
+    if (numerator !== 4) {
+      fixture.measure.beats = fixture.measure.beats.slice(0, 3);
+      fixture.measure.numberedVoice.events = fixture.measure.numberedVoice.events.slice(0, 3);
+    }
+    const panel = mountShared(fixture);
+    const result = panel.render();
+    expect(result.markup.match(/data-rhythm-template=/g)).toHaveLength(count * 2);
+    expect(result.markup).not.toContain("三十二分细分");
+    expect(result.markup).not.toContain("逐拍套用");
+    expect(result.markup).not.toContain("保留 1 个内容位置");
+  });
+
+  it("Provider缺失时busy hook兼容返回false", () => {
+    const Consumer = () => <span>{String(useSharedRhythmPatternBusy())}</span>;
+    expect(renderToStaticMarkup(<Consumer />)).toBe("<span>false</span>");
+  });
+
+  it("侧栏保留具体标记影响及跨范围警告，无旧目标上下文和结果数量", () => {
+    const fixture = setup();
+    fixture.track.numberedMarks = [{ id: "impact", type: "slur", fromEventId: "e0", toEventId: "e1" }];
+    const panel = mountShared(fixture);
+    const result = panel.render();
+    const sidebarMarkup = renderToStaticMarkup(result.trees.sidebar);
+    expect(sidebarMarkup).toContain("常见节奏型");
+    expect(sidebarMarkup).toContain("应用将移除");
+    expect(sidebarMarkup).toContain("包含跨出当前范围的连接");
+    expect(sidebarMarkup).toContain("点击应用一并确认");
+    for (const text of ["第 1 小节", "逐拍套用", "保留 1 个内容位置", "三十二分细分", "取消", "六线谱 ·"]) expect(sidebarMarkup).not.toContain(text);
+  });
+
+  it("无选区仍展示全部模板且应用禁用，不沿用离开的目标", () => {
+    const fixture = setup();
+    fixture.input.active = null;
+    const panel = mountShared(fixture);
+    const result = panel.render();
+    expect(result.markup.match(/data-rhythm-template=/g)).toHaveLength(24);
+    expect(result.apply("sidebar").disabled).toBe(true);
+    expect(result.markup).not.toContain('aria-pressed="true"');
+    (result.apply("sidebar").onClick as () => void)();
+    expect(panel.execute).not.toHaveBeenCalled();
   });
 });
