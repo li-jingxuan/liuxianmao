@@ -65,12 +65,11 @@ describe("简谱空位与 hover 接入", () => {
     const focus = resolveParagraphFocus(layout, hover)!;
     expect(focus).toEqual(resolveParagraphFocus(layout, outerHover));
     expect(focus).toEqual(resolveParagraphFocus(layout, { ...hover, itemId: undefined }));
-    expect(focus).toMatchObject({
-      x: notation.bounds.x - 4,
-      y: notation.bounds.y - 2,
-      width: notation.bounds.width + 8,
-      height: notation.bounds.height + 4,
-    });
+    expect(focus.width).toBeGreaterThanOrEqual(18);
+    expect(focus.x + focus.width / 2).toBeCloseTo(notation.labels[0]!.x);
+    expect(focus.width).toBe(18);
+    expect(focus.y).toBeLessThan(notation.bounds.y);
+    expect(focus.height).toBe(20);
     expect(resolveScorePointerAction(document, layout, rhythmPoint, null, false)).toMatchObject({ type: "target", target: hover });
   });
 
@@ -154,6 +153,13 @@ describe("简谱空位与 hover 接入", () => {
     );
     expect(hint).toContain(`data-paragraph-cell="numbered/${slot.key}"`);
     expect(hint).toContain('data-paragraph-hover="numbered"');
+    // 空位提示框与悬停/选中统一使用窄框，不再沿用时间槽24单位的命中宽度。
+    const frame = resolveParagraphFocus(layout, hover)!;
+    const placeholder = hint.match(/<rect[^>]*data-paragraph-placeholder="box"[^>]*>/g)!
+      .find(tag => tag.includes(`data-paragraph-cell="numbered/${slot.key}"`))!;
+    expect(frame.width).toBe(18);
+    for (const name of ["x", "y", "width", "height"] as const)
+      expect(placeholder).toContain(`${name}="${frame[name]}"`);
     const filled = applyScoreCommand(document, {
       type: "numbered.event.set",
       trackId: track.id,

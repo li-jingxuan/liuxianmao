@@ -18,6 +18,8 @@ import { layoutLyricPlaceholder } from "./lyric-placeholder-layout";
 import {
   LXM_NUMBERED_TEXT_FONT_SIZE,
   LXM_NUMBERED_OCTAVE_DOT_RADIUS,
+  LXM_NUMBERED_FOCUS_WIDTH,
+  LXM_NUMBERED_FOCUS_HEIGHT,
 } from "../layout-constants";
 import {
   numberedLayoutProfile,
@@ -187,12 +189,27 @@ const paragraphMeasure = (
         .find((m) => m.id === target.measureId)
     : undefined;
 
-const padNumberedBounds = (bounds: MusicTextRect): MusicTextRect => ({
-  x: bounds.x - 4,
-  y: bounds.y - 2,
-  width: bounds.width + 8,
-  height: bounds.height + 4,
-});
+/** 选框以正文带为锚，统一使用验收图普通四分休止的蓝框尺寸。
+ * 只影响临时高亮，音乐图元、时间槽及其命中范围仍保留原几何。
+ */
+const numberedFocusRect = (
+  layout: ILXMLayout,
+  measure: ILXMMeasureLayout,
+  anchorX: number,
+  bounds?: MusicTextRect,
+): MusicTextRect => {
+  const row = layout.systems.find((s) => s.measures.some((m) => m.id === measure.id))!;
+  const band = row.numberedRow ?? {
+    y: Math.max(...row.measures.map(getMeasureContentBottom)) + MUSIC_TEXT_LANE_GAP,
+    height: 18,
+  };
+  const top = band.y - 2;
+  // 文字 bounds 已含墨迹保护量，不再重复叠加横向 padding。
+  const left = anchorX - LXM_NUMBERED_FOCUS_WIDTH / 2;
+  const leftExtra = bounds ? Math.max(0, left - bounds.x) : 0;
+  const rightExtra = bounds ? Math.max(0, bounds.x + bounds.width - (anchorX + LXM_NUMBERED_FOCUS_WIDTH / 2)) : 0;
+  return { x: left - leftExtra, y: top, width: LXM_NUMBERED_FOCUS_WIDTH + leftExtra + rightExtra, height: LXM_NUMBERED_FOCUS_HEIGHT };
+};
 
 /** 同拍归属沿用 TAB 拍的横向区间；导航顺序只由简谱 slot tick 决定。 */
 const numberedEventsInTabBeat = (
@@ -235,7 +252,9 @@ export const layoutNumberedBeatContext = (
   const events = numberedEventsInTabBeat(measure, target.eventId);
   if (events.length <= 1) return null;
   return {
-    bounds: padNumberedBounds(unionMusicBounds(events.map((n) => n.bounds))),
+    bounds: unionMusicBounds(events.map((n) => layoutParagraphFocus(layout, {
+      ...target, kind: "numbered", eventId: n.eventId, itemId: undefined,
+    })!)),
     eventIds: events.map((n) => n.eventId),
   };
 };
@@ -252,41 +271,40 @@ export const layoutParagraphFocus = (
     const existing =
       target.eventId &&
       m.numberedNotation?.find((n) => n.eventId === target.eventId);
-    if (existing)
-      return padNumberedBounds(
-        // 单音使用包含节奏图元的统一范围；同时多音仍允许按成员局部定位。
-        existing.itemBounds?.length === 1
-          ? existing.bounds
-          : existing.itemBounds?.find((i) => i.itemId === target.itemId)?.bounds ??
-            existing.bounds,
-      );
+    if (existing) {
+      // 焦点只跟随起音正文，长音延时线、附点或公共连梁不再把框横向拉长。
+      // 多音成员仍可局部定位；变音/多音按正文宽度扩展。
+      const item = existing.itemBounds?.length !== 1
+        ? existing.itemBounds?.find((i) => i.itemId === target.itemId)
+        : undefined;
+      const bounds = item?.bounds ?? unionMusicBounds([
+        ...(existing.itemBounds && existing.itemBounds.length > 1
+          ? existing.itemBounds.map(({ bounds }) => ({
+              ...bounds,
+              x: bounds.x + bounds.width / 2 - Math.max(LXM_NUMBERED_FOCUS_WIDTH, bounds.width) / 2,
+              width: Math.max(LXM_NUMBERED_FOCUS_WIDTH, bounds.width),
+            }))
+          : [existing.itemBounds?.[0]?.bounds ?? existing.labels[0]!.bounds]),
+      ]);
+      const anchorX = item
+        ? item.bounds.x + item.bounds.width / 2
+        : m.numberedSlots.find((s) => s.id === target.eventId)?.x ?? existing.labels[0]!.x;
+      return numberedFocusRect(layout, m, anchorX, bounds);
+    }
     const slot = m.numberedInputSlots?.find((s) =>
       target.eventId
         ? s.target.kind === "numberedEvent" &&
           s.target.eventId === target.eventId
         : s.startTick === target.tick && s.endTick === target.endTick,
     );
-    if (slot)
-      return {
-        x: slot.anchorX - Math.max(24, slot.width) / 2,
-        y: slot.y,
-        width: Math.max(24, slot.width),
-        height: slot.height,
-      };
-    const row = layout.systems.find((s) =>
-      s.measures.some((x) => x.id === m.id),
-    )!;
-    const y =
-      row.numberedRow?.y ??
-      Math.max(...row.measures.map(getMeasureContentBottom)) +
-        MUSIC_TEXT_LANE_GAP;
+    if (slot) return numberedFocusRect(layout, m, slot.anchorX);
     const anchor =
       (target.tick !== undefined
         ? numberedXAtTick(m, target.tick)
         : undefined) ??
       m.beats.find((b) => b.id === target.beatId)?.x ??
       m.x + 18;
-    return { x: anchor - 12, y, width: 24, height: 18 };
+    return numberedFocusRect(layout, m, anchor);
   }
 
   for (const s of layout.systems) {

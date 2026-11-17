@@ -2,9 +2,11 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Button } from "antd";
+import { WarningOutlined } from "@ant-design/icons";
 import {
   calculateRhythmTicks,
   getRhythmPatternTemplates,
+  inferRhythmPatternTemplate,
   LXMScoreCommandEnum,
   planRhythmPattern,
   type ILXMBeat,
@@ -49,21 +51,28 @@ const templatesFor = (document: ILXMDocument, result: TargetResult) => {
   const measure = targetMeasure(document, result);
   return getRhythmPatternTemplates(measure?.timeSignature ?? document.score.tracks[0]?.measures[0]?.timeSignature ?? { numerator: 4, denominator: 4 });
 };
-const previewFor = (props: Props, templateId?: string) => {
+const previewFor = (props: Props, explicitTemplateId?: string) => {
   const state = props.session.getState();
-  const targetResult = props.getTargetResult();
+  // Render 以本次 props 为准：实时 getter 的 ref 要到 layout effect 才更新，
+  // 不能在同次 render 的选区刷新中读取它们。getter 仅用于提交瞬时保护。
+  const targetResult = props.targetResult;
   const templates = state.document ? templatesFor(state.document, targetResult) : [];
-  const selected = templates.find((item) => item.id === templateId) ?? templates.find((item) => item.id === "eight-sixteen" || item.id === "three-eighths") ?? templates[0];
+  const selected = explicitTemplateId !== undefined
+    ? templates.find((item) => item.id === explicitTemplateId)
+    : state.document && targetResult.ok ? inferRhythmPatternTemplate(state.document, targetResult.target) : null;
   return {
     session: props.session,
     version: captureEditorVersion(state),
-    identity: props.getTargetIdentity(),
+    identity: props.targetIdentity,
     document: state.document,
     targetResult,
+    // 手选只属于本次目标与文档快照，目标或文档变化后重新识别。
+    explicitTemplateId,
     templateId: selected?.id,
     result: state.document && targetResult.ok && selected
       ? planRhythmPattern(state.document, targetResult.target, selected.id)
-      : { ok: false as const, code: "INVALID_TARGET", message: targetResult.ok ? "当前拍号暂无可用的节奏型。" : targetResult.message },
+      : { ok: false as const, code: "INVALID_TARGET", message: !targetResult.ok ? targetResult.message
+        : !templates.length ? "当前拍号暂无可用的节奏型。" : "当前拍未匹配到节奏型，请选择模板。" },
   };
 };
 
@@ -71,24 +80,24 @@ const previewFor = (props: Props, templateId?: string) => {
 export function RhythmPatternPanel(props: Props) {
   const { session, document, targetResult, blocked, onScopeChange, onBusyChange } = props;
   const current = useSyncExternalStore(session.subscribe, session.getState, session.getState);
-  // 只在打开、切换模板或主动重算时捕获快照；文档／选区变化时保留旧预览并提示失效，
-  // 不静默更新预览，以免用户对旧目标的确认被套用到新目标。
-  const [preview, setPreview] = useState(() => previewFor(props));
-  const [confirmationKey, setConfirmationKey] = useState<string | null>(null);
+  const [snapshot, setPreview] = useState(() => previewFor(props));
+  const changed = snapshot.session !== session || !sameEditorVersion(current, snapshot.version) || snapshot.identity !== props.targetIdentity;
+  // 在本次 render 即使用新快照，避免旧拍的手选和预览短暂显示在新选区上。
+  const preview = changed ? previewFor(props) : snapshot;
+  if (changed) setPreview(preview);
   const [failure, setFailure] = useState<string | null>(null);
+  if (changed && failure !== null) setFailure(null);
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
   const succeeded = useRef(false);
   const mounted = useRef(true);
   const latest = useRef(props);
   const applyButton = useRef<HTMLButtonElement>(null);
-  const confirmButton = useRef<HTMLButtonElement>(null);
   useLayoutEffect(() => { latest.current = props; });
   const stale = preview.session !== session || !sameEditorVersion(current, preview.version) || preview.identity !== props.targetIdentity;
   const plan = preview.result.ok ? preview.result : null;
   const templates = templatesFor(document, targetResult);
   const measure = preview.document ? targetMeasure(preview.document, preview.targetResult) : undefined;
-  const confirming = !!plan?.removedMarks.length && confirmationKey === plan.confirmationKey && !stale;
   const scopeKey = plan && !stale ? JSON.stringify(plan.target) : null;
   useEffect(() => {
     onScopeChange?.(scopeKey ? JSON.parse(scopeKey) as RhythmPatternTarget : null);
@@ -101,29 +110,19 @@ export function RhythmPatternPanel(props: Props) {
       latest.current.onBusyChange(false);
     };
   }, []);
-  useEffect(() => {
-    if (confirming) confirmButton.current?.focus({ preventScroll: true });
-  }, [confirming]);
-
   const isCurrent = () => {
     // 既检查会话版本，也检查 Shell 的简谱连续选区；后者不保存在 store 中。
     const now = latest.current;
     return mounted.current && now.session === preview.session && !now.blocked && !now.getBlocked() &&
       sameEditorVersion(now.session.getState(), preview.version) && now.getTargetIdentity() === preview.identity;
   };
-  const refresh = (templateId = preview.templateId) => {
+  const refresh = (templateId: string) => {
     if (busyRef.current) return;
     setPreview(previewFor(latest.current, templateId));
-    setConfirmationKey(null);
     setFailure(null);
   };
-  const apply = async (confirmed = false) => {
+  const apply = async () => {
     if (busyRef.current || !plan || !isCurrent()) return;
-    if (plan.removedMarks.length && (!confirmed || confirmationKey !== plan.confirmationKey)) {
-      setConfirmationKey(plan.confirmationKey);
-      setFailure(null);
-      return;
-    }
     busyRef.current = true;
     setBusy(true);
     onBusyChange(true);
@@ -132,11 +131,11 @@ export function RhythmPatternPanel(props: Props) {
       if (!isCurrent()) return;
       const result = await latest.current.execute({
         type: LXMScoreCommandEnum.ApplyRhythmPattern,
-        // plan.target 是归齐后的高亮范围，确认键则绑定原始目标，提交必须使用原始值。
+        // 版本与确认键仍绑定提交瞬时快照；一次应用授权移除受影响标记。
         target: preview.targetResult.ok ? preview.targetResult.target : plan.target,
         templateId: plan.template.id,
         expectedConfirmationKey: plan.confirmationKey,
-        allowRemoveMarks: confirmed && confirmationKey === plan.confirmationKey,
+        allowRemoveMarks: true,
       }, "caller", { isCurrent });
       if (!mounted.current) return;
       if (result.status === "applied" || result.status === "noop") {
@@ -147,9 +146,8 @@ export function RhythmPatternPanel(props: Props) {
         latest.current.onSuccess(plan.target);
         return;
       }
-      if (result.status === "stale" || !isCurrent()) setConfirmationKey(null);
       setFailure("message" in result ? result.message : result.result.message);
-      requestAnimationFrame(() => (confirming ? confirmButton : applyButton).current?.focus({ preventScroll: true }));
+      requestAnimationFrame(() => applyButton.current?.focus({ preventScroll: true }));
     } catch {
       if (mounted.current) setFailure("应用失败，当前预览已保留，请重试。");
     } finally {
@@ -159,14 +157,7 @@ export function RhythmPatternPanel(props: Props) {
     }
   };
   const layerName = plan?.target.layer === "tab" || (!plan && targetResult.ok && targetResult.target.layer === "tab") ? "六线谱" : "简谱";
-  // Locate the display number from the captured document, never from sample content.
   const capturedTarget = preview.targetResult.ok ? preview.targetResult.target : null;
-  const track = preview.document && preview.targetResult.ok
-    ? preview.document.score.tracks.find((item) => item.id === capturedTarget?.trackId)
-    : undefined;
-  const index = track?.measures.findIndex((item) => item.id === measure?.id);
-  const location = plan ? `第 ${(index ?? 0) + 1} 小节 · 第 ${plan.scope.firstBeat}${plan.scope.lastBeat > plan.scope.firstBeat ? `–${plan.scope.lastBeat}` : ""} 拍` : "请选择同一小节内的音符或连续范围";
-  const signature = measure ? `${measure.timeSignature.numerator}/${measure.timeSignature.denominator}` : "";
   const lyricCount = measure && plan?.target.layer === "numbered" ? measure.lyrics.filter((lyric) => plan.before.some((event) => event.id === lyric.eventId)).length : 0;
   const chordCount = measure && plan ? measure.chordSymbols.filter((chord) => {
     const beat = measure.beats.find((item) => item.id === chord.beatId);
@@ -174,30 +165,26 @@ export function RhythmPatternPanel(props: Props) {
   }).length : 0;
   const retainedCount = plan?.perBeat.reduce((sum, beat) => sum + beat.retainedCount, 0) ?? 0;
   const gapCount = plan?.perBeat.reduce((sum, beat) => sum + beat.gapCount, 0) ?? 0;
-  const message = stale ? "目标或文档已变化，请重新计算预览。" : failure ?? (!preview.result.ok ? preview.result.message : blocked ? "请先完成当前编辑，再应用节奏型；可继续浏览模板。" : null);
+  const message = failure ?? (!preview.result.ok ? preview.result.message : blocked ? "请先完成当前编辑，再应用节奏型；可继续浏览模板。" : null);
 
   return <section className={styles.root} aria-label="节奏型预览" aria-busy={busy} data-rhythm-pattern-panel>
     <header className={styles.header}>
       <h2>节奏型</h2>
       <button type="button" className={styles.close} aria-label="关闭节奏型" disabled={busy} onClick={props.onClose}>×</button>
     </header>
-    <p className={styles.context}>{layerName} · {location}{signature ? ` · ${signature}` : ""}</p>
+    <p className={styles.rules}><WarningOutlined aria-hidden="true" /> 按所选模板调整节奏，应用后会将相关技巧和连线移除。</p>
     <div className={styles.templates}>
-      <div className={styles.sectionHeading}><strong>选择模板 <span>{templates.length} 个</span></strong><span>每张覆盖 1 个演奏拍 · {signature === "6/8" ? "附点四分音符（3 个八分）" : "四分音符"}</span></div>
       <div className={styles.grid} role="group" aria-label="节奏型模板">
-        {templates.map((template, i) => <TemplateCard key={template.id} template={template} groupTitle={i === 0 || !!template.detail !== !!templates[i - 1]?.detail ? template.detail ? "三十二分细分" : "常用" : null}
-          selected={preview.templateId === template.id} disabled={busy} onSelect={() => {
-            if (stale) { setPreview((value) => ({ ...value, templateId: template.id })); setConfirmationKey(null); setFailure(null); }
-            else refresh(template.id);
-          }} />)}
+        {templates.map((template, i) => <TemplateCard key={template.id} template={template} groupTitle={template.detail && !templates[i - 1]?.detail ? "三十二分细分" : null}
+          selected={preview.templateId === template.id} disabled={busy} onSelect={() => refresh(template.id)} />)}
       </div>
     </div>
     <div className={styles.preview}>
-      <div className={styles.sectionHeading}><strong>应用预览</strong><span>{plan?.template.name ?? "范围待调整"}{plan ? ` · ${plan.scope.beatCount} 拍 · 逐拍套用` : ""}</span></div>
+      <div className={styles.sectionHeading}><strong>应用预览</strong><span>{plan?.template.name ?? (preview.templateId ? "范围待调整" : "请选择模板")}{plan ? ` · ${plan.scope.beatCount} 拍 · 逐拍套用` : ""}</span></div>
       <div className={styles.comparison}>
         <div className={styles.scoreBox}>
           <div className={styles.scoreLabel}>当前 <span>{plan ? `${plan.scope.beatCount} 个演奏拍` : "无有效范围"}</span></div>
-          {plan && measure ? <ScorePreview plan={plan} events={plan.before} measure={measure} label="当前" /> : <div className={styles.empty}>请在谱面选择范围</div>}
+          {plan && measure ? <ScorePreview plan={plan} events={plan.before} measure={measure} label="当前" /> : <div className={styles.empty}>{capturedTarget ? "选择模板后生成预览" : "请在谱面选择范围"}</div>}
         </div>
         <span className={styles.arrow} aria-hidden="true">→</span>
         <div className={`${styles.scoreBox} ${styles.after}`}>
@@ -207,21 +194,13 @@ export function RhythmPatternPanel(props: Props) {
       </div>
       {plan && <p className={styles.summary}>保留 {retainedCount} 个内容位置{gapCount ? `，模板含 ${gapCount} 个待填空位` : "，无待填空位"}。</p>}
       {(lyricCount > 0 || chordCount > 0) && <p className={styles.contentNote}>{lyricCount > 0 ? `${lyricCount} 处歌词随原内容保留。` : ""}{chordCount > 0 ? `${chordCount} 个和弦保留原拍点。` : ""}</p>}
-      {!!plan?.removedMarks.length && <p className={styles.protection}>将移除 {plan.removedMarks.length} 项标记：{plan.removedMarks.map((mark) => `${mark.name}${mark.crossesScope ? "（跨范围）" : ""}`).join("、")}。应用时需确认。</p>}
       {message && <p className={stale || blocked ? styles.warning : styles.error} role={stale || blocked ? "status" : "alert"}>{message}</p>}
-      {stale && <Button size="small" disabled={busy} className={styles.recalculate} onClick={() => refresh()}>重新计算预览</Button>}
-      {confirming && <div className={styles.confirmation} role="alert"><strong>确认调整节奏与标记</strong><p>将移除上述 {plan!.removedMarks.length} 项标记，保留原内容并调整时值。此操作可撤销。</p></div>}
     </div>
     <footer className={styles.footer}>
       <span>{busy ? "正在应用…" : `${layerName} · ${plan ? `${plan.scope.beatCount} 拍` : "待选择"}`}</span>
       <div className={styles.actions}>
-        {confirming ? <>
-          <Button disabled={busy} onClick={() => { setConfirmationKey(null); setFailure(null); requestAnimationFrame(() => applyButton.current?.focus()); }}>返回预览</Button>
-          <Button ref={confirmButton} type="primary" loading={busy} disabled={busy || blocked || stale} onClick={() => void apply(true)}>{failure ? "重试调整" : "确认调整"}</Button>
-        </> : <>
           <Button disabled={busy} onClick={props.onClose}>取消</Button>
           <Button ref={applyButton} type="primary" loading={busy} disabled={busy || blocked || stale || !plan} onClick={() => void apply()}>{failure ? "重试应用" : "应用节奏型"}</Button>
-        </>}
       </div>
     </footer>
   </section>;
@@ -285,7 +264,7 @@ function ScorePreview({ plan, events, measure, label }: { plan: Plan; events: re
         const sameBeat = (other: PreviewEvent | undefined) => !!other && Math.floor(other.tick / beatTicks) === Math.floor(event.tick / beatTicks) && !isGap(other) && other.kind === "notes";
         const lyrics = tab ? [] : measure.lyrics.filter((lyric) => lyric.eventId === event.id);
         return <g key={event.id} fill="currentColor">
-          <title>{describe(event)}{lyrics.length ? `，歌词${lyrics.map((lyric) => lyric.text).join("、")}` : ""}</title>
+          <title>{`${describe(event)}${lyrics.length ? `，歌词${lyrics.map((lyric) => lyric.text).join("、")}` : ""}`}</title>
           {gap ? <rect x={x - 8} y="39" width="16" height="19" rx="3" className={styles.gap} strokeDasharray="3 2" />
             : !tab && "items" in event ? <>
               {(event.kind === "rest" ? ["0"] : event.kind === "continuation" ? ["–"] : event.items.map((item) => item.token)).map((token, itemIndex, tokens) => <NumberedToken key={itemIndex} token={token} x={x} y={53 - itemIndex * (tokens.length > 3 ? 10 : 15)} small={tokens.length > 1} />)}

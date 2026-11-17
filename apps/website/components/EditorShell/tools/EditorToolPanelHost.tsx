@@ -1,13 +1,15 @@
 "use client";
-import { Button } from "antd";
+import { Button, Popover } from "antd";
 import { DownOutlined } from "@ant-design/icons";
 import {
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useRef,
   useState,
   useSyncExternalStore,
   type ReactNode,
+  type ReactElement,
   type Ref,
 } from "react";
 import { createPortal } from "react-dom";
@@ -35,6 +37,8 @@ export const EditorToolPanelHost = ({
   subscribeProtection,
   onTechniqueIntent,
   onHideTechnique,
+  beatTargetIdentity,
+  getBeatTargetIdentity,
 }: {
   ref: Ref<EditorToolPanelController>;
   children: Record<ToolGroupId, ReactNode>;
@@ -45,13 +49,15 @@ export const EditorToolPanelHost = ({
   subscribeProtection?: (listener: () => void) => () => void;
   onTechniqueIntent?: (intent: TechniqueIntent) => boolean;
   onHideTechnique?: () => void;
+  beatTargetIdentity?: string | null;
+  getBeatTargetIdentity?: () => string | null;
 }) => {
   const [group, setGroup] = useState<ToolGroupId>("measure");
   const clientReady = useSyncExternalStore(noopSubscribe, clientSnapshot, serverSnapshot);
   const [open, setOpen] = useState(false);
   const [moreMenu, setMoreMenu] = useState(false);
   const [portalRoot, setPortalRoot] = useState<HTMLElement | null>(null);
-  const [geometry, setGeometry] = useState({ left: 8, top: 50, width: 300, maxHeight: 600 });
+  const [geometry, setGeometry] = useState({ left: 8, top: 50, width: 300, maxHeight: 600, more: false });
   const trigger = useRef<HTMLDivElement>(null),
     content = useRef<HTMLDivElement>(null);
   const requestedFocus = useRef<string | undefined>(undefined);
@@ -59,6 +65,26 @@ export const EditorToolPanelHost = ({
   const compositionBuffer = useRef(false);
   const pendingClose = useRef<boolean | null>(null);
   const compositionFrame = useRef<number | null>(null);
+  const outsideFrame = useRef<number | null>(null);
+  const outsideGeneration = useRef(0);
+  const currentOverlay = useRef({ open, group });
+  useLayoutEffect(() => { currentOverlay.current = { open, group }; }, [open, group]);
+  const invalidateOutside = () => {
+    outsideGeneration.current++;
+    if (outsideFrame.current !== null) cancelAnimationFrame(outsideFrame.current);
+    outsideFrame.current = null;
+  };
+  const paintedBeatTarget = useRef(beatTargetIdentity);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => { paintedBeatTarget.current = beatTargetIdentity; });
+    return () => cancelAnimationFrame(frame);
+  }, [beatTargetIdentity]);
+  useEffect(() => {
+    if ((!open || group !== "beat") && outsideFrame.current !== null) {
+      cancelAnimationFrame(outsideFrame.current);
+      outsideFrame.current = null;
+    }
+  }, [open, group]);
   const canClose = () => !composing.current && !compositionBuffer.current && (canHide?.() ?? true);
   const visibleTrigger = (target: ToolGroupId) => {
     const button = trigger.current?.querySelector<HTMLButtonElement>(
@@ -69,6 +95,7 @@ export const EditorToolPanelHost = ({
   const restore = (target: ToolGroupId) =>
     visibleTrigger(target)?.focus({ preventScroll: true });
   const close = (restoreTrigger = false) => {
+    invalidateOutside();
     if (!canClose()) { pendingClose.current = restoreTrigger; return; }
     pendingClose.current = null;
     if (open && group === "technique" && !moreMenu) onHideTechnique?.();
@@ -91,11 +118,14 @@ export const EditorToolPanelHost = ({
     const maxRight = Math.min(window.innerWidth - 8, bounds.right - 8);
     const left = Math.max(minLeft, Math.min(anchor.left, maxRight - width));
     const top = Math.min(anchor.bottom + 6, Math.max(8, window.innerHeight - 120));
-    setGeometry({ left, top, width, maxHeight: Math.min(660, Math.max(80, window.innerHeight - top - 8)) });
+    setGeometry({ left, top, width, maxHeight: Math.min(660, Math.max(80, window.innerHeight - top - 8)),
+      more: !trigger.current?.querySelector('[data-tool-trigger="beat"]')?.getClientRects().length });
   };
   const show = (target: ToolGroupId, focusSelector?: string) => {
     if (blocked) return;
     if (target !== group && !canClose()) return;
+    invalidateOutside();
+    pendingClose.current = null;
     if (open && group === "technique" && target !== group && !moreMenu) onHideTechnique?.();
     requestedFocus.current = focusSelector ?? (target === "beat" ? '[data-rhythm-template][aria-pressed="true"]' : undefined);
     beforeOpen(target);
@@ -120,6 +150,8 @@ export const EditorToolPanelHost = ({
   }, [blocked, open]);
   useEffect(() => () => {
     if (compositionFrame.current !== null) cancelAnimationFrame(compositionFrame.current);
+    if (outsideFrame.current !== null) cancelAnimationFrame(outsideFrame.current);
+    outsideGeneration.current++;
   }, []);
   useEffect(() => {
     const root = trigger.current;
@@ -145,10 +177,10 @@ export const EditorToolPanelHost = ({
   useEffect(() => {
     if (!open) return;
     const outside = (event: PointerEvent) => {
-      if (blocked || !(event.target instanceof Node) || trigger.current?.contains(event.target) || content.current?.contains(event.target)) return;
+      if (group === "beat" || blocked || !(event.target instanceof Node) || trigger.current?.contains(event.target) || content.current?.contains(event.target)) return;
       close();
     };
-    window.document.addEventListener("pointerdown", outside, true);
+    if (group !== "beat") window.document.addEventListener("pointerdown", outside, true);
     const escape = (event: KeyboardEvent) => {
       if (event.key !== "Escape" || event.isComposing || blocked || content.current?.closest("[inert]")) return;
       if (content.current?.querySelector('[role="combobox"][aria-expanded="true"]')) return;
@@ -178,15 +210,13 @@ export const EditorToolPanelHost = ({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, group, moreMenu]);
-  return (
-    <>
-      {clientReady && portalRoot && createPortal(
+  const popup = (
         <div
           ref={content}
-          className={`ant-popover ${toolbarStyles.popup}`}
+          className={group === "beat" ? undefined : `ant-popover ${toolbarStyles.popup}`}
           role="dialog" aria-label={moreMenu ? "更多工具" : `${TOOL_GROUPS.find((item) => item.id === group)!.label}工具参数`}
           hidden={!open}
-          style={{ position: "fixed", left: geometry.left, top: geometry.top, width: geometry.width, display: open ? "block" : "none" }}
+          style={group === "beat" ? undefined : { position: "fixed", left: geometry.left, top: geometry.top, width: geometry.width, display: open ? "block" : "none" }}
           inert={!open || blocked}
           onCompositionStart={() => {
             composing.current = true;
@@ -245,7 +275,42 @@ export const EditorToolPanelHost = ({
           ))}
           </div>
         </div>
-      , portalRoot)}
+  );
+  const rhythmPopover = (anchor: ReactElement, more = false) => (
+      <Popover
+        trigger="click" open={open && group === "beat" && geometry.more === more}
+        placement="bottomLeft" arrow={false} fresh
+        getPopupContainer={() => portalRoot ?? window.document.body}
+        styles={{ root: { width: geometry.width, maxWidth: "calc(100vw - 16px)" }, container: { padding: 0 } }}
+        content={group === "beat" && geometry.more === more ? popup : null}
+        onOpenChange={(next) => {
+          if (next || group !== "beat" || !open) return;
+          // 外部点击由 Popover 检测。等本次谱面点击/拖动完成后，选区切换保留面板，空白点击关闭。
+          const previous = paintedBeatTarget.current;
+          const deadline = performance.now() + 1500;
+          invalidateOutside();
+          const generation = outsideGeneration.current;
+          const finish = () => {
+            // mousedown安排的关闭只属于当次beat浮层；click切组/关闭重开后不可沿用。
+            if (generation !== outsideGeneration.current || !currentOverlay.current.open || currentOverlay.current.group !== "beat") return;
+            if (performance.now() < deadline && window.document.querySelector('svg[aria-label="六线谱编辑器"]:active')) {
+              outsideFrame.current = requestAnimationFrame(finish);
+              return;
+            }
+            outsideFrame.current = null;
+            const target = getBeatTargetIdentity?.();
+            if (target && target !== previous) return;
+            close();
+          };
+          outsideFrame.current = requestAnimationFrame(finish);
+        }}
+      >
+        {anchor}
+      </Popover>
+  );
+  return (
+    <>
+      {clientReady && portalRoot && group !== "beat" && createPortal(popup, portalRoot)}
       <div
         ref={trigger}
         className={toolbarStyles.triggers}
@@ -264,7 +329,8 @@ export const EditorToolPanelHost = ({
             <TechniqueSymbol kind="technique" />
           </EditorToolSymbolButton>
         ) : (
-          <span key={item.id} className={toolbarStyles.desktopTrigger}><Button
+          <span key={item.id} className={toolbarStyles.desktopTrigger}>{(() => {
+            const button = <Button
             key={item.id}
             data-tool-trigger={item.id}
             disabled={blocked}
@@ -281,15 +347,22 @@ export const EditorToolPanelHost = ({
           >
             {item.label}
             <DownOutlined />
-          </Button></span>
+          </Button>;
+            return item.id === "beat" ? rhythmPopover(button) : button;
+          })()}</span>
         ))}
-        <span className={toolbarStyles.moreTrigger}><Button data-tool-trigger="more" disabled={blocked}
+        <span className={toolbarStyles.moreTrigger}>{rhythmPopover(<Button data-tool-trigger="more" disabled={blocked}
           aria-label="更多工具" aria-haspopup="dialog" aria-expanded={open && (moreMenu || group !== "technique")}
           variant="text" onClick={(event) => {
             event.stopPropagation();
             if (open && moreMenu) close(true);
-            else if (!blocked && canClose()) { if (open && group === "technique" && !moreMenu) onHideTechnique?.(); setMoreMenu(true); setGroup("measure"); setOpen(true); }
-          }}>更多<DownOutlined /></Button></span>
+            else if (!blocked && canClose()) {
+              invalidateOutside();
+              pendingClose.current = null;
+              if (open && group === "technique" && !moreMenu) onHideTechnique?.();
+              setMoreMenu(true); setGroup("measure"); setOpen(true);
+            }
+          }}>更多<DownOutlined /></Button>, true)}</span>
       </div>
     </>
   );
