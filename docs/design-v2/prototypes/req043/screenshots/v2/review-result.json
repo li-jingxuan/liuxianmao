@@ -1,0 +1,21 @@
+{
+  "version": "v2",
+  "scope": "independent design prototype only",
+  "url": "http://127.0.0.1:4191/docs/design-v2/prototypes/req043/",
+  "checks": [
+    "v2 has one replacement entry and no target, dual-layer, scope or search controls; choosing and cancelling only change the preview.",
+    "One quarter note becomes one eighth note plus two empty sixteenths; this prototype returns only the active layer, leaves later beats intact, and supports no-op and undo.",
+    "Two eighth notes are retained in order and followed by one empty sixteenth.",
+    "Blank and mixed empty ranges generate fillable gaps without invented rests; existing rests keep their type and order.",
+    "A polyphonic numbered event or simultaneous TAB strings count as one position; the limited lyric/chord seed preserves its content and IDs, without claiming production-anchor coverage.",
+    "A short current-note target automatically resolves to one complete beat; multiple beats map separately, and a locally overfull beat blocks the whole operation.",
+    "All 11 unique templates retain exact durations; whole bars repeat four, three or two cycles; 6/8 uses dotted-quarter beats and creates no triplet.",
+    "Marked content first opens an inline confirmation; returning preserves the score, confirming clears marks while preserving notes, and undo restores marks and contents.",
+    "Changing the template invalidates the prior mark-removal confirmation.",
+    "Overfull, absent, cross-bar and crossing-content targets are blocked; stale previews need refresh; failed submission leaves the score intact and can be retried.",
+    "The TAB-only model retains the original string and fret, creates empty TAB positions, and leaves later beats intact; real two-layer document isolation requires future product validation.",
+    "1440px desktop and 720px/390px review layouts render without horizontal document overflow.",
+    "No browser runtime errors."
+  ],
+  "errors": []
+}

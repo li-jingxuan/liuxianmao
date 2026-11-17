@@ -171,6 +171,8 @@ export interface ILXMBeat {
   rhythm: ILXMRhythm;
   kind: ILXMBeatKind;
   notes: ILXMNote[];
+  /** 持久化显式空位时值，后续补音不得继承简谱时值或被前方空拍吞并。 */
+  preserveInputRhythm?: true;
 }
 
 /** 数值表示有确定音高的品位；x 表示未指定品位的弹奏；- 表示延音标记，不产生起音。 */

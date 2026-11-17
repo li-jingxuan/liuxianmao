@@ -15,7 +15,7 @@ import {
   RedoOutlined,
   UndoOutlined,
 } from "@ant-design/icons";
-import { LXMScoreCommandEnum, type ILXMRhythm, type MusicTextRange } from "@liuxianmao/lxm-editor";
+import { LXMScoreCommandEnum, type ILXMRhythm, type MusicTextRange, type RhythmPatternTarget } from "@liuxianmao/lxm-editor";
 import {
   useEditorSessionStore,
   useEditorStore,
@@ -27,7 +27,8 @@ import {
   type ToolAvailability,
 } from "../tools/editor-tool-state";
 import { editorShortcutLabel } from "../session/editor-shortcuts";
-import { BeatToolbar } from "../tools/BeatToolbar";
+import { RhythmPatternPanel } from "../tools/RhythmPatternPanel";
+import { resolveEditorRhythmPatternTarget } from "../tools/editor-rhythm-pattern-target";
 import { TupletToolbar } from "../tools/TupletToolbar";
 import { TechniqueToolbar, type TechniqueToolbarController } from "../tools/TechniqueToolbar";
 import {
@@ -75,9 +76,11 @@ export const EditorToolbar = ({
   numberedBlocked,
   onAction,
   beforeAction,
+  beforeRhythmPatternAction,
   execute,
   onNavigate,
   onOpenChord,
+  onRhythmPatternScopeChange,
   chordEntryBlocked = false,
   sidebarCollapsed,
   onToggleSidebar,
@@ -89,9 +92,11 @@ export const EditorToolbar = ({
   numberedBlocked: boolean;
   onAction: ToolActionHandler;
   beforeAction: () => void;
+  beforeRhythmPatternAction?: () => void;
   execute: EditorCommandAdapter;
   onNavigate: (destination: ToolNavigation) => SelectionRequestResult;
   onOpenChord?: (target: MusicTextTarget) => void;
+  onRhythmPatternScopeChange?: (scope: RhythmPatternTarget | null) => void;
   chordEntryBlocked?: boolean;
   sidebarCollapsed: boolean;
   onToggleSidebar: () => void;
@@ -127,6 +132,12 @@ export const EditorToolbar = ({
     drafts.getSnapshot,
   );
   const host = useRef<EditorToolPanelController>(null);
+  const rhythmBusyRef = useRef(false);
+  const [, setRhythmBusy] = useState(false);
+  const setRhythmProtection = useCallback((busy: boolean) => {
+    rhythmBusyRef.current = busy;
+    setRhythmBusy(busy);
+  }, []);
   const techniquePanel = useRef<TechniqueToolbarController>(null);
   const activeTargetRef = useRef(activeTarget);
   useLayoutEffect(() => { activeTargetRef.current = activeTarget; }, [activeTarget]);
@@ -145,6 +156,16 @@ export const EditorToolbar = ({
     [],
   );
   const beforeLatest = useCallback(() => live.current.beforeAction(), []);
+  const getRhythmPatternTarget = useCallback(() => {
+    const now = session.getState();
+    return now.document
+      ? resolveEditorRhythmPatternTarget(now.document, now.selection, live.current.continuousRange, getActiveTarget())
+      : { ok: false as const, message: "当前没有可编辑的乐谱。" };
+  }, [session, getActiveTarget]);
+  const getRhythmPatternIdentity = useCallback(() => {
+    const now = session.getState();
+    return JSON.stringify({ selection: now.selection, numberedSelection: now.numberedSelection, continuousRange: live.current.continuousRange, activeTarget: getActiveTarget() });
+  }, [session, getActiveTarget]);
   const blockedReason = useCallback(
     () => (live.current.editingBlocked ? "先完成属性编辑，再修改 TAB。" : null),
     [],
@@ -172,6 +193,9 @@ export const EditorToolbar = ({
     if (modal) host.current?.close();
   }, [modal]);
   if (!document) return null;
+  const rhythmPatternTarget = resolveEditorRhythmPatternTarget(document, selection, continuousRange, activeTarget);
+  const rhythmPatternBlocked = (rhythmPatternTarget.ok && rhythmPatternTarget.target.layer === "numbered"
+    ? numberedEditingBlocked : editingBlocked) || !!modal || drafts.inspect().pending.length > 0;
   const tools = deriveEditorToolState(document, selection);
   const tabReason = tabToolTargetReason(session.getState(), activeTarget);
   const tieTarget = resolveEditorTieTarget(document, selection, continuousRange, activeTarget);
@@ -362,10 +386,10 @@ export const EditorToolbar = ({
       </div>
       <EditorToolPanelHost
         ref={host}
-        beforeOpen={beforeAction}
+        beforeOpen={(group) => { if (group === "beat") beforeRhythmPatternAction?.(); else beforeAction(); }}
         blocked={!!modal}
         reason={reason}
-        canHide={() => techniquePanel.current?.canHide() ?? true}
+        canHide={() => !rhythmBusyRef.current && (techniquePanel.current?.canHide() ?? true)}
         onHideTechnique={() => techniquePanel.current?.discard()}
         subscribeProtection={drafts.subscribe}
         onTechniqueIntent={(intent) => techniquePanel.current?.openTechnique(intent) ?? false}
@@ -436,12 +460,25 @@ export const EditorToolbar = ({
             </div>
           ),
           beat: (
-            <BeatToolbar
-              controller={paste}
-              beforeAction={beforeAction}
-              execute={execute}
-              blocked={editingBlocked}
-              onSuccess={() => host.current?.close(true)}
+            <RhythmPatternPanel
+              session={session}
+              document={document}
+              targetResult={rhythmPatternTarget}
+              targetIdentity={JSON.stringify({ selection, numberedSelection, continuousRange, activeTarget })}
+              getTargetResult={getRhythmPatternTarget}
+              getTargetIdentity={getRhythmPatternIdentity}
+              beforeAction={() => beforeRhythmPatternAction?.()}
+              execute={executeLatest}
+              blocked={rhythmPatternBlocked}
+              getBlocked={() => {
+                const target = getRhythmPatternTarget();
+                return !!live.current.modal || (target.ok && target.target.layer === "numbered"
+                  ? live.current.numberedEditingBlocked : live.current.editingBlocked) || drafts.inspect().busy || drafts.inspect().pending.length > 0;
+              }}
+              onBusyChange={setRhythmProtection}
+              onScopeChange={onRhythmPatternScopeChange}
+              onClose={() => host.current?.close(true)}
+              onSuccess={(scope) => { onRhythmPatternScopeChange?.(scope); host.current?.close(true); }}
             />
           ),
           tuplet: (

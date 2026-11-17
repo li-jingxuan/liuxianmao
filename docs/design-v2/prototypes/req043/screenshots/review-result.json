@@ -1,0 +1,17 @@
+{
+  "scope": "design prototype only",
+  "url": "http://127.0.0.1:4191/docs/design-v2/prototypes/req043/",
+  "checks": [
+    "Template selection and Escape do not mutate the score; focus returns to the trigger.",
+    "Single-layer application preserves pitches and the other layer; no-op creates no history; undo restores both original arrays.",
+    "All 11 unique templates keep their exact durations; 4/4, 3/4 and 6/8 repeat 4, 3 and 2 times without pitch generation.",
+    "6/8 whole-bar dual-layer application creates six eighth rests on each layer and reverses as one operation.",
+    "Three numbered events can be retimed while two TAB events block dual-layer application; neither layer changes.",
+    "Insufficient, absent, cross-bar and protected ranges block application; incomplete selection expands only after an explicit scope action.",
+    "Expired previews require refreshing; failed submission preserves the score and selection and can be retried.",
+    "The active TAB layer is the default; empty search has a recovery action; cancel returns focus.",
+    "Desktop and review-only 720px/390px layouts render; narrow layouts have no horizontal page overflow.",
+    "No browser runtime errors."
+  ],
+  "errors": []
+}

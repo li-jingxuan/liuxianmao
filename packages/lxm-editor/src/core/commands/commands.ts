@@ -4,6 +4,7 @@ import { sameTechniqueDraft } from "../techniques/technique-equality";
 import { planBeatPaste, type BeatClipboard } from "../rhythm/beat-clipboard";
 import { splitBeat, mergeBeats } from "../rhythm/beat-structure";
 import { extendBeat } from "../rhythm/beat-sustain";
+import { planRhythmPattern, type RhythmPatternTarget, type RhythmPatternErrorCode } from "../rhythm/rhythm-pattern";
 import { techniqueBeatIds } from "../techniques/content-protection";
 import { prepareTabInputRhythm } from "../rhythm/tab-input-rhythm";
 import { isPureTabContinuationBeat, planTabContinuation } from "../rhythm/tab-continuation";
@@ -79,6 +80,7 @@ export enum LXMScoreCommandEnum {
   ExtendBeat = "beat.sustain",
   MergeBeats = "beat.mergeRange",
   PasteBeats = "beat.paste",
+  ApplyRhythmPattern = "rhythmPattern.apply",
   SetNumbered = "numberedNotation.set",
   RemoveNumbered = "numberedNotation.remove",
   SetNumberedSequence = "numberedNotation.setSequence",
@@ -362,7 +364,16 @@ export interface ILXMBeatPasteCommand {
   expectedConfirmationKey: string;
 }
 
+export interface ILXMApplyRhythmPatternCommand {
+  type: LXMScoreCommandEnum.ApplyRhythmPattern;
+  target: RhythmPatternTarget;
+  templateId: string;
+  expectedConfirmationKey: string;
+  allowRemoveMarks?: boolean;
+}
+
 type ScoreCommandOperation =
+  | ILXMApplyRhythmPatternCommand
   | ILXMSetTabContinuationCommand
   | ILXMExtendBeatCommand
   | ILXMBeatPasteCommand
@@ -404,6 +415,9 @@ export type ILXMScoreCommand = ScoreCommandOperation & {
 };
 
 export type ILXMScoreCommandErrorCode =
+  | RhythmPatternErrorCode
+  | "STALE_RHYTHM_PATTERN_PLAN"
+  | "RHYTHM_PATTERN_CONFIRMATION_REQUIRED"
   | "NUMBERED_INVALID"
   | "NUMBERED_OVERLAP"
   | "NUMBERED_PARTIAL_RANGE"
@@ -558,7 +572,7 @@ const finalize = (
   previous: ILXMDocument,
   command: ILXMScoreCommand,
 ): ILXMApplyScoreCommandResult => {
-  if (!command.type.startsWith("numbered.")) {
+  if (!command.type.startsWith("numbered.") && command.type !== LXMScoreCommandEnum.ApplyRhythmPattern) {
     const removed: string[] = [];
     const tracks = document.score.tracks.map((track) => {
       const old = previous.score.tracks.find((t) => t.id === track.id);
@@ -1268,6 +1282,25 @@ const applyScoreCommandInternal = (
           },
         }
       : result;
+  }
+  if (command.type === LXMScoreCommandEnum.ApplyRhythmPattern) {
+    // 提交前重算，不能直接信任 UI 缓存的候选轨道。确认键绑定原始选区、模板和全文档，
+    // 即使 revision 相同，换谱或外部内容变更也不能复用先前的“移除标记”授权。
+    const plan = planRhythmPattern(document, command.target, command.templateId);
+    if (!plan.ok) return fail(plan.code, plan.message);
+    if (plan.confirmationKey !== command.expectedConfirmationKey)
+      return fail("STALE_RHYTHM_PATTERN_PLAN", "选区已变化，请重新预览并确认。");
+    if (plan.removedMarks.length && command.allowRemoveMarks !== true)
+      return { ok: false, code: "RHYTHM_PATTERN_CONFIRMATION_REQUIRED", message: `将移除 ${plan.removedMarks.length} 项标记：${[...new Set(plan.removedMarks.map(m => m.name))].join("、")}，请先确认调整。`, removedMarkIds: plan.removedMarks.map(m => m.id) };
+    if (!plan.changed) return unchanged(document);
+    const result = finalize({
+      ...document, documentRevision: document.documentRevision + 1,
+      score: { ...document.score, tracks: document.score.tracks.map(t => t.id === command.target.trackId ? plan.track : t) },
+    }, document, command);
+    if (!result.ok) return result;
+    const { trackId, measureId, eventId, beatId } = plan.focus;
+    return eventId ? { ...result, nextNumberedFocus: { trackId, measureId, eventId } }
+      : beatId ? { ...result, nextFocus: { trackId, measureId, beatId } } : result;
   }
   if (command.type === LXMScoreCommandEnum.ReplaceMusicTextRange) {
     const candidate = replaceMusicTextRange(document, command.range, command.text, createDocumentIdFactory(document));

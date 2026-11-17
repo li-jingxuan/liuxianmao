@@ -24,7 +24,7 @@ export interface EditorToolPanelController {
   restore: (group: ToolGroupId) => void;
   openTechnique: (intent: TechniqueIntent) => boolean;
 }
-/** One viewport-positioned portal, bounded by the editor host; parameter owners stay mounted. */
+/** One viewport-positioned portal, bounded by the editor host. Rhythm previews exist only while open. */
 export const EditorToolPanelHost = ({
   ref,
   children,
@@ -38,7 +38,7 @@ export const EditorToolPanelHost = ({
 }: {
   ref: Ref<EditorToolPanelController>;
   children: Record<ToolGroupId, ReactNode>;
-  beforeOpen: () => void;
+  beforeOpen: (group: ToolGroupId) => void;
   blocked: boolean;
   reason: string | null;
   canHide?: () => boolean;
@@ -73,14 +73,19 @@ export const EditorToolPanelHost = ({
     pendingClose.current = null;
     if (open && group === "technique" && !moreMenu) onHideTechnique?.();
     setOpen(false);
-    if (restoreTrigger) restore(group);
+    if (restoreTrigger) {
+      const target = group;
+      restore(target);
+      // Unmounting a portal may release its focused card after this synchronous call.
+      requestAnimationFrame(() => restore(target));
+    }
   };
   const align = () => {
     const editor = trigger.current?.closest<HTMLElement>("[data-layout]") ?? trigger.current?.closest<HTMLElement>('[role="toolbar"]');
     const anchor = visibleTrigger(group)?.getBoundingClientRect();
     if (!editor || !anchor) return;
     const bounds = editor.getBoundingClientRect();
-    const width = Math.min((group === "measure" ? 262 : group === "beat" ? 313 : group === "tuplet" ? 300 : 360) + 32,
+    const width = Math.min(group === "beat" && !moreMenu ? 724 : (group === "measure" ? 262 : group === "tuplet" ? 300 : 360) + 32,
       Math.max(0, bounds.width - 16), window.innerWidth - 16);
     const minLeft = Math.max(8, bounds.left + 8);
     const maxRight = Math.min(window.innerWidth - 8, bounds.right - 8);
@@ -92,8 +97,8 @@ export const EditorToolPanelHost = ({
     if (blocked) return;
     if (target !== group && !canClose()) return;
     if (open && group === "technique" && target !== group && !moreMenu) onHideTechnique?.();
-    requestedFocus.current = focusSelector;
-    beforeOpen();
+    requestedFocus.current = focusSelector ?? (target === "beat" ? '[data-rhythm-template][aria-pressed="true"]' : undefined);
+    beforeOpen(target);
     setGroup(target);
     setMoreMenu(false);
     setOpen(true);
@@ -104,6 +109,9 @@ export const EditorToolPanelHost = ({
   useEffect(() => subscribeProtection?.(() => {
     if (pendingClose.current !== null && canClose()) close(pendingClose.current);
   }));
+  useEffect(() => {
+    if (pendingClose.current !== null && canClose()) close(pendingClose.current);
+  });
   useEffect(() => {
     if (!blocked || !open) return;
     const frame = requestAnimationFrame(() => close());
@@ -133,7 +141,7 @@ export const EditorToolPanelHost = ({
     };
     // 浮层对齐只依赖活动组，参数 owner 不参与此 effect。
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [group]);
+  }, [group, moreMenu]);
   useEffect(() => {
     if (!open) return;
     const outside = (event: PointerEvent) => {
@@ -193,6 +201,13 @@ export const EditorToolPanelHost = ({
               if (pendingClose.current !== null) close(pendingClose.current);
             });
           }}
+          onKeyDown={(event) => {
+            // Portals bubble through the editor tree; keep score shortcuts inside this tool.
+            if (group === "beat" && !moreMenu) {
+              event.stopPropagation();
+              if (/^[0-9]$/.test(event.key) || event.key === "Delete" || event.key === "Backspace") event.preventDefault();
+            }
+          }}
           onKeyDownCapture={(event) => {
             const target = event.target as HTMLElement;
             const expandedControl = target.closest('[aria-expanded="true"], .ant-select-open');
@@ -207,13 +222,13 @@ export const EditorToolPanelHost = ({
             }
           }}
         >
-          <div className={`${editorToolPanelStyles.toolPanelHost} ${toolbarStyles.popupContent}`} style={{ maxHeight: geometry.maxHeight }}>
-          <h3>{moreMenu ? "更多工具" : `${TOOL_GROUPS.find((item) => item.id === group)!.label}工具`}</h3>
+          <div className={`${editorToolPanelStyles.toolPanelHost} ${toolbarStyles.popupContent}`} style={{ maxHeight: geometry.maxHeight, ...(group === "beat" && !moreMenu ? { padding: 0 } : {}) }}>
+          {(moreMenu || group !== "beat") && <h3>{moreMenu ? "更多工具" : `${TOOL_GROUPS.find((item) => item.id === group)!.label}工具`}</h3>}
           {moreMenu && <div className={editorToolPanelStyles.toolMenu}>
             {TOOL_GROUPS.filter((item) => item.id !== "technique").map((item) =>
               <Button key={item.id} block onClick={() => show(item.id)}>{item.label}工具</Button>)}
           </div>}
-          {reason && (
+          {reason && (moreMenu || group !== "beat") && (
             <p role="status" data-editor-form-hint className={editorFormStyles.settingsHint}>
               {reason}
             </p>
@@ -225,7 +240,7 @@ export const EditorToolPanelHost = ({
               hidden={moreMenu || group !== item.id}
               inert={moreMenu || group !== item.id}
             >
-              {children[item.id]}
+              {item.id === "beat" ? open && group === "beat" && !moreMenu ? children.beat : null : children[item.id]}
             </div>
           ))}
           </div>
@@ -235,7 +250,7 @@ export const EditorToolPanelHost = ({
         ref={trigger}
         className={toolbarStyles.triggers}
         role="group"
-        aria-label="小节、拍点、连音与技巧"
+        aria-label="小节、节奏型、连音与技巧"
         onKeyDownCapture={(event) => {
           if (open && event.key === "Escape" && !event.nativeEvent.isComposing && canClose()) {
             event.stopPropagation(); close(true);
@@ -273,7 +288,7 @@ export const EditorToolPanelHost = ({
           variant="text" onClick={(event) => {
             event.stopPropagation();
             if (open && moreMenu) close(true);
-            else if (!blocked && canClose()) { if (open && group === "technique" && !moreMenu) onHideTechnique?.(); beforeOpen(); setMoreMenu(true); setGroup("measure"); setOpen(true); }
+            else if (!blocked && canClose()) { if (open && group === "technique" && !moreMenu) onHideTechnique?.(); setMoreMenu(true); setGroup("measure"); setOpen(true); }
           }}>更多<DownOutlined /></Button></span>
       </div>
     </>

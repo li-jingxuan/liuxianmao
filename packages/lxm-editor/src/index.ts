@@ -70,6 +70,7 @@ export * from "./core/numbered/numbered-notation";
 export * from "./core/rhythm/beat-clipboard";
 export * from "./core/rhythm/beat-structure";
 export * from "./core/rhythm/beat-sustain";
+export * from "./core/rhythm/rhythm-pattern";
 
 export {
   EXAMPLE_MVP7C_DOCUMENT,

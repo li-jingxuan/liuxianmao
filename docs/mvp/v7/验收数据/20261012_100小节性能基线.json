@@ -5,40 +5,40 @@
     "cpu": "Apple M4",
     "cores": 10,
     "platform": "darwin",
-    "release": "27.0.0",
+    "release": "27.2.0",
     "totalMemory": 17179869184
   },
   "fixture": {
     "measures": 100,
-    "systems": 50,
-    "pages": 10,
+    "systems": 29,
+    "pages": 6,
     "density": "compact",
     "fontMetrics": "fallback (Node)"
   },
   "results": {
     "layout": {
-      "p50Ms": 28.394166999999925,
-      "p95Ms": 94.01862500000016,
+      "p50Ms": 27.589999999999918,
+      "p95Ms": 73.20925000000011,
       "samples": 30
     },
     "pagination": {
-      "p50Ms": 0.04125000000021828,
-      "p95Ms": 0.056916999999884865,
+      "p50Ms": 0.025791000000026543,
+      "p95Ms": 0.03516700000000128,
       "samples": 30
     },
     "scene": {
-      "p50Ms": 0.18779199999971752,
-      "p95Ms": 0.5577919999996084,
+      "p50Ms": 0.48233299999992596,
+      "p95Ms": 0.8269580000001042,
       "samples": 30
     },
     "singleEdit": {
-      "p50Ms": 75.85075000000006,
-      "p95Ms": 134.4949999999999,
+      "p50Ms": 66.68525000000045,
+      "p95Ms": 115.6019580000002,
       "samples": 30
     },
     "copy16": {
-      "p50Ms": 43.78837500000009,
-      "p95Ms": 51.370749999999134,
+      "p50Ms": 89.31583300000057,
+      "p95Ms": 132.40570799999932,
       "samples": 30
     }
   },
@@ -46,20 +46,20 @@
     "edits": 100,
     "undos": 100,
     "redos": 100,
-    "elapsedMs": 3430.61075,
+    "elapsedMs": 7281.522166999999,
     "before": {
-      "rss": 303742976,
-      "heapTotal": 239747072,
-      "heapUsed": 107270184,
-      "external": 3867482,
-      "arrayBuffers": 37011
+      "rss": 358088704,
+      "heapTotal": 285229056,
+      "heapUsed": 168643120,
+      "external": 3867714,
+      "arrayBuffers": 37243
     },
     "after": {
-      "rss": 356646912,
-      "heapTotal": 291143680,
-      "heapUsed": 156102064,
-      "external": 3867522,
-      "arrayBuffers": 37011
+      "rss": 388513792,
+      "heapTotal": 239091712,
+      "heapUsed": 124086936,
+      "external": 3867754,
+      "arrayBuffers": 37243
     }
   },
   "limitations": "Node 计算与进程内存，不含真实字体度量、React/DOM、浏览器峰值内存或图片编码；不替代桌面性能验收"

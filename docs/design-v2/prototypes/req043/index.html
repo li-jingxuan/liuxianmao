@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>六线猫 · 节奏型 v2.1 / REQ-043</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main class="prototype-shell">
+    <div class="review-heading"><strong>REQ-043 · 节奏型 v2.1</strong><span>独立设计原型 · 暂不实现</span></div>
+    <section class="review-controls" aria-label="原型评审辅助控制">
+      <span class="review-tag">评审辅助</span>
+      <label>场景<select id="review-scenario" aria-label="评审场景">
+        <option value="single">一个四分音符（1 音）</option>
+        <option value="two">两个八分音符（2 音）</option>
+        <option value="notes">三个音符（稳定样例）</option>
+        <option value="blank">纯空白 / gap</option>
+        <option value="mixed">音 / 空隙 / 音</option>
+        <option value="rest">一个明确休止</option>
+        <option value="mixed-rest">音符 / 明确休止</option>
+        <option value="overflow">四个内容位置（超槽位）</option>
+        <option value="uneven">第一拍 4 内容 / 第二拍 1 内容</option>
+        <option value="decorated">击弦 + 延音线（确认）</option>
+        <option value="content">歌词 + 和弦 + 带词空位</option>
+        <option value="polyphonic">同拍起音复音 / 多弦</option>
+        <option value="crossing-note">发声事件跨出处理范围</option>
+        <option value="none">无选区</option>
+        <option value="crossbar">跨小节</option>
+        <option value="stale">预览过期</option>
+        <option value="failure">首次提交失败（可重试）</option>
+      </select></label>
+      <label>拍号<select id="review-meter" aria-label="评审拍号"><option>4/4</option><option>3/4</option><option>6/8</option></select></label>
+      <label>选区<select id="review-range" aria-label="评审选区"><option value="single">当前音符（单点）</option><option value="two">连续 2 拍</option><option value="bar">整小节</option><option value="short">不足一拍短选区</option></select></label>
+      <label>活动层<select id="review-layer" aria-label="评审活动谱层"><option value="jian">简谱</option><option value="tab">六线谱</option></select></label>
+      <button id="review-reset" class="text-button">重置场景</button>
+    </section>
+
+    <div class="editor-frame" id="editor-frame">
+      <header class="editor-header">
+        <a class="brand" href="#" aria-label="六线猫（原型）"><svg aria-hidden="true" viewBox="0 0 32 32"><path d="M5 13 6 4l8 6h4l8-6 1 9v8c0 5-22 5-22 0Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9 17h3m8 0h3m-9 5 2 1 2-1" fill="none" stroke="currentColor" stroke-width="2"/></svg>六线猫</a>
+        <span class="header-divider"></span><strong class="document-name">风吹过山谷</strong><span class="local-status" id="document-status">已保存</span>
+        <div class="header-actions"><button id="undo-button" class="icon-text" disabled>↶ 撤销</button><span class="header-divider"></span><button id="play-button" class="icon-text">▷ 播放</button></div>
+      </header>
+      <nav class="editor-menu" aria-label="编辑器菜单"><span>文件</span><span>编辑</span><span>视图</span><span>插入</span><span>帮助</span></nav>
+      <div class="editor-toolbar" aria-label="音符编辑工具栏">
+        <div class="tool-group" id="duration-tools" aria-label="音符时值"></div>
+        <span class="toolbar-divider"></span><span class="toolbar-context-menu">小节 ⌄</span>
+        <button id="rhythm-trigger" class="rhythm-trigger" aria-haspopup="dialog" aria-expanded="false" aria-controls="rhythm-dialog">节奏型 <span>⌄</span></button>
+        <span class="toolbar-context-menu">连音 ⌄</span><span class="toolbar-spacer"></span><span class="toolbar-meter" id="toolbar-meter">4/4</span><span class="zoom">100% ⌄</span>
+      </div>
+      <div class="workspace">
+        <div class="canvas-area">
+          <div class="canvas-caption"><span id="selection-caption"></span><span>编辑模式</span></div>
+          <article class="score-paper" aria-label="当前活动谱层">
+            <h1>风吹过山谷</h1><p class="score-credit">编谱：六线猫</p>
+            <div class="score-meta"><span id="paper-meter">1 = C　4/4</span><span>♩ = 80</span></div>
+            <div class="score-layer"><span class="layer-label" id="active-layer-label">简谱</span><div id="active-score"></div></div>
+            <div class="measure-footer"><span>1</span><span id="measure-note"></span></div>
+            <p class="measure-hint" id="measure-hint"></p>
+            <div class="second-system" aria-hidden="true"><span>G</span><span>C</span><div>5　　3　　2　　—　│　1　　—　　0　　0</div><div>─────────────┼─────────────</div></div>
+          </article>
+          <div class="canvas-bottom"><span>第 1 页 / 共 1 页</span><span>当前活动谱层</span></div>
+        </div>
+        <aside class="existing-sidebar" aria-label="现有编辑器侧栏">
+          <div class="side-tabs"><strong>选区</strong><span>简谱与歌词</span><span>和弦</span><span>歌曲</span></div>
+          <section><h2>选区信息</h2><dl><div><dt>活动谱层</dt><dd id="side-layer"></dd></div><div><dt>处理范围</dt><dd id="side-position"></dd></div><div><dt>拍号</dt><dd id="side-meter"></dd></div><div><dt>演奏拍数</dt><dd id="side-length"></dd></div></dl></section>
+          <section><h2>音符属性</h2><div class="property-row"><span>力度</span><span>80　⌄</span></div><div class="property-row"><span>演奏技巧</span><span>—　⌄</span></div><p class="sidebar-note">选择音符后，查看和编辑音符属性。</p></section>
+          <section><h2>快捷操作</h2><p class="sidebar-note">选中音符后使用「节奏型」，自动定位所属完整演奏拍。</p><p class="key-hint"><kbd>Esc</kbd> 关闭　<kbd>⌘ Z</kbd> 撤销</p></section>
+        </aside>
+      </div>
+      <footer class="editor-status"><span id="editor-status-text"></span><span>标准吉他调弦　E A D G B E</span></footer>
+
+      <section id="rhythm-dialog" class="rhythm-dialog" role="dialog" aria-modal="false" aria-labelledby="dialog-title" hidden>
+        <header class="dialog-header"><h2 id="dialog-title">节奏型</h2><button id="close-rhythm" class="close-button" aria-label="关闭节奏型">×</button></header>
+        <div class="dialog-context" id="dialog-context"></div>
+        <div class="dialog-columns">
+          <section class="template-section" aria-labelledby="template-title">
+            <div class="template-heading">
+              <div class="section-title"><h3 id="template-title">节奏模板</h3><span id="template-count">12 个</span></div>
+              <p class="template-unit-note" id="template-unit-note"></p>
+            </div>
+            <div id="template-grid" class="template-grid" aria-label="节奏型模板"></div>
+          </section>
+          <section class="change-section" aria-labelledby="change-title">
+            <div class="preview-heading">
+              <div class="section-title"><h3 id="change-title">变更预览</h3><span class="preview-only">尚未应用</span></div>
+              <div class="preview-summary"><strong id="selected-name"></strong><span id="cycle-count"></span></div>
+            </div>
+            <div id="comparison" class="comparison" role="group" aria-label="当前与应用后对比"></div>
+            <p id="result-summary" class="result-summary" aria-live="polite"></p>
+            <div id="content-note" class="content-note" hidden></div>
+            <div id="protection-note" class="protection-note" hidden></div>
+            <div id="validation-message" class="validation-message" role="status" aria-live="polite" hidden></div>
+            <button id="refresh-preview" class="text-button refresh-preview" hidden>重新预览</button>
+          </section>
+        </div>
+        <div id="confirmation" class="confirmation" role="group" aria-labelledby="confirmation-text" hidden><p id="confirmation-text"></p><span>歌词与和弦继续保留。</span></div>
+        <footer class="dialog-footer">
+          <span class="footer-caption" id="application-target"></span>
+          <button id="cancel-rhythm" class="secondary-button">取消</button><button id="apply-rhythm" class="primary-button">应用节奏型</button>
+          <button id="back-preview" class="secondary-button" hidden>返回预览</button><button id="confirm-change" class="primary-button" hidden>确认调整</button>
+        </footer>
+      </section>
+      <div id="toast" class="toast" role="status" aria-live="polite" hidden><span id="toast-text"></span><button id="toast-undo" class="text-button">撤销</button></div>
+    </div>
+    <p class="prototype-caption">「小节 → 节奏型 → 连音」，原位替换拍点。仅演示当前页面内存；模板点击只预览，应用后才写入。</p>
+  </main>
+  <script src="./prototype.js"></script>
+</body>
+</html>
