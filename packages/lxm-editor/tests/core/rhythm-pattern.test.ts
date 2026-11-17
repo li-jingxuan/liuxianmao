@@ -5,7 +5,7 @@ import { LXMDocumentSchema } from "../../src/core/document/schema";
 import { validateDocumentSemantics } from "../../src/core/document/semantic-validation";
 import { loadDocument } from "../../src/core/document/loader";
 import { calculateRhythmTicks } from "../../src/core/rhythm/rhythm";
-import { getRhythmPatternTemplates, planRhythmPattern, RHYTHM_PATTERN_TEMPLATES, type RhythmPatternTarget } from "../../src/core/rhythm/rhythm-pattern";
+import { getRhythmPatternTemplates, inferRhythmPatternTemplate, planRhythmPattern, RHYTHM_PATTERN_TEMPLATES, type RhythmPatternTarget } from "../../src/core/rhythm/rhythm-pattern";
 import type { ILXMBeat, ILXMDocument, ILXMNumberedEvent, ILXMRhythm } from "../../src/core/types";
 
 const rhythm = (base: ILXMRhythm["base"] = "quarter", dots = 0): ILXMRhythm => ({ base, dots });
@@ -40,6 +40,77 @@ const commit = (d: ILXMDocument, target: RhythmPatternTarget, templateId = "eigh
   expect(validateDocumentSemantics(result.document)).toEqual({ ok: true });
   return result;
 };
+
+describe("BUG044 当前演奏拍节奏型识别", () => {
+  it.each(["numbered", "tab"] as const)("%s支持全部模板、真实小节拍号、非首拍和窗口内任意短音焦点", layer => {
+    for (const signature of [{ numerator: 4, denominator: 4 }, { numerator: 3, denominator: 4 }, { numerator: 6, denominator: 8 }]) {
+      for (const template of getRhythmPatternTemplates(signature)) {
+        const { document, target, measure } = fixture();
+        measure.timeSignature = signature;
+        let tick = template.beatTicks;
+        const events = template.rhythms.map((r, i) => {
+          const result = layer === "numbered" ? event(`match-${i}`, tick, { ...r }, i % 2 ? "gap" : "rest")
+            : beat(`match-${i}`, tick, { ...r }, i % 2 ? [] : [3, 5]);
+          tick += template.ticks[i]!;
+          return result;
+        });
+        if (layer === "numbered") measure.numberedVoice.events = events as ILXMNumberedEvent[];
+        else measure.beats = events as ILXMBeat[];
+        const snapshot = structuredClone(document);
+        for (const selected of events) {
+          const point = { ...target, layer, startTick: selected.tick, endTick: selected.tick, focusTick: selected.tick };
+          expect(inferRhythmPatternTemplate(document, point)?.id).toBe(template.id);
+          // 连续范围仍按焦点所在拍识别，不由范围首拍或另一谱层决定。
+          expect(inferRhythmPatternTemplate(document, { ...point, startTick: 0, endTick: tick })?.id).toBe(template.id);
+        }
+        expect(document).toEqual(snapshot);
+      }
+    }
+  });
+
+  it.each(["numbered", "tab"] as const)("%s空白、缺口、错位、重叠和跨拍长音均不选第一个模板", layer => {
+    const cases: [number, ILXMRhythm][][] = [
+      [], [[0, rhythm("eighth")]], [[Q / 4, rhythm("eighth")], [Q * 3 / 4, rhythm("eighth")]],
+      [[0, rhythm("eighth")], [Q / 4, rhythm("eighth")]], [[0, rhythm("half")]],
+      [[0, rhythm("eighth")], [Q / 2, rhythm("sixteenth")]],
+    ];
+    for (const positions of cases) {
+      const { document, target, measure } = fixture();
+      if (layer === "numbered") measure.numberedVoice.events = positions.map(([tick, r], i) => event(`bad-${i}`, tick, r));
+      else measure.beats = positions.map(([tick, r], i) => beat(`bad-${i}`, tick, r, [3]));
+      expect(inferRhythmPatternTemplate(document, { ...target, layer })).toBeNull();
+    }
+    const { document, target, measure } = fixture();
+    if (layer === "numbered") measure.numberedVoice.events = [event("entering", Q / 2, rhythm("quarter")), event("end", Q * 1.5, rhythm("eighth"))];
+    else measure.beats = [beat("entering", Q / 2, rhythm("quarter")), beat("end", Q * 1.5, rhythm("eighth"))];
+    expect(inferRhythmPatternTemplate(document, { ...target, layer, startTick: Q, endTick: Q, focusTick: Q })).toBeNull();
+  });
+
+  it.each(["numbered", "tab"] as const)("%s连音使用实际时值，三个八分三连音不误认6/8自然三个八分", layer => {
+    const { document, target, measure } = fixture();
+    measure.timeSignature = { numerator: 6, denominator: 8 };
+    const ids = ["triplet-a", "triplet-b", "triplet-c"];
+    const group = { id: "triplet", ratio: { actual: 3, normal: 2 } as const };
+    if (layer === "numbered") {
+      measure.numberedVoice.events = ids.map((id, i) => event(id, i * Q / 3, rhythm("eighth")));
+      measure.numberedVoice.tuplets = [{ ...group, eventIds: ids }];
+    } else {
+      measure.beats = ids.map((id, i) => beat(id, i * Q / 3, rhythm("eighth"), [3]));
+      measure.tuplets = [{ ...group, beatIds: ids }];
+    }
+    expect(inferRhythmPatternTemplate(document, { ...target, layer })).toBeNull();
+  });
+
+  it("无效目标和不支持拍号均不推断", () => {
+    const { document, target, measure } = fixture();
+    for (const changed of [{ trackId: "missing" }, { measureId: "missing" }, { focusTick: -1 }, { focusTick: Q * 4 },
+      { startTick: -1 }, { endTick: Q * 5 }, { focusTick: 0.5 }]) {
+      expect(inferRhythmPatternTemplate(document, { ...target, ...changed })).toBeNull();
+    }
+    measure.timeSignature = { numerator: 2, denominator: 4 };
+    expect(inferRhythmPatternTemplate(document, target)).toBeNull();
+  });
+});
 
 describe("REQ043 逐拍纯 planner", () => {
   it("单音保留一次、补两个 gap，纯规划无副作用，范围外及另一谱层共享原结构", () => {

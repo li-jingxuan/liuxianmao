@@ -68,6 +68,10 @@ export const LXM_NATURAL_HARMONIC_TEXT_FONT_SIZE = Math.max(
 export const LXM_FRET_TEXT_HALO_WIDTH = 0.4;
 export const LXM_FRET_TEXT_BASELINE_OFFSET_Y = 2.5;
 export const LXM_NUMBERED_TEXT_FONT_SIZE = 11;
+/** 普通简谱与空位共用窄焦点框；特殊宽内容仅按实际边界扩展。 */
+export const LXM_NUMBERED_FOCUS_WIDTH = 18;
+/** 以验收图普通四分休止蓝框为基准，不随减时线或八度点撑高。 */
+export const LXM_NUMBERED_FOCUS_HEIGHT = 20;
 /** 高低八度点比时值附点轻，保留各自独立的视觉语义。 */
 export const LXM_NUMBERED_OCTAVE_DOT_RADIUS = 0.8;
 /** 简谱减时线距数字实际墨迹下缘的净空。 */

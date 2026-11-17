@@ -393,6 +393,11 @@ export const EditorToolbar = ({
         onHideTechnique={() => techniquePanel.current?.discard()}
         subscribeProtection={drafts.subscribe}
         onTechniqueIntent={(intent) => techniquePanel.current?.openTechnique(intent) ?? false}
+        beatTargetIdentity={rhythmPatternTarget.ok ? JSON.stringify(rhythmPatternTarget.target) : null}
+        getBeatTargetIdentity={() => {
+          const target = getRhythmPatternTarget();
+          return target.ok ? JSON.stringify(target.target) : null;
+        }}
       >
         {{
           measure: (

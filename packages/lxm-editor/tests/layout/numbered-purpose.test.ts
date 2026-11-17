@@ -213,43 +213,35 @@ describe("简谱编辑与成品排版", () => {
           (event) =>
             measure.numberedNotation!.find((n) => n.eventId === event.id)!,
         );
-        const left = Math.min(...notations.map((n) => n.bounds.x));
-        const top = Math.min(...notations.map((n) => n.bounds.y));
+        const left = Math.min(...frames.map((n) => n.x));
+        const top = Math.min(...frames.map((n) => n.y));
         expect(context.bounds).toEqual({
-          x: left - 4,
-          y: top - 2,
+          x: left,
+          y: top,
           width:
-            Math.max(...notations.map((n) => n.bounds.x + n.bounds.width)) -
-            left +
-            8,
+            Math.max(...frames.map((n) => n.x + n.width)) - left,
           height:
-            Math.max(...notations.map((n) => n.bounds.y + n.bounds.height)) -
-            top +
-            4,
+            Math.max(...frames.map((n) => n.y + n.height)) - top,
         });
         for (let i = 0; i < events.length; i++) {
           const n = notations[i]!;
           const frame = frames[i]!;
-          expect(frame).toEqual({
-            x: n.bounds.x - 4,
-            y: n.bounds.y - 2,
-            width: n.bounds.width + 8,
-            height: n.bounds.height + 4,
-          });
-          expectContains(frame, n.labels[0]!.bounds);
+          expect(frame.width).toBe(18);
+          expect(frame.x + frame.width / 2).toBeCloseTo(n.labels[0]!.x);
+          expect(frame.height).toBe(20);
+          expect(frame.y).toBe(frames[0]!.y);
+          expect(frame.height).toBe(frames[0]!.height);
+          expect(frame.y).toBeLessThan(n.labels[0]!.y);
+          expect(frame.y + frame.height).toBeGreaterThan(n.labels[0]!.y);
           expectContains(context.bounds, frame);
           if (i > 0) {
             expect(frame).not.toEqual(frames[i - 1]);
             expect(frame.x).toBeGreaterThan(frames[i - 1]!.x);
           }
           const item = n.itemBounds![0]!;
-          expectContains(
-            layoutParagraphFocus(layout, {
-              ...targets[i]!,
-              itemId: item.itemId,
-            })!,
-            item.bounds,
-          );
+          expect(layoutParagraphFocus(layout, {
+            ...targets[i]!, itemId: item.itemId,
+          })!.height).toBe(20);
           expect(
             hitTestNumbered(layout, {
               x: item.bounds.x + item.bounds.width / 2,
@@ -289,12 +281,11 @@ describe("简谱编辑与成品排版", () => {
         ...target,
         itemId: item.itemId,
       })!;
-      expect(focus).toEqual({
-        x: item.bounds.x - 4,
-        y: item.bounds.y - 2,
-        width: item.bounds.width + 8,
-        height: item.bounds.height + 4,
-      });
+      expect(focus.width).toBe(18);
+      expect(focus.x + focus.width / 2).toBeCloseTo(item.bounds.x + item.bounds.width / 2);
+      expect(focus.y).toBe(eventFocus.y);
+      expect(focus.height).toBe(eventFocus.height);
+      expect(focus.height).toBe(20);
       expect(focus.width).toBeLessThan(eventFocus.width);
       expectContains(eventFocus, focus);
     }
@@ -324,14 +315,11 @@ describe("简谱编辑与成品排版", () => {
     ])
       expect(layoutNumberedBeatContext(layout, invalid)).toBeNull();
     const slot = layout.systems[0]!.measures[0]!.numberedInputSlots![0]!;
-    expect(
-      layoutParagraphFocus(layout, { ...slot.target, kind: "numbered" }),
-    ).toEqual({
-      x: slot.anchorX - Math.max(24, slot.width) / 2,
-      y: slot.y,
-      width: Math.max(24, slot.width),
-      height: slot.height,
-    });
+    const focus = layoutParagraphFocus(layout, { ...slot.target, kind: "numbered" })!;
+    expect(focus.x).toBe(slot.anchorX - 9);
+    expect(focus.width).toBe(18);
+    expect(focus.y).toBeLessThan(slot.y);
+    expect(focus.height).toBe(20);
   });
   it("换行重排后拍背景使用最终坐标且保留同拍事件顺序", () => {
     const doc = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);
@@ -363,7 +351,7 @@ describe("简谱编辑与成品排版", () => {
       const context = layoutNumberedBeatContext(layout, target)!;
       expect(context.eventIds).toEqual(["reflow-0", "reflow-1"]);
       for (const n of measure.numberedNotation!)
-        expectContains(context.bounds, n.bounds);
+        expectContains(context.bounds, layoutParagraphFocus(layout, { ...target, kind: "numbered", eventId: n.eventId })!);
       expect(
         layoutNumberedBeatContext(layout, { ...target, eventId: "reflow-1" }),
       ).toEqual(context);

@@ -126,9 +126,11 @@ describe("简谱行高与拍号回归", () => {
     expect(
       hitTestNumbered(layout, { x: slot.anchorX, y: slot.y + slot.height / 2 }),
     ).toEqual(slot.target);
-    expect(
-      layoutParagraphFocus(layout, { ...slot.target, kind: "numbered" }),
-    ).toMatchObject({ y: slot.y, height: slot.height });
+    const emptyFocus = layoutParagraphFocus(layout, { ...slot.target, kind: "numbered" })!;
+    const noteFocus = layoutParagraphFocus(layout, { trackId: layout.trackId, measureId: m.id, eventId: "numbered-event", kind: "numbered" })!;
+    expect(emptyFocus.width).toBe(18);
+    expect(emptyFocus.y).toBe(noteFocus.y);
+    expect(emptyFocus.height).toBe(noteFocus.height);
     expect(slot.y).toBeCloseTo(
       layout.systems[0]!.measures[0]!.numberedNotation![0]!.labels[0]!.bounds.y,
     );

@@ -1,5 +1,6 @@
 import {
   layoutLyricPlaceholder,
+  layoutParagraphFocus,
   type ILXMLayout,
 } from "@liuxianmao/lxm-editor";
 import type { resolveParagraphFocus } from "./music-text-focus";
@@ -98,6 +99,7 @@ export const MusicTextEditingHints = ({
     {layout.systems.flatMap((system) =>
       system.measures.flatMap((measure) =>
         (measure.numberedInputSlots ?? []).map((slot) => {
+          const frame = layoutParagraphFocus(layout, { ...slot.target, kind: "numbered" })!;
           const nearFocus = [activeFocus, hoverFocus].some(
             (f) =>
               f?.kind === "numbered" &&
@@ -112,7 +114,7 @@ export const MusicTextEditingHints = ({
             opacity: nearFocus ? 0.15 : 1,
           };
           // 窄简谱时间槽沿用歌词短标记，中心始终落在真实可录入起点。
-          return slot.width < PLACEHOLDER_BOX_MIN_WIDTH ? (
+          return slot.width < frame.width ? (
             <line
               key={slot.key}
               {...props}
@@ -128,10 +130,10 @@ export const MusicTextEditingHints = ({
               key={slot.key}
               {...props}
               data-paragraph-placeholder="box"
-              x={slot.x}
-              y={slot.y}
-              width={slot.width}
-              height={slot.height}
+              x={frame.x}
+              y={frame.y}
+              width={frame.width}
+              height={frame.height}
               strokeDasharray="3 3"
               rx={3}
             />

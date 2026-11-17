@@ -120,6 +120,42 @@ const markNames: Record<string, string> = {
 interface Interval { start: number; end: number }
 const overlaps = (a: Interval, b: Interval) => a.start < b.end && a.end > b.start;
 
+/** 按焦点所在的完整演奏拍识别节奏；空位和休止同样参与，缺口或跨拍事件不猜测。 */
+export const inferRhythmPatternTemplate = (document: ILXMDocument, target: RhythmPatternTarget): RhythmPatternTemplate | null => {
+  const track = document.score.tracks.find(item => item.id === target.trackId);
+  const measure = track?.measures.find(item => item.id === target.measureId);
+  if (!measure || !["numbered", "tab"].includes(target.layer)) return null;
+  const templates = getRhythmPatternTemplates(measure.timeSignature);
+  const beatTicks = templates[0]?.beatTicks;
+  const capacity = getMeasureCapacityTicks(measure.timeSignature);
+  if (!beatTicks || ![target.startTick, target.endTick, target.focusTick].every(Number.isInteger) ||
+      target.startTick < 0 || target.endTick < target.startTick || target.endTick > capacity ||
+      target.startTick >= capacity || target.focusTick < 0 || target.focusTick >= capacity) return null;
+  const start = Math.floor(target.focusTick / beatTicks) * beatTicks;
+  const end = start + beatTicks;
+  const numberedContext = createNumberedRhythmContext(measure.numberedVoice);
+  const tabContext = createMeasureRhythmContext(measure);
+  const source: RhythmPatternEvent[] = target.layer === "numbered" ? measure.numberedVoice.events : measure.beats;
+  const events: { tick: number; ticks: number }[] = [];
+  for (const event of source) {
+    const duration = "items" in event ? numberedContext.getEventDurationTicks(event) : tabContext.getBeatDurationTicks(event);
+    if (!duration.ok) return null;
+    if (overlaps({ start: event.tick, end: event.tick + duration.ticks }, { start, end }))
+      events.push({ tick: event.tick, ticks: duration.ticks });
+  }
+  events.sort((a, b) => a.tick - b.tick);
+  return templates.find(item => {
+    if (events.length !== item.ticks.length) return false;
+    let tick = start;
+    return item.ticks.every((ticks, index) => {
+      const event = events[index]!;
+      const matches = event.tick === tick && event.ticks === ticks;
+      tick += ticks;
+      return matches;
+    });
+  }) ?? null;
+};
+
 /** 纯规划：只构造候选轨道，不提交 revision、历史或任何页面状态。 */
 export const planRhythmPattern = (document: ILXMDocument, target: RhythmPatternTarget, templateId: string): RhythmPatternPlan => {
   const fail = (code: RhythmPatternErrorCode, message: string): RhythmPatternPlan => ({ ok: false, code, message });
