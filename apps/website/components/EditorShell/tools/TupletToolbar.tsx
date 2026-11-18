@@ -1,6 +1,6 @@
 "use client";
 import { Button, Tooltip } from "antd";
-import { DeleteOutlined } from "@ant-design/icons";
+import { DeleteOutlined, WarningOutlined } from "@ant-design/icons";
 import { LXM_TUPLET_RATIOS, LXMScoreCommandEnum, resolveTupletSelection, isPureTabContinuationBeat,
   type ILXMDocument, type ILXMScoreCommand, type ILXMTabCellSelection } from "@liuxianmao/lxm-editor";
 import { useMemo, useRef, useState } from "react";
@@ -9,9 +9,9 @@ import { formatTupletLabel } from "../shared/tuplet-label";
 import styles from "./TupletToolbar.module.scss";
 
 export const TupletSymbol = ({ actual, normal }: { actual: number; normal: number }) => (
-  <svg width="38" height="24" viewBox="0 0 38 24" aria-hidden="true" focusable="false">
-    <path d="M2 5v13h7M29 18h7V5" fill="none" stroke="currentColor" strokeWidth="1.5" />
-    <text x="19" y="18" textAnchor="middle" fill="currentColor" fontSize={actual === 5 ? "9" : "12"} fontFamily="Arial, sans-serif">{actual === 5 ? `${actual}:${normal}` : actual}</text>
+  <svg width="42" height="24" viewBox="0 0 42 24" aria-hidden="true" focusable="false">
+    <path d="M2 9v7h10M30 16h10V9" fill="none" stroke="currentColor" strokeWidth="1.5" />
+    <text x="21" y="16" textAnchor="middle" fill="currentColor" fontSize={actual === 5 ? "9" : "12"} fontFamily="Arial, sans-serif">{actual === 5 ? `${actual}:${normal}` : actual}</text>
   </svg>
 );
 
@@ -38,7 +38,13 @@ export const TupletToolbar = ({ document, selection, execute, blocked = false, b
   const baseReason = blocked ? blockedReason || "先完成属性编辑，再修改 TAB。" : busy ? "正在提交，请稍候。"
     : blockedReason || (!selection ? "请先选择 TAB 目标。" : !range ? "请选择 TAB 同小节内连续拍点，不可跨小节。" : "");
   const removeReason = baseReason || (!range?.group ? "请选择可定位的已有连音组。" : "");
+  const sidebar = presentation === "sidebar";
+  const hint = <p className={styles.hint}>
+    {!sidebar && <WarningOutlined aria-hidden="true" />}
+    <span>同小节内，连续拍点数须与连音数字一致。</span>
+  </p>;
   return <div className={styles.root} data-presentation={presentation} role="group" aria-label="连音工具">
+    {!sidebar && hint}
     <div className={styles.grid}>
       {LXM_TUPLET_RATIOS.map((ratio) => {
         const label = `${ratio.actual}:${ratio.normal}`;
@@ -56,12 +62,12 @@ export const TupletToolbar = ({ document, selection, execute, blocked = false, b
         </Tooltip>;
       })}
     </div>
-    {(presentation !== "sidebar" || !!range?.group) && <Tooltip title={removeReason || "删除当前连音组"} trigger={["hover", "focus"]}>
+    {(!sidebar || !!range?.group) && <Tooltip title={removeReason || "删除当前连音组"} trigger={["hover", "focus"]}>
       <span className={styles.wrapper} tabIndex={removeReason ? 0 : undefined} aria-label={removeReason ? `删除连音组：${removeReason}` : undefined}>
-        <Button block htmlType="button" aria-label="删除连音组" disabled={!!removeReason} icon={<DeleteOutlined />}
+        <Button block danger htmlType="button" aria-label="删除连音组" disabled={!!removeReason} icon={<DeleteOutlined />}
           onClick={() => { if (range?.group) void run({ type: LXMScoreCommandEnum.RemoveTuplet, trackId: range.trackId, measureId: range.measureId, tupletId: range.group.id }); }}>删除连音组</Button>
       </span>
     </Tooltip>}
-    <p className={styles.hint}>同小节内，连续拍点数须与连音数字一致。</p>
+    {sidebar && hint}
   </div>;
 };

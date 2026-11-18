@@ -5,3 +5,9 @@
   &:focus-visible { outline: 2px solid var(--accent, #1677ff); outline-offset: 2px; border-radius: 5px; }
 }
 .hint { margin: 0; color: var(--muted, #63748a); font-size: 12px; line-height: 1.6; }
+.root[data-presentation="popover"] .hint {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  color: #916522;
+}
