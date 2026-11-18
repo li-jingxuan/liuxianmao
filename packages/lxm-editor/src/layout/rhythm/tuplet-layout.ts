@@ -77,7 +77,7 @@ export const layoutTuplets = (
       x = (x1 + x2) / 2;
     const text = String(group.ratio.actual);
     const y = labelY - LXM_TUPLET_FONT_SIZE / 3;
-    const halfGap = text.length * LXM_TUPLET_FONT_SIZE * 0.35 + LXM_TUPLET_GAP;
+    const halfGap = Math.min((x2 - x1) / 2, text.length * LXM_TUPLET_FONT_SIZE * 0.35 + LXM_TUPLET_GAP);
     const gapX1 = x - halfGap,
       gapX2 = x + halfGap;
     return {

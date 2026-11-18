@@ -30,6 +30,7 @@ interface EditorModalBase {
 export type EditorModalRequest = EditorModalBase &
   (
     | { kind: "structure-impact" }
+    | { kind: "rhythm-pattern-discard" }
     | { kind: "beat-paste"; preview: BeatPasteController }
     | { kind: "technique-type"; picker: TechniqueTypeController }
     | { kind: "chord-library" | "chord-custom"; content: ReactNode; subtitle?: string }

@@ -89,11 +89,12 @@ export interface RhythmPatternBeatSummary {
   startTick: number;
   endTick: number;
   retainedCount: number;
+  discardedCount: number;
   gapCount: number;
   before: RhythmPatternEvent[];
   after: RhythmPatternEvent[];
 }
-export type RhythmPatternErrorCode = "INVALID_RHYTHM_PATTERN_TARGET" | "UNSUPPORTED_TIME_SIGNATURE" | "RHYTHM_PATTERN_TEMPLATE_MISMATCH" | "RHYTHM_PATTERN_OVERFLOW" | "RHYTHM_PATTERN_CROSSING_CONTENT" | "RHYTHM_PATTERN_PARTIAL_TUPLET" | "RHYTHM_PATTERN_FIXED_CONTINUATION" | "RHYTHM_NOT_REPRESENTABLE";
+export type RhythmPatternErrorCode = "INVALID_RHYTHM_PATTERN_TARGET" | "UNSUPPORTED_TIME_SIGNATURE" | "RHYTHM_PATTERN_TEMPLATE_MISMATCH" | "RHYTHM_PATTERN_CROSSING_CONTENT" | "RHYTHM_PATTERN_PARTIAL_TUPLET" | "RHYTHM_PATTERN_FIXED_CONTINUATION" | "RHYTHM_NOT_REPRESENTABLE";
 export type RhythmPatternPlan = {
   ok: true;
   target: RhythmPatternTarget;
@@ -105,6 +106,7 @@ export type RhythmPatternPlan = {
   beforeDurationTicks: Record<string, number>;
   perBeat: RhythmPatternBeatSummary[];
   removedMarks: RhythmPatternRemovedMark[];
+  discardedTextCount: number;
   confirmationKey: string;
   track: ILXMTrack;
   changed: boolean;
@@ -285,24 +287,28 @@ export const planRhythmPattern = (document: ILXMDocument, target: RhythmPatternT
   const availableGaps = relevant.filter(event => !hasContent(event) && !usedIds.has(event.id));
   const perBeat: RhythmPatternBeatSummary[] = [];
   const after: RhythmPatternEvent[] = [];
+  const discardedTextAnchors = new Set<string>();
+  const textAnchors = numbered ? lyricIds : chordIds;
   for (let start = startTick; start < endTick; start += beatTicks) {
-    // 每拍单独取内容，不能借用邻拍的槽位来消化超额音符，否则会改变原来的拍归属。
+    // 每拍从前向后填入模板位置，多余内容留在该拍处理，不挪到邻拍。
     const before = relevant.filter(event => event.tick >= start && event.tick < start + beatTicks);
     const contents = before.filter(hasContent);
     const beatNumber = start / beatTicks + 1;
-    if (contents.length > chosen.ticks.length)
-      return fail("RHYTHM_PATTERN_OVERFLOW", `第 ${beatNumber} 拍有 ${contents.length} 个内容，模板仅有 ${chosen.ticks.length} 个位置，请选择更多位置的模板。`);
+    const retained = contents.slice(0, chosen.rhythms.length);
+    const discarded = contents.slice(chosen.rhythms.length);
+    for (const event of discarded)
+      if (textAnchors.has(event.id)) discardedTextAnchors.add(event.id);
     // TAB 纯横线按拍号分母固定占一个单位拍；普通时值命令也遵守此约束。
     // 在规划阶段就阻止不兼容模板，避免先展示可应用预览、提交时才发现结果不合法。
     const continuationRhythm = tabContinuationRhythm(measure);
-    if (!numbered && contents.some((content, index) => "notes" in content &&
+    if (!numbered && retained.some((content, index) => "notes" in content &&
       isPureTabContinuationBeat(content) && (!continuationRhythm ||
         chosen.rhythms[index]!.base !== continuationRhythm.base ||
         chosen.rhythms[index]!.dots !== continuationRhythm.dots)))
       return fail("RHYTHM_PATTERN_FIXED_CONTINUATION", "六线谱延音横线须保持一个单位拍，请先改为普通音符或选择保留该时值的模板。");
     let tick = start;
     const events = chosen.rhythms.map((rhythm, index) => {
-      const content = contents[index];
+      const content = retained[index];
       let event: RhythmPatternEvent;
       if (content) event = { ...content, tick, rhythm: { ...rhythm } };
       else {
@@ -315,13 +321,17 @@ export const planRhythmPattern = (document: ILXMDocument, target: RhythmPatternT
       return event;
     });
     after.push(...events);
-    perBeat.push({ beatNumber, startTick: start, endTick: start + beatTicks, retainedCount: contents.length, gapCount: events.length - contents.length, before, after: events });
+    perBeat.push({ beatNumber, startTick: start, endTick: start + beatTicks, retainedCount: retained.length, discardedCount: discarded.length, gapCount: events.length - retained.length, before, after: events });
   }
   const removedIds = new Set(removedMarks.map(mark => mark.id));
   const events = [...outside, ...after].sort((a, b) => a.tick - b.tick);
   const nextMeasure = numbered
-    ? { ...measure, numberedVoice: { events: events as ILXMNumberedEvent[], tuplets: measure.numberedVoice.tuplets.filter(g => !removedIds.has(g.id)) } }
-    : { ...measure, beats: events as ILXMBeat[], tuplets: measure.tuplets.filter(g => !removedIds.has(g.id)) };
+    ? { ...measure, ...(discardedTextAnchors.size ? { lyrics: measure.lyrics.filter(lyric => !discardedTextAnchors.has(lyric.eventId)) } : {}),
+        numberedVoice: { events: events as ILXMNumberedEvent[], tuplets: measure.numberedVoice.tuplets.filter(g => !removedIds.has(g.id)) } }
+    : { ...measure, ...(discardedTextAnchors.size ? { chordSymbols: measure.chordSymbols.filter(chord => !discardedTextAnchors.has(chord.beatId)) } : {}),
+        beats: events as ILXMBeat[], tuplets: measure.tuplets.filter(g => !removedIds.has(g.id)) };
+  const discardedTextCount = numbered ? measure.lyrics.length - nextMeasure.lyrics.length
+    : measure.chordSymbols.length - nextMeasure.chordSymbols.length;
   const nextTrack: ILXMTrack = { ...track,
     measures: track.measures.map(m => m === measure ? nextMeasure : m),
     numberedMarks: numbered ? track.numberedMarks.filter(m => !removedIds.has(m.id)) : track.numberedMarks,
@@ -340,7 +350,7 @@ export const planRhythmPattern = (document: ILXMDocument, target: RhythmPatternT
   const focusEvent = after.find(e => e.tick === (focusTick >= startTick && focusTick < endTick ? focusTick : startTick))!;
   return {
     ok: true, target: { ...target, startTick, endTick }, scope, template: chosen,
-    before: relevant, after, beforeDurationTicks: Object.fromEntries(durations), perBeat, removedMarks,
+    before: relevant, after, beforeDurationTicks: Object.fromEntries(durations), perBeat, removedMarks, discardedTextCount,
     // 完整值比较避免散列碰撞；包括原始选区、所有文档内容和 revision。
     confirmationKey: JSON.stringify(["rhythm-pattern-v1", document, target, templateId]),
     track: changed ? nextTrack : track, changed,

@@ -61,11 +61,13 @@ describe("连音详情的名称与轻量可用性", () => {
     expect(render()).toMatch(/<button[^>]*aria-label="5:3连音"[^>]*disabled/);
   });
 
-  it("部分选中已有组时提示先删除，而完整组允许切换比例", () => {
+  it("选区覆盖完整旧组时可直接替换，部分覆盖时提示扩大选区", () => {
     const { selection, group, render } = fixture();
     const partial = { ...selection, focus: { ...selection.focus, beatId: group.beatIds[2]! } };
-    expect(render(partial)).toContain("连音组不能部分重叠或嵌套，请先删除原组");
+    expect(render(partial)).toContain("请扩大选区以覆盖完整的原连音组");
     expect(render(partial)).toMatch(/<button[^>]*aria-label="三连音"[^>]*disabled/);
-    expect(render()).not.toContain("连音组不能部分重叠或嵌套");
+    group.beatIds = group.beatIds.slice(0, 2);
+    group.ratio = { actual: 2, normal: 3 };
+    expect(render(partial)).toMatch(/<button[^>]*aria-label="三连音"(?![^>]*disabled)/);
   });
 });

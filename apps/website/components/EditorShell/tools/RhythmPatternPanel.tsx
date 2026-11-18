@@ -119,12 +119,13 @@ function useRhythmPatternController(props: RhythmPatternConfig, enabled = true) 
       latest.current.onBusyChange(false);
     };
   }, [enabled]);
-  const isCurrent = () => {
+  const isPreviewCurrent = () => {
     // 既检查会话版本，也检查 Shell 的简谱连续选区；后者不保存在 store 中。
     const now = latest.current;
-    return mounted.current && generation.current === previewGeneration && now.session === preview.session && !now.blocked && !now.getBlocked() &&
+    return mounted.current && generation.current === previewGeneration && now.session === preview.session &&
       sameEditorVersion(now.session.getState(), preview.version) && now.getTargetIdentity() === preview.identity;
   };
+  const isCurrent = () => isPreviewCurrent() && !latest.current.blocked && !latest.current.getBlocked();
   const refresh = (templateId: string) => {
     if (busyRef.current) return;
     generation.current += 1;
@@ -137,7 +138,8 @@ function useRhythmPatternController(props: RhythmPatternConfig, enabled = true) 
     setBusy(true);
     onBusyChange(true);
     try {
-      latest.current.beforeAction();
+      const confirmDiscard = plan.discardedTextCount > 0;
+      if (!confirmDiscard) latest.current.beforeAction();
       if (!isCurrent()) return;
       const result = await latest.current.execute({
         type: LXMScoreCommandEnum.ApplyRhythmPattern,
@@ -146,7 +148,7 @@ function useRhythmPatternController(props: RhythmPatternConfig, enabled = true) 
         templateId: plan.template.id,
         expectedConfirmationKey: plan.confirmationKey,
         allowRemoveMarks: true,
-      }, "caller", { isCurrent });
+      }, confirmDiscard ? "modal" : "caller", { isCurrent: confirmDiscard ? isPreviewCurrent : isCurrent });
       if (!mounted.current) return;
       if (result.status === "applied" || result.status === "noop") {
         succeeded.current = true;
@@ -160,6 +162,7 @@ function useRhythmPatternController(props: RhythmPatternConfig, enabled = true) 
         onApplied?.(plan.target);
         return;
       }
+      if (result.status === "cancelled") return;
       setFailure("message" in result ? result.message : result.result.message);
       requestAnimationFrame(() => applyButton.current?.focus({ preventScroll: true }));
     } catch {
@@ -207,6 +210,7 @@ export function RhythmPatternPanel(props: Props) {
   }, [hasSharedController, sidebar, busy, onBusyChange]);
   const capturedTarget = preview.targetResult.ok ? preview.targetResult.target : null;
   const message = failure ?? (!preview.result.ok ? preview.result.message : blocked ? "请先完成当前编辑，再应用节奏型；可继续浏览模板。" : null);
+  const discardedCount = plan?.perBeat.reduce((total, beat) => total + beat.discardedCount, 0) ?? 0;
 
   return <section className={`${styles.root}${sidebar ? ` ${styles.sidebar}` : ""}`} aria-label={sidebar ? "常见节奏型" : "节奏型预览"} aria-busy={busy} data-rhythm-pattern-panel data-presentation={props.presentation ?? "toolbar"}>
     <header className={styles.header}>
@@ -232,6 +236,7 @@ export function RhythmPatternPanel(props: Props) {
           {plan && measure ? <ScorePreview plan={plan} events={plan.after} measure={measure} label="应用后" compact={sidebar} /> : <div className={styles.empty}>调整范围或模板后生成预览</div>}
         </div>
       </div>
+      {discardedCount > 0 && <p className={styles.warning} role="status">应用将舍弃各拍末尾共 {discardedCount} 个内容。{!!plan?.discardedTextCount && `其中含 ${plan.discardedTextCount} 项${plan.target.layer === "numbered" ? "歌词" : "和弦"}，应用前需确认。`}</p>}
       {sidebar && !!plan?.removedMarks.length && <p className={styles.warning} role="status">应用将移除：{[...new Set(plan.removedMarks.map((mark) => mark.name))].join("、")}。{plan.removedMarks.some((mark) => mark.crossesScope) ? "包含跨出当前范围的连接。" : ""}点击应用一并确认。</p>}
       {message && <p className={stale || blocked ? styles.warning : styles.error} role={stale || blocked ? "status" : "alert"}>{message}</p>}
     </div>

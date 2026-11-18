@@ -49,7 +49,7 @@ export const TupletToolbar = ({ document, selection, execute, blocked = false, b
       {LXM_TUPLET_RATIOS.map((ratio) => {
         const label = `${ratio.actual}:${ratio.normal}`;
         const name = formatTupletLabel(ratio);
-        const reason = baseReason || (hasContinuation ? "延音标记不能设为连音成员。" : range?.beatIds.length !== ratio.actual ? `需要同小节内连续 ${ratio.actual} 个拍点，实际拍点数须为 ${ratio.actual}。` : "");
+        const reason = baseReason || (hasContinuation ? "延音标记不能设为连音成员。" : range?.beatIds.length !== ratio.actual ? `需要同小节内连续 ${ratio.actual} 个拍点，实际拍点数须为 ${ratio.actual}。` : range.partiallyOverlapsTuplet ? "请扩大选区以覆盖完整的原连音组" : "");
         const pressed = range?.group?.ratio.actual === ratio.actual && range.group.ratio.normal === ratio.normal;
         return <Tooltip key={label} title={`${name}（${label}）${reason ? `：${reason}` : ""}`} trigger={["hover", "focus"]}>
           <span className={styles.wrapper} tabIndex={reason ? 0 : undefined} aria-label={reason ? `${name}：${reason}` : undefined}>

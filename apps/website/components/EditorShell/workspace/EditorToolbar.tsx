@@ -194,7 +194,7 @@ export const EditorToolbar = ({
     paste.invalidate();
   }, [paste, editingBlocked, numberedEditingBlocked, continuousRange, modal, beforeAction, execute]);
   useEffect(() => {
-    if (modal) host.current?.close();
+    if (modal && modal.request.kind !== "rhythm-pattern-discard") host.current?.close();
   }, [modal]);
   if (!document) return null;
   const rhythmPatternTarget = resolveEditorRhythmPatternTarget(document, selection, continuousRange, activeTarget);
@@ -374,9 +374,6 @@ export const EditorToolbar = ({
           const result = quick === "tie" ? tieTarget : resolveQuickTechnique(document, selection, quick);
           const labels = { hammerOn: "击弦 H", pullOff: "勾弦 P", slide: "滑音", tie: "延音线", strumDown: "下扫：从低音弦到高音弦，箭头向上", strumUp: "上扫：从高音弦到低音弦，箭头向下", arpeggioDown: "下琶音：从低音弦到高音弦，箭头向上", arpeggioUp: "上琶音：从高音弦到低音弦，箭头向下" };
           return <ToolButton key={quick} label={quick === "tie" && tieTarget.kind === "numbered" ? "简谱延音线" : labels[quick]}
-            title={quick === "tie" ? tieTarget.kind === "numbered"
-              ? "简谱延音线：请选择两个相邻同音简谱音符；再次点击移除两音之间已有的延音线。"
-              : "延音线：连接相邻拍上的同弦同品位音符；单选起音连接同弦下一音。" : undefined}
             availability={quick === "tie" && tieTarget.kind === "numbered" ? tieAvailability : available(tabReason ? { enabled: false, reason: tabReason } : { enabled: result.ok, reason: result.ok ? "" : result.message })}
             pressed={quick === "strumDown" || quick === "strumUp" || quick === "arpeggioDown" || quick === "arpeggioUp"
               ? currentChordTechniqueDirection(document, selection, quick.startsWith("strum") ? "strum" : "arpeggio") === (quick.endsWith("Down") ? "down" : "up")
@@ -390,6 +387,7 @@ export const EditorToolbar = ({
         ref={host}
         beforeOpen={(group) => { if (group === "beat") beforeRhythmPatternAction?.(); else beforeAction(); }}
         blocked={!!modal}
+        preserveOnBlock={modal?.request.kind === "rhythm-pattern-discard"}
         reason={reason}
         canHide={() => !rhythmBusyRef.current && !sharedRhythmBusy && !immediateBusyRef.current && (techniquePanel.current?.canHide() ?? true)}
         onHideTechnique={() => techniquePanel.current?.discard()}

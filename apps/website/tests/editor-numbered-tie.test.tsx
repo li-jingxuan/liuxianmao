@@ -168,7 +168,7 @@ describe("顶部简谱延音线入口", () => {
   it.each([true, false])("双端点支持 activeTarget 存在/已回谱面：%s", async (active) => {
     const { markup, button, onAction } = renderToolbar({ active });
     expect(markup).toContain('aria-label="简谱延音线"');
-    expect(button.title).toContain("两个相邻同音简谱音符");
+    expect(button.title).toBeUndefined();
     expect(button.availability).toMatchObject({ enabled: true });
     await (button.onClick as () => Promise<void>)();
     expect(onAction).toHaveBeenCalledWith({ type: "quickTechnique", technique: "tie" });

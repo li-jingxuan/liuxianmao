@@ -1827,7 +1827,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
                     x={rect.x} y={rect.y} width={rect.width} height={rect.height} rx={3}
                     fill={rect.focused ? "#dce7ff" : "#edf3ff"} fillOpacity={0.72}
                     stroke={rect.focused ? "#285be0" : "#9cb5fa"} strokeWidth={rect.focused ? 1.5 : 1} />)}
-                  {chordFocus && (
+                  {chordFocus && "kind" in chordFocus && (
                     <rect
                       data-chord-focus
                       className={scoreInteractionStyles.lyricFocus}

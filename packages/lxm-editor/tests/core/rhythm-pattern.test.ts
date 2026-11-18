@@ -202,12 +202,48 @@ describe("REQ043 逐拍纯 planner", () => {
     }
   });
 
-  it("逐拍超额整体阻止，不借下一拍空位", () => {
+  it.each(["numbered", "tab"] as const)("%s 逐拍保留最先出现的内容，尾部超额可一次舍弃", layer => {
+    const { document, target, measure } = fixture();
+    const shortRhythm = rhythm("thirtySecond");
+    if (layer === "numbered") {
+      measure.numberedVoice.events = [
+        ...Array.from({ length: 8 }, (_, i) => event(`source-${i}`, i * Q / 8, shortRhythm)),
+        ...measure.numberedVoice.events.slice(1),
+      ];
+    } else {
+      measure.beats = [
+        ...Array.from({ length: 8 }, (_, i) => beat(`source-${i}`, i * Q / 8, shortRhythm, [i])),
+        ...measure.beats.slice(1),
+      ];
+    }
+    const before = structuredClone(document);
+    const range = { ...target, layer, endTick: Q * 2 };
+    const p = plan(document, range);
+    expect(p.perBeat.map(item => [item.retainedCount, item.discardedCount, item.gapCount])).toEqual([[3, 5, 0], [1, 0, 2]]);
+    expect(p.after.slice(0, 4).map(item => [item.id, item.tick])).toEqual([
+      ["source-0", 0], ["source-1", 480], ["source-2", 720], [layer === "tab" ? "b1" : "e1", 960],
+    ]);
+    expect(commit(document, range).changed).toBe(true);
+    expect(document).toEqual(before);
+  });
+
+  it.each(["numbered", "tab"] as const)("%s 带歌词或和弦的尾部需要确认，保留项的文字引用保持有效", layer => {
     const { document, target, measure } = fixture();
     measure.numberedVoice.events = Array.from({ length: 4 }, (_, i) => event(`e-${i}`, i * Q / 4, rhythm("sixteenth")));
-    const before = structuredClone(document);
-    expect(planRhythmPattern(document, { ...target, endTick: Q * 2 }, "eight-sixteen")).toMatchObject({ ok: false, code: "RHYTHM_PATTERN_OVERFLOW", message: expect.stringContaining("第 1 拍有 4 个内容") });
-    expect(document).toEqual(before);
+    measure.beats.splice(0, 1, ...Array.from({ length: 4 }, (_, i) => beat(`b-${i}`, i * Q / 4, rhythm("sixteenth"), [i])));
+    measure.lyrics = [1, 3].map(i => ({ id: `lyric-${i}`, eventId: `e-${i}`, verse: 1, text: "风" }));
+    measure.chordSymbols = [1, 3].map(i => ({ id: `chord-${i}`, beatId: `b-${i}`, display: "name", chord: { name: "C", diagram: null } }));
+    const range = { ...target, layer };
+    const p = plan(document, range);
+    expect(p.discardedTextCount).toBe(1);
+    const command = { type: C.ApplyRhythmPattern, target: range, templateId: p.template.id, expectedConfirmationKey: p.confirmationKey } as const;
+    expect(applyScoreCommand(document, command)).toMatchObject({ ok: false, code: "RHYTHM_PATTERN_TEXT_CONFIRMATION_REQUIRED" });
+    const next = applyScoreCommand(document, { ...command, allowDiscardMusicText: true });
+    if (!next.ok) throw new Error(next.message);
+    const applied = next.document.score.tracks[0]!.measures[0]!;
+    expect(applied.lyrics).toEqual(layer === "numbered" ? measure.lyrics.slice(0, 1) : measure.lyrics);
+    expect(applied.chordSymbols).toEqual(layer === "tab" ? measure.chordSymbols.slice(0, 1) : measure.chordSymbols);
+    expect(validateDocumentSemantics(next.document)).toEqual({ ok: true });
   });
 
   it.each(["notes", "rest", "continuation", "gap"] as const)("跨scope %s内容保护，扩大完整范围后只保留原实体一次", kind => {
