@@ -110,12 +110,13 @@ export function RhythmPatternPanel(props: Props) {
       latest.current.onBusyChange(false);
     };
   }, []);
-  const isCurrent = () => {
+  const isPreviewCurrent = () => {
     // 既检查会话版本，也检查 Shell 的简谱连续选区；后者不保存在 store 中。
     const now = latest.current;
-    return mounted.current && now.session === preview.session && !now.blocked && !now.getBlocked() &&
+    return mounted.current && now.session === preview.session &&
       sameEditorVersion(now.session.getState(), preview.version) && now.getTargetIdentity() === preview.identity;
   };
+  const isCurrent = () => isPreviewCurrent() && !latest.current.blocked && !latest.current.getBlocked();
   const refresh = (templateId: string) => {
     if (busyRef.current) return;
     setPreview(previewFor(latest.current, templateId));
@@ -127,7 +128,8 @@ export function RhythmPatternPanel(props: Props) {
     setBusy(true);
     onBusyChange(true);
     try {
-      latest.current.beforeAction();
+      const confirmDiscard = plan.discardedTextCount > 0;
+      if (!confirmDiscard) latest.current.beforeAction();
       if (!isCurrent()) return;
       const result = await latest.current.execute({
         type: LXMScoreCommandEnum.ApplyRhythmPattern,
@@ -136,7 +138,7 @@ export function RhythmPatternPanel(props: Props) {
         templateId: plan.template.id,
         expectedConfirmationKey: plan.confirmationKey,
         allowRemoveMarks: true,
-      }, "caller", { isCurrent });
+      }, confirmDiscard ? "modal" : "caller", { isCurrent: confirmDiscard ? isPreviewCurrent : isCurrent });
       if (!mounted.current) return;
       if (result.status === "applied" || result.status === "noop") {
         succeeded.current = true;
@@ -146,6 +148,7 @@ export function RhythmPatternPanel(props: Props) {
         latest.current.onSuccess(plan.target);
         return;
       }
+      if (result.status === "cancelled") return;
       setFailure("message" in result ? result.message : result.result.message);
       requestAnimationFrame(() => applyButton.current?.focus({ preventScroll: true }));
     } catch {
@@ -158,14 +161,16 @@ export function RhythmPatternPanel(props: Props) {
   };
   const layerName = plan?.target.layer === "tab" || (!plan && targetResult.ok && targetResult.target.layer === "tab") ? "六线谱" : "简谱";
   const capturedTarget = preview.targetResult.ok ? preview.targetResult.target : null;
-  const lyricCount = measure && plan?.target.layer === "numbered" ? measure.lyrics.filter((lyric) => plan.before.some((event) => event.id === lyric.eventId)).length : 0;
-  const chordCount = measure && plan ? measure.chordSymbols.filter((chord) => {
-    const beat = measure.beats.find((item) => item.id === chord.beatId);
+  const nextMeasure = plan?.track.measures.find((item) => item.id === measure?.id);
+  const lyricCount = nextMeasure && plan?.target.layer === "numbered" ? nextMeasure.lyrics.filter((lyric) => plan.after.some((event) => event.id === lyric.eventId)).length : 0;
+  const chordCount = nextMeasure && plan ? nextMeasure.chordSymbols.filter((chord) => {
+    const beat = nextMeasure.beats.find((item) => item.id === chord.beatId);
     return beat && beat.tick >= plan.scope.startTick && beat.tick < plan.scope.endTick;
   }).length : 0;
   const retainedCount = plan?.perBeat.reduce((sum, beat) => sum + beat.retainedCount, 0) ?? 0;
   const gapCount = plan?.perBeat.reduce((sum, beat) => sum + beat.gapCount, 0) ?? 0;
   const message = failure ?? (!preview.result.ok ? preview.result.message : blocked ? "请先完成当前编辑，再应用节奏型；可继续浏览模板。" : null);
+  const discardedCount = plan?.perBeat.reduce((total, beat) => total + beat.discardedCount, 0) ?? 0;
 
   return <section className={styles.root} aria-label="节奏型预览" aria-busy={busy} data-rhythm-pattern-panel>
     <header className={styles.header}>
@@ -194,6 +199,7 @@ export function RhythmPatternPanel(props: Props) {
       </div>
       {plan && <p className={styles.summary}>保留 {retainedCount} 个内容位置{gapCount ? `，模板含 ${gapCount} 个待填空位` : "，无待填空位"}。</p>}
       {(lyricCount > 0 || chordCount > 0) && <p className={styles.contentNote}>{lyricCount > 0 ? `${lyricCount} 处歌词随原内容保留。` : ""}{chordCount > 0 ? `${chordCount} 个和弦保留原拍点。` : ""}</p>}
+      {discardedCount > 0 && <p className={styles.warning} role="status">应用将舍弃各拍末尾共 {discardedCount} 个内容。{!!plan?.discardedTextCount && `其中含 ${plan.discardedTextCount} 项${plan.target.layer === "numbered" ? "歌词" : "和弦"}，应用前需确认。`}</p>}
       {message && <p className={stale || blocked ? styles.warning : styles.error} role={stale || blocked ? "status" : "alert"}>{message}</p>}
     </div>
     <footer className={styles.footer}>

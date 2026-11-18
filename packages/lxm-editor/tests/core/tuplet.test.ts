@@ -293,6 +293,23 @@ describe("tuplet 原子命令与既有编辑协调", () => {
         .map((b) => b.tick),
     ).toEqual([0, 192, 384, 576, 768]);
   });
+  it("选区包含旧二连音时一次替换为三连音，并保留不相交的组", () => {
+    const first = success(set(create(6), { actual: 2, normal: 3 }));
+    const trackId = first.score.tracks[0]!.id;
+    const later = success(applyScoreCommand(first, {
+      type: Command.SetTuplet, trackId, measureId: "m",
+      startBeatId: "b3", endBeatId: "b5", ratio: { actual: 3, normal: 2 },
+    }));
+    const next = success(set(later, { actual: 3, normal: 2 }));
+    expect(next.documentRevision).toBe(later.documentRevision + 1);
+    expect(measureOf(next).tuplets).toEqual([
+      { id: expect.any(String), beatIds: ["b0", "b1", "b2"], ratio: { actual: 3, normal: 2 } },
+      measureOf(later).tuplets[1],
+    ]);
+    expect(measureOf(next).beats.slice(0, 6).map(beat => beat.notes))
+      .toEqual(measureOf(later).beats.slice(0, 6).map(beat => beat.notes));
+    expect(validateDocumentSemantics(next).ok).toBe(true);
+  });
   it("混合时值/附点、逆序、重叠和成员数不符明确失败", () => {
     const doc = create(6),
       trackId = doc.score.tracks[0]!.id;

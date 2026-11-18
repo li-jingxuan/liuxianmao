@@ -33,6 +33,7 @@ export const EditorToolPanelHost = ({
   beforeOpen,
   blocked,
   reason,
+  preserveOnBlock,
   canHide,
   subscribeProtection,
   onTechniqueIntent,
@@ -44,6 +45,7 @@ export const EditorToolPanelHost = ({
   children: Record<ToolGroupId, ReactNode>;
   beforeOpen: (group: ToolGroupId) => void;
   blocked: boolean;
+  preserveOnBlock?: boolean;
   reason: string | null;
   canHide?: () => boolean;
   subscribeProtection?: (listener: () => void) => () => void;
@@ -143,11 +145,11 @@ export const EditorToolPanelHost = ({
     if (pendingClose.current !== null && canClose()) close(pendingClose.current);
   });
   useEffect(() => {
-    if (!blocked || !open) return;
+    if (!blocked || !open || preserveOnBlock) return;
     const frame = requestAnimationFrame(() => close());
     return () => cancelAnimationFrame(frame);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [blocked, open]);
+  }, [blocked, open, preserveOnBlock]);
   useEffect(() => () => {
     if (compositionFrame.current !== null) cancelAnimationFrame(compositionFrame.current);
     if (outsideFrame.current !== null) cancelAnimationFrame(outsideFrame.current);
@@ -284,7 +286,7 @@ export const EditorToolPanelHost = ({
         styles={{ root: { width: geometry.width, maxWidth: "calc(100vw - 16px)" }, container: { padding: 0 } }}
         content={group === "beat" && geometry.more === more ? popup : null}
         onOpenChange={(next) => {
-          if (next || group !== "beat" || !open) return;
+          if (next || group !== "beat" || !open || preserveOnBlock) return;
           // 外部点击由 Popover 检测。等本次谱面点击/拖动完成后，选区切换保留面板，空白点击关闭。
           const previous = paintedBeatTarget.current;
           const deadline = performance.now() + 1500;

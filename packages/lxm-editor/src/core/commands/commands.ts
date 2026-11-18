@@ -370,6 +370,7 @@ export interface ILXMApplyRhythmPatternCommand {
   templateId: string;
   expectedConfirmationKey: string;
   allowRemoveMarks?: boolean;
+  allowDiscardMusicText?: boolean;
 }
 
 type ScoreCommandOperation =
@@ -418,6 +419,7 @@ export type ILXMScoreCommandErrorCode =
   | RhythmPatternErrorCode
   | "STALE_RHYTHM_PATTERN_PLAN"
   | "RHYTHM_PATTERN_CONFIRMATION_REQUIRED"
+  | "RHYTHM_PATTERN_TEXT_CONFIRMATION_REQUIRED"
   | "NUMBERED_INVALID"
   | "NUMBERED_OVERLAP"
   | "NUMBERED_PARTIAL_RANGE"
@@ -1292,6 +1294,8 @@ const applyScoreCommandInternal = (
       return fail("STALE_RHYTHM_PATTERN_PLAN", "选区已变化，请重新预览并确认。");
     if (plan.removedMarks.length && command.allowRemoveMarks !== true)
       return { ok: false, code: "RHYTHM_PATTERN_CONFIRMATION_REQUIRED", message: `将移除 ${plan.removedMarks.length} 项标记：${[...new Set(plan.removedMarks.map(m => m.name))].join("、")}，请先确认调整。`, removedMarkIds: plan.removedMarks.map(m => m.id) };
+    if (plan.discardedTextCount && command.allowDiscardMusicText !== true)
+      return fail("RHYTHM_PATTERN_TEXT_CONFIRMATION_REQUIRED", `应用会舍弃尾部内容及其 ${plan.discardedTextCount} 项${command.target.layer === "numbered" ? "歌词" : "和弦"}。确认后可一步撤销。`);
     if (!plan.changed) return unchanged(document);
     const result = finalize({
       ...document, documentRevision: document.documentRevision + 1,

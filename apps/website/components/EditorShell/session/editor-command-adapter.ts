@@ -160,14 +160,16 @@ export const createEditorCommandAdapter =
       }
     }
 
-    // 小节删除与整小节复制先走纯 core 预检，避免“先写文档、再弹影响确认”的半成品事务。
+    const rhythmDiscard = command.type === LXMScoreCommandEnum.ApplyRhythmPattern && impact === "modal";
+    // 先走纯 core 预检，避免确认之前写入文档与历史。
     const requiresStructurePreview =
       command.type === LXMScoreCommandEnum.RemoveMeasure ||
-      command.type === LXMScoreCommandEnum.CopyMeasureRange;
+      command.type === LXMScoreCommandEnum.CopyMeasureRange || rhythmDiscard;
     if (requiresStructurePreview) {
       const pureResult = applyScoreCommand(snapshot.document, command);
+      const confirmDiscard = rhythmDiscard && !pureResult.ok && pureResult.code === "RHYTHM_PATTERN_TEXT_CONFIRMATION_REQUIRED";
       const requiresConfirmation =
-        command.type === LXMScoreCommandEnum.RemoveMeasure ||
+        confirmDiscard || command.type === LXMScoreCommandEnum.RemoveMeasure ||
         (!pureResult.ok && pureResult.code === "NUMBERED_IMPACT_REQUIRED") ||
         (pureResult.ok &&
           (pureResult.effects ?? []).some(
@@ -187,7 +189,8 @@ export const createEditorCommandAdapter =
         };
       }
       const confirmedCommand =
-        !pureResult.ok && pureResult.code === "NUMBERED_IMPACT_REQUIRED"
+        confirmDiscard ? { ...command, allowDiscardMusicText: true }
+        : !pureResult.ok && pureResult.code === "NUMBERED_IMPACT_REQUIRED"
           ? {
               ...command,
               expectedRevision: snapshot.document.documentRevision,
@@ -199,7 +202,7 @@ export const createEditorCommandAdapter =
               expectedRevision: snapshot.document.documentRevision,
             };
       const preview =
-        !pureResult.ok && pureResult.code === "NUMBERED_IMPACT_REQUIRED"
+        confirmDiscard || (!pureResult.ok && pureResult.code === "NUMBERED_IMPACT_REQUIRED")
           ? applyScoreCommand(snapshot.document, confirmedCommand)
           : pureResult;
       if (!preview.ok)
@@ -210,20 +213,20 @@ export const createEditorCommandAdapter =
       return new Promise<EditorCommandResult>((resolve) => {
         let outcome: EditorCommandResult | null = null;
         const effectCount = preview.effects?.length ?? 0;
-        const title =
-          command.type === LXMScoreCommandEnum.RemoveMeasure
+        const title = confirmDiscard ? "舍弃尾部内容？"
+          : command.type === LXMScoreCommandEnum.RemoveMeasure
             ? "删除确认"
             : "小节范围复制影响确认";
-        const message =
-          command.type === LXMScoreCommandEnum.RemoveMeasure
+        const message = confirmDiscard ? pureResult.message
+          : command.type === LXMScoreCommandEnum.RemoveMeasure
             ? "将删除目标小节，是否确认删除？"
             : `本次将插入整小节双谱内容；${effectCount} 项复制或关系影响将在确认后一起提交。`;
         const id = modals.open({
-          kind: "structure-impact",
+          kind: confirmDiscard ? "rhythm-pattern-discard" : "structure-impact",
           title,
           message,
-          confirmLabel: command.type === LXMScoreCommandEnum.RemoveMeasure ? "删除" : undefined,
-          confirmDanger: command.type === LXMScoreCommandEnum.RemoveMeasure,
+          confirmLabel: confirmDiscard ? "确认舍弃并应用" : command.type === LXMScoreCommandEnum.RemoveMeasure ? "删除" : undefined,
+          confirmDanger: confirmDiscard || command.type === LXMScoreCommandEnum.RemoveMeasure,
           version: snapshot,
           isValid: () => !currentReason() &&
             capturedSelection ===
@@ -247,7 +250,7 @@ export const createEditorCommandAdapter =
                 status: reason === "stale" ? "stale" : "cancelled",
                 message:
                   reason === "stale"
-                    ? "结构预览已过期，请重新操作。"
+                    ? "当前预览已过期，请重新操作。"
                     : "已取消修改。",
               },
             ),

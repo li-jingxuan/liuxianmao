@@ -261,7 +261,7 @@ export const LXM_DURATION_MIN_COLUMN_WIDTH = {
 } as const;
 
 /** 连音数字、括号与下方图形净空共用同一套尺寸。 */
-export const LXM_TUPLET_FONT_SIZE = 10;
+export const LXM_TUPLET_FONT_SIZE = 8;
 /** 连音标注靠近实际时值轮廓，净空由原来的 6 减小 5。 */
 export const LXM_TUPLET_CLEARANCE = 1;
 /** 括号两端短竖线收为 3，同行对齐时随完整括号一起平移。 */

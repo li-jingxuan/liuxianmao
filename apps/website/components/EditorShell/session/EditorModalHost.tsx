@@ -96,7 +96,7 @@ export const EditorModalHost = ({
   const request = display?.request;
   const chord =
     request?.kind === "chord-library" || request?.kind === "chord-custom";
-  const dismissable = request?.kind === "technique-type" || chord;
+  const dismissable = request?.kind === "technique-type" || request?.kind === "rhythm-pattern-discard" || chord;
   const modalContent = useRef<HTMLDivElement>(null);
   const requestClose = (source: EditorModalCloseSource) => {
     if (!active || active.busy || active.closing) return;

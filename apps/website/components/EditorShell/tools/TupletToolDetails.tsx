@@ -90,12 +90,11 @@ const TabTupletToolDetails = ({
   // 只派生成员可用性；整数 tick 和容量仍交给核心命令最终裁定。
   const members = measure?.beats.filter((beat) => range?.beatIds.includes(beat.id)) ?? [];
   const rhythmMismatch = members.some((beat) => beat.rhythm.base !== first?.rhythm.base || beat.rhythm.dots !== first?.rhythm.dots);
-  const overlaps = measure?.tuplets.some((group) => group.id !== range?.group?.id && group.beatIds.some((id) => range?.beatIds.includes(id)));
   const unavailableReason = (actual: number) => {
     if (!range) return "请选择同小节内的连续拍点";
     if (range.beatIds.length !== actual) return `需要 ${actual} 个连续拍点，当前选中 ${range.beatIds.length} 个`;
     if (rhythmMismatch) return "请选择书写时值和附点相同的拍点";
-    if (overlaps) return "连音组不能部分重叠或嵌套，请先删除原组";
+    if (range.partiallyOverlapsTuplet) return "请扩大选区以覆盖完整的原连音组";
     return null;
   };
   const highlighted = range?.group?.ratio;

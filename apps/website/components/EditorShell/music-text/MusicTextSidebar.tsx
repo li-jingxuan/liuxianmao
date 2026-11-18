@@ -695,14 +695,14 @@ export const MusicTextSidebar = ({
             ? createCollapsedTabCellSelection(activeObject)
             : current.selection;
       settingsRef.current?.discard();
-      // 和弦页签直接绑定单拍；不展开侧栏，也不把焦点移入输入框。
+      // 和弦页签可以跟随 TAB 单拍显示表单，谱面仍处于 TAB 编辑态。
       current.setNumberedSelection(null);
-      const chordTarget = action.type === "selection" && propertyTab === "chord"
+      const chordTarget = propertyTab === "chord"
         ? selectedChordTarget(current.document, nextSelection) : null;
       const chordDraft = chordTarget ? readMusicTextDraft(current.document, chordTarget) : null;
       setDraft(chordDraft);
       setNumberedTarget(null);
-      setActiveObject(chordDraft?.target ?? null);
+      setActiveObject(null);
       activeTextOwner.current = !!chordDraft;
       if (chordDraft) {
         baseline.current = current.document;
@@ -776,7 +776,7 @@ export const MusicTextSidebar = ({
       setDraft(chordDraft);
       const nextNumbered = numberedEntry ? { ...numberedEntry, kind: "numbered" as const } : null;
       setNumberedTarget(nextNumbered);
-      setActiveObject(chordDraft?.target ?? nextNumbered);
+      setActiveObject(nextNumbered);
       activeTextOwner.current = !!chordDraft || !!nextNumbered;
       if (numberedEntry) {
         current.setNumberedSelection(numberedEntry);
@@ -833,11 +833,10 @@ export const MusicTextSidebar = ({
         return "accepted";
       }
     }
-    if (action.type === "selection" && propertyTab === "chord" && draft?.target.kind === "chord") {
+    if (action.type === "selection" && propertyTab === "chord" && !activeObject && draft?.target.kind === "chord") {
       const next = selectedChordTarget(editorStore.getState().document, action.selection);
       if (next && next.trackId === draft.target.trackId && next.measureId === draft.target.measureId && next.beatId === draft.target.beatId) {
         onScoreSelection(action.selection, action.techniqueId ?? null);
-        onTargetChange(draft.target);
         return "accepted";
       }
     }
@@ -900,7 +899,7 @@ export const MusicTextSidebar = ({
     request({ type: "close" });
   // 拖选等谱面操作会直接更新 store 选区；只同步目标，不打断 pointer capture。
   useLayoutEffect(() => {
-    if (propertyTab !== "chord" || activeModal || pending || suspendedChord.current) return;
+    if (propertyTab !== "chord" || activeObject || activeModal || pending || suspendedChord.current) return;
     const current = editorStore.getState();
     const next = !numberedSelection && !continuousRange ? selectedChordTarget(current.document, selection) : null;
     const previous = draftLive.current;
@@ -1171,28 +1170,33 @@ export const MusicTextSidebar = ({
   };
   // 只在明确激活或确认区退出时聚焦；页签浏览和预览更新不能抢输入焦点。
   useEffect(() => {
-    if (pending) confirmRef.current?.focus({ preventScroll: true });
-    else if (activeModal) return;
-    else if (restoreInputFocus.current && lastInputFocus.current?.isConnected &&
-        !lastInputFocus.current.closest("[hidden], [inert]")) {
-      restoreInputFocus.current = false;
-      lastInputFocus.current.focus({ preventScroll: true });
-    } else if (focusDestination.current === "input" && targetKey) {
-      if (kind === "numbered") {
-        if (floating && !surfaceFocusGroup.current) {
-          if (popoverHidden) return;
-          numberedRef.current?.focusPopover();
+    // 聚焦会同步触发旧控件的 blur（例如 Ant Design Popover），需等 React 提交完成。
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      if (pending) confirmRef.current?.focus({ preventScroll: true });
+      else if (activeModal) return;
+      else if (restoreInputFocus.current && lastInputFocus.current?.isConnected &&
+          !lastInputFocus.current.closest("[hidden], [inert]")) {
+        restoreInputFocus.current = false;
+        lastInputFocus.current.focus({ preventScroll: true });
+      } else if (focusDestination.current === "input" && targetKey) {
+        if (kind === "numbered") {
+          if (floating && !surfaceFocusGroup.current) {
+            if (popoverHidden) return;
+            numberedRef.current?.focusPopover();
+          } else numberedRef.current?.focus(surfaceFocusGroup.current);
+        } else {
+          const focusPopover = floating && lyricFocusSurface.current === "popover";
+          if (focusPopover && popoverHidden) return;
+          (focusPopover ? popoverInputRef : inputRef).current?.focus({
+            preventScroll: true,
+          });
         }
-        else numberedRef.current?.focus(surfaceFocusGroup.current);
-      } else {
-        const focusPopover = floating && lyricFocusSurface.current === "popover";
-        if (focusPopover && popoverHidden) return;
-        (focusPopover ? popoverInputRef : inputRef).current?.focus({
-          preventScroll: true,
-        });
+        surfaceFocusGroup.current = undefined;
       }
-      surfaceFocusGroup.current = undefined;
-    }
+    });
+    return () => { cancelled = true; };
   }, [
     pending,
     targetKey,

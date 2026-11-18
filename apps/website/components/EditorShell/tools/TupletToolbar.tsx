@@ -60,15 +60,15 @@ export const TupletToolbar = ({
       <span>连音组</span>
       {LXM_TUPLET_RATIOS.map((ratio) => {
         const label = `${ratio.actual}:${ratio.normal}`;
-        const unavailable =
-          blocked || busy || !range || range.beatIds.length !== ratio.actual;
-        const reason = unavailable
-          ? blocked
-            ? "先完成属性编辑，再修改 TAB。"
-            : busy
-              ? "正在提交，请稍候。"
-              : `需要同小节内连续 ${ratio.actual} 拍。`
-          : undefined;
+        const reason = blocked
+          ? "先完成属性编辑，再修改 TAB。"
+          : busy
+            ? "正在提交，请稍候。"
+            : !range || range.beatIds.length !== ratio.actual
+              ? `需要同小节内连续 ${ratio.actual} 拍。`
+              : range.partiallyOverlapsTuplet
+                ? "请扩大选区以覆盖完整的原连音组"
+                : undefined;
         return (
           <Button
             key={label}
@@ -81,7 +81,7 @@ export const TupletToolbar = ({
               range?.group?.ratio.actual === ratio.actual &&
               range.group.ratio.normal === ratio.normal
             }
-            disabled={unavailable}
+            disabled={!!reason}
             onClick={() => {
               if (range) void run({
                 type: LXMScoreCommandEnum.SetTuplet,

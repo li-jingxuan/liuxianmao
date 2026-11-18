@@ -69,7 +69,7 @@ export const editMeasureTuplet = (
         "TUPLET_RHYTHM_MISMATCH",
         "连音成员的书写时值和附点必须完全相同",
       );
-    const selected = new Set([...memberIds, ...externalProtectedBeatIds]);
+    const selected = new Set(memberIds);
     const overlaps = tuplets.filter((group) =>
       group.beatIds.some((id) => selected.has(id)),
     );
@@ -78,8 +78,8 @@ export const editMeasureTuplet = (
         group.beatIds.length === memberIds.length &&
         group.beatIds.every((id, index) => id === memberIds[index]),
     );
-    if (overlaps.length > (existing ? 1 : 0))
-      return fail("TUPLET_OVERLAP", "连音组不能部分重叠或嵌套，请先删除原组");
+    if (overlaps.some((group) => !group.beatIds.every((id) => selected.has(id))))
+      return fail("TUPLET_OVERLAP", "请扩大选区以覆盖完整的原连音组");
     if (existing && isSameTupletRatio(existing.ratio, command.ratio))
       return { ok: true, changed: false, measure };
     const group = {
@@ -87,7 +87,7 @@ export const editMeasureTuplet = (
       beatIds: memberIds,
       ratio: { ...command.ratio },
     };
-    tuplets = [...tuplets.filter((item) => item !== existing), group].sort(
+    tuplets = [...tuplets.filter((item) => !overlaps.includes(item)), group].sort(
       (a, b) =>
         measure.beats.findIndex((beat) => beat.id === a.beatIds[0]) -
         measure.beats.findIndex((beat) => beat.id === b.beatIds[0]),

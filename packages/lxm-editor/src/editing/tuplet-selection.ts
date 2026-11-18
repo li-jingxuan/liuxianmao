@@ -26,6 +26,10 @@ export const resolveTupletSelection = (
       group.beatIds.length === beatIds.length &&
       group.beatIds.every((id, index) => id === beatIds[index]),
   );
+  const partiallyOverlapsTuplet = measure.tuplets.some(
+    (item) => item.beatIds.some((id) => beatIds.includes(id)) &&
+      !item.beatIds.every((id) => beatIds.includes(id)),
+  );
   return {
     trackId: track.id,
     measureId: measure.id,
@@ -33,5 +37,6 @@ export const resolveTupletSelection = (
     endBeatId: last.beatId,
     beatIds,
     group,
+    partiallyOverlapsTuplet,
   };
 };
