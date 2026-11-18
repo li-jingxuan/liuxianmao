@@ -38,7 +38,6 @@
 .noteBackground { fill: var(--panel, #fff); }
 .arrow { display: flex; justify-content: center; align-items: center; font-size: 18px; }
 .empty { display: flex; align-items: center; justify-content: center; height: 90px; color: var(--muted, #71839a); text-align: center; }
-.root .summary { margin-top: 5px; line-height: 1.6; }
 .root .contentNote { margin-top: 5px; color: var(--muted, #71839a); font-size: 11px; line-height: 1.6; }
 .root .warning, .root .error { margin-top: 6px; padding: 6px 9px; border-radius: 4px; font-size: 12px; line-height: 1.6; }
 .warning { color: #916522; background: var(--warning-soft, #fff8e8); }

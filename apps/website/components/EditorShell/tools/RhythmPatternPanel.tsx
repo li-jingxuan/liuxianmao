@@ -167,8 +167,6 @@ export function RhythmPatternPanel(props: Props) {
     const beat = nextMeasure.beats.find((item) => item.id === chord.beatId);
     return beat && beat.tick >= plan.scope.startTick && beat.tick < plan.scope.endTick;
   }).length : 0;
-  const retainedCount = plan?.perBeat.reduce((sum, beat) => sum + beat.retainedCount, 0) ?? 0;
-  const gapCount = plan?.perBeat.reduce((sum, beat) => sum + beat.gapCount, 0) ?? 0;
   const message = failure ?? (!preview.result.ok ? preview.result.message : blocked ? "请先完成当前编辑，再应用节奏型；可继续浏览模板。" : null);
   const discardedCount = plan?.perBeat.reduce((total, beat) => total + beat.discardedCount, 0) ?? 0;
 
@@ -197,7 +195,6 @@ export function RhythmPatternPanel(props: Props) {
           {plan && measure ? <ScorePreview plan={plan} events={plan.after} measure={measure} label="应用后" /> : <div className={styles.empty}>调整范围或模板后生成预览</div>}
         </div>
       </div>
-      {plan && <p className={styles.summary}>保留 {retainedCount} 个内容位置{gapCount ? `，模板含 ${gapCount} 个待填空位` : "，无待填空位"}。</p>}
       {(lyricCount > 0 || chordCount > 0) && <p className={styles.contentNote}>{lyricCount > 0 ? `${lyricCount} 处歌词随原内容保留。` : ""}{chordCount > 0 ? `${chordCount} 个和弦保留原拍点。` : ""}</p>}
       {discardedCount > 0 && <p className={styles.warning} role="status">应用将舍弃各拍末尾共 {discardedCount} 个内容。{!!plan?.discardedTextCount && `其中含 ${plan.discardedTextCount} 项${plan.target.layer === "numbered" ? "歌词" : "和弦"}，应用前需确认。`}</p>}
       {message && <p className={stale || blocked ? styles.warning : styles.error} role={stale || blocked ? "status" : "alert"}>{message}</p>}
