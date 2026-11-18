@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { downloadScoreJson } from "./score-file-actions.browser.cjs";
 import { mkdir, readFile, readdir, unlink, writeFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 
@@ -137,9 +138,7 @@ async function triggerFocus() {
 }
 async function saveReload(filename) {
   const committed = (await state()).document;
-  const pending = page.waitForEvent("download");
-  await page.getByRole("button", { name: "导出曲谱", exact: true }).click();
-  const download = await pending, path = new URL(filename, output).pathname;
+  const download = await downloadScoreJson(page), path = new URL(filename, output).pathname;
   await download.saveAs(path);
   const serialized = await readFile(path, "utf8");
   assert.deepEqual(JSON.parse(serialized), committed);
@@ -422,9 +421,7 @@ try {
   await check("真实导出文件保存重载后 UI 点击空位补音继承十六分", async () => {
     await load(); await numbered(); await open(); await apply();
     const committed = (await state()).document;
-    const pending = page.waitForEvent("download");
-    await page.getByRole("button", { name: "导出曲谱", exact: true }).click();
-    const download = await pending, path = new URL("saved-score.lxm.json", output).pathname;
+    const download = await downloadScoreJson(page), path = new URL("saved-score.lxm.json", output).pathname;
     await download.saveAs(path);
     const serialized = await readFile(path, "utf8"), parsed = JSON.parse(serialized);
     assert.deepEqual(parsed, committed);

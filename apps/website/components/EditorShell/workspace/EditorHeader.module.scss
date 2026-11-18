@@ -51,6 +51,14 @@
   min-width: 0;
 }
 
+.fileStatus {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+  &[data-file-status="pending"] { color: #92600c; }
+  &[data-file-status="exported"] { color: #19734f; }
+}
+
 .headerNativeAction {
   display: inline-flex;
   align-items: center;

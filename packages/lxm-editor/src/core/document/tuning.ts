@@ -29,13 +29,23 @@ export const validateTuning = (tuning: ILXMTuning): boolean =>
       parsePitchMidi(s.pitch) !== null &&
       parsePitchMidi(s.pitch) === s.midi,
   );
+/** 非标准调弦也按 1 弦到 6 弦排列。 */
+const alternativeTunings = {
+  dropD: ["E4", "B3", "G3", "D3", "A2", "D2"],
+  halfStepDown: ["Eb4", "Bb3", "Gb3", "Db3", "Ab2", "Eb2"],
+  openG: ["D4", "B3", "G3", "D3", "G2", "D2"],
+  dadgad: ["D4", "A3", "G3", "D3", "A2", "D2"],
+} as const;
+
+export type GuitarTuningPreset = "standard" | keyof typeof alternativeTunings;
+
 /** 预设返回独立值，调用方不能污染公共常量。 */
-export const createTuningPreset = (
-  preset: "standard" | "dropD",
-): ILXMTuning => ({
-  strings: STANDARD_GUITAR_TUNING.map((s) =>
-    preset === "dropD" && s.index === 6
-      ? { index: 6, pitch: "D2", midi: 38 }
-      : { ...s },
-  ),
+export const createTuningPreset = (preset: GuitarTuningPreset): ILXMTuning => ({
+  strings: preset === "standard"
+    ? STANDARD_GUITAR_TUNING.map((string) => ({ ...string }))
+    : alternativeTunings[preset].map((pitch, index) => ({
+        index: index + 1,
+        pitch,
+        midi: parsePitchMidi(pitch)!,
+      })),
 });

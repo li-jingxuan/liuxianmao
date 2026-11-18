@@ -1,5 +1,6 @@
 // LXM_PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs LXM_BROWSER_CHANNEL=chrome node apps/website/tests/tab-continuation.browser.mjs
 import assert from "node:assert/strict";
+import { downloadScoreJson } from "./score-file-actions.browser.cjs";
 import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -84,10 +85,7 @@ try {
   await page.waitForFunction(() => window.coexistStore.getState().document.score.tracks[0].measures.at(-1).beats.at(-1).notes.length === 0);
   await page.getByRole("button", { name: "设为 - 延音标记", exact: true }).click();
   await glyph.waitFor({ state: "visible" });
-  const [download] = await Promise.all([
-    page.waitForEvent("download"),
-    page.getByRole("button", { name: "导出曲谱", exact: true }).click(),
-  ]);
+  const download = await downloadScoreJson(page);
   const saved = JSON.parse(await readFile(await download.path(), "utf8"));
   assert(saved.score.tracks[0].measures.at(-1).beats.at(-1).notes.some((note) => note.string === 4 && note.fret === "-"));
   assert.deepEqual(errors, []);

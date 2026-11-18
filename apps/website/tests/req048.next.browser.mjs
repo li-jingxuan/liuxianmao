@@ -1,0 +1,227 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+
+const { chromium } = await import(process.env.LXM_PLAYWRIGHT_MODULE ?? "playwright");
+const browser = await chromium.launch({ headless: true });
+const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+const base = process.env.REQ_NEXT_ORIGIN ?? "http://127.0.0.1:3031";
+const button = (name, root = page) => root.getByRole("button", { name, exact: true });
+const dialog = (name) => page.getByRole("dialog", { name });
+const a4Dialog = (name) => page.getByRole("dialog").filter({ has: page.getByRole("heading", { name }) });
+const status = () => page.locator("[data-file-status]").innerText();
+const beforeUnload = () => page.evaluate(() => window.dispatchEvent(new Event("beforeunload", { cancelable: true })));
+const action = async (group, item) => {
+  await button(group).click();
+  await page.getByRole("menuitem", { name: item, exact: true }).click();
+};
+const download = async (root) => (await Promise.all([page.waitForEvent("download"), button("导出 JSON", root).click()]))[0];
+const errors = [];
+page.on("pageerror", (error) => errors.push(error.message));
+page.setDefaultTimeout(10000);
+
+try {
+  await page.route("https://**/*", (route) => route.abort());
+  await page.addInitScript(() => {
+    window.print = () => {
+      window.printCalls = (window.printCalls || 0) + 1;
+      window.dispatchEvent(new Event("afterprint"));
+    };
+  });
+  await page.goto(base, { waitUntil: "domcontentloaded" });
+  await page.setViewportSize({ width: 360, height: 520 });
+  const newScore = dialog("新建曲谱");
+  const title = newScore.getByRole("textbox", { name: "曲名" });
+  const tuning = newScore.getByRole("combobox", { name: "调弦", exact: true });
+  await button("新建曲谱").click();
+  assert.equal(await newScore.evaluate((element) => {
+    const bounds = element.getBoundingClientRect();
+    return bounds.left >= 0 && bounds.right <= innerWidth && bounds.bottom <= innerHeight && element.scrollWidth === element.clientWidth;
+  }), true);
+  await page.keyboard.press("Shift+Tab");
+  assert.equal(await button("创建曲谱", newScore).evaluate((element) => element === document.activeElement), true);
+  await page.keyboard.press("Tab");
+  assert.equal(await title.getAttribute("aria-required"), "true");
+  assert.equal(await newScore.getByRole("textbox", { name: "编谱作者" }).getAttribute("aria-required"), null);
+  assert.equal(await newScore.locator("label.ant-form-item-required").count(), 4);
+  assert.equal(await title.inputValue(), "");
+  assert.equal(await title.getAttribute("placeholder"), "请输入曲名");
+  await button("创建曲谱", newScore).click();
+  await newScore.getByText("请输入曲名", { exact: true }).waitFor();
+  await title.fill("   ");
+  await button("创建曲谱", newScore).click();
+  await newScore.getByText("请输入曲名", { exact: true }).waitFor();
+  assert.equal(await title.getAttribute("aria-invalid"), "true");
+  assert.equal(page.url(), base + "/");
+  await tuning.click();
+  const standardTuning = newScore.getByRole("option", { name: /标准调弦/ });
+  await standardTuning.waitFor();
+  assert.equal(await standardTuning.getAttribute("aria-selected"), "true");
+  const alternate = newScore.getByRole("option", { name: /DADGAD/ });
+  await alternate.click({ trial: true });
+  await page.keyboard.press("Escape");
+  await standardTuning.waitFor({ state: "hidden" });
+  assert.equal(await newScore.isVisible(), true);
+  await title.fill("取消前的曲名");
+  await page.keyboard.press("Escape");
+  await newScore.waitFor({ state: "hidden" });
+  assert.equal(page.url(), base + "/");
+  await page.waitForFunction(() => document.activeElement?.textContent.trim() === "新建曲谱");
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  await button("新建曲谱").click();
+  assert.equal(await title.inputValue(), "");
+  await title.fill("测试/曲谱");
+  await newScore.getByLabel("编谱作者").fill("作者 <&>");
+  await newScore.getByRole("combobox", { name: "调性", exact: true }).click();
+  await newScore.getByRole("option", { name: "F♯ 小调", exact: true }).click();
+  await newScore.getByRole("combobox", { name: "拍号", exact: true }).click();
+  await newScore.getByRole("option", { name: "6/8", exact: true }).click();
+  await tuning.click();
+  await newScore.getByRole("option", { name: /降半音调弦/ }).click();
+  await button("创建曲谱", newScore).click();
+  await page.waitForURL(base + "/editor");
+  await page.waitForFunction(() => document.activeElement?.getAttribute("aria-label") === "六线谱编辑器");
+  assert.equal(await status(), "待导出 JSON");
+  assert.equal(await beforeUnload(), false);
+
+  await action("导出", "PNG 图片");
+  const image = a4Dialog("A4 图片预览");
+  await image.locator("[data-image-export-status=ready]").waitFor();
+  await button("仅生成当前页", image).click();
+  await image.locator("[data-image-export-status=generated]").waitFor({ timeout: 30000 });
+  const [png] = await Promise.all([page.waitForEvent("download"), image.getByRole("link", { name: "下载图片", exact: true }).click()]);
+  const pngBytes = await readFile(await png.path());
+  assert.equal(pngBytes.toString("ascii", 1, 4), "PNG");
+  assert.equal(pngBytes.readUInt32BE(16), 2480);
+  assert.equal(pngBytes.readUInt32BE(20), 3508);
+  await button("关闭预览", image).click();
+  await image.waitFor({ state: "hidden" });
+  assert.equal(await status(), "待导出 JSON");
+
+  await action("导出", "打印");
+  const print = a4Dialog("A4 打印预览");
+  await print.locator("[data-image-export-status=ready]").waitFor();
+  await button("打开打印窗口", print).click();
+  assert.equal(await page.evaluate(() => window.printCalls), 1);
+  await print.getByText("已关闭打印窗口，可继续编辑或重新打印。").waitFor();
+  await page.emulateMedia({ media: "print" });
+  assert.equal(await page.locator('[data-score-print-layer][data-print-ready="true"]').isVisible(), true);
+  assert.equal(await button("文件").isVisible(), false);
+  const pdf = (await page.pdf({ preferCSSPageSize: true, printBackground: true })).toString("latin1");
+  assert.ok(pdf.startsWith("%PDF-"));
+  assert.match(pdf, /\/MediaBox \[0 0 59[45](?:\.\d+)? 84[12](?:\.\d+)?\]/);
+  await page.emulateMedia({ media: "screen" });
+  await button("关闭预览", print).click();
+  await print.waitFor({ state: "hidden" });
+  assert.equal(await status(), "待导出 JSON");
+
+  const home = page.getByRole("link", { name: "六线猫首页" });
+  const leave = dialog("离开前导出曲谱？");
+  await home.click();
+  await leave.waitFor();
+  assert.equal(await button("继续编辑", leave).evaluate((element) => element === document.activeElement), true);
+  await page.evaluate(() => {
+    window.originalCreateObjectURL = URL.createObjectURL;
+    URL.createObjectURL = () => { throw new Error("simulated download handoff failure"); };
+  });
+  await button("导出 JSON", leave).click();
+  await leave.getByRole("alert").getByText("浏览器未能发起下载，请重试。").waitFor();
+  assert.equal(await status(), "待导出 JSON");
+  await page.evaluate(() => { URL.createObjectURL = window.originalCreateObjectURL; });
+  const firstDownload = await download(leave);
+  const filename = firstDownload.suggestedFilename();
+  assert.equal(filename, "测试_曲谱.lxm.json");
+  const bytes = await readFile(await firstDownload.path());
+  const saved = JSON.parse(bytes.toString());
+  assert.equal(saved.score.arranger, "作者 <&>");
+  assert.equal(saved.score.keySignature, "A");
+  assert.equal(saved.score.meta["lxm:tonality"].minorTonicDegree, 6);
+  assert.deepEqual(saved.score.tracks[0].tuning.strings.map(({ pitch, midi }) => [pitch, midi]), [
+    ["Eb4", 63], ["Bb3", 58], ["Gb3", 54], ["Db3", 49], ["Ab2", 44], ["Eb2", 39],
+  ]);
+  const measures = saved.score.tracks[0].measures;
+  assert.equal(measures.length, 4);
+  assert.ok(measures.every((measure) => measure.beats.length === 6 && measure.beats.every((beat) => beat.kind === "notes" && !beat.notes.length)));
+  assert.equal(page.url(), base + "/editor");
+  assert.equal(await status(), "JSON 已导出");
+  assert.equal(await beforeUnload(), true);
+  const [retry] = await Promise.all([page.waitForEvent("download"), button("重新下载", leave).click()]);
+  assert.deepEqual(await readFile(await retry.path()), bytes);
+  assert.equal(page.url(), base + "/editor");
+  await button("已下载，继续", leave).click();
+  await page.waitForURL(base + "/");
+
+  const importer = dialog("导入曲谱");
+  await button("导入曲谱").click();
+  const input = importer.locator("input[type=file]");
+  await input.setInputFiles({ name: filename, mimeType: "application/json", buffer: Buffer.from("{") });
+  await importer.getByRole("alert").waitFor();
+  assert.equal(await button("打开曲谱", importer).isDisabled(), true);
+  const transfer = await page.evaluateHandle(({ filename, bytes }) => {
+    const data = new DataTransfer();
+    data.items.add(new File([new Uint8Array(bytes)], filename, { type: "application/json" }));
+    return data;
+  }, { filename, bytes: [...bytes] });
+  await importer.getByText("将曲谱拖到这里，或从电脑选择文件。").dispatchEvent("drop", { dataTransfer: transfer });
+  await transfer.dispose();
+  await importer.getByText("F♯ 小调").waitFor();
+  assert.equal(await importer.getByText("作者 <&>", { exact: true }).count(), 1);
+  await button("打开曲谱", importer).click();
+  await page.waitForURL(base + "/editor");
+  assert.equal(await status(), "与导入文件一致");
+
+  await page.getByRole("tab", { name: "歌曲", exact: true }).click();
+  const song = page.getByRole("textbox", { name: "歌曲名称" });
+  await song.fill("待处理的改名");
+  assert.equal(await beforeUnload(), false);
+  for (const item of ["JSON 曲谱", "PNG 图片", "打印"]) {
+    await action("导出", item);
+    const blocked = dialog("先处理未应用的输入");
+    await blocked.waitFor();
+    await blocked.getByText("曲谱信息", { exact: true }).waitFor();
+    await button("关闭", blocked).click();
+    await blocked.waitFor({ state: "hidden" });
+    assert.equal(await song.inputValue(), "待处理的改名");
+  }
+  await button("应用曲谱信息").click();
+  assert.equal(await status(), "待导出 JSON");
+  await button("文件").press("ArrowDown");
+  await page.waitForFunction(() => document.activeElement?.matches('[role="menuitem"]') && document.activeElement.textContent === "新建曲谱");
+  await page.keyboard.press("Enter");
+  await newScore.waitFor();
+  assert.equal(await title.inputValue(), "");
+  await title.fill("新的曲谱");
+  await button("创建曲谱", newScore).click();
+  await leave.waitFor();
+  await button("继续编辑", leave).click();
+  await leave.waitFor({ state: "hidden" });
+  assert.equal(await song.inputValue(), "待处理的改名");
+
+  await action("导出", "JSON 曲谱");
+  const output = await download(dialog("导出 JSON"));
+  assert.equal(output.suggestedFilename(), "待处理的改名.lxm.json");
+  const reexported = JSON.parse(await readFile(await output.path(), "utf8"));
+  assert.deepEqual(reexported.score.tracks[0].tuning, saved.score.tracks[0].tuning);
+  assert.equal(await status(), "JSON 已导出");
+
+  await song.fill("准备放弃的修改");
+  await action("文件", "返回首页");
+  const blocked = dialog("先处理未应用的输入");
+  await blocked.getByText("曲谱信息", { exact: true }).waitFor();
+  await button("放弃全部草稿", blocked).click();
+  await button("确认放弃 1 处", blocked).click();
+  await blocked.waitFor({ state: "hidden" });
+  assert.equal(page.url(), base + "/editor");
+  assert.equal(await song.inputValue(), "待处理的改名");
+  await song.fill("已应用后放弃的修改");
+  await button("应用曲谱信息").click();
+  await action("文件", "返回首页");
+  await button("不导出并继续", leave).click();
+  await page.waitForURL(base + "/");
+  await page.getByRole("link", { name: "曲谱编辑器", exact: true }).click();
+  await page.waitForURL(base + "/editor");
+  assert.equal(await status(), "示例曲谱");
+  assert.deepEqual(errors, []);
+  console.log("REQ-048 browser flow passed");
+} finally {
+  await browser.close();
+}

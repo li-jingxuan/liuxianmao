@@ -2,6 +2,7 @@
  * PLAYWRIGHT_MODULE=/path/to/playwright EDITOR_URL=http://localhost:3108 node scripts/numbered-timeline.browser.cjs
  */
 const assert = require("node:assert/strict");
+const { downloadScoreJson, openScorePng } = require("../apps/website/tests/score-file-actions.browser.cjs");
 const fs = require("node:fs/promises");
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
 
@@ -19,9 +20,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     await page.evaluate(() => document.fonts.ready);
     // 等待客户端事件处理器生效后，从导出文件读取真实文档。
     const readDocument = async () => {
-      const download = page.waitForEvent("download");
-      await page.getByRole("button", { name: "导出曲谱", exact: true }).click();
-      const file = await download;
+      const file = await downloadScoreJson(page);
       return JSON.parse(await fs.readFile(await file.path(), "utf8"));
     };
     const before = await readDocument();
@@ -168,9 +167,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
       0,
     );
     await page.mouse.click(tabPoint.x, tabPoint.y);
-    await page
-      .getByRole("button", { name: "导出 A4 图片", exact: true })
-      .click();
+    await openScorePng(page);
     const generate = page.getByRole("button", {
       name: "仅生成当前页",
       exact: true,

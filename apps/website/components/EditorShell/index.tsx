@@ -10,6 +10,7 @@ import { EditorFeedback } from "./workspace/EditorFeedback";
 
 import {
   buildLayout,
+  DEFAULT_MOCK_DOCUMENT,
   A4_CONTENT_WIDTH,
   createCollapsedTabCellSelection,
   hitTestLayout,
@@ -43,6 +44,7 @@ import {
 import { Button, Dropdown, theme } from "antd";
 import { DownOutlined, MinusOutlined, PlusOutlined } from "@ant-design/icons";
 import {
+  selectScoreFileStatus,
   useEditorSessionStore,
   useEditorStore,
 } from "../../stores/editor-store";
@@ -59,7 +61,8 @@ import { OutputBlockedModal } from "./output/OutputBlockedModal";
 import { ImageExportModal } from "./output/ImageExportModal";
 import type { ImageExportSnapshot } from "./output/image-export-controller";
 import { ScorePrintLayer } from "./output/ScorePrintLayer";
-import { ScoreFileControls } from "./output/ScoreFileControls";
+import { ScoreFilePanels } from "./output/ScoreFilePanels";
+import { useScoreFileFlow } from "./output/use-score-file-flow";
 import { MusicTextSidebar, type MusicTextController } from "./music-text/MusicTextSidebar";
 import { deriveSidebarContext, type SidebarLocation } from "./music-text/sidebar-context";
 import type { MusicTextTarget } from "./music-text/music-text-draft";
@@ -72,7 +75,6 @@ import {
   resolveMusicTextHoverTarget,
   sameMusicTextTarget,
 } from "./music-text/music-text-hover";
-import editorHeaderStyles from "./workspace/EditorHeader.module.scss";
 import styles from "./index.module.scss";
 import editorFormStyles from "./shared/editor-form.module.scss";
 import scoreInteractionStyles from "./score/score-interaction.module.scss";
@@ -129,7 +131,7 @@ const isTextEditingTarget = (target: EventTarget | null): boolean =>
         '[role="combobox"], [role="listbox"], .ant-select-dropdown',
       )));
 
-export const EditorShell: React.FC = () => {
+export const EditorShell: React.FC<{ navigate?: (destination: string) => void }> = ({ navigate }) => {
   const session = useEditorSessionStore();
   const { token } = theme.useToken();
   const { drafts, modals } = useEditorRuntime();
@@ -166,6 +168,8 @@ export const EditorShell: React.FC = () => {
     [session, modals, drafts],
   );
   const document = useEditorStore((state) => state.document);
+  const fileBaseline = useEditorStore((state) => state.fileBaseline);
+  const fileStatus = useMemo(() => selectScoreFileStatus({ document, fileBaseline }), [document, fileBaseline]);
   const selection = useEditorStore((state) => state.selection);
   const numberedSelection = useEditorStore((state) => state.numberedSelection);
   const selectedNumberedMarkId = useEditorStore(
@@ -228,8 +232,9 @@ export const EditorShell: React.FC = () => {
   const [expandedHistoryIds, setExpandedHistoryIds] = useState<string[]>([]);
 
   const [imageExportSnapshot, setImageExportSnapshot] =
-    useState<ImageExportSnapshot | null>(null);
+    useState<(ImageExportSnapshot & { mode: "png" | "print" }) | null>(null);
   const [outputBlockedOpen, setOutputBlockedOpen] = useState(false);
+  const outputBlockedTrigger = useRef<HTMLElement | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   /** 全谱共享的会话视图偏好，不修改和弦指法或音乐历史。 */
   const [showChordDiagrams, setShowChordDiagrams] = useState(true);
@@ -261,8 +266,6 @@ export const EditorShell: React.FC = () => {
     },
     [],
   );
-  const [fileFeedbackHost, setFileFeedbackHost] =
-    useState<HTMLDivElement | null>(null);
   /** 文档、状态版本或会话任一变化立即关闭旧输出，晚到回调不能发布旧谱。 */
   useEffect(
     () =>
@@ -733,6 +736,12 @@ export const EditorShell: React.FC = () => {
     () => scoreSvgRef.current?.focus({ preventScroll: true }),
     [],
   );
+  useEffect(() => {
+    const state = session.getState();
+    if (!state.loadNotice && (state.fileBaseline || !state.selection)) return;
+    const frame = requestAnimationFrame(focusScore);
+    return () => cancelAnimationFrame(frame);
+  }, [focusScore, session]);
   const focusCaret = useMemo(
     () =>
       lxmLayout && selection
@@ -1001,17 +1010,29 @@ export const EditorShell: React.FC = () => {
       : [],
   );
 
-  // 输出和离开页面先丢弃歌曲未应用输入；其他草稿继续走原有即时检查。
-  const isOutputBlocked = () => {
-    if (musicTextController.current?.discardSong() === false) return true;
-    return (
-      !!imageExportSnapshot ||
-      modals.isOpen() ||
-      drafts.isOutputBlocked() ||
-      !!fretDraft ||
-      !!musicTextController.current?.isOutputBlocked()
-    );
+  const hasFileInput = () => !!fretDraft || !!musicTextController.current?.isOutputBlocked();
+  const isOutputBlocked = () => !!imageExportSnapshot || modals.isOpen() || drafts.isOutputBlocked() || hasFileInput();
+  const showOutputBlocked = (trigger: HTMLElement | null) => {
+    if (modals.isOpen() || imageExportSnapshot) setErrorMessage("请先完成当前弹层操作。");
+    else {
+      outputBlockedTrigger.current = trigger;
+      setOutputBlockedOpen(true);
+    }
   };
+  const fileFlow = useScoreFileFlow({ session, drafts, isBlocked: isOutputBlocked, onBlocked: showOutputBlocked });
+
+  const navigateTo = (destination: string) => {
+    if (navigate) navigate(destination);
+    else {
+      fileFlow.allowUnload.current = true;
+      window.location.assign(destination);
+    }
+  };
+  const requestNavigation = (destination: "/" | "/guitar-advanced", trigger: HTMLElement | null) =>
+    fileFlow.requestNavigation(destination === "/" ? "返回首页" : "进入吉他进阶", trigger, (discard) => {
+      if (discard) session.getState().replaceDocument(DEFAULT_MOCK_DOCUMENT);
+      navigateTo(destination);
+    });
 
   /** 使用 SVG CTM 完成 client 坐标到 layout 逻辑坐标的唯一转换。 */
   const getLayoutPoint = (
@@ -1420,11 +1441,9 @@ export const EditorShell: React.FC = () => {
   if (!document || !lxmLayout)
     return (
       <div className={styles.editorControls}>
-        <ScoreFileControls
-          session={session}
-          isBlocked={isOutputBlocked}
-          onBlocked={() => { if (!modals.isOpen()) setOutputBlockedOpen(true); }}
-        />
+        <Button onClick={(event) => fileFlow.showPanel("new", event.currentTarget)}>新建曲谱</Button>
+        <Button onClick={(event) => fileFlow.showPanel("import", event.currentTarget)}>导入曲谱</Button>
+        <ScoreFilePanels flow={fileFlow} session={session} document={document} />
         <p className={editorFormStyles.errorMessage} role="alert">
           {errorMessage ?? "当前没有可编辑的乐谱文档。"}
         </p>
@@ -1645,42 +1664,26 @@ export const EditorShell: React.FC = () => {
     >
       <EditorHeader
         title={document.score.title}
-        canNavigateToLearning={() => {
-          // 学习路由会卸载编辑器 UI，未应用的表单输入不能随之消失。
-          // 先处理现有弹层/输出任务，避免叠加草稿提示；草稿处理后也不自动续跳，
-          // 由用户再次点击并检查最新状态，避免使用确认期间已过期的导航请求。
-          if (!isOutputBlocked()) return true;
-          if (modals.isOpen() || imageExportSnapshot) {
-            setErrorMessage("请先完成当前弹层或图片导出，再进入吉他进阶。");
-          } else {
-            setOutputBlockedOpen(true);
-          }
-          return false;
+        status={fileStatus}
+        onNavigate={requestNavigation}
+        onFileAction={(action, trigger) => {
+          if (action !== "home") fileFlow.showPanel(action, trigger);
+          else if (requestNavigation("/", trigger)) navigateTo("/");
         }}
-        fileControls={
-          <ScoreFileControls
-            session={session}
-            className={editorHeaderStyles.headerNativeAction}
-            feedbackContainer={fileFeedbackHost}
-            isBlocked={isOutputBlocked}
-            onBlocked={() => { if (!modals.isOpen()) setOutputBlockedOpen(true); }}
-          />
-        }
-        imageExportButtonRef={imageExportButtonRef}
-        onImageExport={() => {
-          if (modals.isOpen()) {
-            setErrorMessage("请先完成当前弹层操作，再导出图片。");
+        exportButtonRef={imageExportButtonRef}
+        onExportAction={(mode, trigger) => {
+          if (mode === "json") {
+            fileFlow.showPanel(mode, trigger);
             return;
           }
           if (isOutputBlocked()) {
-            if (drafts.inspect().pending.length) setOutputBlockedOpen(true);
-            else
-              setErrorMessage("请先完成当前输入并应用或取消修改，再导出图片。");
+            showOutputBlocked(trigger);
             return;
           }
           const state = session.getState();
           if (!state.document) return;
           setImageExportSnapshot({
+            mode,
             version: captureEditorVersion(state),
             document: state.document,
             density,
@@ -1688,6 +1691,7 @@ export const EditorShell: React.FC = () => {
           });
         }}
       />
+      <ScoreFilePanels flow={fileFlow} session={session} document={document} />
       <EditorToolbar
         continuousRange={continuousRange}
         onRhythmPatternScopeChange={setRhythmPatternScope}
@@ -1717,7 +1721,7 @@ export const EditorShell: React.FC = () => {
         }
       />
       <div className={styles.editorControls}>
-        <div ref={setFileFeedbackHost} />
+        {fileFlow.notice && <p role="status">{fileFlow.notice}</p>}
         {loadNotice && <p role="status">{loadNotice}</p>}
         {lxmLayout.width > A4_CONTENT_WIDTH + 1 && (
           <p role="status">
@@ -1994,6 +1998,7 @@ export const EditorShell: React.FC = () => {
         hidden={
           !!activeModal ||
           !!imageExportSnapshot ||
+          !!fileFlow.panel || !!fileFlow.pending ||
           outputBlockedOpen ||
           (narrowPanels && !sidebarCollapsed)
         }
@@ -2019,6 +2024,11 @@ export const EditorShell: React.FC = () => {
       <OutputBlockedModal
         open={outputBlockedOpen}
         drafts={drafts}
+        returnFocus={() => {
+          const trigger = outputBlockedTrigger.current;
+          if (trigger?.isConnected && !trigger.closest("[inert]")) trigger.focus({ preventScroll: true });
+          else focusScore();
+        }}
         onClose={() => setOutputBlockedOpen(false)}
         onBlocked={setErrorMessage}
       />
@@ -2027,6 +2037,10 @@ export const EditorShell: React.FC = () => {
           snapshot={imageExportSnapshot}
           returnFocus={imageExportButtonRef}
           onClose={() => setImageExportSnapshot(null)}
+          onPrint={imageExportSnapshot.mode === "print" ? () => {
+            if (!editorRootRef.current?.querySelector('[data-score-print-layer][data-print-ready="true"]')) return false;
+            try { window.print(); return true; } catch { return false; }
+          } : undefined}
           isCurrent={() =>
             sameEditorVersion(
               captureEditorVersion(session.getState()),

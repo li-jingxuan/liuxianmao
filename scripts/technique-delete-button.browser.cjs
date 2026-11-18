@@ -1,5 +1,6 @@
 /* Real browser investigation of the existing technique-panel Delete button. */
 const assert = require('node:assert/strict');
+const { downloadScoreJson } = require('../apps/website/tests/score-file-actions.browser.cjs');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || '/Users/nice02/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
@@ -31,9 +32,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || '/Users/nice02/.ca
           await panel.waitFor({ state: 'visible' });
         };
         const exported = async name => {
-          const waiting = page.waitForEvent('download');
-          await page.getByRole('button', { name: '导出曲谱', exact: true }).click();
-          const download = await waiting;
+          const download = await downloadScoreJson(page);
           await download.saveAs(path.join(dir, `${name}.lxm`));
           return JSON.parse(await fs.readFile(await download.path(), 'utf8'));
         };

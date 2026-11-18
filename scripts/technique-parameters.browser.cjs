@@ -1,5 +1,6 @@
 /* Actual UI parameter-owner regression; no store injection. */
 const assert = require("node:assert/strict");
+const { downloadScoreJson, openScoreImport, confirmScoreImport } = require("../apps/website/tests/score-file-actions.browser.cjs");
 const fs = require("node:fs/promises");
 const path = require("node:path");
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
@@ -26,15 +27,14 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
       rhythm: { base: "quarter", dots: 0 }, kind: "notes",
       notes: [1, 2].map((string) => ({ id: `owner-note-${index}-${string}`, string, fret: fret + string - 1 })) }));
     const importFixture = async () => {
-      await page.locator('input[type="file"]').setInputFiles({ name: "owner.lxm", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(fixture)) });
-      await page.getByRole("button", { name: "导入并替换", exact: true }).click();
+      await openScoreImport(page, { name: "owner.lxm", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(fixture)) });
+      await confirmScoreImport(page);
       await page.getByText("技巧参数 owner 回归", { exact: true }).first().waitFor();
       await page.waitForTimeout(100);
     };
     const exported = async () => {
-      const waiting = page.waitForEvent("download");
-      await page.getByRole("button", { name: "导出曲谱", exact: true }).click();
-      return JSON.parse(await fs.readFile(await (await waiting).path(), "utf8"));
+      const download = await downloadScoreJson(page);
+      return JSON.parse(await fs.readFile(await download.path(), "utf8"));
     };
     await importFixture();
     const points = await svg.evaluate((element) => {

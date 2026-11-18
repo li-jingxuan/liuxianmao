@@ -15,6 +15,7 @@ import {
   createCollapsedTabCellSelection,
   DEFAULT_MOCK_DOCUMENT,
   loadDocument,
+  semanticJsonEqual,
   LXMScoreCommandEnum,
   resolveTabCellSelection,
   type ILXMApplyScoreCommandResult,
@@ -54,8 +55,19 @@ import {
 export { selectEditorHistory, selectHistoryEntries } from "./editor-history";
 export type { HistoryEntry, HistoryTarget, EditorFeedbackEvent, EditorHistoryView } from "./editor-history";
 
+export type ScoreFileStatus = "example" | "imported" | "exported" | "pending";
+
+export const selectScoreFileStatus = ({ document, fileBaseline }: Pick<EditorStore, "document" | "fileBaseline">): ScoreFileStatus => {
+  if (!document) return "example";
+  if (!fileBaseline) return "pending";
+  // Revision is a command counter. Restoring the same musical content also restores the baseline.
+  return semanticJsonEqual(document.score, fileBaseline.document.score) ? fileBaseline.status : "pending";
+};
+
 export interface EditorStore {
   document: ILXMDocument | null;
+  fileBaseline: { document: ILXMDocument; status: Exclude<ScoreFileStatus, "pending"> } | null;
+  recordScoreExport: (document: ILXMDocument, sessionVersion: number) => void;
   stateVersion: number;
   clipboardVersion: number;
   hasBeatClipboard: boolean;
@@ -75,7 +87,7 @@ export interface EditorStore {
   feedbackEvent: EditorFeedbackEvent | null;
   /** 旧计时器/关闭回调只能清除它所拥有的事件。 */
   dismissFeedback: (eventId: string) => void;
-  replaceDocument: (input: unknown, source?: "file") => DocumentLoadResult;
+  replaceDocument: (input: unknown, source?: "file" | "new", filename?: string) => DocumentLoadResult;
   selection: ILXMTabCellSelection | null;
   /** 当前点击的技巧仅属于 UI 焦点，不进入文档历史。 */
   selectedTechniqueId: string | null;
@@ -218,7 +230,10 @@ export const createEditorStore = (
       dismissFeedback: (eventId) => {
         if (get().feedbackEvent?.eventId === eventId) set({ feedbackEvent: null });
       },
-      replaceDocument: (input, source) => {
+      recordScoreExport: (document, sessionVersion) => {
+        if (get().sessionVersion === sessionVersion) set({ fileBaseline: { document, status: "exported" } });
+      },
+      replaceDocument: (input, source, filename) => {
         const result = loadEditorDocument(input);
         if (!result.ok) {
           reportError(result.errors.join("；"));
@@ -226,13 +241,21 @@ export const createEditorStore = (
         }
         clipboard = null;
         numberedClipboard = null;
+        const firstTrack = result.document.score.tracks[0]!;
+        const firstMeasure = firstTrack.measures[0]!;
+        const firstBeat = firstMeasure.beats[0];
         // 外部替换即使具有相同文档 ID，也明确开启新会话边界并取消旧草稿。
         set({
           document: result.document,
+          fileBaseline: source === "new" ? null : {
+            document: result.document, status: source === "file" ? "imported" : "example",
+          },
           stateVersion: get().stateVersion + 1,
           hasBeatClipboard: false,
           clipboardVersion: get().clipboardVersion + 1,
-          selection: null,
+          selection: source === "new" && firstBeat ? createCollapsedTabCellSelection({
+            trackId: firstTrack.id, measureId: firstMeasure.id, beatId: firstBeat.id, string: 1,
+          }) : null,
           selectedTechniqueId: null,
           numberedSelection: null,
           numberedInputRhythm: { base: "quarter", dots: 0 },
@@ -242,7 +265,7 @@ export const createEditorStore = (
           errorMessage: null,
           loadNotice:
             source === "file"
-              ? `已导入「${result.document.score.title || "未命名曲谱"}」。`
+              ? `已导入「${filename || result.document.score.title || "未命名曲谱"}」。`
               : null,
           effects: [],
           feedbackEvent: null,
@@ -252,6 +275,7 @@ export const createEditorStore = (
         return result;
       },
       document: initialDocument,
+      fileBaseline: initialDocument ? { document: initialDocument, status: "example" } : null,
       selection: null,
       selectedTechniqueId: null,
       numberedSelection: null,

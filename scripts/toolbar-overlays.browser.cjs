@@ -2,6 +2,7 @@
  * Composition coverage dispatches DOM events; it does not verify a real OS IME.
  */
 const assert = require("node:assert/strict");
+const { downloadScoreJson, openScoreImport, openScorePng } = require("../apps/website/tests/score-file-actions.browser.cjs");
 const fs = require("node:fs/promises");
 const path = require("node:path");
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
@@ -11,7 +12,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     process.env.EDITOR_ARTIFACTS || "artifacts/toolbar-history-overlays",
   );
   await fs.mkdir(output, { recursive: true });
-  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  const browser = await chromium.launch({ channel: process.env.LXM_BROWSER_CHANNEL, headless: true });
   const results = [],
     errors = [];
   const source = JSON.parse(
@@ -170,11 +171,10 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     return p.getByRole("textbox", { name: "歌曲名称", exact: true });
   };
   const importFile = (p) =>
-    p.locator("input[type=file]").setInputFiles(fixture);
+    openScoreImport(p, fixture, { dispatch: true });
   const exportDocument = async (p) => {
-    const download = p.waitForEvent("download");
-    await p.getByRole("button", { name: "导出曲谱", exact: true }).click();
-    return JSON.parse(await fs.readFile(await (await download).path(), "utf8"));
+    const download = await downloadScoreJson(p);
+    return JSON.parse(await fs.readFile(await download.path(), "utf8"));
   };
   try {
     for (const width of [768, 375]) {
@@ -384,15 +384,15 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
         await settle(p);
         await importFile(p);
         const confirm = p.getByRole("button", {
-          name: "导入并替换",
+          name: "打开曲谱",
           exact: true,
         });
         await confirm.waitFor();
         await settle(p);
-        const state = await history(p).evaluate((el) => ({
-          inert: !!el.closest("[inert]"),
-          visible: el.getClientRects().length > 0,
-        }));
+        const state = await history(p).evaluate((el) => {
+          el.querySelector('button')?.focus();
+          return { inert: !el.contains(document.activeElement), visible: el.getClientRects().length > 0 };
+        });
         assert.equal(
           state.inert,
           true,
@@ -430,7 +430,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
         await settle(p);
         assert.equal(await visible(history(p)), false);
         return {
-          opening: "native file input setInputFiles while drawer open",
+          opening: "file menu action dispatched while drawer is open",
           lowerLayer: state,
           restoredCycle,
         };
@@ -438,9 +438,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
       await run("output-modal-over-properties", width, async (p) => {
         await song(p);
         // Explicit DOM UI event opens output while the normal entry is inert.
-        await p
-          .getByRole("button", { name: "导出 A4 图片" })
-          .dispatchEvent("click");
+        await openScorePng(p, { dispatch: true });
         const close = p.getByRole("button", { name: "关闭预览", exact: true });
         await close.waitFor();
         await settle(p);

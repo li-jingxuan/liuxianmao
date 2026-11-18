@@ -14,11 +14,13 @@ import styles from "./image-export.module.scss";
 export const OutputBlockedModal = ({
   open,
   drafts,
+  returnFocus,
   onClose,
   onBlocked,
 }: {
   open: boolean;
   drafts: EditorDraftCoordinator;
+  returnFocus: () => void;
   onClose: () => void;
   onBlocked: (message: string) => void;
 }) => {
@@ -27,7 +29,7 @@ export const OutputBlockedModal = ({
     drafts.getSnapshot,
     drafts.getSnapshot,
   );
-  const { pending, composing } = drafts.inspect();
+  const { pending, composing } = drafts.inspect(undefined, true);
   const [confirmation, setConfirmation] = useState<{
     token: number;
     ids: string[];
@@ -48,11 +50,7 @@ export const OutputBlockedModal = ({
   const discardAll = async (token?: number) => {
     if (busy) return;
     setBusy(true);
-    const result = await drafts.request(
-      token === undefined
-        ? { type: "discardAll" }
-        : { type: "discardAll", confirmation: token },
-    );
+    const result = await drafts.request({ type: "discardAll", confirmation: token, includeFileOnly: true });
     setBusy(false);
     if (result.status === "needs-confirmation") {
       setConfirmation({ token: result.confirmation, ids: result.ids });
@@ -107,7 +105,7 @@ export const OutputBlockedModal = ({
       afterClose={() => {
         const id = focusAfterClose.current;
         focusAfterClose.current = null;
-        if (!id) return;
+        if (!id) { returnFocus(); return; }
         void drafts.request({ type: "focus", id }).then((result) => {
           if (result.status === "accepted") return;
           onBlocked(
@@ -137,7 +135,7 @@ export const OutputBlockedModal = ({
           </>
         ) : (
           <>
-            <Button disabled={busy} onClick={() => close()}>
+            <Button aria-label="关闭" disabled={busy} onClick={() => close()}>
               关闭
             </Button>
             <Button

@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
+import { selectScoreAction } from "./score-file-actions.browser.cjs";
 import { mkdir, writeFile } from "node:fs/promises";
 const { chromium } = await import(process.env.LXM_PLAYWRIGHT_MODULE ?? "playwright");
-const browser = await chromium.launch({ channel: "chrome", headless: true });
+const browser = await chromium.launch({ channel: process.env.LXM_BROWSER_CHANNEL, headless: true });
 const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
 page.setDefaultTimeout(20000);
 const output = new URL("../../../output/playwright/req038-042-product/", import.meta.url);
@@ -34,6 +35,7 @@ async function shot(name) {
 }
 try {
   await mkdir(output, { recursive: true });
+  await page.route("https://**/*", (route) => route.abort());
   await page.route("**/favicon.ico", route => route.fulfill({ status: 204 }));
   await page.goto(url, { waitUntil: "networkidle", timeout: 90000 });
   await page.getByRole("application", { name: "六线谱编辑器" }).waitFor();
@@ -54,7 +56,7 @@ try {
     const apply = sidebar.getByRole("button", { name, exact: true });
     assert.match(await apply.getAttribute("class"), /ant-btn-primary/);
     assert.equal(Math.round((await apply.boundingBox()).height), 32);
-    const exportColor = await page.getByRole("button", { name: "导出 A4 图片", exact: true }).evaluate(el => getComputedStyle(el).backgroundColor);
+    const exportColor = await page.getByRole("button", { name: "导出", exact: true }).evaluate(el => getComputedStyle(el).backgroundColor);
     await page.waitForFunction(({ name, color }) => {
       const button = document.querySelector(`button[aria-label="${name}"]`);
       return button && !button.disabled && getComputedStyle(button).backgroundColor === color;
@@ -76,7 +78,7 @@ try {
   await state("undo");
   assert.equal((await state()).document.score.tracks[0].capo, before.document.score.tracks[0].capo);
 
-  // 歌曲输入只在当前页等待应用，离开后不进入草稿确认。
+  // 切换歌曲面板时沿用原规则，文件操作保留草稿并明确提示。
   const applied = await state();
   async function dirtySong() {
     await title.fill("离开后应丢弃的名称");
@@ -104,19 +106,19 @@ try {
   await page.getByRole("button", { name: "编辑面板", exact: true }).click();
   await assertDiscarded();
   await dirtySong();
-  const downloadEvent = page.waitForEvent("download");
-  await page.getByRole("button", { name: "导出曲谱", exact: true }).click();
-  const download = await downloadEvent;
-  await download.delete();
-  await assertDiscarded();
-  await dirtySong();
-  await page.getByRole("button", { name: "导出 A4 图片", exact: true }).click();
-  await page.getByRole("button", { name: "关闭预览", exact: true }).first().click();
-  await assertDiscarded();
-  await dirtySong();
-  const chooser = page.waitForEvent("filechooser");
-  await page.getByRole("button", { name: "导入曲谱", exact: true }).click();
-  await chooser;
+  const blocked = page.getByRole("dialog", { name: "先处理未应用的输入", exact: true });
+  for (const [group, item] of [["导出", "JSON 曲谱"], ["导出", "PNG 图片"], ["文件", "导入曲谱"]]) {
+    await selectScoreAction(page, group, item);
+    await blocked.getByText("曲谱信息", { exact: true }).waitFor();
+    await blocked.getByText("变调夹", { exact: true }).waitFor();
+    await blocked.getByRole("button", { name: "关闭", exact: true }).click();
+    await blocked.waitFor({ state: "hidden" });
+    assert.equal(await title.inputValue(), "离开后应丢弃的名称");
+    assert.equal(await sidebar.getByRole("textbox", { name: "编谱作者", exact: true }).inputValue(), "应丢弃的作者");
+    assert.deepEqual(await state(), applied);
+  }
+  await sidebar.getByRole("tab", { name: "选区", exact: true }).click();
+  await sidebar.getByRole("tab", { name: "歌曲", exact: true }).click();
   await assertDiscarded();
   await shot("07-song-discarded");
   // 外部调性更新不覆盖仍在歌曲页编辑的名称。
@@ -163,7 +165,7 @@ try {
   await page.setViewportSize({ width: 1400, height: 720 });
   await shot("06-library-1400x720");
   assert.deepEqual(errors, []);
-  const result = { passed: true, url, checks: ["调性与基础拍号只读并合并紧凑展示", "两处应用与导出图片统一蓝色主按钮", "旧底栏与歌曲小节跳转入口已移除", "名称与变调夹独立应用及撤销", "外部只读调性更新保留名称草稿", "切页、收起、文件导入导出及图片导出直接丢弃歌曲输入，无草稿确认或文档历史变更", "真实校验错误紧凑展示", "小调推荐标题及设置入口删除", "恢复旧分组且192项齐全", "真实Next页面无运行错误"], errors };
+  const result = { passed: true, url, checks: ["调性与基础拍号只读并合并紧凑展示", "两处应用与导出统一蓝色主按钮", "旧底栏与歌曲小节跳转入口已移除", "名称与变调夹独立应用及撤销", "外部只读调性更新保留名称草稿", "切页或收起时丢弃歌曲输入，文件导入导出时显式保护草稿", "真实校验错误紧凑展示", "小调推荐标题及设置入口删除", "恢复旧分组且192项齐全", "真实Next页面无运行错误"], errors };
   await writeFile(new URL("result.json", output), JSON.stringify(result, null, 2));
   console.log(JSON.stringify(result, null, 2));
 } catch (error) {

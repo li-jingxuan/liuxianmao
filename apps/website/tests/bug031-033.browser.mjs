@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { openScorePng } from "./score-file-actions.browser.cjs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -118,7 +119,7 @@ try {
   checks.push("仅名称立即隐藏全谱指法图，名称、未提交草稿、文档与历史保持，打印层同步更新");
   // Clear the name draft before opening the real PNG output surface.
   await sideName.fill(chord.chord.name);
-  await page.getByRole("button", { name: "导出 A4 图片", exact: true }).click();
+  await openScorePng(page);
   const exportDialog = page.getByRole("dialog").filter({ has: page.locator("[data-image-export-status]") });
   await exportDialog.locator('[data-image-export-status="ready"]').waitFor();
   await exportDialog.getByRole("button", { name: "仅生成当前页", exact: true }).click();

@@ -1,5 +1,6 @@
 /* Actual SVG boundaries, native downloads and print output; no store injection. */
 const assert = require("node:assert/strict");
+const { downloadScoreJson, openScorePng } = require("../apps/website/tests/score-file-actions.browser.cjs");
 const fs = require("node:fs/promises");
 const path = require("node:path");
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
@@ -50,9 +51,8 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     }
     await page.setViewportSize({ width: 1440, height: 1000 });
     const exported = async () => {
-      const waiting = page.waitForEvent("download");
-      await page.getByRole("button", { name: "导出曲谱", exact: true }).click();
-      return JSON.parse(await fs.readFile(await (await waiting).path(), "utf8"));
+      const download = await downloadScoreJson(page);
+      return JSON.parse(await fs.readFile(await download.path(), "utf8"));
     };
     const before = await exported();
     const ring = before.score.tracks[0].techniques.find((item) => item.type === "letRing");
@@ -72,7 +72,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     expectAligned(await boundaries(svg));
     record("real selection/delete/export/undo preserves notes and alignment");
 
-    await page.getByRole("button", { name: "导出 A4 图片" }).click();
+    await openScorePng(page);
     await page.getByRole("button", { name: "生成全部图片", exact: true }).click();
     const link = page.getByRole("link", { name: "下载图片", exact: true });
     await link.waitFor({ timeout: 20000 });

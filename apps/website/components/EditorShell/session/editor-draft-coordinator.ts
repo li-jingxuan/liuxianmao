@@ -35,6 +35,7 @@ export interface EditorDraftRecord {
   label: string;
   /** 只用于输出闸门定位；不参与版本、确认 token 或协调行为。 */
   location?: string;
+  fileOnly?: boolean;
   dirty: boolean;
   composing: boolean;
   canApply: boolean;
@@ -52,7 +53,7 @@ export interface EditorDraftRecord {
 
 export type EditorDraftAction =
   | { type: "focus" | "apply" | "discard"; id: string }
-  | { type: "discardAll"; confirmation?: number };
+  | { type: "discardAll"; confirmation?: number; includeFileOnly?: boolean };
 export type EditorDraftActionResult =
   | { status: "accepted"; discarded: number }
   | { status: "blocked"; reason: string }
@@ -76,9 +77,10 @@ export const createEditorDraftCoordinator = (
     revision += 1;
     listeners.forEach((listener) => listener());
   };
-  const inspect = (exceptOwner?: EditorDraftOwner) => {
+  const inspect = (exceptOwner?: EditorDraftOwner, includeFileOnly = false) => {
     const pending = [...records.values()].filter(
-      (record) => (record.dirty || record.composing || record.error) &&
+      (record) => (includeFileOnly || !record.fileOnly || record.composing) &&
+        (record.dirty || record.composing || record.error) &&
         (!exceptOwner || registrations.get(record)?.owner.token !== exceptOwner.token),
     );
     return {
@@ -112,7 +114,7 @@ export const createEditorDraftCoordinator = (
     if (inspect().composing)
       return { status: "blocked", reason: "请先完成输入法组合输入。" };
     if (action.type === "discardAll") {
-      const pending = inspect().pending;
+      const pending = inspect(undefined, action.includeFileOnly).pending;
       if (!pending.length) return { status: "accepted", discarded: 0 };
       if (action.confirmation !== revision)
         return {
@@ -231,7 +233,7 @@ export const createEditorDraftCoordinator = (
     /** 仅供专用设置交接核对实际登记身份，不能据此免除其他草稿。 */
     registrationOf: (record: EditorDraftRecord) => registrations.get(record),
     request,
-    isOutputBlocked: () => busy || inspect().pending.length > 0,
+    isOutputBlocked: () => busy || inspect(undefined, true).pending.length > 0,
     subscribe(listener: () => void) {
       listeners.add(listener);
       return () => listeners.delete(listener);

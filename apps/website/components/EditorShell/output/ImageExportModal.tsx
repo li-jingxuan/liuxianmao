@@ -23,11 +23,13 @@ export const ImageExportModal = ({
   returnFocus,
   onClose,
   isCurrent,
+  onPrint,
 }: {
   snapshot: ImageExportSnapshot;
   returnFocus: RefObject<HTMLElement | null>;
   onClose: () => void;
   isCurrent: () => boolean;
+  onPrint?: () => boolean;
 }) => {
   const closeRef = useRef(onClose);
   const previousFocus = useRef<HTMLElement | null>(null);
@@ -36,6 +38,15 @@ export const ImageExportModal = ({
   const closed = useRef(false);
   const mounted = useRef(false);
   const [open, setOpen] = useState(true);
+  const [printMessage, setPrintMessage] = useState<{ error: boolean; text: string }>();
+  const printing = !!onPrint;
+
+  useEffect(() => {
+    if (!printing) return;
+    const afterPrint = () => setPrintMessage({ error: false, text: "已关闭打印窗口，可继续编辑或重新打印。" });
+    window.addEventListener("afterprint", afterPrint);
+    return () => window.removeEventListener("afterprint", afterPrint);
+  }, [printing]);
 
   useEffect(() => {
     closeRef.current = onClose;
@@ -77,12 +88,14 @@ export const ImageExportModal = ({
 
   useEffect(() => {
     mounted.current = true;
-    if (!previousFocus.current)
+    if (!previousFocus.current) {
+      const trigger = returnFocus.current;
       previousFocus.current =
-        returnFocus.current ??
+        trigger && !trigger.closest("[inert]") ? trigger :
         (document.activeElement instanceof HTMLElement
           ? document.activeElement
           : null);
+    }
     return () => {
       mounted.current = false;
       // StrictMode 的模拟卸载会立即重挂载，此时焦点仍归新 Modal，不能抢回触发器。
@@ -139,8 +152,8 @@ export const ImageExportModal = ({
       title={
         <div className={styles.titleRow}>
           <div>
-            <h2 id="image-preview-title">A4 图片预览</h2>
-            <span>纵向 · 300 DPI · 白底 PNG</span>
+            <h2 id="image-preview-title">{onPrint ? "A4 打印预览" : "A4 图片预览"}</h2>
+            <span>{onPrint ? "A4 纵向" : "纵向 · 300 DPI · 白底 PNG"}</span>
           </div>
           <Button ref={closeButton} onClick={requestClose}>
             关闭预览
@@ -252,7 +265,18 @@ export const ImageExportModal = ({
           )}
         </main>
 
-        <aside className={styles.settingsPane} aria-label="输出设置">
+        {onPrint ? <aside className={styles.settingsPane} aria-label="打印设置">
+          <h3>打印</h3>
+          <p className={styles.note}>在打印窗口中可选择打印机或另存为 PDF。</p>
+          <Button type="primary" disabled={!prepared || busy} onClick={() => {
+            if (!validateCurrent()) return;
+            setPrintMessage(undefined);
+            if (!onPrint()) setPrintMessage({ error: true, text: "暂时无法打开打印窗口，请稍后重试。" });
+          }}>打开打印窗口</Button>
+          {error && <Alert type="error" showIcon title={errorTitle} description={error.message} />}
+          {canReprepare && <Button onClick={reprepare}>重新准备预览</Button>}
+          {printMessage && <p role={printMessage.error ? "alert" : "status"}>{printMessage.text}</p>}
+        </aside> : <aside className={styles.settingsPane} aria-label="输出设置">
           <h3>输出设置</h3>
           <label className={styles.rangeLabel}>
             <span>输出范围</span>
@@ -441,7 +465,7 @@ export const ImageExportModal = ({
           <p className={styles.note}>
             预览采用当前已提交内容。未应用的草稿不会进入输出。
           </p>
-        </aside>
+        </aside>}
       </div>
     </Modal>
   );

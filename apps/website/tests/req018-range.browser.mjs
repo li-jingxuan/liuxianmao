@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { selectScoreAction } from "./score-file-actions.browser.cjs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -192,7 +193,7 @@ try {
   await input.fill("6 7");
   await page.getByRole("button", { name: "编辑面板", exact: true }).click();
   await page.locator("[data-music-text-range-editor]").waitFor({ state: "hidden" });
-  await page.getByRole("button", { name: "导出曲谱", exact: true }).click();
+  await selectScoreAction(page, "导出", "JSON 曲谱");
   const blocked = page.getByRole("dialog", { name: "先处理未应用的输入", exact: true });
   await blocked.waitFor();
   await blocked.getByRole("button", { name: "返回编辑", exact: true }).click();
