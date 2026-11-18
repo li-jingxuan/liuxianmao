@@ -43,21 +43,22 @@ describe("简谱八度语法边界", () => {
 
 /** 验证首页默认 mock；历史谱例继续覆盖布局、会话和导出投影。 */
 describe("MVP v7.2 简谱 mock", () => {
-  it("首页默认加载十一小节《理想》，截图复刻的节奏、歌词与休止经过正式加载器", () => {
+  it("首页通过正式加载器默认加载十六小节《理想》", () => {
     const loaded = loadDocument(JSON.stringify(DEFAULT_MOCK_DOCUMENT));
     expect(loaded.ok, JSON.stringify(loaded)).toBe(true);
     expect(editorStore.getState().document).toEqual(DEFAULT_MOCK_DOCUMENT);
-    expect(DEFAULT_MOCK_DOCUMENT.documentRevision).toBe(1);
+    expect(DEFAULT_MOCK_DOCUMENT.documentRevision).toBe(88);
     expect(DEFAULT_MOCK_DOCUMENT.score).toMatchObject({ title: "理想", keySignature: "D" });
     const track = DEFAULT_MOCK_DOCUMENT.score.tracks[0]!;
-    expect(track.measures).toHaveLength(11);
+    expect(track.measures).toHaveLength(16);
     expect(track.measures.map((m) => m.numberedVoice.events.length)).toEqual([
-      4, 4, 4, 4, 4, 4, 4, 4, 12, 8, 0,
+      4, 4, 4, 4, 4, 4, 4, 4, 12, 8, 0, 0, 12, 0, 0, 0,
     ]);
-    expect(track.measures.flatMap((m) => m.numberedVoice.events)).toHaveLength(52);
-    expect(track.techniques).toHaveLength(16);
+    expect(track.measures.flatMap((m) => m.numberedVoice.events)).toHaveLength(64);
+    expect(track.techniques).toHaveLength(28);
     expect(track.measures.flatMap((m) => m.chordSymbols.map((c) => c.chord.name))).toEqual([
-      "G", "C", "Em", "G", "G", "Am", "D", "G", "G", "G",
+      "G", "C", "Em", "G", "G", "Am", "D", "G", "G", "Gadd9",
+      "Asus2", "Dsus2", "Gadd9", "G", "Asus2", "Dsus2", "Gadd9",
     ]);
     for (const measure of track.measures.slice(0, 8)) {
       expect(measure.numberedVoice.events.map((event) => ({
@@ -76,10 +77,9 @@ describe("MVP v7.2 简谱 mock", () => {
     }))).toEqual(Array.from({ length: 8 }, (_, i) => ({
       tick: i * 240, rhythm: { base: "sixteenth", dots: 0 }, tokens: ["1"],
     })));
-    expect(track.measures[10]!.beats.map(({ tick, rhythm, kind, notes }) => ({ tick, rhythm, kind, notes })))
-      .toEqual([0, 960, 1920, 2880].map((tick) => ({
-        tick, rhythm: { base: "quarter", dots: 0 }, kind: "rest", notes: [],
-      })));
+    expect(track.measures[10]!.beats.map((beat) => beat.tick))
+      .toEqual([0, 480, 720, 960, 1200, 1440, 1680, 1920, 2400, 2640, 2880, 3120, 3360, 3600]);
+    expect(track.measures[10]!.beats.every((beat) => beat.notes[0]?.fret === "x")).toBe(true);
   });
 
   it("历史八小节 fixture 保留特殊符号与空拍的正式加载覆盖", () => {

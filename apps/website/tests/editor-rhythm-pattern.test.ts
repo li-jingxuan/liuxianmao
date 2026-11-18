@@ -156,10 +156,10 @@ describe("节奏型归齐范围的谱面高亮", () => {
 });
 
 describe("节奏型真实EditorSession原子历史", () => {
-  it.each(["numbered", "tab"] as const)("%s两拍+标记清除仅一条历史，undo/redo恢复完整文档、歌词、和弦与另一层", layer => {
+  it.each(["numbered", "tab"] as const)("%s两拍同时保留合法技巧和移除失效连接，undo/redo恢复完整文档", layer => {
     const { document, range, track, selection } = fixture();
-    track.numberedMarks = [{ id: "pattern-tie", type: "tie", fromItemId: "pattern-i0", toItemId: "pattern-i1" }, { id: "pattern-outside", type: "fermata", eventId: "pattern-e3" }];
-    track.techniques = [{ id: "pattern-tab-tie", type: "tie", fromNoteId: "pattern-n0", toNoteId: "pattern-n1" }];
+    track.numberedMarks = [{ id: "pattern-tie", type: "tie", fromItemId: "pattern-i0", toItemId: "pattern-i1" }, { id: "pattern-fermata", type: "fermata", eventId: "pattern-e0" }, { id: "pattern-outside", type: "fermata", eventId: "pattern-e3" }];
+    track.techniques = [{ id: "pattern-tab-tie", type: "tie", fromNoteId: "pattern-n0", toNoteId: "pattern-n1" }, { id: "pattern-vibrato", type: "vibrato", fromNoteId: "pattern-n0" }];
     const session = createEditorSession(document);
     const before = structuredClone(session.getState().document!);
     const tabRange = { ...selection, focus: { ...selection.focus, beatId: "pattern-b1", string: 6 } };
@@ -179,11 +179,11 @@ describe("节奏型真实EditorSession原子历史", () => {
     if (layer === "numbered") {
       expect(nextTrack.techniques).toEqual(track.techniques);
       expect(nextTrack.measures[0]!.beats).toEqual(before.score.tracks[0]!.measures[0]!.beats);
-      expect(nextTrack.numberedMarks.map(m => m.id)).toEqual(["pattern-outside"]);
+      expect(nextTrack.numberedMarks.map(m => m.id)).toEqual(["pattern-fermata", "pattern-outside"]);
     } else {
       expect(nextTrack.numberedMarks).toEqual(track.numberedMarks);
       expect(nextTrack.measures[0]!.numberedVoice).toEqual(before.score.tracks[0]!.measures[0]!.numberedVoice);
-      expect(nextTrack.techniques).toEqual([]);
+      expect(nextTrack.techniques.map(m => m.id)).toEqual(["pattern-vibrato"]);
     }
     session.getState().undo();
     expect(session.getState().document).toEqual(before);
@@ -231,7 +231,7 @@ describe("节奏型真实EditorSession原子历史", () => {
     expect(session.getState().historyDepth).toEqual({ past: 1, future: 0 });
   });
 
-  it("模板库随实际小节拍号提供12/5项，6/8自然细分没有连音或确认标记", () => {
+  it("模板库随实际小节拍号提供12/9项，6/8自然细分没有连音或确认标记", () => {
     const { document, measure, active } = fixture();
     expect(getRhythmPatternTemplates(measure.timeSignature)).toHaveLength(12);
     measure.timeSignature = { numerator: 3, denominator: 4 };
@@ -241,7 +241,7 @@ describe("节奏型真实EditorSession原子历史", () => {
     measure.lyrics = [];
     measure.chordSymbols = [];
     measure.beats = [0, Q * 1.5].map((tick, i) => ({ id: `compound-b${i}`, tick, kind: "notes", notes: [], rhythm: { base: "quarter", dots: 1 } }));
-    expect(getRhythmPatternTemplates(measure.timeSignature)).toHaveLength(5);
+    expect(getRhythmPatternTemplates(measure.timeSignature)).toHaveLength(9);
     const target = resolve(document, null, null, { ...active, eventId: undefined, tick: 0, endTick: Q * 1.5 });
     const session = createEditorSession(document);
     const p = preview(session.getState().document!, target, "three-eighths");
@@ -251,6 +251,41 @@ describe("节奏型真实EditorSession原子历史", () => {
     expect(p.track.measures[0]!.numberedVoice.tuplets).toEqual([]);
     expect(session.getState().execute({ type: C.ApplyRhythmPattern, target, templateId: "three-eighths", expectedConfirmationKey: p.confirmationKey })).toMatchObject({ ok: true, changed: true });
     expect(session.getState().historyDepth.past).toBe(1);
+  });
+});
+
+describe("整小节节奏型提交与撤销", () => {
+  it.each(["numbered", "tab"] as const)("%s 逐拍统计超额，确认后一次应用与撤销", (layer) => {
+    const { document, measure, active, selection } = fixture();
+    const eighth = { base: "eighth", dots: 0 } as const;
+    measure.numberedVoice.events[0]!.rhythm = eighth;
+    measure.numberedVoice.events.splice(1, 0, { id: "extra-event", tick: Q / 2, rhythm: eighth, kind: "notes", items: [{ id: "extra-item", token: "2" }] });
+    measure.lyrics.push({ id: "extra-lyric", eventId: "extra-event", verse: 1, text: "雨" });
+    measure.beats[0]!.rhythm = eighth;
+    measure.beats.splice(1, 0, { id: "extra-beat", tick: Q / 2, rhythm: eighth, kind: "notes", notes: [{ id: "extra-note", string: 1, fret: 5 }] });
+    measure.chordSymbols.push({ id: "extra-chord", beatId: "extra-beat", display: "name", chord: { name: "G", diagram: null } });
+    const secondBeat = { ...selection.focus, beatId: "pattern-b1" };
+    const target = layer === "numbered" ? resolve(document, null, null, { ...active, eventId: "pattern-e1" })
+      : resolve(document, { anchor: secondBeat, focus: secondBeat }, null, null);
+    const session = createEditorSession(document);
+    const before = session.getState().document!;
+    const p = preview(before, target, "measure-44-quarter-split");
+    expect(p.perBeat.map(({ retainedCount, gapCount, discardedCount }) => [retainedCount, gapCount, discardedCount]))
+      .toEqual([[1, 0, 1], [1, 2, 0], [1, 0, 0], [1, 2, 0]]);
+    expect(p.focus).toMatchObject({ tick: Q, endTick: Q * 1.5 });
+    expect(p.discardedTextCount).toBe(1);
+    const command = { type: C.ApplyRhythmPattern, target, templateId: p.template.id, expectedConfirmationKey: p.confirmationKey } as const;
+    expect(session.getState().execute(command)).toMatchObject({ ok: false, code: "RHYTHM_PATTERN_TEXT_CONFIRMATION_REQUIRED" });
+    expect(session.getState().historyDepth.past).toBe(0);
+    expect(session.getState().execute({ ...command, allowDiscardMusicText: true })).toMatchObject({ ok: true, changed: true });
+    const after = session.getState().document!;
+    expect(validateDocumentSemantics(after)).toEqual({ ok: true });
+    const updated = after.score.tracks[0]!.measures[0]!;
+    expect(updated.lyrics.some(({ id }) => id === "extra-lyric")).toBe(layer === "tab");
+    expect(updated.chordSymbols.some(({ id }) => id === "extra-chord")).toBe(layer === "numbered");
+    expect(session.getState().historyDepth.past).toBe(1);
+    session.getState().undo();
+    expect(session.getState().document).toEqual(before);
   });
 });
 
@@ -276,7 +311,7 @@ describe("节奏型反向选择与持久化回归", () => {
     expect(session.getState().document).toEqual(after);
   });
 
-  it.each(["numbered", "tab"] as const)("%s两端在范围外的连接也进入确认，失败不留历史，清除关系可撤销", layer => {
+  it.each(["numbered", "tab"] as const)("%s两端在范围外且仍合法的连接保留，可直接应用和撤销", layer => {
     const { document, track, measure, active, selection } = fixture();
     measure.beats[1]!.notes = [];
     measure.beats[2]!.notes = [];
@@ -288,15 +323,11 @@ describe("节奏型反向选择与持久化回归", () => {
     expect(validateDocumentSemantics(document)).toEqual({ ok: true });
     const session = createEditorSession(document);
     const p = preview(session.getState().document!, target);
-    expect(p.removedMarks.map(m => [m.id, m.crossesScope])).toEqual([[layer === "numbered" ? "outside-slur" : "outside-slide", true]]);
+    expect(p.removedMarks).toEqual([]);
     const command = { type: C.ApplyRhythmPattern, target, templateId: p.template.id, expectedConfirmationKey: p.confirmationKey } as const;
-    const before = session.getState().document;
-    expect(session.getState().execute(command)).toMatchObject({ ok: false, code: "RHYTHM_PATTERN_CONFIRMATION_REQUIRED" });
-    expect(session.getState().document).toBe(before);
-    expect(session.getState().historyDepth).toEqual({ past: 0, future: 0 });
-    expect(session.getState().execute({ ...command, allowRemoveMarks: true })).toMatchObject({ ok: true, changed: true });
+    expect(session.getState().execute(command)).toMatchObject({ ok: true, changed: true });
     const next = session.getState().document!.score.tracks[0]!;
-    expect(layer === "numbered" ? next.numberedMarks : next.techniques).toEqual([]);
+    expect(layer === "numbered" ? next.numberedMarks : next.techniques).toEqual(layer === "numbered" ? track.numberedMarks : track.techniques);
     expect(layer === "numbered" ? next.techniques : next.numberedMarks).toEqual(layer === "numbered" ? track.techniques : track.numberedMarks);
     expect(session.getState().historyDepth).toEqual({ past: 1, future: 0 });
     session.getState().undo();

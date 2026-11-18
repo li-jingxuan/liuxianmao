@@ -201,22 +201,26 @@ describe("BUG044 节奏型面板初始选择", () => {
     expect(panel.session.getState().historyDepth).toEqual({ past: 0, future: 0 });
   });
 
-  it("顶部说明真实规则，一次应用移除受影响标记并可撤销", async () => {
+  it("预览列出失效连接，应用保留仍适用的记号并可撤销", async () => {
     const fixture = setup();
-    fixture.track.numberedMarks = [{ id: "affected", type: "fermata", eventId: "e0" }, { id: "outside", type: "fermata", eventId: "e3" }];
+    fixture.track.numberedMarks = [{ id: "affected", type: "tie", fromItemId: "i0", toItemId: "i1" }, { id: "kept", type: "fermata", eventId: "e0" }, { id: "outside", type: "fermata", eventId: "e3" }];
     fixture.track.techniques = [{ id: "tab-kept", type: "vibrato", fromNoteId: "n0" }];
     const panel = mount(fixture);
     const initial = panel.render();
-    expect(initial.markup).toContain("按所选模板调整节奏，应用后会将相关技巧和连线移除。");
-    for (const removed of ["选择模板", "常用", "每张覆盖", "确认调整节奏与标记", "应用时需确认", "第 1 小节"]) expect(initial.markup).not.toContain(removed);
+    expect(initial.markup).toContain("应用后保留仍适用的技巧和连线");
+    expect(initial.markup).not.toContain("应用将移除");
+    for (const removed of ["选择模板", "常用", "每张覆盖", "确认调整节奏与标记", "应用时需确认"]) expect(initial.markup).not.toContain(removed);
+    expect(initial.markup).toContain("第 1 小节 · 第 1 拍");
     expect(initial.markup).not.toContain("三十二分细分");
     expect(initial.markup.match(/data-rhythm-template=/g)).toHaveLength(12);
     (find(initial.tree, props => (props.template as { id?: string } | undefined)?.id === "eighths")!.onSelect as () => void)();
-    (panel.render().apply.onClick as () => void)();
+    const selected = panel.render();
+    expect(selected.markup).toContain("应用将移除：延音线");
+    (selected.apply.onClick as () => void)();
     await Promise.resolve(); await Promise.resolve();
     expect(panel.execute).toHaveBeenCalledOnce();
     expect(panel.execute.mock.calls[0]![0]).toMatchObject({ allowRemoveMarks: true });
-    expect(panel.session.getState().document!.score.tracks[0]!.numberedMarks.map(mark => mark.id)).toEqual(["outside"]);
+    expect(panel.session.getState().document!.score.tracks[0]!.numberedMarks.map(mark => mark.id)).toEqual(["kept", "outside"]);
     expect(panel.session.getState().document!.score.tracks[0]!.techniques).toEqual(fixture.track.techniques);
     expect(panel.session.getState().historyDepth.past).toBe(1);
     panel.session.getState().undo();
@@ -327,7 +331,7 @@ describe("REQ044 侧栏与工具栏共享节奏型", () => {
     expect(panel.toolbarSuccess).not.toHaveBeenCalled();
   });
 
-  it.each([[4, 4, 12], [3, 4, 12], [6, 8, 5]])("%s/%s按真实核心模板数量%s平铺，无分组与结果说明", (numerator, denominator, count) => {
+  it.each([[4, 4, 12, 14], [3, 4, 12, 10], [6, 8, 9, 10]])("%s/%s 在两个入口显示 %s 拍内和 %s 整小节模板", (numerator, denominator, count, measures) => {
     const fixture = setup();
     fixture.measure.timeSignature = { numerator, denominator: denominator as 4 | 8 };
     if (numerator !== 4) {
@@ -337,6 +341,8 @@ describe("REQ044 侧栏与工具栏共享节奏型", () => {
     const panel = mountShared(fixture);
     const result = panel.render();
     expect(result.markup.match(/data-rhythm-template=/g)).toHaveLength(count * 2);
+    expect(result.markup.match(/data-rhythm-measure-template=/g)).toHaveLength(measures * 2);
+    expect(result.markup).toContain("整小节模板");
     expect(result.markup).not.toContain("三十二分细分");
     expect(result.markup).not.toContain("逐拍套用");
     expect(result.markup).not.toContain("保留 1 个内容位置");
@@ -347,28 +353,31 @@ describe("REQ044 侧栏与工具栏共享节奏型", () => {
     expect(renderToStaticMarkup(<Consumer />)).toBe("<span>false</span>");
   });
 
-  it("侧栏保留具体标记影响及跨范围警告，无旧目标上下文和结果数量", () => {
+  it("侧栏显示应用位置、具体标记影响及跨范围警告", () => {
     const fixture = setup();
-    fixture.track.numberedMarks = [{ id: "impact", type: "slur", fromEventId: "e0", toEventId: "e1" }];
+    fixture.track.numberedMarks = [{ id: "impact", type: "tie", fromItemId: "i0", toItemId: "i1" }];
     const panel = mountShared(fixture);
+    const { trees } = panel.render();
+    (find(trees.sidebar, props => (props.template as { id?: string } | undefined)?.id === "eighths")!.onSelect as () => void)();
     const result = panel.render();
     const sidebarMarkup = renderToStaticMarkup(result.trees.sidebar);
     expect(sidebarMarkup).toContain("常见节奏型");
     expect(sidebarMarkup).toContain("应用将移除");
     expect(sidebarMarkup).toContain("包含跨出当前范围的连接");
     expect(sidebarMarkup).toContain("点击应用一并确认");
-    for (const text of ["第 1 小节", "逐拍套用", "保留 1 个内容位置", "三十二分细分", "取消", "六线谱 ·"]) expect(sidebarMarkup).not.toContain(text);
+    expect(sidebarMarkup).toContain("第 1 小节 · 第 1 拍");
+    for (const text of ["逐拍套用", "保留 1 个内容位置", "三十二分细分", "取消", "六线谱 ·"]) expect(sidebarMarkup).not.toContain(text);
   });
 
-  it("无选区仍展示全部模板且应用禁用，不沿用离开的目标", () => {
+  it("清空选区后两个入口均不显示模板，旧回调不能提交", () => {
     const fixture = setup();
-    fixture.input.active = null;
     const panel = mountShared(fixture);
+    const initial = panel.render();
+    expect(initial.markup).toContain("常见节奏型");
+    fixture.input.active = null;
     const result = panel.render();
-    expect(result.markup.match(/data-rhythm-template=/g)).toHaveLength(24);
-    expect(result.apply("sidebar").disabled).toBe(true);
-    expect(result.markup).not.toContain('aria-pressed="true"');
-    (result.apply("sidebar").onClick as () => void)();
+    expect(result.markup).toBe("");
+    (initial.apply("sidebar").onClick as () => void)();
     expect(panel.execute).not.toHaveBeenCalled();
   });
 });

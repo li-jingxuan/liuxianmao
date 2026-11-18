@@ -82,10 +82,13 @@ try {
   await page.waitForFunction(() => document.activeElement?.getAttribute("aria-label") === "六线谱编辑器");
   assert.equal(await status(), "待导出 JSON");
   assert.equal(await beforeUnload(), false);
+  const measureNumbers = page.locator('[data-layer="measure-numbers"]');
+  await measureNumbers.waitFor();
 
   await action("导出", "PNG 图片");
   const image = a4Dialog("A4 图片预览");
   await image.locator("[data-image-export-status=ready]").waitFor();
+  assert.equal(await image.locator('[data-measure-number]').count(), 0);
   await button("仅生成当前页", image).click();
   await image.locator("[data-image-export-status=generated]").waitFor({ timeout: 30000 });
   const [png] = await Promise.all([page.waitForEvent("download"), image.getByRole("link", { name: "下载图片", exact: true }).click()]);
@@ -100,11 +103,15 @@ try {
   await action("导出", "打印");
   const print = a4Dialog("A4 打印预览");
   await print.locator("[data-image-export-status=ready]").waitFor();
+  assert.equal(await print.locator('[data-measure-number]').count(), 0);
   await button("打开打印窗口", print).click();
   assert.equal(await page.evaluate(() => window.printCalls), 1);
   await print.getByText("已关闭打印窗口，可继续编辑或重新打印。").waitFor();
   await page.emulateMedia({ media: "print" });
-  assert.equal(await page.locator('[data-score-print-layer][data-print-ready="true"]').isVisible(), true);
+  const printLayer = page.locator('[data-score-print-layer][data-print-ready="true"]');
+  assert.equal(await printLayer.isVisible(), true);
+  assert.equal(await printLayer.locator('[data-measure-number]').count(), 0);
+  assert.equal(await measureNumbers.evaluate((element) => getComputedStyle(element).display), "none");
   assert.equal(await button("文件").isVisible(), false);
   const pdf = (await page.pdf({ preferCSSPageSize: true, printBackground: true })).toString("latin1");
   assert.ok(pdf.startsWith("%PDF-"));

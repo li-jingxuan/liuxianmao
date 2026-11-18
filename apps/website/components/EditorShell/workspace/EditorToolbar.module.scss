@@ -21,7 +21,6 @@
 .desktopTrigger { display: inline-flex; > span > button, > button { min-width: 34px; height: 34px; padding: 0 5px; } }
 .moreTrigger { display: none; }
 .triggers { display: inline-flex; flex: 0 0 auto; gap: 4px; align-items: center; }
-.popup { z-index: 1050; box-sizing: border-box; padding: 0; color: var(--foreground); background: var(--panel, #fff); border-radius: 8px; box-shadow: 0 6px 24px #0003; }
 .popupContent { box-sizing: border-box; width: 100% !important; padding: 14px; }
 .viewControls {
   display: flex;

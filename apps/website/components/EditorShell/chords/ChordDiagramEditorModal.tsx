@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type RefObject } from "react";
-import { createPortal } from "react-dom";
-import { Modal, Select } from "antd";
+import { Input, Modal, Select } from "antd";
 import { RedoOutlined, UndoOutlined } from "@ant-design/icons";
 import { layoutChordDiagram, cloneChordDiagram, validateChordDiagramIssues, editChordDiagram, type ILXMChordDiagram, type ILXMChordBarre, type ILXMChordString, type ChordDiagramIssue, type ChordDiagramEditIntent } from "@liuxianmao/lxm-editor";
 import type { ChordDraft } from "./ChordEditor";
@@ -29,6 +28,8 @@ export interface ChordDiagramEditorModalProps {
 type Buffer = {
   name: string;
   startFret: string;
+  /** 起始品位输入暂时无效时，指板与按点仍使用该窗口。 */
+  windowBeforeInvalid?: number;
   strings: { string: ILXMChordString["string"]; fret: string; finger: string }[];
   barres: ILXMChordBarre[];
 };
@@ -49,6 +50,7 @@ export interface ChordDiagramEditorSnapshot {
   activeCell: number;
 }
 const number = (value: string) => value.trim() === "" ? Number.NaN : Number(value);
+const isStartFret = (value: number) => Number.isInteger(value) && value >= 1 && value <= 20;
 const parseFinger = (value: string): Finger => value === "" ? null : value === "T" ? "T" : number(value) as Finger;
 const fromDiagram = (name: string, diagram: ILXMChordDiagram): Buffer => ({ name, startFret: String(diagram.startFret), strings: diagram.strings.map((s) => ({ string: s.string, fret: String(s.fret), finger: s.finger === null ? "" : String(s.finger) })), barres: diagram.barres.map((b) => ({ ...b })) });
 const toDiagram = (buffer: Buffer): ILXMChordDiagram => ({ startFret: number(buffer.startFret), fretCount: 5, strings: buffer.strings.map((s) => ({ string: s.string, fret: s.fret === "x" ? "x" : number(s.fret), finger: parseFinger(s.finger) })), barres: buffer.barres.map((b) => ({ ...b })) });
@@ -74,6 +76,7 @@ export function replaceChordDiagramEditorSnapshot(snapshot: ChordDiagramEditorSn
 export function ChordDiagramEditorModal({ seed, initialSnapshot, onOpenLibrary, requestCloseRef, replaceDraftRef, onComplete, onCancel, onSave, disabled = false }: ChordDiagramEditorModalProps) {
   const [baseline] = useState(() => initialSnapshot?.baseline ?? initialBuffer(seed));
   const [history, setHistory] = useState(() => initialSnapshot?.history ?? { past: [] as Buffer[], present: initialBuffer(seed), future: [] as Buffer[] });
+  const windowEditBase = useRef<typeof history | null>(null);
   const buffer = history.present;
   const [lastValid, setLastValid] = useState<ILXMChordDiagram | null>(() => initialSnapshot ? initialSnapshot.lastValid : seed.chord.diagram && !validateChordDiagramIssues(seed.chord.diagram).length ? cloneChordDiagram(seed.chord.diagram) : null);
   const [tool, setTool] = useState<"note" | "barre" | "erase">(initialSnapshot?.tool ?? "note");
@@ -91,18 +94,17 @@ export function ChordDiagramEditorModal({ seed, initialSnapshot, onOpenLibrary, 
   const [fingerDropdownOpen, setFingerDropdownOpen] = useState(false);
   const [discardOpen, setDiscardOpen] = useState(false);
   const discardFocus = useRef<HTMLElement | null>(null);
-  const [header, setHeader] = useState<Element | null>(null);
   const root = useRef<HTMLDivElement>(null);
   const mounted = useRef(true);
   const savePending = useRef(false);
   const id = useId();
   useEffect(() => {
     mounted.current = true;
-    setHeader(root.current?.closest(".ant-modal")?.querySelector("[data-chord-custom-error]") ?? null);
     return () => { mounted.current = false; composition.dispose(); };
   }, [composition]);
   const diagram = toDiagram(buffer);
-  const issues = validateChordDiagramIssues(diagram);
+  const issues = validateChordDiagramIssues(diagram, { allowSilent: true });
+  const hasSound = diagram.strings.some((string) => string.fret !== "x");
   const nameIssue = !buffer.name.trim() || /[\r\n]/.test(buffer.name) || buffer.name.trim().length > 32 ? "和弦名称应为非空单行，最多 32 个字符" : null;
   const canComplete = !disabled && !saving && !protectedInput && !nameIssue && !issues.length && !endpoint;
   const blocked = disabled || saving;
@@ -141,8 +143,11 @@ export function ChordDiagramEditorModal({ seed, initialSnapshot, onOpenLibrary, 
     if (!validateChordDiagramIssues(value).length) setLastValid(cloneChordDiagram(value));
   };
   const preview = lastValid ? layoutChordDiagram(lastValid) : null;
-  const commit = (next: Buffer, field: "name" | "diagram" = "diagram") => {
-    setHistory((current) => JSON.stringify(current.present) === JSON.stringify(next) ? current : { past: [...current.past, current.present], present: next, future: [] });
+  const commit = (next: Buffer, field: "name" | "diagram" = "diagram", base?: typeof history) => {
+    setHistory((current) => {
+      const previous = base ?? current;
+      return JSON.stringify(previous.present) === JSON.stringify(next) ? previous : { past: [...previous.past, previous.present], present: next, future: [] };
+    });
     rememberValid(next); setLatestField(field); setActionIssues([]); setNotice("");
   };
   const undo = (redo = false) => {
@@ -162,18 +167,28 @@ export function ChordDiagramEditorModal({ seed, initialSnapshot, onOpenLibrary, 
   };
   const intent = (value: ChordDiagramEditIntent) => {
     if (blocked || composition.isComposing()) return false;
-    const result = editChordDiagram(toDiagram(buffer), value);
+    const result = editChordDiagram(toDiagram(buffer), value, { allowSilent: true });
     if (!result.ok) { setActionIssues(result.issues); setLatestField("diagram"); setNotice(""); return false; }
     commit(fromDiagram(buffer.name, result.diagram));
     return true;
   };
-  const draft = (): ChordDraft => ({ display: seed.display, chord: { name: buffer.name.trim(), diagram: cloneChordDiagram(toDiagram(buffer)) } });
-  const complete = () => { if (canComplete && !composition.isComposing()) onComplete(draft()); };
+  const submission = (): ChordDraft | null => {
+    if (!canComplete || composition.isComposing()) return null;
+    const submissionIssues = validateChordDiagramIssues(diagram);
+    if (submissionIssues.length) {
+      setActionIssues(submissionIssues); setLatestField("diagram"); setNotice("");
+      return null;
+    }
+    return { display: seed.display, chord: { name: buffer.name.trim(), diagram: cloneChordDiagram(diagram) } };
+  };
+  const complete = () => { const value = submission(); if (value) onComplete(value); };
   const save = async () => {
-    if (!onSave || !canComplete || composition.isComposing() || savePending.current) return;
+    if (!onSave || savePending.current) return;
+    const value = submission();
+    if (!value) return;
     savePending.current = true; setSaving(true);
     try {
-      const result = await onSave(draft());
+      const result = await onSave(value);
       if (mounted.current) setNotice(result.message ?? (result.ok ? "已存入我的指法" : "保存失败，请重试"));
     } catch { if (mounted.current) setNotice("保存失败，请重试"); }
     finally { savePending.current = false; if (mounted.current) setSaving(false); }
@@ -190,7 +205,19 @@ export function ChordDiagramEditorModal({ seed, initialSnapshot, onOpenLibrary, 
       if (b) intent({ type: "edit-barre", index: selection.index, barre: { ...b, finger } });
     }
   };
-  const startFret = Number.isInteger(diagram.startFret) && diagram.startFret >= 1 && diagram.startFret <= 20 ? diagram.startFret : 1;
+  const startFret = isStartFret(diagram.startFret) ? diagram.startFret : buffer.windowBeforeInvalid ?? lastValid?.startFret ?? 1;
+  const changeStartFret = (value: string) => {
+    const nextStart = number(value);
+    windowEditBase.current ??= history;
+    setEndpoint(null); setSelection(null);
+    if (!isStartFret(nextStart)) {
+      commit({ ...buffer, startFret: value, windowBeforeInvalid: startFret }, "diagram", windowEditBase.current);
+      return;
+    }
+    const result = editChordDiagram({ ...diagram, startFret }, { type: "shift-window", startFret: nextStart }, { allowSilent: true });
+    if (!result.ok) { setActionIssues(result.issues); setLatestField("diagram"); setNotice(""); return; }
+    commit({ ...fromDiagram(buffer.name, result.diagram), startFret: value }, "diagram", windowEditBase.current);
+  };
   const frets = Array.from({ length: 5 }, (_, i) => startFret + i);
   const selectBarre = (index: number) => {
     if (blocked || composition.isComposing()) return;
@@ -253,12 +280,10 @@ export function ChordDiagramEditorModal({ seed, initialSnapshot, onOpenLibrary, 
       event.preventDefault(); if (!event.repeat) undo(event.shiftKey || event.key.toLowerCase() === "y");
     }
   };
-  const issue = actionIssues.at(-1) ?? issues.at(-1);
+  const issue = actionIssues.at(-1) ?? issues.find((item) => item.code === "window") ?? issues.at(-1);
   const structureError = issue ? `${issue.string ? `第 ${issue.string} 弦：` : ""}${issue.message}` : null;
   const error = latestField === "name" ? nameIssue ?? structureError : structureError ?? nameIssue;
-  const errorTip = <span id={`${id}-error`} role="status" aria-live="polite" className={header ? styles.headerError : styles.inlineError} title={error ?? undefined}>{error}</span>;
   return <div ref={root} className={styles.editor} onKeyDown={handleKey} onCompositionStart={() => composition.start()} onCompositionEnd={() => composition.end()}>
-    {header ? createPortal(errorTip, header) : <header className={styles.localHeader}>{errorTip}</header>}
     <div className={styles.body}>
       <div className={styles.columns}>
         <section aria-label="指法编辑网格" className={styles.editBoard} onClick={(event) => { if (event.target === event.currentTarget) setSelection(null); }}>
@@ -268,7 +293,7 @@ export function ChordDiagramEditorModal({ seed, initialSnapshot, onOpenLibrary, 
               {([["note", "按弦"], ["barre", "横按"], ["erase", "擦除"]] as const).map(([value, label]) => <button type="button" key={value} disabled={blocked} aria-pressed={tool === value} onClick={() => { setTool(value); setEndpoint(null); setSelection(null); }}>{label}</button>)}
               <button type="button" title="撤销" aria-label="撤销" disabled={blocked || protectedInput || !history.past.length} onClick={() => undo()}><UndoOutlined /></button><button type="button" title="重做" aria-label="重做" disabled={blocked || protectedInput || !history.future.length} onClick={() => undo(true)}><RedoOutlined /></button>
             </div>
-            <label className={styles.window}>起始品位<input aria-label="观察窗口起始品位" inputMode="numeric" value={buffer.startFret} disabled={blocked} aria-invalid={issues.some((issue) => issue.field === "startFret")} aria-describedby={error ? `${id}-error` : undefined} onChange={(event) => { setEndpoint(null); setSelection(null); commit({ ...buffer, startFret: event.target.value }); }} /></label>
+            <label className={styles.window}>起始品位<Input aria-label="观察窗口起始品位" inputMode="numeric" value={buffer.startFret} disabled={blocked} status={issues.some((issue) => issue.field === "startFret") ? "error" : undefined} aria-invalid={issues.some((issue) => issue.field === "startFret")} aria-describedby={error ? `${id}-error` : undefined} onChange={(event) => changeStartFret(event.target.value)} onBlur={() => { windowEditBase.current = null; }} /></label>
           </div>
           <div role="grid" aria-label="六弦品位网格" aria-rowcount={6} aria-colcount={6} className={styles.grid}>
             <div role="row" className={styles.topRow}><span aria-hidden="true" />{[6, 5, 4, 3, 2, 1].map((value, col) => {
@@ -289,9 +314,9 @@ export function ChordDiagramEditorModal({ seed, initialSnapshot, onOpenLibrary, 
           {endpoint && <p role="status" className={styles.help}>再选同一品位的另一根弦 · Esc 取消</p>}
         </section>
         <aside className={styles.stack}>
-          <label className={styles.name}>和弦名称<input autoFocus aria-label="自定义和弦名称" aria-invalid={!!nameIssue} aria-describedby={nameIssue ? `${id}-error` : undefined} disabled={blocked} value={buffer.name} onChange={(event) => commit({ ...buffer, name: event.target.value }, "name")} /></label>
+          <label className={styles.name}>和弦名称<Input autoFocus aria-label="自定义和弦名称" status={nameIssue ? "error" : undefined} aria-invalid={!!nameIssue} aria-describedby={nameIssue ? `${id}-error` : undefined} disabled={blocked} value={buffer.name} onChange={(event) => commit({ ...buffer, name: event.target.value }, "name")} /></label>
           <section aria-label="最后有效指法预览" className={styles.preview}>
-            <div className={styles.previewHeading}><strong>有效指法预览</strong><span className={issues.length ? styles.help : styles.success}>{issues.length ? "保留上次有效指法" : "指法有效"}</span></div>
+            <div className={styles.previewHeading}><strong>有效指法预览</strong><span className={issues.length || !hasSound ? styles.help : styles.success}>{issues.length || !hasSound ? (preview ? "保留上次有效指法" : null) : "指法有效"}</span></div>
             {preview ? <svg role="img" aria-label="指法图预览" width={110} height={150} viewBox={`${preview.bounds.x - 5} ${preview.bounds.y - 5} ${preview.bounds.width + 10} ${preview.bounds.height + 10}`}><ChordDiagramView diagram={preview} /></svg> : <p className={styles.help}>尚无有效指法预览</p>}
           </section>
           {onSave && <button type="button" disabled={!canComplete} onClick={() => void save()}>{saving ? "保存中…" : "另存为我的指法"}</button>}
@@ -301,8 +326,12 @@ export function ChordDiagramEditorModal({ seed, initialSnapshot, onOpenLibrary, 
       </div>
     </div>
     <footer className={styles.footer}>
-      <span className={styles.help}>完成后返回草稿，可继续修改或统一应用。</span>
-      <button type="button" disabled={blocked || protectedInput} onClick={() => requestClose()}>取消</button><button type="button" className={styles.primary} disabled={!canComplete} onClick={complete}>完成编辑</button>
+      <span className={styles.footerHelp}>完成后返回草稿，可继续修改或统一应用。</span>
+      <span id={`${id}-error`} role="status" className={styles.footerError}>{error}</span>
+      <div className={styles.footerActions}>
+        <button type="button" disabled={blocked || protectedInput} onClick={() => requestClose()}>取消</button>
+        <button type="button" className={styles.primary} disabled={!canComplete} onClick={complete}>完成编辑</button>
+      </div>
     </footer>
     <Modal title="放弃本次修改？" open={discardOpen} centered width={400} zIndex={1200} mask={{ closable: false }} keyboard={false} closable={false} focusable={{ focusTriggerAfterClose: false }} onCancel={() => setDiscardOpen(false)} afterClose={() => discardFocus.current?.isConnected && discardFocus.current.focus({ preventScroll: true })} footer={null} modalRender={(content) => <EditorModalGuard dismissable onDismiss={() => setDiscardOpen(false)}>{content}</EditorModalGuard>}>
       <p className={styles.discardMessage}>本次自定义修改尚未完成，放弃后将不再保留。</p>

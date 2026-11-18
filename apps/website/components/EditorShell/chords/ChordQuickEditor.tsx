@@ -25,8 +25,6 @@ export interface ChordQuickEditorProps extends ChordEditorLibraryProps {
   canApply?: boolean;
   error?: string | null;
   onFixDiagram: () => void;
-  presetMenuOpen?: boolean;
-  onPresetMenuOpenChange?: (open: boolean) => void;
 }
 
 /** 快捷表面只更新共享草稿；应用与焦点转移由会话表面负责。 */
@@ -46,9 +44,6 @@ export const ChordQuickEditor = ({
   tuning,
   onOpenLibrary,
   onOpenCustom,
-  onOpenSettings,
-  presetMenuOpen,
-  onPresetMenuOpenChange,
 }: ChordQuickEditorProps) => {
   const diagram = draft.chord.diagram;
   const issue = diagram ? validateChordDiagram(diagram) : null;
@@ -99,10 +94,6 @@ export const ChordQuickEditor = ({
           document={document}
           tuning={tuning}
           onOpenLibrary={onOpenLibrary}
-          onOpenSettings={onOpenSettings}
-          presentation="quick"
-          menuOpen={presetMenuOpen}
-          onMenuOpenChange={onPresetMenuOpenChange}
         />
         {!presetsEnabled && (
           <p className={styles.help}>

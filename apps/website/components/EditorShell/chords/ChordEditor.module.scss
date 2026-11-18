@@ -1,7 +1,7 @@
 .editor {
   min-width: 0;
   display: grid;
-  gap: 18px;
+  gap: 12px;
 
   :global(.ant-form-item) {
     margin-bottom: 0;
@@ -27,9 +27,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-   gap: 10px;
-   min-height: 74px;
-   padding: 8px 10px;
+  gap: 8px;
+  min-height: 56px;
+  padding: 5px 8px;
   border-radius: 8px;
   background: #f3f6fa;
   color: var(--foreground);
@@ -46,22 +46,16 @@
   }
 }
 
-.emptyPreview {
-  justify-content: center;
-}
-
-.emptyCustomAction {
-  justify-self: start;
-  padding-inline: 0;
-  font-size: 12px;
-}
+.apply { justify-self: end; }
+.emptyPreview { justify-content: center; }
+.emptyCustomAction { justify-self: start; padding-inline: 0; font-size: 12px; }
 
 .previewCaption {
   display: flex;
   flex: 1;
   min-width: 0;
   flex-direction: column;
-  gap: 5px;
+  gap: 3px;
   overflow-wrap: anywhere;
 
   span {
@@ -70,10 +64,8 @@
   }
 
   strong {
-    font:
-      28px/1.2 Georgia,
-      serif;
-    line-height: 1.2;
+    font-size: 13px;
+    line-height: 1.4;
   }
 }
 
@@ -100,7 +92,7 @@
 
 .presets {
   display: grid;
-  gap: 18px;
+  gap: 10px;
 
   :global(.ant-alert) {
     margin-bottom: 12px;
@@ -126,8 +118,7 @@
 }
 .nameLabel { display: flex; align-items: center; justify-content: space-between; width: 100%; button { padding: 0; height: 24px; font-size: 12px; } }
 .presets :global(.ant-form-item-label) > label { width: 100%; }
-.nameRow { display: flex; align-items: center; gap: 8px; > input { min-width: 0; } > button { flex: none; } }
-.preview > button { padding-inline: 0; font-size: 12px; }
+.preview > button { flex: none; padding-inline: 0; font-size: 12px; }
 
 .sectionHeading {
   display: flex;

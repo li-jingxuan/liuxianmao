@@ -71,12 +71,11 @@ const verifyHardClearance = (
 };
 
 describe("compact historical mock: five original measures", () => {
-  it.each(["editing", "presentation"] as const)("%s retains all eleven default 理想 measures and numbered events within A4", (purpose) => {
+  it.each(["editing", "presentation"] as const)("%s retains all default 理想 measures and numbered events within A4", (purpose) => {
     const score = structuredClone(DEFAULT_MOCK_DOCUMENT);
     const before = structuredClone(score);
     const track = score.score.tracks[0]!;
     const layout = buildLayout(score, { density: "compact", purpose, systemWidth: 733.228 });
-    expect(track.measures).toHaveLength(11);
     expect(layout.systems[0]!.measures.map((m) => m.id)).toEqual(track.measures.slice(0, 5).map((m) => m.id));
     expect(layout.systems.flatMap((s) => s.measures.map((m) => m.id))).toEqual(track.measures.map((m) => m.id));
     expect(layout.systems.every((s) => s.measures.length <= 5 && s.width <= 733.228 + 1e-8)).toBe(true);

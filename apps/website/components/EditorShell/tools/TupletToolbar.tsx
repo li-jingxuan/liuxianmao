@@ -15,6 +15,17 @@ export const TupletSymbol = ({ actual, normal }: { actual: number; normal: numbe
   </svg>
 );
 
+export const resolveTupletToolbarTarget = (document: ILXMDocument, selection: ILXMTabCellSelection | null) => {
+  const range = resolveTupletSelection(document, selection);
+  const hasContinuation = !!range && document.score.tracks.find((track) => track.id === range.trackId)?.measures
+    .find((measure) => measure.id === range.measureId)?.beats.some((beat) => range.beatIds.includes(beat.id) && isPureTabContinuationBeat(beat));
+  const reason = !selection ? "请先选择 TAB 目标。" : !range ? "请选择 TAB 同小节内连续拍点，不可跨小节。" : "";
+  const ratioReason = (actual: number) => reason || (hasContinuation ? "延音标记不能设为连音成员。"
+    : range?.beatIds.length !== actual ? `需要同小节内连续 ${actual} 个拍点，实际拍点数须为 ${actual}。`
+      : range.partiallyOverlapsTuplet ? "请扩大选区以覆盖完整的原连音组" : "");
+  return { range, reason, ratioReason };
+};
+
 /** 选区和 actual 数量来自核心 resolver；图标仅改变展示。 */
 export const TupletToolbar = ({ document, selection, execute, blocked = false, blockedReason, onSuccess,
   presentation = "popover", onBusyChange }: {
@@ -22,9 +33,7 @@ export const TupletToolbar = ({ document, selection, execute, blocked = false, b
   blocked?: boolean; blockedReason?: string; onSuccess?: () => void; presentation?: "popover" | "sidebar";
   onBusyChange?: (busy: boolean) => void;
 }) => {
-  const range = useMemo(() => resolveTupletSelection(document, selection), [document, selection]);
-  const hasContinuation = !!range && document.score.tracks.find((track) => track.id === range.trackId)?.measures
-    .find((measure) => measure.id === range.measureId)?.beats.some((beat) => range.beatIds.includes(beat.id) && isPureTabContinuationBeat(beat));
+  const { range, reason: targetReason, ratioReason } = useMemo(() => resolveTupletToolbarTarget(document, selection), [document, selection]);
   const [busy, setBusy] = useState(false);
   const lock = useRef(false);
   const run = async (command: ILXMScoreCommand) => {
@@ -36,7 +45,7 @@ export const TupletToolbar = ({ document, selection, execute, blocked = false, b
     } finally { lock.current = false; setBusy(false); onBusyChange?.(false); }
   };
   const baseReason = blocked ? blockedReason || "先完成属性编辑，再修改 TAB。" : busy ? "正在提交，请稍候。"
-    : blockedReason || (!selection ? "请先选择 TAB 目标。" : !range ? "请选择 TAB 同小节内连续拍点，不可跨小节。" : "");
+    : blockedReason || targetReason;
   const removeReason = baseReason || (!range?.group ? "请选择可定位的已有连音组。" : "");
   const sidebar = presentation === "sidebar";
   const hint = <p className={styles.hint}>
@@ -49,7 +58,7 @@ export const TupletToolbar = ({ document, selection, execute, blocked = false, b
       {LXM_TUPLET_RATIOS.map((ratio) => {
         const label = `${ratio.actual}:${ratio.normal}`;
         const name = formatTupletLabel(ratio);
-        const reason = baseReason || (hasContinuation ? "延音标记不能设为连音成员。" : range?.beatIds.length !== ratio.actual ? `需要同小节内连续 ${ratio.actual} 个拍点，实际拍点数须为 ${ratio.actual}。` : range.partiallyOverlapsTuplet ? "请扩大选区以覆盖完整的原连音组" : "");
+        const reason = baseReason || ratioReason(ratio.actual);
         const pressed = range?.group?.ratio.actual === ratio.actual && range.group.ratio.normal === ratio.normal;
         return <Tooltip key={label} title={`${name}（${label}）${reason ? `：${reason}` : ""}`} trigger={["hover", "focus"]}>
           <span className={styles.wrapper} tabIndex={reason ? 0 : undefined} aria-label={reason ? `${name}：${reason}` : undefined}>

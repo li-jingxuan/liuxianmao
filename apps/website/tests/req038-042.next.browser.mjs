@@ -149,12 +149,12 @@ try {
   await page.waitForFunction(() => document.querySelector("#settings-title")?.value === "保留的名称草稿");
   assert.equal(await page.getByRole("alertdialog").count(), 0);
   assert.deepEqual(await state(), beforeScoreClick);
-  await popover.getByRole("button", { name: "更多和弦", exact: true }).click();
-  const more = page.locator(".ant-dropdown:visible");
-  await more.getByText("A小调·和弦推荐", { exact: true }).waitFor();
+  const common = popover.getByRole("group", { name: "本调常用和弦", exact: true });
+  await common.getByRole("button", { name: "Am", exact: true }).waitFor();
+  assert.deepEqual(await common.getByRole("button").evaluateAll(nodes => nodes.map(node => node.getAttribute("aria-label"))), ["Am", "Dm", "E", "C", "G", "F", "Em", "E7"]);
   assert.equal(await page.getByRole("button", { name: "设置调性", exact: true }).count(), 0);
   await shot("04-recommend-minor");
-  await more.getByRole("button", { name: /和弦库/ }).click();
+  await popover.getByRole("button", { name: "和弦库", exact: true }).click();
   const library = page.getByRole("dialog", { name: /^和弦库/ });
   const list = library.getByTestId("chord-library-scroll");
   await list.getByRole("button").first().waitFor();

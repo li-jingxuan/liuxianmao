@@ -87,7 +87,7 @@ export function NewScoreModal({ onCancel, onCreate }: {
 
   return (
     <ScoreFileDialog title="新建曲谱" wide onClose={close}>
-      <ConfigProvider getPopupContainer={(trigger) => trigger?.closest("dialog") ?? document.body}>
+      <ConfigProvider getPopupContainer={(trigger) => trigger?.closest<HTMLElement>('[role="dialog"]') ?? document.body}>
         <Form<NewScoreValues>
           name="new-score"
           layout="vertical"

@@ -12,6 +12,7 @@ import {
   useSyncExternalStore,
   type Ref,
 } from "react";
+import { Button, Input, Select, type InputRef } from "antd";
 import {
   applyScoreCommand,
   getLyricVerseCount,
@@ -104,7 +105,7 @@ export function MusicTextRangeEditor({ range, onChange, onClose, onScoreFocus, o
   const document = useEditorStore((state) => state.document);
   const { modals, drafts } = useEditorRuntime();
   const activeModal = useSyncExternalStore(modals.subscribe, modals.getSnapshot, () => null);
-  const input = useRef<HTMLInputElement>(null);
+  const input = useRef<InputRef>(null);
   const id = useId();
   const key = JSON.stringify(range);
   const rangeLive = useRef(range);
@@ -175,7 +176,7 @@ export function MusicTextRangeEditor({ range, onChange, onClose, onScoreFocus, o
         const identity = registration.captureIdentity();
         onRequestFocus?.();
         requestAnimationFrame(() => {
-          const node = input.current;
+          const node = input.current?.input;
           if (mounted.current && registration.isCurrent(identity) && node?.getClientRects().length && !node.closest("[hidden],[inert]"))
             node.focus({ preventScroll: true });
         });
@@ -281,27 +282,28 @@ export function MusicTextRangeEditor({ range, onChange, onClose, onScoreFocus, o
     <section className={styles.editor} data-music-text-range-editor aria-label="音乐文本范围编辑">
       <header className={styles.header}>
         <div><strong>{range.kind === "numbered" ? "简谱范围" : `歌词范围 · 第 ${range.verse ?? 1} 段`}</strong><p>{location}</p></div>
-        <button type="button" aria-label="结束范围编辑" disabled={inputBusy || !!activeModal} onClick={() => {
+        <Button aria-label="结束范围编辑" disabled={inputBusy || !!activeModal} onClick={() => {
           if (busy()) return;
           registration.invalidateOwner();
           onClose();
           onScoreFocus();
-        }}>结束</button>
+        }}>结束</Button>
       </header>
       <div className={styles.body}>
         <div className={styles.segmented} role="group" aria-label="范围编辑对象">
-          {(["numbered", "lyric"] as const).map((kind) => <button key={kind} type="button" aria-pressed={range.kind === kind}
-            disabled={inputBusy || !!activeModal} onClick={() => changeKind(kind)}>{kind === "numbered" ? "简谱" : "歌词"}</button>)}
+          {(["numbered", "lyric"] as const).map((kind) => <Button key={kind} type={range.kind === kind ? "primary" : "text"} aria-pressed={range.kind === kind}
+            disabled={inputBusy || !!activeModal} onClick={() => changeKind(kind)}>{kind === "numbered" ? "简谱" : "歌词"}</Button>)}
         </div>
-        {range.kind === "lyric" && <label className={styles.verse}>歌词段落
-          <select aria-label="范围歌词段落" value={range.verse ?? 1} disabled={inputBusy || !!activeModal}
-            onChange={(event) => changeTarget({ ...range, verse: Number(event.target.value) as ILXMLyricVerse })}>
-            {Array.from({ length: verseCount }, (_, index) => <option key={index + 1} value={index + 1}>第 {index + 1} 段</option>)}
-          </select>
-        </label>}
+        {range.kind === "lyric" && <div className={styles.verse}>
+          <label htmlFor={`${id}-verse`}>歌词段落</label>
+          <Select id={`${id}-verse`} aria-label="范围歌词段落" value={range.verse ?? 1} disabled={inputBusy || !!activeModal}
+            virtual={false}
+            options={Array.from({ length: verseCount }, (_, index) => ({ value: index + 1, label: `第 ${index + 1} 段` }))}
+            onChange={(verse) => changeTarget({ ...range, verse: verse as ILXMLyricVerse })} />
+        </div>}
         <label className={styles.label} htmlFor={`${id}-content`}>{range.kind === "numbered" ? "简谱内容" : "歌词内容"}</label>
         <div className={styles.inputRow}>
-          <input ref={input} id={`${id}-content`} type="text" aria-label="范围内容" value={draft.text}
+          <Input ref={input} id={`${id}-content`} aria-label="范围内容" value={draft.text} status={error ? "error" : undefined}
             autoComplete="off" spellCheck={false} aria-invalid={!!error} aria-describedby={`${id}-rules${error ? ` ${id}-error` : ""}`}
             onChange={(event) => update({ ...live.current, text: event.target.value, message: null })}
             onCompositionStart={() => {
@@ -319,8 +321,8 @@ export function MusicTextRangeEditor({ range, onChange, onClose, onScoreFocus, o
               event.preventDefault();
               if (apply(live.current.text)) onScoreFocus();
             }} />
-          <button className={styles.primary} type="button" aria-label="应用范围" disabled={!!error || inputBusy || !!activeModal || !dirty}
-            onClick={() => { if (apply(live.current.text)) onScoreFocus(); }}>应用</button>
+          <Button type="primary" aria-label="应用范围" disabled={!!error || inputBusy || !!activeModal || !dirty}
+            onClick={() => { if (apply(live.current.text)) onScoreFocus(); }}>应用</Button>
         </div>
         {error && <p className={styles.error} role="alert" id={`${id}-error`}>{error}</p>}
         {!error && preview.removedMarkIds.length > 0 && <p className={styles.impact} role="status">将影响 {preview.removedMarkIds.length} 个简谱连接记号，应用时需确认。</p>}
@@ -342,9 +344,9 @@ export function MusicTextRangeEditor({ range, onChange, onClose, onScoreFocus, o
           {!preview.rows.length && <p className={styles.rules}>暂无可编辑位置，请在谱面重新选择范围。</p>}
         </div>
         <div className={styles.actions}>
-          <button type="button" aria-label="清空范围内容" disabled={inputBusy || !!activeModal || !preview.rows.length}
-            onClick={() => { if (!busy()) update({ ...live.current, text: "", message: null }); }}>清空内容</button>
-          <button type="button" aria-label="恢复范围内容" disabled={inputBusy || !!activeModal || (!dirty && !error)} onClick={() => restore()}>恢复</button>
+          <Button aria-label="清空范围内容" disabled={inputBusy || !!activeModal || !preview.rows.length}
+            onClick={() => { if (!busy()) update({ ...live.current, text: "", message: null }); }}>清空内容</Button>
+          <Button aria-label="恢复范围内容" disabled={inputBusy || !!activeModal || (!dirty && !error)} onClick={() => restore()}>恢复</Button>
           {dirty && <span className={styles.dirty}>未应用</span>}
         </div>
         <footer className={styles.hints}><strong>连续选择</strong>

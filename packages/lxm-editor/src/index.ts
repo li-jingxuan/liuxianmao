@@ -48,6 +48,7 @@ export { default as EXAMPLE_MVP_6_DOCUMENT } from "../example/example-mvp6.json"
 export * from "./core/lyrics/lyric-sequence";
 export * from "./core/lyrics/lyric-positions";
 export * from "./core/lyrics/lyric-verses";
+export { getMusicTextRows } from "./core/music-text/music-text-rows";
 export {
   collectMusicTextRangeSlots,
   resolveMusicTextRange,

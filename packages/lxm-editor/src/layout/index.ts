@@ -8,6 +8,7 @@ import { layoutScoreHeader } from "./structure/score-header-layout";
  */
 
 import type { ILXMDocument } from "../core/types";
+import { getMusicTextRows } from "../core/music-text/music-text-rows";
 import {
   LXM_LAYOUT_DEFAULT_X,
   LXM_LAYOUT_DEFAULT_Y,
@@ -92,6 +93,7 @@ export const buildLayout = (
     options.musicTextMetrics,
     editing,
     purpose,
+    purpose === "editing" ? getMusicTextRows(document) : undefined,
   );
   const lastSystem = systems[systems.length - 1];
 

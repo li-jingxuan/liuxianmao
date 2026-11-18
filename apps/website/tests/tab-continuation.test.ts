@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
-  DEFAULT_MOCK_DOCUMENT,
   buildLayout,
   createCollapsedTabCellSelection,
+  loadDocument,
 } from "@liuxianmao/lxm-editor";
 import { createEditorSession } from "../stores/editor-store";
 import { buildEditorToolCommand } from "../components/EditorShell/tools/editor-tool-actions";
@@ -10,10 +10,13 @@ import { buildScoreScene } from "@liuxianmao/lxm-editor";
 import { inspectScoreFile, serializeScoreFile } from "../components/EditorShell/output/score-file";
 import { deriveEditorToolState } from "../components/EditorShell/tools/editor-tool-state";
 import { resolveTechniqueDraft } from "../components/EditorShell/tools/editor-technique-target";
+import historicalSource from "../../../packages/lxm-editor/example/default-score.lxm.json";
 
 describe("TAB 横线延音标记", () => {
-  it("默认谱末拍写入横线、文件重开及图片图元保留标记，并可一次撤销", () => {
-    const session = createEditorSession(DEFAULT_MOCK_DOCUMENT);
+  it("谱例末尾空拍写入横线、文件重开及图片图元保留标记，并可一次撤销", () => {
+    const loaded = loadDocument(JSON.stringify(historicalSource));
+    if (!loaded.ok) throw new Error(loaded.errors.join("；"));
+    const session = createEditorSession(loaded.document);
     const before = session.getState().document!;
     const track = before.score.tracks[0]!;
     const measure = track.measures.at(-1)!;

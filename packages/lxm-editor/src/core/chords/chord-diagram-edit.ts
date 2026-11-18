@@ -6,20 +6,28 @@ export type ChordDiagramEditIntent =
   | { type: "add-barre"; barre: ILXMChordBarre }
   | { type: "edit-barre"; index: number; barre: ILXMChordBarre }
   | { type: "delete-barre"; index: number }
-  | { type: "set-window"; startFret: number };
+  | { type: "set-window"; startFret: number }
+  | { type: "shift-window"; startFret: number };
 
 export type ChordDiagramEditResult =
   | { ok: true; diagram: ILXMChordDiagram; clearedStrings: number[] }
   | { ok: false; issues: ChordDiagramIssue[] };
 
 /** 原子语义编辑；从不修改入参，失败不发布候选值，也不修复其他横按。 */
-export function editChordDiagram(diagram: ILXMChordDiagram, intent: ChordDiagramEditIntent): ChordDiagramEditResult {
+export function editChordDiagram(diagram: ILXMChordDiagram, intent: ChordDiagramEditIntent, options?: { allowSilent?: boolean }): ChordDiagramEditResult {
   const candidate = cloneChordDiagram(diagram);
   if (intent.type === "set-string") {
     const s = candidate.strings.find((item) => item.string === intent.string);
     if (!s) return { ok: false, issues: [{ code: "string", message: "弦号应为 1–6", string: intent.string, field: "strings" }] };
     s.fret = intent.fret;
     s.finger = intent.fret === "x" || intent.fret === 0 ? null : intent.finger === undefined ? s.finger : intent.finger;
+  } else if (intent.type === "shift-window") {
+    const offset = intent.startFret - candidate.startFret;
+    candidate.startFret = intent.startFret;
+    for (const string of candidate.strings) {
+      if (typeof string.fret === "number" && string.fret > 0) string.fret += offset;
+    }
+    for (const barre of candidate.barres) barre.fret += offset;
   } else if (intent.type === "set-window") {
     candidate.startFret = intent.startFret;
   } else {
@@ -41,7 +49,7 @@ export function editChordDiagram(diagram: ILXMChordDiagram, intent: ChordDiagram
       }
     }
   }
-  const issues = validateChordDiagramIssues(candidate);
+  const issues = validateChordDiagramIssues(candidate, options);
   if (issues.length) return { ok: false, issues };
   return { ok: true, diagram: candidate, clearedStrings: [] };
 }

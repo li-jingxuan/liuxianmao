@@ -15,21 +15,11 @@
 }
 
 .dialog {
-  position: fixed;
-  width: min(480px, calc(100vw - 32px));
-  max-height: calc(100dvh - 32px);
-  padding: 24px;
-  border: 1px solid #c9ced8;
-  border-radius: 12px;
-  background: #fff;
-  color: #1d2025;
-  margin: auto;
-  overflow: auto;
-  &::backdrop {
-    background: rgb(0 0 0 / 45%);
-  }
+  max-width: calc(100vw - 32px);
+  :global(.ant-modal-container) { max-height: calc(100dvh - 32px); overflow-y: auto; }
+  :global(.ant-select-dropdown) { pointer-events: auto; }
   h2 {
-    margin: 0 0 18px;
+    margin: 0;
     font-size: 20px;
   }
   dl {
@@ -53,8 +43,6 @@
   gap: 10px;
   margin-top: 18px;
 }
-
-.wide { width: min(560px, calc(100vw - 32px)); }
 
 .newFields {
   display: grid;
@@ -86,6 +74,6 @@
 }
 
 @media (max-width: 480px) {
-  .dialog { padding: 16px; }
+  .dialog :global(.ant-modal-container) { padding: 16px; }
   .newFields { grid-template-columns: 1fr; gap: 10px; }
 }

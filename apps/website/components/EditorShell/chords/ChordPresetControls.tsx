@@ -1,30 +1,21 @@
-import { Button, Dropdown, Input } from "antd";
-import { DownOutlined, RightOutlined } from "@ant-design/icons";
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-  type KeyboardEvent,
-} from "react";
+import { RightOutlined } from "@ant-design/icons";
+import { Button } from "antd";
+import { useEffect, useSyncExternalStore } from "react";
 import {
   copyCatalogVoicing,
-  queryChordCatalog,
+  parseSpelledTonic,
   readScoreTonality,
+  semanticJsonEqual,
   STANDARD_GUITAR_TUNING,
   type ChordCatalog,
   type ChordCatalogMatch,
   type ILXMDocument,
+  type ScoreTonalityContext,
 } from "@liuxianmao/lxm-editor";
 import type { ChordDraft } from "./ChordEditor";
 import { chordCatalogResource } from "./chord-catalog-resource";
-import {
-  type ChordQuickReference,
-  type CustomChordVoicing,
-} from "./chord-preferences";
+import type { ChordQuickReference, CustomChordVoicing } from "./chord-preferences";
 import styles from "./ChordPresetControls.module.scss";
-import { createScoreSettingsComposition } from "../settings/score-settings-composition";
 import { ChordRecommendationTile } from "./ChordRecommendationTile";
 import { quickChordMatches, recommendedVoicing } from "./chord-recommendations";
 
@@ -33,12 +24,10 @@ export interface ChordEditorLibraryProps {
   /** The committed Runtime document, never the score-settings draft. */
   document?: ILXMDocument;
   tuning?: readonly { pitch: string; midi: number; index?: number }[];
-  onOpenLibrary?: (tab?: ChordLibraryTab, seed?: ChordDraft) => void;
+  onOpenLibrary?: (opener: HTMLElement) => void;
   onOpenCustom?: (seed?: ChordDraft) => void;
   onOpenSettings?: () => void;
   showChordDiagrams?: boolean;
-  /** The compact entry shows tonality beside its common-chord heading. */
-  presentation?: "quick" | "sidebar";
 }
 export const chordTuningMatches = (
   left: readonly { pitch: string; midi: number }[],
@@ -118,13 +107,21 @@ export const useChordCatalog = () => {
   }, []);
   return snapshot;
 };
-export interface ChordPresetControlsProps extends ChordEditorLibraryProps {
+
+const recommendationKey = (document?: ILXMDocument): ScoreTonalityContext | null => {
+  if (!document) return null;
+  const tonality = readScoreTonality(document);
+  if (tonality.kind === "confirmed") return tonality.key;
+  if (tonality.kind !== "unconfirmed") return null;
+  const tonic = parseSpelledTonic(document.score.keySignature);
+  return tonic ? { ...tonic, mode: "major" } : null;
+};
+
+export interface ChordPresetControlsProps extends Pick<ChordEditorLibraryProps, "document" | "tuning" | "onOpenLibrary"> {
   draft: ChordDraft;
   onChange: (draft: ChordDraft) => void;
   presetsEnabled: boolean;
   disabled?: boolean;
-  menuOpen?: boolean;
-  onMenuOpenChange?: (open: boolean) => void;
 }
 export const ChordPresetControls = ({
   draft,
@@ -133,284 +130,52 @@ export const ChordPresetControls = ({
   tuning,
   presetsEnabled,
   disabled = false,
-  menuOpen,
-  onMenuOpenChange,
   onOpenLibrary,
-  presentation = "sidebar",
 }: ChordPresetControlsProps) => {
-  const resource = useChordCatalog();
-  const [open, setOpen] = useState(false),
-    [text, setText] = useState(""),
-    [protectedInput, setProtectedInput] = useState(false);
-  const [popupHeight, setPopupHeight] = useState(560);
-  const [placement, setPlacement] = useState<"bottomRight" | "topRight">("bottomRight");
-  const search = useRef<import("antd").InputRef>(null),
-    trigger = useRef<HTMLButtonElement>(null);
-  const composition = useMemo(
-    () => createScoreSettingsComposition(setProtectedInput),
-    [],
-  );
-  useEffect(() => () => composition.dispose(), [composition]);
-  const protectActivation = (event: KeyboardEvent<HTMLElement>) => {
-    composition.observeKey(event.nativeEvent);
-    if (
-      (event.key === "Enter" || event.key === " " || event.key === "Escape") &&
-      (event.repeat || composition.isComposing())
-    ) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
-  };
-  const active = menuOpen ?? open;
-  const changeOpen = (value: boolean) => {
-    if (value && trigger.current) {
-      const rect = trigger.current.getBoundingClientRect();
-      const below = globalThis.innerHeight - rect.bottom - 16;
-      const above = rect.top - 16;
-      const downward = below >= 300 || below >= above;
-      setPlacement(downward ? "bottomRight" : "topRight");
-      setPopupHeight(Math.max(160, Math.min(560, downward ? below : above)));
-    }
-    setOpen(value);
-    onMenuOpenChange?.(value);
-    if (!value) setText("");
-  };
-  useEffect(() => {
-    if (!active) return;
-    const frame = requestAnimationFrame(() => search.current?.focus({ preventScroll: true }));
-    return () => cancelAnimationFrame(frame);
-  }, [active]);
-  const tonality = document
-    ? readScoreTonality(document)
-    : ({ kind: "unset", title: "曲谱调性未设置" } as const);
-  const recommendationTitle = tonality.kind === "confirmed"
-    ? `${tonality.key.tonicSpelling}${tonality.key.mode === "major" ? "大调" : "小调"}·和弦推荐`
-    : "常用和弦推荐";
-  const catalog = resource.catalog;
-  const recommendations = catalog && tonality.kind === "confirmed" ? quickChordMatches(catalog, tonality.key) : [];
-  const results =
-    catalog && (text.trim() || tonality.kind === "confirmed")
-      ? queryChordCatalog(catalog, {
-          text,
-          key: tonality.kind === "confirmed" ? tonality.key : undefined,
-        })
-      : null;
-  const choose = (chord: ChordDraft["chord"]) => {
-    if (disabled || composition.isComposing()) return;
-    onChange({ ...draft, chord });
-    changeOpen(false);
-  };
-  const openLibrary = (tab: ChordLibraryTab, seed?: ChordDraft) => {
-    if (disabled || composition.isComposing()) return;
-    changeOpen(false);
-    if (seed) onOpenLibrary?.(tab, seed);
-    else onOpenLibrary?.(tab);
-  };
-  const rows = (items: ChordCatalogMatch[]) =>
-    items.map((match) => {
-      const result = selectedCatalogChord(catalog!, match);
-      return (
-        <div
-          className={styles.candidate}
-          key={`${match.item.id}/${match.group ?? "all"}`}
-        >
-          <ChordRecommendationTile
-            name={match.name}
-            diagram={recommendedVoicing(match).diagram}
-            selected={result.ok && JSON.stringify(result.chord) === JSON.stringify(draft.chord)}
-            disabled={
-              disabled ||
-              protectedInput ||
-              !presetsEnabled ||
-              !standardChordTuning(tuning)
-            }
-            unavailableReason={
-              !presetsEnabled || !standardChordTuning(tuning)
-                ? "系统指法仅供标准调弦"
-                : undefined
-            }
-            onClick={() => {
-              if (result.ok) choose(result.chord);
-            }}
-          />
-          {(!presetsEnabled || !standardChordTuning(tuning)) && (
-            <Button
-              type="link"
-              disabled={!onOpenLibrary}
-              onClick={() => {
-                if (result.ok) openLibrary("all", { ...draft, chord: result.chord });
-              }}
-            >
-              查看详情
-            </Button>
-          )}
-        </div>
-      );
-    });
+  const { catalog, status, error } = useChordCatalog();
+  const key = recommendationKey(document);
+  const signature = document?.score.keySignature;
+  const recommendations = catalog && key ? quickChordMatches(catalog, key).slice(0, 8) : [];
+  const canUsePresets = presetsEnabled && standardChordTuning(tuning);
+
   return (
-    <section
-      className={styles.controls}
-      aria-label="常用和弦"
-      onKeyDownCapture={protectActivation}
-    >
+    <section className={styles.controls} aria-label="常用和弦">
       <div className={styles.heading}>
-        <h3>{presentation === "quick" ? "常用和弦" : recommendationTitle}</h3>
-        {presentation === "quick" ? <span>{tonality.title.replace("曲谱 ", "")}</span> : (
-          <Button type="link" disabled={disabled || protectedInput || !onOpenLibrary} onClick={() => openLibrary("all")}>更多配置</Button>
-        )}
+        <h3>常用和弦</h3>
+        {key && signature && <span>1={signature}</span>}
+        <Button type="link" aria-label="和弦库" disabled={disabled || !onOpenLibrary} onClick={(event) => onOpenLibrary?.(event.currentTarget)}>
+          和弦库 <RightOutlined aria-hidden="true" />
+        </Button>
       </div>
-      <div className={styles.row} role="group" aria-label="本调常用和弦">
-        <div className={presentation === "sidebar" ? styles.candidates : styles.quick}>
-          {recommendations.slice(0, presentation === "quick" ? 6 : 8).map((match) => {
-            const result = selectedCatalogChord(catalog!, match);
-            const selected = result.ok && JSON.stringify(result.chord) === JSON.stringify(draft.chord);
+      {catalog && recommendations.length > 0 && (
+        <div className={styles.candidates} role="group" aria-label="本调常用和弦">
+          {recommendations.map((match) => {
+            const result = selectedCatalogChord(catalog, match);
+            if (!result.ok) return null;
             return (
-              presentation === "sidebar" ? <ChordRecommendationTile
+              <ChordRecommendationTile
                 key={match.item.id}
                 name={match.name}
-                diagram={result.ok ? result.chord.diagram : null}
-                disabled={disabled || protectedInput || !result.ok || !presetsEnabled || !standardChordTuning(tuning)}
-                selected={!!selected}
-                unavailableReason={!presetsEnabled || !standardChordTuning(tuning) ? "系统指法仅供标准调弦" : undefined}
-                onClick={() => {
-                  if (result.ok) choose(result.chord);
-                }}
-              /> : <Button
-                key={match.item.id}
-                disabled={disabled || protectedInput || !result.ok || !presetsEnabled || !standardChordTuning(tuning)}
-                aria-pressed={!!selected}
-                onClick={() => {
-                  if (result.ok) choose(result.chord);
-                }}
-              >
-                <span>{match.name}</span>
-              </Button>
+                diagram={result.chord.diagram}
+                selected={semanticJsonEqual(result.chord, draft.chord)}
+                disabled={disabled || !canUsePresets}
+                unavailableReason={canUsePresets ? undefined : "系统指法仅供标准调弦"}
+                onClick={() => onChange({ ...draft, chord: result.chord })}
+              />
             );
           })}
         </div>
-        {presentation === "quick" && <Dropdown
-          autoFocus
-          // rc-trigger retains its popup element reference after destruction.
-          // Keep the hidden popup mounted so reopening never compares a detached
-          // popup with the live trigger (BUG-031/032). The editor owns cleanup.
-          placement={placement}
-          open={active}
-          onOpenChange={changeOpen}
-          disabled={disabled}
-          trigger={["click"]}
-          popupRender={() => (
-            <div
-               className={styles.popup}
-               style={{ maxHeight: popupHeight }}
-              onKeyDownCapture={protectActivation}
-              onCompositionStart={composition.start}
-              onCompositionEnd={composition.end}
-              onKeyDown={(event) => {
-                event.stopPropagation();
-                if (composition.isComposing()) {
-                  if (event.key === "Enter" || event.key === "Escape")
-                    event.preventDefault();
-                  return;
-                }
-                if (event.key === "Escape") {
-                  event.preventDefault();
-                  changeOpen(false);
-                  trigger.current?.focus();
-                }
-                if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-                  event.preventDefault();
-                  const controls = [
-                    ...event.currentTarget.querySelectorAll<HTMLElement>(
-                      "input,button:not(:disabled)",
-                    ),
-                  ];
-                  const index = controls.indexOf(
-                      globalThis.document.activeElement as HTMLElement,
-                    ),
-                    delta = event.key === "ArrowDown" ? 1 : -1;
-                  controls[
-                    (index + delta + controls.length) % controls.length
-                  ]?.focus();
-                }
-              }}
-            >
-               <Input
-                 autoFocus
-                 ref={search}
-                 className={styles.search}
-                 aria-label="搜索全部和弦"
-                 placeholder="搜索全部和弦，如 Bm、G7"
-                 value={text}
-                 allowClear
-                 onChange={(event) => setText(event.target.value)}
-                 onKeyDown={(event) => { if (event.key === "Enter") event.preventDefault(); }}
-               />
-                <div className={styles.recommendationHeading}>
-                   <strong>{text.trim() ? "搜索结果" : recommendationTitle}</strong>
-                  <Button type="link" aria-label="和弦库" disabled={!onOpenLibrary || disabled || protectedInput} onClick={() => openLibrary("all")}>
-                    和弦库 <RightOutlined aria-hidden="true" />
-                  </Button>
-                </div>
-               <div className={styles.results}>
-                 {resource.status === "error" && <p className={styles.loadError} role="status">
-                   {catalog ? "更新失败，继续使用已加载的和弦库。" : "和弦库暂不可用，可重试或使用收藏。"}
-                   <Button type="link" disabled={disabled || protectedInput} onClick={() => { void chordCatalogResource.retry(); }}>重试</Button>
-                 </p>}
-                {!catalog ? (
-                  <p>
-                    {resource.status === "error"
-                      ? "和弦库暂不可用"
-                      : "和弦库加载中…"}
-                  </p>
-                ) : !text.trim() && tonality.kind !== "confirmed" ? (
-                   <p>确认曲谱调性后显示本调推荐。可先搜索全部和弦，或使用我的常用。</p>
-                 ) : (
-                   <div className={styles.candidates}>
-                      {rows((text.trim() ? (results?.items ?? []) : recommendations).slice(0, 8))}
-                     {text.trim() && !results?.items.length && (
-                      <p>没有匹配项，可清空搜索或浏览完整库。</p>
-                    )}
-                  </div>
-                )}
-                {(!presetsEnabled || !standardChordTuning(tuning)) && (
-                  <p className={styles.help}>
-                    系统指法仅供标准调弦，选用已暂停。
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-        >
-          <Button
-            ref={trigger}
-            className={styles.more}
-            disabled={disabled}
-            aria-label="更多和弦"
-            aria-expanded={active}
-          >
-            <span>更多</span><DownOutlined aria-hidden="true" />
-          </Button>
-        </Dropdown>}
-      </div>
-      {tonality.kind !== "confirmed" && <p className={styles.help}>曲谱调性未确认，可在和弦库中临时选择调性浏览。</p>}
-      {resource.status !== "ready" && (
+      )}
+      {!key && <p className={styles.help}>可在和弦库选择调性浏览。</p>}
+      {status !== "ready" && (
         <div className={styles.help} role="status">
           {catalog
-            ? (resource.error ?? "正在检查和弦库更新…")
-            : resource.status === "error"
-              ? "和弦库暂不可用；收藏与自定义仍可使用"
+            ? (error ?? "正在检查和弦库更新…")
+            : status === "error"
+              ? "和弦库暂不可用，仍可使用收藏与自定义指法。"
               : "和弦库加载中…"}
-          {resource.status === "error" && (
-            <Button
-              type="link"
-              disabled={disabled}
-              onClick={() => {
-                if (disabled || composition.isComposing()) return;
-                void chordCatalogResource.retry();
-              }}
-            >
-              重试
-            </Button>
+          {status === "error" && (
+            <Button type="link" disabled={disabled} onClick={() => { void chordCatalogResource.retry(); }}>重试</Button>
           )}
         </div>
       )}

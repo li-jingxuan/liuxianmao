@@ -10,7 +10,7 @@ const viteRequire = createRequire(require.resolve("vitest/package.json"));
 const { createServer } = await import(pathToFileURL(viteRequire.resolve("vite")).href);
 const { chromium } = await import(process.env.LXM_PLAYWRIGHT_MODULE ?? "playwright");
 const website = fileURLToPath(new URL("..", import.meta.url));
-const output = path.resolve(website, "../../output/playwright/bug021-029-ui");
+const output = process.env.LXM_CHORD_ARTIFACTS ?? path.resolve(website, "../../output/playwright/bug021-029-ui");
 const server = await createServer({
   root: website, configFile: false, define: nextBrowserDefines,
   cacheDir: path.resolve(website, "node_modules/.vite/bug021-029-ui"),
@@ -49,7 +49,7 @@ try {
   const screenshot = async name => page.screenshot({ path: path.join(output, name), animations: "disabled" });
 
   // BUG026 / BUG027: actual shared draft, inline apply, IME and failure feedback.
-  await score.getByText("轻", { exact: true }).first().click();
+  await score.getByText("个", { exact: true }).first().click();
   const input = sidebar.getByRole("textbox", { name: "连续歌词", exact: true });
   const popover = page.locator('#music-text-edit-popover');
   const floatingInput = popover.getByRole("textbox", { name: "连续歌词", exact: true });
@@ -97,23 +97,24 @@ try {
   // BUG021: same production preset component on both chord surfaces.
   await score.getByText("G", { exact: true }).first().click();
   const chordPopover = page.locator("#chord-edit-popover");
+  const chordLibrary = page.getByRole("dialog", { name: /^和弦库/ });
   for (const surface of [sidebar, chordPopover]) {
-    const more = surface.getByRole("button", { name: "更多和弦", exact: true });
-    await more.waitFor();
-    const alignment = await more.evaluate(button => {
+    const opener = surface.getByRole("button", { name: "和弦库", exact: true });
+    await opener.waitFor();
+    const alignment = await opener.evaluate(button => {
       const text = button.querySelector("span:not(.anticon)").getBoundingClientRect();
       const icon = button.querySelector("svg").getBoundingClientRect();
       return Math.abs(text.y + text.height / 2 - icon.y - icon.height / 2);
     });
-    assert.ok(alignment <= 2, `更多图标应居中，实际偏差 ${alignment}`);
-    await more.click();
-    const search = surface.getByRole("textbox", { name: "搜索全部和弦", exact: true });
+    assert.ok(alignment <= 2, `和弦库图标应居中，实际偏差 ${alignment}`);
+    await opener.click();
+    const search = chordLibrary.getByRole("textbox", { name: "库内搜索全部和弦", exact: true });
     await search.waitFor();
     await search.press("Escape");
-    await search.waitFor({ state: "hidden" });
+    await chordLibrary.waitFor({ state: "hidden" });
   }
   await screenshot("bug021-chord-1400.png");
-  results.push("BUG021: sidebar and chord popover chevrons centered within 2px, both dropdowns open and Escape closes");
+  results.push("BUG021: sidebar and chord popover chevrons centered within 2px, both open the library and Escape closes it");
 
   // BUG028: all sidebar task tabs retain position text and omit the locate action.
   for (const name of ["选区", "简谱与歌词", "和弦", "歌曲"]) {
@@ -137,7 +138,7 @@ try {
   assert.equal(await start.evaluate(element => !!element.closest("details")), false);
   assert.equal((await confirm.innerText()).replace(/\s/g, ""), "应用");
   assert.equal(await confirm.evaluate(element => element.closest('form')?.dataset.settingsGroup), "copy");
-  assert.equal(await sidebar.locator('[data-editor-actions-host]').innerText(), "");
+  assert.equal(await sidebar.locator('[data-editor-actions-host] > *').count(), 0);
   const verifyCopyLayout = async () => {
     await sameRow(startControl, endControl);
     await sameRow(afterControl, confirm);
@@ -163,7 +164,7 @@ try {
   const count = () => page.evaluate(() => window.coexistStore.getState().document.score.tracks[0].measures.length);
   const originalCount = await count();
   await after.click();
-  const insertionOption = page.locator(".ant-select-dropdown:visible").getByText(`第${originalCount}小节后`, { exact: true });
+  const insertionOption = page.locator(".ant-select-dropdown:visible").getByText("第2小节后", { exact: true });
   await insertionOption.click();
   for (const width of [1400, 1600]) {
     await page.setViewportSize({ width, height: 1000 });

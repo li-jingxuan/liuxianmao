@@ -11,7 +11,7 @@ const viteRequire = createRequire(require.resolve("vitest/package.json"));
 const { createServer } = await import(pathToFileURL(viteRequire.resolve("vite")).href);
 const { chromium } = await import(process.env.LXM_PLAYWRIGHT_MODULE ?? "playwright");
 const website = fileURLToPath(new URL("..", import.meta.url));
-const output = path.resolve(website, "../../output/playwright/req017-030");
+const output = process.env.LXM_RANGE_ARTIFACTS ?? path.resolve(website, "../../output/playwright/req017-030");
 const server = await createServer({
   root: website, configFile: false, define: nextBrowserDefines,
   cacheDir: path.resolve(website, "node_modules/.vite/req018-range"),
@@ -122,6 +122,13 @@ try {
   assert.deepEqual(await page.evaluate(() => window.rangeReview.store.getState().document.score), baseline.score);
   results.push("空输入清空选区，撤销保留原时值与歌词");
   await select(0, 2, "lyric");
+  const verse = page.getByRole("combobox", { name: "范围歌词段落" });
+  await verse.click();
+  await page.getByRole("option", { name: "第 1 段", exact: true }).waitFor();
+  await verse.press("Escape");
+  await page.waitForFunction(() => document.querySelector('[aria-label="范围歌词段落"]')?.getAttribute("aria-expanded") === "false");
+  assert.equal(await input.isVisible(), true);
+  results.push("范围歌词段落下拉可用，Escape只关闭下拉");
   await input.fill("轻 _ 唱");
   await page.getByRole("button", { name: "应用范围", exact: true }).click();
   await page.screenshot({ path: path.join(output, "lyrics-range-1600.png") });
@@ -152,6 +159,10 @@ try {
   await page.setViewportSize({ width: 1600, height: 1100 });
   await page.evaluate(baseline => {
     const doc = structuredClone(baseline), track = doc.score.tracks[0], events = track.measures[0].numberedVoice.events;
+    for (const [index, event] of events.slice(0, 2).entries()) {
+      event.kind = "notes";
+      event.items[0].token = String(index + 1);
+    }
     track.numberedMarks.push({ id: "req018-slur", type: "slur", fromEventId: events[0].id, toEventId: events[1].id });
     const loaded = window.rangeReview.store.getState().replaceDocument(doc);
     if (!loaded.ok) throw new Error(loaded.errors.join("；"));

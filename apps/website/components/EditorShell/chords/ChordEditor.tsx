@@ -77,8 +77,6 @@ export interface ChordEditorProps extends ChordEditorLibraryProps {
   canApply?: boolean;
   canRemove?: boolean;
   error?: string | null;
-  presetMenuOpen?: boolean;
-  onPresetMenuOpenChange?: (open: boolean) => void;
 }
 /** 和弦内容作为草稿应用；全谱显示偏好由宿主管理并即时生效。 */
 export const ChordEditor = ({
@@ -87,8 +85,6 @@ export const ChordEditor = ({
   onChange,
   presetsEnabled,
   disabled = false,
-  presetMenuOpen,
-  onPresetMenuOpenChange,
   inputReadOnly = disabled,
   allowEmptyName = false,
   onApply,
@@ -100,7 +96,6 @@ export const ChordEditor = ({
   tuning,
   onOpenLibrary,
   onOpenCustom,
-  onOpenSettings,
   showChordDiagrams,
   onShowChordDiagramsChange,
 }: ChordEditorProps) => {
@@ -114,28 +109,13 @@ export const ChordEditor = ({
   const empty = !draft.chord.name.trim() && !diagram;
   return (
     <div className={viewStyles.editor}>
-      <section className={`${viewStyles.preview}${empty ? ` ${viewStyles.emptyPreview}` : ""}`} aria-label="和弦预览">
-        {empty ? (
-          <span className={viewStyles.emptyDiagram}>尚未配置和弦</span>
-        ) : (
-          <>
-            <div className={viewStyles.previewCaption}>
-              <strong>{draft.chord.name || "未命名"}</strong>
-              <span>{presetsEnabled ? "标准调弦　E A D G B E" : "自定义调弦"}</span>
-            </div>
-            {issue && !removing && <p role="alert">{issue}</p>}
-            <ChordDiagramPreview diagram={diagram} width={47} height={54} />
-            {onOpenCustom && <Button type="link" disabled={disabled} onClick={() => onOpenCustom()}>{diagram ? "编辑指法" : "自定义指法"}</Button>}
-          </>
-        )}
-      </section>
       <section className={viewStyles.presets} aria-label="名称与常用指法">
         <Form.Item
           layout="vertical"
           label={<span className={viewStyles.nameLabel}>和弦名称{onRemove && <Button type="link" danger disabled={disabled || !canRemove} onClick={onRemove}>删除</Button>}</span>}
           htmlFor={"editor-field-" + "和弦名称"}
         >
-          <div className={viewStyles.nameRow}><Input
+          <Input
             id={"editor-field-" + "和弦名称"}
             ref={(control) => {
               inputRef(control?.input ?? null);
@@ -150,7 +130,7 @@ export const ChordEditor = ({
                 chord: { ...draft.chord, name: e.target.value },
               })
             }
-          />{onApply && <Button type="primary" disabled={disabled || !canApply} onClick={onApply}>应用</Button>}</div>
+          />
         </Form.Item>
         {empty && onOpenCustom && <Button className={viewStyles.emptyCustomAction} type="link" disabled={disabled} onClick={() => onOpenCustom()}>自定义指法</Button>}
         {error && error !== issue && <p className={viewStyles.help} role="alert">{error}</p>}
@@ -162,9 +142,6 @@ export const ChordEditor = ({
           document={document}
           tuning={tuning}
           onOpenLibrary={onOpenLibrary}
-          onOpenSettings={onOpenSettings}
-          menuOpen={presetMenuOpen}
-          onMenuOpenChange={onPresetMenuOpenChange}
         />
         {!presetsEnabled && (
           <Alert
@@ -174,15 +151,24 @@ export const ChordEditor = ({
             description="预设基于标准调弦；已有指法不会自动转置，和弦名称由你确认。"
           />
         )}
-        {!diagram && !onOpenCustom && (
-          <Button
-            disabled={disabled}
-            onClick={() => updateDiagram(emptyDiagram())}
-          >
-            创建指法图
-          </Button>
+      </section>
+      <section className={`${viewStyles.preview}${empty ? ` ${viewStyles.emptyPreview}` : ""}`} aria-label="和弦预览">
+        {empty ? (
+          <span className={viewStyles.emptyDiagram}>尚未配置和弦</span>
+        ) : (
+          <>
+            {diagram && <ChordDiagramPreview diagram={diagram} width={44} height={48} />}
+            <div className={viewStyles.previewCaption}>
+              <strong>当前指法 · {draft.chord.name || "未命名"}</strong>
+              <span>{diagram ? diagram.barres?.length ? "横按指法" : "开放指法" : "暂无指法"}</span>
+              {issue && !removing && <p role="alert">{issue}</p>}
+            </div>
+            {onOpenCustom && <Button type="link" disabled={disabled} onClick={() => onOpenCustom()}>{diagram ? "编辑指法" : "自定义指法"}</Button>}
+          </>
         )}
       </section>
+      {!diagram && !onOpenCustom && <Button disabled={disabled} onClick={() => updateDiagram(emptyDiagram())}>创建指法图</Button>}
+      {onApply && <Button className={viewStyles.apply} type="primary" disabled={disabled || !canApply} onClick={onApply}>应用</Button>}
       {diagram && !onOpenCustom && (
         <>
           <details className={viewStyles.disclosure} open>

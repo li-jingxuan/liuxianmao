@@ -312,6 +312,10 @@
   :global(.ant-form-item-explain) { overflow-wrap: anywhere; }
 }
 
+.paragraphRowAction {
+  padding: 0 12px 8px;
+}
+
 .paragraphTabs {
   margin: 0 0 16px;
   :global(.ant-segmented-item) { min-height: 30px; }

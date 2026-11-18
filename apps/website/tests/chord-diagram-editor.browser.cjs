@@ -96,11 +96,12 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || '/Users/nice02/.ca
     assert.equal(await button('完成编辑').isDisabled(), true);
     assert.equal(await page.getByRole('img', { name: '指法图预览' }).count(), 1);
     assert.equal(await page.getByText('保留上次有效指法', { exact: true }).count(), 1);
-    assert.equal(await page.locator('[data-chord-custom-error] [role=status]').count(), 1);
+    const footerError = page.locator('footer').getByRole('status');
+    assert.equal(await footerError.count(), 1);
     await label('自定义和弦名称').fill('');
-    assert.ok((await page.locator('[data-chord-custom-error]').innerText()).includes('和弦名称'));
+    assert.match(await footerError.innerText(), /和弦名称/);
     await label('观察窗口起始品位').fill('21');
-    assert.ok((await page.locator('[data-chord-custom-error]').innerText()).includes('起始品位'));
+    assert.match(await footerError.innerText(), /起始品位/);
     await label('自定义和弦名称').press('Enter'); assert.equal((await state()).completed.length, 0);
     await label('观察窗口起始品位').fill('1'); await label('自定义和弦名称').fill('Cm');
     await label('自定义和弦名称').press('Enter');
@@ -134,10 +135,38 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || '/Users/nice02/.ca
     await button('按弦').click(); await cell('第 6 弦 24 品').click();
     assert.equal(await button('完成编辑').isEnabled(), true);
     await label('观察窗口起始品位').fill('19');
-    assert.equal(await button('完成编辑').isDisabled(), true);
+    assert.equal(await cell('第 6 弦 23 品').getAttribute('data-pressed'), 'true');
     await label('观察窗口起始品位').fill('20');
     await button('完成编辑').click();
     assert.equal((await state()).completed[0].chord.diagram.strings[5].fret, 24);
+    await reset();
+    for (const topCell of await page.locator('[role=gridcell]').all().then(cells => cells.slice(0, 6))) {
+      if ((await topCell.innerText()) !== '×') {
+        await topCell.click();
+        if ((await topCell.innerText()) !== '×') await topCell.click();
+      }
+    }
+    const warning = page.getByText('至少一根弦应可发声', { exact: true });
+    assert.equal(await warning.count(), 0);
+    await button('按弦').click(); await cell('第 6 弦 1 品').click();
+    await button('擦除').click(); await cell('第 6 弦 1 品').click();
+    assert.equal(await cell('第 6 弦 1 品').getAttribute('data-pressed'), 'false');
+    assert.equal(await warning.count(), 0);
+    await button('完成编辑').click();
+    assert.equal(await warning.count(), 1);
+    assert.equal(await footerError.innerText(), '至少一根弦应可发声');
+    const noticeBox = await footerError.boundingBox();
+    const cancelBox = await button('取消').boundingBox();
+    assert.equal(Math.round(cancelBox.x - noticeBox.x - noticeBox.width), 8);
+    assert.ok(Math.abs(noticeBox.y + noticeBox.height / 2 - cancelBox.y - cancelBox.height / 2) < 1);
+    assert.equal((await state()).completed.length, 0);
+    await button('按弦').click(); await cell('第 6 弦 1 品').click();
+    assert.equal(await warning.count(), 0);
+    await button('擦除').click(); await cell('第 6 弦 1 品').click();
+    await button('另存为我的指法').click();
+    assert.equal(await warning.count(), 1);
+    assert.equal(await footerError.innerText(), '至少一根弦应可发声');
+    assert.equal((await state()).saved.length, 0);
     await reset();
     await page.locator('[data-chord-cell="0"]').click();
     assert.equal(await page.locator('[data-chord-cell="0"]').innerText(), '×');

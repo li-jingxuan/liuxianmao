@@ -20,8 +20,7 @@ try {
   const score = page.getByRole("application", { name: "六线谱编辑器" });
   await score.getByText("C", { exact: true }).first().click();
   const popover = page.locator("#chord-edit-popover");
-  await button(popover, "更多和弦").click();
-  await page.locator(".ant-dropdown:visible").getByRole("button", { name: /和弦库/ }).click();
+  await button(popover, "和弦库").click();
   await library.waitFor();
   const list = library.getByTestId("chord-library-scroll");
   await list.getByRole("button").first().waitFor();

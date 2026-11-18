@@ -3,22 +3,6 @@
   color: var(--ink, #202838);
   font-size: 13px;
 
-  button, input, select { font: inherit; }
-  button {
-    min-height: 32px;
-    padding: 5px 12px;
-    border: 1px solid var(--border, #dce2ec);
-    border-radius: 6px;
-    background: #fff;
-    color: inherit;
-    cursor: pointer;
-    &:hover:not(:disabled) { background: #f8faff; border-color: #8995a8; }
-    &:disabled { opacity: .45; cursor: default; }
-  }
-  button:focus-visible, input:focus-visible, select:focus-visible {
-    outline: 2px solid #285be0;
-    outline-offset: 2px;
-  }
 }
 
 .header {
@@ -42,24 +26,21 @@
   margin-bottom: 20px;
   background: #f0f3f8;
   border-radius: 7px;
-  button { flex: 1; border-color: transparent; background: transparent; }
-  button[aria-pressed="true"] { background: #fff; color: #285be0; box-shadow: 0 1px 3px #20283812; }
+  button { flex: 1; }
 }
 .verse {
   display: flex;
   align-items: center;
   gap: 12px;
   margin-bottom: 17px;
-  select { min-height: 32px; border: 1px solid var(--border, #dce2ec); border-radius: 5px; background: #fff; padding: 4px 10px; }
+  :global(.ant-select) { min-width: 100px; }
 }
 .label { display: block; margin-bottom: 9px; font-weight: 550; }
 .inputRow {
   display: flex;
   gap: 8px;
-  input { flex: 1; min-width: 0; width: 0; min-height: 34px; border: 1px solid #b8c4d8; border-radius: 6px; padding: 6px 9px; background: #fff; color: inherit; }
-  input[aria-invalid="true"] { border-color: #bc3547; }
-  .primary { color: #fff; background: #285be0; border-color: #285be0; flex-shrink: 0; }
-  .primary:hover:not(:disabled) { background: #214dcc; border-color: #214dcc; }
+  input { flex: 1; min-width: 0; }
+  button { flex-shrink: 0; }
 }
 .error { margin: 8px 0 0; color: #b42318; font-size: 12px; line-height: 1.7; }
 .impact { margin: 8px 0 0; color: #805b20; font-size: 12px; line-height: 1.7; }

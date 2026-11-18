@@ -14,7 +14,7 @@ import {
   RedoOutlined,
   UndoOutlined,
 } from "@ant-design/icons";
-import { LXMScoreCommandEnum, type ILXMRhythm, type MusicTextRange, type RhythmPatternTarget } from "@liuxianmao/lxm-editor";
+import { LXMScoreCommandEnum, LXM_TUPLET_RATIOS, type ILXMRhythm, type MusicTextRange, type RhythmPatternTarget } from "@liuxianmao/lxm-editor";
 import {
   useEditorSessionStore,
   useEditorStore,
@@ -31,8 +31,10 @@ import { MeasureBoundary, resolveMeasureControlTarget } from "../tools/MeasureBo
 import { MeasureActions } from "../tools/MeasureActions";
 import measureStyles from "../tools/MeasureControls.module.scss";
 import { resolveEditorRhythmPatternTarget } from "../tools/editor-rhythm-pattern-target";
-import { TupletToolbar } from "../tools/TupletToolbar";
+import { resolveTupletToolbarTarget, TupletToolbar } from "../tools/TupletToolbar";
 import { TechniqueToolbar, type TechniqueToolbarController } from "../tools/TechniqueToolbar";
+import { TECHNIQUE_OPTIONS } from "../tools/technique-catalog";
+import { techniquesInToolbarSelection, toolbarTechniqueAvailability } from "../tools/technique-toolbar-model";
 import {
   EditorToolPanelHost,
   type EditorToolPanelController,
@@ -166,7 +168,7 @@ export const EditorToolbar = ({
       ? resolveEditorRhythmPatternTarget(now.document, now.selection, live.current.continuousRange, getActiveTarget())
       : { ok: false as const, message: "当前没有可编辑的乐谱。" };
   }, [session, getActiveTarget]);
-  const getRhythmPatternIdentity = useCallback(() => {
+  const getSelectionIdentity = useCallback(() => {
     const now = session.getState();
     return JSON.stringify({ selection: now.selection, numberedSelection: now.numberedSelection, continuousRange: live.current.continuousRange, activeTarget: getActiveTarget() });
   }, [session, getActiveTarget]);
@@ -201,17 +203,34 @@ export const EditorToolbar = ({
   const rhythmPatternBlocked = (rhythmPatternTarget.ok && rhythmPatternTarget.target.layer === "numbered"
     ? numberedEditingBlocked : editingBlocked) || !!modal || drafts.inspect().pending.length > 0;
   const tools = deriveEditorToolState(document, selection);
-  const measureFocus = activeTarget ?? selection?.focus;
-  const measureTarget = measureFocus ? { trackId: measureFocus.trackId, measureId: measureFocus.measureId } : null;
+  const measureFocus = activeTarget ?? numberedSelection ?? selection?.focus;
+  const measureTarget = continuousRange
+    ? { trackId: continuousRange.trackId, measureId: continuousRange.focus.measureId }
+    : measureFocus ? { trackId: measureFocus.trackId, measureId: measureFocus.measureId } : null;
   const measureControlTarget = resolveMeasureControlTarget(document, measureTarget);
   const tabReason = tabToolTargetReason(session.getState(), activeTarget);
+  const tabPanelReason = activeTarget || continuousRange ? "请先选择 TAB 目标。" : tabReason;
+  const tabPanelSelection = tabPanelReason ? null : selection;
+  const tupletTarget = resolveTupletToolbarTarget(document, tabPanelSelection);
+  const canUseTuplet = !!tupletTarget.range?.group || LXM_TUPLET_RATIOS.some(({ actual }) => !tupletTarget.ratioReason(actual));
+  const canUseTechnique = !tabPanelReason && (
+    document.score.tracks.some(track => track.techniques.some(item => item.id === selectedTechniqueId)) ||
+    TECHNIQUE_OPTIONS.some(({ value }) => !toolbarTechniqueAvailability(document, selection, value, null)) ||
+    techniquesInToolbarSelection(document, selection).length > 0
+  );
+  const toolTargetReasons = {
+    measure: measureControlTarget ? null : "请选择目标小节。",
+    beat: rhythmPatternTarget.ok ? null : rhythmPatternTarget.message,
+    tuplet: canUseTuplet ? null : tabPanelReason || tupletTarget.reason || "请选择同小节内符合连音比例的连续拍点，或选中已有连音组。",
+    technique: canUseTechnique ? null : tabPanelReason || "当前 TAB 选区没有可用的技巧。",
+  };
   const tieTarget = resolveEditorTieTarget(document, selection, continuousRange, activeTarget);
   const tieAvailability: ToolAvailability = tieTarget.kind === "numbered"
     ? modal || numberedEditingBlocked
       ? { enabled: false, reason: "请先完成当前草稿或确认操作。" }
       : { enabled: tieTarget.ok, reason: tieTarget.ok ? "" : tieTarget.message }
     : { enabled: tieTarget.ok && !tabReason, reason: tabReason ?? (tieTarget.ok ? "" : tieTarget.message) };
-  const chordTarget = resolveEditorChordTarget(document, selection, activeTarget, !!numberedSelection);
+  const chordTarget = resolveEditorChordTarget(document, selection, activeTarget, !!numberedSelection || !!continuousRange);
   const chordAvailability: ToolAvailability = modal || chordEntryBlocked
     ? { enabled: false, reason: "请先完成当前输入或弹层操作。" }
     : !onOpenChord
@@ -388,7 +407,7 @@ export const EditorToolbar = ({
         beforeOpen={(group) => { if (group === "beat") beforeRhythmPatternAction?.(); else beforeAction(); }}
         blocked={!!modal}
         preserveOnBlock={modal?.request.kind === "rhythm-pattern-discard"}
-        reason={reason}
+        targetReasons={toolTargetReasons}
         canHide={() => !rhythmBusyRef.current && !sharedRhythmBusy && !immediateBusyRef.current && (techniquePanel.current?.canHide() ?? true)}
         onHideTechnique={() => techniquePanel.current?.discard()}
         subscribeProtection={drafts.subscribe}
@@ -410,7 +429,7 @@ export const EditorToolbar = ({
                 <MeasureBoundary document={document} target={measureTarget} blocked={editingBlocked || !!modal} onAction={run} />
                 <MeasureActions document={document} target={measureTarget} blocked={editingBlocked || !!modal} onAction={run}
                   getDocument={() => session.getState().document}
-                  getTargetIdentity={() => JSON.stringify({ selection: session.getState().selection, numberedSelection: session.getState().numberedSelection, activeTarget: getActiveTarget() })}
+                  getTargetIdentity={getSelectionIdentity}
                   onBusyChange={setImmediateBusy} />
               </div>
             </div>
@@ -422,7 +441,7 @@ export const EditorToolbar = ({
               targetResult={rhythmPatternTarget}
               targetIdentity={JSON.stringify({ selection, numberedSelection, continuousRange, activeTarget })}
               getTargetResult={getRhythmPatternTarget}
-              getTargetIdentity={getRhythmPatternIdentity}
+              getTargetIdentity={getSelectionIdentity}
               beforeAction={() => beforeRhythmPatternAction?.()}
               execute={executeLatest}
               blocked={rhythmPatternBlocked}
@@ -442,10 +461,10 @@ export const EditorToolbar = ({
               <div className={measureStyles.header}><h3>连音工具</h3><Button type="text" aria-label="关闭连音工具" onClick={() => host.current?.close(true)}>×</Button></div>
                 <TupletToolbar
                   document={document}
-                  selection={numberedSelection || activeTarget?.kind === "numbered" ? null : selection}
+                  selection={tabPanelSelection}
                   execute={execute}
                   blocked={editingBlocked}
-                  blockedReason={tabReason ?? undefined}
+                  blockedReason={tabPanelReason ?? undefined}
                   onBusyChange={setImmediateBusy}
                 />
             </div>
@@ -457,7 +476,7 @@ export const EditorToolbar = ({
               selection={selection}
               selectedTechniqueId={selectedTechniqueId}
               execute={execute}
-              blocked={techniqueBlocked || !!tabReason}
+              blocked={techniqueBlocked || !!tabPanelReason}
               beforeAction={beforeAction}
               getActiveTarget={getActiveTarget}
               setSelectedTechniqueId={setSelectedTechniqueId}

@@ -98,7 +98,7 @@ try {
   await sideName.waitFor();
   checks.push("范围选区立即解除单拍表单，恢复单拍后自动绑定");
 
-  await button(sidebar, "更多配置").click();
+  await button(sidebar, "和弦库").click();
   await library.waitFor();
   const candidates = library.getByTestId("chord-library-scroll").getByRole("button");
   await candidates.first().waitFor();

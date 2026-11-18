@@ -56,6 +56,7 @@ import {
   resolveEditorHistoryShortcut,
 } from "./session/editor-interaction";
 import { ScoreMusicLayer } from "./score/ScoreMusicLayer";
+import { MeasureNumberLayer } from "./score/MeasureNumberLayer";
 import { buildScoreScene } from "@liuxianmao/lxm-editor";
 import { OutputBlockedModal } from "./output/OutputBlockedModal";
 import { ImageExportModal } from "./output/ImageExportModal";
@@ -1910,6 +1911,10 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
                     }
                   />
                 )}
+                <MeasureNumberLayer
+                  layout={lxmLayout}
+                  activeMeasureId={continuousRange?.focus.measureId ?? activeMusicTextTarget?.measureId ?? numberedSelection?.measureId ?? selection?.focus.measureId}
+                />
               </svg>
             </main>
           </div>

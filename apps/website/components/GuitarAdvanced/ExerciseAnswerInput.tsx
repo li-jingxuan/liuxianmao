@@ -1,4 +1,5 @@
 "use client";
+import { Checkbox, Radio } from "antd";
 import type {
   Exercise,
   ExerciseAnswer,
@@ -54,10 +55,12 @@ export const ExerciseAnswerInput = ({
       />
     ) : null;
   }
+  const singleChoice = exercise.type === "singleChoice";
+  const Option = singleChoice ? Radio : Checkbox;
   return (
     <fieldset className={styles.fieldset} disabled={disabled}>
       <legend>
-        {exercise.type === "singleChoice" ? "请选择一项" : "请选择所有符合项"}
+        {singleChoice ? "请选择一项" : "请选择所有符合项"}
       </legend>
       <div className={styles.stack}>
         {exercise.options.map((option) => {
@@ -65,29 +68,20 @@ export const ExerciseAnswerInput = ({
             ? materials.scores[option.stimulusId]
             : null;
           return (
-            <label
+            <Option
               key={option.id}
               className={styles.option}
               data-selected={selected.includes(option.id)}
+              name={exercise.id}
+              value={option.id}
+              checked={selected.includes(option.id)}
+              disabled={disabled}
+              onChange={() => onChange(singleChoice
+                ? { type: "singleChoice", optionId: option.id }
+                : { type: "multipleChoice", optionIds: selected.includes(option.id)
+                    ? selected.filter((id) => id !== option.id)
+                    : [...selected, option.id] })}
             >
-              <input
-                type={exercise.type === "singleChoice" ? "radio" : "checkbox"}
-                name={exercise.id}
-                value={option.id}
-                checked={selected.includes(option.id)}
-                onChange={() =>
-                  onChange(
-                    exercise.type === "singleChoice"
-                      ? { type: "singleChoice", optionId: option.id }
-                      : {
-                          type: "multipleChoice",
-                          optionIds: selected.includes(option.id)
-                            ? selected.filter((id) => id !== option.id)
-                            : [...selected, option.id],
-                        },
-                  )
-                }
-              />
               <div className={styles.optionContent}>
                 <p>{option.label}</p>
                 {media && (
@@ -98,7 +92,7 @@ export const ExerciseAnswerInput = ({
                   />
                 )}
               </div>
-            </label>
+            </Option>
           );
         })}
       </div>

@@ -79,17 +79,15 @@ describe("和弦快捷表单", () => {
     expect(next.display).toBe(value.props.draft.display);
   });
 
-  it("快捷表面接入同一常用配置，保留固定更多和加载状态", () => {
+  it("快捷表面复用常用和弦，保留和弦库入口与加载状态", () => {
     const value = view();
     const control = value.elements.find(
       (element) => element.type === ChordPresetControls,
     )!;
     expect(control.props.draft).toBe(value.props.draft);
     expect(control.props.onChange).toBe(value.props.onChange);
-    expect(value.html).toContain("本调常用和弦");
-    expect(value.html).toContain('aria-label="更多和弦"');
-    expect(value.html).toContain("<span>更多</span>");
-    expect(value.html).not.toContain("更多 ⌄");
+    expect(value.html).toContain('aria-label="和弦库"');
+    expect(value.html).toContain('aria-label="常用和弦"');
     expect(value.html).toContain("和弦库加载中");
     expect(value.props.onChange).not.toHaveBeenCalled();
   });

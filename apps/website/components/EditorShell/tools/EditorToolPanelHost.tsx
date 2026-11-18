@@ -7,12 +7,11 @@ import {
   useLayoutEffect,
   useRef,
   useState,
-  useSyncExternalStore,
+  type CSSProperties,
   type ReactNode,
   type ReactElement,
   type Ref,
 } from "react";
-import { createPortal } from "react-dom";
 import { TOOL_GROUPS, type ToolGroupId } from "./editor-tool-catalog";
 import editorToolPanelStyles from "../shared/editor-tool-panel.module.scss";
 import { EditorToolSymbolButton, TechniqueSymbol } from "./EditorToolSymbolButton";
@@ -27,13 +26,14 @@ export interface EditorToolPanelController {
   restore: (group: ToolGroupId) => void;
   openTechnique: (intent: TechniqueIntent) => boolean;
 }
-/** One viewport-positioned portal, bounded by the editor host. Rhythm previews exist only while open. */
+/** One viewport-positioned portal, bounded by the editor host. */
 export const EditorToolPanelHost = ({
   ref,
   children,
   beforeOpen,
   blocked,
   preserveOnBlock,
+  targetReasons,
   canHide,
   subscribeProtection,
   onTechniqueIntent,
@@ -46,18 +46,19 @@ export const EditorToolPanelHost = ({
   beforeOpen: (group: ToolGroupId) => void;
   blocked: boolean;
   preserveOnBlock?: boolean;
-  reason: string | null;
+  targetReasons: Record<ToolGroupId, string | null>;
   canHide?: () => boolean;
   subscribeProtection?: (listener: () => void) => () => void;
   onTechniqueIntent?: (intent: TechniqueIntent) => boolean;
   onHideTechnique?: () => void;
-  beatTargetIdentity?: string | null;
+  beatTargetIdentity: string | null;
   getBeatTargetIdentity?: () => string | null;
 }) => {
   const [group, setGroup] = useState<ToolGroupId>("measure");
-  const clientReady = useSyncExternalStore(noopSubscribe, clientSnapshot, serverSnapshot);
   const [open, setOpen] = useState(false);
   const [moreMenu, setMoreMenu] = useState(false);
+  const activeTargetMissing = !moreMenu && !!targetReasons[group];
+  const disabledReason = (target: ToolGroupId) => blocked ? "请先完成当前弹层操作。" : targetReasons[target];
   const [portalRoot, setPortalRoot] = useState<HTMLElement | null>(null);
   const [geometry, setGeometry] = useState({ left: 8, top: 50, width: 300, maxHeight: 600, more: false });
   const trigger = useRef<HTMLDivElement>(null),
@@ -114,7 +115,7 @@ export const EditorToolPanelHost = ({
     const anchor = visibleTrigger(group)?.getBoundingClientRect();
     if (!editor || !anchor) return;
     const bounds = editor.getBoundingClientRect();
-    const width = Math.min(group === "beat" && !moreMenu ? 724 : group === "measure" ? 410 : group === "tuplet" ? 300 : 392,
+    const width = Math.min(group === "beat" && !moreMenu ? 456 : group === "measure" ? 410 : group === "tuplet" ? 300 : 392,
       Math.max(0, bounds.width - 16), window.innerWidth - 16);
     const minLeft = Math.max(8, bounds.left + 8);
     const maxRight = Math.min(window.innerWidth - 8, bounds.right - 8);
@@ -124,19 +125,19 @@ export const EditorToolPanelHost = ({
       more: !trigger.current?.querySelector('[data-tool-trigger="beat"]')?.getClientRects().length });
   };
   const show = (target: ToolGroupId, focusSelector?: string) => {
-    if (blocked) return;
+    if (disabledReason(target)) return;
     if (target !== group && !canClose()) return;
     invalidateOutside();
     pendingClose.current = null;
     if (open && group === "technique" && target !== group && !moreMenu) onHideTechnique?.();
-    requestedFocus.current = focusSelector ?? (target === "beat" ? '[data-rhythm-template][aria-pressed="true"]' : undefined);
+    requestedFocus.current = focusSelector;
     beforeOpen(target);
     setGroup(target);
     setMoreMenu(false);
     setOpen(true);
   };
   useImperativeHandle(ref, () => ({ open: show, close, restore,
-    openTechnique: (intent) => !blocked && (onTechniqueIntent?.(intent) ?? false),
+    openTechnique: (intent) => !disabledReason("technique") && (onTechniqueIntent?.(intent) ?? false),
   }));
   useEffect(() => subscribeProtection?.(() => {
     if (pendingClose.current !== null && canClose()) close(pendingClose.current);
@@ -145,11 +146,11 @@ export const EditorToolPanelHost = ({
     if (pendingClose.current !== null && canClose()) close(pendingClose.current);
   });
   useEffect(() => {
-    if (!blocked || !open || preserveOnBlock) return;
+    if (!open || (!activeTargetMissing && (!blocked || preserveOnBlock))) return;
     const frame = requestAnimationFrame(() => close());
     return () => cancelAnimationFrame(frame);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [blocked, open, preserveOnBlock]);
+  }, [blocked, open, preserveOnBlock, group, activeTargetMissing]);
   useEffect(() => () => {
     if (compositionFrame.current !== null) cancelAnimationFrame(compositionFrame.current);
     if (outsideFrame.current !== null) cancelAnimationFrame(outsideFrame.current);
@@ -200,26 +201,34 @@ export const EditorToolPanelHost = ({
       const frame = requestAnimationFrame(() => {
         align();
         const panel = moreMenu ? content.current : content.current?.querySelector<HTMLElement>(`[data-tool-panel="${group}"]`);
-        if (requestedFocus.current)
+        if (requestedFocus.current) {
           panel?.querySelector<HTMLElement>(requestedFocus.current)?.focus({ preventScroll: true });
-        else
+        } else if (group === "beat" && !moreMenu) {
+          const selected = panel?.querySelector<HTMLElement>('[data-rhythm-template][aria-pressed="true"], [data-rhythm-measure-template][aria-pressed="true"]');
+          const focus = selected
+            ? selected.getClientRects().length ? selected : panel?.querySelector<HTMLElement>(
+              `[data-rhythm-toggle="${selected.hasAttribute("data-rhythm-measure-template") ? "measure" : "beat"}"]`,
+            )
+            : Array.from(panel?.querySelectorAll<HTMLElement>("[data-rhythm-template]") ?? []).find((card) => card.getClientRects().length);
+          focus?.focus({ preventScroll: true });
+          focus?.scrollIntoView({ block: "nearest" });
+        } else {
           panel
             ?.querySelector<HTMLElement>("button:not(:disabled),input")
             ?.focus({ preventScroll: true });
+        }
         requestedFocus.current = undefined;
       });
       return () => cancelAnimationFrame(frame);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, group, moreMenu]);
-  const popup = (
+  const popup = (rhythm: boolean) => (
         <div
-          ref={content}
-          className={group === "beat" ? undefined : `ant-popover ${toolbarStyles.popup}`}
+          ref={rhythm === (group === "beat") ? content : undefined}
           role="dialog" aria-label={moreMenu ? "更多工具" : `${TOOL_GROUPS.find((item) => item.id === group)!.label}工具参数`}
-          hidden={!open}
-          style={group === "beat" ? undefined : { position: "fixed", left: geometry.left, top: geometry.top, width: geometry.width, display: open ? "block" : "none" }}
-          inert={!open || blocked}
+          hidden={!open || rhythm !== (group === "beat")}
+          inert={!open || blocked || rhythm !== (group === "beat")}
           onCompositionStart={() => {
             composing.current = true;
             compositionBuffer.current = false;
@@ -254,13 +263,14 @@ export const EditorToolPanelHost = ({
             }
           }}
         >
-          <div className={`${editorToolPanelStyles.toolPanelHost} ${toolbarStyles.popupContent}`} style={{ maxHeight: geometry.maxHeight, ...(group === "beat" && !moreMenu ? { padding: 0 } : {}) }}>
+          <div className={`${editorToolPanelStyles.toolPanelHost} ${toolbarStyles.popupContent}`} style={{ maxHeight: geometry.maxHeight, ...(group === "beat" && !moreMenu ? { padding: 0, "--rhythm-panel-max-height": `${geometry.maxHeight}px` } : {}) } as CSSProperties}>
           {moreMenu && <h3>更多工具</h3>}
           {moreMenu && <div className={editorToolPanelStyles.toolMenu}>
             {TOOL_GROUPS.filter((item) => item.id !== "technique").map((item) =>
-              <Button key={item.id} block onClick={() => show(item.id)}>{item.label}工具</Button>)}
+              <Button key={item.id} block disabled={!!disabledReason(item.id)} title={disabledReason(item.id) ?? undefined}
+                onClick={() => show(item.id)}>{item.label}工具</Button>)}
           </div>}
-          {TOOL_GROUPS.map((item) => (
+          {TOOL_GROUPS.filter((item) => (item.id === "beat") === rhythm).map((item) => (
             <div
               key={item.id}
               data-tool-panel={item.id}
@@ -273,13 +283,17 @@ export const EditorToolPanelHost = ({
           </div>
         </div>
   );
+  const popupStyles = { root: {
+    position: "fixed", left: geometry.left, top: geometry.top, right: "auto", bottom: "auto",
+    width: geometry.width, maxWidth: "calc(100vw - 16px)",
+  }, container: { padding: 0 } } as const;
   const rhythmPopover = (anchor: ReactElement, more = false) => (
       <Popover
-        trigger="click" open={open && group === "beat" && geometry.more === more}
+        trigger="click" open={open && group === "beat" && !activeTargetMissing && geometry.more === more}
         placement="bottomLeft" arrow={false} fresh
         getPopupContainer={() => portalRoot ?? window.document.body}
-        styles={{ root: { width: geometry.width, maxWidth: "calc(100vw - 16px)" }, container: { padding: 0 } }}
-        content={group === "beat" && geometry.more === more ? popup : null}
+        styles={popupStyles}
+        content={group === "beat" && geometry.more === more ? popup(true) : null}
         onOpenChange={(next) => {
           if (next || group !== "beat" || !open || preserveOnBlock) return;
           // 外部点击由 Popover 检测。等本次谱面点击/拖动完成后，选区切换保留面板，空白点击关闭。
@@ -306,8 +320,17 @@ export const EditorToolPanelHost = ({
       </Popover>
   );
   return (
-    <>
-      {clientReady && portalRoot && group !== "beat" && createPortal(popup, portalRoot)}
+    <Popover
+      trigger={[]}
+      open={!!portalRoot && open && group !== "beat"}
+      placement="bottomLeft"
+      arrow={false}
+      fresh
+      forceRender={!!portalRoot}
+      getPopupContainer={() => portalRoot ?? window.document.body}
+      styles={popupStyles}
+      content={portalRoot ? popup(false) : null}
+    >
       <div
         ref={trigger}
         className={toolbarStyles.triggers}
@@ -321,16 +344,18 @@ export const EditorToolPanelHost = ({
       >
         {(["technique", "beat", "tuplet", "measure"] as ToolGroupId[]).map((id) => TOOL_GROUPS.find((item) => item.id === id)!).map((item) => item.id === "technique" ? (
           <EditorToolSymbolButton key={item.id} triggerId={item.id} label="所有技巧" title="所有技巧"
-            popup expanded={open && group === item.id} availability={{ enabled: !blocked, reason: blocked ? "请先完成当前弹层操作。" : "" }}
+            popup expanded={open && group === item.id} availability={{ enabled: !disabledReason(item.id), reason: disabledReason(item.id) ?? "" }}
             onClick={() => { if (open && group === item.id) close(true); else show(item.id); }}>
             <TechniqueSymbol kind="technique" />
           </EditorToolSymbolButton>
         ) : (
           <span key={item.id} className={toolbarStyles.desktopTrigger}>{(() => {
-            const button = <Tooltip title={item.id === "beat" ? "节奏型" : `${item.label}工具`} trigger={["hover", "focus"]}><Button
+            const reason = disabledReason(item.id);
+            const button = <Tooltip title={reason ?? (item.id === "beat" ? "节奏型" : `${item.label}工具`)} trigger={["hover", "focus"]}><Button
             key={item.id}
             data-tool-trigger={item.id}
-            disabled={blocked}
+            disabled={!!reason}
+            aria-description={reason ?? undefined}
             aria-label={`${item.label}工具`}
             aria-expanded={open && group === item.id}
             aria-haspopup="dialog"
@@ -360,9 +385,6 @@ export const EditorToolPanelHost = ({
             }
           }}>更多<DownOutlined /></Button>, true)}</span>
       </div>
-    </>
+    </Popover>
   );
 };
-const noopSubscribe = () => () => {};
-const clientSnapshot = () => true;
-const serverSnapshot = () => false;

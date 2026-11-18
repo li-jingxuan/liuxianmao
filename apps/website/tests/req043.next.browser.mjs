@@ -181,16 +181,12 @@ try {
   await page.goto(url, { waitUntil: "networkidle", timeout: 90000 });
   await page.getByRole("application", { name: "六线谱编辑器" }).waitFor();
 
-  await check("无目标时按当前拍号浏览 12/5 模板，应用保持禁用", async () => {
-    for (const [signature, count] of [["4/4", 12], ["6/8", 5]]) {
-      await load(fixture(signature)); await open();
-      assert.equal(await panel.locator("[data-rhythm-template]").count(), count);
-      assert.equal(await panel.getByRole("button", { name: "应用节奏型", exact: true }).isDisabled(), true);
-      await panel.locator("[data-rhythm-template]").last().click();
-      assert.equal(await panel.getByRole("button", { name: "应用节奏型", exact: true }).isDisabled(), true);
+  await check("无目标时禁用节奏型工具入口", async () => {
+    for (const signature of ["4/4", "6/8"]) {
+      await load(fixture(signature));
+      assert.equal(await trigger.isDisabled(), true);
+      assert.equal(await panel.isVisible(), false);
       assert.equal((await state()).history.past, 0);
-      await shot(`00-browse-without-target-${signature.replace("/", "-")}`);
-      await page.keyboard.press("Escape"); await panel.waitFor({ state: "hidden" }); await triggerFocus();
     }
   });
 
@@ -335,9 +331,9 @@ try {
     outside.numberedVoice.events.forEach(e => { e.id = `outside-${e.id}`; e.items.forEach(i => { i.id = `outside-${i.id}`; }); });
     outside.beats.forEach(b => { b.id = `outside-${b.id}`; b.notes.forEach(n => { n.id = `outside-${n.id}`; }); });
     d.score.tracks[0].measures.push(outside);
-    await load(d); await numbered("e3"); await numbered("outside-e0", ["Shift"]); await open();
-    assert.match(await panel.innerText(), /跨越小节/);
-    assert.equal(await panel.getByRole("button", { name: "应用节奏型", exact: true }).isDisabled(), true);
+    await load(d); await numbered("e3"); await numbered("outside-e0", ["Shift"]);
+    assert.equal(await trigger.isDisabled(), true);
+    assert.equal(await panel.isVisible(), false);
     assert.deepEqual((await state()).document, d); assert.equal((await state()).history.past, 0);
     await shot("07b-cross-measure-blocked");
   });

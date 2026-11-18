@@ -53,9 +53,8 @@ describe("空简谱位置填词", () => {
       purpose: "editing",
       paragraphEditing: { ...target, kind: "lyric" },
     });
-    expect(
-      layout.systems[0]!.measures[0]!.numberedInputSlots!.length,
-    ).toBeGreaterThan(0);
+    expect(layout.systems[0]!.numberedRow).toBeUndefined();
+    expect(layout.systems[0]!.measures[0]!.numberedInputSlots).toEqual([]);
     const cells = layout.systems[0]!.musicTextCells!;
     expect(cells.length).toBeGreaterThanOrEqual(4);
     expect(

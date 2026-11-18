@@ -30,6 +30,7 @@ export interface ChordDiagramIssue {
 /** 声音由六弦 fret 决定，横按只描述指法；两种编辑表面共用同一校验。 */
 export const validateChordDiagramIssues = (
   diagram: ILXMChordDiagram,
+  { allowSilent = false }: { allowSilent?: boolean } = {},
 ): ChordDiagramIssue[] => {
   const { startFret, fretCount, strings, barres } = diagram;
   const issues: ChordDiagramIssue[] = [];
@@ -43,7 +44,7 @@ export const validateChordDiagramIssues = (
     add("window", "起始品位应为 1–20，最多支持五个品格", { field: "startFret" });
   if (strings.length !== 6 || strings.some((s, i) => s.string !== i + 1))
     add("string-order", "六弦指法必须按弦号 1–6 保存", { field: "strings" });
-  if (strings.every((s) => s.fret === "x")) add("silent", "至少一根弦应可发声", { field: "strings" });
+  if (!allowSilent && strings.every((s) => s.fret === "x")) add("silent", "至少一根弦应可发声", { field: "strings" });
   for (const s of strings) {
     if (
       s.fret !== "x" &&

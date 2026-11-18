@@ -85,6 +85,16 @@
   text-anchor: middle;
 }
 
+.measureNumbers {
+  fill: #7b8795;
+  font-family: Arial, sans-serif;
+  font-weight: 400;
+
+  [data-active="true"] {
+    fill: #2864e3;
+  }
+}
+
 // 技巧文字与弦线交叠时保留白色净空；描边宽度来自核心，碰撞和显示保持一致。
 .techniqueText {
   stroke: #fff;
@@ -143,7 +153,8 @@
     margin: 0;
     box-shadow: none;
   }
-  .selectionLayer {
+  .selectionLayer,
+  .measureNumbers {
     display: none;
   }
   // selectedTechniqueId 是临时交互状态；打印只保留技巧本身，不输出蓝色焦点色。
