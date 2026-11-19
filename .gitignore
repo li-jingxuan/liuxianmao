@@ -11,6 +11,10 @@ build
 .turbo
 
 # development and verification artifacts
+/.openchamber/screenshots/
+/.playwright-cli/
+/.pnpm-store/
+/.trae/skills/
 /artifacts/
 
 # env
