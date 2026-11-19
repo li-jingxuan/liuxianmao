@@ -786,6 +786,9 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     // 气泡隐藏时保留用户滚动位置，未提交草稿也不能把视口拉回。
     if (!viewport || (activeMusicTextTarget && musicTextPopoverHidden)) return;
     const revealTarget = () => {
+      // 按下文字位置时会先结束上一处编辑，等松手才打开新目标。
+      // 这期间恢复的 TAB 光标不应把谱面拉离指针所在位置。
+      if (pendingTextClickRef.current) return;
       const caret = continuousRange ? rangeFocusRef.current : focusCaretRef.current;
       const matrix = scoreSvgRef.current?.getScreenCTM();
       if (!caret && !(lyricFocus && matrix)) return;

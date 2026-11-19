@@ -181,6 +181,56 @@ try {
   await page.goto(url, { waitUntil: "networkidle", timeout: 90000 });
   await page.getByRole("application", { name: "六线谱编辑器" }).waitFor();
 
+  await check("从旧简谱气泡切换到谱底第 15 小节时保留滚动位置", async () => {
+    assert.equal(await page.locator("[data-score-scale]").getAttribute("data-score-scale"), "1.25");
+    const document = fixture();
+    document.score.tracks[0].measures = Array.from({ length: 15 }, (_, index) => {
+      const id = `scroll-measure-${index + 1}`;
+      return {
+        ...measureOf(document), id, lyrics: [], chordSymbols: [],
+        beats: Array.from({ length: 4 }, (_, i) => beat(`${id}-beat-${i}`, i * Q)),
+        numberedVoice: { tuplets: [], events: index === 14
+          ? Array.from({ length: 4 }, (_, i) => event(`${id}-gap-${i}`, i * Q / 4, "sixteenth", "", "gap"))
+          : [event(`${id}-numbered`, 0)],
+        },
+      };
+    });
+    await load(document);
+    const original = await state();
+    const measures = original.document.score.tracks[0].measures;
+    const first = measures[0];
+    const target = measures[14];
+    const tabPoint = await state("point", { layer: "tab", measureId: first.id, id: first.beats[0].id });
+    await page.mouse.click(tabPoint.x, tabPoint.y);
+    await numbered(first.numberedVoice.events[0].id);
+    const input = page.locator("#numbered-popover-content");
+    await page.waitForFunction(() => document.activeElement?.id === "numbered-popover-content");
+    assert.equal((await state()).selection.focus.measureId, first.id);
+
+    const viewport = page.locator("[data-score-viewport]");
+    const bottom = await viewport.evaluate(node => {
+      node.scrollTop = node.scrollHeight;
+      return node.scrollTop;
+    });
+    assert.ok(bottom > 0);
+    const point = await state("point", { layer: "numbered", measureId: target.id, tick: 0 });
+    await page.mouse.move(point.x, point.y);
+    await page.mouse.down();
+    const pressed = await viewport.evaluate(node => new Promise(resolve => {
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve(node.scrollTop)));
+    }));
+    await page.mouse.up();
+    assert.equal(pressed, bottom, "按下时不会滚回旧 TAB 光标");
+    await input.waitFor();
+    await page.waitForFunction(() => document.activeElement?.id === "numbered-popover-content");
+    assert.equal(await viewport.evaluate(node => node.scrollTop), bottom);
+    const opened = await state();
+    assert.equal(opened.numberedSelection.measureId, target.id);
+    assert.equal(opened.numberedSelection.eventId, target.numberedVoice.events[0].id);
+    assert.deepEqual(opened.document, original.document);
+    assert.deepEqual(opened.history, original.history);
+  });
+
   await check("无目标时禁用节奏型工具入口", async () => {
     for (const signature of ["4/4", "6/8"]) {
       await load(fixture(signature));
