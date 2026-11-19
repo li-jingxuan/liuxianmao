@@ -16,6 +16,7 @@ build
 /.pnpm-store/
 /.trae/skills/
 /artifacts/
+/output/
 
 # env
 .env
