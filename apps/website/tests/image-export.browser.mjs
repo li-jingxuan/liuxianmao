@@ -5,6 +5,7 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import path from "node:path";
 import { nextBrowserDefines } from "./next-browser-env.fixture.mjs";
+import { openScorePng } from "./score-file-actions.browser.cjs";
 
 const require = createRequire(import.meta.url);
 const viteRequire = createRequire(require.resolve("vitest/package.json"));
@@ -77,9 +78,8 @@ try {
     document: window.coexistStore.getState().document,
     history: window.coexistStore.getState().historyDepth,
   }));
-  const trigger = page.getByRole("button", { name: "导出 A4 图片", exact: true });
   const dialog = page.getByRole("dialog");
-  await trigger.click();
+  await openScorePng(page);
   await dialog.locator('[data-image-export-status="ready"]').waitFor();
   assert.ok(await dialog.getByRole("button", { name: /^第 \d+ 页$/ }).count() > 0);
   await dialog.getByRole("button", { name: "仅生成当前页", exact: true }).click();
@@ -106,7 +106,7 @@ try {
   await dialog.getByRole("button", { name: "关闭预览", exact: true }).click();
   await dialog.waitFor({ state: "hidden" });
   await page.waitForFunction((url) => window.exportUrlAudit.revoked.includes(url), secondUrl);
-  await page.waitForFunction(() => document.activeElement?.getAttribute("aria-label") === "导出 A4 图片").catch(async (error) => {
+  await page.waitForFunction(() => document.activeElement?.getAttribute("aria-label") === "导出").catch(async (error) => {
     console.error("关闭后的焦点", await page.evaluate(() => ({
       active: document.activeElement?.outerHTML.slice(0, 500),
       dialogs: [...document.querySelectorAll('[role="dialog"]')].map((node) => ({
@@ -116,7 +116,7 @@ try {
     throw error;
   });
 
-  await trigger.click();
+  await openScorePng(page);
   await dialog.locator('[data-image-export-status="ready"]').waitFor();
   assert.equal(await downloadLink.count(), 0);
   await dialog.getByRole("button", { name: "关闭预览", exact: true }).click();

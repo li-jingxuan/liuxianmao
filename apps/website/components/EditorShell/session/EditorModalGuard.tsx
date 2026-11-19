@@ -58,7 +58,7 @@ export const EditorModalGuard = ({
         if (event.key === "Tab") {
           const controls = Array.from(
             event.currentTarget.querySelectorAll<HTMLElement>(
-              "button,input,select,textarea,a[href],[tabindex]",
+              "button,input,select,textarea,a[href],summary,[tabindex]",
             ),
           ).filter(
             (element) =>

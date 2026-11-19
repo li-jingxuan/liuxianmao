@@ -209,4 +209,38 @@ describe("统一结构命令适配器", () => {
     expect(session.getState().document).toBe(original);
     expect(session.getState().historyDepth.past).toBe(0);
   });
+  it("区内确认的删除无需第二次弹窗，仍预检并可一次撤销", async () => {
+    const session = createEditorSession(EXAMPLE_MVP_7_2_DOCUMENT);
+    const original = session.getState().document!;
+    const track = original.score.tracks[0]!;
+    const modals = createEditorModalController(session.getState, () => vi.fn());
+    const execute = createEditorCommandAdapter(session, modals);
+    const result = await execute({
+      type: LXMScoreCommandEnum.RemoveMeasure, trackId: track.id, measureId: track.measures[0]!.id,
+    }, "modal", { confirmedMeasureRemoval: true, isCurrent: () => true });
+    expect(result.status).toBe("applied");
+    expect(modals.getSnapshot()).toBeNull();
+    expect(session.getState().historyDepth.past).toBe(1);
+    expect(session.getState().document!.score.tracks[0]!.measures).toHaveLength(track.measures.length - 1);
+    session.getState().undo();
+    expect(session.getState().document).toBe(original);
+  });
+
+  it("过期的区内删除确认和属性保护都不能写入文档", async () => {
+    const session = createEditorSession(EXAMPLE_MVP_7_2_DOCUMENT);
+    const original = session.getState().document!;
+    const track = original.score.tracks[0]!;
+    const modals = createEditorModalController(session.getState, () => vi.fn());
+    let dirty = false;
+    const execute = createEditorCommandAdapter(session, modals, () => dirty ? "存在属性草稿" : null);
+    const command = { type: LXMScoreCommandEnum.RemoveMeasure, trackId: track.id, measureId: track.measures[0]!.id } as const;
+    expect(await execute(command, "modal", { confirmedMeasureRemoval: true, isCurrent: () => false }))
+      .toMatchObject({ status: "blocked" });
+    dirty = true;
+    expect(await execute(command, "modal", { confirmedMeasureRemoval: true, isCurrent: () => true }))
+      .toMatchObject({ status: "blocked" });
+    expect(session.getState().document).toBe(original);
+    expect(session.getState().historyDepth.past).toBe(0);
+    expect(modals.getSnapshot()).toBeNull();
+  });
 });

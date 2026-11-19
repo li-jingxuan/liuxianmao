@@ -30,9 +30,9 @@ const errors = [], checks = [];
 const geometry = async (cards) => cards.evaluateAll(nodes => nodes.map(node => {
   const box = node.getBoundingClientRect();
   const diagram = node.querySelector("svg").getBoundingClientRect();
-  const name = node.lastElementChild.getBoundingClientRect();
+  const name = node.firstElementChild.getBoundingClientRect();
   return { x: Math.round(box.x), y: Math.round(box.y), height: box.height,
-    diagramAboveName: diagram.bottom <= name.top,
+    nameAboveDiagram: name.bottom <= diagram.top,
     nameContained: name.left >= box.left && name.right <= box.right,
     fullTitle: node.title === node.getAttribute("aria-label") };
 }));
@@ -40,7 +40,7 @@ const assertGrid = (cards) => {
   assert.equal(cards.length, 8);
   assert.equal(new Set(cards.map(card => card.x)).size, 4);
   assert.equal(new Set(cards.map(card => card.y)).size, 2);
-  assert.ok(cards.every(card => card.height === 78 && card.diagramAboveName && card.nameContained && card.fullTitle), JSON.stringify(cards));
+  assert.ok(cards.every(card => card.height === 64 && card.nameAboveDiagram && card.nameContained && card.fullTitle), JSON.stringify(cards));
 };
 try {
   await mkdir(output, { recursive: true });
@@ -61,53 +61,83 @@ try {
   const popover = page.locator("#chord-edit-popover");
   const name = page.locator("#chord-popover-name");
   await name.waitFor();
-  const sideCards = sidebar.getByLabel("本调常用和弦", { exact: true }).getByRole("button");
+  const sideGroup = sidebar.getByRole("group", { name: "本调常用和弦", exact: true });
+  const popupGroup = popover.getByRole("group", { name: "本调常用和弦", exact: true });
+  const sideCards = sideGroup.getByRole("button");
+  const cardNames = cards => cards.evaluateAll(nodes => nodes.map(node => node.getAttribute("aria-label")));
   await sideCards.nth(7).waitFor();
   assertGrid(await geometry(sideCards));
+  assertGrid(await geometry(popupGroup.getByRole("button")));
+  assert.deepEqual(await cardNames(popupGroup.getByRole("button")), await cardNames(sideCards));
+  const signature = `1=${baseline.document.score.keySignature}`;
+  await popover.getByText(signature, { exact: true }).waitFor();
+  await sidebar.getByRole("region", { name: "常用和弦", exact: true }).getByText(signature, { exact: true }).waitFor();
   const inputBox = await name.boundingBox();
   const applyBox = await button(popover, "应用").boundingBox();
   assert.equal(Math.round(inputBox.y), Math.round(applyBox.y));
-  await sidebar.getByLabel("本调常用和弦", { exact: true }).getByRole("button", { name: "Am", exact: true }).click();
-  assert.equal(await name.inputValue(), "Am");
+  const [first, second, third] = await cardNames(sideCards);
+  await button(sideGroup, second).click();
+  assert.equal(await name.inputValue(), second);
+  assert.equal(await button(popupGroup, second).getAttribute("aria-pressed"), "true");
+  await button(popupGroup, third).click();
+  assert.equal(await sidebar.getByRole("textbox", { name: "和弦名称", exact: true }).inputValue(), third);
+  assert.equal(await button(sideGroup, third).getAttribute("aria-pressed"), "true");
   assert.deepEqual(await snapshot(), baseline);
-  checks.push("侧栏4×2紧凑卡片上图下名，title提供全名；选用仅更新共享草稿；名称与应用同行");
+  checks.push("两处4×2紧凑卡片上名下图，调号一致，选用同步更新草稿");
   await page.screenshot({ path: path.join(output, "sidebar-popover.png"), animations: "disabled" });
-  await button(popover, "更多和弦").click();
-  const popup = page.locator(".ant-dropdown:not(.ant-dropdown-hidden)");
-  const search = popup.getByRole("textbox", { name: "搜索全部和弦", exact: true });
-  await search.waitFor();
-  await page.waitForFunction(() => [...document.querySelectorAll('.ant-dropdown:not(.ant-dropdown-hidden)')].every(node => getComputedStyle(node).opacity === "1" && !/(?:appear|enter)(?:-active|-prepare)?(?:\s|$)/.test(node.className)));
-  const popupCards = popup.getByRole("button").filter({ has: page.getByRole("img", { name: "指法图预览", exact: true }) });
-  assertGrid(await geometry(popupCards));
-  assert.equal(await popup.getByText("浏览完整和弦库", { exact: true }).count(), 0);
-  const recommendationBox = await popup.getByText("C大调·和弦推荐", { exact: true }).boundingBox();
-  const libraryBox = await button(popup, "和弦库").boundingBox();
-  assert.ok(Math.abs(recommendationBox.y - libraryBox.y) <= 2);
-  await page.screenshot({ path: path.join(output, "more-recommendations.png"), animations: "disabled" });
-  checks.push("更多下拉搜索下方同排推荐与库入口，推荐共用4×2卡片，移除底部入口");
-  await search.fill("Bm");
-  await popup.getByRole("button", { name: "Bm", exact: true }).waitFor();
-  await page.keyboard.press("Escape");
-  await popup.waitFor({ state: "hidden" });
-  assert.equal(await button(popover, "更多和弦").evaluate(node => node === document.activeElement), true);
-  await button(popover, "更多和弦").click();
-  await search.waitFor();
-  await button(popup, "和弦库").click();
   const library = page.getByRole("dialog", { name: /^和弦库/ });
-  await library.waitFor();
-  await button(library, "取消").click();
-  await library.waitFor({ state: "hidden" });
-  for (let i = 0; i < 3; i++) {
-    await button(popover, "更多和弦").click();
-    await search.waitFor();
-    await button(popover, "关闭快捷编辑").click();
-    await name.waitFor({ state: "detached" });
-    await svg.getByText(chord.chord.name, { exact: true }).first().click();
-    await name.waitFor();
+  for (const surface of [popover, sidebar, popover]) {
+    const opener = button(surface, "和弦库");
+    await opener.click();
+    const search = library.getByRole("textbox", { name: "库内搜索全部和弦", exact: true });
+    await search.fill("Bm");
+    await library.getByTestId("chord-library-scroll").getByText("Bm", { exact: true }).waitFor();
+    await page.keyboard.press("Escape");
+    await library.waitFor({ state: "hidden" });
+    await page.waitForFunction(element => element === document.activeElement, await opener.elementHandle());
   }
   assert.deepEqual(await snapshot(), baseline);
+  assert.equal(await name.inputValue(), third);
+  await button(popover, "应用").click();
+  const committed = await snapshot();
+  assert.equal(committed.history.past, baseline.history.past + 1);
+  assert.equal(committed.document.score.tracks[0].measures.flatMap(m => m.chordSymbols).find(c => c.id === chord.id).chord.name, third);
+  await svg.focus();
+  await page.keyboard.press("ControlOrMeta+z");
+  assert.deepEqual((await snapshot()).document.score, baseline.document.score);
+  checks.push("两处直达可搜索的完整库，关闭后恢复触发按钮焦点与草稿，应用只写一条可撤销历史");
+  await page.setViewportSize({ width: 390, height: 640 });
+  await popover.waitFor({ state: "hidden" });
+  await sideGroup.scrollIntoViewIfNeeded();
+  await button(sideGroup, first).click();
+  const bounds = await sideGroup.boundingBox();
+  assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= 391, JSON.stringify(bounds));
+  assertGrid(await geometry(sideCards));
+  assert.equal(await sidebar.getByRole("textbox", { name: "和弦名称", exact: true }).inputValue(), first);
+  checks.push("390px 窄窗口可横向滚动到侧栏并使用四列卡片");
+
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.evaluate(document => {
+    document.score.tracks[0].tuning.strings[5] = { index: 6, pitch: "D2", midi: 38 };
+    const result = window.coexistStore.getState().replaceDocument(document);
+    if (!result.ok) throw new Error(result.errors.join("；"));
+  }, baseline.document);
+  await svg.getByText(chord.chord.name, { exact: true }).first().click();
+  const alternateTuning = await snapshot();
+  for (const surface of [popover, sidebar]) {
+    const cards = surface.getByRole("group", { name: "本调常用和弦", exact: true }).getByRole("button");
+    assert.equal(await cards.count(), 8);
+    assert.ok(await cards.evaluateAll(nodes => nodes.every(card => card.disabled)));
+    await button(surface, "和弦库").click();
+    await library.getByRole("textbox", { name: "库内搜索全部和弦", exact: true }).fill("Bm");
+    await library.getByTestId("chord-library-scroll").getByText("Bm", { exact: true }).click();
+    assert.equal(await button(library, "选用此指法").isDisabled(), true);
+    await page.keyboard.press("Escape");
+    await library.waitFor({ state: "hidden" });
+  }
+  assert.deepEqual(await snapshot(), alternateTuning);
+  checks.push("非标准调弦仍可从两处浏览完整库，系统指法不可用于草稿");
   assert.deepEqual(errors, []);
-  checks.push("搜索与Escape焦点恢复、库入口、嵌套下拉反复关闭重开均正常，文档及历史保持");
   await writeFile(path.join(output, "result.json"), JSON.stringify({ checks, errors }, null, 2));
   console.log(JSON.stringify({ checks, errors, output }, null, 2));
 } finally {

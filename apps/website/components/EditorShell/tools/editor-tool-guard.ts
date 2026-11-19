@@ -9,6 +9,8 @@ export interface EditorToolSubmission {
   /** Checked immediately before execution and again inside every asynchronous confirmation. */
   isCurrent?: () => boolean;
   tabOnly?: boolean;
+  /** The caller displayed and confirmed the current measure-removal impact inline. */
+  confirmedMeasureRemoval?: true;
 }
 export const isTabOnlyToolCommand = (command: ILXMScoreCommand) =>
   command.type === C.SetBeatKindRange || command.type === C.AddTechnique ||

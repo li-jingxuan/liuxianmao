@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { openScorePng } from "./score-file-actions.browser.cjs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -160,7 +161,7 @@ try {
     await page.pdf({ path: path.join(output, `${width}-print.pdf`), format: "A4", printBackground: true });
     await page.emulateMedia({ media: "screen" });
     // Generate and download the real product export, rather than a screenshot surrogate.
-    await page.getByRole("button", { name: "导出 A4 图片", exact: true }).click();
+    await openScorePng(page);
     const dialog = page.getByRole("dialog");
     await dialog.locator('[data-image-export-status="ready"]').waitFor();
     await dialog.getByRole("button", { name: "仅生成当前页", exact: true }).click();

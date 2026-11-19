@@ -2,6 +2,7 @@
  * Uses isolated browser pages; does not inject store state or commit score changes.
  */
 const assert = require('node:assert/strict');
+const { openScorePng } = require('../apps/website/tests/score-file-actions.browser.cjs');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
@@ -9,7 +10,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 (async () => {
   const output = path.resolve(process.env.EDITOR_ARTIFACTS || 'artifacts/toolbar-associated-overlays');
   await fs.mkdir(output, { recursive: true });
-  const browser = await chromium.launch({ channel: 'chrome', headless: true });
+  const browser = await chromium.launch({ channel: process.env.LXM_BROWSER_CHANNEL, headless: true });
   const results = [], errors = [];
   const url = process.env.EDITOR_URL || 'http://127.0.0.1:3012';
   const sidebar = p => p.locator('#music-text-sidebar');
@@ -70,7 +71,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
   try {
     for (const width of [1440, 768, 375]) {
       await run('image-range-pointer-selection', width, async p => {
-        await p.getByRole('button', { name: '导出 A4 图片', exact: true }).click();
+        await openScorePng(p);
         await p.waitForFunction(() => document.querySelector('[data-image-export-status]')?.getAttribute('data-image-export-status') === 'ready');
         // Let the Modal entrance animation finish before measuring popup hit targets.
         await p.waitForFunction(() => !document.querySelector('.ant-modal.ant-zoom-appear'));
@@ -126,7 +127,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
         await openAssociated(p);
         // The toolbar is intentionally inert beneath the drawer. Exercise its UI handler
         // directly to verify an independent top Modal over an associated text surface.
-        await p.getByRole('button', { name: '导出 A4 图片', exact: true }).dispatchEvent('click');
+        await openScorePng(p, { dispatch: true });
         const close = p.getByRole('button', { name: '关闭预览', exact: true });
         await close.waitFor();
         await p.waitForFunction(() => !!document.querySelector('#chord-edit-popover')?.closest('[inert]'));

@@ -1,0 +1,15 @@
+{
+  "prototype": "REQ-048-DEMO-NOT-FOR-PRODUCT",
+  "notice": "仅供 REQ-048 审稿原型读取，不是六线猫产品原生 JSON，不可导入产品。",
+  "score": {
+    "title": "风吹过山谷",
+    "arranger": "",
+    "meter": "4/4",
+    "key": "C",
+    "numberedKey": "C",
+    "capo": 0,
+    "bars": 12,
+    "notes": [0, 1, 0, 3],
+    "blank": false
+  }
+}

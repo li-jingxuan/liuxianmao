@@ -3,6 +3,7 @@
  * node scripts/input-enter-x.browser.cjs (uses the already-running :3000 server)
  */
 const assert = require('node:assert/strict');
+const { downloadScoreJson, openScoreImport, confirmScoreImport } = require('../apps/website/tests/score-file-actions.browser.cjs');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { chromium } = require('/Users/nice02/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
@@ -18,17 +19,16 @@ const output = path.resolve('artifacts/input-enter-x');
   page.on('pageerror', (error) => errors.push(error.message));
   const screenshot = (name) => page.screenshot({ path: path.join(output, `${name}.png`) });
   const exported = async (name) => {
-    const waiting = page.waitForEvent('download');
-    await page.getByRole('button', { name: '导出曲谱', exact: true }).click();
-    const data = JSON.parse(await fs.readFile(await (await waiting).path(), 'utf8'));
+    const download = await downloadScoreJson(page);
+    const data = JSON.parse(await fs.readFile(await download.path(), 'utf8'));
     if (name) await fs.writeFile(path.join(output, `${name}.json`), JSON.stringify(data, null, 2));
     return data;
   };
   const imported = async (document, name) => {
     const filename = path.join(output, `${name}.json`);
     await fs.writeFile(filename, JSON.stringify(document, null, 2));
-    await page.getByLabel('选择六线猫曲谱文件', { exact: true }).setInputFiles(filename);
-    await page.getByRole('button', { name: '导入并替换', exact: true }).click();
+    await openScoreImport(page, filename);
+    await confirmScoreImport(page);
     await page.getByRole('application', { name: '六线谱编辑器' }).waitFor();
     await svg.locator('text').getByText(document.score.title, { exact: true }).waitFor();
   };

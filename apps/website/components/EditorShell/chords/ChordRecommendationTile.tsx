@@ -27,7 +27,7 @@ export const ChordRecommendationTile = ({
     title={unavailableReason ? `${name} · ${unavailableReason}` : name}
     onClick={onClick}
   >
-    <ChordDiagramPreview diagram={diagram} width={47} height={48} />
     <span className={styles.name}>{name}</span>
+    <ChordDiagramPreview diagram={diagram} width={43} height={43} />
   </Button>
 );

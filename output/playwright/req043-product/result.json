@@ -192,6 +192,10 @@
     {
       "name": "真实 Next 无 pageerror",
       "passed": true
+    },
+    {
+      "name": "从旧简谱气泡切换到谱底第 15 小节时保留滚动位置",
+      "passed": true
     }
   ],
   "pageErrors": [],
@@ -220,6 +224,10 @@
     "11-layout-1400x720.png",
     "14-tab-continuation-fixed-rhythm.png"
   ],
+  "incrementalVerification": {
+    "filter": "从旧简谱气泡",
+    "retainedPreviousChecks": 22
+  },
   "limitations": [
     "Adapter failure/retry injection intentionally omitted: no stable public failure adapter is exposed; no production test hooks added."
   ]

@@ -5,7 +5,7 @@ import { LXMDocumentSchema } from "../../src/core/document/schema";
 import { validateDocumentSemantics } from "../../src/core/document/semantic-validation";
 import { loadDocument } from "../../src/core/document/loader";
 import { calculateRhythmTicks } from "../../src/core/rhythm/rhythm";
-import { getRhythmPatternTemplates, inferRhythmPatternTemplate, planRhythmPattern, RHYTHM_PATTERN_TEMPLATES, type RhythmPatternTarget } from "../../src/core/rhythm/rhythm-pattern";
+import { getMeasureRhythmPatternTemplates, getRhythmPatternTemplates, inferRhythmPatternTemplate, planRhythmPattern, RHYTHM_PATTERN_TEMPLATES, type RhythmPatternTarget } from "../../src/core/rhythm/rhythm-pattern";
 import type { ILXMBeat, ILXMDocument, ILXMNumberedEvent, ILXMRhythm } from "../../src/core/types";
 
 const rhythm = (base: ILXMRhythm["base"] = "quarter", dots = 0): ILXMRhythm => ({ base, dots });
@@ -112,6 +112,38 @@ describe("BUG044 当前演奏拍节奏型识别", () => {
   });
 });
 
+describe("REQ045 整小节模板", () => {
+  it.each([
+    [4, 4, 14, 4], [3, 4, 10, 3], [6, 8, 10, 2],
+  ])("%s/%s 的 %s 条模板覆盖 %s 个演奏拍，焦点时值取自所在拍", (numerator, denominator, count, beatCount) => {
+    const signature = { numerator, denominator };
+    const templates = getMeasureRhythmPatternTemplates(signature);
+    expect(templates).toHaveLength(count);
+    for (const template of templates) {
+      const { document, target, measure } = fixture();
+      const beatTicks = denominator === 8 ? Q * 1.5 : Q;
+      const focusTick = beatTicks + Q / 4;
+      measure.timeSignature = signature;
+      measure.beats = Array.from({ length: beatCount }, (_, i) => beat(`tab-${i}`, i * beatTicks, rhythm("quarter", denominator === 8 ? 1 : 0)));
+      measure.numberedVoice.events = [];
+      const point = { ...target, startTick: focusTick, endTick: focusTick, focusTick };
+      const p = plan(document, point, template.id);
+      expect(p.scope).toMatchObject({ startTick: 0, endTick: beatCount * beatTicks, beatCount });
+      expect(p.perBeat.map(({ after }) => after.map(({ rhythm }) => rhythm))).toEqual(template.beats.map(({ rhythms }) => rhythms));
+      expect(p.focus).toMatchObject({ tick: beatTicks, endTick: beatTicks + template.beats[1]!.ticks[0]! });
+      commit(document, point, template.id);
+    }
+  });
+
+  it("4/4 从四八交替开始收起，四分模板在 4/4 和 3/4 末尾", () => {
+    const four = getMeasureRhythmPatternTemplates({ numerator: 4, denominator: 4 });
+    expect(four.filter(({ collapsed }) => !collapsed).at(-1)?.id).toBe("measure-44-eighth-sixteenth");
+    expect(four.find(({ collapsed }) => collapsed)?.id).toBe("measure-44-quarter-eighth");
+    expect(four.at(-1)?.id).toBe("measure-44-quarters");
+    expect(getMeasureRhythmPatternTemplates({ numerator: 3, denominator: 4 }).at(-1)?.id).toBe("measure-34-quarters");
+  });
+});
+
 describe("REQ043 逐拍纯 planner", () => {
   it("单音保留一次、补两个 gap，纯规划无副作用，范围外及另一谱层共享原结构", () => {
     const { document, target, track, measure } = fixture();
@@ -177,10 +209,10 @@ describe("REQ043 逐拍纯 planner", () => {
     expect(plan(document, { ...target, startTick: Q / 2, endTick: Q * 3 / 2 }).scope).toMatchObject({ startTick: 0, endTick: Q * 2 });
   });
 
-  it("17模板与三十二分ticks精确，3/4重复三拍，6/8重复两拍", () => {
-    expect(RHYTHM_PATTERN_TEMPLATES).toHaveLength(17);
+  it("21个拍内模板时值精确，3/4重复三拍，6/8重复两拍", () => {
+    expect(RHYTHM_PATTERN_TEMPLATES).toHaveLength(21);
     expect(getRhythmPatternTemplates({ numerator: 4, denominator: 4 })).toHaveLength(12);
-    expect(getRhythmPatternTemplates({ numerator: 6, denominator: 8 })).toHaveLength(5);
+    expect(getRhythmPatternTemplates({ numerator: 6, denominator: 8 })).toHaveLength(9);
     for (const signature of [{ numerator: 4, denominator: 4 }, { numerator: 3, denominator: 4 }, { numerator: 6, denominator: 8 }]) {
       for (const t of getRhythmPatternTemplates(signature)) {
         const { document, target, measure } = fixture();
@@ -318,7 +350,7 @@ describe("REQ043 TAB隔离、标记确认与原子命令", () => {
     }
   });
 
-  it("简谱连接与延长记号列明中文名及ID，跨范围连接只删除关系，TAB标记保持", () => {
+  it("简谱只移除失去连续性的延音线，圆滑线、延长记号和TAB技巧保持", () => {
     const { document, target, track } = fixture();
     track.numberedMarks = [
       { id: "tie", type: "tie", fromItemId: "e0-i0", toItemId: "e1-i0" },
@@ -330,33 +362,43 @@ describe("REQ043 TAB隔离、标记确认与原子命令", () => {
     const p = plan(document, target);
     expect(p.removedMarks).toEqual([
       { id: "tie", type: "tie", name: "延音线", crossesScope: true },
-      { id: "slur", type: "slur", name: "圆滑线", crossesScope: true },
-      { id: "fermata", type: "fermata", name: "延长记号", crossesScope: false },
     ]);
-    expect(applyScoreCommand(document, { type: C.ApplyRhythmPattern, target, templateId: "eight-sixteen", expectedConfirmationKey: p.confirmationKey })).toMatchObject({ ok: false, code: "RHYTHM_PATTERN_CONFIRMATION_REQUIRED", removedMarkIds: ["tie", "slur", "fermata"] });
+    expect(applyScoreCommand(document, { type: C.ApplyRhythmPattern, target, templateId: "eight-sixteen", expectedConfirmationKey: p.confirmationKey })).toMatchObject({ ok: false, code: "RHYTHM_PATTERN_CONFIRMATION_REQUIRED", removedMarkIds: ["tie"] });
     const r = commit(document, target, "eight-sixteen", true);
     const next = r.document.score.tracks[0]!;
     expect(next.techniques).toBe(track.techniques);
-    expect(next.numberedMarks.map(m => m.id)).toEqual(["outside"]);
+    expect(next.numberedMarks.map(m => m.id)).toEqual(["slur", "fermata", "outside"]);
     expect(next.measures[0]!.numberedVoice.events.find(e => e.id === "e1")).toBe(track.measures[0]!.numberedVoice.events[1]);
   });
 
-  it("TAB区间技巧中段相交仍移除，跨界Tie只清连接，范围外及简谱标记保留", () => {
+  it("TAB保留合法的区间、单音和拍技巧，移除被空位隔开的延音线", () => {
     const { document, target, track, measure } = fixture();
+    measure.beats[2] = beat("b2", Q * 2, rhythm(), [3]);
     track.numberedMarks = [{ id: "numbered-fermata", type: "fermata", eventId: "e1" }];
     track.techniques = [
       { id: "pm", type: "palmMute", fromBeatId: "b0", toBeatId: "b3" },
-      { id: "ring", type: "letRing", fromBeatId: "b0", toBeatId: "b3" },
-      { id: "tie", type: "tie", fromNoteId: "b0-n0", toNoteId: "b1-n0" },
+      { id: "tie", type: "tie", fromNoteId: "b1-n0", toNoteId: "b2-n0" },
+      { id: "bend", type: "bend", fromNoteId: "b1-n0", semitones: 1 },
+      { id: "pick", type: "pickStroke", beatId: "b1", stroke: "down" },
       { id: "outside", type: "vibrato", fromNoteId: "b0-n0" },
     ];
     const t = { ...target, layer: "tab" as const, startTick: Q, endTick: Q, focusTick: Q };
     const p = plan(document, t);
-    expect(p.removedMarks.map(m => m.id)).toEqual(["pm", "ring", "tie"]);
+    expect(p.removedMarks).toEqual([{ id: "tie", type: "tie", name: "延音线", crossesScope: true }]);
     const r = commit(document, t, "eight-sixteen", true);
-    expect(r.document.score.tracks[0]!.techniques.map(m => m.id)).toEqual(["outside"]);
+    expect(r.document.score.tracks[0]!.techniques.map(m => m.id)).toEqual(["pm", "bend", "pick", "outside"]);
     expect(r.document.score.tracks[0]!.numberedMarks).toBe(track.numberedMarks);
     expect(r.document.score.tracks[0]!.measures[0]!.beats[0]).toBe(measure.beats[0]);
+  });
+
+  it("简谱延音线的两个原音同时换时值且仍相邻时保留连接", () => {
+    const { document, target, track, measure } = fixture();
+    measure.numberedVoice.events.splice(0, 1, event("e0", 0, rhythm("eighth")), event("e0b", Q / 2, rhythm("eighth")));
+    track.numberedMarks = [{ id: "tie", type: "tie", fromItemId: "e0-i0", toItemId: "e0b-i0" }];
+    const r = commit(document, target, "reverse-dotted");
+    const next = r.document.score.tracks[0]!;
+    expect(next.measures[0]!.numberedVoice.events[1]).toMatchObject({ id: "e0b", tick: Q / 4 });
+    expect(next.numberedMarks).toEqual(track.numberedMarks);
   });
 
   it.each(["numbered", "tab"] as const)("%s完整连音按实际tick映射，需确认清除；部分组阻止", layer => {
@@ -387,7 +429,7 @@ describe("REQ043 TAB隔离、标记确认与原子命令", () => {
     commit(document, { ...t, endTick: Q * 2 }, "eight-sixteen", true);
   });
 
-  it("标记涉及多小节另一端时只清关系，不触碰外小节", () => {
+  it("跨到另一小节的合法圆滑线保留，外小节不重建", () => {
     const { document, target, track, measure } = fixture();
     const outside = structuredClone(measure);
     outside.id = "outside-measure";
@@ -396,8 +438,9 @@ describe("REQ043 TAB隔离、标记确认与原子命令", () => {
     track.measures.push(outside);
     track.numberedMarks = [{ id: "long-slur", type: "slur", fromEventId: "e0", toEventId: "outside-event" }];
     const p = plan(document, target);
-    expect(p.removedMarks[0]!.crossesScope).toBe(true);
-    const r = commit(document, target, "eight-sixteen", true);
+    expect(p.removedMarks).toEqual([]);
+    const r = commit(document, target);
+    expect(r.document.score.tracks[0]!.numberedMarks).toEqual(track.numberedMarks);
     expect(r.document.score.tracks[0]!.measures[1]).toBe(outside);
   });
 
@@ -415,14 +458,14 @@ describe("REQ043 TAB隔离、标记确认与原子命令", () => {
     expect(commit(tab.document, { ...t, layer: "tab" }).document).toBe(tab.document);
   });
 
-  it("原本相同节奏的gap不因字段顺序或实体重建产生历史；含标记仍要求确认", () => {
+  it("同节奏的空位和带记号音符保持原文档引用", () => {
     const { document, target, measure, track } = fixture();
     measure.numberedVoice.events[0] = event("gap", 0, rhythm(), "gap");
     expect(commit(document, target, "quarter")).toMatchObject({ changed: false, document });
     track.numberedMarks = [{ id: "f", type: "fermata", eventId: "e1" }];
     const t = { ...target, startTick: Q, endTick: Q, focusTick: Q };
-    expect(plan(document, t, "quarter").changed).toBe(true);
-    commit(document, t, "quarter", true);
+    expect(commit(document, t, "quarter")).toMatchObject({ changed: false });
+    expect(commit(document, t, "quarter").document).toBe(document);
   });
 
   it("确认与原始目标、模板、完整文档内容和revision绑定，无法绕过", () => {
@@ -442,7 +485,7 @@ describe("REQ043 TAB隔离、标记确认与原子命令", () => {
 });
 
 describe("REQ043 命令提交与重复保存边界", () => {
-  it.each([false, true])("连接两端都在目标外，中间scope仍要求清除关系（跨小节=%s）", crossMeasure => {
+  it.each([false, true])("连接两端都在目标外，中间拆拍后合法关系保留（跨小节=%s）", crossMeasure => {
     for (const layer of ["numbered", "tab"] as const) {
       const { document, target, track, measure } = fixture();
       measure.beats = [beat("b0", 0, rhythm(), [3]), beat("b1", Q), beat("b2", Q * 2), beat("b3", Q * 3, rhythm(), [5])];
@@ -469,13 +512,10 @@ describe("REQ043 命令提交与重复保存边界", () => {
       const t = { ...target, layer, startTick: Q, endTick: Q, focusTick: Q };
       const snapshot = structuredClone(document);
       const p = plan(document, t);
-      expect(p.removedMarks).toEqual([{ id: layer === "numbered" ? "span-slur" : "span-slide",
-        type: layer === "numbered" ? "slur" : "slideUp", name: layer === "numbered" ? "圆滑线" : "上滑音", crossesScope: true }]);
-      expect(applyScoreCommand(document, { type: C.ApplyRhythmPattern, target: t, templateId: p.template.id,
-        expectedConfirmationKey: p.confirmationKey })).toMatchObject({ ok: false, code: "RHYTHM_PATTERN_CONFIRMATION_REQUIRED" });
+      expect(p.removedMarks).toEqual([]);
       expect(document).toEqual(snapshot);
-      const next = commit(document, t, p.template.id, true).document.score.tracks[0]!;
-      expect(layer === "numbered" ? next.numberedMarks : next.techniques).toEqual([]);
+      const next = commit(document, t, p.template.id).document.score.tracks[0]!;
+      expect(layer === "numbered" ? next.numberedMarks : next.techniques).toEqual(layer === "numbered" ? track.numberedMarks : track.techniques);
       expect(layer === "numbered" ? next.techniques : next.numberedMarks).toEqual(layer === "numbered" ? track.techniques : track.numberedMarks);
       const changed = next.measures.find(m => m.id === measure.id)!;
       expect(changed.numberedVoice.events.find(e => e.id === "e0")).toBe(measure.numberedVoice.events[0]);

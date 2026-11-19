@@ -43,21 +43,30 @@ describe("简谱八度语法边界", () => {
 
 /** 验证首页默认 mock；历史谱例继续覆盖布局、会话和导出投影。 */
 describe("MVP v7.2 简谱 mock", () => {
-  it("首页默认加载十一小节《理想》，截图复刻的节奏、歌词与休止经过正式加载器", () => {
+  it("首页通过正式加载器默认加载二十二小节《理想》", () => {
     const loaded = loadDocument(JSON.stringify(DEFAULT_MOCK_DOCUMENT));
     expect(loaded.ok, JSON.stringify(loaded)).toBe(true);
     expect(editorStore.getState().document).toEqual(DEFAULT_MOCK_DOCUMENT);
-    expect(DEFAULT_MOCK_DOCUMENT.documentRevision).toBe(1);
-    expect(DEFAULT_MOCK_DOCUMENT.score).toMatchObject({ title: "理想", keySignature: "D" });
+    expect(DEFAULT_MOCK_DOCUMENT.documentRevision).toBe(240);
+    expect(DEFAULT_MOCK_DOCUMENT.score).toMatchObject({
+      title: "理想",
+      keySignature: "G",
+      meta: { "lxm:tonality": { version: 1, tonic: "G", mode: "major" } },
+    });
     const track = DEFAULT_MOCK_DOCUMENT.score.tracks[0]!;
-    expect(track.measures).toHaveLength(11);
+    expect(track.measures).toHaveLength(22);
+    expect(track.measures.map((measure) => measure.timeSignature)).toEqual(
+      Array.from({ length: 22 }, () => ({ numerator: 4, denominator: 4 })),
+    );
     expect(track.measures.map((m) => m.numberedVoice.events.length)).toEqual([
-      4, 4, 4, 4, 4, 4, 4, 4, 12, 8, 0,
+      4, 4, 4, 4, 4, 4, 4, 4, 12, 12, 11, 5, 12, 10, 13, 5, 0, 0, 0, 0, 0, 0,
     ]);
-    expect(track.measures.flatMap((m) => m.numberedVoice.events)).toHaveLength(52);
-    expect(track.techniques).toHaveLength(16);
+    expect(track.measures.flatMap((m) => m.numberedVoice.events)).toHaveLength(112);
+    expect(track.techniques).toHaveLength(42);
     expect(track.measures.flatMap((m) => m.chordSymbols.map((c) => c.chord.name))).toEqual([
-      "G", "C", "Em", "G", "G", "Am", "D", "G", "G", "G",
+      "G", "C", "Em", "G", "G", "Am", "D", "G", "G", "Gadd9",
+      "Asus2", "Dsus2", "Gadd9", "G", "Asus2", "Dsus2", "Gadd9",
+      "C", "G", "C", "G", "C", "Bm", "E",
     ]);
     for (const measure of track.measures.slice(0, 8)) {
       expect(measure.numberedVoice.events.map((event) => ({
@@ -71,15 +80,21 @@ describe("MVP v7.2 简谱 mock", () => {
     expect(ninth.numberedVoice.events.flatMap((event) => event.items.map((item) => item.token)))
       .toEqual(["0", "3", "2", "3", "3", "2", "3", "5", "3", "3", "2", "1"]);
     expect(ninth.lyrics.map((lyric) => lyric.text).join("")).toBe("一个人住在这城市为了");
-    expect(track.measures[9]!.numberedVoice.events.map((event) => ({
+    const tenth = track.measures[9]!;
+    expect(tenth.lyrics.map((lyric) => lyric.text).join("")).toBe("填饱肚子就已精疲力还");
+    expect(tenth.numberedVoice.events.slice(0, 8).map((event) => ({
       tick: event.tick, rhythm: event.rhythm, tokens: event.items.map((item) => item.token),
     }))).toEqual(Array.from({ length: 8 }, (_, i) => ({
       tick: i * 240, rhythm: { base: "sixteenth", dots: 0 }, tokens: ["1"],
     })));
-    expect(track.measures[10]!.beats.map(({ tick, rhythm, kind, notes }) => ({ tick, rhythm, kind, notes })))
-      .toEqual([0, 960, 1920, 2880].map((tick) => ({
-        tick, rhythm: { base: "quarter", dots: 0 }, kind: "rest", notes: [],
-      })));
+    expect(track.measures[10]!.beats.map((beat) => beat.tick))
+      .toEqual([0, 480, 720, 960, 1200, 1440, 1680, 1920, 2400, 2640, 2880, 3120, 3360, 3600]);
+    expect(track.measures[10]!.beats.every((beat) => beat.notes[0]?.fret === "x")).toBe(true);
+    const fifteenth = track.measures[14]!;
+    expect(fifteenth.numberedVoice.events.flatMap((event) => event.items.map((item) => item.token)))
+      .toEqual(["1", "2", "2", "1", "2", "2", "1", "6", "5", "5", "5", "3", "2"]);
+    expect(fifteenth.lyrics.map((lyric) => lyric.text).join("")).toBe("想哭就把泪咽进一腔热血的胸");
+    expect(track.measures[15]!.barline).toBe("repeatStart");
   });
 
   it("历史八小节 fixture 保留特殊符号与空拍的正式加载覆盖", () => {

@@ -2,6 +2,7 @@
  * PLAYWRIGHT_MODULE=/path/to/playwright EDITOR_URL=http://127.0.0.1:3000 node scripts/toolbar-tie.browser.cjs
  */
 const assert = require("node:assert/strict");
+const { downloadScoreJson, openScoreImport, confirmScoreImport } = require("../apps/website/tests/score-file-actions.browser.cjs");
 const fs = require("node:fs");
 const path = require("node:path");
 const ts = require("typescript");
@@ -34,14 +35,12 @@ const fixture = (samePitch) => {
     const toolbar = page.getByRole("toolbar");
     const tie = toolbar.getByRole("button", { name: "延音线", exact: true });
     const importDocument = async (document) => {
-      await page.locator('input[type="file"]').setInputFiles({ name: "tie.lxm", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(document)) });
-      await page.getByRole("button", { name: "导入并替换", exact: true }).click();
+      await openScoreImport(page, { name: "tie.lxm", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(document)) });
+      await confirmScoreImport(page);
       await svg.getByText(document.score.title, { exact: true }).waitFor();
     };
     const exported = async () => {
-      const waiting = page.waitForEvent("download");
-      await page.getByRole("button", { name: "导出曲谱", exact: true }).click();
-      const download = await waiting;
+      const download = await downloadScoreJson(page);
       return JSON.parse(fs.readFileSync(await download.path(), "utf8"));
     };
     const selectStart = async () => {

@@ -2,6 +2,7 @@ import {
   A4_CONTENT_WIDTH,
   buildLayout,
   CURRENT_SCHEMA_VERSION,
+  SCORE_DOCUMENT_SCHEMA,
   upgradeDocumentToCurrent,
   type ILXMDocument,
 } from "@liuxianmao/lxm-editor";
@@ -23,14 +24,15 @@ type FileResult =
       sourceVersion: number;
       upgraded: boolean;
     }
-  | { ok: false; errors: string[] };
+  | { ok: false; errors: string[]; reason?: "format" | "version" | "syntax" };
 export type ExportResult =
   | { ok: true; text: string; name: string }
   | { ok: false; errors: string[] };
 
-const fail = (message: string): FileResult => ({
+const fail = (message: string, reason?: "format" | "version" | "syntax"): FileResult => ({
   ok: false,
   errors: [message],
+  reason,
 });
 
 /** 不递归遍历外部对象，先限制 Zod 和排版要处理的规模。 */
@@ -192,10 +194,12 @@ export const inspectScoreFile = (text: string): FileResult => {
   try {
     raw = JSON.parse(text.replace(/^\uFEFF/, ""));
   } catch {
-    return fail("JSON 格式错误，无法导入曲谱");
+    return fail("JSON 格式错误，无法导入曲谱", "syntax");
   }
   const structureError = inspectStructure(raw);
   if (structureError) return fail(structureError);
+  if (!raw || typeof raw !== "object" || !("schema" in raw) || raw.schema !== SCORE_DOCUMENT_SCHEMA)
+    return fail("请选择六线猫导出的 JSON 曲谱。当前不支持 MusicXML、MIDI 或其他 JSON。", "format");
   const sourceVersion =
     raw &&
     typeof raw === "object" &&
@@ -204,6 +208,8 @@ export const inspectScoreFile = (text: string): FileResult => {
       ? raw.schemaVersion
       : 0;
   const upgraded = [4, 5, 6, 7].includes(sourceVersion);
+  if (sourceVersion && !upgraded && sourceVersion !== CURRENT_SCHEMA_VERSION)
+    return fail(`不支持的文档版本 ${sourceVersion}，当前支持 ${CURRENT_SCHEMA_VERSION}`, "version");
   const candidate = upgraded ? upgradeDocumentToCurrent(raw) : null;
   if (candidate && !candidate.ok) return candidate;
   const loaded = loadEditorDocument(candidate?.ok ? candidate.document : raw);
@@ -263,4 +269,27 @@ export const serializeScoreFile = (document: ILXMDocument): ExportResult => {
   return checked.ok
     ? { ok: true, text, name: scoreFileName(checked.document.score.title) }
     : checked;
+};
+
+/** Keep the URL alive across immediate navigation or document replacement after handoff. */
+export const downloadScoreFile = (score: ILXMDocument): { ok: true; name: string } | { ok: false; errors: string[] } => {
+  const result = serializeScoreFile(score);
+  if (!result.ok) return result;
+  let url: string | undefined;
+  let link: HTMLAnchorElement | undefined;
+  try {
+    url = URL.createObjectURL(new Blob([result.text], { type: "application/json;charset=utf-8" }));
+    link = document.createElement("a");
+    link.href = url;
+    link.download = result.name;
+    document.body.appendChild(link);
+    link.click();
+    return { ok: true, name: result.name };
+  } catch {
+    return { ok: false, errors: ["浏览器未能发起下载，请重试。"] };
+  } finally {
+    link?.remove();
+    const capturedUrl = url;
+    if (capturedUrl) window.setTimeout(() => URL.revokeObjectURL(capturedUrl), 60_000);
+  }
 };

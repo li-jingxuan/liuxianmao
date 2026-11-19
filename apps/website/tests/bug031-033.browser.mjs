@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { openScorePng } from "./score-file-actions.browser.cjs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -10,7 +11,7 @@ const viteRequire = createRequire(require.resolve("vitest/package.json"));
 const { createServer } = await import(pathToFileURL(viteRequire.resolve("vite")).href);
 const { chromium } = await import(process.env.LXM_PLAYWRIGHT_MODULE ?? "playwright");
 const website = fileURLToPath(new URL("..", import.meta.url));
-const output = path.resolve(website, "../../output/playwright/bug031-033");
+const output = process.env.LXM_CHORD_ARTIFACTS ?? path.resolve(website, "../../output/playwright/bug031-033");
 const server = await createServer({
   root: website, configFile: false, define: nextBrowserDefines,
   cacheDir: path.resolve(website, "node_modules/.vite/bug031-033"),
@@ -39,7 +40,8 @@ try {
   const sidebar = page.getByRole("complementary", { name: "编辑器属性" });
   const svg = page.getByRole("application", { name: "六线谱编辑器" });
   const popover = page.locator("#chord-edit-popover");
-  const popup = page.locator(".ant-dropdown:not(.ant-dropdown-hidden)");
+  const library = page.getByRole("dialog", { name: /^和弦库/ });
+  const search = library.getByRole("textbox", { name: "库内搜索全部和弦", exact: true });
   const button = (root, name) => root.getByRole("button", { name: /^\p{Script=Han}{2}$/u.test(name) ? new RegExp(`^${[...name].join("\\s*")}$`) : name, exact: true });
   await sidebar.waitFor({ timeout: 90000 });
   const snapshot = () => page.evaluate(() => ({ document: window.coexistStore.getState().document, history: window.coexistStore.getState().historyDepth }));
@@ -48,48 +50,47 @@ try {
   const open = async () => {
     await svg.getByText(chord.chord.name, { exact: true }).first().click();
     await page.locator("#chord-popover-name").waitFor();
-    await button(popover, "更多和弦").click();
-    await popup.getByRole("textbox", { name: "搜索全部和弦", exact: true }).waitFor();
   };
+  const opener = button(popover, "和弦库");
   await open();
-  await popup.getByRole("textbox", { name: "搜索全部和弦", exact: true }).fill("Bm");
-  await popup.getByText("Bm", { exact: true }).waitFor();
-  await page.screenshot({ path: path.join(output, "more-chords.png"), animations: "disabled" });
+  await opener.click();
+  await search.fill("Bm");
+  await library.getByTestId("chord-library-scroll").getByText("Bm", { exact: true }).waitFor();
+  await page.screenshot({ path: path.join(output, "chord-library-search.png"), animations: "disabled" });
   await page.keyboard.press("Escape");
-  await popup.waitFor({ state: "hidden" });
-  assert.equal(await button(popover, "更多和弦").evaluate(node => node === document.activeElement), true);
+  await library.waitFor({ state: "hidden" });
+  await page.waitForFunction(node => node === document.activeElement, await opener.elementHandle());
   assert.deepEqual(await snapshot(), baseline);
-  checks.push("更多和弦可搜索，Escape 关闭并恢复触发按钮焦点，文档与历史不变");
-  await button(popover, "更多和弦").click();
-  await popup.getByRole("textbox").waitFor();
-  await button(popup, "和弦库").click();
-  const library = page.getByRole("dialog", { name: /^和弦库/ });
+  checks.push("和弦库可搜索，Escape 关闭并恢复触发按钮焦点，文档与历史不变");
+  await opener.click();
   await library.waitFor();
+  await library.evaluate(async node => {
+    await Promise.all(node.getAnimations().map(animation => animation.finished.catch(() => {})));
+  });
+  await page.waitForFunction(node => node === document.activeElement, await search.elementHandle());
+  await library.getByLabel("临时浏览主音", { exact: true }).click();
+  await page.locator(".ant-select-dropdown:visible").getByText("D", { exact: true }).click();
   await library.getByLabel("临时浏览大小调", { exact: true }).click();
   await library.getByLabel("临时浏览大小调", { exact: true }).press("ArrowDown");
   await library.getByLabel("临时浏览大小调", { exact: true }).press("Enter");
   await button(library, "取消").click();
   await library.waitFor({ state: "hidden" });
-  checks.push("更多进入和弦库、Select 弹层与取消恢复正常");
-  // Closing the floating surface while its nested dropdown is open exercises
-  // the detached-trigger lifecycle reported by BUG-031 and BUG-032.
+  checks.push("快捷入口打开和弦库，Select 弹层与取消恢复正常");
   for (let i = 0; i < 3; i++) {
-    await button(popover, "更多和弦").click();
-    await popup.getByRole("textbox").waitFor();
+    await opener.click();
+    await search.waitFor();
+    await page.keyboard.press("Escape");
+    await library.waitFor({ state: "hidden" });
     await button(popover, "关闭快捷编辑").click();
     await page.locator("#chord-popover-name").waitFor({ state: "detached" });
-    await svg.getByText(chord.chord.name, { exact: true }).first().click();
-    await page.locator("#chord-popover-name").waitFor();
+    await open();
   }
-  checks.push("嵌套下拉打开时反复关闭和重新打开快捷编辑");
-  await button(popover, "更多和弦").click();
-  await popup.getByRole("textbox").waitFor();
+  checks.push("反复退出和弦库、关闭并重新打开快捷编辑");
   await sidebar.getByRole("tab", { name: "歌曲", exact: true }).click();
   await page.locator("#chord-popover-name").waitFor({ state: "detached" });
-  await svg.getByText(chord.chord.name, { exact: true }).first().click();
-  await page.locator("#chord-popover-name").waitFor();
+  await open();
   assert.deepEqual(await snapshot(), baseline);
-  checks.push("嵌套下拉打开时切换侧栏，再进入和弦编辑，草稿链路与历史正常");
+  checks.push("切换侧栏再进入和弦编辑，草稿链路与历史正常");
   const renderedChords = () => page.evaluate(() => {
     const svg = document.querySelector('svg[role="application"]');
     const key = Object.keys(svg).find(key => key.startsWith("__reactFiber$"));
@@ -118,7 +119,7 @@ try {
   checks.push("仅名称立即隐藏全谱指法图，名称、未提交草稿、文档与历史保持，打印层同步更新");
   // Clear the name draft before opening the real PNG output surface.
   await sideName.fill(chord.chord.name);
-  await page.getByRole("button", { name: "导出 A4 图片", exact: true }).click();
+  await openScorePng(page);
   const exportDialog = page.getByRole("dialog").filter({ has: page.locator("[data-image-export-status]") });
   await exportDialog.locator('[data-image-export-status="ready"]').waitFor();
   await exportDialog.getByRole("button", { name: "仅生成当前页", exact: true }).click();

@@ -78,20 +78,6 @@ const draft: ChordDraft = {
   chord: { name: "Bm", diagram: null },
 };
 describe("和弦库与两处入口", () => {
-  it.each([
-    [committed(), "C大调·和弦推荐"],
-    [committed("A", "minor"), "A小调·和弦推荐"],
-    [committed(null), "常用和弦推荐"],
-  ])("侧栏使用统一推荐标题且不再提供设置调性入口 %#", (document, title) => {
-    const onOpenSettings = vi.fn();
-    const html = renderToStaticMarkup(<ChordPresetControls
-      draft={draft} document={document} presetsEnabled presentation="sidebar"
-      onChange={vi.fn()} onOpenSettings={onOpenSettings} />);
-    expect(html).toContain(`<h3>${title}</h3>`);
-    expect(html).not.toContain("设置调性");
-    expect(html).not.toContain("曲谱 C大调");
-    expect(onOpenSettings).not.toHaveBeenCalled();
-  });
   it.each([committed(), committed(null)])("和弦库移除曲谱调性设置入口，保留临时调性浏览 %#", document => {
     const onOpenSettings = vi.fn();
     const html = renderToStaticMarkup(<ChordLibraryModal draft={draft} document={document} presetsEnabled
@@ -462,23 +448,34 @@ describe("和弦库与两处入口", () => {
     expect(html.match(/aria-label="指法图预览"/g)).toHaveLength(catalog.items.length);
     expect(html).not.toContain("保存常用配置");
   });
-  it("固定更多、我的常用与全库加载来自同一资源，名称 Bm 不替换入口文字", () => {
+  it.each([
+    [committed("D", "major", "D"), "1=D", ["D", "A", "Bm", "G", "Em", "F#m", "A7", "Dmaj7"]],
+    [committed(null, "major", "D"), "1=D", ["D", "A", "Bm", "G", "Em", "F#m", "A7", "Dmaj7"]],
+    [committed("A", "minor"), "1=C", ["Am", "Dm", "E", "C", "G", "F", "Em", "E7"]],
+    [committed(null, "major", null), null, []],
+    [committed("D"), null, []],
+  ] as const)("常用卡片按谱面调性展示名称与指法 %#", (document, signature, names) => {
     const onChange = vi.fn();
+    const original = structuredClone(document);
     const html = renderToStaticMarkup(
       <ChordPresetControls
         draft={draft}
-        document={committed()}
+        document={document}
         presetsEnabled
-        presentation="quick"
+        onOpenLibrary={vi.fn()}
         onChange={onChange}
       />,
     );
-    expect(html).toContain('aria-label="更多和弦"');
-    expect(html).toContain("<span>更多</span>");
-    expect(html).not.toContain("更多 ⌄");
-    expect(html).toContain("本调常用和弦");
+    expect(html).toContain('aria-label="和弦库"');
+    expect(html).not.toContain('aria-label="更多和弦"');
+    expect([...html.matchAll(/aria-label="([^"]+)" aria-pressed=/g)].map(match => match[1])).toEqual(names);
+    expect(html.match(/aria-label="指法图预览"/g) ?? []).toHaveLength(names.length);
+    if (signature) expect(html).toContain(signature);
+    else expect(html).not.toContain("1=");
+    expect(html).not.toMatch(/大调|小调/);
     expect(html).not.toContain("和弦库加载中");
     expect(onChange).not.toHaveBeenCalled();
+    expect(document).toEqual(original);
   });
   it("收藏在没有 HTTP 目录时仍可独立浏览", () => {
     state.snapshot = { status: "error", catalog: null, error: "offline" };

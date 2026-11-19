@@ -1,5 +1,6 @@
 /* 真实应用回归：通过文件导入、谱面指针与可访问按钮操作，不注入 store。 */
 const assert = require("node:assert/strict");
+const { downloadScoreJson, openScoreImport, confirmScoreImport, openScorePng } = require("../apps/website/tests/score-file-actions.browser.cjs");
 const fs = require("node:fs/promises");
 const path = require("node:path");
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
@@ -68,14 +69,12 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
       })),
     }));
     const importFixture = async () => {
-      await page.locator('input[type="file"]').setInputFiles({
+      await openScoreImport(page, {
         name: "toolbar-history.lxm",
         mimeType: "application/json",
         buffer: Buffer.from(JSON.stringify(fixture)),
       });
-      await page
-        .getByRole("button", { name: "导入并替换", exact: true })
-        .click();
+      await confirmScoreImport(page);
       await page
         .getByText("工具栏历史功能回归", { exact: true })
         .first()
@@ -83,9 +82,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
       await page.waitForTimeout(150);
     };
     const exported = async () => {
-      const waiting = page.waitForEvent("download");
-      await page.getByRole("button", { name: "导出曲谱", exact: true }).click();
-      const download = await waiting;
+      const download = await downloadScoreJson(page);
       return JSON.parse(await fs.readFile(await download.path(), "utf8"));
     };
     await importFixture();
@@ -395,7 +392,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     record("无fit/100%控件、固定780基准宽度随宿主自动适配", { wideScale, narrowScale, ...narrowPaper });
 
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.getByRole("button", { name: "导出 A4 图片" }).click();
+    await openScorePng(page);
     await page
       .getByRole("button", { name: "生成全部图片", exact: true })
       .click();

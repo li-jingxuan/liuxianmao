@@ -297,11 +297,12 @@ export const ScoreSettings = ({ ref, document, measureId, requestedMeasureId = m
     kind: "settings" as const,
     targetKey: group === "label" ? `${state.sessionId}:${state.measureId ?? "missing"}` : String(state.sessionId),
     label: labels[group], location: group === "label" ? "选区 → 小节" : "歌曲",
-    // 歌曲输入只由区内应用提交，不进入全局草稿确认或批量应用。
-    dirty: group === "label" && status.groups[group].dirty,
+    // 歌曲草稿保护文件操作，离开歌曲页签时仍沿用既有的放弃规则。
+    fileOnly: group !== "label",
+    dirty: status.groups[group].dirty,
     composing: compositionActive && (status.groups[group].dirty || activeGroup === group),
     canApply: group === "label" && status.groups[group].canApply,
-    error: group === "label" && status.groups[group].dirty ? issues[group] || status.groups[group].blockedReason : null, version: renderVersion,
+    error: status.groups[group].dirty ? issues[group] || status.groups[group].blockedReason : null, version: renderVersion,
     inputKey: `${state.generation}:${group}`,
     focus: () => focus(group), apply: ({ isCurrent }: { isCurrent: () => boolean }) => isCurrent() ? apply(group) ? "applied" as const : "blocked" as const : "stale" as const,
     discard: () => restoreGroup(group),

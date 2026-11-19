@@ -51,7 +51,7 @@ function view(name = "C", presetsEnabled = true) {
 }
 
 describe("和弦草稿编辑布局", () => {
-  it.each(["", "   "])("空拍 %j 的顶部只显示空状态，自定义入口留在表单且应用禁用", (name) => {
+  it.each(["", "   "])("空拍 %j 显示空状态，自定义入口留在表单且应用禁用", (name) => {
     const onOpenCustom = vi.fn();
     const onChange = vi.fn();
     const tree = ChordEditor({
@@ -77,7 +77,7 @@ describe("和弦草稿编辑布局", () => {
     const apply = elements.find((element) => element.type === Button && element.props.children === "应用")!;
     expect(apply.props.disabled).toBe(true);
     expect(renderToStaticMarkup(tree)).toContain('aria-label="和弦名称"');
-    expect(renderToStaticMarkup(tree)).toContain("本调常用和弦");
+    expect(renderToStaticMarkup(tree)).toContain('aria-label="常用和弦"');
     expect(onChange).not.toHaveBeenCalled();
   });
 
@@ -95,9 +95,9 @@ describe("和弦草稿编辑布局", () => {
     });
     for (const preview of previews.slice(0, 3)) {
       expect(preview).not.toContain("尚未配置和弦");
-      expect(preview).toContain("标准调弦");
+      expect(preview).toContain("当前指法");
     }
-    expect(previews[0]).toContain("尚未设置指法");
+    expect(previews[0]).toContain("暂无指法");
     expect(previews[0]).toContain("自定义指法");
     expect(previews[1]).toContain("未命名");
     expect(previews[1]).toContain('aria-label="指法图预览"');
@@ -158,7 +158,7 @@ describe("和弦草稿编辑布局", () => {
     },
   );
 
-  it("两处入口复用受控常用配置，首载不以旧预设兜底，更多名称固定", () => {
+  it("侧栏复用受控常用和弦，首载保留完整和弦库入口", () => {
     const value = view("Bm");
     const control = value.elements.find(
       (element) => element.type === ChordPresetControls,
@@ -166,11 +166,10 @@ describe("和弦草稿编辑布局", () => {
     expect(control.props.draft).toBe(value.draft);
     expect(control.props.onChange).toBe(value.onChange);
     const html = renderToStaticMarkup(value.tree);
-    expect(html).toContain("本调常用和弦");
-    expect(html).not.toContain('aria-label="更多和弦"');
-    expect(html).toContain("更多配置");
-    expect(html).not.toContain("更多 ⌄");
-    expect(html).toContain("曲谱调性未确认，可在和弦库中临时选择调性浏览");
+    expect(html).toContain('aria-label="和弦库"');
+    expect(html).toContain("可在和弦库选择调性浏览");
+    expect(html.indexOf('aria-label="和弦名称"')).toBeLessThan(html.indexOf('aria-label="常用和弦"'));
+    expect(html.indexOf('aria-label="常用和弦"')).toBeLessThan(html.indexOf('aria-label="和弦预览"'));
     expect(html).toContain("和弦库加载中");
     expect(value.onChange).not.toHaveBeenCalled();
   });

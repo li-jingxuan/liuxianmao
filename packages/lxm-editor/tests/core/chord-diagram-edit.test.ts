@@ -84,6 +84,26 @@ describe("指法编辑的纯原子事务", () => {
     moved.strings[1]!.fret = 11;
     expect(validateChordDiagramIssues(moved).map((i) => i.code)).toContain("span");
   });
+  it("平移窗口时保持按点、横按和原有手指的相对位置", () => {
+    const before = open();
+    before.strings[5]!.fret = "x";
+    const chord = success(editChordDiagram(before, { type: "add-barre", barre: { fret: 2, minString: 1, maxString: 4, finger: 1 } })).diagram;
+    const moved = success(editChordDiagram(chord, { type: "shift-window", startFret: 20 })).diagram;
+    expect(moved.strings.map((s) => [s.fret, s.finger])).toEqual([[21, 1], [21, 1], [21, 1], [21, 1], [0, null], ["x", null]]);
+    expect(moved.barres).toEqual([{ fret: 21, minString: 1, maxString: 4, finger: 1 }]);
+    expect(success(editChordDiagram(moved, { type: "shift-window", startFret: 1 })).diagram).toEqual(chord);
+    expect(editChordDiagram(chord, { type: "shift-window", startFret: 21 }).ok).toBe(false);
+  });
+  it("仅草稿可擦除最后一根发声弦", () => {
+    const before = open();
+    before.strings.slice(1).forEach((string) => { string.fret = "x"; });
+    const intent = { type: "set-string", string: 1, fret: "x" } as const;
+    expect(editChordDiagram(before, intent).ok).toBe(false);
+    const edited = editChordDiagram(before, intent, { allowSilent: true });
+    expect(edited.ok).toBe(true);
+    if (!edited.ok) throw new Error("草稿编辑失败");
+    expect(validateChordDiagramIssues(edited.diagram).map((issue) => issue.code)).toEqual(["silent"]);
+  });
   it("非法中间值与 TAB '-' 有字段定位，旧 validator 保持第一条文案", () => {
     const before = open(); before.strings[2]!.fret = Number.NaN;
     before.strings[4]!.fret = "-" as unknown as number;

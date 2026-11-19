@@ -15,23 +15,16 @@
 }
 
 .dialog {
-  width: min(480px, calc(100vw - 32px));
-  max-height: calc(100vh - 32px);
-  padding: 24px;
-  border: 1px solid #c9ced8;
-  border-radius: 12px;
-  background: #fff;
-  color: #1d2025;
-  &::backdrop {
-    background: rgb(0 0 0 / 45%);
-  }
+  max-width: calc(100vw - 32px);
+  :global(.ant-modal-container) { max-height: calc(100dvh - 32px); overflow-y: auto; }
+  :global(.ant-select-dropdown) { pointer-events: auto; }
   h2 {
-    margin: 0 0 18px;
+    margin: 0;
     font-size: 20px;
   }
   dl {
     display: grid;
-    grid-template-columns: 58px 1fr;
+    grid-template-columns: max-content minmax(0, 1fr);
     gap: 10px;
     margin: 0;
   }
@@ -45,6 +38,42 @@
 }
 .actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 10px;
+  margin-top: 18px;
+}
+
+.newFields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+
+  > :global(.ant-form-item) { min-width: 0; margin-bottom: 0; }
+}
+
+.titleField { grid-column: 1 / -1; }
+
+.tuningPitches {
+  display: block;
+  color: rgb(0 0 0 / 65%);
+}
+
+.dropZone {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 14px;
+  margin-bottom: 16px;
+  border: 1px dashed #8995a8;
+  border-radius: 8px;
+  background: #f4f6fa;
+  text-align: center;
+  p { margin: 0; }
+  small { color: #626e82; }
+}
+
+@media (max-width: 480px) {
+  .dialog :global(.ant-modal-container) { padding: 16px; }
+  .newFields { grid-template-columns: 1fr; gap: 10px; }
 }

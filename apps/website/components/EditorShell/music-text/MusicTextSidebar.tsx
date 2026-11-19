@@ -36,6 +36,7 @@ import { Button, ConfigProvider, Segmented, Tabs, type TabsProps } from "antd";
 import {
   createCollapsedTabCellSelection,
   getLyricVerseCount,
+  getMusicTextRows,
   LXMScoreCommandEnum,
   normalizeMusicText,
   parseLyricSequence,
@@ -101,7 +102,8 @@ import type {
 import type { EditorCommandAdapter } from "../session/editor-command-adapter";
 import { NoteToolDetails } from "../tools/NoteToolDetails";
 import { MeasureToolDetails } from "../tools/MeasureToolDetails";
-import { TupletToolDetails } from "../tools/TupletToolDetails";
+import { TupletToolbar } from "../tools/TupletToolbar";
+import { SidebarRhythmPatternPanel } from "../tools/RhythmPatternPanel";
 import { resolveParagraphInsertionTarget, resolveParagraphLyricTarget } from "./music-text-target";
 
 export type ParagraphEditingSession = {
@@ -203,6 +205,7 @@ export const MusicTextSidebar = ({
     () => null,
   );
   const score = useEditorStore((s) => s.document);
+  const textRows = useMemo(() => score ? getMusicTextRows(score) : null, [score]);
   const selection = useEditorStore((s) => s.selection);
   const numberedSelection = useEditorStore((s) => s.numberedSelection);
   const selectedNumberedMarkId = useEditorStore(
@@ -213,7 +216,7 @@ export const MusicTextSidebar = ({
   // 一级栏目只负责组织界面；真实业务目标仍由 kind 和现有草稿闸门维护。
   const [propertyTab, setPropertyTab] = useState<PropertyTab>("selection");
   const [selectionDetail, setSelectionDetail] =
-    useState<"note" | "measure" | "tuplet">("note");
+    useState<"note" | "measure">("note");
   const [detailTarget, setDetailTarget] = useState<MeasureToolTarget>();
   const [detailFocus, setDetailFocus] = useState(0);
   const [selectionToolsRequested, setSelectionToolsRequested] = useState(false);
@@ -266,8 +269,6 @@ export const MusicTextSidebar = ({
   }, [pending]);
   const [message, setMessage] = useState<string | null>(null);
   const [textConflict, setTextConflict] = useState(false);
-  const [chordPresetMenuOrigin, setChordPresetMenuOrigin] = useState<"quick" | "sidebar" | null>(null);
-  const chordPresetMenuOpen = chordPresetMenuOrigin !== null;
   const inputRef = useRef<HTMLInputElement>(null);
   const popoverInputRef = useRef<HTMLInputElement>(null);
   const lyricFocusSurface = useRef<LyricFocusSurface>("popover");
@@ -343,11 +344,12 @@ export const MusicTextSidebar = ({
   const paragraphTrackId = propertyTab === "paragraph" ? paragraphSource?.trackId : undefined;
   const paragraphMeasureId = propertyTab === "paragraph" ? paragraphSource?.measureId : undefined;
   const paragraphVerse = score && lyricVerse <= getLyricVerseCount(score) ? lyricVerse : 1;
+  const paragraphRowAvailable = textSession || (kind === "numbered" ? textRows?.numbered : !!textRows?.lyricVerses);
   useEffect(() => {
-    onParagraphEditingChange?.(paragraphTrackId && paragraphMeasureId && (kind === "lyric" || kind === "numbered")
+    onParagraphEditingChange?.(paragraphRowAvailable && paragraphTrackId && paragraphMeasureId && (kind === "lyric" || kind === "numbered")
       ? { trackId: paragraphTrackId, measureId: paragraphMeasureId, kind, verse: paragraphVerse }
       : null);
-  }, [onParagraphEditingChange, paragraphTrackId, paragraphMeasureId, kind, paragraphVerse]);
+  }, [onParagraphEditingChange, paragraphRowAvailable, paragraphTrackId, paragraphMeasureId, kind, paragraphVerse]);
   const numberedEntry = score ? resolveNumberedEditorTarget(score,
     numberedSelection ?? selection?.focus ?? null) : null;
   const target =
@@ -644,7 +646,6 @@ export const MusicTextSidebar = ({
     if (propertyTab === "song" && settingsRef.current?.discardSong() === false) return false;
     setPending(null);
     ownerGeneration.current += 1;
-    setChordPresetMenuOrigin(null);
     activeTextOwner.current = false;
     draftRegistrationRef.current?.invalidateOwner();
     if (action.type === "target") {
@@ -680,7 +681,7 @@ export const MusicTextSidebar = ({
           action.destination === "section" ? "label" : "copy";
       } else {
         setPropertyTab("selection");
-        setSelectionDetail(action.destination === "barline" ? "measure" : action.destination);
+        setSelectionDetail(action.destination === "barline" ? "measure" : action.destination === "tuplet" ? "note" : action.destination);
       }
       setDetailFocus((value) => value + 1);
       onExpandSidebar();
@@ -822,7 +823,7 @@ export const MusicTextSidebar = ({
     }
     if (action.type === "tool" && propertyTab === "selection") {
       const destination = action.destination === "barline" || action.destination === "section" || action.destination === "copy"
-        ? "measure" : action.destination;
+        ? "measure" : action.destination === "tuplet" ? "note" : action.destination;
       const bound = settingsRef.current?.readStatus().measureId;
       const sameMeasure = !action.target || (action.target.measureId === (bound ?? detailTarget?.measureId ?? numberedSelection?.measureId ?? selection?.focus.measureId) &&
         action.target.trackId === (detailTarget?.trackId ?? numberedSelection?.trackId ?? selection?.focus.trackId));
@@ -912,14 +913,12 @@ export const MusicTextSidebar = ({
     activeTextOwner.current = !!value;
     baseline.current = current.document;
     setDraft(value);
-    setActiveObject(value?.target ?? null);
     setInputEditing(false);
     setTextConflict(false);
     setMessage(null);
-    setChordPresetMenuOrigin(null);
     setSurface("sidebar");
     focusDestination.current = "score";
-  }, [selection, numberedSelection, continuousRange, propertyTab, activeModal, pending, editorStore]);
+  }, [selection, numberedSelection, continuousRange, propertyTab, activeObject, activeModal, pending, editorStore]);
   const cancelTextEditing = (): SelectionRequestResult => {
     if (surfaceBlocked()) return "blocked";
     if (kind === "lyric" || kind === "numbered") {
@@ -1078,10 +1077,10 @@ export const MusicTextSidebar = ({
     ref: floatingPanelRef,
     geometry,
   } = useMusicTextFloatingPanel({
-    open: floating && !dismissed,
+    open: floating && (!dismissed || chordModalActive),
     allowNarrowing: kind !== "chord",
     targetKey,
-    freeze: compositionActive || compositionCooling || !!pending || numberedBusy,
+    freeze: compositionActive || compositionCooling || !!pending || numberedBusy || chordModalActive,
     getAnchor: useCallback(
       () => getFloatingAnchor(activeObject),
       [getFloatingAnchor, activeObject],
@@ -1545,7 +1544,7 @@ export const MusicTextSidebar = ({
     paused.version = captureEditorVersion(editorStore.getState());
     setDraft({ ...paused.draft });
   };
-  const openChordModal = (mode: "library" | "custom", tab: ChordLibraryTab = "all", seed?: ChordDraft) => {
+  const openChordModal = (mode: "library" | "custom", tab: ChordLibraryTab = "all", seed?: ChordDraft, trigger?: HTMLElement) => {
     const parent = draftLive.current;
     if (!parent || parent.target.kind !== "chord" || surfaceBlocked() || suspendedChord.current ||
       !score || !track) return;
@@ -1561,15 +1560,19 @@ export const MusicTextSidebar = ({
     const tuning = track.tuning.strings;
     const focused = document.activeElement;
     const parentSurface = surface === "popover" ? floatingPanelRef.current : document.querySelector<HTMLElement>("#music-text-sidebar");
-    const opener = focused instanceof HTMLElement && parentSurface?.contains(focused)
-      ? focused : parentSurface?.querySelector<HTMLElement>('[aria-label="更多和弦"]');
+    const opener = trigger ?? (focused instanceof HTMLElement && parentSurface?.contains(focused) ? focused : null);
     const restore = () => {
-      if (opener?.isConnected && !opener.closest("[hidden],[inert]") && opener.getClientRects().length) {
-        opener.focus({ preventScroll: true }); return;
-      }
-      const input = surface === "popover" ? popoverInputRef.current : inputRef.current;
-      if (input?.isConnected && input.getClientRects().length) input.focus({ preventScroll: true });
-      else onScoreFocus();
+      requestAnimationFrame(() => {
+        if (modals.isOpen()) return;
+        if (opener?.isConnected && !opener.closest('[hidden],[inert],[aria-hidden="true"]') && opener.getClientRects().length) {
+          opener.focus({ preventScroll: true });
+          return;
+        }
+        const input = surface === "popover" ? popoverInputRef.current : inputRef.current;
+        if (input?.isConnected && !input.closest('[hidden],[inert],[aria-hidden="true"]') && input.getClientRects().length)
+          input.focus({ preventScroll: true });
+        else onScoreFocus();
+      });
     };
     const openSurface = (nextMode: "library" | "custom", value: ChordDraft): boolean => {
       if (!chordSession.isCurrent(token)) return failedHandoff();
@@ -1629,9 +1632,8 @@ export const MusicTextSidebar = ({
   const chordLibraryProps = {
     document: score ?? undefined, tuning: track?.tuning.strings, showChordDiagrams,
     onShowChordDiagramsChange,
-    onOpenLibrary: (tab?: ChordLibraryTab, seed?: ChordDraft) => openChordModal("library", tab, seed),
+    onOpenLibrary: (trigger: HTMLElement) => openChordModal("library", "all", undefined, trigger),
     onOpenCustom: (seed?: ChordDraft) => openChordModal("custom", "all", seed),
-    onOpenSettings: () => { if (!surfaceBlocked()) suspendForSettings(); },
   };
   const selectionTrack = score?.score.tracks.find(
     (track) => track.id === selection?.focus.trackId,
@@ -1653,7 +1655,7 @@ export const MusicTextSidebar = ({
     if (surfaceBlocked() || !draft || draft.target.kind !== "lyric") return;
     const current = editorStore.getState().document;
     if (!current || getLyricVerseCount(current) >= 4) return;
-    const result = commit({ type: LXMScoreCommandEnum.AddLyricVerse });
+    const result = commit({ type: LXMScoreCommandEnum.AddLyricVerse, ...(getMusicTextRows(current).lyricVerses ? {} : { first: true }) });
     if (result?.ok && result.changed) {
       ownerGeneration.current += 1;
       draftRegistrationRef.current?.invalidateOwner();
@@ -1838,13 +1840,6 @@ export const MusicTextSidebar = ({
             return;
           }
           if (modals.isOpen() || suspendedChord.current) return;
-          if (e.key === "Escape" && chordPresetMenuOpen) {
-            e.preventDefault();
-            setChordPresetMenuOrigin(null);
-            const panel = chordPresetMenuOrigin === "quick" ? floatingPanelRef.current : document.querySelector<HTMLElement>("#music-text-sidebar");
-            panel?.querySelector<HTMLButtonElement>('button[aria-label="更多和弦"]')?.focus({ preventScroll: true });
-            return;
-          }
           // Select 自己处理方向键、Enter 和 Esc，不能把关闭下拉框解释成退出编辑。
           if (
             e.target instanceof Element &&
@@ -1996,7 +1991,7 @@ export const MusicTextSidebar = ({
             ) : score && onToolAction && executeTool ? (
               <>
                 <Segmented className={musicTextSidebarStyles.selectionTaskTabs} block aria-label="选区任务" value={selectionDetail}
-                  options={[{value:"note",label:"音符"},{value:"measure",label:"小节"},{value:"tuplet",label:"连音"}]}
+                  options={[{value:"note",label:"音符"},{value:"measure",label:"小节"}]}
                   onChange={(destination) => {
                     const state = editorStore.getState();
                     request({ type: "tool", kind: "score", destination: destination as ToolNavigation,
@@ -2016,7 +2011,15 @@ export const MusicTextSidebar = ({
                     selection={selection}
                     blocked={editing}
                     onAction={onToolAction}
+                    tupletTools={<section className={musicTextSidebarStyles.inlineTupletTools} aria-label="连音">
+                      <h3>连音</h3>
+                      <TupletToolbar document={score} selection={numberedSelection ? null : selection}
+                        presentation="sidebar" execute={executeTool} blocked={editing}
+                        blockedReason={numberedSelection ? "简谱暂不支持连音，请选择 TAB 同小节内连续拍点。" : undefined}
+                        onSuccess={onScoreFocus} />
+                    </section>}
                   />
+                  <SidebarRhythmPatternPanel />
                 </div>
                 <div
                   data-selection-detail="measure"
@@ -2047,25 +2050,6 @@ export const MusicTextSidebar = ({
                         sessionVersion: editorStore.getState().sessionVersion,
                       })
                     }
-                  />
-                </div>
-                <div
-                  data-selection-detail="tuplet"
-                  hidden={selectionDetail !== "tuplet"}
-                >
-                  <TupletToolDetails
-                    document={score}
-                    selection={selection}
-                    numberedSelection={numberedSelection}
-                    onEditNumberedRhythm={(target) => {
-                      if (request({ type: "target", target }) === "accepted") {
-                        surfaceFocusGroup.current = "rhythm";
-                        onExpandSidebar();
-                        requestAnimationFrame(() => numberedRef.current?.focus("rhythm"));
-                      }
-                    }}
-                    blocked={editing}
-                    execute={executeTool}
                   />
                 </div>
               </>
@@ -2147,6 +2131,16 @@ export const MusicTextSidebar = ({
                 }
               }}
             />
+          )}
+          {propertyTab === "paragraph" && textRows && (kind === "numbered" ? !textRows.numbered : !textRows.lyricVerses && !draft) && (
+            <div className={musicTextSidebarStyles.paragraphRowAction}>
+              <Button size="small" disabled={surfaceDisabled} onClick={() => {
+                if (surfaceBlocked()) return;
+                commit(kind === "numbered" ? { type: LXMScoreCommandEnum.AddNumberedRow } : { type: LXMScoreCommandEnum.AddLyricVerse, first: true });
+              }}>
+                {kind === "numbered" ? "添加简谱行" : "添加歌词段落"}
+              </Button>
+            </div>
           )}
           {propertyTab === "paragraph" && kind === "numbered" && !textSession && (
             <div className={musicTextSidebarStyles.sidebarEmpty}>
@@ -2276,8 +2270,6 @@ export const MusicTextSidebar = ({
                     onRemove={remove}
                     canRemove={!!existing || !!draft.chord.chord.name || !!draft.chord.chord.diagram}
                     disabled={surfaceDisabled}
-                    presetMenuOpen={chordPresetMenuOrigin === "sidebar"}
-                    onPresetMenuOpenChange={(open) => setChordPresetMenuOrigin((origin) => open ? "sidebar" : origin === "sidebar" ? null : origin)}
                     inputRef={(element) => {
                       inputRef.current = element;
                     }}
@@ -2480,8 +2472,6 @@ export const MusicTextSidebar = ({
              />}
              {floating && kind === "chord" && draft && <div inert={(compositionActive || compositionCooling) && compositionOrigin === "sidebar"}>
                  <ChordQuickEditor
-                  presetMenuOpen={chordPresetMenuOrigin === "quick"}
-                  onPresetMenuOpenChange={(open) => setChordPresetMenuOrigin((origin) => open ? "quick" : origin === "quick" ? null : origin)}
                   {...chordLibraryProps}
                  draft={draft.chord}
                   allowEmptyName={!!existing}

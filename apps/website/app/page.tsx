@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { HomeScoreActions } from "./HomeScoreActions";
 import styles from "./page.module.scss";
 
 const HomePage = () => (
@@ -21,11 +22,7 @@ const HomePage = () => (
         <h1>欢迎来到六线猫</h1>
         <p>把旋律写下来，<br />让每一次练习都有回响。</p>
         <div className={styles.actions}>
-          <Link className={styles.primary} href="/editor">
-            打开曲谱编辑器
-            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h12m-5-5 5 5-5 5" /></svg>
-          </Link>
-          <Link className={styles.secondary} href="/guitar-advanced">进入吉他进阶</Link>
+          <HomeScoreActions />
         </div>
         <div className={styles.capabilities}>六线谱<span>简谱</span><span>歌词</span><span>和弦指法</span></div>
       </div>

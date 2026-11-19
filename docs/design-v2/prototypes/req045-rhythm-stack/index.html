@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>REQ-045 节奏型交互稿</title>
+  <style>
+    :root { color-scheme: light; color: #202b3d; background: #f1f4f9; font: 13px/1.5 -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif; --border: #d7e0ed; --muted: #566983; --blue: #2456df; }
+    * { box-sizing: border-box; }
+    body { margin: 0 auto; padding: 16px; max-width: 760px; }
+    button, select { font: inherit; color: inherit; }
+    button { cursor: pointer; }
+    button:disabled { cursor: default; opacity: .5; }
+    :focus-visible { outline: 2px solid #1677ff; outline-offset: 2px; }
+    .mock-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+    .mock-controls label { color: var(--muted); }
+    .control, select { padding: 5px 10px; border-radius: 5px; border: 1px solid #aab8cd; background: #fff; }
+    .status { min-height: 20px; margin: 8px 0 0; color: var(--muted); }
+    .panel { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px 9px; container-type: inline-size; }
+    .sidebar { max-width: 366px; }
+    .popup { width: min(456px, calc(100vw - 24px)); max-width: none; max-height: calc(100dvh - 28px); padding-inline: 10px; overflow: auto; margin: auto; }
+    .popup::backdrop { background: rgb(27 42 63 / 21%); }
+    .header, .section-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
+    h2, h3, p { margin: 0; }
+    h2 { font-size: 16px; }
+    .sidebar h2 { font-size: 13px; }
+    .close { border: 0; background: none; font-size: 22px; color: var(--muted); line-height: 1; }
+    .rules { margin: 5px 0 8px; color: #79571d; font-size: 11px; }
+    .template-picker { max-height: 490px; padding: 0 3px 4px; margin-inline: -3px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+    .popup .template-picker { max-height: clamp(112px, 100dvh - 180px, 520px); scrollbar-gutter: stable; scrollbar-color: #aab8cd transparent; }
+    .template-picker:focus-visible { outline-offset: -2px; }
+    .section-heading { margin: 7px 0 5px; }
+    .section-heading h3 { font-size: 11px; font-weight: 600; color: var(--muted); }
+    .scope { font-size: 10px; color: var(--muted); white-space: nowrap; }
+    .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px 7px; }
+    .sidebar .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid[data-expanded="false"] .card[data-extra-three],
+    .sidebar .grid[data-expanded="false"] .card[data-extra-two] { display: none; }
+    .sidebar .grid[data-expanded="false"] .card[data-extra-three]:not([data-extra-two]) { display: block; }
+    .template-toggle { display: block; width: 100%; margin-top: 4px; padding: 4px; border: 0; background: transparent; color: var(--muted); font-size: 11px; }
+    .template-toggle:hover { color: var(--blue); }
+    .measure-heading { padding-top: 6px; border-top: 1px solid var(--border); }
+    .measure-list { display: grid; gap: 4px; }
+    .measure-list[data-expanded="false"] .card[data-extra] { display: none; }
+    .card { position: relative; min-width: 0; min-height: 45px; padding: 3px 7px 2px; border: 1px solid var(--border); border-radius: 5px; background: #fff; text-align: left; }
+    .card:hover { border-color: #6caaff; }
+    .card[aria-pressed="true"] { border-color: #1677ff; background: #f0f7ff; color: #0959ba; }
+    .card[aria-pressed="true"]::after { content: '✓'; position: absolute; right: 6px; top: 3px; color: #0959ba; font-size: 10px; }
+    .name { display: block; color: var(--muted); font-size: 11px; line-height: 16px; white-space: nowrap; }
+    .card[aria-pressed="true"] .name { color: inherit; }
+    .rhythm { display: block; width: 100%; height: 22px; }
+    .bar { display: grid; grid-template-columns: 6em minmax(0, 1fr); align-items: center; gap: 6px; padding-right: 19px; min-height: 34px; }
+    .popup .bar { grid-template-columns: 5.4rem minmax(0, 1fr); gap: 2px; padding-left: 5px; padding-right: 13px; }
+    .popup .bar .rhythm { height: 24px; }
+    .popup .bar[aria-pressed="true"]::after { right: 3px; top: 1px; }
+    .beats { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
+    .beats .rhythm + .rhythm { border-left: 1px solid #e6ecf4; }
+    .beats .rhythm-ink { transform-box: view-box; transform-origin: center; transform: scale(.8); }
+    .footer { border-top: 1px solid var(--border); padding-top: 8px; }
+    .impact { margin-bottom: 6px; padding: 4px 6px; border-radius: 4px; background: #fff8e8; color: #79571d; font-size: 11px; }
+    .footer-line { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: space-between; }
+    .destination { font-size: 11px; color: var(--muted); }
+    .actions { display: flex; gap: 6px; margin-left: auto; }
+    .primary { background: var(--blue); color: #fff; border-color: var(--blue); }
+    @container (max-width: 386px) {
+      .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .grid[data-expanded="false"] .card[data-extra-two] { display: none; }
+      .grid[data-expanded="false"] .card[data-extra-three]:not([data-extra-two]) { display: block; }
+    }
+    @container (max-width: 400px) { .name { font-size: 10px; } }
+  </style>
+</head>
+<body>
+  <div class="mock-controls">
+    <label for="meter">试用拍号</label>
+    <select id="meter"><option>4/4</option><option>3/4</option><option>6/8</option></select>
+    <button class="control" id="trigger" type="button">打开工具气泡</button>
+    <button class="control" id="undo" type="button" disabled>撤销应用</button>
+  </div>
+  <section class="panel sidebar" id="sidebar" aria-label="侧栏节奏型"></section>
+  <dialog class="panel popup" id="popup" aria-label="节奏型工具气泡"></dialog>
+  <p class="status" id="status" role="status"></p>
+  <script>
+    const simple = [
+      ['四分音符', [4]], ['两个八分', [2, 2]], ['前八后十六', [2, 1, 1]], ['前十六后八', [1, 1, 2]],
+      ['四个十六分', [1, 1, 1, 1]], ['附点八分＋十六', [3, 1]], ['小切分', [1, 2, 1]], ['十六＋附点八分', [1, 3]],
+      ['附点八分＋两三十二', [3, .5, .5]], ['两三十二＋附点八分', [.5, .5, 3]], ['八分＋四三十二', [2, .5, .5, .5, .5]], ['四三十二＋八分', [.5, .5, .5, .5, 2]],
+    ];
+    const compound = [
+      ['附点四分', [6]], ['三个八分', [2, 2, 2]], ['四分＋八分', [4, 2]], ['八分＋四分', [2, 4]], ['六个十六分', [1, 1, 1, 1, 1, 1]],
+      ['首个八分细分', [1, 1, 2, 2]], ['中间八分细分', [2, 1, 1, 2]], ['末个八分细分', [2, 2, 1, 1]], ['附点八＋十六＋八', [3, 1, 2]],
+    ];
+    const presets = {
+      '4/4': [
+        ['交替分解', [2, 4, 2, 4]], ['前后十六交替', [2, 3, 2, 3]], ['四分与分解', [0, 2, 0, 2]],
+        ['均匀八分', [1, 1, 1, 1]], ['均匀十六分', [4, 4, 4, 4]],
+        ['八十六交替', [1, 4, 1, 4]], ['四八交替', [0, 1, 0, 1]], ['附点推进', [5, 1, 5, 1]],
+        ['正反附点', [5, 7, 5, 7]], ['切分交替', [1, 6, 1, 6]], ['先疏后密', [0, 1, 2, 4]],
+        ['后半段加密', [1, 1, 4, 4]], ['四拍收束', [1, 2, 4, 0]], ['均匀四分', [0, 0, 0, 0]],
+      ],
+      '3/4': [
+        ['首拍四分', [0, 1, 1]], ['交替分解', [2, 4, 2]], ['前后十六交替', [2, 3, 2]],
+        ['均匀八分', [1, 1, 1]], ['均匀十六分', [4, 4, 4]], ['末拍细分', [1, 1, 4]], ['首拍附点', [5, 1, 1]],
+        ['中拍切分', [0, 6, 1]], ['先疏后密', [0, 1, 2]], ['均匀四分', [0, 0, 0]],
+      ],
+      '6/8': [
+        ['均匀八分', [1, 1]], ['长短交替', [2, 3]], ['首拍附点四分', [0, 1]], ['末拍附点四分', [1, 0]],
+        ['均匀附点四分', [0, 0]], ['均匀十六分', [4, 4]], ['末拍十六分', [1, 4]],
+        ['首末细分', [5, 7]], ['中间细分', [6, 6]], ['附点推进', [8, 1]],
+      ],
+    };
+    const byId = (id) => document.getElementById(id);
+    const meter = () => byId('meter').value;
+    const patterns = () => meter() === '6/8' ? compound : simple;
+    const measureTemplates = () => presets[meter()];
+    const performedNotes = { '4/4': [3, 2, 2, 2], '3/4': [3, 2, 2], '6/8': [3, 2] };
+    const current = () => state.applied[meter()] ?? performedNotes[meter()];
+    const state = { choice: 'beat-2', expanded: { beat: false, measure: false }, applied: {}, undo: [] };
+    const popup = byId('popup');
+    const ink = (values) => {
+      const xAt = (index) => values.length === 1 ? 72 : 19 + index * 106 / (values.length - 1);
+      const levels = values.map((value) => value < 1 ? 3 : value < 2 ? 2 : value <= 3 ? 1 : 0);
+      const marks = values.map((value, index) => {
+        const x = xAt(index);
+        const beams = Array.from({ length: levels[index] }, (_, level) => {
+          const y = 6 + level * 6;
+          if (levels[index + 1] > level) return `<path d="M${x} ${y}H${xAt(index + 1)}" stroke-width="3.5"/>`;
+          if (levels[index - 1] > level) return '';
+          const length = index === values.length - 1 && index ? -9 : 9;
+          return `<path d="M${x} ${y}h${length}" stroke-width="3.5"/>`;
+        }).join('');
+        return `<ellipse cx="${x - 4}" cy="32" rx="5" ry="3.4" transform="rotate(-18 ${x - 4} 32)" fill="currentColor"/><path d="M${x} 31V6" stroke="currentColor" stroke-width="1.5"/>${value === 3 || value === 6 ? `<circle cx="${x + 8}" cy="29" r="1.7" fill="currentColor"/>` : ''}<g stroke="currentColor">${beams}</g>`;
+      }).join('');
+      return `<svg class="rhythm" viewBox="0 0 144 39" aria-hidden="true"><g class="rhythm-ink">${marks}</g></svg>`;
+    };
+    const selectedBeats = () => {
+      const [kind, index] = state.choice.split('-');
+      return kind === 'measure' ? measureTemplates()[Number(index)][1] : [Number(index)];
+    };
+    function render() {
+      const [kind, index] = state.choice.split('-');
+      const full = kind === 'measure';
+      const templates = patterns();
+      const bars = measureTemplates();
+      const firstExtra = (columns) => Math.max(0, Math.ceil(templates.length / columns) - 2) * columns;
+      const firstExtraBar = bars.findIndex(([name]) => name === '四八交替');
+      const selectedName = (full ? bars : templates)[Number(index)][0];
+      const impact = selectedBeats().reduce((sum, beat, idx) => sum + Math.max(0, current()[idx] - patterns()[beat][1].length), 0);
+      for (const panel of [byId('sidebar'), popup]) {
+        const floating = panel === popup;
+        const scroll = panel.querySelector('.template-picker')?.scrollTop ?? 0;
+        const toggle = (group, label) => `<button class="template-toggle" type="button" data-toggle="${group}" aria-controls="${panel.id}-${group}-templates" aria-expanded="${state.expanded[group]}">${state.expanded[group] ? `收起${label} ▴` : `展开${label} ▾`}</button>`;
+        panel.innerHTML = `<div class="header"><h2>${floating ? '节奏型' : '常见节奏型'}</h2>${floating ? '<button class="close" type="button" data-close aria-label="关闭节奏型">×</button>' : ''}</div>
+          ${floating ? '<p class="rules">⚠ 按所选模板调整节奏，应用后会将相关技巧和连线移除。</p>' : ''}
+          <div class="template-picker" role="region" aria-label="可滚动的节奏型模板" tabindex="0">
+            <div class="section-heading"><h3>拍内模板</h3><span class="scope">${meter()}</span></div>
+            <div class="grid" id="${panel.id}-beat-templates" role="group" aria-label="拍内模板" data-expanded="${state.expanded.beat}">${templates.map(([label, values], i) => `<button class="card" type="button" data-choice="beat-${i}" ${i >= firstExtra(2) ? 'data-extra-two' : ''} ${i >= firstExtra(3) ? 'data-extra-three' : ''} aria-pressed="${state.choice === `beat-${i}`}"><span class="name">${label}</span>${ink(values)}</button>`).join('')}</div>
+            ${toggle('beat', '拍内模板')}
+            <div class="section-heading measure-heading"><h3>整小节模板</h3><span class="scope">${bars.length} 条</span></div>
+            <div class="measure-list" id="${panel.id}-measure-templates" role="group" aria-label="整小节模板" data-expanded="${state.expanded.measure}">${bars.map(([label, beats], i) => `<button class="card bar" type="button" data-choice="measure-${i}" ${firstExtraBar >= 0 && i >= firstExtraBar ? 'data-extra' : ''} aria-pressed="${state.choice === `measure-${i}`}" aria-label="${label}，${beats.map((j) => templates[j][0]).join('，')}"><span class="name">${label}</span><span class="beats">${beats.map((j) => ink(templates[j][1])).join('')}</span></button>`).join('')}</div>
+            ${firstExtraBar >= 0 ? toggle('measure', '整小节模板') : ''}
+          </div>
+          <footer class="footer">
+            ${impact > 0 ? `<p class="impact" role="status">应用将舍弃各拍末尾共 ${impact} 个内容。</p>` : ''}
+            <div class="footer-line"><p class="destination" aria-live="polite">第 2 小节 · ${full ? '整小节' : '第 1 拍'} · ${selectedName}</p><div class="actions">${floating ? '<button class="control" type="button" data-close>取消</button>' : ''}<button class="control primary" type="button" data-apply>应用节奏型</button></div></div>
+          </footer>`;
+        panel.querySelector('.template-picker').scrollTop = scroll;
+      }
+      byId('undo').disabled = state.undo.length === 0;
+    }
+    byId('meter').addEventListener('change', () => {
+      state.choice = meter() === '6/8' ? 'beat-1' : 'beat-2';
+      state.expanded = { beat: false, measure: false };
+      byId('status').textContent = '';
+      render();
+      for (const panel of [byId('sidebar'), popup]) panel.querySelector('.template-picker').scrollTop = 0;
+    });
+    byId('trigger').addEventListener('click', () => {
+      popup.showModal();
+      const selected = popup.querySelector('[aria-pressed="true"]');
+      const group = state.choice.split('-')[0];
+      const focus = selected.getClientRects().length ? selected : popup.querySelector(`[data-toggle="${group}"]`);
+      focus.focus({ preventScroll: true });
+      focus.scrollIntoView({ block: 'nearest' });
+    });
+    popup.addEventListener('close', () => byId('trigger').focus());
+    byId('undo').addEventListener('click', () => {
+      const previous = state.undo.pop();
+      if (!previous) return;
+      state.applied[previous.meter] = previous.beats;
+      byId('status').textContent = '已撤销应用。';
+      render();
+    });
+    for (const panel of [byId('sidebar'), popup]) panel.addEventListener('click', (event) => {
+      const group = event.target.closest('[data-toggle]')?.dataset.toggle;
+      if (group) {
+        state.expanded[group] = !state.expanded[group];
+        render();
+        const button = panel.querySelector(`[data-toggle="${group}"]`);
+        const list = byId(button.getAttribute('aria-controls'));
+        const focus = state.expanded[group] && group === 'measure' ? list.querySelector('[data-extra]') : button;
+        focus.focus({ preventScroll: true });
+        focus.scrollIntoView({ block: 'nearest' });
+        return;
+      }
+      const choice = event.target.closest('[data-choice]')?.dataset.choice;
+      if (choice) {
+        state.choice = choice;
+        render();
+        panel.querySelector(`[data-choice="${choice}"]`).focus({ preventScroll: true });
+      }
+      if (event.target.closest('[data-close]')) popup.close();
+      if (event.target.closest('[data-apply]')) {
+        const beats = selectedBeats();
+        state.undo.push({ meter: meter(), beats: [...current()] });
+        state.applied[meter()] = current().map((count, idx) => idx < beats.length ? Math.min(count, patterns()[beats[idx]][1].length) : count);
+        byId('status').textContent = beats.length > 1 ? '已应用到第 2 小节。' : '已应用到第 2 小节第 1 拍。';
+        render();
+        if (panel === popup) popup.close();
+        else panel.querySelector('[data-apply]').focus({ preventScroll: true });
+      }
+    });
+    render();
+  </script>
+</body>
+</html>

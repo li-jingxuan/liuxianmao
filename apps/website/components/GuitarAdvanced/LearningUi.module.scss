@@ -91,7 +91,6 @@
 .option {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
   padding: 16px;
   border: 1px solid #d9d9d9;
   border-radius: 6px;
@@ -102,9 +101,12 @@
   border-color: #285be0;
   background: #f0f7ff;
 }
-.option input {
-  margin-top: 5px;
-  accent-color: #285be0;
+.option :global(.ant-radio), .option :global(.ant-checkbox) {
+  margin-top: 3px;
+}
+.option :global(.ant-radio-label), .option :global(.ant-checkbox-label) {
+  flex: 1;
+  min-width: 0;
 }
 .option:focus-within {
   outline: 2px solid #285be0;
@@ -176,7 +178,6 @@
 .position {
   display: flex;
   align-items: center;
-  gap: 6px;
   font-size: 13px;
 }
 .sticky {

@@ -1,5 +1,5 @@
 "use client";
-import { Button, Form, Input, Tooltip } from "antd";
+import { Button, Form, Input, Modal, Tooltip } from "antd";
 
 import {
   useCallback,
@@ -67,6 +67,7 @@ import { NumberedRhythmToolbar } from "./NumberedRhythmToolbar";
 import { numberedRhythmIssue } from "./numbered-rhythm-issue";
 import { NumberedPitchFields } from "./NumberedPitchFields";
 import { BeatMappingPreview, type BeatMappingPosition } from "../music-text/BeatMappingPreview";
+import { EditorModalGuard } from "../session/EditorModalGuard";
 
 export interface NumberedGroupState {
   dirty: boolean;
@@ -426,7 +427,6 @@ export const NumberedEditor = ({
     popover?: boolean;
   } | null>(null);
   const completedFocusRequest = useRef<typeof focusRequest>(null);
-  const impactDialog = useRef<HTMLDialogElement>(null);
   const [customRhythms, setCustomRhythms] = useState<
     { base: ILXMRhythmBase; dots: number }[]
   >([]);
@@ -440,11 +440,6 @@ export const NumberedEditor = ({
       firstEvent?.items[0]?.token ??
       "",
   );
-  useEffect(() => {
-    if (pending && !impactDialog.current?.open)
-      impactDialog.current?.showModal();
-    else if (!pending) impactDialog.current?.close();
-  }, [pending]);
   const parsed = useMemo(() => parseNumberedSequence(raw), [raw]);
   // 两种录入模式留空均清除当前事件内容，保留其时值与歌词锚点。
   const clearSingleEvent =
@@ -1544,44 +1539,24 @@ export const NumberedEditor = ({
           </section>}
         </>}
       </fieldset>
-      <dialog
-        ref={impactDialog}
-        aria-label="确认简谱修改影响"
-        onCancel={(event) => {
-          event.preventDefault();
-          submissionRef.current?.cancel();
-        }}
-        onKeyDown={(event) => {
-          // 原生 dialog 独立处理键盘，不能让底层草稿保护区截获 Esc。
-          event.stopPropagation();
-          if (event.key === "Escape") {
-            event.preventDefault();
-            submissionRef.current?.cancel();
-            return;
-          }
-          if (event.key !== "Tab") return;
-          const buttons = Array.from(
-            impactDialog.current?.querySelectorAll<HTMLButtonElement>(
-              "button:not(:disabled)",
-            ) ?? [],
-          );
-          const first = buttons[0],
-            last = buttons.at(-1);
-          if (event.shiftKey && globalThis.document.activeElement === first) {
-            event.preventDefault();
-            last?.focus();
-          } else if (
-            !event.shiftKey &&
-            globalThis.document.activeElement === last
-          ) {
-            event.preventDefault();
-            first?.focus();
-          }
-        }}
+      <Modal
+        open={!!pending}
+        centered
+        title="确认简谱修改影响"
+        mask={{ closable: false }}
+        keyboard={false}
+        closable={false}
+        onCancel={() => submissionRef.current?.cancel()}
+        onOk={() => submissionRef.current?.confirm()}
+        cancelText="取消"
+        okText="确认修改"
+        modalRender={(node) => (
+          <EditorModalGuard dismissable onDismiss={() => submissionRef.current?.cancel()}>{node}</EditorModalGuard>
+        )}
+        styles={{ container: { maxHeight: "calc(100dvh - 32px)", overflowY: "auto" } }}
       >
         {pending && (
           <>
-            <h3>确认简谱修改影响</h3>
             {track && pending.overwrittenEventIds.length > 0 && (
               <p>{numberedRhythmMergeMessage(track, pending)}</p>
             )}
@@ -1624,18 +1599,9 @@ export const NumberedEditor = ({
               将删除 {pending.removedMarkIds.length} 个记号，迁移{" "}
               {pending.changedMarkIds.length} 个记号。此操作与内容修改一起撤销。
             </p>
-            <Button onClick={() => submissionRef.current?.cancel()}>
-              取消
-            </Button>
-            <Button
-              type="primary"
-              onClick={() => submissionRef.current?.confirm()}
-            >
-              确认修改
-            </Button>
           </>
         )}
-      </dialog>
+      </Modal>
       {message && message !== "已应用" && message !== "内容未变化" && <p role="status">{message}</p>}
     </section>
   );

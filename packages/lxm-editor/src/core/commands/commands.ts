@@ -26,6 +26,7 @@ import {
   type LyricSequenceTarget,
 } from "../lyrics/lyric-sequence";
 import { getLyricVerseCount } from "../lyrics/lyric-verses";
+import { getMusicTextRows } from "../music-text/music-text-rows";
 import {
   editNumberedTrack,
   type ILXMNumberedVoiceCommand,
@@ -89,6 +90,7 @@ export enum LXMScoreCommandEnum {
   SetLyric = "lyric.set",
   SetLyricSequence = "lyrics.setSequence",
   ReplaceMusicTextRange = "musicText.range.replace",
+  AddNumberedRow = "numberedNotation.row.add",
   AddLyricVerse = "lyric.verse.add",
   RemoveLyric = "lyric.remove",
   SetChordSymbol = "chordSymbol.set",
@@ -301,6 +303,12 @@ export interface ILXMReplaceMusicTextRangeCommand {
 /** 新增全谱空白歌词段，不创建占位歌词实体。 */
 export interface ILXMAddLyricVerseCommand {
   type: LXMScoreCommandEnum.AddLyricVerse;
+  /** 首次显式添加歌词行时，从第一段开始。 */
+  first?: true;
+}
+
+export interface ILXMAddNumberedRowCommand {
+  type: LXMScoreCommandEnum.AddNumberedRow;
 }
 
 export type ILXMSetNotationInfoCommand = {
@@ -386,6 +394,7 @@ type ScoreCommandOperation =
   | ILXMSetLyricSequenceCommand
   | ILXMReplaceMusicTextRangeCommand
   | ILXMAddLyricVerseCommand
+  | ILXMAddNumberedRowCommand
   | ILXMMusicTextCommand
   | ILXMSetTupletCommand
   | ILXMRemoveTupletCommand
@@ -1515,16 +1524,24 @@ const applyScoreCommandInternal = (
       command,
     );
   }
-  if (command.type === LXMScoreCommandEnum.AddLyricVerse) {
-    const count = getLyricVerseCount(document);
-    if (count === 4) return unchanged(document);
+  if (command.type === LXMScoreCommandEnum.AddLyricVerse || command.type === LXMScoreCommandEnum.AddNumberedRow) {
+    const rows = getMusicTextRows(document);
+    const meta = { ...document.score.meta };
+    if (command.type === LXMScoreCommandEnum.AddNumberedRow) {
+      if (rows.numbered) return unchanged(document);
+      meta.showNumberedRow = true;
+    } else {
+      const count = command.first ? rows.lyricVerses : getLyricVerseCount(document);
+      if (count === 4 || (command.first && count > 0)) return unchanged(document);
+      meta.lyricVerseCount = count + 1;
+    }
     return finalize(
       {
         ...document,
         documentRevision: document.documentRevision + 1,
         score: {
           ...document.score,
-          meta: { ...document.score.meta, lyricVerseCount: count + 1 },
+          meta,
         },
       },
       document,

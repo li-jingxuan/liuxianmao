@@ -16,13 +16,13 @@ describe("自定义指法宿主正文", () => {
     expect(html).not.toMatch(/谱面缩小示意|精细编辑|横按设置|当前按弦|新按点的手指|横按工具手指/);
     expect(html).not.toContain('role="dialog"');
   });
-  it("无图起步只显示一条最新结构错误并禁止提交全禁奏图", () => {
-    const html = renderToStaticMarkup(<ChordDiagramEditorModal seed={{ display: "name", chord: { name: "", diagram: null } }} tuning={[]} onComplete={() => {}} onCancel={() => {}} />);
+  it("无图起步时允许点完成触发发声校验", () => {
+    const html = renderToStaticMarkup(<ChordDiagramEditorModal seed={{ display: "name", chord: { name: "C", diagram: null } }} tuning={[]} onComplete={() => {}} onCancel={() => {}} />);
     expect(html).toContain("尚无有效指法预览");
-    expect(html).toContain("至少一根弦应可发声");
+    expect(html).not.toContain("至少一根弦应可发声");
     expect(html).not.toContain("和弦名称应为非空单行");
     expect(html.match(/role="status"/g)).toHaveLength(1);
-    expect(html).toMatch(/disabled=""[^>]*>完成编辑/);
+    expect(html).not.toMatch(/disabled=""[^>]*>完成编辑/);
   });
   it("非法 seed 不交给布局，最后有效预览保持空态", () => {
     const chord = copyChordPreset("C")!;

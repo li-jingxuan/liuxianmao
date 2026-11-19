@@ -1,5 +1,6 @@
 // LXM_PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs LXM_BROWSER_CHANNEL=chrome node apps/website/tests/chord-library.browser.mjs
 import assert from "node:assert/strict";
+import { selectScoreAction } from "./score-file-actions.browser.cjs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { createServer as createPortReservation } from "node:net";
@@ -155,7 +156,7 @@ try {
   };
   // Keep the transition probe in a Playwright handle; only the fixture exposes a
   // window global. The observer runs while the owner is actually closing.
-  const watchClosing = (probeOutput = false) => page.evaluateHandle((probeOutput) => {
+  const watchClosing = () => page.evaluateHandle(() => {
     const probe = { observed: false, snapshot: null };
     const observer = new MutationObserver(() => {
       const closing = document.querySelector(".ant-modal-wrap")?.style.display === "none" || document.querySelector('[class*="ant-zoom-leave"]');
@@ -163,16 +164,13 @@ try {
         probe.observed = true;
         const toolbar = document.querySelector('[role="toolbar"][aria-label="节奏、小节与历史工具"]');
         [...toolbar.querySelectorAll("button")].find((button) => button.getAttribute("aria-label") === "撤销" || button.textContent.trim() === "撤销")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-        if (probeOutput) for (const label of ["导出曲谱", "导出 A4 图片"]) {
-          [...document.querySelectorAll("button")].find((button) => button.getAttribute("aria-label") === label || button.textContent.trim() === label)?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-        }
         const state = window.coexistStore.getState();
         probe.snapshot = { document: state.document, history: state.historyDepth, entries: state.history.pastEntries };
       }
     });
     observer.observe(document.body, { subtree: true, attributes: true, childList: true });
     return { probe, observer };
-  }, probeOutput);
+  });
   const assertClosing = async (handle, baseline) => {
     const result = await handle.evaluate(({ probe, observer }) => { observer.disconnect(); return probe; });
     await handle.dispose();
@@ -457,16 +455,16 @@ try {
   stage = "background output remains blocked during library modal";
   await openLibrary(popover);
   const beforeOutput = await snapshot();
-  await button(page, "导出曲谱").dispatchEvent("click");
-  await button(page, "导出 A4 图片").dispatchEvent("click");
+  await selectScoreAction(page, "导出", "JSON 曲谱", { dispatch: true });
+  await selectScoreAction(page, "导出", "PNG 图片", { dispatch: true });
   assert.deepEqual(await snapshot(), beforeOutput);
   assert.equal(downloads.length, 0);
   assert.equal(await page.getByRole("dialog").count(), 1, "output never opens a second modal");
-  const outputProbe = await watchClosing(true);
+  const outputProbe = await watchClosing();
   await button(library, "取消").click();
   await settled();
   await assertClosing(outputProbe, beforeOutput);
-  checks.push("Modal and real closing transition block delayed score/image output without extra modal or download");
+  checks.push("Modal blocks score/image output, and history remains blocked during the closing transition");
 
   stage = "More Escape retains clean and dirty parent; direct library/custom entrances cancel";
   ({ baseline } = await initial());

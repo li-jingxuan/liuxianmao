@@ -1,5 +1,6 @@
 /* Real score selection and keyboard deletion; snapshots come from native downloads. */
 const assert = require("node:assert/strict");
+const { downloadScoreJson } = require("../apps/website/tests/score-file-actions.browser.cjs");
 const fs = require("node:fs/promises");
 const path = require("node:path");
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
@@ -16,9 +17,8 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
       await page.goto(process.env.EDITOR_URL || "http://127.0.0.1:3000", { waitUntil: "networkidle" });
       const svg = page.getByRole("application", { name: "六线谱编辑器" });
       const exported = async () => {
-        const waiting = page.waitForEvent("download");
-        await page.getByRole("button", { name: "导出曲谱", exact: true }).click();
-        return JSON.parse(await fs.readFile(await (await waiting).path(), "utf8"));
+        const download = await downloadScoreJson(page);
+        return JSON.parse(await fs.readFile(await download.path(), "utf8"));
       };
       const before = await exported();
       const track = before.score.tracks[0];
@@ -48,15 +48,13 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     page.on("pageerror", (error) => errors.push(error.message));
     await page.goto(process.env.EDITOR_URL || "http://127.0.0.1:3000", { waitUntil: "networkidle" });
     const svg = page.getByRole("application", { name: "六线谱编辑器" });
-    const beforeDownload = page.waitForEvent("download");
-    await page.getByRole("button", { name: "导出曲谱", exact: true }).click();
-    const before = JSON.parse(await fs.readFile(await (await beforeDownload).path(), "utf8"));
+    const beforeDownload = await downloadScoreJson(page);
+    const before = JSON.parse(await fs.readFile(await beforeDownload.path(), "utf8"));
     const fret = svg.locator('text').filter({ hasText: /^12$/ }).first();
     await fret.click();
     await page.keyboard.press("Backspace");
-    const waiting = page.waitForEvent("download");
-    await page.getByRole("button", { name: "导出曲谱", exact: true }).click();
-    const after = JSON.parse(await fs.readFile(await (await waiting).path(), "utf8"));
+    const afterDownload = await downloadScoreJson(page);
+    const after = JSON.parse(await fs.readFile(await afterDownload.path(), "utf8"));
     const notes = (document) => document.score.tracks.flatMap((track) => track.measures.flatMap((measure) => measure.beats.flatMap((beat) => beat.notes)));
     const removed = notes(before).filter((note) => !notes(after).some((candidate) => candidate.id === note.id));
     assert.equal(notes(after).length, notes(before).length - 1);

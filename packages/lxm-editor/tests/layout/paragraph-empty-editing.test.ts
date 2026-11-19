@@ -32,6 +32,42 @@ const fixture = (kind: "lyric" | "numbered" = "lyric") => {
 };
 
 describe("无占位歌词和简谱编辑", () => {
+  it("纯六线谱隐藏简谱和歌词，添加后全曲保留各自行的空位", () => {
+    const { document } = fixture("numbered");
+    delete document.score.meta.lyricVerseCount;
+    const editing = { purpose: "editing", systemWidth: 180 } as const;
+    const original = buildLayout(document, editing);
+    expect(original.systems.length).toBeGreaterThan(1);
+    for (const system of original.systems) {
+      expect(system.numberedRow).toBeUndefined();
+      expect(system.musicTextCells).toEqual([]);
+    }
+    const numbered = applyScoreCommand(document, { type: LXMScoreCommandEnum.AddNumberedRow });
+    const lyric = applyScoreCommand(document, { type: LXMScoreCommandEnum.AddLyricVerse, first: true });
+    if (!numbered.ok || !lyric.ok) throw new Error("添加谱行失败");
+    const numberedLayout = buildLayout(numbered.document, editing);
+    expect(numberedLayout.systems.every((system) => system.numberedRow && system.measures.every((m) => m.numberedInputSlots?.length))).toBe(true);
+    expect(numberedLayout.systems.every((system) => system.musicTextCells?.length === 0)).toBe(true);
+    const lyricLayout = buildLayout(lyric.document, editing);
+    expect(lyricLayout.systems.every((system) => !system.numberedRow && system.musicTextCells?.length && system.musicTextCells.every((cell) => cell.verse === 1 && cell.empty))).toBe(true);
+    for (const added of [numbered, lyric]) {
+      expect(added.changed).toBe(true);
+      expect(added.document.score.tracks).toEqual(document.score.tracks);
+      expect(buildLayout(added.document, { systemWidth: 180 })).toEqual(buildLayout(document, { systemWidth: 180 }));
+    }
+  });
+
+  it("已有简谱推断出全曲简谱行，歌词段落独立隐藏", () => {
+    const { document } = fixture();
+    delete document.score.meta.lyricVerseCount;
+    for (const measure of document.score.tracks[0]!.measures.slice(1)) {
+      measure.numberedVoice = { events: [], tuplets: [] };
+    }
+    const layout = buildLayout(document, { purpose: "editing", systemWidth: 180 });
+    expect(layout.systems.every((system) => system.numberedRow && system.musicTextCells?.length === 0)).toBe(true);
+    expect(layout.systems.at(-1)!.measures.at(-1)!.numberedInputSlots?.length).toBeGreaterThan(0);
+  });
+
   it("空歌词焦点围绕起音，点击范围变宽也不扩展显示框", () => {
     const { document, target } = fixture();
     const layout = buildLayout(document, {

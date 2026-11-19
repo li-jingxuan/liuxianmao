@@ -1,7 +1,6 @@
 "use client";
-import { Button } from "antd";
-import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { createPortal } from "react-dom";
+import { Button, Tooltip } from "antd";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import type { ToolAvailability } from "./editor-tool-state";
 import styles from "./EditorToolSymbolButton.module.scss";
 
@@ -12,31 +11,8 @@ export const EditorToolSymbolButton = ({ label, title, availability, pressed, ex
 }) => {
   const id = useId();
   const wrapper = useRef<HTMLSpanElement>(null);
-  const tooltip = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
-  const [portal, setPortal] = useState<HTMLElement | null>(null);
-  const show = () => {
-    if (expanded) return;
-    setPortal(wrapper.current?.closest<HTMLElement>("[data-editor-interactive-domain], [role=dialog]") ?? window.document.body);
-    setVisible(true);
-  };
-  const [position, setPosition] = useState({ left: 8, top: 8 });
   const text = availability.reason || title || label;
-  useLayoutEffect(() => {
-    if (!visible || expanded) return;
-    const place = () => {
-      const rect = wrapper.current?.getBoundingClientRect();
-      const box = tooltip.current?.getBoundingClientRect();
-      if (!rect || !box) return;
-      const below = rect.bottom + 7;
-      setPosition({ left: Math.max(8, Math.min(rect.left + (rect.width - box.width) / 2, window.innerWidth - box.width - 8)),
-        top: Math.max(8, below + box.height <= window.innerHeight - 8 ? below : rect.top - box.height - 7) });
-    };
-    place();
-    window.addEventListener("resize", place);
-    window.addEventListener("scroll", place, true);
-    return () => { window.removeEventListener("resize", place); window.removeEventListener("scroll", place, true); };
-  }, [visible, text, expanded]);
   useEffect(() => {
     if (!visible || expanded) return;
     const escape = (event: KeyboardEvent) => {
@@ -58,16 +34,19 @@ export const EditorToolSymbolButton = ({ label, title, availability, pressed, ex
       window.removeEventListener("focusin", focus, true);
     };
   }, [visible, expanded]);
-  return <span ref={wrapper} className={styles.wrap} tabIndex={!availability.enabled ? 0 : undefined}
-    aria-label={!availability.enabled ? label : undefined} aria-describedby={visible ? id : undefined}
-    onMouseEnter={show} onMouseLeave={() => setVisible(false)}
-    onFocus={(event) => { if (event.currentTarget.contains(event.target)) show(); }} onBlur={() => setVisible(false)} onPointerDown={() => setVisible(false)}>
-    <Button className={styles.button} aria-label={label} aria-describedby={visible ? id : undefined}
-      aria-pressed={pressed} aria-expanded={expanded} aria-haspopup={popup ? "dialog" : undefined}
-      data-tool-trigger={triggerId} disabled={!availability.enabled} color={pressed || expanded ? "primary" : "default"}
-      variant={pressed || expanded ? "filled" : "text"} onClick={(event) => { event.stopPropagation(); setVisible(false); onClick(); }}>{children}</Button>
-    {visible && !expanded && portal && createPortal(<div ref={tooltip} id={id} role="tooltip" className={styles.tooltip} style={position}>{text}</div>, portal)}
-  </span>;
+  const open = visible && !expanded;
+  return <Tooltip id={id} title={text} placement="bottom" trigger={["hover", "focus"]}
+    open={open} onOpenChange={(next) => setVisible(next && !expanded)} zIndex={2200}
+    classNames={{ root: styles.tooltip }}
+    getPopupContainer={(node) => node.closest<HTMLElement>("[data-editor-interactive-domain], [role=dialog]") ?? window.document.body}>
+    <span ref={wrapper} className={styles.wrap} tabIndex={!availability.enabled ? 0 : undefined}
+      aria-label={!availability.enabled ? label : undefined} onPointerDown={() => setVisible(false)}>
+      <Button className={styles.button} aria-label={label} aria-describedby={open ? id : undefined}
+        aria-pressed={pressed} aria-expanded={expanded} aria-haspopup={popup ? "dialog" : undefined}
+        data-tool-trigger={triggerId} disabled={!availability.enabled} color={pressed || expanded ? "primary" : "default"}
+        variant={pressed || expanded ? "filled" : "text"} onClick={(event) => { event.stopPropagation(); setVisible(false); onClick(); }}>{children}</Button>
+    </span>
+  </Tooltip>;
 };
 
 export const TechniqueSymbol = ({ kind }: { kind: "slideUp" | "slideDown" | "tie" | "strumDown" | "strumUp" | "arpeggioDown" | "arpeggioUp" | "technique" | "rest" }) =>

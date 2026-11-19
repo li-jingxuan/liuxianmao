@@ -13,6 +13,7 @@ import { layoutNumberedRhythm } from "../music-text/numbered-rhythm-layout";
 import { layoutNumbered, translateNumbered } from "../music-text/numbered-notation-layout";
 import { getMeasureContentBottom } from "../rhythm/rhythm-bounds";
 import type { ILXMTrack } from "../../core/types";
+import type { getMusicTextRows } from "../../core/music-text/music-text-rows";
 import type {
   ILXMSystemLayout,
   ILXMMeasureLayout,
@@ -92,6 +93,7 @@ export const layoutSystemContent = (
   metrics?: ILXMMusicTextMetrics,
   editing?: { measureId: string; kind: "lyric" | "numbered"; verse?: number },
   purpose: ILXMLayoutPurpose = "presentation",
+  rows?: ReturnType<typeof getMusicTextRows>,
 ): ILXMSystemLayout[] => {
   const profile = numberedLayoutProfile(purpose);
   const planned = planTrackTechniques(track, baseSystems);
@@ -151,9 +153,7 @@ export const layoutSystemContent = (
       : undefined;
     const rawNumbered = [...numberedByMeasure.values()].flat();
     const showNumberedInput =
-      purpose === "editing" &&
-      (!!active ||
-        system.measures.some((m) => source.get(m.id)!.lyrics.length > 0));
+      purpose === "editing" && (rows?.numbered || active?.kind === "numbered");
     const emptyBody = musicTextGlyph(
       musicTextRequest("0", LXM_NUMBERED_TEXT_FONT_SIZE), 0, 0, metrics,
     );
@@ -222,7 +222,7 @@ export const layoutSystemContent = (
       [...blocksByMeasure.values()].flat(),
     );
     const maxVerse = Math.max(
-      active ? 1 : 0,
+      rows?.lyricVerses ?? 0,
       active?.kind === "lyric" ? (active.verse ?? 1) : 0,
       ...system.measures.flatMap((m) =>
         source.get(m.id)!.lyrics.map((l) => l.verse),
@@ -312,7 +312,7 @@ export const layoutSystemContent = (
       )[0] ?? emptyBody;
     const numberedTop = body.bounds.y + numberedDy;
     const numberedHeight = Math.max(LXM_NUMBERED_TEXT_FONT_SIZE + 4, body.bounds.height);
-    for (const m of measures) {
+    for (const m of maxVerse > 0 ? measures : []) {
       const positions = planLyricPositions(source.get(m.id)!);
       const slots = [
         ...m.numberedSlots.map((slot) => ({

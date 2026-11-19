@@ -1,4 +1,5 @@
 "use client";
+import { Checkbox } from "antd";
 import type { FretboardDiagramData } from "../../lib/guitar-advanced/model";
 import styles from "./LearningUi.module.scss";
 interface Props {
@@ -123,15 +124,10 @@ export const FretboardDiagram = ({
           <summary>使用文字清单选择位置</summary>
           <div className={styles.positions}>
             {positions.map((p) => (
-              <label className={styles.position} key={p.id}>
-                <input
-                  type="checkbox"
-                  checked={selectedIds.includes(p.id)}
-                  disabled={disabled}
-                  onChange={() => toggle(p.id)}
-                />
+              <Checkbox className={styles.position} key={p.id} checked={selectedIds.includes(p.id)}
+                disabled={disabled} onChange={() => toggle(p.id)}>
                 {label(p)}
-              </label>
+              </Checkbox>
             ))}
           </div>
         </details>
