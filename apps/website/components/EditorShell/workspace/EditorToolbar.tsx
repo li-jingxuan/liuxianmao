@@ -150,11 +150,11 @@ export const EditorToolbar = ({
   const getActiveTarget = useCallback(() => activeTargetRef.current, []);
   const protectedDraft = drafts
     .inspect()
-    .pending.some((item) => item.kind !== "beatPaste" && item.kind !== "fret");
+    .pending.some((item) => item.kind !== "beatPaste");
   const editingBlocked = blocked || protectedDraft || drafts.inspect().busy;
   const numberedEditingBlocked = numberedBlocked || protectedDraft || drafts.inspect().busy;
   const techniqueBlocked = blocked || drafts.inspect().pending.some(
-    (item) => item.kind !== "beatPaste" && item.kind !== "fret" && item.kind !== "technique",
+    (item) => item.kind !== "beatPaste" && item.kind !== "technique",
   );
   const live = useRef({ editingBlocked, numberedEditingBlocked, continuousRange, modal, beforeAction, execute });
   const executeLatest: EditorCommandAdapter = useCallback(

@@ -13,6 +13,7 @@ import {
   DEFAULT_MOCK_DOCUMENT,
   A4_CONTENT_WIDTH,
   createCollapsedTabCellSelection,
+  getMusicTextRows,
   hitTestLayout,
   hitTestMusicText,
   hitTestTechniqueTarget,
@@ -49,7 +50,6 @@ import {
   useEditorStore,
 } from "../../stores/editor-store";
 import {
-  createDeferredFretDraftCommit,
   resolveBeatKindShortcut,
   resolveMutedNoteShortcut,
   resolveTabContinuationShortcut,
@@ -57,7 +57,6 @@ import {
 } from "./session/editor-interaction";
 import { ScoreMusicLayer } from "./score/ScoreMusicLayer";
 import { MeasureNumberLayer } from "./score/MeasureNumberLayer";
-import { TabFretDraftPreview } from "./score/TabFretDraftPreview";
 import { buildScoreScene } from "@liuxianmao/lxm-editor";
 import { OutputBlockedModal } from "./output/OutputBlockedModal";
 import { ImageExportModal } from "./output/ImageExportModal";
@@ -80,10 +79,7 @@ import {
 import styles from "./index.module.scss";
 import editorFormStyles from "./shared/editor-form.module.scss";
 import scoreInteractionStyles from "./score/score-interaction.module.scss";
-import {
-  useEditorDraftRecords,
-  useEditorRuntime,
-} from "./session/EditorSessionRuntime";
+import { useEditorRuntime } from "./session/EditorSessionRuntime";
 import {
   captureEditorVersion,
   sameEditorSession,
@@ -108,8 +104,8 @@ import {
   tabToolTargetReason,
 } from "./tools/editor-tool-guard";
 
-/** 两位品位输入等待第二个数字的时间，超时后提交一位品位。 */
-const FRET_DRAFT_TIMEOUT_MS = 600;
+/** 在同一选区内，把紧接的两个数字合成一个品位。 */
+const FRET_DIGIT_INTERVAL_MS = 600;
 
 /** 编辑、图片导出和打印统一使用固定的默认排版密度。 */
 const density = "compact";
@@ -181,9 +177,9 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
   const loadNotice = useEditorStore((state) => state.loadNotice);
   const executeInStore = useEditorStore((state) => state.execute);
   /** 公共结构确认绑定真实会话快照，不在第一次失败后写任何历史。 */
-  const execute = (command: ILXMScoreCommand) => {
+  const execute = (command: ILXMScoreCommand, replaceFretEntryId?: string) => {
     const snapshot = session.getState();
-    const result = executeInStore(command);
+    const result = executeInStore(command, replaceFretEntryId);
     if (
       result &&
       !result.ok &&
@@ -475,6 +471,10 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
   const updateParagraphEditing = useCallback((editing: typeof paragraphEditingSession) => {
     setParagraphEditingSession(editing);
     if (!editing) return;
+    const current = session.getState().document;
+    if (!current) return;
+    const rows = getMusicTextRows(current);
+    if (editing.kind === "numbered" ? rows.numbered : rows.lyricVerses > 0) return;
     setParagraphPlaceholders((previous) => {
       const { measureId, kind, verse } = editing;
       if (kind === "numbered")
@@ -483,7 +483,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
       return previous.lyric?.measureId === measureId && previous.lyric.verse === verse
         ? previous : { ...previous, lyric: { measureId, verse } };
     });
-  }, []);
+  }, [session]);
   const rangeDragRef = useRef<MusicTextRange | null>(null);
   const pendingTextClickRef = useRef<MusicTextTarget | null>(null);
   useLayoutEffect(() => {
@@ -509,28 +509,15 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     showChordDiagrams,
   );
 
-  /** 品位草稿是瞬时输入状态，不进入 document 或历史。 */
-  const [fretDraft, setFretDraft] = useState("");
-  const deferredFretDraftCommit = useMemo(
-    () => createDeferredFretDraftCommit(FRET_DRAFT_TIMEOUT_MS),
-    [],
-  );
-  const clearFretDraft = useCallback(() => {
-    deferredFretDraftCommit.cancel();
-    setFretDraft("");
-  }, [deferredFretDraftCommit]);
-  useEffect(() => {
-    // 同步使旧选区的输入失效，包括替换文档到 React 重挂载之间的窗口。
-    const unsubscribe = session.subscribe((state, previous) => {
-      if (state.sessionVersion !== previous.sessionVersion ||
-        state.document !== previous.document || state.selection !== previous.selection)
-        clearFretDraft();
-    });
-    return () => {
-      unsubscribe();
-      deferredFretDraftCommit.cancel();
-    };
-  }, [session, deferredFretDraftCommit, clearFretDraft]);
+  /** 只记住已写入谱面的 1 或 2，第二键按下时才比较时间。 */
+  const fretPrefix = useRef<{
+    digit: number;
+    timeStamp: number;
+    selection: ILXMTabCellSelection;
+    stateVersion: number;
+    historyEntryId?: string;
+  } | null>(null);
+  const endFretInput = useCallback(() => { fretPrefix.current = null; }, []);
   /** drag anchor 用 ref 保存，避免 pointermove 读取到尚未提交的 React/store 状态。 */
   const dragAnchorRef = useRef<ILXMTabCellReference | null>(null);
   const activePointerIdRef = useRef<number | null>(null);
@@ -798,12 +785,6 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     };
   }, [document, selection]);
 
-  /** 组件卸载时取消延迟提交，避免异步回调写入已卸载组件。 */
-  useEffect(
-    () => () => deferredFretDraftCommit.cancel(),
-    [deferredFretDraftCommit],
-  );
-
   /** 只滚动谱面视口，文本编辑期间也能跟随目标；不会滚动侧栏输入区。 */
   useEffect(() => {
     const viewport = pageViewportRef.current;
@@ -899,15 +880,16 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     rangeRects,
   ]);
 
-  /** 所有立即生效的编辑动作都先使等待中的品位草稿失效。 */
+  /** 其他谱面快捷键结束当前的连续数字输入。 */
   const runImmediateEditorAction = (action: () => void): void => {
     if (musicTextController.current?.isTransitionBlocked()) return;
-    clearFretDraft();
+    endFretInput();
     action();
   };
 
   /** 将品位或弦格标记作为一条原子矩形命令提交，选区只产生一条历史。 */
-  const setSelectedNotes = (fret: ILXMFret) => {
+  const setSelectedNotes = (fret: ILXMFret, replaceFretEntryId?: string) => {
+    const { selection } = session.getState();
     if (!selection) {
       setErrorMessage("请先选择谱面中的 TAB 单元格，再输入品位或标记。");
       return;
@@ -918,7 +900,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
       } });
       return;
     }
-    execute({
+    return execute({
       type: LXMScoreCommandEnum.SetNotesInRect,
       range: {
         trackId: selection.anchor.trackId,
@@ -934,7 +916,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
         },
       },
       fret,
-    });
+    }, replaceFretEntryId);
   };
 
   /** 删除按当前对象分发：技巧只删自身，普通 TAB 选区使用一条批量音符命令。 */
@@ -972,67 +954,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     });
   };
 
-  /** 将草稿转换为品位；两位数字最终仍只提交一次命令。 */
-  const commitFretDraft = (draft: string) => {
-    clearFretDraft();
-    if (draft.length === 0) return;
-    const fret = Number(draft);
-    if (!Number.isInteger(fret) || fret < 0 || fret > 24) {
-      setErrorMessage("品位必须在 0 到 24 之间。");
-      return;
-    }
-    setSelectedNotes(fret);
-  };
-
-  const fretDraftLocation = (() => {
-    if (!selection || !document) return undefined;
-    const track = document.score.tracks.find(
-      (item) => item.id === selection.focus.trackId,
-    );
-    const measureIndex =
-      track?.measures.findIndex(
-        (item) => item.id === selection.focus.measureId,
-      ) ?? -1;
-    if (!track || measureIndex < 0) return undefined;
-    const beatIndex = track.measures[measureIndex]!.beats.findIndex(
-      (beat) => beat.id === selection.focus.beatId,
-    );
-    return [
-      `第 ${measureIndex + 1} 小节`,
-      ...(beatIndex >= 0 ? [`第 ${beatIndex + 1} 拍`] : []),
-      `第 ${selection.focus.string} 弦`,
-    ].join(" · ");
-  })();
-  useEditorDraftRecords(
-    fretDraft && selection
-      ? [
-          {
-            id: `fret:${selection.focus.trackId}/${selection.focus.measureId}/${selection.focus.beatId}/${selection.focus.string}`,
-            kind: "fret",
-            targetKey: `${selection.focus.trackId}/${selection.focus.measureId}/${selection.focus.beatId}/${selection.focus.string}`,
-            label: `品位输入 ${fretDraft}`,
-            location: fretDraftLocation,
-            dirty: true,
-            composing: false,
-            canApply: false,
-            error: null,
-            version: captureEditorVersion(session.getState()),
-            focus: () => {
-              focusScore();
-              return true;
-            },
-            // 品位继续使用既有 600ms 提交器，协调器不另建一条提交路径。
-            apply: () => "blocked",
-            discard: () => {
-              clearFretDraft();
-              return true;
-            },
-          },
-        ]
-      : [],
-  );
-
-  const hasFileInput = () => !!fretDraft || !!musicTextController.current?.isOutputBlocked();
+  const hasFileInput = () => !!musicTextController.current?.isOutputBlocked();
   const isOutputBlocked = () => !!imageExportSnapshot || modals.isOpen() || drafts.isOutputBlocked() || hasFileInput();
   const showOutputBlocked = (trigger: HTMLElement | null) => {
     if (modals.isOpen() || imageExportSnapshot) setErrorMessage("请先完成当前弹层操作。");
@@ -1081,7 +1003,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
 
   /** 接受对象切换后清理旧输入与 pointer capture，文字激活和 beat 选择共用。 */
   const clearScoreInteraction = () => {
-    clearFretDraft();
+    endFretInput();
     clearHover();
     const svg = scoreSvgRef.current;
     const pointerId = activePointerIdRef.current;
@@ -1098,7 +1020,6 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     next: ILXMTabCellSelection | null,
     techniqueId: string | null,
   ) => {
-    if (next && !techniqueId) deferredFretDraftCommit.flush();
     clearScoreInteraction();
     setContinuousRange(null);
     setActiveMusicTextTarget(null);
@@ -1352,7 +1273,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
       const result = navigateTabCellSelection(document, selection, direction, event.shiftKey);
       if (result.ok && result.changed) {
         event.preventDefault();
-        if (musicTextController.current?.select(result.selection) === "accepted") clearFretDraft();
+        musicTextController.current?.select(result.selection);
       }
       return;
     }
@@ -1383,11 +1304,10 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     }
 
     if (event.key === "Escape") {
-      if (!selection && !fretDraft) return;
+      if (!selection) return;
       event.preventDefault();
-      clearFretDraft();
-      if (selection)
-        setSelection(createCollapsedTabCellSelection(selection.focus));
+      endFretInput();
+      setSelection(createCollapsedTabCellSelection(selection.focus));
       setErrorMessage(null);
       return;
     }
@@ -1412,31 +1332,35 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     if (event.key === "Backspace" || event.key === "Delete") {
       if (!selection && !selectedTechniqueId) return;
       event.preventDefault();
-      clearFretDraft();
+      endFretInput();
       void removeScoreSelection();
       return;
     }
     if (!/^\d$/.test(event.key)) return;
 
     event.preventDefault();
-    if (!selection) {
-      setErrorMessage("请先选择谱面中的 TAB 单元格，再输入品位。");
-      return;
-    }
-    const nextDraft = `${deferredFretDraftCommit.getDraft()}${event.key}`;
-    if (nextDraft.length > 2 || Number(nextDraft) > 24) {
-      clearFretDraft();
+    if (event.repeat) return;
+    const current = session.getState();
+    const previous = fretPrefix.current;
+    endFretInput();
+    const prefix = previous && previous.selection === current.selection &&
+      previous.stateVersion === current.stateVersion &&
+      event.timeStamp - previous.timeStamp <= FRET_DIGIT_INTERVAL_MS ? previous : null;
+    const digit = Number(event.key);
+    const fret = prefix ? 10 * prefix.digit + digit : digit;
+    if (fret > 24) {
       setErrorMessage("品位必须在 0 到 24 之间。");
       return;
     }
-
-    // 0 或 3–9 不可能成为合法两位品位前缀；1、2 等待第二位数字。
-    if (nextDraft.length === 2 || event.key === "0" || Number(event.key) >= 3) {
-      commitFretDraft(nextDraft);
-      return;
+    const result = setSelectedNotes(fret, prefix?.historyEntryId);
+    if (!prefix && (digit === 1 || digit === 2) && result?.ok && current.selection) {
+      const next = session.getState();
+      if (next.document === result.document && next.selection === current.selection)
+        fretPrefix.current = {
+          digit, timeStamp: event.timeStamp, selection: current.selection, stateVersion: next.stateVersion,
+          historyEntryId: result.changed ? next.historyView.currentEntryId ?? undefined : undefined,
+        };
     }
-    deferredFretDraftCommit.schedule(nextDraft, commitFretDraft);
-    setFretDraft(nextDraft);
   };
 
   /** 点击 SVG 外的 A4 空白或灰色工作区时清空临时选区。 */
@@ -1472,13 +1396,13 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
       </div>
     );
 
-  /** 所有工具提交都先清计时草稿并核对属性保护；粘贴允许自己的 Modal。 */
+  /** 工具提交前核对属性保护；粘贴允许自己的 Modal。 */
   const executeTool: EditorCommandAdapter = async (
     command,
     impact = "modal",
     submission,
   ) => {
-    clearFretDraft();
+    endFretInput();
     const reason = editorToolSubmissionReason(
       session.getState(),
       activeMusicTextTargetRef.current,
@@ -1512,7 +1436,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     action: EditorToolbarAction,
   ): Promise<boolean> => {
     if (modals.isOpen()) return false;
-    clearFretDraft();
+    endFretInput();
     if (action.type === "undo" || action.type === "redo") {
       if (
         musicTextController.current?.isTransitionBlocked() ||
@@ -1662,7 +1586,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
           continuousRange: continuousRangeRef.current, activeTarget: activeMusicTextTargetRef.current });
       }}
       execute={executeTool}
-      beforeAction={() => { clearFretDraft(); musicTextController.current?.dismissCleanPopover(); }}
+      beforeAction={() => { endFretInput(); musicTextController.current?.dismissCleanPopover(); }}
       blocked={!!activeModal || drafts.inspect().busy || drafts.inspect().pending.length > 0 ||
         (rhythmTarget.ok && rhythmTarget.target.layer === "numbered" ? numberedActionBlocked : musicTextEditing)}
       getBlocked={getRhythmBlocked}
@@ -1735,7 +1659,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
         chordEntryBlocked={chordEntryBlocked}
         onOpenChord={(target) => musicTextController.current?.open(target)}
         onAction={handleToolbarAction}
-        beforeAction={clearFretDraft}
+        beforeAction={endFretInput}
         beforeRhythmPatternAction={() => { musicTextController.current?.dismissCleanPopover(); }}
         execute={executeTool}
         onNavigate={(destination) =>
@@ -1829,6 +1753,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
                 onPointerDown={handlePointerDown}
                 onPointerMove={handlePointerMove}
                 onPointerLeave={clearHover}
+                onBlur={endFretInput}
                 onPointerUp={finishPointerDrag}
                 onPointerCancel={finishPointerDrag}
                 onKeyDown={(event) => { setRhythmPatternScope(null); handleScoreKeyDown(event); }}
@@ -1932,9 +1857,6 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
                     }
                   />
                 )}
-                {fretDraft && resolvedSelection && (
-                  <TabFretDraftPreview layout={lxmLayout} range={resolvedSelection} fret={fretDraft} />
-                )}
                 <MeasureNumberLayer
                   layout={lxmLayout}
                   activeMeasureId={continuousRange?.focus.measureId ?? activeMusicTextTarget?.measureId ?? numberedSelection?.measureId ?? selection?.focus.measureId}
@@ -1988,6 +1910,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
         </div>
         <MusicTextSidebar
           continuousRange={continuousRange}
+          paragraphPlaceholders={paragraphPlaceholders}
           onRangeChange={setContinuousRange}
           showChordDiagrams={showChordDiagrams}
           onShowChordDiagramsChange={setShowChordDiagrams}
@@ -2043,7 +1966,6 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
               : "请在谱面选择编辑位置。"
         }
         cellCount={resolvedSelection?.cellCount ?? 0}
-        fretDraft={fretDraft}
       />
       <ScorePrintLayer
         score={document}

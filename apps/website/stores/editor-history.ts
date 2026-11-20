@@ -226,7 +226,7 @@ export const createHistoryEntry = (
 
 type HistoryTransition =
   | { type: "reset" }
-  | { type: "commit"; document: ILXMDocument; entry: HistoryEntry }
+  | { type: "commit"; document: ILXMDocument; entry: HistoryEntry; replaceEntry?: boolean }
   | { type: "undo" | "redo"; document: ILXMDocument };
 
 /** 快照与 metadata 永远在同一个转换内移动和裁切。 */
@@ -246,6 +246,8 @@ export const transitionHistory = (history: EditorHistory, action: HistoryTransit
   }
   const entry = action.type === "commit" ? action.entry : history.futureEntries[0];
   if (!entry) return history;
+  if (action.type === "commit" && action.replaceEntry)
+    return { ...history, pastEntries: Object.freeze([...history.pastEntries.slice(0, -1), entry]) };
   return {
     past: [...history.past, action.document].slice(-HISTORY_LIMIT),
     future: action.type === "commit" ? [] : history.future.slice(1),

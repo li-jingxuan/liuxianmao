@@ -43,6 +43,7 @@ import {
   planLyricSequence,
   resolveLyricPosition,
   validateChordDiagram,
+  type ILXMLayoutOptions,
   type ILXMTabCellSelection,
   type ILXMLyricVerse,
   type ILXMScoreCommand,
@@ -148,6 +149,7 @@ export const MusicTextSidebar = ({
   onTransitionBlockedChange,
   onTargetChange,
   onParagraphEditingChange,
+  paragraphPlaceholders,
   onScoreFocus,
   onScoreSelection,
   getNumberedBeatEventIds,
@@ -179,6 +181,7 @@ export const MusicTextSidebar = ({
   onTargetChange: (target: MusicTextTarget | null) => void;
   /** 即使当前休止或延音不可写词，也保留当前小节的空歌词行。 */
   onParagraphEditingChange?: (session: ParagraphEditingSession | null) => void;
+  paragraphPlaceholders?: ILXMLayoutOptions["paragraphPlaceholders"];
   onScoreFocus: () => void;
   onScoreSelection: (
     selection: ILXMTabCellSelection | null,
@@ -344,7 +347,8 @@ export const MusicTextSidebar = ({
   const paragraphTrackId = propertyTab === "paragraph" ? paragraphSource?.trackId : undefined;
   const paragraphMeasureId = propertyTab === "paragraph" ? paragraphSource?.measureId : undefined;
   const paragraphVerse = score && lyricVerse <= getLyricVerseCount(score) ? lyricVerse : 1;
-  const paragraphRowAvailable = textSession || (kind === "numbered" ? textRows?.numbered : !!textRows?.lyricVerses);
+  const paragraphRowAvailable = activeObject?.kind === kind ||
+    (kind === "numbered" ? textRows?.numbered : !!textRows?.lyricVerses);
   useEffect(() => {
     onParagraphEditingChange?.(paragraphRowAvailable && paragraphTrackId && paragraphMeasureId && (kind === "lyric" || kind === "numbered")
       ? { trackId: paragraphTrackId, measureId: paragraphMeasureId, kind, verse: paragraphVerse }
@@ -761,7 +765,10 @@ export const MusicTextSidebar = ({
         : activeObject?.kind === "lyric" ? activeObject
         : current.numberedSelection ? { ...current.numberedSelection, kind: "numbered" as const }
         : numberedTarget;
-      const lyricTarget = action.kind === "lyric"
+      const rows = current.document && getMusicTextRows(current.document);
+      const lyricAvailable = !!rows?.lyricVerses || !!paragraphPlaceholders?.lyric;
+      const numberedAvailable = !!rows?.numbered || !!paragraphPlaceholders?.numberedMeasureId;
+      const lyricTarget = action.kind === "lyric" && lyricAvailable
         ? resolveParagraphLyricTarget(current.document, source, lyricVerse) : null;
       if (lyricTarget) {
         current.setNumberedSelection(null);
@@ -769,8 +776,9 @@ export const MusicTextSidebar = ({
         setSurface("sidebar");
         return true;
       }
-      const numberedEntry = action.kind === "numbered" && current.document && source
+      const numberedPosition = (action.kind === "numbered" || action.kind === "lyric") && current.document && source
         ? resolveNumberedEditorTarget(current.document, source) : null;
+      const numberedEntry = action.kind === "numbered" && numberedAvailable ? numberedPosition : null;
       const chordTarget = action.kind === "chord" && !current.numberedSelection
         ? selectedChordTarget(current.document, current.selection) : null;
       const chordDraft = chordTarget ? readMusicTextDraft(current.document, chordTarget) : null;
@@ -779,8 +787,9 @@ export const MusicTextSidebar = ({
       setNumberedTarget(nextNumbered);
       setActiveObject(nextNumbered);
       activeTextOwner.current = !!chordDraft || !!nextNumbered;
+      // 空行未建立时保留录入位置，等待用户明确开始录入。
+      if (numberedPosition) current.setNumberedSelection(numberedPosition);
       if (numberedEntry) {
-        current.setNumberedSelection(numberedEntry);
         setSurface("sidebar");
       }
       if (chordDraft) {

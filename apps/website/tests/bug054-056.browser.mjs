@@ -30,7 +30,10 @@ let stage = "start browser";
 const errors = [];
 try {
   await server.listen();
-  browser = await chromium.launch({ channel: process.env.LXM_BROWSER_CHANNEL });
+  browser = await chromium.launch({
+    channel: process.env.LXM_BROWSER_CHANNEL,
+    executablePath: process.env.LXM_CHROMIUM_EXECUTABLE,
+  });
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   page.setDefaultTimeout(35000);
   page.on("pageerror", (error) => errors.push(error.message));
@@ -41,67 +44,72 @@ try {
   await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/__bug054-056__`, { waitUntil: "commit" });
   const score = page.getByRole("application", { name: "六线谱编辑器" });
   const sidebar = page.getByRole("complementary", { name: "编辑器属性" });
-  await score.waitFor({ timeout: 90000 });
+  await score.waitFor({ timeout: 120000 });
   const snapshot = () => page.evaluate(() => {
     const { document, historyDepth, selection } = window.bugFixStore.getState();
     return { document, past: historyDepth.past, beatId: selection?.focus.beatId };
   });
   const notes = async () => (await snapshot()).document.score.tracks[0].measures[0].beats
     .map((beat) => beat.notes[0]?.fret);
-  const preview = score.locator("[data-fret-draft-preview] text");
-  const holdFretTimers = () => page.evaluate(() => {
-    const setTimeout = window.setTimeout;
-    const clearTimeout = window.clearTimeout;
-    const pending = new Map();
-    let nextId = -1;
-    window.setTimeout = (callback, delay, ...args) => {
-      if (delay !== 600) return setTimeout(callback, delay, ...args);
-      const id = nextId--;
-      pending.set(id, () => callback(...args));
-      return id;
+  const music = score.locator('[data-layer="score-music"]');
+  // Control event spacing independently of the time Chrome spends rendering the changed score.
+  const pressAt = (key, timeStamp) => score.evaluate((svg, { key, timeStamp }) => {
+    svg.focus();
+    const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true });
+    Object.defineProperty(event, "timeStamp", { value: timeStamp });
+    svg.dispatchEvent(event);
+    const { document, historyDepth } = window.bugFixStore.getState();
+    return {
+      frets: document.score.tracks[0].measures[0].beats.map((beat) => beat.notes[0]?.fret),
+      past: historyDepth.past,
     };
-    window.clearTimeout = (id) => {
-      if (!pending.delete(id)) clearTimeout(id);
-    };
-    window.releaseFretTimers = () => {
-      for (const [id, callback] of pending) {
-        pending.delete(id);
-        callback();
-      }
-    };
-    window.restoreFretTimers = () => Object.assign(window, { setTimeout, clearTimeout });
-  });
-  stage = "hold fret commit timers";
-  await holdFretTimers();
+  }, { key, timeStamp });
   const baseline = await snapshot();
 
-  stage = "preview first fret digit";
-  await score.press("1");
-  await preview.waitFor();
-  assert.equal(await preview.textContent(), "1");
-  assert.deepEqual(await snapshot(), baseline, "preview appears with the commit clock paused");
-  stage = "commit second fret digit";
-  await score.press("2");
+  stage = "write the first digit synchronously and combine the second";
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  });
+  const initialFretY = await music.getByText("10", { exact: true }).getAttribute("y");
+  await score.evaluate((svg) => {
+    const heights = [svg.getAttribute("height")];
+    const observer = new MutationObserver(() => heights.push(svg.getAttribute("height")));
+    observer.observe(svg, { attributes: true, attributeFilter: ["height"] });
+    window.readFretScoreHeights = () => {
+      observer.disconnect();
+      return heights;
+    };
+  });
+  const first = await pressAt("1", 1000);
+  assert.equal(first.frets[0], 1, "the document changes inside the keydown event");
+  assert.equal(first.past, baseline.past + 1);
+  await music.getByText("1", { exact: true }).waitFor();
+  assert.equal(await music.getByText("1", { exact: true }).getAttribute("y"), initialFretY);
+  await music.getByText("10", { exact: true }).waitFor({ state: "detached" });
+  assert.equal(await score.locator("[data-fret-draft-preview]").count(), 0);
+  assert.equal(await page.getByText(/正在输入：|当前输入未应用/).count(), 0);
+  const second = await pressAt("2", 1100);
+  assert.equal(second.frets[0], 12);
+  assert.equal(second.past, baseline.past + 1, "double digit uses one history entry");
+  await music.getByText("12", { exact: true }).waitFor();
+  assert.equal(await music.getByText("12", { exact: true }).getAttribute("y"), initialFretY);
+  const heights = await page.evaluate(() => window.readFretScoreHeights());
+  assert.equal(new Set(heights).size, 1, "fret-only changes keep the measured score height stable");
+  await score.press(process.platform === "darwin" ? "Meta+z" : "Control+z");
+  assert.equal((await notes())[0], 10);
+  await score.press(process.platform === "darwin" ? "Meta+Shift+z" : "Control+Shift+z");
   assert.equal((await notes())[0], 12);
-  assert.equal((await snapshot()).past, baseline.past + 1, "double digit uses one history entry");
-  await preview.waitFor({ state: "detached" });
 
-  stage = "commit on navigation and timeout, cancel on Escape";
-  await score.press("2");
+  stage = "keep digits separate across cell changes, elapsed time and Escape";
+  assert.equal((await pressAt("2", 2000)).frets[0], 2);
   await score.press("ArrowRight");
-  assert.equal((await notes())[0], 2, "navigating commits the digit on the old cell");
   assert.equal((await snapshot()).beatId, "beat-1");
-  await score.press("1");
-  assert.equal((await notes())[1], undefined);
-  await page.evaluate(() => window.releaseFretTimers());
-  assert.deepEqual((await notes()).slice(0, 2), [2, 1]);
-  assert.equal((await snapshot()).past, baseline.past + 3);
-  await score.press("2");
+  assert.deepEqual((await pressAt("1", 2100)).frets.slice(0, 2), [2, 1]);
+  assert.equal((await pressAt("2", 2800)).frets[1], 2);
   await score.press("Escape");
-  await page.evaluate(() => window.releaseFretTimers());
-  assert.deepEqual((await notes()).slice(0, 2), [2, 1]);
-  assert.equal((await snapshot()).past, baseline.past + 3, "Escape cancels the pending digit");
-  await page.evaluate(() => window.restoreFretTimers());
+  assert.equal((await notes())[1], 2, "Escape leaves the applied digit intact");
+  assert.equal((await pressAt("4", 2900)).frets[1], 4);
 
   stage = "apply Em and G recommendations";
   await sidebar.getByRole("tab", { name: "和弦", exact: true }).click();
@@ -122,11 +130,8 @@ try {
   }
 
   stage = "enter a fret with the chord sidebar visible";
-  await holdFretTimers();
-  await score.press("1");
-  await score.press("0");
-  assert.equal((await notes())[1], 10);
-  await page.evaluate(() => window.restoreFretTimers());
+  assert.equal((await pressAt("1", 4000)).frets[1], 1);
+  assert.equal((await pressAt("0", 4100)).frets[1], 10);
 
   stage = "switch between empty numbered and lyric tabs";
   await sidebar.getByRole("tab", { name: "简谱与歌词", exact: true }).click();
@@ -137,6 +142,15 @@ try {
   const beforeParagraph = await snapshot();
   await sidebar.getByRole("button", { name: "录入简谱", exact: true }).click();
   await numbered.first().waitFor();
+  await sidebar.locator("#paragraph-tab-lyric").click();
+  const startLyric = sidebar.getByRole("button", { name: "为当前简谱填写歌词", exact: true });
+  await startLyric.waitFor();
+  assert.ok(await numbered.count());
+  assert.equal(await lyrics.count(), 0, "switching tabs leaves the unopened lyric row absent");
+  assert.deepEqual(await snapshot(), beforeParagraph);
+
+  await startLyric.click();
+  await lyrics.first().waitFor();
   for (const kind of ["lyric", "numbered", "lyric"]) {
     await sidebar.locator(`#paragraph-tab-${kind}`).click();
     await score.locator(`[data-paragraph-focus="${kind}"]`).waitFor();
@@ -147,7 +161,7 @@ try {
   assert.deepEqual(afterParagraph.document, beforeParagraph.document);
   assert.equal(afterParagraph.past, beforeParagraph.past);
   assert.deepEqual(errors, []);
-  console.log("BUG-054/055/056 browser passed: immediate fret preview, single undo entry per input, Em/G fret windows, and both empty paragraph rows surviving tab switches.");
+  console.log("BUG-054/055/056 browser passed: synchronous fret edits with grouped undo, Em/G fret windows, and empty rows created only by explicit editing.");
 } catch (error) {
   throw new Error(`Browser regression failed at ${stage}${errors.length ? ` (${errors.join("; ")})` : ""}`, { cause: error });
 } finally {

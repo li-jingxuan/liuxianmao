@@ -49,52 +49,6 @@ export const resolveEditorHistoryShortcut = (
   return null;
 };
 
-export interface DeferredFretDraftCommit {
-  getDraft: () => string;
-  schedule: (draft: string, commit: (draft: string) => void) => void;
-  cancel: () => void;
-  flush: () => void;
-}
-
-/**
- * 创建可取消的品位草稿延迟提交器。
- *
- * generation 除了配合 clearTimeout，还能让已经进入任务队列的旧回调自行失效，
- * 避免用户执行撤销、切换工具或重新选择后，旧草稿又写回 document。
- */
-export const createDeferredFretDraftCommit = (
-  timeoutMs: number,
-): DeferredFretDraftCommit => {
-  let generation = 0;
-  let timer: ReturnType<typeof setTimeout> | null = null;
-  let pending: { draft: string; commit: (draft: string) => void } | null = null;
-
-  const cancel = (): void => {
-    generation += 1;
-    if (timer !== null) clearTimeout(timer);
-    timer = null;
-    pending = null;
-  };
-
-  const flush = (): void => {
-    const input = pending;
-    cancel();
-    input?.commit(input.draft);
-  };
-
-  const schedule: DeferredFretDraftCommit["schedule"] = (draft, commit) => {
-    cancel();
-    pending = { draft, commit };
-    const scheduledGeneration = generation;
-    timer = setTimeout(() => {
-      if (scheduledGeneration !== generation) return;
-      flush();
-    }, timeoutMs);
-  };
-
-  return { getDraft: () => pending?.draft ?? "", schedule, cancel, flush };
-};
-
 /** x 弹奏标记只在谱面入口接管；系统快捷键和输入法组合键保持原行为。 */
 export const resolveMutedNoteShortcut = (
   input: BeatKindShortcutInput & { isComposing?: boolean },

@@ -5,7 +5,6 @@ import {
 } from "./editor-session-version";
 
 export type EditorDraftKind =
-  | "fret"
   | "settings"
   | "lyric"
   | "numbered"
