@@ -22,6 +22,7 @@ import {
   getContinueTarget,
   isTargetComplete,
 } from "../../lib/guitar-advanced/progress";
+import { BrandIcon } from "../BrandIcon";
 import styles from "./GuitarAdvancedShell.module.scss";
 const GuitarAdvancedShellContent = ({
   children,
@@ -92,7 +93,7 @@ const GuitarAdvancedShellContent = ({
     <div className={styles.shell}>
       <header className={styles.header}>
         <Link className={styles.brand} href="/" onClick={(event) => { if (!requestProductExit()) event.preventDefault(); }}>
-          <span className={styles.brandMark}>六</span>
+          <BrandIcon size={36} />
           <span>六线猫</span>
         </Link>
         <nav className={styles.productNav} aria-label="产品导航">

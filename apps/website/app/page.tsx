@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BrandIcon } from "../components/BrandIcon";
 import { HomeScoreActions } from "./HomeScoreActions";
 import styles from "./page.module.scss";
 
@@ -6,10 +7,7 @@ const HomePage = () => (
   <div className={styles.home}>
     <header className={styles.siteHeader}>
       <Link className={styles.brand} href="/" aria-label="六线猫首页">
-        <svg viewBox="0 0 32 32" aria-hidden="true">
-          <path d="M5 13 6 4l8 6h4l8-6 1 9v9c0 5-22 5-22 0Z" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinejoin="round" />
-          <path d="M10 17h2m8 0h2m-7 4h2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-        </svg>
+        <BrandIcon size={32} />
         六线猫
       </Link>
       <nav aria-label="主导航">

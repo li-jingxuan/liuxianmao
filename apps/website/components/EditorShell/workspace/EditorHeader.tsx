@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Button, Dropdown } from "antd";
 import { DownOutlined } from "@ant-design/icons";
 import type { ScoreFileStatus } from "../../../stores/editor-store";
+import { BrandIcon } from "../../BrandIcon";
 import type { ScoreFilePanel } from "../output/use-score-file-flow";
 import editorHeaderStyles from "./EditorHeader.module.scss";
 
@@ -55,6 +56,7 @@ export const EditorHeader = ({
           if (!onNavigate("/", homeLinkRef.current)) event.preventDefault();
         }}
       >
+        <BrandIcon size={26} />
         <strong>六线猫</strong>
       </Link>
       <div className={editorHeaderStyles.editorHeading}>
