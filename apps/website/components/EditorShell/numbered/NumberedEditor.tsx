@@ -998,27 +998,34 @@ export const NumberedEditor = ({
         (focusRequest.group === "rhythm" && (!event || complexRhythm)))
     )
       return;
-    const container = Array.from(
-      root.current?.querySelectorAll<HTMLElement>(
-        `[data-numbered-group="${focusRequest.group}"]`,
-      ) ?? [],
-    ).find((element) => !element.closest("[hidden], [inert]"));
-    if (!container) return;
-    let ancestor: HTMLElement | null = container;
-    while (ancestor && ancestor !== root.current) {
-      if (ancestor instanceof HTMLDetailsElement) ancestor.open = true;
-      ancestor = ancestor.parentElement;
-    }
-    const control =
-      focusRequest.group === "content"
-        ? input.current
-        : container.querySelector<HTMLElement>(
-            "input:not(:disabled), textarea:not(:disabled), button:not(:disabled)",
-          );
-    control?.focus({ preventScroll: true });
-    control?.scrollIntoView?.({ block: "nearest" });
-    if (control && globalThis.document.activeElement === control)
-      completedFocusRequest.current = focusRequest;
+    // 聚焦会同步触发旧按钮的 Tooltip blur，等 React 提交完成后再移焦。
+    const frame = requestAnimationFrame(() => {
+      if (completedFocusRequest.current === focusRequest) return;
+      const container = Array.from(
+        root.current?.querySelectorAll<HTMLElement>(
+          `[data-numbered-group="${focusRequest.group}"]`,
+        ) ?? [],
+      ).find((element) => !element.closest("[hidden], [inert]"));
+      if (!container) return;
+      let ancestor: HTMLElement | null = container;
+      while (ancestor && ancestor !== root.current) {
+        if (ancestor instanceof HTMLDetailsElement) ancestor.open = true;
+        ancestor = ancestor.parentElement;
+      }
+      const control =
+        focusRequest.group === "content"
+          ? input.current
+          : container.querySelector<HTMLElement>(
+              "input:not(:disabled), textarea:not(:disabled), button:not(:disabled)",
+            );
+      if (!control?.isConnected || control.closest("[hidden], [inert]")) return;
+      control.focus({ preventScroll: true });
+      if (globalThis.document.activeElement === control) {
+        completedFocusRequest.current = focusRequest;
+        control.scrollIntoView?.({ block: "nearest" });
+      }
+    });
+    return () => cancelAnimationFrame(frame);
   }, [focusRequest, pending, compact, complexRhythm, event, popoverContainer]);
   const latest = useRef({
     onBusyChange,
