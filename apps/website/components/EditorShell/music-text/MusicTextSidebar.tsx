@@ -40,6 +40,7 @@ import {
   LXMScoreCommandEnum,
   normalizeMusicText,
   parseLyricSequence,
+  planLyricPositions,
   planLyricSequence,
   resolveLyricPosition,
   validateChordDiagram,
@@ -105,7 +106,7 @@ import { NoteToolDetails } from "../tools/NoteToolDetails";
 import { MeasureToolDetails } from "../tools/MeasureToolDetails";
 import { TupletToolbar } from "../tools/TupletToolbar";
 import { SidebarRhythmPatternPanel } from "../tools/RhythmPatternPanel";
-import { resolveParagraphInsertionTarget, resolveParagraphLyricTarget } from "./music-text-target";
+import { resolveParagraphLyricTarget } from "./music-text-target";
 
 export type ParagraphEditingSession = {
   trackId: string;
@@ -342,7 +343,6 @@ export const MusicTextSidebar = ({
   }, [numberedActionBlocked, onNumberedActionBlockedChange]);
   const lyricSource = activeObject?.kind === "lyric" || activeObject?.kind === "numbered"
     ? activeObject : numberedTarget ?? (numberedSelection ? { ...numberedSelection, kind: "numbered" as const } : null);
-  const lyricStart = lyricSource ? resolveParagraphInsertionTarget(score, lyricSource) : null;
   const paragraphSource = activeObject ?? numberedSelection ?? selection?.focus;
   const paragraphTrackId = propertyTab === "paragraph" ? paragraphSource?.trackId : undefined;
   const paragraphMeasureId = propertyTab === "paragraph" ? paragraphSource?.measureId : undefined;
@@ -356,10 +356,25 @@ export const MusicTextSidebar = ({
   }, [onParagraphEditingChange, paragraphRowAvailable, paragraphTrackId, paragraphMeasureId, kind, paragraphVerse]);
   const numberedEntry = score ? resolveNumberedEditorTarget(score,
     numberedSelection ?? selection?.focus ?? null) : null;
+  const lyricStart = (() => {
+    if (kind !== "lyric" || !score || draft) return null;
+    if (lyricSource) return resolveParagraphLyricTarget(score, lyricSource, paragraphVerse);
+    if (selection) return resolveParagraphLyricTarget(
+      score, numberedEntry && { ...numberedEntry, kind: "numbered" }, paragraphVerse,
+    );
+    // 仅为录入按钮准备起点，浏览歌词页签时不激活这个位置。
+    const track = score.score.tracks[0];
+    if (!track) return null;
+    for (const measure of track.measures) {
+      const [position] = planLyricPositions(measure);
+      if (position) return { ...position, trackId: track.id, measureId: measure.id, kind: "lyric" as const, verse: paragraphVerse };
+    }
+    return null;
+  })();
   const target =
     draft?.target ??
     (kind === "lyric"
-      ? lyricStart && { ...lyricStart, kind: "lyric" as const }
+      ? lyricStart
       : numberedSelection ? null : selection?.focus);
   const track = target
     ? score?.score.tracks.find((t) => t.id === target.trackId)
@@ -2245,7 +2260,11 @@ export const MusicTextSidebar = ({
                     ) : (
                       <CustomerServiceOutlined style={{ fontSize: 36 }} />
                     )}
-                    <h3>{kind === "lyric" ? "先选择歌词位置" : "先选择单个 TAB 拍点"}</h3>
+                    <h3>{kind === "lyric"
+                      ? lyricStart
+                        ? paragraphSource ? "从当前谱面位置开始" : "从首个可录入位置开始"
+                        : "先选择歌词位置"
+                      : "先选择单个 TAB 拍点"}</h3>
                     {kind !== "lyric" && <p>选择六线谱中的单个拍点，在这里设置和弦名称与指法。</p>}
                     {kind === "lyric" && lyricStart && <Button
                       ref={editButtonRef}
@@ -2254,11 +2273,11 @@ export const MusicTextSidebar = ({
                         request({
                           type: "target",
                           lyricFocusSurface: "sidebar",
-                           target: { ...lyricStart, kind: "lyric", verse: paragraphVerse },
+                          target: lyricStart,
                         });
                       }}
                     >
-                      为当前简谱填写歌词
+                      录入歌词
                     </Button>}
                   </div>
                 ) : kind === "lyric" ? (

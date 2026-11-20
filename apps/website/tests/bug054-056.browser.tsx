@@ -1,5 +1,6 @@
 import { createRoot } from "react-dom/client";
 import { EditorWorkspace } from "../app/editor/EditorWorkspace";
+import { createBlankScore } from "../components/EditorShell/output/new-score";
 import { editorStore } from "../stores/editor-store";
 import "../app/globals.scss";
 
@@ -25,5 +26,15 @@ if (!result.ok) throw new Error(result.errors.join("\n"));
 const cell = { trackId: track.id, measureId: measure.id, beatId: "beat-0", string: 1 };
 editorStore.getState().setSelection({ anchor: cell, focus: cell });
 
-Object.assign(window, { bugFixStore: editorStore });
+Object.assign(window, {
+  bugFixStore: editorStore,
+  bugFixOpenBlankScore: () => {
+    const blank = createBlankScore({
+      title: "空白曲谱", arranger: "", tonality: { version: 1, tonic: "C", mode: "major" },
+      timeSignature: { numerator: 4, denominator: 4 },
+    });
+    const result = editorStore.getState().replaceDocument(blank, "new");
+    if (!result.ok) throw new Error(result.errors.join("\n"));
+  },
+});
 createRoot(document.getElementById("root")!).render(<EditorWorkspace />);

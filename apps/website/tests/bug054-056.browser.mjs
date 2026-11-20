@@ -143,7 +143,7 @@ try {
   await sidebar.getByRole("button", { name: "录入简谱", exact: true }).click();
   await numbered.first().waitFor();
   await sidebar.locator("#paragraph-tab-lyric").click();
-  const startLyric = sidebar.getByRole("button", { name: "为当前简谱填写歌词", exact: true });
+  const startLyric = sidebar.getByRole("button", { name: "录入歌词", exact: true });
   await startLyric.waitFor();
   assert.ok(await numbered.count());
   assert.equal(await lyrics.count(), 0, "switching tabs leaves the unopened lyric row absent");
@@ -160,6 +160,29 @@ try {
   const afterParagraph = await snapshot();
   assert.deepEqual(afterParagraph.document, beforeParagraph.document);
   assert.equal(afterParagraph.past, beforeParagraph.past);
+
+  stage = "start lyrics on a new score with only a TAB selection";
+  await page.evaluate(() => window.bugFixOpenBlankScore());
+  const blank = await snapshot();
+  assert.equal(blank.beatId, "beat-1-1");
+  await sidebar.getByRole("tab", { name: "简谱与歌词", exact: true }).click();
+  await sidebar.locator("#paragraph-tab-lyric").click();
+  await startLyric.waitFor();
+  await sidebar.getByRole("heading", { name: "从当前谱面位置开始" }).waitFor();
+  assert.equal(await numbered.count(), 0);
+  assert.equal(await lyrics.count(), 0);
+  assert.deepEqual(await snapshot(), blank);
+
+  await page.evaluate(() => window.bugFixStore.getState().setSelection(null));
+  await sidebar.getByRole("heading", { name: "从首个可录入位置开始" }).waitFor();
+  const beforeLyricEntry = await snapshot();
+  await startLyric.click();
+  await score.locator('[data-paragraph-cell="lyric/measure-1/time-0-960/1"]').first().waitFor({ state: "attached" });
+  const lyricInput = sidebar.getByRole("textbox", { name: "连续歌词", exact: true });
+  await lyricInput.waitFor();
+  await page.waitForFunction((id) => document.activeElement?.id === id, await lyricInput.getAttribute("id"));
+  assert.equal(await numbered.count(), 0);
+  assert.deepEqual(await snapshot(), beforeLyricEntry);
   assert.deepEqual(errors, []);
   console.log("BUG-054/055/056 browser passed: synchronous fret edits with grouped undo, Em/G fret windows, and empty rows created only by explicit editing.");
 } catch (error) {
