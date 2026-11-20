@@ -1,6 +1,7 @@
 "use client";
 import { Alert, Button, ConfigProvider, Input, Tooltip } from "antd";
 import { CloseOutlined, DeleteOutlined } from "@ant-design/icons";
+import { ShortcutTooltip } from "../session/EditorShortcutReference";
 import { LXMScoreCommandEnum as C, resolveTechniqueSelection, type ILXMDocument,
   type ILXMTabCellSelection, type ILXMTechniqueDraft, type ILXMTechniqueType } from "@liuxianmao/lxm-editor";
 import { useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type Ref } from "react";
@@ -310,12 +311,10 @@ export const TechniqueToolbar = ({ ref, document, selection, selectedTechniqueId
       <div className={styles.header}>
         <h3 className={styles.title}>所有技巧</h3>
         <div className={styles.actions}>
-          <Tooltip title={deleteReason ?? `删除${selected ? label(selected.type) : "当前技巧"}`}>
-            <span tabIndex={deleteReason ? 0 : undefined} aria-label={deleteReason ?? undefined}>
-              <Button className={styles.delete} type="text" danger icon={<DeleteOutlined />} aria-label="删除当前技巧"
-                disabled={!!deleteReason} onClick={() => void remove()} />
-            </span>
-          </Tooltip>
+          <ShortcutTooltip shortcuts={["remove"]} note={deleteReason ?? undefined} disabled={!!deleteReason}>
+            <Button className={styles.delete} type="text" danger icon={<DeleteOutlined />} aria-label="删除当前技巧"
+              disabled={!!deleteReason} onClick={() => void remove()} />
+          </ShortcutTooltip>
           {onClose && <Button className={styles.close} type="text" icon={<CloseOutlined />} aria-label="关闭所有技巧"
             disabled={!owner.canHide()} onClick={() => { if (discard()) onClose(); }} />}
         </div>

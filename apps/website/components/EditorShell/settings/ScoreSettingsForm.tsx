@@ -3,6 +3,7 @@
 import { Button, Form, Input, Select } from "antd";
 import { CloseCircleOutlined } from "@ant-design/icons";
 import { type ILXMDocument, readScoreTonality } from "@liuxianmao/lxm-editor";
+import { ShortcutTooltip } from "../session/EditorShortcutReference";
 import type { ScoreSettingsDraft, SettingsGroup, SettingsGroupStatus } from "./score-settings-draft";
 import styles from "./ScoreSettingsForm.module.scss";
 
@@ -36,7 +37,11 @@ export const ScoreSettingsForm = ({
   return <div className={styles.songForm}>
     {error(issues.all)}
     <Form className={styles.section} layout="vertical" data-settings-group="info" onFinish={() => onApply("info")} requiredMark={false}>
-      <div className={styles.sectionHeading}><h3 tabIndex={-1}>曲谱信息</h3><Button className={styles.applyButton} type="primary" htmlType="submit" aria-label="应用曲谱信息" disabled={!groups.info.canApply}>应用</Button></div>
+      <div className={styles.sectionHeading}><h3 tabIndex={-1}>曲谱信息</h3>
+        <ShortcutTooltip shortcuts={["settings"]} disabled={!groups.info.canApply}>
+          <Button className={styles.applyButton} type="primary" htmlType="submit" aria-label="应用曲谱信息" disabled={!groups.info.canApply}>应用</Button>
+        </ShortcutTooltip>
+      </div>
       <Form.Item label="歌曲名称" htmlFor="settings-title"><Input id="settings-title" aria-label="歌曲名称" value={value.title} disabled={busy} onChange={(event) => onChange("title", event.target.value)} /></Form.Item>
       <Form.Item label="编谱作者" htmlFor="settings-arranger"><Input id="settings-arranger" aria-label="编谱作者" value={value.arranger} disabled={busy} onChange={(event) => onChange("arranger", event.target.value)} /></Form.Item>
       <dl className={styles.readonlyFields} aria-label="曲谱调性（只读）">

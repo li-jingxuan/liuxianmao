@@ -49,10 +49,10 @@ export interface ILXMLayoutMeasureContext {
   /**
    * System 布局为当前小节分配的最终宽度。
    *
-   * 未传入时，小节使用由节奏内容计算出的固有宽度；传入时只允许在固有宽度
-   * 基础上扩张。这个值只属于布局过程，不应写回乐谱文档。
+   * 未传入时使用固有宽度；紧凑排版可压缩至小节的最小净空。
    */
   assignedWidth?: number;
+  justifyWithMargins?: boolean;
 
   /** 由 system 层按完整文档顺序决定，measure 层只负责生成最终几何。 */
   showTimeSignature?: boolean;
@@ -148,6 +148,7 @@ export const layoutMeasure = (
     x,
     density,
     assignedWidth: requestedAssignedWidth,
+    justifyWithMargins: context.justifyWithMargins,
     leadingWidth,
     musicTextMetrics: context.musicTextMetrics,
     spacingSummary: context.spacingSummary,

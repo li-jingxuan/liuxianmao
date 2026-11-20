@@ -1,4 +1,4 @@
-import { createNumberedRhythmContext, parseNumberedSequence, planNumberedSequenceOverwrite, planNumberedSequenceSlots, type ILXMMeasure, type ILXMNumberedVoiceCommand, type ILXMTrack } from "@liuxianmao/lxm-editor";
+import { createNumberedRhythmContext, parseNumberedSequence, planNumberedEventRhythm, planNumberedSequenceOverwrite, planNumberedSequenceSlots, type ILXMMeasure, type ILXMNumberedVoiceCommand, type ILXMTrack } from "@liuxianmao/lxm-editor";
 
 export const numberedSequenceRangeText = (measure: ILXMMeasure, startTick: number, endTick: number): string => {
   const items = planNumberedSequenceSlots(measure).filter(slot => slot.startTick >= startTick && slot.startTick < endTick).map(slot => {
@@ -26,6 +26,18 @@ export const numberedContentDependency = (
     (row) => row.measureId === measureId && row.event.id === eventId,
   );
   const parsed = parseNumberedSequence(raw);
+  if (operation?.type === "numbered.event.setRhythm" && operation.tokens) {
+    const measure = track.measures.find(item => item.id === operation.measureId);
+    if (!measure) return "missing measure";
+    const plan = planNumberedEventRhythm(measure, operation.eventId, operation.rhythm);
+    const affected = new Set(plan.ok
+      ? [operation.eventId, ...plan.movedEventIds, ...plan.resizedEventIds, ...plan.overwrittenEventIds]
+      : [operation.eventId]);
+    return JSON.stringify({
+      issue: plan.ok ? null : plan.message,
+      events: measure.numberedVoice.events.filter(event => affected.has(event.id)),
+    });
+  }
   if (operation?.type === "numbered.range.replace" || operation?.type === "numbered.sequence.insert") {
     const measure = track.measures.find(measure => measure.id === operation.measureId);
     if (!measure) return "missing measure";

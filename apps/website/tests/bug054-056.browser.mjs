@@ -39,6 +39,7 @@ try {
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("console", (message) => {
     if (message.type() === "error") console.error(message.text());
+    if (message.type() === "error" && message.text().includes("flushSync")) errors.push(message.text());
   });
   stage = "load editor";
   await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/__bug054-056__`, { waitUntil: "commit" });
@@ -160,6 +161,30 @@ try {
   const afterParagraph = await snapshot();
   assert.deepEqual(afterParagraph.document, beforeParagraph.document);
   assert.equal(afterParagraph.past, beforeParagraph.past);
+
+  stage = "add, remove and re-add the numbered row without a focus error";
+  await sidebar.locator("#paragraph-tab-numbered").click();
+  const addNumbered = sidebar.getByRole("button", { name: "添加简谱行", exact: true });
+  const numberedInput = sidebar.getByRole("textbox", { name: "简谱内容", exact: true });
+  const expectNumberedFocus = () => page.waitForFunction(
+    () => document.activeElement?.id === "numbered-sidebar-content",
+  );
+  await addNumbered.press("Enter");
+  await numberedInput.waitFor();
+  await expectNumberedFocus();
+  const added = await snapshot();
+  assert.equal(added.past, afterParagraph.past + 1);
+  assert.equal(await addNumbered.getAttribute("aria-disabled"), "true");
+  await addNumbered.press("Enter");
+  await addNumbered.dispatchEvent("click");
+  assert.deepEqual(await snapshot(), added, "repeated activation does not write another row");
+  await sidebar.getByRole("button", { name: "简谱行操作", exact: true }).click();
+  await page.getByRole("menuitem", { name: "删除简谱行", exact: true }).click();
+  await numberedInput.waitFor({ state: "detached" });
+  assert.equal((await snapshot()).past, added.past + 1);
+  await addNumbered.press("Enter");
+  await expectNumberedFocus();
+  assert.equal((await snapshot()).past, added.past + 2);
 
   stage = "start lyrics on a new score with only a TAB selection";
   await page.evaluate(() => window.bugFixOpenBlankScore());

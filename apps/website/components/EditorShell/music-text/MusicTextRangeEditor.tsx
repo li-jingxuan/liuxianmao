@@ -29,6 +29,7 @@ import { useEditorDraftRecords, useEditorRuntime } from "../session/EditorSessio
 import { captureEditorVersion, sameEditorVersion, type EditorSessionVersion } from "../session/editor-session-version";
 import { formatNumberedBeatPosition } from "../numbered/numbered-editor-target";
 import { isEditorInputEnter } from "../shared/editor-input-enter";
+import { ShortcutTooltip } from "../session/EditorShortcutReference";
 import styles from "./MusicTextRangeEditor.module.scss";
 
 export interface MusicTextRangeEditorController {
@@ -321,8 +322,10 @@ export function MusicTextRangeEditor({ range, onChange, onClose, onScoreFocus, o
               event.preventDefault();
               if (apply(live.current.text)) onScoreFocus();
             }} />
-          <Button type="primary" aria-label="应用范围" disabled={!!error || inputBusy || !!activeModal || !dirty}
-            onClick={() => { if (apply(live.current.text)) onScoreFocus(); }}>应用</Button>
+          <ShortcutTooltip shortcuts={["apply"]} disabled={!!error || inputBusy || !!activeModal || !dirty}>
+            <Button type="primary" aria-label="应用范围" disabled={!!error || inputBusy || !!activeModal || !dirty}
+              onClick={() => { if (apply(live.current.text)) onScoreFocus(); }}>应用</Button>
+          </ShortcutTooltip>
         </div>
         {error && <p className={styles.error} role="alert" id={`${id}-error`}>{error}</p>}
         {!error && preview.removedMarkIds.length > 0 && <p className={styles.impact} role="status">将影响 {preview.removedMarkIds.length} 个简谱连接记号，应用时需确认。</p>}

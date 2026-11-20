@@ -22,7 +22,7 @@ import {
   getContinueTarget,
   isTargetComplete,
 } from "../../lib/guitar-advanced/progress";
-import { BrandIcon } from "../BrandIcon";
+import { HeaderBar } from "../HeaderBar";
 import styles from "./GuitarAdvancedShell.module.scss";
 const GuitarAdvancedShellContent = ({
   children,
@@ -91,17 +91,7 @@ const GuitarAdvancedShellContent = ({
   const reset = () => setConfirmation("clear");
   return (
     <div className={styles.shell}>
-      <header className={styles.header}>
-        <Link className={styles.brand} href="/" onClick={(event) => { if (!requestProductExit()) event.preventDefault(); }}>
-          <BrandIcon size={36} />
-          <span>六线猫</span>
-        </Link>
-        <nav className={styles.productNav} aria-label="产品导航">
-          <Link href="/editor" onClick={(event) => { if (!requestProductExit()) event.preventDefault(); }}>曲谱工作台</Link>
-          <span className={styles.productNavActive}>吉他进阶</span>
-        </nav>
-        <span className={styles.localBadge}>当前浏览器</span>
-      </header>
+      <HeaderBar active="learning" canNavigate={requestProductExit} />
       <div className={styles.body}>
         <aside className={styles.sidebar} aria-label="吉他进阶导航">
           <div className={styles.sidebarTitle}>吉他进阶</div>

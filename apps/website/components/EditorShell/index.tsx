@@ -42,7 +42,8 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import { Button, Dropdown, theme } from "antd";
+import { Button, Dropdown, Tooltip, theme } from "antd";
+import { ShortcutHint } from "./session/EditorShortcutReference";
 import { DownOutlined, MinusOutlined, PlusOutlined } from "@ant-design/icons";
 import {
   selectScoreFileStatus,
@@ -106,6 +107,7 @@ import {
 
 /** 在同一选区内，把紧接的两个数字合成一个品位。 */
 const FRET_DIGIT_INTERVAL_MS = 600;
+const SCORE_TAIL_BUTTON_WIDTH = 36;
 
 /** 编辑、图片导出和打印统一使用固定的默认排版密度。 */
 const density = "compact";
@@ -239,7 +241,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
   const editorRootRef = useRef<HTMLDivElement>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
   const { width: hostWidth, mode: layoutMode } =
-    useEditorHostWidth(editorRootRef);
+    useEditorHostWidth(editorRootRef, !!document);
   const narrowPanels = layoutMode === "compact" || layoutMode === "narrow";
   const [historyOpen, setHistoryOpen] = useState(false);
   const historyTriggerRef = useRef<HTMLButtonElement>(null);
@@ -358,6 +360,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
   useWorkspaceOverlays({
     rootRef: editorRootRef,
     workspaceRef,
+    hasDocument: !!document,
     panel: narrowPanels
       ? historyOpen
         ? "history"
@@ -522,8 +525,11 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
   const dragAnchorRef = useRef<ILXMTabCellReference | null>(null);
   const activePointerIdRef = useRef<number | null>(null);
   const focusCaretRef = useRef<SVGRectElement | null>(null);
+  const [tabHint, setTabHint] = useState<ILXMTabCellReference | null>(null);
+  const [scoreKeyboardFocus, setScoreKeyboardFocus] = useState(false);
   const rangeFocusRef = useRef<SVGRectElement | null>(null);
   const scoreSvgRef = useRef<SVGSVGElement | null>(null);
+  const appendingMeasure = useRef(false);
   const imageExportButtonRef = useRef<HTMLButtonElement | null>(null);
 
   /** document 变化后重新生成 system、命中索引和所有 SVG 几何数据。 */
@@ -532,6 +538,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
 
     return buildLayout(document, {
       purpose: "editing",
+      editingTailWidth: SCORE_TAIL_BUTTON_WIDTH,
       x: 0,
       y: 0,
       systemWidth: A4_CONTENT_WIDTH,
@@ -761,6 +768,17 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
         : null,
     [lxmLayout, selection],
   );
+  const tabFocus = !activeMusicTextTarget && !selectedTechniqueId && focusCaret && selection ? selection.focus : null;
+  const hoveredCell = hoveredTabCell?.layout === lxmLayout ? hoveredTabCell?.target : null;
+  const selectedCellHovered = !!tabFocus && hoveredCell?.trackId === tabFocus.trackId &&
+    hoveredCell.measureId === tabFocus.measureId && hoveredCell.beatId === tabFocus.beatId && hoveredCell.string === tabFocus.string;
+  const tabHintTarget = tabFocus && (selectedCellHovered || scoreKeyboardFocus) && !activeModal ? tabFocus : null;
+  const tabHintOpen = !!tabHintTarget && tabHint === tabHintTarget;
+  useEffect(() => {
+    if (!tabHintTarget) return;
+    const timer = window.setTimeout(() => setTabHint(tabHintTarget), 300);
+    return () => window.clearTimeout(timer);
+  }, [tabHintTarget]);
 
   /**
    * 小节线工具跟随 selection.focus，而不是范围的第一个 Beat。
@@ -1198,6 +1216,21 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     else if (continuousRange) focusScore();
   };
 
+  const handleMusicTextNavigation: React.KeyboardEventHandler<HTMLDivElement> = (event) => {
+    if (event.defaultPrevented || !event.altKey || event.ctrlKey || event.metaKey || event.shiftKey ||
+      (event.key !== "ArrowLeft" && event.key !== "ArrowRight") ||
+      event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229 || modals.isOpen()) return;
+    const handled = musicTextController.current?.moveEditTarget(
+      event.key === "ArrowLeft" ? -1 : 1,
+      event.target,
+      event.target === scoreSvgRef.current,
+    );
+    if (handled) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  };
+
   /** 编辑器级历史快捷键在 SVG 或 Toolbar 持有焦点时都生效。 */
   const handleEditorKeyDown: React.KeyboardEventHandler<HTMLDivElement> = (
     event,
@@ -1229,6 +1262,13 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
       event.nativeEvent.isComposing
     )
       return;
+    if (event.key === "Escape" && tabHintOpen) {
+      endFretInput();
+      setTabHint(null);
+      event.preventDefault();
+      return;
+    }
+    setTabHint(null);
     if (document && (continuousRange || event.shiftKey && activeMusicTextTarget && rangeFromTarget(activeMusicTextTarget))) {
       const range = continuousRange ?? rangeFromTarget(activeMusicTextTarget!)!;
       if (event.metaKey || event.ctrlKey || event.altKey) return;
@@ -1384,15 +1424,69 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     musicTextController.current?.select(null);
   };
 
+  const editorVariables = {
+    "--panel": token.colorBgContainer,
+    "--panel-muted": token.colorBgLayout,
+    "--background": token.colorBgLayout,
+    "--foreground": token.colorText,
+    "--muted": token.colorTextSecondary,
+    "--border": token.colorBorderSecondary,
+    "--border-strong": token.colorBorder,
+    "--accent": token.colorPrimary,
+    "--accent-soft": token.colorPrimaryBg,
+  };
+  const editorHeader = <EditorHeader
+    title={document?.score.title ?? ""}
+    status={fileStatus}
+    empty={!document || !lxmLayout}
+    onNavigate={requestNavigation}
+    onShortcuts={(trigger, fromKeyboard) => {
+      if (imageExportSnapshot || fileFlow.panel) return;
+      modals.open({
+        kind: "shortcuts",
+        title: "快捷键",
+        message: "",
+        focusSearch: fromKeyboard || !window.matchMedia("(pointer: coarse)").matches,
+        restoreFocus: () => {
+          // 等工作区的浮层协调器解除背景 inert，再恢复入口焦点。
+          requestAnimationFrame(() => requestAnimationFrame(() => {
+            if (!modals.isOpen()) trigger.focus({ preventScroll: true });
+          }));
+        },
+      });
+    }}
+    onFileAction={(action, trigger) => {
+      if (action !== "home") fileFlow.showPanel(action, trigger);
+      else if (requestNavigation("/", trigger)) navigateTo("/");
+    }}
+    exportButtonRef={imageExportButtonRef}
+    onExportAction={(mode, trigger) => {
+      if (mode === "json") {
+        fileFlow.showPanel(mode, trigger);
+        return;
+      }
+      if (isOutputBlocked()) {
+        showOutputBlocked(trigger);
+        return;
+      }
+      const state = session.getState();
+      if (!state.document) return;
+      setImageExportSnapshot({ mode, version: captureEditorVersion(state), document: state.document, density, showChordDiagrams });
+    }}
+  />;
+
   if (!document || !lxmLayout)
     return (
-      <div className={styles.editorControls}>
-        <Button onClick={(event) => fileFlow.showPanel("new", event.currentTarget)}>新建曲谱</Button>
-        <Button onClick={(event) => fileFlow.showPanel("import", event.currentTarget)}>导入曲谱</Button>
+      <div ref={editorRootRef} className={styles.editor} data-editor-shell data-layout={layoutMode} style={editorVariables as React.CSSProperties}>
+        {editorHeader}
+        <div ref={workspaceRef} className={styles.emptyWorkspace}>
+          <p className={editorFormStyles.errorMessage} role="alert">{errorMessage ?? "当前没有可编辑的乐谱文档。"}</p>
+          <div>
+            <Button type="primary" onClick={(event) => fileFlow.showPanel("new", event.currentTarget)}>新建曲谱</Button>
+            <Button onClick={(event) => fileFlow.showPanel("import", event.currentTarget)}>导入曲谱</Button>
+          </div>
+        </div>
         <ScoreFilePanels flow={fileFlow} session={session} document={document} />
-        <p className={editorFormStyles.errorMessage} role="alert">
-          {errorMessage ?? "当前没有可编辑的乐谱文档。"}
-        </p>
       </div>
     );
 
@@ -1430,6 +1524,40 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     if (modal && !(impact === "caller" && modal.request.kind === "beat-paste"))
       return { status: "blocked", message: "请先完成当前弹层操作。" };
     return toolExecute(command, impact, submission);
+  };
+
+  const appendMeasure = async () => {
+    if (appendingMeasure.current) return;
+    const track = session.getState().document?.score.tracks[0];
+    const lastMeasure = track?.measures.at(-1);
+    if (!track || !lastMeasure) return;
+
+    appendingMeasure.current = true;
+    try {
+      const result = await executeTool({
+        type: LXMScoreCommandEnum.InsertMeasure,
+        trackId: track.id,
+        afterMeasureId: lastMeasure.id,
+      });
+      if (result.status !== "applied") {
+        if ("message" in result) setErrorMessage(result.message);
+        return;
+      }
+      const state = session.getState();
+      if (state.document !== result.result.document) return;
+      const inserted = state.document.score.tracks[0]?.measures.at(-1);
+      const firstBeat = inserted?.beats[0];
+      if (!inserted || !firstBeat) return;
+      state.setSelectedNumberedMarkId(null);
+      musicTextController.current?.select(createCollapsedTabCellSelection({
+        trackId: track.id,
+        measureId: inserted.id,
+        beatId: firstBeat.id,
+        string: 1,
+      }));
+    } finally {
+      appendingMeasure.current = false;
+    }
   };
   /** 菜单/详情共享最新目标和最终确认结果，不捕获旧 render 的音乐对象。 */
   const handleToolbarAction = async (
@@ -1542,17 +1670,6 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     });
     return result.status === "applied" || result.status === "noop";
   };
-  const editorVariables = {
-    "--panel": token.colorBgContainer,
-    "--panel-muted": token.colorBgLayout,
-    "--background": token.colorBgLayout,
-    "--foreground": token.colorText,
-    "--muted": token.colorTextSecondary,
-    "--border": token.colorBorderSecondary,
-    "--border-strong": token.colorBorder,
-    "--accent": token.colorPrimary,
-    "--accent-soft": token.colorPrimaryBg,
-  };
   const currentPosition = deriveSidebarContext({
     document,
     selection,
@@ -1572,6 +1689,12 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
         ? musicTextController.current?.isNumberedActionBlocked()
         : musicTextController.current?.isOutputBlocked());
   };
+  const tailMeasure = lxmLayout.systems.at(-1)?.measures.at(-1);
+  const tailTop = tailMeasure?.strings[0];
+  const tailBottom = tailMeasure?.strings.at(-1);
+  const scoreExceedsPaper = lxmLayout.systems.some((system) =>
+    Math.max(system.width, system.visualBounds?.width ?? 0) > A4_CONTENT_WIDTH + 1,
+  );
 
   return (
     <RhythmPatternProvider
@@ -1606,37 +1729,10 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
           color: token.colorText,
         } as React.CSSProperties
       }
+      onKeyDownCapture={handleMusicTextNavigation}
       onKeyDown={handleEditorKeyDown}
     >
-      <EditorHeader
-        title={document.score.title}
-        status={fileStatus}
-        onNavigate={requestNavigation}
-        onFileAction={(action, trigger) => {
-          if (action !== "home") fileFlow.showPanel(action, trigger);
-          else if (requestNavigation("/", trigger)) navigateTo("/");
-        }}
-        exportButtonRef={imageExportButtonRef}
-        onExportAction={(mode, trigger) => {
-          if (mode === "json") {
-            fileFlow.showPanel(mode, trigger);
-            return;
-          }
-          if (isOutputBlocked()) {
-            showOutputBlocked(trigger);
-            return;
-          }
-          const state = session.getState();
-          if (!state.document) return;
-          setImageExportSnapshot({
-            mode,
-            version: captureEditorVersion(state),
-            document: state.document,
-            density,
-            showChordDiagrams,
-          });
-        }}
-      />
+      {editorHeader}
       <ScoreFilePanels flow={fileFlow} session={session} document={document} />
       <EditorToolbar
         continuousRange={continuousRange}
@@ -1669,7 +1765,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
       <div className={styles.editorControls}>
         {fileFlow.notice && <p role="status">{fileFlow.notice}</p>}
         {loadNotice && <p role="status">{loadNotice}</p>}
-        {lxmLayout.width > A4_CONTENT_WIDTH + 1 && (
+        {scoreExceedsPaper && (
           <p role="status">
             当前谱面超过 A4 内容宽度，可横向滚动；请调整内容后再导出 A4 图片。
           </p>
@@ -1727,7 +1823,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
           data-score-viewport
           onPointerDownCapture={() => setRhythmPatternScope(null)}
           onPointerDown={handleWorkspacePointerDown}
-          onScroll={clearHover}
+          onScroll={() => { setTabHint(null); clearHover(); }}
         >
           <div
             className={scoreInteractionStyles.scoreStage}
@@ -1752,11 +1848,16 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
                 aria-label="六线谱编辑器"
                 onPointerDown={handlePointerDown}
                 onPointerMove={handlePointerMove}
-                onPointerLeave={clearHover}
-                onBlur={endFretInput}
+                onPointerLeave={() => { setTabHint(null); clearHover(); }}
+                onFocus={(event) => setScoreKeyboardFocus(event.target === event.currentTarget && event.currentTarget.matches(":focus-visible"))}
+                onBlur={() => { endFretInput(); setTabHint(null); setScoreKeyboardFocus(false); }}
                 onPointerUp={finishPointerDrag}
                 onPointerCancel={finishPointerDrag}
-                onKeyDown={(event) => { setRhythmPatternScope(null); handleScoreKeyDown(event); }}
+                onKeyDown={(event) => {
+                  if (event.target !== event.currentTarget) return;
+                  setRhythmPatternScope(null);
+                  handleScoreKeyDown(event);
+                }}
               >
                 <MusicTextEditingHints
                   layout={lxmLayout}
@@ -1814,6 +1915,8 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
                       />
                     ))}
                   {focusCaret && !lyricFocus && (
+                    <Tooltip title={<ShortcutHint shortcuts={["fret", "muted", "sustain", "remove"]} />}
+                      placement="bottom" trigger={[]} open={tabHintOpen}>
                     <rect
                       ref={focusCaretRef}
                       className={
@@ -1826,6 +1929,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
                       width={focusCaret.width}
                       height={focusCaret.height}
                     />
+                    </Tooltip>
                   )}
                 </g>
                 {lyricFocus && (
@@ -1861,6 +1965,36 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
                   layout={lxmLayout}
                   activeMeasureId={continuousRange?.focus.measureId ?? activeMusicTextTarget?.measureId ?? numberedSelection?.measureId ?? selection?.focus.measureId}
                 />
+                {tailTop && tailBottom && (
+                  <foreignObject
+                    className={scoreInteractionStyles.scoreTail}
+                    x={tailTop.x2}
+                    y={tailTop.y1}
+                    width={SCORE_TAIL_BUTTON_WIDTH}
+                    height={tailBottom.y1 - tailTop.y1}
+                    onPointerDown={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                    }}
+                    onKeyDown={(event) => {
+                      if ((event.key === "Enter" || event.key === " ") &&
+                        (event.repeat || event.nativeEvent.isComposing || event.keyCode === 229))
+                        event.preventDefault();
+                    }}
+                  >
+                    <Tooltip title="在曲末新增小节" trigger={["hover", "focus"]}>
+                      <button
+                        type="button"
+                        className={scoreInteractionStyles.scoreTailButton}
+                        aria-label="在曲末新增小节"
+                        data-score-tail-insert
+                        onClick={() => void appendMeasure()}
+                      >
+                        <span aria-hidden="true">+</span>
+                      </button>
+                    </Tooltip>
+                  </foreignObject>
+                )}
               </svg>
             </main>
           </div>

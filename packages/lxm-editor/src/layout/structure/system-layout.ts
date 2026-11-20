@@ -30,12 +30,14 @@ import { shouldShowTimeSignature } from "./time-signature-layout";
 import { layoutSystemHeader } from "./system-header-layout";
 import { alignSystemRhythm } from "../rhythm/rhythm-lane-layout";
 import { alignSystemTuplets } from "../rhythm/tuplet-layout";
+import { usesCompactNumberedSpacing } from "../rhythm/time-grid-spacing";
 import { createChordBlock } from "../music-text/music-text-layout";
 import type { TechniqueInsets } from "../techniques/technique-spacing";
 
 /** system 断行所需的已解析配置，避免函数内部读取默认常量。 */
 export interface ILXMSystemLayoutOptions {
   purpose?: ILXMLayoutPurpose;
+  editingTailWidth?: number;
   editingNumberedMeasureId?: string;
   musicTextMetrics?: ILXMMusicTextMetrics;
   startX: number;
@@ -109,6 +111,9 @@ export const layoutSystems = (
   let systemY = options.startY;
   // systemWidth 是整行宽度；measure 断行只能使用扣除 TAB 行头后的正文宽度。
   const staffWidthLimit = options.systemWidth - LXM_SYSTEM_HEADER_WIDTH;
+  const finalStaffWidthLimit = options.editingTailWidth
+    ? Math.max(0, staffWidthLimit - options.editingTailWidth)
+    : staffWidthLimit;
 
   /**
    * 开始反复的圆点属于共享边界，却会伸入其后 measure。无论边界两侧最终是否
@@ -322,6 +327,7 @@ export const layoutSystems = (
   const flushSystem = (reason: ILXMSystemFlushReason) => {
     if (pendingMeasures.length === 0) return;
 
+    const widthLimit = reason === "final" ? finalStaffWidthLimit : staffWidthLimit;
     const systemIndex = systems.length;
     const flexibleWidths = pendingMeasures.map(
       ({ intrinsicContentWidth }) => intrinsicContentWidth,
@@ -330,28 +336,30 @@ export const layoutSystems = (
       (total, width) => total + width,
       0,
     );
-    // 先决定六线谱正文宽度，再加固定 TAB 行头得到 system.width。
-    // 单小节行及末行仅允许内容区有限拉伸；padding、拍号、gap 等固定空间
-    // 已包含在 pendingWidth 中，不参与倍数放大。超宽内容保留固有宽度。
-    const shouldLimitStretch = reason === "final" || pendingMeasures.length === 1;
-    const maxStaffWidth = shouldLimitStretch
-      ? pendingWidth +
-        totalFlexibleWidth * (LXM_SPARSE_SYSTEM_MAX_CONTENT_SCALE - 1)
-      : staffWidthLimit;
+    // 中间的多小节谱行两端对齐；短末行或单小节行保留稀疏排版。
+    const compactNumbered = pendingMeasures.some(({ measure }) =>
+      usesCompactNumberedSpacing(measure, options.density),
+    );
+    const sparse = reason === "final" || pendingMeasures.length === 1;
+    let maxStaffWidth = widthLimit;
+    if (sparse) {
+      maxStaffWidth = compactNumbered ? pendingWidth :
+        pendingWidth + totalFlexibleWidth * (LXM_SPARSE_SYSTEM_MAX_CONTENT_SCALE - 1);
+    }
     let targetStaffWidth = Math.max(
       pendingWidth,
-      Math.min(staffWidthLimit, maxStaffWidth),
+      Math.min(widthLimit, maxStaffWidth),
     );
-    if (options.density === "compact" && pendingMinimum(pendingMeasures) <= staffWidthLimit)
-      targetStaffWidth = Math.min(targetStaffWidth, staffWidthLimit);
+    if (options.density === "compact" && pendingMinimum(pendingMeasures) <= widthLimit)
+      targetStaffWidth = Math.min(targetStaffWidth, widthLimit);
     const remainingWidth = targetStaffWidth - pendingWidth;
 
-    // System 剩余空间只加入各小节的内容区。按 flexibleWidth 比例分配等价于
-    // 让整行节奏内容使用统一横向比例；空小节全部没有内容宽度时才退化为均分。
+    // 紧凑简谱行把撑齐所需的宽度均分到小节两侧，保留简谱、歌词和 TAB 的拍点间距。
+    const justifyWithMargins = compactNumbered && remainingWidth > 0;
     const assignedWidths = pendingMeasures.map(
       ({ intrinsicWidth }, measureIndex) => {
         const weight =
-          totalFlexibleWidth > 0
+          !justifyWithMargins && totalFlexibleWidth > 0
             ? flexibleWidths[measureIndex]! / totalFlexibleWidth
             : 1 / pendingMeasures.length;
         return intrinsicWidth + remainingWidth * weight;
@@ -360,7 +368,7 @@ export const layoutSystems = (
     if (options.density === "compact" && targetStaffWidth < pendingWidth) {
       const minimum = pendingMinimum(pendingMeasures);
       const ratio = Math.max(0, Math.min(1,
-        (staffWidthLimit - minimum) / (pendingWidth - minimum || 1)));
+        (widthLimit - minimum) / (pendingWidth - minimum || 1)));
       pendingMeasures.forEach(({ spacingSummary: summary }, i) => {
         summary.compressionRatio = ratio;
         assignedWidths[i] = summary.minWidth + (summary.idealWidth - summary.minWidth) * ratio;
@@ -398,6 +406,7 @@ export const layoutSystems = (
           y: systemY,
           density: options.density,
           assignedWidth,
+          justifyWithMargins,
           showTimeSignature: shouldShowTimeSignature(measures, index),
           leadingBarlineClearance: getLeadingBarlineClearance(index),
           visualBarline,
@@ -459,11 +468,12 @@ export const layoutSystems = (
 
   measures.forEach((measure, index) => {
     const candidate = planPending([...pendingMeasures, { measure, index }]);
+    const widthLimit = index === measures.length - 1 ? finalStaffWidthLimit : staffWidthLimit;
     if (
       pendingMeasures.length > 0 &&
       (options.density === "compact"
-        ? candidate.length > LXM_COMPACT_SYSTEM_MAX_MEASURES || pendingMinimum(candidate) > staffWidthLimit
-        : pendingTotal(candidate) > staffWidthLimit)
+        ? candidate.length > LXM_COMPACT_SYSTEM_MAX_MEASURES || pendingMinimum(candidate) > widthLimit
+        : pendingTotal(candidate) > widthLimit)
     ) {
       flushSystem("wrapped");
       pendingMeasures = planPending([{ measure, index }]);

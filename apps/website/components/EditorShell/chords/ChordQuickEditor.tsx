@@ -1,4 +1,5 @@
 import { Button, Input } from "antd";
+import { ShortcutTooltip } from "../session/EditorShortcutReference";
 import {
   normalizeMusicText,
   validateChordDiagram,
@@ -73,7 +74,9 @@ export const ChordQuickEditor = ({
                 chord: { ...draft.chord, name: event.target.value },
               });
           }}
-        />{onApply && <Button type="primary" disabled={disabled || !canApply} onClick={onApply}>应用</Button>}</div>
+        />{onApply && <ShortcutTooltip shortcuts={["apply", "applyModified"]} disabled={disabled || !canApply}>
+          <Button type="primary" disabled={disabled || !canApply} onClick={onApply}>应用</Button>
+        </ShortcutTooltip>}</div>
         {nameInvalid && (
           <p
             id="chord-popover-name-error"

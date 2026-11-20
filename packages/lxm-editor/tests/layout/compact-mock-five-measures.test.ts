@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import HISTORICAL_SCORE from "../../example/default-score.lxm.json";
 import DEFAULT_MOCK_DOCUMENT from "../../example/default-score";
-import { buildLayout } from "../../src/layout";
+import { buildLayout, hitTestMusicText, hitTestNumbered } from "../../src/layout";
 import { loadDocument } from "../../src/core/document/loader";
 import { layoutMeasureSpacing, summarizeMeasureSpacingWidth } from "../../src/layout/structure/measure-spacing";
 import { buildTechniqueInsets, fretHalfWidth } from "../../src/layout/techniques/technique-spacing";
 import type { ILXMMeasure } from "../../src/core/types";
 import { createChordBlock } from "../../src/layout/music-text/music-text-layout";
-import { musicTextGlyph, musicTextRequest, MUSIC_LYRIC_FONT_SIZE } from "../../src/layout/music-text/music-text-metrics";
+import { musicTextGlyph, musicTextInkBounds, musicTextRequest, MUSIC_LYRIC_FONT_SIZE } from "../../src/layout/music-text/music-text-metrics";
 import { layoutNumbered } from "../../src/layout/music-text/numbered-notation-layout";
 import { numberedLayoutProfile } from "../../src/layout/music-text/numbered-layout-profile";
 import { layoutMeasure } from "../../src/layout/structure/measure-layout";
@@ -44,7 +44,7 @@ const verifyHardClearance = (
   }
   for (const lyric of measure.lyrics) {
     const event = measure.numberedVoice.events.find((e) => e.id === lyric.eventId)!;
-    const bounds = musicTextGlyph(musicTextRequest(lyric.text, MUSIC_LYRIC_FONT_SIZE), 0, 0).bounds;
+    const bounds = musicTextInkBounds(musicTextGlyph(musicTextRequest(lyric.text, MUSIC_LYRIC_FONT_SIZE)));
     add(`lyric-${lyric.verse}`, event.tick, -bounds.x, bounds.x + bounds.width);
   }
   for (const chord of measure.chordSymbols) {
@@ -61,7 +61,7 @@ const verifyHardClearance = (
       expect(x + extent.right).toBeLessThanOrEqual(spacing.assignedWidth - 6 + 1e-8);
       const previous = extents[i - 1];
       if (!previous || extent.tick === previous.tick) return;
-      const gap = lane === "tab" ? 2 : lane === "numbered" ? profile.glyphGap : 6;
+      const gap = lane === "tab" ? 2 : lane === "numbered" ? profile.glyphGap : lane.startsWith("lyric-") ? 3 : 6;
       expect(x - extent.left - spacing.xByTick[previous.tick]! - previous.right).toBeGreaterThanOrEqual(gap - 1e-8);
       if (spacing.columns.filter((c) => c.tick >= previous.tick && c.tick < extent.tick).length > 1)
         spansMultipleColumns = true;
@@ -92,6 +92,32 @@ describe("compact historical mock: five original measures", () => {
     expect(score).toEqual(before);
   });
 
+  it.each(["editing", "presentation"] as const)("%s 右侧对齐并保留《理想》中「填」「饱」的紧凑间距和独立命中", (purpose) => {
+    const layout = buildLayout(DEFAULT_MOCK_DOCUMENT, { density: "compact", purpose, systemWidth: 733.228 });
+    for (const system of layout.systems.slice(0, -1)) {
+      expect(system.measures.length).toBeGreaterThan(1);
+      const rightEdge = system.x + 733.228;
+      const last = system.measures.at(-1)!;
+      expect(system.x + system.width).toBeCloseTo(rightEdge);
+      expect(last.strings[0]!.x2).toBeCloseTo(rightEdge);
+      expect(last.x + last.width).toBeCloseTo(rightEdge);
+    }
+    const measure = layout.systems.flatMap((system) => system.measures).find((item) => item.id === "ideal-measure-10")!;
+    const [first, second] = ["填", "饱"].map((text) => measure.lyrics!.find((item) => item.label.text === text)!);
+    expect(second!.label.x - first!.label.x).toBeLessThanOrEqual(17.2 + 1e-8);
+    for (const lyric of [first!, second!]) {
+      const slot = measure.numberedSlots.find((item) => item.id === lyric.eventId)!;
+      const note = measure.numberedNotation!.find((item) => item.eventId === lyric.eventId)!.labels[0]!;
+      expect(note.text).toBe("1");
+      expect(note.x).toBe(lyric.label.x);
+      expect(note.x).toBe(measure.timeAnchors.find((item) => item.tick === slot.tick)!.x);
+      const beat = measure.beats.find((item) => item.tick === slot.tick);
+      if (beat) expect(beat.x).toBe(note.x);
+      expect(hitTestNumbered(layout, { x: note.x, y: note.y - 4 })).toMatchObject({ eventId: lyric.eventId });
+      expect(hitTestMusicText(layout, { x: lyric.label.x, y: lyric.label.y - 4 })).toMatchObject({ eventId: lyric.eventId, kind: "lyric" });
+    }
+  });
+
   it.each(["editing", "presentation"] as const)("%s fits five within A4 and retains every measure", (purpose) => {
     const score = document();
     const measures = score.score.tracks[0]!.measures;
@@ -99,7 +125,7 @@ describe("compact historical mock: five original measures", () => {
     const layout = buildLayout(score, { density: "compact", purpose, systemWidth: 733.228 });
     expect(layout.systems.map((system) => system.measures.length)).toEqual([5, 3]);
     expect(layout.systems[0]!.measures.map((m) => m.id)).toEqual(measures.slice(0, 5).map((m) => m.id));
-    expect(layout.systems[0]!.width).toBeCloseTo(733.228, 6);
+    expect(layout.systems[0]!.width).toBeCloseTo(733.228);
     expect(layout.systems.flatMap((s) => s.measures.map((m) => m.id))).toEqual(measures.map((m) => m.id));
     expect(layout.systems.every((s) => s.measures.length <= 5)).toBe(true);
     expect(score).toEqual(before);

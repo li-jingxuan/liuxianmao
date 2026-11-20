@@ -57,6 +57,25 @@ const intrinsicSpacing = (
 };
 
 describe("buildLayout 的 system 自动换行", () => {
+  it("编辑谱尾空间不足时将末小节换行，成品仍沿用原行宽", () => {
+    const document = documentWithMeasures([0, 1]);
+    const density = "comfortable";
+    const measuresWidth = intrinsicSpacing(document, density)
+      .reduce((width, measure) => width + measure.assignedWidth, 0);
+    const options = { density, systemWidth: LXM_SYSTEM_HEADER_WIDTH + measuresWidth + 1 } as const;
+    const baseline = buildLayout(document, { ...options, purpose: "editing" });
+    expect(baseline.systems).toHaveLength(1);
+
+    const editingTailWidth = 36;
+    const editing = buildLayout(document, { ...options, purpose: "editing", editingTailWidth });
+    expect(editing.systems.map((system) => system.measures.length)).toEqual([1, 1]);
+    expect(editing.systems[1]!.width + editingTailWidth).toBeLessThanOrEqual(editing.width);
+
+    const presentation = buildLayout(document, options);
+    expect(buildLayout(document, { ...options, editingTailWidth })).toEqual(presentation);
+    expect(presentation.systems).toHaveLength(1);
+  });
+
   it.each(["editing", "presentation"] as const)(
     "%s 混合谱按实际行宽收束，删除技巧后重排仍保持几何一致",
     (purpose) => {

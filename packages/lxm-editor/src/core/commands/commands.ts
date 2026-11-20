@@ -26,7 +26,7 @@ import {
   type LyricSequenceTarget,
 } from "../lyrics/lyric-sequence";
 import { getLyricVerseCount } from "../lyrics/lyric-verses";
-import { getMusicTextRows } from "../music-text/music-text-rows";
+import { clearNumberedRow, getMusicTextRows, removeLyricVerse } from "../music-text/music-text-rows";
 import {
   editNumberedTrack,
   type ILXMNumberedVoiceCommand,
@@ -91,7 +91,9 @@ export enum LXMScoreCommandEnum {
   SetLyricSequence = "lyrics.setSequence",
   ReplaceMusicTextRange = "musicText.range.replace",
   AddNumberedRow = "numberedNotation.row.add",
+  RemoveNumberedRow = "numberedNotation.row.remove",
   AddLyricVerse = "lyric.verse.add",
+  RemoveLyricVerse = "lyric.verse.remove",
   RemoveLyric = "lyric.remove",
   SetChordSymbol = "chordSymbol.set",
   RemoveChordSymbol = "chordSymbol.remove",
@@ -311,6 +313,15 @@ export interface ILXMAddNumberedRowCommand {
   type: LXMScoreCommandEnum.AddNumberedRow;
 }
 
+export interface ILXMRemoveNumberedRowCommand {
+  type: LXMScoreCommandEnum.RemoveNumberedRow;
+}
+
+export interface ILXMRemoveLyricVerseCommand {
+  type: LXMScoreCommandEnum.RemoveLyricVerse;
+  verse: ILXMLyricVerse;
+}
+
 export type ILXMSetNotationInfoCommand = {
   type: LXMScoreCommandEnum.SetNotationInfo;
   title: string;
@@ -395,6 +406,8 @@ type ScoreCommandOperation =
   | ILXMReplaceMusicTextRangeCommand
   | ILXMAddLyricVerseCommand
   | ILXMAddNumberedRowCommand
+  | ILXMRemoveLyricVerseCommand
+  | ILXMRemoveNumberedRowCommand
   | ILXMMusicTextCommand
   | ILXMSetTupletCommand
   | ILXMRemoveTupletCommand
@@ -583,7 +596,8 @@ const finalize = (
   previous: ILXMDocument,
   command: ILXMScoreCommand,
 ): ILXMApplyScoreCommandResult => {
-  if (!command.type.startsWith("numbered.") && command.type !== LXMScoreCommandEnum.ApplyRhythmPattern) {
+  if (!command.type.startsWith("numbered.") && command.type !== LXMScoreCommandEnum.ApplyRhythmPattern &&
+      command.type !== LXMScoreCommandEnum.RemoveNumberedRow) {
     const removed: string[] = [];
     const tracks = document.score.tracks.map((track) => {
       const old = previous.score.tracks.find((t) => t.id === track.id);
@@ -1547,6 +1561,31 @@ const applyScoreCommandInternal = (
       document,
       command,
     );
+  }
+  if (command.type === LXMScoreCommandEnum.RemoveNumberedRow || command.type === LXMScoreCommandEnum.RemoveLyricVerse) {
+    const rows = getMusicTextRows(document);
+    const meta = { ...document.score.meta };
+    let tracks: ILXMTrack[];
+    if (command.type === LXMScoreCommandEnum.RemoveNumberedRow) {
+      if (!rows.numbered) return unchanged(document);
+      delete meta.showNumberedRow;
+      tracks = document.score.tracks.map((track, index) => index === 0 ? {
+        ...track, numberedMarks: [], measures: track.measures.map(clearNumberedRow),
+      } : track);
+    } else {
+      const { verse } = command;
+      if (!Number.isInteger(verse) || verse < 1 || verse > rows.lyricVerses) return unchanged(document);
+      if (rows.lyricVerses === 1) delete meta.lyricVerseCount;
+      else meta.lyricVerseCount = rows.lyricVerses - 1;
+      tracks = document.score.tracks.map((track) => ({
+        ...track, measures: track.measures.map((measure) => removeLyricVerse(measure, verse)),
+      }));
+    }
+    return finalize({
+      ...document,
+      documentRevision: document.documentRevision + 1,
+      score: { ...document.score, meta, tracks },
+    }, document, command);
   }
   // 整批先规划，再使用同一 ID 工厂更新隔离分支；只 finalize 一次、增加一次 revision。
   if (command.type === LXMScoreCommandEnum.SetLyricSequence) {

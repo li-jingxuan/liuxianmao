@@ -1,5 +1,5 @@
 // Optional: LXM_PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs node <this file>
-// Current spec13: one shared single-line draft; inline Apply; immediate rhythm;
+// Shared multiline lyric draft, explicit Apply and numbered rhythm editing.
 // switching target/category discards text, closing lyric popover/collapsing preserves it.
 import assert from "node:assert/strict";
 import { selectScoreAction } from "./score-file-actions.browser.cjs";
@@ -77,8 +77,9 @@ try {
   const lyricApply = popover.getByRole("button", { name: "应用", exact: true });
   const confirmation = sidebar.getByRole("alertdialog");
   await input.waitFor();
-  assert.equal(await sidebarInput.evaluate(node => node.tagName), "INPUT");
-  assert.equal(await popover.locator("textarea, footer button").count(), 0);
+  assert.equal(await sidebarInput.evaluate(node => node.tagName), "TEXTAREA");
+  assert.equal(await popover.locator("textarea[rows='2']").count(), 1);
+  assert.equal(await popover.locator("footer button").count(), 0);
   assert.equal(await fields.getByText("连续填词", { exact: true }).count(), 0);
   assert.deepEqual(await fields.locator("[data-editor-paragraph-switch] .ant-segmented-item-label").allTextContents(), ["简谱", "歌词"]);
   const lyricBaseline = await snapshot();
@@ -121,11 +122,11 @@ try {
   await score.getByText("旋", { exact: true }).click();
   assert.equal(await input.inputValue(), "旋", "category change discards unapplied lyric input");
   await input.fill("已应用歌词");
-  await input.press("Enter");
+  await lyricApply.click();
   await page.waitForFunction(() => window.coexistStore.getState().document.score.tracks.some(track => track.measures.some(measure => measure.lyrics.some(lyric => lyric.text === "已应用歌词"))));
   assert.equal((await history()).past, lyricBaseline.history.past + 1);
   await capture("lyrics-coexist");
-  checks.push("lyric shared input/node identity/focus, collapse and close preserve session, category change discards, IME Enter/229/cooling guard, explicit Enter writes one history item");
+  checks.push("lyric shared input/node identity/focus, collapse and close preserve session, category change discards, IME Enter/229/cooling guard, Apply writes one history item");
 
   // Controlled legal score fixture keeps the real renderer, store, hit testing and edit surfaces.
   const historyBefore = await page.evaluate(() => {

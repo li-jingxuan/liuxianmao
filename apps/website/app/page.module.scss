@@ -17,33 +17,6 @@
   }
 }
 
-.siteHeader {
-  max-width: 1240px;
-  padding: 34px 48px;
-  margin: auto;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-
-  nav {
-    display: flex;
-    gap: 34px;
-    font-size: 14px;
-
-    a:hover { color: #285be0; }
-  }
-}
-
-.home .brand {
-  font-size: 23px;
-  letter-spacing: 1px;
-  font-weight: 650;
-  color: #285be0;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
 .welcome {
   max-width: 1240px;
   min-height: 650px;
@@ -168,7 +141,6 @@
 }
 
 @media (max-width: 900px) {
-  .siteHeader { padding: 24px; }
   .welcome { padding: 45px 28px; gap: 32px; }
   .welcome h1 { font-size: 30px; }
   .welcomeCopy > p { font-size: 18px; }
@@ -177,9 +149,6 @@
 }
 
 @media (max-width: 650px) {
-  .siteHeader nav { gap: 16px; font-size: 12px; }
-  .home .brand { font-size: 20px; }
-  .home .brand img { width: 27px; height: 27px; }
   .welcome { grid-template-columns: 1fr; padding-top: 35px; gap: 45px; }
   .welcome h1 { font-size: 32px; }
   .scoreArt { max-width: 470px; width: 100%; margin: 0 auto; padding-bottom: 0; }

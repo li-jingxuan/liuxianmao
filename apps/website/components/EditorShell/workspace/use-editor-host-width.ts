@@ -11,7 +11,7 @@ export const editorLayoutMode = (width: number): EditorLayoutMode =>
         : "narrow";
 
 /** 观察分列之外的宿主内容盒；面板开关不会改变断点输入。 */
-export function useEditorHostWidth(ref: RefObject<HTMLElement | null>) {
+export function useEditorHostWidth(ref: RefObject<HTMLElement | null>, hasDocument: boolean) {
   const [width, setWidth] = useState(0);
   useLayoutEffect(() => {
     const host = ref.current;
@@ -35,6 +35,6 @@ export function useEditorHostWidth(ref: RefObject<HTMLElement | null>) {
       observer.disconnect();
       cancelAnimationFrame(frame);
     };
-  }, [ref]);
+  }, [ref, hasDocument]);
   return { width, mode: editorLayoutMode(width || 1200) };
 }

@@ -34,7 +34,7 @@ try {
   page.setDefaultTimeout(15000);
   const errors = [];
   page.on("pageerror", error => errors.push(error.message));
-  await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/__approved__`);
+  await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/__approved__`, { waitUntil: "domcontentloaded", timeout: 60000 });
   const sidebar = page.locator("#music-text-sidebar");
   await sidebar.waitFor({ timeout: 60000 }).catch(async error => {
     await page.screenshot({ path: path.join(output, "failure.png"), fullPage: true });
@@ -79,18 +79,19 @@ try {
   await score.getByText("风", { exact: true }).click();
   const lyric = sidebar.getByRole("textbox", { name: "连续歌词", exact: true });
   await lyric.waitFor();
-  assert.equal(await lyric.evaluate(node => node.tagName), "INPUT");
+  assert.equal(await lyric.evaluate(node => node.tagName), "TEXTAREA");
   const lyrics = () => page.evaluate(() => window.approvedEditor.getState().document.score.tracks[0].measures[0].lyrics);
-  await lyric.fill("风 _ 多字");
-  await lyric.press("Enter");
+  const applyLyric = sidebar.getByRole("button", { name: "应用", exact: true });
+  await lyric.fill("风 _\n多字");
+  await applyLyric.click();
   await page.waitForFunction(() => window.approvedEditor.getState().document.score.tracks[0].measures[0].lyrics.some(item => item.text === "多字"));
   assert.equal((await lyrics()).some(item => item.text === "吹"), false);
   assert.equal((await lyrics()).some(item => item.text === "多字"), true);
   await lyric.fill("");
-  await lyric.press("Enter");
+  await applyLyric.click();
   await page.waitForFunction(() => !window.approvedEditor.getState().document.score.tracks[0].measures[0].lyrics.some(item => item.eventId === "approved-event-0"));
   const beforeVerse = await history();
-  await sidebar.getByRole("button", { name: "添加段落", exact: true }).click();
+  await sidebar.getByRole("button", { name: "添加歌词行", exact: true }).click();
   await page.waitForFunction(() => window.approvedEditor.getState().document.score.meta.lyricVerseCount === 2);
   assert.equal(await lyric.inputValue(), "");
   assert.equal(await history(), beforeVerse + 1);
@@ -106,16 +107,50 @@ try {
     await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     const panelToggle = page.getByRole("button", { name: "编辑面板", exact: true });
     if (await panelToggle.getAttribute("aria-expanded") === "false") await panelToggle.click();
-    await sidebar.getByRole("button", { name: "添加段落", exact: true }).waitFor().catch(async error => {
+    await sidebar.getByRole("button", { name: "添加歌词行", exact: true }).waitFor().catch(async error => {
       await page.screenshot({ path: path.join(output, `failed-${width}.png`) });
       console.error("Responsive state", width, await panelToggle.getAttribute("aria-expanded"), await sidebar.innerText());
       throw error;
     });
-    const bounds = await sidebar.getByRole("button", { name: "添加段落", exact: true }).boundingBox();
+    const bounds = await sidebar.getByRole("button", { name: "添加歌词行", exact: true }).boundingBox();
     assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= width);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     await page.screenshot({ path: path.join(output, `lyrics-${width}.png`), animations: "disabled" });
   }
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await sidebar.locator("[data-editor-paragraph-switch]").getByText("简谱", { exact: true }).click();
+  const addNumbered = sidebar.getByRole("button", { name: "添加简谱行", exact: true });
+  assert.equal(await addNumbered.isDisabled(), true);
+  assert.equal(await addNumbered.getAttribute("aria-description"), "曲谱已有简谱行");
+  const beforeDelete = await history();
+  const savedEvents = await events();
+  const savedLyrics = await lyrics();
+  const removeNumbered = async () => {
+    await sidebar.getByRole("button", { name: "简谱行操作", exact: true }).click();
+    await page.getByRole("menuitem", { name: "删除简谱行", exact: true }).click();
+  };
+  const rowDialog = page.getByRole("dialog", { name: "删除简谱行？" });
+  await removeNumbered();
+  await rowDialog.getByRole("button", { name: /^取\s*消$/ }).click();
+  await rowDialog.waitFor({ state: "hidden" });
+  assert.equal(await history(), beforeDelete);
+  assert.deepEqual(await events(), savedEvents);
+  await removeNumbered();
+  await rowDialog.getByRole("button", { name: /^删\s*除$/ }).click();
+  await rowDialog.waitFor({ state: "hidden" });
+  assert.equal(await history(), beforeDelete + 1);
+  assert.ok((await events()).every(event => event.kind === "gap"));
+  assert.deepEqual(await lyrics(), savedLyrics);
+  assert.equal(await input.count(), 0);
+  assert.equal(await addNumbered.isEnabled(), true);
+  await page.evaluate(() => window.approvedEditor.getState().undo());
+  await page.waitForFunction(() => window.approvedEditor.getState().document.score.tracks[0].measures[0].numberedVoice.events.some(event => event.kind === "notes"));
+  assert.deepEqual(await events(), savedEvents);
+  await page.evaluate(() => window.approvedEditor.getState().redo());
+  await addNumbered.press("Enter");
+  await page.waitForFunction(() => document.activeElement?.id === "numbered-sidebar-content");
+  assert.equal(await addNumbered.isDisabled(), true);
+  assert.deepEqual(await lyrics(), savedLyrics);
   assert.deepEqual(errors, []);
   console.log("Approved lyrics/numbered browser: selected chord member, shared draft, dirty guards, inline Apply, continuation, undo, lyric blanks, whole words, verse history and responsive screens passed.");
 } finally {

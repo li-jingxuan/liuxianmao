@@ -11,6 +11,10 @@ import { parseLyricSequence, planLyricSequence, resolveLyricPosition } from "@li
 import { resolveNumberedEditorTarget } from "../numbered/numbered-editor-target";
 import { sameMusicTextTarget } from "./music-text-hover";
 
+// 换行只分词，沿用连续录入的拍点映射和单词校验。
+export const parseLyricDraftSequence = (text: string) =>
+  parseLyricSequence(text.replace(/[\r\n\u2028\u2029]/gu, " "));
+
 export type MusicTextTarget =
   | (ILXMTabCellReference & {
       kind: "chord";
@@ -120,7 +124,7 @@ export const lyricDraftMappingDependency = (
   const target = { ...draft.target, verse: draft.target.verse ?? 1 };
   const track = document.score.tracks.find((item) => item.id === target.trackId);
   const measures = new Map(track?.measures.map((measure) => [measure.id, measure]));
-  const parsed = parseLyricSequence(draft.text);
+  const parsed = parseLyricDraftSequence(draft.text);
   const targets = draft.lyricMode === "sequence"
     ? planLyricSequence(document, target, parsed.ok ? parsed.items : [{ kind: "clear" }], true)
         .rows.map((row) => row.target)

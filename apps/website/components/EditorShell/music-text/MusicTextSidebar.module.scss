@@ -312,8 +312,29 @@
   :global(.ant-form-item-explain) { overflow-wrap: anywhere; }
 }
 
-.paragraphRowAction {
-  padding: 0 12px 8px;
+.addParagraphRow:global(.ant-btn) {
+  color: var(--accent);
+  min-height: 32px;
+  padding-inline: 7px;
+  font-size: 0.8125rem;
+  gap: 5px;
+  &:hover { color: var(--accent); background: var(--accent-soft); }
+  &[aria-disabled="true"], &[aria-disabled="true"]:hover {
+    color: var(--muted);
+    background: transparent;
+    cursor: default;
+  }
+}
+
+.paragraphRowControls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 0.8125rem;
+  strong { flex: 1; }
+  label { flex-shrink: 0; }
+  :global(.ant-select) { flex: 1; min-width: 76px; }
 }
 
 .paragraphTabs {

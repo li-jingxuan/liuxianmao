@@ -1,8 +1,8 @@
 "use client";
 
-import { createContext, useContext, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore, type KeyboardEventHandler, type ReactNode } from "react";
 import { flushSync } from "react-dom";
-import { Button } from "antd";
+import { Button, Tooltip } from "antd";
 import { WarningOutlined } from "@ant-design/icons";
 import {
   getMeasureRhythmPatternTemplates,
@@ -247,14 +247,35 @@ export function RhythmPatternPanel(props: Props) {
   const discardedCount = plan?.perBeat.reduce((total, beat) => total + beat.discardedCount, 0) ?? 0;
   const destination = plan && ("beats" in plan.template ? "整小节" : plan.scope.beatCount === 1
     ? `第 ${plan.scope.firstBeat} 拍` : `第 ${plan.scope.firstBeat}–${plan.scope.lastBeat} 拍`);
+  const canApply = !busy && !blocked && !stale && !!plan;
+  const applyCurrent = () => void apply(shared && !sidebar ? props.onSuccess : undefined);
+  const handleEnter: KeyboardEventHandler<HTMLElement> = (event) => {
+    if (event.key !== "Enter" || event.defaultPrevented || !(event.target instanceof Element) ||
+      !event.currentTarget.contains(event.target)) return;
+    const target = event.target;
+    const card = target.closest("[data-rhythm-template], [data-rhythm-measure-template]");
+    const applyControl = target.closest("[data-rhythm-apply]");
+    const composing = event.nativeEvent.isComposing || event.keyCode === 229;
+    if ((card || applyControl) && (event.repeat || composing)) {
+      event.preventDefault();
+      return;
+    }
+    // 未选卡片和应用按钮仍走原生 click，其他交互控件保留自己的键盘行为。
+    if (card ? card.getAttribute("aria-pressed") !== "true" :
+      target.closest('button, a[href], input, select, textarea, [contenteditable], [role="button"]')) return;
+    if (composing || event.repeat || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    event.preventDefault();
+    if (canApply) applyCurrent();
+  };
 
-  return <section className={`${styles.root}${sidebar ? ` ${styles.sidebar}` : ""}`} aria-label={sidebar ? "常见节奏型" : "节奏型"} aria-busy={busy} data-rhythm-pattern-panel data-presentation={presentation}>
+  return <section className={`${styles.root}${sidebar ? ` ${styles.sidebar}` : ""}`} aria-label={sidebar ? "常见节奏型" : "节奏型"} aria-busy={busy}
+    tabIndex={sidebar ? undefined : -1} onKeyDown={handleEnter} data-rhythm-pattern-panel data-presentation={presentation}>
     <header className={styles.header}>
       {sidebar ? <h3>常见节奏型</h3> : <h2>节奏型</h2>}
       {!sidebar && <button type="button" className={styles.close} aria-label="关闭节奏型" disabled={busy} onClick={props.onClose}>×</button>}
     </header>
     {!sidebar && <p className={styles.rules}><WarningOutlined aria-hidden="true" /> 应用后保留仍适用的技巧和连线，失效的标记会列在下方。</p>}
-    {templates.beats.length > 0 && <div className={styles.templates} role="region" aria-label={sidebar ? "节奏型模板" : "可滚动的节奏型模板"} tabIndex={sidebar ? undefined : 0}>
+    {templates.beats.length > 0 && <div className={styles.templates} role="region" aria-label={sidebar ? "节奏型模板" : "可滚动的节奏型模板"} tabIndex={0}>
       <div className={styles.sectionHeading}>
         <strong>拍内模板</strong><span>{templates.signature.numerator}/{templates.signature.denominator}</span>
       </div>
@@ -283,7 +304,9 @@ export function RhythmPatternPanel(props: Props) {
         {destination && measureNumber !== undefined && <p className={styles.destination} aria-live="polite">第 {measureNumber + 1} 小节 · {destination} · {preview.templateName}</p>}
         <div className={styles.actions}>
           {!sidebar && <Button disabled={busy} onClick={props.onClose}>取消</Button>}
-          <Button ref={applyButton} type="primary" loading={busy} disabled={busy || blocked || stale || !plan} onClick={() => void apply(shared && !sidebar ? props.onSuccess : undefined)}>{failure ? "重试应用" : "应用节奏型"}</Button>
+          <Tooltip title={canApply ? "按 Enter 应用节奏型" : null} trigger={["hover", "focus"]}>
+            <Button ref={applyButton} data-rhythm-apply type="primary" loading={busy} disabled={!canApply} onClick={applyCurrent}>应用节奏型</Button>
+          </Tooltip>
         </div>
       </div>
     </footer>

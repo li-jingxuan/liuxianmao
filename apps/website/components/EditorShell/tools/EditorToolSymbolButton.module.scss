@@ -4,6 +4,5 @@
 .button .historyIcon svg { width: 16px; height: 16px; }
 .musicGlyph { font-family: Bravura, serif; font-size: 28px; font-weight: 400; }
 .tooltip { max-width: min(320px, calc(100vw - 16px)); pointer-events: none; overflow-wrap: anywhere; }
-.quickGroup { display: inline-flex; align-items: center; gap: 2px; flex: 0 0 auto; }
 @media print { .tooltip { display: none !important; } }
 @media (pointer: coarse) { .button { width: 44px !important; min-width: 44px !important; height: 44px !important; } }

@@ -89,6 +89,7 @@ export type ILXMNumberedVoiceCommand = Base &
         measureId: string;
         eventId: string;
         rhythm: ILXMRhythm;
+        tokens?: string[];
         /** 兼容旧调用参数；两种值均使用固定窗和相邻附点互补规划。 */
         timeline?: "preservePositions" | "editTimeline";
       }
@@ -349,6 +350,8 @@ export const editNumberedTrack = (
       }
       focusEventId = event!.id;
     } else if (command.type === "numbered.event.setRhythm") {
+      const tokens = command.tokens;
+      if (tokens && !validNumberedTokens(tokens)) return failure("简谱音高无效");
       if (grouped(event!.id)) return failure("连音成员须整组修改时值");
       const planned = planNumberedEventRhythm(
         measure,
@@ -357,6 +360,11 @@ export const editNumberedTrack = (
       );
       if (!planned.ok) return failure(planned.message, "NUMBERED_OVERLAP");
       events = planned.voice.events;
+      if (tokens && JSON.stringify(tokens) !== JSON.stringify(event!.items.map((item) => item.token))) {
+        events = events.map((item) => item.id === event!.id
+          ? { ...item, ...numberedSequenceContent(item, tokens, () => factory.createNumberedItemId()) }
+          : item);
+      }
       movedEventIds = planned.movedEventIds;
       overwrittenEventIds = planned.overwrittenEventIds;
       resizedEventIds = planned.resizedEventIds.filter(

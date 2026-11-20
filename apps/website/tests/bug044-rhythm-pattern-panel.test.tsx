@@ -95,6 +95,41 @@ const setBeatPattern = (measure: ReturnType<typeof setup>["measure"], beatIndex:
 };
 
 describe("BUG044 节奏型面板初始选择", () => {
+  it("Enter 仅从已选模板提交，保留未选模板和应用按钮的原生激活", async () => {
+    const panel = mount(setup());
+    const { tree } = panel.render();
+    const handleEnter = find(tree, props => "data-rhythm-pattern-panel" in props)!.onKeyDown as
+      (event: Record<string, unknown>) => void;
+    class PanelElement {
+      constructor(readonly pressed?: string, readonly apply = false) {}
+      closest(selector: string) {
+        if (selector.startsWith("[data-rhythm-template]")) return this.pressed === undefined ? null : this;
+        if (selector === "[data-rhythm-apply]") return this.apply ? this : null;
+        return this.apply ? this : null;
+      }
+      getAttribute() { return this.pressed ?? null; }
+    }
+    const press = (target: PanelElement, extras: Record<string, unknown> = {}) => {
+      const preventDefault = vi.fn();
+      handleEnter({ key: "Enter", target, currentTarget: { contains: () => true },
+        nativeEvent: { isComposing: false }, preventDefault, ...extras });
+      return preventDefault;
+    };
+    vi.stubGlobal("Element", PanelElement);
+    try {
+      expect(press(new PanelElement("false"))).not.toHaveBeenCalled();
+      expect(press(new PanelElement(undefined, true))).not.toHaveBeenCalled();
+      expect(press(new PanelElement("true"), { repeat: true })).toHaveBeenCalledOnce();
+      expect(press(new PanelElement("true"), { nativeEvent: { isComposing: true } })).toHaveBeenCalledOnce();
+      expect(panel.execute).not.toHaveBeenCalled();
+      expect(press(new PanelElement("true"))).toHaveBeenCalledOnce();
+      await Promise.resolve();
+      expect(panel.execute).toHaveBeenCalledOnce();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("打开匹配活动简谱焦点所在拍，忽略残留TAB选择；重新打开重新识别", () => {
     const fixture = setup();
     const { document, track, measure, input } = fixture;

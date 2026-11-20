@@ -5,7 +5,7 @@ import { pathToFileURL } from "node:url";
 
 const runtime = process.env.LXM_PLAYWRIGHT_MODULE ?? "playwright";
 const { chromium } = await import(runtime.startsWith("/") ? pathToFileURL(runtime).href : runtime);
-const browser = await chromium.launch({ channel: "chrome", headless: true });
+const browser = await chromium.launch({ channel: process.env.LXM_BROWSER_CHANNEL, headless: true });
 const page = await browser.newPage({ viewport: { width: 1600, height: 1080 } });
 page.setDefaultTimeout(12000);
 const output = process.env.REQ_BROWSER_OUTPUT
@@ -82,11 +82,30 @@ async function check(name, run) { await run(); checks.push(name); }
 async function shot(name) { await page.screenshot({ path: new URL(`${name}.png`, output).pathname, animations: "disabled" }); }
 
 try {
-  await page.goto(process.env.REQ_NEXT_URL ?? "http://127.0.0.1:3031/editor");
+  await page.goto(process.env.REQ_NEXT_URL ?? "http://localhost:3031/editor", { waitUntil: "domcontentloaded", timeout: 30000 });
   await page.locator('svg[aria-label="六线谱编辑器"]').waitFor();
+  await page.waitForFunction(() => {
+    const svg = document.querySelector('svg[aria-label="六线谱编辑器"]');
+    return svg && Object.keys(svg).some(key => key.startsWith("__reactFiber$"));
+  });
   const toolbar = page.getByRole("toolbar", { name: "节奏、小节与历史工具" });
   const toolTrigger = id => toolbar.locator(`[data-tool-trigger="${id}"]`);
   const addChord = toolbar.getByRole("button", { name: "添加和弦", exact: true });
+  await check("工具按七组显示，窄工具栏双行保留组内入口", async () => {
+    const names = ["历史", "基础时值", "附点与休止", "演奏技巧", "节奏与连音", "小节", "和弦"];
+    const groups = toolbar.locator('[data-toolbar-row] [role="group"]');
+    assert.deepEqual(await groups.evaluateAll(nodes => nodes.map(node => node.getAttribute("aria-label"))), names);
+    assert.equal(await toolbar.getByRole("group", { name: "附点与休止" }).getByRole("button", { name: "切换休止" }).count(), 1);
+    assert.equal(await toolbar.getByRole("group", { name: "演奏技巧" }).getByRole("button", { name: "所有技巧" }).count(), 1);
+    const separation = () => groups.evaluateAll(nodes => nodes.map(node => getComputedStyle(node).borderInlineStartWidth));
+    assert.deepEqual(await separation(), ["0px", "1px", "1px", "1px", "1px", "1px", "1px"]);
+    await toolbar.evaluate(el => { el.style.maxWidth = "460px"; });
+    const rows = await toolbar.locator("[data-toolbar-row]").evaluateAll(nodes => nodes.map(node => node.getBoundingClientRect().top));
+    assert.ok(rows[1] > rows[0]);
+    assert.deepEqual(await separation(), ["0px", "1px", "1px", "0px", "1px", "1px", "1px"]);
+    for (const id of ["beat", "tuplet", "measure"]) assert.equal(await toolTrigger(id).isVisible(), true);
+    await toolbar.evaluate(el => { el.style.removeProperty("max-width"); });
+  });
   await check("无选区禁用五个桌面工具及更多菜单项，取消选区隐藏节奏型", async () => {
     await load();
     const invitation = page.getByText("点击谱面中的音符或小节开始编辑", { exact: true });

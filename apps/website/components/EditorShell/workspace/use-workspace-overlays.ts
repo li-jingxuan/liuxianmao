@@ -21,11 +21,13 @@ const focusable = (root: HTMLElement) =>
 export function useWorkspaceOverlays({
   rootRef,
   workspaceRef,
+  hasDocument,
   panel,
   onClose,
 }: {
   rootRef: RefObject<HTMLDivElement | null>;
   workspaceRef: RefObject<HTMLDivElement | null>;
+  hasDocument: boolean;
   panel: "history" | "sidebar" | null;
   onClose: () => void;
 }) {
@@ -274,5 +276,5 @@ export function useWorkspaceOverlays({
       document.removeEventListener("keydown", keydown, true);
       document.removeEventListener("focusin", focusin);
     };
-  }, [rootRef, workspaceRef, panel, onClose]);
+  }, [rootRef, workspaceRef, hasDocument, panel, onClose]);
 }

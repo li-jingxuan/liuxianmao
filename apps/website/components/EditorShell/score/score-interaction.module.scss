@@ -39,6 +39,39 @@
   outline: none;
 }
 
+.scoreTailButton {
+  appearance: none;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 1px solid #a8bff4;
+  border-left: 0;
+  background: rgba(40, 100, 227, 0.055);
+  color: #2864e3;
+  font: 600 20px/1 Arial, sans-serif;
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    background: rgba(40, 100, 227, 0.13);
+  }
+
+  &:focus-visible {
+    outline: 2px solid #2864e3;
+    outline-offset: -2px;
+  }
+}
+
+@media print {
+  .scoreTail {
+    display: none;
+  }
+}
+
 .pageViewport {
   flex: 1;
   min-width: 0;

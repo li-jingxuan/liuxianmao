@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EXAMPLE_MVP_6_DOCUMENT } from "../../src";
+import { EXAMPLE_MVP_6_DOCUMENT, getMusicTextRows, resolveLyricPosition } from "../../src";
 import {
   applyScoreCommand,
   LXMScoreCommandEnum,
@@ -77,6 +77,25 @@ const run = (document: ILXMDocument, command: ILXMScoreCommand) => {
 };
 
 describe("简谱清空内容保留时间与歌词", () => {
+  it.each([false, true])("删除简谱行时保留歌词及其时值，tuplet=%s", (tuplet) => {
+    const { document, track, measure, target } = fixture(tuplet);
+    document.score.meta.showNumberedRow = true;
+    track.numberedMarks = [{ id: "mark", type: "fermata", eventId: "event-0" }];
+    const before = resolveLyricPosition(measure, target);
+    const cleared = run(document, { type: LXMScoreCommandEnum.RemoveNumberedRow });
+    const nextTrack = cleared.score.tracks[0]!;
+    const next = nextTrack.measures[0]!;
+    expect(cleared.documentRevision).toBe(document.documentRevision + 1);
+    expect(getMusicTextRows(cleared)).toEqual({ numbered: false, lyricVerses: 4 });
+    expect(nextTrack.numberedMarks).toEqual([]);
+    expect(next.numberedVoice.events.map((event) => event.kind)).toEqual(tuplet ? ["gap", "gap", "gap"] : ["gap"]);
+    expect(next.numberedVoice.tuplets).toEqual(measure.numberedVoice.tuplets);
+    expect(next.lyrics).toEqual(measure.lyrics);
+    expect(resolveLyricPosition(next, target)).toEqual(before);
+    expect(next.beats).toEqual(measure.beats);
+    expect(next.chordSymbols).toEqual(measure.chordSymbols);
+    expect(document.score.meta.showNumberedRow).toBe(true);
+  });
   it.each([false, true])(
     "单音与批量清空、恢复均保留事件及歌词，tuplet=%s",
     (tuplet) => {

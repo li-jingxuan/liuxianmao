@@ -219,7 +219,7 @@ export const summarizeMeasureSpacingWidth = (
  * 将节奏列转换成最终 beat slot。
  *
  * compact 在完整硬/理想位置之间统一插值，首尾保护边界也使用同一系数。
- * 超出理想宽度的额外空间只进入节奏内容区，并按 idealWidth 比例分配。
+ * 超出理想宽度的空间按理想列宽分配，或均分给小节两侧以保留拍点间距。
  * 拍点、音符、休止符与后续命中区域共用最终位置。
  */
 export const layoutMeasureSpacing = (
@@ -230,6 +230,7 @@ export const layoutMeasureSpacing = (
     density?: ILXMLayoutDensity;
     /** 由 System 分配的最终宽度；省略时使用小节固有宽度。 */
     assignedWidth?: number;
+    justifyWithMargins?: boolean;
     /** 当前小节拍号等前导记号占用的固定宽度。 */
     leadingWidth?: number;
     musicTextMetrics?: ILXMMusicTextMetrics;
@@ -270,9 +271,11 @@ export const layoutMeasureSpacing = (
         : 1)
     : 1;
   const interpolate = (hard: number, ideal: number) => hard + (ideal - hard) * ratio;
-  const leftExtra = interpolate(summary.hardLeftExtra ?? summary.leftExtra, summary.leftExtra);
-  const tailExtra = interpolate(summary.hardTailExtra ?? summary.tailExtra, summary.tailExtra);
-  const extraWidth = Math.max(0, assignedWidth - intrinsicWidth);
+  const surplus = Math.max(0, assignedWidth - intrinsicWidth);
+  const extraMargin = context.justifyWithMargins ? surplus / 2 : 0;
+  const leftExtra = interpolate(summary.hardLeftExtra ?? summary.leftExtra, summary.leftExtra) + extraMargin;
+  const tailExtra = interpolate(summary.hardTailExtra ?? summary.tailExtra, summary.tailExtra) + extraMargin;
+  const extraWidth = context.justifyWithMargins ? 0 : surplus;
   const assignedContentWidth =
     assignedWidth -
     profile.measurePaddingX * 2 -

@@ -3,6 +3,7 @@
 import { Fragment } from "react";
 import { Alert, Button, Form, Input, Select, Tooltip } from "antd";
 import { QuestionCircleOutlined } from "@ant-design/icons";
+import { ShortcutHint } from "../session/EditorShortcutReference";
 import type { SettingsCopyRange, SettingsFormProps } from "./ScoreSettingsForm";
 import measureSettingsFormStyles from "./MeasureSettingsForm.module.scss";
 import editorFormStyles from "../shared/editor-form.module.scss";
@@ -31,9 +32,11 @@ export const MeasureSettingsForm = ({
   return <div className={`${measureSettingsFormStyles.settingsForms} ${taskStyles.measureForms}`}>
     {issues.all && <Alert type="error" showIcon title={issues.all} />}
     <Form layout="vertical" data-settings-group="label" onFinish={() => onApply("label")} requiredMark={false}>
-      <div className={taskStyles.sectionHeading}><div className={measureSettingsFormStyles.labelHeading}><h3 tabIndex={-1}>段落标记</h3><Tooltip title="段落名称是小节标记，不会新增歌词或简谱行。" trigger={["hover", "focus"]}><Button type="text" size="small" className={measureSettingsFormStyles.labelHelp} aria-label="段落标记说明" icon={<QuestionCircleOutlined />} /></Tooltip></div><span>当前位置</span></div>
+      <div className={taskStyles.sectionHeading}><div className={measureSettingsFormStyles.labelHeading}><h3 tabIndex={-1}>段落标记</h3><Tooltip title={<ShortcutHint shortcuts={["settings"]} note="段落名称是小节标记，不会新增歌词或简谱行。" />} trigger={["hover", "focus"]}><Button type="text" size="small" className={measureSettingsFormStyles.labelHelp} aria-label="段落标记说明" icon={<QuestionCircleOutlined />} /></Tooltip></div><span>当前位置</span></div>
       {(index < 0 || (measureId && measureId !== selectedMeasureId)) && <p data-editor-form-hint className={editorFormStyles.settingsHint}>{index >= 0 ? `段落标记作用于第 ${index + 1} 小节` : measureId ? `原目标小节已失效（${measureId}），输入已保留` : "请先选择目标小节"}{measureId && measureId !== selectedMeasureId ? "；正在编辑原位置" : ""}</p>}
-      <Form.Item label="段落标记" htmlFor="settings-label"><Input id="settings-label" aria-label="段落标记" placeholder="例如：主歌、副歌" disabled={busy || !measureId} value={value.label} onChange={(event) => onChange("label", event.target.value)} onBlur={onLabelBlur} /></Form.Item>
+      <Form.Item label="段落标记" htmlFor="settings-label"><Input id="settings-label" aria-label="段落标记" placeholder="例如：主歌、副歌" disabled={busy || !measureId} value={value.label} onChange={(event) => onChange("label", event.target.value)} onBlur={(event) => {
+        if (!event.relatedTarget?.closest("[data-open-shortcuts]")) onLabelBlur?.();
+      }} /></Form.Item>
       {(issues.label || groups.label.blockedReason) && <Alert type="error" showIcon title={issues.label || groups.label.blockedReason} />}
     </Form>
     <div data-measure-boundary-host />
