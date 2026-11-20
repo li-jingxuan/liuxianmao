@@ -96,7 +96,7 @@ import {
 import { buildEditorToolCommand } from "./tools/editor-tool-actions";
 import { resolveEditorRhythmTarget } from "./tools/editor-rhythm-target";
 import { isNumberedTieTarget, resolveEditorTieTarget } from "./tools/editor-tie-target";
-import { rhythmPatternScopeRect } from "./tools/rhythm-pattern-scope-layout";
+import { rhythmPatternScopeRects } from "./tools/rhythm-pattern-scope-layout";
 import { RhythmPatternProvider } from "./tools/RhythmPatternPanel";
 import { resolveEditorRhythmPatternTarget } from "./tools/editor-rhythm-pattern-target";
 import {
@@ -556,8 +556,8 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
   }, [document, musicTextMetrics, showChordDiagrams, activeMusicTextTarget, continuousRange, paragraphEditingSession, paragraphPlaceholders]);
   const rangeRects = useMemo(() => document && lxmLayout && continuousRange
     ? musicTextRangeRects(document, lxmLayout, continuousRange) : [], [document, lxmLayout, continuousRange]);
-  const rhythmPatternRect = useMemo(() => lxmLayout && rhythmPatternScope
-    ? rhythmPatternScopeRect(lxmLayout, rhythmPatternScope) : null, [lxmLayout, rhythmPatternScope]);
+  const rhythmPatternRects = useMemo(() => lxmLayout && rhythmPatternScope
+    ? rhythmPatternScopeRects(lxmLayout, rhythmPatternScope) : [], [lxmLayout, rhythmPatternScope]);
 
   const onScoreGeometryChange = useCallback(() => {
     const svg = scoreSvgRef.current;
@@ -1675,11 +1675,11 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     selection,
     numberedSelection,
   });
-  const rhythmTarget = resolveEditorRhythmPatternTarget(document, selection, continuousRange, activeMusicTextTarget);
+  const rhythmTarget = resolveEditorRhythmPatternTarget(document, selection, continuousRange, activeMusicTextTarget, numberedSelection);
   const getRhythmTarget = () => {
     const now = session.getState();
     return now.document
-      ? resolveEditorRhythmPatternTarget(now.document, now.selection, continuousRangeRef.current, activeMusicTextTargetRef.current)
+      ? resolveEditorRhythmPatternTarget(now.document, now.selection, continuousRangeRef.current, activeMusicTextTargetRef.current, now.numberedSelection)
       : { ok: false as const, message: "当前没有可编辑的乐谱。" };
   };
   const getRhythmBlocked = () => {
@@ -1713,7 +1713,10 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
       blocked={!!activeModal || drafts.inspect().busy || drafts.inspect().pending.length > 0 ||
         (rhythmTarget.ok && rhythmTarget.target.layer === "numbered" ? numberedActionBlocked : musicTextEditing)}
       getBlocked={getRhythmBlocked}
-      onSuccess={focusScore}
+      onSuccess={(scope) => {
+        if (scope.endMeasureId && scope.layer === "numbered" && session.getState().numberedSelection) setContinuousRange(null);
+        focusScore();
+      }}
       onScopeChange={setRhythmPatternScope}
       onBusyChange={() => {}}
     >
@@ -1867,10 +1870,11 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
                 />
                 {/* 选区层位于音乐元素下方，且永不参与指针命中。 */}
                 <g className={scoreInteractionStyles.selectionLayer} pointerEvents="none">
-                  {rhythmPatternRect && <rect data-rhythm-pattern-scope
+                  {rhythmPatternRects.map(({ measureId, ...rect }) => <rect key={measureId} data-rhythm-pattern-scope
+                    data-rhythm-pattern-measure={measureId}
                     data-rhythm-pattern-layer={rhythmPatternScope?.layer}
-                    {...rhythmPatternRect} rx={3} fill="#e6f4ff" fillOpacity={0.65}
-                    stroke="#69b1ff" strokeDasharray="4 3" />}
+                    {...rect} rx={3} fill="#e6f4ff" fillOpacity={0.65}
+                    stroke="#69b1ff" strokeDasharray="4 3" />)}
                   {rangeRects.map((rect) => <rect key={rect.key} ref={rect.focused ? rangeFocusRef : undefined} data-music-text-range-cell={rect.key} data-range-focus={rect.focused || undefined}
                     x={rect.x} y={rect.y} width={rect.width} height={rect.height} rx={3}
                     fill={rect.focused ? "#dce7ff" : "#edf3ff"} fillOpacity={0.72}

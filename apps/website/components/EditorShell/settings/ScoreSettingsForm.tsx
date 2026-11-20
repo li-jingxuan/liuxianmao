@@ -7,7 +7,7 @@ import { ShortcutTooltip } from "../session/EditorShortcutReference";
 import type { ScoreSettingsDraft, SettingsGroup, SettingsGroupStatus } from "./score-settings-draft";
 import styles from "./ScoreSettingsForm.module.scss";
 
-export interface SettingsCopyRange { start: string; end: string; after: string }
+export interface SettingsCopyRange { start: string; end: string; after: string | null }
 export type SettingsIssues = Partial<Record<SettingsGroup | "copy" | "all", string>>;
 export interface SettingsFormProps {
   document: ILXMDocument;

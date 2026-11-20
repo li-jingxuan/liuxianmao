@@ -166,7 +166,7 @@ export const EditorToolbar = ({
   const getRhythmPatternTarget = useCallback(() => {
     const now = session.getState();
     return now.document
-      ? resolveEditorRhythmPatternTarget(now.document, now.selection, live.current.continuousRange, getActiveTarget())
+      ? resolveEditorRhythmPatternTarget(now.document, now.selection, live.current.continuousRange, getActiveTarget(), now.numberedSelection)
       : { ok: false as const, message: "当前没有可编辑的乐谱。" };
   }, [session, getActiveTarget]);
   const getSelectionIdentity = useCallback(() => {
@@ -200,7 +200,7 @@ export const EditorToolbar = ({
     if (modal && modal.request.kind !== "rhythm-pattern-discard" && modal.request.kind !== "shortcuts") host.current?.close();
   }, [modal]);
   if (!document) return null;
-  const rhythmPatternTarget = resolveEditorRhythmPatternTarget(document, selection, continuousRange, activeTarget);
+  const rhythmPatternTarget = resolveEditorRhythmPatternTarget(document, selection, continuousRange, activeTarget, numberedSelection);
   const rhythmPatternBlocked = (rhythmPatternTarget.ok && rhythmPatternTarget.target.layer === "numbered"
     ? numberedEditingBlocked : editingBlocked) || !!modal || drafts.inspect().pending.length > 0;
   const tools = deriveEditorToolState(document, selection);

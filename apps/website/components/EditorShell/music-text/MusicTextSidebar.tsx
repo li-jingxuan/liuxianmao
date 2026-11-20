@@ -44,6 +44,8 @@ import {
   planLyricPositions,
   planLyricSequence,
   resolveLyricPosition,
+  resolveMusicTextRange,
+  resolveTabCellSelection,
   validateChordDiagram,
   type ILXMLayoutOptions,
   type ILXMTabCellSelection,
@@ -229,6 +231,8 @@ export const MusicTextSidebar = ({
   type PropertyTab = "selection" | "paragraph" | "chord" | "song";
   // 一级栏目只负责组织界面；真实业务目标仍由 kind 和现有草稿闸门维护。
   const [propertyTab, setPropertyTab] = useState<PropertyTab>("selection");
+  const [showRangeTools, setShowRangeTools] = useState(false);
+  if (!continuousRange && showRangeTools) setShowRangeTools(false);
   const [selectionDetail, setSelectionDetail] =
     useState<"note" | "measure">("note");
   const [detailTarget, setDetailTarget] = useState<MeasureToolTarget>();
@@ -1051,10 +1055,10 @@ export const MusicTextSidebar = ({
     dismissCleanPopover,
     navigateTool: (destination) => {
       if (rangeEditor.current?.isComposing() || rangeEditor.current?.isDirty()) return "blocked";
-      onRangeChange(null);
       const current = editorStore.getState();
-      const source = activeObject ?? detailTarget ?? current.numberedSelection ?? current.selection?.focus;
-      return request({
+      const source = continuousRange ? { trackId: continuousRange.trackId, measureId: continuousRange.focus.measureId }
+        : activeObject ?? detailTarget ?? current.numberedSelection ?? current.selection?.focus;
+      const result = request({
         type: "tool",
         kind: "score",
         destination,
@@ -1064,6 +1068,8 @@ export const MusicTextSidebar = ({
           ? { trackId: source.trackId, measureId: source.measureId }
           : undefined,
       });
+      if (result === "accepted" && continuousRange) setShowRangeTools(true);
+      return result;
     },
   }));
   // 只有受保护请求真正完成且布局已提交，才定位可见详情或原歌曲字段。
@@ -1867,16 +1873,37 @@ export const MusicTextSidebar = ({
     },
   };
   // 只把真实目标交给摘要；初始空选区不能用空 ID 伪造一个失效的小节。
-  const measureTarget = detailTarget ?? numberedSelection ?? selection?.focus;
+  const resolvedRange = score && continuousRange ? resolveMusicTextRange(score, continuousRange) : null;
+  const rangeFocus = resolvedRange?.ok && continuousRange
+    ? { trackId: continuousRange.trackId, measureId: continuousRange.focus.measureId } : undefined;
+  const measureTarget = rangeFocus ?? detailTarget ?? numberedSelection ?? selection?.focus;
+  const copyTrack = score?.score.tracks[0];
+  let selectedCopyRange: { start: string; end: string } | undefined;
+  if (score && copyTrack) {
+    if (resolvedRange?.ok && rangeFocus?.trackId === copyTrack.id) {
+      if (resolvedRange.slots.length) selectedCopyRange = {
+        start: resolvedRange.slots[0]!.measureId, end: resolvedRange.slots.at(-1)!.measureId,
+      };
+    } else if (numberedSelection?.trackId === copyTrack.id) {
+      if (resolveNumberedEditorTarget(score, numberedSelection)) selectedCopyRange = {
+        start: numberedSelection.measureId, end: numberedSelection.measureId,
+      };
+    } else if (selection?.focus.trackId === copyTrack.id) {
+      const resolved = resolveTabCellSelection(score, selection);
+      if (resolved.ok && resolved.range.beats.length) selectedCopyRange = {
+        start: resolved.range.beats[0]!.measureId, end: resolved.range.beats.at(-1)!.measureId,
+      };
+    }
+  }
   const context = deriveSidebarContext({ document: score,
     target: activeObject?.kind === "numbered" ? numberedPreview ?? activeObject : activeObject,
     task: propertyTab === "selection" ? selectionDetail : undefined,
     selection, numberedSelection, song: propertyTab === "song",
     measureTarget: propertyTab === "selection" && selectionDetail === "measure"
       ? measureTarget : undefined });
-  const hasExplicitSelection = numberedSelection
+  const hasExplicitSelection = !!rangeFocus || (numberedSelection
     ? !!score && !!resolveNumberedEditorTarget(score, numberedSelection)
-    : !!selection && isScoreSelectionValid(score, selection);
+    : !!selection && isScoreSelectionValid(score, selection));
   const hasRequestedMeasure = selectionToolsRequested && !!detailTarget && !!score?.score.tracks
     .find((track) => track.id === detailTarget.trackId)?.measures.some((measure) => measure.id === detailTarget.measureId);
   const showSelectionInvitation = !hasExplicitSelection && !hasRequestedMeasure;
@@ -1919,11 +1946,15 @@ export const MusicTextSidebar = ({
       >
         <header className={musicTextSidebarStyles.sidebarHeader} inert={!!pending}>
           <Tabs
-            activeKey={continuousRange ? "paragraph" : propertyTab}
+            activeKey={continuousRange && !showRangeTools ? "paragraph" : propertyTab}
             onChange={(key) => {
               if (rangeEditor.current?.isComposing()) return;
-              onRangeChange(null);
               const next = key as PropertyTab;
+              if (continuousRange && next === "paragraph") {
+                setShowRangeTools(false);
+                return;
+              }
+              if (continuousRange && next === "selection" && rangeEditor.current?.isDirty()) return;
               const nextKind: SidebarTab =
                 next === "selection" || next === "song"
                   ? "score"
@@ -1934,8 +1965,11 @@ export const MusicTextSidebar = ({
               if (
                 request({ type: "tab", kind: nextKind, propertyTab: next }) ===
                 "accepted"
-              )
+              ) {
+                if (continuousRange && next === "selection") setShowRangeTools(true);
+                else onRangeChange(null);
                 setPropertyTab(next);
+              }
             }}
             items={
               [
@@ -1970,7 +2004,7 @@ export const MusicTextSidebar = ({
             animated={false}
           />
         </header>
-        {continuousRange ? <MusicTextRangeEditor
+        {continuousRange && !showRangeTools ? <MusicTextRangeEditor
           key={JSON.stringify(continuousRange)}
           ref={rangeEditor}
           range={continuousRange}
@@ -2124,7 +2158,8 @@ export const MusicTextSidebar = ({
               <ScoreSettings
                 ref={settingsRef}
                 document={score}
-                requestedMeasureId={detailTarget?.measureId ?? selection?.focus.measureId}
+                requestedMeasureId={rangeFocus?.measureId ?? detailTarget?.measureId ?? selection?.focus.measureId}
+                selectedCopyRange={selectedCopyRange ?? null}
                 songHost={songHost}
                 measureHost={measureHost}
                 activeSurface={settingsSurface}
@@ -2164,7 +2199,7 @@ export const MusicTextSidebar = ({
                   onChange={(destination) => {
                     const state = editorStore.getState();
                     request({ type: "tool", kind: "score", destination: destination as ToolNavigation,
-                      target: detailTarget ?? numberedSelection ?? (selection?.focus ? { trackId: selection.focus.trackId, measureId: selection.focus.measureId } : undefined),
+                      target: measureTarget,
                       sessionId: state.sessionId, sessionVersion: state.sessionVersion });
                   }} />
                 <div

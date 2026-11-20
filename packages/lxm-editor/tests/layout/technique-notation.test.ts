@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import source from "../../example/example-mvp2.json";
 import type { ILXMTechnique } from "../../src/core/types";
 import { buildLayout, hitTestTechnique } from "../../src/layout";
+import { LXM_TECHNIQUE_TEXT_HALO_WIDTH } from "../../src/layout/layout-constants";
 import {
   getFretTextBounds,
   getTextBounds,
@@ -123,8 +124,13 @@ describe("技巧记谱方向、净空和单次品位显示", () => {
       expect(type === "slideUp" ? p[3]! < p[1]! : p[3]! > p[1]!).toBe(true);
       const segment = layout.systems[0]!.techniques[0]!;
       expect(segment.texts.map((label) => label.text)).toEqual(["S"]);
-      const label = getTextBounds(segment.texts[0]!);
-      expect(label.y + label.height).toBeLessThan(Math.min(p[1]!, p[3]!));
+      const label = getTextBounds(segment.texts[0]!, LXM_TECHNIQUE_TEXT_HALO_WIDTH);
+      const [x1, y1, x2, y2] = p as [number, number, number, number];
+      const radius = segment.path!.strokeWidth / 2;
+      const x = type === "slideUp" ? label.x + label.width + radius : label.x - radius;
+      const lineY = y1 + (y2 - y1) * Math.max(0, Math.min(1, (x - x1) / (x2 - x1)));
+      expect(segment.texts[0]!.x).toBeCloseTo((x1 + x2) / 2);
+      expect(lineY - radius - (label.y + label.height)).toBeCloseTo(3);
       expect(hitTestTechnique(layout, { x: label.x + label.width / 2, y: label.y + label.height / 2 })).toBe("slide");
     },
   );

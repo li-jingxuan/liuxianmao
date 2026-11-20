@@ -337,13 +337,14 @@ export const layoutSystems = (
       0,
     );
     // 中间的多小节谱行两端对齐；短末行或单小节行保留稀疏排版。
-    const compactNumbered = pendingMeasures.some(({ measure }) =>
-      usesCompactNumberedSpacing(measure, options.density),
-    );
+    const preserveRhythmSpacing = options.density === "compact" &&
+      pendingMeasures.some(({ measure }) =>
+        usesCompactNumberedSpacing(measure, options.density) || measure.chordSymbols.length > 1,
+      );
     const sparse = reason === "final" || pendingMeasures.length === 1;
     let maxStaffWidth = widthLimit;
     if (sparse) {
-      maxStaffWidth = compactNumbered ? pendingWidth :
+      maxStaffWidth = preserveRhythmSpacing ? pendingWidth :
         pendingWidth + totalFlexibleWidth * (LXM_SPARSE_SYSTEM_MAX_CONTENT_SCALE - 1);
     }
     let targetStaffWidth = Math.max(
@@ -354,8 +355,8 @@ export const layoutSystems = (
       targetStaffWidth = Math.min(targetStaffWidth, widthLimit);
     const remainingWidth = targetStaffWidth - pendingWidth;
 
-    // 紧凑简谱行把撑齐所需的宽度均分到小节两侧，保留简谱、歌词和 TAB 的拍点间距。
-    const justifyWithMargins = compactNumbered && remainingWidth > 0;
+    // 有简谱或小节内相邻和弦的紧凑谱行，用小节边距撑齐行宽，保留拍点间距。
+    const justifyWithMargins = preserveRhythmSpacing && remainingWidth > 0;
     const assignedWidths = pendingMeasures.map(
       ({ intrinsicWidth }, measureIndex) => {
         const weight =

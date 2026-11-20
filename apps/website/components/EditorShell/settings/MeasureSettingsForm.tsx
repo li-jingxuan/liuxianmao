@@ -13,13 +13,14 @@ import taskStyles from "../shared/SelectionTaskDetails.module.scss";
 export const MeasureSettingsForm = ({
   document, value, measureId, selectedMeasureId, dirty, composing, busy,
   issues, groups, copy, onChange, onApply,
-  onCopyChange, onCopy, onLabelBlur,
+  onCopyChange, onFollowSelection, onCopy, onLabelBlur,
 }: SettingsFormProps & {
   measureId?: string;
   selectedMeasureId?: string;
   dirty: boolean;
   copy: SettingsCopyRange;
-  onCopyChange: (value: SettingsCopyRange) => void;
+  onCopyChange: (value: SettingsCopyRange, field: keyof SettingsCopyRange) => void;
+  onFollowSelection: () => void;
   onCopy: () => void | Promise<void>;
   onLabelBlur?: () => void;
 }) => {
@@ -28,7 +29,11 @@ export const MeasureSettingsForm = ({
   const start = measures.findIndex((measure) => measure.id === copy.start);
   const end = measures.findIndex((measure) => measure.id === copy.end);
   const after = measures.findIndex((measure) => measure.id === copy.after);
-  const validCopy = start >= 0 && end >= start && (!copy.after || after >= 0);
+  const copyIssue = start < 0 ? "复制起始小节已失效，请重新选择。" : end < 0 ? "复制结束小节已失效，请重新选择。"
+    : end < start ? "复制结束小节须在起始小节之后或与其相同。"
+    : copy.after && after < 0 ? "插入位置已失效，请重新选择。" : null;
+  const destination = copy.after === null ? "曲末" : copy.after === "" ? "曲首" : `第 ${after + 1} 小节后`;
+  const destinationValue = copy.after === null ? "end" : copy.after === "" ? "start" : `measure:${copy.after}`;
   return <div className={`${measureSettingsFormStyles.settingsForms} ${taskStyles.measureForms}`}>
     {issues.all && <Alert type="error" showIcon title={issues.all} />}
     <Form layout="vertical" data-settings-group="label" onFinish={() => onApply("label")} requiredMark={false}>
@@ -41,7 +46,7 @@ export const MeasureSettingsForm = ({
     </Form>
     <div data-measure-boundary-host />
     <Form className={measureSettingsFormStyles.copySection} layout="vertical" data-settings-group="copy" onFinish={onCopy} requiredMark={false}>
-      <h3 tabIndex={-1}>复制小节范围</h3>
+      <div className={taskStyles.sectionHeading}><h3 tabIndex={-1}>复制小节范围</h3><Button type="text" size="small" disabled={busy} onClick={onFollowSelection}>使用当前选区</Button></div>
       <div className={measureSettingsFormStyles.copyFields}>
       <div className={measureSettingsFormStyles.copyRange} role="group" aria-labelledby="settings-copy-range-label">
       <span id="settings-copy-range-label">复制范围</span>
@@ -51,20 +56,20 @@ export const MeasureSettingsForm = ({
           ...measures.map((measure, i) => ({ value: measure.id, label: `第${i + 1}小节` })),
         ];
         if (!options.some((option) => option.value === copy[key])) options.unshift({ value: copy[key], label: "原目标已失效，请重新选择", disabled: true });
-        return <Fragment key={key}>{key === "end" && <span aria-hidden="true">–</span>}<div className={measureSettingsFormStyles.rangeField}><Select id={`settings-copy-${key}`} aria-label={label} value={copy[key]} options={options} disabled={busy} onChange={(next) => onCopyChange({ ...copy, [key]: next })} /></div></Fragment>;
+        return <Fragment key={key}>{key === "end" && <span aria-hidden="true">–</span>}<div className={measureSettingsFormStyles.rangeField}><Select id={`settings-copy-${key}`} aria-label={label} value={copy[key]} options={options} disabled={busy} onChange={(next) => onCopyChange({ ...copy, [key]: next }, key)} /></div></Fragment>;
       })}
       </div>
       </div>
       <div className={measureSettingsFormStyles.insertionRow}>
-      <Form.Item label="插入位置" htmlFor="settings-copy-after"><Select id="settings-copy-after" aria-label="插入位置" value={copy.after} disabled={busy} options={[
-        { value: "", label: "谱首" },
-        ...measures.map((measure, i) => ({ value: measure.id, label: `第${i + 1}小节后` })),
-        ...(copy.after && after < 0 ? [{ value: copy.after, label: "原目标已失效，请重新选择", disabled: true }] : []),
-      ]} onChange={(next) => onCopyChange({ ...copy, after: next })} /></Form.Item>
-      <Button className={measureSettingsFormStyles.copyConfirm} aria-label="应用复制小节范围" type="primary" htmlType="submit" disabled={dirty || composing || busy || !validCopy} loading={busy}>应用</Button>
+      <Form.Item label="插入位置" htmlFor="settings-copy-after"><Select id="settings-copy-after" aria-label="插入位置" value={destinationValue} disabled={busy} options={[
+        { value: "start", label: "曲首" }, { value: "end", label: "曲末" },
+        ...measures.map((measure, i) => ({ value: `measure:${measure.id}`, label: `第${i + 1}小节后` })),
+        ...(copy.after && after < 0 ? [{ value: destinationValue, label: "原目标已失效，请重新选择", disabled: true }] : []),
+      ]} onChange={(next) => onCopyChange({ ...copy, after: next === "end" ? null : next === "start" ? "" : next.slice("measure:".length) }, "after")} /></Form.Item>
+      <Button className={measureSettingsFormStyles.copyConfirm} aria-label="应用复制小节范围" type="primary" htmlType="submit" disabled={dirty || composing || busy || !!copyIssue} loading={busy}>应用</Button>
       </div>
       </div>
-      <p data-editor-form-hint className={editorFormStyles.settingsHint}>{validCopy ? `复制第 ${start + 1}–${end + 1} 小节（共 ${end - start + 1} 小节），插入${copy.after ? `第 ${after + 1} 小节后` : "谱首"}；原小节保留。` : "复制范围或插入位置无效，请重新选择。"}</p>
+      <p data-editor-form-hint className={editorFormStyles.settingsHint}>{copyIssue || `复制第 ${start === end ? start + 1 : `${start + 1}–${end + 1}`} 小节（共 ${end - start + 1} 小节），插入${destination}。`}</p>
       {dirty && <p data-editor-form-hint className={editorFormStyles.settingsHint}>请先处理{Object.entries(groups).filter(([, status]) => status.dirty).map(([group]) => ({ info: "歌曲信息", signature: "基础拍号", capo: "Capo", label: "段落标记" })[group]).join("、")}的未应用输入，再复制小节。</p>}
       {issues.copy && <Alert type="error" showIcon title={issues.copy} />}
     </Form>

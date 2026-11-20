@@ -19,6 +19,7 @@ import {
   LXM_TECHNIQUE_LANE_HEIGHT,
   LXM_TECHNIQUE_PATH_STROKE_WIDTH,
   LXM_TECHNIQUE_TEXT_FONT_SIZE,
+  LXM_TECHNIQUE_TEXT_HALO_WIDTH,
   LXM_TECHNIQUE_ARROW_OFFSET_Y,
   LXM_TECHNIQUE_NOTE_CLEARANCE_Y,
   LXM_TECHNIQUE_FRET_GAP_X,
@@ -41,6 +42,7 @@ import {
   boundsIntersect,
   compactRangeTechnique,
   getFretTextBounds,
+  getTextBounds,
   getTechniqueInkBounds,
   hasChordTraversalRange,
   placeCurveLabelAboveApex,
@@ -74,6 +76,8 @@ interface ILXMTechniqueCandidate {
   /** 当前分段覆盖的稳定 Beat ID，按领域时间顺序保存。 */
   coveredBeatIds: string[];
 }
+
+const SLIDE_LABEL_CLEARANCE = 3;
 
 interface ILXMAnchorMaps {
   /** 只关联同一音符上的推弦与揉弦，不改变领域技巧对象。 */
@@ -450,6 +454,22 @@ const assignLanes = (
           segments.some((other, otherIndex) => otherIndex !== index && techniqueInkIntersects(compact, other))) return;
       segments[index] = compact;
     });
+    for (const [index, segment] of segments.entries()) {
+      const label = segment.texts[0];
+      if (!label || (segment.type !== "slideUp" && segment.type !== "slideDown")) continue;
+      const ink = getTextBounds(label, LXM_TECHNIQUE_TEXT_HALO_WIDTH);
+      const obstacles = [...notes, ...segments.flatMap((other, otherIndex) =>
+        index === otherIndex ? [] : getTechniqueInkBounds(other))];
+      let bottom = ink.y + ink.height;
+      while (true) {
+        const bounds = { ...ink, y: bottom - ink.height };
+        const blockers = obstacles.filter(obstacle => boundsIntersect(bounds, obstacle));
+        if (!blockers.length) break;
+        bottom = Math.min(...blockers.map(obstacle => obstacle.y)) - 0.5;
+      }
+      const shift = bottom - (ink.y + ink.height);
+      if (shift) segments[index] = withTechniqueBounds({ ...segment, texts: [{ ...label, y: label.y + shift }] });
+    }
     // H/P 已收紧后再回收区间标记按 12 单位整档避让留下的空白。
     // 从低到高收紧，保证相互覆盖的区间仍按原层级排列。
     const ranges = segments.map((segment, index) => ({ segment, index }))
@@ -631,12 +651,20 @@ const createNaturalSegmentLayout = (
         )?.y1 ?? staffTop;
       // 同弦两音的弦线 Y 相同，必须显式画斜率才能区分上滑与下滑。
       const slope = technique.type === "slideUp" ? -3 : 3;
+      const startY = (fromIsLocal ? from.y : localStringY) - slope;
+      const endY = (toIsLocal ? to.y : localStringY) + slope;
       path = {
-        d: `M ${x1} ${(fromIsLocal ? from.y : localStringY) - slope} L ${x2} ${(toIsLocal ? to.y : localStringY) + slope}`,
+        d: `M ${x1} ${startY} L ${x2} ${endY}`,
         strokeWidth: LXM_TECHNIQUE_PATH_STROKE_WIDTH,
       };
       if (candidate.segmentIndex === 0) {
-        texts = [text("S", (x1 + x2) / 2, laneY - LXM_TECHNIQUE_NOTE_CLEARANCE_Y)];
+        const label = text("S", (x1 + x2) / 2, 0);
+        const ink = getTextBounds(label, LXM_TECHNIQUE_TEXT_HALO_WIDTH);
+        const radius = path.strokeWidth / 2;
+        const span = x2 - x1;
+        const yAt = (x: number) => startY + (endY - startY) * Math.max(0, Math.min(1, (x - x1) / span));
+        const highest = span > 0 ? Math.min(yAt(ink.x - radius), yAt(ink.x + ink.width + radius)) : Math.min(startY, endY);
+        texts = [{ ...label, y: highest - radius - SLIDE_LABEL_CLEARANCE - (ink.y + ink.height) }];
       }
     } else {
       // 弧线在数字中心上方起落；连同线宽避开品位描边，紧凑短音也保留完整跨度。
