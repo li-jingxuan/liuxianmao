@@ -22,6 +22,7 @@ import { chordDisplayTrack } from "./music-text/chord-display";
 import { layoutSystems } from "./structure/system-layout";
 import { layoutSystemContent } from "./structure/system-content-layout";
 import { buildTechniqueInsets } from "./techniques/technique-spacing";
+import { getChordTraversalBottomOffsets } from "./techniques/technique-geometry";
 export {
   layoutChordDiagram,
   translateChordDiagram,
@@ -82,6 +83,7 @@ export const buildLayout = (
     startBarline: track.startBarline,
     musicTextMetrics: options.musicTextMetrics,
     techniqueInsets: buildTechniqueInsets(track),
+    chordTraversalBottomOffsets: getChordTraversalBottomOffsets(track.techniques),
     purpose,
     editingNumberedMeasureId:
       editing?.kind === "numbered" ? editing.measureId : undefined,

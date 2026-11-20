@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { LXMScoreCommandEnum as C, type ILXMTabCellReference } from "@liuxianmao/lxm-editor";
 import EXAMPLE from "../../../packages/lxm-editor/example/example-mvp2.json";
 import { createEditorSession } from "../stores/editor-store";
-import { currentChordTechniqueDirection, resolveQuickTechnique, resolveTechniqueDraft } from "../components/EditorShell/tools/editor-technique-target";
+import { resolveQuickTechnique, resolveTechniqueDraft } from "../components/EditorShell/tools/editor-technique-target";
 import { buildEditorToolCommand } from "../components/EditorShell/tools/editor-tool-actions";
 import { deriveEditorToolState } from "../components/EditorShell/tools/editor-tool-state";
 
@@ -16,7 +16,7 @@ const setup = () => {
 };
 
 describe("quick techniques share the domain target adapter", () => {
-  it("延音线支持正反向同弦选择、单选下一音、重复 no-op 及撤销重做", () => {
+  it("延音线支持正反向同弦选择、单选下一音、再次点击删除及撤销重做", () => {
     const { document: source, cell } = setup();
     const document = structuredClone(source);
     const notes = document.score.tracks[0]!.measures[0]!.beats.flatMap((beat) => beat.notes);
@@ -35,16 +35,15 @@ describe("quick techniques share the domain target adapter", () => {
     if (!command) throw new Error("Missing tie command");
     expect(session.getState().execute(command)).toMatchObject({ ok: true, changed: true });
     const applied = session.getState().document;
-    const depth = session.getState().historyDepth;
     const repeat = resolveQuickTechnique(applied!, selection, "tie");
-    expect(repeat).toMatchObject({ ok: true, pressed: true });
+    expect(repeat).toMatchObject({ ok: true, pressed: true, command: { type: C.RemoveTechnique } });
     if (!repeat.ok) throw new Error(repeat.message);
-    expect(session.getState().execute(repeat.command)).toMatchObject({ ok: true, changed: false });
-    expect(session.getState().historyDepth).toEqual(depth);
+    expect(session.getState().execute(repeat.command)).toMatchObject({ ok: true, changed: true });
+    expect(session.getState().document!.score.tracks[0]!.techniques).toEqual([]);
     session.getState().undo();
-    expect(session.getState().document).toEqual(document);
-    session.getState().redo();
     expect(session.getState().document).toEqual(applied);
+    session.getState().redo();
+    expect(session.getState().document!.score.tracks[0]!.techniques).toEqual([]);
   });
 
   it("延音线拒绝不同品位、多弦、缺失起音、无下一音和非相邻拍", () => {
@@ -96,7 +95,7 @@ describe("quick techniques share the domain target adapter", () => {
     expect(resolveQuickTechnique(document, { anchor: cell("5", 6), focus: cell("7", 6) }, "hammerOn").ok).toBe(false);
     expect(resolveQuickTechnique(document, { anchor: cell("5", 6), focus: cell("6", 6) }, "pullOff").ok).toBe(false);
   });
-  it("slide shortcuts submit their chosen direction with ordered same-string endpoints and no-op repeats", () => {
+  it("slide shortcuts submit their chosen direction with ordered endpoints and remove on repeat", () => {
     const { session, cell, document } = setup();
     const start = cell("5", 6), end = cell("6", 6);
     const selection = { anchor: start, focus: end };
@@ -111,13 +110,13 @@ describe("quick techniques share the domain target adapter", () => {
       .toEqual({ ok: false, message: "请选择同一根弦上的音符。" });
     if (!up.ok) return;
     expect(session.getState().execute(up.command)).toMatchObject({ ok: true, changed: true });
-    const depth = session.getState().historyDepth;
+    const applied = session.getState().document;
     const repeat = resolveQuickTechnique(session.getState().document!, selection, "slideUp");
     if (!repeat.ok) throw new Error(repeat.message);
-    expect(session.getState().execute(repeat.command)).toMatchObject({ ok: true, changed: false });
-    expect(session.getState().historyDepth).toEqual(depth);
+    expect(repeat.command.type).toBe(C.RemoveTechnique);
+    expect(session.getState().execute(repeat.command)).toMatchObject({ ok: true, changed: true });
     session.getState().undo();
-    expect(session.getState().document).toBe(document);
+    expect(session.getState().document).toBe(applied);
 
     const lower = structuredClone(document);
     const notes = lower.score.tracks[0]!.measures[0]!.beats.flatMap((beat) => beat.notes);
@@ -148,9 +147,9 @@ describe("quick techniques share the domain target adapter", () => {
     expect(session.getState().execute(up.command)).toMatchObject({ ok: true, changed: true });
     const repeat = resolveQuickTechnique(session.getState().document!, selection, "slide");
     if (!repeat.ok) throw new Error(repeat.message);
-    expect(session.getState().execute(repeat.command)).toMatchObject({ ok: true, changed: false });
-    session.getState().undo();
-    expect(session.getState().document).toBe(document);
+    expect(repeat.command.type).toBe(C.RemoveTechnique);
+    expect(session.getState().execute(repeat.command)).toMatchObject({ ok: true, changed: true });
+    expect(session.getState().document!.score.tracks[0]!.techniques).toEqual([]);
     const lower = structuredClone(document);
     const notes = lower.score.tracks[0]!.measures[0]!.beats.flatMap((beat) => beat.notes);
     notes.find((note) => note.id === "mvp2-note-1-5-6")!.fret = 9;
@@ -186,7 +185,7 @@ describe("quick techniques share the domain target adapter", () => {
     session.getState().undo();
     expect(session.getState().document).toBe(before);
   });
-  it("identical strum is a no-op preserving future; changed range updates rather than unions", () => {
+  it("identical strum toggles off, while a changed range replaces the old range", () => {
     const { session, cell } = setup();
     const selection = { anchor: cell("2", 2), focus: cell("2", 3) };
     const add = buildEditorToolCommand(session.getState().document!, selection, { type: "quickTechnique", technique: "strumDown" })!;
@@ -195,15 +194,16 @@ describe("quick techniques share the domain target adapter", () => {
     const wider = buildEditorToolCommand(first, { anchor: cell("2", 1), focus: cell("2", 4) }, { type: "quickTechnique", technique: "strumDown" })!;
     expect(session.getState().execute(wider)).toMatchObject({ ok: true, changed: true });
     session.getState().undo();
-    const depth = session.getState().historyDepth;
     const repeat = buildEditorToolCommand(session.getState().document!, selection, { type: "quickTechnique", technique: "strumDown" })!;
-    expect(session.getState().execute(repeat)).toMatchObject({ ok: true, changed: false });
+    expect(repeat.type).toBe(C.RemoveTechnique);
+    expect(session.getState().execute(repeat)).toMatchObject({ ok: true, changed: true });
+    expect(session.getState().document!.score.tracks[0]!.techniques).toEqual([]);
+    session.getState().undo();
     expect(session.getState().document).toBe(first);
-    expect(session.getState().historyDepth).toEqual(depth);
     const narrow = buildEditorToolCommand(first, { anchor: cell("2", 4), focus: cell("2", 2) }, { type: "quickTechnique", technique: "strumDown" })!;
-    expect(narrow).toMatchObject({ technique: { minString: 2, maxString: 4 } });
+    expect(narrow).toMatchObject({ type: C.UpdateTechnique, technique: { minString: 2, maxString: 4 } });
   });
-  it("both arpeggio shortcuts replace strumming, retain ID, undo once and repeat without adding history", () => {
+  it("both arpeggio shortcuts replace direction or type, retain ID and toggle off on repeat", () => {
     const { session, cell } = setup();
     const selection = { anchor: cell("2", 6), focus: cell("2", 1) };
     const strum = resolveQuickTechnique(session.getState().document!, selection, "strumDown");
@@ -221,17 +221,60 @@ describe("quick techniques share the domain target adapter", () => {
       expect(session.getState().execute(target.command)).toMatchObject({ ok: true, changed: true });
       expect(session.getState().document!.score.tracks[0]!.techniques).toHaveLength(1);
       expect(session.getState().document!.score.tracks[0]!.techniques[0]).not.toHaveProperty("stroke");
-      expect(currentChordTechniqueDirection(session.getState().document!, selection, "arpeggio")).toBe(quick === "arpeggioDown" ? "down" : "up");
+      const applied = session.getState().document;
       const repeat = resolveQuickTechnique(session.getState().document!, selection, quick);
-      expect(repeat).toMatchObject({ ok: true, pressed: true });
-      const depth = session.getState().historyDepth;
-      if (repeat.ok) expect(session.getState().execute(repeat.command)).toMatchObject({ ok: true, changed: false });
-      expect(session.getState().historyDepth).toEqual(depth);
+      expect(repeat).toMatchObject({ ok: true, pressed: true, command: { type: C.RemoveTechnique, techniqueId: id } });
+      if (!repeat.ok) throw new Error(repeat.message);
+      expect(session.getState().execute(repeat.command)).toMatchObject({ ok: true, changed: true });
+      expect(session.getState().document!.score.tracks[0]!.techniques).toEqual([]);
+      session.getState().undo();
+      expect(session.getState().document).toBe(applied);
     }
     session.getState().undo();
     session.getState().undo();
     expect(session.getState().document).toBe(before);
   });
+  it.each(["strumDown", "strumUp", "arpeggioDown", "arpeggioUp"] as const)(
+    "%s can remove an existing technique with a single cell on its beat",
+    (technique) => {
+      const { session, document, cell } = setup();
+      const action = { type: "quickTechnique", technique } as const;
+      const single = { anchor: cell("2", 1), focus: cell("2", 1) };
+      expect(buildEditorToolCommand(document, single, action)).toBeNull();
+      const range = { anchor: cell("2", 2), focus: cell("2", 4) };
+      const add = buildEditorToolCommand(document, range, action)!;
+      expect(session.getState().execute(add)).toMatchObject({ ok: true, changed: true });
+      const applied = session.getState().document!;
+      const id = applied.score.tracks[0]!.techniques[0]!.id;
+      const otherBeat = { anchor: cell("1", 1), focus: cell("1", 1) };
+      expect(buildEditorToolCommand(applied, otherBeat, action)).toBeNull();
+      const remove = buildEditorToolCommand(applied, single, action)!;
+      expect(remove).toMatchObject({ type: C.RemoveTechnique, techniqueId: id });
+      expect(session.getState().execute(remove)).toMatchObject({ ok: true, changed: true });
+      expect(session.getState().document!.score.tracks[0]!.techniques).toEqual([]);
+    },
+  );
+  it.each([["hammerOn", 3, 9], ["pullOff", 9, 3]] as const)(
+    "%s toggles the same connection on repeat",
+    (quick, fromFret, toFret) => {
+      const { document: source, cell } = setup();
+      const document = structuredClone(source);
+      const notes = document.score.tracks[0]!.measures[0]!.beats.flatMap((beat) => beat.notes);
+      notes.find((note) => note.id === "mvp2-note-1-5-6")!.fret = fromFret;
+      notes.find((note) => note.id === "mvp2-note-1-6-6")!.fret = toFret;
+      const session = createEditorSession(document);
+      const selection = { anchor: cell("5", 6), focus: cell("6", 6) };
+      const action = { type: "quickTechnique", technique: quick } as const;
+      expect(session.getState().execute(buildEditorToolCommand(document, selection, action)!))
+        .toMatchObject({ ok: true, changed: true });
+      const applied = session.getState().document!;
+      const reversed = { anchor: selection.focus, focus: selection.anchor };
+      const remove = buildEditorToolCommand(applied, reversed, action)!;
+      expect(remove.type).toBe(C.RemoveTechnique);
+      expect(session.getState().execute(remove)).toMatchObject({ ok: true, changed: true });
+      expect(session.getState().document!.score.tracks[0]!.techniques).toEqual([]);
+    },
+  );
   it("rest toggle normalizes mixed multi-beat state once, and restore never restores notes", () => {
     const { session, cell } = setup();
     const selection = { anchor: cell("1", 2), focus: cell("2", 2) };

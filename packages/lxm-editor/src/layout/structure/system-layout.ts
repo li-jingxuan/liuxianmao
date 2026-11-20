@@ -48,6 +48,7 @@ export interface ILXMSystemLayoutOptions {
   startBarline: ILXMTrackStartBarlineType;
   /** 技巧与拍点共享横向空间，在自动断行前参与最小列宽计算。 */
   techniqueInsets?: ReadonlyMap<string, TechniqueInsets>;
+  chordTraversalBottomOffsets?: ReadonlyMap<string, number>;
 }
 
 /**
@@ -390,6 +391,7 @@ export const layoutSystems = (
         const context: ILXMLayoutMeasureContext = {
           musicTextMetrics: options.musicTextMetrics,
           spacingSummary,
+          chordTraversalBottomOffsets: options.chordTraversalBottomOffsets,
           index,
           systemIndex,
           x: cursorX,

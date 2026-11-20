@@ -49,7 +49,7 @@ import editorToolPanelStyles from "../shared/editor-tool-panel.module.scss";
 import type { MusicTextTarget } from "../music-text/music-text-draft";
 import { resolveEditorRhythmTarget } from "../tools/editor-rhythm-target";
 import { resolveEditorChordTarget } from "../chords/editor-chord-target";
-import { currentChordTechniqueDirection, resolveQuickTechnique } from "../tools/editor-technique-target";
+import { resolveQuickTechnique } from "../tools/editor-technique-target";
 import { tabToolTargetReason } from "../tools/editor-tool-guard";
 import { isNumberedTieTarget, resolveEditorTieTarget } from "../tools/editor-tie-target";
 import { EditorToolSymbolButton, TechniqueSymbol } from "../tools/EditorToolSymbolButton";
@@ -394,9 +394,7 @@ export const EditorToolbar = ({
           const labels = { hammerOn: "击弦 H", pullOff: "勾弦 P", slide: "滑音", tie: "延音线", strumDown: "下扫：从低音弦到高音弦，箭头向上", strumUp: "上扫：从高音弦到低音弦，箭头向下", arpeggioDown: "下琶音：从低音弦到高音弦，箭头向上", arpeggioUp: "上琶音：从高音弦到低音弦，箭头向下" };
           return <ToolButton key={quick} label={quick === "tie" && tieTarget.kind === "numbered" ? "简谱延音线" : labels[quick]}
             availability={quick === "tie" && tieTarget.kind === "numbered" ? tieAvailability : available(tabReason ? { enabled: false, reason: tabReason } : { enabled: result.ok, reason: result.ok ? "" : result.message })}
-            pressed={quick === "strumDown" || quick === "strumUp" || quick === "arpeggioDown" || quick === "arpeggioUp"
-              ? currentChordTechniqueDirection(document, selection, quick.startsWith("strum") ? "strum" : "arpeggio") === (quick.endsWith("Down") ? "down" : "up")
-              : quick === "tie" && result.ok ? result.pressed : undefined}
+            pressed={result.ok && result.pressed}
             onClick={() => void run({ type: "quickTechnique", technique: quick })}>
             {quick === "hammerOn" ? "H" : quick === "pullOff" ? "P" : quick === "slide" ? "S" : <TechniqueSymbol kind={quick} />}
           </ToolButton>;

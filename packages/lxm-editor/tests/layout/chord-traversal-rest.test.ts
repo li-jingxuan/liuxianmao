@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import EXAMPLE_MVP_2 from "../../example/example-mvp2.json";
+import DEFAULT_MOCK_DOCUMENT from "../../example/default-score";
 import {
   applyScoreCommand,
   LXMScoreCommandEnum,
@@ -25,6 +26,54 @@ const traversalParameters = [
 ] as const;
 
 describe("休止拍上的扫弦和琶音", () => {
+  it.each(traversalParameters)(
+    "$type $stroke$direction 在《理想》的前八后十六节奏中参与连梁",
+    (parameters) => {
+      for (const kind of ["rest", "notes"] as const) {
+        const document = structuredClone(DEFAULT_MOCK_DOCUMENT);
+        const track = document.score.tracks[0]!;
+        const measure = track.measures[16]!;
+        const [eighth, firstSixteenth, secondSixteenth] = measure.beats;
+        eighth!.kind = kind;
+        track.techniques = track.techniques.filter((technique) =>
+          !("beatId" in technique) || technique.beatId !== eighth!.id,
+        );
+        const sourceLayout = buildLayout(document);
+        const added = applyScoreCommand(document, {
+          type: LXMScoreCommandEnum.AddTechnique,
+          trackId: track.id,
+          technique: { ...parameters, beatId: eighth!.id, minString: 2, maxString: 6 },
+        });
+        if (!added.ok) throw new Error(added.message);
+        const sixteenthIds = [firstSixteenth!.id, secondSixteenth!.id];
+        const groupIds = [eighth!.id, ...sixteenthIds];
+        for (const purpose of ["editing", "presentation"] as const) {
+          const layout = buildLayout(added.document, { purpose });
+          const rendered = layout.systems.flatMap((system) => system.measures)
+            .find((candidate) => candidate.id === measure.id)!;
+          const mark = rendered.durationMarks.find((entry) => entry.beatId === eighth!.id)!;
+          expect(mark.flag).toBeNull();
+          expect(mark.stemY1).toBeLessThan(mark.stemY2);
+          expect(rendered.restMarks.some((rest) => rest.beatId === eighth!.id)).toBe(false);
+          expect(rendered.beamSegments.filter((beam) => beam.beatIds.some((id) => groupIds.includes(id))))
+            .toMatchObject([
+              { kind: "shared", level: 1, beatIds: groupIds, x1: mark.stemX, y: mark.stemY2 },
+              { kind: "shared", level: 2, beatIds: sixteenthIds },
+            ]);
+        }
+
+        expect(added.document.score.tracks[0]!.measures).toEqual(track.measures);
+        const removed = applyScoreCommand(added.document, {
+          type: LXMScoreCommandEnum.RemoveTechnique,
+          trackId: track.id,
+          techniqueId: added.document.score.tracks[0]!.techniques.at(-1)!.id,
+        });
+        if (!removed.ok) throw new Error(removed.message);
+        expect(buildLayout(removed.document)).toEqual(sourceLayout);
+      }
+    },
+  );
+
   it.each(traversalParameters)(
     "$type $stroke$direction 隐藏同拍休止符，移动和删除后恢复原休止符",
     (parameters) => {

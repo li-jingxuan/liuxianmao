@@ -392,6 +392,7 @@ export const buildDurationMark = (
   beatLayoutMap: Map<string, ILXMBeatLayout>,
   noteLayoutsByBeatId: Map<string, ILXMNoteLayout[]>,
   sustainByBeatId?: ReadonlyMap<string, number[]>,
+  getChordTraversalBottomY?: (beatId: string) => number | undefined,
 ): ILXMDurationMarkLayout[] =>
   sourceBeats.map((beat) => {
     const currentBeat = beatLayoutMap.get(beat.id);
@@ -399,12 +400,16 @@ export const buildDurationMark = (
       throw new Error(`beatLayoutMap is empty! beat id: ${beat.id}`);
     }
     const beatNotes = noteLayoutsByBeatId.get(beat.id);
-    if (!beatNotes || beatNotes.length === 0) {
+    const traversalBottomY = getChordTraversalBottomY?.(beat.id);
+    if (!beatNotes?.length && traversalBottomY === undefined) {
       throw new Error(
         `时值布局缺少音符坐标：measureId=${measureId}, beatId=${beat.id}`,
       );
     }
-    const lowestNoteY = Math.max(...beatNotes.map((note) => note.y));
+    const lowestY = Math.max(
+      traversalBottomY ?? -Infinity,
+      ...(beatNotes?.map((note) => note.y) ?? []),
+    );
 
     // 计算 beamLevel
     const beamLevel = LXM_RHYTHM_BEAM_LEVEL[beat.rhythm.base];
@@ -419,9 +424,9 @@ export const buildDurationMark = (
         fontSize: LXM_DURATION_HEAD_FONT_SIZE,
       },
       stemVisible: true,
-      // stemX 与 TAB 音符共享时间锚点；stemY1 从和弦中画面最靠下的实际音符开始。
+      // 符干与 TAB 共享时间锚点，起点位于最低品位或扫弦/琶音图形下方。
       stemX: currentBeat.x,
-      stemY1: lowestNoteY + LXM_DURATION_STEM_NOTE_GAP,
+      stemY1: lowestY + LXM_DURATION_STEM_NOTE_GAP,
       stemY2: beamBaseY,
       // 连梁的 Y 坐标（往上排列，这里与 符干 的 Y 坐标是相同的）
       beamY: beamBaseY,
@@ -452,15 +457,17 @@ export const layoutDurationBeams = (
   noteLayouts: ILXMNoteLayout[],
   strings: ILXMStringLineLayout[],
   timeAnchors?: Record<number, number>,
+  chordTraversalBottomOffsets?: ReadonlyMap<string, number>,
 ): ILXMDurationBeamLayoutResult => {
-  // 删除某拍最后一个音符后，该 beat 仍保留在时间轴中，但不应生成 -Infinity
-  // 坐标的符干；因此只为实际有音符的 beat 计算时值图形。
+  // 扫弦和琶音取代同拍休止符或空拍的可见内容，仍用源拍时值参与连梁。
   const sourceBeats = arraySortByKey<ILXMBeat>(
     [...measure.beats],
     "tick",
   ).filter(
-    // 休止符没有 TAB 音头，不能生成符干或连梁；空 notes beat 同样跳过。
-    (beat) => beat.kind === "notes" && beat.notes.length > 0 && !isPureTabContinuationBeat(beat),
+    (beat) =>
+      !isPureTabContinuationBeat(beat) &&
+      ((beat.kind === "notes" && beat.notes.length > 0) ||
+        chordTraversalBottomOffsets?.has(beat.id)),
   );
   const beatLayoutMap = new Map(
     beatLayouts.map((layout) => [layout.id, layout]),
@@ -512,6 +519,10 @@ export const layoutDurationBeams = (
           }),
         )
       : undefined,
+    (beatId) => {
+      const offset = chordTraversalBottomOffsets?.get(beatId);
+      return offset === undefined ? undefined : firstStringLine.y1 + offset;
+    },
   );
   const markByBeatId = new Map(
     durationMarks.map((mark) => [mark.beatId, mark]),

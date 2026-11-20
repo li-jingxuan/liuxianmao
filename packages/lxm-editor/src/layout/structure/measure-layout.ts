@@ -37,6 +37,7 @@ export interface ILXMLayoutMeasureContext {
   musicTextMetrics?: ILXMMusicTextMetrics;
   /** 正式布局复用候选行已经避让和弦的间距摘要。 */
   spacingSummary?: ILXMSummarizeMeasureSpacingWidth;
+  chordTraversalBottomOffsets?: ReadonlyMap<string, number>;
   index: number;
   /** 当前小节所属谱面行；由 system-layout 在最终定位时传入。 */
   systemIndex: number;
@@ -167,6 +168,7 @@ export const layoutMeasure = (
     notes,
     strings,
     measure.numberedVoice.events.length ? xByTick : undefined,
+    context.chordTraversalBottomOffsets,
   );
   // 休止符同样依赖 beat slot，确保其与后续音符共享唯一的水平时间坐标。
   const restMarks = layoutRests(

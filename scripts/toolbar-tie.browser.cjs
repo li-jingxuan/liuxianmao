@@ -81,11 +81,12 @@ const fixture = (samePitch) => {
     assert.equal(await tie.getAttribute("aria-pressed"), "true");
     assert.ok(await svg.locator('[data-layer="score-music"] path').count() > pathCount);
     await tie.click();
-    assert.deepEqual(await exported(), after);
-    await toolbar.getByRole("button", { name: "撤销", exact: true }).click();
     assert.deepEqual((await exported()).score.tracks[0].techniques, []);
-    await toolbar.getByRole("button", { name: "重做", exact: true }).click();
+    assert.equal(await tie.getAttribute("aria-pressed"), "false");
+    await toolbar.getByRole("button", { name: "撤销", exact: true }).click();
     assert.deepEqual((await exported()).score.tracks[0].techniques, after.score.tracks[0].techniques);
+    await toolbar.getByRole("button", { name: "重做", exact: true }).click();
+    assert.deepEqual((await exported()).score.tracks[0].techniques, []);
     await importDocument(after);
     assert.deepEqual((await exported()).score, after.score);
     const output = path.resolve("artifacts/toolbar-tie");
@@ -97,6 +98,6 @@ const fixture = (samePitch) => {
     assert.ok(box && box.x >= 0 && box.x + box.width <= 375);
     await page.screenshot({ path: path.join(output, "mobile.png"), fullPage: true });
     assert.deepEqual(errors, []);
-    console.log("PASS 延音线快捷：无效品位禁用及提示、单选下一音、弧线与高亮、重复零写入、撤销重做、保存重开、375px可达、零脚本错误");
+    console.log("PASS 延音线快捷：无效品位禁用及提示、单选下一音、弧线与高亮、再次点击删除、撤销重做、保存重开、375px可达、零脚本错误");
   } finally { await browser.close(); }
 })().catch((error) => { console.error(error); process.exitCode = 1; });

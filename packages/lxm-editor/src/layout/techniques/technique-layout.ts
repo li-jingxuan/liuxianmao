@@ -19,7 +19,6 @@ import {
   LXM_TECHNIQUE_LANE_HEIGHT,
   LXM_TECHNIQUE_PATH_STROKE_WIDTH,
   LXM_TECHNIQUE_TEXT_FONT_SIZE,
-  LXM_DURATION_STEM_NOTE_GAP,
   LXM_TECHNIQUE_ARROW_OFFSET_Y,
   LXM_TECHNIQUE_NOTE_CLEARANCE_Y,
   LXM_TECHNIQUE_FRET_GAP_X,
@@ -43,6 +42,7 @@ import {
   compactRangeTechnique,
   getFretTextBounds,
   getTechniqueInkBounds,
+  hasChordTraversalRange,
   placeCurveLabelAboveApex,
   translateTechniqueSegment,
   withTechniqueBounds,
@@ -151,13 +151,7 @@ const getChordTraversalSuppressionRanges = (
   anchors: ILXMAnchorMaps,
 ): readonly ILXMChordTraversalSuppressionRange[] =>
   techniques.flatMap((technique) => {
-    if (technique.type !== "strum" && technique.type !== "arpeggio") return [];
-    const beat = anchors.beats.get(technique.beatId);
-    const hasValidRange =
-      beat?.stringYByIndex.has(technique.minString) &&
-      beat.stringYByIndex.has(technique.maxString) &&
-      technique.minString < technique.maxString;
-    return hasValidRange
+    return hasChordTraversalRange(technique) && anchors.beats.has(technique.beatId)
       ? [
           {
             beatId: technique.beatId,
@@ -205,65 +199,6 @@ const applyChordTraversalVisibilityProjection = (
         return measure;
       systemChanged = true;
       return { ...measure, notes, restMarks };
-    });
-    return systemChanged ? { ...system, measures } : system;
-  });
-};
-
-/**
- * 让符干避开同 Beat 的扫弦/琶音范围。
- *
- * duration layout 仍先用完整 Note 计算 beam/flag；技巧范围确定后这里只扩大 stem
- * 起点到“最低 Note 与最下方技巧弦线”两者中更靠下的位置，不改其他节奏几何。
- */
-const applyChordTraversalDurationProjection = (
-  systems: ILXMSystemLayout[],
-  techniques: ILXMTechnique[],
-): ILXMSystemLayout[] => {
-  type ChordTraversalTechnique = Extract<
-    ILXMTechnique,
-    { type: "strum" | "arpeggio" }
-  >;
-  const techniquesByBeatId = new Map<string, ChordTraversalTechnique[]>();
-  techniques.forEach((technique) => {
-    if (technique.type !== "strum" && technique.type !== "arpeggio") return;
-    const beatTechniques = techniquesByBeatId.get(technique.beatId) ?? [];
-    beatTechniques.push(technique);
-    techniquesByBeatId.set(technique.beatId, beatTechniques);
-  });
-  if (techniquesByBeatId.size === 0) return systems;
-
-  return systems.map((system) => {
-    let systemChanged = false;
-    const measures = system.measures.map((measure) => {
-      let measureChanged = false;
-      const durationMarks = measure.durationMarks.map((mark) => {
-        const beatTechniques = techniquesByBeatId.get(mark.beatId);
-        if (!beatTechniques) return mark;
-        const stemY1 = beatTechniques.reduce((lowestY, technique) => {
-          const stringY = measure.strings.find(
-            (string) => string.index === technique.maxString,
-          )?.y1;
-          if (stringY === undefined) return lowestY;
-          // 下行琶音的显式箭头会越过最下方弦线；复用同一个 offset 常量，保证
-          // 箭头视觉几何与符干避让始终同步。扫弦和上行琶音没有底部延伸。
-          const techniqueBottomOffset =
-            technique.type === "arpeggio" &&
-            technique.direction === "descending"
-              ? LXM_TECHNIQUE_ARROW_OFFSET_Y
-              : 0;
-          return Math.max(
-            lowestY,
-            stringY + LXM_DURATION_STEM_NOTE_GAP + techniqueBottomOffset,
-          );
-        }, mark.stemY1);
-        if (stemY1 === mark.stemY1) return mark;
-        measureChanged = true;
-        return { ...mark, stemY1 };
-      });
-      if (!measureChanged) return measure;
-      systemChanged = true;
-      return { ...measure, durationMarks };
     });
     return systemChanged ? { ...system, measures } : system;
   });
@@ -347,13 +282,7 @@ const createCandidates = (
     if (!endpoints) return [];
     if (
       (technique.type === "strum" || technique.type === "arpeggio") &&
-      (technique.minString >= technique.maxString ||
-        !anchors.beats
-          .get(technique.beatId)
-          ?.stringYByIndex.has(technique.minString) ||
-        !anchors.beats
-          .get(technique.beatId)
-          ?.stringYByIndex.has(technique.maxString))
+      !hasChordTraversalRange(technique)
     )
       // buildLayout 是公开函数，不能假设所有调用者都先执行过语义校验。非法整拍
       // 技巧直接跳过，比输出含 Infinity/NaN 的 path 与 bounds 更安全、可预测。
@@ -1015,10 +944,7 @@ export const planTrackTechniques = (
   // anchors 在投影前由完整 Note layout 建立；技巧跨度、时值符干与其他 Note 技巧
   // 均已消费真实坐标。这里过滤只影响最终 adapter 可见的基础品位文本和休止符。
   const visibleSystems = applyChordTraversalVisibilityProjection(
-    applyChordTraversalDurationProjection(
-      systemsWithTechniques,
-      track.techniques,
-    ),
+    systemsWithTechniques,
     getChordTraversalSuppressionRanges(track.techniques, baseAnchors),
   );
   return naturalNoteIds.size
