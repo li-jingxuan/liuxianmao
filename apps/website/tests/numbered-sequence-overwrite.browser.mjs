@@ -109,11 +109,12 @@ try {
 
   await popoverInput.fill("5 6");
   assert.equal(await sidebarInput.inputValue(), "5 6");
-  assert.equal(await rhythm(sidebar).getByRole("button", { name: "八分音符", exact: true }).isDisabled(), true);
+  const draftEighth = rhythm(sidebar).getByRole("button", { name: "八分音符", exact: true });
+  await draftEighth.click();
+  assert.equal(await popoverInput.inputValue(), "5 6");
+  assert.equal(await rhythm(popover).getByRole("button", { name: "八分音符", exact: true }).getAttribute("aria-pressed"), "true");
   assert.equal(await rhythm(popover).getByRole("button", { name: "延音", exact: true }).isDisabled(), true);
   assert.equal(await sidebar.getByRole("button", { name: "降号", exact: true }).isDisabled(), true);
-  await rhythm(sidebar).getByRole("button", { name: "八分音符", exact: true }).hover({ force: true });
-  await page.getByRole("tooltip").filter({ hasText: "请先应用简谱内容" }).waitFor();
   assert.equal(await page.evaluate(() => window.numberedSequenceTest.commands.length), 2);
   await page.evaluate(() => window.numberedSequenceTest.discard());
 
@@ -176,6 +177,37 @@ try {
   assert.equal(await page.evaluate(() => window.numberedSequenceTest.commands.length), 1);
   await page.evaluate(() => window.numberedSequenceTest.undo());
   assert.deepEqual(await events(), []);
+
+  for (const scenario of ["blank", "properties"]) {
+    await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/__sequence__?scenario=${scenario}`);
+    const content = scenario === "blank" ? input() : sidebarInput;
+    const toolbar = rhythm(scenario === "blank" ? page : sidebar);
+    await content.waitFor();
+    const before = await events();
+    await content.fill("2");
+    await toolbar.getByRole("button", { name: "八分音符", exact: true }).click();
+    assert.deepEqual(await events(), before);
+    await content.press("Enter");
+    await page.waitForFunction(() => window.numberedSequenceTest.commands.length === 1 && !window.numberedSequenceTest.groups().content.dirty);
+    const [entered] = await events();
+    assert.equal(entered.items[0].token, "2");
+    assert.equal(entered.rhythm.base, "eighth");
+    await page.evaluate(() => window.numberedSequenceTest.undo());
+    assert.deepEqual(await events(), before);
+  }
+
+  await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/__sequence__?scenario=dots&tick=960`);
+  await input().fill("4");
+  await rhythm(page).getByRole("button", { name: "全音符", exact: true }).click();
+  assert.equal(await input().inputValue(), "4");
+  assert.equal(await page.getByRole("button", { name: "应用简谱内容" }).isDisabled(), true);
+  assert.equal(await page.evaluate(() => window.numberedSequenceTest.commands.length), 0);
+  await rhythm(page).getByRole("button", { name: "三十二分音符", exact: true }).click();
+  await input().press("Enter");
+  await page.waitForFunction(() => window.numberedSequenceTest.commands.length === 1);
+  const retried = (await events()).find(event => event.id === "dot-960");
+  assert.equal(retried.items[0].token, "4");
+  assert.equal(retried.rhythm.base, "thirtySecond");
 
   await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/__sequence__?scenario=confirmation`);
   await input().waitFor();

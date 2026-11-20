@@ -3,6 +3,7 @@ import EXAMPLE_MVP_2 from "../../example/example-mvp2.json";
 import { buildLayout, hitTestLayout } from "../../src/layout";
 import {
   collectMusicTextMeasureRequests,
+  musicTextInkBounds,
   musicTextRequest,
 } from "../../src/layout/music-text/music-text-metrics";
 import { LXM_FRET_TEXT_FONT_SIZE } from "../../src/layout/layout-constants";
@@ -179,9 +180,11 @@ describe("REQ-001 紧凑正文", () => {
         const lyrics = measure.lyrics!;
         lyrics.forEach((lyric, i) => {
           expect(lyric.label.fontSize).toBe(11);
-          if (i) expect(lyric.bounds.x).toBeGreaterThanOrEqual(
-            lyrics[i - 1]!.bounds.x + lyrics[i - 1]!.bounds.width,
-          );
+          const previous = lyrics[i - 1];
+          if (previous) {
+            const ink = musicTextInkBounds(previous.label);
+            expect(musicTextInkBounds(lyric.label).x - ink.x - ink.width).toBeGreaterThanOrEqual(3 - 1e-8);
+          }
         });
       }
     }

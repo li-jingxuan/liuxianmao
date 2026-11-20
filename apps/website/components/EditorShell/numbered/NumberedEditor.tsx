@@ -1,5 +1,6 @@
 "use client";
 import { Button, Form, Input, Modal, Tooltip } from "antd";
+import { ShortcutHint, ShortcutTooltip } from "../session/EditorShortcutReference";
 
 import {
   useCallback,
@@ -551,20 +552,27 @@ export const NumberedEditor = ({
         tokens: [],
       };
     if (!parsed.ok) return null;
+    const singleItem = parsed.items.length === 1 ? parsed.items[0] : undefined;
+    if (event && template === "uniform" && !fixedRange && inputRhythmExplicit &&
+      singleItem?.kind === "set" && (event.rhythm.base !== templateBase || event.rhythm.dots !== templateDots)) {
+      return {
+        type: "numbered.event.setRhythm", trackId: track.id, measureId: measure.id,
+        eventId: event.id, rhythm: { base: templateBase, dots: templateDots }, tokens: singleItem.tokens,
+      };
+    }
     if (
       mode === "single" &&
       template === "uniform" &&
       !fixedRange &&
       event &&
-      parsed.items.length === 1 &&
-      parsed.items[0]?.kind === "set"
+      singleItem?.kind === "set"
     )
       return {
         type: "numbered.event.set",
         trackId: track.id,
         measureId: measure.id,
         eventId: event.id,
-        tokens: parsed.items[0].tokens,
+        tokens: singleItem.tokens,
       };
     if (mode === "sequence" && template === "uniform" && !fixedRange && !inputRhythmExplicit)
       return {
@@ -998,27 +1006,34 @@ export const NumberedEditor = ({
         (focusRequest.group === "rhythm" && (!event || complexRhythm)))
     )
       return;
-    const container = Array.from(
-      root.current?.querySelectorAll<HTMLElement>(
-        `[data-numbered-group="${focusRequest.group}"]`,
-      ) ?? [],
-    ).find((element) => !element.closest("[hidden], [inert]"));
-    if (!container) return;
-    let ancestor: HTMLElement | null = container;
-    while (ancestor && ancestor !== root.current) {
-      if (ancestor instanceof HTMLDetailsElement) ancestor.open = true;
-      ancestor = ancestor.parentElement;
-    }
-    const control =
-      focusRequest.group === "content"
-        ? input.current
-        : container.querySelector<HTMLElement>(
-            "input:not(:disabled), textarea:not(:disabled), button:not(:disabled)",
-          );
-    control?.focus({ preventScroll: true });
-    control?.scrollIntoView?.({ block: "nearest" });
-    if (control && globalThis.document.activeElement === control)
-      completedFocusRequest.current = focusRequest;
+    // 聚焦会同步触发旧按钮的 Tooltip blur，等 React 提交完成后再移焦。
+    const frame = requestAnimationFrame(() => {
+      if (completedFocusRequest.current === focusRequest) return;
+      const container = Array.from(
+        root.current?.querySelectorAll<HTMLElement>(
+          `[data-numbered-group="${focusRequest.group}"]`,
+        ) ?? [],
+      ).find((element) => !element.closest("[hidden], [inert]"));
+      if (!container) return;
+      let ancestor: HTMLElement | null = container;
+      while (ancestor && ancestor !== root.current) {
+        if (ancestor instanceof HTMLDetailsElement) ancestor.open = true;
+        ancestor = ancestor.parentElement;
+      }
+      const control =
+        focusRequest.group === "content"
+          ? input.current
+          : container.querySelector<HTMLElement>(
+              "input:not(:disabled), textarea:not(:disabled), button:not(:disabled)",
+            );
+      if (!control?.isConnected || control.closest("[hidden], [inert]")) return;
+      control.focus({ preventScroll: true });
+      if (globalThis.document.activeElement === control) {
+        completedFocusRequest.current = focusRequest;
+        control.scrollIntoView?.({ block: "nearest" });
+      }
+    });
+    return () => cancelAnimationFrame(frame);
   }, [focusRequest, pending, compact, complexRhythm, event, popoverContainer]);
   const latest = useRef({
     onBusyChange,
@@ -1137,6 +1152,10 @@ export const NumberedEditor = ({
           setInitial(state.raw);
           setContentBaseline(state.contentFingerprint);
           contentBaselineValue.current = structuredClone(state.contentConfig);
+          if (state.contentConfig.template === "uniform" && state.contentConfig.inputRhythmExplicit &&
+            (op.type === "numbered.event.setRhythm" || op.type === "numbered.sequence.overwrite" || op.type === "numbered.sequence.insert")) {
+            editorStore.getState().setNumberedInputRhythm({ base: state.contentConfig.templateBase, dots: state.contentConfig.templateDots });
+          }
         }
         const afterTrack = result.document.score.tracks.find(
           (t) => t.id === op.trackId,
@@ -1464,19 +1483,23 @@ export const NumberedEditor = ({
   const renderInput = (compact: boolean, portal = false) => {
     const id = `numbered-${compact ? 'popover' : 'sidebar'}-content`;
     const inputIssue = !inputIsEmpty ? groups.content.blockedReason ?? issue : null;
-    return <Form.Item layout="vertical" label={<span className={floatingStyles.inputLabel}>简谱内容<Tooltip trigger={['hover','focus','click']} title={<span>空格分隔先后音，+ 表示多音；1–7 音级，0 休止，- 延音；&apos; 高八度，. 低八度；# 升、b 降、n 还原。留空应用可清除当前音符并保留占位。Enter 应用并停留当前位置。</span>}><button type="button" className={floatingStyles.helpButton} aria-label="简谱输入规则">?</button></Tooltip><span>连续录入</span></span>} htmlFor={id} validateStatus={inputIssue ? 'error' : undefined}>
+    const applyDisabled = !!pending || compositionGuard || !groups.content.canApply;
+    return <Form.Item layout="vertical" label={<span className={floatingStyles.inputLabel}>简谱内容<Tooltip trigger={['hover','focus','click']} title={<ShortcutHint shortcuts={["apply", "textNavigate"]} note="空格分隔先后音，+ 表示多音；1–7 音级，0 休止，- 延音；' 高八度，. 低八度；# 升、b 降、n 还原。留空应用可清除当前音符并保留占位。" />}><button type="button" className={floatingStyles.helpButton} aria-label="简谱输入规则">?</button></Tooltip><span>连续录入</span></span>} htmlFor={id} validateStatus={inputIssue ? 'error' : undefined}>
       <div className={floatingStyles.contentEntry}>
         <Input id={id} ref={(control) => { (portal ? popoverInput : input).current = control?.input ?? null; }} aria-label="简谱内容" aria-invalid={!!inputIssue} aria-describedby={inputIssue ? `${id}-error` : undefined} value={raw} onChange={(e) => setRaw(e.target.value)} placeholder="1 2 3；多音用 1+3" />
-        <Button type="primary" aria-label="应用简谱内容" disabled={!!pending || compositionGuard || !groups.content.canApply} onClick={() => void applyContent()}>应用</Button>
+        <ShortcutTooltip shortcuts={["apply", "applyModified"]} disabled={applyDisabled}>
+          <Button type="primary" aria-label="应用简谱内容" disabled={applyDisabled} onClick={() => void applyContent()}>应用</Button>
+        </ShortcutTooltip>
       </div>
       {inputIssue && <p id={`${id}-error`} className={floatingStyles.actionReason} role="status" title={!parsed.ok && !clearSingleEvent ? parsed.message : undefined}>{inputIssue}</p>}
     </Form.Item>;
   }
-   const immediateBlockedReason = targetInvalid ? "请先选择有效简谱位置"
+   const rhythmBlockedReason = targetInvalid ? "请先选择有效简谱位置"
      : pending ? "请先完成修改确认"
      : compositionGuard ? "请先完成输入法输入"
-     : contentDirty ? "请先应用简谱内容"
-     : rhythmDirty || itemPitchDirty ? "请先处理未应用的属性" : null;
+     : rhythmDirty || itemPitchDirty ? "请先处理未应用的属性"
+     : contentDirty && clearSingleEvent ? "清空内容时保留原时值" : null;
+   const immediateBlockedReason = rhythmBlockedReason ?? (contentDirty ? "请先应用简谱内容" : null);
    // 多音必须来自谱面明确选中的成员，不能默认修改整组或第一个音。
    const selectedPitchItem = event?.kind === "notes" &&
      (event.items.length === 1 || (target && "itemId" in target && target.itemId))
@@ -1487,7 +1510,13 @@ export const NumberedEditor = ({
        eventId: event.id, itemId: selectedPitchItem.id, tokens: [token] }, "itemPitch", undefined, false, false);
    };
     const applyInstantRhythm = async (nextBase: ILXMRhythmBase, nextDots: number) => {
-     if (immediateBlockedReason) return;
+     if (rhythmBlockedReason) return;
+     if (contentDirty) {
+       setTemplateBase(nextBase);
+       setTemplateDots(nextDots);
+       setInputRhythmExplicit(true);
+       return;
+     }
      if (event && track && measure) {
         const result = await submit({ type: "numbered.event.setRhythm", trackId: track.id, measureId: measure.id,
            eventId: event.id, rhythm: { base: nextBase, dots: nextDots }, timeline: "preservePositions" }, "rhythm", undefined, false, false);
@@ -1515,7 +1544,19 @@ export const NumberedEditor = ({
          startTick: start, items: sustain.items, rhythms: [{ base: templateBase, dots: templateDots }], allowOverwrite: true }, "content", undefined, false, false);
      }
    };
-   const renderCompactRhythm = (visible: boolean) => <section hidden={!visible} inert={!visible} className={floatingStyles.compactRhythm} data-numbered-group="rhythm"><div className={floatingStyles.sectionHeading}><strong>时值</strong><span>点击即应用</span></div><NumberedRhythmToolbar base={event ? base : templateBase} dots={event ? dots : templateDots} disabled={!!immediateBlockedReason} disabledReason={immediateBlockedReason ?? undefined} onChange={(nextBase, nextDots) => void applyInstantRhythm(nextBase,nextDots)} onSustain={applyInstantSustain} sustain={event?.items.length === 1 && event.items[0]?.token === '-'} /></section>
+   const useDraftRhythm = contentDirty && inputRhythmExplicit;
+   const renderCompactRhythm = (visible: boolean) => <section hidden={!visible} inert={!visible} className={floatingStyles.compactRhythm} data-numbered-group="rhythm">
+     <div className={floatingStyles.sectionHeading}><strong>时值</strong><span>{contentDirty ? "随内容应用" : "点击即应用"}</span></div>
+     <NumberedRhythmToolbar
+       base={event && !useDraftRhythm ? base : templateBase}
+       dots={event && !useDraftRhythm ? dots : templateDots}
+       disabled={!!rhythmBlockedReason}
+       disabledReason={rhythmBlockedReason ?? undefined}
+       onChange={(nextBase, nextDots) => void applyInstantRhythm(nextBase, nextDots)}
+       onSustain={contentDirty ? undefined : applyInstantSustain}
+       sustain={event?.items.length === 1 && event.items[0]?.token === '-'}
+     />
+   </section>;
   const editor = (
     <section
       ref={root}

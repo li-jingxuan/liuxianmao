@@ -139,7 +139,7 @@ describe("简谱当前目标初始化", () => {
     expect(html.match(/<button[^>]*aria-label="应用简谱内容"[^>]*>/)?.[0]).toContain("disabled");
   });
 
-  it("正文草稿保留时值并禁用即时属性，八度与变音始终展开", () => {
+  it("正文草稿可选时值，即时音高与延音保持禁用", () => {
     const document = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);
     const track = document.score.tracks[0]!;
     const measure = track.measures[0]!;
@@ -157,7 +157,9 @@ describe("简谱当前目标初始化", () => {
       false,
       [{ label: "简谱内容", value: { target: { value: "5" } } }],
     );
-    expect(html.match(/<button[^>]*aria-label="二分音符"[^>]*>/)?.[0]).toContain("disabled");
+    expect(html.match(/<button[^>]*aria-label="二分音符"[^>]*>/)?.[0]).not.toContain("disabled");
+    expect(html.match(/<button[^>]*aria-label="延音"[^>]*>/)?.[0]).toContain("disabled");
+    expect(html).toContain("随内容应用");
     expect(html.match(/<button[^>]*aria-label="高八度"[^>]*>/)?.[0]).toContain("disabled");
     expect(html).toContain('aria-label="八度与变音"');
     expect(html).not.toContain("<details");

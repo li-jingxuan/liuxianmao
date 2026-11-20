@@ -140,7 +140,8 @@ const findButton = (tree: ReactNode, label: string): Record<string, unknown> | n
     return null;
   }
   if (!isValidElement<Record<string, unknown>>(tree)) return null;
-  return tree.props.label === label ? tree.props : findButton(tree.props.children as ReactNode, label);
+  if (tree.props.label === label) return tree.props;
+  return findButton(tree.props.children as ReactNode, label) ?? findButton(tree.props.quickTechniques as ReactNode, label);
 };
 
 const renderToolbar = (options: { single?: boolean; blocked?: boolean; numberedBlocked?: boolean; active?: boolean; tied?: boolean } = {}) => {

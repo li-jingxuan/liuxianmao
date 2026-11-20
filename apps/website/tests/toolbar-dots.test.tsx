@@ -135,7 +135,7 @@ describe("工具栏附点快捷入口", () => {
     "从普通时值选择 %i 个附点，入口带可访问选中态",
     (dots) => {
       const { markup, onAction, single, double } = renderToolbar();
-      expect(markup).toContain('aria-label="六线谱附点"');
+      expect(markup).toContain('aria-label="附点与休止"');
       expect(markup).toMatch(/aria-label="单附点" aria-pressed="false"/);
       expect(markup).toMatch(/aria-label="双附点" aria-pressed="false"/);
       const button = dots === 1 ? single : double;
@@ -168,7 +168,7 @@ describe("工具栏附点快捷入口", () => {
       numbered: true,
       dots: 2,
     });
-    expect(markup).toContain('aria-label="简谱附点"');
+    expect(markup).toContain('aria-label="附点与休止"');
     expect(single.pressed).toBe(false);
     expect(double.pressed).toBe(true);
     (double.onClick as () => void)();

@@ -36,8 +36,6 @@ function renderView(value: ReturnType<typeof fixture>, text = value.draft.text) 
     plan={value.plan}
     issue={value.plan.issue}
     inputRef={noop}
-    onAddVerse={noop}
-    onVerseChange={noop}
     onTextChange={noop}
     onInspect={noop}
   />);
@@ -56,7 +54,7 @@ describe("歌词视图的真实规划适配", () => {
     expect(mapping.rows[blankRow.index]!.after).toBe("");
   });
 
-  it("单行连续输入展示紧凑映射和空位，移除模式、覆盖勾选和逐项长表格", () => {
+  it("连续歌词展示紧凑映射和空位，移除模式、覆盖勾选和逐项长表格", () => {
     const value = fixture();
     expect(value.plan.issue).toBeNull();
     const markup = renderView(value);
@@ -64,25 +62,18 @@ describe("歌词视图的真实规划适配", () => {
     expect(markup).toContain('aria-label="连续歌词"');
     expect(markup).toContain('aria-label="歌词输入规则"');
     expect(markup).toContain('aria-label="清空为占位"');
-    expect(markup).toContain('type="text"');
-    for (const removed of ["textarea", "type=\"checkbox\"", "歌词录入方式", "覆盖与逐项预览", "下一歌词位置", "保留原词", "原词 → 新词"]) expect(markup).not.toContain(removed);
-    expect(renderView(value, "新词\n续词")).not.toContain("音符与歌词映射");
+    expect(markup).toMatch(/<textarea\b[^>]*\brows="2"/);
+    for (const removed of ["type=\"checkbox\"", "歌词录入方式", "覆盖与逐项预览", "下一歌词位置", "保留原词", "原词 → 新词"]) expect(markup).not.toContain(removed);
+    expect(renderView(value, "新词 _\n续词")).toContain("音符与歌词映射");
     expect(renderView(value, "新词\n续词")).not.toContain("覆盖与逐项预览");
   });
 
-  it("仅显示已有段落，第四段禁用新增并提供原因；气泡也使用同一单行表单", () => {
+  it("侧栏和气泡的歌词表单都使用两行文本框，段落管理由侧栏负责", () => {
     const value = fixture();
-    value.document.score.tracks.forEach((track) => track.measures.forEach((measure) => { measure.lyrics = []; }));
-    value.document.score.meta.lyricVerseCount = 1;
-    expect(renderView(value)).toContain("第一段");
-    expect(renderView(value)).not.toContain("第二段");
-    value.document.score.meta.lyricVerseCount = 4;
-    const markup = renderView(value);
-    expect(markup).toContain("最多支持四段歌词");
-    expect(markup).toMatch(/<button[^>]*disabled[^>]*><span>添加段落<\/span>/);
-    const popover = renderToStaticMarkup(<LyricFormView presentation="popover" document={value.document} draft={value.draft} plan={value.plan} issue={null} inputRef={noop} onAddVerse={noop} onVerseChange={noop} onTextChange={noop} onInspect={noop} />);
+    expect(renderView(value)).not.toContain('aria-label="歌词段落"');
+    const popover = renderToStaticMarkup(<LyricFormView presentation="popover" document={value.document} draft={value.draft} plan={value.plan} issue={null} inputRef={noop} onTextChange={noop} onInspect={noop} />);
     expect(popover).toContain('id="lyric-popover-body"');
-    expect(popover).not.toContain("textarea");
+    expect(popover).toMatch(/<textarea\b[^>]*\brows="2"/);
     expect(popover).not.toContain("添加段落");
     expect(popover).not.toContain("音符与歌词映射");
   });

@@ -24,6 +24,7 @@ export * from "./core/document/schema";
 export * from "./core/document/semantic-validation";
 export * from "./core/rhythm/time-signature-change";
 export * from "./core/techniques/technique-rules";
+export { sameTechniqueDraft } from "./core/techniques/technique-equality";
 export * from "./core/types";
 
 /** 具名规范谱例供页面和验收测试共用。 */

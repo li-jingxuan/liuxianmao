@@ -18,7 +18,7 @@
 .primary { padding-left: 16px; }
 .secondary { flex: 1 1 auto; padding-right: 16px; }
 .hint { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-.desktopTrigger { display: inline-flex; > span > button, > button { min-width: 34px; height: 34px; padding: 0 5px; } }
+.panelTrigger { display: inline-flex; > span > button, > button { min-width: 34px; height: 34px; padding: 0 5px; } }
 .moreTrigger { display: none; }
 .triggers { display: inline-flex; flex: 0 0 auto; gap: 4px; align-items: center; }
 .popupContent { box-sizing: border-box; width: 100% !important; padding: 14px; }
@@ -53,7 +53,6 @@
   .row { flex: none; min-height: 44px; padding: 3px 8px; overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; scrollbar-width: thin; }
   .primary { border-bottom: 1px solid var(--border); }
   .row > * { flex-shrink: 0; }
-  .desktopTrigger { display: none; }
   .moreTrigger { display: inline-flex; }
 }
 @container editor-toolbar (width < 600px) {
@@ -75,15 +74,22 @@
 .toolbarGroup {
   display: flex;
   align-items: center;
-  flex-wrap: nowrap;
+  flex: 0 0 auto;
   gap: 4px;
-  padding-right: 10px;
-  margin-right: 6px;
-  border-right: 1px solid var(--border);
-  &:last-of-type {
-    border-right: 0;
-    padding-right: 0;
-    margin-right: 0;
+}
+
+.toolbarGroup + .toolbarGroup,
+.secondary > .toolbarGroup {
+  border-inline-start: 1px solid var(--border);
+  margin-inline-start: 5px;
+  padding-inline-start: 9px;
+}
+
+@container editor-toolbar (width >= 960px) {
+  .triggers > .toolbarGroup:first-child {
+    border-inline-start: 1px solid var(--border);
+    margin-inline-start: 5px;
+    padding-inline-start: 9px;
   }
 }
 

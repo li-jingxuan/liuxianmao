@@ -56,6 +56,6 @@ export const editorToolSubmissionReason = (
     if (reason) return reason;
   }
   const other = drafts.inspect(submission?.owner);
-  return other.busy || other.pending.some((item) => item.kind !== "fret" && item.kind !== "beatPaste")
+  return other.busy || other.pending.some((item) => item.kind !== "beatPaste")
     ? "请先处理其他编辑草稿。" : null;
 };

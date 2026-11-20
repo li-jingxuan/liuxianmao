@@ -25,7 +25,7 @@ import {
   deriveEditorToolState,
   type ToolAvailability,
 } from "../tools/editor-tool-state";
-import { editorShortcutLabel } from "../session/editor-shortcuts";
+import { ShortcutHint } from "../session/EditorShortcutReference";
 import { RhythmPatternPanel, useSharedRhythmPatternBusy } from "../tools/RhythmPatternPanel";
 import { MeasureBoundary, resolveMeasureControlTarget } from "../tools/MeasureBoundary";
 import { MeasureActions } from "../tools/MeasureActions";
@@ -49,12 +49,13 @@ import editorToolPanelStyles from "../shared/editor-tool-panel.module.scss";
 import type { MusicTextTarget } from "../music-text/music-text-draft";
 import { resolveEditorRhythmTarget } from "../tools/editor-rhythm-target";
 import { resolveEditorChordTarget } from "../chords/editor-chord-target";
-import { currentChordTechniqueDirection, resolveQuickTechnique } from "../tools/editor-technique-target";
+import { resolveQuickTechnique } from "../tools/editor-technique-target";
 import { tabToolTargetReason } from "../tools/editor-tool-guard";
 import { isNumberedTieTarget, resolveEditorTieTarget } from "../tools/editor-tie-target";
 import { EditorToolSymbolButton, TechniqueSymbol } from "../tools/EditorToolSymbolButton";
 import symbolStyles from "../tools/EditorToolSymbolButton.module.scss";
 import toolbarStyles from "./EditorToolbar.module.scss";
+
 export type { EditorToolbarAction } from "../tools/editor-tool-actions";
 
 const RHYTHMS: {
@@ -150,11 +151,11 @@ export const EditorToolbar = ({
   const getActiveTarget = useCallback(() => activeTargetRef.current, []);
   const protectedDraft = drafts
     .inspect()
-    .pending.some((item) => item.kind !== "beatPaste" && item.kind !== "fret");
+    .pending.some((item) => item.kind !== "beatPaste");
   const editingBlocked = blocked || protectedDraft || drafts.inspect().busy;
   const numberedEditingBlocked = numberedBlocked || protectedDraft || drafts.inspect().busy;
   const techniqueBlocked = blocked || drafts.inspect().pending.some(
-    (item) => item.kind !== "beatPaste" && item.kind !== "fret" && item.kind !== "technique",
+    (item) => item.kind !== "beatPaste" && item.kind !== "technique",
   );
   const live = useRef({ editingBlocked, numberedEditingBlocked, continuousRange, modal, beforeAction, execute });
   const executeLatest: EditorCommandAdapter = useCallback(
@@ -165,7 +166,7 @@ export const EditorToolbar = ({
   const getRhythmPatternTarget = useCallback(() => {
     const now = session.getState();
     return now.document
-      ? resolveEditorRhythmPatternTarget(now.document, now.selection, live.current.continuousRange, getActiveTarget())
+      ? resolveEditorRhythmPatternTarget(now.document, now.selection, live.current.continuousRange, getActiveTarget(), now.numberedSelection)
       : { ok: false as const, message: "当前没有可编辑的乐谱。" };
   }, [session, getActiveTarget]);
   const getSelectionIdentity = useCallback(() => {
@@ -196,10 +197,10 @@ export const EditorToolbar = ({
     paste.invalidate();
   }, [paste, editingBlocked, numberedEditingBlocked, continuousRange, modal, beforeAction, execute]);
   useEffect(() => {
-    if (modal && modal.request.kind !== "rhythm-pattern-discard") host.current?.close();
+    if (modal && modal.request.kind !== "rhythm-pattern-discard" && modal.request.kind !== "shortcuts") host.current?.close();
   }, [modal]);
   if (!document) return null;
-  const rhythmPatternTarget = resolveEditorRhythmPatternTarget(document, selection, continuousRange, activeTarget);
+  const rhythmPatternTarget = resolveEditorRhythmPatternTarget(document, selection, continuousRange, activeTarget, numberedSelection);
   const rhythmPatternBlocked = (rhythmPatternTarget.ok && rhythmPatternTarget.target.layer === "numbered"
     ? numberedEditingBlocked : editingBlocked) || !!modal || drafts.inspect().pending.length > 0;
   const tools = deriveEditorToolState(document, selection);
@@ -251,6 +252,7 @@ export const EditorToolbar = ({
     modal || editingBlocked
       ? { enabled: false, reason: modal ? "请先完成当前弹层操作。" : reason! }
       : value;
+  const restAvailability = available(tabReason ? { enabled: false, reason: tabReason } : tools.beatRange);
   const run: ToolActionHandler = async (action) => {
     beforeAction();
     if (action.type === "quickTechnique" && action.technique === "tie" &&
@@ -304,7 +306,8 @@ export const EditorToolbar = ({
       <div className={toolbarStyles.toolbarGroup} role="group" aria-label="历史">
         <ToolButton
           label="撤销"
-          title={editorShortcutLabel("undo")}
+          title={<ShortcutHint shortcuts={["undo"]} />}
+          disabledTitle={modal ? undefined : <ShortcutHint shortcuts={["undo"]} note="没有可撤销的修改。" />}
           availability={{
             enabled: canUndo && !modal,
             reason: modal
@@ -319,7 +322,8 @@ export const EditorToolbar = ({
         </ToolButton>
         <ToolButton
           label="重做"
-          title={editorShortcutLabel("redo")}
+          title={<ShortcutHint shortcuts={["redo"]} />}
+          disabledTitle={modal ? undefined : <ShortcutHint shortcuts={["redo"]} note="没有可重做的修改。" />}
           availability={{
             enabled: canRedo && !modal,
             reason: modal
@@ -336,7 +340,7 @@ export const EditorToolbar = ({
       <div
         className={toolbarStyles.toolbarGroup}
         role="group"
-        aria-label={rhythmTarget.kind === "numbered" ? "简谱时值" : "六线谱时值"}
+        aria-label="基础时值"
       >
         {RHYTHMS.map((rhythm) => (
           <ToolButton
@@ -358,7 +362,7 @@ export const EditorToolbar = ({
       <div
         className={toolbarStyles.toolbarGroup}
         role="group"
-        aria-label={rhythmTarget.kind === "numbered" ? "简谱附点" : "六线谱附点"}
+        aria-label="附点与休止"
       >
         {([1, 2] as const).map((dots) => (
           <ToolButton
@@ -381,32 +385,29 @@ export const EditorToolbar = ({
             />
           </ToolButton>
         ))}
+        <ToolButton label="切换休止" availability={restAvailability}
+          pressed={tools.restState === "all"}
+          title={<ShortcutHint shortcuts={["rest", "restore"]} note={tools.restState === "mixed" ? "点击将混合选区统一设为休止。" : "取消休止后得到空拍。"} />}
+          disabledTitle={modal ? undefined : <ShortcutHint shortcuts={["rest", "restore"]} note={restAvailability.reason} />}
+          onClick={() => void run({ type: "restToggle" })}><TechniqueSymbol kind="rest" /></ToolButton>
       </div>
       </div>
       <div className={`${toolbarStyles.row} ${toolbarStyles.secondary}`} data-toolbar-row="techniques">
-      <div className={symbolStyles.quickGroup} role="group" aria-label="休止与吉他技巧快捷">
-        <ToolButton label="切换休止" availability={available(tabReason ? { enabled: false, reason: tabReason } : tools.beatRange)}
-          pressed={tools.restState === "all"}
-          title={`切换休止（${editorShortcutLabel("rest")}）；${tools.restState === "mixed" ? "当前为混合状态，点击统一设为休止。" : ""}休止影响整拍全部弦并清空音符；取消休止仅得到空普通拍，恢复音符请撤销。`}
-          onClick={() => void run({ type: "restToggle" })}><TechniqueSymbol kind="rest" /></ToolButton>
-        {(["hammerOn", "pullOff", "slide", "tie", "strumDown", "strumUp", "arpeggioDown", "arpeggioUp"] as const).map((quick) => {
+      <EditorToolPanelHost
+        ref={host}
+        quickTechniques={(["hammerOn", "pullOff", "slide", "tie", "strumDown", "strumUp", "arpeggioDown", "arpeggioUp"] as const).map((quick) => {
           const result = quick === "tie" ? tieTarget : resolveQuickTechnique(document, selection, quick);
           const labels = { hammerOn: "击弦 H", pullOff: "勾弦 P", slide: "滑音", tie: "延音线", strumDown: "下扫：从低音弦到高音弦，箭头向上", strumUp: "上扫：从高音弦到低音弦，箭头向下", arpeggioDown: "下琶音：从低音弦到高音弦，箭头向上", arpeggioUp: "上琶音：从高音弦到低音弦，箭头向下" };
           return <ToolButton key={quick} label={quick === "tie" && tieTarget.kind === "numbered" ? "简谱延音线" : labels[quick]}
             availability={quick === "tie" && tieTarget.kind === "numbered" ? tieAvailability : available(tabReason ? { enabled: false, reason: tabReason } : { enabled: result.ok, reason: result.ok ? "" : result.message })}
-            pressed={quick === "strumDown" || quick === "strumUp" || quick === "arpeggioDown" || quick === "arpeggioUp"
-              ? currentChordTechniqueDirection(document, selection, quick.startsWith("strum") ? "strum" : "arpeggio") === (quick.endsWith("Down") ? "down" : "up")
-              : quick === "tie" && result.ok ? result.pressed : undefined}
+            pressed={result.ok && result.pressed}
             onClick={() => void run({ type: "quickTechnique", technique: quick })}>
             {quick === "hammerOn" ? "H" : quick === "pullOff" ? "P" : quick === "slide" ? "S" : <TechniqueSymbol kind={quick} />}
           </ToolButton>;
         })}
-      </div>
-      <EditorToolPanelHost
-        ref={host}
         beforeOpen={(group) => { if (group === "beat") beforeRhythmPatternAction?.(); else beforeAction(); }}
         blocked={!!modal}
-        preserveOnBlock={modal?.request.kind === "rhythm-pattern-discard"}
+        preserveOnBlock={modal?.request.kind === "rhythm-pattern-discard" || modal?.request.kind === "shortcuts"}
         targetReasons={toolTargetReasons}
         canHide={() => !rhythmBusyRef.current && !sharedRhythmBusy && !immediateBusyRef.current && (techniquePanel.current?.canHide() ?? true)}
         onHideTechnique={() => techniquePanel.current?.discard()}

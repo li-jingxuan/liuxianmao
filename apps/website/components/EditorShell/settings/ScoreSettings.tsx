@@ -49,11 +49,12 @@ const buildStatus = (draft: { value: ScoreSettingsDraft; initial: ScoreSettingsD
 };
 
 /** 唯一设置 owner：两个正文 Portal 和动作 Portal 共享值、版本、组合输入和提交闸门。 */
-export const ScoreSettings = ({ ref, document, measureId, requestedMeasureId = measureId, songHost, measureHost, activeSurface, onDirty, onStatus, commit, executeTool, onFocusRequest, onOpen, guardApply, onInfoApplied, onApplySettled }: {
+export const ScoreSettings = ({ ref, document, measureId, requestedMeasureId = measureId, selectedCopyRange, songHost, measureHost, activeSurface, onDirty, onStatus, commit, executeTool, onFocusRequest, onOpen, guardApply, onInfoApplied, onApplySettled }: {
   ref: Ref<ScoreSettingsController>;
   document: ILXMDocument;
   measureId?: string;
   requestedMeasureId?: string;
+  selectedCopyRange?: Pick<SettingsCopyRange, "start" | "end"> | null;
   songHost?: HTMLElement | null;
   measureHost?: HTMLElement | null;
   actionsHost?: HTMLElement | null;
@@ -94,7 +95,21 @@ export const ScoreSettings = ({ ref, document, measureId, requestedMeasureId = m
   const activeGroupRef = useRef(activeGroup);
   const [focusRequest, setFocusRequest] = useState<{ group: SettingsFocusGroup; sequence: number } | null>(null);
   const firstId = document.score.tracks[0]!.measures[0]!.id;
-  const [copy, setCopy] = useState<SettingsCopyRange>({ start: firstId, end: firstId, after: "" });
+  const defaultCopyId = selectedCopyRange === undefined ? requestedMeasureId ?? firstId : firstId;
+  const copySession = store.getState().sessionId;
+  const [copyState, setCopyState] = useState<{
+    session: number;
+    active: boolean;
+    source?: Pick<SettingsCopyRange, "start" | "end">;
+    after: SettingsCopyRange["after"];
+  }>({ session: copySession, active: activeSurface === "measure", after: null });
+  const copyActive = activeSurface === "measure";
+  const copyReset = copyState.session !== copySession || copyState.active !== copyActive;
+  if (copyReset) setCopyState({ session: copySession, active: copyActive, after: null });
+  const copy: SettingsCopyRange = {
+    ...((copyReset ? undefined : copyState.source) ?? selectedCopyRange ?? { start: defaultCopyId, end: defaultCopyId }),
+    after: copyReset ? null : copyState.after,
+  };
 
   // 同会话外部更新保留脏字段；干净局部标记仅跟随已接受的请求。
   let rendered = state;
@@ -273,8 +288,12 @@ export const ScoreSettings = ({ ref, document, measureId, requestedMeasureId = m
     const range = copy;
     const measures = expected.document.score.tracks[0]!.measures;
     const start = measures.findIndex((measure) => measure.id === range.start), end = measures.findIndex((measure) => measure.id === range.end);
-    if (start < 0 || end < start || (range.after && !measures.some((measure) => measure.id === range.after))) { setIssues((previous) => ({ ...previous, copy: "复制范围或插入位置已失效，请重新选择。" })); return; }
-    const command: ILXMScoreCommand = { type: LXMScoreCommandEnum.CopyMeasureRange, trackId: expected.document.score.tracks[0]!.id, sourceStartMeasureId: range.start, sourceEndMeasureId: range.end, afterMeasureId: range.after || undefined };
+    const issue = start < 0 ? "复制起始小节已失效，请重新选择。" : end < 0 ? "复制结束小节已失效，请重新选择。"
+      : end < start ? "复制结束小节须在起始小节之后或与其相同。"
+      : range.after && !measures.some((measure) => measure.id === range.after) ? "插入位置已失效，请重新选择。" : null;
+    if (issue) { setIssues((previous) => ({ ...previous, copy: issue })); return; }
+    const afterMeasureId = range.after === null ? measures.at(-1)?.id : range.after || undefined;
+    const command: ILXMScoreCommand = { type: LXMScoreCommandEnum.CopyMeasureRange, trackId: expected.document.score.tracks[0]!.id, sourceStartMeasureId: range.start, sourceEndMeasureId: range.end, afterMeasureId };
     busyRef.current = true;
     setBusy(true);
     try {
@@ -378,7 +397,15 @@ export const ScoreSettings = ({ ref, document, measureId, requestedMeasureId = m
   const props = { document, value: rendered.value, composing: compositionActive, busy, issues, groups: status.groups, onChange: update, onApply: apply, onRestore: restoreGroup };
   const infoText = (value: ScoreSettingsDraft) => ({ title: value.title, arranger: value.arranger });
   const song = surface("song", <ScoreSettingsForm {...props} infoConflict={rendered.conflicts.info ? { previous: infoText(rendered.initial), current: infoText(readScoreSettings(document, rendered.measureId)) } : undefined} onAcknowledgeInfo={acknowledgeInfo} />);
-  const measure = surface("measure", <MeasureSettingsForm {...props} measureId={rendered.measureId} selectedMeasureId={requestedMeasureId} dirty={dirty} copy={copy} onCopyChange={(next) => { if (!busyRef.current) { setCopy(next); setIssues((previous) => ({ ...previous, copy: undefined })); } }} onCopy={copyMeasures} onLabelBlur={saveLabelOnBlur} />);
+  const measure = surface("measure", <MeasureSettingsForm {...props} measureId={rendered.measureId} selectedMeasureId={requestedMeasureId} dirty={dirty} copy={copy} onCopyChange={(next, field) => {
+    if (busyRef.current) return;
+    setCopyState((current) => field === "after" ? { ...current, after: next.after }
+      : { ...current, source: { start: next.start, end: next.end } });
+    setIssues((previous) => ({ ...previous, copy: undefined }));
+  }} onFollowSelection={() => {
+    setCopyState((current) => ({ ...current, source: undefined }));
+    setIssues((previous) => ({ ...previous, copy: undefined }));
+  }} onCopy={copyMeasures} onLabelBlur={saveLabelOnBlur} />);
   const portalMode = songHost !== undefined || measureHost !== undefined;
   return <>{portalMode ? <>{songHost && createPortal(song, songHost)}{measureHost && createPortal(measure, measureHost)}</> : <>{song}{measure}</>}</>;
 };

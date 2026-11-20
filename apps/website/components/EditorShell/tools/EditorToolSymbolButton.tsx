@@ -5,20 +5,23 @@ import type { ToolAvailability } from "./editor-tool-state";
 import styles from "./EditorToolSymbolButton.module.scss";
 
 /** A named symbol with a viewport-bounded tooltip outside the toolbar's scrolling clip. */
-export const EditorToolSymbolButton = ({ label, title, availability, pressed, expanded, popup, onClick, children, triggerId }: {
-  label: string; title?: string; availability: ToolAvailability; pressed?: boolean; expanded?: boolean;
+export const EditorToolSymbolButton = ({ label, title, disabledTitle, availability, pressed, expanded, popup, onClick, children, triggerId }: {
+  label: string; title?: ReactNode; disabledTitle?: ReactNode; availability: ToolAvailability; pressed?: boolean; expanded?: boolean;
   popup?: boolean; onClick: () => void; children: ReactNode; triggerId?: string;
 }) => {
   const id = useId();
   const wrapper = useRef<HTMLSpanElement>(null);
   const [visible, setVisible] = useState(false);
-  const text = availability.reason || title || label;
+  const text = availability.reason ? (disabledTitle ?? availability.reason) : (title ?? label);
   useEffect(() => {
     if (!visible || expanded) return;
     const escape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
+      if (event.key === "Escape" && !event.isComposing && event.keyCode !== 229) {
         setVisible(false);
-        if (wrapper.current?.contains(event.target as Node)) event.stopPropagation();
+        if (wrapper.current?.contains(event.target as Node)) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
       }
     };
     const hide = () => setVisible(false);
@@ -36,11 +39,11 @@ export const EditorToolSymbolButton = ({ label, title, availability, pressed, ex
   }, [visible, expanded]);
   const open = visible && !expanded;
   return <Tooltip id={id} title={text} placement="bottom" trigger={["hover", "focus"]}
-    open={open} onOpenChange={(next) => setVisible(next && !expanded)} zIndex={2200}
+    open={open} onOpenChange={(next) => setVisible(next && !expanded)} mouseEnterDelay={0.3} zIndex={2200}
     classNames={{ root: styles.tooltip }}
     getPopupContainer={(node) => node.closest<HTMLElement>("[data-editor-interactive-domain], [role=dialog]") ?? window.document.body}>
     <span ref={wrapper} className={styles.wrap} tabIndex={!availability.enabled ? 0 : undefined}
-      aria-label={!availability.enabled ? label : undefined} onPointerDown={() => setVisible(false)}>
+      aria-label={!availability.enabled ? label : undefined} aria-describedby={!availability.enabled && open ? id : undefined} onPointerDown={() => setVisible(false)}>
       <Button className={styles.button} aria-label={label} aria-describedby={open ? id : undefined}
         aria-pressed={pressed} aria-expanded={expanded} aria-haspopup={popup ? "dialog" : undefined}
         data-tool-trigger={triggerId} disabled={!availability.enabled} color={pressed || expanded ? "primary" : "default"}

@@ -30,6 +30,7 @@ export interface EditorToolPanelController {
 export const EditorToolPanelHost = ({
   ref,
   children,
+  quickTechniques,
   beforeOpen,
   blocked,
   preserveOnBlock,
@@ -43,6 +44,7 @@ export const EditorToolPanelHost = ({
 }: {
   ref: Ref<EditorToolPanelController>;
   children: Record<ToolGroupId, ReactNode>;
+  quickTechniques: ReactNode;
   beforeOpen: (group: ToolGroupId) => void;
   blocked: boolean;
   preserveOnBlock?: boolean;
@@ -57,6 +59,7 @@ export const EditorToolPanelHost = ({
   const [group, setGroup] = useState<ToolGroupId>("measure");
   const [open, setOpen] = useState(false);
   const [moreMenu, setMoreMenu] = useState(false);
+  const [anchorInMore, setAnchorInMore] = useState(false);
   const activeTargetMissing = !moreMenu && !!targetReasons[group];
   const disabledReason = (target: ToolGroupId) => blocked ? "请先完成当前弹层操作。" : targetReasons[target];
   const [portalRoot, setPortalRoot] = useState<HTMLElement | null>(null);
@@ -70,8 +73,8 @@ export const EditorToolPanelHost = ({
   const compositionFrame = useRef<number | null>(null);
   const outsideFrame = useRef<number | null>(null);
   const outsideGeneration = useRef(0);
-  const currentOverlay = useRef({ open, group });
-  useLayoutEffect(() => { currentOverlay.current = { open, group }; }, [open, group]);
+  const currentOverlay = useRef({ open, group, preserveOnBlock });
+  useLayoutEffect(() => { currentOverlay.current = { open, group, preserveOnBlock }; }, [open, group, preserveOnBlock]);
   const invalidateOutside = () => {
     outsideGeneration.current++;
     if (outsideFrame.current !== null) cancelAnimationFrame(outsideFrame.current);
@@ -90,10 +93,11 @@ export const EditorToolPanelHost = ({
   }, [open, group]);
   const canClose = () => !composing.current && !compositionBuffer.current && (canHide?.() ?? true);
   const visibleTrigger = (target: ToolGroupId) => {
-    const button = trigger.current?.querySelector<HTMLButtonElement>(
+    const more = trigger.current?.querySelector<HTMLButtonElement>('[data-tool-trigger="more"]');
+    if (target === group && anchorInMore && more?.getClientRects().length) return more;
+    return trigger.current?.querySelector<HTMLButtonElement>(
       `[data-tool-trigger="${target}"]`,
     );
-    return button?.getClientRects().length ? button : trigger.current?.querySelector<HTMLButtonElement>('[data-tool-trigger="more"]');
   };
   const restore = (target: ToolGroupId) =>
     visibleTrigger(target)?.focus({ preventScroll: true });
@@ -112,7 +116,8 @@ export const EditorToolPanelHost = ({
   };
   const align = () => {
     const editor = trigger.current?.closest<HTMLElement>("[data-layout]") ?? trigger.current?.closest<HTMLElement>('[role="toolbar"]');
-    const anchor = visibleTrigger(group)?.getBoundingClientRect();
+    const button = visibleTrigger(group);
+    const anchor = button?.getBoundingClientRect();
     if (!editor || !anchor) return;
     const bounds = editor.getBoundingClientRect();
     const width = Math.min(group === "beat" && !moreMenu ? 456 : group === "measure" ? 410 : group === "tuplet" ? 300 : 392,
@@ -122,9 +127,9 @@ export const EditorToolPanelHost = ({
     const left = Math.max(minLeft, Math.min(anchor.left, maxRight - width));
     const top = Math.min(anchor.bottom + 6, Math.max(8, window.innerHeight - 120));
     setGeometry({ left, top, width, maxHeight: Math.min(660, Math.max(80, window.innerHeight - top - 8)),
-      more: !trigger.current?.querySelector('[data-tool-trigger="beat"]')?.getClientRects().length });
+      more: button?.dataset.toolTrigger === "more" });
   };
-  const show = (target: ToolGroupId, focusSelector?: string) => {
+  const show = (target: ToolGroupId, focusSelector?: string, fromMore = false) => {
     if (disabledReason(target)) return;
     if (target !== group && !canClose()) return;
     invalidateOutside();
@@ -134,6 +139,7 @@ export const EditorToolPanelHost = ({
     beforeOpen(target);
     setGroup(target);
     setMoreMenu(false);
+    setAnchorInMore(fromMore);
     setOpen(true);
   };
   useImperativeHandle(ref, () => ({ open: show, close, restore,
@@ -176,11 +182,14 @@ export const EditorToolPanelHost = ({
     };
     // 浮层对齐只依赖活动组，参数 owner 不参与此 effect。
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [group, moreMenu]);
+  }, [group, moreMenu, anchorInMore]);
   useEffect(() => {
     if (!open) return;
     const outside = (event: PointerEvent) => {
-      if (group === "beat" || blocked || !(event.target instanceof Node) || trigger.current?.contains(event.target) || content.current?.contains(event.target)) return;
+      if (group === "beat" || blocked || !(event.target instanceof Node) || content.current?.contains(event.target)) return;
+      if (event.target instanceof Element && event.target.closest("[data-open-shortcuts]")) return;
+      const button = event.target instanceof Element && event.target.closest("[data-tool-trigger]");
+      if (button && trigger.current?.contains(button)) return;
       close();
     };
     if (group !== "beat") window.document.addEventListener("pointerdown", outside, true);
@@ -210,7 +219,7 @@ export const EditorToolPanelHost = ({
               `[data-rhythm-toggle="${selected.hasAttribute("data-rhythm-measure-template") ? "measure" : "beat"}"]`,
             )
             : Array.from(panel?.querySelectorAll<HTMLElement>("[data-rhythm-template]") ?? []).find((card) => card.getClientRects().length);
-          focus?.focus({ preventScroll: true });
+          (focus ?? panel?.querySelector<HTMLElement>("[data-rhythm-pattern-panel]"))?.focus({ preventScroll: true });
           focus?.scrollIntoView({ block: "nearest" });
         } else {
           panel
@@ -222,7 +231,7 @@ export const EditorToolPanelHost = ({
       return () => cancelAnimationFrame(frame);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, group, moreMenu]);
+  }, [open, group, moreMenu, anchorInMore]);
   const popup = (rhythm: boolean) => (
         <div
           ref={rhythm === (group === "beat") ? content : undefined}
@@ -268,7 +277,7 @@ export const EditorToolPanelHost = ({
           {moreMenu && <div className={editorToolPanelStyles.toolMenu}>
             {TOOL_GROUPS.filter((item) => item.id !== "technique").map((item) =>
               <Button key={item.id} block disabled={!!disabledReason(item.id)} title={disabledReason(item.id) ?? undefined}
-                onClick={() => show(item.id)}>{item.label}工具</Button>)}
+                onClick={() => show(item.id, undefined, true)}>{item.label}工具</Button>)}
           </div>}
           {TOOL_GROUPS.filter((item) => (item.id === "beat") === rhythm).map((item) => (
             <div
@@ -303,7 +312,7 @@ export const EditorToolPanelHost = ({
           const generation = outsideGeneration.current;
           const finish = () => {
             // mousedown安排的关闭只属于当次beat浮层；click切组/关闭重开后不可沿用。
-            if (generation !== outsideGeneration.current || !currentOverlay.current.open || currentOverlay.current.group !== "beat") return;
+            if (generation !== outsideGeneration.current || !currentOverlay.current.open || currentOverlay.current.group !== "beat" || currentOverlay.current.preserveOnBlock) return;
             if (performance.now() < deadline && window.document.querySelector('svg[aria-label="六线谱编辑器"]:active')) {
               outsideFrame.current = requestAnimationFrame(finish);
               return;
@@ -319,6 +328,33 @@ export const EditorToolPanelHost = ({
         {anchor}
       </Popover>
   );
+  const renderTrigger = (id: Exclude<ToolGroupId, "technique">, symbol: ReactNode) => {
+    const { label } = TOOL_GROUPS.find((item) => item.id === id)!;
+    const reason = disabledReason(id);
+    const active = open && group === id;
+    const button = (
+      <Tooltip title={reason ?? (id === "beat" ? "节奏型" : `${label}工具`)} trigger={["hover", "focus"]}>
+        <Button
+          data-tool-trigger={id}
+          disabled={!!reason}
+          aria-description={reason ?? undefined}
+          aria-label={`${label}工具`}
+          aria-expanded={active}
+          aria-haspopup="dialog"
+          color={active ? "primary" : "default"}
+          variant={active ? "filled" : "text"}
+          onClick={(event) => {
+            event.stopPropagation();
+            if (active) close(true);
+            else show(id);
+          }}
+        >
+          {symbol}
+        </Button>
+      </Tooltip>
+    );
+    return <span className={toolbarStyles.panelTrigger}>{id === "beat" ? rhythmPopover(button) : button}</span>;
+  };
   return (
     <Popover
       trigger={[]}
@@ -334,46 +370,29 @@ export const EditorToolPanelHost = ({
       <div
         ref={trigger}
         className={toolbarStyles.triggers}
-        role="group"
-        aria-label="小节、节奏型、连音与技巧"
         onKeyDownCapture={(event) => {
           if (open && event.key === "Escape" && !event.nativeEvent.isComposing && canClose()) {
             event.stopPropagation(); close(true);
           }
         }}
       >
-        {(["technique", "beat", "tuplet", "measure"] as ToolGroupId[]).map((id) => TOOL_GROUPS.find((item) => item.id === id)!).map((item) => item.id === "technique" ? (
-          <EditorToolSymbolButton key={item.id} triggerId={item.id} label="所有技巧" title="所有技巧"
-            popup expanded={open && group === item.id} availability={{ enabled: !disabledReason(item.id), reason: disabledReason(item.id) ?? "" }}
-            onClick={() => { if (open && group === item.id) close(true); else show(item.id); }}>
+        <div className={toolbarStyles.toolbarGroup} role="group" aria-label="演奏技巧">
+          {quickTechniques}
+          <EditorToolSymbolButton triggerId="technique" label="所有技巧" title="所有技巧"
+            popup expanded={open && group === "technique"} availability={{ enabled: !disabledReason("technique"), reason: disabledReason("technique") ?? "" }}
+            onClick={() => { if (open && group === "technique") close(true); else show("technique"); }}>
             <TechniqueSymbol kind="technique" />
           </EditorToolSymbolButton>
-        ) : (
-          <span key={item.id} className={toolbarStyles.desktopTrigger}>{(() => {
-            const reason = disabledReason(item.id);
-            const button = <Tooltip title={reason ?? (item.id === "beat" ? "节奏型" : `${item.label}工具`)} trigger={["hover", "focus"]}><Button
-            key={item.id}
-            data-tool-trigger={item.id}
-            disabled={!!reason}
-            aria-description={reason ?? undefined}
-            aria-label={`${item.label}工具`}
-            aria-expanded={open && group === item.id}
-            aria-haspopup="dialog"
-            color={open && group === item.id ? "primary" : "default"}
-            variant={open && group === item.id ? "filled" : "text"}
-            onClick={(event) => {
-              event.stopPropagation();
-              if (open && group === item.id) close(true);
-              else show(item.id);
-            }}
-          >
-            {item.id === "tuplet" ? <TupletSymbol actual={3} normal={2} /> : item.id === "measure" ? <BarlineSymbol value="final" /> : <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true" focusable="false"><path d="M7 17V6l13-3v11M7 9l13-3" /><ellipse cx="4.5" cy="17.5" rx="3" ry="2" fill="currentColor" stroke="none" /><ellipse cx="17.5" cy="14.5" rx="3" ry="2" fill="currentColor" stroke="none" /></svg>}
-          </Button></Tooltip>;
-            return item.id === "beat" ? rhythmPopover(button) : button;
-          })()}</span>
-        ))}
+        </div>
+        <div className={toolbarStyles.toolbarGroup} role="group" aria-label="节奏与连音">
+          {renderTrigger("beat", <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true" focusable="false"><path d="M7 17V6l13-3v11M7 9l13-3" /><ellipse cx="4.5" cy="17.5" rx="3" ry="2" fill="currentColor" stroke="none" /><ellipse cx="17.5" cy="14.5" rx="3" ry="2" fill="currentColor" stroke="none" /></svg>)}
+          {renderTrigger("tuplet", <TupletSymbol actual={3} normal={2} />)}
+        </div>
+        <div className={toolbarStyles.toolbarGroup} role="group" aria-label="小节">
+          {renderTrigger("measure", <BarlineSymbol value="final" />)}
+        </div>
         <span className={toolbarStyles.moreTrigger}>{rhythmPopover(<Button data-tool-trigger="more" disabled={blocked}
-          aria-label="更多工具" aria-haspopup="dialog" aria-expanded={open && (moreMenu || group !== "technique")}
+          aria-label="更多工具" aria-haspopup="dialog" aria-expanded={open && anchorInMore}
           variant="text" onClick={(event) => {
             event.stopPropagation();
             if (open && moreMenu) close(true);
@@ -381,7 +400,7 @@ export const EditorToolPanelHost = ({
               invalidateOutside();
               pendingClose.current = null;
               if (open && group === "technique" && !moreMenu) onHideTechnique?.();
-              setMoreMenu(true); setGroup("measure"); setOpen(true);
+              setAnchorInMore(true); setMoreMenu(true); setGroup("measure"); setOpen(true);
             }
           }}>更多<DownOutlined /></Button>, true)}</span>
       </div>

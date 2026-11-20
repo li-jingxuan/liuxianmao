@@ -1,0 +1,473 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>六线猫 · 谱面与编辑交互</title>
+  <style>
+    :root{color-scheme:light;--ink:#202939;--muted:#526176;--line:#d8e0ec;--paper:#fff;--surface:#f2f5fa;--blue:#285be0;--blue-light:#edf3ff;--red:#a92424;font:14px/1.5 system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+    *{box-sizing:border-box}body{margin:0;background:var(--surface);color:var(--ink)}button,select{font:inherit;color:inherit;min-height:36px;border:1px solid var(--line);border-radius:6px;background:var(--paper);padding:5px 10px}button{cursor:pointer}button:hover:not(:disabled){background:var(--blue-light)}button:disabled{cursor:default;opacity:.52}button:focus-visible,select:focus-visible,section:focus-visible,input:focus-visible{outline:2px solid var(--blue);outline-offset:2px}button[aria-pressed=true]{border-color:var(--blue);background:var(--blue-light);color:#1744ba}[hidden]{display:none!important}h1,h2,h3,p{margin:0}h1{font-size:17px}h2{font-size:18px}h3{font-size:14px}p{overflow-wrap:anywhere}.muted{color:var(--muted);font-size:13px}.primary{background:var(--blue);color:white;border-color:var(--blue)}.primary:hover:not(:disabled){background:#1a47c1}.danger{color:var(--red)}kbd{font:12px ui-monospace,monospace;padding:2px 4px;border:1px solid var(--line);border-radius:4px;background:var(--surface);color:var(--ink)}
+    header{min-height:54px;background:var(--paper);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;padding:8px 20px}header strong{color:#204fc8}header span{color:var(--muted)}nav{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}main{width:min(1160px,100%);margin:0 auto;padding:16px}.workspace{display:grid;grid-template-columns:minmax(0,1fr) 332px;gap:12px;align-items:start}.sheet,.sidebar{min-width:0;background:var(--paper);border:1px solid var(--line);border-radius:9px}.sheet{padding:22px 18px 16px}.sheet h2{text-align:center;margin:4px 0 13px;letter-spacing:.04em}.scoreActions,.actionRow,.filters,.fieldRow,.panelHead{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.scoreActions{justify-content:space-between;margin-bottom:12px}.panelHead{justify-content:space-between;gap:6px}.sidebar{padding:16px;display:grid;gap:14px}.sidebar section{display:grid;gap:12px}.panelHead h2{font-size:16px}.sheetFooter{margin-top:10px;min-height:20px}.staffRow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:14px 0 22px}.staff{display:flex;flex:1 1 240px;min-width:0}.staffGroup{display:flex;flex-direction:column;min-width:0;flex:1}.staffGroup+.staffGroup .measure{border-left:0}.measure{min-width:0;border:1px solid #67758a;border-radius:0;min-height:58px;display:grid;grid-template-columns:repeat(var(--beats,3),1fr);align-items:stretch;position:relative;background:repeating-linear-gradient(to bottom,#67758a 0 1px,transparent 1px 11px);background-position:0 5px;padding:0;text-align:center}.measureLabel{display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:12px;padding:0 4px;gap:2px;white-space:nowrap;min-height:24px}.measure .beat{border:0;border-radius:0;min-width:0;padding:0;line-height:1;background:transparent;display:grid;place-content:center;font-variant-numeric:tabular-nums}.beat b{align-self:center;background:#fff;padding:1px 3px;font-weight:600}.beat.selected{background:#d6e5ffbb;outline:1px solid #77a1ee;outline-offset:-1px}.beat:disabled{opacity:1}.addTail{flex:0 0 auto;min-width:36px;padding:0;color:var(--blue);font-size:20px;border-color:#b9cdf9;align-self:flex-end;margin-bottom:11px}.rail{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.subtle{border-color:transparent;color:var(--blue);background:var(--blue-light)}.rowContent{min-height:42px;border:1px solid var(--line);border-radius:6px;padding:9px 10px}.rowEmpty{padding:12px;border:1px dashed #b9c8df;border-radius:6px}.fieldRow{display:grid;grid-template-columns:1fr auto 1fr}.fieldRow select,.stack select{width:100%;min-width:0}.stack{display:grid;gap:4px;min-width:0}.stage{display:grid;gap:12px}.slideGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.slideSample{padding:10px 12px 16px;background:#f8faff;border-radius:6px;min-width:0}.slideStaff{position:relative;height:74px;margin-top:4px;background:repeating-linear-gradient(to bottom,transparent 0 10px,#69778a 10px 11px);background-position:0 5px;border-bottom:1px solid #69778a}.slideNote,.slideLetter{background:#f8faff;position:absolute;z-index:1;line-height:1;padding:1px 2px}.slideNote.start{left:19%;top:31px}.slideNote.end{right:19%;top:31px}.slideLetter{left:50%;transform:translateX(-50%);top:10px;font-weight:650}.slideSample:first-child .slideLetter{top:0}.slideLine{height:2px;position:absolute;top:35px;left:27%;right:27%;transform:rotate(-7deg);background:#243049}.down .slideLine{transform:rotate(7deg)}.down .slideNote.start{top:31px}.templateList{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.templateList button{text-align:left;min-width:0}.templateList small{display:block;color:var(--muted);font-size:13px;letter-spacing:.09em}.warning{color:#86560f}.success{color:#17613c}.menu{display:flex;justify-content:flex-end}.menu button{width:100%;text-align:left}.divider{border-top:1px solid var(--line);padding-top:12px}dialog{width:min(380px,calc(100% - 24px));border:1px solid var(--line);border-radius:10px;padding:18px;color:var(--ink);box-shadow:0 12px 42px #15294740}dialog::backdrop{background:#25355055}dialog p{margin:10px 0 16px}dialog .actionRow{justify-content:flex-end}
+    .slideSample:nth-child(2) .slideLetter{top:17px}.musicRows{display:grid;gap:5px;padding-top:6px}.musicRows p{min-height:22px;padding:1px 5px;border-bottom:1px solid var(--line);letter-spacing:.08em}.musicRows p:empty::after{content:" "}
+    .staff{--measure-label-height:24px}
+    .measureLabel{min-height:var(--measure-label-height)}
+    .staffTail{
+      display:flex;
+      flex:0 0 36px;
+      margin-top:var(--measure-label-height);
+    }
+    .staffTail .addTail{
+      width:100%;
+      align-self:stretch;
+      margin:0;
+      border:1px solid #a1b3cf;
+      border-left:0;
+      border-radius:0;
+      background:#f6f9ff;
+    }
+    .staffTail .addTail:hover,.staffTail .addTail:focus-visible{background:var(--blue-light)}
+    .staffTail .addTail:focus-visible{outline-offset:-3px}
+    .tooltipAnchor{position:relative}
+    .tooltip{
+      position:absolute;
+      z-index:2;
+      bottom:100%;
+      left:0;
+      width:max-content;
+      max-width:210px;
+      padding:5px 8px;
+      border-radius:4px;
+      background:#25334a;
+      color:var(--paper);
+      font-size:12px;
+      visibility:hidden;
+    }
+    .staffTail .tooltip{right:0;left:auto}
+    #rhythmApplyHint{
+      top:50%;
+      bottom:auto;
+      left:calc(100% + 6px);
+      transform:translateY(-50%);
+    }
+    #rhythmApplyHint::before{content:"";position:absolute;inset:0 100% 0 -6px}
+    .tooltipAnchor:not([data-tooltip-dismissed]):hover > button:enabled + .tooltip,
+    .tooltipAnchor:not([data-tooltip-dismissed]) > button:enabled:focus-visible + .tooltip{visibility:visible}
+    #rows{gap:0;margin:-16px;padding-bottom:16px}
+    .rowsTitle{color:var(--blue);font-size:14px;font-weight:650;padding:13px 16px;border-bottom:1px solid var(--line)}
+    .rowsPosition{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:56px;padding:8px 16px;background:#f8faff;border-bottom:1px solid var(--line)}
+    .rowsPosition strong{font-weight:650}
+    .rowsPosition .addRowAction{display:inline-flex;align-items:center;gap:5px;flex-shrink:0;min-height:32px;padding:4px 8px;border-color:transparent;background:transparent;color:var(--blue);white-space:nowrap;font-weight:600}
+    .rowsPosition .addRowAction:hover{background:var(--blue-light)}
+    .rowsPosition .addRowAction[aria-disabled=true]{color:var(--muted);cursor:default;background:transparent}
+    .addRowAction span{font-size:17px;line-height:1;font-weight:400}
+    .rowsBody{display:grid;gap:16px;padding:16px 16px 0;min-width:0}
+    .rowTabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px;padding:3px;background:var(--surface);border-radius:7px}
+    .rowTabs button{border-color:transparent;background:transparent;color:var(--muted);min-height:32px}
+    .rowTabs button[aria-pressed=true]{border-color:var(--line);background:var(--paper);color:var(--ink);box-shadow:0 1px 2px #25355012}
+    #rows .rowEmpty{padding:0;border:0}
+    #rows .rowContent{width:100%;min-width:0;font:inherit;color:inherit}
+    #rows #rowMenu{min-height:32px;border-color:transparent;color:var(--muted)}
+    @media(min-width:1440px){.workspace:has(#rows:not([hidden])){grid-template-columns:minmax(0,1fr) 352px}}
+    @media(max-width:730px){main{padding:10px}.workspace{grid-template-columns:1fr}.sheet{padding:14px 12px}.sidebar{padding:13px}header{padding-inline:12px}}
+    @media(max-width:730px){#rows{margin:-13px;padding-bottom:13px}}
+    @media(max-width:390px){.slideSample{padding-inline:7px}.measureLabel{font-size:11px}.staffRow{gap:5px}.slideGrid{gap:5px}}
+  </style>
+</head>
+<body>
+  <header><strong>六线猫</strong><h1>成都</h1><span>吉他弹唱谱</span></header>
+  <main>
+    <nav aria-label="设计场景">
+      <button type="button" data-scene="slide" aria-pressed="false">滑音标签</button>
+      <button type="button" data-scene="measure" aria-pressed="true">小节操作</button>
+      <button type="button" data-scene="rows" aria-pressed="false">简谱与歌词</button>
+      <button type="button" data-scene="rhythm" aria-pressed="false">节奏型</button>
+    </nav>
+    <div class="workspace">
+      <div class="sheet">
+        <div class="scoreActions"><div id="viewModes" class="actionRow" aria-label="视图"><button type="button" id="editView" aria-pressed="true">编辑</button><button type="button" id="previewView" aria-pressed="false">预览</button></div><button type="button" id="undo" disabled>撤销</button></div>
+        <h2>成都</h2>
+        <p class="muted">1=C · 3/4</p>
+        <div id="score"></div>
+        <p id="scoreHint" class="muted sheetFooter"></p>
+        <p id="notice" class="success" role="status"></p>
+      </div>
+      <aside class="sidebar">
+        <section id="slide" hidden aria-labelledby="slideTitle">
+          <div class="panelHead"><h2 id="slideTitle">滑音 S</h2><button type="button" id="direction" aria-pressed="false">下滑</button></div>
+          <div class="slideGrid" aria-label="滑音标记间距对照">
+            <div class="slideSample"><h3>原位置</h3><div class="slideStaff"><span class="slideLine"></span><span class="slideNote start">3</span><span class="slideLetter">S</span><span class="slideNote end">5</span></div></div>
+            <div class="slideSample"><h3>调整后</h3><div class="slideStaff"><span class="slideLine"></span><span class="slideNote start">3</span><span class="slideLetter">S</span><span class="slideNote end">5</span></div></div>
+          </div>
+        </section>
+        <section id="measure" aria-labelledby="copyTitle">
+          <div class="panelHead"><h2 id="copyTitle">复制小节范围</h2><button type="button" id="resetCopy" class="subtle">使用当前选区</button></div>
+          <div class="fieldRow">
+            <label class="stack">起始小节<select id="from"></select></label><span aria-hidden="true">–</span><label class="stack">结束小节<select id="to"></select></label>
+          </div>
+          <label class="stack">插入位置<select id="insertAt"></select></label>
+          <p id="copySummary" class="muted" aria-live="polite"></p>
+          <div class="actionRow"><button type="button" id="copyApply" class="primary">复制小节</button></div>
+        </section>
+        <section id="rows" hidden aria-labelledby="rowsTitle">
+          <h2 class="rowsTitle" id="rowsTitle">简谱与歌词</h2>
+          <div class="rowsPosition">
+            <strong id="rowsLocation" aria-live="polite"></strong>
+            <button type="button" id="addRow" class="addRowAction" aria-label="添加简谱行"><span aria-hidden="true">+</span><b id="addRowLabel">简谱</b></button>
+          </div>
+          <div class="rowsBody">
+            <div class="rowTabs" aria-label="编辑谱层"><button type="button" id="numberedTab" aria-pressed="true">简谱</button><button type="button" id="lyricsTab" aria-pressed="false">歌词</button></div>
+            <div id="rowBody" class="stage"></div>
+          </div>
+        </section>
+        <section id="rhythm" hidden tabindex="0" aria-labelledby="rhythmTitle">
+          <div class="panelHead"><h2 id="rhythmTitle">节奏型</h2><div class="rail"><button type="button" id="wholeRange">选择完整小节</button><button type="button" id="meter" aria-pressed="false">混合拍号</button></div></div>
+          <h3>拍内模板</h3>
+          <div class="templateList"><button type="button" data-template="eighth" aria-pressed="true">两个八分<small aria-hidden="true">♪ ♪</small></button><button type="button" data-template="sixteenth" aria-pressed="false">四个十六分<small aria-hidden="true">♬ ♬</small></button></div>
+          <h3>整小节模板</h3>
+          <div class="templateList"><button type="button" data-template="whole" aria-pressed="false">均匀八分<small aria-hidden="true">♪♪ ｜ ♪♪ ｜ ♪♪</small></button></div>
+          <p id="rhythmSummary" class="muted" aria-live="polite"></p>
+          <div class="actionRow">
+            <span class="tooltipAnchor">
+              <button id="rhythmApply" class="primary" type="button" aria-describedby="rhythmApplyHint">应用节奏型</button>
+              <span id="rhythmApplyHint" class="tooltip" role="tooltip">按 Enter 应用节奏型</span>
+            </span>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+  <dialog id="confirm" aria-labelledby="confirmTitle">
+    <h2 id="confirmTitle"></h2><p id="confirmMessage"></p>
+    <form class="actionRow" method="dialog"><button type="submit" value="cancel" autofocus>取消</button><button class="danger" type="submit" value="delete">删除</button></form>
+  </dialog>
+  <script>
+    const get = (id) => document.getElementById(id);
+    const all = (selector) => [...document.querySelectorAll(selector)];
+    const templates = { eighth: '两个八分', sixteenth: '四个十六分', whole: '均匀八分' };
+    const scoreText = ['3 0 3', '3 5 3', '1 3 0', '0 2 3', '3 5 0', '1 2 3'];
+    const state = { scene: 'measure', beats: scoreText.map((text) => text.split(' ')), rhythms: {}, edit: true,
+      anchor: [2, 1], focus: [2, 1], from: 2, to: 2, insert: 'end', manualCopy: false,
+      rowType: 'numbered', numbered: null, verses: ['让我掉下眼泪的'], verse: 0, menu: false,
+      mixed: false, template: 'eighth', direction: false };
+    const history = [];
+    let confirmDelete;
+    let restoreDeleteFocus;
+    let notice = '';
+
+    const count = (measure) => state.mixed && measure === 4 ? 2 : 3;
+    const pointIndex = ([measure, beat]) => measure * 10 + beat;
+    const scope = () => [state.anchor, state.focus].sort((a, b) => pointIndex(a) - pointIndex(b));
+    const selected = (measure, beat) => {
+      const [first, last] = scope();
+      return pointIndex(first) <= pointIndex([measure, beat]) && pointIndex([measure, beat]) <= pointIndex(last);
+    };
+    const pressed = (element, value) => element.setAttribute('aria-pressed', String(value));
+    const speak = (message) => { notice = message; get('notice').textContent = message; };
+    const addHistory = () => history.push(structuredClone(state));
+    const button = (label, callback, className) => {
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.textContent = label;
+      item.className = className ?? '';
+      item.addEventListener('click', callback);
+      return item;
+    };
+    const selectPoint = (measure, beat, range) => {
+      if (!range) state.anchor = [measure, beat];
+      state.focus = [measure, beat];
+      if (!state.manualCopy) syncCopy();
+      render();
+      get(`point-${measure}-${beat}`)?.focus({preventScroll: true});
+    };
+    const syncCopy = () => {
+      const [first, last] = scope();
+      state.from = first[0];
+      state.to = last[0];
+    };
+    function renderScore() {
+      const score = get('score');
+      score.replaceChildren();
+      for (let first = 1; first <= state.beats.length; first += 3) {
+        const row = document.createElement('div'); row.className = 'staffRow';
+        const staff = document.createElement('div'); staff.className = 'staff';
+        row.append(staff);
+        for (let measure = first; measure < first + 3 && measure <= state.beats.length; measure++) {
+          const group = document.createElement('div'); group.className = 'staffGroup';
+          const label = document.createElement('div'); label.className = 'measureLabel';
+          label.textContent = `第 ${measure} 小节`;
+          if (state.mixed && measure === 4) label.append(' · 6/8');
+          const grid = document.createElement('div'); grid.className = 'measure';
+          grid.style.setProperty('--beats', count(measure));
+          for (let beat = 1; beat <= count(measure); beat++) {
+            const item = button('', (event) => selectPoint(measure, beat, event.shiftKey), 'beat');
+            item.id = `point-${measure}-${beat}`;
+            item.setAttribute('aria-label', `第 ${measure} 小节第 ${beat} 拍`);
+            item.disabled = !state.edit;
+            if (state.edit) {
+              const active = selected(measure, beat);
+              pressed(item, active);
+              item.classList.toggle('selected', active);
+            }
+            const note = document.createElement('b');
+            note.textContent = state.rhythms[`${measure}-${beat}`] ?? state.beats[measure - 1][beat - 1] ?? '';
+            if (note.textContent) item.append(note);
+            grid.append(item);
+          }
+          group.append(label, grid); staff.append(group);
+        }
+        if (state.edit && first + 2 >= state.beats.length && state.scene === 'measure') {
+          const add = button('+', () => {
+            addHistory(); state.beats.push([]); state.anchor = [state.beats.length, 1]; state.focus = [state.beats.length, 1];
+            if (!state.manualCopy) syncCopy();
+            speak(`已新增第 ${state.beats.length} 小节。`);
+            render(); get(`point-${state.beats.length}-1`)?.focus({preventScroll: true});
+          }, 'addTail');
+          add.setAttribute('aria-label', '新增小节');
+          add.setAttribute('aria-describedby', 'addTailHint');
+          const hint = document.createElement('span');
+          hint.id = 'addTailHint';
+          hint.className = 'tooltip';
+          hint.setAttribute('role', 'tooltip');
+          hint.textContent = '在曲末新增小节';
+          const tail = document.createElement('div');
+          tail.className = 'staffTail tooltipAnchor';
+          tail.append(add, hint);
+          staff.append(tail);
+        }
+        score.append(row);
+      }
+      if (state.scene === 'rows') {
+        const musicRows = document.createElement('div');
+        musicRows.className = 'musicRows';
+        if (state.numbered !== null) {
+          const numbered = document.createElement('p');
+          numbered.dataset.previewNumbered = '';
+          numbered.setAttribute('aria-label', '谱面简谱');
+          numbered.textContent = state.numbered;
+          musicRows.append(numbered);
+        }
+        state.verses.forEach((text, index) => {
+          const lyric = document.createElement('p');
+          lyric.dataset.previewLyric = String(index);
+          lyric.setAttribute('aria-label', `谱面第 ${index + 1} 段歌词`);
+          lyric.textContent = text;
+          musicRows.append(lyric);
+        });
+        score.append(musicRows);
+      }
+      get('scoreHint').textContent = state.edit && ['measure', 'rhythm'].includes(state.scene) ? '点击一拍定位，按住 Shift 选取连续范围。' : '';
+    }
+    function renderCopy() {
+      const measures = state.beats.map((_, index) => [index + 1, `第 ${index + 1} 小节`]);
+      const options = (items) => items.map(([value, label]) => new Option(label, value));
+      get('from').replaceChildren(...options(measures)); get('from').value = state.from;
+      get('to').replaceChildren(...options(measures)); get('to').value = state.to;
+      get('insertAt').replaceChildren(...options([['start', '曲首'], ['end', '曲末'], ...measures.map(([number, label]) => [number, `${label}后`])]));
+      get('insertAt').value = state.insert;
+      const valid = state.from <= state.to;
+      const position = get('insertAt').selectedOptions[0]?.textContent;
+      get('copySummary').textContent = valid ? `复制第 ${state.from}–${state.to} 小节（共 ${state.to - state.from + 1} 小节），插入${position}。` : '结束小节应位于起始小节之后或与其相同。';
+      get('copyApply').disabled = !state.edit || !valid;
+      for (const id of ['from', 'to', 'insertAt', 'resetCopy']) get(id).disabled = !state.edit;
+    }
+    function renderRows() {
+      pressed(get('numberedTab'), state.rowType === 'numbered'); pressed(get('lyricsTab'), state.rowType === 'lyrics');
+      const root = get('rowBody'); root.replaceChildren();
+      const numbered = state.rowType === 'numbered';
+      const exists = numbered ? state.numbered !== null : state.verses.length > 0;
+      const add = get('addRow');
+      const unavailable = numbered && exists ? '曲谱已有简谱行' : !numbered && state.verses.length >= 4 ? '歌词最多可添加 4 段' : '';
+      const locationLabel = `第 ${state.focus[0]} 小节 · 第 ${state.focus[1]} 拍`;
+      if (get('rowsLocation').textContent !== locationLabel) get('rowsLocation').textContent = locationLabel;
+      get('addRowLabel').textContent = numbered ? '简谱' : '歌词';
+      add.setAttribute('aria-label', numbered ? '添加简谱行' : '添加歌词行');
+      add.setAttribute('aria-disabled', String(!!unavailable));
+      if (unavailable) add.setAttribute('aria-description', unavailable);
+      else add.removeAttribute('aria-description');
+      add.title = unavailable || (numbered ? '添加简谱行' : '添加歌词行');
+      if (!exists) {
+        const empty = document.createElement('p'); empty.className = 'rowEmpty muted';
+        empty.textContent = numbered ? '当前曲谱还没有简谱行。' : '当前曲谱还没有歌词。';
+        root.append(empty); return;
+      }
+      const heading = document.createElement('div'); heading.className = 'panelHead';
+      const title = document.createElement('h3'); title.textContent = numbered ? '简谱内容' : '歌词段落';
+      const more = button('⋯', () => { state.menu = !state.menu; renderRows(); get(state.menu ? 'deleteRow' : 'rowMenu').focus(); });
+      more.id = 'rowMenu'; more.setAttribute('aria-label', numbered ? '简谱行操作' : '歌词段落操作'); more.setAttribute('aria-expanded', String(state.menu));
+      heading.append(title, more); root.append(heading);
+      if (state.menu) {
+        const menu = document.createElement('div'); menu.className = 'menu';
+        const remove = button(numbered ? '删除简谱行' : '删除当前段', () => {
+          const text = numbered ? state.numbered : state.verses[state.verse];
+          const action = () => {
+            addHistory();
+            if (numbered) state.numbered = null;
+            else { state.verses.splice(state.verse, 1); state.verse = Math.max(0, Math.min(state.verse, state.verses.length - 1)); }
+            state.menu = false;
+            speak(numbered ? '已删除简谱行。歌词已保留。' : '已删除当前歌词段。');
+            render();
+            (get('rowMenu') ?? get('addRow')).focus({preventScroll: true});
+          };
+          if (!text.trim()) { action(); return; }
+          get('confirmTitle').textContent = numbered ? '删除简谱行？' : `删除第 ${state.verse + 1} 段歌词？`;
+          get('confirmMessage').textContent = numbered ? '会移除整份曲谱中的简谱内容。歌词保留，可撤销。' : '会移除这一段在整份曲谱中的歌词，可撤销。';
+          confirmDelete = action; restoreDeleteFocus = remove;
+          get('confirm').returnValue = 'cancel'; get('confirm').showModal();
+        }, 'danger');
+        remove.id = 'deleteRow'; menu.append(remove); root.append(menu);
+      }
+      if (!numbered) {
+        const rail = document.createElement('div'); rail.className = 'rail';
+        state.verses.forEach((_, index) => {
+          const tab = button(`第 ${index + 1} 段`, () => { state.verse = index; state.menu = false; renderRows(); get(`verse-${index}`).focus(); });
+          tab.id = `verse-${index}`; pressed(tab, index === state.verse); rail.append(tab);
+        });
+        root.append(rail);
+      }
+      const input = document.createElement('input'); input.type = 'text'; input.id = 'rowInput'; input.className = 'rowContent';
+      input.setAttribute('aria-label', numbered ? '简谱内容' : `第 ${state.verse + 1} 段歌词`);
+      input.value = numbered ? state.numbered : state.verses[state.verse]; input.placeholder = numbered ? '输入 1 2 3' : '输入歌词';
+      input.addEventListener('input', () => {
+        if (numbered) state.numbered = input.value;
+        else state.verses[state.verse] = input.value;
+        const row = document.querySelector(numbered ? '[data-preview-numbered]' : `[data-preview-lyric="${state.verse}"]`);
+        if (row) row.textContent = input.value;
+      });
+      root.append(input);
+    }
+    get('addRow').addEventListener('click', () => {
+      if (get('addRow').getAttribute('aria-disabled') === 'true') return;
+      addHistory();
+      state.menu = false;
+      if (state.rowType === 'numbered') {
+        state.numbered = '';
+        speak('已添加简谱行。');
+      } else {
+        state.verses.push('');
+        state.verse = state.verses.length - 1;
+        speak(`已添加第 ${state.verse + 1} 段歌词。`);
+      }
+      render();
+      get('rowInput').focus({preventScroll: true});
+    });
+    function rhythmPlan() {
+      const [first, last] = scope();
+      const sameMeter = !state.mixed || first[0] === last[0] && first[0] !== 4 || last[0] < 4 || first[0] > 4;
+      const wholeAllowed = first[0] === last[0] || first[1] === 1 && last[1] === count(last[0]);
+      const error = !sameMeter ? '第 4 小节为 6/8，当前四分拍模板不适用。' : !wholeAllowed && state.template === 'whole' ? '整小节模板需要选中完整小节。' : '';
+      return { first, last, error };
+    }
+    function renderRhythm() {
+      const { first, last, error } = rhythmPlan();
+      const where = first[0] === last[0] ? `第 ${first[0]} 小节` : `第 ${first[0]} 小节第 ${first[1]} 拍至第 ${last[0]} 小节第 ${last[1]} 拍`;
+      all('[data-template]').forEach((item) => pressed(item, item.dataset.template === state.template));
+      pressed(get('meter'), state.mixed);
+      get('rhythmSummary').textContent = error || `${where} · ${templates[state.template]}`;
+      get('rhythmSummary').classList.toggle('warning', !!error);
+      get('rhythmApply').disabled = !state.edit || !!error;
+    }
+    function render() {
+      all('[data-scene]').forEach((item) => { pressed(item, item.dataset.scene === state.scene); get(item.dataset.scene).hidden = item.dataset.scene !== state.scene; });
+      pressed(get('editView'), state.edit); pressed(get('previewView'), !state.edit);
+      get('viewModes').hidden = state.scene !== 'measure';
+      get('undo').disabled = history.length === 0;
+      all('.slideStaff').forEach((staff) => {
+        staff.classList.toggle('down', state.direction);
+        staff.querySelector('.start').textContent = state.direction ? '5' : '3';
+        staff.querySelector('.end').textContent = state.direction ? '3' : '5';
+      });
+      pressed(get('direction'), state.direction);
+      renderScore(); renderCopy(); renderRows(); renderRhythm();
+      get('notice').textContent = notice;
+    }
+    function applyRhythm() {
+      const { first, last, error } = rhythmPlan();
+      if (error || !state.edit) return;
+      addHistory();
+      const glyphs = { eighth: '♪♪', sixteenth: '♬♬', whole: '♪♪' };
+      for (let measure = first[0]; measure <= last[0]; measure++) {
+        for (let beat = 1; beat <= count(measure); beat++) {
+          if (state.template === 'whole' || selected(measure, beat)) state.rhythms[`${measure}-${beat}`] = glyphs[state.template];
+        }
+      }
+      speak(`已应用「${templates[state.template]}」。`); render();
+    }
+    function selectScene(scene) {
+      state.scene = scene; state.edit = true; state.menu = false; notice = '';
+      if (state.scene === 'rhythm') { state.anchor = [3, 2]; state.focus = [4, 2]; state.mixed = false; state.template = 'eighth'; }
+      if (state.scene === 'measure') { state.manualCopy = false; state.insert = 'end'; syncCopy(); }
+      render();
+    }
+    const scenes = all('[data-scene]');
+    scenes.forEach((item) => item.addEventListener('click', () => selectScene(item.dataset.scene)));
+    get('undo').addEventListener('click', () => { if (history.length) Object.assign(state, history.pop()); speak('已撤销上一步。'); render(); });
+    get('editView').addEventListener('click', () => { state.edit = true; render(); });
+    get('previewView').addEventListener('click', () => { state.edit = false; render(); });
+    get('direction').addEventListener('click', () => { state.direction = !state.direction; render(); });
+    get('resetCopy').addEventListener('click', () => { state.manualCopy = false; syncCopy(); renderCopy(); });
+    for (const id of ['from', 'to', 'insertAt']) get(id).addEventListener('change', (event) => {
+      if (id === 'insertAt') state.insert = event.target.value;
+      else { state[id] = Number(event.target.value); state.manualCopy = true; }
+      renderCopy();
+    });
+    get('copyApply').addEventListener('click', () => {
+      addHistory();
+      const source = state.beats.slice(state.from - 1, state.to).map((item) => [...item]);
+      const after = state.insert === 'start' ? 0 : state.insert === 'end' ? state.beats.length : Number(state.insert);
+      state.beats.splice(after, 0, ...source);
+      state.rhythms = Object.fromEntries(Object.entries(state.rhythms).flatMap(([key, value]) => {
+        const [measure, beat] = key.split('-').map(Number);
+        const shifted = [`${measure > after ? measure + source.length : measure}-${beat}`, value];
+        if (measure < state.from || measure > state.to) return [shifted];
+        return [shifted, [`${after + 1 + measure - state.from}-${beat}`, value]];
+      }));
+      speak(`已复制 ${source.length} 小节。`); render();
+    });
+    get('numberedTab').addEventListener('click', () => { state.rowType = 'numbered'; state.menu = false; renderRows(); });
+    get('lyricsTab').addEventListener('click', () => { state.rowType = 'lyrics'; state.menu = false; renderRows(); });
+    get('rows').addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && state.menu) { state.menu = false; renderRows(); get('rowMenu')?.focus(); }
+    });
+    get('confirm').addEventListener('close', () => {
+      if (get('confirm').returnValue === 'delete') confirmDelete?.();
+      else restoreDeleteFocus?.focus();
+      confirmDelete = restoreDeleteFocus = undefined;
+    });
+    get('wholeRange').addEventListener('click', () => { state.anchor = [3, 1]; state.focus = [4, count(4)]; render(); });
+    get('meter').addEventListener('click', () => {
+      state.mixed = !state.mixed;
+      for (const key of ['anchor', 'focus']) if (state[key][0] === 4) state[key] = [4, Math.min(state[key][1], count(4))];
+      render();
+    });
+    all('[data-template]').forEach((item) => item.addEventListener('click', () => { state.template = item.dataset.template; renderRhythm(); }));
+    get('rhythmApply').addEventListener('click', applyRhythm);
+    get('rhythm').addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' || event.isComposing || get('rhythmApply').disabled) return;
+      const template = event.target.closest('[data-template]');
+      if (event.repeat && (template || event.target === get('rhythmApply'))) { event.preventDefault(); return; }
+      if (event.target.closest('button') && template?.dataset.template !== state.template) return;
+      event.preventDefault(); if (!event.repeat) applyRhythm();
+    });
+    document.addEventListener('pointerover', (event) => {
+      const anchor = event.target.closest('.tooltipAnchor');
+      if (anchor && !anchor.contains(event.relatedTarget)) delete anchor.dataset.tooltipDismissed;
+    });
+    document.addEventListener('focusin', (event) => {
+      const anchor = event.target.closest('.tooltipAnchor');
+      if (anchor) delete anchor.dataset.tooltipDismissed;
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape' || event.isComposing || event.defaultPrevented) return;
+      for (const anchor of all('.tooltipAnchor:hover, .tooltipAnchor:focus-within')) {
+        anchor.dataset.tooltipDismissed = '';
+      }
+    });
+    function selectSceneFromHash() {
+      const match = scenes.find((item) => `#${item.dataset.scene}` === location.hash);
+      selectScene(match?.dataset.scene ?? 'measure');
+    }
+    window.addEventListener('hashchange', selectSceneFromHash);
+    selectSceneFromHash();
+  </script>
+</body>
+</html>

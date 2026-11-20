@@ -106,7 +106,7 @@ export interface EditorStore {
   canRedo: boolean;
   /** 公开深度用于控件和测试观测；快照内容仍是 store 内部实现细节。 */
   historyDepth: { past: number; future: number };
-  execute: (command: ILXMScoreCommand) => ILXMApplyScoreCommandResult | null;
+  execute: (command: ILXMScoreCommand, replaceFretEntryId?: string) => ILXMApplyScoreCommandResult | null;
   setSelection: (selection: ILXMTabCellSelection | null) => void;
   setSelectedTechniqueId: (techniqueId: string | null) => void;
   setErrorMessage: (message: string | null) => void;
@@ -292,7 +292,7 @@ export const createEditorStore = (
       loadNotice: null,
       ...toHistoryState(createEmptyHistory()),
 
-      execute: (command) => {
+      execute: (command, replaceFretEntryId) => {
         const state = get();
         if (!state.document) {
           set({ effects: [] });
@@ -320,12 +320,18 @@ export const createEditorStore = (
           return result;
         }
 
+        const latest = state.history.pastEntries.at(-1);
+        const previousFret = command.type === LXMScoreCommandEnum.SetNotesInRect &&
+          replaceFretEntryId && latest?.id === replaceFretEntryId && !state.canRedo
+          ? latest : undefined;
         const entry = createHistoryEntry(
-          `${sessionId}:${state.sessionVersion}:entry:${++nextEntryId}`,
-          state.document, command, result.effects ?? [],
+          previousFret?.id ?? `${sessionId}:${state.sessionVersion}:entry:${++nextEntryId}`,
+          previousFret ? state.history.past.at(-1)! : state.document,
+          command,
+          [...(previousFret?.effects ?? []), ...(result.effects ?? [])],
         );
         const history = transitionHistory(state.history, {
-          type: "commit", document: state.document, entry,
+          type: "commit", document: state.document, entry, replaceEntry: !!previousFret,
         });
         const selectionCandidate = result.nextFocus
           ? createCollapsedTabCellSelection({
@@ -340,8 +346,8 @@ export const createEditorStore = (
             );
         set({
           effects: structuredClone(result.effects ?? []),
-          feedbackEvent: entry.effects.length
-            ? createFeedback("command", entry.effects, entry.id)
+          feedbackEvent: result.effects?.length
+            ? createFeedback("command", result.effects, entry.id)
             : retainFeedback(state.feedbackEvent, history),
           document: result.document,
           numberedSelection: result.nextNumberedFocus

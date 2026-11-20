@@ -8,6 +8,7 @@
   gap: 20px;
   height: 58px;
   min-height: 58px;
+  max-width: 100vw;
   padding: 0 24px;
   background: var(--panel);
   border-bottom: 1px solid var(--border);
@@ -88,20 +89,24 @@
   text-decoration: none;
 }
 
+.shortcutButton { gap: 6px; }
+.shortcutButton:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
 @media print {
   .editorHeader {
     display: none !important;
   }
 }
 
-:global([data-editor-shell][data-layout="compact"]),
-:global([data-editor-shell][data-layout="narrow"]) {
+@mixin compactHeader {
   .editorHeader { gap: 12px; padding-inline: 14px; grid-template-columns: auto minmax(0, 1fr) auto; }
+  .shortcutLabel { display: none; }
+  .shortcutButton { width: 32px; padding-inline: 0; }
 }
 
-:global([data-editor-shell][data-layout="narrow"]) {
+@mixin narrowHeader {
   .editorHeader {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: auto minmax(0, 1fr);
     height: auto;
     min-height: 58px;
     padding: 8px 12px;
@@ -109,6 +114,26 @@
   }
   .editorHeading { grid-row: 2; grid-column: 1 / -1; }
   .editorBrand { font-size: 16px; }
+  .editorBrand img { width: 24px; height: 24px; }
   .headerActions { flex-wrap: wrap; justify-content: flex-end; gap: 4px; }
   .headerNativeAction { padding-inline: 8px; }
+  .shortcutButton { padding-inline: 0; }
+}
+
+:global([data-editor-shell][data-layout="compact"]),
+:global([data-editor-shell][data-layout="narrow"]) {
+  @include compactHeader;
+}
+
+:global([data-editor-shell][data-layout="narrow"]) {
+  @include narrowHeader;
+}
+
+// 主编辑器的谱面可横向滚动，顶栏操作仍应在初始视口内。
+@media (max-width: 1199px) {
+  @include compactHeader;
+}
+
+@media (max-width: 959px) {
+  @include narrowHeader;
 }

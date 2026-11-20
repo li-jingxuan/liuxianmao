@@ -10,13 +10,15 @@ import {
 } from "../../src/core/chords/chord-catalog";
 import { validateChordDiagram } from "../../src/core/chords/chord-diagram";
 
-const dataUrl = new URL(
-  "../../../../apps/website/public/assets/chords/catalog-2026.11.11.1.json",
+const directory = new URL(
+  "../../../../apps/website/public/assets/chords/",
   import.meta.url,
 );
+const manifest = JSON.parse(readFileSync(new URL("manifest.json", directory), "utf8"));
+const dataUrl = new URL(manifest.catalogUrl, directory);
 const raw = () => JSON.parse(readFileSync(dataUrl, "utf8"));
 const load = () => {
-  const result = parseChordCatalog(raw(), "2026.11.11.1");
+  const result = parseChordCatalog(raw(), manifest.dataVersion);
   if (!result.ok) throw new Error(result.error);
   return result.catalog;
 };
@@ -55,6 +57,26 @@ describe("published chord catalog public APIs", () => {
     expect(
       Object.isFrozen(catalog.items[0]!.voicings[0]!.diagram.strings),
     ).toBe(true);
+  });
+  it("uses the first fret for every open shape and offers common accompaniment fingerings", () => {
+    const catalog = load();
+    for (const item of catalog.items)
+      for (const voicing of item.voicings) {
+        if (voicing.diagram.strings.some((string) => string.fret === 0)) {
+          expect(voicing.diagram.startFret, item.name).toBe(1);
+        }
+      }
+    const openShapes = {
+      Em: [0, 2, 2, 0, 0, 0], G: [3, 2, 0, 0, 0, 3],
+      D: ["x", "x", 0, 2, 3, 2], A: ["x", 0, 2, 2, 2, 0],
+      E: [0, 2, 2, 1, 0, 0], Cmaj7: ["x", 3, 2, 0, 0, 0],
+      G7: [3, 2, 0, 0, 0, 1], B7: ["x", 2, 1, 2, 0, 2],
+    };
+    for (const [name, frets] of Object.entries(openShapes)) {
+      const match = catalog.items.find((item) => item.name === name);
+      const diagram = match?.voicings.find((voicing) => voicing.id === "open-01")?.diagram;
+      expect(diagram?.strings.map((string) => string.fret).reverse(), name).toEqual(frets);
+    }
   });
   it("rejects partial catalogs, unknown fields/versions, broken identities/references/aliases and wrong harmony/bass", () => {
     const changes: ((d: ReturnType<typeof raw>) => void)[] = [
@@ -98,7 +120,7 @@ describe("published chord catalog public APIs", () => {
       change(value);
       expect(parseChordCatalog(value).ok).toBe(false);
     }
-    expect(parseChordCatalog(raw(), "2026.11.11.2").ok).toBe(false);
+    expect(parseChordCatalog(raw(), "1900.01.01.1").ok).toBe(false);
   });
   it("preserves suffix case and resolves enharmonic/double-accidental searches", () => {
     const catalog = load();

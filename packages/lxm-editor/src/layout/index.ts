@@ -22,6 +22,7 @@ import { chordDisplayTrack } from "./music-text/chord-display";
 import { layoutSystems } from "./structure/system-layout";
 import { layoutSystemContent } from "./structure/system-content-layout";
 import { buildTechniqueInsets } from "./techniques/technique-spacing";
+import { getChordTraversalBottomOffsets } from "./techniques/technique-geometry";
 export {
   layoutChordDiagram,
   translateChordDiagram,
@@ -59,11 +60,16 @@ export const buildLayout = (
   const track = chordDisplayTrack(sourceTrack, options.showChordDiagrams);
   const purpose = options.purpose ?? "presentation";
   const editing = purpose === "editing" ? options.paragraphEditing : undefined;
+  const placeholders = purpose === "editing" ? options.paragraphPlaceholders : undefined;
 
   const x = options.x ?? LXM_LAYOUT_DEFAULT_X;
   const y = options.y ?? LXM_LAYOUT_DEFAULT_Y;
   const systemWidth = options.systemWidth ?? LXM_SYSTEM_DEFAULT_WIDTH;
   const systemGapY = options.systemGapY ?? LXM_SYSTEM_GAP_Y;
+  const requestedTailWidth = options.editingTailWidth ?? 0;
+  const editingTailWidth = purpose === "editing" && Number.isFinite(requestedTailWidth)
+    ? Math.max(0, requestedTailWidth)
+    : 0;
   const header = layoutScoreHeader(
     document.score,
     track,
@@ -82,9 +88,11 @@ export const buildLayout = (
     startBarline: track.startBarline,
     musicTextMetrics: options.musicTextMetrics,
     techniqueInsets: buildTechniqueInsets(track),
+    chordTraversalBottomOffsets: getChordTraversalBottomOffsets(track.techniques),
     purpose,
+    editingTailWidth,
     editingNumberedMeasureId:
-      editing?.kind === "numbered" ? editing.measureId : undefined,
+      editing?.kind === "numbered" ? editing.measureId : placeholders?.numberedMeasureId,
   });
   const systems = layoutSystemContent(
     track,
@@ -94,6 +102,7 @@ export const buildLayout = (
     editing,
     purpose,
     purpose === "editing" ? getMusicTextRows(document) : undefined,
+    placeholders,
   );
   const lastSystem = systems[systems.length - 1];
 
@@ -107,14 +116,13 @@ export const buildLayout = (
     x,
     y,
     // 稀疏行可短于 systemWidth，画布仍保留配置宽度；超宽内容可继续扩大画布。
-    width:
-      systems.length === 0
-        ? 0
-        : systems.reduce(
-            (maxWidth, system) =>
-              Math.max(maxWidth, system.width, system.visualBounds?.width ?? 0),
-            systemWidth,
-          ),
+    width: lastSystem
+      ? systems.reduce(
+          (maxWidth, system) =>
+            Math.max(maxWidth, system.width, system.visualBounds?.width ?? 0),
+          Math.max(systemWidth, lastSystem.width + editingTailWidth),
+        )
+      : 0,
     height: lastSystem ? lastSystem.y + lastSystem.height - y + 0.5 : 0,
     systems,
     hitIndex: buildHitIndex(track.id, systems),

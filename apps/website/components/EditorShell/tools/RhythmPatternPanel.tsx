@@ -1,11 +1,12 @@
 "use client";
 
-import { createContext, useContext, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore, type KeyboardEventHandler, type ReactNode } from "react";
 import { flushSync } from "react-dom";
-import { Button } from "antd";
+import { Button, Tooltip } from "antd";
 import { WarningOutlined } from "@ant-design/icons";
 import {
   getMeasureRhythmPatternTemplates,
+  getRhythmPatternMeasureRanges,
   getRhythmPatternTemplates,
   inferRhythmPatternTemplate,
   LXMScoreCommandEnum,
@@ -43,16 +44,20 @@ interface Props extends RhythmPatternConfig {
   presentation?: "toolbar" | "sidebar";
 }
 
-const targetMeasure = (document: ILXMDocument, result: TargetResult) => result.ok
-  ? document.score.tracks.find((track) => track.id === result.target.trackId)?.measures.find((measure) => measure.id === result.target.measureId)
-  : undefined;
 const templatesFor = (document: ILXMDocument, result: TargetResult) => {
-  const measure = targetMeasure(document, result);
-  const signature = measure?.timeSignature ?? document.score.tracks[0]?.measures[0]?.timeSignature ?? { numerator: 4, denominator: 4 };
+  const track = result.ok && document.score.tracks.find(item => item.id === result.target.trackId);
+  const ranges = result.ok && track ? getRhythmPatternMeasureRanges(track, result.target) : [];
+  const signature = ranges[0]?.measure.timeSignature ?? document.score.tracks[0]?.measures[0]?.timeSignature ?? { numerator: 4, denominator: 4 };
+  const candidates = getRhythmPatternTemplates(signature);
+  const beats = candidates.filter(template => ranges.every(range => getRhythmPatternTemplates(range.measure.timeSignature).some(item => item.id === template.id)));
+  const wholeMeasure = ranges.length <= 1 || ranges.every(({ measure, startTick, endTick, capacity }) =>
+    startTick === 0 && endTick === capacity && measure.timeSignature.numerator === signature.numerator && measure.timeSignature.denominator === signature.denominator);
+  const signatures = [...new Set(ranges.map(({ measure }) => `${measure.timeSignature.numerator}/${measure.timeSignature.denominator}`))];
   return {
-    signature,
-    beats: getRhythmPatternTemplates(signature),
-    measures: getMeasureRhythmPatternTemplates(signature),
+    ranges,
+    signatures: signatures.length ? signatures.join("、") : `${signature.numerator}/${signature.denominator}`,
+    beats,
+    measures: wholeMeasure ? getMeasureRhythmPatternTemplates(signature) : [],
   };
 };
 const previewFor = (props: RhythmPatternConfig, explicitTemplateId?: string) => {
@@ -61,9 +66,11 @@ const previewFor = (props: RhythmPatternConfig, explicitTemplateId?: string) => 
   // 不能在同次 render 的选区刷新中读取它们。getter 仅用于提交瞬时保护。
   const targetResult = props.targetResult;
   const templates = state.document ? templatesFor(state.document, targetResult) : undefined;
+  const inferred = explicitTemplateId === undefined && state.document && targetResult.ok
+    ? inferRhythmPatternTemplate(state.document, targetResult.target) : null;
   const selected = explicitTemplateId !== undefined
     ? templates?.beats.find((item) => item.id === explicitTemplateId) ?? templates?.measures.find((item) => item.id === explicitTemplateId)
-    : state.document && targetResult.ok ? inferRhythmPatternTemplate(state.document, targetResult.target) : null;
+    : templates?.beats.find(item => item.id === inferred?.id);
   return {
     session: props.session,
     version: captureEditorVersion(state),
@@ -77,7 +84,9 @@ const previewFor = (props: RhythmPatternConfig, explicitTemplateId?: string) => 
     result: state.document && targetResult.ok && selected
       ? planRhythmPattern(state.document, targetResult.target, selected.id)
       : { ok: false as const, code: "INVALID_TARGET", message: !targetResult.ok ? targetResult.message
-        : !templates?.beats.length ? "当前拍号暂无可用的节奏型。" : "当前拍未匹配到节奏型，请选择模板。" },
+        : !templates?.beats.length ? (templates?.ranges.length ?? 0) > 1
+          ? `所选小节没有共同的拍内模板：${templates!.ranges.map(({ measure, index }) => `第 ${index + 1} 小节 ${measure.timeSignature.numerator}/${measure.timeSignature.denominator}`).join("、")}。`
+          : "当前拍号暂无可用的节奏型。" : "当前拍未匹配到节奏型，请选择模板。" },
   };
 };
 
@@ -109,9 +118,6 @@ function useRhythmPatternController(props: RhythmPatternConfig, enabled = true) 
   const stale = preview.session !== session || !sameEditorVersion(current, preview.version) || preview.identity !== props.targetIdentity;
   const plan = preview.result.ok ? preview.result : null;
   const templates = templatesFor(document, targetResult);
-  const measure = preview.document ? targetMeasure(preview.document, preview.targetResult) : undefined;
-  const measureNumber = measure ? preview.document?.score.tracks
-    .find((track) => track.measures.includes(measure))?.measures.indexOf(measure) : undefined;
   const scopeKey = plan && !stale ? JSON.stringify(plan.target) : null;
   useEffect(() => {
     if (!enabled) return;
@@ -180,7 +186,7 @@ function useRhythmPatternController(props: RhythmPatternConfig, enabled = true) 
       if (mounted.current) setBusy(false);
     }
   };
-  return { preview, plan, templates, measureNumber, stale, failure, busy, refresh, apply, applyButton, expansion, setExpansion };
+  return { preview, plan, templates, stale, failure, busy, refresh, apply, applyButton, expansion, setExpansion };
 }
 
 type Controller = ReturnType<typeof useRhythmPatternController>;
@@ -205,7 +211,7 @@ export function SidebarRhythmPatternPanel() {
 export function RhythmPatternPanel(props: Props) {
   const shared = useContext(RhythmPatternContext);
   const local = useRhythmPatternController(shared?.config ?? props, !shared);
-  const { preview, plan, templates, measureNumber, stale, failure, busy, refresh, apply, applyButton, expansion, setExpansion } = shared?.controller ?? local;
+  const { preview, plan, templates, stale, failure, busy, refresh, apply, applyButton, expansion, setExpansion } = shared?.controller ?? local;
   const { blocked, targetResult } = shared?.config ?? props;
   const presentation = props.presentation ?? "toolbar";
   const sidebar = presentation === "sidebar";
@@ -245,18 +251,43 @@ export function RhythmPatternPanel(props: Props) {
   if (!targetResult.ok) return null;
   const message = failure ?? (!preview.result.ok ? preview.result.message : blocked ? "请先完成当前编辑，再应用节奏型；可继续浏览模板。" : null);
   const discardedCount = plan?.perBeat.reduce((total, beat) => total + beat.discardedCount, 0) ?? 0;
-  const destination = plan && ("beats" in plan.template ? "整小节" : plan.scope.beatCount === 1
-    ? `第 ${plan.scope.firstBeat} 拍` : `第 ${plan.scope.firstBeat}–${plan.scope.lastBeat} 拍`);
+  const firstMeasure = templates.ranges[0];
+  const lastMeasure = templates.ranges.at(-1);
+  const destination = plan && firstMeasure && lastMeasure && (firstMeasure !== lastMeasure
+    ? `第 ${firstMeasure.index + 1} 小节第 ${plan.scope.firstBeat} 拍至第 ${lastMeasure.index + 1} 小节第 ${plan.scopes.at(-1)!.lastBeat} 拍`
+    : `第 ${firstMeasure.index + 1} 小节 · ${"beats" in plan.template ? "整小节" : plan.scope.beatCount === 1
+      ? `第 ${plan.scope.firstBeat} 拍` : `第 ${plan.scope.firstBeat}–${plan.scope.lastBeat} 拍`}`);
+  const canApply = !busy && !blocked && !stale && !!plan;
+  const applyCurrent = () => void apply(shared && !sidebar ? props.onSuccess : undefined);
+  const handleEnter: KeyboardEventHandler<HTMLElement> = (event) => {
+    if (event.key !== "Enter" || event.defaultPrevented || !(event.target instanceof Element) ||
+      !event.currentTarget.contains(event.target)) return;
+    const target = event.target;
+    const card = target.closest("[data-rhythm-template], [data-rhythm-measure-template]");
+    const applyControl = target.closest("[data-rhythm-apply]");
+    const composing = event.nativeEvent.isComposing || event.keyCode === 229;
+    if ((card || applyControl) && (event.repeat || composing)) {
+      event.preventDefault();
+      return;
+    }
+    // 未选卡片和应用按钮仍走原生 click，其他交互控件保留自己的键盘行为。
+    if (card ? card.getAttribute("aria-pressed") !== "true" :
+      target.closest('button, a[href], input, select, textarea, [contenteditable], [role="button"]')) return;
+    if (composing || event.repeat || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    event.preventDefault();
+    if (canApply) applyCurrent();
+  };
 
-  return <section className={`${styles.root}${sidebar ? ` ${styles.sidebar}` : ""}`} aria-label={sidebar ? "常见节奏型" : "节奏型"} aria-busy={busy} data-rhythm-pattern-panel data-presentation={presentation}>
+  return <section className={`${styles.root}${sidebar ? ` ${styles.sidebar}` : ""}`} aria-label={sidebar ? "常见节奏型" : "节奏型"} aria-busy={busy}
+    tabIndex={sidebar ? undefined : -1} onKeyDown={handleEnter} data-rhythm-pattern-panel data-presentation={presentation}>
     <header className={styles.header}>
       {sidebar ? <h3>常见节奏型</h3> : <h2>节奏型</h2>}
       {!sidebar && <button type="button" className={styles.close} aria-label="关闭节奏型" disabled={busy} onClick={props.onClose}>×</button>}
     </header>
     {!sidebar && <p className={styles.rules}><WarningOutlined aria-hidden="true" /> 应用后保留仍适用的技巧和连线，失效的标记会列在下方。</p>}
-    {templates.beats.length > 0 && <div className={styles.templates} role="region" aria-label={sidebar ? "节奏型模板" : "可滚动的节奏型模板"} tabIndex={sidebar ? undefined : 0}>
+    {templates.beats.length > 0 && <div className={styles.templates} role="region" aria-label={sidebar ? "节奏型模板" : "可滚动的节奏型模板"} tabIndex={0}>
       <div className={styles.sectionHeading}>
-        <strong>拍内模板</strong><span>{templates.signature.numerator}/{templates.signature.denominator}</span>
+        <strong>拍内模板</strong><span>{templates.signatures}</span>
       </div>
       <div className={styles.grid} id={`${templateGroupId}-beat`} role="group" aria-label="拍内模板" data-expanded={expanded.beat}>
         {templates.beats.map((template, index) => <TemplateCard key={template.id} template={template}
@@ -280,10 +311,12 @@ export function RhythmPatternPanel(props: Props) {
       {!!plan?.removedMarks.length && <p className={styles.warning} role="status">应用将移除：{[...new Set(plan.removedMarks.map((mark) => mark.name))].join("、")}。{plan.removedMarks.some((mark) => mark.crossesScope) ? "包含跨出当前范围的连接。" : ""}点击应用一并确认。</p>}
       {message && <p className={stale || blocked ? styles.warning : styles.error} role={stale || blocked ? "status" : "alert"}>{message}</p>}
       <div className={styles.footerLine}>
-        {destination && measureNumber !== undefined && <p className={styles.destination} aria-live="polite">第 {measureNumber + 1} 小节 · {destination} · {preview.templateName}</p>}
+        {destination && <p className={styles.destination} aria-live="polite">{destination} · {preview.templateName}</p>}
         <div className={styles.actions}>
           {!sidebar && <Button disabled={busy} onClick={props.onClose}>取消</Button>}
-          <Button ref={applyButton} type="primary" loading={busy} disabled={busy || blocked || stale || !plan} onClick={() => void apply(shared && !sidebar ? props.onSuccess : undefined)}>{failure ? "重试应用" : "应用节奏型"}</Button>
+          <Tooltip title={canApply ? "按 Enter 应用节奏型" : null} trigger={["hover", "focus"]}>
+            <Button ref={applyButton} data-rhythm-apply type="primary" loading={busy} disabled={!canApply} onClick={applyCurrent}>应用节奏型</Button>
+          </Tooltip>
         </div>
       </div>
     </footer>

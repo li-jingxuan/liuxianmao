@@ -2,16 +2,11 @@ import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createChordCatalogResource } from "../components/EditorShell/chords/chord-catalog-resource";
 
-const catalog = readFileSync(
-  new URL("../public/assets/chords/catalog-2026.11.11.1.json", import.meta.url),
-  "utf8",
-);
+const directory = new URL("../public/assets/chords/", import.meta.url);
 const manifest = JSON.parse(
-  readFileSync(
-    new URL("../public/assets/chords/manifest.json", import.meta.url),
-    "utf8",
-  ),
+  readFileSync(new URL("manifest.json", directory), "utf8"),
 );
+const catalog = readFileSync(new URL(manifest.catalogUrl, directory), "utf8");
 const json = (value: unknown) => new Response(JSON.stringify(value));
 const mockFetch = (
   fn: (url: string, options?: RequestInit) => Response | Promise<Response>,
@@ -91,7 +86,7 @@ describe("shared HTTP chord catalog resource", () => {
     await resource.ensureLoaded();
     expect(fetcher.mock.calls.map((c) => c[0])).toEqual([
       "https://score.example/music/assets/chords/manifest.json",
-      "https://score.example/music/assets/chords/catalog-2026.11.11.1.json",
+      new URL(manifest.catalogUrl, "https://score.example/music/assets/chords/").href,
     ]);
     expect(resource.getSnapshot().status).toBe("ready");
   });
@@ -101,7 +96,7 @@ describe("shared HTTP chord catalog resource", () => {
     "./%2e%2e/elsewhere.json",
     "./catalog-2026.11.11.1.json?secret=1",
     "./catalog-2026.11.11.1.json#hash",
-    "./catalog-2026.11.11.2.json",
+    "./catalog-1900.01.01.1.json",
     "https://user:password@score.example/assets/chords/catalog-2026.11.11.1.json",
     "./catalog-2026.11.11.1.txt",
   ])(
@@ -176,7 +171,7 @@ describe("shared HTTP chord catalog resource", () => {
   );
   it("never publishes a partial, invalid or mismatched catalog", async () => {
     for (const invalid of [
-      { ...JSON.parse(catalog), dataVersion: "2026.11.11.2" },
+      { ...JSON.parse(catalog), dataVersion: "1900.01.01.1" },
       { ...JSON.parse(catalog), items: [] },
     ]) {
       const fetcher = mockFetch((url) =>

@@ -1,6 +1,7 @@
 import {
   findNextNoteOnSameStringInTrack,
   resolveTabCellSelection,
+  sameTechniqueDraft,
   validateTechnique,
   isPureTabContinuationBeat,
   LXMScoreCommandEnum as C,
@@ -9,6 +10,7 @@ import {
   type ILXMTabCellSelection,
   type ILXMTechniqueDraft,
   type ILXMTechniqueType,
+  type ILXMTrack,
   type ILXMScoreCommand,
 } from "@liuxianmao/lxm-editor";
 
@@ -28,7 +30,7 @@ export const findTechniqueNote = (document: ILXMDocument, cell: ILXMTabCellRefer
 type TargetResult =
   | { ok: true; trackId: string; draft: ILXMTechniqueDraft }
   | { ok: false; message: string };
-const fail = (message: string): TargetResult => ({ ok: false, message });
+const fail = (message: string) => ({ ok: false as const, message });
 
 /** All entries share target translation. Core remains the final musical authority. */
 export const resolveTechniqueDraft = (
@@ -93,6 +95,16 @@ export const resolveTechniqueDraft = (
   }
 };
 
+const findChordTraversal = (track: ILXMTrack, beatId: string) =>
+  track.techniques.find((item) =>
+    (item.type === "strum" || item.type === "arpeggio") && item.beatId === beatId);
+
+const removeQuickTechnique = (trackId: string, techniqueId: string) => ({
+  ok: true as const,
+  pressed: true,
+  command: { type: C.RemoveTechnique as const, trackId, techniqueId },
+});
+
 export const resolveQuickTechnique = (
   document: ILXMDocument,
   selection: ILXMTabCellSelection | null,
@@ -100,10 +112,29 @@ export const resolveQuickTechnique = (
 ): { ok: true; command: ILXMScoreCommand; pressed: boolean } | { ok: false; message: string } => {
   const strum = quick === "strumDown" || quick === "strumUp";
   const arpeggio = quick === "arpeggioDown" || quick === "arpeggioUp";
-  const type = quick === "slide" ? "slideUp" : quick === "hammerOn" || quick === "pullOff" || quick === "slideUp" || quick === "slideDown" || quick === "tie"
-    ? quick : strum ? "strum" : "arpeggio";
+  const direction = quick === "strumUp" || quick === "arpeggioUp" ? "up" : "down";
+  if (
+    (strum || arpeggio) && selection &&
+    selection.anchor.beatId === selection.focus.beatId &&
+    selection.anchor.string === selection.focus.string
+  ) {
+    const selected = resolveTabCellSelection(document, selection);
+    if (!selected.ok) return fail(selected.message);
+    const track = document.score.tracks.find((item) => item.id === selected.range.trackId)!;
+    // 单格可以取消该拍现有技巧，新增或更改弦范围仍需显式多弦选择。
+    const existing = findChordTraversal(track, selected.range.beats[0]!.beatId);
+    if (
+      (strum && existing?.type === "strum" && existing.stroke === direction) ||
+      (arpeggio && existing?.type === "arpeggio" &&
+        existing.direction === (direction === "down" ? "ascending" : "descending"))
+    ) {
+      return removeQuickTechnique(track.id, existing.id);
+    }
+    return fail("扫弦和琶音需要在同一 Beat 内选择至少两根弦线。");
+  }
+  const type = strum ? "strum" : arpeggio ? "arpeggio" : quick === "slide" ? "slideUp" : quick;
   const target = resolveTechniqueDraft(document, selection, type, {
-    direction: quick === "strumUp" || quick === "arpeggioUp" ? "up" : "down", semitones: 2, trillFret: 7,
+    direction, semitones: 2, trillFret: 7,
   }, !strum && !arpeggio);
   if (!target.ok) return target;
   const track = document.score.tracks.find((item) => item.id === target.trackId)!;
@@ -117,36 +148,19 @@ export const resolveQuickTechnique = (
       draft.type = to.fret > from.fret ? "slideUp" : "slideDown";
     }
   }
-  const existing = draft.type === "strum" || draft.type === "arpeggio" ? track.techniques.find((item) =>
-    (item.type === "strum" || item.type === "arpeggio") && item.beatId === draft.beatId) : undefined;
-  const duplicate = track.techniques.find((item) => item.type === draft.type &&
-    "fromNoteId" in item && "toNoteId" in item && "fromNoteId" in draft && "toNoteId" in draft &&
-    item.fromNoteId === draft.fromNoteId && item.toNoteId === draft.toNoteId);
-  const validity = validateTechnique(track, draft, existing?.id ?? duplicate?.id);
+  const duplicate = track.techniques.find((item) => sameTechniqueDraft(item, draft));
+  if (duplicate) return removeQuickTechnique(track.id, duplicate.id);
+
+  const existing = draft.type === "strum" || draft.type === "arpeggio"
+    ? findChordTraversal(track, draft.beatId)
+    : undefined;
+  const validity = validateTechnique(track, draft, existing?.id);
   if (!validity.ok) return { ok: false, message: validity.error.message };
   return {
     ok: true,
-    pressed: (draft.type === "strum" && existing?.type === "strum" && existing.stroke === draft.stroke) ||
-      (draft.type === "arpeggio" && existing?.type === "arpeggio" && existing.direction === draft.direction) ||
-      (draft.type === "tie" && !!duplicate),
+    pressed: false,
     command: existing
       ? { type: C.UpdateTechnique, trackId: track.id, techniqueId: existing.id, technique: draft }
       : { type: C.AddTechnique, trackId: track.id, technique: draft },
   };
-};
-
-/** Pressed state reflects the source technique even when the selected range cannot submit. */
-export const currentStrumStroke = (document: ILXMDocument, selection: ILXMTabCellSelection | null): "down" | "up" | null => {
-  return currentChordTechniqueDirection(document, selection, "strum");
-};
-
-/** Low-to-high gestures use an upward arrow for both strumming and arpeggiation. */
-export const currentChordTechniqueDirection = (document: ILXMDocument, selection: ILXMTabCellSelection | null, type: "strum" | "arpeggio"): "down" | "up" | null => {
-  if (!selection) return null;
-  const resolved = resolveTabCellSelection(document, selection);
-  if (!resolved.ok || resolved.range.beats.length !== 1) return null;
-  const technique = document.score.tracks.find((track) => track.id === resolved.range.trackId)?.techniques.find((item) =>
-    item.type === type && "beatId" in item && item.beatId === resolved.range.beats[0]!.beatId);
-  return technique?.type === "strum" ? technique.stroke
-    : technique?.type === "arpeggio" ? technique.direction === "ascending" ? "down" : "up" : null;
 };

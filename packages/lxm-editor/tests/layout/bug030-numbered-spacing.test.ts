@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { applyScoreCommand, buildLayout, EXAMPLE_MVP_7_2_DOCUMENT, hitTestNumbered } from "../../src";
-import { musicTextRequest } from "../../src/layout/music-text/music-text-metrics";
+import { musicTextInkBounds, musicTextRequest } from "../../src/layout/music-text/music-text-metrics";
+
+const glyphClearance = (left: Parameters<typeof musicTextInkBounds>[0], right: typeof left) => {
+  const ink = musicTextInkBounds(left);
+  return musicTextInkBounds(right).x - (ink.x + ink.width);
+};
 
 const fixture = () => {
   const document = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);
@@ -34,7 +39,7 @@ describe("BUG-030 简谱短音符横向间距", () => {
         if (tab) expect(label.x).toBeCloseTo(tab.x);
         if (index > 0) {
           const previous = notes[index - 1]!.labels.find(item => item.fontFamily !== "Bravura")!;
-          expect(label.bounds.x - previous.bounds.x - previous.bounds.width).toBeGreaterThanOrEqual(2);
+          expect(glyphClearance(previous, label)).toBeGreaterThanOrEqual(2);
         }
         expect(hitTestNumbered(layout, {
           x: label.bounds.x + label.bounds.width / 2,
@@ -60,7 +65,7 @@ describe("BUG-030 简谱短音符横向间距", () => {
       expect(labels[3]!.x - labels[0]!.x).toBeLessThanOrEqual(57.6 + 1e-6);
       for (let index = 1; index < labels.length; index++) {
         expect(labels[index]!.x - labels[index - 1]!.x).toBeLessThanOrEqual(19.2 + 1e-6);
-        expect(labels[index]!.bounds.x - labels[index - 1]!.bounds.x - labels[index - 1]!.bounds.width).toBeGreaterThanOrEqual(2);
+        expect(glyphClearance(labels[index - 1]!, labels[index]!)).toBeGreaterThanOrEqual(2);
       }
     }
   });

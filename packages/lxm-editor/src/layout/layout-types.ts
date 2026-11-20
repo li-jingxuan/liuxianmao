@@ -39,6 +39,8 @@ export interface ILXMColumnWidthContributors {
 /** 函数 buildLayout 的可选配置 */
 export interface ILXMLayoutOptions {
   purpose?: ILXMLayoutPurpose;
+  /** 编辑态最后一行留给谱尾操作的逻辑宽度。 */
+  editingTailWidth?: number;
   /** 全局指法图显示偏好；省略时沿用单个和弦的旧 display。 */
   showChordDiagrams?: boolean;
   /** 仅编辑态为目标谱行预留空白文本区域，不进入文档。 */
@@ -46,6 +48,11 @@ export interface ILXMLayoutOptions {
     measureId: string;
     kind: "lyric" | "numbered";
     verse?: number;
+  };
+  /** 同一编辑会话中已打开的空谱行，切换段落页签后继续显示。 */
+  paragraphPlaceholders?: {
+    numberedMeasureId?: string;
+    lyric?: { measureId: string; verse?: number };
   };
   musicTextMetrics?: ILXMMusicTextMetrics;
   x?: number;
@@ -108,9 +115,9 @@ export interface ILXMSystemLayout {
   x: number;
   y: number;
   /**
-   * 当前行的实际绘制宽度，包含固定 TAB 行头。非末行的多小节行铺满 systemWidth；
-   * 单小节行及末行的内容区最多拉伸至固有宽度的 1.6 倍，固定空间不拉伸。
-   * 固有宽度超出行宽时允许更长，避免压缩内容。
+   * 当前行的实际绘制宽度，包含固定 TAB 行头。非末行的多小节行两端对齐。
+   * 单小节行及末行保留紧凑简谱的固有宽度，其他节奏内容最多拉伸至 1.6 倍。
+   * 最小净空超过行宽时，超宽小节可独占一行。
    */
   width: number;
   /** 当前行中最高小节决定的高度。 */

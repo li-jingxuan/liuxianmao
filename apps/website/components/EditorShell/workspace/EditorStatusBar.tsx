@@ -9,11 +9,9 @@ import editorStatusBarStyles from "./EditorStatusBar.module.scss";
 export const EditorStatusBar = ({
   position,
   cellCount,
-  fretDraft,
 }: {
   position: string;
   cellCount: number;
-  fretDraft: string;
 }) => {
   const { drafts } = useEditorRuntime();
   useSyncExternalStore(drafts.subscribe, drafts.getSnapshot, () => 0);
@@ -27,7 +25,6 @@ export const EditorStatusBar = ({
     >
       <span>{position}</span>
       {cellCount > 0 && <Tag>{`已选择 ${cellCount} 格`}</Tag>}
-      {fretDraft && <Tag color="processing">正在输入：{fretDraft}</Tag>}
       {pending.length > 0 && <span>当前输入未应用</span>}
       {composing && <span>输入法输入中</span>}
       {busy && <span>正在处理草稿</span>}

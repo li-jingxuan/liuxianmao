@@ -68,6 +68,28 @@ describe("无占位歌词和简谱编辑", () => {
     expect(layout.systems.at(-1)!.measures.at(-1)!.numberedInputSlots?.length).toBeGreaterThan(0);
   });
 
+  it("简谱和歌词都只有占位时，切换编辑目标保留同一谱行的两个入口", () => {
+    const { document, target } = fixture("numbered");
+    delete document.score.meta.lyricVerseCount;
+    const options = {
+      purpose: "editing",
+      systemWidth: 180,
+      paragraphPlaceholders: {
+        numberedMeasureId: target.measureId,
+        lyric: { measureId: target.measureId, verse: 1 },
+      },
+    } as const;
+    const lyric = buildLayout(document, { ...options, paragraphEditing: { ...target, kind: "lyric" } });
+    const numbered = buildLayout(document, { ...options, paragraphEditing: { ...target, kind: "numbered" } });
+    expect(lyric).toEqual(numbered);
+    expect(lyric.systems[0]!.measures[0]!.numberedInputSlots?.length).toBeGreaterThan(0);
+    expect(lyric.systems[0]!.musicTextCells?.some((cell) => cell.kind === "lyric" && cell.empty)).toBe(true);
+    expect(lyric.systems[1]!.numberedRow).toBeUndefined();
+    expect(lyric.systems[1]!.musicTextCells).toEqual([]);
+    expect(buildLayout(document, { ...options, purpose: "presentation" }))
+      .toEqual(buildLayout(document, { systemWidth: 180 }));
+  });
+
   it("空歌词焦点围绕起音，点击范围变宽也不扩展显示框", () => {
     const { document, target } = fixture();
     const layout = buildLayout(document, {

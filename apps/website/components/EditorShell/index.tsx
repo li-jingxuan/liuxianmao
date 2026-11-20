@@ -13,6 +13,7 @@ import {
   DEFAULT_MOCK_DOCUMENT,
   A4_CONTENT_WIDTH,
   createCollapsedTabCellSelection,
+  getMusicTextRows,
   hitTestLayout,
   hitTestMusicText,
   hitTestTechniqueTarget,
@@ -41,7 +42,8 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import { Button, Dropdown, theme } from "antd";
+import { Button, Dropdown, Tooltip, theme } from "antd";
+import { ShortcutHint } from "./session/EditorShortcutReference";
 import { DownOutlined, MinusOutlined, PlusOutlined } from "@ant-design/icons";
 import {
   selectScoreFileStatus,
@@ -49,7 +51,6 @@ import {
   useEditorStore,
 } from "../../stores/editor-store";
 import {
-  createDeferredFretDraftCommit,
   resolveBeatKindShortcut,
   resolveMutedNoteShortcut,
   resolveTabContinuationShortcut,
@@ -79,10 +80,7 @@ import {
 import styles from "./index.module.scss";
 import editorFormStyles from "./shared/editor-form.module.scss";
 import scoreInteractionStyles from "./score/score-interaction.module.scss";
-import {
-  useEditorDraftRecords,
-  useEditorRuntime,
-} from "./session/EditorSessionRuntime";
+import { useEditorRuntime } from "./session/EditorSessionRuntime";
 import {
   captureEditorVersion,
   sameEditorSession,
@@ -98,7 +96,7 @@ import {
 import { buildEditorToolCommand } from "./tools/editor-tool-actions";
 import { resolveEditorRhythmTarget } from "./tools/editor-rhythm-target";
 import { isNumberedTieTarget, resolveEditorTieTarget } from "./tools/editor-tie-target";
-import { rhythmPatternScopeRect } from "./tools/rhythm-pattern-scope-layout";
+import { rhythmPatternScopeRects } from "./tools/rhythm-pattern-scope-layout";
 import { RhythmPatternProvider } from "./tools/RhythmPatternPanel";
 import { resolveEditorRhythmPatternTarget } from "./tools/editor-rhythm-pattern-target";
 import {
@@ -107,8 +105,9 @@ import {
   tabToolTargetReason,
 } from "./tools/editor-tool-guard";
 
-/** 两位品位输入等待第二个数字的时间，超时后提交一位品位。 */
-const FRET_DRAFT_TIMEOUT_MS = 600;
+/** 在同一选区内，把紧接的两个数字合成一个品位。 */
+const FRET_DIGIT_INTERVAL_MS = 600;
+const SCORE_TAIL_BUTTON_WIDTH = 36;
 
 /** 编辑、图片导出和打印统一使用固定的默认排版密度。 */
 const density = "compact";
@@ -180,9 +179,9 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
   const loadNotice = useEditorStore((state) => state.loadNotice);
   const executeInStore = useEditorStore((state) => state.execute);
   /** 公共结构确认绑定真实会话快照，不在第一次失败后写任何历史。 */
-  const execute = (command: ILXMScoreCommand) => {
+  const execute = (command: ILXMScoreCommand, replaceFretEntryId?: string) => {
     const snapshot = session.getState();
-    const result = executeInStore(command);
+    const result = executeInStore(command, replaceFretEntryId);
     if (
       result &&
       !result.ok &&
@@ -242,7 +241,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
   const editorRootRef = useRef<HTMLDivElement>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
   const { width: hostWidth, mode: layoutMode } =
-    useEditorHostWidth(editorRootRef);
+    useEditorHostWidth(editorRootRef, !!document);
   const narrowPanels = layoutMode === "compact" || layoutMode === "narrow";
   const [historyOpen, setHistoryOpen] = useState(false);
   const historyTriggerRef = useRef<HTMLButtonElement>(null);
@@ -361,6 +360,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
   useWorkspaceOverlays({
     rootRef: editorRootRef,
     workspaceRef,
+    hasDocument: !!document,
     panel: narrowPanels
       ? historyOpen
         ? "history"
@@ -468,6 +468,25 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
   const [rhythmPatternScope, setRhythmPatternScope] = useState<RhythmPatternTarget | null>(null);
   const [paragraphEditingSession, setParagraphEditingSession] =
     useState<ILXMLayoutOptions["paragraphEditing"] | null>(null);
+  const [paragraphPlaceholders, setParagraphPlaceholders] = useState<
+    NonNullable<ILXMLayoutOptions["paragraphPlaceholders"]>
+  >({});
+  const updateParagraphEditing = useCallback((editing: typeof paragraphEditingSession) => {
+    setParagraphEditingSession(editing);
+    if (!editing) return;
+    const current = session.getState().document;
+    if (!current) return;
+    const rows = getMusicTextRows(current);
+    if (editing.kind === "numbered" ? rows.numbered : rows.lyricVerses > 0) return;
+    setParagraphPlaceholders((previous) => {
+      const { measureId, kind, verse } = editing;
+      if (kind === "numbered")
+        return previous.numberedMeasureId === measureId
+          ? previous : { ...previous, numberedMeasureId: measureId };
+      return previous.lyric?.measureId === measureId && previous.lyric.verse === verse
+        ? previous : { ...previous, lyric: { measureId, verse } };
+    });
+  }, [session]);
   const rangeDragRef = useRef<MusicTextRange | null>(null);
   const pendingTextClickRef = useRef<MusicTextTarget | null>(null);
   useLayoutEffect(() => {
@@ -493,27 +512,24 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     showChordDiagrams,
   );
 
-  /** 品位草稿是瞬时输入状态，不进入 document 或历史。 */
-  const [fretDraft, setFretDraft] = useState("");
-  const deferredFretDraftCommit = useMemo(
-    () => createDeferredFretDraftCommit(FRET_DRAFT_TIMEOUT_MS),
-    [],
-  );
-  /** 同步取消旧会话计时器，覆盖替换完成到 React 重挂载之间的短暂窗口。 */
-  useEffect(
-    () =>
-      session.subscribe((state, previous) => {
-        if (state.sessionVersion !== previous.sessionVersion)
-          deferredFretDraftCommit.cancel();
-      }),
-    [session, deferredFretDraftCommit],
-  );
+  /** 只记住已写入谱面的 1 或 2，第二键按下时才比较时间。 */
+  const fretPrefix = useRef<{
+    digit: number;
+    timeStamp: number;
+    selection: ILXMTabCellSelection;
+    stateVersion: number;
+    historyEntryId?: string;
+  } | null>(null);
+  const endFretInput = useCallback(() => { fretPrefix.current = null; }, []);
   /** drag anchor 用 ref 保存，避免 pointermove 读取到尚未提交的 React/store 状态。 */
   const dragAnchorRef = useRef<ILXMTabCellReference | null>(null);
   const activePointerIdRef = useRef<number | null>(null);
   const focusCaretRef = useRef<SVGRectElement | null>(null);
+  const [tabHint, setTabHint] = useState<ILXMTabCellReference | null>(null);
+  const [scoreKeyboardFocus, setScoreKeyboardFocus] = useState(false);
   const rangeFocusRef = useRef<SVGRectElement | null>(null);
   const scoreSvgRef = useRef<SVGSVGElement | null>(null);
+  const appendingMeasure = useRef(false);
   const imageExportButtonRef = useRef<HTMLButtonElement | null>(null);
 
   /** document 变化后重新生成 system、命中索引和所有 SVG 几何数据。 */
@@ -522,12 +538,14 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
 
     return buildLayout(document, {
       purpose: "editing",
+      editingTailWidth: SCORE_TAIL_BUTTON_WIDTH,
       x: 0,
       y: 0,
       systemWidth: A4_CONTENT_WIDTH,
       density,
       musicTextMetrics,
       showChordDiagrams,
+      paragraphPlaceholders,
       paragraphEditing:
         continuousRange ? { ...continuousRange.focus, kind: continuousRange.kind, verse: continuousRange.verse } :
         activeMusicTextTarget?.kind === "lyric" ||
@@ -535,11 +553,11 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
           ? { ...activeMusicTextTarget, kind: activeMusicTextTarget.kind }
           : paragraphEditingSession ?? undefined,
     });
-  }, [document, musicTextMetrics, showChordDiagrams, activeMusicTextTarget, continuousRange, paragraphEditingSession]);
+  }, [document, musicTextMetrics, showChordDiagrams, activeMusicTextTarget, continuousRange, paragraphEditingSession, paragraphPlaceholders]);
   const rangeRects = useMemo(() => document && lxmLayout && continuousRange
     ? musicTextRangeRects(document, lxmLayout, continuousRange) : [], [document, lxmLayout, continuousRange]);
-  const rhythmPatternRect = useMemo(() => lxmLayout && rhythmPatternScope
-    ? rhythmPatternScopeRect(lxmLayout, rhythmPatternScope) : null, [lxmLayout, rhythmPatternScope]);
+  const rhythmPatternRects = useMemo(() => lxmLayout && rhythmPatternScope
+    ? rhythmPatternScopeRects(lxmLayout, rhythmPatternScope) : [], [lxmLayout, rhythmPatternScope]);
 
   const onScoreGeometryChange = useCallback(() => {
     const svg = scoreSvgRef.current;
@@ -750,6 +768,17 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
         : null,
     [lxmLayout, selection],
   );
+  const tabFocus = !activeMusicTextTarget && !selectedTechniqueId && focusCaret && selection ? selection.focus : null;
+  const hoveredCell = hoveredTabCell?.layout === lxmLayout ? hoveredTabCell?.target : null;
+  const selectedCellHovered = !!tabFocus && hoveredCell?.trackId === tabFocus.trackId &&
+    hoveredCell.measureId === tabFocus.measureId && hoveredCell.beatId === tabFocus.beatId && hoveredCell.string === tabFocus.string;
+  const tabHintTarget = tabFocus && (selectedCellHovered || scoreKeyboardFocus) && !activeModal ? tabFocus : null;
+  const tabHintOpen = !!tabHintTarget && tabHint === tabHintTarget;
+  useEffect(() => {
+    if (!tabHintTarget) return;
+    const timer = window.setTimeout(() => setTabHint(tabHintTarget), 300);
+    return () => window.clearTimeout(timer);
+  }, [tabHintTarget]);
 
   /**
    * 小节线工具跟随 selection.focus，而不是范围的第一个 Beat。
@@ -773,12 +802,6 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
       isLastMeasure: measureIndex === track.measures.length - 1,
     };
   }, [document, selection]);
-
-  /** 组件卸载时取消延迟提交，避免异步回调写入已卸载组件。 */
-  useEffect(
-    () => () => deferredFretDraftCommit.cancel(),
-    [deferredFretDraftCommit],
-  );
 
   /** 只滚动谱面视口，文本编辑期间也能跟随目标；不会滚动侧栏输入区。 */
   useEffect(() => {
@@ -875,21 +898,16 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     rangeRects,
   ]);
 
-  /** 清理当前品位草稿和对应的延时提交。 */
-  const clearFretDraft = useCallback(() => {
-    deferredFretDraftCommit.cancel();
-    setFretDraft("");
-  }, [deferredFretDraftCommit]);
-
-  /** 所有立即生效的编辑动作都先使等待中的品位草稿失效。 */
+  /** 其他谱面快捷键结束当前的连续数字输入。 */
   const runImmediateEditorAction = (action: () => void): void => {
     if (musicTextController.current?.isTransitionBlocked()) return;
-    clearFretDraft();
+    endFretInput();
     action();
   };
 
   /** 将品位或弦格标记作为一条原子矩形命令提交，选区只产生一条历史。 */
-  const setSelectedNotes = (fret: ILXMFret) => {
+  const setSelectedNotes = (fret: ILXMFret, replaceFretEntryId?: string) => {
+    const { selection } = session.getState();
     if (!selection) {
       setErrorMessage("请先选择谱面中的 TAB 单元格，再输入品位或标记。");
       return;
@@ -900,7 +918,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
       } });
       return;
     }
-    execute({
+    return execute({
       type: LXMScoreCommandEnum.SetNotesInRect,
       range: {
         trackId: selection.anchor.trackId,
@@ -916,7 +934,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
         },
       },
       fret,
-    });
+    }, replaceFretEntryId);
   };
 
   /** 删除按当前对象分发：技巧只删自身，普通 TAB 选区使用一条批量音符命令。 */
@@ -954,67 +972,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     });
   };
 
-  /** 将草稿转换为品位；两位数字最终仍只提交一次命令。 */
-  const commitFretDraft = (draft: string) => {
-    clearFretDraft();
-    if (draft.length === 0) return;
-    const fret = Number(draft);
-    if (!Number.isInteger(fret) || fret < 0 || fret > 24) {
-      setErrorMessage("品位必须在 0 到 24 之间。");
-      return;
-    }
-    setSelectedNotes(fret);
-  };
-
-  const fretDraftLocation = (() => {
-    if (!selection || !document) return undefined;
-    const track = document.score.tracks.find(
-      (item) => item.id === selection.focus.trackId,
-    );
-    const measureIndex =
-      track?.measures.findIndex(
-        (item) => item.id === selection.focus.measureId,
-      ) ?? -1;
-    if (!track || measureIndex < 0) return undefined;
-    const beatIndex = track.measures[measureIndex]!.beats.findIndex(
-      (beat) => beat.id === selection.focus.beatId,
-    );
-    return [
-      `第 ${measureIndex + 1} 小节`,
-      ...(beatIndex >= 0 ? [`第 ${beatIndex + 1} 拍`] : []),
-      `第 ${selection.focus.string} 弦`,
-    ].join(" · ");
-  })();
-  useEditorDraftRecords(
-    fretDraft && selection
-      ? [
-          {
-            id: `fret:${selection.focus.trackId}/${selection.focus.measureId}/${selection.focus.beatId}/${selection.focus.string}`,
-            kind: "fret",
-            targetKey: `${selection.focus.trackId}/${selection.focus.measureId}/${selection.focus.beatId}/${selection.focus.string}`,
-            label: `品位输入 ${fretDraft}`,
-            location: fretDraftLocation,
-            dirty: true,
-            composing: false,
-            canApply: false,
-            error: null,
-            version: captureEditorVersion(session.getState()),
-            focus: () => {
-              focusScore();
-              return true;
-            },
-            // 品位继续使用既有 600ms 提交器，协调器不另建一条提交路径。
-            apply: () => "blocked",
-            discard: () => {
-              clearFretDraft();
-              return true;
-            },
-          },
-        ]
-      : [],
-  );
-
-  const hasFileInput = () => !!fretDraft || !!musicTextController.current?.isOutputBlocked();
+  const hasFileInput = () => !!musicTextController.current?.isOutputBlocked();
   const isOutputBlocked = () => !!imageExportSnapshot || modals.isOpen() || drafts.isOutputBlocked() || hasFileInput();
   const showOutputBlocked = (trigger: HTMLElement | null) => {
     if (modals.isOpen() || imageExportSnapshot) setErrorMessage("请先完成当前弹层操作。");
@@ -1063,7 +1021,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
 
   /** 接受对象切换后清理旧输入与 pointer capture，文字激活和 beat 选择共用。 */
   const clearScoreInteraction = () => {
-    clearFretDraft();
+    endFretInput();
     clearHover();
     const svg = scoreSvgRef.current;
     const pointerId = activePointerIdRef.current;
@@ -1258,6 +1216,21 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     else if (continuousRange) focusScore();
   };
 
+  const handleMusicTextNavigation: React.KeyboardEventHandler<HTMLDivElement> = (event) => {
+    if (event.defaultPrevented || !event.altKey || event.ctrlKey || event.metaKey || event.shiftKey ||
+      (event.key !== "ArrowLeft" && event.key !== "ArrowRight") ||
+      event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229 || modals.isOpen()) return;
+    const handled = musicTextController.current?.moveEditTarget(
+      event.key === "ArrowLeft" ? -1 : 1,
+      event.target,
+      event.target === scoreSvgRef.current,
+    );
+    if (handled) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  };
+
   /** 编辑器级历史快捷键在 SVG 或 Toolbar 持有焦点时都生效。 */
   const handleEditorKeyDown: React.KeyboardEventHandler<HTMLDivElement> = (
     event,
@@ -1289,6 +1262,13 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
       event.nativeEvent.isComposing
     )
       return;
+    if (event.key === "Escape" && tabHintOpen) {
+      endFretInput();
+      setTabHint(null);
+      event.preventDefault();
+      return;
+    }
+    setTabHint(null);
     if (document && (continuousRange || event.shiftKey && activeMusicTextTarget && rangeFromTarget(activeMusicTextTarget))) {
       const range = continuousRange ?? rangeFromTarget(activeMusicTextTarget!)!;
       if (event.metaKey || event.ctrlKey || event.altKey) return;
@@ -1333,7 +1313,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
       const result = navigateTabCellSelection(document, selection, direction, event.shiftKey);
       if (result.ok && result.changed) {
         event.preventDefault();
-        if (musicTextController.current?.select(result.selection) === "accepted") clearFretDraft();
+        musicTextController.current?.select(result.selection);
       }
       return;
     }
@@ -1358,18 +1338,16 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
       );
       if (result.ok && result.changed) {
         event.preventDefault();
-        clearFretDraft();
         musicTextController.current?.select(result.selection);
       } else if (!result.ok) setErrorMessage(result.message);
       return;
     }
 
     if (event.key === "Escape") {
-      if (!selection && !fretDraft) return;
+      if (!selection) return;
       event.preventDefault();
-      clearFretDraft();
-      if (selection)
-        setSelection(createCollapsedTabCellSelection(selection.focus));
+      endFretInput();
+      setSelection(createCollapsedTabCellSelection(selection.focus));
       setErrorMessage(null);
       return;
     }
@@ -1394,31 +1372,35 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     if (event.key === "Backspace" || event.key === "Delete") {
       if (!selection && !selectedTechniqueId) return;
       event.preventDefault();
-      clearFretDraft();
+      endFretInput();
       void removeScoreSelection();
       return;
     }
     if (!/^\d$/.test(event.key)) return;
 
     event.preventDefault();
-    if (!selection) {
-      setErrorMessage("请先选择谱面中的 TAB 单元格，再输入品位。");
-      return;
-    }
-    const nextDraft = `${fretDraft}${event.key}`;
-    if (nextDraft.length > 2 || Number(nextDraft) > 24) {
-      clearFretDraft();
+    if (event.repeat) return;
+    const current = session.getState();
+    const previous = fretPrefix.current;
+    endFretInput();
+    const prefix = previous && previous.selection === current.selection &&
+      previous.stateVersion === current.stateVersion &&
+      event.timeStamp - previous.timeStamp <= FRET_DIGIT_INTERVAL_MS ? previous : null;
+    const digit = Number(event.key);
+    const fret = prefix ? 10 * prefix.digit + digit : digit;
+    if (fret > 24) {
       setErrorMessage("品位必须在 0 到 24 之间。");
       return;
     }
-
-    setFretDraft(nextDraft);
-    // 0 或 3–9 不可能成为合法两位品位前缀；1、2 等待第二位数字。
-    if (nextDraft.length === 2 || event.key === "0" || Number(event.key) >= 3) {
-      commitFretDraft(nextDraft);
-      return;
+    const result = setSelectedNotes(fret, prefix?.historyEntryId);
+    if (!prefix && (digit === 1 || digit === 2) && result?.ok && current.selection) {
+      const next = session.getState();
+      if (next.document === result.document && next.selection === current.selection)
+        fretPrefix.current = {
+          digit, timeStamp: event.timeStamp, selection: current.selection, stateVersion: next.stateVersion,
+          historyEntryId: result.changed ? next.historyView.currentEntryId ?? undefined : undefined,
+        };
     }
-    deferredFretDraftCommit.schedule(nextDraft, commitFretDraft);
   };
 
   /** 点击 SVG 外的 A4 空白或灰色工作区时清空临时选区。 */
@@ -1442,25 +1424,79 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     musicTextController.current?.select(null);
   };
 
+  const editorVariables = {
+    "--panel": token.colorBgContainer,
+    "--panel-muted": token.colorBgLayout,
+    "--background": token.colorBgLayout,
+    "--foreground": token.colorText,
+    "--muted": token.colorTextSecondary,
+    "--border": token.colorBorderSecondary,
+    "--border-strong": token.colorBorder,
+    "--accent": token.colorPrimary,
+    "--accent-soft": token.colorPrimaryBg,
+  };
+  const editorHeader = <EditorHeader
+    title={document?.score.title ?? ""}
+    status={fileStatus}
+    empty={!document || !lxmLayout}
+    onNavigate={requestNavigation}
+    onShortcuts={(trigger, fromKeyboard) => {
+      if (imageExportSnapshot || fileFlow.panel) return;
+      modals.open({
+        kind: "shortcuts",
+        title: "快捷键",
+        message: "",
+        focusSearch: fromKeyboard || !window.matchMedia("(pointer: coarse)").matches,
+        restoreFocus: () => {
+          // 等工作区的浮层协调器解除背景 inert，再恢复入口焦点。
+          requestAnimationFrame(() => requestAnimationFrame(() => {
+            if (!modals.isOpen()) trigger.focus({ preventScroll: true });
+          }));
+        },
+      });
+    }}
+    onFileAction={(action, trigger) => {
+      if (action !== "home") fileFlow.showPanel(action, trigger);
+      else if (requestNavigation("/", trigger)) navigateTo("/");
+    }}
+    exportButtonRef={imageExportButtonRef}
+    onExportAction={(mode, trigger) => {
+      if (mode === "json") {
+        fileFlow.showPanel(mode, trigger);
+        return;
+      }
+      if (isOutputBlocked()) {
+        showOutputBlocked(trigger);
+        return;
+      }
+      const state = session.getState();
+      if (!state.document) return;
+      setImageExportSnapshot({ mode, version: captureEditorVersion(state), document: state.document, density, showChordDiagrams });
+    }}
+  />;
+
   if (!document || !lxmLayout)
     return (
-      <div className={styles.editorControls}>
-        <Button onClick={(event) => fileFlow.showPanel("new", event.currentTarget)}>新建曲谱</Button>
-        <Button onClick={(event) => fileFlow.showPanel("import", event.currentTarget)}>导入曲谱</Button>
+      <div ref={editorRootRef} className={styles.editor} data-editor-shell data-layout={layoutMode} style={editorVariables as React.CSSProperties}>
+        {editorHeader}
+        <div ref={workspaceRef} className={styles.emptyWorkspace}>
+          <p className={editorFormStyles.errorMessage} role="alert">{errorMessage ?? "当前没有可编辑的乐谱文档。"}</p>
+          <div>
+            <Button type="primary" onClick={(event) => fileFlow.showPanel("new", event.currentTarget)}>新建曲谱</Button>
+            <Button onClick={(event) => fileFlow.showPanel("import", event.currentTarget)}>导入曲谱</Button>
+          </div>
+        </div>
         <ScoreFilePanels flow={fileFlow} session={session} document={document} />
-        <p className={editorFormStyles.errorMessage} role="alert">
-          {errorMessage ?? "当前没有可编辑的乐谱文档。"}
-        </p>
       </div>
     );
 
-  /** 所有工具提交都先清计时草稿并核对属性保护；粘贴允许自己的 Modal。 */
+  /** 工具提交前核对属性保护；粘贴允许自己的 Modal。 */
   const executeTool: EditorCommandAdapter = async (
     command,
     impact = "modal",
     submission,
   ) => {
-    clearFretDraft();
+    endFretInput();
     const reason = editorToolSubmissionReason(
       session.getState(),
       activeMusicTextTargetRef.current,
@@ -1489,12 +1525,46 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
       return { status: "blocked", message: "请先完成当前弹层操作。" };
     return toolExecute(command, impact, submission);
   };
+
+  const appendMeasure = async () => {
+    if (appendingMeasure.current) return;
+    const track = session.getState().document?.score.tracks[0];
+    const lastMeasure = track?.measures.at(-1);
+    if (!track || !lastMeasure) return;
+
+    appendingMeasure.current = true;
+    try {
+      const result = await executeTool({
+        type: LXMScoreCommandEnum.InsertMeasure,
+        trackId: track.id,
+        afterMeasureId: lastMeasure.id,
+      });
+      if (result.status !== "applied") {
+        if ("message" in result) setErrorMessage(result.message);
+        return;
+      }
+      const state = session.getState();
+      if (state.document !== result.result.document) return;
+      const inserted = state.document.score.tracks[0]?.measures.at(-1);
+      const firstBeat = inserted?.beats[0];
+      if (!inserted || !firstBeat) return;
+      state.setSelectedNumberedMarkId(null);
+      musicTextController.current?.select(createCollapsedTabCellSelection({
+        trackId: track.id,
+        measureId: inserted.id,
+        beatId: firstBeat.id,
+        string: 1,
+      }));
+    } finally {
+      appendingMeasure.current = false;
+    }
+  };
   /** 菜单/详情共享最新目标和最终确认结果，不捕获旧 render 的音乐对象。 */
   const handleToolbarAction = async (
     action: EditorToolbarAction,
   ): Promise<boolean> => {
     if (modals.isOpen()) return false;
-    clearFretDraft();
+    endFretInput();
     if (action.type === "undo" || action.type === "redo") {
       if (
         musicTextController.current?.isTransitionBlocked() ||
@@ -1600,27 +1670,16 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     });
     return result.status === "applied" || result.status === "noop";
   };
-  const editorVariables = {
-    "--panel": token.colorBgContainer,
-    "--panel-muted": token.colorBgLayout,
-    "--background": token.colorBgLayout,
-    "--foreground": token.colorText,
-    "--muted": token.colorTextSecondary,
-    "--border": token.colorBorderSecondary,
-    "--border-strong": token.colorBorder,
-    "--accent": token.colorPrimary,
-    "--accent-soft": token.colorPrimaryBg,
-  };
   const currentPosition = deriveSidebarContext({
     document,
     selection,
     numberedSelection,
   });
-  const rhythmTarget = resolveEditorRhythmPatternTarget(document, selection, continuousRange, activeMusicTextTarget);
+  const rhythmTarget = resolveEditorRhythmPatternTarget(document, selection, continuousRange, activeMusicTextTarget, numberedSelection);
   const getRhythmTarget = () => {
     const now = session.getState();
     return now.document
-      ? resolveEditorRhythmPatternTarget(now.document, now.selection, continuousRangeRef.current, activeMusicTextTargetRef.current)
+      ? resolveEditorRhythmPatternTarget(now.document, now.selection, continuousRangeRef.current, activeMusicTextTargetRef.current, now.numberedSelection)
       : { ok: false as const, message: "当前没有可编辑的乐谱。" };
   };
   const getRhythmBlocked = () => {
@@ -1630,6 +1689,12 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
         ? musicTextController.current?.isNumberedActionBlocked()
         : musicTextController.current?.isOutputBlocked());
   };
+  const tailMeasure = lxmLayout.systems.at(-1)?.measures.at(-1);
+  const tailTop = tailMeasure?.strings[0];
+  const tailBottom = tailMeasure?.strings.at(-1);
+  const scoreExceedsPaper = lxmLayout.systems.some((system) =>
+    Math.max(system.width, system.visualBounds?.width ?? 0) > A4_CONTENT_WIDTH + 1,
+  );
 
   return (
     <RhythmPatternProvider
@@ -1644,11 +1709,14 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
           continuousRange: continuousRangeRef.current, activeTarget: activeMusicTextTargetRef.current });
       }}
       execute={executeTool}
-      beforeAction={() => { clearFretDraft(); musicTextController.current?.dismissCleanPopover(); }}
+      beforeAction={() => { endFretInput(); musicTextController.current?.dismissCleanPopover(); }}
       blocked={!!activeModal || drafts.inspect().busy || drafts.inspect().pending.length > 0 ||
         (rhythmTarget.ok && rhythmTarget.target.layer === "numbered" ? numberedActionBlocked : musicTextEditing)}
       getBlocked={getRhythmBlocked}
-      onSuccess={focusScore}
+      onSuccess={(scope) => {
+        if (scope.endMeasureId && scope.layer === "numbered" && session.getState().numberedSelection) setContinuousRange(null);
+        focusScore();
+      }}
       onScopeChange={setRhythmPatternScope}
       onBusyChange={() => {}}
     >
@@ -1664,37 +1732,10 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
           color: token.colorText,
         } as React.CSSProperties
       }
+      onKeyDownCapture={handleMusicTextNavigation}
       onKeyDown={handleEditorKeyDown}
     >
-      <EditorHeader
-        title={document.score.title}
-        status={fileStatus}
-        onNavigate={requestNavigation}
-        onFileAction={(action, trigger) => {
-          if (action !== "home") fileFlow.showPanel(action, trigger);
-          else if (requestNavigation("/", trigger)) navigateTo("/");
-        }}
-        exportButtonRef={imageExportButtonRef}
-        onExportAction={(mode, trigger) => {
-          if (mode === "json") {
-            fileFlow.showPanel(mode, trigger);
-            return;
-          }
-          if (isOutputBlocked()) {
-            showOutputBlocked(trigger);
-            return;
-          }
-          const state = session.getState();
-          if (!state.document) return;
-          setImageExportSnapshot({
-            mode,
-            version: captureEditorVersion(state),
-            document: state.document,
-            density,
-            showChordDiagrams,
-          });
-        }}
-      />
+      {editorHeader}
       <ScoreFilePanels flow={fileFlow} session={session} document={document} />
       <EditorToolbar
         continuousRange={continuousRange}
@@ -1717,7 +1758,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
         chordEntryBlocked={chordEntryBlocked}
         onOpenChord={(target) => musicTextController.current?.open(target)}
         onAction={handleToolbarAction}
-        beforeAction={clearFretDraft}
+        beforeAction={endFretInput}
         beforeRhythmPatternAction={() => { musicTextController.current?.dismissCleanPopover(); }}
         execute={executeTool}
         onNavigate={(destination) =>
@@ -1727,7 +1768,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
       <div className={styles.editorControls}>
         {fileFlow.notice && <p role="status">{fileFlow.notice}</p>}
         {loadNotice && <p role="status">{loadNotice}</p>}
-        {lxmLayout.width > A4_CONTENT_WIDTH + 1 && (
+        {scoreExceedsPaper && (
           <p role="status">
             当前谱面超过 A4 内容宽度，可横向滚动；请调整内容后再导出 A4 图片。
           </p>
@@ -1785,7 +1826,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
           data-score-viewport
           onPointerDownCapture={() => setRhythmPatternScope(null)}
           onPointerDown={handleWorkspacePointerDown}
-          onScroll={clearHover}
+          onScroll={() => { setTabHint(null); clearHover(); }}
         >
           <div
             className={scoreInteractionStyles.scoreStage}
@@ -1810,10 +1851,16 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
                 aria-label="六线谱编辑器"
                 onPointerDown={handlePointerDown}
                 onPointerMove={handlePointerMove}
-                onPointerLeave={clearHover}
+                onPointerLeave={() => { setTabHint(null); clearHover(); }}
+                onFocus={(event) => setScoreKeyboardFocus(event.target === event.currentTarget && event.currentTarget.matches(":focus-visible"))}
+                onBlur={() => { endFretInput(); setTabHint(null); setScoreKeyboardFocus(false); }}
                 onPointerUp={finishPointerDrag}
                 onPointerCancel={finishPointerDrag}
-                onKeyDown={(event) => { setRhythmPatternScope(null); handleScoreKeyDown(event); }}
+                onKeyDown={(event) => {
+                  if (event.target !== event.currentTarget) return;
+                  setRhythmPatternScope(null);
+                  handleScoreKeyDown(event);
+                }}
               >
                 <MusicTextEditingHints
                   layout={lxmLayout}
@@ -1823,10 +1870,11 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
                 />
                 {/* 选区层位于音乐元素下方，且永不参与指针命中。 */}
                 <g className={scoreInteractionStyles.selectionLayer} pointerEvents="none">
-                  {rhythmPatternRect && <rect data-rhythm-pattern-scope
+                  {rhythmPatternRects.map(({ measureId, ...rect }) => <rect key={measureId} data-rhythm-pattern-scope
+                    data-rhythm-pattern-measure={measureId}
                     data-rhythm-pattern-layer={rhythmPatternScope?.layer}
-                    {...rhythmPatternRect} rx={3} fill="#e6f4ff" fillOpacity={0.65}
-                    stroke="#69b1ff" strokeDasharray="4 3" />}
+                    {...rect} rx={3} fill="#e6f4ff" fillOpacity={0.65}
+                    stroke="#69b1ff" strokeDasharray="4 3" />)}
                   {rangeRects.map((rect) => <rect key={rect.key} ref={rect.focused ? rangeFocusRef : undefined} data-music-text-range-cell={rect.key} data-range-focus={rect.focused || undefined}
                     x={rect.x} y={rect.y} width={rect.width} height={rect.height} rx={3}
                     fill={rect.focused ? "#dce7ff" : "#edf3ff"} fillOpacity={0.72}
@@ -1871,6 +1919,8 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
                       />
                     ))}
                   {focusCaret && !lyricFocus && (
+                    <Tooltip title={<ShortcutHint shortcuts={["fret", "muted", "sustain", "remove"]} />}
+                      placement="bottom" trigger={[]} open={tabHintOpen}>
                     <rect
                       ref={focusCaretRef}
                       className={
@@ -1883,6 +1933,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
                       width={focusCaret.width}
                       height={focusCaret.height}
                     />
+                    </Tooltip>
                   )}
                 </g>
                 {lyricFocus && (
@@ -1918,6 +1969,36 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
                   layout={lxmLayout}
                   activeMeasureId={continuousRange?.focus.measureId ?? activeMusicTextTarget?.measureId ?? numberedSelection?.measureId ?? selection?.focus.measureId}
                 />
+                {tailTop && tailBottom && (
+                  <foreignObject
+                    className={scoreInteractionStyles.scoreTail}
+                    x={tailTop.x2}
+                    y={tailTop.y1}
+                    width={SCORE_TAIL_BUTTON_WIDTH}
+                    height={tailBottom.y1 - tailTop.y1}
+                    onPointerDown={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                    }}
+                    onKeyDown={(event) => {
+                      if ((event.key === "Enter" || event.key === " ") &&
+                        (event.repeat || event.nativeEvent.isComposing || event.keyCode === 229))
+                        event.preventDefault();
+                    }}
+                  >
+                    <Tooltip title="在曲末新增小节" trigger={["hover", "focus"]}>
+                      <button
+                        type="button"
+                        className={scoreInteractionStyles.scoreTailButton}
+                        aria-label="在曲末新增小节"
+                        data-score-tail-insert
+                        onClick={() => void appendMeasure()}
+                      >
+                        <span aria-hidden="true">+</span>
+                      </button>
+                    </Tooltip>
+                  </foreignObject>
+                )}
               </svg>
             </main>
           </div>
@@ -1967,6 +2048,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
         </div>
         <MusicTextSidebar
           continuousRange={continuousRange}
+          paragraphPlaceholders={paragraphPlaceholders}
           onRangeChange={setContinuousRange}
           showChordDiagrams={showChordDiagrams}
           onShowChordDiagramsChange={setShowChordDiagrams}
@@ -1987,7 +2069,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
           onNumberedActionBlockedChange={setNumberedActionBlocked}
           onTransitionBlockedChange={setChordEntryBlocked}
           onTargetChange={setActiveMusicTextTarget}
-          onParagraphEditingChange={setParagraphEditingSession}
+          onParagraphEditingChange={updateParagraphEditing}
           onScoreFocus={focusScore}
           onPopoverHiddenChange={setMusicTextPopoverHidden}
           onScoreSelection={acceptScoreSelection}
@@ -2022,7 +2104,6 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
               : "请在谱面选择编辑位置。"
         }
         cellCount={resolvedSelection?.cellCount ?? 0}
-        fretDraft={fretDraft}
       />
       <ScorePrintLayer
         score={document}

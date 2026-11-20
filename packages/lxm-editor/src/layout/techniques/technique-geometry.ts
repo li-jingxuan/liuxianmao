@@ -1,10 +1,14 @@
 /** 技巧几何的包围框与平移工具；不读取 DOM，不重新生成技巧模板。 */
+import { GUITAR_STRING_COUNT } from "../../core/constants";
+import type { ILXMTechnique } from "../../core/types";
 import {
   LXM_FRET_TEXT_BASELINE_OFFSET_Y,
   LXM_FRET_TEXT_FONT_SIZE,
   LXM_FRET_TEXT_HALO_WIDTH,
   LXM_NATURAL_HARMONIC_TEXT_FONT_SIZE,
+  LXM_STRING_SPACING,
   LXM_TECHNIQUE_ARROW_HEIGHT,
+  LXM_TECHNIQUE_ARROW_OFFSET_Y,
   LXM_TECHNIQUE_ARROW_WIDTH,
   LXM_TECHNIQUE_COLLISION_PADDING,
   LXM_TECHNIQUE_CURVE_LABEL_GAP,
@@ -21,6 +25,35 @@ import type {
 } from "../layout-types";
 
 type Rect = ILXMTechniqueSegmentLayout["bounds"];
+
+type ChordTraversal = Extract<ILXMTechnique, { type: "strum" | "arpeggio" }>;
+
+export const hasChordTraversalRange = (
+  technique: ILXMTechnique,
+): technique is ChordTraversal =>
+  (technique.type === "strum" || technique.type === "arpeggio") &&
+  Number.isInteger(technique.minString) &&
+  Number.isInteger(technique.maxString) &&
+  technique.minString >= 1 &&
+  technique.maxString <= GUITAR_STRING_COUNT &&
+  technique.minString < technique.maxString;
+
+/** 符干起点需要避开最低技巧弦线，以及向下伸出的琶音箭头。 */
+export const getChordTraversalBottomOffsets = (
+  techniques: readonly ILXMTechnique[],
+): ReadonlyMap<string, number> => {
+  const offsets = new Map<string, number>();
+  for (const technique of techniques) {
+    if (!hasChordTraversalRange(technique)) continue;
+    const arrowOffset =
+      technique.type === "arpeggio" && technique.direction === "descending"
+        ? LXM_TECHNIQUE_ARROW_OFFSET_Y
+        : 0;
+    const bottom = (technique.maxString - 1) * LXM_STRING_SPACING + arrowOffset;
+    offsets.set(technique.beatId, Math.max(offsets.get(technique.beatId) ?? 0, bottom));
+  }
+  return offsets;
+};
 
 /**
  * Arial 墨迹边界，不使用含行距的字体行框。Chrome canvas 实测：8px 的数字

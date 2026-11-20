@@ -1,20 +1,10 @@
-import Link from "next/link";
-import { BrandIcon } from "../components/BrandIcon";
+import { HeaderBar } from "../components/HeaderBar";
 import { HomeScoreActions } from "./HomeScoreActions";
 import styles from "./page.module.scss";
 
 const HomePage = () => (
   <div className={styles.home}>
-    <header className={styles.siteHeader}>
-      <Link className={styles.brand} href="/" aria-label="六线猫首页">
-        <BrandIcon size={32} />
-        六线猫
-      </Link>
-      <nav aria-label="主导航">
-        <Link href="/editor">曲谱编辑器</Link>
-        <Link href="/guitar-advanced">吉他进阶</Link>
-      </nav>
-    </header>
+    <HeaderBar />
     <main className={styles.welcome}>
       <div className={styles.welcomeCopy}>
         <h1>欢迎来到六线猫</h1>

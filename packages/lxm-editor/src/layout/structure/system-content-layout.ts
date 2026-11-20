@@ -17,6 +17,7 @@ import type { getMusicTextRows } from "../../core/music-text/music-text-rows";
 import type {
   ILXMSystemLayout,
   ILXMMeasureLayout,
+  ILXMLayoutOptions,
   ILXMLayoutPurpose,
 } from "../layout-types";
 import { numberedLayoutProfile } from "../music-text/numbered-layout-profile";
@@ -94,6 +95,7 @@ export const layoutSystemContent = (
   editing?: { measureId: string; kind: "lyric" | "numbered"; verse?: number },
   purpose: ILXMLayoutPurpose = "presentation",
   rows?: ReturnType<typeof getMusicTextRows>,
+  placeholders?: ILXMLayoutOptions["paragraphPlaceholders"],
 ): ILXMSystemLayout[] => {
   const profile = numberedLayoutProfile(purpose);
   const planned = planTrackTechniques(track, baseSystems);
@@ -153,7 +155,8 @@ export const layoutSystemContent = (
       : undefined;
     const rawNumbered = [...numberedByMeasure.values()].flat();
     const showNumberedInput =
-      purpose === "editing" && (rows?.numbered || active?.kind === "numbered");
+      purpose === "editing" && (rows?.numbered || active?.kind === "numbered" ||
+        system.measures.some((m) => m.id === placeholders?.numberedMeasureId));
     const emptyBody = musicTextGlyph(
       musicTextRequest("0", LXM_NUMBERED_TEXT_FONT_SIZE), 0, 0, metrics,
     );
@@ -224,6 +227,9 @@ export const layoutSystemContent = (
     const maxVerse = Math.max(
       rows?.lyricVerses ?? 0,
       active?.kind === "lyric" ? (active.verse ?? 1) : 0,
+      system.measures.some((m) => m.id === placeholders?.lyric?.measureId)
+        ? (placeholders?.lyric?.verse ?? 1)
+        : 0,
       ...system.measures.flatMap((m) =>
         source.get(m.id)!.lyrics.map((l) => l.verse),
       ),

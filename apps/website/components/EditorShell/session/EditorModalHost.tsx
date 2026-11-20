@@ -9,6 +9,7 @@ import type {
 } from "./editor-modal-controller";
 import { BeatPastePreview } from "../tools/BeatPastePreview";
 import { EditorModalGuard } from "./EditorModalGuard";
+import { EditorShortcutReference } from "./EditorShortcutReference";
 import { TechniqueTypePicker } from "../tools/TechniqueTypePicker";
 import styles from "./EditorModalHost.module.scss";
 
@@ -96,7 +97,9 @@ export const EditorModalHost = ({
   const request = display?.request;
   const chord =
     request?.kind === "chord-library" || request?.kind === "chord-custom";
-  const dismissable = request?.kind === "technique-type" || request?.kind === "rhythm-pattern-discard" || chord;
+  const shortcuts = request?.kind === "shortcuts";
+  const dismissable = request?.kind === "technique-type" || request?.kind === "rhythm-pattern-discard" ||
+    request?.kind === "music-text-row-remove" || chord || shortcuts;
   const modalContent = useRef<HTMLDivElement>(null);
   const requestClose = (source: EditorModalCloseSource) => {
     if (!active || active.busy || active.closing) return;
@@ -114,7 +117,7 @@ export const EditorModalHost = ({
       width={
         chord
           ? request?.kind === "chord-custom" ? 1120 : 1080
-          : request?.kind === "beat-paste"
+          : shortcuts ? 620 : request?.kind === "beat-paste"
             ? 660
             : request?.kind === "technique-type"
               ? 720
@@ -123,12 +126,12 @@ export const EditorModalHost = ({
       centered
       mask={{ closable: false }}
       keyboard={false}
-      closable={!display?.busy}
+      closable={display?.busy ? false : shortcuts ? { "aria-label": "关闭快捷键" } : true}
       focusable={{ focusTriggerAfterClose: false }}
       styles={{
         container: {
-          maxWidth: "calc(100vw - 32px)",
-          padding: chord ? 0 : 28,
+          maxWidth: shortcuts ? "calc(100vw - 24px)" : "calc(100vw - 32px)",
+          padding: chord ? 0 : shortcuts ? 16 : 28,
           borderRadius: chord ? 12 : 8,
           maxHeight: "calc(100dvh - 32px)",
           display: "flex",
@@ -151,17 +154,19 @@ export const EditorModalHost = ({
       )}
       onCancel={() => requestClose("cancel")}
       afterOpenChange={open => {
-        if (!open || !chord) return;
+        if (!open) return;
         // AntD 6 的动画完成时会聚焦外层 dialog；将焦点放回受 Esc 守卫的实际控件。
         const root = modalContent.current;
-        const preferred = request?.kind === "chord-custom"
+        const preferred = request?.kind === "shortcuts" && request.focusSearch
+          ? root?.querySelector<HTMLInputElement>("[data-shortcut-search]")
+          : request?.kind === "chord-custom"
           ? root?.querySelector<HTMLInputElement>('input[aria-label="自定义和弦名称"]')
-          : root?.querySelector<HTMLInputElement>('input[aria-label*="搜索"]');
+          : chord ? root?.querySelector<HTMLInputElement>('input[aria-label*="搜索"]') : null;
         preferred?.focus({ preventScroll: true });
       }}
       afterClose={() => controller.restoreFocus(display?.id)}
       footer={
-        chord ? null : display && request?.kind === "beat-paste" ? (
+        chord || shortcuts ? null : display && request?.kind === "beat-paste" ? (
           <PasteFooter
             active={{ ...display, request }}
             controller={controller}
@@ -199,6 +204,8 @@ export const EditorModalHost = ({
     >
       {request?.kind === "chord-library" || request?.kind === "chord-custom" ? (
         <Fragment key={display?.id}>{request.content}</Fragment>
+      ) : shortcuts ? (
+        <EditorShortcutReference key={display?.id} />
       ) : request?.kind === "beat-paste" ? (
         <BeatPastePreview controller={request.preview} />
       ) : request?.kind === "technique-type" ? (

@@ -48,7 +48,13 @@ try {
   };
   const screenshot = async name => page.screenshot({ path: path.join(output, name), animations: "disabled" });
 
-  // BUG026 / BUG027: actual shared draft, inline apply, IME and failure feedback.
+  const belowRight = async (field, button) => {
+    const a = await field.boundingBox(), b = await button.boundingBox();
+    assert.ok(a && b && b.y >= a.y + a.height, "应用按钮应在输入框下方");
+    assert.ok(Math.abs(a.x + a.width - b.x - b.width) <= 2, "应用按钮应右对齐");
+  };
+
+  // BUG026 / BUG027: shared draft, Apply on both surfaces and IME protection.
   await score.getByText("个", { exact: true }).first().click();
   const input = sidebar.getByRole("textbox", { name: "连续歌词", exact: true });
   const popover = page.locator('#music-text-edit-popover');
@@ -57,8 +63,8 @@ try {
   const floatingApply = popover.getByRole("button", { name: "应用", exact: true });
   await input.waitFor();
   await floatingInput.waitFor();
-  await sameRow(input, apply);
-  await sameRow(floatingInput, floatingApply);
+  await belowRight(input, apply);
+  await belowRight(floatingInput, floatingApply);
   assert.equal(await popover.getByText("时值", { exact: true }).count(), 0);
   assert.equal(await sidebar.getByRole("button", { name: "恢复", exact: true }).count(), 0);
   assert.equal(await apply.isDisabled(), true);
@@ -69,7 +75,7 @@ try {
   await input.dispatchEvent("compositionstart", { data: "词" });
   assert.equal(await apply.isDisabled(), true);
   await input.dispatchEvent("compositionend", { data: "词" });
-  await page.waitForFunction(() => !document.querySelector('#lyric-body')?.parentElement?.querySelector('button')?.disabled);
+  await page.waitForFunction(() => document.querySelector('#music-text-sidebar button[aria-label="应用"]')?.disabled === false);
   assert.equal(await input.inputValue(), "新 歌", "IME结束应保留草稿");
   assert.equal(await apply.isEnabled(), true);
   const before = await history();
@@ -80,19 +86,23 @@ try {
   await page.getByRole("button", { name: "撤销", exact: true }).click();
   await page.waitForFunction(text => document.getElementById("lyric-body")?.value === text, originalText);
   await input.fill("键");
+  const beforeEnter = await history();
+  await input.press("End");
   await input.press("Enter");
+  assert.equal(await input.inputValue(), "键\n");
+  assert.equal(await floatingInput.inputValue(), "键\n");
+  assert.equal(await history(), beforeEnter);
+  await apply.click();
   await page.waitForFunction(() => window.coexistStore.getState().document.score.tracks[0].measures.some(measure => measure.lyrics.some(lyric => lyric.text === "键")));
-  await input.evaluate(element => {
+  assert.equal(await input.evaluate(element => {
     const data = new DataTransfer(); data.setData("text", "两行\n歌词");
-    element.dispatchEvent(new ClipboardEvent("paste", { clipboardData: data, bubbles: true, cancelable: true }));
-  });
-  assert.equal(await sidebar.getByText("请粘贴单行文本。", { exact: true }).isVisible(), true);
-  assert.equal(await input.inputValue(), "键");
+    return element.dispatchEvent(new ClipboardEvent("paste", { clipboardData: data, bubbles: true, cancelable: true }));
+  }), true, "多行粘贴不应被拦截");
   await input.fill("和 声");
   await screenshot("bug026-027-lyrics-1400.png");
   await floatingApply.click();
   await page.waitForFunction(() => window.coexistStore.getState().document.score.tracks[0].measures.some(measure => measure.lyrics.some(lyric => lyric.text === "和")));
-  results.push("BUG026/027: both inline rows, one shared draft, disabled no-op Apply, IME guard, sidebar click, popover click, Enter, undo and paste failure feedback");
+  results.push("BUG026/027: right-aligned Apply on both surfaces, shared draft, disabled no-op Apply, IME guard, Enter newline, undo and multiline paste allowed");
 
   // BUG021: same production preset component on both chord surfaces.
   await score.getByText("G", { exact: true }).first().click();

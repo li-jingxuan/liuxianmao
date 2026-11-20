@@ -106,7 +106,7 @@ describe("BUG039 paragraph switching", () => {
   it("retains the valid verse through lyric → numbered → lyric", () => {
     const { tree } = run(fixture(), [
       (tree) => switchKind(tree, "lyric"),
-      (tree) => (lyricForm(tree)!.onVerseChange as (verse: number) => void)(3),
+      (tree) => (find(tree, (p) => p["aria-label"] === "歌词段落")!.onChange as (verse: number) => void)(3),
       (tree) => switchKind(tree, "numbered"),
       (tree) => switchKind(tree, "lyric"),
     ]);

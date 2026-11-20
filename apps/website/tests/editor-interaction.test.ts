@@ -1,15 +1,12 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import {
-  createDeferredFretDraftCommit,
   resolveBeatKindShortcut,
   resolveEditorHistoryShortcut,
   resolveTabContinuationShortcut,
 } from "../components/EditorShell/session/editor-interaction";
 
 describe("editor interaction", () => {
-  afterEach(() => vi.useRealTimers());
-
   it("只在对应历史可用时解析撤销和重做快捷键", () => {
     expect(
       resolveEditorHistoryShortcut(
@@ -63,18 +60,6 @@ describe("editor interaction", () => {
     ).toBeNull();
   });
 
-  it("取消后不会提交已经等待中的品位草稿", () => {
-    vi.useFakeTimers();
-    const deferred = createDeferredFretDraftCommit(600);
-    const commit = vi.fn();
-
-    deferred.schedule("1", commit);
-    deferred.cancel();
-    vi.advanceTimersByTime(600);
-
-    expect(commit).not.toHaveBeenCalled();
-  });
-
   it("TAB 横线键只接管普通输入，保留系统快捷键与组合输入", () => {
     const input = {
       key: "-", metaKey: false, ctrlKey: false, altKey: false,
@@ -86,18 +71,6 @@ describe("editor interaction", () => {
     expect(resolveTabContinuationShortcut({ ...input, key: "_", shiftKey: true })).toBe(false);
   });
 
-  it("重新调度时只提交最后一份品位草稿", () => {
-    vi.useFakeTimers();
-    const deferred = createDeferredFretDraftCommit(600);
-    const commit = vi.fn();
-
-    deferred.schedule("1", commit);
-    deferred.schedule("12", commit);
-    vi.advanceTimersByTime(600);
-
-    expect(commit).toHaveBeenCalledOnce();
-    expect(commit).toHaveBeenCalledWith("12");
-  });
 });
 
 // X 不接管系统组合键和输入法候选，大小写键共用闷音语义。

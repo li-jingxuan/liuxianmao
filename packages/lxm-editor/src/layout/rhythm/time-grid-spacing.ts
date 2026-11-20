@@ -19,6 +19,7 @@ import {
 } from "../layout-constants";
 import {
   musicTextGlyph,
+  musicTextInkBounds,
   musicTextRequest,
   MUSIC_LYRIC_FONT_SIZE,
   type ILXMMusicTextMetrics,
@@ -52,6 +53,10 @@ interface Constraint {
   min: number;
   ideal: number;
 }
+
+export const usesCompactNumberedSpacing = (measure: ILXMMeasure, density: ILXMLayoutDensity) =>
+  density === "compact" && measure.numberedVoice.events.some((event) => event.kind !== "gap");
+
 /** 两个谱层共享真实时间点；间距约束只向未来指向，使用前向最长路径求解。 */
 export const summarizeTimeGrid = (
   measure: ILXMMeasure,
@@ -63,6 +68,11 @@ export const summarizeTimeGrid = (
 ) => {
   const profile = LXM_LAYOUT_DENSITY_PROFILES[density];
   const numberedProfile = numberedLayoutProfile(purpose, density);
+  const compactNumbered = usesCompactNumberedSpacing(measure, density);
+  // 双谱共用拍点，TAB 的理想节奏宽度也要收紧。各谱层的墨迹净空仍由硬约束保证。
+  const tabWidthScale = compactNumbered ? 0.09 : profile.idealColumnScale;
+  const numberedWidthScale = compactNumbered ? 0.72 : density === "comfortable" ? 1.25 : 1;
+  const numberedGlyphGap = compactNumbered ? 4 : numberedProfile.glyphGap;
   const tabGlyphGap = density === "compact" ? 2 : 6;
   const capacity = getMeasureCapacityTicks(measure.timeSignature);
   const tab = createMeasureRhythmContext(measure),
@@ -93,12 +103,12 @@ export const summarizeTimeGrid = (
         (LXM_DURATION_SUSTAIN_MIN_WIDTH + 2 * LXM_DURATION_SUSTAIN_HORIZONTAL_PADDING));
     const ideal =
       layer === "numbered"
-        ? numberedProfile.widths[base] * (density === "comfortable" ? 1.25 : 1)
+        ? numberedProfile.widths[base] * numberedWidthScale
         : Math.max(
             min,
             LXM_DURATION_MIN_COLUMN_WIDTH[base] *
               LXM_DURATION_VISUAL_WEIGHT[base] *
-              profile.idealColumnScale,
+              tabWidthScale,
           );
     sources.push({ id, layer, start: tick, end, min, ideal });
     const written = calculateRhythmTicks({ base, dots });
@@ -201,10 +211,11 @@ export const summarizeTimeGrid = (
     const event = numberedById.get(l.eventId);
     if (!event) continue;
     const g = musicTextGlyph(musicTextRequest(l.text, MUSIC_LYRIC_FONT_SIZE), 0, 0, metrics);
+    const bounds = compactNumbered ? musicTextInkBounds(g) : g.bounds;
     extents.push({
       tick: event.tick,
-      left: -g.bounds.x,
-      right: g.bounds.x + g.bounds.width,
+      left: -bounds.x,
+      right: bounds.x + bounds.width,
       lane: `lyric-${l.verse}`,
     });
   }
@@ -273,6 +284,10 @@ export const summarizeTimeGrid = (
     }
   }
   for (const lane of new Set(extents.map((e) => e.lane))) {
+    let gap = 6;
+    if (lane === "numbered") gap = numberedGlyphGap;
+    else if (lane === "tab") gap = tabGlyphGap;
+    else if (compactNumbered && lane.startsWith("lyric-")) gap = 3;
     const values = extents
       .filter((e) => e.lane === lane)
       .sort((a, b) => a.tick - b.tick);
@@ -280,11 +295,7 @@ export const summarizeTimeGrid = (
       edge(
         values[i - 1]!.tick,
         values[i]!.tick,
-        values[i - 1]!.right +
-          values[i]!.left +
-          (lane === "numbered"
-            ? numberedProfile.glyphGap
-            : lane === "tab" ? tabGlyphGap : 6),
+        values[i - 1]!.right + values[i]!.left + gap,
       );
   }
   for (const g of measure.numberedVoice.tuplets) {

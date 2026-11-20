@@ -2,7 +2,7 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { fileURLToPath, URL } from "node:url";
 
-const version = "2026.11.11.1";
+const version = "2026.11.11.2";
 const target = fileURLToPath(
   new URL("../../../apps/website/public/assets/chords/", import.meta.url),
 );
@@ -117,10 +117,22 @@ const popular = new Set([
 // Explicit open-shape designs, untransposed. F is a separate four-string shape.
 const open = {
   C: [["x", 3, 2, 0, 1, 0], [0, 3, 2, 0, 1, 0], []],
+  Cmaj7: [["x", 3, 2, 0, 0, 0], [0, 3, 2, 0, 0, 0], []],
+  D: [["x", "x", 0, 2, 3, 2], [0, 0, 0, 1, 3, 2], []],
+  D7: [["x", "x", 0, 2, 1, 2], [0, 0, 0, 2, 1, 3], []],
+  E: [[0, 2, 2, 1, 0, 0], [0, 2, 3, 1, 0, 0], []],
+  E7: [[0, 2, 0, 1, 0, 0], [0, 2, 0, 1, 0, 0], []],
   G: [[3, 2, 0, 0, 0, 3], [2, 1, 0, 0, 0, 3], []],
+  G7: [[3, 2, 0, 0, 0, 1], [3, 2, 0, 0, 0, 1], []],
+  A: [["x", 0, 2, 2, 2, 0], [0, 0, 1, 2, 3, 0], []],
+  A7: [["x", 0, 2, 0, 2, 0], [0, 0, 1, 0, 2, 0], []],
   Am: [["x", 0, 2, 2, 1, 0], [0, 0, 2, 3, 1, 0], []],
+  Am7: [["x", 0, 2, 0, 1, 0], [0, 0, 2, 0, 1, 0], []],
+  B7: [["x", 2, 1, 2, 0, 2], [0, 2, 1, 3, 0, 4], []],
   Dm: [["x", "x", 0, 2, 3, 1], [0, 0, 0, 2, 3, 1], []],
+  Dm7: [["x", "x", 0, 2, 1, 1], [0, 0, 0, 2, 1, 1], [[1, 1, 2, 1]]],
   Em: [[0, 2, 2, 0, 0, 0], [0, 2, 3, 0, 0, 0], []],
+  Em7: [[0, 2, 0, 0, 0, 0], [0, 2, 0, 0, 0, 0], []],
   F: [["x", "x", 3, 2, 1, 1], [0, 0, 3, 2, 1, 1], [[1, 1, 2, 1]]],
 };
 const pc = (n) => ((n % 12) + 12) % 12;
@@ -128,7 +140,8 @@ const diagram = (template, rootFret) => {
   const [offsets, fingers, barres] = template;
   const frets = offsets.map((n) => (n === "x" ? n : n + rootFret));
   return {
-    startFret: Math.max(
+    // Open shapes and the compact F show the nut, even when no finger is on fret 1.
+    startFret: rootFret === 0 ? 1 : Math.max(
       1,
       Math.min(...frets.filter((f) => typeof f === "number" && f > 0)),
     ),
@@ -214,7 +227,7 @@ const serialized = JSON.stringify(catalog, null, 2) + "\n";
 const destination = `${target}catalog-${version}.json`;
 const auditDestination = fileURLToPath(
   new URL(
-    "../../../docs/design-v2/records/20261111_chord-catalog-data-audit.json",
+    "../../../docs/design-v2/records/20261111_chord-catalog-data-audit-v2.json",
     import.meta.url,
   ),
 );

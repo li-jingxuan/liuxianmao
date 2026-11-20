@@ -16,10 +16,8 @@ export const useMusicTextMetrics = (
       score ? collectMusicTextMeasureRequests(score, showChordDiagrams) : [],
     [score, showChordDiagrams],
   );
-  const [state, setState] = useState<{
-    requests: typeof requests;
-    metrics: ILXMMusicTextMetrics;
-  } | null>(null);
+  const [metrics, setMetrics] = useState<ILXMMusicTextMetrics>();
+  const measuredRequests = useRef<typeof requests | null>(null);
   const cacheRef = useRef(new Map<string, ILXMMusicTextMetrics[string]>());
   useEffect(() => {
     if (!requests.length) return;
@@ -27,6 +25,10 @@ export const useMusicTextMetrics = (
     const cache = cacheRef.current;
     const measure = () => {
       if (cancelled) return;
+      // 改品位等操作不会改变文字度量请求，继续复用已确认的布局数据。
+      const previous = measuredRequests.current;
+      if (previous?.length === requests.length &&
+        requests.every((request, index) => request.key === previous[index]?.key)) return;
       const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
       svg.setAttribute("data-score-text-measure", "true");
       svg.setAttribute("aria-hidden", "true");
@@ -66,7 +68,10 @@ export const useMusicTextMetrics = (
             if (cache.size > 2048) cache.delete(cache.keys().next().value!);
           }
         }
-        if (!cancelled) setState({ requests, metrics });
+        if (!cancelled) {
+          measuredRequests.current = requests;
+          setMetrics(metrics);
+        }
       } finally {
         svg.remove();
       }
@@ -74,6 +79,7 @@ export const useMusicTextMetrics = (
     void document.fonts.ready.then(measure, measure);
     const reload = () => {
       cache.clear();
+      measuredRequests.current = null;
       measure();
     };
     document.fonts.addEventListener("loadingdone", reload);
@@ -84,7 +90,6 @@ export const useMusicTextMetrics = (
       document.fonts.removeEventListener("loadingerror", reload);
     };
   }, [requests]);
-  const metrics = state?.requests === requests ? state.metrics : undefined;
   // 与度量共用请求列表，避免悬停等无关更新再次遍历整谱文字。
   const hasMissingMetrics = useMemo(
     () => !!metrics && requests.some((request) => !metrics[request.key]),

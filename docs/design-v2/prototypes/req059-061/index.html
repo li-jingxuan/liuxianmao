@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>六线猫 · 歌词与工具栏交互稿</title>
+  <style>
+    :root { color-scheme: light; font: 14px/1.5 system-ui, "PingFang SC", sans-serif; color: #202b40; background: #f2f5fa; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    button, textarea, select { font: inherit; color: inherit; }
+    button { cursor: pointer; }
+    :focus-visible { outline: 2px solid #2b5bdf; outline-offset: 2px; }
+    .brand { display: flex; align-items: center; gap: 42px; padding: 14px 24px; background: #fff; }
+    .brand strong { font-size: 19px; color: #2457db; }
+    .toolbar { background: #fff; border-block: 1px solid #dbe2ee; }
+    .tool-row { display: flex; align-items: center; padding: 5px 12px; overflow-x: auto; scrollbar-width: thin; }
+    .tools { flex: 0 0 auto; display: flex; gap: 3px; align-items: center; }
+    .tools + .tools { border-inline-start: 1px solid #dbe2ee; margin-inline-start: 9px; padding-inline-start: 9px; }
+    .tool { width: 32px; height: 32px; display: grid; place-items: center; border: 0; border-radius: 5px; background: transparent; }
+    .tool img { width: 20px; height: 20px; }
+    .tool:disabled { opacity: .34; cursor: default; }
+    .tool:not(:disabled):hover { background: #ebf1ff; }
+    .review { max-width: 1130px; margin: 16px auto; padding: 0 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; }
+    .review h1 { margin: 0; font-size: 16px; }
+    .review p { margin: 0; color: #52617a; }
+    .review label { margin-inline-start: auto; }
+    .editor { container-type: inline-size; width: min(100% - 32px, 1130px); margin: 0 auto 24px; background: #fff; border: 1px solid #dbe2ee; border-radius: 8px; overflow: hidden; }
+    .editor.narrow { max-width: 460px; }
+    .layout { display: grid; grid-template-columns: minmax(0, 1fr) 312px; }
+    .paper-area { display: grid; align-items: start; background: #edf1f7; padding: 24px; }
+    .paper { position: relative; min-height: 360px; background: white; padding: 36px 32px; }
+    .staff { margin-block: 22px 12px; color: #20272e; }
+    .tab { display: grid; grid-template-columns: repeat(8, 1fr); place-items: center; height: 43px; border-inline: 1px solid; background: repeating-linear-gradient(to bottom, #495160 0 1px, transparent 1px 8px); }
+    .tab span { font: 12px ui-monospace, monospace; background: white; padding: 0 3px; }
+    .notation { display: grid; grid-template-columns: repeat(8, 1fr); text-align: center; margin-block-start: 10px; }
+    .notation span { min-width: 0; }
+    .current { justify-self: center; background: #eaf0ff; color: #244fb7; border: 1px solid #a7bfff; min-width: 22px; border-radius: 4px; }
+    .bubble { position: absolute; z-index: 1; top: 50%; inset-inline-start: 32px; width: min(308px, 100% - 48px); border: 1px solid #dbe2ee; background: white; box-shadow: 0 8px 24px #202d4820; border-radius: 8px; padding: 12px; }
+    .bubble header, .panel header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+    .bubble small { color: #52617a; }
+    .bubble header button { border: 0; background: transparent; font-size: 18px; }
+    .panel { border-inline-start: 1px solid #dbe2ee; padding: 16px; }
+    .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 3px; margin-bottom: 12px; border-radius: 6px; background: #edf1f7; text-align: center; }
+    .tabs strong { background: white; border-radius: 4px; }
+    .verse { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+    select { min-width: 0; flex: 1; padding: 4px 8px; border: 1px solid #a6b3c8; border-radius: 5px; background: white; }
+    .field { display: grid; gap: 4px; }
+    textarea { display: block; width: 100%; min-width: 0; height: 58px; padding: 7px 9px; border: 1px solid #a6b3c8; border-radius: 5px; background: #fff; resize: none; overflow-y: auto; line-height: 21px; }
+    textarea:focus { border-color: #3769e8; outline: 2px solid #c6d6ff; outline-offset: 0; }
+    .apply-row { display: flex; justify-content: flex-end; margin-top: 8px; }
+    .apply { border: 0; border-radius: 5px; padding: 5px 14px; color: white; background: #2457db; }
+    .apply:disabled { background: #e8edf6; color: #52617a; cursor: default; }
+    footer { padding: 8px 16px; border-top: 1px solid #dbe2ee; color: #52617a; }
+    @container (width < 960px) {
+      .tool-row { display: block; padding: 0; }
+      .tool-line { display: flex; padding: 5px 8px; overflow-x: auto; scrollbar-width: thin; }
+      .tool-line + .tool-line { border-top: 1px solid #e8edf4; }
+    }
+    @container (width >= 960px) {
+      .tool-line { display: flex; }
+      .tool-line + .tool-line { border-inline-start: 1px solid #dbe2ee; margin-inline-start: 9px; padding-inline-start: 9px; }
+    }
+    @container (width < 640px) {
+      .layout { grid-template-columns: minmax(0, 1fr); }
+      .panel { border-inline: 0; border-top: 1px solid #dbe2ee; }
+      .paper-area { padding: 12px; }
+      .paper { min-height: 316px; padding: 22px 12px; }
+      .bubble { top: 43%; inset-inline-start: 12px; width: min(308px, 100% - 24px); }
+    }
+  </style>
+</head>
+<body>
+  <section class="review" aria-label="评审设置">
+    <h1>REQ-059、REQ-061 交互稿</h1>
+    <p>在任一歌词输入框编辑，按 Enter 换行，点「应用」提交。</p>
+    <label><input id="narrow" type="checkbox"> 预览窄窗口</label>
+  </section>
+  <main class="editor">
+    <div class="brand"><strong>六线猫</strong><span>理想</span></div>
+    <div class="toolbar" role="toolbar" aria-label="谱面工具栏">
+      <div class="tool-row">
+        <div class="tool-line" id="primary-tools"></div>
+        <div class="tool-line" id="secondary-tools"></div>
+      </div>
+    </div>
+    <div class="layout">
+      <div class="paper-area">
+        <div class="paper" aria-label="谱面示例">
+          <div class="staff">
+            <div class="tab" aria-hidden="true"><span>0</span><span>×</span><span>2</span><span>×</span><span>3</span><span>×</span><span>2</span><span>0</span></div>
+            <div class="notation" aria-hidden="true"><span>2</span><span>1</span><span>2</span><span>3</span><span>6</span><span>0</span><span>5</span><span>5</span></div>
+            <div class="notation" id="score-lyrics"></div>
+          </div>
+          <div class="bubble" id="bubble">
+            <header><div><strong>歌词 · 第 1 段</strong> <small>第 13 小节 · 第 1 拍 + 1/2</small></div><button type="button" id="close" aria-label="关闭歌词气泡">×</button></header>
+            <label class="field">歌词内容<textarea id="bubble-input" rows="2"></textarea></label>
+            <div class="apply-row"><button type="button" class="apply">应用</button></div>
+          </div>
+        </div>
+      </div>
+      <aside class="panel" aria-label="歌词侧栏">
+        <header><strong>段落</strong><button type="button" id="reopen" hidden>打开气泡</button></header>
+        <div class="tabs"><span>简谱</span><strong>歌词</strong></div>
+        <label class="verse">段落<select><option>第一段</option></select></label>
+        <label class="field">歌词内容<textarea id="panel-input" rows="2"></textarea></label>
+        <div class="apply-row"><button type="button" class="apply">应用</button></div>
+      </aside>
+    </div>
+    <footer id="status" role="status">当前输入未应用</footer>
+  </main>
+  <script>
+    const assets = '../../../../apps/website/public/assets/svg/music-controls/';
+    const addGroup = (line, name, tools) => {
+      const group = document.createElement('div');
+      group.className = 'tools';
+      group.setAttribute('role', 'group');
+      group.setAttribute('aria-label', name);
+      for (const [label, symbol] of tools) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'tool';
+        button.setAttribute('aria-label', label);
+        button.disabled = true;
+        if (symbol.endsWith('.svg')) {
+          const img = new Image();
+          img.src = assets + symbol;
+          img.alt = '';
+          button.append(img);
+        } else button.textContent = symbol;
+        group.append(button);
+      }
+      document.querySelector(line).append(group);
+    };
+    const primary = '#primary-tools', secondary = '#secondary-tools';
+    addGroup(primary, '历史', [['撤销', '↶'], ['重做', '↷']]);
+    addGroup(primary, '基础时值', [['全音符', 'note-whole.svg'], ['二分音符', 'note-half.svg'], ['四分音符', 'note-quarter.svg'], ['八分音符', 'note-eighth.svg'], ['十六分音符', 'note-sixteenth.svg'], ['三十二分音符', 'note-thirty-second.svg']]);
+    addGroup(primary, '附点与休止', [['单附点', 'note-dot.svg'], ['双附点', 'note-double-dotted.svg'], ['休止', '𝄽']]);
+    addGroup(secondary, '演奏技巧', [['击弦', 'H'], ['勾弦', 'P'], ['滑音', 'S'], ['延音线', 'note-tie.svg'], ['下扫', '⇡'], ['上扫', '⇣'], ['下琶音', '↑'], ['上琶音', '↓'], ['技巧工具', '♬']]);
+    addGroup(secondary, '节奏与连音', [['节奏型', '♫'], ['连音', 'triplet.svg']]);
+    addGroup(secondary, '小节', [['小节工具', '𝄁']]);
+    addGroup(secondary, '和弦', [['和弦', '▦']]);
+
+    const fields = [...document.querySelectorAll('textarea')];
+    const applyButtons = [...document.querySelectorAll('.apply')];
+    const status = document.querySelector('#status');
+    const lyrics = document.querySelector('#score-lyrics');
+    const bubble = document.querySelector('#bubble');
+    const reopen = document.querySelector('#reopen');
+    let applied = '谈 什 么 理 想 那 是 我';
+    const update = (value) => {
+      for (const field of fields) if (field.value !== value) field.value = value;
+      const dirty = value !== applied;
+      for (const button of applyButtons) button.disabled = !dirty;
+      status.textContent = dirty ? '当前输入未应用' : '歌词已应用';
+    };
+    const renderLyrics = () => {
+      const tokens = applied.trim().split(/\s+/u);
+      lyrics.replaceChildren(...Array.from({ length: 8 }, (_, index) => {
+        const slot = document.createElement(index === 0 ? 'button' : 'span');
+        slot.textContent = tokens[index] ?? '';
+        if (index === 0) {
+          slot.type = 'button';
+          slot.className = 'current';
+          slot.setAttribute('aria-label', '编辑第 13 小节歌词');
+          slot.addEventListener('click', openBubble);
+        }
+        return slot;
+      }));
+    };
+    function openBubble() {
+      bubble.hidden = false;
+      reopen.hidden = true;
+      fields[0].focus();
+    }
+    for (const field of fields) field.addEventListener('input', () => update(field.value));
+    for (const button of applyButtons) button.addEventListener('click', () => {
+      applied = fields[0].value;
+      update(applied);
+      renderLyrics();
+    });
+    document.querySelector('#close').addEventListener('click', () => {
+      bubble.hidden = true;
+      reopen.hidden = false;
+      fields[1].focus();
+    });
+    reopen.addEventListener('click', openBubble);
+    document.querySelector('#narrow').addEventListener('change', (event) => document.querySelector('.editor').classList.toggle('narrow', event.target.checked));
+    renderLyrics();
+    update('梦 醒 后 还 是 依 然 奔 波 在 风 雨 的 街\n一 个 人 住 在 这 城 市');
+  </script>
+</body>
+</html>

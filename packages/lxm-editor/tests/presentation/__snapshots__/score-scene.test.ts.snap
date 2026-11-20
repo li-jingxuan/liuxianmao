@@ -1,5 +1,5 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`纯音乐场景投影 > editing 保留简谱与密集技巧的完整绘制输出 1`] = `"22f015d1f091bbcd945a8afa476eaeac902b0ca703a55170ba0e69010d1919fd"`;
+exports[`纯音乐场景投影 > editing 保留简谱与密集技巧的完整绘制输出 1`] = `"4060e56c1a4fd061913464af6544358f1a847214af68f757c28f3b9a80d2e651"`;
 
-exports[`纯音乐场景投影 > presentation 保留简谱与密集技巧的完整绘制输出 1`] = `"76c54ed441af8b9a7b4e6e0d4361434e3fa8a148ff46d3f1a7e01d9556469691"`;
+exports[`纯音乐场景投影 > presentation 保留简谱与密集技巧的完整绘制输出 1`] = `"e177810f622889a076bc1efe75cf6a5100459b2ef4d9a12fcf7574ebf7ab0c7c"`;

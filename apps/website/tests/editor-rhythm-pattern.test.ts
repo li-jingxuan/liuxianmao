@@ -17,7 +17,7 @@ import {
 } from "@liuxianmao/lxm-editor";
 import type { MusicTextTarget } from "../components/EditorShell/music-text/music-text-draft";
 import { resolveEditorRhythmPatternTarget } from "../components/EditorShell/tools/editor-rhythm-pattern-target";
-import { rhythmPatternScopeRect } from "../components/EditorShell/tools/rhythm-pattern-scope-layout";
+import { rhythmPatternScopeRect, rhythmPatternScopeRects } from "../components/EditorShell/tools/rhythm-pattern-scope-layout";
 import { createEditorSession } from "../stores/editor-store";
 
 const fixture = () => {
@@ -56,6 +56,23 @@ const preview = (document: ILXMDocument, target: RhythmPatternTarget, templateId
   const result = planRhythmPattern(document, target, templateId);
   if (!result.ok) throw new Error(`${result.code}: ${result.message}`);
   return result;
+};
+
+const appendFixtureMeasure = (track: ReturnType<typeof fixture>["track"], id: string) => {
+  const measure = structuredClone(track.measures[0]!);
+  measure.id = id;
+  measure.lyrics = [];
+  measure.chordSymbols = [];
+  measure.beats.forEach(beat => {
+    beat.id += `-${id}`;
+    beat.notes.forEach(note => { note.id += `-${id}`; });
+  });
+  measure.numberedVoice.events.forEach(event => {
+    event.id += `-${id}`;
+    event.items.forEach(item => { item.id += `-${id}`; });
+  });
+  track.measures.push(measure);
+  return measure;
 };
 
 describe("节奏型当前谱层目标解析", () => {
@@ -120,7 +137,7 @@ describe("节奏型当前谱层目标解析", () => {
     expect(resolveEditorRhythmPatternTarget(document, null, null, null).ok).toBe(false);
   });
 
-  it("跨小节、跨轨、陈旧event/beat/item/measure ID均阻止，不借用残留目标", () => {
+  it("跨轨、陈旧event/beat/item/measure ID均阻止，不借用残留目标", () => {
     const { document, active, range, selection } = fixture();
     const crossMeasure = { ...range, focus: { ...range.focus, measureId: "another-measure" } };
     expect(resolveEditorRhythmPatternTarget(document, selection, crossMeasure, active).ok).toBe(false);
@@ -131,6 +148,70 @@ describe("节奏型当前谱层目标解析", () => {
       expect(resolveEditorRhythmPatternTarget(document, selection, null, stale).ok).toBe(false);
     expect(resolveEditorRhythmPatternTarget(document, null, { ...range, focus: { ...range.focus, eventId: "missing-event" } }, null).ok).toBe(false);
     expect(resolveEditorRhythmPatternTarget(document, { ...selection, focus: { ...selection.focus, beatId: "missing-beat" } }, null, null).ok).toBe(false);
+  });
+});
+
+describe("跨小节节奏型", () => {
+  it.each(["numbered", "tab"] as const)("%s 反向跨谱行选区按小节预览，一次提交和撤销", (layer) => {
+    const { document, track, measure, range, selection } = fixture();
+    appendFixtureMeasure(track, "middle");
+    const last = appendFixtureMeasure(track, "last");
+    const numberedRange = { ...range, anchor: { measureId: last.id, eventId: "pattern-e0-last" },
+      focus: { measureId: measure.id, eventId: "pattern-e3" } };
+    const tabRange = { anchor: { ...selection.anchor, measureId: last.id, beatId: "pattern-b0-last" },
+      focus: { ...selection.focus, beatId: "pattern-b3" } };
+    const target = layer === "numbered" ? resolve(document, null, numberedRange, null) : resolve(document, tabRange, null, null);
+    expect(target).toMatchObject({ measureId: measure.id, endMeasureId: last.id, focusMeasureId: measure.id, startTick: Q * 3, endTick: Q });
+    const session = createEditorSession(document);
+    const before = session.getState().document!;
+    const plan = preview(before, target, "eighths");
+    expect(plan.scopes.map(scope => [scope.measureId, scope.firstBeat, scope.lastBeat])).toEqual([
+      [measure.id, 4, 4], ["middle", 1, 4], [last.id, 1, 1],
+    ]);
+    const rectangles = rhythmPatternScopeRects(buildLayout(before, { purpose: "editing", systemWidth: 180 }), plan.target);
+    expect(rectangles.map(rect => rect.measureId)).toEqual([measure.id, "middle", last.id]);
+    expect(rectangles[0]!.y).toBeLessThan(rectangles[2]!.y);
+    expect(plan.focus.measureId).toBe(measure.id);
+    expect(planRhythmPattern(before, target, "measure-44-eighths")).toMatchObject({ ok: false, code: "RHYTHM_PATTERN_TEMPLATE_MISMATCH" });
+    const command = { type: C.ApplyRhythmPattern, target, templateId: plan.template.id, expectedConfirmationKey: plan.confirmationKey } as const;
+    const result = session.getState().execute(command);
+    expect(result).toMatchObject({ ok: true, changed: true });
+    const after = session.getState().document!;
+    const counts = after.score.tracks[0]!.measures.map(item => layer === "numbered" ? item.numberedVoice.events.length : item.beats.length);
+    expect(counts).toEqual([5, 8, 5]);
+    expect(new Set(plan.after.map(event => event.id)).size).toBe(plan.after.length);
+    expect(session.getState().historyDepth.past).toBe(1);
+    session.getState().undo();
+    expect(session.getState().document).toEqual(before);
+  });
+
+  it("跨小节连接根据合并后的轨道判断，混合拍号或末段阻断时保持原文档", () => {
+    const { document, track, measure } = fixture();
+    const last = appendFixtureMeasure(track, "last");
+    track.numberedMarks = [{ id: "cross-tie", type: "tie", fromItemId: "pattern-i3", toItemId: "pattern-i0-last" }];
+    const target: RhythmPatternTarget = { layer: "numbered", trackId: track.id, measureId: measure.id,
+      endMeasureId: last.id, focusMeasureId: last.id, startTick: 0, endTick: Q * 4, focusTick: 0 };
+    const whole = preview(document, target, "measure-44-eighths");
+    expect(whole.removedMarks).toEqual([{ id: "cross-tie", name: "延音线", type: "tie", crossesScope: false }]);
+    expect(whole.focus.measureId).toBe(last.id);
+    last.timeSignature = { numerator: 3, denominator: 4 };
+    last.numberedVoice.events.pop();
+    last.beats.pop();
+    expect(preview(document, { ...target, endTick: Q * 3 }, "eighths").scopes).toHaveLength(2);
+    last.timeSignature = { numerator: 6, denominator: 8 };
+    expect(planRhythmPattern(document, { ...target, endTick: Q * 3 }, "eighths")).toMatchObject({
+      ok: false, message: expect.stringContaining("第 2 小节（6/8）"),
+    });
+    last.timeSignature = { numerator: 3, denominator: 4 };
+    last.numberedVoice.events.splice(0, 2, { ...last.numberedVoice.events[0]!, rhythm: { base: "half", dots: 0 } });
+    const session = createEditorSession(document);
+    const before = session.getState().document!;
+    const failing = { ...target, endTick: Q };
+    expect(session.getState().execute({ type: C.ApplyRhythmPattern, target: failing, templateId: "eighths", expectedConfirmationKey: "" })).toMatchObject({
+      ok: false, code: "RHYTHM_PATTERN_CROSSING_CONTENT", message: expect.stringContaining("第 2 小节"),
+    });
+    expect(session.getState().document).toBe(before);
+    expect(session.getState().historyDepth.past).toBe(0);
   });
 });
 

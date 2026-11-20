@@ -145,7 +145,8 @@ describe("简谱编辑与成品排版", () => {
         expect(s.width).toBeCloseTo(
           Math.min(
             600,
-            LXM_SYSTEM_HEADER_WIDTH + summary.assignedWidth + summary.contentWidth * 0.6,
+            LXM_SYSTEM_HEADER_WIDTH + summary.assignedWidth +
+              (density === "compact" ? 0 : summary.contentWidth * 0.6),
           ),
         );
         const measure = s.measures[0]!;

@@ -3,6 +3,7 @@ import {
   applyScoreCommand,
   EXAMPLE_MVP_7_2_DOCUMENT,
   getLyricVerseCount,
+  getMusicTextRows,
   loadDocument,
   LXMScoreCommandEnum as C,
 } from "../../src";
@@ -76,5 +77,27 @@ describe("全谱歌词段落", () => {
     expect(getLyricVerseCount(result.document)).toBe(4);
     expect(result.document.score.tracks).toEqual(document.score.tracks);
     expect(document.score.meta).not.toHaveProperty("lyricVerseCount");
+  });
+
+  it("删除旧谱中间段，保留后续段歌词身份并顺次补位", () => {
+    const document = fixture();
+    const [first, second] = document.score.tracks[0]!.measures;
+    first!.lyrics = [{ id: "deleted-word", eventId: first!.numberedVoice.events[0]!.id, verse: 2, text: "删除" }];
+    const remaining = { id: "shifted-word", eventId: second!.numberedVoice.events[0]!.id, verse: 3 as const, text: "保留" };
+    second!.lyrics = [remaining];
+    const result = applyScoreCommand(document, { type: C.RemoveLyricVerse, verse: 2 });
+    if (!result.ok) throw new Error(result.message);
+    expect(result.document.score.tracks[0]!.measures[0]!.lyrics).toEqual([]);
+    expect(result.document.score.tracks[0]!.measures[1]!.lyrics).toEqual([{ ...remaining, verse: 2 }]);
+    expect(second!.lyrics).toEqual([remaining]);
+    expect(getMusicTextRows(result.document).lyricVerses).toBe(2);
+
+    const shifted = applyScoreCommand(result.document, { type: C.RemoveLyricVerse, verse: 1 });
+    if (!shifted.ok) throw new Error(shifted.message);
+    const empty = applyScoreCommand(shifted.document, { type: C.RemoveLyricVerse, verse: 1 });
+    if (!empty.ok) throw new Error(empty.message);
+    expect(getMusicTextRows(empty.document).lyricVerses).toBe(0);
+    expect(empty.document.score.meta).not.toHaveProperty("lyricVerseCount");
+    expect(applyScoreCommand(empty.document, { type: C.RemoveLyricVerse, verse: 1 })).toEqual({ ok: true, changed: false, document: empty.document });
   });
 });
