@@ -47,6 +47,11 @@ export interface ILXMLayoutOptions {
     kind: "lyric" | "numbered";
     verse?: number;
   };
+  /** 同一编辑会话中已打开的空谱行，切换段落页签后继续显示。 */
+  paragraphPlaceholders?: {
+    numberedMeasureId?: string;
+    lyric?: { measureId: string; verse?: number };
+  };
   musicTextMetrics?: ILXMMusicTextMetrics;
   x?: number;
   y?: number;

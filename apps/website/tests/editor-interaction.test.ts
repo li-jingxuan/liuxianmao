@@ -98,6 +98,21 @@ describe("editor interaction", () => {
     expect(commit).toHaveBeenCalledOnce();
     expect(commit).toHaveBeenCalledWith("12");
   });
+
+  it("换格时立即提交草稿，原计时器不会重复写入", () => {
+    vi.useFakeTimers();
+    const deferred = createDeferredFretDraftCommit(600);
+    const commit = vi.fn();
+
+    deferred.schedule("2", commit);
+    expect(deferred.getDraft()).toBe("2");
+    deferred.flush();
+
+    expect(deferred.getDraft()).toBe("");
+    expect(commit).toHaveBeenCalledWith("2");
+    vi.advanceTimersByTime(600);
+    expect(commit).toHaveBeenCalledOnce();
+  });
 });
 
 // X 不接管系统组合键和输入法候选，大小写键共用闷音语义。

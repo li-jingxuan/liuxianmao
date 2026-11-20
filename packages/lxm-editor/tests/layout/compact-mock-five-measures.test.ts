@@ -84,7 +84,9 @@ describe("compact historical mock: five original measures", () => {
     expect(renderedMeasures.flatMap((m) => (m.numberedNotation ?? []).map((n) => n.eventId)))
       .toEqual(events.filter((e) => e.kind !== "gap").map((e) => e.id));
     if (purpose === "editing") {
-      expect(renderedMeasures.flatMap((m) => (m.numberedInputSlots ?? []).map((slot) => slot.target.eventId)).filter(Boolean))
+      expect(renderedMeasures.flatMap((m) => (m.numberedInputSlots ?? []).flatMap(({ target }) =>
+        target.kind === "numberedEvent" ? [target.eventId] : [],
+      )))
         .toEqual(events.filter((e) => e.kind === "gap").map((e) => e.id));
     }
     expect(score).toEqual(before);

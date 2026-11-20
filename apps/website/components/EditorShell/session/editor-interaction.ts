@@ -50,8 +50,10 @@ export const resolveEditorHistoryShortcut = (
 };
 
 export interface DeferredFretDraftCommit {
+  getDraft: () => string;
   schedule: (draft: string, commit: (draft: string) => void) => void;
   cancel: () => void;
+  flush: () => void;
 }
 
 /**
@@ -65,24 +67,32 @@ export const createDeferredFretDraftCommit = (
 ): DeferredFretDraftCommit => {
   let generation = 0;
   let timer: ReturnType<typeof setTimeout> | null = null;
+  let pending: { draft: string; commit: (draft: string) => void } | null = null;
 
   const cancel = (): void => {
     generation += 1;
-    if (timer) clearTimeout(timer);
+    if (timer !== null) clearTimeout(timer);
     timer = null;
+    pending = null;
+  };
+
+  const flush = (): void => {
+    const input = pending;
+    cancel();
+    input?.commit(input.draft);
   };
 
   const schedule: DeferredFretDraftCommit["schedule"] = (draft, commit) => {
     cancel();
+    pending = { draft, commit };
     const scheduledGeneration = generation;
     timer = setTimeout(() => {
       if (scheduledGeneration !== generation) return;
-      timer = null;
-      commit(draft);
+      flush();
     }, timeoutMs);
   };
 
-  return { schedule, cancel };
+  return { getDraft: () => pending?.draft ?? "", schedule, cancel, flush };
 };
 
 /** x 弹奏标记只在谱面入口接管；系统快捷键和输入法组合键保持原行为。 */

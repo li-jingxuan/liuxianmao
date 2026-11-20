@@ -60,6 +60,7 @@ export const buildLayout = (
   const track = chordDisplayTrack(sourceTrack, options.showChordDiagrams);
   const purpose = options.purpose ?? "presentation";
   const editing = purpose === "editing" ? options.paragraphEditing : undefined;
+  const placeholders = purpose === "editing" ? options.paragraphPlaceholders : undefined;
 
   const x = options.x ?? LXM_LAYOUT_DEFAULT_X;
   const y = options.y ?? LXM_LAYOUT_DEFAULT_Y;
@@ -86,7 +87,7 @@ export const buildLayout = (
     chordTraversalBottomOffsets: getChordTraversalBottomOffsets(track.techniques),
     purpose,
     editingNumberedMeasureId:
-      editing?.kind === "numbered" ? editing.measureId : undefined,
+      editing?.kind === "numbered" ? editing.measureId : placeholders?.numberedMeasureId,
   });
   const systems = layoutSystemContent(
     track,
@@ -96,6 +97,7 @@ export const buildLayout = (
     editing,
     purpose,
     purpose === "editing" ? getMusicTextRows(document) : undefined,
+    placeholders,
   );
   const lastSystem = systems[systems.length - 1];
 
