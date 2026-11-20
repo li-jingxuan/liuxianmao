@@ -7,6 +7,14 @@ import "./globals.scss";
 export const metadata: Metadata = {
   title: "六线猫",
   description: "六线猫吉他学习与曲谱编辑工作台",
+  icons: {
+    icon: [16, 32, 48].map((size) => ({
+      url: `/assets/brand/liuxianmao-${size}.png`,
+      sizes: `${size}x${size}`,
+      type: "image/png",
+    })),
+    apple: { url: "/assets/brand/liuxianmao-180.png", sizes: "180x180" },
+  },
 };
 
 interface RootLayoutProps {

@@ -42,8 +42,6 @@
   display: flex;
   align-items: center;
   gap: 10px;
-
-  svg { width: 32px; height: 32px; }
 }
 
 .welcome {
@@ -181,7 +179,7 @@
 @media (max-width: 650px) {
   .siteHeader nav { gap: 16px; font-size: 12px; }
   .home .brand { font-size: 20px; }
-  .home .brand svg { width: 27px; }
+  .home .brand img { width: 27px; height: 27px; }
   .welcome { grid-template-columns: 1fr; padding-top: 35px; gap: 45px; }
   .welcome h1 { font-size: 32px; }
   .scoreArt { max-width: 470px; width: 100%; margin: 0 auto; padding-bottom: 0; }
