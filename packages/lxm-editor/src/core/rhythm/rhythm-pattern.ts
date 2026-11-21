@@ -454,12 +454,10 @@ export const planRhythmPattern = (document: ILXMDocument, target: RhythmPatternT
     const signature = range.measure.timeSignature;
     const templates = getRhythmPatternTemplates(signature);
     if (!templates.length) return fail("UNSUPPORTED_TIME_SIGNATURE", `${describeMeasure(range)}不支持节奏型。`);
-    if (wholeMeasure && multiMeasure) {
-      if (signature.numerator !== firstSignature.numerator || signature.denominator !== firstSignature.denominator)
-        return fail("RHYTHM_PATTERN_TEMPLATE_MISMATCH", `${describeMeasure(range)}拍号不同，整小节模板需要相同拍号。`);
-      if (range.startTick !== 0 || range.endTick !== range.capacity)
-        return fail("RHYTHM_PATTERN_TEMPLATE_MISMATCH", `${describeMeasure(range)}未完整选中，跨小节应用整小节模板需要选中完整小节。`);
-    } else if (!wholeMeasure && !templates.some(item => item.id === templateId)) {
+    if (wholeMeasure && (signature.numerator !== firstSignature.numerator || signature.denominator !== firstSignature.denominator)) {
+      return fail("RHYTHM_PATTERN_TEMPLATE_MISMATCH", `${describeMeasure(range)}拍号不同，整小节模板需要相同拍号。`);
+    }
+    if (!wholeMeasure && !templates.some(item => item.id === templateId)) {
       return fail("RHYTHM_PATTERN_TEMPLATE_MISMATCH", `当前模板不适用于${describeMeasure(range)}，请重新选择。`);
     }
     const plan = planMeasureRhythmPattern(range, template, templates[0]!.beatTicks, multiMeasure, numbered, createId);

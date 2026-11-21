@@ -172,7 +172,6 @@ describe("跨小节节奏型", () => {
     expect(rectangles.map(rect => rect.measureId)).toEqual([measure.id, "middle", last.id]);
     expect(rectangles[0]!.y).toBeLessThan(rectangles[2]!.y);
     expect(plan.focus.measureId).toBe(measure.id);
-    expect(planRhythmPattern(before, target, "measure-44-eighths")).toMatchObject({ ok: false, code: "RHYTHM_PATTERN_TEMPLATE_MISMATCH" });
     const command = { type: C.ApplyRhythmPattern, target, templateId: plan.template.id, expectedConfirmationKey: plan.confirmationKey } as const;
     const result = session.getState().execute(command);
     expect(result).toMatchObject({ ok: true, changed: true });
@@ -180,6 +179,31 @@ describe("跨小节节奏型", () => {
     const counts = after.score.tracks[0]!.measures.map(item => layer === "numbered" ? item.numberedVoice.events.length : item.beats.length);
     expect(counts).toEqual([5, 8, 5]);
     expect(new Set(plan.after.map(event => event.id)).size).toBe(plan.after.length);
+    expect(session.getState().historyDepth.past).toBe(1);
+    session.getState().undo();
+    expect(session.getState().document).toEqual(before);
+  });
+
+  it.each(["numbered", "tab"] as const)("BUG-058 %s 首尾小节只选一部分时，整小节模板覆盖两端完整小节", (layer) => {
+    const { document, track, measure } = fixture();
+    const last = appendFixtureMeasure(track, "last");
+    const outside = appendFixtureMeasure(track, "outside");
+    const target: RhythmPatternTarget = { layer, trackId: track.id, measureId: measure.id,
+      endMeasureId: last.id, focusMeasureId: last.id, startTick: Q, endTick: 3 * Q, focusTick: 2 * Q };
+    const session = createEditorSession(document);
+    const before = session.getState().document!;
+    const plan = preview(before, target, "measure-44-eighths");
+    expect(plan.target).toMatchObject({ startTick: 0, endTick: 4 * Q });
+    expect(plan.scopes.map(scope => [scope.measureId, scope.firstBeat, scope.lastBeat])).toEqual([[measure.id, 1, 4], [last.id, 1, 4]]);
+    expect(plan.focus).toMatchObject({ measureId: last.id, tick: 2 * Q });
+    expect(session.getState().execute({ type: C.ApplyRhythmPattern, target,
+      templateId: plan.template.id, expectedConfirmationKey: plan.confirmationKey })).toMatchObject({ ok: true, changed: true });
+    const after = session.getState().document!.score.tracks[0]!;
+    const ticks = Array.from({ length: 8 }, (_, index) => index * Q / 2);
+    for (const item of after.measures.slice(0, 2)) {
+      expect((layer === "numbered" ? item.numberedVoice.events : item.beats).map(event => event.tick)).toEqual(ticks);
+    }
+    expect(after.measures[2]).toEqual(outside);
     expect(session.getState().historyDepth.past).toBe(1);
     session.getState().undo();
     expect(session.getState().document).toEqual(before);
@@ -198,6 +222,9 @@ describe("跨小节节奏型", () => {
     last.numberedVoice.events.pop();
     last.beats.pop();
     expect(preview(document, { ...target, endTick: Q * 3 }, "eighths").scopes).toHaveLength(2);
+    expect(planRhythmPattern(document, { ...target, endTick: Q * 3 }, "measure-44-eighths")).toMatchObject({
+      ok: false, message: expect.stringContaining("整小节模板需要相同拍号"),
+    });
     last.timeSignature = { numerator: 6, denominator: 8 };
     expect(planRhythmPattern(document, { ...target, endTick: Q * 3 }, "eighths")).toMatchObject({
       ok: false, message: expect.stringContaining("第 2 小节（6/8）"),

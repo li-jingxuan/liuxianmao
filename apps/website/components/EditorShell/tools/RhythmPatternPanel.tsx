@@ -50,14 +50,12 @@ const templatesFor = (document: ILXMDocument, result: TargetResult) => {
   const signature = ranges[0]?.measure.timeSignature ?? document.score.tracks[0]?.measures[0]?.timeSignature ?? { numerator: 4, denominator: 4 };
   const candidates = getRhythmPatternTemplates(signature);
   const beats = candidates.filter(template => ranges.every(range => getRhythmPatternTemplates(range.measure.timeSignature).some(item => item.id === template.id)));
-  const wholeMeasure = ranges.length <= 1 || ranges.every(({ measure, startTick, endTick, capacity }) =>
-    startTick === 0 && endTick === capacity && measure.timeSignature.numerator === signature.numerator && measure.timeSignature.denominator === signature.denominator);
   const signatures = [...new Set(ranges.map(({ measure }) => `${measure.timeSignature.numerator}/${measure.timeSignature.denominator}`))];
   return {
     ranges,
     signatures: signatures.length ? signatures.join("、") : `${signature.numerator}/${signature.denominator}`,
     beats,
-    measures: wholeMeasure ? getMeasureRhythmPatternTemplates(signature) : [],
+    measures: signatures.length <= 1 ? getMeasureRhythmPatternTemplates(signature) : [],
   };
 };
 const previewFor = (props: RhythmPatternConfig, explicitTemplateId?: string) => {
@@ -253,10 +251,18 @@ export function RhythmPatternPanel(props: Props) {
   const discardedCount = plan?.perBeat.reduce((total, beat) => total + beat.discardedCount, 0) ?? 0;
   const firstMeasure = templates.ranges[0];
   const lastMeasure = templates.ranges.at(-1);
-  const destination = plan && firstMeasure && lastMeasure && (firstMeasure !== lastMeasure
-    ? `第 ${firstMeasure.index + 1} 小节第 ${plan.scope.firstBeat} 拍至第 ${lastMeasure.index + 1} 小节第 ${plan.scopes.at(-1)!.lastBeat} 拍`
-    : `第 ${firstMeasure.index + 1} 小节 · ${"beats" in plan.template ? "整小节" : plan.scope.beatCount === 1
-      ? `第 ${plan.scope.firstBeat} 拍` : `第 ${plan.scope.firstBeat}–${plan.scope.lastBeat} 拍`}`);
+  let destination: string | undefined;
+  if (plan && firstMeasure && lastMeasure) {
+    if ("beats" in plan.template) {
+      const numbers = firstMeasure === lastMeasure ? `${firstMeasure.index + 1}` : `${firstMeasure.index + 1}–${lastMeasure.index + 1}`;
+      destination = `第 ${numbers} 小节 · 整小节`;
+    } else if (firstMeasure !== lastMeasure) {
+      destination = `第 ${firstMeasure.index + 1} 小节第 ${plan.scope.firstBeat} 拍至第 ${lastMeasure.index + 1} 小节第 ${plan.scopes.at(-1)!.lastBeat} 拍`;
+    } else {
+      const beats = plan.scope.beatCount === 1 ? `${plan.scope.firstBeat}` : `${plan.scope.firstBeat}–${plan.scope.lastBeat}`;
+      destination = `第 ${firstMeasure.index + 1} 小节 · 第 ${beats} 拍`;
+    }
+  }
   const canApply = !busy && !blocked && !stale && !!plan;
   const applyCurrent = () => void apply(shared && !sidebar ? props.onSuccess : undefined);
   const handleEnter: KeyboardEventHandler<HTMLElement> = (event) => {
