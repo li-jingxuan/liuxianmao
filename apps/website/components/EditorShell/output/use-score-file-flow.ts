@@ -30,6 +30,7 @@ export function useScoreFileFlow({ session, drafts, isBlocked, onBlocked, onRepl
   const origin = useRef<HTMLElement | null>(null);
   const pendingRef = useRef<PendingAction | undefined>(undefined);
   const allowUnload = useRef(false);
+  const allowPageUnload = () => { allowUnload.current = true; };
 
   useEffect(() => {
     if (!drafts) return;
@@ -67,12 +68,16 @@ export function useScoreFileFlow({ session, drafts, isBlocked, onBlocked, onRepl
   };
 
   const cancel = () => {
+    const trigger = origin.current;
     setPanel(undefined);
     setPending(undefined);
     pendingRef.current = undefined;
     setDownloaded("");
     setError("");
-    requestAnimationFrame(() => { if (origin.current?.isConnected) origin.current.focus(); });
+    // 等工作区的浮层协调器解除背景 inert，再恢复文件菜单入口焦点。
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      if (trigger?.isConnected) trigger.focus({ preventScroll: true });
+    }));
   };
 
   const showPanel = (next: ScoreFilePanel, trigger: HTMLElement | null) => {
@@ -159,5 +164,5 @@ export function useScoreFileFlow({ session, drafts, isBlocked, onBlocked, onRepl
     }
   };
 
-  return { panel, pending, downloaded, error, notice, cancel, showPanel, requestReplacement, requestNavigation, finishLeave, exportJson, checkDrafts, allowUnload };
+  return { panel, pending, downloaded, error, notice, cancel, showPanel, requestReplacement, requestNavigation, finishLeave, exportJson, checkDrafts, allowPageUnload };
 }

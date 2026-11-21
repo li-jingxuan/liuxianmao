@@ -52,16 +52,20 @@ try {
   await title.fill("REQ040独立保存名称");
   const capo = before.document.score.tracks[0].capo === 2 ? 3 : 2;
   await select("变调夹", `${capo} 品`);
+  const applyColor = await sidebar.getByRole("button", { name: "应用曲谱信息", exact: true })
+    .evaluate(async el => {
+      await Promise.allSettled(el.getAnimations().map(animation => animation.finished));
+      return getComputedStyle(el).backgroundColor;
+    });
   for (const name of ["应用曲谱信息", "应用变调夹"]) {
     const apply = sidebar.getByRole("button", { name, exact: true });
     assert.match(await apply.getAttribute("class"), /ant-btn-primary/);
     assert.equal(Math.round((await apply.boundingBox()).height), 32);
-    const exportColor = await page.getByRole("button", { name: "导出", exact: true }).evaluate(el => getComputedStyle(el).backgroundColor);
     await page.waitForFunction(({ name, color }) => {
       const button = document.querySelector(`button[aria-label="${name}"]`);
       return button && !button.disabled && getComputedStyle(button).backgroundColor === color;
-    }, { name, color: exportColor });
-    assert.equal(await apply.evaluate(el => getComputedStyle(el).backgroundColor), exportColor);
+    }, { name, color: applyColor });
+    assert.equal(await apply.evaluate(el => getComputedStyle(el).backgroundColor), applyColor);
   }
   assert.equal(await sidebar.locator('dl[aria-label="曲谱调性（只读）"] #settings-signature').count(), 1);
   await shot("08-song-primary-buttons");
@@ -165,7 +169,7 @@ try {
   await page.setViewportSize({ width: 1400, height: 720 });
   await shot("06-library-1400x720");
   assert.deepEqual(errors, []);
-  const result = { passed: true, url, checks: ["调性与基础拍号只读并合并紧凑展示", "两处应用与导出统一蓝色主按钮", "旧底栏与歌曲小节跳转入口已移除", "名称与变调夹独立应用及撤销", "外部只读调性更新保留名称草稿", "切页或收起时丢弃歌曲输入，文件导入导出时显式保护草稿", "真实校验错误紧凑展示", "小调推荐标题及设置入口删除", "恢复旧分组且192项齐全", "真实Next页面无运行错误"], errors };
+  const result = { passed: true, url, checks: ["调性与基础拍号只读并合并紧凑展示", "两处应用使用统一主按钮样式", "旧底栏与歌曲小节跳转入口已移除", "名称与变调夹独立应用及撤销", "外部只读调性更新保留名称草稿", "切页或收起时丢弃歌曲输入，文件导入导出时显式保护草稿", "真实校验错误紧凑展示", "小调推荐标题及设置入口删除", "恢复旧分组且192项齐全", "真实Next页面无运行错误"], errors };
   await writeFile(new URL("result.json", output), JSON.stringify(result, null, 2));
   console.log(JSON.stringify(result, null, 2));
 } catch (error) {

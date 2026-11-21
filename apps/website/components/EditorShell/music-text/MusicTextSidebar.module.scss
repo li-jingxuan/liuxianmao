@@ -30,6 +30,44 @@
 .inlineTupletTools {
   padding: 12px 0;
   border-top: 1px solid var(--border, #e1e7ef);
+
+  &[data-numbered-note="true"] {
+    padding-block-start: 0;
+    border-top: 0;
+  }
+}
+
+.numberedTextActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-inline-start: auto;
+
+  button {
+    min-height: 24px;
+    padding: 1px 2px;
+    border: 0;
+    border-radius: 3px;
+    background: transparent;
+    color: var(--accent);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 550;
+    white-space: nowrap;
+    cursor: pointer;
+
+    &:hover:not([aria-disabled="true"]) {
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
+    &[aria-disabled="true"] {
+      color: var(--muted);
+      cursor: default;
+    }
+
+    span { margin-inline-start: 3px; }
+  }
 }
 
 .musicTextSidebar {

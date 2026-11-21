@@ -100,10 +100,14 @@ function paintInspector() {
   const isEmpty = current.measure >= initialMeasures;
   const kind = isNumbered ? (isEmpty ? '简谱录入位置' : '简谱音符') : '六线谱拍点';
   const where = locationText(current);
-  const meta = isNumbered ? (range > 1 ? `${range} 个位置` : isEmpty ? '未录入' : '1 个成员 · 十六分音符') : `${range} 个拍点`;
   byId('location').innerHTML = `${kind}<small>${where}</small>`;
   byId('status-location').textContent = `${kind} · ${where}${range > 1 ? ` · 已选 ${range} 个位置` : ''}`;
-  byId('numbered-summary').innerHTML = `<p class="muted">${meta}</p>${isNumbered ? '<div class="text-actions"><button class="text-action" data-command="edit-lyrics">编辑歌词 <span aria-hidden="true">→</span></button><button class="text-action" data-command="edit-numbered">编辑简谱 <span aria-hidden="true">→</span></button></div>' : ''}`;
+  byId('numbered-summary').innerHTML = isNumbered
+    ? `<div class="text-actions">
+        <button class="text-action" data-command="edit-lyrics">编辑歌词 <span aria-hidden="true">→</span></button>
+        <button class="text-action" data-command="edit-numbered">编辑简谱 <span aria-hidden="true">→</span></button>
+      </div>`
+    : `<p class="muted">${range} 个拍点</p>`;
   byId('measure-meter').textContent = `第 ${current.measure + 1} 小节 · 4/4`;
   byId('selection-panel').hidden = side !== 'selection';
   byId('text-panel').hidden = side !== 'text';
