@@ -18,8 +18,8 @@
     min-width: 0;
     height: 100%;
     min-height: 0;
-    overflow-x: hidden;
-    overflow-y: hidden;
+    // 顶栏以外层横向滚动区域为 sticky 参照。
+    overflow: clip;
   }
 }
 

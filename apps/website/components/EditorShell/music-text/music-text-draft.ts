@@ -5,6 +5,7 @@ import type {
   ILXMTabCellReference,
   ILXMTabCellSelection,
   ILXMLyricVerse,
+  MusicTextRange,
 } from "@liuxianmao/lxm-editor";
 import type { ChordDraft } from "../chords/ChordEditor";
 import { parseLyricSequence, planLyricSequence, resolveLyricPosition } from "@liuxianmao/lxm-editor";
@@ -87,6 +88,7 @@ export type SidebarAction =
       startDrag?: false;
     }
   | { type: "mode"; mode: MusicTextDraft["lyricMode"] }
+  | { type: "range"; range: MusicTextRange }
   | { type: "close" }
   | {
       type: "target";

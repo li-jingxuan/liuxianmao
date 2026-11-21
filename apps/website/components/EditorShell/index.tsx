@@ -986,7 +986,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
   const navigateTo = (destination: string) => {
     if (navigate) navigate(destination);
     else {
-      fileFlow.allowUnload.current = true;
+      fileFlow.allowPageUnload();
       window.location.assign(destination);
     }
   };
@@ -1231,6 +1231,20 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     }
   };
 
+  const runHistoryAction = (action: "undo" | "redo") => {
+    if (modals.isOpen()) return false;
+    endFretInput();
+    if (
+      musicTextController.current?.isTransitionBlocked() ||
+      drafts.inspect().pending.some((record) => record.kind === "technique")
+    )
+      return false;
+    const now = session.getState();
+    if (action === "undo") now.undo();
+    else now.redo();
+    return true;
+  };
+
   /** 编辑器级历史快捷键在 SVG 或 Toolbar 持有焦点时都生效。 */
   const handleEditorKeyDown: React.KeyboardEventHandler<HTMLDivElement> = (
     event,
@@ -1246,7 +1260,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     if (!action) return;
 
     event.preventDefault();
-    void handleToolbarAction({ type: action });
+    runHistoryAction(action);
   };
 
   /**
@@ -1435,11 +1449,29 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     "--accent": token.colorPrimary,
     "--accent-soft": token.colorPrimaryBg,
   };
+  const toggleSidebar = () => {
+    if (!sidebarCollapsed) {
+      closeSidebar();
+      return;
+    }
+    openSidebar();
+    requestAnimationFrame(() => musicTextController.current?.restoreSidebarFocus());
+  };
   const editorHeader = <EditorHeader
     title={document?.score.title ?? ""}
     status={fileStatus}
     empty={!document || !lxmLayout}
+    canUndo={canUndo}
+    canRedo={canRedo}
+    sidebarCollapsed={sidebarCollapsed}
+    zoom={scoreView.zoom}
+    onHistory={runHistoryAction}
+    onToggleSidebar={toggleSidebar}
+    onZoom={scoreView.setZoom}
     onNavigate={requestNavigation}
+    onLearning={(trigger) => {
+      if (requestNavigation("/guitar-advanced", trigger)) navigateTo("/guitar-advanced");
+    }}
     onShortcuts={(trigger, fromKeyboard) => {
       if (imageExportSnapshot || fileFlow.panel) return;
       modals.open({
@@ -1563,19 +1595,10 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
   const handleToolbarAction = async (
     action: EditorToolbarAction,
   ): Promise<boolean> => {
+    if (action.type === "undo" || action.type === "redo")
+      return runHistoryAction(action.type);
     if (modals.isOpen()) return false;
     endFretInput();
-    if (action.type === "undo" || action.type === "redo") {
-      if (
-        musicTextController.current?.isTransitionBlocked() ||
-        drafts.inspect().pending.some((record) => record.kind === "technique")
-      )
-        return false;
-      const now = session.getState();
-      if (action.type === "undo") now.undo();
-      else now.redo();
-      return true;
-    }
     const numberedTie = action.type === "quickTechnique" && action.technique === "tie" &&
       isNumberedTieTarget(continuousRangeRef.current, activeMusicTextTargetRef.current);
     const tabQuick =
@@ -1742,16 +1765,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
         onRhythmPatternScopeChange={setRhythmPatternScope}
         sidebarCollapsed={sidebarCollapsed}
         sidebarToggleRef={sidebarToggleRef}
-        onToggleSidebar={() => {
-          if (!sidebarCollapsed) {
-            closeSidebar();
-            return;
-          }
-          openSidebar();
-          requestAnimationFrame(() =>
-            musicTextController.current?.restoreSidebarFocus(),
-          );
-        }}
+        onToggleSidebar={toggleSidebar}
         activeTarget={activeMusicTextTarget}
         blocked={musicTextEditing}
         numberedBlocked={numberedActionBlocked}
@@ -1969,7 +1983,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
                   layout={lxmLayout}
                   activeMeasureId={continuousRange?.focus.measureId ?? activeMusicTextTarget?.measureId ?? numberedSelection?.measureId ?? selection?.focus.measureId}
                 />
-                {tailTop && tailBottom && (
+                {tailMeasure && tailTop && tailBottom && (
                   <foreignObject
                     className={scoreInteractionStyles.scoreTail}
                     x={tailTop.x2}
@@ -1994,7 +2008,28 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
                         data-score-tail-insert
                         onClick={() => void appendMeasure()}
                       >
-                        <span aria-hidden="true">+</span>
+                        <svg
+                          className={scoreInteractionStyles.scoreTailGraphic}
+                          width="100%"
+                          height="100%"
+                          aria-hidden="true"
+                        >
+                          {tailMeasure.strings.map((line) => (
+                            <line
+                              key={line.y1}
+                              className={scoreInteractionStyles.scoreTailLine}
+                              x1={1}
+                              x2={30}
+                              y1={line.y1 - tailTop.y1}
+                              y2={line.y2 - tailTop.y1}
+                            />
+                          ))}
+                          <path
+                            className={scoreInteractionStyles.scoreTailPlus}
+                            transform={`translate(16 ${(tailBottom.y1 - tailTop.y1) / 2})`}
+                            d="M-6 0h12M0 -6v12"
+                          />
+                        </svg>
                       </button>
                     </Tooltip>
                   </foreignObject>

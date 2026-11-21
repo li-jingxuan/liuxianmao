@@ -13,9 +13,7 @@ import type { MusicControlIcon } from "../../../assets/svg/svg-assets-manifest";
 import { deriveEditorToolState } from "./editor-tool-state";
 import type { ToolActionHandler } from "./editor-tool-actions";
 import { TechniqueSymbol } from "./EditorToolSymbolButton";
-import editorFormStyles from "../shared/editor-form.module.scss";
 import editorToolPanelStyles from "../shared/editor-tool-panel.module.scss";
-import type { MusicTextTarget } from "../music-text/music-text-draft";
 import taskStyles from "../shared/SelectionTaskDetails.module.scss";
 import sidebarStyles from "../music-text/MusicTextSidebar.module.scss";
 
@@ -38,19 +36,24 @@ export const NoteToolDetails = ({
   selection,
   blocked,
   onAction,
-  numberedTarget,
-  onEdit,
+  numberedNote = false,
   tupletTools,
 }: {
   document: ILXMDocument;
   selection: ILXMTabCellSelection | null;
   blocked: boolean;
   onAction: ToolActionHandler;
-  numberedTarget?: Extract<MusicTextTarget, { kind: "numbered" }> | null;
-  onEdit?: (target: MusicTextTarget) => void;
+  numberedNote?: boolean;
   tupletTools?: ReactNode;
 }) => {
   const overrides = useEditorStore((state) => state.tabInputRhythmOverrides);
+  // 简谱目标不能借仍保留的 TAB 选区执行另一谱层的时值或状态命令。
+  if (numberedNote)
+    return (
+      <section aria-label="音符与休止详情" data-selection-detail-focus tabIndex={-1}>
+        {tupletTools}
+      </section>
+    );
   const tools = deriveEditorToolState(document, selection);
   const beats =
     tools.range?.beats.flatMap(
@@ -79,56 +82,6 @@ export const NoteToolDetails = ({
   const inputRhythm = beat && tools.focused
     ? (overrides.includes(beat.id) ? beat.rhythm : tabInputRhythmFromNumbered(tools.focused.track, tools.focused.measure, beat.id) ?? beat.rhythm)
     : null;
-  const numberedMeasure =
-    numberedTarget &&
-    document.score.tracks
-      .find((track) => track.id === numberedTarget.trackId)
-      ?.measures.find((measure) => measure.id === numberedTarget.measureId);
-  const numberedEvent = numberedMeasure?.numberedVoice.events.find(
-    (event) => event.id === numberedTarget?.eventId,
-  );
-  // 简谱目标不能借仍保留的 TAB 选区执行另一谱层的时值或状态命令。
-  if (numberedTarget)
-    return (
-      <section className={editorToolPanelStyles.toolDetails} aria-label="音符与休止详情">
-        <h3 tabIndex={-1}>简谱音符</h3>
-        <p data-editor-form-hint className={editorFormStyles.settingsHint}>
-          {numberedEvent
-            ? `${numberedEvent.items.length} 个成员 · ${rhythms.find((rhythm) => rhythm.base === numberedEvent.rhythm.base)?.label ?? numberedEvent.rhythm.base}${numberedEvent.rhythm.dots ? ` · ${numberedEvent.rhythm.dots} 附点` : ""}`
-            : "简谱录入位置"}
-        </p>
-        <p data-editor-form-hint className={editorFormStyles.settingsHint}>
-          时值、单音符音高与连接在「简谱与歌词 → 简谱」中分别编辑和应用。
-        </p>
-        {onEdit && (
-          <div data-editor-form-actions className={editorFormStyles.sidebarActions}>
-            <Button
-              disabled={!numberedMeasure}
-              onClick={() => onEdit(numberedTarget)}
-            >
-              编辑简谱时值与连接
-            </Button>
-            <Button
-              disabled={!numberedMeasure}
-              onClick={() =>
-                onEdit({
-                  kind: "lyric",
-                  trackId: numberedTarget.trackId,
-                  measureId: numberedTarget.measureId,
-                  eventId: numberedTarget.eventId,
-                  tick: numberedTarget.tick,
-                  endTick: numberedTarget.endTick,
-                  verse: 1,
-                })
-              }
-            >
-              填写歌词
-            </Button>
-          </div>
-        )}
-        {tupletTools}
-      </section>
-    );
   return (
     <section className={taskStyles.noteDetails} aria-label="音符与休止详情">
       <div className={taskStyles.detailStat}>

@@ -25,7 +25,7 @@
   align-items: baseline;
   flex-wrap: wrap;
   gap: 4px 8px;
-  span {
+  .contextScope {
     padding-inline: 5px;
     border: 1px solid var(--border);
     border-radius: 4px;

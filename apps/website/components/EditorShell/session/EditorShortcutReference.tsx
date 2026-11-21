@@ -8,7 +8,7 @@ import styles from "./EditorShortcutReference.module.scss";
 const subscribe = () => () => {};
 const browserPlatform = () => /mac|iphone|ipad|ipod/i.test(navigator.platform) ? "mac" : "pc";
 const serverPlatform = () => "pc" as const;
-const useShortcutPlatform = () => useSyncExternalStore(subscribe, browserPlatform, serverPlatform);
+export const useShortcutPlatform = () => useSyncExternalStore(subscribe, browserPlatform, serverPlatform);
 
 function KeyCaps({ id, platform }: { id: EditorShortcut; platform: ShortcutPlatform }) {
   return <span className={styles.keys}>{shortcutKeys(id, platform).map((combo, index) => (
