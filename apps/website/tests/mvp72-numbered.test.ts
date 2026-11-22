@@ -47,7 +47,7 @@ describe("MVP v7.2 简谱 mock", () => {
     const loaded = loadDocument(JSON.stringify(DEFAULT_MOCK_DOCUMENT));
     expect(loaded.ok, JSON.stringify(loaded)).toBe(true);
     expect(editorStore.getState().document).toEqual(DEFAULT_MOCK_DOCUMENT);
-    expect(DEFAULT_MOCK_DOCUMENT.documentRevision).toBe(240);
+    expect(DEFAULT_MOCK_DOCUMENT.documentRevision).toBe(253);
     expect(DEFAULT_MOCK_DOCUMENT.score).toMatchObject({
       title: "理想",
       keySignature: "G",
@@ -62,9 +62,9 @@ describe("MVP v7.2 简谱 mock", () => {
       4, 4, 4, 4, 4, 4, 4, 4, 12, 12, 11, 5, 12, 10, 13, 5, 0, 0, 0, 0, 0, 0,
     ]);
     expect(track.measures.flatMap((m) => m.numberedVoice.events)).toHaveLength(112);
-    expect(track.techniques).toHaveLength(42);
+    expect(track.techniques).toHaveLength(46);
     expect(track.measures.flatMap((m) => m.chordSymbols.map((c) => c.chord.name))).toEqual([
-      "G", "C", "Em", "G", "G", "Am", "D", "G", "G", "Gadd9",
+      "G", "C", "Asus2", "G", "G", "Am", "D", "G", "G", "Gadd9",
       "Asus2", "Dsus2", "Gadd9", "G", "Asus2", "Dsus2", "Gadd9",
       "C", "G", "C", "G", "C", "Bm", "E",
     ]);

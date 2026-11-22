@@ -1,62 +1,114 @@
-import { HeaderBar } from "../components/HeaderBar";
+import Image from "next/image";
+import Link from "next/link";
+import { ArrowRight, ChevronDown } from "lucide-react";
+import { BrandIcon } from "../components/BrandIcon";
 import { HomeScoreActions } from "./HomeScoreActions";
+import { HomeScorePreview } from "./HomeScorePreview";
 import styles from "./page.module.scss";
 
-const HomePage = () => (
-  <div className={styles.home}>
-    <HeaderBar />
-    <main className={styles.welcome}>
-      <div className={styles.welcomeCopy}>
-        <h1>欢迎来到六线猫</h1>
-        <p>把旋律写下来，<br />让每一次练习都有回响。</p>
-        <div className={styles.actions}>
-          <HomeScoreActions />
-        </div>
-        <div className={styles.capabilities}>六线谱<span>简谱</span><span>歌词</span><span>和弦指法</span></div>
-      </div>
-      <div className={styles.scoreArt} aria-label="吉他曲谱示意">
-        <div className={styles.paper}>
-          <div className={styles.paperTitle}>风吹过山谷</div>
-          <div className={styles.paperMeta}>1=C{"\u3000"}4/4</div>
-          <svg viewBox="0 0 460 350" role="img" aria-label="六线谱、简谱和歌词的组合示例">
-            <g fill="none" stroke="#64728a" strokeWidth=".9">
-              <path d="M25 90h410M25 102h410M25 114h410M25 126h410M25 138h410M25 150h410M25 90v60m205-60v60m205-60v60" />
-              <path d="M50 157v27h100v-27m-67 0v27m34-27v27M255 157v27h100v-27m-67 0v27m34-27v27" stroke="#202838" strokeWidth="1.5" />
-            </g>
-            <g fill="#202838" fontFamily="Georgia,serif" textAnchor="middle">
-              <text x="60" y="63" fontSize="20">C</text><text x="263" y="63" fontSize="20">G</text>
-              <g fontSize="16">
-                <text x="50" y="119">0</text><text x="83" y="143">3</text><text x="117" y="107">1</text><text x="150" y="131">0</text>
-                <text x="255" y="119">0</text><text x="288" y="143">2</text><text x="322" y="107">3</text><text x="355" y="131">0</text>
-              </g>
-              <g fontSize="22">
-                <text x="50" y="234">1</text><text x="100" y="234">2</text><text x="150" y="234">3</text><text x="200" y="234">5</text>
-                <text x="255" y="234">6</text><text x="305" y="234">5</text><text x="355" y="234">3</text><text x="405" y="234">2</text>
-              </g>
-            </g>
-            <g fontSize="17" fill="#202838" textAnchor="middle">
-              <text x="50" y="279">风</text><text x="100" y="279">吹</text><text x="150" y="279">过</text><text x="200" y="279">山</text>
-              <text x="255" y="279">谷</text><text x="305" y="279">轻</text><text x="355" y="279">轻</text><text x="405" y="279">响</text>
-            </g>
-            <path d="M25 312h410" stroke="#dce2ec" />
-          </svg>
-          <span className={styles.paperCorner} aria-hidden="true" />
-        </div>
-        <div className={styles.chordChip}>
-          <svg viewBox="0 0 75 90" aria-hidden="true">
-            <g stroke="#285be0" strokeWidth="1.2" fill="none">
-              <path d="M12 23h50M12 37h50M12 51h50M12 65h50M12 79h50M12 23v56m10-56v56m10-56v56m10-56v56m10-56v56m10-56v56" />
-              <path d="M12 23h50" strokeWidth="3" />
-            </g>
-            <g fill="#285be0"><circle cx="22" cy="58" r="5" /><circle cx="32" cy="44" r="5" /><circle cx="52" cy="30" r="5" /></g>
-            <g fontSize="10" fill="#285be0" textAnchor="middle"><text x="12" y="17">×</text><text x="42" y="17">○</text><text x="62" y="17">○</text></g>
-          </svg>
-          <div><strong>C</strong><span>从一个和弦开始</span></div>
-        </div>
-      </div>
-    </main>
-    <footer className={styles.siteFooter}><span>六线猫</span><span>写谱，也练琴。</span></footer>
-  </div>
-);
+const steps = [
+  {
+    title: "新建或导入曲谱",
+    description: "从空白谱开始，也可以导入之前保存的六线猫曲谱继续写。",
+  },
+  {
+    title: "在谱面上调整",
+    description: "选中音符或小节，调整时值、节奏和演奏技巧，补上简谱、歌词与和弦。",
+  },
+  {
+    title: "保存或导出",
+    description: "保存曲谱文件供下次编辑，或导出谱面图片，方便发给琴友。",
+  },
+];
 
-export default HomePage;
+export default function HomePage() {
+  return (
+    <div className={styles.home}>
+      <header className={styles.siteHeader} id="top">
+        <div className={`${styles.wrap} ${styles.headerInner}`}>
+          <a className={styles.brand} href="#top" aria-label="六线猫首页">
+            <BrandIcon size={36} />
+            <span>六线猫</span>
+          </a>
+          <nav aria-label="首页导航">
+            <a className={styles.sectionLink} href="#demo">曲谱示例</a>
+            <a className={styles.sectionLink} href="#workflow">写谱与导出</a>
+            <Link className={styles.learningLink} href="/guitar-advanced">吉他进阶</Link>
+            <Link className={`${styles.button} ${styles.buttonOutline}`} href="/editor">
+              打开编辑器 <ArrowRight size={16} aria-hidden="true" />
+            </Link>
+          </nav>
+        </div>
+      </header>
+
+      <main>
+        <section className={`${styles.hero} ${styles.wrap}`} aria-labelledby="hero-title">
+          <div className={styles.heroCopy}>
+            <p className={styles.productLabel}>吉他曲谱编辑器</p>
+            <h1 id="hero-title">把想弹的，<br />写成谱。</h1>
+            <p className={styles.heroDescription}>记下刚弹出的旋律，整理一首弹唱谱。六线谱、简谱、歌词和和弦指法，都可以写在同一份谱里。</p>
+            <div className={styles.heroActions}>
+              <Link className={`${styles.button} ${styles.buttonPrimary}`} href="/editor">
+                打开编辑器 <ArrowRight size={16} aria-hidden="true" />
+              </Link>
+              <a className={`${styles.button} ${styles.buttonText}`} href="#demo">
+                看看曲谱示例 <ChevronDown size={16} aria-hidden="true" />
+              </a>
+            </div>
+            <HomeScoreActions />
+          </div>
+          <figure className={styles.heroFigure}>
+            <div className={styles.editorStage}>
+              <div className={styles.editorFrame}>
+                <Image
+                  src="/assets/home/editor-preview.png"
+                  alt="六线猫编辑器。左侧谱面同时显示和弦图、六线谱、简谱和歌词，右侧是编辑面板。"
+                  width={1440}
+                  height={900}
+                  loading="eager"
+                  unoptimized
+                />
+              </div>
+            </div>
+            <figcaption>编辑器实拍</figcaption>
+          </figure>
+        </section>
+
+        <section className={styles.demo} id="demo" aria-labelledby="demo-title">
+          <div className={styles.wrap}>
+            <div className={styles.sectionHeading}>
+              <h2 id="demo-title">一份谱，几种写法</h2>
+              <p>切换谱层，看看一段旋律怎么写成指弹谱或弹唱谱。</p>
+            </div>
+            <HomeScorePreview />
+          </div>
+        </section>
+
+        <section className={`${styles.workflow} ${styles.wrap}`} id="workflow" aria-labelledby="workflow-title">
+          <div className={styles.sectionHeading}>
+            <h2 id="workflow-title">从第一拍写到成谱</h2>
+          </div>
+          <ol className={styles.workflowSteps} role="list">
+            {steps.map(({ title, description }, index) => (
+              <li key={title}>
+                <span className={styles.stepNumber} aria-hidden="true">{index + 1}</span>
+                <h3>{title}</h3>
+                <p>{description}</p>
+              </li>
+            ))}
+          </ol>
+          <Link className={`${styles.button} ${styles.buttonPrimary}`} href="/editor">
+            打开编辑器 <ArrowRight size={16} aria-hidden="true" />
+          </Link>
+        </section>
+      </main>
+
+      <footer className={styles.siteFooter}>
+        <div className={`${styles.wrap} ${styles.footerInner}`}>
+          <div className={styles.brand}><BrandIcon size={32} /><span>六线猫</span></div>
+          <a href="#top">回到顶部</a>
+        </div>
+      </footer>
+    </div>
+  );
+}

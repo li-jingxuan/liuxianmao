@@ -156,7 +156,8 @@ try {
       await dialog.waitFor({ state: "hidden" });
       assert.equal(await toolTrigger(id).isDisabled(), true, id);
       if (id === "tuplet") {
-        assert.equal(await toolTrigger("beat").isDisabled(), true);
+        assert.equal(await toolTrigger("beat").isEnabled(), true);
+        assert.equal(await rhythmSidebar.getByRole("tab", { name: "扫弦节奏型" }).count(), 0);
         assert.equal(await addChord.isDisabled(), true);
         assert.equal(await toolTrigger("measure").isEnabled(), true);
       }
@@ -239,7 +240,7 @@ try {
     assert.equal(await rhythmPopup.locator('[data-rhythm-measure-template]').last().getAttribute('data-rhythm-measure-template'), 'measure-44-quarters');
     await measure("quarter-eighth").click();
     assert.equal(await rhythmSidebar.locator('[data-rhythm-measure-template="measure-44-quarter-eighth"]').getAttribute("aria-pressed"), "true");
-    const templates = rhythmPopup.getByRole("region", { name: "可滚动的节奏型模板" });
+    const templates = rhythmPopup.getByRole("tabpanel", { name: "普通节奏型" });
     const apply = rhythmPopup.getByRole("button", { name: "应用节奏型", exact: true });
     const footerBefore = await apply.boundingBox();
     assert.equal(await templates.evaluate(el => el.scrollHeight > el.clientHeight), true);
@@ -289,7 +290,7 @@ try {
     }
   });
   await check("侧栏节奏模板展开后随侧栏滚动，最后一条模板和应用按钮可到达", async () => {
-    const templates = rhythmSidebar.getByRole("region", { name: "节奏型模板", exact: true });
+    const templates = rhythmSidebar.getByRole("tabpanel", { name: "普通节奏型", exact: true });
     const beatToggle = rhythmSidebar.locator('[data-rhythm-toggle="beat"]');
     const measureToggle = rhythmSidebar.locator('[data-rhythm-toggle="measure"]');
     await beatToggle.click();
@@ -300,7 +301,7 @@ try {
     assert.equal(await templates.evaluate(el => getComputedStyle(el).overflowY), "visible");
     assert.equal(await templates.evaluate(el => el.scrollHeight === el.clientHeight && el.scrollTop === 0), true);
     assert.equal(await last.evaluate(el => {
-      const sidebar = el.closest('[role="tabpanel"]');
+      const sidebar = el.closest('[data-rhythm-pattern-panel]').closest('[role="tabpanel"]');
       const row = el.getBoundingClientRect();
       const bounds = sidebar.getBoundingClientRect();
       return sidebar.scrollTop > 0 && row.top >= bounds.top && row.bottom <= bounds.bottom;
@@ -487,7 +488,8 @@ try {
     assert.equal(await toolTrigger("beat").isEnabled(), true);
     assert.equal(await toolTrigger("measure").isEnabled(), true);
     await page.locator('text[data-numbered-event="e10"]').first().click({ modifiers: ["Shift"] });
-    assert.equal(await toolTrigger("beat").isDisabled(), true);
+    assert.equal(await toolTrigger("beat").isEnabled(), true);
+    assert.equal(await rhythmSidebar.getByRole("tab", { name: "扫弦节奏型" }).count(), 0);
     await open("measure");
     assert.match(await page.getByRole("dialog", { name: "小节工具参数" }).innerText(), /第 2 小节/);
     await page.keyboard.press("Escape");

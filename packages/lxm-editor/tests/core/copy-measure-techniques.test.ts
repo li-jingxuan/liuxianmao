@@ -103,7 +103,7 @@ describe("小节技巧复制保真", () => {
     },
   );
 
-  it("规范测试谱中 16 类技巧都有完整的小节复制验收样本", () => {
+  it("规范测试谱中每类技巧都有完整的小节复制验收样本", () => {
     const track = score.score.tracks[0]!;
     const types = new Set(
       track.measures.flatMap((measure) =>

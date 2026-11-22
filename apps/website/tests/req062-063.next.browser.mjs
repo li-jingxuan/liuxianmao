@@ -100,10 +100,11 @@ try {
           header.getBoundingClientRect().right - navigation.getBoundingClientRect().right,
         ];
       });
-      assert.deepEqual(edges, [inset, inset], `${route} at ${width}px`);
+      const expectedInset = route === "/" ? (width <= 760 ? 18 : (width - 1320) / 2) : inset;
+      assert.deepEqual(edges, [expectedInset, expectedInset], `${route} at ${width}px`);
     }
   }
-  console.log("REQ-062/063 browser passed: shortcut dialog focus, no console errors, and shared header alignment.");
+  console.log("REQ-062/063 browser passed: shortcut dialog focus, no console errors, and header alignment.");
 } finally {
   await browser.close();
 }

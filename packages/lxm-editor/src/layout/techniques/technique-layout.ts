@@ -60,6 +60,7 @@ import {
   TECHNIQUE_LABEL_GAP,
   TECHNIQUE_WAVE_MAX_WIDTH,
   TECHNIQUE_WAVE_MIN_WIDTH,
+  strumOffsetFromFrets,
   techniqueLabelWidth,
   vibratoStartOffset,
 } from "./technique-spacing";
@@ -155,6 +156,7 @@ const getChordTraversalSuppressionRanges = (
   anchors: ILXMAnchorMaps,
 ): readonly ILXMChordTraversalSuppressionRange[] =>
   techniques.flatMap((technique) => {
+    if (technique.type === "strum" && technique.showFrets) return [];
     return hasChordTraversalRange(technique) && anchors.beats.has(technique.beatId)
       ? [
           {
@@ -244,7 +246,7 @@ const getTechniqueEndpoints = (
           startSystem: from.systemIndex,
           endSystem: to.systemIndex,
           startX: from.x,
-          endX: to.x + to.width,
+          endX: technique.type === "traversalTie" ? to.x : to.x + to.width,
         }
       : null;
   }
@@ -358,6 +360,9 @@ const assignLanes = (
   // 以路径真实端点 Y 排序，不能用含 H/P 标签的包围框上缘推断弦位。
   const curveY = (candidate: ILXMTechniqueCandidate) =>
     Number(naturalPlans.get(candidate)!.path!.d.split(" ")[2]);
+  const laneCandidates = ordered.filter(
+    (candidate) => !candidate.staffLocal && !isAnchoredCurve(candidate.technique),
+  );
   // 先登记固定的 staffLocal 障碍，避免遍历顺序让后加入的泛音/扫弦撞到局部技巧。
   [
     ...ordered.filter((candidate) => candidate.staffLocal),
@@ -368,9 +373,12 @@ const assignLanes = (
           !candidate.staffLocal && isAnchoredCurve(candidate.technique),
       )
       .sort((a, b) => curveY(a) - curveY(b) || a.x1 - b.x1),
-    ...ordered.filter(
-      (candidate) =>
-        !candidate.staffLocal && !isAnchoredCurve(candidate.technique),
+    // 扫弦／琶音连音线优先贴近拍锚点，区间说明与单音标记再向上避让。
+    ...laneCandidates.filter(
+      ({ technique }) => technique.type === "traversalTie",
+    ),
+    ...laneCandidates.filter(
+      ({ technique }) => technique.type !== "traversalTie",
     ),
   ].forEach((candidate) => {
     const natural = naturalPlans.get(candidate)!;
@@ -554,6 +562,15 @@ const text = (value: string, x: number, y: number): ILXMTextLayout => ({
   textAnchor: "middle",
 });
 
+const upwardCurvePath = (
+  x1: number,
+  x2: number,
+  y: number,
+): NonNullable<ILXMTechniqueSegmentLayout["path"]> => ({
+  d: `M ${x1} ${y} Q ${(x1 + x2) / 2} ${y - LXM_TECHNIQUE_CURVE_HEIGHT} ${x2} ${y}`,
+  strokeWidth: LXM_TECHNIQUE_PATH_STROKE_WIDTH,
+});
+
 const wavePath = (x1: number, x2: number, y: number): string => {
   const parts = [`M ${x1} ${y}`];
   for (let x = x1; x < x2; x += 6) {
@@ -689,10 +706,7 @@ const createNaturalSegmentLayout = (
       // 非法或重合坐标仍不生成反向路径；合法短音不再被两端字形宽度压成零宽。
       x1 = startX;
       x2 = Math.max(startX, endX);
-      path = {
-        d: `M ${x1} ${curveY} Q ${(x1 + x2) / 2} ${curveY - LXM_TECHNIQUE_CURVE_HEIGHT} ${x2} ${curveY}`,
-        strokeWidth: LXM_TECHNIQUE_PATH_STROKE_WIDTH,
-      };
+      path = upwardCurvePath(x1, x2, curveY);
       if (
         candidate.segmentIndex === 0 &&
         (technique.type === "hammerOn" || technique.type === "pullOff")
@@ -708,6 +722,14 @@ const createNaturalSegmentLayout = (
           ),
         ];
     }
+  } else if (technique.type === "traversalTie") {
+    x1 = candidate.x1;
+    x2 = Math.max(x1, candidate.x2);
+    path = upwardCurvePath(x1, x2, laneY);
+    focusEndpoints = {
+      start: { x: x1, y: laneY },
+      end: { x: x2, y: laneY },
+    };
   } else if ("fromBeatId" in technique) {
     const label = technique.type === "palmMute" ? "P.M." : "let ring";
     const labelWidth = techniqueLabelWidth(label);
@@ -758,7 +780,9 @@ const createNaturalSegmentLayout = (
         }
         const y1 = Math.min(fromY, toY) - 2;
         const y2 = Math.max(fromY, toY) + 2;
-        const x = beat.x;
+        const x = technique.type === "strum" && technique.showFrets
+          ? beat.x - strumOffsetFromFrets(Math.max(0, ...beat.notes.map((note) => getFretTextBounds(note).width / 2)))
+          : beat.x;
         const directionStartY =
           technique.type === "arpeggio"
             ? technique.direction === "ascending"

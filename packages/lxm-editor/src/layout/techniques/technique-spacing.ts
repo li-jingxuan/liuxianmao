@@ -55,6 +55,9 @@ export const fretHalfWidth = (fret: ILXMFret, natural = false): number =>
     LXM_FRET_TEXT_HALO_WIDTH,
   ).width / 2;
 
+export const strumOffsetFromFrets = (widestFretHalf: number): number =>
+  widestFretHalf + LXM_TECHNIQUE_FRET_GAP_X + LXM_TECHNIQUE_ARROW_WIDTH / 2;
+
 export const techniqueLabelWidth = (
   label: string,
   fontSize = LXM_TECHNIQUE_TEXT_FONT_SIZE,
@@ -104,7 +107,7 @@ export const buildTechniqueInsets = (
     });
   };
   for (const t of track.techniques) {
-    if ("fromBeatId" in t) {
+    if (t.type === "palmMute" || t.type === "letRing") {
       reserve(
         t.fromBeatId,
         0,
@@ -112,6 +115,14 @@ export const buildTechniqueInsets = (
           TECHNIQUE_LABEL_GAP +
           2,
       );
+      continue;
+    }
+    if (t.type === "strum" && t.showFrets) {
+      const beat = beats.get(t.beatId);
+      if (beat) {
+        const half = Math.max(0, ...beat.notes.map((note) => fretHalfWidth(note.fret, naturalNotes.has(note.id))));
+        reserve(t.beatId, strumOffsetFromFrets(half) + LXM_TECHNIQUE_ARROW_WIDTH / 2, 0);
+      }
       continue;
     }
     if (t.type === "strum" || t.type === "arpeggio") continue;

@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>扫弦节奏模板 · 记谱设计稿</title>
+<style>
+  :root {
+    color-scheme: light;
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    --ink: #202a3a;
+    --muted: #54657b;
+    --line: #d9e2ed;
+    --surface: #f4f7fb;
+    --accent: #1556bf;
+    --selected: #edf5ff;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 32px 16px; background: var(--surface); color: var(--ink); }
+  main { max-width: 680px; margin: auto; padding: 20px; background: white; border: 1px solid var(--line); border-radius: 10px; }
+  h1, h2, p { margin: 0; }
+  h1 { font-size: 19px; font-weight: 650; }
+  h2 { font-size: 14px; font-weight: 650; }
+  header, .card-title, .detail-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  header { margin-bottom: 12px; }
+  .meter, .preview-name, .legend { font-size: 12px; color: var(--muted); }
+  .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .template { display: block; padding: 6px 9px 5px; min-width: 0; border: 1px solid var(--line); border-radius: 6px; background: white; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+  .template:hover { border-color: #839cbc; }
+  .template[aria-pressed="true"] { background: var(--selected); border-color: var(--accent); color: var(--accent); }
+  .template:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .card-title { font-size: 13px; font-weight: 600; }
+  .check { visibility: hidden; }
+  .template[aria-pressed="true"] .check { visibility: visible; }
+  .notation { display: block; width: 100%; height: 58px; }
+  .count { fill: var(--muted); font-size: 8px; text-anchor: middle; font-variant-numeric: tabular-nums; }
+  .arrow-stem, .sustain, .beam, .flag { fill: none; stroke: currentColor; stroke-linecap: round; }
+  .arrow-stem { stroke-width: 2.3; }
+  .sustain { stroke-width: 1.8; }
+  .beam, .flag { stroke-width: 3; }
+  .detail { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+  .detail-heading { margin-bottom: 6px; }
+  #preview { padding: 8px; border-radius: 6px; background: var(--surface); color: var(--accent); }
+  #preview .notation { max-width: 390px; height: auto; margin: auto; }
+  .legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; margin-top: 8px; }
+  .legend span { display: inline-flex; align-items: center; gap: 4px; }
+  .legend b { color: var(--ink); font-size: 15px; }
+  @media (max-width: 480px) {
+    body { padding: 8px; }
+    main { padding: 10px; }
+    .template { padding: 5px 5px 2px; }
+    .template .notation { height: auto; }
+  }
+</style>
+<main>
+  <header><h1>扫弦模板</h1><span class="meter">4/4 拍</span></header>
+  <div class="grid" id="templates" role="group" aria-label="扫弦模板"></div>
+  <section class="detail" aria-labelledby="preview-title">
+    <div class="detail-heading"><h2 id="preview-title">拍点预览</h2><span class="preview-name" id="active-name"></span></div>
+    <div id="preview" role="img" aria-live="polite"></div>
+    <p class="legend"><span><b aria-hidden="true">↑</b> 下扫</span><span><b aria-hidden="true">↓</b> 上扫</span><span><b aria-hidden="true">—</b> 延续一拍</span></p>
+  </section>
+</main>
+<script>
+  const templates = [
+    ["上上下", "上·上·下···"], ["上下上下", "上·下·上·下·"],
+    ["下-下上", "下···下上··"], ["下-下下上", "下···下·下上"],
+    ["下下上", "下·下·上···"], ["下上下", "下·上·下···"],
+    ["下上下上", "下·上·下·上·"], ["下上", "下···上···"],
+  ];
+  const byId = (id) => document.getElementById(id);
+  const xAt = (slot) => 15 + slot * 24;
+  const beamY = 47;
+  function arrow(stroke, joinsBeam) {
+    const downstroke = stroke === "下";
+    const tip = downstroke ? 5 : 42;
+    const headBase = downstroke ? 16 : 31;
+    const stemEnd = joinsBeam ? beamY : downstroke ? 42 : 38;
+    return `<path class="arrow-stem" d="M0 ${downstroke ? 12 : 5}V${stemEnd}" />
+      <path class="arrow-head" d="M0 ${tip} 5.5 ${headBase} 0 ${downstroke ? 13 : 34} -5.5 ${headBase}Z" fill="currentColor" />`;
+  }
+  const getAttacks = (grid) => {
+    const attacks = Array.from(grid).flatMap((stroke, slot) => stroke === "·" ? [] : [{ stroke, slot }]);
+    return attacks.map((attack, index) => ({ ...attack, length: (attacks[index + 1]?.slot ?? 8) - attack.slot }));
+  };
+  const durations = ["", "八分音符", "四分音符", "附点四分音符", "二分音符"];
+  function notation(attacks, detailed = false) {
+    const offset = detailed ? 16 : 0;
+    const counts = detailed ? Array.from({ length: 8 }, (_, slot) =>
+      `<text class="count" x="${xAt(slot)}" y="9">${slot % 2 === 0 ? slot / 2 + 1 : "&amp;"}</text>`).join("") : "";
+    const glyphs = attacks.map(({ stroke, slot, length }, index) => {
+      const pair = length === 1 && (slot % 2 === 0 ? attacks[index + 1] : attacks[index - 1])?.length === 1;
+      const eighth = pair && slot % 2 === 0 ? `<path class="beam" d="M0 ${beamY}H${xAt(1) - xAt(0)}" />`
+        : length === 1 && !pair ? `<path class="flag" d="M0 ${beamY}Q8 ${beamY - 1} 11 ${beamY - 8}" />` : "";
+      const sustainX = xAt(2) - xAt(0);
+      return `<g data-slot="${slot}" data-stroke="${stroke}" data-length="${length}" transform="translate(${xAt(slot)} ${offset})">
+        ${arrow(stroke, length === 1)}${eighth}
+        ${length === 4 ? `<path class="sustain" d="M${sustainX - 6} 24h12" />` : ""}
+        ${length === 3 ? '<circle class="dot" cx="12" cy="42" r="2.2" fill="currentColor" />' : ""}
+      </g>`;
+    }).join("");
+    return `<svg class="notation" viewBox="0 0 206 ${53 + offset}" aria-hidden="true" focusable="false">${counts}${glyphs}</svg>`;
+  }
+  const rhythms = templates.map(([, grid]) => getAttacks(grid));
+  const descriptions = rhythms.map((attacks) => attacks.map(({ stroke, slot, length }) =>
+    `第${Math.floor(slot / 2) + 1}拍${slot % 2 ? "后半拍" : ""}${stroke}扫，${durations[length]}`).join("。"));
+  byId("templates").innerHTML = templates.map(([name], index) => `<button class="template" type="button" data-index="${index}" aria-label="${name}，${descriptions[index]}" aria-pressed="false">
+    <span class="card-title"><span>${name}</span><span class="check" aria-hidden="true">✓</span></span>
+    ${notation(rhythms[index])}</button>`).join("");
+  function select(index) {
+    byId("templates").querySelectorAll("button").forEach((button, i) => button.setAttribute("aria-pressed", String(i === index)));
+    byId("active-name").textContent = templates[index][0];
+    byId("preview").setAttribute("aria-label", descriptions[index]);
+    byId("preview").innerHTML = notation(rhythms[index], true);
+  }
+  byId("templates").addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-index]");
+    if (button) select(Number(button.dataset.index));
+  });
+  select(3);
+</script>
+</html>
