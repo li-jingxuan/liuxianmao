@@ -1,5 +1,5 @@
 appname=liuxianmao
-version=0.1.0
+version=0.1.1
 display_name=六线猫
 desc=通过飞牛统一网关打开六线猫网站。
 source=thirdparty
