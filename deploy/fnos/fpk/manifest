@@ -1,5 +1,5 @@
 appname=liuxianmao
-version=0.1.1
+version=0.1.2
 display_name=六线猫
 desc=通过飞牛统一网关打开六线猫网站。
 source=thirdparty
@@ -8,7 +8,8 @@ maintainer=六线猫
 maintainer_url=https://github.com/li-jingxuan/liuxianmao
 desktop_uidir=ui
 desktop_applaunchname=liuxianmao.main
-ctl_stop=false
+ctl_stop=true
 checkport=false
+os_min_version=1.1.3100
 disable_authorization_path=true
 micro_app=true

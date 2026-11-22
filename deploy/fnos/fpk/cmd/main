@@ -1,9 +1,11 @@
 #!/bin/sh
+state="${TRIM_PKGVAR:?}/gateway-enabled"
 case "${1:-}" in
-    start|stop) exit 0 ;;
+    start) touch "$state" ;;
+    stop) rm -f "$state" ;;
     status)
         socket="${TRIM_APPDEST:-/var/apps/liuxianmao/target}/app.sock"
-        [ -S "$socket" ]
+        [ -f "$state" ] && [ -S "$socket" ] || exit 3
         ;;
     *) exit 1 ;;
 esac
