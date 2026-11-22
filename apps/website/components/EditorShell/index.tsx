@@ -59,6 +59,7 @@ import {
 import { ScoreMusicLayer } from "./score/ScoreMusicLayer";
 import type { ScoreStrumInteraction, StrumEndpoint, StrumEndpointPreview } from "./score/StrumInteractionLayer";
 import { StrumRangeInspector } from "./tools/StrumRangeInspector";
+import { ScoreContextMenu, type ScoreContextAction } from "./score/ScoreContextMenu";
 import { MeasureNumberLayer } from "./score/MeasureNumberLayer";
 import { buildScoreScene } from "@liuxianmao/lxm-editor";
 import { OutputBlockedModal } from "./output/OutputBlockedModal";
@@ -90,7 +91,8 @@ import {
 } from "./session/editor-session-version";
 import { EditorStatusBar } from "./workspace/EditorStatusBar";
 import { EditorHeader } from "./workspace/EditorHeader";
-import { EditorToolbar, type EditorToolbarAction } from "./workspace/EditorToolbar";
+import { EditorToolbar, type EditorToolbarAction, type EditorToolbarController } from "./workspace/EditorToolbar";
+import { resolveEditorChordTarget } from "./chords/editor-chord-target";
 import { useScorePlayback } from "./playback/controller";
 import { ScorePlaybackCursor } from "./playback/ScorePlaybackCursor";
 import {
@@ -139,6 +141,9 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
   );
   const activeMusicTextTargetRef = useRef<MusicTextTarget | null>(null);
   const musicTextController = useRef<MusicTextController>(null);
+  const toolbarController = useRef<EditorToolbarController>(null);
+  const [scoreMenu, setScoreMenu] = useState<{ point: { x: number; y: number }; sessionKey: string } | null>(null);
+  const [scoreMenuPanel, setScoreMenuPanel] = useState<Exclude<ScoreContextAction, "copy"> | null>(null);
   const toolExecute = useMemo(
     // 工厂只保存保护回调，真正提交及确认时才读取 owner 的实时状态。
     () =>
@@ -638,6 +643,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
       clearScorePointerInteraction();
       endFretInput();
       setRhythmPatternScope(null);
+      dismissScoreMenu(false);
     }
     playback.setEnabled(enabled);
   };
@@ -800,6 +806,14 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     () => scoreSvgRef.current?.focus({ preventScroll: true }),
     [],
   );
+  const dismissScoreMenu = useCallback((restoreFocus: boolean) => {
+    // 输入法组字和工具确认沿用原有的关闭保护。只有浮窗允许关闭时，才移除菜单锚点。
+    if (musicTextController.current?.closeContextChord() === false ||
+        toolbarController.current?.closeContextTool() === false) return;
+    setScoreMenu(null);
+    setScoreMenuPanel(null);
+    if (restoreFocus) focusScore();
+  }, [focusScore]);
   useEffect(() => {
     const state = session.getState();
     if (!state.loadNotice && (state.fileBaseline || !state.selection)) return;
@@ -1116,10 +1130,38 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     focusScore();
   };
 
+  const openScoreMenu = (cell: ILXMTabCellReference, point: { x: number; y: number }) => {
+    if (scoreReadOnly || modals.isOpen() || musicTextController.current?.isTransitionBlocked()) return;
+    if (toolbarController.current?.closeContextTool() === false) return;
+    // 右键命中范围内的弦格时保留 anchor 和 focus，尤其是反向或跨小节选择。
+    // 范围外则走正常选区切换，属性有未处理草稿时由原控制器决定是否接受。
+    const inside = resolvedSelection && cell.trackId === resolvedSelection.trackId &&
+      cell.string >= resolvedSelection.startString && cell.string <= resolvedSelection.endString &&
+      resolvedSelection.beats.some((beat) => beat.measureId === cell.measureId && beat.beatId === cell.beatId);
+    if (!inside || activeMusicTextTarget || continuousRange || numberedSelection) {
+      const next = inside ? selection : createCollapsedTabCellSelection(cell);
+      if (musicTextController.current?.select(next) !== "accepted") return;
+    } else clearScoreInteraction();
+    clearHover();
+    setRhythmPatternScope(null);
+    setScoreMenuPanel(null);
+    setScoreMenu({ point, sessionKey });
+  };
+
+  const handleScoreContextMenu: React.MouseEventHandler<SVGSVGElement> = (event) => {
+    if (scoreReadOnly) return;
+    event.preventDefault();
+    const point = getLayoutPoint(event.currentTarget, event);
+    const hit = point && lxmLayout && hitTestLayout(lxmLayout, point);
+    if (!hit) return;
+    const { trackId, measureId, beatId, string } = hit;
+    openScoreMenu({ trackId, measureId, beatId, string }, { x: event.clientX + 8, y: event.clientY + 8 });
+  };
+
   const handlePointerDown: React.PointerEventHandler<SVGSVGElement> = (
     event,
   ) => {
-    if (scoreReadOnly) return;
+    if (scoreReadOnly || event.button !== 0) return;
     clearHover();
     if (!document || !lxmLayout) return;
     const point = getLayoutPoint(event.currentTarget, event);
@@ -1359,6 +1401,14 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
       event.nativeEvent.isComposing
     )
       return;
+    if (event.key === "ContextMenu" || event.key === "F10" && event.shiftKey) {
+      if (!selection || !resolvedSelection || activeMusicTextTarget || continuousRange || numberedSelection) return;
+      const caret = focusCaretRef.current?.getBoundingClientRect();
+      if (!caret) return;
+      event.preventDefault();
+      openScoreMenu(selection.focus, { x: caret.right + 6, y: caret.top });
+      return;
+    }
     if (document && (continuousRange || event.shiftKey && activeMusicTextTarget && rangeFromTarget(activeMusicTextTarget))) {
       const range = continuousRange ?? rangeFromTarget(activeMusicTextTarget!)!;
       if (event.metaKey || event.ctrlKey || event.altKey) return;
@@ -1499,7 +1549,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
   > = (event) => {
     const target = event.target;
     if (
-      scoreReadOnly || event.shiftKey ||
+      scoreReadOnly || event.button !== 0 || event.shiftKey ||
       (target instanceof Node && scoreSvgRef.current?.contains(target))
     )
       return;
@@ -1776,6 +1826,65 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     numberedSelection,
   });
   const rhythmTarget = resolveEditorRhythmPatternTarget(document, selection, continuousRange, activeMusicTextTarget, numberedSelection);
+  const contextChord = resolveEditorChordTarget(document, selection, null);
+  const contextScope = focusedMeasureContext && resolvedSelection && selection
+    ? resolvedSelection.beats.length === 1
+      ? `第 ${focusedMeasureContext.measureIndex + 1} 小节第 ${focusedMeasureContext.measure.beats.findIndex((beat) => beat.id === selection.focus.beatId) + 1} 拍`
+      : `${resolvedSelection.beats.length} 个拍点 · 当前第 ${focusedMeasureContext.measureIndex + 1} 小节`
+    : "";
+  const copyCurrentMeasure = async () => {
+    const now = session.getState();
+    const target = now.selection?.focus;
+    if (!now.document || !target) return;
+    // 显式指定焦点小节。复用现有复制命令及其影响确认，跨小节选区也只复制当前小节。
+    const command = buildEditorToolCommand(now.document, now.selection, { type: "copyMeasures", target });
+    if (!command) return;
+    const result = await executeTool(command, "modal", {
+      isCurrent: captureEditorToolIntent(session.getState, () => activeMusicTextTargetRef.current),
+    });
+    if (result.status !== "applied") {
+      if (result.status === "blocked") setErrorMessage(result.message);
+      return;
+    }
+    const current = session.getState();
+    // 命令或确认弹窗返回后，若已换谱或进入播放，不能再把焦点移回旧副本。
+    if (current.document !== result.result.document || scoreReadOnlyRef.current) return;
+    const measures = current.document.score.tracks.find((track) => track.id === target.trackId)?.measures;
+    const index = measures?.findIndex((measure) => measure.id === target.measureId) ?? -1;
+    const duplicate = index >= 0 ? measures?.[index + 1] : undefined;
+    const beat = duplicate?.beats[0];
+    if (duplicate && beat) musicTextController.current?.select(createCollapsedTabCellSelection({
+      trackId: target.trackId, measureId: duplicate.id, beatId: beat.id, string: target.string,
+    }));
+  };
+  const handleScoreMenuAction = (action: ScoreContextAction, anchor: HTMLButtonElement) => {
+    if (modals.isOpen() || scoreReadOnlyRef.current) return;
+    // 和弦编辑占用文字编辑目标。切回 TAB 工具前先让退出状态提交，目标校验才能读到 TAB 选区。
+    const switchingFromChord = scoreMenuPanel === "chord" && action !== "chord";
+    if (switchingFromChord && musicTextController.current?.closeContextChord() === false) return;
+    if (action === "chord" || action === "copy") {
+      if (toolbarController.current?.closeContextTool() === false) return;
+    }
+    const activate = () => {
+      if (!anchor.isConnected || modals.isOpen() || scoreReadOnlyRef.current) return;
+      if (action === "copy") {
+        dismissScoreMenu(true);
+        void copyCurrentMeasure();
+        return;
+      }
+      const onClose = () => setScoreMenuPanel((active) => active === action ? null : active);
+      const accepted = action === "chord"
+        ? musicTextController.current?.openContextChord(anchor, onClose)
+        : toolbarController.current?.openContextTool(action, anchor, onClose);
+      if (accepted) setScoreMenuPanel(action);
+      else if (action !== "chord") {
+        const reason = toolbarController.current?.getContextToolDisabledReason(action);
+        if (reason) setErrorMessage(reason);
+      }
+    };
+    if (switchingFromChord) requestAnimationFrame(activate);
+    else activate();
+  };
   const getRhythmTarget = () => {
     const now = session.getState();
     return now.document
@@ -1837,6 +1946,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
       {editorHeader}
       <ScoreFilePanels flow={fileFlow} session={session} document={document} />
       <EditorToolbar
+        ref={toolbarController}
         continuousRange={continuousRange}
         onRhythmPatternScopeChange={setRhythmPatternScope}
         sidebarCollapsed={sidebarCollapsed}
@@ -1848,6 +1958,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
         blocked={musicTextEditing}
         numberedBlocked={numberedActionBlocked}
         chordEntryBlocked={chordEntryBlocked}
+        contextChordOpen={scoreMenuPanel === "chord"}
         onOpenChord={(target) => musicTextController.current?.open(target)}
         onAction={handleToolbarAction}
         beforeAction={endFretInput}
@@ -1897,7 +2008,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
           ref={pageViewportRef}
           className={scoreInteractionStyles.pageViewport}
           data-score-viewport
-          onPointerDownCapture={() => { if (!scoreReadOnly) setRhythmPatternScope(null); }}
+          onPointerDownCapture={(event) => { if (!scoreReadOnly && event.button === 0) setRhythmPatternScope(null); }}
           onPointerDown={handleWorkspacePointerDown}
           onScroll={clearHover}
         >
@@ -1924,6 +2035,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
                 aria-label="六线谱编辑器"
                 data-score-read-only={scoreReadOnly || undefined}
                 onPointerDown={handlePointerDown}
+                onContextMenu={handleScoreContextMenu}
                 onPointerMove={handlePointerMove}
                 onPointerLeave={clearHover}
                 onBlur={endFretInput}
@@ -2176,6 +2288,15 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
           getFloatingObservedElements={() => [pageViewportRef.current]}
         />
       </div>
+      {scoreMenu?.sessionKey === sessionKey && !scoreReadOnly && contextScope && (
+        <ScoreContextMenu point={scoreMenu.point} scope={contextScope} active={scoreMenuPanel}
+          chordLabel={contextChord.label}
+          disabled={{
+            chord: contextChord.enabled ? undefined : contextChord.reason,
+            beat: !rhythmTarget.ok && scoreMenuPanel !== "chord" ? rhythmTarget.message : undefined,
+          }}
+          onAction={handleScoreMenuAction} onDismiss={dismissScoreMenu} />
+      )}
       <EditorFeedback
         event={feedbackEvent}
         entries={historyEntries}

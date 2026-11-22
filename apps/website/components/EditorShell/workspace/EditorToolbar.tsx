@@ -3,6 +3,7 @@ import {
   type Ref,
   useCallback,
   useEffect,
+  useImperativeHandle,
   useLayoutEffect,
   useRef,
   useState,
@@ -38,6 +39,7 @@ import { TECHNIQUE_OPTIONS } from "../tools/technique-catalog";
 import { techniquesInToolbarSelection, toolbarTechniqueAvailability } from "../tools/technique-toolbar-model";
 import {
   EditorToolPanelHost,
+  type ContextToolGroup,
   type EditorToolPanelController,
 } from "../tools/EditorToolPanelHost";
 import { createBeatPasteController } from "../tools/beat-paste-controller";
@@ -60,6 +62,8 @@ import { PlaybackToolbar } from "../playback/PlaybackToolbar";
 import type { ScorePlaybackControls } from "../playback/controller";
 
 export type { EditorToolbarAction } from "../tools/editor-tool-actions";
+export type EditorToolbarController = Pick<EditorToolPanelController,
+  "openContextTool" | "closeContextTool" | "getContextToolDisabledReason">;
 
 const RHYTHMS: {
   base: ILXMRhythm["base"];
@@ -77,6 +81,7 @@ const ToolButton = EditorToolSymbolButton;
 
 /** 桌面菜单只组织入口；预览控制器随会话存活。 */
 export const EditorToolbar = ({
+  ref,
   activeTarget,
   continuousRange = null,
   blocked,
@@ -88,12 +93,14 @@ export const EditorToolbar = ({
   onOpenChord,
   onRhythmPatternScopeChange,
   chordEntryBlocked = false,
+  contextChordOpen = false,
   sidebarCollapsed,
   onToggleSidebar,
   sidebarToggleRef,
   playback,
   isPlaybackEntryBlocked,
 }: {
+  ref?: Ref<EditorToolbarController>;
   activeTarget: MusicTextTarget | null;
   continuousRange?: MusicTextRange | null;
   blocked: boolean;
@@ -106,6 +113,7 @@ export const EditorToolbar = ({
   onOpenChord?: (target: MusicTextTarget) => void;
   onRhythmPatternScopeChange?: (scope: RhythmPatternTarget | null) => void;
   chordEntryBlocked?: boolean;
+  contextChordOpen?: boolean;
   sidebarCollapsed: boolean;
   onToggleSidebar: () => void;
   sidebarToggleRef: Ref<HTMLButtonElement>;
@@ -142,6 +150,13 @@ export const EditorToolbar = ({
     drafts.getSnapshot,
   );
   const host = useRef<EditorToolPanelController>(null);
+  // 右键菜单复用工具栏现有面板和草稿保护。工具栏未挂载或正在试听时，没有可打开的工具面板。
+  useImperativeHandle(ref, () => ({
+    openContextTool: (group, anchor, onClose) => host.current?.openContextTool(group, anchor, onClose) ?? false,
+    closeContextTool: () => host.current?.closeContextTool() ?? true,
+    getContextToolDisabledReason: (group: ContextToolGroup) =>
+      host.current ? host.current.getContextToolDisabledReason(group) : "当前没有可用的编辑工具。",
+  }), []);
   const playbackToggleRef = useRef<HTMLButtonElement>(null);
   const [playbackEntryNotice, setPlaybackEntryNotice] = useState("");
   const sharedRhythmBusy = useSharedRhythmPatternBusy();
@@ -250,7 +265,7 @@ export const EditorToolbar = ({
   const chordDeletionAvailability: ToolAvailability = protectedDraft || drafts.inspect().busy
     ? { enabled: false, reason: "请先应用或取消当前草稿。" }
     : chordAvailability;
-  const chordActive = activeTarget?.kind === "chord" && !!chordTarget.target &&
+  const chordActive = !contextChordOpen && activeTarget?.kind === "chord" && !!chordTarget.target &&
     activeTarget.trackId === chordTarget.target.trackId &&
     activeTarget.measureId === chordTarget.target.measureId &&
     activeTarget.beatId === chordTarget.target.beatId;
@@ -438,6 +453,8 @@ export const EditorToolbar = ({
         blocked={!!modal}
         preserveOnBlock={modal?.request.kind === "rhythm-pattern-discard" || modal?.request.kind === "shortcuts"}
         targetReasons={toolTargetReasons}
+        // 休止拍也允许打开技巧面板。面板内仍按当前 TAB 选择判定每个技巧是否适用。
+        contextTechniqueReason={tabPanelReason}
         canHide={() => !rhythmBusyRef.current && !sharedRhythmBusy && !immediateBusyRef.current && (techniquePanel.current?.canHide() ?? true)}
         onHideTechnique={() => techniquePanel.current?.discard()}
         subscribeProtection={drafts.subscribe}

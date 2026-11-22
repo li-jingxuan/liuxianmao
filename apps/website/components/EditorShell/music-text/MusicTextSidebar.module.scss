@@ -212,6 +212,11 @@
 
 .chordFloating {
   width: min(378px, calc(100vw - 24px));
+  &[data-score-context-panel] {
+    // 菜单与快捷编辑是两个 portal。位置因视口边界发生重叠时，让正在编辑的表单保持可点。
+    z-index: 1000;
+    &::before { display: none; }
+  }
   border-color: #dce3eb;
   box-shadow: 0 10px 40px #20334a26;
   .floatingHeader { padding: 12px 16px 10px; gap: 6px; }

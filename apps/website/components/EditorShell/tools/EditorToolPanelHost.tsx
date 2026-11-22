@@ -2,6 +2,7 @@
 import { Button, Popover, Tooltip } from "antd";
 import { DownOutlined } from "@ant-design/icons";
 import {
+  useCallback,
   useEffect,
   useImperativeHandle,
   useLayoutEffect,
@@ -19,15 +20,26 @@ import { TupletSymbol } from "./TupletToolbar";
 import { BarlineSymbol } from "./MeasureBoundary";
 import type { TechniqueIntent } from "./editor-technique-target";
 import toolbarStyles from "../workspace/EditorToolbar.module.scss";
+import { contextPanelPosition } from "../score/context-panel-position";
+
+export type ContextToolGroup = Extract<ToolGroupId, "measure" | "beat" | "technique">;
+
+interface ContextToolEntry {
+  anchor: HTMLElement;
+  onClose: () => void;
+}
 
 export interface EditorToolPanelController {
   open: (group: ToolGroupId, focusSelector?: string) => void;
+  openContextTool: (group: ContextToolGroup, anchor: HTMLElement, onClose: () => void) => boolean;
+  closeContextTool: () => boolean;
+  getContextToolDisabledReason: (group: ContextToolGroup) => string | null;
   close: (restore?: boolean) => void;
   prepareHide: () => boolean;
   restore: (group: ToolGroupId) => void;
   openTechnique: (intent: TechniqueIntent) => boolean;
 }
-/** One viewport-positioned portal, bounded by the editor host. */
+/** 工具栏和谱面菜单共用面板实例，分别按工具栏按钮或菜单行定位。 */
 export const EditorToolPanelHost = ({
   ref,
   children,
@@ -36,6 +48,7 @@ export const EditorToolPanelHost = ({
   blocked,
   preserveOnBlock,
   targetReasons,
+  contextTechniqueReason,
   canHide,
   subscribeProtection,
   onTechniqueIntent,
@@ -50,6 +63,7 @@ export const EditorToolPanelHost = ({
   blocked: boolean;
   preserveOnBlock?: boolean;
   targetReasons: Record<ToolGroupId, string | null>;
+  contextTechniqueReason: string | null;
   canHide?: () => boolean;
   subscribeProtection?: (listener: () => void) => () => void;
   onTechniqueIntent?: (intent: TechniqueIntent) => boolean;
@@ -61,12 +75,22 @@ export const EditorToolPanelHost = ({
   const [open, setOpen] = useState(false);
   const [moreMenu, setMoreMenu] = useState(false);
   const [anchorInMore, setAnchorInMore] = useState(false);
-  const activeTargetMissing = !moreMenu && !!targetReasons[group];
-  const disabledReason = (target: ToolGroupId) => blocked ? "请先完成当前弹层操作。" : targetReasons[target];
+  const [contextEntry, setContextEntry] = useState<ContextToolEntry | null>(null);
+  const contextEntryRef = useRef<ContextToolEntry | null>(null);
+  const targetReason = (target: ToolGroupId, fromContext: boolean) =>
+    fromContext && target === "technique" ? contextTechniqueReason : targetReasons[target];
+  const activeTargetMissing = !moreMenu && !!targetReason(group, !!contextEntry);
+  const disabledReason = (target: ToolGroupId, fromContext = false) =>
+    blocked ? "请先完成当前弹层操作。" : targetReason(target, fromContext);
   const [portalRoot, setPortalRoot] = useState<HTMLElement | null>(null);
   const [geometry, setGeometry] = useState({ left: 8, top: 50, width: 300, maxHeight: 600, more: false });
   const trigger = useRef<HTMLDivElement>(null),
     content = useRef<HTMLDivElement>(null);
+  const [contextContent, setContextContent] = useState<HTMLDivElement | null>(null);
+  const attachContextContent = useCallback((node: HTMLDivElement | null) => {
+    content.current = node;
+    setContextContent(node);
+  }, []);
   const requestedFocus = useRef<string | undefined>(undefined);
   const composing = useRef(false);
   const compositionBuffer = useRef(false);
@@ -102,20 +126,40 @@ export const EditorToolPanelHost = ({
   };
   const restore = (target: ToolGroupId) =>
     visibleTrigger(target)?.focus({ preventScroll: true });
+  const finishContextEntry = (restoreRow: boolean) => {
+    const entry = contextEntryRef.current;
+    if (!entry) return false;
+    // 先清除本次入口，再通知父菜单更新展开状态，避免同一轮的关闭事件重复通知。
+    contextEntryRef.current = null;
+    setContextEntry(null);
+    entry.onClose();
+    if (restoreRow) {
+      const focusRow = () => {
+        if (!contextEntryRef.current && entry.anchor.isConnected) entry.anchor.focus({ preventScroll: true });
+      };
+      focusRow();
+      // 弹层卸载或父菜单提交展开状态后，再确认焦点仍在原行。
+      requestAnimationFrame(focusRow);
+    }
+    return true;
+  };
   const close = (restoreTrigger = false) => {
     invalidateOutside();
     if (!canClose()) { pendingClose.current = restoreTrigger; return; }
     pendingClose.current = null;
     if (open && group === "technique" && !moreMenu) onHideTechnique?.();
     setOpen(false);
-    if (restoreTrigger) {
+    if (!finishContextEntry(restoreTrigger) && restoreTrigger) {
       const target = group;
       restore(target);
       // Unmounting a portal may release its focused card after this synchronous call.
       requestAnimationFrame(() => restore(target));
     }
   };
+  const getContextToolDisabledReason = (target: ContextToolGroup) =>
+    disabledReason(target, true) ?? (canClose() ? null : "请先完成当前工具中的操作。");
   const align = () => {
+    if (contextEntry) return;
     const editor = trigger.current?.closest<HTMLElement>("[data-layout]") ?? trigger.current?.closest<HTMLElement>('[role="toolbar"]');
     const button = visibleTrigger(group);
     const anchor = button?.getBoundingClientRect();
@@ -131,9 +175,15 @@ export const EditorToolPanelHost = ({
     setGeometry({ left, top, width, maxHeight: Math.min(660, Math.max(80, window.innerHeight - top - 8)),
       more: button?.dataset.toolTrigger === "more" });
   };
-  const show = (target: ToolGroupId, focusSelector?: string, fromMore = false) => {
-    if (disabledReason(target)) return;
-    if (target !== group && !canClose()) return;
+  const show = (target: ToolGroupId, focusSelector?: string, fromMore = false, entry: ContextToolEntry | null = null) => {
+    if (disabledReason(target, !!entry)) return false;
+    if ((target !== group || contextEntryRef.current !== entry) && !canClose()) return false;
+    // 入口切换仍受现有草稿保护。切换到工具栏或另一菜单行时，先结束旧行的展开状态。
+    if (contextEntryRef.current !== entry) {
+      finishContextEntry(false);
+      contextEntryRef.current = entry;
+      setContextEntry(entry);
+    }
     invalidateOutside();
     pendingClose.current = null;
     if (open && group === "technique" && target !== group && !moreMenu) onHideTechnique?.();
@@ -143,8 +193,33 @@ export const EditorToolPanelHost = ({
     setMoreMenu(false);
     setAnchorInMore(fromMore);
     setOpen(true);
+    return true;
   };
-  useImperativeHandle(ref, () => ({ open: show, close, restore,
+  useImperativeHandle(ref, () => ({
+    open: (target, focusSelector) => {
+      const entry = contextEntryRef.current;
+      // 技巧面板内展开参数只移动当前面板的焦点，不重新从工具栏打开。
+      if (entry && open && group === target && focusSelector) {
+        requestAnimationFrame(() => {
+          if (contextEntryRef.current === entry) content.current?.querySelector<HTMLElement>(focusSelector)?.focus({ preventScroll: true });
+        });
+        return;
+      }
+      show(target, focusSelector);
+    },
+    openContextTool: (target, anchor, onClose) => {
+      if (!anchor.isConnected || !anchor.closest("[data-score-context-menu]")) return false;
+      return show(target, undefined, false, { anchor, onClose });
+    },
+    closeContextTool: () => {
+      if (!contextEntryRef.current) return true;
+      // 父菜单需要同步判断能否离开，受保护时保留当前入口，不安排延迟关闭。
+      if (!canClose()) return false;
+      close();
+      return true;
+    },
+    getContextToolDisabledReason,
+    close, restore,
     prepareHide: () => {
       if (!canClose()) return false;
       close();
@@ -168,6 +243,10 @@ export const EditorToolPanelHost = ({
     if (compositionFrame.current !== null) cancelAnimationFrame(compositionFrame.current);
     if (outsideFrame.current !== null) cancelAnimationFrame(outsideFrame.current);
     outsideGeneration.current++;
+    // 工具栏卸载也要清除父菜单的展开状态。卸载时不再移动焦点或更新本组件状态。
+    const entry = contextEntryRef.current;
+    contextEntryRef.current = null;
+    entry?.onClose();
   }, []);
   useEffect(() => {
     const root = trigger.current;
@@ -189,7 +268,42 @@ export const EditorToolPanelHost = ({
     };
     // 浮层对齐只依赖活动组，参数 owner 不参与此 effect。
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [group, moreMenu, anchorInMore]);
+  }, [group, moreMenu, anchorInMore, contextEntry]);
+  useLayoutEffect(() => {
+    if (!contextEntry) return;
+    const { anchor } = contextEntry;
+    const menu = anchor.closest("[data-score-context-menu]");
+    if (!menu) return;
+    const update = () => {
+      // 菜单行决定垂直起点，父菜单边缘决定水平起点。按实际内容高度重新定位，参数展开后也能保持在视口内。
+      const width = Math.min(group === "beat" ? 456 : group === "measure" ? 410 : 392, window.innerWidth - 16);
+      const maxHeight = Math.min(660, window.innerHeight - 16);
+      const height = Math.min(contextContent?.getBoundingClientRect().height || maxHeight, maxHeight);
+      const { left, top } = contextPanelPosition(anchor, width, height);
+      setGeometry((previous) => previous.left === left && previous.top === top && previous.width === width &&
+        previous.maxHeight === maxHeight && !previous.more ? previous : { left, top, width, maxHeight, more: false });
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(menu);
+    observer.observe(anchor);
+    if (contextContent) observer.observe(contextContent);
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, true);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
+    };
+  }, [contextEntry, contextContent, group]);
+  useEffect(() => {
+    // 父菜单因选区变化等原因卸载时，不能继续显示失去锚点的面板。
+    if (!contextEntry || contextEntry.anchor.isConnected) return;
+    const frame = requestAnimationFrame(() => {
+      if (contextEntryRef.current === contextEntry) close();
+    });
+    return () => cancelAnimationFrame(frame);
+  });
   useEffect(() => {
     if (!open) return;
     const outside = (event: PointerEvent) => {
@@ -199,7 +313,8 @@ export const EditorToolPanelHost = ({
       if (button && trigger.current?.contains(button)) return;
       close();
     };
-    if (group !== "beat") window.document.addEventListener("pointerdown", outside, true);
+    // 菜单入口由父菜单统一处理外部点击，确保点击菜单行时仍可切换，也避免草稿阻止关闭后再次安排关闭。
+    if (group !== "beat" && !contextEntry) window.document.addEventListener("pointerdown", outside, true);
     const escape = (event: KeyboardEvent) => {
       if (event.key !== "Escape" || event.isComposing || blocked || content.current?.closest("[inert]")) return;
       if (content.current?.querySelector('[role="combobox"][aria-expanded="true"]')) return;
@@ -213,7 +328,7 @@ export const EditorToolPanelHost = ({
     };
   });
   useEffect(() => {
-    if (open) {
+    if (open && (!contextEntry || contextContent)) {
       const frame = requestAnimationFrame(() => {
         align();
         const panel = moreMenu ? content.current : content.current?.querySelector<HTMLElement>(`[data-tool-panel="${group}"]`);
@@ -242,11 +357,12 @@ export const EditorToolPanelHost = ({
       return () => cancelAnimationFrame(frame);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, group, moreMenu, anchorInMore]);
+  }, [open, group, moreMenu, anchorInMore, contextEntry, contextContent]);
   const popup = (rhythm: boolean) => (
         <div
-          ref={rhythm === (group === "beat") ? content : undefined}
+          ref={rhythm === (group === "beat") ? (contextEntry ? attachContextContent : content) : undefined}
           role="dialog" aria-label={moreMenu ? "更多工具" : `${TOOL_GROUPS.find((item) => item.id === group)!.label}工具参数`}
+          data-score-context-panel={contextEntry && open && rhythm === (group === "beat") ? group : undefined}
           hidden={!open || rhythm !== (group === "beat")}
           inert={!open || blocked || rhythm !== (group === "beat")}
           onCompositionStart={() => {
@@ -315,7 +431,7 @@ export const EditorToolPanelHost = ({
         styles={popupStyles}
         content={group === "beat" && geometry.more === more ? popup(true) : null}
         onOpenChange={(next) => {
-          if (next || group !== "beat" || !open || preserveOnBlock) return;
+          if (next || group !== "beat" || !open || preserveOnBlock || contextEntryRef.current) return;
           // 外部点击由 Popover 检测。等本次谱面点击/拖动完成后，选区切换保留面板，空白点击关闭。
           const previous = paintedBeatTarget.current;
           const deadline = performance.now() + 1500;
@@ -342,7 +458,7 @@ export const EditorToolPanelHost = ({
   const renderTrigger = (id: Exclude<ToolGroupId, "technique">, symbol: ReactNode) => {
     const { label } = TOOL_GROUPS.find((item) => item.id === id)!;
     const reason = disabledReason(id);
-    const active = open && group === id;
+    const active = open && !contextEntry && group === id;
     const button = (
       <Tooltip title={reason ?? (id === "beat" ? "节奏型" : `${label}工具`)} trigger={["hover", "focus"]}>
         <Button
@@ -390,8 +506,8 @@ export const EditorToolPanelHost = ({
         <div className={toolbarStyles.toolbarGroup} role="group" aria-label="演奏技巧">
           {quickTechniques}
           <EditorToolSymbolButton triggerId="technique" label="所有技巧" title="所有技巧"
-            popup expanded={open && group === "technique"} availability={{ enabled: !disabledReason("technique"), reason: disabledReason("technique") ?? "" }}
-            onClick={() => { if (open && group === "technique") close(true); else show("technique"); }}>
+            popup expanded={open && !contextEntry && group === "technique"} availability={{ enabled: !disabledReason("technique"), reason: disabledReason("technique") ?? "" }}
+            onClick={() => { if (open && !contextEntry && group === "technique") close(true); else show("technique"); }}>
             <TechniqueSymbol kind="technique" />
           </EditorToolSymbolButton>
         </div>
@@ -408,6 +524,7 @@ export const EditorToolPanelHost = ({
             event.stopPropagation();
             if (open && moreMenu) close(true);
             else if (!blocked && canClose()) {
+              finishContextEntry(false);
               invalidateOutside();
               pendingClose.current = null;
               if (open && group === "technique" && !moreMenu) onHideTechnique?.();
