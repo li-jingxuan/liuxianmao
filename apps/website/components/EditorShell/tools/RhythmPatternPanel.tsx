@@ -459,7 +459,7 @@ export function RhythmPatternPanel(props: Props) {
     </div>}
     {hasTabs && <div id={paneId("strum")} className={styles.templates} role="tabpanel" aria-labelledby={tabId("strum")} hidden={!strum} tabIndex={0}>
       {strum && <>
-        <p className={styles.strumLegend}>↓ 上扫 1→6弦　↑ 下扫 6→1弦　– 延音　每格 ¼ 拍</p>
+        <p className={styles.strumLegend}>↓ 上扫 1→6弦&#x3000;↑ 下扫 6→1弦&#x3000;– 延音&#x3000;每格 ¼ 拍</p>
         <div className={styles.strumGrid} id={`${templateGroupId}-strum`}>
           {templates.strums.map((template, index) => <StrumTemplateCard key={template.id} template={template}
             hidden={!expanded.strum && index >= collapsedStrumCount} disabled={busy}
