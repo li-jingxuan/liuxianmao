@@ -17,12 +17,12 @@
      printf '%s\n' "$target" > appdest
    ```
 
-4. 为 Woodpecker 生成专用 SSH 密钥。把它的公钥装到 `nice007` 的 `authorized_keys`，在该行公钥前添加 `restrict,command="sh /home/nice007/.local/share/liuxianmao/ssh-release.sh"`。将私钥和已核验的 NAS SSH host key 行分别存入 Woodpecker 项目 Secret `lxm_nas_ssh_key` 和 `lxm_nas_known_hosts`，事件均选择 `manual`。检出源码复用同一项目已有的 `github_api_checkout` Secret。
+4. 为 Woodpecker 生成专用 SSH 密钥。把它的公钥装到 `nice007` 的 `authorized_keys`，在该行公钥前添加 `restrict,command="sh /home/nice007/.local/share/liuxianmao/ssh-release.sh"`。将私钥和已核验的 NAS SSH host key 行分别存入 Woodpecker 项目 Secret `lxm_nas_ssh_key` 和 `lxm_nas_known_hosts`，事件均选择 `manual`。流水线通过公开 Git 地址检出指定提交。
 5. 从 Woodpecker 手动部署 `main`。成功后，从飞牛桌面点击「六线猫」，并检查登录状态校验、首页和编辑器刷新。通过 `appdest` 确认 `app.sock` 的实际位置和飞牛网关访问权限。
 
 ## 发布和回滚
 
-在 [Woodpecker 仓库页](https://nice007.fnos.net/app/woodpecker/repos/2) 选择 **Run pipeline**，分支选 `main`。可填写自定义变量 `RELEASE_ACTION`。
+在 [Woodpecker 仓库页](https://nice007.fnos.net/app/woodpecker/repos/5) 选择 **Run pipeline**，分支选 `main`。可填写自定义变量 `RELEASE_ACTION`。
 
 - `check` 或留空运行 lint、类型检查、测试和 standalone 生产构建。
 - `deploy` 通过同样的检查后，经 SSH 把源码传到 NAS。NAS 核对源码与当前 GitHub `main` 的 Git tree 后构建并部署本机镜像。如果检查期间 `main` 已更新，请重新创建流水线。
