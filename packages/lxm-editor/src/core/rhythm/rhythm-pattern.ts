@@ -203,7 +203,7 @@ export type RhythmPatternPlan = {
 } | { ok: false; code: RhythmPatternErrorCode; message: string };
 
 const markNames: Record<string, string> = {
-  tie: "延音线", slur: "圆滑线", fermata: "延长记号", tuplet: "连音组",
+  tie: "延音线", traversalTie: "扫弦/琶音延音线", slur: "圆滑线", fermata: "延长记号", tuplet: "连音组",
   bend: "推弦", vibrato: "揉弦", naturalHarmonic: "自然泛音", artificialHarmonic: "人工泛音",
   tapping: "点弦", trill: "颤音", hammerOn: "击弦", pullOff: "勾弦", slideUp: "上滑音", slideDown: "下滑音",
   strum: "扫弦", arpeggio: "琶音", pickStroke: "拨片方向", palmMute: "掌根闷音", letRing: "持续发声",
@@ -489,10 +489,11 @@ export const planRhythmPattern = (document: ILXMDocument, target: RhythmPatternT
     }
     if (removedConnectionIds.size) nextTrack.numberedMarks = track.numberedMarks.filter(mark => !removedConnectionIds.has(mark.id));
   } else if (affectedMarks.size) {
-    // 范围外技巧优先保留。受影响的技巧按文档顺序复核，已失效的技巧不参与互斥判断。
+    // 范围外技巧优先保留，扫弦或琶音先于依赖它们的延音线复核。
     const kept = track.techniques.filter(mark => !affectedMarks.has(mark.id));
-    for (const mark of track.techniques) {
-      if (!affectedMarks.has(mark.id)) continue;
+    const affected = track.techniques.filter(mark => affectedMarks.has(mark.id));
+    const ordered = [...affected.filter(mark => mark.type !== "traversalTie"), ...affected.filter(mark => mark.type === "traversalTie")];
+    for (const mark of ordered) {
       if (validateTechnique({ ...nextTrack, techniques: kept }, mark).ok) kept.push(mark);
       else discardMark(mark);
     }

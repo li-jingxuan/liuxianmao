@@ -14,6 +14,7 @@ import {
   RedoOutlined,
   UndoOutlined,
 } from "@ant-design/icons";
+import { Headphones } from "lucide-react";
 import { LXMScoreCommandEnum, LXM_TUPLET_RATIOS, type ILXMRhythm, type MusicTextRange, type RhythmPatternTarget } from "@liuxianmao/lxm-editor";
 import {
   useEditorSessionStore,
@@ -55,6 +56,8 @@ import { isNumberedTieTarget, resolveEditorTieTarget } from "../tools/editor-tie
 import { EditorToolSymbolButton, TechniqueSymbol } from "../tools/EditorToolSymbolButton";
 import symbolStyles from "../tools/EditorToolSymbolButton.module.scss";
 import toolbarStyles from "./EditorToolbar.module.scss";
+import { PlaybackToolbar } from "../playback/PlaybackToolbar";
+import type { ScorePlaybackControls } from "../playback/controller";
 
 export type { EditorToolbarAction } from "../tools/editor-tool-actions";
 
@@ -88,6 +91,8 @@ export const EditorToolbar = ({
   sidebarCollapsed,
   onToggleSidebar,
   sidebarToggleRef,
+  playback,
+  isPlaybackEntryBlocked,
 }: {
   activeTarget: MusicTextTarget | null;
   continuousRange?: MusicTextRange | null;
@@ -104,6 +109,8 @@ export const EditorToolbar = ({
   sidebarCollapsed: boolean;
   onToggleSidebar: () => void;
   sidebarToggleRef: Ref<HTMLButtonElement>;
+  playback: ScorePlaybackControls;
+  isPlaybackEntryBlocked: () => boolean;
 }) => {
   const session = useEditorSessionStore();
   const { drafts, modals } = useEditorRuntime();
@@ -135,6 +142,8 @@ export const EditorToolbar = ({
     drafts.getSnapshot,
   );
   const host = useRef<EditorToolPanelController>(null);
+  const playbackToggleRef = useRef<HTMLButtonElement>(null);
+  const [playbackEntryNotice, setPlaybackEntryNotice] = useState("");
   const sharedRhythmBusy = useSharedRhythmPatternBusy();
   const immediateBusyRef = useRef(false);
   const [, setImmediateBusyState] = useState(false);
@@ -294,14 +303,34 @@ export const EditorToolbar = ({
     if (!rhythmAvailability.enabled) return false;
     return onAction(action);
   };
+  const exitPlayback = () => {
+    playback.setEnabled(false);
+    playbackToggleRef.current?.focus({ preventScroll: true });
+  };
+  const togglePlayback = () => {
+    if (playback.enabled) {
+      exitPlayback();
+      return;
+    }
+    const protection = drafts.inspect();
+    if (modals.isOpen() || protection.composing || protection.busy || isPlaybackEntryBlocked() ||
+      protection.pending.some((item) => item.kind === "technique" || item.kind === "beatPaste") ||
+      host.current?.prepareHide() === false) {
+      setPlaybackEntryNotice("请先完成当前输入或处理编辑工具中的草稿，再切换至试听。");
+      return;
+    }
+    setPlaybackEntryNotice("");
+    beforeAction();
+    playback.setEnabled(true);
+  };
   return (
     <div
       className={toolbarStyles.root}
       role="toolbar"
-      aria-label="节奏、小节与历史工具"
-      aria-describedby="editor-tool-reason"
+      aria-label={playback.enabled ? "木吉他试听" : "节奏、小节与历史工具"}
+      aria-describedby={playback.enabled ? "editor-playback-description" : "editor-tool-reason"}
     >
-      <div className={toolbarStyles.content}>
+      {playback.enabled ? <PlaybackToolbar playback={playback} onExit={exitPlayback} /> : <div className={toolbarStyles.content}>
       <div className={`${toolbarStyles.row} ${toolbarStyles.primary}`} data-toolbar-row="rhythm">
       <div className={toolbarStyles.toolbarGroup} role="group" aria-label="历史">
         <ToolButton
@@ -535,8 +564,29 @@ export const EditorToolbar = ({
         )}
       </div>
       </div>
-      </div>
+      </div>}
       <div className={toolbarStyles.viewControls} role="group" aria-label="工作区布局" data-editor-associated-panel="music-text-sidebar" data-editor-panel-control>
+        <Tooltip title={playback.enabled ? "退出木吉他试听" : "进入木吉他试听"} trigger={["hover", "focus"]} placement="bottomRight">
+          <button
+            ref={playbackToggleRef}
+            type="button"
+            className={toolbarStyles.panelToggle}
+            aria-label="木吉他试听"
+            aria-controls={playback.enabled ? "editor-playback-controls" : undefined}
+            aria-pressed={playback.enabled}
+            data-playback-toggle
+            onPointerDown={(event) => { if (event.button === 0) event.preventDefault(); }}
+            onClick={togglePlayback}
+            onKeyDown={(event) => {
+              if (event.key !== "Escape" || !playback.enabled || event.nativeEvent.isComposing) return;
+              event.preventDefault();
+              event.stopPropagation();
+              exitPlayback();
+            }}
+          >
+            <Headphones size={20} strokeWidth={1.7} aria-hidden="true" />
+          </button>
+        </Tooltip>
         <Tooltip title={sidebarCollapsed ? "展开编辑面板" : "收起编辑面板"} trigger={["hover", "focus"]} placement="bottomRight">
         <button
           ref={sidebarToggleRef}
@@ -558,6 +608,7 @@ export const EditorToolbar = ({
       <span id="editor-tool-reason" className={toolbarStyles.hint}>
         {rhythmAvailability.reason || reason || "当前选区可编辑音符与节奏。"}
       </span>
+      {playbackEntryNotice && <Alert className={toolbarStyles.toolbarNotice} type="warning" title={playbackEntryNotice} showIcon closable onClose={() => setPlaybackEntryNotice("")} />}
       <PasteNotice controller={paste} />
     </div>
   );

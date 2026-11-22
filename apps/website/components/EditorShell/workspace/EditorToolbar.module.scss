@@ -43,10 +43,45 @@
   transition: background-color 140ms, color 140ms;
   svg { flex-shrink: 0; }
   &:hover { background: var(--panel-muted); color: var(--foreground); }
-  &[aria-expanded="true"] { background: var(--accent-soft); color: var(--accent); }
-  &[aria-expanded="true"]:hover { border-color: var(--accent); }
+  &:is([aria-expanded="true"], [aria-pressed="true"]) { background: var(--accent-soft); color: var(--accent); }
+  &:is([aria-expanded="true"], [aria-pressed="true"]):hover { border-color: var(--accent); }
   &:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 }
+.playbackButton, .playbackField {
+  box-sizing: border-box;
+  min-height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding-inline: 8px;
+  background: var(--panel);
+  color: var(--foreground);
+  font: inherit;
+  white-space: nowrap;
+  &:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  &:is(:disabled, [aria-disabled="true"]) { opacity: 0.5; }
+}
+.playbackButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  &:enabled:not([aria-disabled="true"]) { cursor: pointer; }
+  &:enabled:not([aria-disabled="true"]):hover { border-color: var(--accent); }
+  &[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
+}
+.playbackPrimary {
+  min-width: 77px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.playbackTempo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-inline: 6px 4px;
+  input { width: 64px; }
+}
+.playbackPosition { margin-inline-start: 6px; color: var(--muted); white-space: nowrap; }
 .root > :global(.ant-alert) { grid-column: 1 / -1; }
 @container editor-toolbar (width < 960px) {
   .content { flex-direction: column; align-items: stretch; }
@@ -61,6 +96,7 @@
 @media (pointer: coarse) {
   .row { min-height: 50px; }
   .panelToggle { min-width: 44px; min-height: 44px; }
+  .playbackButton, .playbackField { min-height: 44px; }
 }
 @media print { .root { display: none !important; } }
 

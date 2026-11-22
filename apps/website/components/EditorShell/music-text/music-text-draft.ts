@@ -84,6 +84,8 @@ export type SidebarAction =
       type: "selection";
       selection: ILXMTabCellSelection | null;
       techniqueId?: string;
+      /** 扫弦或琶音可从标记下的弦格开始拖选。 */
+      dragAnchor?: ILXMTabCellReference;
       /** 连音标注的一键整组选区不随本次指针移动改变。 */
       startDrag?: false;
     }

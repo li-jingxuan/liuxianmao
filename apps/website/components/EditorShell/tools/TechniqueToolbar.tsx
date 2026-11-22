@@ -17,7 +17,7 @@ import { createScoreSettingsComposition } from "../settings/score-settings-compo
 import { isEditorInputEnter } from "../shared/editor-input-enter";
 import type { MusicTextTarget } from "../music-text/music-text-draft";
 import { parseTechniqueTrillFret, resolveToolbarTechnique, techniqueNeedsConnection, techniqueNeedsParameters,
-  techniquesInToolbarSelection, toolbarTechniqueAvailability } from "./technique-toolbar-model";
+  techniquesInToolbarSelection, toolbarTechniqueAvailability, toolbarTechniqueType } from "./technique-toolbar-model";
 import { TechniqueToolbarIcon } from "./TechniqueToolbarIcon";
 import styles from "./TechniqueToolbar.module.scss";
 
@@ -42,7 +42,7 @@ interface TechniqueToolbarProps {
   setErrorMessage: (message: string | null) => void;
 }
 type SubmissionInput = TechniqueParameters & { type: ILXMTechniqueType; id: string | null };
-const label = (type: ILXMTechniqueType) => TECHNIQUE_OPTIONS.find(item => item.value === type)?.label ?? type;
+const label = (type: ILXMTechniqueType) => TECHNIQUE_OPTIONS.find(item => item.value === toolbarTechniqueType(type))?.label ?? type;
 
 /** One parameter owner survives visibility changes; all changes use the shared command adapter. */
 export const TechniqueToolbar = ({ ref, document, selection, selectedTechniqueId, execute, blocked,
@@ -86,6 +86,7 @@ export const TechniqueToolbar = ({ ref, document, selection, selectedTechniqueId
   };
   const selected = useMemo(() => document.score.tracks.flatMap(track => track.techniques)
     .find(item => item.id === loadedId) ?? null, [document, loadedId]);
+  const selectedToolbarType = selected ? toolbarTechniqueType(selected.type) : null;
   const captureInput = () => {
     const state = session.getState();
     currentInput.current = captureEditorToolIntent(session.getState, getActiveTarget);
@@ -183,6 +184,7 @@ export const TechniqueToolbar = ({ ref, document, selection, selectedTechniqueId
         : track?.techniques.find(item => !previousIds.has(item.id));
       const appliedId = created?.id ?? values.id;
       setLoadedId(appliedId); setSelectedTechniqueId(appliedId);
+      setType(target.draft.type);
       setActive(true); setReplacing(false); setShortcut(null); setDirectionChosen(true); setSlideChosen(true);
       captureInput(); setIssue(null); setErrorMessage(null); onSuccess();
       return "applied";
@@ -195,7 +197,7 @@ export const TechniqueToolbar = ({ ref, document, selection, selectedTechniqueId
     const state = session.getState();
     const reason = tabToolTargetReason(state, getActiveTarget());
     if (reason || !state.document) { report(reason ?? "当前没有乐谱。"); return; }
-    const editingId = replacing || (selected?.type === candidate && loadedId === state.selectedTechniqueId) ? loadedId : null;
+    const editingId = replacing || (selectedToolbarType === candidate && loadedId === state.selectedTechniqueId) ? loadedId : null;
     const unavailable = toolbarTechniqueAvailability(state.document, state.selection, candidate, editingId);
     if (unavailable) { report(unavailable); return; }
     owner.reset();
@@ -322,12 +324,12 @@ export const TechniqueToolbar = ({ ref, document, selection, selectedTechniqueId
       {TECHNIQUE_GROUPS.map(group => <section className={styles.group} key={group.label} aria-label={group.label}>
         <h4 className={styles.groupTitle}>{group.label}</h4>
         <div className={styles.grid}>{group.items.map(item => {
-          const editingId = replacing || selected?.type === item.value ? loadedId : null;
+          const editingId = replacing || selectedToolbarType === item.value ? loadedId : null;
           const reason = globalReason ?? toolbarTechniqueAvailability(document, selection, item.value, editingId);
           return <Tooltip key={item.value} title={reason ?? item.label}>
             <button type="button" className={styles.tile} data-technique-type={item.value}
               aria-label={reason ? `${item.label}：${reason}` : item.label} aria-disabled={!!reason}
-              aria-pressed={active && type === item.value && (slideChosen || shortcut !== "slide")}
+              aria-pressed={active && toolbarTechniqueType(type) === item.value && (slideChosen || shortcut !== "slide")}
               onClick={() => { if (!reason) chooseType(item.value); }}>
               <span className={styles.icon}><TechniqueToolbarIcon type={item.value} /></span><span>{item.label}</span>
             </button>

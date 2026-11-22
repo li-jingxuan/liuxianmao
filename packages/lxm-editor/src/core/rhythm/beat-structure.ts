@@ -72,7 +72,7 @@ export const splitBeat = (
   const techniques = track.techniques.map((t) => {
     if ("toNoteId" in t && noteMap.has(t.fromNoteId))
       return { ...t, fromNoteId: noteMap.get(t.fromNoteId)! };
-    if ("toBeatId" in t && t.toBeatId === b.id)
+    if ((t.type === "palmMute" || t.type === "letRing") && t.toBeatId === b.id)
       return { ...t, toBeatId: second.id };
     return t;
   });
@@ -195,6 +195,9 @@ export const mergeBeats = (
     } else if ("beatId" in t) {
       if (ids.has(t.beatId) && t.beatId !== first.id)
         return reject("后续拍有独立拍点技巧，不能合并。");
+      techniques.push(t);
+    } else if (t.type === "traversalTie") {
+      // 连接绑定于实际扫弦/琶音起音；合并不能把端点移动到另一拍。
       techniques.push(t);
     } else {
       if (

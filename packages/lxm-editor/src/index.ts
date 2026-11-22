@@ -96,3 +96,4 @@ export * from "./core/chords/chord-catalog-browse";
 export * from "./core/document/score-tonality";
 export * from "./core/chords/chord-diagram-edit";
 export { isPureTabContinuationBeat, tabContinuationRhythm } from "./core/rhythm/tab-continuation";
+export * from "./core/playback/plan";

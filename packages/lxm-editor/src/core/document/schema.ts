@@ -236,6 +236,7 @@ export const LXMTechniqueSchema = z.discriminatedUnion("type", [
       minString: z.number().int().min(1).max(GUITAR_STRING_COUNT),
       maxString: z.number().int().min(1).max(GUITAR_STRING_COUNT),
       stroke: z.enum(LXM_STROKE_DIRECTIONS),
+      showFrets: z.literal(true).optional(),
     })
     .strict(),
   z
@@ -256,7 +257,7 @@ export const LXMTechniqueSchema = z.discriminatedUnion("type", [
       stroke: z.enum(LXM_STROKE_DIRECTIONS),
     })
     .strict(),
-  ...(["palmMute", "letRing"] as const).map((type) =>
+  ...(["palmMute", "letRing", "traversalTie"] as const).map((type) =>
     z
       .object({
         id: z.string(),

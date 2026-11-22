@@ -12,10 +12,10 @@ export const sameTechniqueDraft = (
       case "trill": return ["fromNoteId", "auxiliaryFret"];
       case "hammerOn": case "pullOff": case "slideUp": case "slideDown": case "tie":
         return ["fromNoteId", "toNoteId"];
-      case "strum": return ["beatId", "minString", "maxString", "stroke"];
+      case "strum": return ["beatId", "minString", "maxString", "stroke", "showFrets"];
       case "arpeggio": return ["beatId", "minString", "maxString", "direction"];
       case "pickStroke": return ["beatId", "stroke"];
-      case "palmMute": case "letRing": return ["fromBeatId", "toBeatId"];
+      case "palmMute": case "letRing": case "traversalTie": return ["fromBeatId", "toBeatId"];
       default: return ["fromNoteId"];
     }
   })();

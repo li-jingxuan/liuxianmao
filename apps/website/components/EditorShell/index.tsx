@@ -42,7 +42,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import { Button, Dropdown, Tooltip, theme } from "antd";
+import { Button, Dropdown, Tooltip, message, theme } from "antd";
 import { ShortcutHint } from "./session/EditorShortcutReference";
 import { DownOutlined, MinusOutlined, PlusOutlined } from "@ant-design/icons";
 import {
@@ -72,7 +72,7 @@ import { rangeFromTarget, hitMusicTextRangePoint, sameRangePoint, navigateMusicT
 import { resolveChordFocus, resolveParagraphFocus } from "./score/music-text-focus";
 import { MusicTextEditingHints } from "./score/MusicTextEditingHints";
 import { useMusicTextMetrics } from "./score/music-text-metrics";
-import { resolveScoreDeleteCommand, resolveScorePointerAction } from "./session/editor-object-selection";
+import { hitTestTabRangeCell, resolveScoreDeleteCommand, resolveScorePointerAction } from "./session/editor-object-selection";
 import {
   resolveMusicTextHoverTarget,
   sameMusicTextTarget,
@@ -89,6 +89,8 @@ import {
 import { EditorStatusBar } from "./workspace/EditorStatusBar";
 import { EditorHeader } from "./workspace/EditorHeader";
 import { EditorToolbar, type EditorToolbarAction } from "./workspace/EditorToolbar";
+import { useScorePlayback } from "./playback/controller";
+import { ScorePlaybackCursor } from "./playback/ScorePlaybackCursor";
 import {
   createEditorCommandAdapter,
   type EditorCommandAdapter,
@@ -112,14 +114,6 @@ const SCORE_TAIL_BUTTON_WIDTH = 36;
 /** 编辑、图片导出和打印统一使用固定的默认排版密度。 */
 const density = "compact";
 
-/** layout 命中结果含视觉 systemIndex；selection 只保留稳定业务 ID。 */
-const toCellReference = (target: ILXMHitTarget): ILXMTabCellReference => ({
-  trackId: target.trackId,
-  measureId: target.measureId,
-  beatId: target.beatId,
-  string: target.string,
-});
-
 /** 表单编辑目标应保留浏览器原生键盘行为，不能被谱面快捷键劫持。 */
 const isTextEditingTarget = (target: EventTarget | null): boolean =>
   target instanceof HTMLInputElement ||
@@ -134,6 +128,7 @@ const isTextEditingTarget = (target: EventTarget | null): boolean =>
 export const EditorShell: React.FC<{ navigate?: (destination: string) => void }> = ({ navigate }) => {
   const session = useEditorSessionStore();
   const { token } = theme.useToken();
+  const [messages, messageHolder] = message.useMessage();
   const { drafts, modals } = useEditorRuntime();
   const activeModal = useSyncExternalStore(
     modals.subscribe,
@@ -176,6 +171,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     (state) => state.selectedNumberedMarkId,
   );
   const errorMessage = useEditorStore((state) => state.errorMessage);
+  const errorNoticeVersion = useEditorStore((state) => state.errorNoticeVersion);
   const loadNotice = useEditorStore((state) => state.loadNotice);
   const executeInStore = useEditorStore((state) => state.execute);
   /** 公共结构确认绑定真实会话快照，不在第一次失败后写任何历史。 */
@@ -523,6 +519,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
   const endFretInput = useCallback(() => { fretPrefix.current = null; }, []);
   /** drag anchor 用 ref 保存，避免 pointermove 读取到尚未提交的 React/store 状态。 */
   const dragAnchorRef = useRef<ILXMTabCellReference | null>(null);
+  const traversalClickRef = useRef<{ selection: ILXMTabCellSelection; cell: ILXMTabCellReference } | null>(null);
   const activePointerIdRef = useRef<number | null>(null);
   const focusCaretRef = useRef<SVGRectElement | null>(null);
   const [tabHint, setTabHint] = useState<ILXMTabCellReference | null>(null);
@@ -532,11 +529,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
   const appendingMeasure = useRef(false);
   const imageExportButtonRef = useRef<HTMLButtonElement | null>(null);
 
-  /** document 变化后重新生成 system、命中索引和所有 SVG 几何数据。 */
-  const lxmLayout = useMemo<ILXMLayout | null>(() => {
-    if (!document) return null;
-
-    return buildLayout(document, {
+  const layoutOptions = useMemo<ILXMLayoutOptions>(() => ({
       purpose: "editing",
       editingTailWidth: SCORE_TAIL_BUTTON_WIDTH,
       x: 0,
@@ -552,14 +545,36 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
         activeMusicTextTarget?.kind === "numbered"
           ? { ...activeMusicTextTarget, kind: activeMusicTextTarget.kind }
           : paragraphEditingSession ?? undefined,
-    });
-  }, [document, musicTextMetrics, showChordDiagrams, activeMusicTextTarget, continuousRange, paragraphEditingSession, paragraphPlaceholders]);
+  }), [musicTextMetrics, showChordDiagrams, activeMusicTextTarget, continuousRange, paragraphEditingSession, paragraphPlaceholders]);
+  /** document 变化后重新生成 system、命中索引和所有 SVG 几何数据。 */
+  const lxmLayout = useMemo(() => document ? buildLayout(document, layoutOptions) : null, [document, layoutOptions]);
+  const scoreExceedsPaper = lxmLayout?.systems.some((system) =>
+    Math.max(system.width, system.visualBounds?.width ?? 0) > A4_CONTENT_WIDTH + 1,
+  ) ?? false;
+  useEffect(() => {
+    const key = "score-paper-width";
+    if (!scoreExceedsPaper) return;
+    messages.warning({ key, content: "当前谱面超过 A4 内容宽度，可横向滚动；请调整内容后再导出 A4 图片。" });
+    return () => messages.destroy(key);
+  }, [messages, scoreExceedsPaper, sessionKey]);
+  useEffect(() => {
+    const key = "score-text-metrics";
+    if (!hasMissingMetrics) return;
+    // 文字编辑后会重新度量，给字体和 SVG 度量留出完成的时间。
+    const timer = window.setTimeout(() => {
+      messages.warning({ key, content: "部分文字暂使用保守估算排版，真实字体边界尚未全部确认。" });
+    }, 500);
+    return () => {
+      window.clearTimeout(timer);
+      messages.destroy(key);
+    };
+  }, [messages, hasMissingMetrics, sessionKey]);
   const rangeRects = useMemo(() => document && lxmLayout && continuousRange
     ? musicTextRangeRects(document, lxmLayout, continuousRange) : [], [document, lxmLayout, continuousRange]);
   const rhythmPatternRects = useMemo(() => lxmLayout && rhythmPatternScope
     ? rhythmPatternScopeRects(lxmLayout, rhythmPatternScope) : [], [lxmLayout, rhythmPatternScope]);
 
-  const onScoreGeometryChange = useCallback(() => {
+  const clearScorePointerInteraction = useCallback(() => {
     const svg = scoreSvgRef.current;
     const pointer = activePointerIdRef.current;
     if (svg && pointer !== null && svg.hasPointerCapture(pointer))
@@ -569,9 +584,20 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     rangeDragRef.current = null;
     pendingTextClickRef.current = null;
     clearHover();
+  }, [clearHover]);
+  const onScoreGeometryChange = useCallback(() => {
+    clearScorePointerInteraction();
     // transform 不会触发 ResizeObserver；浮层必须在同一次实际矩阵变化后重定位。
     window.dispatchEvent(new Event("resize"));
-  }, [clearHover]);
+  }, [clearScorePointerInteraction]);
+  const resolvedSelection = useMemo(() => {
+    if (!document || !selection) return null;
+    const result = resolveTabCellSelection(document, selection);
+    return result.ok ? result.range : null;
+  }, [document, selection]);
+  const selectedPlaybackMeasure = resolvedSelection && !activeMusicTextTarget && !continuousRange && !numberedSelection
+    ? selection?.focus.measureId ?? null : null;
+  const playback = useScorePlayback(document, selectedPlaybackMeasure);
   const scoreView = useScoreView({
     viewportRef: pageViewportRef,
     layoutWidth: lxmLayout?.width ?? 0,
@@ -587,15 +613,33 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     [lxmLayout],
   );
 
-  /**
-   * 页面只消费核心范围解析结果。
-   * 这里不通过 measure/beat 数组下标推导范围，保证重排后仍使用同一业务选区。
-   */
-  const resolvedSelection = useMemo(() => {
-    if (!document || !selection) return null;
-    const result = resolveTabCellSelection(document, selection);
-    return result.ok ? result.range : null;
-  }, [document, selection]);
+  const playbackMessage = playback.enabled ? playback.message : "";
+  const playbackNoticeType = playback.phase === "loading" ? "loading" : playback.phase === "error" ? "error" : "warning";
+  useEffect(() => {
+    if (!playbackMessage) return;
+    const key = "score-playback";
+    messages.open({
+      key,
+      type: playbackNoticeType,
+      content: <span role="status">{playbackMessage}</span>,
+      duration: playbackNoticeType === "loading" ? 0 : undefined,
+    });
+    return () => messages.destroy(key);
+  }, [messages, playbackMessage, playbackNoticeType]);
+  const scoreReadOnly = playback.enabled;
+  const scoreReadOnlyRef = useRef(scoreReadOnly);
+  useLayoutEffect(() => {
+    scoreReadOnlyRef.current = scoreReadOnly;
+  }, [scoreReadOnly]);
+  const setPlaybackEnabled = (enabled: boolean) => {
+    if (enabled) {
+      clearScorePointerInteraction();
+      endFretInput();
+      setTabHint(null);
+      setRhythmPatternScope(null);
+    }
+    playback.setEnabled(enabled);
+  };
   const selectionRects = useMemo(
     () =>
       lxmLayout && resolvedSelection
@@ -768,7 +812,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
         : null,
     [lxmLayout, selection],
   );
-  const tabFocus = !activeMusicTextTarget && !selectedTechniqueId && focusCaret && selection ? selection.focus : null;
+  const tabFocus = !scoreReadOnly && !activeMusicTextTarget && !selectedTechniqueId && focusCaret && selection ? selection.focus : null;
   const hoveredCell = hoveredTabCell?.layout === lxmLayout ? hoveredTabCell?.target : null;
   const selectedCellHovered = !!tabFocus && hoveredCell?.trackId === tabFocus.trackId &&
     hoveredCell.measureId === tabFocus.measureId && hoveredCell.beatId === tabFocus.beatId && hoveredCell.string === tabFocus.string;
@@ -811,7 +855,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     const revealTarget = () => {
       // 按下文字位置时会先结束上一处编辑，等松手才打开新目标。
       // 这期间恢复的 TAB 光标不应把谱面拉离指针所在位置。
-      if (pendingTextClickRef.current) return;
+      if (scoreReadOnlyRef.current || pendingTextClickRef.current) return;
       const caret = continuousRange ? rangeFocusRef.current : focusCaretRef.current;
       const matrix = scoreSvgRef.current?.getScreenCTM();
       if (!caret && !(lyricFocus && matrix)) return;
@@ -981,7 +1025,17 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
       setOutputBlockedOpen(true);
     }
   };
-  const fileFlow = useScoreFileFlow({ session, drafts, isBlocked: isOutputBlocked, onBlocked: showOutputBlocked });
+  const fileFlow = useScoreFileFlow({
+    session, drafts, isBlocked: isOutputBlocked, onBlocked: showOutputBlocked,
+    onNotice: (type, content) => messages.open({ key: "score-file", type, content }),
+  });
+  useEffect(() => {
+    if (loadNotice) messages.success({ key: "score-file", content: loadNotice });
+  }, [messages, loadNotice, sessionKey]);
+  const editorError = document ? errorMessage : null;
+  useEffect(() => {
+    if (editorError) messages.error({ key: "score-edit-error", content: editorError });
+  }, [messages, editorError, errorNoticeVersion, sessionKey]);
 
   const navigateTo = (destination: string) => {
     if (navigate) navigate(destination);
@@ -1014,23 +1068,13 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     event: Pick<React.PointerEvent<SVGSVGElement>, "clientX" | "clientY">,
   ): ILXMTabCellReference | null => {
     const point = getLayoutPoint(svg, event);
-    if (!point || !lxmLayout) return null;
-    const target = hitTestLayout(lxmLayout, point);
-    return target ? toCellReference(target) : null;
+    return point && lxmLayout && document ? hitTestTabRangeCell(document, lxmLayout, point) : null;
   };
 
   /** 接受对象切换后清理旧输入与 pointer capture，文字激活和 beat 选择共用。 */
   const clearScoreInteraction = () => {
     endFretInput();
-    clearHover();
-    const svg = scoreSvgRef.current;
-    const pointerId = activePointerIdRef.current;
-    if (svg && pointerId !== null && svg.hasPointerCapture(pointerId))
-      svg.releasePointerCapture(pointerId);
-    dragAnchorRef.current = null;
-    activePointerIdRef.current = null;
-    rangeDragRef.current = null;
-    pendingTextClickRef.current = null;
+    clearScorePointerInteraction();
   };
 
   /** 确认期间不修改选区，只有接受请求后才更新六线谱对象与焦点。 */
@@ -1052,15 +1096,20 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
   const handlePointerDown: React.PointerEventHandler<SVGSVGElement> = (
     event,
   ) => {
+    if (scoreReadOnly) return;
     clearHover();
     if (!document || !lxmLayout) return;
     const point = getLayoutPoint(event.currentTarget, event);
     if (!point) return;
+    const traversalClick = traversalClickRef.current;
+    const shiftSelection = event.shiftKey && selection && selectedTechniqueId && traversalClick?.selection === selection
+      ? { ...selection, anchor: traversalClick.cell }
+      : selection;
     const action = resolveScorePointerAction(
       document,
       lxmLayout,
       point,
-      selection,
+      shiftSelection,
       event.shiftKey,
     );
     if (!action) {
@@ -1116,11 +1165,12 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     if (
       result !== "accepted" ||
       !action.selection ||
-      action.techniqueId ||
+      (action.techniqueId && !action.dragAnchor) ||
       action.startDrag === false
     )
       return;
-    dragAnchorRef.current = action.selection.anchor;
+    traversalClickRef.current = action.dragAnchor ? { selection: action.selection, cell: action.dragAnchor } : null;
+    dragAnchorRef.current = action.dragAnchor ?? action.selection.anchor;
     activePointerIdRef.current = event.pointerId;
     event.currentTarget.setPointerCapture(event.pointerId);
   };
@@ -1128,6 +1178,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
   const handlePointerMove: React.PointerEventHandler<SVGSVGElement> = (
     event,
   ) => {
+    if (scoreReadOnly) return;
     if (activePointerIdRef.current === event.pointerId && rangeDragRef.current && lxmLayout && document) {
       const point = getLayoutPoint(event.currentTarget, event);
       const drag = rangeDragRef.current;
@@ -1197,12 +1248,20 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     }
     const target = hitTestPointer(event.currentTarget, event);
     // 谱面空白不产生伪坐标，保留最后一个合法 focus。
-    if (target) setSelection({ anchor: dragAnchorRef.current, focus: target });
+    if (!target) return;
+    const anchor = dragAnchorRef.current;
+    if (session.getState().selectedTechniqueId) {
+      // 单击仍选中技巧对象；拖到另一弦格后才切换成 TAB 选区。
+      if (target.beatId === anchor.beatId && target.string === anchor.string) return;
+      setSelectedTechniqueId(null);
+    }
+    setSelection({ anchor, focus: target });
   };
 
   const finishPointerDrag: React.PointerEventHandler<SVGSVGElement> = (
     event,
   ) => {
+    if (scoreReadOnly) return;
     clearHover();
     if (activePointerIdRef.current !== event.pointerId) return;
     if (event.currentTarget.hasPointerCapture(event.pointerId))
@@ -1217,8 +1276,9 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
   };
 
   const handleMusicTextNavigation: React.KeyboardEventHandler<HTMLDivElement> = (event) => {
-    if (event.defaultPrevented || !event.altKey || event.ctrlKey || event.metaKey || event.shiftKey ||
+    if (scoreReadOnly || event.defaultPrevented || !event.altKey || event.ctrlKey || event.metaKey || event.shiftKey ||
       (event.key !== "ArrowLeft" && event.key !== "ArrowRight") ||
+      (event.target instanceof Element && event.target.closest("#editor-playback-controls")) ||
       event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229 || modals.isOpen()) return;
     const handled = musicTextController.current?.moveEditTarget(
       event.key === "ArrowLeft" ? -1 : 1,
@@ -1249,7 +1309,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
   const handleEditorKeyDown: React.KeyboardEventHandler<HTMLDivElement> = (
     event,
   ) => {
-    if (modals.isOpen()) return;
+    if (scoreReadOnly || modals.isOpen()) return;
     if (isTextEditingTarget(event.target)) return;
     if (
       event.target instanceof Element &&
@@ -1423,7 +1483,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
   > = (event) => {
     const target = event.target;
     if (
-      event.shiftKey ||
+      scoreReadOnly || event.shiftKey ||
       (target instanceof Node && scoreSvgRef.current?.contains(target))
     )
       return;
@@ -1510,6 +1570,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
   if (!document || !lxmLayout)
     return (
       <div ref={editorRootRef} className={styles.editor} data-editor-shell data-layout={layoutMode} style={editorVariables as React.CSSProperties}>
+        {messageHolder}
         {editorHeader}
         <div ref={workspaceRef} className={styles.emptyWorkspace}>
           <p className={editorFormStyles.errorMessage} role="alert">{errorMessage ?? "当前没有可编辑的乐谱文档。"}</p>
@@ -1559,7 +1620,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
   };
 
   const appendMeasure = async () => {
-    if (appendingMeasure.current) return;
+    if (scoreReadOnly || appendingMeasure.current) return;
     const track = session.getState().document?.score.tracks[0];
     const lastMeasure = track?.measures.at(-1);
     if (!track || !lastMeasure) return;
@@ -1576,7 +1637,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
         return;
       }
       const state = session.getState();
-      if (state.document !== result.result.document) return;
+      if (scoreReadOnlyRef.current || state.document !== result.result.document) return;
       const inserted = state.document.score.tracks[0]?.measures.at(-1);
       const firstBeat = inserted?.beats[0];
       if (!inserted || !firstBeat) return;
@@ -1707,7 +1768,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
   };
   const getRhythmBlocked = () => {
     const target = getRhythmTarget();
-    return modals.isOpen() || drafts.inspect().busy || drafts.inspect().pending.length > 0 ||
+    return scoreReadOnlyRef.current || modals.isOpen() || drafts.inspect().busy || drafts.inspect().pending.length > 0 ||
       !!(target.ok && target.target.layer === "numbered"
         ? musicTextController.current?.isNumberedActionBlocked()
         : musicTextController.current?.isOutputBlocked());
@@ -1715,10 +1776,6 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
   const tailMeasure = lxmLayout.systems.at(-1)?.measures.at(-1);
   const tailTop = tailMeasure?.strings[0];
   const tailBottom = tailMeasure?.strings.at(-1);
-  const scoreExceedsPaper = lxmLayout.systems.some((system) =>
-    Math.max(system.width, system.visualBounds?.width ?? 0) > A4_CONTENT_WIDTH + 1,
-  );
-
   return (
     <RhythmPatternProvider
       session={session}
@@ -1733,7 +1790,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
       }}
       execute={executeTool}
       beforeAction={() => { endFretInput(); musicTextController.current?.dismissCleanPopover(); }}
-      blocked={!!activeModal || drafts.inspect().busy || drafts.inspect().pending.length > 0 ||
+      blocked={scoreReadOnly || !!activeModal || drafts.inspect().busy || drafts.inspect().pending.length > 0 ||
         (rhythmTarget.ok && rhythmTarget.target.layer === "numbered" ? numberedActionBlocked : musicTextEditing)}
       getBlocked={getRhythmBlocked}
       onSuccess={(scope) => {
@@ -1758,6 +1815,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
       onKeyDownCapture={handleMusicTextNavigation}
       onKeyDown={handleEditorKeyDown}
     >
+      {messageHolder}
       {editorHeader}
       <ScoreFilePanels flow={fileFlow} session={session} document={document} />
       <EditorToolbar
@@ -1766,6 +1824,8 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
         sidebarCollapsed={sidebarCollapsed}
         sidebarToggleRef={sidebarToggleRef}
         onToggleSidebar={toggleSidebar}
+        playback={{ ...playback, setEnabled: setPlaybackEnabled }}
+        isPlaybackEntryBlocked={() => musicTextController.current?.isTransitionBlocked() ?? false}
         activeTarget={activeMusicTextTarget}
         blocked={musicTextEditing}
         numberedBlocked={numberedActionBlocked}
@@ -1779,25 +1839,6 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
           musicTextController.current?.navigateTool(destination) ?? "blocked"
         }
       />
-      <div className={styles.editorControls}>
-        {fileFlow.notice && <p role="status">{fileFlow.notice}</p>}
-        {loadNotice && <p role="status">{loadNotice}</p>}
-        {scoreExceedsPaper && (
-          <p role="status">
-            当前谱面超过 A4 内容宽度，可横向滚动；请调整内容后再导出 A4 图片。
-          </p>
-        )}
-        {hasMissingMetrics && (
-          <p role="status">
-            部分文字暂使用保守估算排版，真实字体边界尚未全部确认。
-          </p>
-        )}
-        {errorMessage && (
-          <p className={editorFormStyles.errorMessage} role="alert">
-            {errorMessage}
-          </p>
-        )}
-      </div>
       <div
         ref={workspaceRef}
         className={styles.editorWorkspace}
@@ -1838,7 +1879,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
           ref={pageViewportRef}
           className={scoreInteractionStyles.pageViewport}
           data-score-viewport
-          onPointerDownCapture={() => setRhythmPatternScope(null)}
+          onPointerDownCapture={() => { if (!scoreReadOnly) setRhythmPatternScope(null); }}
           onPointerDown={handleWorkspacePointerDown}
           onScroll={() => { setTabHint(null); clearHover(); }}
         >
@@ -1856,13 +1897,14 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
               <svg
                 ref={scoreSvgRef}
                 className={scoreInteractionStyles.scoreSvg}
-                viewBox={`0 0 ${lxmLayout.width} ${lxmLayout.height}`}
+                viewBox={`0 0 ${lxmLayout?.width} ${lxmLayout?.height}`}
                 style={scoreView.svgStyle}
-                width={lxmLayout.width}
-                height={lxmLayout.height}
+                width={lxmLayout?.width}
+                height={lxmLayout?.height}
                 tabIndex={0}
                 role="application"
                 aria-label="六线谱编辑器"
+                data-score-read-only={scoreReadOnly || undefined}
                 onPointerDown={handlePointerDown}
                 onPointerMove={handlePointerMove}
                 onPointerLeave={() => { setTabHint(null); clearHover(); }}
@@ -1871,7 +1913,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
                 onPointerUp={finishPointerDrag}
                 onPointerCancel={finishPointerDrag}
                 onKeyDown={(event) => {
-                  if (event.target !== event.currentTarget) return;
+                  if (scoreReadOnly || event.target !== event.currentTarget) return;
                   setRhythmPatternScope(null);
                   handleScoreKeyDown(event);
                 }}
@@ -1983,7 +2025,8 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
                   layout={lxmLayout}
                   activeMeasureId={continuousRange?.focus.measureId ?? activeMusicTextTarget?.measureId ?? numberedSelection?.measureId ?? selection?.focus.measureId}
                 />
-                {tailMeasure && tailTop && tailBottom && (
+                {playback.enabled && <ScorePlaybackCursor layout={lxmLayout} viewportRef={pageViewportRef} playback={playback} />}
+                {!scoreReadOnly && tailMeasure && tailTop && tailBottom && (
                   <foreignObject
                     className={scoreInteractionStyles.scoreTail}
                     x={tailTop.x2}

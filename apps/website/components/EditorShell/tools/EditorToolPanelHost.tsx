@@ -23,6 +23,7 @@ import toolbarStyles from "../workspace/EditorToolbar.module.scss";
 export interface EditorToolPanelController {
   open: (group: ToolGroupId, focusSelector?: string) => void;
   close: (restore?: boolean) => void;
+  prepareHide: () => boolean;
   restore: (group: ToolGroupId) => void;
   openTechnique: (intent: TechniqueIntent) => boolean;
 }
@@ -143,6 +144,11 @@ export const EditorToolPanelHost = ({
     setOpen(true);
   };
   useImperativeHandle(ref, () => ({ open: show, close, restore,
+    prepareHide: () => {
+      if (!canClose()) return false;
+      close();
+      return true;
+    },
     openTechnique: (intent) => !disabledReason("technique") && (onTechniqueIntent?.(intent) ?? false),
   }));
   useEffect(() => subscribeProtection?.(() => {
@@ -187,7 +193,7 @@ export const EditorToolPanelHost = ({
     if (!open) return;
     const outside = (event: PointerEvent) => {
       if (group === "beat" || blocked || !(event.target instanceof Node) || content.current?.contains(event.target)) return;
-      if (event.target instanceof Element && event.target.closest("[data-open-shortcuts]")) return;
+      if (event.target instanceof Element && event.target.closest("[data-open-shortcuts],[data-playback-toggle]")) return;
       const button = event.target instanceof Element && event.target.closest("[data-tool-trigger]");
       if (button && trigger.current?.contains(button)) return;
       close();

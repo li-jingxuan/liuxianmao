@@ -101,6 +101,7 @@ export interface EditorStore {
   setNumberedSelection: (target: ILXMNumberedTarget | null) => void;
   setSelectedNumberedMarkId: (id: string | null) => void;
   errorMessage: string | null;
+  errorNoticeVersion: number;
   loadNotice: string | null;
   canUndo: boolean;
   canRedo: boolean;
@@ -152,7 +153,7 @@ export const createEditorStore = (
     });
     // 宿主回调位于提交之后；宿主异常不能破坏编辑器历史或向调用方抛出。
     const reportError = (message: string) => {
-      set({ errorMessage: message });
+      set((state) => ({ errorMessage: message, errorNoticeVersion: state.errorNoticeVersion + 1 }));
       try {
         options.onError?.({ message });
       } catch {
@@ -289,6 +290,7 @@ export const createEditorStore = (
         }),
       selectedNumberedMarkId: null,
       errorMessage: initialDocument ? null : "无法加载示例乐谱。",
+      errorNoticeVersion: 0,
       loadNotice: null,
       ...toHistoryState(createEmptyHistory()),
 

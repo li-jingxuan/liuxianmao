@@ -63,6 +63,7 @@ export const LXM_TECHNIQUE_TYPES = [
   "artificialHarmonic",
   "palmMute",
   "tie",
+  "traversalTie",
   "tapping",
   "trill",
   "strum",

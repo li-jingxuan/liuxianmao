@@ -59,7 +59,7 @@ import { isEditableTimeSignature, isSameTimeSignature } from "../rhythm/rhythm";
 import { LXMDocumentSchema, LXMScoreSchema } from "../document/schema";
 import { validateDocumentSemantics } from "../document/semantic-validation";
 import { changeMeasureTimeSignature } from "../rhythm/time-signature-change";
-import { pruneInvalidTechniques, validateTechnique } from "../techniques/technique-rules";
+import { pruneInvalidTechniques, pruneInvalidTraversalTies, validateTechnique } from "../techniques/technique-rules";
 import type {
   ILXMBarlineType,
   ILXMTupletRatio,
@@ -596,6 +596,12 @@ const finalize = (
   previous: ILXMDocument,
   command: ILXMScoreCommand,
 ): ILXMApplyScoreCommandResult => {
+  const cleanedTracks = document.score.tracks.map((track) => {
+    const prior = previous.score.tracks.find((item) => item.id === track.id);
+    return prior && prior !== track ? pruneInvalidTraversalTies(track, prior) : track;
+  });
+  if (cleanedTracks.some((track, index) => track !== document.score.tracks[index]))
+    document = { ...document, score: { ...document.score, tracks: cleanedTracks } };
   if (!command.type.startsWith("numbered.") && command.type !== LXMScoreCommandEnum.ApplyRhythmPattern &&
       command.type !== LXMScoreCommandEnum.RemoveNumberedRow) {
     const removed: string[] = [];

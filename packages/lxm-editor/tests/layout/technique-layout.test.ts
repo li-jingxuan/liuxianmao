@@ -11,6 +11,8 @@ import {
   LXM_DURATION_STEM_NOTE_GAP,
   LXM_TECHNIQUE_ARROW_OFFSET_Y,
 } from "../../src/layout/layout-constants";
+import { techniqueInkIntersects } from "../../src/layout/techniques/technique-curve-placement";
+import { buildScoreScene } from "../../src/presentation/score-scene";
 
 const createDocument = () => structuredClone(EXAMPLE_MVP_2);
 
@@ -37,6 +39,22 @@ describe("MVP v5 技巧布局", () => {
       .flatMap((system) => system.techniques)
       .find((technique) => technique.techniqueId === "tech-centered-strum")!;
     expect(segment.path?.d).toMatch(new RegExp(`M ${expectedX} `));
+  });
+
+  it.each(["down", "up"] as const)("扫弦模板 %s 保留品位，箭头在数字左侧且方向正确", (stroke) => {
+    const document = createDocument();
+    const id = "mvp2-beat-1-2";
+    document.score.tracks[0]!.techniques = [
+      { id: "strum-template", type: "strum", beatId: id, minString: 2, maxString: 3, stroke, showFrets: true },
+    ];
+    const layout = buildLayout(document);
+    const notes = layout.systems.flatMap((system) => system.measures.flatMap((measure) => measure.notes))
+      .filter((note) => note.beatId === id);
+    const segment = layout.systems.flatMap((system) => system.techniques).find((mark) => mark.techniqueId === "strum-template")!;
+    expect(notes).toHaveLength(2);
+    expect(segment.visualBounds.x + segment.visualBounds.width).toBeLessThan(notes[0]!.x);
+    const [start, end] = segment.path!.d.match(/-?\d+(?:\.\d+)?/g)!.filter((_, index) => index % 2).map(Number);
+    expect(Math.sign(end! - start!)).toBe(stroke === "down" ? -1 : 1);
   });
 
   it("扫弦只覆盖用户选择的最小到最大弦范围", () => {
@@ -406,6 +424,87 @@ describe("MVP v5 技巧布局", () => {
         y: second.bounds.y + second.bounds.height / 2,
       }),
     ).toBe("tech-cross-tie");
+  });
+
+  it.each(["editing", "presentation"] as const)(
+    "%s 在扫弦和休止拍琶音上方绘制一条可命中的延音线",
+    (purpose) => {
+      const document = createDocument();
+      const track = document.score.tracks[0]!;
+      track.measures = track.measures.slice(0, 1);
+      const [from, to] = track.measures[0]!.beats;
+      to!.kind = "rest";
+      to!.notes = [];
+      track.techniques = [
+        { id: "strum", type: "strum", beatId: from!.id, minString: 1, maxString: 6, stroke: "down" },
+        { id: "arpeggio", type: "arpeggio", beatId: to!.id, minString: 1, maxString: 6, direction: "ascending" },
+        { id: "palm-mute", type: "palmMute", fromBeatId: from!.id, toBeatId: from!.id },
+      ];
+      const baseline = buildLayout(document, { purpose });
+      track.techniques.push({ id: "traversal-tie", type: "traversalTie", fromBeatId: from!.id, toBeatId: to!.id });
+      const source = structuredClone(document);
+
+      const layout = buildLayout(document, { purpose });
+      const system = layout.systems[0]!;
+      const [fromLayout, toLayout] = system.measures[0]!.beats;
+      const [tie] = system.techniques.filter((segment) => segment.type === "traversalTie");
+      const { start, end } = tie!.focusEndpoints!;
+      expect([start.x, end.x]).toEqual([fromLayout!.x, toLayout!.x]);
+      expect(system.measures[0]!.beats.map(({ x }) => x)).toEqual(
+        baseline.systems[0]!.measures[0]!.beats.map(({ x }) => x),
+      );
+      expect(tie).toMatchObject({ lane: 0, continuation: "none", texts: [] });
+      expect(system.measures[0]!.restMarks).toEqual([]);
+      for (const other of system.techniques.filter((segment) => segment !== tie)) {
+        expect(techniqueInkIntersects(tie!, other)).toBe(false);
+        if (other.type === "strum" || other.type === "arpeggio") {
+          expect(tie!.visualBounds.y + tie!.visualBounds.height).toBeLessThan(other.visualBounds.y);
+        }
+      }
+      expect(hitTestTechniqueTarget(layout, start)).toEqual({ techniqueId: "traversal-tie", focusEndpoint: "start" });
+      expect(hitTestTechniqueTarget(layout, end)).toEqual({ techniqueId: "traversal-tie", focusEndpoint: "end" });
+      const sceneItems = buildScoreScene(layout).systems[0]!.items;
+      expect(sceneItems.filter((item) => item.techniqueId === "traversal-tie")).toEqual([
+        expect.objectContaining({ kind: "path", d: tie!.path!.d, fill: "none" }),
+      ]);
+      expect(document).toEqual(source);
+    },
+  );
+
+  it("扫弦延音线跨行时保留本行的节拍锚点和同一技巧 ID", () => {
+    const document = createDocument();
+    const track = document.score.tracks[0]!;
+    track.measures = track.measures.slice(3, 5);
+    const from = track.measures[0]!.beats.at(-1)!;
+    const to = track.measures[1]!.beats[0]!;
+    for (const beat of [from, to]) {
+      beat.kind = "rest";
+      beat.notes = [];
+    }
+    track.techniques = [
+      { id: "first-strum", type: "strum", beatId: from.id, minString: 1, maxString: 6, stroke: "down" },
+      { id: "second-strum", type: "strum", beatId: to.id, minString: 1, maxString: 6, stroke: "up" },
+      { id: "wrapped-traversal-tie", type: "traversalTie", fromBeatId: from.id, toBeatId: to.id },
+    ];
+
+    const layout = buildLayout(document, { systemWidth: 120, density: "compact" });
+    expect(layout.systems).toHaveLength(2);
+    const [first, second] = layout.systems;
+    const [outgoing, incoming] = layout.systems.flatMap((system) =>
+      system.techniques.filter((segment) => segment.type === "traversalTie"),
+    );
+    expect(outgoing?.continuation).toBe("toNext");
+    expect(incoming?.continuation).toBe("fromPrevious");
+    const start = outgoing!.focusEndpoints!.start;
+    const end = incoming!.focusEndpoints!.end;
+    expect(start.x).toBe(first!.measures[0]!.beats.at(-1)!.x);
+    expect(end.x).toBe(second!.measures[0]!.beats[0]!.x);
+    for (const segment of [outgoing!, incoming!]) {
+      expect(segment.path?.d).toMatch(/^M .+ Q .+$/);
+      expect(segment.focusEndpoints!.start.x).toBeLessThan(segment.focusEndpoints!.end.x);
+    }
+    expect(hitTestTechniqueTarget(layout, start)).toEqual({ techniqueId: "wrapped-traversal-tie", focusEndpoint: "start" });
+    expect(hitTestTechniqueTarget(layout, end)).toEqual({ techniqueId: "wrapped-traversal-tie", focusEndpoint: "end" });
   });
 
   it("相交区间进入不同 lane，并把后续 system 向下推移", () => {
