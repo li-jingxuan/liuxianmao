@@ -91,14 +91,15 @@ describe("shared HTTP chord catalog resource", () => {
     expect(resource.getSnapshot().status).toBe("ready");
   });
   it.each([
-    "https://external.example/assets/chords/catalog-2026.11.11.1.json",
-    "../../catalog-2026.11.11.1.json",
+    // 使用发布版本构造无效地址，让这些用例独立检验 URL 限制。
+    `https://external.example/assets/chords/${manifest.catalogUrl.slice(2)}`,
+    `../${manifest.catalogUrl}`,
     "./%2e%2e/elsewhere.json",
-    "./catalog-2026.11.11.1.json?secret=1",
-    "./catalog-2026.11.11.1.json#hash",
+    `${manifest.catalogUrl}?secret=1`,
+    `${manifest.catalogUrl}#hash`,
     "./catalog-1900.01.01.1.json",
-    "https://user:password@score.example/assets/chords/catalog-2026.11.11.1.json",
-    "./catalog-2026.11.11.1.txt",
+    `https://user:password@score.example/assets/chords/${manifest.catalogUrl.slice(2)}`,
+    manifest.catalogUrl.replace(/\.json$/, ".txt"),
   ])(
     "rejects unsafe/version-mismatched manifest URL %s before fetching data",
     async (catalogUrl) => {

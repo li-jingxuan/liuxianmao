@@ -56,6 +56,7 @@ function performanceKey(doc: ILXMDocument | null) {
       m.id,
       m.barline,
       m.timeSignature,
+      m.actualDurationTicks,
       m.tuplets,
       m.beats.map((b) => [b.id, b.tick, b.rhythm, b.kind, b.notes]),
       m.chordSymbols.map((s) => [

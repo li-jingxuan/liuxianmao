@@ -1,6 +1,6 @@
 import type { ILXMBeat, ILXMMeasure, ILXMRhythm, ILXMTrack } from "../types";
 import { TICKS_PER_QUARTER } from "../constants";
-import { BASE_RHYTHM_TICKS, calculateRhythmTicks, createRestRhythmsForTicks, getMeasureCapacityTicks } from "./rhythm";
+import { BASE_RHYTHM_TICKS, calculateRhythmTicks, createRestRhythmsForTicks, getMeasureDurationTicks } from "./rhythm";
 import { techniqueBeatIds } from "../techniques/content-protection";
 
 /** schema8 的兼容编码；混合拍仍按原有逐弦内容处理。 */
@@ -43,7 +43,7 @@ export const planTabContinuation = (
   const duration = calculateRhythmTicks(rhythm);
   if (!duration.ok) return;
   const end = target.tick + duration.ticks;
-  if (end > getMeasureCapacityTicks(measure.timeSignature)) return;
+  if (end > getMeasureDurationTicks(measure)) return;
   const protectedIds = protectedBeats(track);
   const consumed: ILXMBeat[] = [];
   let coveredEnd = target.tick;

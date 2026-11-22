@@ -93,10 +93,7 @@ const Harness = () => {
       } : { type: "numbered.event.set", trackId: track.id, measureId: measure.id, eventId: event.id, tokens: ["7"] }),
       applyGroup: (group: "content" | "rhythm" | "itemPitch") =>
         controller.current!.applyGroup(group),
-      apply: (advance = true) => {
-        const applyCurrent = controller.current!.apply;
-        return applyCurrent(undefined, { advance });
-      },
+      apply: () => controller.current!.apply(),
       surface: (next: "popover" | "sidebar") => setPresentation(next),
       document: () => session.getState().document,
       version: () => session.getState().document!.documentRevision,

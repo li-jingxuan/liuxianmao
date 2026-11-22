@@ -17,6 +17,14 @@ if (scenario === "selection") measure.numberedVoice.events.splice(1, 0, { id: "m
 // Start empty so choosing the overwrite duration is a preference change, while
 // the later event still belongs to the draft's external dependency window.
 if (scenario === "dependency") measure.numberedVoice.events.shift();
+if (scenario === "adjacent-gaps") {
+  measure.beats.splice(8, 1, ...[1920, 2040].map(tick => ({ id: `tab-${tick}`, tick, kind: "rest" as const, notes: [], rhythm: { base: "thirtySecond" as const, dots: 0 } })));
+  measure.numberedVoice.events = [
+    { id: "before", tick: 1680, kind: "notes", rhythm: { base: "sixteenth", dots: 0 }, items: [{ id: "before-item", token: "6" }] },
+    { id: "gap", tick: 2040, kind: "gap", rhythm: { base: "eighth", dots: 0 }, items: [] },
+    { id: "later", tick: 2880, kind: "notes", rhythm: { base: "quarter", dots: 0 }, items: [{ id: "later-item", token: "7" }] },
+  ];
+}
 if (scenario === "properties") {
   const first = measure.numberedVoice.events[0]!;
   if (first.kind === "notes") first.items.push({ id: "second-item", token: "3" });
@@ -50,7 +58,7 @@ const Harness = () => {
   }, []);
   return <><div data-testid="numbered-portal" ref={setPopoverContainer} /><NumberedEditor ref={controller} document={document} presentation={presentation}
     popoverContainer={scenario === "properties" ? popoverContainer : null}
-    target={{ kind: "numbered", trackId: track.id, measureId: measure.id, ...(scenario === "dots" ? { eventId: `dot-${new URLSearchParams(location.search).get("tick") ?? 0}` } : scenario === "blank" || scenario === "dependency" ? { tick: 0, endTick: 240 } : scenario === "selection" ? { beatId: "tab-3" } : { eventId: "first", ...(scenario === "properties" ? { itemId: "second-item" } : {}) }) }}
+    target={{ kind: "numbered", trackId: track.id, measureId: measure.id, ...(scenario === "dots" ? { eventId: `dot-${new URLSearchParams(location.search).get("tick") ?? 0}` } : scenario === "blank" || scenario === "dependency" ? { tick: 0, endTick: 240 } : scenario === "adjacent-gaps" ? { tick: 1920, endTick: 2040 } : scenario === "selection" ? { beatId: "tab-3" } : { eventId: "first", ...(scenario === "properties" ? { itemId: "second-item" } : {}) }) }}
     selection={scenario === "selection" ? { anchor: { trackId: track.id, measureId: measure.id, beatId: "tab-0", string: 1 }, focus: { trackId: track.id, measureId: measure.id, beatId: "tab-3", string: 1 } } : null}
     mode="sequence" onModeChange={() => {}} commit={command => { commands.push(command); return session.getState().execute(command); }}
     onDirty={() => {}} onInputActive={() => {}} onPreviewTargetChange={() => {}} onActivate={() => {}} onCanApply={() => {}} onSelectTarget={target => selections.push(target)} onCancel={() => {}} getClipboard={() => null} copyRange={() => false} selectedMarkId={null} /></>;

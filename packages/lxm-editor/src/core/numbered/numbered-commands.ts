@@ -7,11 +7,16 @@ import {
   validNumberedTokens,
   type NumberedSequenceItem,
 } from "./numbered-notation";
-import { calculateRhythmTicks, createRestRhythmsForTicks, getMeasureCapacityTicks } from "../rhythm/rhythm";
+import { calculateRhythmTicks, createRestRhythmsForTicks, getMeasureDurationTicks } from "../rhythm/rhythm";
 import { LXM_RHYTHM_BASES } from "../constants";
 import {
   createNumberedRhythmContext,
   buildNumberedIndex,
+  numberedContinuationIssue,
+  numberedContinuationRhythm,
+  NUMBERED_CONTINUATION_METER_REASON,
+  NUMBERED_CONTINUATION_RHYTHM_REASON,
+  NUMBERED_CONTINUATION_SPACE_REASON,
   validateNumberedVoice,
 } from "./numbered-rhythm";
 import { validateNumberedMarks } from "./numbered-marks";
@@ -228,11 +233,23 @@ export const editNumberedTrack = (
           if (previous) updates.set(previous.id, event);
           else created.push(event);
         }
+        for (const remainder of planned.gapRemainders) {
+          if (remainder.measureId !== m.id) continue;
+          const gap: ILXMNumberedEvent = {
+            id: remainder.eventId ?? factory.createNumberedEventId(),
+            tick: remainder.tick,
+            rhythm: remainder.rhythm,
+            kind: "gap",
+            items: [],
+          };
+          if (remainder.eventId) updates.set(gap.id, gap);
+          else created.push(gap);
+        }
         return { ...m, numberedVoice: { ...m.numberedVoice, events: [...m.numberedVoice.events.filter(event => !removed.has(event.id)).map(event => updates.get(event.id) ?? event), ...created].sort((a, b) => a.tick - b.tick) } };
       }),
     };
     for (const m of next.measures) {
-      const invalid = validateNumberedVoice(m.numberedVoice, getMeasureCapacityTicks(m.timeSignature));
+      const invalid = validateNumberedVoice(m.numberedVoice, getMeasureDurationTicks(m));
       if (invalid) return failure(invalid, "NUMBERED_OVERLAP");
     }
     measureId = command.measureId;
@@ -254,6 +271,16 @@ export const editNumberedTrack = (
         ? events.find((e) => e.id === command.eventId)
         : undefined;
     if ("eventId" in command && !event) return failure("简谱事件不存在");
+    // 单事件按钮、键入和带时值的提交统一使用批量规划的固定延音窗口。
+    if ((command.type === "numbered.event.set" && !command.itemId && command.tokens.length === 1 && command.tokens[0] === "-" && event!.kind !== "continuation") ||
+        (command.type === "numbered.event.setRhythm" && command.tokens?.length === 1 && command.tokens[0] === "-" && event!.kind !== "continuation")) {
+      return editNumberedTrack(track, {
+        ...command,
+        type: "numbered.sequence.set",
+        items: [{ kind: "set", tokens: ["-"] }],
+        allowOverwrite: true,
+      }, factory, preview);
+    }
     if (command.type === "numbered.sequence.insert") {
       const { startTick, endTick, items, rhythms } = command;
       if (
@@ -261,7 +288,7 @@ export const editNumberedTrack = (
         !Number.isInteger(endTick) ||
         startTick < 0 ||
         endTick <= startTick ||
-        endTick > getMeasureCapacityTicks(measure.timeSignature) ||
+        endTick > getMeasureDurationTicks(measure) ||
         !items.length ||
         items.length > 256 ||
         rhythms.length !== items.length
@@ -270,14 +297,20 @@ export const editNumberedTrack = (
       let cursor = startTick;
       const created: ILXMNumberedEvent[] = [];
       for (const [index, item] of items.entries()) {
-        const rhythm = rhythms[index]!;
+        const continuation = item.kind === "set" && item.tokens[0] === "-";
+        const rhythm = continuation ? numberedContinuationRhythm(measure.timeSignature) : rhythms[index];
+        if (!rhythm) return failure(NUMBERED_CONTINUATION_METER_REASON);
         const duration = calculateRhythmTicks(rhythm);
         if (!duration.ok) return failure("简谱时值无效");
         if (cursor + duration.ticks > endTick)
           return failure(
-            "录入超出空白窗口，请缩短时值或减少内容",
+            continuation ? NUMBERED_CONTINUATION_SPACE_REASON : "录入超出空白窗口，请缩短时值或减少内容",
             "NUMBERED_OVERLAP",
           );
+        if (continuation) {
+          const issue = numberedContinuationIssue(track, measure, cursor, cursor + duration.ticks, context);
+          if (issue) return failure(issue, "NUMBERED_OVERLAP");
+        }
         if (
           events.some((event) => {
             const d = context.getEventDurationTicks(event);
@@ -308,12 +341,12 @@ export const editNumberedTrack = (
       focusEventId = created.at(-1)?.id;
       const following = events.find((event) => event.tick >= cursor);
       if (following?.tick === cursor) nextFocus = { eventId: following.id };
-      else if (cursor < getMeasureCapacityTicks(measure.timeSignature)) {
+      else if (cursor < getMeasureDurationTicks(measure)) {
         nextFocus = {
           tick: cursor,
           endTick: Math.min(
             endTick > cursor ? endTick : Infinity,
-            following?.tick ?? getMeasureCapacityTicks(measure.timeSignature),
+            following?.tick ?? getMeasureDurationTicks(measure),
           ),
         };
       }
@@ -352,6 +385,7 @@ export const editNumberedTrack = (
     } else if (command.type === "numbered.event.setRhythm") {
       const tokens = command.tokens;
       if (tokens && !validNumberedTokens(tokens)) return failure("简谱音高无效");
+      if (event!.kind === "continuation") return failure(NUMBERED_CONTINUATION_RHYTHM_REASON);
       if (grouped(event!.id)) return failure("连音成员须整组修改时值");
       const planned = planNumberedEventRhythm(
         measure,
@@ -410,7 +444,7 @@ export const editNumberedTrack = (
         !Number.isInteger(end) ||
         start < 0 ||
         start >= end ||
-        end > getMeasureCapacityTicks(measure.timeSignature) ||
+        end > getMeasureDurationTicks(measure) ||
         command.items.length !== command.rhythms.length ||
         !command.items.length ||
         command.items.length > 256
@@ -438,7 +472,14 @@ export const editNumberedTrack = (
       let cursor = start;
       const created: ILXMNumberedEvent[] = [];
       for (const [i, item] of command.items.entries()) {
-        const rhythm = command.rhythms[i]!;
+        const previous = affected.find((e) => e.tick === cursor);
+        const continuation = item.kind === "set" && item.tokens[0] === "-";
+        const existingContinuation = continuation && previous?.kind === "continuation";
+        const rhythm = existingContinuation ? previous.rhythm
+          : continuation ? numberedContinuationRhythm(measure.timeSignature) : command.rhythms[i];
+        if (!rhythm) return failure(NUMBERED_CONTINUATION_METER_REASON);
+        // 连音比例会缩短延音的实际长度，固定窗模板不能用它录入延音。
+        if (continuation && command.ratio) return failure("简谱连音组不能录入固定时值的延音。");
         const d = calculateRhythmTicks(rhythm);
         if (!d.ok) return failure("简谱时值无效");
         const numerator = d.ticks * (command.ratio?.normal ?? 1),
@@ -446,7 +487,11 @@ export const editNumberedTrack = (
         if (!denominator || numerator % denominator)
           return failure("简谱比例不能表示为整数 tick");
         const ticks = numerator / denominator;
-        const previous = affected.find((e) => e.tick === cursor);
+        if (continuation && !existingContinuation) {
+          if (cursor + ticks > end) return failure(NUMBERED_CONTINUATION_SPACE_REASON);
+          const issue = numberedContinuationIssue(track, measure, cursor, cursor + ticks, context);
+          if (issue) return failure(issue, "NUMBERED_OVERLAP");
+        }
         if (item.kind === "set") {
           if (!validNumberedTokens(item.tokens)) return failure("简谱输入无效");
           const same =
@@ -524,7 +569,7 @@ export const editNumberedTrack = (
       if (
         !Number.isInteger(start) ||
         start < 0 ||
-        end > getMeasureCapacityTicks(measure.timeSignature)
+        end > getMeasureDurationTicks(measure)
       )
         return failure("简谱粘贴超过小节容量");
       const touched = events.filter((e) => {
@@ -617,6 +662,7 @@ export const editNumberedTrack = (
         .sort((a, b) => a.tick - b.tick);
       tuplets = tuplets.filter((g) => g !== group);
     } else if (command.type === "numbered.event.split") {
+      if (event!.kind === "continuation") return failure(NUMBERED_CONTINUATION_RHYTHM_REASON);
       if (grouped(event!.id)) return failure("连音成员不能单独拆分");
       const base =
         LXM_RHYTHM_BASES[LXM_RHYTHM_BASES.indexOf(event!.rhythm.base) + 1];
@@ -663,6 +709,7 @@ export const editNumberedTrack = (
       if (range.length < 2 || range.some((e) => !e || grouped(e.id)))
         return failure("请选择完整非连音的简谱合并范围");
       const selected = range as ILXMNumberedEvent[];
+      if (selected.some((event) => event.kind === "continuation")) return failure(NUMBERED_CONTINUATION_RHYTHM_REASON);
       const first = selected[0]!;
       if (
         !selected.every(
@@ -762,7 +809,7 @@ export const editNumberedTrack = (
     };
     const invalid = validateNumberedVoice(
       voice,
-      getMeasureCapacityTicks(measure.timeSignature),
+      getMeasureDurationTicks(measure),
     );
     if (invalid) return failure(invalid, "NUMBERED_OVERLAP");
     next = {

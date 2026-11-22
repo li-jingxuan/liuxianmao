@@ -373,6 +373,9 @@ try {
     await state("selection", { anchor: ref(0, 0), focus: ref(1, 1) });
     await open("measure");
     await page.getByRole("button", { name: "复制当前小节", exact: true }).last().click();
+    const destinations = page.getByRole("dialog", { name: "复制到", exact: true });
+    await destinations.getByRole("button", { name: "曲末", exact: true }).click();
+    await destinations.waitFor({ state: "hidden" });
     assert.equal((await state()).document.score.tracks[0].measures.length, 4);
     assert.ok(await page.getByRole("button", { name: "复制当前小节", exact: true }).last().isVisible());
     await state("undo");

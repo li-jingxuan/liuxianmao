@@ -10,7 +10,7 @@ import {
   LXM_RHYTHM_BASES,
   TICKS_PER_QUARTER,
 } from "../constants";
-import type { ILXMRhythm, ILXMTimeSignature } from "../types";
+import type { ILXMRhythm, ILXMMeasure, ILXMTimeSignature } from "../types";
 
 // 基准节奏时值对应 tick 数
 export const BASE_RHYTHM_TICKS = {
@@ -135,6 +135,10 @@ export const getMeasureCapacityTicks = ({
   denominator,
 }: ILXMTimeSignature): number =>
   (TICKS_PER_QUARTER * 4 * numerator) / denominator;
+
+/** 返回小节实际时长，覆盖值缺省时使用拍号容量。 */
+export const getMeasureDurationTicks = (measure: ILXMMeasure): number =>
+  measure.actualDurationTicks ?? getMeasureCapacityTicks(measure.timeSignature);
 
 /**
  * 返回拍号的显式连梁拍组；null 表示核心不掌握该拍号的专业分组语义。

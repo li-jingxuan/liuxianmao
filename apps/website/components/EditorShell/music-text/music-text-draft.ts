@@ -85,7 +85,7 @@ export type SidebarAction =
       selection: ILXMTabCellSelection | null;
       techniqueId?: string;
       /** 属性草稿延迟确认时，也保留当次 Alt 点击所选的精确起音。 */
-      strumIds?: readonly string[];
+      traversalIds?: readonly string[];
       /** 扫弦或琶音可从标记下的弦格开始拖选。 */
       dragAnchor?: ILXMTabCellReference;
       /** 连音标注的一键整组选区不随本次指针移动改变。 */

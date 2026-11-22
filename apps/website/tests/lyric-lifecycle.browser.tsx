@@ -13,6 +13,25 @@ document.score.tracks.forEach((track) => track.measures.forEach((measure) => { m
 const track = document.score.tracks[0]!;
 const measure = track.measures[0]!;
 measure.lyrics = measure.numberedVoice.events.slice(0, 3).map((event, index) => ({ id: `word-${index}`, eventId: event.id, verse: 1, text: ["原词", "旧词", "末词"][index]! }));
+if (new URLSearchParams(location.search).has("advance")) {
+  track.measures = track.measures.slice(0, 2);
+  track.numberedMarks = [];
+  track.techniques = [];
+  for (const [index, item] of track.measures.entries()) {
+    item.timeSignature = { numerator: 4, denominator: 4 };
+    item.beats = Array.from({ length: 4 }, (_, beat) => ({ id: `advance-tab-${index}-${beat}`, tick: beat * 960,
+      rhythm: { base: "quarter", dots: 0 }, kind: "rest", notes: [] }));
+    item.tuplets = [];
+    item.chordSymbols = [];
+    item.lyrics = index ? [{ id: "advance-word", eventId: "advance-occupied", verse: 1, text: "已有" }] : [];
+    item.numberedVoice = { tuplets: [], events: index ? [
+      { id: "advance-start", tick: 0, rhythm: { base: "quarter", dots: 0 }, kind: "notes", items: [{ id: "advance-note-0", token: "2" }] },
+      { id: "advance-occupied", tick: 960, rhythm: { base: "quarter", dots: 0 }, kind: "notes", items: [{ id: "advance-note-1", token: "3" }] },
+      { id: "advance-gap", tick: 1920, rhythm: { base: "quarter", dots: 0 }, kind: "gap", items: [] },
+      { id: "advance-end", tick: 2880, rhythm: { base: "quarter", dots: 0 }, kind: "notes", items: [{ id: "advance-note-3", token: "4" }] },
+    ] : [] };
+  }
+}
 const session = createEditorSession(document);
 const controller = createRef<MusicTextController>();
 const noop = () => {};

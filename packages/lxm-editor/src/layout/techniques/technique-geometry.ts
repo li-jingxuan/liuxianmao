@@ -155,7 +155,10 @@ export const getTechniqueInkBounds = (
     if (segment.arrowHead) rects.push(pointsBounds(segment.arrowHead.points));
     return rects;
   }
-  if (segment.path.markerEnd || segment.arrowHead) {
+  if (segment.type === "strum" && segment.path.arrowPoints) {
+    // 扫弦延音线按已渲染的箭头三角形避让，而非 marker 的保守命中范围。
+    rects.push(pointsBounds(segment.path.arrowPoints));
+  } else if (segment.path.markerEnd || segment.arrowHead) {
     rects.push(getTechniqueVisualBounds(segment.path, [], segment.arrowHead));
     return rects;
   }
@@ -313,12 +316,21 @@ export const withTechniqueBounds = (
   }
   const textHalo = segment.type === "naturalHarmonic"
     ? LXM_FRET_TEXT_HALO_WIDTH : LXM_TECHNIQUE_TEXT_HALO_WIDTH;
-  const visualBounds = getTechniqueVisualBounds(
+  let visualBounds = getTechniqueVisualBounds(
     segment.path,
     segment.texts,
     segment.arrowHead,
     textHalo,
   );
+  // 和弦图与延音线之间按实际弧顶留白，二次曲线的控制点不属于墨迹。
+  if (segment.type === "traversalTie" && segment.path) {
+    const arcTop = Math.min(...getTechniqueInkBounds(segment).map((bounds) => bounds.y));
+    visualBounds = {
+      ...visualBounds,
+      y: arcTop,
+      height: visualBounds.y + visualBounds.height - arcTop,
+    };
+  }
   // 用原字号的完整文字轮廓（含原描边和 padding）保留可点区域。
   // 密集内嵌 H/P 原本就是 6，继续按 6；路径、箭头也纳入同一包络。
   const hitTexts = segment.texts.map((label) => ({

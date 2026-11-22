@@ -1,6 +1,6 @@
 import {
   createNumberedRhythmContext,
-  getMeasureCapacityTicks,
+  getMeasureDurationTicks,
   planNumberedInputRanges,
   type ILXMDocument,
   type ILXMNumberedTarget,
@@ -102,7 +102,7 @@ export const resolveNumberedEditorTarget = (
       Number.isInteger(target.endTick) &&
       target.tick >= 0 &&
       target.tick < target.endTick &&
-      target.endTick <= getMeasureCapacityTicks(measure.timeSignature)
+      target.endTick <= getMeasureDurationTicks(measure)
       ? {
           // 显式范围还用于高级替换，必须保留范围身份；占用检查由操作规划完成。
           kind: "numberedTime",

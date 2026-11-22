@@ -43,6 +43,7 @@ describe("createMeasureRestBeats", () => {
       expect(rests).toEqual(
         ticks.map((tick, index) => ({
           id: `beat-${index + 1}`,
+          capacityRest: true,
           tick,
           rhythm: { base, dots: 0 },
           kind: "rest",
@@ -61,6 +62,7 @@ describe("createMeasureRestBeats", () => {
     ).toEqual([
       {
         id: "beat-1",
+        capacityRest: true,
         tick: 0,
         rhythm: { base: "whole", dots: 0 },
         kind: "rest",
@@ -84,6 +86,7 @@ describe("createRestBeats", () => {
     expect(createRestBeats(120, 2880, createSequentialIdFactory())).toEqual([
       {
         id: "beat-1",
+        capacityRest: true,
         tick: 120,
         rhythm: { base: "half", dots: 0 },
         kind: "rest",
@@ -91,6 +94,7 @@ describe("createRestBeats", () => {
       },
       {
         id: "beat-2",
+        capacityRest: true,
         tick: 2040,
         rhythm: { base: "quarter", dots: 0 },
         kind: "rest",

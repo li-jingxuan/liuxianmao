@@ -34,8 +34,15 @@
 }
 
 .rhythmToolbar {
-  grid-template-columns: repeat(8, minmax(0, 1fr));
+  // 独立分隔基础时值、附点和延音，气泡与侧栏共享相同的按钮宽度和键盘顺序。
+  grid-template-columns: repeat(6, minmax(0, 1fr)) 1px minmax(0, 1fr) 1px minmax(0, 1fr);
   gap: 2px;
+}
+
+.rhythmDivider {
+  align-self: center;
+  height: 20px;
+  background: var(--ant-color-border, #d9d9d9);
 }
 
 .durationIcon {

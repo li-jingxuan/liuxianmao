@@ -1,5 +1,8 @@
 import {
+  areAdjacentNumberedEvents,
+  buildNumberedIndex,
   resolveMusicTextRange,
+  sameNumberedPitch,
   validateNumberedMarks,
   type ILXMDocument,
   type ILXMScoreCommand,
@@ -9,7 +12,7 @@ import {
 import type { MusicTextTarget } from "../music-text/music-text-draft";
 import { resolveQuickTechnique } from "./editor-technique-target";
 
-export const NUMBERED_TIE_SELECTION_REASON = "请选择两个相邻同音简谱音符";
+export const NUMBERED_TIE_SELECTION_REASON = "请选择两个相邻简谱音符";
 
 /** A score range survives returnToScore; the store's single numbered target may be stale. */
 export const isNumberedTieTarget = (
@@ -17,12 +20,13 @@ export const isNumberedTieTarget = (
   active: MusicTextTarget | null,
 ): boolean => range?.kind === "numbered" || active?.kind === "numbered";
 
-type TieTarget = { kind: "numbered" | "tab" } & (
+type NumberedArcLabel = "简谱延音线" | "简谱圆滑线";
+type TieTarget = ({ kind: "numbered"; label: NumberedArcLabel } | { kind: "tab" }) & (
   | { ok: true; command: ILXMScoreCommand; pressed: boolean }
   | { ok: false; message: string }
 );
 
-/** Numbered ties require two explicit events; TAB keeps its existing next-note behavior. */
+/** 简谱弧线按所选单音的音高切换延音线或圆滑线，TAB 沿用原有快捷技巧规则。 */
 export const resolveEditorTieTarget = (
   document: ILXMDocument,
   selection: ILXMTabCellSelection | null,
@@ -31,34 +35,44 @@ export const resolveEditorTieTarget = (
 ): TieTarget => {
   if (!isNumberedTieTarget(range, active))
     return { kind: "tab", ...resolveQuickTechnique(document, selection, "tie") };
-  const fail = (message = NUMBERED_TIE_SELECTION_REASON): TieTarget => ({ kind: "numbered", ok: false, message });
+  const fail = (message = NUMBERED_TIE_SELECTION_REASON, label: NumberedArcLabel = "简谱延音线"): TieTarget =>
+    ({ kind: "numbered", label, ok: false, message });
   if (range?.kind !== "numbered") return fail();
   const resolved = resolveMusicTextRange(document, range);
   if (!resolved.ok) return fail(resolved.message);
   if (resolved.slots.length !== 2) return fail();
   const track = document.score.tracks.find((item) => item.id === range.trackId);
   if (!track) return fail();
-  const events = resolved.slots.map((slot) => track.measures
-    .find((measure) => measure.id === slot.measureId)?.numberedVoice.events
-    .find((event) => event.id === slot.eventId));
-  // Range points identify events, not chord members. Never guess either endpoint's item.
-  if (events.some((event) => event?.kind !== "notes" || event.items.length !== 1))
+  const index = buildNumberedIndex(track);
+  const from = index.events.get(resolved.slots[0]!.eventId ?? "");
+  const to = index.events.get(resolved.slots[1]!.eventId ?? "");
+  // 选区按事件定位，只有两个单音事件才能唯一确定端点；和弦、休止和空位均不适用。
+  if (from?.event.kind !== "notes" || to?.event.kind !== "notes" ||
+    from.event.items.length !== 1 || to.event.items.length !== 1)
     return fail();
-  const fromItemId = events[0]!.items[0]!.id;
-  const toItemId = events[1]!.items[0]!.id;
-  const existing = track.numberedMarks.find((mark) => mark.type === "tie" &&
-    mark.fromItemId === fromItemId && mark.toItemId === toItemId);
+  const [fromItem, toItem] = [from.event.items[0]!, to.event.items[0]!];
+  const matchingPitch = sameNumberedPitch(fromItem.token, toItem.token);
+  const label = matchingPitch ? "简谱延音线" : "简谱圆滑线";
+  // 文档允许更长的圆滑线，快捷入口仅允许时间连续的相邻音，包括跨普通小节线的音符。
+  if (!areAdjacentNumberedEvents(from, to)) return fail(`${label}需要时间连续的相邻音`, label);
+  // 延音线绑定音高成员，圆滑线绑定事件；再次点击只移除同类型、同端点的记号。
+  const mark = matchingPitch
+    ? { type: "tie" as const, fromItemId: fromItem.id, toItemId: toItem.id }
+    : { type: "slur" as const, fromEventId: from.event.id, toEventId: to.event.id };
+  const existing = track.numberedMarks.find((candidate) => mark.type === "tie"
+    ? candidate.type === "tie" && candidate.fromItemId === mark.fromItemId && candidate.toItemId === mark.toItemId
+    : candidate.type === "slur" && candidate.fromEventId === mark.fromEventId && candidate.toEventId === mark.toEventId);
   if (existing) return {
-    kind: "numbered", ok: true, pressed: true,
+    kind: "numbered", label, ok: true, pressed: true,
     command: { type: "numbered.mark.remove", trackId: track.id, markId: existing.id },
   };
-  const mark = { type: "tie" as const, fromItemId, toItemId };
+  // 复用核心校验，确保快捷入口与命令对反复、终止边界和圆滑线范围的处理一致。
   const message = validateNumberedMarks({
     ...track,
-    numberedMarks: [...track.numberedMarks, { ...mark, id: "numbered-tie-preview" }],
-  });
-  return message ? fail(message) : {
-    kind: "numbered", ok: true, pressed: false,
+    numberedMarks: [...track.numberedMarks, { ...mark, id: "numbered-arc-preview" }],
+  }, index);
+  return message ? fail(message, label) : {
+    kind: "numbered", label, ok: true, pressed: false,
     command: { type: "numbered.mark.add", trackId: track.id, mark },
   };
 };

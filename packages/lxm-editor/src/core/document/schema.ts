@@ -284,6 +284,7 @@ export const LXMBeatSchema = z
     kind: z.enum(LXM_BEAT_KINDS),
     notes: z.array(LXMNoteSchema),
     preserveInputRhythm: z.literal(true).optional(),
+    capacityRest: z.literal(true).optional(),
   })
   .strict() satisfies z.ZodType<ILXMBeat>;
 
@@ -412,6 +413,7 @@ export const LXMMeasureSchema = z
     tuplets: z.array(LXMTupletSchema),
     numberedVoice: LXMNumberedVoiceSchema,
     sectionLabel: musicTextSchema(32).optional(),
+    actualDurationTicks: z.number().int().positive().optional(),
   })
   .strict() satisfies z.ZodType<ILXMMeasure>;
 

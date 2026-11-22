@@ -201,7 +201,8 @@ export const EditorToolPanelHost = ({
       // 技巧面板内展开参数只移动当前面板的焦点，不重新从工具栏打开。
       if (entry && open && group === target && focusSelector) {
         requestAnimationFrame(() => {
-          if (contextEntryRef.current === entry) content.current?.querySelector<HTMLElement>(focusSelector)?.focus({ preventScroll: true });
+          if (contextEntryRef.current === entry && !content.current?.querySelector('[data-technique-direction-trigger][aria-expanded="true"]'))
+            content.current?.querySelector<HTMLElement>(focusSelector)?.focus({ preventScroll: true });
         });
         return;
       }
@@ -308,7 +309,8 @@ export const EditorToolPanelHost = ({
     if (!open) return;
     const outside = (event: PointerEvent) => {
       if (group === "beat" || blocked || !(event.target instanceof Node) || content.current?.contains(event.target)) return;
-      if (event.target instanceof Element && event.target.closest("[data-open-shortcuts],[data-playback-toggle]")) return;
+      // 子气泡为避免滚动裁切渲染到页面浮层，点击方向或复制位置仍属于当前工具面板。
+      if (event.target instanceof Element && event.target.closest("[data-open-shortcuts],[data-playback-toggle],[data-editor-anchored-tool]")) return;
       const button = event.target instanceof Element && event.target.closest("[data-tool-trigger]");
       if (button && trigger.current?.contains(button)) return;
       close();
@@ -332,6 +334,11 @@ export const EditorToolPanelHost = ({
       const frame = requestAnimationFrame(() => {
         align();
         const panel = moreMenu ? content.current : content.current?.querySelector<HTMLElement>(`[data-tool-panel="${group}"]`);
+        // 琶音快捷键会同时打开方向气泡。把初始焦点交给子气泡，避免被面板默认按钮抢回。
+        if (panel?.querySelector('[data-technique-direction-trigger][aria-expanded="true"]')) {
+          requestedFocus.current = undefined;
+          return;
+        }
         if (requestedFocus.current) {
           panel?.querySelector<HTMLElement>(requestedFocus.current)?.focus({ preventScroll: true });
         } else if (group === "beat" && !moreMenu) {

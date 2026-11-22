@@ -12,10 +12,10 @@ const server = await createServer({
   root: website, configFile: false, cacheDir: path.resolve(website, "node_modules/.vite/lyric-lifecycle"),
   optimizeDeps: { entries: ["tests/lyric-lifecycle.browser.tsx"], include: ["react/jsx-dev-runtime"] },
   esbuild: { jsx: "automatic" },
-  server: { host: "127.0.0.1", port: 0, watch: { ignored: ["**/.next/**"] }, fs: { allow: [path.resolve(website, "../..")] } },
+  server: { host: "127.0.0.1", port: 0, watch: null, hmr: false, fs: { allow: [path.resolve(website, "../..")] } },
   plugins: [{ name: "lyric-lifecycle-fixture", configureServer(dev) {
     dev.middlewares.use(async (request, response, next) => {
-      if (request.url !== "/__lyrics__") return next();
+      if (request.url?.split("?")[0] !== "/__lyrics__") return next();
       response.setHeader("Content-Type", "text/html");
       response.end(await dev.transformIndexHtml(request.url, '<!doctype html><div id="root"></div><script type="module" src="/tests/lyric-lifecycle.browser.tsx"></script>'));
     });
@@ -35,13 +35,19 @@ try {
   const input = sidebar.getByRole("textbox", { name: "连续歌词", exact: true });
   const popInput = popover.getByRole("textbox", { name: "连续歌词", exact: true });
   const apply = sidebar.getByRole("button", { name: /^应\s*用$/ });
+  const advance = scope => scope.getByRole("checkbox", { name: "应用后跳转到下一处", exact: true });
   const add = sidebar.getByRole("button", { name: "添加歌词行", exact: true });
   const removeVerse = async () => {
     await sidebar.getByRole("button", { name: "歌词段落操作", exact: true }).click();
     await page.getByRole("menuitem", { name: "删除当前段", exact: true }).click();
   };
   const open = async (index = 0, verse = 1) => {
-    await page.evaluate(({ index, verse }) => window.lyricTest.controller.current.open(window.lyricTest.target(index, verse)), { index, verse });
+    const target = await page.evaluate(({ index, verse }) => {
+      const target = window.lyricTest.target(index, verse);
+      window.lyricTest.controller.current.open(target);
+      return target;
+    }, { index, verse });
+    await page.waitForFunction(target => window.lyricActive?.eventId === target.eventId && window.lyricActive?.verse === target.verse, target);
     try { await input.waitFor({ state: "visible", timeout: 10000 }); }
     catch (error) { console.error(await sidebar.ariaSnapshot()); throw error; }
   };
@@ -52,10 +58,17 @@ try {
   });
   const selectVerse = async (label) => {
     await sidebar.getByRole("combobox").click();
-    await page.locator(".ant-select-dropdown:visible .ant-select-item-option").filter({ hasText: label }).click();
+    const option = page.locator(".ant-select-dropdown:visible .ant-select-item-option").filter({ hasText: label });
+    await option.waitFor();
+    await option.dispatchEvent("click");
+    const verse = ["第一段", "第二段", "第三段", "第四段"].indexOf(label) + 1;
+    await page.waitForFunction(verse => window.lyricActive?.verse === verse, verse);
   };
   await open();
   await popover.waitFor({ state: "visible" });
+  assert.equal(await advance(popover).isChecked(), true);
+  await advance(sidebar).uncheck();
+  assert.equal(await advance(popover).isChecked(), false);
   for (const field of [input, popInput]) {
     assert.equal(await field.evaluate(node => node instanceof HTMLTextAreaElement && node.rows === 2), true);
     assert.equal(await field.evaluate(node => getComputedStyle(node).resize), "none");
@@ -201,8 +214,66 @@ try {
   await apply.click();
   await page.waitForFunction(history => window.lyricTest.session.getState().historyDepth.past === history + 1, history);
   assert.equal((await snapshot()).target.eventId, beforeAdd.target.eventId);
+
+  await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/__lyrics__?advance`);
+  await page.waitForFunction(() => !!window.lyricTest?.controller.current);
+  const openAt = async (kind, measureIndex, position) => page.evaluate(({ kind, measureIndex, position }) => {
+    const { session, controller } = window.lyricTest;
+    const [track] = session.getState().document.score.tracks;
+    controller.current.open({ kind, trackId: track.id, measureId: track.measures[measureIndex].id,
+      ...(kind === "lyric" ? { verse: 1 } : {}), ...position });
+  }, { kind, measureIndex, position });
+  const popNumbered = popover.getByRole("textbox", { name: "简谱内容", exact: true });
+  const sideNumbered = sidebar.getByRole("textbox", { name: "简谱内容", exact: true });
+  await openAt("numbered", 0, { tick: 1920, endTick: 2880 });
+  await popNumbered.fill("5 _");
+  await popNumbered.press("Enter");
+  await page.waitForFunction(() => window.lyricActive?.eventId === "advance-gap" && document.activeElement?.id === "numbered-popover-content");
+  assert.equal(await popNumbered.inputValue(), "");
+  assert.equal(await advance(sidebar).isChecked(), true);
+
+  await advance(sidebar).uncheck();
+  assert.equal(await advance(popover).isChecked(), false);
+  await openAt("numbered", 0, { tick: 0, endTick: 960 });
+  await page.waitForFunction(() => window.lyricActive?.kind === "numbered" && window.lyricActive?.tick === 0);
+  await popNumbered.fill("6");
+  await popover.getByRole("button", { name: "应用简谱内容", exact: true }).click();
+  await page.waitForFunction(() => window.lyricActive?.kind === "numbered" && !!window.lyricActive?.eventId && document.activeElement?.id === "numbered-popover-content");
+  assert.equal(await popNumbered.inputValue(), "6");
+  assert.equal(await page.evaluate(() => window.lyricTest.session.getState().document.score.tracks[0].measures[0].numberedVoice.events[0].id), (await snapshot()).target.eventId);
+  await openAt("lyric", 0, { tick: 1920, endTick: 2880 });
+  await popInput.waitFor();
+  assert.equal(await advance(popover).isChecked(), false);
+  await advance(popover).check();
+  assert.equal(await advance(sidebar).isChecked(), true);
+  await input.fill("风 _ 云");
+  await input.press("Control+Enter");
+  await page.waitForFunction(() => window.lyricActive?.eventId === "advance-gap" && document.activeElement?.id === "lyric-body");
+  assert.equal(await popover.isVisible(), false);
+  assert.equal(await input.inputValue(), "");
+  await input.fill("尾");
+  await apply.click();
+  await page.waitForFunction(() => window.lyricActive?.eventId === "advance-end" && document.activeElement?.id === "lyric-body");
+  await input.fill("末");
+  await apply.click();
+  await page.waitForFunction(() => document.activeElement?.id === "lyric-body");
+  assert.equal((await snapshot()).target.eventId, "advance-end");
+  await input.fill("末 ");
+  await input.press("Control+Enter");
+  assert.equal((await snapshot()).target.eventId, "advance-end");
+  await input.fill("_");
+  await apply.click();
+  assert.equal((await snapshot()).target.eventId, "advance-end");
+
+  await openAt("numbered", 1, { eventId: "advance-end" });
+  await sideNumbered.fill("6");
+  await sidebar.getByRole("button", { name: "应用简谱内容", exact: true }).click();
+  assert.equal((await snapshot()).target.eventId, "advance-end");
+  await sideNumbered.fill("7 8");
+  await sideNumbered.press("Enter");
+  assert.equal((await snapshot()).target.eventId, "advance-end");
   assert.deepEqual(errors, []);
-  console.log("Lyric lifecycle passed: fixed two-line shared draft, Enter inserts a newline, stationary Apply, clear/overwrite, close/collapse/target lifecycle, verse add/switch/cap/undo/redo, IME guards.");
+  console.log("Lyric lifecycle and BUG-066 passed: shared advance preference, text buttons and shortcuts, cross-measure blank targets, same-surface focus, stationary apply with advance off or at the end, draft lifecycle and IME guards.");
 } finally {
   await browser?.close();
   await server.close();

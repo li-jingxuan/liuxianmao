@@ -102,6 +102,8 @@ function getPreview(drag: Drag, y: number): StrumEndpointPreview | null {
 export function useScoreStrumInteraction(interaction?: ScoreStrumInteraction) {
   const geometry = useMemo(() => indexStrums(interaction?.layout), [interaction?.layout]);
   const selected = useMemo(() => new Set(interaction?.selectedIds), [interaction?.selectedIds]);
+  // 离散休止选区可混选琶音；扫弦端点拖动仍只提交有扫弦几何的对象。
+  const selectedStrums = useMemo(() => new Set([...selected].filter((id) => geometry.has(id))), [geometry, selected]);
   const dragRef = useRef<Drag | null>(null);
   const [draft, setDraft] = useState<{ drag: Drag; preview: StrumEndpointPreview | null } | null>(null);
   const activeId = interaction?.activeId;
@@ -198,8 +200,7 @@ export function useScoreStrumInteraction(interaction?: ScoreStrumInteraction) {
       return;
     }
     if (!active || id !== activeId || !point) return;
-    const ranges = [...selected].flatMap((selectedId) => geometry.get(selectedId)?.range ?? []);
-    if (ranges.length !== selected.size) return;
+    const ranges = [...selectedStrums].map((selectedId) => geometry.get(selectedId)!.range);
     const opposite = endpoint === "minString" ? "maxString" : "minString";
     const otherStrings = ranges.map((range) => range[opposite]);
     // 所有箭头共享新端点，但保留各自的对端。吸附区间取所有合法弦号的交集。

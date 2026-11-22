@@ -10,7 +10,7 @@ There are 192 identities (12 pitch classes × 16 qualities), 212 distinct voicin
 
 The popular list is C, G, Am, F, Dm, Em (three distinct shapes each) and D, A, E, Bm, Cmaj7, D7, E7, A7 (two each). All other identities have one shape. Per-quality voicing totals: major 21; m 19; 7 15; maj7 13; m7, dim, dim7, m7b5, aug, sus2, sus4, add9, 6, m6, 9 and m9 each 12. Tests reject identical fret sequences used to inflate counts.
 
-Generate with `node packages/lxm-editor/scripts/generate-chord-catalog.mjs --write`; verify reproducibility without writing with the same command omitting `--write`. The generator refuses to overwrite differing content at the same immutable data filename. Corrections require a new dataVersion/file and manifest pointer; retain previous version files.
+The original `2026.11.11.1` data file is available in Git history. The site's static resources contain the current version referenced by the manifest. Generate that version with `node packages/lxm-editor/scripts/generate-chord-catalog.mjs --write` and verify reproducibility by omitting `--write`. The generator refuses to overwrite differing content at the same immutable data filename. Corrections require a new dataVersion/file and manifest pointer.
 
 Run `pnpm exec vitest run packages/lxm-editor/tests/core/chord-catalog.test.ts apps/website/tests/chord-catalog-resource.test.ts`. These tests validate the published JSON through public parsing/query/copy APIs and resource loading APIs, including strict schema, complete coverage, stable pair references, explicit aliases, deep copies, diatonic spelling (including Gb minor), formulas, lowest-pitch bass, HTTP failure and stale requests.
 

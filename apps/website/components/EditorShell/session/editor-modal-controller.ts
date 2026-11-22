@@ -29,7 +29,7 @@ interface EditorModalBase {
 }
 export type EditorModalRequest = EditorModalBase &
   (
-    | { kind: "structure-impact" }
+    | { kind: "structure-impact"; source?: "measure-copy" }
     | { kind: "music-text-row-remove" }
     | { kind: "rhythm-pattern-discard" }
     | { kind: "beat-paste"; preview: BeatPasteController }

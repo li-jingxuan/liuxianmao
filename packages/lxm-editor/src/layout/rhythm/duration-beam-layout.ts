@@ -20,7 +20,7 @@ import {
   ILXMRhythmBase,
 } from "../../core/types";
 import {
-  getMeasureCapacityTicks,
+  getMeasureDurationTicks,
   getTimeSignatureBeatGroupTicks,
 } from "../../core/rhythm/rhythm";
 import {
@@ -125,7 +125,7 @@ export const groupContiguousMarks = (
    */
   const beatGroupTicks = getTimeSignatureBeatGroupTicks(
     measure.timeSignature,
-  ) ?? [getMeasureCapacityTicks(measure.timeSignature)];
+  ) ?? [getMeasureDurationTicks(measure)];
   let accumulatedTicks = 0;
   const beatGroupEndTicks = beatGroupTicks.map((ticks) => {
     accumulatedTicks += ticks;

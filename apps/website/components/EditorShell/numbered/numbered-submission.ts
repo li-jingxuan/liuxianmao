@@ -40,6 +40,7 @@ export const createNumberedSubmission = (options: {
     operation: ILXMNumberedVoiceCommand,
     result: Extract<ILXMApplyScoreCommandResult, { ok: true }>,
     grouped: boolean,
+    candidate: NumberedImpact,
   ) => void;
 }) => {
   let committing = false;
@@ -97,7 +98,6 @@ export const createNumberedSubmission = (options: {
         confirmedRemovedMarkIds: request.candidate.removedMarkIds,
         confirmedChangedMarkIds: request.candidate.changedMarkIds,
       });
-      committing = false;
       if (!result?.ok) {
         settle({
           status: "blocked",
@@ -111,18 +111,21 @@ export const createNumberedSubmission = (options: {
         request.operation,
         result,
         request.grouped,
+        request.candidate,
       );
       settle({
         status: result.changed ? "applied" : "noop",
         group: request.group,
       });
     } catch {
-      committing = false;
       settle({
         status: "blocked",
         group: request.group,
         message: "提交失败，输入已保留。",
       });
+    } finally {
+      // 成功回调也会同步更新保留的选区；直到整笔提交完成才恢复外部变更检查。
+      committing = false;
     }
   };
   return {

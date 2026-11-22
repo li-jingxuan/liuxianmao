@@ -135,6 +135,7 @@ export const EditorToolbar = ({
   const selectedTechniqueId = useEditorStore(
     (state) => state.selectedTechniqueId,
   );
+  const selectedTraversalIds = useEditorStore((state) => state.selectedTraversalIds);
   const setSelectedTechniqueId = useEditorStore(
       (state) => state.setSelectedTechniqueId,
     ),
@@ -220,14 +221,17 @@ export const EditorToolbar = ({
     live.current = { editingBlocked, numberedEditingBlocked, continuousRange, modal, beforeAction, execute };
     paste.invalidate();
   }, [paste, editingBlocked, numberedEditingBlocked, continuousRange, modal, beforeAction, execute]);
+  // 复制确认的关闭动画晚于命令回调。按弹窗来源保留工具直到动画结束，取消后可以回到原位置列表。
+  const preserveToolForModal = modal?.request.kind === "rhythm-pattern-discard" || modal?.request.kind === "shortcuts" ||
+    (modal?.request.kind === "structure-impact" && modal.request.source === "measure-copy");
   useEffect(() => {
-    if (modal && modal.request.kind !== "rhythm-pattern-discard" && modal.request.kind !== "shortcuts") host.current?.close();
-  }, [modal]);
+    if (modal && !preserveToolForModal) host.current?.close();
+  }, [modal, preserveToolForModal]);
   if (!document) return null;
   const rhythmPatternTarget = resolveEditorRhythmPatternTarget(document, selection, continuousRange, activeTarget, numberedSelection);
   const rhythmPatternBlocked = (rhythmPatternTarget.ok && rhythmPatternTarget.target.layer === "numbered"
     ? numberedEditingBlocked : editingBlocked) || !!modal || drafts.inspect().pending.length > 0;
-  const tools = deriveEditorToolState(document, selection);
+  const tools = deriveEditorToolState(document, selection, selectedTraversalIds);
   const measureFocus = activeTarget ?? numberedSelection ?? selection?.focus;
   const measureTarget = continuousRange
     ? { trackId: continuousRange.trackId, measureId: continuousRange.focus.measureId }
@@ -285,8 +289,7 @@ export const EditorToolbar = ({
       if (live.current.modal || live.current.numberedEditingBlocked || !now.document ||
         !resolveEditorTieTarget(now.document, now.selection, live.current.continuousRange, getActiveTarget()).ok)
         return false;
-      const success = await onAction(action);
-       return success;
+      return onAction(action);
     }
     if ((action.type === "restToggle" || action.type === "quickTechnique") &&
       tabToolTargetReason(session.getState(), getActiveTarget())) return false;
@@ -431,7 +434,7 @@ export const EditorToolbar = ({
         ))}
         <ToolButton label="切换休止" availability={restAvailability}
           pressed={tools.restState === "all"}
-          title={<ShortcutHint shortcuts={["rest", "restore"]} note={tools.restState === "mixed" ? "点击将混合选区统一设为休止。" : "取消休止后得到空拍。"} />}
+          title={<ShortcutHint shortcuts={["rest", "restore"]} note={tools.restState === "all" ? "取消休止后得到空拍。" : "将所选整拍设为休止，清空弦音符及扫弦或琶音。"} />}
           disabledTitle={modal ? undefined : <ShortcutHint shortcuts={["rest", "restore"]} note={restAvailability.reason} />}
           onClick={() => void run({ type: "restToggle" })}><TechniqueSymbol kind="rest" /></ToolButton>
       </div>
@@ -441,17 +444,20 @@ export const EditorToolbar = ({
         ref={host}
         quickTechniques={(["hammerOn", "pullOff", "slide", "tie", "strumDown", "strumUp", "arpeggioDown", "arpeggioUp"] as const).map((quick) => {
           const result = quick === "tie" ? tieTarget : resolveQuickTechnique(document, selection, quick);
+          // map 只构造按钮并传递回调，用户点击后才读取最新选区。
+          // eslint-disable-next-line react-hooks/refs
+          const applyQuickTechnique = () => void run({ type: "quickTechnique", technique: quick });
           const labels = { hammerOn: "击弦 H", pullOff: "勾弦 P", slide: "滑音", tie: "延音线", strumDown: "下扫：从低音弦到高音弦，箭头向上", strumUp: "上扫：从高音弦到低音弦，箭头向下", arpeggioDown: "下琶音：从低音弦到高音弦，箭头向上", arpeggioUp: "上琶音：从高音弦到低音弦，箭头向下" };
-          return <ToolButton key={quick} label={quick === "tie" && tieTarget.kind === "numbered" ? "简谱延音线" : labels[quick]}
+          return <ToolButton key={quick} label={quick === "tie" && tieTarget.kind === "numbered" ? tieTarget.label : labels[quick]}
             availability={quick === "tie" && tieTarget.kind === "numbered" ? tieAvailability : available(tabReason ? { enabled: false, reason: tabReason } : { enabled: result.ok, reason: result.ok ? "" : result.message })}
             pressed={result.ok && result.pressed}
-            onClick={() => void run({ type: "quickTechnique", technique: quick })}>
+            onClick={applyQuickTechnique}>
             {quick === "hammerOn" ? "H" : quick === "pullOff" ? "P" : quick === "slide" ? "S" : <TechniqueSymbol kind={quick} />}
           </ToolButton>;
         })}
         beforeOpen={(group) => { if (group === "beat") beforeRhythmPatternAction?.(); else beforeAction(); }}
         blocked={!!modal}
-        preserveOnBlock={modal?.request.kind === "rhythm-pattern-discard" || modal?.request.kind === "shortcuts"}
+        preserveOnBlock={preserveToolForModal}
         targetReasons={toolTargetReasons}
         // 休止拍也允许打开技巧面板。面板内仍按当前 TAB 选择判定每个技巧是否适用。
         contextTechniqueReason={tabPanelReason}

@@ -5,12 +5,84 @@ import {
   editNumberedTrack,
   applyScoreCommand,
   planNumberedSequenceOverwrite,
+  planNumberedSequenceSlots,
   parseNumberedSequence,
   type ILXMNumberedEvent,
 } from "../../src";
 
 const note = (id: string, tick: number, base: ILXMNumberedEvent["rhythm"]["base"] = "sixteenth"): ILXMNumberedEvent => ({
   id, tick, rhythm: { base, dots: 0 }, kind: "notes", items: [{ id: `${id}-item`, token: "1" }],
+});
+
+describe("BUG-064 continuous input across empty placeholders", () => {
+  const eighthAt = (trackId: string, measureId: string, startTick: number) => ({
+    type: "numbered.sequence.overwrite" as const, trackId, measureId, startTick,
+    allowOverwrite: false, items: [{ kind: "set" as const, tokens: ["1"] }],
+    rhythms: [{ base: "eighth" as const, dots: 0 }],
+  });
+  const gap: ILXMNumberedEvent = { id: "gap", tick: 2160, kind: "gap", items: [], rhythm: { base: "eighth", dots: 0 } };
+
+  it.each([
+    [1920, 2400], // 从隐式空白开始录入，保留显式空格的尾段。
+    [2400, 2160], // 从显式空格内部开始录入，保留其前段。
+  ])("writes an eighth at %i and keeps the gap fragment at %i", (startTick, remainderTick) => {
+    const { document, track, measure } = fixture();
+    const before = note("before", 1680);
+    const after = note("after", 2880, "quarter");
+    measure.numberedVoice.events = [before, gap, after];
+    measure.lyrics = [{ id: "lyric", eventId: after.id, verse: 1, text: "风" }];
+    track.numberedMarks = [{ id: "slur", type: "slur", fromEventId: before.id, toEventId: after.id }];
+    const result = applyScoreCommand(document, eighthAt(track.id, measure.id, startTick));
+    if (!result.ok) throw new Error(result.message);
+    const nextTrack = result.document.score.tracks[0]!;
+    const nextMeasure = nextTrack.measures[0]!;
+    const inserted = expect.objectContaining({ tick: startTick, kind: "notes", rhythm: { base: "eighth", dots: 0 }, items: [expect.objectContaining({ token: "1" })] });
+    const remainder = { ...gap, tick: remainderTick, rhythm: { base: "sixteenth", dots: 0 } };
+    expect(nextMeasure.numberedVoice.events).toEqual(startTick < remainderTick
+      ? [before, inserted, remainder, after]
+      : [before, remainder, inserted, after]);
+    expect(nextMeasure.lyrics).toEqual(measure.lyrics);
+    expect(nextTrack.numberedMarks).toEqual(track.numberedMarks);
+  });
+
+  it("leaves a fragment with no exact rhythm as implicit blank", () => {
+    const { document, track, measure } = fixture();
+    measure.numberedVoice.events = [{ ...gap, tick: 1930 }, note("later", 2880, "quarter")];
+    const result = applyScoreCommand(document, eighthAt(track.id, measure.id, 1920));
+    if (!result.ok) throw new Error(result.message);
+    const nextMeasure = result.document.score.tracks[0]!.measures[0]!;
+    expect(nextMeasure.numberedVoice.events.map(event => [event.tick, event.kind])).toEqual([[1920, "notes"], [2880, "notes"]]);
+    expect(planNumberedSequenceSlots(nextMeasure)).toContainEqual(expect.objectContaining({ startTick: 2400, endTick: 2640 }));
+  });
+
+  it("keeps both blank intervals when input falls inside one explicit gap", () => {
+    const { document, track, measure } = fixture();
+    measure.numberedVoice.events = [{ ...gap, tick: 1920, rhythm: { base: "quarter", dots: 0 } }, note("later", 2880, "quarter")];
+    const result = applyScoreCommand(document, eighthAt(track.id, measure.id, 2160));
+    if (!result.ok) throw new Error(result.message);
+    const events = result.document.score.tracks[0]!.measures[0]!.numberedVoice.events;
+    expect(events.map(event => [event.tick, event.kind, event.rhythm.base])).toEqual([
+      [1920, "gap", "sixteenth"], [2160, "notes", "eighth"], [2640, "gap", "sixteenth"], [2880, "notes", "quarter"],
+    ]);
+    expect(events[0]?.id).toBe(gap.id);
+  });
+
+  it("rejects partial overwrite of notes, rests, lyric gaps, and tuplet gaps", () => {
+    const { track, measure } = fixture();
+    const command = { ...eighthAt(track.id, measure.id, 1920), allowOverwrite: true };
+    measure.numberedVoice.events = [note(gap.id, gap.tick, "eighth")];
+    expect(planNumberedSequenceOverwrite(track, command).ok).toBe(false);
+    measure.numberedVoice.events = [{ ...gap, kind: "rest", items: [{ id: "rest-item", token: "0" }] }];
+    expect(planNumberedSequenceOverwrite(track, command).ok).toBe(false);
+    measure.numberedVoice.events = [gap];
+    measure.lyrics = [{ id: "gap-lyric", eventId: gap.id, verse: 1, text: "风" }];
+    expect(planNumberedSequenceOverwrite(track, command).ok).toBe(false);
+    expect(planNumberedSequenceOverwrite(track, { ...command, startTick: 2400 }).ok).toBe(false);
+    measure.lyrics = [];
+    measure.numberedVoice.events.push(note("middle", 2480, "eighth"), note("last", 2800, "eighth"));
+    measure.numberedVoice.tuplets = [{ id: "triplet", eventIds: [gap.id, "middle", "last"], ratio: { actual: 3, normal: 2 } }];
+    expect(planNumberedSequenceOverwrite(track, command).ok).toBe(false);
+  });
 });
 const fixture = () => {
   const document = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);
@@ -101,6 +173,25 @@ describe("BUG017/020 continuous overwrite", () => {
       [measure.id, 2880, 3360], [measure.id, 3360, 3840], ["empty", 0, 480], ["empty", 480, 960], ["empty", 960, 1440], ["next", 0, 960],
     ]);
     expect(editNumberedTrack(track, { type: "numbered.sequence.overwrite", trackId: track.id, measureId: measure.id, startTick: 2880, allowOverwrite: true, items: plan.targets.map(target => target.item) }, createDocumentIdFactory(document)).ok).toBe(true);
+  });
+
+  it("半拍弱起的第二个简谱音从下一小节首拍录入", () => {
+    const { document, track, measure } = fixture();
+    const following = structuredClone(measure);
+    following.id = "following";
+    following.beats.forEach(beat => { beat.id = `next-${beat.id}`; });
+    following.numberedVoice.events = [];
+    track.measures.push(following);
+    measure.actualDurationTicks = 480;
+    measure.beats = [{ ...measure.beats[0]!, rhythm: { base: "eighth", dots: 0 } }];
+    measure.numberedVoice.events = [];
+    const result = applyScoreCommand(document, {
+      type: "numbered.sequence.overwrite", trackId: track.id, measureId: measure.id, startTick: 0,
+      allowOverwrite: true, items: ["3", "5"].map(token => ({ kind: "set", tokens: [token] })),
+    });
+    if (!result.ok) throw new Error(result.message);
+    expect(result.document.score.tracks[0]!.measures.map(m => m.numberedVoice.events.map(e => [e.tick, e.items[0]?.token])))
+      .toEqual([[[0, "3"]], [[0, "5"]]]);
   });
 
   it("uses actual tuplet durations and rejects explicit retiming atomically", () => {

@@ -275,7 +275,21 @@ describe("MVP v7.2 简谱 mock", () => {
   });
 
   it("跨小节连续录入需确认覆盖，跳拍保留原内容，TAB 不变且历史只有一条", () => {
-    const session = createEditorSession(EXAMPLE_MVP_7_2_DOCUMENT);
+    const fixture = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);
+    const second = fixture.score.tracks[0]!.measures[1]!;
+    const following = second.numberedVoice.events.find(event => event.tick === 2400)!;
+    // 原谱在第三拍后半已有音和词，完整一拍的延音不能覆盖它；再留出半拍，复用同一串输入验证确认成功。
+    const original = createEditorSession(fixture);
+    const parsed = parseNumberedSequence("6 _ 1+3+5 0 1' -");
+    if (!parsed.ok) throw Error(parsed.message);
+    const origin = fixture.score.tracks[0]!.measures[0]!;
+    expect(original.getState().execute({ type: "numbered.sequence.set", trackId: fixture.score.tracks[0]!.id,
+      measureId: origin.id, eventId: origin.numberedVoice.events[3]!.id, items: parsed.items, allowOverwrite: true,
+    })).toMatchObject({ ok: false, message: expect.stringMatching(/歌词|后续简谱事件/) });
+    expect(original.getState().historyDepth.past).toBe(0);
+    second.numberedVoice.events = second.numberedVoice.events.filter(event => event.id !== following.id);
+    second.lyrics = second.lyrics.filter(lyric => lyric.eventId !== following.id);
+    const session = createEditorSession(fixture);
     const before = session.getState().document!;
     const track = before.score.tracks[0]!;
     const start = {
@@ -283,8 +297,6 @@ describe("MVP v7.2 简谱 mock", () => {
       measureId: track.measures[0]!.id,
       eventId: track.measures[0]!.numberedVoice.events[3]!.id,
     };
-    const parsed = parseNumberedSequence("6 _ 1+3+5 0 1' -");
-    if (!parsed.ok) throw Error(parsed.message);
 
     expect(
       session.getState().execute({
@@ -292,8 +304,8 @@ describe("MVP v7.2 简谱 mock", () => {
         ...start,
         items: parsed.items,
         allowOverwrite: false,
-      })?.ok,
-    ).toBe(false);
+      }),
+    ).toMatchObject({ ok: false, message: expect.stringContaining("确认允许覆盖") });
     expect(session.getState().document).toBe(before);
     expect(
       session.getState().execute({
@@ -304,6 +316,8 @@ describe("MVP v7.2 简谱 mock", () => {
       })?.ok,
     ).toBe(true);
     const after = session.getState().document!;
+    expect(after.score.tracks[0]!.measures[1]!.numberedVoice.events.find(event => event.tick === 1920))
+      .toMatchObject({ kind: "continuation", rhythm: { base: "quarter", dots: 0 } });
     expect(
       after.score.tracks[0]!.measures[1]!.numberedVoice.events[0]!.items.map(
         (i) => i.token,

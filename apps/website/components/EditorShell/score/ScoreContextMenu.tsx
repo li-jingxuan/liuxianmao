@@ -10,18 +10,17 @@ const entries = [
   { id: "beat", label: "节奏型", icon: "♫", hint: "为当前六线谱选区选择节奏型。" },
   { id: "technique", label: "技巧", icon: "⌒", hint: "查看当前选区可用的演奏技巧。" },
   { id: "chord", label: "添加和弦", icon: "▦", hint: "在当前拍点打开和弦快捷编辑。" },
-  { id: "copy", label: "复制当前小节", icon: null, hint: "副本插入当前小节之后，可以撤销。" },
+  { id: "copy", label: "复制当前小节", icon: null, hint: "选择副本要插入的位置，可以撤销。" },
 ] as const;
 
 export type ScoreContextAction = (typeof entries)[number]["id"];
-type PanelAction = Exclude<ScoreContextAction, "copy">;
 
 export function ScoreContextMenu({ point, scope, chordLabel, disabled, active, onAction, onDismiss }: {
   point: { x: number; y: number };
   scope: string;
   chordLabel: string;
   disabled: Partial<Record<ScoreContextAction, string>>;
-  active: PanelAction | null;
+  active: ScoreContextAction | null;
   onAction: (id: ScoreContextAction, anchor: HTMLButtonElement) => void;
   onDismiss: (restoreFocus: boolean) => void;
 }) {
@@ -46,7 +45,7 @@ export function ScoreContextMenu({ point, scope, chordLabel, disabled, active, o
       const target = event.target;
       // 工具常经由 portal 渲染。与菜单属于同一交互，点击内部字段或选项时都要保留菜单锚点。
       if (!(target instanceof Element) || target.closest(
-        "[data-score-context-menu], [data-score-context-panel], .ant-popover:has([data-score-context-panel]), .ant-select-dropdown, .ant-modal-root",
+        "[data-score-context-menu], [data-score-context-panel], [data-editor-anchored-tool], .ant-popover:has([data-score-context-panel]), .ant-select-dropdown, .ant-modal-root",
       )) return;
       onDismiss(false);
     };
@@ -84,14 +83,14 @@ export function ScoreContextMenu({ point, scope, chordLabel, disabled, active, o
       }}>
         {entries.map(({ id, label, icon }) => (
           <button key={id} role="menuitem" type="button" tabIndex={-1}
-            aria-haspopup={id !== "copy" ? "dialog" : undefined}
-            aria-expanded={id !== "copy" ? active === id : undefined}
+            aria-haspopup="dialog"
+            aria-expanded={active === id}
             aria-disabled={disabled[id] ? true : undefined}
             onFocus={() => showHint(id)} onPointerEnter={() => showHint(id)}
             onClick={(event) => { if (!disabled[id]) onAction(id, event.currentTarget); }}>
             <span className={styles.icon} aria-hidden="true">{icon ?? <CopyOutlined />}</span>
             {id === "chord" ? chordLabel : label}
-            {id !== "copy" && <span className={styles.arrow} aria-hidden="true">›</span>}
+            <span className={styles.arrow} aria-hidden="true">›</span>
           </button>
         ))}
       </div>

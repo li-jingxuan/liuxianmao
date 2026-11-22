@@ -108,6 +108,8 @@ export interface ILXMMeasure {
   numberedVoice: ILXMNumberedVoice;
   /** 可选的小节段落标记，仅用于记谱展示。 */
   sectionLabel?: string;
+  /** 小节实际时长覆盖；省略时沿用拍号容量。 */
+  actualDurationTicks?: number;
 }
 
 /** 小节拍号，例如 4/4。 */
@@ -173,6 +175,8 @@ export interface ILXMBeat {
   notes: ILXMNote[];
   /** 持久化显式空位时值，后续补音不得继承简谱时值或被前方空拍吞并。 */
   preserveInputRhythm?: true;
+  /** 由容量协调自动生成的休止，允许小节时长规划安全重建。 */
+  capacityRest?: true;
 }
 
 /** 数值表示有确定音高的品位；x 表示未指定品位的弹奏；- 表示延音标记，不产生起音。 */

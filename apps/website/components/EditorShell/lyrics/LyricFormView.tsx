@@ -1,7 +1,7 @@
 import { Button, Form, Input, Popover } from "antd";
 import { QuestionCircleOutlined } from "@ant-design/icons";
 import {
-  getMeasureCapacityTicks,
+  getMeasureDurationTicks,
   planLyricSequence,
   resolveLyricPosition,
   type ILXMDocument,
@@ -17,6 +17,7 @@ import { formatNumberedBeatPosition } from "../numbered/numbered-editor-target";
 import { ShortcutHint, ShortcutTooltip } from "../session/EditorShortcutReference";
 import editorFormStyles from "../shared/editor-form.module.scss";
 import formStyles from "./LyricFormView.module.scss";
+import { TextApplyAdvanceCheckbox, type TextApplyAdvanceSetting } from "../music-text/TextApplyAdvanceCheckbox";
 
 /** 只适配领域规划；顺序号不参与拍位或时间范围计算。 */
 export function buildLyricMappingPreview(
@@ -57,7 +58,7 @@ export function buildLyricMappingPreview(
   const measures = document.score.tracks.flatMap((track) => track.measures.flatMap((measure, index) => measureKeys.has(measure.id) ? [{
     key: measure.id,
     label: `${index + 1} 小节 · ${measure.timeSignature.numerator}/${measure.timeSignature.denominator}`,
-    durationTicks: getMeasureCapacityTicks(measure.timeSignature),
+    durationTicks: getMeasureDurationTicks(measure),
     beatTicks: 3840 / measure.timeSignature.denominator,
   }] : []));
   return { rows, measures };
@@ -66,7 +67,7 @@ export function buildLyricMappingPreview(
 /** 两个表面共享唯一草稿、输入法保护和命令入口。 */
 export const LyricFormView = ({
   presentation = "sidebar", document, draft, plan, issue, disabled = false,
-  inputRef, onTextChange, onInspect, onApply, canApply = false,
+  inputRef, onTextChange, onInspect, onApply, canApply = false, textAdvance,
 }: {
   presentation?: "popover" | "sidebar";
   document?: ILXMDocument | null;
@@ -77,8 +78,9 @@ export const LyricFormView = ({
   inputRef: RefCallback<HTMLTextAreaElement>;
   onTextChange: (value: string) => void;
   onInspect: (index: number) => void;
-  onApply?: () => void;
+  onApply?: (surface: "popover" | "sidebar") => void;
   canApply?: boolean;
+  textAdvance?: TextApplyAdvanceSetting;
 }) => {
   const compact = presentation === "popover";
   const fieldId = (field: string) => `lyric-${presentation === "popover" ? "popover-" : ""}${field}`;
@@ -102,8 +104,9 @@ export const LyricFormView = ({
           ref={(control) => inputRef(control?.resizableTextArea?.textArea ?? null)} value={draft.text}
           onChange={(event) => onTextChange(event.target.value)} placeholder="例如：风 吹 _ 过 山 谷" />
         <div className={formStyles.actions}>
+          {textAdvance && <TextApplyAdvanceCheckbox {...textAdvance} disabled={disabled} />}
           <ShortcutTooltip shortcuts={["applyModified"]} disabled={disabled || !!issue || !canApply}>
-            <Button aria-label="应用" type="primary" disabled={disabled || !!issue || !canApply} onClick={onApply}>应用</Button>
+            <Button aria-label="应用" type="primary" disabled={disabled || !!issue || !canApply} onClick={() => onApply?.(presentation)}>应用</Button>
           </ShortcutTooltip>
         </div>
       </Form.Item>

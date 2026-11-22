@@ -1,6 +1,6 @@
 import { parseChordCatalogName } from "../chords/chord-catalog";
 import { STANDARD_GUITAR_TUNING } from "../constants";
-import { getMeasureCapacityTicks } from "../rhythm/rhythm";
+import { getMeasureDurationTicks } from "../rhythm/rhythm";
 import { createMeasureRhythmContext } from "../rhythm/tuplet";
 import type { ILXMBeat, ILXMChordSymbol, ILXMTrack } from "../types";
 import type { PlaybackBeat, PlaybackMeasureVisit, PlaybackPlanOptions, PlaybackWarningCode } from "./plan";
@@ -99,7 +99,8 @@ export function buildPlaybackTimeline(
       const duration = rhythm.getBeatDurationTicks(beat);
       return { beat, frets, order: order++, duration: duration.ok ? duration.ticks : 0 };
     });
-    return { beats, capacity: getMeasureCapacityTicks(measure.timeSignature) };
+    // 反复展开会多次访问同一个小节，每次访问都从它的实际结束位置接入下一小节。
+    return { beats, capacity: getMeasureDurationTicks(measure) };
   });
 
   const visits: PlaybackMeasureVisit[] = [];

@@ -1,9 +1,14 @@
 "use client";
 import { Alert, Button, Form, Select } from "antd";
-import { useCallback, useImperativeHandle, useLayoutEffect, useRef, useState, type Ref } from "react";
+import { useCallback, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type Ref } from "react";
 import { createPortal } from "react-dom";
 import {
   LXM_EDITABLE_TIME_SIGNATURES,
+  applyScoreCommand,
+  getMeasureCapacityTicks,
+  getMeasureDurationTicks,
+  LXMScoreCommandEnum as C,
+  TICKS_PER_QUARTER,
   type ILXMDocument,
   type ILXMTabCellSelection,
 } from "@liuxianmao/lxm-editor";
@@ -18,7 +23,46 @@ import taskStyles from "../shared/SelectionTaskDetails.module.scss";
 import { MeasureBoundary } from "./MeasureBoundary";
 import { MeasureActions } from "./MeasureActions";
 import measureStyles from "./MeasureControls.module.scss";
+import { formatMeasureDuration } from "../shared/measure-duration";
 export { BARLINES } from "./MeasureBoundary";
+
+/** 草稿属于当前小节和已提交的时长。上层以两者为 key，切换选区和撤销都会重置草稿。 */
+function MeasureDurationField({ document, trackId, measureId, capacityTicks, durationTicks, blocked, onAction }: {
+  document: ILXMDocument;
+  trackId: string;
+  measureId: string;
+  capacityTicks: number;
+  durationTicks: number;
+  blocked: boolean;
+  onAction: ToolActionHandler;
+}) {
+  const [draft, setDraft] = useState(durationTicks);
+  // 按四分之一拍递增，并保留导入谱的精确值和恢复满拍的入口。
+  const options = useMemo(() => {
+    const ticks = new Set([durationTicks, capacityTicks]);
+    const step = TICKS_PER_QUARTER / 4;
+    for (let value = step; value < capacityTicks; value += step) ticks.add(value);
+    return [...ticks].sort((a, b) => a - b).map(value => ({ value, label: formatMeasureDuration(value) }));
+  }, [capacityTicks, durationTicks]);
+  const error = useMemo(() => {
+    if (draft === durationTicks) return null;
+    const result = applyScoreCommand(document, { type: C.SetMeasureDuration, trackId, measureId, durationTicks: draft });
+    return result.ok ? null : result.message;
+  }, [document, trackId, measureId, draft, durationTicks]);
+  return (
+    <Form.Item layout="vertical" label="小节时长" htmlFor="tool-measure-duration">
+      <div className={measureStyles.durationControl}>
+        <Select id="tool-measure-duration" aria-label="当前小节时长" virtual={false}
+          disabled={blocked} value={draft} options={options} onChange={setDraft} />
+        <Button type="primary" disabled={blocked || draft === durationTicks || !!error}
+          onClick={() => void onAction({ type: "measureDuration", durationTicks: draft, target: { trackId, measureId } })}>
+          应用
+        </Button>
+      </div>
+      {error && <Alert type="warning" showIcon title={error} />}
+    </Form.Item>
+  );
+}
 
 /** 立即生效的小节工具与设置 owner 的常驻局部表面共用任务区。 */
 export const MeasureToolDetails = ({
@@ -86,6 +130,8 @@ export const MeasureToolDetails = ({
     : (tools.focused?.index ?? -1);
   const measure = index >= 0 ? track?.measures[index] : null;
   const signature = measure ? `${measure.timeSignature.numerator}/${measure.timeSignature.denominator}` : "";
+  const capacityTicks = measure ? getMeasureCapacityTicks(measure.timeSignature) : 0;
+  const durationTicks = measure ? getMeasureDurationTicks(measure) : 0;
   const options: { value: string; label: string; disabled?: boolean }[] =
     LXM_EDITABLE_TIME_SIGNATURES.map((item) => ({
       value: `${item.numerator}/${item.denominator}`,
@@ -121,6 +167,9 @@ export const MeasureToolDetails = ({
             onChange={(value) => void onAction({ type: "signature", value, target })}
           />
         </Form.Item>
+        <MeasureDurationField key={JSON.stringify([document.score.id, track.id, measure.id, capacityTicks, durationTicks])}
+          document={document} trackId={track.id} measureId={measure.id} capacityTicks={capacityTicks}
+          durationTicks={durationTicks} blocked={blocked} onAction={onAction} />
       {!measureHost && <>
       <h3 tabIndex={-1}>段落标记与小节复用</h3>
       <p data-editor-form-hint className={editorFormStyles.settingsHint}>

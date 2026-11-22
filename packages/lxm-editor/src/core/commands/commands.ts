@@ -45,6 +45,7 @@ import type { ILXMChordSymbol, ILXMLyricVerse } from "../types";
  */
 import { editMeasureTuplet } from "../rhythm/tuplet-commands";
 import { createMeasureRhythmContext } from "../rhythm/tuplet";
+import { createNumberedRhythmContext } from "../numbered/numbered-rhythm";
 import { GUITAR_STRING_COUNT, MAX_FRET } from "../constants";
 import {
   resolveBeatRange,
@@ -55,10 +56,11 @@ import {
 import { createDocumentIdFactory } from "../id-factory";
 import { createMeasureRestBeats } from "../rhythm/rest-beats";
 import { changeMeasureBeatRhythm } from "../rhythm/rhythm-change";
-import { isEditableTimeSignature, isSameTimeSignature } from "../rhythm/rhythm";
+import { getMeasureCapacityTicks, isEditableTimeSignature, isSameTimeSignature } from "../rhythm/rhythm";
 import { LXMDocumentSchema, LXMScoreSchema } from "../document/schema";
 import { validateDocumentSemantics } from "../document/semantic-validation";
 import { changeMeasureTimeSignature } from "../rhythm/time-signature-change";
+import { changeMeasureDuration } from "../rhythm/measure-duration-change";
 import { pruneInvalidTechniques, pruneInvalidTraversalTies, validateTechnique } from "../techniques/technique-rules";
 import type {
   ILXMBarlineType,
@@ -104,12 +106,14 @@ export enum LXMScoreCommandEnum {
   SetBeatRhythm = "beat.setRhythm",
   SetBeatKind = "beat.setKind",
   SetBeatKindRange = "beat.setKindRange",
+  SetBeatKindForBeats = "beat.setKindForBeats",
   SetTabContinuation = "beat.setTabContinuation",
   InsertMeasure = "measure.insert",
   CopyMeasure = "measure.copy",
   CopyMeasureRange = "measure.copyRange",
   RemoveMeasure = "measure.remove",
   SetTimeSignature = "measure.setTimeSignature",
+  SetMeasureDuration = "measure.setDuration",
   SetBarlineBoundary = "barline.setBoundary",
   SetTuning = "track.setTuning",
   SetCapo = "track.setCapo",
@@ -177,6 +181,11 @@ export interface ILXMSetBeatKindRangeCommand {
   range: ILXMBeatRange;
   kind: ILXMBeat["kind"];
 }
+export interface ILXMSetBeatKindForBeatsCommand extends ILXMScoreCommandBase {
+  type: LXMScoreCommandEnum.SetBeatKindForBeats;
+  beatIds: readonly string[];
+  kind: ILXMBeat["kind"];
+}
 export interface ILXMSetTabContinuationCommand {
   type: LXMScoreCommandEnum.SetTabContinuation;
   range: ILXMBeatRange;
@@ -204,6 +213,11 @@ export interface ILXMSetTimeSignatureCommand extends ILXMScoreCommandBase {
   measureId: string;
   timeSignature: ILXMTimeSignature;
   scope: ILXMTimeSignatureChangeScope;
+}
+export interface ILXMSetMeasureDurationCommand extends ILXMScoreCommandBase {
+  type: LXMScoreCommandEnum.SetMeasureDuration;
+  measureId: string;
+  durationTicks: number;
 }
 
 /** 小节边界使用稳定业务引用；命令内部负责映射到 track 或 measure 字段。 */
@@ -426,11 +440,13 @@ type ScoreCommandOperation =
   | ILXMSetBeatRhythmCommand
   | ILXMSetBeatKindCommand
   | ILXMSetBeatKindRangeCommand
+  | ILXMSetBeatKindForBeatsCommand
   | ILXMInsertMeasureCommand
   | ILXMCopyMeasureCommand
   | ILXMCopyMeasureRangeCommand
   | ILXMRemoveMeasureCommand
   | ILXMSetTimeSignatureCommand
+  | ILXMSetMeasureDurationCommand
   | ILXMSetBarlineBoundaryCommand
   | ILXMSetTuningCommand
   | ILXMSetCapoCommand
@@ -498,6 +514,7 @@ export type ILXMScoreCommandErrorCode =
   | "UNSUPPORTED_TIME_SIGNATURE"
   | "INVALID_TIME_SIGNATURE_SCOPE"
   | "MEASURE_CONTENT_EXCEEDS_TIME_SIGNATURE"
+  | "INVALID_MEASURE_DURATION"
   | "CHORD_SYMBOL_OUTSIDE_TIME_SIGNATURE"
   | "CANNOT_REMOVE_LAST_MEASURE"
   | "BARLINE_BOUNDARY_NOT_FOUND"
@@ -691,6 +708,53 @@ const replaceMeasure = (
     ),
   },
 });
+
+/** 设置当前小节的实际时长，并只重建可自动补齐的尾部休止。 */
+const setMeasureDuration = (
+  document: ILXMDocument,
+  command: ILXMSetMeasureDurationCommand,
+): ILXMApplyScoreCommandResult => {
+  const track = document.score.tracks.find((item) => item.id === command.trackId);
+  if (!track) return fail("TRACK_NOT_FOUND", "目标轨道不存在");
+  const measure = track.measures.find((item) => item.id === command.measureId);
+  if (!measure) return fail("MEASURE_NOT_FOUND", "目标小节不存在");
+  const nominalDuration = getMeasureCapacityTicks(measure.timeSignature);
+  if (!Number.isInteger(command.durationTicks) || command.durationTicks <= 0 || command.durationTicks > nominalDuration)
+    return fail("INVALID_MEASURE_DURATION", "小节实际时长必须为正整数且不超过拍号容量");
+  const actualDurationTicks = command.durationTicks === nominalDuration ? undefined : command.durationTicks;
+  if (measure.actualDurationTicks === actualDurationTicks) return unchanged(document);
+  // 普通简谱空位越过边界时可退回隐式空白。连音成员和带歌词的空位有稳定身份，
+  // 必须完整保留；音符、休止和延音事件也必须完整容纳。记号端点由最终语义校验复核。
+  const voice = measure.numberedVoice;
+  const numbered = createNumberedRhythmContext(voice);
+  const lyricEvents = new Set(measure.lyrics.map(lyric => lyric.eventId));
+  const events: typeof voice.events = [];
+  for (const event of voice.events) {
+    const duration = numbered.getEventDurationTicks(event);
+    if (!duration.ok) return fail("RHYTHM_NOT_REPRESENTABLE", "简谱时值无法精确表示。");
+    if (event.tick + duration.ticks <= command.durationTicks) events.push(event);
+    else if (event.kind !== "gap" || numbered.tupletByEventId.has(event.id) || lyricEvents.has(event.id))
+      return fail("MEASURE_CONTENT_EXCEEDS_TIME_SIGNATURE", "简谱内容超出所选时长，请增加小节时长。");
+  }
+  const result = changeMeasureDuration(
+    measure,
+    command.durationTicks,
+    createDocumentIdFactory(document).createBeatId,
+    techniqueBeatIds(track),
+  );
+  if (!result.ok) return fail(result.code, result.code === "RHYTHM_NOT_REPRESENTABLE"
+    ? "尾部空位无法按所选时长记谱，请选择其他时长。"
+    : "已有音符、休止或标记超出所选时长，请增加小节时长。");
+  const resized = events.length === voice.events.length ? result.measure
+    : { ...result.measure, numberedVoice: { ...voice, events } };
+  const nextTrack = { ...track, measures: track.measures.map(item => item === measure ? resized : item) };
+  // 延长小节也可能打断跨小节延音线。保留所有技巧和记号进行校验，只有整谱仍合法才提交。
+  return validateCommandDocument({
+    ...document,
+    documentRevision: document.documentRevision + 1,
+    score: { ...document.score, tracks: document.score.tracks.map(item => item === track ? nextTrack : item) },
+  });
+};
 
 /**
  * 原子修改一个拍号段落。
@@ -1019,46 +1083,54 @@ const editNotesInRect = (
   );
 };
 
-/** 原子设置连续 Beat 的内容类型；范围中的弦维度不参与休止语义。 */
-const setBeatKindInRange = (
+/** 连续矩形和离散记号都按完整 Beat 编辑，且只提交一次历史。 */
+const setBeatKinds = (
   document: ILXMDocument,
-  command: ILXMSetBeatKindRangeCommand,
+  command: ILXMSetBeatKindCommand | ILXMSetBeatKindRangeCommand | ILXMSetBeatKindForBeatsCommand,
 ): ILXMApplyScoreCommandResult => {
-  const resolved = resolveBeatRange(document, command.range);
-  if (!resolved.ok) return fail(resolved.code, resolved.message);
-
+  const trackId = command.type === LXMScoreCommandEnum.SetBeatKindRange ? command.range.trackId : command.trackId;
   const track = document.score.tracks.find(
-    (candidate) => candidate.id === resolved.range.trackId,
+    (candidate) => candidate.id === trackId,
   );
-  if (!track) return fail("INVALID_BEAT_RANGE", "Beat 选区的目标轨道不存在");
+  let beatIds: readonly string[];
+  if (command.type === LXMScoreCommandEnum.SetBeatKindRange) {
+    const resolved = resolveBeatRange(document, command.range);
+    if (!resolved.ok) return fail(resolved.code, resolved.message);
+    beatIds = resolved.range.beats.map((beat) => beat.beatId);
+  } else if (command.type === LXMScoreCommandEnum.SetBeatKind) {
+    const target = findTarget(document, command);
+    if ("ok" in target) return target;
+    beatIds = [target.beat.id];
+  } else {
+    beatIds = command.beatIds;
+  }
+  if (!track) return fail("TRACK_NOT_FOUND", "目标轨道不存在");
+  const targetBeatIds = new Set(beatIds);
+  const existingBeatIds = new Set(track.measures.flatMap((measure) => measure.beats.map((beat) => beat.id)));
+  if (!targetBeatIds.size || beatIds.some((id) => !existingBeatIds.has(id)))
+    return fail("INVALID_BEAT_RANGE", "Beat 选区为空或包含失效的拍点");
 
-  const targetBeatIds = new Set(
-    resolved.range.beats.map((beat) => beat.beatId),
-  );
-  const targetMeasureIds = new Set(
-    resolved.range.beats.map((beat) => beat.measureId),
-  );
+  // 扫弦、琶音可依附在存储为 rest 的和弦拍上。先移除这些技巧，即使拍的内容无需改写。
+  // 通用技巧清理随后删除失去端点的延音线及音符技巧，并保留其余合法技巧。
+  const techniques = command.kind === "rest" ? track.techniques.filter((technique) =>
+    !((technique.type === "strum" || technique.type === "arpeggio") && targetBeatIds.has(technique.beatId)),
+  ) : track.techniques;
   let changed = false;
   const measures = track.measures.map((measure) => {
-    if (!targetMeasureIds.has(measure.id)) return measure;
     let measureChanged = false;
-    const beats = measure.beats.map((beat) => {
+    const beats = measure.beats.map((beat): ILXMBeat => {
       if (!targetBeatIds.has(beat.id)) return beat;
-      if (command.kind === "rest") {
-        if (beat.kind === "rest" && beat.notes.length === 0) return beat;
-        changed = true;
-        measureChanged = true;
-        return { ...beat, kind: "rest" as const, notes: [] };
-      }
-      if (beat.kind === "notes") return beat;
+      // 用户可在自动休止上再次选择休止符，明确写下这段静音，后续缩短小节须保留它。
+      if (beat.kind === command.kind && !beat.capacityRest) return beat;
       changed = true;
       measureChanged = true;
-      return { ...beat, kind: "notes" as const };
+      const { capacityRest: _capacityRest, ...restored } = beat;
+      return command.kind === "rest" ? { ...restored, kind: "rest" as const, notes: [] } : { ...restored, kind: "notes" as const };
     });
     return measureChanged ? { ...measure, beats } : measure;
   });
 
-  if (!changed) return unchanged(document);
+  if (!changed && techniques.length === track.techniques.length) return unchanged(document);
   return finalize(
     {
       ...document,
@@ -1067,7 +1139,7 @@ const setBeatKindInRange = (
         ...document.score,
         tracks: document.score.tracks.map((candidate) =>
           candidate.id === track.id
-            ? pruneInvalidTechniques({ ...track, measures })
+            ? pruneInvalidTechniques({ ...track, measures, techniques })
             : candidate,
         ),
       },
@@ -1763,10 +1835,15 @@ const applyScoreCommandInternal = (
     return editTechnique(document, command);
   if (command.type === LXMScoreCommandEnum.SetTimeSignature)
     return setTimeSignature(document, command);
+  if (command.type === LXMScoreCommandEnum.SetMeasureDuration)
+    return setMeasureDuration(document, command);
   if (command.type === LXMScoreCommandEnum.SetBarlineBoundary)
     return setBarlineBoundary(document, command);
-  if (command.type === LXMScoreCommandEnum.SetBeatKindRange)
-    return setBeatKindInRange(document, command);
+  if (
+    command.type === LXMScoreCommandEnum.SetBeatKindRange ||
+    command.type === LXMScoreCommandEnum.SetBeatKindForBeats ||
+    command.type === LXMScoreCommandEnum.SetBeatKind
+  ) return setBeatKinds(document, command);
   if (command.type === LXMScoreCommandEnum.SetTabContinuation) {
     const resolved = resolveBeatRange(document, command.range);
     if (!resolved.ok) return fail(resolved.code, resolved.message);
@@ -1798,8 +1875,7 @@ const applyScoreCommandInternal = (
     return setBeatRhythm(document, command);
   if (
     command.type === LXMScoreCommandEnum.SetNote ||
-    command.type === LXMScoreCommandEnum.RemoveNote ||
-    command.type === LXMScoreCommandEnum.SetBeatKind
+    command.type === LXMScoreCommandEnum.RemoveNote
   ) {
     const target = findTarget(document, command);
     if ("ok" in target) return target;
@@ -1823,13 +1899,7 @@ const applyScoreCommandInternal = (
       : target.measure;
     const preparedBeat = preparedMeasure.beats.find((beat) => beat.id === target.beat.id)!;
     let nextBeat: ILXMBeat;
-    if (command.type === LXMScoreCommandEnum.SetBeatKind) {
-      if (target.beat.kind === command.kind) return unchanged(document);
-      nextBeat =
-        command.kind === "rest"
-          ? { ...target.beat, kind: "rest", notes: [] }
-          : { ...target.beat, kind: "notes" };
-    } else if (command.type === LXMScoreCommandEnum.RemoveNote) {
+    if (command.type === LXMScoreCommandEnum.RemoveNote) {
       if (!isPureTabContinuationBeat(target.beat) && !target.beat.notes.some((note) => note.string === command.string))
         return unchanged(document);
       nextBeat = {

@@ -90,6 +90,7 @@ const labels: Readonly<Record<string, string>> = {
   "measure.copyRange": "复制并插入小节范围",
   "measure.remove": "删除小节",
   "measure.setTimeSignature": "修改拍号",
+  "measure.setDuration": "修改小节时长",
   "barline.setBoundary": "修改小节线",
   "track.setTuning": "修改调弦",
   "track.setCapo": "修改变调夹",

@@ -19,6 +19,7 @@ import type { MusicTextTarget } from "../music-text/music-text-draft";
 import { parseTechniqueTrillFret, resolveToolbarTechnique, techniqueNeedsConnection, techniqueNeedsParameters,
   techniquesInToolbarSelection, toolbarTechniqueAvailability, toolbarTechniqueType } from "./technique-toolbar-model";
 import { TechniqueToolbarIcon } from "./TechniqueToolbarIcon";
+import { AnchoredToolBubble } from "./AnchoredToolBubble";
 import styles from "./TechniqueToolbar.module.scss";
 
 export interface TechniqueToolbarController {
@@ -42,6 +43,8 @@ interface TechniqueToolbarProps {
   setErrorMessage: (message: string | null) => void;
 }
 type SubmissionInput = TechniqueParameters & { type: ILXMTechniqueType; id: string | null };
+type DirectionTechnique = "strum" | "arpeggio";
+const isDirectionTechnique = (type: ILXMTechniqueType): type is DirectionTechnique => type === "strum" || type === "arpeggio";
 const label = (type: ILXMTechniqueType) => TECHNIQUE_OPTIONS.find(item => item.value === toolbarTechniqueType(type))?.label ?? type;
 
 /** One parameter owner survives visibility changes; all changes use the shared command adapter. */
@@ -53,6 +56,7 @@ export const TechniqueToolbar = ({ ref, document, selection, selectedTechniqueId
   const renderedIntent = captureEditorToolIntent(session.getState, getActiveTarget);
   const [owner] = useState(() => createTechniqueParameterOwner(drafts));
   const parameterRegion = useRef<HTMLDivElement>(null);
+  const panelRegion = useRef<HTMLDivElement>(null);
   const [ownerRevision, refreshOwner] = useState(0);
   const [composition] = useState(() => createScoreSettingsComposition(protectedInput => {
     if (protectedInput) owner.compositionStart();
@@ -72,7 +76,9 @@ export const TechniqueToolbar = ({ ref, document, selection, selectedTechniqueId
   const [trillText, setTrillText] = useState(String(initialSelected?.type === "trill" ? initialSelected.auxiliaryFret : 7));
   const trillFret = parseTechniqueTrillFret(trillText);
   const [shortcut, setShortcut] = useState<TechniqueIntent["type"] | null>(null);
-  const [directionChosen, setDirectionChosen] = useState(true);
+  const [directionPicker, setDirectionPicker] = useState<{
+    type: DirectionTechnique; id: string | null; anchor: HTMLElement | null; isCurrent: () => boolean;
+  } | null>(null);
   const [slideChosen, setSlideChosen] = useState(true);
   const currentInput = useRef<(() => boolean) | null>(null);
   const inputTargetKey = useRef(JSON.stringify({ selection, selectedTechniqueId }));
@@ -103,7 +109,7 @@ export const TechniqueToolbar = ({ ref, document, selection, selectedTechniqueId
       : value?.type === "strum" || value?.type === "pickStroke" ? value.stroke : "down");
     setSemitones(value?.type === "bend" ? value.semitones : 2);
     setTrillText(String(value?.type === "trill" ? value.auxiliaryFret : 7));
-    setShortcut(null); setDirectionChosen(true); setSlideChosen(true); setIssue(null);
+    setShortcut(null); setDirectionPicker(null); setSlideChosen(true); setIssue(null);
     captureInput(); refreshOwner(revision => revision + 1);
   };
   const discard = () => {
@@ -140,7 +146,7 @@ export const TechniqueToolbar = ({ ref, document, selection, selectedTechniqueId
   const input = (): SubmissionInput => ({ type, id: loadedId, direction, semitones, trillFret });
   const submit = async (coordinatorCurrent?: () => boolean, values = input(), explicitDirection = false): Promise<"applied" | "blocked" | "stale"> => {
     if (blocked || composition.isComposing() || !owner.canHide() || modals.isOpen()) return "blocked";
-    if ((!slideChosen && values.type === type) || (!directionChosen && !explicitDirection && values.type === type)) {
+    if (!slideChosen && values.type === type) {
       report("请明确选择技巧方向。"); return "blocked";
     }
     if (values.type === "trill" && (!Number.isInteger(values.trillFret) || values.trillFret < 0 || values.trillFret > 24)) {
@@ -151,7 +157,7 @@ export const TechniqueToolbar = ({ ref, document, selection, selectedTechniqueId
     }
     const before = captureEditorToolIntent(session.getState, getActiveTarget);
     beforeAction?.();
-    if (!before() || (owner.isDirty() && currentInput.current && !currentInput.current())) {
+    if (!before() || (coordinatorCurrent && !coordinatorCurrent()) || (owner.isDirty() && currentInput.current && !currentInput.current())) {
       report("技巧目标或文档已变化，请重新选择技巧。"); return "stale";
     }
     const state = session.getState();
@@ -185,14 +191,23 @@ export const TechniqueToolbar = ({ ref, document, selection, selectedTechniqueId
       const appliedId = created?.id ?? values.id;
       setLoadedId(appliedId); setSelectedTechniqueId(appliedId);
       setType(target.draft.type);
-      setActive(true); setReplacing(false); setShortcut(null); setDirectionChosen(true); setSlideChosen(true);
+      if (explicitDirection) setDirection(values.direction);
+      setActive(true); setReplacing(false); setShortcut(null); setSlideChosen(true);
       captureInput(); setIssue(null); setErrorMessage(null); onSuccess();
       return "applied";
     } finally { owner.setBusy(false); refreshOwner(revision => revision + 1); }
   };
 
-  const chooseType = (candidate: ILXMTechniqueType) => {
+  const closeDirection = (restore: boolean) => {
+    if (!owner.canHide()) return false;
+    setDirectionPicker(null);
+    if (restore && directionPicker?.anchor?.isConnected) directionPicker.anchor.focus({ preventScroll: true });
+    return true;
+  };
+
+  const chooseType = (candidate: ILXMTechniqueType, anchor: HTMLElement | null) => {
     if (!handoffAllowed()) return;
+    if (directionPicker?.type === candidate) { closeDirection(true); return; }
     beforeAction?.();
     const state = session.getState();
     const reason = tabToolTargetReason(state, getActiveTarget());
@@ -200,10 +215,17 @@ export const TechniqueToolbar = ({ ref, document, selection, selectedTechniqueId
     const editingId = replacing || (selectedToolbarType === candidate && loadedId === state.selectedTechniqueId) ? loadedId : null;
     const unavailable = toolbarTechniqueAvailability(state.document, state.selection, candidate, editingId);
     if (unavailable) { report(unavailable); return; }
+    if (isDirectionTechnique(candidate)) {
+      // 打开气泡时保留谱面和原技巧对象。只有点选方向才创建或更新，取消无需恢复音乐状态。
+      setDirectionPicker({ type: candidate, id: editingId, anchor, isCurrent: captureEditorToolIntent(session.getState, getActiveTarget) });
+      setIssue(null);
+      return;
+    }
+    setDirectionPicker(null);
     owner.reset();
     if (!editingId) setSelectedTechniqueId(null);
     setLoadedId(editingId); setType(candidate); setActive(true); setShortcut(null);
-    setDirectionChosen(true); setSlideChosen(true); setIssue(null);
+    setSlideChosen(true); setIssue(null);
     captureInput(); owner.setDirty(true); refreshOwner(revision => revision + 1);
     onShowParameters();
     // Relationships display the exact core-supported endpoints before committing.
@@ -221,9 +243,19 @@ export const TechniqueToolbar = ({ ref, document, selection, selectedTechniqueId
       if (reason || !state.document) { report(reason ?? "当前没有乐谱。"); return false; }
       const candidate = resolveTechniqueDraft(state.document, state.selection, intent.type === "slide" ? "slideUp" : "arpeggio", undefined, true);
       if (!candidate.ok) { report(candidate.message); return false; }
+      if (intent.type === "arpeggio") {
+        // 快捷键保留原先的新增语义，并复用同一个按钮锚点和方向提交逻辑。
+        setDirectionPicker({ type: "arpeggio", id: null,
+          anchor: panelRegion.current?.querySelector<HTMLElement>('[data-technique-type="arpeggio"]') ?? null,
+          isCurrent: captureEditorToolIntent(session.getState, getActiveTarget) });
+        setIssue(null);
+        onShowParameters();
+        return true;
+      }
+      setDirectionPicker(null);
       owner.reset(); setSelectedTechniqueId(null); setLoadedId(null); setActive(true); setReplacing(false);
-      setType(intent.type === "slide" ? "slideUp" : "arpeggio"); setShortcut(intent.type);
-      setSlideChosen(intent.type !== "slide"); setDirectionChosen(intent.type !== "arpeggio");
+      setType("slideUp"); setShortcut(intent.type);
+      setSlideChosen(false);
       captureInput(); owner.setDirty(true); setIssue(null); refreshOwner(revision => revision + 1);
       onShowParameters(); return true;
     },
@@ -257,11 +289,11 @@ export const TechniqueToolbar = ({ ref, document, selection, selectedTechniqueId
   };
   useLayoutEffect(() => {
     owner.register({ targetKey: inputTargetKey.current,
-      inputKey: JSON.stringify({ type, direction, semitones, trillText, slideChosen, directionChosen }),
+      inputKey: JSON.stringify({ type, direction, semitones, trillText, slideChosen }),
       version: inputVersion.current, focus, apply: ({ isCurrent }) => submit(isCurrent), discard });
     // The registration follows the current rendered input and its captured version.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [owner, ownerRevision, selection, loadedId, type, direction, semitones, trillText, shortcut, slideChosen, directionChosen, blocked]);
+  }, [owner, ownerRevision, selection, loadedId, type, direction, semitones, trillText, shortcut, slideChosen, blocked]);
 
   const targetDocument = owner.isDirty() ? boundTarget.document : document;
   const targetSelection = owner.isDirty() ? boundTarget.selection : selection;
@@ -292,9 +324,15 @@ export const TechniqueToolbar = ({ ref, document, selection, selectedTechniqueId
   const deleteReason = globalReason ?? (!selected || loadedId !== selectedTechniqueId ? "请先指定要删除的一项技巧。" : null);
   const discrete = (values: Partial<TechniqueParameters>) => {
     if (!handoffAllowed()) return;
-    if (changed(() => { if (values.direction) { setDirection(values.direction); setDirectionChosen(true); }
+    if (changed(() => { if (values.direction) setDirection(values.direction);
       if (values.semitones) setSemitones(values.semitones); }))
       void submit(undefined, { ...input(), ...values }, true);
+  };
+  const chooseDirection = async (value: TechniqueParameters["direction"]) => {
+    if (!directionPicker || !handoffAllowed() || !directionPicker.isCurrent()) return;
+    owner.reset();
+    const result = await submit(directionPicker.isCurrent, { ...input(), type: directionPicker.type, id: directionPicker.id, direction: value }, true);
+    if (result === "applied") closeDirection(true);
   };
   const numberSubmit = (value: string) => {
     if (!owner.isDirty()) return;
@@ -308,8 +346,12 @@ export const TechniqueToolbar = ({ ref, document, selection, selectedTechniqueId
     session.getState().setSelection(next); setSelectedTechniqueId(id); load(id);
   };
   const showParameters = active && (selected || replacing || techniqueNeedsParameters(type) || techniqueNeedsConnection(type));
+  const directionTarget = directionPicker && resolveToolbarTechnique(document, selection, directionPicker.type, input(), directionPicker.id);
+  const savedDirection = selected && directionPicker?.id === selected.id
+    ? selected.type === "strum" ? selected.stroke : selected.type === "arpeggio" ? selected.direction === "ascending" ? "down" : "up" : null
+    : null;
   return <ConfigProvider getPopupContainer={node => node?.closest<HTMLElement>(".ant-popover, [data-tool-portal-domain]") ?? window.document.body}>
-    <div className={styles.panel} aria-label="吉他技巧工具">
+    <div ref={panelRegion} className={styles.panel} aria-label="吉他技巧工具">
       <div className={styles.header}>
         <h3 className={styles.title}>所有技巧</h3>
         <div className={styles.actions}>
@@ -326,11 +368,14 @@ export const TechniqueToolbar = ({ ref, document, selection, selectedTechniqueId
         <div className={styles.grid}>{group.items.map(item => {
           const editingId = replacing || selectedToolbarType === item.value ? loadedId : null;
           const reason = globalReason ?? toolbarTechniqueAvailability(document, selection, item.value, editingId);
-          return <Tooltip key={item.value} title={reason ?? item.label}>
+          return <Tooltip key={item.value} title={reason ?? (directionPicker?.type === item.value ? null : item.label)}>
             <button type="button" className={styles.tile} data-technique-type={item.value}
               aria-label={reason ? `${item.label}：${reason}` : item.label} aria-disabled={!!reason}
               aria-pressed={active && toolbarTechniqueType(type) === item.value && (slideChosen || shortcut !== "slide")}
-              onClick={() => { if (!reason) chooseType(item.value); }}>
+              data-technique-direction-trigger={isDirectionTechnique(item.value) || undefined}
+              aria-haspopup={isDirectionTechnique(item.value) ? "dialog" : undefined}
+              aria-expanded={isDirectionTechnique(item.value) ? directionPicker?.type === item.value : undefined}
+              onClick={(event) => { if (!reason) chooseType(item.value, event?.currentTarget ?? null); }}>
               <span className={styles.icon}><TechniqueToolbarIcon type={item.value} /></span><span>{item.label}</span>
             </button>
           </Tooltip>;
@@ -362,12 +407,12 @@ export const TechniqueToolbar = ({ ref, document, selection, selectedTechniqueId
         <p className={styles.scope}>{connection.ok ? scope(connection.draft) : connection.message}</p>
         {shortcut === "slide" && !slideChosen && <div className={styles.choices}>
           {(["slideUp", "slideDown"] as const).map(value => <button key={value} type="button" className={styles.choice}
-            disabled={locked || !!toolbarTechniqueAvailability(document, selection, value, null)} onClick={() => chooseType(value)}>{label(value)}</button>)}
+            disabled={locked || !!toolbarTechniqueAvailability(document, selection, value, null)} onClick={() => chooseType(value, null)}>{label(value)}</button>)}
         </div>}
-        {(type === "strum" || type === "arpeggio" || type === "pickStroke") && <div className={styles.choices} aria-label="技巧方向">
+        {type === "pickStroke" && <div className={styles.choices} aria-label="技巧方向">
           {(["down", "up"] as const).map(value => <button key={value} type="button" className={styles.choice}
-            disabled={locked} aria-pressed={directionChosen && direction === value} onClick={() => discrete({ direction: value })}>
-            {type === "arpeggio" ? value === "down" ? "上行" : "下行" : value === "down" ? "向下" : "向上"}
+            disabled={locked} aria-pressed={direction === value} onClick={() => discrete({ direction: value })}>
+            {value === "down" ? "向下" : "向上"}
           </button>)}
         </div>}
         {type === "bend" && <div className={styles.choices} aria-label="推弦幅度">
@@ -381,7 +426,20 @@ export const TechniqueToolbar = ({ ref, document, selection, selectedTechniqueId
         {techniqueNeedsConnection(type) && slideChosen && <Button size="small" disabled={locked || !connection.ok}
           onClick={() => void submit()}>应用到此目标</Button>}
       </div>}
-      {issue && <Alert className={styles.feedback} type="error" showIcon title={issue} />}
+      {directionPicker && <AnchoredToolBubble anchor={directionPicker.anchor} label={`${label(directionPicker.type)}方向`}
+        suspended={blocked || modals.isOpen()} onDismiss={closeDirection}>
+        <h4>{label(directionPicker.type)}方向</h4>
+        {directionTarget && <p>{directionTarget.ok ? scope(directionTarget.draft) : directionTarget.message}</p>}
+        <div className={`${styles.choices} ${styles.directionChoices}`}>
+          {(["down", "up"] as const).map(value => <button key={value} type="button" className={styles.choice}
+            disabled={locked || !directionTarget?.ok} aria-pressed={selected?.type === directionPicker.type && savedDirection === value}
+            onClick={() => void chooseDirection(value)}>
+            {directionPicker.type === "arpeggio" ? value === "down" ? "上行" : "下行" : value === "down" ? "向下" : "向上"}
+          </button>)}
+        </div>
+        {issue && <p role="alert">{issue}</p>}
+      </AnchoredToolBubble>}
+      {issue && !directionPicker && <Alert className={styles.feedback} type="error" showIcon title={issue} />}
     </div>
   </ConfigProvider>;
 };

@@ -6,8 +6,11 @@
 .form .input { resize: none; overflow-y: auto; }
 .actions {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
+  gap: 12px;
   margin-top: 8px;
+  > :global(.ant-checkbox-wrapper) { margin-inline-end: auto; }
 }
 .helpButton {
   display: inline-flex;

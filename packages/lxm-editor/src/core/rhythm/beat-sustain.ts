@@ -2,7 +2,7 @@ import { TICKS_PER_QUARTER } from "../constants";
 import { techniqueBeatIds } from "../techniques/content-protection";
 import type { ILXMIdFactory } from "../id-factory";
 import { createBeatAlignedRestBeats } from "./rest-beats";
-import { calculateRhythmTicks, getMeasureCapacityTicks } from "./rhythm";
+import { calculateRhythmTicks, getMeasureDurationTicks } from "./rhythm";
 import { validateTechnique } from "../techniques/technique-rules";
 import { createMeasureRhythmContext } from "./tuplet";
 import type { ILXMBeat, ILXMTrack } from "../types";
@@ -50,7 +50,7 @@ export const extendBeat = (
   if (!duration.ok) return reject("源拍时值无效");
   const startTick = source.tick + duration.ticks;
   const endTick = startTick + TICKS_PER_QUARTER;
-  if (endTick > getMeasureCapacityTicks(measure.timeSignature))
+  if (endTick > getMeasureDurationTicks(measure))
     return reject("小节内剩余时长不足一拍，暂不支持跨小节延续");
   const first = measure.beats[sourceIndex + 1];
   if (!first || first.tick !== startTick)

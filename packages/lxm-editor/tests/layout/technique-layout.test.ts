@@ -10,8 +10,11 @@ import {
 import {
   LXM_DURATION_STEM_NOTE_GAP,
   LXM_TECHNIQUE_ARROW_OFFSET_Y,
+  LXM_TECHNIQUE_CURVE_INK_GAP,
+  LXM_TECHNIQUE_PATH_STROKE_WIDTH,
 } from "../../src/layout/layout-constants";
 import { techniqueInkIntersects } from "../../src/layout/techniques/technique-curve-placement";
+import { getFretTextBounds, getTechniqueInkBounds } from "../../src/layout/techniques/technique-geometry";
 import { buildScoreScene } from "../../src/presentation/score-scene";
 
 const createDocument = () => structuredClone(EXAMPLE_MVP_2);
@@ -457,10 +460,12 @@ describe("MVP v5 技巧布局", () => {
       expect(system.measures[0]!.restMarks).toEqual([]);
       for (const other of system.techniques.filter((segment) => segment !== tie)) {
         expect(techniqueInkIntersects(tie!, other)).toBe(false);
-        if (other.type === "strum" || other.type === "arpeggio") {
-          expect(tie!.visualBounds.y + tie!.visualBounds.height).toBeLessThan(other.visualBounds.y);
-        }
       }
+      const traversalTop = Math.min(...system.techniques
+        .filter((segment) => segment.type === "strum" || segment.type === "arpeggio")
+        .flatMap(getTechniqueInkBounds).map(({ y }) => y));
+      expect(traversalTop - start.y - tie!.path!.strokeWidth / 2).toBeCloseTo(LXM_TECHNIQUE_CURVE_INK_GAP);
+      expect(system.measures[0]!.strings[0]!.y1 - start.y).toBeLessThan(10);
       expect(hitTestTechniqueTarget(layout, start)).toEqual({ techniqueId: "traversal-tie", focusEndpoint: "start" });
       expect(hitTestTechniqueTarget(layout, end)).toEqual({ techniqueId: "traversal-tie", focusEndpoint: "end" });
       const sceneItems = buildScoreScene(layout).systems[0]!.items;
@@ -470,6 +475,33 @@ describe("MVP v5 技巧布局", () => {
       expect(document).toEqual(source);
     },
   );
+
+  it.each([true, false])("扫弦品位可见为 %s 时按可见墨迹定位延音线", (showFrets) => {
+    const document = createDocument();
+    const track = document.score.tracks[0]!;
+    track.measures = track.measures.slice(0, 1);
+    const [from, to] = track.measures[0]!.beats;
+    from!.notes = [{ id: "top-fret", string: 1, fret: 3 }];
+    track.techniques = [
+      {
+        id: "strum-show-frets", type: "strum", beatId: from!.id,
+        minString: 1, maxString: 6, stroke: "up",
+        ...(showFrets ? { showFrets: true as const } : {}),
+      },
+      { id: "next-strum", type: "strum", beatId: to!.id, minString: 1, maxString: 6, stroke: "up" },
+      { id: "tie-show-frets", type: "traversalTie", fromBeatId: from!.id, toBeatId: to!.id },
+    ];
+
+    const system = buildLayout(document).systems[0]!;
+    const fret = system.measures[0]!.notes.find((note) => note.id === "top-fret");
+    expect(!!fret).toBe(showFrets);
+    const sweeps = system.techniques.filter((segment) => segment.type === "strum");
+    const traversalTop = Math.min(...sweeps.flatMap(getTechniqueInkBounds).map(({ y }) => y));
+    const visibleTop = fret ? getFretTextBounds(fret).y : traversalTop;
+    const tie = system.techniques.find((segment) => segment.type === "traversalTie")!;
+    const arcBottom = tie.focusEndpoints!.start.y + tie.path!.strokeWidth / 2;
+    expect(visibleTop - arcBottom).toBeCloseTo(LXM_TECHNIQUE_CURVE_INK_GAP);
+  });
 
   it("扫弦延音线跨行时保留本行的节拍锚点和同一技巧 ID", () => {
     const document = createDocument();
@@ -483,7 +515,7 @@ describe("MVP v5 技巧布局", () => {
     }
     track.techniques = [
       { id: "first-strum", type: "strum", beatId: from.id, minString: 1, maxString: 6, stroke: "down" },
-      { id: "second-strum", type: "strum", beatId: to.id, minString: 1, maxString: 6, stroke: "up" },
+      { id: "second-strum", type: "strum", beatId: to.id, minString: 3, maxString: 6, stroke: "up" },
       { id: "wrapped-traversal-tie", type: "traversalTie", fromBeatId: from.id, toBeatId: to.id },
     ];
 
@@ -499,6 +531,10 @@ describe("MVP v5 技巧布局", () => {
     const end = incoming!.focusEndpoints!.end;
     expect(start.x).toBe(first!.measures[0]!.beats.at(-1)!.x);
     expect(end.x).toBe(second!.measures[0]!.beats[0]!.x);
+    const outgoingTraversal = first!.techniques.find((segment) => segment.type === "strum")!;
+    const outgoingTop = Math.min(...getTechniqueInkBounds(outgoingTraversal).map(({ y }) => y));
+    expect(outgoingTop - start.y).toBeCloseTo(LXM_TECHNIQUE_CURVE_INK_GAP + LXM_TECHNIQUE_PATH_STROKE_WIDTH / 2);
+    expect(second!.measures[0]!.strings[0]!.y1 - end.y).toBeCloseTo(LXM_TECHNIQUE_CURVE_INK_GAP + LXM_TECHNIQUE_PATH_STROKE_WIDTH / 2);
     for (const segment of [outgoing!, incoming!]) {
       expect(segment.path?.d).toMatch(/^M .+ Q .+$/);
       expect(segment.focusEndpoints!.start.x).toBeLessThan(segment.focusEndpoints!.end.x);
