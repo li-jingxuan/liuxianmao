@@ -117,6 +117,7 @@ export enum LXMScoreCommandEnum {
   AddTechnique = "technique.add",
   UpdateTechnique = "technique.update",
   RemoveTechnique = "technique.remove",
+  SetStrumEndpoint = "strum.setEndpoint",
   SetTuplet = "tuplet.set",
   RemoveTuplet = "tuplet.remove",
 }
@@ -242,6 +243,12 @@ export interface ILXMUpdateTechniqueCommand extends ILXMScoreCommandBase {
 export interface ILXMRemoveTechniqueCommand extends ILXMScoreCommandBase {
   type: LXMScoreCommandEnum.RemoveTechnique;
   techniqueId: string;
+}
+export interface ILXMSetStrumEndpointCommand extends ILXMScoreCommandBase {
+  type: LXMScoreCommandEnum.SetStrumEndpoint;
+  techniqueIds: readonly string[];
+  endpoint: "minString" | "maxString";
+  string: number;
 }
 
 export interface ILXMSetTupletCommand extends ILXMScoreCommandBase {
@@ -430,7 +437,8 @@ type ScoreCommandOperation =
   | ILXMSetSectionLabelCommand
   | ILXMAddTechniqueCommand
   | ILXMUpdateTechniqueCommand
-  | ILXMRemoveTechniqueCommand;
+  | ILXMRemoveTechniqueCommand
+  | ILXMSetStrumEndpointCommand;
 
 export type ILXMScoreCommand = ScoreCommandOperation & {
   expectedRevision?: number;
@@ -593,6 +601,19 @@ const removeChordTraversalTechniquesAtCell = (
 };
 
 /** 对候选文档执行两层守卫，保证命令无法写入结构或音乐语义非法的数据。 */
+const validateCommandDocument = (document: ILXMDocument): ILXMApplyScoreCommandResult => {
+  const parsed = LXMDocumentSchema.safeParse(document);
+  if (!parsed.success)
+    return fail("DOCUMENT_INVALID", "命令结果不符合乐谱文档格式");
+  const semantic = validateDocumentSemantics(document);
+  return semantic.ok
+    ? { ok: true, changed: true, document }
+    : fail(
+        "SEMANTIC_VALIDATION_FAILED",
+        semantic.issues[0]?.message ?? "命令结果不符合乐谱语义",
+      );
+};
+
 const finalize = (
   document: ILXMDocument,
   previous: ILXMDocument,
@@ -644,16 +665,7 @@ const finalize = (
       };
     document = { ...document, score: { ...document.score, tracks } };
   }
-  const parsed = LXMDocumentSchema.safeParse(document);
-  if (!parsed.success)
-    return fail("DOCUMENT_INVALID", "命令结果不符合乐谱文档格式");
-  const semantic = validateDocumentSemantics(document);
-  return semantic.ok
-    ? { ok: true, changed: true, document }
-    : fail(
-        "SEMANTIC_VALIDATION_FAILED",
-        semantic.issues[0]?.message ?? "命令结果不符合乐谱语义",
-      );
+  return validateCommandDocument(document);
 };
 
 /** 仅复制受影响 track/measure 分支；其他分支引用保持不变。 */
@@ -1249,6 +1261,42 @@ const editTechnique = (
   );
 };
 
+const setStrumEndpoint = (
+  document: ILXMDocument,
+  command: ILXMSetStrumEndpointCommand,
+): ILXMApplyScoreCommandResult => {
+  const track = document.score.tracks.find((candidate) => candidate.id === command.trackId);
+  if (!track) return fail("TRACK_NOT_FOUND", "目标轨道不存在");
+  if (!isValidString(command.string))
+    return fail("INVALID_STRING", `弦序必须是 1 到 ${GUITAR_STRING_COUNT} 的整数`);
+
+  const techniquesById = new Map(track.techniques.map((item) => [item.id, item]));
+  const updated = new Map<string, (typeof track.techniques)[number]>();
+  for (const id of new Set(command.techniqueIds)) {
+    const technique = techniquesById.get(id);
+    if (!technique) return fail("TECHNIQUE_NOT_FOUND", "目标技巧不存在");
+    if (technique.type !== "strum")
+      return fail("TECHNIQUE_TARGET_INVALID", "只能修改扫弦技巧的弦线范围");
+    if (technique[command.endpoint] === command.string) continue;
+    const next = { ...technique, [command.endpoint]: command.string };
+    const validation = validateTechnique(track, next, id);
+    if (!validation.ok) return fail(validation.error.code, validation.error.message);
+    updated.set(id, next);
+  }
+  if (!updated.size) return unchanged(document);
+
+  const techniques = track.techniques.map((item) => updated.get(item.id) ?? item);
+  // 直接校验整体候选，范围调整导致延音线失效时拒绝整次修改。
+  return validateCommandDocument({
+    ...document,
+    documentRevision: document.documentRevision + 1,
+    score: {
+      ...document.score,
+      tracks: document.score.tracks.map((item) => item === track ? { ...track, techniques } : item),
+    },
+  });
+};
+
 /** 应用所有领域命令；分发器本身不包含页面状态或历史逻辑。 */
 const isNumberedVoiceCommand = (
   command: ILXMScoreCommand,
@@ -1705,6 +1753,8 @@ const applyScoreCommandInternal = (
       command,
     );
   }
+  if (command.type === LXMScoreCommandEnum.SetStrumEndpoint)
+    return setStrumEndpoint(document, command);
   if (
     command.type === LXMScoreCommandEnum.AddTechnique ||
     command.type === LXMScoreCommandEnum.UpdateTechnique ||

@@ -1,35 +1,471 @@
 <!doctype html>
-<html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>第 22 小节 · 扫弦范围</title>
-<style>
-*{box-sizing:border-box}body{font:16px/1.5 Inter,"PingFang SC",sans-serif;color:#192b40;margin:0}main{max-width:690px;margin:auto;padding:18px 0}figure{margin:0;background:#fff;border-radius:6px;padding:5px 8px}svg{display:block;width:100%;touch-action:pan-y}svg [data-i]{cursor:pointer}svg [data-end]{cursor:ns-resize;touch-action:none}button,select{font:inherit;color:#243c59;border:1px solid #becada;background:white;padding:4px 9px;border-radius:5px;min-height:34px}button:disabled{opacity:.5}button:enabled{cursor:pointer}button:focus-visible,select:focus-visible,g:focus-visible{outline:2px solid #245dc5;outline-offset:2px}.controls{background:#f2f5fa;padding:12px;display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap;border-radius:6px}.controls strong{flex-basis:100%}label{white-space:nowrap}select{margin-left:5px}.hint{color:#485972;font-size:.875rem;margin:6px 0 12px}.controls button:first-of-type{color:#174d9d}svg text{font-family:Inter,"PingFang SC",sans-serif}
-</style>
-<main><figure><svg id="score" viewBox="0 0 590 180" role="group" aria-label="第 22 小节，前两拍各三次扫弦"><g id="staff"></g><g id="strokes"></g></svg></figure>
-<p class="hint">点选箭头，拖动蓝色圆点到目标弦；也可以直接选弦号。</p>
-<div class="controls"><strong id="summary" aria-live="polite"></strong><label>上端<select id="hi"></select></label><label>下端<select id="lo"></select></label><button id="copy">套用到本拍其他扫弦</button><button id="undo">撤销</button></div></main>
-<script>
-const $=id=>document.getElementById(id);
-const y=n=>32+(n-1)*16, xs=[102,140,178,236,274,312], dirs=['上','上','下','上','上','下'];
-let ranges=xs.map(()=>[1,6]), active=0, drag=null; const history=[];
-$('staff').innerHTML=`<text x="48" y="19" fill="#60728a" font-size="14">22</text><text x="529" y="19" fill="#60728a" font-size="14">23</text>${[1,2,3,4,5,6].map(n=>`<text x="18" y="${y(n)+4}" fill="#64758b" font-size="12">${n}弦</text><path d="M48 ${y(n)}H542" stroke="#8390a0"/>`).join('')}<path d="M48 32v80m494 -80v80" stroke="#253547"/><text x="382" y="85" font-size="34">𝄽　𝄽</text>`;
-const same=(a,b)=>a[0]===b[0]&&a[1]===b[1];
-function render(){
- const [a,b]=ranges[active];
- $('strokes').innerHTML=xs.map((x,i)=>{
-  const [top,bottom]=ranges[i], selected=i===active, down=dirs[i]==='下', ink=selected?'#225ec1':'#27384c', tip=y(down?top:bottom), tail=y(down?bottom:top), wing=tip+(down?8:-8);
-  const handles=selected?[0,1].map((end)=>{const cy=y(ranges[i][end]);return `<g data-end="${end}"><circle cx="${x+14}" cy="${cy}" r="11" fill="transparent"/><path d="M${x+2} ${cy}h8" stroke="#225ec1"/><circle cx="${x+14}" cy="${cy}" r="5" stroke="#225ec1" stroke-width="2" fill="white"/></g>`}).join(''):'';
-  return `<g role="button" tabindex="0" data-i="${i}" aria-pressed="${selected}" aria-label="第 ${Math.floor(i/3)+1} 拍第 ${i%3+1} 扫，${dirs[i]}扫，${top} 至 ${bottom} 弦"><rect x="${x-12}" y="21" width="31" height="101" rx="5" fill="${selected?'#2365c6':'transparent'}" fill-opacity=".10"/><path d="M${x} ${tail}V${tip}" fill="none" stroke="${ink}" stroke-width="2.5"/><path d="M${x} ${tip}l-5 ${wing-tip}h10Z" fill="${ink}"/>${handles}</g>`;
- }).join('')+[0,3].map(i=>`<path d="M${xs[i]} 124v20h76m-38 -20v20m38 -20v20m-38 -6h38" fill="none" stroke="#28384b" stroke-width="2.5"/><text x="${xs[i]+38}" y="169" text-anchor="middle" fill="#54657b" font-size="13">第 ${i/3+1} 拍</text>`).join('');
- $('summary').textContent=`第 ${Math.floor(active/3)+1} 拍 · 第 ${active%3+1} 扫　${dirs[active]}扫 ${dirs[active]==='上'?a:b} → ${dirs[active]==='上'?b:a} 弦`;
- for(const [id,upper] of [['hi',true],['lo',false]]){$(id).innerHTML=[1,2,3,4,5,6].filter(n=>upper?n<b:n>a).map(n=>`<option value="${n}" ${n===(upper?a:b)?'selected':''}>${n} 弦</option>`).join('')}
- $('copy').disabled=!ranges.some((r,i)=>Math.floor(i/3)===Math.floor(active/3)&&!same(r,ranges[active]));$('undo').disabled=!history.length;
-}
-function remember(){history.push({ranges:ranges.map(r=>[...r]),active})}
-for(const [id,end] of [['hi',0],['lo',1]])$(id).onchange=e=>{remember();ranges[active][end]=Number(e.target.value);render()};
-$('copy').onclick=()=>{remember();ranges=ranges.map((r,i)=>Math.floor(i/3)===Math.floor(active/3)?[...ranges[active]]:r);render()};
-$('undo').onclick=()=>{if(history.length){const entry=history.pop();ranges=entry.ranges;active=entry.active;render()}};
-const svg=$('score');svg.onpointerdown=e=>{const g=e.target.closest('[data-i]');if(!g||drag)return;active=Number(g.dataset.i);const h=e.target.closest('[data-end]');if(h){drag={end:Number(h.dataset.end),old:[...ranges[active]],id:e.pointerId};svg.setPointerCapture(e.pointerId);e.preventDefault()}render()};
-svg.onpointermove=e=>{if(!drag||drag.id!==e.pointerId)return;const p=new DOMPoint(e.clientX,e.clientY).matrixTransform(svg.getScreenCTM().inverse());const n=Math.round((p.y-32)/16)+1;const r=ranges[active];r[drag.end]=drag.end?Math.max(r[0]+1,Math.min(6,n)):Math.max(1,Math.min(r[1]-1,n));render()};
-svg.onpointerup=e=>{if(!drag||drag.id!==e.pointerId)return;const next=[...ranges[active]];if(!same(next,drag.old)){ranges[active]=drag.old;remember();ranges[active]=next}drag=null;render()};
-svg.onpointercancel=e=>{if(drag&&drag.id===e.pointerId){ranges[active]=drag.old;drag=null;render()}};
-svg.onkeydown=e=>{const g=e.target.closest('[data-i]');if(!g||!['Enter',' '].includes(e.key))return;e.preventDefault();active=Number(g.dataset.i);render();$('hi').focus()};render();
-</script></html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>六线猫 · 扫弦范围</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font: 14px/1.5 -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      --workspace: #f5f7fa;
+      --paper: #fff;
+      --ink: #1d2939;
+      --muted: #536477;
+      --line: #dee5ee;
+      --blue: #205fb9;
+      --blue-line: #2773d9;
+      --blue-soft: #edf5ff;
+      color: var(--ink);
+      background: var(--workspace);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-width: 1440px; height: 100dvh; display: flex; flex-direction: column; }
+    [hidden] { display: none !important; }
+    button, select { font: inherit; }
+    button { color: inherit; }
+    button:enabled, select { cursor: pointer; }
+    button:focus-visible, select:focus-visible { outline: 2px solid var(--blue-line); outline-offset: 3px; }
+
+    /* 与编辑器已有撤销、重做图标对齐；单扫和跨拍修改都进入此处的同一历史。 */
+    .editor-top { position: relative; flex: none; }
+    .editor-top img { display: block; width: 100%; height: auto; }
+    .history-tool { position: absolute; left: .9%; top: 55%; width: 2.5%; height: 39%; padding: 0; border: 0; border-radius: 5px; background: transparent; }
+    #toolbar-redo { left: 3.55%; }
+    .history-tool:disabled { background: #ffffffa6; }
+    .history-tool:enabled:hover { background: #2675e033; }
+    .workspace { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 352px; }
+    .canvas { overflow: auto; padding: clamp(15px, 3vh, 30px) 34px clamp(15px, 3vh, 30px) 5.4vw; }
+    .sheet { background: var(--paper); min-height: 100%; max-width: 1100px; margin: auto; padding: clamp(25px, 4.2vh, 43px) clamp(37px, 3.75vw, 60px) 23px; box-shadow: 0 1px 3px #1d29390d; }
+    .sheet h1 { margin: 0; text-align: center; font-size: 27px; line-height: 1.25; font-weight: 680; letter-spacing: .09em; color: #19232f; }
+    .byline { margin: 6px 0 clamp(13px, 2.6vh, 24px); text-align: center; color: var(--muted); }
+    .score-meta { display: flex; justify-content: space-between; align-items: baseline; padding: 0 3px 8px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+    .score-meta span:last-child { color: var(--muted); font-size: 12px; }
+    .systems { display: grid; gap: clamp(5px, calc((100vh - 710px) / 7), 25px); padding-top: clamp(12px, 2.2vh, 20px); }
+    .systems svg { width: 100%; display: block; overflow: visible; font-family: inherit; }
+    .music-ink { color: #25313e; }
+    .staff { stroke: #6b7683; stroke-width: .85; }
+    .bar { stroke: #586575; stroke-width: 1.1; }
+    .tab-name { fill: #617080; font-size: 11px; font-weight: 660; }
+    .measure-number { fill: #627184; font-size: 13px; }
+    .measure-number.current { fill: var(--blue); font-weight: 700; }
+    .chord { fill: #223244; font-weight: 680; font-size: 20px; }
+    .fret { fill: #283647; font-size: 14px; font-weight: 520; paint-order: stroke; stroke: white; stroke-width: 3px; stroke-linejoin: round; text-anchor: middle; }
+    .timing { fill: none; stroke: currentColor; stroke-width: 1.3; }
+    .beam { stroke-width: 2.6; }
+    .measure-shade { fill: #f5f9ff; }
+    .edit-bracket { fill: none; stroke: #c4d9f5; stroke-width: 1; }
+    .stroke { color: #273646; cursor: pointer; outline: none; }
+    .stroke[aria-pressed="true"] { color: var(--blue); }
+    .stroke .target { fill: transparent; stroke: transparent; }
+    .stroke:hover .target { fill: #e8f2ff7a; }
+    .stroke[aria-pressed="true"] .target { fill: #dfeeffbd; stroke: #a6c7f1; }
+    .stroke:focus-visible .target { stroke: var(--blue-line); stroke-width: 2; }
+    .stroke-symbol { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+    .handle { color: var(--blue-line); cursor: ns-resize; touch-action: none; }
+    .handle-line { stroke: currentColor; stroke-width: 1.25; }
+    .handle-knob { fill: white; stroke: currentColor; stroke-width: 1.7; }
+    .handle:hover .handle-knob, .handle.is-dragged .handle-knob { fill: currentColor; }
+    #score { touch-action: none; }
+    #score.is-dragging, #score.is-dragging .stroke { cursor: ns-resize; }
+    .snap-line { stroke: #2773d9; stroke-width: 1.15; stroke-dasharray: 3 3; pointer-events: none; }
+
+    .inspector { background: var(--paper); border-left: 1px solid #d9e2ed; min-height: 0; overflow: auto; }
+    .side-nav { display: flex; justify-content: space-between; align-items: center; padding: 0 17px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+    .side-nav > * { line-height: 44px; padding: 0 4px; border-bottom: 2px solid transparent; }
+    .side-nav [aria-current] { color: var(--blue); border-bottom-color: var(--blue); font-weight: 650; }
+    .context { padding: 12px 18px; display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; background: #fafbfd; border-bottom: 1px solid var(--line); font-size: 13px; }
+    .context span { font-size: 12px; color: var(--muted); }
+    .editor { padding: 17px 18px; border-bottom: 1px solid var(--line); }
+    .panel-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+    .panel-heading h2 { margin: 0; font-size: 18px; font-weight: 680; }
+    #edit-state { color: var(--muted); font-size: 12px; }
+    #edit-state[data-draft] { color: var(--blue); font-weight: 650; }
+    .range-readout { display: flex; align-items: baseline; gap: 10px; margin: 13px 0; padding: 8px 11px; background: var(--blue-soft); border-radius: 5px; color: #1c4f94; }
+    #direction { font-size: 13px; font-weight: 620; }
+    #range-value { font-size: 16px; font-weight: 680; font-variant-numeric: tabular-nums; }
+    #range-count { margin-left: auto; font-size: 12px; color: #3b5f8b; }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .field-row label { display: block; font-size: 13px; font-weight: 600; }
+    .select-wrap { position: relative; display: block; margin-top: 5px; }
+    .select-wrap::after { content: ""; position: absolute; right: 14px; top: 13px; width: 6px; height: 6px; border: solid #526880; border-width: 0 1.45px 1.45px 0; transform: rotate(45deg); pointer-events: none; }
+    select { appearance: none; width: 100%; height: 36px; padding: 0 28px 0 10px; border: 1px solid #bfcddd; border-radius: 5px; background: white; color: var(--ink); }
+    select:disabled { color: #5b6e85; cursor: default; background: #f8faff; }
+    .hint { margin: 9px 0 0; color: var(--muted); font-size: 12px; }
+    .beat-caption { text-anchor: middle; fill: #637388; font-size: 10px; }
+    .shortcuts { padding: 12px 18px; color: var(--muted); font-size: 12px; line-height: 1.8; }
+    .shortcuts p { margin: 0; }
+    kbd { padding: 0 3px; font-family: inherit; font-size: 11px; color: #334760; }
+    .status { flex: none; padding: 5px 18px; display: flex; justify-content: space-between; gap: 10px; border-top: 1px solid #d9e2ed; background: #fff; color: var(--muted); font-size: 12px; }
+    .status-mode { white-space: nowrap; }
+    .status-mode::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--blue-line); vertical-align: 2px; margin-right: 7px; }
+  </style>
+</head>
+<body>
+  <header class="editor-top" aria-label="编辑器工具栏">
+    <img src="editor-toolbar.png" width="2880" height="182" alt="六线猫编辑器 · 沿河公路">
+    <button class="history-tool" id="toolbar-undo" type="button" aria-label="撤销" title="撤销" disabled></button>
+    <button class="history-tool" id="toolbar-redo" type="button" aria-label="重做" title="重做" disabled></button>
+  </header>
+  <main class="workspace">
+    <section class="canvas" aria-label="吉他曲谱">
+      <article class="sheet">
+        <h1>沿河公路</h1>
+        <p class="byline">木吉他伴奏</p>
+        <div class="score-meta"><span>1 = G　　4/4　　♩ = 88</span><span>第 19–25 小节</span></div>
+        <div class="systems">
+          <svg id="previous-system" viewBox="0 0 880 120" aria-hidden="true"></svg>
+          <svg id="score" viewBox="0 0 880 155" role="group" aria-label="第 21 至 23 小节。第 22 小节前三拍有扫弦，第四拍休止。">
+            <g id="staff" aria-hidden="true"></g>
+            <g id="guide" aria-hidden="true" hidden><path class="snap-line"/></g>
+            <g id="strokes"></g>
+          </svg>
+          <svg id="next-system" viewBox="0 0 880 120" aria-hidden="true"></svg>
+        </div>
+      </article>
+    </section>
+    <aside class="inspector" aria-label="选区侧栏">
+      <div class="side-nav"><strong aria-current="true">选区</strong><span>简谱与歌词</span><span>和弦</span><span>歌曲</span></div>
+      <div class="context"><strong id="position">第 22 小节 · 第 1 拍 · 第 1 扫</strong><span>六线谱</span></div>
+      <section class="editor" aria-labelledby="edit-title">
+        <div class="panel-heading"><h2 id="edit-title">扫弦范围</h2><span id="edit-state">单次扫弦</span></div>
+        <div class="range-readout"><span id="direction"></span><strong id="range-value"></strong><span id="range-count"></span></div>
+        <div class="field-row">
+          <label>上端弦<span class="select-wrap"><select id="hi" aria-describedby="range-hint"></select></span></label>
+          <label>下端弦<span class="select-wrap"><select id="lo" aria-describedby="range-hint"></select></span></label>
+        </div>
+        <p class="hint" id="range-hint">拖动谱面上的蓝色圆点，或选择弦号。至少保留相邻两根弦。</p>
+      </section>
+      <div class="shortcuts"><p><kbd>Alt / ⌥</kbd> + 点按箭头或符干，增选或移除单个音符</p><p><kbd>← / →</kbd> 选扫　<kbd>Esc</kbd> 取消拖动</p></div>
+    </aside>
+  </main>
+  <footer class="status"><span id="status-text" role="status"></span><span class="status-mode">扫弦范围编辑</span></footer>
+  <script>
+    'use strict';
+
+    const $ = id => document.getElementById(id);
+    const score = $('score');
+    const strings = [1, 2, 3, 4, 5, 6];
+    const stringY = string => 35 + (string - 1) * 13;
+    // 以每个拍的实际起音列表定位箭头。第 3 拍只有两扫，第 4 拍是休止，不能按每拍三扫推算。
+    const beatStrokes = [[0,1,2], [3,4,5], [6,7], []];
+    const strokeXs = [235,277,298,346,388,409,459,513];
+    const beatEdges = [213,324,437,550,661];
+    const beatOf = stroke => beatStrokes.findIndex(strokes => strokes.includes(stroke));
+    const strokeInBeat = stroke => beatStrokes[beatOf(stroke)].indexOf(stroke) + 1;
+    const same = (a, b) => a[0] === b[0] && a[1] === b[1];
+    const ranges = strokeXs.map(() => [1, 6]);
+    const history = [];
+    const future = [];
+    const targets = new Set([0]);
+    let active = 0;
+    let anchorExplicit = false;
+    let drag = null;
+
+    // 弦号自上而下递增。按六线猫的谱面约定，上扫箭头朝下（1→6 弦），下扫朝上。
+    // 前两拍为上上下，第 3 拍为下上。批量调整只复制两端弦号，每一支仍沿自己的扫弦方向演奏。
+    const pointsDown = stroke => ![2,5,6].includes(stroke);
+    const gesture = stroke => pointsDown(stroke) ? '上扫' : '下扫';
+    const formatRange = ([top, bottom]) => `${top}–${bottom} 弦`;
+    const duration = stroke => [0,3,6,7].includes(stroke) ? '1/8' : '1/16';
+    const position = (stroke = active) => `第 22 小节 · 第 ${beatOf(stroke) + 1} 拍 · 第 ${strokeInBeat(stroke)} 扫（${duration(stroke)}）`;
+    const chordVoicings = { G: [3, 0, 0, 0, 2, 3], Em: [0, 0, 0, 2, 2, 0], C: [0, 1, 0, 2, 3], D: [2, 3, 2, 0] };
+
+    function staffMarkup(bars, editable = false) {
+      return `<g class="music-ink">
+        ${strings.map(string => {
+          const y = stringY(string);
+          return `<path class="staff" ${editable ? `data-string="${string}"` : ''} d="M25 ${y}H865"/>`;
+        }).join('')}
+        ${bars.map(x => `<path class="bar" d="M${x} ${stringY(1)}V${stringY(6)}"/>`).join('')}
+        <text class="tab-name" x="11" y="51" text-anchor="middle"><tspan x="11">T</tspan><tspan x="11" dy="13">A</tspan><tspan x="11" dy="13">B</tspan></text>
+      </g>`;
+    }
+
+    function measureLabel(number, chord, start, editing = false) {
+      return `<text class="measure-number${editing ? ' current' : ''}" x="${start + 3}" y="18">${number}</text>
+        <text class="chord" x="${start + 31}" y="20">${chord}</text>`;
+    }
+
+    function notes(chord, xs) {
+      return xs.map(x => `<g class="music-ink">
+        ${chordVoicings[chord].map((fret, i) => `<text class="fret" x="${x}" y="${stringY(i + 1) + 4.5}">${fret}</text>`).join('')}
+        <path class="timing" d="M${x} ${stringY(6) + 7}v15"/>
+      </g>`).join('');
+    }
+
+    function contextSystem(id, groups) {
+      $(id).innerHTML = staffMarkup([25, 445, 865]) + groups.map(([number, chord], index) => {
+        const start = index ? 445 : 25;
+        return measureLabel(number, chord, start) + notes(chord, [29, 131, 233, 335].map(x => x + start));
+      }).join('');
+    }
+
+    // 休止符用单一描边路径绘制，避免音乐字体缺失导致浏览器显示方框。两拍扫弦的符尾分别成组。
+    function rest(x) {
+      return `<path transform="translate(${x} 53)" d="M-4 0 3 8-2 14 5 22Q-3 18-3 24Q-3 27 1 30" fill="none" stroke="#283647" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round"/>`;
+    }
+
+    function timingGroup(start) {
+      const [a, b, c] = strokeXs.slice(start, start + 3);
+      return `<g class="music-ink">
+        <path class="timing" d="M${a} 106V128m${b - a} -22V128m${c - b} -22V128"/>
+        <path class="timing beam" d="M${a} 128H${c}M${b} 123H${c}"/>
+      </g>`;
+    }
+
+    function handleMarkup(end) {
+      return `<g class="handle" data-end="${end}" aria-hidden="true" hidden>
+        <circle cx="13" cy="0" r="10" fill="transparent"/>
+        <path class="handle-line" d="M4 0H9"/>
+        <circle class="handle-knob" cx="13" cy="0" r="4.25"/>
+      </g>`;
+    }
+
+    contextSystem('previous-system', [[19, 'G'], [20, 'Em']]);
+    contextSystem('next-system', [[24, 'C'], [25, 'G']]);
+    $('staff').innerHTML = `
+      <rect class="measure-shade" x="213" y="0" width="448" height="141" rx="5"/>
+      <path class="edit-bracket" d="M218 .5H656Q660.5 .5 660.5 5V136Q660.5 140.5 656 140.5H218Q213.5 140.5 213.5 136V5Q213.5 .5 218 .5Z"/>
+      ${beatStrokes.map((_, i) => `<text class="beat-caption" x="${(beatEdges[i]+beatEdges[i+1])/2}" y="151">第 ${i+1} 拍</text>`).join('')}
+      ${staffMarkup([25, 213, 661, 865], true)}
+      ${measureLabel(21, 'C', 25)}${notes('C', [51, 93, 135, 177])}
+      ${measureLabel(22, 'G', 213, true)}${timingGroup(0)}${timingGroup(3)}<g class="music-ink"><path class="timing" d="M459 106V128M513 106V128"/><path class="timing beam" d="M459 128H513"/></g>${rest(605)}
+      ${measureLabel(23, 'D', 661)}${notes('D', [689, 732, 775, 818])}
+    `;
+    $('strokes').innerHTML = strokeXs.map((x, i) => `
+      <g class="stroke" data-i="${i}" transform="translate(${x} 0)" role="button">
+        <rect class="target" x="-10" y="25" width="20" height="107" rx="4"/>
+        <path class="stroke-symbol"/>
+        ${handleMarkup(0)}${handleMarkup(1)}
+      </g>
+    `).join('');
+
+    const strokeNodes = [...$('strokes').querySelectorAll('[data-i]')];
+    const endFields = [$('hi'), $('lo')];
+    const selectedStrokes = () => [...targets];
+    function toggleStroke(stroke) {
+      if (!anchorExplicit) targets.clear();
+      anchorExplicit = true;
+      if (targets.has(stroke)) targets.delete(stroke); else targets.add(stroke);
+      if (targets.size && !targets.has(active)) active = selectedStrokes()[0];
+      render();
+      strokeNodes[active].focus({ preventScroll:true });
+      announce(`已选 ${targets.size} 个音符`);
+    }
+    for (const field of endFields) {
+      const mixed = new Option('多个值','');
+      mixed.disabled = true;
+      field.replaceChildren(mixed, ...strings.map(string => new Option(`第 ${string} 弦`, String(string))));
+    }
+
+    // 拖动时为选中的扫弦绘制共同端点，松手前不写入范围和历史。
+    // 仅原位更新 SVG 节点和下拉选项属性，触发重绘时保留焦点、选项节点和稳定的拖动命中区域。
+    function render() {
+      const strokes = selectedStrokes();
+      const previewMoved = drag && !same(drag.draft,ranges[active]);
+      const visibleRange = i => previewMoved && strokes.includes(i) ? moveEnd(ranges[i],drag.end,drag.draft[drag.end]) : ranges[i];
+      const shown = visibleRange(active);
+      strokeNodes.forEach((node, i) => {
+        const selected = targets.has(i);
+        const range = visibleRange(i);
+        const [from, to] = pointsDown(i) ? range : [range[1], range[0]];
+        const tip = stringY(to);
+        const wing = tip + (pointsDown(i) ? -6 : 6);
+        node.setAttribute('tabindex', i === active ? '0' : '-1');
+        node.setAttribute('aria-pressed', String(selected));
+        node.setAttribute('aria-label', `${position(i)}，${gesture(i)}，${formatRange(range)}`);
+        node.querySelector('.stroke-symbol').setAttribute('d', `M0 ${stringY(from)}V${tip}M-4 ${wing}L0 ${tip} 4 ${wing}`);
+        node.querySelectorAll('[data-end]').forEach((handle, end) => {
+          handle.toggleAttribute('hidden', !selected || i !== active);
+          handle.classList.toggle('is-dragged', selected && drag?.end === end);
+          // 密集的十六分音符把手柄放到空隙较大的一侧，避免相邻箭头遮住拖动热区。
+          const side = strokeXs[i + 1] - strokeXs[i] < 30 ? -1 : 1;
+          handle.setAttribute('transform', `translate(0 ${stringY(range[end])}) scale(${side} 1)`);
+        });
+      });
+      score.classList.toggle('is-dragging', Boolean(drag));
+      $('guide').toggleAttribute('hidden', !drag);
+      if (drag) {
+        const y = stringY(shown[drag.end]);
+        $('guide').firstElementChild.setAttribute('d', `M215 ${y}H658`);
+      }
+      $('position').textContent = strokes.length === 1 ? position() : `第 22 小节 · 已选 ${strokes.length} 个音符`;
+      $('edit-state').textContent = drag ? '拖动预览' : strokes.length === 1 ? '单次扫弦' : '';
+      $('edit-state').toggleAttribute('data-draft', Boolean(drag));
+      const uniform = strokes.every(i=>same(visibleRange(i),shown));
+      $('direction').textContent = strokes.length === 1 ? `${pointsDown(active) ? '↓' : '↑'} ${gesture(active)}` : '';
+      $('range-value').textContent = !strokes.length ? '请选择扫弦音符' : uniform ? formatRange(shown) : '多个范围';
+      $('range-count').textContent = strokes.length && uniform ? `${shown[1] - shown[0] + 1} 根弦` : '';
+      endFields.forEach((field, end) => {
+        field.disabled = Boolean(drag) || !strokes.length;
+        for (const option of field.options) {
+          if (!option.value) continue;
+          const value = Number(option.value);
+          option.disabled = strokes.some(i => end === 0 ? value >= ranges[i][1] : value <= ranges[i][0]);
+        }
+        if (!strokes.length) field.selectedIndex = -1;
+        else field.value = strokes.every(i=>visibleRange(i)[end]===shown[end]) ? String(shown[end]) : '';
+      });
+      $('toolbar-undo').disabled = Boolean(drag) || history.length === 0;
+      $('toolbar-redo').disabled = Boolean(drag) || future.length === 0;
+    }
+
+    function announce(message) {
+      $('status-text').textContent = `${$('position').textContent}　${message}`;
+    }
+
+    function selectStroke(stroke, focus = false) {
+      targets.clear();
+      targets.add(stroke);
+      anchorExplicit = focus;
+      active = stroke;
+      render();
+      if (focus) strokeNodes[active].focus({ preventScroll: true });
+      announce(`已选中 ${formatRange(ranges[active])}`);
+    }
+
+    // 上端要小于下端。连续范围至少含两根弦，越界时停在最近的有效弦位，保持另一端原位。
+    function moveEnd(range, end, string) {
+      const [top, bottom] = range;
+      return end === 0 ? [Math.max(1, Math.min(bottom - 1, string)), bottom]
+        : [top, Math.min(6, Math.max(top + 1, string))];
+    }
+
+    // 一次端点编辑只占一条历史，撤销会恢复每支箭头原有的端点。
+    function commit(changes, action, message) {
+      const before = changes.filter(([i, range]) => !same(ranges[i], range)).map(([i]) => [i, ranges[i]]);
+      if (!before.length) {
+        render();
+        announce(`当前范围 ${formatRange(ranges[active])}`);
+        return;
+      }
+      history.push({ before, after: changes.map(([i, range]) => [i,[...range]]), active, strokes:selectedStrokes(), action });
+      anchorExplicit = true;
+      future.length = 0;
+      for (const [i, range] of changes) ranges[i] = [...range];
+      render();
+      announce(message);
+    }
+
+    function editEndpoint(end, string) {
+      const changes = selectedStrokes().map(i => [i,moveEnd(ranges[i],end,string)]);
+      commit(changes, '范围调整', `已将${end ? '下' : '上'}端调整到第 ${string} 弦`);
+    }
+    endFields.forEach((field, end) => field.addEventListener('change', () => {
+      if (!drag) editEndpoint(end, Number(field.value));
+    }));
+
+    // 撤销和重做逐项恢复使用同一条批量记录；确认新编辑时清空重做分支，切换目标拍不影响历史。
+    function replay(redo) {
+      const from = redo ? future : history;
+      if (drag || !from.length) return;
+      const entry = from.pop();
+      (redo ? history : future).push(entry);
+      for (const [i, value] of (redo ? entry.after : entry.before)) ranges[i] = [...value];
+      active = entry.active;
+      targets.clear(); entry.strokes.forEach(i => targets.add(i));
+      anchorExplicit = true;
+      render();
+      announce(`已${redo ? '重做' : '撤销'}${entry.action}`);
+    }
+
+    $('toolbar-undo').addEventListener('click', () => replay(false));
+    $('toolbar-redo').addEventListener('click', () => replay(true));
+
+    // 箭头只占一个 Tab 停靠点。方向键逐扫移动，Tab、Enter 或空格可进入上端弦选择框。
+    score.addEventListener('keydown', event => {
+      const target = event.target.closest('[data-i]');
+      if (!target || drag) return;
+      if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+        event.preventDefault();
+        const next = active + (event.key === 'ArrowLeft' ? -1 : 1);
+        selectStroke(Math.max(0, Math.min(strokeNodes.length - 1, next)), true);
+      } else if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        $('hi').focus();
+      }
+    });
+
+    // 用 SVG 坐标系换算指针位置，缩放和页面滚动后仍对齐谱线。保留按下时指针与手柄圆心的偏差，避免点中边缘就跳弦。
+    function diagramY(event) {
+      return new DOMPoint(event.clientX, event.clientY).matrixTransform(score.getScreenCTM().inverse()).y;
+    }
+
+    score.addEventListener('pointerdown', event => {
+      if (drag || event.button !== 0) return;
+      const target = event.target.closest('[data-i]');
+      if (!target) return;
+      const stroke = Number(target.dataset.i);
+      if (event.altKey) {
+        event.preventDefault();
+        toggleStroke(stroke);
+        return;
+      }
+      const handle = event.target.closest('[data-end]');
+      if (!handle || handle.hasAttribute('hidden')) { selectStroke(stroke, true); return; }
+      const end = Number(handle.dataset.end);
+      const range = ranges[stroke];
+      drag = { pointer: event.pointerId, stroke, end, draft: range, offset: diagramY(event) - stringY(range[end]) };
+      score.setPointerCapture(event.pointerId);
+      event.preventDefault();
+      render();
+      announce(`拖动预览 · ${formatRange(range)}`);
+    });
+
+    function preview(event) {
+      const nearest = Math.round((diagramY(event) - drag.offset - stringY(1)) / 13) + 1;
+      if (nearest === ranges[active][drag.end]) return ranges[active];
+      const others = selectedStrokes().map(i=>ranges[i][1-drag.end]);
+      const valid = drag.end ? Math.max(nearest, Math.max(...others)+1) : Math.min(nearest, Math.min(...others)-1);
+      return moveEnd(ranges[drag.stroke], drag.end, valid);
+    }
+
+    score.addEventListener('pointermove', event => {
+      if (drag?.pointer !== event.pointerId) return;
+      const next = preview(event);
+      if (same(next, drag.draft)) return;
+      drag.draft = next;
+      render();
+      announce(`拖动预览 · ${formatRange(next)}`);
+    });
+
+    // 捕获指针后可以拖出谱面。松手提交最后一个有效区间；Esc 或系统中断均丢弃草稿。
+    // 先清空草稿再释放捕获，避免正常释放触发 lostpointercapture 时重复回滚。
+    function finishDrag(next = null) {
+      if (!drag) return;
+      const { pointer, stroke, end } = drag;
+      drag = null;
+      if (score.hasPointerCapture(pointer)) score.releasePointerCapture(pointer);
+      if (next) {
+        if (!same(next,ranges[stroke])) editEndpoint(end,next[end]);
+        else render();
+      } else {
+        render();
+        announce(`已取消拖动 · ${formatRange(ranges[stroke])}`);
+      }
+    }
+
+    score.addEventListener('pointerup', event => {
+      if (drag?.pointer !== event.pointerId) return;
+      finishDrag(preview(event));
+    });
+    for (const eventName of ['pointercancel', 'lostpointercapture']) {
+      score.addEventListener(eventName, event => {
+        if (drag?.pointer === event.pointerId) finishDrag();
+      });
+    }
+    window.addEventListener('keydown', event => {
+      if ((event.metaKey || event.ctrlKey) && !event.altKey && event.key.toLowerCase() === 'z') {
+        event.preventDefault(); replay(event.shiftKey); return;
+      }
+      if (event.key === 'Escape' && drag) {
+        event.preventDefault();
+        finishDrag();
+      }
+    });
+
+    selectStroke(active);
+  </script>
+</body>
+</html>

@@ -36,6 +36,7 @@ import { EditorStoreContext } from "./editor-context";
 import {
   reconcileNumberedSelection,
   reconcileSelection,
+  reconcileTechniqueFocus,
   getSelectionCandidateAfterCommand,
 } from "./editor-selection";
 import { useStore } from "zustand";
@@ -91,6 +92,7 @@ export interface EditorStore {
   selection: ILXMTabCellSelection | null;
   /** 当前点击的技巧仅属于 UI 焦点，不进入文档历史。 */
   selectedTechniqueId: string | null;
+  selectedStrumIds: readonly string[];
   numberedSelection: ILXMNumberedTarget | null;
   numberedInputRhythm: ILXMRhythm;
   numberedInputRhythmExplicit: boolean;
@@ -109,7 +111,7 @@ export interface EditorStore {
   historyDepth: { past: number; future: number };
   execute: (command: ILXMScoreCommand, replaceFretEntryId?: string) => ILXMApplyScoreCommandResult | null;
   setSelection: (selection: ILXMTabCellSelection | null) => void;
-  setSelectedTechniqueId: (techniqueId: string | null) => void;
+  setSelectedTechniqueId: (techniqueId: string | null, strumIds?: readonly string[]) => void;
   setErrorMessage: (message: string | null) => void;
   undo: () => void;
   redo: () => void;
@@ -258,6 +260,7 @@ export const createEditorStore = (
             trackId: firstTrack.id, measureId: firstMeasure.id, beatId: firstBeat.id, string: 1,
           }) : null,
           selectedTechniqueId: null,
+          selectedStrumIds: [],
           numberedSelection: null,
           numberedInputRhythm: { base: "quarter", dots: 0 },
           numberedInputRhythmExplicit: false,
@@ -279,6 +282,7 @@ export const createEditorStore = (
       fileBaseline: initialDocument ? { document: initialDocument, status: "example" } : null,
       selection: null,
       selectedTechniqueId: null,
+      selectedStrumIds: [],
       numberedSelection: null,
       numberedInputRhythm: { base: "quarter", dots: 0 },
       numberedInputRhythmExplicit: false,
@@ -375,13 +379,7 @@ export const createEditorStore = (
           selection: command.type.startsWith("numbered.")
             ? state.selection
             : reconcileSelection(result.document, selectionCandidate),
-          selectedTechniqueId: result.document.score.tracks.some((track) =>
-            track.techniques.some(
-              (technique) => technique.id === state.selectedTechniqueId,
-            ),
-          )
-            ? state.selectedTechniqueId
-            : null,
+          ...reconcileTechniqueFocus(result.document, state.selectedTechniqueId, state.selectedStrumIds),
           errorMessage: null,
           loadNotice: null,
           ...toHistoryState(history),
@@ -424,16 +422,9 @@ export const createEditorStore = (
         set({ selection, errorMessage: null });
       },
 
-      setSelectedTechniqueId: (selectedTechniqueId) => {
-        const document = get().document;
-        const exists = document?.score.tracks.some((track) =>
-          track.techniques.some(
-            (technique) => technique.id === selectedTechniqueId,
-          ),
-        );
+      setSelectedTechniqueId: (selectedTechniqueId, strumIds = []) => {
         set({
-          selectedTechniqueId:
-            selectedTechniqueId === null || exists ? selectedTechniqueId : null,
+          ...reconcileTechniqueFocus(get().document, selectedTechniqueId, strumIds),
           errorMessage: null,
         });
       },
@@ -459,13 +450,7 @@ export const createEditorStore = (
           selection: state.selection
             ? reconcileSelection(previous, state.selection)
             : null,
-          selectedTechniqueId: previous.score.tracks.some((track) =>
-            track.techniques.some(
-              (technique) => technique.id === state.selectedTechniqueId,
-            ),
-          )
-            ? state.selectedTechniqueId
-            : null,
+          ...reconcileTechniqueFocus(previous, state.selectedTechniqueId, state.selectedStrumIds),
           errorMessage: null,
           loadNotice: null,
           ...toHistoryState(history),
@@ -492,13 +477,7 @@ export const createEditorStore = (
           selection: state.selection
             ? reconcileSelection(next, state.selection)
             : null,
-          selectedTechniqueId: next.score.tracks.some((track) =>
-            track.techniques.some(
-              (technique) => technique.id === state.selectedTechniqueId,
-            ),
-          )
-            ? state.selectedTechniqueId
-            : null,
+          ...reconcileTechniqueFocus(next, state.selectedTechniqueId, state.selectedStrumIds),
           errorMessage: null,
           loadNotice: null,
           ...toHistoryState(history),

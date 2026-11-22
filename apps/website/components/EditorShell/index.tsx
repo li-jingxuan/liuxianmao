@@ -24,6 +24,7 @@ import {
   navigateTabCellSelection,
   resolveMusicTextRange,
   resolveTabCellSelection,
+  resolveTechniqueSelection,
   type ILXMHitTarget,
   type ILXMLayout,
   type ILXMLayoutOptions,
@@ -56,6 +57,8 @@ import {
   resolveEditorHistoryShortcut,
 } from "./session/editor-interaction";
 import { ScoreMusicLayer } from "./score/ScoreMusicLayer";
+import type { ScoreStrumInteraction, StrumEndpoint, StrumEndpointPreview } from "./score/StrumInteractionLayer";
+import { StrumRangeInspector } from "./tools/StrumRangeInspector";
 import { MeasureNumberLayer } from "./score/MeasureNumberLayer";
 import { buildScoreScene } from "@liuxianmao/lxm-editor";
 import { OutputBlockedModal } from "./output/OutputBlockedModal";
@@ -213,6 +216,8 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
   const setSelectedTechniqueId = useEditorStore(
     (state) => state.setSelectedTechniqueId,
   );
+  const selectedStrumIds = useEditorStore(state => state.selectedStrumIds);
+  const [strumPreview, setStrumPreview] = useState<StrumEndpointPreview | null>(null);
   const setErrorMessage = useEditorStore((state) => state.setErrorMessage);
   const canUndo = useEditorStore((state) => state.canUndo);
   const canRedo = useEditorStore((state) => state.canRedo);
@@ -1013,6 +1018,39 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     session, drafts, isBlocked: isOutputBlocked, onBlocked: showOutputBlocked,
     onNotice: (type, content) => messages.open({ key: "score-file", type, content }),
   });
+  const strumTrack = document?.score.tracks.find(track => track.id === lxmLayout?.trackId);
+  const strumContext = !!strumTrack && !activeMusicTextTarget && !continuousRange && !numberedSelection && selection?.focus.trackId === strumTrack.id;
+  const strums = useMemo(() => {
+    if (!strumContext || !selectedStrumIds.length) return [];
+    const ids = new Set(selectedStrumIds);
+    return strumTrack.techniques.filter(t => t.type === "strum").filter(t => ids.has(t.id));
+  }, [strumContext, strumTrack, selectedStrumIds]);
+  const canInteractWithStrums = !scoreReadOnly && !activeModal && !imageExportSnapshot && !fileFlow.panel && !fileFlow.pending;
+  const changeStrumEndpoint = useCallback(async (endpoint: StrumEndpoint, string: number) => {
+    const now = session.getState();
+    if (!canInteractWithStrums || !strumTrack || !strums.length || modals.isOpen() ||
+      now.document !== document || now.selectedStrumIds !== selectedStrumIds) return;
+    endFretInput();
+    const result = await toolExecute({ type: LXMScoreCommandEnum.SetStrumEndpoint,
+      trackId: strumTrack.id, techniqueIds: selectedStrumIds, endpoint, string }, "modal", { tabOnly: true });
+    if (result.status === "blocked" || result.status === "stale") setErrorMessage(result.message);
+  }, [canInteractWithStrums, document, strumTrack, strums, selectedStrumIds, session, modals, endFretInput, toolExecute, setErrorMessage]);
+  // 避免每次悬停都重绘整谱。原 TAB 工具只接收活动音符的弦格，范围编辑直接使用离散的技巧 ID。
+  const strumInteraction = useMemo<ScoreStrumInteraction | undefined>(() => {
+    if (!canInteractWithStrums || !lxmLayout || !document || !strumTrack) return undefined;
+    const ids = strums.length ? selectedStrumIds : [];
+    return {
+      layout: lxmLayout, selectedIds: ids, activeId: selectedTechniqueId, onPreview: setStrumPreview,
+      onSelect(id, toggle) {
+        const next = !toggle ? [id] : ids.includes(id) ? ids.filter(other => other !== id) : [...ids, id];
+        const active = selectedTechniqueId && next.includes(selectedTechniqueId) ? selectedTechniqueId : next[0];
+        const mapped = active ? resolveTechniqueSelection(document, active, "end") : null;
+        if (!active || mapped) musicTextController.current?.select(mapped, active, next);
+      },
+      onCommit: changeStrumEndpoint,
+    };
+  }, [canInteractWithStrums, lxmLayout, document, strumTrack, strums, selectedStrumIds, selectedTechniqueId,
+    changeStrumEndpoint]);
   useEffect(() => {
     if (loadNotice) messages.success({ key: "score-file", content: loadNotice });
   }, [messages, loadNotice, sessionKey]);
@@ -1065,12 +1103,13 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
   const acceptScoreSelection = (
     next: ILXMTabCellSelection | null,
     techniqueId: string | null,
+    strumIds?: readonly string[],
   ) => {
     clearScoreInteraction();
     setContinuousRange(null);
     setActiveMusicTextTarget(null);
     setSelection(next);
-    setSelectedTechniqueId(techniqueId);
+    setSelectedTechniqueId(techniqueId, strumIds);
     setErrorMessage(
       techniqueId && !next ? "当前技巧无法映射到可编辑的 TAB 单元格。" : null,
     );
@@ -1941,7 +1980,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
                       height={tabCellHoverCaret.height}
                     />
                   )}
-                  {!lyricEditing &&
+                  {!lyricEditing && strums.length < 2 &&
                     selectionRects.map((rect) => (
                       <rect
                         key={`${rect.measureId}-${rect.beatIds.join("-")}`}
@@ -1987,6 +2026,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
                 {scoreScene && (
                   <ScoreMusicLayer
                     scene={scoreScene}
+                    strumInteraction={strumInteraction}
                     selectedTechniqueId={selectedTechniqueId}
                     selectedNumberedMarkId={selectedNumberedMarkId}
                     selectedNumberedEventId={
@@ -2100,6 +2140,11 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
           />
         </div>
         <MusicTextSidebar
+          strumInspector={strums.length > 0 && canInteractWithStrums && strumTrack ? <StrumRangeInspector
+            ranges={strumPreview ? strums.map(t => ({ ...t, [strumPreview.endpoint]: strumPreview.string })) : strums}
+            stringCount={strumTrack.tuning.strings.length}
+            disabled={!!strumPreview || musicTextEditing}
+            onChange={changeStrumEndpoint} /> : undefined}
           continuousRange={continuousRange}
           paragraphPlaceholders={paragraphPlaceholders}
           onRangeChange={setContinuousRange}
@@ -2148,7 +2193,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
       />
       <EditorStatusBar
         position={
-          continuousRange
+          strums.length > 1 && !scoreReadOnly ? `已选 ${strums.length} 个扫弦音符` : continuousRange
             ? `已选择 ${rangeRects.length} 个${continuousRange.kind === "numbered" ? "简谱事件" : `歌词位置 · 第 ${continuousRange.verse ?? 1} 段`}`
             : numberedSelection && currentPosition.valid
             ? `${currentPosition.title}：${currentPosition.position}${currentPosition.scope ? ` · ${currentPosition.scope}` : ""}`
