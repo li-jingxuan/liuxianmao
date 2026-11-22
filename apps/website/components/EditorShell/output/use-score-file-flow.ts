@@ -15,18 +15,23 @@ type PendingAction = {
   run: (discard: boolean) => void;
 };
 
-export function useScoreFileFlow({ session, drafts, isBlocked, onBlocked, onReplacement }: {
+export function useScoreFileFlow({ session, drafts, isBlocked, onBlocked, onReplacement, onNotice }: {
   session: StoreApi<EditorStoreState>;
   drafts?: EditorDraftCoordinator;
   isBlocked?: () => boolean;
   onBlocked?: (trigger: HTMLElement | null) => void;
   onReplacement?: () => void;
+  onNotice?: (type: "success" | "warning", content: string) => void;
 }) {
   const [panel, setPanel] = useState<ScoreFilePanel>();
   const [pending, setPending] = useState<PendingAction>();
   const [downloaded, setDownloaded] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const showNotice = (type: "success" | "warning", content: string) => {
+    if (onNotice) onNotice(type, content);
+    else setNotice(content);
+  };
   const origin = useRef<HTMLElement | null>(null);
   const pendingRef = useRef<PendingAction | undefined>(undefined);
   const allowUnload = useRef(false);
@@ -104,7 +109,7 @@ export function useScoreFileFlow({ session, drafts, isBlocked, onBlocked, onRepl
     const current = session.getState();
     if (!sameEditorVersion(current, version)) {
       cancel();
-      setNotice("当前曲谱已变化，请重新发起操作。");
+      showNotice("warning", "当前曲谱已变化，请重新发起操作。");
       return;
     }
     const replace = () => {
@@ -160,7 +165,7 @@ export function useScoreFileFlow({ session, drafts, isBlocked, onBlocked, onRepl
     if (forLeave) setDownloaded(result.name);
     else {
       cancel();
-      setNotice(`已发起 JSON 下载「${result.name}」。`);
+      showNotice("success", `已发起 JSON 下载「${result.name}」。`);
     }
   };
 

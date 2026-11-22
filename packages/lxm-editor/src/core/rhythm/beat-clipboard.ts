@@ -4,7 +4,7 @@ import {
   validateNumberedVoice,
 } from "../numbered/numbered-rhythm";
 import { validateNumberedMarks } from "../numbered/numbered-marks";
-import { TICKS_PER_QUARTER } from "../constants";
+import { LXM_TECHNIQUE_TYPES, TICKS_PER_QUARTER } from "../constants";
 import { z } from "zod";
 import {
   LXMMeasureSchema,
@@ -50,25 +50,7 @@ const clipboardSchema = z
           measureId: z.string(),
           measureNumber: z.number().int().positive(),
           techniqueId: z.string(),
-          techniqueType: LXMTechniqueSchema.options[0].shape.type.or(
-            z.enum([
-              "vibrato",
-              "naturalHarmonic",
-              "artificialHarmonic",
-              "tapping",
-              "trill",
-              "hammerOn",
-              "pullOff",
-              "slideUp",
-              "slideDown",
-              "tie",
-              "strum",
-              "arpeggio",
-              "pickStroke",
-              "palmMute",
-              "letRing",
-            ]),
-          ),
+          techniqueType: z.enum(LXM_TECHNIQUE_TYPES),
         })
         .strict(),
     ),

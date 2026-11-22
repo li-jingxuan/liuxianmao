@@ -229,6 +229,8 @@ export type ILXMTechnique =
       /** 规范化后的较大弦号；演奏方向由 stroke 独立表达。 */
       maxString: number;
       stroke: ILXMStrokeDirection;
+      /** 在品位数字旁标记扫弦方向。默认沿用居中箭头。 */
+      showFrets?: true;
     }
   | {
       id: string;
@@ -249,6 +251,13 @@ export type ILXMTechnique =
   | {
       id: string;
       type: "palmMute" | "letRing";
+      fromBeatId: string;
+      toBeatId: string;
+    }
+  | {
+      id: string;
+      /** 相邻扫弦/琶音的同弦同音高声部延续，至少一端没有逐弦音符。 */
+      type: "traversalTie";
       fromBeatId: string;
       toBeatId: string;
     };

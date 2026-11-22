@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const { chromium } = await import(process.env.LXM_PLAYWRIGHT_MODULE ?? "playwright");
-const browser = await chromium.launch({ headless: true });
+const browser = await chromium.launch({ headless: true, channel: process.env.LXM_BROWSER_CHANNEL });
 const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
 const base = process.env.REQ_NEXT_ORIGIN ?? "http://127.0.0.1:3031";
 const button = (name, root = page) => root.getByRole("button", { name, exact: true });
@@ -224,7 +224,7 @@ try {
   await action("文件", "返回首页");
   await button("不导出并继续", leave).click();
   await page.waitForURL(base + "/");
-  await page.getByRole("link", { name: "曲谱编辑器", exact: true }).click();
+  await page.getByRole("navigation", { name: "首页导航" }).getByRole("link", { name: "打开编辑器", exact: true }).click();
   await page.waitForURL(base + "/editor");
   assert.equal(await status(), "示例曲谱");
   assert.deepEqual(errors, []);

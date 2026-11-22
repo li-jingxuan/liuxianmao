@@ -1,16 +1,20 @@
 "use client";
 
-import { createContext, useContext, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore, type KeyboardEventHandler, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEventHandler, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import { Button, Tooltip } from "antd";
 import { WarningOutlined } from "@ant-design/icons";
 import {
+  getBeatStrumRhythmPatternTemplates,
   getMeasureRhythmPatternTemplates,
   getRhythmPatternMeasureRanges,
   getRhythmPatternTemplates,
+  inferBeatStrumRhythmPatternTemplate,
   inferRhythmPatternTemplate,
   LXMScoreCommandEnum,
   planRhythmPattern,
+  TICKS_PER_QUARTER,
+  type BeatStrumRhythmPatternTemplate,
   type ILXMDocument,
   type MeasureRhythmPatternTemplate,
   type RhythmPatternTemplate,
@@ -24,6 +28,13 @@ import type { resolveEditorRhythmPatternTarget } from "./editor-rhythm-pattern-t
 import styles from "./RhythmPatternPanel.module.scss";
 
 type TargetResult = ReturnType<typeof resolveEditorRhythmPatternTarget>;
+type TemplateTab = "rhythm" | "strum";
+type AppliedStrum = { entryId: string; templateId: string; scope: RhythmPatternTarget };
+const templateTabs = [
+  { id: "rhythm", label: "普通节奏型" },
+  { id: "strum", label: "扫弦节奏型" },
+] as const;
+const collapsedStrumCount = 6;
 export interface RhythmPatternConfig {
   session: StoreApi<EditorStoreState>;
   document: ILXMDocument;
@@ -37,11 +48,15 @@ export interface RhythmPatternConfig {
   getBlocked: () => boolean;
   onSuccess: (scope: RhythmPatternTarget) => void;
   onScopeChange?: (scope: RhythmPatternTarget | null) => void;
+  onOpenSidebar?: () => boolean;
+  onUndo?: () => boolean;
   onBusyChange: (busy: boolean) => void;
 }
 interface Props extends RhythmPatternConfig {
   onClose: () => void;
   presentation?: "toolbar" | "sidebar";
+  visible?: boolean;
+  onHandoff?: () => void;
 }
 
 const templatesFor = (document: ILXMDocument, result: TargetResult) => {
@@ -50,11 +65,15 @@ const templatesFor = (document: ILXMDocument, result: TargetResult) => {
   const signature = ranges[0]?.measure.timeSignature ?? document.score.tracks[0]?.measures[0]?.timeSignature ?? { numerator: 4, denominator: 4 };
   const candidates = getRhythmPatternTemplates(signature);
   const beats = candidates.filter(template => ranges.every(range => getRhythmPatternTemplates(range.measure.timeSignature).some(item => item.id === template.id)));
+  const strums = result.ok && result.target.layer === "tab" && ranges.length === 1
+    ? getBeatStrumRhythmPatternTemplates(signature)
+    : [];
   const signatures = [...new Set(ranges.map(({ measure }) => `${measure.timeSignature.numerator}/${measure.timeSignature.denominator}`))];
   return {
     ranges,
     signatures: signatures.length ? signatures.join("、") : `${signature.numerator}/${signature.denominator}`,
     beats,
+    strums,
     measures: signatures.length <= 1 ? getMeasureRhythmPatternTemplates(signature) : [],
   };
 };
@@ -67,16 +86,15 @@ const previewFor = (props: RhythmPatternConfig, explicitTemplateId?: string) => 
   const inferred = explicitTemplateId === undefined && state.document && targetResult.ok
     ? inferRhythmPatternTemplate(state.document, targetResult.target) : null;
   const selected = explicitTemplateId !== undefined
-    ? templates?.beats.find((item) => item.id === explicitTemplateId) ?? templates?.measures.find((item) => item.id === explicitTemplateId)
+    ? templates?.beats.find((item) => item.id === explicitTemplateId) ?? templates?.measures.find((item) => item.id === explicitTemplateId) ??
+      templates?.strums.find((item) => item.id === explicitTemplateId)
     : templates?.beats.find(item => item.id === inferred?.id);
   return {
     session: props.session,
     version: captureEditorVersion(state),
     identity: props.targetIdentity,
-    document: state.document,
     targetResult,
     // 手选只属于本次目标与文档快照，目标或文档变化后重新识别。
-    explicitTemplateId,
     templateId: selected?.id,
     templateName: selected?.name,
     result: state.document && targetResult.ok && selected
@@ -92,18 +110,30 @@ const previewFor = (props: RhythmPatternConfig, explicitTemplateId?: string) => 
 function useRhythmPatternController(props: RhythmPatternConfig, enabled = true) {
   const { session, document, targetResult, onScopeChange, onBusyChange } = props;
   const current = useSyncExternalStore(session.subscribe, session.getState, session.getState);
-  const [localSnapshot, setPreview] = useState(() => enabled ? previewFor(props) : null);
-  const snapshot = localSnapshot ?? previewFor(props);
+  const [visiblePanels, setVisiblePanels] = useState(0);
+  const [selection, setSelection] = useState(() => ({
+    tab: "rhythm" as TemplateTab,
+    rhythm: enabled ? previewFor(props) : null,
+    strum: null as ReturnType<typeof previewFor> | null,
+    lastStrum: null as AppliedStrum | null,
+  }));
+  const templates = useMemo(() => templatesFor(document, targetResult), [document, targetResult]);
+  const tab = templates.strums.length ? selection.tab : "rhythm";
+  const snapshot = selection.rhythm ?? previewFor(props);
   const changed = snapshot.session !== session || !sameEditorVersion(current, snapshot.version) || snapshot.identity !== props.targetIdentity;
   // 在本次 render 即使用新快照，避免旧拍的手选和预览短暂显示在新选区上。
-  const preview = changed ? previewFor(props) : snapshot;
-  if (enabled && changed) setPreview(preview);
+  const rhythmPreview = changed ? previewFor(props) : snapshot;
+  const strumPreview = changed ? null : selection.strum;
+  const preview = (tab === "strum" && strumPreview) || rhythmPreview;
+  if (enabled && changed) setSelection({ ...selection, rhythm: rhythmPreview, strum: null });
   const [failure, setFailure] = useState<string | null>(null);
   if (enabled && changed && failure !== null) setFailure(null);
   const [busy, setBusy] = useState(false);
+  const [sidebarFocus, setSidebarFocus] = useState(0);
+  const { lastStrum } = selection;
   const [expansion, setExpansion] = useState({
-    toolbar: { beat: false, measure: false },
-    sidebar: { beat: false, measure: false },
+    toolbar: { beat: false, measure: false, strum: false },
+    sidebar: { beat: false, measure: false, strum: false },
   });
   const busyRef = useRef(false);
   const generation = useRef(0);
@@ -111,12 +141,22 @@ function useRhythmPatternController(props: RhythmPatternConfig, enabled = true) 
   const succeeded = useRef(false);
   const mounted = useRef(true);
   const latest = useRef(props);
-  const applyButton = useRef<HTMLButtonElement>(null);
   useLayoutEffect(() => { latest.current = props; });
   const stale = preview.session !== session || !sameEditorVersion(current, preview.version) || preview.identity !== props.targetIdentity;
-  const plan = preview.result.ok ? preview.result : null;
-  const templates = templatesFor(document, targetResult);
-  const scopeKey = plan && !stale ? JSON.stringify(plan.target) : null;
+  const activeStrum = enabled && tab === "strum" && targetResult.ok
+    ? inferBeatStrumRhythmPatternTemplate(document, targetResult.target) : null;
+  const draft = tab === "strum" ? strumPreview : rhythmPreview;
+  const plan = draft?.result.ok ? draft.result : null;
+  const strumBeatIndex = tab === "strum" && targetResult.ok ? Math.floor(targetResult.target.focusTick / TICKS_PER_QUARTER) : null;
+  const strumScope = activeStrum && strumBeatIndex !== null && targetResult.ok
+    ? { ...targetResult.target, startTick: strumBeatIndex * TICKS_PER_QUARTER, endTick: (strumBeatIndex + 1) * TICKS_PER_QUARTER }
+    : null;
+  const scope = tab === "rhythm" ? plan?.target : visiblePanels > 0 ? plan?.target ?? strumScope : null;
+  const scopeKey = scope && !stale ? JSON.stringify(scope) : null;
+  const undoEntry = strumScope && activeStrum && !strumPreview && lastStrum?.templateId === activeStrum.id &&
+    lastStrum.scope.trackId === strumScope.trackId && lastStrum.scope.measureId === strumScope.measureId &&
+    lastStrum.scope.startTick === strumScope.startTick && current.pastEntries.at(-1)?.id === lastStrum.entryId
+    ? lastStrum.entryId : null;
   useEffect(() => {
     if (!enabled) return;
     onScopeChange?.(scopeKey ? JSON.parse(scopeKey) as RhythmPatternTarget : null);
@@ -130,40 +170,66 @@ function useRhythmPatternController(props: RhythmPatternConfig, enabled = true) 
       latest.current.onBusyChange(false);
     };
   }, [enabled]);
-  const isPreviewCurrent = () => {
-    // 既检查会话版本，也检查 Shell 的简谱连续选区；后者不保存在 store 中。
+  // 连续选区也可能由 Shell 管理，需与会话版本一起校验。
+  const isPreviewCurrent = (candidate: typeof preview) => {
     const now = latest.current;
-    return mounted.current && generation.current === previewGeneration && now.session === preview.session &&
-      sameEditorVersion(now.session.getState(), preview.version) && now.getTargetIdentity() === preview.identity;
+    return mounted.current && generation.current === previewGeneration && now.session === candidate.session &&
+      sameEditorVersion(now.session.getState(), candidate.version) && now.getTargetIdentity() === candidate.identity;
   };
-  const isCurrent = () => isPreviewCurrent() && !latest.current.blocked && !latest.current.getBlocked();
-  const refresh = (templateId: string) => {
-    if (busyRef.current) return;
+  const selectTab = (next: TemplateTab) => {
+    if (next === tab || busyRef.current) return;
     generation.current += 1;
-    setPreview(previewFor(latest.current, templateId));
+    setSelection((current) => ({ ...current, tab: next }));
     setFailure(null);
   };
-  const apply = async (onApplied?: (scope: RhythmPatternTarget) => void) => {
-    if (busyRef.current || !plan || !isCurrent()) return;
+  const refresh = (templateId: string) => {
+    if (busyRef.current || !isPreviewCurrent(preview)) return;
+    generation.current += 1;
+    const next = tab === "strum" && activeStrum?.id === templateId ? null : previewFor(latest.current, templateId);
+    setSelection((current) => ({ ...current, [tab]: next }));
+    setFailure(null);
+  };
+  const cancelStrum = () => {
+    if (busyRef.current) return;
+    generation.current += 1;
+    setSelection((current) => ({ ...current, strum: null }));
+    setFailure(null);
+  };
+  const apply = async (onApplied?: (scope: RhythmPatternTarget) => void, onStrumApplied?: () => void, onFailure?: () => void) => {
+    const candidate = preview;
+    const plan = candidate.result.ok ? candidate.result : null;
+    const isCandidateCurrent = () => isPreviewCurrent(candidate);
+    const isCurrent = () => isCandidateCurrent() && !latest.current.blocked && !latest.current.getBlocked();
+    if (busyRef.current || !plan || !draft || (tab === "strum" && !plan.changed) || !isCurrent()) return;
+    setFailure(null);
     busyRef.current = true;
     setBusy(true);
     onBusyChange(true);
     try {
-      const confirmDiscard = plan.discardedTextCount > 0;
-      if (!confirmDiscard) latest.current.beforeAction();
+      const confirmImpact = tab === "rhythm" && (plan.discardedTextCount > 0 || plan.requiresConfirmation);
+      if (!confirmImpact) latest.current.beforeAction();
       if (!isCurrent()) return;
       const result = await latest.current.execute({
         type: LXMScoreCommandEnum.ApplyRhythmPattern,
         // 版本与确认键绑定提交瞬时快照；只授权移除本次预览列出的标记。
-        target: preview.targetResult.ok ? preview.targetResult.target : plan.target,
+        target: candidate.targetResult.ok ? candidate.targetResult.target : plan.target,
         templateId: plan.template.id,
         expectedConfirmationKey: plan.confirmationKey,
         allowRemoveMarks: plan.removedMarks.length > 0,
-      }, confirmDiscard ? "modal" : "caller", { isCurrent: confirmDiscard ? isPreviewCurrent : isCurrent });
+      }, confirmImpact ? "modal" : "caller", { isCurrent: confirmImpact ? isCandidateCurrent : isCurrent });
       if (!mounted.current) return;
       if (result.status === "applied" || result.status === "noop") {
         succeeded.current = true;
         generation.current += 1;
+        if (tab === "strum") {
+          const now = candidate.session.getState();
+          const entryId = now.pastEntries.at(-1)?.id;
+          const lastStrum = result.status === "applied" && now.document === result.result.document && entryId
+            ? { entryId, templateId: plan.template.id, scope: plan.target } : null;
+          setSelection((current) => ({ ...current, strum: null, lastStrum }));
+          onStrumApplied?.();
+          return;
+        }
         // 先同步释放 busy 保护，再关闭浮层回焦；否则 Host 会把成功关闭当作忙碌中操作。
         busyRef.current = false;
         onBusyChange(false);
@@ -175,7 +241,7 @@ function useRhythmPatternController(props: RhythmPatternConfig, enabled = true) 
       }
       if (result.status === "cancelled") return;
       setFailure("message" in result ? result.message : result.result.message);
-      requestAnimationFrame(() => applyButton.current?.focus({ preventScroll: true }));
+      onFailure?.();
     } catch {
       if (mounted.current) setFailure("应用失败，请重试。");
     } finally {
@@ -184,7 +250,18 @@ function useRhythmPatternController(props: RhythmPatternConfig, enabled = true) 
       if (mounted.current) setBusy(false);
     }
   };
-  return { preview, plan, templates, stale, failure, busy, refresh, apply, applyButton, expansion, setExpansion };
+  const openSidebar = () => {
+    if (busyRef.current || !latest.current.onOpenSidebar?.()) return false;
+    setSidebarFocus(value => value + 1);
+    return true;
+  };
+  const undoStrum = undoEntry && props.onUndo ? () => {
+    const now = latest.current;
+    return !busyRef.current && !now.blocked && !now.getBlocked() && isPreviewCurrent(preview) &&
+      now.session.getState().pastEntries.at(-1)?.id === undoEntry && !!now.onUndo?.();
+  } : null;
+  return { draft, plan, templates, tab, selectTab, stale, failure, busy, refresh, apply, cancelStrum, expansion, setExpansion,
+    activeStrum, strumBeatIndex, setVisiblePanels, sidebarFocus, openSidebar, undoStrum };
 }
 
 type Controller = ReturnType<typeof useRhythmPatternController>;
@@ -200,32 +277,67 @@ export function RhythmPatternProvider({ children, ...config }: RhythmPatternConf
 }
 
 /** 侧栏只消费根会话的真实目标与命令路径，不自行解析另一个目标。 */
-export function SidebarRhythmPatternPanel() {
+export function SidebarRhythmPatternPanel({ visible = true }: { visible?: boolean }) {
   const shared = useContext(RhythmPatternContext);
-  return shared ? <RhythmPatternPanel {...shared.config} presentation="sidebar" onClose={() => {}} /> : null;
+  return shared ? <RhythmPatternPanel {...shared.config} presentation="sidebar" visible={visible} onClose={() => {}} /> : null;
 }
 
 /** 不提供 Provider 的既有调用仍保持独立面板兼容。 */
 export function RhythmPatternPanel(props: Props) {
   const shared = useContext(RhythmPatternContext);
   const local = useRhythmPatternController(shared?.config ?? props, !shared);
-  const { preview, plan, templates, stale, failure, busy, refresh, apply, applyButton, expansion, setExpansion } = shared?.controller ?? local;
-  const { blocked, targetResult } = shared?.config ?? props;
+  const { draft, plan, templates, tab, selectTab, stale, failure, busy, refresh, apply, cancelStrum, expansion, setExpansion,
+    activeStrum, strumBeatIndex, setVisiblePanels, sidebarFocus, openSidebar, undoStrum } = shared?.controller ?? local;
+  const { blocked, targetResult, onOpenSidebar } = shared?.config ?? props;
   const presentation = props.presentation ?? "toolbar";
   const sidebar = presentation === "sidebar";
+  const strum = tab === "strum";
+  const hasTabs = templates.strums.length > 0;
+  const visible = props.visible !== false && targetResult.ok;
+  useLayoutEffect(() => {
+    if (!visible) return;
+    setVisiblePanels((count) => count + 1);
+    return () => setVisiblePanels((count) => count - 1);
+  }, [visible, setVisiblePanels]);
+  const panel = useRef<HTMLElement>(null);
+  const applyButton = useRef<HTMLButtonElement>(null);
+  const handledSidebarFocus = useRef(0);
+  useEffect(() => {
+    if (!sidebar || !visible || sidebarFocus === handledSidebarFocus.current) return;
+    const frame = requestAnimationFrame(() => {
+      const section = panel.current?.querySelector<HTMLElement>("[data-rhythm-tabs] [aria-selected='true']");
+      if (!section || section.closest("[hidden], [inert]")) return;
+      handledSidebarFocus.current = sidebarFocus;
+      section.focus({ preventScroll: true });
+      section.scrollIntoView({ block: "start" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [sidebar, sidebarFocus, visible]);
   const expanded = expansion[presentation];
   const templateGroupId = useId();
+  const tabId = (tab: TemplateTab) => `${templateGroupId}-tab-${tab}`;
+  const paneId = (tab: TemplateTab) => `${templateGroupId}-pane-${tab}`;
+  const handleTabKey: KeyboardEventHandler<HTMLButtonElement> = (event) => {
+    const key = event.key;
+    if (event.nativeEvent.isComposing || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey ||
+      !["ArrowLeft", "ArrowRight", "Home", "End"].includes(key)) return;
+    event.preventDefault();
+    const next = key === "Home" ? "rhythm" : key === "End" ? "strum" : strum ? "rhythm" : "strum";
+    selectTab(next);
+    panel.current?.querySelector<HTMLElement>(`[data-rhythm-tab="${next}"]`)?.focus({ preventScroll: true });
+  };
   const firstExtra = (columns: number) => Math.max(0, Math.ceil(templates.beats.length / columns) - 2) * columns;
   const hasCollapsedMeasures = templates.measures.some((template) => template.collapsed);
-  const toggle = (group: "beat" | "measure") => {
-    const title = group === "beat" ? "拍内模板" : "整小节模板";
+  const toggle = (group: "beat" | "measure" | "strum") => {
+    const title = group === "beat" ? "拍内模板" : group === "measure" ? "整小节模板" : "扫弦模板";
+    const label = expanded[group] ? `收起${title}` : group === "strum" ? "展开全部" : `展开${title}`;
     return <button type="button" className={styles.toggle} disabled={busy}
       aria-expanded={expanded[group]} aria-controls={`${templateGroupId}-${group}`} data-rhythm-toggle={group}
       onClick={(event) => {
         const button = event.currentTarget;
-        const firstExtra = group === "measure" && !expanded.measure
-          ? button.previousElementSibling?.querySelector<HTMLElement>("[data-extra]")
-          : undefined;
+        const extraSelector = group === "measure" ? "[data-extra]" : group === "strum" ? "[data-strum-template][hidden]" : null;
+        const firstExtra = extraSelector && !expanded[group]
+          ? button.previousElementSibling?.querySelector<HTMLElement>(extraSelector) : null;
         setExpansion((current) => ({
           ...current,
           [presentation]: { ...current[presentation], [group]: !current[presentation][group] },
@@ -236,7 +348,7 @@ export function RhythmPatternPanel(props: Props) {
           focus.scrollIntoView({ block: "nearest" });
         });
       }}>
-      {expanded[group] ? `收起${title}` : `展开${title}`} <span aria-hidden="true">{expanded[group] ? "▴" : "▾"}</span>
+      {label} <span aria-hidden="true">{expanded[group] ? "▴" : "▾"}</span>
     </button>;
   };
   const hasSharedController = shared !== null;
@@ -247,35 +359,53 @@ export function RhythmPatternPanel(props: Props) {
     return () => onBusyChange(false);
   }, [hasSharedController, sidebar, busy, onBusyChange]);
   if (!targetResult.ok) return null;
-  const message = failure ?? (!preview.result.ok ? preview.result.message : blocked ? "请先完成当前编辑，再应用节奏型；可继续浏览模板。" : null);
+  const message = failure ?? (draft && !draft.result.ok ? draft.result.message
+    : blocked ? "请先完成当前编辑，再应用节奏型；可继续浏览模板。" : null);
   const discardedCount = plan?.perBeat.reduce((total, beat) => total + beat.discardedCount, 0) ?? 0;
   const firstMeasure = templates.ranges[0];
   const lastMeasure = templates.ranges.at(-1);
   let destination: string | undefined;
-  if (plan && firstMeasure && lastMeasure) {
+  if (firstMeasure && strumBeatIndex !== null) {
+    destination = `第 ${firstMeasure.index + 1} 小节 · 第 ${strumBeatIndex + 1} 拍`;
+  } else if (plan && firstMeasure && lastMeasure) {
     if ("beats" in plan.template) {
       const numbers = firstMeasure === lastMeasure ? `${firstMeasure.index + 1}` : `${firstMeasure.index + 1}–${lastMeasure.index + 1}`;
       destination = `第 ${numbers} 小节 · 整小节`;
     } else if (firstMeasure !== lastMeasure) {
       destination = `第 ${firstMeasure.index + 1} 小节第 ${plan.scope.firstBeat} 拍至第 ${lastMeasure.index + 1} 小节第 ${plan.scopes.at(-1)!.lastBeat} 拍`;
     } else {
-      const beats = plan.scope.beatCount === 1 ? `${plan.scope.firstBeat}` : `${plan.scope.firstBeat}–${plan.scope.lastBeat}`;
+      const { beatCount, firstBeat, lastBeat } = plan.scope;
+      const beats = beatCount === 1 ? `${firstBeat}` : `${firstBeat}–${lastBeat}`;
       destination = `第 ${firstMeasure.index + 1} 小节 · 第 ${beats} 拍`;
     }
   }
-  const canApply = !busy && !blocked && !stale && !!plan;
-  const applyCurrent = () => void apply(shared && !sidebar ? props.onSuccess : undefined);
+  const canApply = !busy && !blocked && !stale && !!plan && (!strum || plan.changed);
+  const focusStrumResult = () => {
+    const root = panel.current;
+    if (!root) return;
+    requestAnimationFrame(() => {
+      if (panel.current !== root || root.closest("[inert], [hidden]")) return;
+      const selected = root.querySelector<HTMLElement>('[data-strum-template][aria-pressed="true"]:not([hidden])');
+      const focus = selected ?? (root.querySelector('[data-strum-template][aria-pressed="true"]')
+        ? root.querySelector<HTMLElement>('[data-rhythm-toggle="strum"]') : root.querySelector<HTMLElement>('[data-rhythm-tab="strum"]'));
+      focus?.focus({ preventScroll: true });
+      focus?.scrollIntoView({ block: "nearest" });
+    });
+  };
+  const applyCurrent = () => void apply(shared && !sidebar ? props.onSuccess : undefined, focusStrumResult,
+    () => requestAnimationFrame(() => applyButton.current?.focus({ preventScroll: true })));
   const handleEnter: KeyboardEventHandler<HTMLElement> = (event) => {
     if (event.key !== "Enter" || event.defaultPrevented || !(event.target instanceof Element) ||
       !event.currentTarget.contains(event.target)) return;
     const target = event.target;
-    const card = target.closest("[data-rhythm-template], [data-rhythm-measure-template]");
+    const card = target.closest("[data-rhythm-template], [data-rhythm-measure-template], [data-strum-template]");
     const applyControl = target.closest("[data-rhythm-apply]");
     const composing = event.nativeEvent.isComposing || event.keyCode === 229;
     if ((card || applyControl) && (event.repeat || composing)) {
       event.preventDefault();
       return;
     }
+    if (strum) return;
     // 未选卡片和应用按钮仍走原生 click，其他交互控件保留自己的键盘行为。
     if (card ? card.getAttribute("aria-pressed") !== "true" :
       target.closest('button, a[href], input, select, textarea, [contenteditable], [role="button"]')) return;
@@ -284,49 +414,111 @@ export function RhythmPatternPanel(props: Props) {
     if (canApply) applyCurrent();
   };
 
-  return <section className={`${styles.root}${sidebar ? ` ${styles.sidebar}` : ""}`} aria-label={sidebar ? "常见节奏型" : "节奏型"} aria-busy={busy}
+  return <section ref={panel} className={`${styles.root}${sidebar ? ` ${styles.sidebar}` : ""}`} aria-label={sidebar ? "常见节奏型" : "节奏型"} aria-busy={busy}
     tabIndex={sidebar ? undefined : -1} onKeyDown={handleEnter} data-rhythm-pattern-panel data-presentation={presentation}>
     <header className={styles.header}>
       {sidebar ? <h3>常见节奏型</h3> : <h2>节奏型</h2>}
-      {!sidebar && <button type="button" className={styles.close} aria-label="关闭节奏型" disabled={busy} onClick={props.onClose}>×</button>}
+      {!sidebar && <div className={styles.headerActions}>
+        {hasTabs && onOpenSidebar && <button type="button" className={styles.handoff} disabled={busy || blocked}
+          onClick={() => { if (openSidebar()) (props.onHandoff ?? props.onClose)(); }}>在侧栏展开</button>}
+        <button type="button" className={styles.close} aria-label="关闭节奏型" disabled={busy} onClick={props.onClose}>×</button>
+      </div>}
     </header>
-    {!sidebar && <p className={styles.rules}><WarningOutlined aria-hidden="true" /> 应用后保留仍适用的技巧和连线，失效的标记会列在下方。</p>}
-    {templates.beats.length > 0 && <div className={styles.templates} role="region" aria-label={sidebar ? "节奏型模板" : "可滚动的节奏型模板"} tabIndex={0}>
-      <div className={styles.sectionHeading}>
-        <strong>拍内模板</strong><span>{templates.signatures}</span>
-      </div>
-      <div className={styles.grid} id={`${templateGroupId}-beat`} role="group" aria-label="拍内模板" data-expanded={expanded.beat}>
-        {templates.beats.map((template, index) => <TemplateCard key={template.id} template={template}
-          extraAtTwoColumns={index >= firstExtra(2)} extraAtThreeColumns={index >= firstExtra(3)}
-          selected={preview.templateId === template.id} disabled={busy} onSelect={() => refresh(template.id)} />)}
-      </div>
-      {toggle("beat")}
-      {templates.measures.length > 0 && <>
-        <div className={`${styles.sectionHeading} ${styles.measureHeading}`}>
-          <strong>整小节模板</strong><span>{templates.measures.length} 条</span>
+    {hasTabs && <div className={styles.tabs} role="tablist" aria-label="节奏模板类别" data-rhythm-tabs>
+      {templateTabs.map(({ id, label }) => <button key={id} id={tabId(id)} type="button" role="tab" data-rhythm-tab={id}
+        aria-controls={paneId(id)} aria-selected={id === tab} tabIndex={id === tab ? 0 : -1}
+        disabled={busy} onClick={() => selectTab(id)} onKeyDown={handleTabKey}>{label}</button>)}
+    </div>}
+    {!sidebar && !strum && <p className={styles.rules}><WarningOutlined aria-hidden="true" /> 应用后保留仍适用的技巧和连线，失效的标记会列在下方。</p>}
+    {(hasTabs || templates.beats.length > 0 || templates.measures.length > 0) && <div id={hasTabs ? paneId("rhythm") : undefined}
+      className={styles.templates} role={hasTabs ? "tabpanel" : "region"} aria-labelledby={hasTabs ? tabId("rhythm") : undefined}
+      aria-label={hasTabs ? undefined : sidebar ? "节奏型模板" : "可滚动的节奏型模板"} hidden={strum} tabIndex={0}>
+      {!strum && <>
+        {templates.beats.length > 0 && <>
+          <div className={styles.sectionHeading}>
+            <strong>拍内模板</strong><span>{templates.signatures}</span>
+          </div>
+          <div className={styles.grid} id={`${templateGroupId}-beat`} role="group" aria-label="拍内模板" data-expanded={expanded.beat}>
+            {templates.beats.map((template, index) => <TemplateCard key={template.id} template={template}
+              extraAtTwoColumns={index >= firstExtra(2)} extraAtThreeColumns={index >= firstExtra(3)}
+              selected={draft?.templateId === template.id} disabled={busy} onSelect={() => refresh(template.id)} />)}
+          </div>
+          {toggle("beat")}
+        </>}
+        {templates.measures.length > 0 && <>
+          <div className={`${styles.sectionHeading} ${styles.measureHeading}`}>
+            <strong>整小节模板</strong><span>{templates.measures.length} 条</span>
+          </div>
+          <div className={styles.measureList} id={`${templateGroupId}-measure`} role="group" aria-label="整小节模板" data-expanded={expanded.measure}>
+            {templates.measures.map((template) => <TemplateCard key={template.id} template={template}
+              selected={draft?.templateId === template.id} disabled={busy} onSelect={() => refresh(template.id)} />)}
+          </div>
+          {hasCollapsedMeasures && toggle("measure")}
+        </>}
+      </>}
+    </div>}
+    {hasTabs && <div id={paneId("strum")} className={styles.templates} role="tabpanel" aria-labelledby={tabId("strum")} hidden={!strum} tabIndex={0}>
+      {strum && <>
+        <p className={styles.strumLegend}>↓ 上扫 1→6弦　↑ 下扫 6→1弦　– 延音　每格 ¼ 拍</p>
+        <div className={styles.strumGrid} id={`${templateGroupId}-strum`}>
+          {templates.strums.map((template, index) => <StrumTemplateCard key={template.id} template={template}
+            hidden={!expanded.strum && index >= collapsedStrumCount} disabled={busy}
+            selected={(draft?.templateId ?? activeStrum?.id) === template.id} onSelect={() => refresh(template.id)} />)}
         </div>
-        <div className={styles.measureList} id={`${templateGroupId}-measure`} role="group" aria-label="整小节模板" data-expanded={expanded.measure}>
-          {templates.measures.map((template) => <TemplateCard key={template.id} template={template}
-            selected={preview.templateId === template.id} disabled={busy} onSelect={() => refresh(template.id)} />)}
-        </div>
-        {hasCollapsedMeasures && toggle("measure")}
+        {templates.strums.length > collapsedStrumCount && toggle("strum")}
       </>}
     </div>}
     <footer className={styles.footer}>
-      {discardedCount > 0 && <p className={styles.warning} role="status">应用将舍弃各拍末尾共 {discardedCount} 个内容。{!!plan?.discardedTextCount && `其中含 ${plan.discardedTextCount} 项${plan.target.layer === "numbered" ? "歌词" : "和弦"}，应用前需确认。`}</p>}
-      {!!plan?.removedMarks.length && <p className={styles.warning} role="status">应用将移除：{[...new Set(plan.removedMarks.map((mark) => mark.name))].join("、")}。{plan.removedMarks.some((mark) => mark.crossesScope) ? "包含跨出当前范围的连接。" : ""}点击应用一并确认。</p>}
+      {discardedCount > 0 && <p className={styles.warning} role="status">{strum ? `应用将覆盖当前拍的 ${discardedCount} 个原有音组或休止。` : `应用将舍弃各拍末尾共 ${discardedCount} 个内容。`}{!!plan?.discardedTextCount && `其中含 ${plan.discardedTextCount} 项${plan.target.layer === "numbered" ? "歌词" : "和弦"}${strum ? "。" : "，应用前需确认。"}`}</p>}
+      {strum && discardedCount === 0 && !!plan?.discardedTextCount && <p className={styles.warning} role="status">应用将移除 {plan.discardedTextCount} 项和弦标记。</p>}
+      {!!plan?.removedMarks.length && <p className={styles.warning} role="status">应用将移除：{[...new Set(plan.removedMarks.map((mark) => mark.name))].join("、")}。{plan.removedMarks.some((mark) => mark.crossesScope) ? "包含跨出当前范围的连接。" : ""}{!strum && "点击应用一并确认。"}</p>}
       {message && <p className={stale || blocked ? styles.warning : styles.error} role={stale || blocked ? "status" : "alert"}>{message}</p>}
       <div className={styles.footerLine}>
-        {destination && <p className={styles.destination} aria-live="polite">{destination} · {preview.templateName}</p>}
+        {destination && <p className={styles.destination} aria-live="polite">{destination}{draft?.templateName ? ` · ${draft.templateName}`
+          : activeStrum ? ` · 已应用${activeStrum.name} · ${activeStrum.form}` : ""}</p>}
         <div className={styles.actions}>
-          {!sidebar && <Button disabled={busy} onClick={props.onClose}>取消</Button>}
-          <Tooltip title={canApply ? "按 Enter 应用节奏型" : null} trigger={["hover", "focus"]}>
-            <Button ref={applyButton} data-rhythm-apply type="primary" loading={busy} disabled={!canApply} onClick={applyCurrent}>应用节奏型</Button>
+          {undoStrum && <Button disabled={busy || blocked || stale} onClick={() => {
+            if (undoStrum()) focusStrumResult();
+          }}>撤销应用</Button>}
+          {!sidebar && <Button disabled={busy} onClick={() => {
+            if (strum && draft) cancelStrum();
+            props.onClose();
+          }}>{strum && !draft ? "关闭" : "取消"}</Button>}
+          <Tooltip title={canApply && !strum ? "按 Enter 应用节奏型" : null} trigger={["hover", "focus"]}>
+            <Button ref={applyButton} data-rhythm-apply type="primary" aria-label={strum ? "应用" : undefined}
+              autoInsertSpace={false} loading={busy} disabled={!canApply}
+              onClick={applyCurrent}>{strum ? "应用" : "应用节奏型"}</Button>
           </Tooltip>
         </div>
       </div>
     </footer>
   </section>;
+}
+
+const strumGlyphs = {
+  up: { symbol: "↓", label: "上扫" },
+  down: { symbol: "↑", label: "下扫" },
+  hold: { symbol: "–", label: "延音" },
+} as const;
+
+function StrumTemplateCard({ template, selected, disabled, hidden, onSelect }: {
+  template: BeatStrumRhythmPatternTemplate;
+  selected: boolean;
+  disabled: boolean;
+  hidden: boolean;
+  onSelect: () => void;
+}) {
+  const strokes = template.strokes.map(stroke => stroke ?? "hold");
+  const label = `${template.name}，${template.form}，${strokes.map(stroke => strumGlyphs[stroke].label).join("、")}`;
+  return <button type="button" className={`${styles.card} ${styles.strumCard}`} hidden={hidden}
+    data-strum-template={template.id} aria-label={label} aria-pressed={selected} aria-disabled={disabled}
+    onClick={() => { if (!disabled) onSelect(); }}>
+    <span className={styles.templateName}>{template.form}</span>
+    {selected && <span className={styles.check} aria-hidden="true">✓</span>}
+    <span className={styles.strumStrokes} aria-hidden="true">
+      {strokes.map((stroke, slot) => <span key={slot} data-strum-stroke={stroke}>{strumGlyphs[stroke].symbol}</span>)}
+    </span>
+  </button>;
 }
 
 function TemplateCard({ template, selected, disabled, onSelect, extraAtTwoColumns, extraAtThreeColumns }: {

@@ -2309,7 +2309,7 @@ export const MusicTextSidebar = ({
                         onSuccess={onScoreFocus} />
                     </section>}
                   />
-                  <SidebarRhythmPatternPanel />
+                  <SidebarRhythmPatternPanel visible={!collapsed && propertyTab === "selection" && selectionDetail === "note"} />
                 </div>
                 <div
                   data-selection-detail="measure"

@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>六线猫 · REQ-077 扫弦模板</title>
+  <link rel="icon" href="../../../../apps/website/public/assets/brand/liuxianmao-64.png">
+  <link rel="stylesheet" href="prototype.css">
+  <script src="prototype.js" defer></script>
+</head>
+<body>
+  <header class="review">
+    <strong>REQ-077 <span>扫弦模板设计稿</span></strong>
+    <nav aria-label="演示场景">
+      <button type="button" data-demo="0" aria-pressed="true">两小节伴奏</button>
+      <button type="button" data-demo="2" aria-pressed="false">空小节</button>
+      <button type="button" data-demo="3" aria-pressed="false">不适用的拍号</button>
+    </nav>
+  </header>
+  <div class="app-header">
+    <div class="brand"><img src="../../../../apps/website/public/assets/brand/liuxianmao-64.png" alt=""><strong>六线猫</strong><span aria-hidden="true">文件　编辑　视图　帮助</span></div>
+    <strong class="document-title">沿河公路</strong>
+    <span class="file-status">示例曲谱</span>
+  </div>
+  <div class="toolbar" role="group" aria-label="编辑器工具栏">
+    <button type="button" id="undo" aria-label="撤销" title="撤销应用" disabled>↶</button>
+    <span class="tool-group durations" aria-hidden="true">
+      <img src="../../../../apps/website/public/assets/svg/music-controls/note-half.svg" alt="">
+      <img src="../../../../apps/website/public/assets/svg/music-controls/note-quarter.svg" alt="">
+      <img src="../../../../apps/website/public/assets/svg/music-controls/note-eighth.svg" alt="">
+      <img src="../../../../apps/website/public/assets/svg/music-controls/note-sixteenth.svg" alt="">
+    </span>
+    <span class="tool-group" aria-hidden="true">H　P　S　⌒　↟　↡</span>
+    <button type="button" id="tool" aria-expanded="true" aria-controls="inspector"><span aria-hidden="true">♬</span> 节奏型</button>
+  </div>
+  <main class="workspace">
+    <section class="canvas" aria-label="曲谱工作区">
+      <div class="canvas-top">
+        <div><h2 id="view-title">扫弦预览</h2><p id="view-caption">第 1–2 小节 · 仅预览</p></div>
+        <div class="segmented" role="group" aria-label="对照曲谱">
+          <button type="button" data-view="original" aria-pressed="false">原谱</button>
+          <button type="button" data-view="preview" aria-pressed="true">应用预览</button>
+        </div>
+      </div>
+      <article class="paper">
+        <h1>沿河公路</h1>
+        <p class="credit">木吉他伴奏</p>
+        <p class="signature">1 = G <span>♩ = 88</span></p>
+        <div id="score" class="score" role="group" aria-label="六线谱小节"></div>
+      </article>
+      <p class="canvas-tip">点击谱面选中小节，按住 Shift 点击可扩选。</p>
+    </section>
+    <aside class="inspector" id="inspector" aria-label="选区侧栏">
+      <div class="inspector-tabs" aria-hidden="true"><strong>选区</strong><span>简谱与歌词</span><span>和弦</span><span>歌曲</span></div>
+      <div class="panel" id="panel">
+        <div class="heading"><h2>常见节奏型</h2><span class="meter" id="meter">4/4</span></div>
+        <div class="segmented category" role="group" aria-label="节奏模板类别">
+          <button type="button" data-category="regular" aria-pressed="false">常规节奏</button>
+          <button type="button" data-category="strum" aria-pressed="true">扫弦</button>
+        </div>
+        <div id="regular" hidden>
+          <h3>拍内模板</h3>
+          <div class="regular-examples"><span>♩　四分音符</span><span>♫　两个八分</span></div>
+          <h3>整小节模板</h3>
+          <div class="regular-examples"><span>交替分解</span><span>均匀八分</span></div>
+        </div>
+        <div id="strum">
+          <h3 class="subheading">扫弦模板 <small>每小节重复</small></h3>
+          <div id="templates" class="templates" role="group" aria-label="扫弦模板"></div>
+          <section class="preview" aria-labelledby="preview-title">
+            <div class="heading"><h3 id="preview-title">拍点预览</h3><span class="soft-label">4/4 · 八分拍格</span></div>
+            <div id="timeline" class="timeline"></div>
+            <p class="legend">下、上表示扫弦方向，<b>·</b> 表示延续上一扫。</p>
+          </section>
+          <section class="target" aria-labelledby="target-title">
+            <div class="heading"><h3 id="target-title">应用范围</h3><span id="range" class="soft-label"></span></div>
+            <div id="sources" class="sources"></div>
+            <p id="notice" class="notice" role="status"></p>
+            <button type="button" class="primary apply" id="apply">应用扫弦模板</button>
+          </section>
+        </div>
+      </div>
+    </aside>
+  </main>
+  <footer class="statusbar"><span id="status" role="status">已打开扫弦模板预览</span><span id="selection"></span></footer>
+  <dialog id="confirm" aria-labelledby="confirm-title">
+    <h2 id="confirm-title">替换所选小节的 TAB 节奏？</h2>
+    <p id="confirm-detail"></p>
+    <form method="dialog"><button type="submit" value="cancel" autofocus>取消</button><button type="submit" value="apply" class="primary">确认应用</button></form>
+  </dialog>
+</body>
+</html>

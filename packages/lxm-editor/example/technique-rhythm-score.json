@@ -1868,7 +1868,29 @@
               "denominator": 4
             },
             "barline": "final",
-            "chordSymbols": [],
+            "chordSymbols": [
+              {
+                "id": "test-chord-14-2",
+                "beatId": "test-b14-2",
+                "display": "name",
+                "chord": {
+                  "name": "E",
+                  "diagram": {
+                    "startFret": 7,
+                    "fretCount": 5,
+                    "strings": [
+                      { "string": 1, "fret": 7, "finger": null },
+                      { "string": 2, "fret": 9, "finger": null },
+                      { "string": 3, "fret": 9, "finger": null },
+                      { "string": 4, "fret": 9, "finger": null },
+                      { "string": 5, "fret": 7, "finger": null },
+                      { "string": 6, "fret": "x", "finger": null }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ],
             "lyrics": [
               {
                 "id": "test-label14",
@@ -2137,6 +2159,28 @@
             "type": "letRing",
             "fromBeatId": "test-b13-0",
             "toBeatId": "test-b14-2"
+          },
+          {
+            "id": "test-strum-14-2",
+            "type": "strum",
+            "beatId": "test-b14-2",
+            "minString": 2,
+            "maxString": 4,
+            "stroke": "down"
+          },
+          {
+            "id": "test-arpeggio-14-3",
+            "type": "arpeggio",
+            "beatId": "test-b14-3",
+            "minString": 2,
+            "maxString": 4,
+            "direction": "ascending"
+          },
+          {
+            "id": "test-traversal-tie-14",
+            "type": "traversalTie",
+            "fromBeatId": "test-b14-2",
+            "toBeatId": "test-b14-3"
           }
         ]
       }

@@ -168,8 +168,9 @@ export const createEditorCommandAdapter =
     if (requiresStructurePreview) {
       const pureResult = applyScoreCommand(snapshot.document, command);
       const confirmDiscard = rhythmDiscard && !pureResult.ok && pureResult.code === "RHYTHM_PATTERN_TEXT_CONFIRMATION_REQUIRED";
+      const confirmStrum = rhythmDiscard && !pureResult.ok && pureResult.code === "RHYTHM_PATTERN_OVERWRITE_CONFIRMATION_REQUIRED";
       const requiresConfirmation =
-        confirmDiscard || command.type === LXMScoreCommandEnum.RemoveMeasure ||
+        confirmDiscard || confirmStrum || command.type === LXMScoreCommandEnum.RemoveMeasure ||
         (!pureResult.ok && pureResult.code === "NUMBERED_IMPACT_REQUIRED") ||
         (pureResult.ok &&
           (pureResult.effects ?? []).some(
@@ -189,7 +190,8 @@ export const createEditorCommandAdapter =
         };
       }
       const confirmedCommand =
-        confirmDiscard ? { ...command, allowDiscardMusicText: true }
+        confirmStrum ? { ...command, allowOverwrite: true }
+        : confirmDiscard ? { ...command, allowDiscardMusicText: true }
         : !pureResult.ok && pureResult.code === "NUMBERED_IMPACT_REQUIRED"
           ? {
               ...command,
@@ -202,7 +204,7 @@ export const createEditorCommandAdapter =
               expectedRevision: snapshot.document.documentRevision,
             };
       const preview =
-        confirmDiscard || (!pureResult.ok && pureResult.code === "NUMBERED_IMPACT_REQUIRED")
+        confirmStrum || confirmDiscard || (!pureResult.ok && pureResult.code === "NUMBERED_IMPACT_REQUIRED")
           ? applyScoreCommand(snapshot.document, confirmedCommand)
           : pureResult;
       if (!preview.ok)
@@ -224,19 +226,19 @@ export const createEditorCommandAdapter =
       return new Promise<EditorCommandResult>((resolve) => {
         let outcome: EditorCommandResult | null = null;
         const effectCount = preview.effects?.length ?? 0;
-        const title = confirmDiscard ? "舍弃尾部内容？"
+        const title = confirmStrum ? "替换所选小节的 TAB 节奏？" : confirmDiscard ? "舍弃尾部内容？"
           : command.type === LXMScoreCommandEnum.RemoveMeasure
             ? "删除确认"
             : "小节范围复制影响确认";
-        const message = confirmDiscard ? pureResult.message
+        const message = confirmStrum || confirmDiscard ? pureResult.message
           : command.type === LXMScoreCommandEnum.RemoveMeasure
             ? "将删除目标小节，是否确认删除？"
             : `本次将插入整小节双谱内容；${effectCount} 项复制或关系影响将在确认后一起提交。`;
         const id = modals.open({
-          kind: confirmDiscard ? "rhythm-pattern-discard" : "structure-impact",
+          kind: confirmStrum || confirmDiscard ? "rhythm-pattern-discard" : "structure-impact",
           title,
           message,
-          confirmLabel: confirmDiscard ? "确认舍弃并应用" : command.type === LXMScoreCommandEnum.RemoveMeasure ? "删除" : undefined,
+          confirmLabel: confirmStrum ? "确认应用" : confirmDiscard ? "确认舍弃并应用" : command.type === LXMScoreCommandEnum.RemoveMeasure ? "删除" : undefined,
           confirmDanger: confirmDiscard || command.type === LXMScoreCommandEnum.RemoveMeasure,
           version: snapshot,
           isValid: () => !currentReason() &&

@@ -2,6 +2,7 @@ import {
   findNextNoteOnSameStringInTrack,
   resolveTabCellSelection,
   sameTechniqueDraft,
+  usesChordVoicingForTraversal,
   validateTechnique,
   isPureTabContinuationBeat,
   LXMScoreCommandEnum as C,
@@ -32,6 +33,10 @@ type TargetResult =
   | { ok: false; message: string };
 const fail = (message: string) => ({ ok: false as const, message });
 
+const findChordTraversal = (track: ILXMTrack, beatId: string) =>
+  track.techniques.find((item) =>
+    (item.type === "strum" || item.type === "arpeggio") && item.beatId === beatId);
+
 /** All entries share target translation. Core remains the final musical authority. */
 export const resolveTechniqueDraft = (
   document: ILXMDocument,
@@ -47,10 +52,20 @@ export const resolveTechniqueDraft = (
   if (!track) return fail("技巧目标轨道不存在。");
   const focusBeat = track.measures.find((measure) => measure.id === selection.focus.measureId)
     ?.beats.find((beat) => beat.id === selection.focus.beatId);
+  const firstBeat = resolved.range.beats[0]!;
+  const lastBeat = resolved.range.beats.at(-1)!;
+  const result = (draft: ILXMTechniqueDraft): TargetResult => ({ ok: true, trackId: track.id, draft });
+  if (type === "tie" || type === "traversalTie") {
+    const usesChordVoicing = resolved.range.beats.length === 2 && resolved.range.beats.some(({ measureIndex, beatId }) =>
+      track.measures[measureIndex]?.beats.some((beat) => beat.id === beatId && usesChordVoicingForTraversal(beat)));
+    if (usesChordVoicing && findChordTraversal(track, firstBeat.beatId) && findChordTraversal(track, lastBeat.beatId)) {
+      return result({ type: "traversalTie", fromBeatId: firstBeat.beatId, toBeatId: lastBeat.beatId });
+    }
+    if (type === "traversalTie") return fail("请选择两个相邻的扫弦或琶音拍点。");
+  }
   if (focusBeat && isPureTabContinuationBeat(focusBeat) && type !== "palmMute" && type !== "letRing")
     return fail("横线延音标记没有实际起音，不能作为弹奏技巧的目标。");
   const focus = findTechniqueNote(document, selection.focus);
-  const result = (draft: ILXMTechniqueDraft): TargetResult => ({ ok: true, trackId: track.id, draft });
   switch (type) {
     case "bend": case "trill": case "vibrato": case "naturalHarmonic": case "artificialHarmonic": case "tapping":
       if (!focus) return fail("该技巧需要 focus 单元格中已有品位音符。");
@@ -64,7 +79,6 @@ export const resolveTechniqueDraft = (
       if (sameStringOnly && selection.anchor.string !== selection.focus.string)
         return fail("请选择同一根弦上的音符。");
       // Sort complete cells, never recombine chronological beats with the opposite endpoint's string.
-      const firstBeat = resolved.range.beats[0]!;
       const forward = selection.anchor.beatId === firstBeat.beatId;
       const firstCell = forward ? selection.anchor : selection.focus;
       const lastCell = forward ? selection.focus : selection.anchor;
@@ -91,13 +105,9 @@ export const resolveTechniqueDraft = (
         : { type, ...target, direction: parameters.direction === "down" ? "ascending" : "descending" });
     }
     case "pickStroke": return result({ type, beatId: selection.focus.beatId, stroke: parameters.direction });
-    default: return result({ type, fromBeatId: resolved.range.beats[0]!.beatId, toBeatId: resolved.range.beats.at(-1)!.beatId });
+    default: return result({ type, fromBeatId: firstBeat.beatId, toBeatId: lastBeat.beatId });
   }
 };
-
-const findChordTraversal = (track: ILXMTrack, beatId: string) =>
-  track.techniques.find((item) =>
-    (item.type === "strum" || item.type === "arpeggio") && item.beatId === beatId);
 
 const removeQuickTechnique = (trackId: string, techniqueId: string) => ({
   ok: true as const,
@@ -139,6 +149,11 @@ export const resolveQuickTechnique = (
   if (!target.ok) return target;
   const track = document.score.tracks.find((item) => item.id === target.trackId)!;
   const draft = target.draft;
+  const existing = draft.type === "strum" || draft.type === "arpeggio"
+    ? findChordTraversal(track, draft.beatId)
+    : undefined;
+  if (draft.type === "strum" && existing?.type === "strum" && existing.showFrets)
+    draft.showFrets = true;
   if (quick === "slide" && "fromNoteId" in draft && "toNoteId" in draft) {
     const notes = track.measures.flatMap((measure) => measure.beats.flatMap((beat) => beat.notes));
     const from = notes.find((note) => note.id === draft.fromNoteId)!;
@@ -151,9 +166,6 @@ export const resolveQuickTechnique = (
   const duplicate = track.techniques.find((item) => sameTechniqueDraft(item, draft));
   if (duplicate) return removeQuickTechnique(track.id, duplicate.id);
 
-  const existing = draft.type === "strum" || draft.type === "arpeggio"
-    ? findChordTraversal(track, draft.beatId)
-    : undefined;
   const validity = validateTechnique(track, draft, existing?.id);
   if (!validity.ok) return { ok: false, message: validity.error.message };
   return {

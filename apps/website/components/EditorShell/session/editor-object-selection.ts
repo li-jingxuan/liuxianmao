@@ -9,11 +9,35 @@ import {
   resolveTechniqueSelection,
   LXMScoreCommandEnum as C,
   type ILXMDocument,
+  type ILXMHitTarget,
   type ILXMLayout,
+  type ILXMTabCellReference,
   type ILXMTabCellSelection,
   type ILXMScoreCommand,
 } from "@liuxianmao/lxm-editor";
 import type { SidebarAction } from "../music-text/music-text-draft";
+
+/** 选区只保留稳定业务 ID。 */
+const toCellReference = ({ trackId, measureId, beatId, string }: ILXMHitTarget): ILXMTabCellReference =>
+  ({ trackId, measureId, beatId, string });
+
+const isChordTraversal = (document: ILXMDocument, trackId: string, techniqueId: string) =>
+  document.score.tracks.find((track) => track.id === trackId)?.techniques.some((technique) =>
+    technique.id === techniqueId && (technique.type === "strum" || technique.type === "arpeggio"));
+
+/** 拖动优先命中弦格，扫弦/琶音伸出谱表的端点也可作为弦格。 */
+export const hitTestTabRangeCell = (
+  document: ILXMDocument,
+  layout: ILXMLayout,
+  point: { x: number; y: number },
+): ILXMTabCellReference | null => {
+  const cell = hitTestLayout(layout, point);
+  if (cell) return toCellReference(cell);
+  const technique = hitTestTechniqueTarget(layout, point);
+  return technique && isChordTraversal(document, layout.trackId, technique.techniqueId)
+    ? resolveTechniqueSelection(document, technique.techniqueId, technique.focusEndpoint)?.focus ?? null
+    : null;
+};
 
 /** 命中对象决定动作，不接收侧栏页签；技巧和连音标注优先于 TAB 弦格。 */
 export const resolveScorePointerAction = (
@@ -60,16 +84,21 @@ export const resolveScorePointerAction = (
       },
     };
   const technique = hitTestTechniqueTarget(layout, point);
-  if (technique)
+  if (technique) {
+    const mapped = resolveTechniqueSelection(document, technique.techniqueId, technique.focusEndpoint);
+    if (mapped && isChordTraversal(document, layout.trackId, technique.techniqueId)) {
+      const hit = hitTestLayout(layout, point);
+      const target = hit?.beatId === mapped.focus.beatId ? toCellReference(hit) : mapped.focus;
+      if (extend && selection)
+        return { type: "selection", selection: { anchor: selection.anchor, focus: target } };
+      return { type: "selection", techniqueId: technique.techniqueId, selection: mapped, dragAnchor: target };
+    }
     return {
       type: "selection",
       techniqueId: technique.techniqueId,
-      selection: resolveTechniqueSelection(
-        document,
-        technique.techniqueId,
-        technique.focusEndpoint,
-      ),
+      selection: mapped,
     };
+  }
   const tuplet = hitTestTuplet(layout, point);
   if (tuplet?.beatIds.length) {
     const target = {
@@ -88,12 +117,7 @@ export const resolveScorePointerAction = (
   }
   const hit = hitTestLayout(layout, point);
   if (!hit) return extend ? null : { type: "selection", selection: null };
-  const target = {
-    trackId: hit.trackId,
-    measureId: hit.measureId,
-    beatId: hit.beatId,
-    string: hit.string,
-  };
+  const target = toCellReference(hit);
   return {
     type: "selection",
     selection: {

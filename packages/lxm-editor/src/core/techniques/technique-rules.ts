@@ -180,6 +180,31 @@ const intervalsOverlap = (
   rightEnd: number,
 ) => leftStart <= rightEnd && rightStart <= leftEnd;
 
+/** 扫弦或琶音所在拍没有逐弦音符时，试听使用当前和弦指法。 */
+export const usesChordVoicingForTraversal = (beat: Pick<ILXMBeat, "notes">): boolean =>
+  beat.notes.length === 0;
+
+const validateTraversalTie = (
+  track: ILXMTrack,
+  from: ILXMIndexedBeat,
+  to: ILXMIndexedBeat,
+  excludeTechniqueId?: string,
+): ILXMTechniqueRuleResult => {
+  if (to.order !== from.order + 1)
+    return fail("TECHNIQUE_TARGET_INVALID", "扫弦/琶音延音线只能连接相邻的两个 Beat", "toBeatId");
+  if (!usesChordVoicingForTraversal(from.beat) && !usesChordVoicingForTraversal(to.beat))
+    return fail("TECHNIQUE_TARGET_INVALID", "两端都有逐弦音符时，请使用逐弦延音线", "toBeatId");
+  const traversalAt = (beatId: string) => track.techniques.find((item): item is Extract<ILXMTechnique, { type: "strum" | "arpeggio" }> =>
+    (item.type === "strum" || item.type === "arpeggio") && item.beatId === beatId && item.id !== excludeTechniqueId);
+  const source = traversalAt(from.beat.id);
+  const destination = traversalAt(to.beat.id);
+  if (!source || !destination)
+    return fail("TECHNIQUE_TARGET_INVALID", "延音线两端必须都有扫弦或琶音", !source ? "fromBeatId" : "toBeatId");
+  if (!intervalsOverlap(source.minString, source.maxString, destination.minString, destination.maxString))
+    return fail("TECHNIQUE_REQUIRES_SAME_STRING", "两端的扫弦或琶音必须有重叠弦线", "toBeatId");
+  return { ok: true };
+};
+
 /** 校验一个候选技巧；excludeTechniqueId 用于 update 时排除自身。 */
 export const validateTechnique = (
   track: ILXMTrack,
@@ -328,8 +353,10 @@ export const validateTechnique = (
         "区间技巧结束 Beat 不能早于起始 Beat",
         "toBeatId",
       );
-    const range = index.beats.slice(from.order, to.order + 1);
-    if (range.some((item) => item.beat.kind === "rest"))
+    if (technique.type === "traversalTie") {
+      const validation = validateTraversalTie(track, from, to, excludeTechniqueId);
+      if (!validation.ok) return validation;
+    } else if (index.beats.slice(from.order, to.order + 1).some((item) => item.beat.kind === "rest"))
       return fail(
         "TECHNIQUE_TARGET_INVALID",
         "P.M. 与 Let Ring 区间不能经过休止 Beat",
@@ -397,9 +424,8 @@ export const validateTechnique = (
       );
 
     if (
-      isBeatRange(technique) &&
-      isBeatRange(existing) &&
-      technique.type !== existing.type
+      ((technique.type === "palmMute" && existing.type === "letRing") ||
+        (technique.type === "letRing" && existing.type === "palmMute"))
     ) {
       const leftStart = index.beatsById.get(technique.fromBeatId)?.order;
       const leftEnd = index.beatsById.get(technique.toBeatId)?.order;
@@ -430,11 +456,26 @@ export const validateTechnique = (
 export const pruneInvalidTechniques = (track: ILXMTrack): ILXMTrack => {
   const techniques: ILXMTechnique[] = [];
   for (const technique of track.techniques) {
+    if (technique.type === "traversalTie") continue;
     const candidateTrack = { ...track, techniques };
     if (validateTechnique(candidateTrack, technique).ok)
       techniques.push(technique);
   }
-  return techniques.length === track.techniques.length
-    ? track
-    : { ...track, techniques };
+  // 先验证扫弦/琶音，再验证依赖它们的延音线。保留原有数组顺序。
+  for (const technique of track.techniques) {
+    if (technique.type === "traversalTie" && validateTechnique({ ...track, techniques }, technique).ok)
+      techniques.push(technique);
+  }
+  if (techniques.length === track.techniques.length) return track;
+  const kept = new Set(techniques);
+  return { ...track, techniques: track.techniques.filter((item) => kept.has(item)) };
+};
+
+/** 支撑技巧被修改后，只清理既有失效连接。新增和编辑的连接仍由正式校验拒绝。 */
+export const pruneInvalidTraversalTies = (track: ILXMTrack, previous: ILXMTrack): ILXMTrack => {
+  const priorTies = new Set(previous.techniques.filter((item) => item.type === "traversalTie"));
+  if (!priorTies.size) return track;
+  const techniques = track.techniques.filter((item) =>
+    item.type !== "traversalTie" || !priorTies.has(item) || validateTechnique(track, item, item.id).ok);
+  return techniques.length === track.techniques.length ? track : { ...track, techniques };
 };

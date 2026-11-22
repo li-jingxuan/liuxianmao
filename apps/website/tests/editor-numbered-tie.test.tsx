@@ -12,6 +12,7 @@ import { captureEditorToolIntent, editorToolSubmissionReason, isTabOnlyToolComma
 import { createEditorDraftCoordinator } from "../components/EditorShell/session/editor-draft-coordinator";
 import { captureEditorVersion } from "../components/EditorShell/session/editor-session-version";
 import { EditorToolbar } from "../components/EditorShell/workspace/EditorToolbar";
+import { useScorePlayback } from "../components/EditorShell/playback/controller";
 import { EditorSessionRuntime } from "../components/EditorShell/session/EditorSessionRuntime";
 import { EditorStoreContext } from "../stores/editor-context";
 import { createEditorSession } from "../stores/editor-store";
@@ -150,7 +151,7 @@ const renderToolbar = (options: { single?: boolean; blocked?: boolean; numberedB
   const session = createEditorSession(document);
   session.getState().setSelection(selection);
   const onAction = vi.fn(async () => true);
-  const props: ComponentProps<typeof EditorToolbar> = {
+  const props: Omit<ComponentProps<typeof EditorToolbar>, "playback" | "isPlaybackEntryBlocked"> = {
     activeTarget: options.active === false ? null : active,
     continuousRange: options.single ? null : range,
     blocked: options.blocked ?? false, numberedBlocked: options.numberedBlocked ?? false,
@@ -158,7 +159,7 @@ const renderToolbar = (options: { single?: boolean; blocked?: boolean; numberedB
     onNavigate: () => "accepted", sidebarCollapsed: false, onToggleSidebar: () => {}, sidebarToggleRef: null,
   };
   let button: Record<string, unknown> | null = null;
-  const Harness = () => { const tree = EditorToolbar(props); button = findButton(tree, "简谱延音线"); return tree; };
+  const Harness = () => { const tree = EditorToolbar({ ...props, playback: useScorePlayback(document, null), isPlaybackEntryBlocked: () => false }); button = findButton(tree, "简谱延音线"); return tree; };
   const markup = renderToStaticMarkup(<EditorStoreContext.Provider value={{ ...session, getInitialState: session.getState }}>
     <EditorSessionRuntime session={session}><Harness /></EditorSessionRuntime>
   </EditorStoreContext.Provider>);

@@ -14,6 +14,7 @@ const techniqueNames: Record<string, string> = {
   slideUp: "上滑音",
   slideDown: "下滑音",
   tie: "延音线",
+  traversalTie: "延音线",
   bend: "推弦",
   vibrato: "颤音",
   naturalHarmonic: "自然泛音",

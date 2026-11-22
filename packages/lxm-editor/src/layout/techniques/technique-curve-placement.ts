@@ -23,11 +23,14 @@ export const isAnchoredCurve = (
   segment.type === "hammerOn" ||
   segment.type === "pullOff";
 
+const isCurve = (segment: ILXMTechniqueSegmentLayout): boolean =>
+  isAnchoredCurve(segment) || segment.type === "traversalTie";
+
 /** 连接技巧允许在同弦共享端点，不能将正常接续当成相交后反复改变弧形。 */
 const curveEndpoints = (
   segment: ILXMTechniqueSegmentLayout,
 ): [number, number][] => {
-  if (!isAnchoredCurve(segment) || !segment.path) return [];
+  if (!isCurve(segment) || !segment.path) return [];
   const values = segment.path.d
     .match(/-?(?:\d*\.)?\d+(?:e[+-]?\d+)?/gi)!
     .map(Number);
@@ -43,7 +46,7 @@ export const techniqueInkIntersects = (
   b: ILXMTechniqueSegmentLayout,
 ): boolean => {
   if (!boundsIntersect(a.collisionBounds, b.collisionBounds)) return false;
-  if (!isAnchoredCurve(a) && !isAnchoredCurve(b)) return true;
+  if (!isCurve(a) && !isCurve(b)) return true;
   const shared = curveEndpoints(a).filter(([x, y]) =>
     curveEndpoints(b).some(
       ([bx, by]) => Math.abs(x - bx) < 1e-8 && Math.abs(y - by) < 1e-8,

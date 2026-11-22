@@ -6,6 +6,7 @@ import {
   LXMScoreCommandEnum,
 } from "@liuxianmao/lxm-editor";
 import { EditorToolbar } from "../components/EditorShell/workspace/EditorToolbar";
+import { useScorePlayback } from "../components/EditorShell/playback/controller";
 import { EditorSessionRuntime } from "../components/EditorShell/session/EditorSessionRuntime";
 import { EditorStoreContext } from "../stores/editor-context";
 import { createEditorSession } from "../stores/editor-store";
@@ -94,7 +95,7 @@ const renderToolbar = ({
     measureId: measure.id,
     eventId: measure.numberedVoice.events[0]!.id,
   };
-  const props: ComponentProps<typeof EditorToolbar> = {
+  const props: Omit<ComponentProps<typeof EditorToolbar>, "playback" | "isPlaybackEntryBlocked"> = {
     sidebarCollapsed: false,
     onToggleSidebar: () => {},
     sidebarToggleRef: null,
@@ -113,7 +114,7 @@ const renderToolbar = ({
   let single: Record<string, unknown> | null = null;
   let double: Record<string, unknown> | null = null;
   const Harness = () => {
-    const tree = EditorToolbar(props);
+    const tree = EditorToolbar({ ...props, playback: useScorePlayback(session.getState().document, null), isPlaybackEntryBlocked: () => false });
     single = findButton(tree, "单附点");
     double = findButton(tree, "双附点");
     return tree;

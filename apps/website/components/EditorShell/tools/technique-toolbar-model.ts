@@ -7,7 +7,11 @@ export const parseTechniqueTrillFret = (text: string) => /^\d+$/.test(text.trim(
 export const techniqueNeedsParameters = (type: ILXMTechniqueType) =>
   ["bend", "trill", "strum", "arpeggio", "pickStroke"].includes(type);
 export const techniqueNeedsConnection = (type: ILXMTechniqueType) =>
-  ["hammerOn", "pullOff", "slideUp", "slideDown", "tie"].includes(type);
+  ["hammerOn", "pullOff", "slideUp", "slideDown", "tie", "traversalTie"].includes(type);
+
+/** 两种谱面延音线共用一个入口，适用的端点由当前选区决定。 */
+export const toolbarTechniqueType = (type: ILXMTechniqueType): ILXMTechniqueType =>
+  type === "traversalTie" ? "tie" : type;
 
 /** Parameter edits retain every reference of the identified object, regardless of selection focus. */
 export const resolveToolbarTechnique = (document: ILXMDocument, selection: ILXMTabCellSelection | null,
@@ -17,7 +21,7 @@ export const resolveToolbarTechnique = (document: ILXMDocument, selection: ILXMT
   if (techniqueId && !existing) return { ok: false as const, message: "技巧对象已失效，请重新选择。" };
   let target = resolveTechniqueDraft(document,
     techniqueId ? resolveTechniqueSelection(document, techniqueId, "end") : selection, type, parameters, true);
-  if (existing && track && existing.type === type) {
+  if (existing && track && toolbarTechniqueType(existing.type) === toolbarTechniqueType(type)) {
     const { id: _id, ...draft } = existing;
     if (draft.type === "bend") draft.semitones = parameters.semitones;
     if (draft.type === "trill") draft.auxiliaryFret = parameters.trillFret;

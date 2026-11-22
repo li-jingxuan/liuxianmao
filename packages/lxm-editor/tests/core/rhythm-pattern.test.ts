@@ -5,8 +5,9 @@ import { LXMDocumentSchema } from "../../src/core/document/schema";
 import { validateDocumentSemantics } from "../../src/core/document/semantic-validation";
 import { loadDocument } from "../../src/core/document/loader";
 import { calculateRhythmTicks } from "../../src/core/rhythm/rhythm";
-import { getMeasureRhythmPatternTemplates, getRhythmPatternTemplates, inferRhythmPatternTemplate, planRhythmPattern, RHYTHM_PATTERN_TEMPLATES, type RhythmPatternTarget } from "../../src/core/rhythm/rhythm-pattern";
+import { getBeatStrumRhythmPatternTemplates, getMeasureRhythmPatternTemplates, getRhythmPatternTemplates, getStrumRhythmPatternTemplates, inferBeatStrumRhythmPatternTemplate, inferRhythmPatternTemplate, planRhythmPattern, RHYTHM_PATTERN_TEMPLATES, type RhythmPatternTarget } from "../../src/core/rhythm/rhythm-pattern";
 import type { ILXMBeat, ILXMDocument, ILXMNumberedEvent, ILXMRhythm } from "../../src/core/types";
+import { buildLayout } from "../../src/layout";
 
 const rhythm = (base: ILXMRhythm["base"] = "quarter", dots = 0): ILXMRhythm => ({ base, dots });
 const event = (id: string, tick: number, r = rhythm(), kind: ILXMNumberedEvent["kind"] = "notes", tokens = ["1"]): ILXMNumberedEvent =>
@@ -141,6 +142,371 @@ describe("REQ045 整小节模板", () => {
     expect(four.find(({ collapsed }) => collapsed)?.id).toBe("measure-44-quarter-eighth");
     expect(four.at(-1)?.id).toBe("measure-44-quarters");
     expect(getMeasureRhythmPatternTemplates({ numerator: 3, denominator: 4 }).at(-1)?.id).toBe("measure-34-quarters");
+  });
+});
+
+describe("REQ077 扫弦节奏模板", () => {
+  const patterns = ["上·上·下···", "上·下·上·下·", "下···下上··", "下···下·下上",
+    "下·下·上···", "下·上·下···", "下·上·下·上·", "下···上···"];
+  const names = ["上上下", "上下上下", "下-下上", "下-下下上", "下下上", "下上下", "下上下上", "下上"];
+  const targetId = "strum-down-hold-down-up";
+  const strumFixture = () => {
+    const { document, target, track, measure } = fixture();
+    measure.beats[0] = beat("b0", 0, rhythm(), [3, 5]);
+    return { document, target: { ...target, layer: "tab" as const }, track, measure };
+  };
+
+  it("八种模板的起音、上下扫和持续时值与原型一致，每次只写入一个 revision", () => {
+    const { document, target, measure } = strumFixture();
+    const templates = getStrumRhythmPatternTemplates(measure.timeSignature);
+    expect(templates.map(({ name }) => name)).toEqual(names);
+    expect(getStrumRhythmPatternTemplates({ numerator: 3, denominator: 4 })).toEqual([]);
+    for (const [index, template] of templates.entries()) {
+      expect(template.strokes.map(stroke => stroke === "up" ? "上" : stroke === "down" ? "下" : "·").join("")).toBe(patterns[index]);
+      const point = { ...target, startTick: Q, endTick: Q, focusTick: Q };
+      const p = plan(document, point, template.id);
+      expect(p.scopes).toEqual([{ measureId: measure.id, startTick: 0, endTick: 4 * Q, beatTicks: Q, beatCount: 4, firstBeat: 1, lastBeat: 4 }]);
+      const attacks = [...patterns[index]!].flatMap((stroke, slot) => stroke === "·" ? [] : [{ tick: slot * Q / 2, stroke: stroke === "上" ? "up" : "down" }]);
+      const beats = p.track.measures[0]!.beats;
+      expect(beats.map(({ tick }) => tick)).toEqual(attacks.map(({ tick }) => tick));
+      for (const [attackIndex, attack] of attacks.entries()) {
+        const output = beats[attackIndex]!;
+        expect(output.notes.map(({ string, fret }) => [string, fret])).toEqual([[1, 3], [2, 5]]);
+        expect(calculateRhythmTicks(output.rhythm)).toEqual({ ok: true, ticks: (attacks[attackIndex + 1]?.tick ?? 4 * Q) - attack.tick });
+        expect(p.track.techniques[attackIndex]).toMatchObject({ type: "strum", beatId: output.id, minString: 1, maxString: 2, stroke: attack.stroke, showFrets: true });
+      }
+      const command = { type: C.ApplyRhythmPattern as const, target: point, templateId: template.id, expectedConfirmationKey: p.confirmationKey };
+      expect(p.requiresConfirmation).toBe(true);
+      expect(applyScoreCommand(document, command)).toMatchObject({ ok: false, code: "RHYTHM_PATTERN_OVERWRITE_CONFIRMATION_REQUIRED" });
+      const result = applyScoreCommand(document, { ...command, allowOverwrite: true });
+      expect(result).toMatchObject({ ok: true, changed: true, document: { documentRevision: document.documentRevision + 1 } });
+      if (!result.ok) throw new Error(result.message);
+      expect(result.document.score.tracks[0]).toEqual(p.track);
+      expect(LXMDocumentSchema.parse(result.document)).toEqual(result.document);
+      expect(validateDocumentSemantics(result.document)).toEqual({ ok: true });
+      const repeated = plan(result.document, point, template.id);
+      expect(repeated).toMatchObject({ changed: false, requiresConfirmation: false, removedMarks: [] });
+      expect(applyScoreCommand(result.document, { ...command, expectedConfirmationKey: repeated.confirmationKey })).toMatchObject({ ok: true, changed: false });
+    }
+  });
+
+  it("跨小节各取首拍并保留和弦、简谱与歌词，预览列出经过音和失效技巧", () => {
+    const { document, target, track, measure } = strumFixture();
+    measure.chordSymbols = [{ id: "chord-g", beatId: "b0", display: "name", chord: { name: "G", diagram: null } }];
+    measure.lyrics = [{ id: "lyric", eventId: "e0", verse: 1, text: "词" }];
+    const second = { ...measure, id: "second", chordSymbols: [{ id: "chord-c", beatId: "c0", display: "name" as const, chord: { name: "C", diagram: null } }], lyrics: [],
+      numberedVoice: { events: [], tuplets: [] },
+      beats: [beat("c0", 0, rhythm(), [0, 1]), beat("pass", Q, rhythm(), [3]), beat("c2", 2 * Q), beat("c3", 3 * Q)] };
+    track.measures.push(second);
+    track.techniques.push({ id: "pass-vibrato", type: "vibrato", fromNoteId: "pass-n0" });
+    const original = structuredClone(document);
+    const range = { ...target, startTick: 3 * Q, endMeasureId: second.id, endTick: Q, focusMeasureId: second.id, focusTick: Q / 2 };
+    const p = plan(document, range, targetId);
+    expect(p.scopes.map(({ measureId, startTick, endTick }) => [measureId, startTick, endTick])).toEqual([[measure.id, 0, 4 * Q], [second.id, 0, 4 * Q]]);
+    expect(p.focus).toMatchObject({ measureId: second.id, tick: 0, endTick: 2 * Q, beatId: "c0" });
+    expect(p.track.measures[1]!.beats.map(({ notes }) => notes.map(({ fret }) => fret))).toEqual([[0, 1], [0, 1], [0, 1]]);
+    expect(p.track.measures[0]!.numberedVoice).toBe(measure.numberedVoice);
+    expect(p.track.measures[0]!.lyrics).toBe(measure.lyrics);
+    expect(p.track.measures[0]!.chordSymbols).toBe(measure.chordSymbols);
+    expect(p.track.measures[1]!.chordSymbols).toBe(second.chordSymbols);
+    expect(p.perBeat[5]).toMatchObject({ discardedCount: 1, before: [{ id: "pass" }], after: [] });
+    expect(p.removedMarks).toMatchObject([{ id: "pass-vibrato", type: "vibrato", crossesScope: false }]);
+    const command = { type: C.ApplyRhythmPattern as const, target: range, templateId: targetId, expectedConfirmationKey: p.confirmationKey };
+    const impact = applyScoreCommand(document, command);
+    expect(impact).toMatchObject({ ok: false, code: "RHYTHM_PATTERN_OVERWRITE_CONFIRMATION_REQUIRED", removedMarkIds: ["pass-vibrato"] });
+    expect(!impact.ok && impact.message).toContain("第 1–2 小节");
+    expect(!impact.ok && impact.message).toContain("揉弦");
+    expect(applyScoreCommand(document, { ...command, allowOverwrite: true })).toMatchObject({ ok: false, code: "RHYTHM_PATTERN_CONFIRMATION_REQUIRED" });
+    const applied = applyScoreCommand(document, { ...command, allowOverwrite: true, allowRemoveMarks: true });
+    if (!applied.ok) throw new Error(applied.message);
+    expect(applied.document).toMatchObject({ documentRevision: 2, score: { tracks: [p.track] } });
+    const updated = { ...document, documentRevision: document.documentRevision + 1 };
+    expect(applyScoreCommand(updated, { ...command, allowOverwrite: true, allowRemoveMarks: true })).toMatchObject({ ok: false, code: "STALE_RHYTHM_PATTERN_PLAN" });
+    expect(document).toEqual(original);
+  });
+
+  it("阻止简谱、拍号不适用、无首拍多弦音组和小节内换和弦", () => {
+    const { document, target, track, measure } = strumFixture();
+    expect(planRhythmPattern(document, { ...target, layer: "numbered" }, targetId)).toMatchObject({ ok: false, code: "INVALID_RHYTHM_PATTERN_TARGET" });
+    const second = { ...measure, id: "second", timeSignature: { numerator: 3, denominator: 4 } };
+    track.measures.push(second);
+    const mixed = planRhythmPattern(document, { ...target, endMeasureId: second.id, endTick: Q }, targetId);
+    expect(mixed).toMatchObject({ ok: false, code: "UNSUPPORTED_TIME_SIGNATURE", message: expect.stringContaining("第 2 小节") });
+    for (const notes of [[], [3], [3, "-"]] as const) {
+      measure.beats[0] = beat("b0", 0, rhythm(), [...notes]);
+      expect(planRhythmPattern(document, target, targetId)).toMatchObject({ ok: false, code: "STRUM_PATTERN_MISSING_VOICING" });
+    }
+    measure.beats[0] = beat("b0", 0, rhythm(), [3, 5]);
+    measure.chordSymbols.push({ id: "late-chord", beatId: "b1", display: "name", chord: { name: "C", diagram: null } });
+    expect(planRhythmPattern(document, target, targetId)).toMatchObject({ ok: false, code: "STRUM_PATTERN_CHORD_CHANGE" });
+  });
+
+  it("移除小节内会吞掉扫弦起音的连线，阻止跨区连线和 TAB 延音", () => {
+    const { document, target, track, measure } = strumFixture();
+    measure.beats[1] = beat("b1", Q, rhythm(), [3, 5]);
+    track.techniques.push({ id: "inside", type: "tie", fromNoteId: "b0-n0", toNoteId: "b1-n0" });
+    expect(plan(document, target, "strum-down-up-down-up").removedMarks).toMatchObject([{ id: "inside", type: "tie" }]);
+    const second = { ...measure, id: "second", numberedVoice: { events: [], tuplets: [] },
+      beats: [beat("c0", 0, rhythm(), [3, 5]), beat("c1", Q), beat("c2", 2 * Q), beat("c3", 3 * Q)] };
+    track.measures.push(second);
+    measure.beats[3] = beat("b3", 3 * Q, rhythm(), [3]);
+    track.techniques.push({ id: "across", type: "tie", fromNoteId: "b3-n0", toNoteId: "c0-n0" });
+    expect(planRhythmPattern(document, target, targetId)).toMatchObject({ ok: false, code: "RHYTHM_PATTERN_CROSSING_CONTENT", message: expect.stringContaining("延音线") });
+    track.techniques.pop();
+    second.beats[0] = beat("c0", 0, rhythm(), ["-"]);
+    expect(planRhythmPattern(document, target, targetId)).toMatchObject({ ok: false, code: "RHYTHM_PATTERN_CROSSING_CONTENT", message: expect.stringContaining("第 2 小节") });
+  });
+});
+
+describe("逐拍扫弦模板", () => {
+  const approved = [
+    ["d", "下", "四分音符", "下···"],
+    ["du", "下上", "两个八分", "下·上·"],
+    ["uud", "上上下", "前八后十六", "上·上下"],
+    ["udud", "上下上下", "四个十六分", "上下上下"],
+    ["ddu", "下下上", "前八后十六", "下·下上"],
+    ["dud", "下上下", "前十六后八", "下上下·"],
+    ["ud", "上下", "两个八分", "上·下·"],
+    ["dudu", "下上下上", "四个十六分", "下上下上"],
+    ["uud-short", "上上下", "前十六后八", "上上下·"],
+    ["dud-sync", "下上下", "小切分", "下上·下"],
+    ["du-dotted", "下上", "附点八分＋十六", "下··上"],
+    ["ud-dotted", "上下", "十六＋附点八分", "上下··"],
+  ] as const;
+  const beatFixture = () => {
+    const { document, target, track, measure } = fixture();
+    measure.beats[0] = beat("b0", 0, rhythm(), [0]);
+    measure.beats[1] = beat("chord", Q, rhythm(), [0, 2, 2]);
+    measure.beats[2] = beat("b2", 2 * Q, rhythm(), [5]);
+    measure.chordSymbols = [{ id: "chord-am", beatId: "chord", display: "name", chord: { name: "Am", diagram: null } }];
+    measure.lyrics = [{ id: "lyric", eventId: "e1", verse: 1, text: "词" }];
+    track.techniques = [{ id: "outside", type: "vibrato", fromNoteId: "b2-n0" }];
+    return { document, track, measure, target: { ...target, layer: "tab" as const, startTick: Q, endTick: Q, focusTick: Q } };
+  };
+
+  it.each([3, 4])("%s/4 的十二个模板遵循原型顺序、拍内方向与时值", numerator => {
+    const { document, measure, target } = beatFixture();
+    measure.timeSignature = { numerator, denominator: 4 };
+    measure.beats = measure.beats.slice(0, numerator);
+    measure.numberedVoice.events = measure.numberedVoice.events.slice(0, numerator);
+    const templates = getBeatStrumRhythmPatternTemplates(measure.timeSignature);
+    expect(templates.map(({ id, name, form, strokes }) => [id, name, form,
+      strokes.map(stroke => stroke === "up" ? "上" : stroke === "down" ? "下" : "·").join("")]))
+      .toEqual(approved.map(([id, name, form, slots]) => [`beat-strum-${id}`, name, form, slots]));
+    for (const [index, template] of templates.entries()) {
+      const p = plan(document, target, template.id);
+      expect(p).toMatchObject({ requiresConfirmation: false, removedMarks: [], scope: { startTick: Q, endTick: 2 * Q, beatCount: 1, firstBeat: 2, lastBeat: 2 } });
+      const attacks = [...approved[index]![3]].flatMap((stroke, slot) => stroke === "·" ? [] : [{ tick: Q + slot * Q / 4, stroke: stroke === "上" ? "up" : "down" }]);
+      expect(p.after.map(({ tick }) => tick)).toEqual(attacks.map(({ tick }) => tick));
+      expect(p.after[0]).toMatchObject({ id: "chord", notes: measure.beats[1]!.notes });
+      for (const [i, { tick, stroke }] of attacks.entries()) {
+        const output = p.after[i]! as ILXMBeat;
+        expect(output.notes.map(({ fret }) => fret)).toEqual([0, 2, 2]);
+        expect(calculateRhythmTicks(output.rhythm)).toEqual({ ok: true, ticks: (attacks[i + 1]?.tick ?? 2 * Q) - tick });
+        expect(p.track.techniques[i + 1]).toMatchObject({ type: "strum", beatId: output.id, minString: 1, maxString: 3, stroke, showFrets: true });
+      }
+      const next = p.track.measures[0]!;
+      expect(next.beats[0]).toBe(measure.beats[0]);
+      expect(next.beats[attacks.length + 1]).toBe(measure.beats[2]);
+      expect(next.numberedVoice).toBe(measure.numberedVoice);
+      expect(next.lyrics).toBe(measure.lyrics);
+      expect(next.chordSymbols).toBe(measure.chordSymbols);
+      const applied = commit(document, target, template.id).document;
+      expect(applied.documentRevision).toBe(document.documentRevision + 1);
+      const reopened = LXMDocumentSchema.parse(JSON.parse(JSON.stringify(applied)));
+      const tick = attacks.at(-1)!.tick;
+      const subdivision = { ...target, startTick: tick, endTick: tick, focusTick: tick };
+      expect(inferBeatStrumRhythmPatternTemplate(reopened, subdivision)).toBe(template);
+      const repeated = plan(reopened, subdivision, template.id);
+      expect(repeated).toMatchObject({ changed: false, requiresConfirmation: false, removedMarks: [] });
+      expect(repeated.track).toBe(reopened.score.tracks[0]);
+      expect(commit(reopened, subdivision, template.id).document).toBe(reopened);
+    }
+  });
+
+  it("从已有细分音处直接多次换型，保留相邻拍和已有首音，可无变更重试", () => {
+    const { document, track, measure, target } = beatFixture();
+    const original = structuredClone(document);
+    const dense = commit(document, target, "beat-strum-dudu");
+    const subdivision = Q * 1.75;
+    const point = { ...target, startTick: subdivision, endTick: subdivision, focusTick: subdivision };
+    const p = plan(dense.document, point, "beat-strum-ud-dotted");
+    expect(p).toMatchObject({ requiresConfirmation: false, removedMarks: [], focus: { tick: 1.25 * Q, endTick: 2 * Q } });
+    const sparse = commit(dense.document, point, "beat-strum-ud-dotted");
+    expect(sparse.nextFocus?.beatId).toBe(p.focus.beatId);
+    expect(plan(sparse.document, point, "beat-strum-ud-dotted")).toMatchObject({ changed: false, removedMarks: [] });
+    const collapsed = commit(sparse.document, point, "beat-strum-d");
+    const nextTrack = collapsed.document.score.tracks[0]!;
+    const next = nextTrack.measures[0]!;
+    expect(next.beats).toEqual(measure.beats);
+    expect(nextTrack.techniques).toMatchObject([track.techniques[0], { type: "strum", beatId: "chord", stroke: "down" }]);
+    expect(collapsed.document.documentRevision).toBe(document.documentRevision + 3);
+    expect(document).toEqual(original);
+  });
+
+  it("识别实际扫弦，排除普通节奏、残缺扫弦与跨拍选区，保留重试前新增的连接", () => {
+    const { document, target } = beatFixture();
+    expect(inferBeatStrumRhythmPatternTemplate(document, target)).toBeNull();
+    const applied = commit(document, target, "beat-strum-du").document;
+    const track = applied.score.tracks[0]!;
+    const strum = track.techniques.pop()!;
+    expect(inferBeatStrumRhythmPatternTemplate(applied, target)).toBeNull();
+    track.techniques.push(strum, { id: "connected", type: "tie", fromNoteId: "b0-n0", toNoteId: "chord-n0" });
+    expect(validateDocumentSemantics(applied)).toEqual({ ok: true });
+    expect(inferBeatStrumRhythmPatternTemplate(applied, { ...target, endTick: 3 * Q })).toBeNull();
+    expect(inferBeatStrumRhythmPatternTemplate(applied, { ...target, layer: "numbered" })).toBeNull();
+    expect(inferBeatStrumRhythmPatternTemplate(applied, target)?.id).toBe("beat-strum-du");
+    expect(commit(applied, target, "beat-strum-du").document).toBe(applied);
+  });
+
+  it("分别给相邻拍套用扫弦，前一拍的音符和扫弦方向保持原样", () => {
+    const { document, measure, target } = beatFixture();
+    measure.beats[2] = beat("b2", 2 * Q, rhythm(), [2, 4]);
+    const left = commit(document, target, "beat-strum-uud").document;
+    const leftTrack = left.score.tracks[0]!;
+    const rightTarget = { ...target, startTick: 2 * Q, endTick: 2 * Q, focusTick: 2 * Q };
+    const both = commit(left, rightTarget, "beat-strum-du-dotted").document;
+    const bothTrack = both.score.tracks[0]!;
+    expect(bothTrack.measures[0]!.beats.slice(0, 4)).toEqual(leftTrack.measures[0]!.beats.slice(0, 4));
+    expect(bothTrack.techniques.slice(0, leftTrack.techniques.length)).toEqual(leftTrack.techniques);
+    expect(bothTrack.techniques.slice(leftTrack.techniques.length)).toMatchObject([{ type: "strum", stroke: "down" }, { type: "strum", stroke: "up" }]);
+  });
+
+  it.each(["empty", "rest", "single", "continuation"])("直接覆盖 %s 并识别保存重开后的无品位扫弦", source => {
+    const { document, track, measure, target } = beatFixture();
+    measure.beats[1] = source === "rest"
+      ? { ...beat("chord", Q), kind: "rest" }
+      : beat("chord", Q, rhythm(), source === "single" ? [7] : source === "continuation" ? ["-"] : []);
+    const original = structuredClone(document);
+    const dense = commit(document, target, "beat-strum-dudu").document;
+    const result = loadDocument(JSON.stringify(dense));
+    expect(result).toMatchObject({ ok: true, document: dense });
+    if (!result.ok) throw new Error("Could not reopen the saved strum template");
+    const reopened = result.document;
+    const p = plan(reopened, target, "beat-strum-dudu");
+    expect(p).toMatchObject({ changed: false, requiresConfirmation: false });
+    expect(p.after).toHaveLength(4);
+    expect(p.after.map(item => [item.tick, item.kind, (item as ILXMBeat).notes])).toEqual(
+      [0, 1, 2, 3].map(index => [Q + index * Q / 4, "rest", []]),
+    );
+    const strokes = p.track.techniques.filter(mark => mark.type === "strum");
+    expect(strokes.map(({ beatId, stroke, minString, maxString, showFrets }) => [beatId, stroke, minString, maxString, showFrets])).toEqual(
+      p.after.map(({ id }, index) => [id, index % 2 ? "up" : "down", 1, 6, undefined]),
+    );
+    const subdivision = { ...target, startTick: Q * 1.75, endTick: Q * 1.75, focusTick: Q * 1.75 };
+    expect(inferBeatStrumRhythmPatternTemplate(reopened, subdivision)?.id).toBe("beat-strum-dudu");
+    expect(commit(reopened, subdivision, "beat-strum-dudu").document).toBe(reopened);
+    const sparse = commit(reopened, subdivision, "beat-strum-d").document;
+    const next = sparse.score.tracks[0]!.measures[0]!;
+    expect(inferBeatStrumRhythmPatternTemplate(sparse, target)?.id).toBe("beat-strum-d");
+    expect(sparse.documentRevision).toBe(document.documentRevision + 2);
+    expect(next.beats).toMatchObject([measure.beats[0], { id: "chord", tick: Q, kind: "rest", notes: [] }, ...measure.beats.slice(2)]);
+    expect(next.numberedVoice).toEqual(measure.numberedVoice);
+    expect(next.lyrics).toEqual(measure.lyrics);
+    expect(next.chordSymbols).toEqual(measure.chordSymbols);
+    expect(dense.score.tracks[0]!.techniques[0]).toBe(track.techniques[0]);
+    expect(document).toEqual(original);
+
+    const system = buildLayout(reopened, { purpose: "presentation" }).systems[0]!;
+    expect(system.techniques.filter(mark => mark.type === "strum" && mark.path)).toHaveLength(4);
+    expect(system.measures[0]!.restMarks.some(mark => p.after.some(beat => beat.id === mark.beatId))).toBe(false);
+  });
+
+  it("直接替换经过音与不再匹配的和弦，仍拒绝跨拍、简谱与不适用拍号", () => {
+    const { document, track, measure, target } = beatFixture();
+    const templateId = "beat-strum-d";
+    const passing = beat("passing", Q * 1.5, rhythm("eighth"), [5]);
+    measure.beats[1]!.rhythm = rhythm("eighth");
+    measure.beats.splice(2, 0, passing);
+    measure.chordSymbols.push({ ...measure.chordSymbols[0]!, id: "next-chord", beatId: passing.id });
+    const p = plan(document, target, templateId);
+    expect(p).toMatchObject({ requiresConfirmation: false, discardedTextCount: 1, perBeat: [{ discardedCount: 1 }] });
+    const applied = commit(document, target, templateId).document;
+    expect(applied.score.tracks[0]!.measures[0]!.chordSymbols).toEqual([measure.chordSymbols[0]]);
+
+    expect(planRhythmPattern(document, { ...target, endTick: Q * 3 }, templateId)).toMatchObject({ ok: false, code: "INVALID_RHYTHM_PATTERN_TARGET" });
+    expect(planRhythmPattern(document, { ...target, layer: "numbered" }, templateId)).toMatchObject({ ok: false, code: "INVALID_RHYTHM_PATTERN_TARGET" });
+    track.measures.push({ ...measure, id: "second" });
+    expect(planRhythmPattern(document, { ...target, endMeasureId: "second", endTick: Q }, templateId))
+      .toMatchObject({ ok: false, code: "INVALID_RHYTHM_PATTERN_TARGET" });
+    measure.timeSignature = { numerator: 6, denominator: 8 };
+    expect(getBeatStrumRhythmPatternTemplates(measure.timeSignature)).toEqual([]);
+    expect(planRhythmPattern(document, target, templateId)).toMatchObject({ ok: false, code: "UNSUPPORTED_TIME_SIGNATURE" });
+  });
+
+  it("拆分跨拍音符并保留拍外时值、音高和起点和弦", () => {
+    const { document, track, measure, target } = beatFixture();
+    const long = beat("chord", 0, rhythm("half", 1), [4]);
+    const end = measure.beats[3]!;
+    measure.beats = [long, end];
+    track.techniques = [{ id: "outside", type: "vibrato", fromNoteId: long.notes[0]!.id }];
+    const applied = commit(document, target, "beat-strum-du").document;
+    const nextTrack = applied.score.tracks[0]!;
+    const next = nextTrack.measures[0]!;
+    expect(next.beats.map(({ tick, kind, rhythm, notes }) => [tick, kind, rhythm, notes.map(note => note.fret)])).toEqual([
+      [0, "notes", rhythm(), [4]], [Q, "rest", rhythm("eighth"), []], [Q * 1.5, "rest", rhythm("eighth"), []],
+      [2 * Q, "notes", rhythm(), [4]], [3 * Q, "notes", rhythm(), []],
+    ]);
+    expect(next.beats[0]!.notes).toBe(long.notes);
+    expect(next.beats.at(-1)).toBe(end);
+    expect(next.chordSymbols).toBe(measure.chordSymbols);
+    expect(nextTrack.techniques[0]).toBe(track.techniques[0]);
+    expect(next.numberedVoice).toBe(measure.numberedVoice);
+  });
+
+  it("拆分无法写成单一时值的拍外余音，并在换型时保留其延音线", () => {
+    const { document, measure, target } = beatFixture();
+    measure.beats = [
+      measure.beats[0]!, beat("chord", Q, rhythm("thirtySecond")),
+      beat("long", Q * 1.125, rhythm("quarter", 1), [4]),
+      beat("outside-tail", Q * 2.625, rhythm("sixteenth", 1)), measure.beats[3]!,
+    ];
+    document.score.tracks[0]!.techniques = [];
+    const dense = commit(document, target, "beat-strum-dudu").document;
+    const sparse = commit(dense, target, "beat-strum-d").document;
+    const track = sparse.score.tracks[0]!;
+    const tail = track.measures[0]!.beats.slice(2, 4);
+    expect(tail.map(({ tick, rhythm }) => [tick, rhythm])).toEqual([
+      [2 * Q, rhythm("eighth")], [2.5 * Q, rhythm("thirtySecond")],
+    ]);
+    expect(track.techniques).toContainEqual(expect.objectContaining({
+      type: "tie", fromNoteId: tail[0]!.notes[0]!.id, toNoteId: tail[1]!.notes[0]!.id,
+    }));
+    expect(tail[0]).toBe(dense.score.tracks[0]!.measures[0]!.beats[5]);
+  });
+
+  it("直接覆盖完整拍内连音组，保留跨拍连音组", () => {
+    const { document, track, measure, target } = beatFixture();
+    const group = { id: "tuplet", ratio: { actual: 3, normal: 2 } as const, beatIds: ["chord", "triplet-1", "triplet-2"] };
+    const triplets = (base: "eighth" | "quarter", ticks: number) => group.beatIds.map((id, index) => beat(id, Q + index * ticks, rhythm(base), [3]));
+    measure.tuplets = [group];
+    track.techniques = [];
+    const [first, , third, last] = measure.beats;
+    measure.beats = [first!, ...triplets("eighth", Q / 3), third!, last!];
+    const applied = commit(document, target, "beat-strum-du").document;
+    expect(applied.score.tracks[0]!.measures[0]!.tuplets).toEqual([]);
+    measure.beats = [first!, ...triplets("quarter", Q * 2 / 3), last!];
+    expect(validateDocumentSemantics(document)).toEqual({ ok: true });
+    expect(planRhythmPattern(document, target, "beat-strum-du"))
+      .toMatchObject({ ok: false, code: "RHYTHM_PATTERN_PARTIAL_TUPLET" });
+  });
+
+  it("直接替换拍内琶音，保护跨范围连线和后续 TAB 延音", () => {
+    const { document, track, measure, target } = beatFixture();
+    const templateId = "beat-strum-du";
+    const arpeggio = { id: "arp", type: "arpeggio", beatId: "chord", direction: "ascending", minString: 1, maxString: 3, showFrets: true } as const;
+    track.techniques.push(arpeggio);
+    const p = plan(document, target, templateId);
+    expect(p).toMatchObject({ requiresConfirmation: false, removedMarks: [{ id: "arp", type: "arpeggio" }] });
+    expect(commit(document, target, templateId).document.score.tracks[0]!.techniques.some(mark => mark.id === "arp")).toBe(false);
+    track.techniques.push({ id: "across", type: "tie", fromNoteId: "b0-n0", toNoteId: "chord-n0" });
+    expect(planRhythmPattern(document, target, templateId)).toMatchObject({ ok: false, code: "RHYTHM_PATTERN_CROSSING_CONTENT" });
+    track.techniques = [];
+    measure.beats[2] = beat("b2", 2 * Q, rhythm(), ["-"]);
+    const applied = commit(document, target, templateId).document;
+    expect(applied.score.tracks[0]!.measures[0]!.beats[3]).toBe(measure.beats[2]);
+    measure.beats[1] = beat("chord", Q, rhythm(), [0]);
+    expect(planRhythmPattern(document, target, templateId)).toMatchObject({ ok: false, code: "RHYTHM_PATTERN_CROSSING_CONTENT" });
   });
 });
 

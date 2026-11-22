@@ -39,6 +39,13 @@
   outline: none;
 }
 
+.playbackCursor {
+  rect { fill: #2454bc; fill-opacity: 0.13; }
+  line { stroke: #2454bc; stroke-width: 2; }
+  &[data-paused] { opacity: 0.58; }
+  @media print { display: none; }
+}
+
 .scoreTail,
 .scoreTailGraphic {
   overflow: visible;
@@ -184,6 +191,15 @@
 .selectedTechnique {
   color: #1d2025;
   cursor: pointer;
+}
+
+.scoreSvg[data-score-read-only] {
+  cursor: default;
+
+  .techniqueSegment,
+  .selectedTechnique {
+    cursor: inherit;
+  }
 }
 
 .selectedTechnique {

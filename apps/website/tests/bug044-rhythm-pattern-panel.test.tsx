@@ -5,9 +5,11 @@ import { EXAMPLE_MVP_7_2_DOCUMENT, planRhythmPattern, TICKS_PER_QUARTER as Q, ty
 import { RhythmPatternPanel, RhythmPatternProvider, useSharedRhythmPatternBusy, type RhythmPatternConfig } from "../components/EditorShell/tools/RhythmPatternPanel";
 import { resolveEditorRhythmPatternTarget } from "../components/EditorShell/tools/editor-rhythm-pattern-target";
 import type { MusicTextTarget } from "../components/EditorShell/music-text/music-text-draft";
+import { createEditorCommandAdapter } from "../components/EditorShell/session/editor-command-adapter";
+import { createEditorModalController } from "../components/EditorShell/session/editor-modal-controller";
 import { createEditorSession } from "../stores/editor-store";
 
-// SSR keeps the real hooks and markup. Retain only the preview state between renders
+// SSR keeps the real hooks and markup. Retain only lazy state between renders
 // so card callbacks and submission guards can be exercised without a DOM shim.
 const harness = vi.hoisted(() => ({ preview: null as unknown }));
 vi.mock("react", async load => {
@@ -291,32 +293,202 @@ describe("BUG044 节奏型面板初始选择", () => {
 });
 
 describe("REQ044 侧栏与工具栏共享节奏型", () => {
-  const mountShared = (fixture = setup(), executeOverride?: RhythmPatternConfig["execute"]) => {
+  const mountShared = (fixture = setup(), executeOverride?: RhythmPatternConfig["execute"], tab = false) => {
     const session = createEditorSession(fixture.document);
-    const getTargetResult = () => resolveEditorRhythmPatternTarget(session.getState().document!, null, null, fixture.input.active);
+    if (tab) session.getState().setSelection({ anchor: fixture.cell, focus: fixture.cell });
+    const modals = createEditorModalController(session.getState, () => () => {});
+    const getTargetResult = () => resolveEditorRhythmPatternTarget(session.getState().document!, session.getState().selection, null, fixture.input.active);
     const getTargetIdentity = () => JSON.stringify(getTargetResult());
-    const execute = vi.fn<RhythmPatternConfig["execute"]>(executeOverride ?? (async command => {
+    const execute = vi.fn<RhythmPatternConfig["execute"]>(executeOverride ?? (tab ? createEditorCommandAdapter(session, modals) : async command => {
       const result = session.getState().execute(command);
       if (!result) throw new Error("No result");
       return result.ok ? { status: result.changed ? "applied" : "noop", result } : { status: "blocked", message: result.message };
     }));
     const onSuccess = vi.fn(), toolbarSuccess = vi.fn(), onBusyChange = vi.fn();
+    const onOpenSidebar = vi.fn(() => true), onHandoff = vi.fn(), onClose = vi.fn();
     const render = () => {
       const trees: Record<string, ReactNode> = {};
       const config: RhythmPatternConfig = { session, document: session.getState().document!, targetResult: getTargetResult(),
         targetIdentity: getTargetIdentity(), getTargetResult, getTargetIdentity, execute, beforeAction: () => {},
-        blocked: false, getBlocked: () => false, onSuccess, onBusyChange };
+        blocked: modals.isOpen(), getBlocked: modals.isOpen, onSuccess, onBusyChange, onOpenSidebar,
+        onUndo: () => { session.getState().undo(); return true; } };
       const Surface = ({ sidebar }: { sidebar: boolean }) => {
-        trees[sidebar ? "sidebar" : "toolbar"] = RhythmPatternPanel({ ...config, presentation: sidebar ? "sidebar" : "toolbar", onClose: () => {},
+        trees[sidebar ? "sidebar" : "toolbar"] = RhythmPatternPanel({ ...config, presentation: sidebar ? "sidebar" : "toolbar", onClose, onHandoff,
           onSuccess: sidebar ? onSuccess : toolbarSuccess });
         return trees[sidebar ? "sidebar" : "toolbar"];
       };
       const markup = renderToStaticMarkup(<RhythmPatternProvider {...config}><Surface sidebar /><Surface sidebar={false} /></RhythmPatternProvider>);
-      return { markup, trees, apply: (surface: string) => find(trees[surface], props => props.children === "应用节奏型")!,
+      return { markup, trees, apply: (surface: string) => find(trees[surface], props => "data-rhythm-apply" in props)!,
+        selectTab: (surface: string, id: string) => (find(trees[surface], props => props["data-rhythm-tab"] === id)!.onClick as () => void)(),
         choose: (surface: string, id: string) => (find(trees[surface], props => (props.template as { id?: string } | undefined)?.id === id)!.onSelect as () => void)() };
     };
-    return { render, session, execute, onSuccess, toolbarSuccess, onBusyChange, fixture };
+    return { render, session, execute, onSuccess, toolbarSuccess, onBusyChange, fixture, modals, onOpenSidebar, onHandoff, onClose };
   };
+
+  const tabFixture = () => {
+    const fixture = setup();
+    fixture.input.active = null;
+    fixture.measure.beats[0]!.notes.push({ id: "second-string", string: 2, fret: 5 });
+    return fixture;
+  };
+
+  it("TAB 两处入口分开显示普通与扫弦模板，手选同步，应用一次后可以撤销", async () => {
+    const panel = mountShared(tabFixture(), undefined, true);
+    const initial = panel.render();
+    expect(initial.markup).toContain('aria-label="节奏模板类别"');
+    expect(initial.markup).toContain('aria-label="整小节模板"');
+    expect(initial.markup).not.toContain("data-strum-template=");
+    initial.selectTab("toolbar", "strum");
+    const strum = panel.render();
+    expect(strum.markup.match(/data-rhythm-tab="strum"[^>]*aria-selected="true"/g)).toHaveLength(2);
+    expect(strum.markup.match(/data-strum-template=/g)).toHaveLength(24);
+    expect(strum.markup.split('<button').filter(button => /data-strum-template=/.test(button) && !/ hidden=/.test(button))).toHaveLength(12);
+    expect(strum.markup).not.toContain("data-rhythm-template=");
+    expect(strum.markup).toContain('data-strum-stroke="up">↓');
+    expect(strum.markup).toContain('data-strum-stroke="down">↑');
+    expect(strum.markup).toContain('aria-label="上上下，前八后十六，上扫、延音、上扫、下扫"');
+    expect(strum.apply("toolbar")).toMatchObject({ children: "应用", "aria-label": "应用", autoInsertSpace: false, disabled: true });
+    strum.choose("toolbar", "beat-strum-uud");
+    const staged = panel.render();
+    (find(staged.trees.toolbar, props => props.children === "在侧栏展开")!.onClick as () => void)();
+    expect(panel.onOpenSidebar).toHaveBeenCalledOnce();
+    expect(panel.onHandoff).toHaveBeenCalledOnce();
+    expect(staged.markup.match(/data-strum-template="beat-strum-uud"[^>]*aria-pressed="true"/g)).toHaveLength(2);
+    expect(staged.markup).not.toContain("已应用上上下");
+    expect(staged.apply("sidebar").disabled).toBe(false);
+    expect(panel.execute).not.toHaveBeenCalled();
+    expect(panel.session.getState().historyDepth.past).toBe(0);
+
+    staged.selectTab("sidebar", "rhythm");
+    const rhythm = panel.render();
+    expect(rhythm.markup).toContain('aria-label="整小节模板"');
+    expect(rhythm.markup).not.toContain("data-strum-template=");
+    rhythm.selectTab("sidebar", "strum");
+    const selected = panel.render();
+    expect(selected.markup.match(/data-strum-template="beat-strum-uud"[^>]*aria-pressed="true"/g)).toHaveLength(2);
+    (selected.apply("sidebar").onClick as () => void)();
+    (selected.apply("toolbar").onClick as () => void)();
+    await Promise.resolve();
+    expect(panel.execute).toHaveBeenCalledOnce();
+    expect(panel.toolbarSuccess).not.toHaveBeenCalled();
+    expect(panel.session.getState().historyDepth.past).toBe(1);
+    const applied = panel.render();
+    expect(applied.markup.match(/data-strum-template="beat-strum-uud"[^>]*aria-pressed="true"/g)).toHaveLength(2);
+    expect(applied.markup).toContain("已应用上上下");
+    expect(applied.apply("toolbar").disabled).toBe(true);
+    applied.choose("toolbar", "beat-strum-uud");
+    expect(panel.execute).toHaveBeenCalledOnce();
+    panel.render().choose("sidebar", "beat-strum-udud");
+    expect(panel.execute).toHaveBeenCalledOnce();
+    (panel.render().apply("toolbar").onClick as () => void)();
+    await Promise.resolve();
+    expect(panel.execute).toHaveBeenCalledTimes(2);
+    const reapplied = panel.render();
+    expect(reapplied.markup.match(/data-strum-template="beat-strum-udud"[^>]*aria-pressed="true"/g)).toHaveLength(2);
+    (find(reapplied.trees.toolbar, props => props.children === "撤销应用")!.onClick as () => void)();
+    expect(panel.render().markup.match(/data-strum-template="beat-strum-uud"[^>]*aria-pressed="true"/g)).toHaveLength(2);
+    panel.session.getState().undo();
+    expect(panel.session.getState().document).toEqual(panel.fixture.document);
+    expect(panel.render().markup).not.toMatch(/data-strum-template="[^"]+"[^>]*aria-pressed="true"/);
+  });
+
+  it.each(["休止", "琶音", "和弦"])("扫弦覆盖%s时预览影响，一次应用且保持浮层打开", async (impact) => {
+    const fixture = tabFixture();
+    if (impact === "琶音") {
+      fixture.track.techniques.push({ id: "arp", type: "arpeggio", beatId: fixture.cell.beatId, direction: "ascending", minString: 1, maxString: 2 });
+    } else {
+      fixture.measure.beats[0]!.rhythm = { base: "sixteenth", dots: 0 };
+      fixture.measure.beats.splice(1, 0, { id: "rest", tick: Q / 4, kind: "rest", rhythm: { base: "eighth", dots: 1 }, notes: [] });
+      if (impact === "和弦") {
+        fixture.measure.beats[1] = { ...fixture.measure.beats[1]!, kind: "notes", notes: [{ id: "passing", string: 1, fret: 5 }] };
+        fixture.measure.chordSymbols = [{ id: "chord", beatId: "rest", display: "name", chord: { name: "C", diagram: null } }];
+      }
+    }
+    const panel = mountShared(fixture, undefined, true);
+    panel.render().selectTab("toolbar", "strum");
+    panel.render().choose("toolbar", "beat-strum-uud");
+    const staged = panel.render();
+    expect(staged.markup).toContain(impact);
+    expect(panel.execute).not.toHaveBeenCalled();
+    expect(panel.session.getState().historyDepth.past).toBe(0);
+    (staged.apply("toolbar").onClick as () => void)();
+    await Promise.resolve();
+    expect(panel.modals.getSnapshot()).toBeNull();
+    expect(panel.execute).toHaveBeenCalledOnce();
+    expect(panel.session.getState().historyDepth.past).toBe(1);
+    expect(panel.toolbarSuccess).not.toHaveBeenCalled();
+    expect(panel.render().markup.match(/data-strum-template="beat-strum-uud"[^>]*aria-pressed="true"/g)).toHaveLength(2);
+  });
+
+  it.each(["rest", "single note"])("stages and applies full-string strums over a %s", async kind => {
+    const fixture = tabFixture();
+    const beat = fixture.measure.beats[0]!;
+    if (kind === "rest") beat.kind = "rest";
+    beat.notes = kind === "rest" ? [] : beat.notes.slice(0, 1);
+    const panel = mountShared(fixture, undefined, true);
+    panel.render().selectTab("sidebar", "strum");
+    panel.render().choose("sidebar", "beat-strum-uud");
+    const staged = panel.render();
+    expect(staged.apply("sidebar").disabled).toBe(false);
+    expect(panel.execute).not.toHaveBeenCalled();
+    (staged.apply("sidebar").onClick as () => void)();
+    await Promise.resolve();
+    const edited = panel.session.getState().document!.score.tracks[0]!;
+    expect(edited.measures[0]!.beats.filter(beat => beat.tick < Q).map(({ notes }) => notes)).toEqual([[], [], []]);
+    expect(edited.techniques.filter(mark => mark.type === "strum").map(({ minString, maxString, showFrets }) => [minString, maxString, showFrets]))
+      .toEqual([[1, 6, undefined], [1, 6, undefined], [1, 6, undefined]]);
+    expect(panel.render().markup).toContain("已应用上上下");
+  });
+
+  it("方向键切换模板页，扫弦卡片上的 Enter 只保留原生选择，换拍后清除暂存", () => {
+    const panel = mountShared(tabFixture(), undefined, true);
+    const initial = panel.render();
+    const rhythmTab = find(initial.trees.toolbar, props => props["data-rhythm-tab"] === "rhythm")!;
+    const preventTabDefault = vi.fn();
+    (rhythmTab.onKeyDown as (event: Record<string, unknown>) => void)({ key: "ArrowRight", nativeEvent: { isComposing: false }, preventDefault: preventTabDefault });
+    expect(preventTabDefault).toHaveBeenCalledOnce();
+    panel.render().choose("toolbar", "beat-strum-uud");
+    const staged = panel.render();
+    const handleKey = find(staged.trees.toolbar, props => "data-rhythm-pattern-panel" in props)!.onKeyDown as
+      (event: Record<string, unknown>) => void;
+    class SelectedCard {
+      closest(selector: string) { return selector.includes("[data-strum-template]") ? this : null; }
+      getAttribute() { return "true"; }
+    }
+    const preventCardDefault = vi.fn();
+    vi.stubGlobal("Element", SelectedCard);
+    try {
+      handleKey({ key: "Enter", target: new SelectedCard(), currentTarget: { contains: () => true },
+        nativeEvent: { isComposing: false }, preventDefault: preventCardDefault });
+      expect(preventCardDefault).not.toHaveBeenCalled();
+      expect(panel.execute).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    const next = { ...panel.fixture.cell, beatId: "b1" };
+    panel.session.getState().setSelection({ anchor: next, focus: next });
+    (staged.apply("toolbar").onClick as () => void)();
+    expect(panel.execute).not.toHaveBeenCalled();
+    const refreshed = panel.render();
+    expect(refreshed.markup).toContain("第 1 小节 · 第 2 拍");
+    expect(refreshed.markup).not.toContain('aria-pressed="true"');
+    expect(refreshed.apply("toolbar").disabled).toBe(true);
+  });
+
+  it("取消清除两个入口的扫弦暂存并关闭工具栏", () => {
+    const panel = mountShared(tabFixture(), undefined, true);
+    panel.render().selectTab("toolbar", "strum");
+    panel.render().choose("toolbar", "beat-strum-uud");
+    const staged = panel.render();
+    (find(staged.trees.toolbar, props => props.children === "取消")!.onClick as () => void)();
+    expect(panel.onClose).toHaveBeenCalledOnce();
+    (staged.apply("sidebar").onClick as () => void)();
+    expect(panel.execute).not.toHaveBeenCalled();
+    const cancelled = panel.render();
+    expect(cancelled.markup).not.toContain('aria-pressed="true"');
+    expect(cancelled.apply("sidebar").disabled).toBe(true);
+    expect(cancelled.apply("toolbar").disabled).toBe(true);
+  });
 
   it("任一入口手选同步同一模板；双入口旧回调只能提交一次并同时通知根与发起工具栏", async () => {
     const panel = mountShared();
