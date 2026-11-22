@@ -12,6 +12,21 @@ import {
   type ILXMTabCellSelection,
 } from "@liuxianmao/lxm-editor";
 
+/** 离散选区保存扫弦记号 ID，同一四分拍内的八分和十六分起音互不包含。
+ * 文档替换、删除或撤销后按当前轨道重验。主技巧消失时结束编辑，避免把手柄挂在其它拍点上。 */
+export function reconcileTechniqueFocus(document: ILXMDocument | null, active: string | null, ids: readonly string[]) {
+  const track = active ? document?.score.tracks.find(item => item.techniques.some(t => t.id === active)) : null;
+  const technique = track?.techniques.find(t => t.id === active);
+  if (!track || !technique) return { selectedTechniqueId: null, selectedStrumIds: [] };
+  const wanted = new Set(ids);
+  wanted.add(technique.id);
+  return {
+    selectedTechniqueId: technique.id,
+    selectedStrumIds: technique.type === 'strum'
+      ? track.techniques.filter(t => t.type === 'strum' && wanted.has(t.id)).map(t => t.id) : [],
+  };
+}
+
 /** 简谱焦点只验证本谱层身份，不向最近 TAB Beat 偷偷回退。 */
 export const reconcileNumberedSelection = (
   document: ILXMDocument,

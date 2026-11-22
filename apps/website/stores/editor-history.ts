@@ -96,6 +96,7 @@ const labels: Readonly<Record<string, string>> = {
   "measure.setSectionLabel": "修改段落标记",
   "technique.add": "添加技巧",
   "technique.update": "修改技巧",
+  "strum.setEndpoint": "调整扫弦范围",
   "technique.remove": "删除技巧",
   "tuplet.set": "设置连音组",
   "tuplet.remove": "删除连音组",
@@ -161,11 +162,14 @@ const describeCommand = (document: ILXMDocument, command: ILXMScoreCommand) => {
   const technique: References | undefined = c.technique ?? track.techniques.find((item) => item.id === c.techniqueId);
   const mark: References | undefined = c.mark ?? track.numberedMarks.find((item) => item.id === c.markId);
   const objectIds = strings(
+    command.type === "strum.setEndpoint" ? command.techniqueIds : undefined,
     c.techniqueId, c.markId, c.tupletId, c.lyricId, c.chordSymbolId,
     c.eventId, c.eventIds, c.itemId, technique?.fromNoteId, technique?.toNoteId,
     mark?.eventId, mark?.fromEventId, mark?.toEventId, mark?.fromItemId, mark?.toItemId,
   );
   const beatIds = strings(
+    command.type === "strum.setEndpoint" ? track.techniques.flatMap(t =>
+      t.type === "strum" && command.techniqueIds.includes(t.id) ? [t.beatId] : []) : undefined,
     c.beatId, c.startBeatId, c.endBeatId, c.range?.anchor?.beatId,
     c.range?.focus?.beatId, technique?.beatId,
   );

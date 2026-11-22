@@ -927,6 +927,9 @@ const createNaturalSegmentLayout = (
   return withTechniqueBounds({
     techniqueId: technique.id,
     type: technique.type,
+    ...(technique.type === "strum" && path ? {
+      strum: { beatId: technique.beatId, minString: technique.minString, maxString: technique.maxString },
+    } : {}),
     systemIndex: candidate.systemIndex,
     segmentIndex: candidate.segmentIndex,
     continuation: candidate.continuation,

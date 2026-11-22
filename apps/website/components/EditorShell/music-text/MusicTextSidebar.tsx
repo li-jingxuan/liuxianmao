@@ -146,6 +146,7 @@ export interface MusicTextController {
   select: (
     selection: ILXMTabCellSelection | null,
     techniqueId?: string,
+    strumIds?: readonly string[],
   ) => SelectionRequestResult;
   returnToScore: () => SelectionRequestResult;
   moveEditTarget: (direction: -1 | 1, source: EventTarget | null, fromScore: boolean) => boolean;
@@ -166,6 +167,7 @@ export const MusicTextSidebar = ({
   paragraphPlaceholders,
   onScoreFocus,
   onScoreSelection,
+  strumInspector,
   getNumberedBeatEventIds,
   onToolAction,
   executeTool,
@@ -200,7 +202,9 @@ export const MusicTextSidebar = ({
   onScoreSelection: (
     selection: ILXMTabCellSelection | null,
     techniqueId: string | null,
+    strumIds?: readonly string[],
   ) => void;
+  strumInspector?: React.ReactNode;
   getNumberedBeatEventIds: (target: MusicTextTarget) => string[];
   getFloatingAnchor: (
     target: MusicTextTarget | null,
@@ -755,7 +759,15 @@ export const MusicTextSidebar = ({
       settingsRef.current?.discard();
       // 和弦页签可以跟随 TAB 单拍显示表单，谱面仍处于 TAB 编辑态。
       current.setNumberedSelection(null);
-      const chordTarget = propertyTab === "chord"
+      const editingStrum = action.type === "selection" && !!action.techniqueId &&
+        current.document?.score.tracks.some(track => track.techniques.some(t => t.id === action.techniqueId && t.type === "strum"));
+      // 扫弦手柄和侧栏字段修改同一对象。只有草稿闸门接受了选区，才切到它的音符属性。
+      if (editingStrum) {
+        setPropertyTab("selection");
+        setSelectionDetail("note");
+        setKind("score");
+      }
+      const chordTarget = !editingStrum && propertyTab === "chord"
         ? selectedChordTarget(current.document, nextSelection) : null;
       const chordDraft = chordTarget ? readMusicTextDraft(current.document, chordTarget) : null;
       setDraft(chordDraft);
@@ -773,6 +785,7 @@ export const MusicTextSidebar = ({
       onScoreSelection(
         nextSelection,
         action.type === "selection" ? (action.techniqueId ?? null) : null,
+        ...(action.type === "selection" && action.strumIds ? [action.strumIds] as const : []),
       );
     } else if (action.type === "target") {
       setDetailTarget({ trackId: action.target.trackId, measureId: action.target.measureId });
@@ -903,7 +916,7 @@ export const MusicTextSidebar = ({
         return "accepted";
       }
     }
-    if (action.type === "selection" && propertyTab === "chord" && !activeObject && draft?.target.kind === "chord") {
+    if (action.type === "selection" && !action.techniqueId && propertyTab === "chord" && !activeObject && draft?.target.kind === "chord") {
       const next = selectedChordTarget(editorStore.getState().document, action.selection);
       if (next && next.trackId === draft.target.trackId && next.measureId === draft.target.measureId && next.beatId === draft.target.beatId) {
         onScoreSelection(action.selection, action.techniqueId ?? null);
@@ -1074,10 +1087,10 @@ export const MusicTextSidebar = ({
       });
       return true;
     },
-    select: (next, techniqueId) => {
+    select: (next, techniqueId, strumIds) => {
       if (rangeEditor.current?.isComposing()) return "blocked";
       onRangeChange(null);
-      return request({ type: "selection", selection: next, techniqueId });
+      return request({ type: "selection", selection: next, techniqueId, strumIds });
     },
     returnToScore: () => {
       if (rangeEditor.current?.isComposing()) return "blocked";
@@ -2295,6 +2308,7 @@ export const MusicTextSidebar = ({
                   data-selection-detail="note"
                   hidden={selectionDetail !== "note"}
                 >
+                  {strumInspector}
                   <NoteToolDetails
                     numberedNote={!!numberedNote}
                     document={score}
