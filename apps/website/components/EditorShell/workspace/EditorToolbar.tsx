@@ -483,6 +483,7 @@ export const EditorToolbar = ({
               onBusyChange={setRhythmProtection}
               onScopeChange={onRhythmPatternScopeChange}
               onClose={() => host.current?.close(true)}
+              onHandoff={() => host.current?.close()}
               onSuccess={(scope) => { onRhythmPatternScopeChange?.(scope); host.current?.close(true); }}
             />
           ),

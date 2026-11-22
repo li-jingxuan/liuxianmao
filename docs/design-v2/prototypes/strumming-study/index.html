@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>六线猫 · 拍内扫弦交互稿</title>
+  <link rel="stylesheet" href="study.css">
+  <link rel="stylesheet" href="panel.css">
+  <script defer src="panel.js"></script>
+  <script defer src="study.js"></script>
+</head>
+<body>
+  <div class="editor-top" aria-label="编辑器工具栏示意">
+    <button id="rhythm" aria-label="节奏型" title="节奏型" aria-controls="bubble"></button>
+    <button id="undo" aria-label="撤销应用" title="撤销应用" disabled></button>
+  </div>
+  <main class="workspace">
+    <section class="canvas" aria-label="示例曲谱">
+      <article class="sheet">
+        <h1>沿河公路</h1>
+        <p class="byline">木吉他伴奏</p>
+        <div class="score-meta"><span>1 = G　 4/4　 ♩ = 88</span><span>点选谱面中的一拍</span></div>
+        <div id="score"></div>
+      </article>
+    </section>
+    <aside class="inspector" aria-label="选区侧边栏">
+      <div class="side-nav"><b>选区</b><span>简谱与歌词</span><span>和弦</span><span>歌曲</span></div>
+      <div class="context"><b id="range"></b><span>六线谱 · 木吉他</span></div>
+      <div id="sidebar"></div>
+      <button type="button" id="side-entry">常见节奏型 <span aria-hidden="true">›</span></button>
+    </aside>
+    <section id="bubble" aria-label="工具栏节奏型气泡" hidden></section>
+  </main>
+  <footer class="status"><span id="status-text" role="status"></span><span>扫弦模板交互稿</span></footer>
+</body>
+</html>

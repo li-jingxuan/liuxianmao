@@ -1,13 +1,14 @@
-import { TICKS_PER_QUARTER } from "../constants";
-import { createDocumentIdFactory } from "../id-factory";
+import { GUITAR_STRING_COUNT, LXM_RHYTHM_BASES, TICKS_PER_QUARTER } from "../constants";
+import { createDocumentIdFactory, type ILXMIdFactory } from "../id-factory";
 import { semanticJsonEqual } from "../document/score-tonality";
 import { validateNumberedMarks } from "../numbered/numbered-marks";
 import { buildNumberedIndex, createNumberedRhythmContext } from "../numbered/numbered-rhythm";
 import { validateTechnique } from "../techniques/technique-rules";
+import { sameTechniqueDraft } from "../techniques/technique-equality";
 import { calculateRhythmTicks, createRestRhythmsForTicks, getMeasureCapacityTicks } from "./rhythm";
 import { createMeasureRhythmContext } from "./tuplet";
 import { isPureTabContinuationBeat, tabContinuationRhythm } from "./tab-continuation";
-import type { ILXMBeat, ILXMDocument, ILXMMeasure, ILXMNumberedEvent, ILXMRhythm, ILXMTimeSignature, ILXMTrack } from "../types";
+import type { ILXMBeat, ILXMDocument, ILXMMeasure, ILXMNumberedEvent, ILXMRhythm, ILXMStrokeDirection, ILXMTechnique, ILXMTimeSignature, ILXMTrack } from "../types";
 
 export interface RhythmPatternTarget {
   layer: "numbered" | "tab";
@@ -143,6 +144,67 @@ const measureTemplatesByMeter: Readonly<Record<string, readonly MeasureRhythmPat
 export const getMeasureRhythmPatternTemplates = ({ numerator, denominator }: ILXMTimeSignature): readonly MeasureRhythmPatternTemplate[] =>
   measureTemplatesByMeter[`${numerator}/${denominator}`] ?? [];
 
+export interface StrumRhythmPatternTemplate {
+  readonly id: string;
+  readonly name: string;
+  /** Eight eighth-note slots. A null slot sustains the preceding stroke. */
+  readonly strokes: readonly (ILXMStrokeDirection | null)[];
+}
+
+const strumTemplate = (id: string, name: string, slots: string): StrumRhythmPatternTemplate => Object.freeze({
+  id: `strum-${id}`,
+  name,
+  strokes: Object.freeze([...slots].map(slot => slot === "上" ? "up" : slot === "下" ? "down" : null)),
+});
+const strumTemplates = Object.freeze([
+  strumTemplate("up-up-down", "上上下", "上·上·下···"),
+  strumTemplate("up-down-up-down", "上下上下", "上·下·上·下·"),
+  strumTemplate("down-hold-down-up", "下-下上", "下···下上··"),
+  strumTemplate("down-hold-down-down-up", "下-下下上", "下···下·下上"),
+  strumTemplate("down-down-up", "下下上", "下·下·上···"),
+  strumTemplate("down-up-down", "下上下", "下·上·下···"),
+  strumTemplate("down-up-down-up", "下上下上", "下·上·下·上·"),
+  strumTemplate("down-hold-up", "下上", "下···上···"),
+]);
+
+export const getStrumRhythmPatternTemplates = ({ numerator, denominator }: ILXMTimeSignature): readonly StrumRhythmPatternTemplate[] =>
+  numerator === 4 && denominator === 4 ? strumTemplates : [];
+
+export interface BeatStrumRhythmPatternTemplate {
+  readonly id: string;
+  readonly name: string;
+  readonly form: string;
+  /** Four sixteenth-note slots. A null slot sustains the preceding stroke. */
+  readonly strokes: readonly (ILXMStrokeDirection | null)[];
+}
+
+const beatStrumTemplate = (id: string, name: string, formId: string): BeatStrumRhythmPatternTemplate => {
+  const { name: form, values } = beatTemplatesById.get(formId)!;
+  const strokes = values.flatMap((length, index) => [
+    name[index] === "上" ? "up" as const : "down" as const,
+    ...Array<null>(length - 1).fill(null),
+  ]);
+  return Object.freeze({ id: `beat-strum-${id}`, name, form, strokes: Object.freeze(strokes) });
+};
+
+const beatStrumTemplates = Object.freeze([
+  beatStrumTemplate("d", "下", "quarter"),
+  beatStrumTemplate("du", "下上", "eighths"),
+  beatStrumTemplate("uud", "上上下", "eight-sixteen"),
+  beatStrumTemplate("udud", "上下上下", "sixteenths"),
+  beatStrumTemplate("ddu", "下下上", "eight-sixteen"),
+  beatStrumTemplate("dud", "下上下", "sixteen-eight"),
+  beatStrumTemplate("ud", "上下", "eighths"),
+  beatStrumTemplate("dudu", "下上下上", "sixteenths"),
+  beatStrumTemplate("uud-short", "上上下", "sixteen-eight"),
+  beatStrumTemplate("dud-sync", "下上下", "small-syncopation"),
+  beatStrumTemplate("du-dotted", "下上", "dotted-eight"),
+  beatStrumTemplate("ud-dotted", "上下", "reverse-dotted"),
+]);
+
+export const getBeatStrumRhythmPatternTemplates = ({ numerator, denominator }: ILXMTimeSignature): readonly BeatStrumRhythmPatternTemplate[] =>
+  denominator === 4 && (numerator === 3 || numerator === 4) ? beatStrumTemplates : [];
+
 export type RhythmPatternEvent = ILXMBeat | ILXMNumberedEvent;
 export interface RhythmPatternScope {
   startTick: number;
@@ -182,13 +244,13 @@ export interface RhythmPatternBeatSummary {
   before: RhythmPatternEvent[];
   after: RhythmPatternEvent[];
 }
-export type RhythmPatternErrorCode = "INVALID_RHYTHM_PATTERN_TARGET" | "UNSUPPORTED_TIME_SIGNATURE" | "RHYTHM_PATTERN_TEMPLATE_MISMATCH" | "RHYTHM_PATTERN_CROSSING_CONTENT" | "RHYTHM_PATTERN_PARTIAL_TUPLET" | "RHYTHM_PATTERN_FIXED_CONTINUATION" | "RHYTHM_NOT_REPRESENTABLE";
+export type RhythmPatternErrorCode = "INVALID_RHYTHM_PATTERN_TARGET" | "UNSUPPORTED_TIME_SIGNATURE" | "RHYTHM_PATTERN_TEMPLATE_MISMATCH" | "RHYTHM_PATTERN_CROSSING_CONTENT" | "RHYTHM_PATTERN_PARTIAL_TUPLET" | "RHYTHM_PATTERN_FIXED_CONTINUATION" | "RHYTHM_NOT_REPRESENTABLE" | "STRUM_PATTERN_MISSING_VOICING" | "STRUM_PATTERN_CHORD_CHANGE";
 export type RhythmPatternPlan = {
   ok: true;
   target: RhythmPatternTarget;
   scope: RhythmPatternScope;
   scopes: (RhythmPatternScope & { measureId: string })[];
-  template: RhythmPatternTemplate | MeasureRhythmPatternTemplate;
+  template: RhythmPatternTemplate | MeasureRhythmPatternTemplate | StrumRhythmPatternTemplate | BeatStrumRhythmPatternTemplate;
   before: RhythmPatternEvent[];
   after: RhythmPatternEvent[];
   /** 原连音的实际时值，预览不能只用书写 rhythm 推算。 */
@@ -196,6 +258,7 @@ export type RhythmPatternPlan = {
   perBeat: RhythmPatternBeatSummary[];
   removedMarks: RhythmPatternRemovedMark[];
   discardedTextCount: number;
+  requiresConfirmation: boolean;
   confirmationKey: string;
   track: ILXMTrack;
   changed: boolean;
@@ -251,8 +314,299 @@ export const inferRhythmPatternTemplate = (document: ILXMDocument, target: Rhyth
 
 const fail = (code: RhythmPatternErrorCode, message: string) => ({ ok: false as const, code, message });
 
+type MeasureRange = ReturnType<typeof getRhythmPatternMeasureRanges>[number];
+const describeMeasure = ({ index, measure }: MeasureRange) =>
+  `第 ${index + 1} 小节（${measure.timeSignature.numerator}/${measure.timeSignature.denominator}）`;
+
+const isValidMeasureRange = ({ startTick, endTick, focusTick, capacity }: MeasureRange, multiMeasure: boolean) =>
+  [startTick, endTick, focusTick].every(Number.isInteger) && startTick >= 0 && startTick < capacity &&
+  endTick >= startTick && endTick <= capacity && focusTick >= 0 && focusTick < capacity &&
+  (!multiMeasure || endTick > startTick);
+
+type StrumTechnique = Extract<ILXMTechnique, { type: "strum" }>;
+const getStrumAttacks = (template: StrumRhythmPatternTemplate, startTick: number, slotTicks: number) =>
+  template.strokes.flatMap((stroke, slot) => stroke ? [{ stroke, tick: startTick + slot * slotTicks }] : []);
+
+const matchesStrumVoicing = (beat: ILXMBeat | undefined, voicing: ILXMBeat["notes"]): beat is ILXMBeat =>
+  beat?.kind === "notes" && beat.notes.length === voicing.length &&
+  voicing.every(note => beat.notes.some(candidate => candidate.string === note.string && candidate.fret === note.fret));
+
+const strumDraft = (beatId: string, stroke: ILXMStrokeDirection, voicing: ILXMBeat["notes"]): Omit<StrumTechnique, "id"> => ({
+  type: "strum", beatId, stroke, showFrets: true,
+  minString: Math.min(...voicing.map(note => note.string)),
+  maxString: Math.max(...voicing.map(note => note.string)),
+});
+
+const beatStrumDraft = (beatId: string, stroke: ILXMStrokeDirection, voicing: ILXMBeat["notes"]): Omit<StrumTechnique, "id"> =>
+  voicing.length ? strumDraft(beatId, stroke, voicing)
+    : { type: "strum", beatId, stroke, minString: 1, maxString: GUITAR_STRING_COUNT };
+
+function matchBeatStrumTemplate(
+  beats: readonly ILXMBeat[],
+  startTick: number,
+  oldStrums: ReadonlyMap<string, StrumTechnique>,
+): BeatStrumRhythmPatternTemplate | null {
+  const voicing = beats[0]?.notes;
+  if (!voicing || voicing.length === 1 || voicing.some(note => note.fret === "-")) return null;
+  const slotTicks = TICKS_PER_QUARTER / 4;
+  const strokes: (ILXMStrokeDirection | null)[] = [null, null, null, null];
+  let slot = 0;
+  for (const beat of beats) {
+    const mark = oldStrums.get(beat.id);
+    const matches = voicing.length ? matchesStrumVoicing(beat, voicing) : beat.kind === "rest" && !beat.notes.length;
+    if (slot >= strokes.length || beat.tick !== startTick + slot * slotTicks || !matches ||
+        !mark || !sameTechniqueDraft(mark, beatStrumDraft(beat.id, mark.stroke, voicing))) return null;
+    const duration = calculateRhythmTicks(beat.rhythm);
+    if (!duration.ok || duration.ticks % slotTicks !== 0) return null;
+    strokes[slot] = mark.stroke;
+    slot += duration.ticks / slotTicks;
+  }
+  if (slot !== strokes.length) return null;
+  return beatStrumTemplates.find(template => template.strokes.every((stroke, index) => stroke === strokes[index])) ?? null;
+}
+
+function strumsByBeatId(track: ILXMTrack, beatIds?: ReadonlySet<string>): Map<string, StrumTechnique> {
+  const strums = new Map<string, StrumTechnique>();
+  for (const mark of track.techniques) {
+    if (mark.type !== "strum" || (beatIds && !beatIds.has(mark.beatId))) continue;
+    strums.set(mark.beatId, mark);
+    if (beatIds && strums.size === beatIds.size) break;
+  }
+  return strums;
+}
+
+const getBeatStrumScopeStart = (range: MeasureRange): number | undefined => {
+  if (!isValidMeasureRange(range, false)) return;
+  const startTick = Math.floor(range.focusTick / TICKS_PER_QUARTER) * TICKS_PER_QUARTER;
+  const endTick = startTick + TICKS_PER_QUARTER;
+  if (range.startTick >= startTick && range.startTick < endTick && range.endTick <= endTick) return startTick;
+};
+
+/** Recognize the selected beat's stored TAB strokes without constructing or validating an edit. */
+export function inferBeatStrumRhythmPatternTemplate(document: ILXMDocument, target: RhythmPatternTarget): BeatStrumRhythmPatternTemplate | null {
+  if (target.layer !== "tab" || (target.endMeasureId ?? target.measureId) !== target.measureId ||
+      (target.focusMeasureId ?? target.measureId) !== target.measureId) return null;
+  const track = document.score.tracks.find(item => item.id === target.trackId);
+  if (!track) return null;
+  const [range] = getRhythmPatternMeasureRanges(track, target);
+  if (!range || !getBeatStrumRhythmPatternTemplates(range.measure.timeSignature).length) return null;
+  const startTick = getBeatStrumScopeStart(range);
+  if (startTick === undefined) return null;
+  const { measure } = range;
+  const first = measure.beats.findIndex(beat => beat.tick >= startTick);
+  if (first < 0 || measure.beats[first]!.tick !== startTick) return null;
+  const endTick = startTick + TICKS_PER_QUARTER;
+  const beats: ILXMBeat[] = [];
+  for (let index = first; index < measure.beats.length && measure.beats[index]!.tick < endTick; index++) {
+    beats.push(measure.beats[index]!);
+    if (beats.length > 4) return null;
+  }
+  const beatIds = new Set(beats.map(beat => beat.id));
+  if (measure.tuplets.some(group => group.beatIds.some(id => beatIds.has(id)))) return null;
+  return matchBeatStrumTemplate(beats, startTick, strumsByBeatId(track, beatIds));
+}
+
+const strumRhythms: readonly (ILXMRhythm | undefined)[] = [undefined,
+  { base: "eighth", dots: 0 }, { base: "quarter", dots: 0 },
+  { base: "quarter", dots: 1 }, { base: "half", dots: 0 },
+];
+
+function planMeasureStrumPattern(range: MeasureRange, template: StrumRhythmPatternTemplate, ids: ILXMIdFactory) {
+  const { measure, capacity, focusTick } = range;
+  const source = measure.beats;
+  const firstBeat = source[0];
+  const voicing = firstBeat?.tick === 0 && firstBeat.kind === "notes"
+    ? firstBeat.notes.filter(note => note.fret !== "-") : [];
+  if (!firstBeat || new Set(voicing.map(note => note.string)).size < 2)
+    return fail("STRUM_PATTERN_MISSING_VOICING", "首拍至少需要两根有起音的弦，请先补齐首拍音组。");
+  if (measure.chordSymbols.some(chord => chord.beatId !== firstBeat.id))
+    return fail("STRUM_PATTERN_CHORD_CHANGE", "小节内首拍之后有和弦标记，请调整选区或和弦位置。");
+
+  const context = createMeasureRhythmContext(measure);
+  const durations = new Map<string, number>();
+  let previousEnd = 0;
+  for (const beat of source) {
+    const duration = context.getBeatDurationTicks(beat);
+    if (!duration.ok) return fail("RHYTHM_NOT_REPRESENTABLE", "原 TAB 实际时值无法精确表示。");
+    if (beat.tick !== previousEnd || beat.tick + duration.ticks > capacity)
+      return fail("RHYTHM_PATTERN_CROSSING_CONTENT", "原 TAB 节奏无法安全覆盖，请先修正小节内的时值。");
+    durations.set(beat.id, duration.ticks);
+    previousEnd = beat.tick + duration.ticks;
+  }
+  if (previousEnd !== capacity || measure.tuplets.some(group => group.beatIds.some(id => !durations.has(id))))
+    return fail("RHYTHM_PATTERN_CROSSING_CONTENT", "原 TAB 节奏或连音组无法安全覆盖，请先修正小节结构。");
+
+  const slotTicks = TICKS_PER_QUARTER / 2;
+  const attacks = getStrumAttacks(template, 0, slotTicks);
+  const byTick = new Map(source.map(beat => [beat.tick, beat]));
+  const retained = new Set<string>();
+  const techniques: Omit<StrumTechnique, "id">[] = [];
+  const after: ILXMBeat[] = [];
+  for (const [index, { stroke, tick }] of attacks.entries()) {
+    const ticks = (attacks[index + 1]?.tick ?? capacity) - tick;
+    const rhythm = strumRhythms[ticks / slotTicks];
+    if (!rhythm) return fail("RHYTHM_NOT_REPRESENTABLE", "扫弦时值无法精确表示。");
+    const original = byTick.get(tick);
+    const sameVoicing = matchesStrumVoicing(original, voicing);
+    const beatId = tick === 0 || sameVoicing ? original!.id : ids.createBeatId();
+    if (sameVoicing) retained.add(beatId);
+    const notes = sameVoicing ? original.notes : tick === 0 ? voicing : voicing.map(note => ({ ...note, id: ids.createNoteId() }));
+    after.push({ id: beatId, tick, rhythm: { ...rhythm }, kind: "notes", notes });
+    techniques.push(strumDraft(beatId, stroke, voicing));
+  }
+
+  const beatTicks = TICKS_PER_QUARTER;
+  const perBeat: RhythmPatternBeatSummary[] = Array.from({ length: 4 }, (_, index) => {
+    const startTick = index * beatTicks;
+    const endTick = startTick + beatTicks;
+    const before = source.filter(beat => beat.tick >= startTick && beat.tick < endTick);
+    const kept = before.filter(beat => retained.has(beat.id));
+    return { beatNumber: index + 1, startTick, endTick, before,
+      after: after.filter(beat => beat.tick >= startTick && beat.tick < endTick), retainedCount: kept.length,
+      discardedCount: before.filter(beat => (beat.kind === "rest" || beat.notes.length) && !retained.has(beat.id)).length, gapCount: 0 };
+  });
+  const nextAttackIndex = after.findIndex(beat => beat.tick > focusTick);
+  const focusBeat = after.at(nextAttackIndex < 0 ? -1 : nextAttackIndex - 1)!;
+  const endTick = nextAttackIndex < 0 ? capacity : after[nextAttackIndex]!.tick;
+  return {
+    ok: true as const, measure: { ...measure, beats: after, tuplets: [] },
+    scope: { measureId: measure.id, startTick: 0, endTick: capacity, beatTicks, beatCount: 4, firstBeat: 1, lastBeat: 4 },
+    before: source, after, durations, perBeat, techniques,
+    removedMarks: measure.tuplets.map(({ id }) => ({ id, type: "tuplet", name: markNames.tuplet!, crossesScope: false })),
+    discardedTextCount: 0,
+    focus: { measureId: measure.id, tick: focusBeat.tick, endTick, beatId: focusBeat.id },
+  };
+}
+
+function splitBeatStrumRemainder(beat: ILXMBeat, start: number, end: number, ids: ILXMIdFactory) {
+  const ticks = end - start;
+  const exact = LXM_RHYTHM_BASES.flatMap(base => [0, 1, 2].map(dots => ({ base, dots }))).find(rhythm => {
+    const duration = calculateRhythmTicks(rhythm);
+    return duration.ok && duration.ticks === ticks;
+  });
+  const split = exact ? { ok: true as const, rhythms: [exact] } : createRestRhythmsForTicks(ticks);
+  if (!split.ok) return;
+  const beats: ILXMBeat[] = [];
+  const ties: ILXMTechnique[] = [];
+  let tick = start;
+  for (const rhythm of split.rhythms) {
+    // The original attack and its anchors stay on the left. The right starts at the beat boundary.
+    const fragment = tick === beat.tick ? { ...beat, rhythm } : {
+      ...beat, id: ids.createBeatId(), tick, rhythm,
+      notes: beat.notes.map(note => ({ ...note, id: ids.createNoteId() })),
+    };
+    const previous = beats.at(-1);
+    if (previous) {
+      for (const [index, note] of previous.notes.entries()) {
+        ties.push({ id: ids.createTechniqueId(), type: "tie", fromNoteId: note.id, toNoteId: fragment.notes[index]!.id });
+      }
+    }
+    beats.push(fragment);
+    const duration = calculateRhythmTicks(rhythm);
+    if (duration.ok) tick += duration.ticks;
+  }
+  return { beats, ties };
+}
+
+function planBeatStrumPattern(
+  range: MeasureRange,
+  template: BeatStrumRhythmPatternTemplate,
+  ids: ILXMIdFactory,
+  oldStrums: ReadonlyMap<string, StrumTechnique>,
+) {
+  const { measure, focusTick } = range;
+  const beatTicks = TICKS_PER_QUARTER;
+  const slotTicks = beatTicks / 4;
+  const startTick = getBeatStrumScopeStart(range);
+  if (startTick === undefined)
+    return fail("INVALID_RHYTHM_PATTERN_TARGET", "请在六线谱中选择一拍。");
+  const endTick = startTick + beatTicks;
+
+  const context = createMeasureRhythmContext(measure);
+  const durations = new Map<string, number>();
+  const before: ILXMBeat[] = [];
+  for (const beat of measure.beats) {
+    if (beat.tick >= endTick) break;
+    const duration = context.getBeatDurationTicks(beat);
+    if (!duration.ok) return fail("RHYTHM_NOT_REPRESENTABLE", "原 TAB 实际时值无法精确表示。");
+    if (beat.tick + duration.ticks <= startTick) continue;
+    before.push(beat);
+    durations.set(beat.id, duration.ticks);
+  }
+  const tuplets = measure.tuplets.filter(group => group.beatIds.some(id => durations.has(id)));
+  const crossingBeats = before.filter(beat => beat.tick < startTick || beat.tick + durations.get(beat.id)! > endTick);
+  const crossingIds = new Set(crossingBeats.map(beat => beat.id));
+  if (tuplets.some(group => group.beatIds.some(id => !durations.has(id) || crossingIds.has(id))))
+    return fail("RHYTHM_PATTERN_PARTIAL_TUPLET", "目标只包含部分连音组，请选择完整的一拍。");
+  const leading: ILXMBeat[] = [];
+  const trailing: ILXMBeat[] = [];
+  const ties: ILXMTechnique[] = [];
+  for (const beat of crossingBeats) {
+    if (beat.notes.some(note => note.fret === "-"))
+      return fail("RHYTHM_PATTERN_CROSSING_CONTENT", "跨出这一拍的 TAB 延音无法分割，请先调整延音。");
+    for (const [fragments, start, end] of [
+      [leading, beat.tick, startTick], [trailing, endTick, beat.tick + durations.get(beat.id)!],
+    ] as const) {
+      if (end <= start) continue;
+      const remainder = splitBeatStrumRemainder(beat, start, end, ids);
+      if (!remainder) return fail("RHYTHM_NOT_REPRESENTABLE", "拍外的 TAB 时值无法精确分割，请先调整时值。");
+      fragments.push(...remainder.beats);
+      ties.push(...remainder.ties);
+    }
+  }
+  const firstNotes = before[0]?.notes.filter(note => note.fret !== "-") ?? [];
+  const voicing = firstNotes.length >= 2 ? firstNotes : [];
+
+  // Recognize complete existing templates so their repeated strokes can be replaced as a unit.
+  const existingTemplate = !tuplets.length && matchBeatStrumTemplate(before, startTick, oldStrums);
+  const alreadyApplied = existingTemplate === template;
+  const byTick = new Map(before.map(beat => [beat.tick, beat]));
+  const attacks = getStrumAttacks(template, startTick, slotTicks);
+  const after: ILXMBeat[] = alreadyApplied ? before : attacks.map(({ tick }, index) => {
+    const rhythm = rhythmForValue(((attacks[index + 1]?.tick ?? endTick) - tick) / slotTicks);
+    const original = byTick.get(tick);
+    if (voicing.length && matchesStrumVoicing(original, voicing)) return { ...original, rhythm };
+    if (!voicing.length && original?.kind === "rest") return { ...original, rhythm };
+    return {
+      id: original?.id ?? ids.createBeatId(), tick, rhythm, kind: voicing.length ? "notes" : "rest",
+      notes: voicing.map(note => ({ ...note, id: ids.createNoteId() })),
+    };
+  });
+  const retainedIds = new Set(after.map(beat => beat.id));
+  const replacedIds = new Set(before.filter(beat => beat.tick >= startTick && !retainedIds.has(beat.id)).map(beat => beat.id));
+  const retainedContentIds = new Set(after.filter(beat => {
+    const original = byTick.get(beat.tick);
+    return original?.kind === beat.kind && original.notes === beat.notes;
+  }).map(beat => beat.id));
+  const discardedCount = existingTemplate ? 0 : before.filter(beat => beat.tick >= startTick &&
+    (beat.kind === "rest" || beat.notes.length > 0) && !retainedContentIds.has(beat.id)).length;
+  const chordSymbols = measure.chordSymbols.some(chord => replacedIds.has(chord.beatId))
+    ? measure.chordSymbols.filter(chord => !replacedIds.has(chord.beatId)) : measure.chordSymbols;
+
+  const beatNumber = startTick / beatTicks + 1;
+  const removedTupletIds = new Set(tuplets.map(tuplet => tuplet.id));
+  const nextAttackIndex = after.findIndex(beat => beat.tick > focusTick);
+  const focusBeat = after.at(nextAttackIndex < 0 ? -1 : nextAttackIndex - 1)!;
+  return {
+    ok: true as const,
+    measure: alreadyApplied ? measure : { ...measure, beats: [
+      ...measure.beats.filter(beat => beat.tick < startTick && !crossingIds.has(beat.id)), ...leading, ...after, ...trailing,
+      ...measure.beats.filter(beat => beat.tick >= endTick),
+    ], chordSymbols, tuplets: removedTupletIds.size ? measure.tuplets.filter(group => !removedTupletIds.has(group.id)) : measure.tuplets },
+    scope: { measureId: measure.id, startTick, endTick, beatTicks, beatCount: 1, firstBeat: beatNumber, lastBeat: beatNumber },
+    before, after, durations,
+    techniques: attacks.map(({ stroke }, index) => beatStrumDraft(after[index]!.id, stroke, voicing)), ties,
+    alreadyApplied,
+    replacedStrumIds: existingTemplate ? before.map(beat => oldStrums.get(beat.id)!.id) : [],
+    perBeat: [{ beatNumber, startTick, endTick, before, after, retainedCount: retainedContentIds.size, discardedCount, gapCount: 0 }],
+    removedMarks: tuplets.map(({ id }) => ({ id, type: "tuplet", name: markNames.tuplet!, crossesScope: false })),
+    discardedTextCount: measure.chordSymbols.length - chordSymbols.length,
+    focus: { measureId: measure.id, tick: focusBeat.tick, endTick: after[nextAttackIndex]?.tick ?? endTick, beatId: focusBeat.id },
+  };
+}
+
 function planMeasureRhythmPattern(
-  range: ReturnType<typeof getRhythmPatternMeasureRanges>[number],
+  range: MeasureRange,
   chosen: RhythmPatternTemplate | MeasureRhythmPatternTemplate,
   beatTicks: number,
   multiMeasure: boolean,
@@ -260,8 +614,7 @@ function planMeasureRhythmPattern(
   createId: () => string,
 ) {
   const { measure, capacity, startTick: rawStart, endTick: rawEnd, focusTick: rawFocus } = range;
-  if (![rawStart, rawEnd, rawFocus].every(Number.isInteger) || rawStart < 0 || rawEnd < rawStart || rawEnd > capacity ||
-      rawStart >= capacity || rawFocus < 0 || rawFocus >= capacity || (multiMeasure && rawEnd === rawStart))
+  if (!isValidMeasureRange(range, multiMeasure))
     return fail("INVALID_RHYTHM_PATTERN_TARGET", "选区或焦点已失效，请重新选择谱面位置。");
   const measureBeats = "beats" in chosen ? chosen.beats : undefined;
   // 短选区按焦点落入的演奏拍处理；连续多拍才向外归齐。6/8 的演奏拍为附点四分，
@@ -389,13 +742,19 @@ function planMeasureRhythmPattern(
 }
 
 /** 找出可能受影响的标记，在所有小节合成后统一检查。 */
-function getAffectedRhythmMarks(track: ILXMTrack, numbered: boolean, scope: Interval) {
+function getAffectedRhythmMarks(track: ILXMTrack, numbered: boolean, scope: Interval, useEndpointTicks: boolean) {
   const affectedMarks = new Map<string, boolean>();
   const affected = (id: string, endpoints: (Interval | undefined)[]) => {
     const points = endpoints.filter((point): point is Interval => !!point);
     if (!points.length) return;
     const span = { start: Math.min(...points.map(p => p.start)), end: Math.max(...points.map(p => p.end)) };
-    if (overlaps(span, scope)) affectedMarks.set(id, span.start < scope.start || span.end > scope.end);
+    if (overlaps(span, scope)) {
+      // For a split TAB event, the attack still owns its marks. Its duration may extend beyond the target.
+      const crossesScope = useEndpointTicks
+        ? points.some(point => point.start < scope.start || point.start >= scope.end)
+        : span.start < scope.start || span.end > scope.end;
+      affectedMarks.set(id, crossesScope);
+    }
   };
   if (numbered && track.numberedMarks.length) {
     const index = buildNumberedIndex(track);
@@ -441,17 +800,34 @@ export const planRhythmPattern = (document: ILXMDocument, target: RhythmPatternT
   const numbered = target.layer === "numbered";
   const ids = createDocumentIdFactory(document);
   const createId = () => numbered ? ids.createNumberedEventId() : ids.createBeatId();
-  const plans: Extract<ReturnType<typeof planMeasureRhythmPattern>, { ok: true }>[] = [];
+  const plans: Extract<ReturnType<typeof planMeasureRhythmPattern> | ReturnType<typeof planMeasureStrumPattern> |
+    ReturnType<typeof planBeatStrumPattern>, { ok: true }>[] = [];
   const firstSignature = first.measure.timeSignature;
-  const describeMeasure = (range: typeof first) => `第 ${range.index + 1} 小节（${range.measure.timeSignature.numerator}/${range.measure.timeSignature.denominator}）`;
   const firstTemplates = getRhythmPatternTemplates(firstSignature);
-  const template = firstTemplates.find(item => item.id === templateId) ??
+  const beatStrum = beatStrumTemplates.find(item => item.id === templateId);
+  const strum = beatStrum ?? strumTemplates.find(item => item.id === templateId);
+  const template = strum ?? firstTemplates.find(item => item.id === templateId) ??
     getMeasureRhythmPatternTemplates(firstSignature).find(item => item.id === templateId);
-  if (!firstTemplates.length) return fail("UNSUPPORTED_TIME_SIGNATURE", `${describeMeasure(first)}不支持节奏型。当前仅支持 4/4、3/4 和 6/8 拍。`);
+  if (strum && numbered) return fail("INVALID_RHYTHM_PATTERN_TARGET", "请先在六线谱中选择扫弦模板的应用范围。");
+  if (beatStrum && multiMeasure) return fail("INVALID_RHYTHM_PATTERN_TARGET", "请在六线谱中选择一拍。");
+  if (!strum && !firstTemplates.length) return fail("UNSUPPORTED_TIME_SIGNATURE", `${describeMeasure(first)}不支持节奏型。当前仅支持 4/4、3/4 和 6/8 拍。`);
   if (!template) return fail("RHYTHM_PATTERN_TEMPLATE_MISMATCH", `当前模板不适用于${describeMeasure(first)}，请重新选择。`);
   const wholeMeasure = "beats" in template;
+  const oldStrums = strum ? strumsByBeatId(track) : new Map<string, StrumTechnique>();
   for (const range of ranges) {
     const signature = range.measure.timeSignature;
+    if ("strokes" in template) {
+      const label = describeMeasure(range);
+      const templates = beatStrum ? getBeatStrumRhythmPatternTemplates(signature) : getStrumRhythmPatternTemplates(signature);
+      if (!templates.length)
+        return fail("UNSUPPORTED_TIME_SIGNATURE", `${label}无法应用扫弦模板，请选择 ${beatStrum ? "4/4 或 3/4" : "4/4"} 拍小节。`);
+      if (!isValidMeasureRange(range, multiMeasure))
+        return fail("INVALID_RHYTHM_PATTERN_TARGET", `${label}的选区或焦点已失效，请重新选择谱面位置。`);
+      const plan = beatStrum ? planBeatStrumPattern(range, beatStrum, ids, oldStrums) : planMeasureStrumPattern(range, template, ids);
+      if (!plan.ok) return fail(plan.code, `${label}：${plan.message}`);
+      plans.push(plan);
+      continue;
+    }
     const templates = getRhythmPatternTemplates(signature);
     if (!templates.length) return fail("UNSUPPORTED_TIME_SIGNATURE", `${describeMeasure(range)}不支持节奏型。`);
     if (wholeMeasure && (signature.numerator !== firstSignature.numerator || signature.denominator !== firstSignature.denominator)) {
@@ -469,12 +845,32 @@ export const planRhythmPattern = (document: ILXMDocument, target: RhythmPatternT
   const firstScope = scopes[0]!, lastScope = scopes.at(-1)!;
   const offset = track.measures.slice(0, first.index).reduce((ticks, measure) => ticks + getMeasureCapacityTicks(measure.timeSignature), 0);
   const lastOffset = ranges.slice(0, -1).reduce((ticks, range) => ticks + range.capacity, offset);
-  const affectedMarks = getAffectedRhythmMarks(track, numbered, { start: offset + firstScope.startTick, end: lastOffset + lastScope.endTick });
+  const alreadyApplied = plans.some(plan => "alreadyApplied" in plan && plan.alreadyApplied);
+  const affectedMarks = alreadyApplied ? new Map<string, boolean>() : getAffectedRhythmMarks(track, numbered, {
+    start: offset + firstScope.startTick, end: lastOffset + lastScope.endTick,
+  }, !!beatStrum);
   const nextTrack: ILXMTrack = { ...track, measures: [...track.measures] };
   const removedMarks = new Map<string, RhythmPatternRemovedMark>();
+  const techniquesToAdd: ILXMTechnique[] = [];
+  const matchedStrumIds = new Set<string>();
+  const replacedStrumIds = new Set<string>();
+  const strummedBeatIds = new Set<string>();
+  const strummedNoteIds = new Set<string>();
   for (const [index, plan] of plans.entries()) {
     nextTrack.measures[first.index + index] = plan.measure;
     for (const mark of plan.removedMarks) removedMarks.set(mark.id, mark);
+    if (!("techniques" in plan) || alreadyApplied) continue;
+    if ("replacedStrumIds" in plan) for (const id of plan.replacedStrumIds) replacedStrumIds.add(id);
+    if ("ties" in plan) techniquesToAdd.push(...plan.ties);
+    for (const beat of plan.after) {
+      strummedBeatIds.add(beat.id);
+      for (const note of beat.notes) strummedNoteIds.add(note.id);
+    }
+    for (const draft of plan.techniques) {
+      const existing = oldStrums.get(draft.beatId);
+      if (existing && sameTechniqueDraft(existing, draft)) matchedStrumIds.add(existing.id);
+      else techniquesToAdd.push({ ...draft, id: ids.createTechniqueId() });
+    }
   }
   const removedConnectionIds = new Set<string>();
   const discardMark = ({ id, type }: { id: string; type: string }) => {
@@ -489,17 +885,46 @@ export const planRhythmPattern = (document: ILXMDocument, target: RhythmPatternT
     }
     if (removedConnectionIds.size) nextTrack.numberedMarks = track.numberedMarks.filter(mark => !removedConnectionIds.has(mark.id));
   } else if (affectedMarks.size) {
-    // 范围外技巧优先保留，扫弦或琶音先于依赖它们的延音线复核。
-    const kept = track.techniques.filter(mark => !affectedMarks.has(mark.id));
-    const affected = track.techniques.filter(mark => affectedMarks.has(mark.id));
+    // 范围外技巧优先保留。受影响的技巧按文档顺序复核，已失效的技巧不参与互斥判断。
+    const kept = [...track.techniques.filter(mark => !affectedMarks.has(mark.id) || matchedStrumIds.has(mark.id)), ...techniquesToAdd];
+    const affected = track.techniques.filter(mark => affectedMarks.has(mark.id) && !matchedStrumIds.has(mark.id));
+    // 延音线依赖同批次仍然有效的扫弦/琶音，不能按它们的序列化顺序决定是否保留。
     const ordered = [...affected.filter(mark => mark.type !== "traversalTie"), ...affected.filter(mark => mark.type === "traversalTie")];
     for (const mark of ordered) {
-      if (validateTechnique({ ...nextTrack, techniques: kept }, mark).ok) kept.push(mark);
-      else discardMark(mark);
+      // A connection into a template stroke changes or suppresses its attack.
+      const absorbsStroke = ("toNoteId" in mark && strummedNoteIds.has(mark.toNoteId)) ||
+        (mark.type === "traversalTie" && strummedBeatIds.has(mark.toBeatId));
+      if (!absorbsStroke && validateTechnique({ ...nextTrack, techniques: kept }, mark).ok) kept.push(mark);
+      else {
+        if (strum && affectedMarks.get(mark.id))
+          return fail("RHYTHM_PATTERN_CROSSING_CONTENT", `选区边界有无法保留的${markNames[mark.type] ?? mark.type}，请调整选区。`);
+        if (replacedStrumIds.has(mark.id)) removedConnectionIds.add(mark.id);
+        else discardMark(mark);
+      }
     }
-    if (removedConnectionIds.size) nextTrack.techniques = track.techniques.filter(mark => !removedConnectionIds.has(mark.id));
   }
-  const changed = !semanticJsonEqual(track, nextTrack);
+  if (!numbered && (removedConnectionIds.size || techniquesToAdd.length))
+    nextTrack.techniques = [...track.techniques.filter(mark => !removedConnectionIds.has(mark.id)), ...techniquesToAdd];
+  const changed = !alreadyApplied && !semanticJsonEqual(track, nextTrack);
+  if (changed && beatStrum) {
+    const followingBeat = firstScope.endTick < first.capacity
+      ? first.measure.beats.find(beat => beat.tick === firstScope.endTick)
+      : track.measures[first.index + 1]?.beats[0];
+    if (followingBeat?.notes.some(note => note.fret === "-")) {
+      const beatPlan = plans[0];
+      const previous = beatPlan && "ties" in beatPlan ? beatPlan.before.at(-1) : undefined;
+      const latest = beatPlan && "ties" in beatPlan ? beatPlan.after.at(-1) : undefined;
+      if (!previous?.notes.length || !matchesStrumVoicing(latest, previous.notes))
+        return fail("RHYTHM_PATTERN_CROSSING_CONTENT", "下一拍有跨出选区的 TAB 延音，请先调整延音。");
+    }
+  } else if (changed && strum) {
+    const firstBeat = first.measure.beats[0];
+    const following = track.measures[first.index + ranges.length];
+    if (first.index > 0 && firstBeat?.notes.some(note => note.fret === "-"))
+      return fail("RHYTHM_PATTERN_CROSSING_CONTENT", `${describeMeasure(first)}首拍有跨选区的 TAB 延音，请调整选区。`);
+    if (following?.beats[0]?.notes.some(note => note.fret === "-"))
+      return fail("RHYTHM_PATTERN_CROSSING_CONTENT", `第 ${first.index + ranges.length + 1} 小节首拍有跨选区的 TAB 延音，请调整选区。`);
+  }
   const after = plans.flatMap(plan => plan.after);
   // 先比较音乐结果，避免只为新增保护字段创建历史。新构造对象同时被
   // after/perBeat.after/nextMeasure引用，确认真正变化后才标记范围内空拍。
@@ -516,6 +941,7 @@ export const planRhythmPattern = (document: ILXMDocument, target: RhythmPatternT
     beforeDurationTicks: Object.fromEntries(plans.flatMap(plan => [...plan.durations])),
     perBeat: plans.flatMap(plan => plan.perBeat), removedMarks: [...removedMarks.values()],
     discardedTextCount: plans.reduce((total, plan) => total + plan.discardedTextCount, 0),
+    requiresConfirmation: changed && !!strum && !beatStrum,
     // 完整值比较避免散列碰撞；包括原始选区、所有文档内容和 revision。
     confirmationKey: JSON.stringify(["rhythm-pattern-v1", document, target, templateId]),
     track: changed ? nextTrack : track, changed,

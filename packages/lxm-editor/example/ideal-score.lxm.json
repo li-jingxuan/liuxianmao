@@ -1,7 +1,7 @@
 {
   "schema": "lxm-tab-score",
   "schemaVersion": 8,
-  "documentRevision": 240,
+  "documentRevision": 253,
   "score": {
     "id": "ideal-next-mock",
     "title": "理想",
@@ -674,7 +674,7 @@
                 "beatId": "mvp72-beat-3-1",
                 "display": "nameAndDiagram",
                 "chord": {
-                  "name": "Em",
+                  "name": "Asus2",
                   "diagram": {
                     "startFret": 1,
                     "fretCount": 5,
@@ -691,18 +691,18 @@
                       },
                       {
                         "string": 3,
-                        "fret": 0,
+                        "fret": 2,
                         "finger": null
                       },
                       {
                         "string": 4,
                         "fret": 2,
-                        "finger": 3
+                        "finger": null
                       },
                       {
                         "string": 5,
-                        "fret": 2,
-                        "finger": 2
+                        "fret": "x",
+                        "finger": null
                       },
                       {
                         "string": 6,
@@ -3519,7 +3519,7 @@
                       },
                       {
                         "string": 5,
-                        "fret": "x",
+                        "fret": 0,
                         "finger": null
                       },
                       {
@@ -3544,7 +3544,7 @@
                     "strings": [
                       {
                         "string": 1,
-                        "fret": "x",
+                        "fret": 0,
                         "finger": null
                       },
                       {
@@ -3564,12 +3564,12 @@
                       },
                       {
                         "string": 5,
-                        "fret": "x",
+                        "fret": 0,
                         "finger": null
                       },
                       {
                         "string": 6,
-                        "fret": "x",
+                        "fret": 0,
                         "finger": null
                       }
                     ],
@@ -4068,32 +4068,32 @@
                     "strings": [
                       {
                         "string": 1,
-                        "fret": 3,
+                        "fret": 0,
                         "finger": null
                       },
                       {
                         "string": 2,
-                        "fret": "x",
+                        "fret": 3,
                         "finger": null
                       },
                       {
                         "string": 3,
-                        "fret": 2,
+                        "fret": 0,
                         "finger": null
                       },
                       {
                         "string": 4,
-                        "fret": "x",
+                        "fret": 2,
                         "finger": null
                       },
                       {
                         "string": 5,
-                        "fret": "x",
+                        "fret": 3,
                         "finger": null
                       },
                       {
                         "string": 6,
-                        "fret": 3,
+                        "fret": 0,
                         "finger": null
                       }
                     ],
@@ -4969,7 +4969,7 @@
                       },
                       {
                         "string": 5,
-                        "fret": "x",
+                        "fret": 0,
                         "finger": null
                       },
                       {
@@ -5794,199 +5794,199 @@
             "numberedVoice": {
               "events": [
                 {
+                  "id": "numbered-event-150-1",
+                  "tick": 0,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-151-1",
                       "token": "1"
                     }
-                  ],
-                  "id": "numbered-event-150-1",
-                  "tick": 0,
+                  ]
+                },
+                {
+                  "id": "numbered-event-150-2",
+                  "tick": 240,
                   "rhythm": {
                     "base": "sixteenth",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-151-2",
                       "token": "2"
                     }
-                  ],
-                  "id": "numbered-event-150-2",
-                  "tick": 240,
+                  ]
+                },
+                {
+                  "id": "numbered-event-150-3",
+                  "tick": 480,
                   "rhythm": {
                     "base": "sixteenth",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-151-3",
                       "token": "2"
                     }
-                  ],
-                  "id": "numbered-event-150-3",
-                  "tick": 480,
+                  ]
+                },
+                {
+                  "id": "numbered-event-150-4",
+                  "tick": 720,
                   "rhythm": {
                     "base": "sixteenth",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-151-4",
                       "token": "1"
                     }
-                  ],
-                  "id": "numbered-event-150-4",
-                  "tick": 720,
-                  "rhythm": {
-                    "base": "sixteenth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-152-1",
+                  "tick": 960,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-153-1",
                       "token": "2"
                     }
-                  ],
-                  "id": "numbered-event-152-1",
-                  "tick": 960,
-                  "rhythm": {
-                    "base": "eighth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-152-2",
+                  "tick": 1440,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-153-2",
                       "token": "2"
                     }
-                  ],
-                  "id": "numbered-event-152-2",
-                  "tick": 1440,
+                  ]
+                },
+                {
+                  "id": "numbered-event-152-3",
+                  "tick": 1680,
                   "rhythm": {
                     "base": "sixteenth",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-153-3",
                       "token": "1"
                     }
-                  ],
-                  "id": "numbered-event-152-3",
-                  "tick": 1680,
+                  ]
+                },
+                {
+                  "id": "numbered-event-154-1",
+                  "tick": 1920,
                   "rhythm": {
                     "base": "sixteenth",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-155-1",
                       "token": "6"
                     }
-                  ],
-                  "id": "numbered-event-154-1",
-                  "tick": 1920,
-                  "rhythm": {
-                    "base": "sixteenth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-154-2",
+                  "tick": 2160,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-155-2",
                       "token": "5"
                     }
-                  ],
-                  "id": "numbered-event-154-2",
-                  "tick": 2160,
-                  "rhythm": {
-                    "base": "eighth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-154-3",
+                  "tick": 2640,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-155-3",
                       "token": "5"
                     }
-                  ],
-                  "id": "numbered-event-154-3",
-                  "tick": 2640,
+                  ]
+                },
+                {
+                  "id": "numbered-event-156-1",
+                  "tick": 2880,
                   "rhythm": {
                     "base": "sixteenth",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-157-1",
                       "token": "5"
                     }
-                  ],
-                  "id": "numbered-event-156-1",
-                  "tick": 2880,
-                  "rhythm": {
-                    "base": "sixteenth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-156-2",
+                  "tick": 3120,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-157-2",
                       "token": "3"
                     }
-                  ],
-                  "id": "numbered-event-156-2",
-                  "tick": 3120,
-                  "rhythm": {
-                    "base": "eighth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-156-3",
+                  "tick": 3600,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-157-3",
                       "token": "2"
                     }
-                  ],
-                  "id": "numbered-event-156-3",
-                  "tick": 3600,
-                  "rhythm": {
-                    "base": "sixteenth",
-                    "dots": 0
-                  }
+                  ]
                 }
               ],
               "tuplets": []
@@ -6017,7 +6017,7 @@
                       },
                       {
                         "string": 2,
-                        "fret": "x",
+                        "fret": 0,
                         "finger": null
                       },
                       {
@@ -6027,12 +6027,12 @@
                       },
                       {
                         "string": 4,
-                        "fret": "x",
+                        "fret": 0,
                         "finger": null
                       },
                       {
                         "string": 5,
-                        "fret": "x",
+                        "fret": 0,
                         "finger": null
                       },
                       {
@@ -6244,79 +6244,79 @@
             "numberedVoice": {
               "events": [
                 {
+                  "id": "numbered-event-159-1",
+                  "tick": 0,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-159-1",
                       "token": "2"
                     }
-                  ],
-                  "id": "numbered-event-159-1",
-                  "tick": 0,
-                  "rhythm": {
-                    "base": "sixteenth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-160-1",
+                  "tick": 240,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 1
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-160-1",
                       "token": "1"
                     }
-                  ],
-                  "id": "numbered-event-160-1",
-                  "tick": 240,
-                  "rhythm": {
-                    "base": "eighth",
-                    "dots": 1
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-165-1",
+                  "tick": 960,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-173-1",
                       "token": "1"
                     }
-                  ],
-                  "id": "numbered-event-165-1",
-                  "tick": 960,
+                  ]
+                },
+                {
+                  "id": "numbered-event-174-2",
+                  "tick": 1920,
                   "rhythm": {
                     "base": "quarter",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "rest",
                   "items": [
                     {
                       "id": "numbered-item-174-2",
                       "token": "0"
                     }
-                  ],
-                  "id": "numbered-event-174-2",
-                  "tick": 1920,
+                  ]
+                },
+                {
+                  "id": "numbered-event-178-1",
+                  "tick": 2880,
                   "rhythm": {
                     "base": "quarter",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "rest",
                   "items": [
                     {
                       "id": "numbered-item-178-1",
                       "token": "0"
                     }
-                  ],
-                  "id": "numbered-event-178-1",
-                  "tick": 2880,
-                  "rhythm": {
-                    "base": "quarter",
-                    "dots": 0
-                  }
+                  ]
                 }
               ],
               "tuplets": []
@@ -6668,11 +6668,6 @@
               }
             ],
             "lyrics": [],
-            "tuplets": [],
-            "numberedVoice": {
-              "events": [],
-              "tuplets": []
-            },
             "beats": [
               {
                 "id": "beat-204-1",
@@ -6908,7 +6903,12 @@
                 ],
                 "preserveInputRhythm": true
               }
-            ]
+            ],
+            "tuplets": [],
+            "numberedVoice": {
+              "events": [],
+              "tuplets": []
+            }
           },
           {
             "id": "measure-227-1",
@@ -7256,11 +7256,6 @@
               }
             ],
             "lyrics": [],
-            "tuplets": [],
-            "numberedVoice": {
-              "events": [],
-              "tuplets": []
-            },
             "beats": [
               {
                 "id": "beat-227-15",
@@ -7496,7 +7491,12 @@
                 ],
                 "preserveInputRhythm": true
               }
-            ]
+            ],
+            "tuplets": [],
+            "numberedVoice": {
+              "events": [],
+              "tuplets": []
+            }
           },
           {
             "id": "measure-230-1",
@@ -8315,92 +8315,116 @@
             "toNoteId": "note-86-1"
           },
           {
-            "type": "strum",
+            "type": "arpeggio",
             "beatId": "beat-137-1",
             "minString": 3,
             "maxString": 5,
-            "stroke": "down",
+            "direction": "ascending",
             "id": "technique-185-1"
           },
           {
+            "id": "technique-223-1",
             "type": "tie",
             "fromNoteId": "note-189-2",
-            "toNoteId": "note-190-1",
-            "id": "technique-223-1"
+            "toNoteId": "note-190-1"
           },
           {
+            "id": "technique-224-1",
             "type": "tie",
             "fromNoteId": "note-196-1",
-            "toNoteId": "note-197-2",
-            "id": "technique-224-1"
+            "toNoteId": "note-197-2"
           },
           {
+            "id": "technique-225-1",
             "type": "tie",
             "fromNoteId": "note-211-2",
-            "toNoteId": "note-212-1",
-            "id": "technique-225-1"
+            "toNoteId": "note-212-1"
           },
           {
+            "id": "technique-226-1",
             "type": "tie",
             "fromNoteId": "note-218-2",
-            "toNoteId": "note-219-1",
-            "id": "technique-226-1"
+            "toNoteId": "note-219-1"
           },
           {
-            "type": "strum",
+            "type": "arpeggio",
             "beatId": "beat-227-1",
             "minString": 3,
             "maxString": 5,
-            "stroke": "down",
+            "direction": "ascending",
             "id": "technique-227-1"
           },
           {
+            "id": "technique-227-2",
             "type": "tie",
             "fromNoteId": "note-227-3",
-            "toNoteId": "note-227-4",
-            "id": "technique-227-2"
+            "toNoteId": "note-227-4"
           },
           {
+            "id": "technique-227-3",
             "type": "tie",
             "fromNoteId": "note-227-10",
-            "toNoteId": "note-227-11",
-            "id": "technique-227-3"
+            "toNoteId": "note-227-11"
           },
           {
+            "id": "technique-227-4",
             "type": "tie",
             "fromNoteId": "note-227-17",
-            "toNoteId": "note-227-18",
-            "id": "technique-227-4"
+            "toNoteId": "note-227-18"
           },
           {
+            "id": "technique-227-5",
             "type": "tie",
             "fromNoteId": "note-227-24",
-            "toNoteId": "note-227-25",
-            "id": "technique-227-5"
+            "toNoteId": "note-227-25"
           },
           {
+            "id": "technique-230-2",
             "type": "tie",
             "fromNoteId": "note-230-3",
-            "toNoteId": "note-230-4",
-            "id": "technique-230-2"
+            "toNoteId": "note-230-4"
           },
           {
+            "id": "technique-230-3",
             "type": "tie",
             "fromNoteId": "note-230-10",
-            "toNoteId": "note-230-11",
-            "id": "technique-230-3"
+            "toNoteId": "note-230-11"
           },
           {
+            "id": "technique-235-1",
             "type": "tie",
             "fromNoteId": "note-235-3",
-            "toNoteId": "note-235-4",
-            "id": "technique-235-1"
+            "toNoteId": "note-235-4"
+          },
+          {
+            "id": "technique-235-2",
+            "type": "tie",
+            "fromNoteId": "note-235-10",
+            "toNoteId": "note-235-11"
           },
           {
             "type": "tie",
-            "fromNoteId": "note-235-10",
-            "toNoteId": "note-235-11",
-            "id": "technique-235-2"
+            "fromNoteId": "note-88-1",
+            "toNoteId": "note-89-1",
+            "id": "technique-242-1"
+          },
+          {
+            "type": "tie",
+            "fromNoteId": "note-122-1",
+            "toNoteId": "note-125-1",
+            "id": "technique-243-1"
+          },
+          {
+            "type": "tie",
+            "fromNoteId": "note-147-1",
+            "toNoteId": "note-148-1",
+            "id": "technique-244-1"
+          },
+          {
+            "type": "tie",
+            "fromNoteId": "note-156-1",
+            "toNoteId": "note-161-1",
+            "id": "technique-245-1"
           }
         ],
         "numberedMarks": [
@@ -8423,16 +8447,16 @@
             "toItemId": "numbered-item-140-3"
           },
           {
+            "id": "numbered-mark-158-1",
             "type": "tie",
             "fromItemId": "numbered-item-155-3",
-            "toItemId": "numbered-item-157-1",
-            "id": "numbered-mark-158-1"
+            "toItemId": "numbered-item-157-1"
           },
           {
+            "id": "numbered-mark-179-1",
             "type": "tie",
             "fromItemId": "numbered-item-160-1",
-            "toItemId": "numbered-item-173-1",
-            "id": "numbered-mark-179-1"
+            "toItemId": "numbered-item-173-1"
           }
         ]
       }

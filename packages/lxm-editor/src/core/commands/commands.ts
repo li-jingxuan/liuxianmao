@@ -388,6 +388,7 @@ export interface ILXMApplyRhythmPatternCommand {
   target: RhythmPatternTarget;
   templateId: string;
   expectedConfirmationKey: string;
+  allowOverwrite?: boolean;
   allowRemoveMarks?: boolean;
   allowDiscardMusicText?: boolean;
 }
@@ -440,6 +441,7 @@ export type ILXMScoreCommand = ScoreCommandOperation & {
 export type ILXMScoreCommandErrorCode =
   | RhythmPatternErrorCode
   | "STALE_RHYTHM_PATTERN_PLAN"
+  | "RHYTHM_PATTERN_OVERWRITE_CONFIRMATION_REQUIRED"
   | "RHYTHM_PATTERN_CONFIRMATION_REQUIRED"
   | "RHYTHM_PATTERN_TEXT_CONFIRMATION_REQUIRED"
   | "NUMBERED_INVALID"
@@ -1321,9 +1323,20 @@ const applyScoreCommandInternal = (
     if (!plan.ok) return fail(plan.code, plan.message);
     if (plan.confirmationKey !== command.expectedConfirmationKey)
       return fail("STALE_RHYTHM_PATTERN_PLAN", "选区已变化，请重新预览并确认。");
-    if (plan.removedMarks.length && command.allowRemoveMarks !== true)
+    const beatStrum = "form" in plan.template;
+    if (plan.requiresConfirmation && command.allowOverwrite !== true) {
+      const first = plan.track.measures.findIndex(measure => measure.id === plan.target.measureId) + 1;
+      const last = first + plan.scopes.length - 1;
+      const range = first === last ? `第 ${first} 小节` : `第 ${first}–${last} 小节`;
+      const discarded = plan.perBeat.reduce((count, beat) => count + beat.discardedCount, 0);
+      const marks = [...new Set(plan.removedMarks.map(mark => mark.name))].join("、");
+      return { ok: false, code: "RHYTHM_PATTERN_OVERWRITE_CONFIRMATION_REQUIRED",
+        message: `将用各小节的首拍音组套用「${plan.template.name}」，覆盖${range}的六线谱，移除 ${discarded} 处原音组或休止和 ${plan.removedMarks.length} 项标记${marks ? `（${marks}）` : ""}。确认后可一步撤销。`,
+        removedMarkIds: plan.removedMarks.map(mark => mark.id) };
+    }
+    if (!beatStrum && plan.removedMarks.length && command.allowRemoveMarks !== true)
       return { ok: false, code: "RHYTHM_PATTERN_CONFIRMATION_REQUIRED", message: `将移除 ${plan.removedMarks.length} 项标记：${[...new Set(plan.removedMarks.map(m => m.name))].join("、")}，请先确认调整。`, removedMarkIds: plan.removedMarks.map(m => m.id) };
-    if (plan.discardedTextCount && command.allowDiscardMusicText !== true)
+    if (!beatStrum && plan.discardedTextCount && command.allowDiscardMusicText !== true)
       return fail("RHYTHM_PATTERN_TEXT_CONFIRMATION_REQUIRED", `应用会舍弃尾部内容及其 ${plan.discardedTextCount} 项${command.target.layer === "numbered" ? "歌词" : "和弦"}。确认后可一步撤销。`);
     if (!plan.changed) return unchanged(document);
     const result = finalize({

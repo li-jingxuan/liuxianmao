@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>扫弦节奏 · 设计稿</title>
+<style>
+  :root { color-scheme: light; font: 16px/1.5 'Instrument Sans','PingFang SC','Microsoft YaHei',sans-serif; color: #22272d; background: #f6f7f8; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: clamp(12px,4vw,48px) 12px; }
+  main { width: min(100%,640px); margin: auto; background: white; border: 1px solid #dee1e4; border-radius: 10px; overflow: hidden; }
+  header, footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 16px 20px; }
+  h1 { margin: 0; font-size: 18px; font-weight: 650; }
+  select { min-height: 40px; padding: 4px 10px; border: 1px solid #c9ced4; border-radius: 6px; font: inherit; font-size: 14px; background: white; color: #272c32; cursor: pointer; }
+  select:hover { border-color: #868f99; }
+  select:focus-visible { outline: 2px solid #2466bd; outline-offset: 2px; }
+  figure { margin: 0; background: #20242c; color: #ff5658; padding: clamp(12px,3vw,24px) clamp(8px,3vw,24px) 8px; }
+  svg { display: block; width: 100%; height: auto; }
+  .stem,.beam,.hold { fill: none; stroke: currentColor; stroke-linecap: round; }
+  .stem { stroke-width: 4; } .beam { stroke-width: 5; } .hold { stroke-width: 3; }
+  .beat { fill: #c3c9d1; font: 14px 'IBM Plex Mono',monospace; text-anchor: middle; }
+  footer { color: #505963; font-size: 13px; padding-block: 12px; }
+  .key { display: inline-flex; gap: 14px; } .key b { color: #25282d; }
+</style>
+<main>
+  <header><h1>扫弦节奏</h1><select id="pattern" aria-label="选择扫弦节奏"><option value="reference">参考图节奏</option><optgroup id="templates" label="常用模板"></optgroup></select></header>
+  <figure><svg viewBox="0 0 512 158" role="img" aria-labelledby="title description"><title id="title"></title><desc id="description"></desc><g id="music"></g></svg></figure>
+  <footer><span class="key"><span><b>↑</b> 下扫</span><span><b>↓</b> 上扫</span></span><span>4/4 拍</span></footer>
+</main>
+<script>
+  const reference = { name: '参考图节奏', grid: '下···下·下上下···下·下上' };
+  const eighths = [
+    ['上上下','上·上·下···'], ['上下上下','上·下·上·下·'], ['下-下上','下···下上··'], ['下-下下上','下···下·下上'],
+    ['下下上','下·下·上···'], ['下上下','下·上·下···'], ['下上下上','下·上·下·上·'], ['下上','下···上···'],
+  ];
+  const patterns = eighths.map(([name, grid]) => ({ name, grid: [...grid].map(slot => slot + '·').join('') }));
+  const picker = document.querySelector('#pattern');
+  patterns.forEach(({ name }, index) => document.querySelector('#templates').append(new Option(name, index)));
+  const xAt = slot => 28 + slot * 30;
+  const durationNames = {1:'十六分', 2:'八分', 4:'四分', 6:'附点四分', 8:'二分'};
+  function score(pattern) {
+    const onsets = [...pattern.grid].flatMap((stroke, slot) => stroke === '·' ? [] : [{ slot, stroke }]);
+    const notes = onsets.map((note, i) => ({ ...note, duration: (onsets[i + 1]?.slot ?? 16) - note.slot }));
+    const marks = [];
+    for (let beat = 0; beat < 4; beat++) {
+      const group = notes.filter(note => Math.floor(note.slot / 4) === beat);
+      marks.push(`<text class="beat" x="${xAt(beat * 4)}" y="144">${beat + 1}</text>`);
+      group.forEach(({slot, stroke, duration}, i) => {
+        const x = xAt(slot);
+        const up = stroke === '下';
+        const short = duration <= 2;
+        const tip = up ? 13 : 83;
+        const shoulder = up ? 31 : 65;
+        const notch = up ? 26 : 70;
+        // Keep the downward point above both beam levels so its direction stays legible.
+        const bottom = short ? 106 : up ? 99 : notch;
+        marks.push(`<g data-slot="${slot}" data-duration="${duration}" data-stroke="${stroke}">
+          <path class="stem" d="M${x} ${up ? notch : 15}V${bottom}" />
+          <path fill="currentColor" d="M${x} ${tip}l7 ${shoulder-tip} -7 ${notch-shoulder} -7 ${shoulder-notch}Z" /></g>`);
+        if (duration === 8) marks.push(`<path class="hold" d="M${xAt(slot + 4)-8} 55h16" />`);
+        if (duration === 6) marks.push(`<circle fill="currentColor" cx="${x+13}" cy="84" r="3" />`);
+        const levels = duration === 1 ? 2 : short ? 1 : 0;
+        for (let level = 1; level <= levels; level++) {
+          const limit = level === 1 ? 2 : 1;
+          const y = 106 - (level - 1) * 11;
+          const next = group[i + 1];
+          const previous = group[i - 1];
+          if (next && next.duration <= limit) marks.push(`<path class="beam" data-level="${level}" d="M${x} ${y}H${xAt(next.slot)}" />`);
+          else if (!previous || previous.duration > limit) marks.push(`<path class="beam" data-level="${level}" d="M${x} ${y}l12 -5" />`);
+        }
+      });
+    }
+    document.querySelector('#title').textContent = `${pattern.name}，4/4 拍`;
+    document.querySelector('#description').textContent = notes.map(note => `${note.stroke}扫，${durationNames[note.duration]}音符`).join('。');
+    document.querySelector('#music').innerHTML = marks.join('');
+  }
+  picker.addEventListener('change', () => score(picker.value === 'reference' ? reference : patterns[Number(picker.value)]));
+  score(reference);
+</script>
+</html>

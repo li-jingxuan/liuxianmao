@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>第 22 小节 · 扫弦范围</title>
+<style>
+*{box-sizing:border-box}body{font:16px/1.5 Inter,"PingFang SC",sans-serif;color:#192b40;margin:0}main{max-width:690px;margin:auto;padding:18px 0}figure{margin:0;background:#fff;border-radius:6px;padding:5px 8px}svg{display:block;width:100%;touch-action:pan-y}svg [data-i]{cursor:pointer}svg [data-end]{cursor:ns-resize;touch-action:none}button,select{font:inherit;color:#243c59;border:1px solid #becada;background:white;padding:4px 9px;border-radius:5px;min-height:34px}button:disabled{opacity:.5}button:enabled{cursor:pointer}button:focus-visible,select:focus-visible,g:focus-visible{outline:2px solid #245dc5;outline-offset:2px}.controls{background:#f2f5fa;padding:12px;display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap;border-radius:6px}.controls strong{flex-basis:100%}label{white-space:nowrap}select{margin-left:5px}.hint{color:#485972;font-size:.875rem;margin:6px 0 12px}.controls button:first-of-type{color:#174d9d}svg text{font-family:Inter,"PingFang SC",sans-serif}
+</style>
+<main><figure><svg id="score" viewBox="0 0 590 180" role="group" aria-label="第 22 小节，前两拍各三次扫弦"><g id="staff"></g><g id="strokes"></g></svg></figure>
+<p class="hint">点选箭头，拖动蓝色圆点到目标弦；也可以直接选弦号。</p>
+<div class="controls"><strong id="summary" aria-live="polite"></strong><label>上端<select id="hi"></select></label><label>下端<select id="lo"></select></label><button id="copy">套用到本拍其他扫弦</button><button id="undo">撤销</button></div></main>
+<script>
+const $=id=>document.getElementById(id);
+const y=n=>32+(n-1)*16, xs=[102,140,178,236,274,312], dirs=['上','上','下','上','上','下'];
+let ranges=xs.map(()=>[1,6]), active=0, drag=null; const history=[];
+$('staff').innerHTML=`<text x="48" y="19" fill="#60728a" font-size="14">22</text><text x="529" y="19" fill="#60728a" font-size="14">23</text>${[1,2,3,4,5,6].map(n=>`<text x="18" y="${y(n)+4}" fill="#64758b" font-size="12">${n}弦</text><path d="M48 ${y(n)}H542" stroke="#8390a0"/>`).join('')}<path d="M48 32v80m494 -80v80" stroke="#253547"/><text x="382" y="85" font-size="34">𝄽　𝄽</text>`;
+const same=(a,b)=>a[0]===b[0]&&a[1]===b[1];
+function render(){
+ const [a,b]=ranges[active];
+ $('strokes').innerHTML=xs.map((x,i)=>{
+  const [top,bottom]=ranges[i], selected=i===active, down=dirs[i]==='下', ink=selected?'#225ec1':'#27384c', tip=y(down?top:bottom), tail=y(down?bottom:top), wing=tip+(down?8:-8);
+  const handles=selected?[0,1].map((end)=>{const cy=y(ranges[i][end]);return `<g data-end="${end}"><circle cx="${x+14}" cy="${cy}" r="11" fill="transparent"/><path d="M${x+2} ${cy}h8" stroke="#225ec1"/><circle cx="${x+14}" cy="${cy}" r="5" stroke="#225ec1" stroke-width="2" fill="white"/></g>`}).join(''):'';
+  return `<g role="button" tabindex="0" data-i="${i}" aria-pressed="${selected}" aria-label="第 ${Math.floor(i/3)+1} 拍第 ${i%3+1} 扫，${dirs[i]}扫，${top} 至 ${bottom} 弦"><rect x="${x-12}" y="21" width="31" height="101" rx="5" fill="${selected?'#2365c6':'transparent'}" fill-opacity=".10"/><path d="M${x} ${tail}V${tip}" fill="none" stroke="${ink}" stroke-width="2.5"/><path d="M${x} ${tip}l-5 ${wing-tip}h10Z" fill="${ink}"/>${handles}</g>`;
+ }).join('')+[0,3].map(i=>`<path d="M${xs[i]} 124v20h76m-38 -20v20m38 -20v20m-38 -6h38" fill="none" stroke="#28384b" stroke-width="2.5"/><text x="${xs[i]+38}" y="169" text-anchor="middle" fill="#54657b" font-size="13">第 ${i/3+1} 拍</text>`).join('');
+ $('summary').textContent=`第 ${Math.floor(active/3)+1} 拍 · 第 ${active%3+1} 扫　${dirs[active]}扫 ${dirs[active]==='上'?a:b} → ${dirs[active]==='上'?b:a} 弦`;
+ for(const [id,upper] of [['hi',true],['lo',false]]){$(id).innerHTML=[1,2,3,4,5,6].filter(n=>upper?n<b:n>a).map(n=>`<option value="${n}" ${n===(upper?a:b)?'selected':''}>${n} 弦</option>`).join('')}
+ $('copy').disabled=!ranges.some((r,i)=>Math.floor(i/3)===Math.floor(active/3)&&!same(r,ranges[active]));$('undo').disabled=!history.length;
+}
+function remember(){history.push({ranges:ranges.map(r=>[...r]),active})}
+for(const [id,end] of [['hi',0],['lo',1]])$(id).onchange=e=>{remember();ranges[active][end]=Number(e.target.value);render()};
+$('copy').onclick=()=>{remember();ranges=ranges.map((r,i)=>Math.floor(i/3)===Math.floor(active/3)?[...ranges[active]]:r);render()};
+$('undo').onclick=()=>{if(history.length){const entry=history.pop();ranges=entry.ranges;active=entry.active;render()}};
+const svg=$('score');svg.onpointerdown=e=>{const g=e.target.closest('[data-i]');if(!g||drag)return;active=Number(g.dataset.i);const h=e.target.closest('[data-end]');if(h){drag={end:Number(h.dataset.end),old:[...ranges[active]],id:e.pointerId};svg.setPointerCapture(e.pointerId);e.preventDefault()}render()};
+svg.onpointermove=e=>{if(!drag||drag.id!==e.pointerId)return;const p=new DOMPoint(e.clientX,e.clientY).matrixTransform(svg.getScreenCTM().inverse());const n=Math.round((p.y-32)/16)+1;const r=ranges[active];r[drag.end]=drag.end?Math.max(r[0]+1,Math.min(6,n)):Math.max(1,Math.min(r[1]-1,n));render()};
+svg.onpointerup=e=>{if(!drag||drag.id!==e.pointerId)return;const next=[...ranges[active]];if(!same(next,drag.old)){ranges[active]=drag.old;remember();ranges[active]=next}drag=null;render()};
+svg.onpointercancel=e=>{if(drag&&drag.id===e.pointerId){ranges[active]=drag.old;drag=null;render()}};
+svg.onkeydown=e=>{const g=e.target.closest('[data-i]');if(!g||!['Enter',' '].includes(e.key))return;e.preventDefault();active=Number(g.dataset.i);render();$('hi').focus()};render();
+</script></html>

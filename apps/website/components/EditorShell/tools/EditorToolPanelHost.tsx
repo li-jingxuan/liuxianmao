@@ -126,7 +126,8 @@ export const EditorToolPanelHost = ({
     const minLeft = Math.max(8, bounds.left + 8);
     const maxRight = Math.min(window.innerWidth - 8, bounds.right - 8);
     const left = Math.max(minLeft, Math.min(anchor.left, maxRight - width));
-    const top = Math.min(anchor.bottom + 6, Math.max(8, window.innerHeight - 120));
+    const minimumRoom = group === "beat" && !moreMenu ? 230 : 120;
+    const top = Math.min(anchor.bottom + 6, Math.max(8, window.innerHeight - minimumRoom));
     setGeometry({ left, top, width, maxHeight: Math.min(660, Math.max(80, window.innerHeight - top - 8)),
       more: button?.dataset.toolTrigger === "more" });
   };
@@ -219,13 +220,17 @@ export const EditorToolPanelHost = ({
         if (requestedFocus.current) {
           panel?.querySelector<HTMLElement>(requestedFocus.current)?.focus({ preventScroll: true });
         } else if (group === "beat" && !moreMenu) {
-          const selected = panel?.querySelector<HTMLElement>('[data-rhythm-template][aria-pressed="true"], [data-rhythm-measure-template][aria-pressed="true"]');
+          const tab = panel?.querySelector<HTMLElement>('[data-rhythm-tab][aria-selected="true"]');
+          const activePane = tab ? window.document.getElementById(tab.getAttribute("aria-controls") ?? "") : panel;
+          const selected = activePane?.querySelector<HTMLElement>('[data-rhythm-template][aria-pressed="true"], [data-strum-template][aria-pressed="true"], [data-rhythm-measure-template][aria-pressed="true"]');
+          const templateGroup = selected?.hasAttribute("data-strum-template") ? "strum"
+            : selected?.hasAttribute("data-rhythm-measure-template") ? "measure" : "beat";
           const focus = selected
-            ? selected.getClientRects().length ? selected : panel?.querySelector<HTMLElement>(
-              `[data-rhythm-toggle="${selected.hasAttribute("data-rhythm-measure-template") ? "measure" : "beat"}"]`,
+            ? selected.getClientRects().length ? selected : activePane?.querySelector<HTMLElement>(
+              `[data-rhythm-toggle="${templateGroup}"]`,
             )
-            : Array.from(panel?.querySelectorAll<HTMLElement>("[data-rhythm-template]") ?? []).find((card) => card.getClientRects().length);
-          (focus ?? panel?.querySelector<HTMLElement>("[data-rhythm-pattern-panel]"))?.focus({ preventScroll: true });
+            : tab ?? Array.from(activePane?.querySelectorAll<HTMLElement>("[data-rhythm-template]") ?? []).find((card) => card.getClientRects().length);
+          (focus ?? tab ?? panel?.querySelector<HTMLElement>("[data-rhythm-pattern-panel]"))?.focus({ preventScroll: true });
           focus?.scrollIntoView({ block: "nearest" });
         } else {
           panel

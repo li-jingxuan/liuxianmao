@@ -43,7 +43,6 @@ import {
   useSyncExternalStore,
 } from "react";
 import { Button, Dropdown, Tooltip, message, theme } from "antd";
-import { ShortcutHint } from "./session/EditorShortcutReference";
 import { DownOutlined, MinusOutlined, PlusOutlined } from "@ant-design/icons";
 import {
   selectScoreFileStatus,
@@ -522,8 +521,6 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
   const traversalClickRef = useRef<{ selection: ILXMTabCellSelection; cell: ILXMTabCellReference } | null>(null);
   const activePointerIdRef = useRef<number | null>(null);
   const focusCaretRef = useRef<SVGRectElement | null>(null);
-  const [tabHint, setTabHint] = useState<ILXMTabCellReference | null>(null);
-  const [scoreKeyboardFocus, setScoreKeyboardFocus] = useState(false);
   const rangeFocusRef = useRef<SVGRectElement | null>(null);
   const scoreSvgRef = useRef<SVGSVGElement | null>(null);
   const appendingMeasure = useRef(false);
@@ -635,7 +632,6 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     if (enabled) {
       clearScorePointerInteraction();
       endFretInput();
-      setTabHint(null);
       setRhythmPatternScope(null);
     }
     playback.setEnabled(enabled);
@@ -812,18 +808,6 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
         : null,
     [lxmLayout, selection],
   );
-  const tabFocus = !scoreReadOnly && !activeMusicTextTarget && !selectedTechniqueId && focusCaret && selection ? selection.focus : null;
-  const hoveredCell = hoveredTabCell?.layout === lxmLayout ? hoveredTabCell?.target : null;
-  const selectedCellHovered = !!tabFocus && hoveredCell?.trackId === tabFocus.trackId &&
-    hoveredCell.measureId === tabFocus.measureId && hoveredCell.beatId === tabFocus.beatId && hoveredCell.string === tabFocus.string;
-  const tabHintTarget = tabFocus && (selectedCellHovered || scoreKeyboardFocus) && !activeModal ? tabFocus : null;
-  const tabHintOpen = !!tabHintTarget && tabHint === tabHintTarget;
-  useEffect(() => {
-    if (!tabHintTarget) return;
-    const timer = window.setTimeout(() => setTabHint(tabHintTarget), 300);
-    return () => window.clearTimeout(timer);
-  }, [tabHintTarget]);
-
   /**
    * 小节线工具跟随 selection.focus，而不是范围的第一个 Beat。
    * 用户反向拖动或跨小节扩展时，focus 才代表当前正在操作的业务位置。
@@ -1336,13 +1320,6 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
       event.nativeEvent.isComposing
     )
       return;
-    if (event.key === "Escape" && tabHintOpen) {
-      endFretInput();
-      setTabHint(null);
-      event.preventDefault();
-      return;
-    }
-    setTabHint(null);
     if (document && (continuousRange || event.shiftKey && activeMusicTextTarget && rangeFromTarget(activeMusicTextTarget))) {
       const range = continuousRange ?? rangeFromTarget(activeMusicTextTarget!)!;
       if (event.metaKey || event.ctrlKey || event.altKey) return;
@@ -1798,6 +1775,8 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
         focusScore();
       }}
       onScopeChange={setRhythmPatternScope}
+      onOpenSidebar={() => musicTextController.current?.navigateTool("note") === "accepted"}
+      onUndo={() => runHistoryAction("undo")}
       onBusyChange={() => {}}
     >
     <div
@@ -1881,7 +1860,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
           data-score-viewport
           onPointerDownCapture={() => { if (!scoreReadOnly) setRhythmPatternScope(null); }}
           onPointerDown={handleWorkspacePointerDown}
-          onScroll={() => { setTabHint(null); clearHover(); }}
+          onScroll={clearHover}
         >
           <div
             className={scoreInteractionStyles.scoreStage}
@@ -1907,9 +1886,8 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
                 data-score-read-only={scoreReadOnly || undefined}
                 onPointerDown={handlePointerDown}
                 onPointerMove={handlePointerMove}
-                onPointerLeave={() => { setTabHint(null); clearHover(); }}
-                onFocus={(event) => setScoreKeyboardFocus(event.target === event.currentTarget && event.currentTarget.matches(":focus-visible"))}
-                onBlur={() => { endFretInput(); setTabHint(null); setScoreKeyboardFocus(false); }}
+                onPointerLeave={clearHover}
+                onBlur={endFretInput}
                 onPointerUp={finishPointerDrag}
                 onPointerCancel={finishPointerDrag}
                 onKeyDown={(event) => {
@@ -1975,8 +1953,6 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
                       />
                     ))}
                   {focusCaret && !lyricFocus && (
-                    <Tooltip title={<ShortcutHint shortcuts={["fret", "muted", "sustain", "remove"]} />}
-                      placement="bottom" trigger={[]} open={tabHintOpen}>
                     <rect
                       ref={focusCaretRef}
                       className={
@@ -1989,7 +1965,6 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
                       width={focusCaret.width}
                       height={focusCaret.height}
                     />
-                    </Tooltip>
                   )}
                 </g>
                 {lyricFocus && (
