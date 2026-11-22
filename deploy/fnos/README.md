@@ -24,6 +24,8 @@
 
 在 [Woodpecker 仓库页](https://nice007.fnos.net/app/woodpecker/repos/5) 选择 **Run pipeline**，分支选 `main`。可填写自定义变量 `RELEASE_ACTION`。
 
+NAS 上的 Docker runner 通过网桥地址 `172.17.0.1` 访问主机。源码检出使用该地址的 `7890` 出口代理，发布使用 SSH，并按 NAS 局域网地址 `192.168.2.13` 核验主机公钥。迁移 runner 时需更新 `.woodpecker.yaml` 中的连接地址。
+
 - `check` 或留空运行 lint、类型检查、测试和 standalone 生产构建。
 - `deploy` 通过同样的检查后，经 SSH 把源码传到 NAS。NAS 核对源码与当前 GitHub `main` 的 Git tree 后构建并部署本机镜像。如果检查期间 `main` 已更新，请重新创建流水线。
 - `rollback` 部署上一健康镜像。

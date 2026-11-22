@@ -7,6 +7,8 @@ skip_clone: true
 steps:
   - name: checkout-main
     image: quay.io/woodpeckerci/plugin-git:2.11.0
+    environment:
+      HTTPS_PROXY: http://172.17.0.1:7890
     commands:
       - |
         case "${RELEASE_ACTION:-}" in
@@ -46,11 +48,12 @@ steps:
       - test -f apps/website/.next/standalone/apps/website/server.js
 
   - name: release-to-nas
-    image: docker.m.daocloud.io/library/python:3.12-slim
+    image: quay.io/woodpeckerci/plugin-git:2.11.0
     when:
       - event: manual
         evaluate: 'RELEASE_ACTION in ["deploy", "rollback"]'
     environment:
+      LXM_NAS_SSH_HOST: 172.17.0.1
       LXM_NAS_SSH_KEY:
         from_secret: lxm_nas_ssh_key
       LXM_NAS_KNOWN_HOSTS:
