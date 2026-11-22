@@ -8,7 +8,7 @@
    sh deploy/fnos/package.sh
    ```
 
-2. 在 NAS 的 `nice007` 账号下创建发布目录 `/home/nice007/.local/share/liuxianmao`，将 `build-release.sh`、`ssh-release.sh`、`deploy.sh`、`compose.yaml`、`proxy.cjs` 和 `verify.cjs` 复制到该目录。部署账号需能操作 Docker、写入发布目录以及连接 FPK 目录内的 Socket。NAS 需提供 `curl`、`flock` 和支持 `up --wait` 的 Docker Compose。
+2. 在 NAS 的 `nice007` 账号下创建发布目录 `/home/nice007/.local/share/liuxianmao`，将 `build-release.sh`、`extract-main.py`、`ssh-release.sh`、`deploy.sh`、`compose.yaml`、`proxy.cjs` 和 `verify.cjs` 复制到该目录。部署账号需能操作 Docker、写入发布目录以及连接 FPK 目录内的 Socket。NAS 需提供 `python3`、`curl`、`flock` 和支持 `up --wait` 的 Docker Compose。
 3. 在发布目录写入 `appdest`，内容为本次 FPK 安装的实际 `target` 目录。安装位置随飞牛存储卷变化，可通过安装后创建的链接查询。
 
    ```sh
@@ -25,7 +25,7 @@
 在 [Woodpecker 仓库页](https://nice007.fnos.net/app/woodpecker/repos/2) 选择 **Run pipeline**，分支选 `main`。可填写自定义变量 `RELEASE_ACTION`。
 
 - `check` 或留空运行 lint、类型检查、测试和 standalone 生产构建。
-- `deploy` 通过同样的检查后，经 SSH 把校验过的指定提交源码传到 NAS，由 NAS 构建并部署本机镜像。
+- `deploy` 通过同样的检查后，经 SSH 把源码传到 NAS。NAS 核对源码与当前 GitHub `main` 的 Git tree 后构建并部署本机镜像。如果检查期间 `main` 已更新，请重新创建流水线。
 - `rollback` 部署上一健康镜像。
 
 镜像以完整 Git SHA 标记，切换记录固定到本机镜像 ID。NAS 发布目录中也可直接执行切换和回滚。

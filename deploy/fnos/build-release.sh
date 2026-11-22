@@ -12,7 +12,7 @@ umask 077
 source_dir=$(mktemp -d)
 trap 'rm -rf -- "$source_dir"' EXIT
 trap 'exit 1' HUP INT TERM
-tar -xzf - -C "$source_dir"
+python3 "$release_dir/extract-main.py" "$commit" "$source_dir"
 
 exec 8>"$release_dir/.build.lock"
 flock -x 8
