@@ -99,6 +99,7 @@ import { captureEditorVersion, sameEditorVersion, type EditorSessionVersion } fr
 import type { EditorDraftRecord, EditorDraftRegistration } from "../session/editor-draft-coordinator";
 import type { FloatingAnchorRect } from "./music-text-floating-position";
 import { useMusicTextFloatingPanel } from "./use-music-text-floating-panel";
+import { contextPanelPosition } from "../score/context-panel-position";
 
 import type { ToolNavigation } from "../tools/editor-tool-catalog";
 import type {
@@ -121,6 +122,7 @@ export type ParagraphEditingSession = {
 };
 
 type LyricFocusSurface = "sidebar" | "popover";
+type ContextChord = { anchor: HTMLElement; onClose: () => void };
 type ParagraphRowCommand = Extract<ILXMScoreCommand, {
   type: LXMScoreCommandEnum.AddNumberedRow | LXMScoreCommandEnum.AddLyricVerse |
     LXMScoreCommandEnum.RemoveNumberedRow | LXMScoreCommandEnum.RemoveLyricVerse;
@@ -130,6 +132,7 @@ type SidebarAction = DraftSidebarAction & {
   targetSurface?: "sidebar";
   protectTextDraft?: boolean;
   settingsFocus?: boolean;
+  contextChord?: ContextChord;
 };
 type PendingSidebarAction = SidebarAction | { type: "paragraphRow"; command: ParagraphRowCommand };
 
@@ -143,6 +146,8 @@ export interface MusicTextController {
   canCollapse: () => boolean;
   restoreSidebarFocus: () => void;
   open: (target: MusicTextTarget) => void;
+  openContextChord: (anchor: HTMLElement, onClose: () => void) => boolean;
+  closeContextChord: () => boolean;
   select: (
     selection: ILXMTabCellSelection | null,
     techniqueId?: string,
@@ -302,6 +307,9 @@ export const MusicTextSidebar = ({
   const [focusRequest, setFocusRequest] = useState(0);
   const [surface, setSurface] = useState<"popover" | "sidebar">("popover");
   const [dismissed, setDismissed] = useState(false);
+  const [contextChord, setContextChord] = useState<ContextChord | null>(null);
+  const contextChordRef = useRef<ContextChord | null>(null);
+  const [contextPosition, setContextPosition] = useState<ReturnType<typeof contextPanelPosition> | null>(null);
   const [compositionCooling, setCompositionCooling] = useState(false);
   const compositionCoolingRef = useRef(false);
   const compositionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -596,6 +604,7 @@ export const MusicTextSidebar = ({
   const dismissCleanPopover = () => {
     if (!floating || surfaceBlocked() || numberedRef.current?.dirty ||
         (draft && musicTextDraftValue(draft) !== draft.initial)) return false;
+    if (contextChordRef.current) return closeContextChord();
     setDismissed(true);
     setInputEditing(false);
     setNumberedInputActive(false);
@@ -612,6 +621,7 @@ export const MusicTextSidebar = ({
     mode: MusicTextDraft["lyricMode"] = "sequence",
     focus: "score" | "input" = "input",
     lyricSurface: LyricFocusSurface = "popover",
+    fromContextMenu = false,
   ) => {
     activeTextOwner.current = true;
     lyricFocusSurface.current = lyricSurface;
@@ -639,11 +649,22 @@ export const MusicTextSidebar = ({
       focusTarget(focus);
       onOpen();
       editorStore.getState().setSelectedTechniqueId(null);
-      if (value.target.kind === "chord")
+      // 菜单已选定 TAB 拍点。和弦目标规范化时统一使用第一弦，不能用它覆盖菜单保留的弦格选区。
+      if (value.target.kind === "chord" && !fromContextMenu)
         editorStore
           .getState()
           .setSelection(createCollapsedTabCellSelection(value.target));
     }
+  };
+  // 菜单与谱面入口共用同一草稿。只在编辑目标切换获准后交接菜单状态，
+  // 先清引用再通知父级，避免同一事件中再次关闭时重复触发回调。
+  const changeContextChord = (next: ContextChord | null) => {
+    const previous = contextChordRef.current;
+    if (previous === next) return;
+    contextChordRef.current = next;
+    setContextChord(next);
+    setContextPosition(null);
+    previous?.onClose();
   };
   /** 接受请求才改变选区和草稿；延迟确认的目标按最新快照验证。 */
   const perform = (action: SidebarAction): boolean => {
@@ -753,7 +774,7 @@ export const MusicTextSidebar = ({
       const nextSelection =
         action.type === "selection"
           ? action.selection
-          : activeObject?.kind === "chord"
+          : activeObject?.kind === "chord" && !contextChordRef.current
             ? createCollapsedTabCellSelection(activeObject)
             : current.selection;
       settingsRef.current?.discard();
@@ -782,11 +803,16 @@ export const MusicTextSidebar = ({
       setInputEditing(false);
       focusDestination.current = "score";
       setMessage(null);
-      onScoreSelection(
-        nextSelection,
-        action.type === "selection" ? (action.techniqueId ?? null) : null,
-        ...(action.type === "selection" && action.strumIds ? [action.strumIds] as const : []),
-      );
+      if (action.type === "close" && contextChordRef.current) {
+        // 菜单关闭保留六线谱选区。同步通知父级释放文字目标，焦点由菜单的关闭回调处理。
+        onTargetChange(null);
+      } else {
+        onScoreSelection(
+          nextSelection,
+          action.type === "selection" ? (action.techniqueId ?? null) : null,
+          ...(action.type === "selection" && action.strumIds ? [action.strumIds] as const : []),
+        );
+      }
     } else if (action.type === "target") {
       setDetailTarget({ trackId: action.target.trackId, measureId: action.target.measureId });
       settingsRef.current?.discard();
@@ -819,7 +845,7 @@ export const MusicTextSidebar = ({
           });
       } else {
         current.setNumberedSelection(null);
-        loadTarget(action.target, draft?.lyricMode, action.focus, action.targetSurface ?? action.lyricFocusSurface);
+        loadTarget(action.target, draft?.lyricMode, action.focus, action.targetSurface ?? action.lyricFocusSurface, !!action.contextChord);
       }
     } else if (action.type === "numberedMode") {
       activeTextOwner.current = true;
@@ -840,6 +866,7 @@ export const MusicTextSidebar = ({
         current.setNumberedSelection(null);
         loadTarget(lyricTarget, "sequence", "input", "sidebar");
         setSurface("sidebar");
+        changeContextChord(null);
         return true;
       }
       const numberedPosition = (action.kind === "numbered" || action.kind === "lyric") && current.document && source
@@ -873,6 +900,7 @@ export const MusicTextSidebar = ({
     }
     if (action.type === "tab" && action.propertyTab)
       setPropertyTab(action.propertyTab);
+    changeContextChord(action.contextChord ?? null);
     return true;
   };
   const holdPending = (action: PendingSidebarAction): SelectionRequestResult => {
@@ -964,6 +992,7 @@ export const MusicTextSidebar = ({
     if (decision === "ignore" && action.type === "target") {
       setDismissed(false);
       setActiveObject(action.target);
+      changeContextChord(action.contextChord ?? null);
       if (action.targetSurface === "sidebar") {
         lyricFocusSurface.current = "sidebar";
         setSurface("sidebar");
@@ -980,11 +1009,24 @@ export const MusicTextSidebar = ({
       } else focusTarget(action.focus ?? "input");
       return "accepted";
     }
-    if (decision === "confirm" || (action.protectTextDraft && textDraftDirty)) return holdPending(action);
+    if (decision === "confirm" || (action.protectTextDraft && textDraftDirty))
+      return action.contextChord ? "blocked" : holdPending(action);
     return decision === "ignore" || perform(action) ? "accepted" : "blocked";
   };
   const returnToScore = (): SelectionRequestResult =>
     request({ type: "close" });
+  const closeContextChord = (restoreAnchorFocus = false): boolean => {
+    const entry = contextChordRef.current;
+    if (!entry) return true;
+    // 切工具、点外部和 Esc 使用同一关闭规则。组合输入、子弹窗及表单保护期间保留原编辑，
+    // 其余情况按现有和弦退出规则丢弃未应用内容，不修改谱面。
+    if (surfaceBlocked() || modals.isOpen() || settingsRef.current?.isProtectedDirty() ||
+      settingsRef.current?.isComposing() || settingsRef.current?.readStatus().busy) return false;
+    if (!perform({ type: "close" })) return false;
+    // 表单内的关闭、应用和 Esc 回到菜单行。外部点击或切换工具保留调用方的焦点意图。
+    if (restoreAnchorFocus && entry.anchor.isConnected) entry.anchor.focus({ preventScroll: true });
+    return true;
+  };
   // 拖选等谱面操作会直接更新 store 选区；只同步目标，不打断 pointer capture。
   useLayoutEffect(() => {
     if (propertyTab !== "chord" || activeObject || activeModal || pending || suspendedChord.current) return;
@@ -1007,6 +1049,7 @@ export const MusicTextSidebar = ({
     focusDestination.current = "score";
   }, [selection, numberedSelection, continuousRange, propertyTab, activeObject, activeModal, pending, editorStore]);
   const cancelTextEditing = (): SelectionRequestResult => {
+    if (contextChordRef.current) return closeContextChord(true) ? "accepted" : "blocked";
     if (surfaceBlocked()) return "blocked";
     if (kind === "lyric" || kind === "numbered") {
       setDismissed(true);
@@ -1064,6 +1107,20 @@ export const MusicTextSidebar = ({
       onRangeChange(null);
       request({ type: "target", target: next });
     },
+    openContextChord: (anchor, onClose) => {
+      // 右键菜单只接受当前有效的 TAB 单拍，简谱和连续文字选区不隐式换成和弦目标。
+      // 菜单需要立即知道是否打开，已受保护的设置留在原表单，不排队等待确认后再打开。
+      const current = editorStore.getState();
+      if (!portalRoot || !anchor.isConnected || current.numberedSelection || continuousRange ||
+        modals.isOpen() || settingsRef.current?.isProtectedDirty()) return false;
+      const target = selectedChordTarget(current.document, current.selection);
+      const existingContext = contextChordRef.current;
+      const entry = existingContext?.anchor === anchor ? existingContext : { anchor, onClose };
+      if (!target || request({ type: "target", target, contextChord: entry }) !== "accepted") return false;
+      entry.onClose = onClose;
+      return true;
+    },
+    closeContextChord: () => closeContextChord(),
     moveEditTarget: (direction, source, fromScore) => {
       const target = activeObject?.kind === "numbered" ? numberedPreview ?? activeObject : activeObject;
       const current = editorStore.getState().document;
@@ -1095,6 +1152,7 @@ export const MusicTextSidebar = ({
     returnToScore: () => {
       if (rangeEditor.current?.isComposing()) return "blocked";
       if (continuousRange) { onRangeChange(null); onScoreFocus(); return "accepted"; }
+      if (contextChordRef.current) return closeContextChord() ? "accepted" : "blocked";
       return returnToScore();
     },
     dismissCleanPopover,
@@ -1195,7 +1253,7 @@ export const MusicTextSidebar = ({
     ref: floatingPanelRef,
     geometry,
   } = useMusicTextFloatingPanel({
-    open: floating && (!dismissed || chordModalActive),
+    open: !contextChord && floating && (!dismissed || chordModalActive),
     allowNarrowing: kind !== "chord",
     targetKey,
     freeze: compositionActive || compositionCooling || !!pending || numberedBusy || chordModalActive,
@@ -1207,7 +1265,31 @@ export const MusicTextSidebar = ({
     getObservedElements: getFloatingObservedElements,
     layoutKey: getFloatingAnchor,
   });
-  const popoverHidden = floating && (dismissed || geometry.kind !== "placed");
+  useLayoutEffect(() => {
+    if (!contextChord || !floating || !floatingPanelRef.current) return;
+    const panel = floatingPanelRef.current;
+    const { anchor } = contextChord;
+    const ownerWindow = anchor.ownerDocument.defaultView;
+    const position = () => {
+      if (!anchor.isConnected) return;
+      // 以实际表单尺寸对齐菜单行。名称校验、指法预览会改变高度，内容重排后沿用同一锚点重新定位。
+      const { width, height } = panel.getBoundingClientRect();
+      const next = contextPanelPosition(anchor, width, height);
+      setContextPosition((previous) => previous?.left === next.left && previous.top === next.top ? previous : next);
+    };
+    position();
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(position);
+    observer?.observe(panel);
+    observer?.observe(anchor);
+    ownerWindow?.addEventListener("resize", position);
+    ownerWindow?.addEventListener("scroll", position, true);
+    return () => {
+      observer?.disconnect();
+      ownerWindow?.removeEventListener("resize", position);
+      ownerWindow?.removeEventListener("scroll", position, true);
+    };
+  }, [contextChord, floating, floatingPanelRef]);
+  const popoverHidden = floating && (dismissed || (contextChord ? !contextPosition : geometry.kind !== "placed"));
   useEffect(() => onPopoverHiddenChange(popoverHidden), [popoverHidden, onPopoverHiddenChange]);
   // 隐藏的干净气泡释放谱面操作；未提交草稿继续走原有阻断链。
   const editing =
@@ -1220,7 +1302,7 @@ export const MusicTextSidebar = ({
     (!!draft && (inputEditing || musicTextDraftValue(draft) !== draft.initial));
   useEffect(() => onEditingChange(editing), [editing, onEditingChange]);
   useEffect(() => {
-    if (!floating || dismissed || surfaceBlocked()) return;
+    if (contextChord || !floating || dismissed || surfaceBlocked()) return;
     if (geometry.kind === "placed") {
       lastPlacedTarget.current = targetKey;
       return;
@@ -1246,7 +1328,7 @@ export const MusicTextSidebar = ({
       }
     });
     return () => cancelAnimationFrame(frame);
-  }, [floating, dismissed, geometry, targetKey, surfaceBlocked, floatingPanelRef, onScoreFocus, focusSidebar]);
+  }, [contextChord, floating, dismissed, geometry, targetKey, surfaceBlocked, floatingPanelRef, onScoreFocus, focusSidebar]);
   const floatingLocation = (draftLocation(activeObject, "") ?? "请选择编辑位置")
     .split(" · ").filter((part) => !part.startsWith("简谱位置")).join(" · ");
   const numberedEvent = activeObject?.kind === "numbered" && activeObject.eventId
@@ -1444,7 +1526,14 @@ export const MusicTextSidebar = ({
       setMessage("歌词位置或原内容已变化，输入已保留，请重新检查。");
       return false;
     }
-    if (draft.target.kind === "chord" && musicTextDraftValue(draft) === draft.initial) return true;
+    const closeAfterApply = () => {
+      // 校验或提交失败时继续显示原输入。导航确认有自己的后续目标，由该目标切换负责关闭菜单。
+      if (contextChordRef.current && !navigationApplying.current) closeContextChord(true);
+    };
+    if (draft.target.kind === "chord" && musicTextDraftValue(draft) === draft.initial) {
+      closeAfterApply();
+      return true;
+    }
     const target = draft.target;
     const result = commit(
       target.kind === "lyric"
@@ -1485,6 +1574,7 @@ export const MusicTextSidebar = ({
       });
     } else setDraft(saved);
     setMessage(target.kind === "lyric" ? null : result.changed ? removingChord ? "已删除，保留当前拍点。" : "已应用" : "内容未变化");
+    if (target.kind === "chord") closeAfterApply();
     return true;
   };
   const applyLyricPrimary = () => {
@@ -1632,6 +1722,8 @@ export const MusicTextSidebar = ({
       settingsRef.current?.isComposing() || settingsRef.current?.readStatus().busy) return false;
     suspendedChord.current = { draft: structuredClone(current), identity: draftRegistration.captureIdentity(),
       version: captureEditorVersion(editorStore.getState()), surface };
+    // 曲谱设置可保留和弦草稿，菜单行却无法继续作为锚点。恢复草稿时采用常规谱面定位。
+    changeContextChord(null);
     setChordSuspended(true); setChordModalActive(false); setKind("score"); setPropertyTab("song");
     setDismissed(true); setInputEditing(false); onExpandSidebar();
     requestAnimationFrame(() => document.querySelector<HTMLElement>('#settings-mode')?.focus());
@@ -2713,6 +2805,7 @@ export const MusicTextSidebar = ({
           ref={floatingPanelRef}
           data-music-text-floating
           data-editor-associated-panel="music-text-sidebar"
+          data-score-context-panel={contextChord ? "chord" : undefined}
           id={kind === "chord" ? "chord-edit-popover" : "music-text-edit-popover"}
           className={`${musicTextSidebarStyles.musicTextSurface} ${musicTextSidebarStyles.musicTextFloating} ${kind === "chord" ? musicTextSidebarStyles.chordFloating : ""}`}
           hidden={!floating}
@@ -2720,13 +2813,13 @@ export const MusicTextSidebar = ({
           role="dialog"
           aria-modal={false}
           data-text-surface={floating ? "popover" : undefined}
-          data-popover-placement={geometry.kind === "placed" ? geometry.placement : undefined}
+          data-popover-placement={!contextChord && geometry.kind === "placed" ? geometry.placement : undefined}
           inert={!!activeModal || popoverHidden || !!pending}
           data-editor-inert={String(!!activeModal || popoverHidden || !!pending)}
           aria-hidden={popoverHidden || !floating || undefined}
           style={{
-            left: geometry.kind === "placed" ? geometry.left : 0,
-            top: geometry.kind === "placed" ? geometry.top : 0,
+            left: contextChord ? (contextPosition?.left ?? 0) : geometry.kind === "placed" ? geometry.left : 0,
+            top: contextChord ? (contextPosition?.top ?? 0) : geometry.kind === "placed" ? geometry.top : 0,
             visibility: popoverHidden ? "hidden" : "visible",
             width: kind === "chord" ? 378 : kind === "lyric" && !sequence ? 320 : 360,
             "--popover-arrow-offset": geometry.kind === "placed" ? `${geometry.arrowOffset}px` : "16px",
@@ -2758,7 +2851,8 @@ export const MusicTextSidebar = ({
                 </div>
               )}
                <Button type="text" disabled={surfaceDisabled} aria-label={kind === "chord" ? "关闭快捷编辑" : kind === "lyric" ? "关闭歌词浮窗" : "结束文字编辑"} title={kind === "chord" ? "关闭快捷编辑" : kind === "lyric" ? "关闭歌词浮窗" : "结束文字编辑"} onClick={() => {
-                 if (kind === "chord") { setSurface("sidebar"); setDismissed(true); setInputEditing(false); onScoreFocus(); }
+                 if (contextChord) closeContextChord(true);
+                 else if (kind === "chord") { setSurface("sidebar"); setDismissed(true); setInputEditing(false); onScoreFocus(); }
                  else cancelTextEditing();
                }}>
                 ×
