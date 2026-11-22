@@ -49,7 +49,7 @@ import editorToolPanelStyles from "../shared/editor-tool-panel.module.scss";
 import type { MusicTextTarget } from "../music-text/music-text-draft";
 import { resolveEditorRhythmTarget } from "../tools/editor-rhythm-target";
 import { resolveEditorChordTarget } from "../chords/editor-chord-target";
-import { resolveQuickTechnique } from "../tools/editor-technique-target";
+import { resolveQuickTechnique, type QuickTechnique } from "../tools/editor-technique-target";
 import { tabToolTargetReason } from "../tools/editor-tool-guard";
 import { isNumberedTieTarget, resolveEditorTieTarget } from "../tools/editor-tie-target";
 import { EditorToolSymbolButton, TechniqueSymbol } from "../tools/EditorToolSymbolButton";
@@ -294,6 +294,8 @@ export const EditorToolbar = ({
     if (!rhythmAvailability.enabled) return false;
     return onAction(action);
   };
+  const runQuickTechnique = (technique: QuickTechnique) =>
+    () => void run({ type: "quickTechnique", technique });
   return (
     <div
       className={toolbarStyles.root}
@@ -401,7 +403,7 @@ export const EditorToolbar = ({
           return <ToolButton key={quick} label={quick === "tie" && tieTarget.kind === "numbered" ? "简谱延音线" : labels[quick]}
             availability={quick === "tie" && tieTarget.kind === "numbered" ? tieAvailability : available(tabReason ? { enabled: false, reason: tabReason } : { enabled: result.ok, reason: result.ok ? "" : result.message })}
             pressed={result.ok && result.pressed}
-            onClick={() => void run({ type: "quickTechnique", technique: quick })}>
+            onClick={runQuickTechnique(quick)}>
             {quick === "hammerOn" ? "H" : quick === "pullOff" ? "P" : quick === "slide" ? "S" : <TechniqueSymbol kind={quick} />}
           </ToolButton>;
         })}

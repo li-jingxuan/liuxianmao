@@ -1,0 +1,12 @@
+**/node_modules
+**/.next
+**/.turbo
+**/dist
+**/*.tsbuildinfo
+**/.env
+**/.env.*
+.git
+artifacts
+docs/**
+!docs/design-v2/records/20261111_chord-catalog-data-audit-v2.json
+output

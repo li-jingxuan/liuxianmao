@@ -1,5 +1,6 @@
 import { CSSProperties } from "react";
 import { getSvgAsset, type MusicControlIcon } from "../assets/svg/svg-assets-manifest";
+import { sitePath } from "../lib/site-path";
 
 type SvgMaskStyle = CSSProperties & {
   "--music-icon-url": string;
@@ -17,7 +18,7 @@ export const MusicAssetIcon: React.FC<MusicAssetIconProps> = ({ assetId, classNa
     return <span className={className}>{ assetId }</span>
   }
   const maskStyle: SvgMaskStyle = {
-    "--music-icon-url": `url("${asset.runtimePath}")`,
+    "--music-icon-url": `url("${sitePath(asset.runtimePath)}")`,
   };
 
   return (

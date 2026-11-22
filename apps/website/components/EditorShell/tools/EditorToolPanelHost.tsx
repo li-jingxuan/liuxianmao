@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
   type ReactElement,
   type Ref,
@@ -232,6 +233,29 @@ export const EditorToolPanelHost = ({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, group, moreMenu, anchorInMore]);
+  const handleCompositionEnd = () => {
+    composing.current = false;
+    compositionBuffer.current = true;
+    compositionFrame.current = requestAnimationFrame(() => {
+      compositionBuffer.current = false;
+      compositionFrame.current = null;
+      if (pendingClose.current !== null) close(pendingClose.current);
+    });
+  };
+  const handlePopupKeyDownCapture = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement;
+    const expandedControl = target.closest('[aria-expanded="true"], .ant-select-open');
+    if (
+      event.key === "Escape" &&
+      !event.nativeEvent.isComposing &&
+      !expandedControl &&
+      canClose()
+    ) {
+      event.stopPropagation();
+      close(true);
+    }
+  };
+  const openMoreItem = (target: ToolGroupId) => () => show(target, undefined, true);
   const popup = (rhythm: boolean) => (
         <div
           ref={rhythm === (group === "beat") ? content : undefined}
@@ -242,15 +266,7 @@ export const EditorToolPanelHost = ({
             composing.current = true;
             compositionBuffer.current = false;
           }}
-          onCompositionEnd={() => {
-            composing.current = false;
-            compositionBuffer.current = true;
-            compositionFrame.current = requestAnimationFrame(() => {
-              compositionBuffer.current = false;
-              compositionFrame.current = null;
-              if (pendingClose.current !== null) close(pendingClose.current);
-            });
-          }}
+          onCompositionEnd={handleCompositionEnd}
           onKeyDown={(event) => {
             // Portals bubble through the editor tree; keep score shortcuts inside this tool.
             if (group === "beat" && !moreMenu) {
@@ -258,26 +274,14 @@ export const EditorToolPanelHost = ({
               if (/^[0-9]$/.test(event.key) || event.key === "Delete" || event.key === "Backspace") event.preventDefault();
             }
           }}
-          onKeyDownCapture={(event) => {
-            const target = event.target as HTMLElement;
-            const expandedControl = target.closest('[aria-expanded="true"], .ant-select-open');
-            if (
-              event.key === "Escape" &&
-              !event.nativeEvent.isComposing &&
-              !expandedControl &&
-              canClose()
-            ) {
-              event.stopPropagation();
-              close(true);
-            }
-          }}
+          onKeyDownCapture={handlePopupKeyDownCapture}
         >
           <div className={`${editorToolPanelStyles.toolPanelHost} ${toolbarStyles.popupContent}`} style={{ maxHeight: geometry.maxHeight, ...(group === "beat" && !moreMenu ? { padding: 0, "--rhythm-panel-max-height": `${geometry.maxHeight}px` } : {}) } as CSSProperties}>
           {moreMenu && <h3>更多工具</h3>}
           {moreMenu && <div className={editorToolPanelStyles.toolMenu}>
             {TOOL_GROUPS.filter((item) => item.id !== "technique").map((item) =>
               <Button key={item.id} block disabled={!!disabledReason(item.id)} title={disabledReason(item.id) ?? undefined}
-                onClick={() => show(item.id, undefined, true)}>{item.label}工具</Button>)}
+                onClick={openMoreItem(item.id)}>{item.label}工具</Button>)}
           </div>}
           {TOOL_GROUPS.filter((item) => (item.id === "beat") === rhythm).map((item) => (
             <div

@@ -1,0 +1,120 @@
+when:
+  - event: manual
+    branch: main
+
+skip_clone: true
+
+steps:
+  - name: checkout-main
+    image: docker.m.daocloud.io/library/python:3.12-slim
+    environment:
+      GITHUB_API_TOKEN:
+        from_secret: github_api_checkout
+    commands:
+      - |
+        python - <<'PY'
+        import base64
+        from concurrent.futures import ThreadPoolExecutor
+        import hashlib
+        import http.client
+        import json
+        import os
+        from pathlib import Path, PurePosixPath
+        import re
+        import time
+        import urllib.request
+
+        action = os.environ.get('RELEASE_ACTION', '')
+        if action not in ('', 'check', 'deploy', 'rollback'):
+            raise SystemExit('RELEASE_ACTION must be check, deploy or rollback')
+        repository = os.environ['CI_REPO']
+        commit = os.environ['CI_COMMIT_SHA']
+        if repository != 'li-jingxuan/liuxianmao' or not re.fullmatch(r'[a-f0-9]{40}', commit):
+            raise SystemExit('Unexpected repository or commit')
+        headers = {
+            'Authorization': 'Bearer ' + os.environ['GITHUB_API_TOKEN'],
+            'Accept': 'application/vnd.github+json',
+            'User-Agent': 'Liuxianmao-Woodpecker-checkout',
+            'X-GitHub-Api-Version': '2022-11-28',
+        }
+
+        def request(path):
+            for attempt in range(3):
+                try:
+                    url = 'https://api.github.com/repos/' + repository + path
+                    with urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=30) as response:
+                        return json.load(response)
+                except (OSError, ValueError, http.client.HTTPException):
+                    if attempt == 2:
+                        raise RuntimeError('GitHub API checkout failed') from None
+                    time.sleep(attempt + 1)
+
+        tree = request('/git/trees/' + commit + '?recursive=1')
+        if tree.get('truncated'):
+            raise SystemExit('Refusing incomplete repository tree')
+        paths = {
+            '.dockerignore', '.npmrc', 'Dockerfile', 'package.json', 'pnpm-lock.yaml',
+            'pnpm-workspace.yaml', 'turbo.json', 'vitest.config.mts',
+            'docs/design-v2/records/20261111_chord-catalog-data-audit-v2.json',
+        }
+        prefixes = ('apps/website/', 'packages/', 'deploy/fnos/')
+        files = []
+        for entry in tree['tree']:
+            name = entry['path']
+            if name not in paths and not name.startswith(prefixes):
+                continue
+            path = PurePosixPath(name)
+            if path.is_absolute() or '..' in path.parts or '.git' in path.parts:
+                raise SystemExit('Unsafe repository path')
+            if entry['type'] == 'tree':
+                continue
+            if entry['type'] != 'blob' or entry['mode'] not in ('100644', '100755'):
+                raise SystemExit('Unsupported repository entry')
+            files.append(entry)
+
+        def checkout(entry):
+            blob = request('/git/blobs/' + entry['sha'])
+            content = base64.b64decode(blob['content'])
+            header = b'blob ' + str(len(content)).encode() + b'\0'
+            if hashlib.sha1(header + content).hexdigest() != entry['sha']:
+                raise RuntimeError('Git blob checksum mismatch')
+            path = Path(entry['path'])
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(content)
+            path.chmod(0o755 if entry['mode'] == '100755' else 0o644)
+
+        with ThreadPoolExecutor(max_workers=6) as executor:
+            list(executor.map(checkout, files))
+        print('Verified checkout:', repository, commit, len(files), 'files')
+        PY
+
+  - name: checks
+    image: docker.m.daocloud.io/library/node:22-alpine
+    when:
+      - event: manual
+        evaluate: 'RELEASE_ACTION != "rollback"'
+    environment:
+      NPM_CONFIG_REGISTRY: https://registry.npmmirror.com
+      NEXT_PUBLIC_BASE_PATH: /app/liuxianmao
+      NEXT_TELEMETRY_DISABLED: "1"
+      NODE_OPTIONS: --max-old-space-size=1100
+      VITEST_MAX_WORKERS: "1"
+    commands:
+      - npm install --global pnpm@9.15.9
+      - pnpm install --frozen-lockfile
+      - pnpm exec turbo run lint type-check test --concurrency=1
+      - pnpm --filter @liuxianmao/website build
+      - test -f apps/website/.next/standalone/apps/website/server.js
+
+  - name: release-to-nas
+    image: docker.m.daocloud.io/library/python:3.12-slim
+    when:
+      - event: manual
+        evaluate: 'RELEASE_ACTION in ["deploy", "rollback"]'
+    environment:
+      LXM_NAS_SSH_KEY:
+        from_secret: lxm_nas_ssh_key
+      LXM_NAS_KNOWN_HOSTS:
+        from_secret: lxm_nas_known_hosts
+    commands:
+      - sh deploy/fnos/ci-release.sh

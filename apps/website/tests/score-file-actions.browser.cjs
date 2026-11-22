@@ -1,3 +1,5 @@
+/* global module */
+
 const button = (page, name) => page.getByRole("button", { name, exact: true });
 
 async function selectScoreAction(page, group, item, { dispatch = false } = {}) {

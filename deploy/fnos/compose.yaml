@@ -1,0 +1,47 @@
+services:
+  web:
+    image: ${LXM_IMAGE:?set by deploy.sh}
+    restart: unless-stopped
+    environment:
+      HOSTNAME: 0.0.0.0
+      PORT: "3000"
+
+  gateway:
+    image: ${LXM_IMAGE:?set by deploy.sh}
+    restart: unless-stopped
+    depends_on:
+      - web
+    entrypoint: ["node", "/deployment/proxy.cjs"]
+    command: []
+    # The root-owned fnOS target needs to be writable only by the socket proxy.
+    user: "0:0"
+    read_only: true
+    cap_drop: [ALL]
+    cap_add: [DAC_OVERRIDE]
+    security_opt: ["no-new-privileges:true"]
+    environment:
+      GATEWAY_SOCKET: /gateway/app.sock
+    volumes:
+      - type: bind
+        source: ${LXM_APPDEST:?set by deploy.sh}
+        target: /gateway
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./proxy.cjs
+        target: /deployment/proxy.cjs
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./verify.cjs
+        target: /deployment/verify.cjs
+        read_only: true
+        bind:
+          create_host_path: false
+    healthcheck:
+      test: ["CMD", "node", "/deployment/verify.cjs", "home"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
