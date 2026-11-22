@@ -52,17 +52,9 @@ steps:
         tree = request('/git/trees/' + commit + '?recursive=1')
         if tree.get('truncated'):
             raise SystemExit('Refusing incomplete repository tree')
-        paths = {
-            '.dockerignore', '.npmrc', 'Dockerfile', 'package.json', 'pnpm-lock.yaml',
-            'pnpm-workspace.yaml', 'turbo.json', 'vitest.config.mts',
-            'docs/design-v2/records/20261111_chord-catalog-data-audit-v2.json',
-        }
-        prefixes = ('apps/website/', 'packages/', 'deploy/fnos/')
         files = []
         for entry in tree['tree']:
             name = entry['path']
-            if name not in paths and not name.startswith(prefixes):
-                continue
             path = PurePosixPath(name)
             if path.is_absolute() or '..' in path.parts or '.git' in path.parts:
                 raise SystemExit('Unsafe repository path')
