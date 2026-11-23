@@ -26,7 +26,7 @@
 
 - **`build-gateway`** 检查飞牛 Socket 代理并在 NAS 构建网关镜像。
 - **`build-liuxianmao`** 运行 lint、类型检查、测试和生产构建，并在 NAS 构建应用镜像。
-- **`build-and-deploy-all`** 运行以上两项，等待镜像就绪后更新两个容器并验证服务。选择 **All workflows** 也会执行同一套构建和发布。
+- **`deploy-all`** 运行以上两项，等待镜像就绪后更新两个容器并验证服务。选择 **All workflows** 也会执行同一套构建和发布。
 
 默认执行所选工作流的构建或发布，也可显式填 `RELEASE_ACTION=deploy`。只需要校验时填写 `RELEASE_ACTION=check`。通过全量工作流回滚时填写 `RELEASE_ACTION=rollback`，会恢复上一健康版本。NAS 按 GitHub `main` 核验源码和发布提交。如果等待期间 `main` 已更新，请从最新 `main` 创建新流水线。
 
