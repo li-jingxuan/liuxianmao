@@ -9,8 +9,8 @@ import { captureEditorVersion } from "../components/EditorShell/session/editor-s
 import { createTechniqueParameterOwner } from "../components/EditorShell/tools/technique-parameter-owner";
 import type { MusicTextTarget } from "../components/EditorShell/music-text/music-text-draft";
 
-const setup = () => {
-  const session = createEditorSession(EXAMPLE_MVP_7_2_DOCUMENT);
+const setup = (document = EXAMPLE_MVP_7_2_DOCUMENT) => {
+  const session = createEditorSession(document);
   const cell = getFirstTabCellReference(session.getState().document!)!;
   session.getState().setSelection({ anchor: cell, focus: cell });
   const drafts = createEditorDraftCoordinator(() => captureEditorVersion(session.getState()));
@@ -46,12 +46,26 @@ describe("toolbar final submission guard", () => {
     expect(next()).toBe(false);
   });
   it("asynchronous confirmation rechecks the live active target before writing", async () => {
-    const { session, cell, drafts } = setup();
+    const document = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);
+    const track = document.score.tracks[0]!;
+    const [first, second] = track.measures;
+    const quarter = { base: "quarter", dots: 0 } as const;
+    first!.numberedVoice = { tuplets: [], events: [
+      { id: "copy-event", kind: "notes", tick: 2880, rhythm: quarter, items: [{ id: "copy-item", token: "1" }] },
+    ] };
+    second!.numberedVoice = { tuplets: [], events: [
+      { id: "next-event", kind: "notes", tick: 0, rhythm: quarter, items: [{ id: "next-item", token: "1" }] },
+    ] };
+    first!.lyrics = [];
+    second!.lyrics = [];
+    track.numberedMarks = [{ id: "crossing-tie", type: "tie", fromItemId: "copy-item", toItemId: "next-item" }];
+    const { session, cell, drafts } = setup(document);
     let active: MusicTextTarget | null = null;
     const modals = createEditorModalController(session.getState, () => vi.fn());
     const adapter = createEditorCommandAdapter(session, modals,
       (cmd, submission) => editorToolSubmissionReason(session.getState(), active, drafts, cmd, submission));
-    const pending = adapter({ type: C.RemoveMeasure, trackId: cell.trackId, measureId: cell.measureId }, "modal", {
+    const pending = adapter({ type: C.CopyMeasureRange, trackId: cell.trackId,
+      sourceStartMeasureId: first!.id, sourceEndMeasureId: first!.id, afterMeasureId: first!.id }, "modal", {
       tabOnly: true, isCurrent: captureEditorToolIntent(session.getState, () => active),
     });
     expect(modals.getSnapshot()).not.toBeNull();

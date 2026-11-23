@@ -88,3 +88,25 @@ export const planNumberedInputRanges = (
   appendBlank(cursor, getMeasureDurationTicks(measure));
   return result;
 };
+
+/**
+ * 旧录入偏好仍可使用连续空白；如果会越过小节末尾或吃到下一个事件，
+ * 改用当前虚拟格的准确时值。附点增减后产生的空格按当前简谱事件重新计算，
+ * 即使 TAB 在同一位置没有起音，也能写入短空格而不切断、覆盖邻音或歌词空位。
+ * 仅处理真实绘出的虚拟格；持久空格和高级编辑范围仍按其原有规则校验。
+ */
+export function numberedRhythmForBlockedInputPreference(
+  measure: ILXMMeasure,
+  startTick: number,
+  endTick: number,
+  preference: ILXMRhythm,
+): ILXMRhythm | undefined {
+  const duration = calculateRhythmTicks(preference);
+  if (!duration.ok || startTick + duration.ticks <= endTick) return undefined;
+  const preferredEnd = startTick + duration.ticks;
+  if (preferredEnd <= getMeasureDurationTicks(measure) &&
+    !measure.numberedVoice.events.some((event) => event.tick >= endTick && event.tick < preferredEnd))
+    return undefined;
+  return planNumberedInputRanges(measure).find((slot) =>
+    !slot.eventId && slot.startTick === startTick && slot.endTick === endTick)?.rhythm;
+}

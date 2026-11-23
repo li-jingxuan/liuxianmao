@@ -28,6 +28,7 @@ import type { ILXMIdFactory } from "../id-factory";
 import type {
   ILXMNumberedEvent,
   ILXMNumberedMark,
+  ILXMNumberedTuplet,
   ILXMTrack,
   ILXMRhythm,
   ILXMTupletRatio,
@@ -39,6 +40,10 @@ interface Base {
   confirmedRemovedMarkIds?: string[];
   confirmedChangedMarkIds?: string[];
 }
+type NumberedTupletOperation =
+  | { type: "numbered.tuplet.add"; measureId: string; eventIds: string[] }
+  | { type: "numbered.tuplet.remove"; measureId: string; tupletId: string };
+export type ILXMNumberedTupletCommand = Base & NumberedTupletOperation;
 export type ILXMNumberedVoiceCommand = Base &
   (
     | {
@@ -104,7 +109,7 @@ export type ILXMNumberedVoiceCommand = Base &
         eventId: string;
       }
     | { type: "numbered.event.merge"; measureId: string; eventIds: string[] }
-    | { type: "numbered.tuplet.remove"; measureId: string; tupletId: string }
+    | NumberedTupletOperation
     | { type: "numbered.mark.add"; mark: NumberedMarkDraft }
     | { type: "numbered.mark.update"; markId: string; mark: NumberedMarkDraft }
     | { type: "numbered.mark.remove"; markId: string }
@@ -142,10 +147,136 @@ export type NumberedCandidate =
       removedMarkIds?: string[];
       changedMarkIds?: string[];
     };
+type NumberedFailure = Extract<NumberedCandidate, { ok: false }>;
 const failure = (
   message: string,
-  code: Extract<NumberedCandidate, { ok: false }>["code"] = "NUMBERED_INVALID",
-): NumberedCandidate => ({ ok: false, code, message });
+  code: NumberedFailure["code"] = "NUMBERED_INVALID",
+): NumberedFailure => ({ ok: false, code, message });
+
+/** 添加与移除共用候选声部。只有提交需要为新增连音组分配持久化 ID。 */
+const editNumberedTuplet = (
+  track: ILXMTrack,
+  command: ILXMNumberedTupletCommand,
+  factory?: Pick<ILXMIdFactory, "createNumberedTupletId">,
+): NumberedCandidate => {
+  if (track.id !== command.trackId) return failure("简谱轨道不存在");
+  const { measureId } = command;
+  const measure = track.measures.find((m) => m.id === measureId);
+  if (!measure) return failure("简谱小节不存在");
+  let { events, tuplets } = measure.numberedVoice;
+  const movedEventIds: string[] = [];
+  const resizedEventIds: string[] = [];
+  let addedGroup: ILXMNumberedTuplet | undefined;
+
+  if (command.type === "numbered.tuplet.add") {
+    // 按谱面顺序取选区，支持反向框选；只接受同小节内未归组且时间相接的三个普通音事件。
+    const selectedIds = new Set(command.eventIds);
+    const selected = events.filter((e) => selectedIds.has(e.id));
+    const [first] = selected;
+    if (
+      command.eventIds.length !== 3 ||
+      selected.length !== 3 ||
+      !first ||
+      selected.some((e) => e.kind !== "notes")
+    )
+      return failure("请选择同一小节内的三个普通简谱音事件");
+    if (tuplets.some((group) => group.eventIds.some((id) => selectedIds.has(id))))
+      return failure("已有简谱连音组的成员不能再次归组");
+    if (selected.some((e) => e.rhythm.base !== first.rhythm.base || e.rhythm.dots !== first.rhythm.dots))
+      return failure("三连音成员的书写时值须一致");
+    const written = calculateRhythmTicks(first.rhythm);
+    const ratio = { actual: 3, normal: 2 } as const;
+    if (!written.ok || (written.ticks * ratio.normal) % ratio.actual !== 0)
+      return failure("简谱三连音实际时值无法表示为整数 tick");
+    const firstIndex = events.indexOf(first);
+    if (selected.some((e, i) => e !== events[firstIndex + i] || e.tick !== first.tick + i * written.ticks))
+      return failure("请选择三个时间连续且中间无空位的简谱音事件");
+
+    // 固定首音位置，只压缩本组选中的事件；保留书写节奏、事件及音符 ID，歌词仍挂在原事件。
+    const step = (written.ticks * ratio.normal) / ratio.actual;
+    const eventIds = selected.map((e) => e.id);
+    movedEventIds.push(...eventIds.slice(1));
+    resizedEventIds.push(...eventIds);
+    events = events.map((e, i) =>
+      selectedIds.has(e.id) && i !== firstIndex
+        ? { ...e, tick: first.tick + (i - firstIndex) * step }
+        : e,
+    );
+    // 声部和记号校验仅使用成员身份与比例。通过后再申请真正的组 ID。
+    addedGroup = { id: "", eventIds, ratio };
+    tuplets = [...tuplets, addedGroup].sort(
+      (a, b) =>
+        events.findIndex((e) => e.id === a.eventIds[0]) -
+        events.findIndex((e) => e.id === b.eventIds[0]),
+    );
+  } else {
+    const group = tuplets.find((g) => g.id === command.tupletId);
+    if (!group) return failure("简谱连音组不存在");
+    const eventsById = new Map(events.map((e) => [e.id, e]));
+    const first = eventsById.get(group.eventIds[0]!);
+    if (!first) return failure("简谱连音组成员不存在");
+    let cursor = first.tick;
+    const changes = new Map<string, number>();
+    for (const id of group.eventIds) {
+      const e = eventsById.get(id);
+      if (!e) return failure("简谱连音组成员不存在");
+      const duration = calculateRhythmTicks(e.rhythm);
+      if (!duration.ok) return failure("书写时值无效");
+      changes.set(id, cursor);
+      cursor += duration.ticks;
+    }
+
+    // 旧连音组的无歌词缺项还原为空白；有歌词的缺项仍是锚点。声部按原顺序校验，拦截扩展挤占或越过组外事件。
+    const lyricEventIds = new Set(measure.lyrics.map((lyric) => lyric.eventId));
+    events = events.flatMap((e) => {
+      const tick = changes.get(e.id);
+      if (tick === undefined) return [e];
+      if (e.kind === "gap" && !lyricEventIds.has(e.id)) return [];
+      resizedEventIds.push(e.id);
+      if (tick === e.tick) return [e];
+      movedEventIds.push(e.id);
+      return [{ ...e, tick }];
+    });
+    tuplets = tuplets.filter((g) => g !== group);
+  }
+
+  const voice = { events, tuplets };
+  const invalid = validateNumberedVoice(voice, getMeasureDurationTicks(measure));
+  if (invalid)
+    return failure(
+      command.type === "numbered.tuplet.remove" ? `无法移除简谱连音组：${invalid}` : invalid,
+      "NUMBERED_OVERLAP",
+    );
+  const next = {
+    ...track,
+    measures: track.measures.map((m) => m === measure ? { ...m, numberedVoice: voice } : m),
+  };
+  // 连接端点可能跨小节。若任一记号失效，整笔拒绝，避免走通用的删除确认流程。
+  const markError = next.numberedMarks.length ? validateNumberedMarks(next) : null;
+  if (markError) return failure(`简谱连音修改与现有记号冲突：${markError}`);
+  if (addedGroup && factory) addedGroup.id = factory.createNumberedTupletId();
+  return {
+    ok: true,
+    track: next,
+    changed: true,
+    measureId,
+    removedMarkIds: [],
+    changedMarkIds: [],
+    overwrittenEventIds: [],
+    movedEventIds,
+    resizedEventIds,
+  };
+};
+
+/** 工具栏可使用纯校验结果，无需申请 ID 或通过文档命令入口生成指纹。 */
+export const previewNumberedTupletEdit = (
+  track: ILXMTrack,
+  command: ILXMNumberedTupletCommand,
+): { ok: true } | NumberedFailure => {
+  const candidate = editNumberedTuplet(track, command);
+  return candidate.ok ? { ok: true } : candidate;
+};
+
 /** 将输入种类规范化为简谱事件，不从 TAB 读取节奏。 */
 const content = (tokens: string[], factory: ILXMIdFactory) => {
   if (!tokens.length) return { kind: "gap" as const, items: [] as [] };
@@ -164,6 +295,8 @@ export const editNumberedTrack = (
   factory: ILXMIdFactory,
   preview = false,
 ): NumberedCandidate => {
+  if (command.type === "numbered.tuplet.add" || command.type === "numbered.tuplet.remove")
+    return editNumberedTuplet(track, command, factory);
   let next = track;
   let focusEventId: string | undefined;
   let measureId: string | undefined;
@@ -642,25 +775,6 @@ export const editNumberedTrack = (
         numberedMarks: [...next.numberedMarks, ...copied.marks],
       };
       focusEventId = voice.events[0]?.id;
-    } else if (command.type === "numbered.tuplet.remove") {
-      const group = tuplets.find((g) => g.id === command.tupletId);
-      if (!group) return failure("简谱连音组不存在");
-      let cursor = events.find((e) => e.id === group.eventIds[0])!.tick;
-      const changes = new Map<string, number>();
-      for (const id of group.eventIds) {
-        const e = events.find((e) => e.id === id)!;
-        const d = calculateRhythmTicks(e.rhythm);
-        if (!d.ok) return failure("书写时值无效");
-        changes.set(id, cursor);
-        cursor += d.ticks;
-      }
-      events = events
-        .filter((e) => !(changes.has(e.id) && e.kind === "gap"))
-        .map((e) =>
-          changes.has(e.id) ? { ...e, tick: changes.get(e.id)! } : e,
-        )
-        .sort((a, b) => a.tick - b.tick);
-      tuplets = tuplets.filter((g) => g !== group);
     } else if (command.type === "numbered.event.split") {
       if (event!.kind === "continuation") return failure(NUMBERED_CONTINUATION_RHYTHM_REASON);
       if (grouped(event!.id)) return failure("连音成员不能单独拆分");

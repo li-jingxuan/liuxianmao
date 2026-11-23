@@ -34,7 +34,7 @@ import {
   PlusOutlined,
   RightOutlined,
 } from "@ant-design/icons";
-import { Button, ConfigProvider, Dropdown, Segmented, Select, Tabs, Tooltip, type TabsProps } from "antd";
+import { Button, ConfigProvider, Dropdown, Modal, Segmented, Select, Tabs, Tooltip, type TabsProps } from "antd";
 import {
   createCollapsedTabCellSelection,
   getLyricVerseCount,
@@ -58,6 +58,7 @@ import {
   useEditorStore,
 } from "../../../stores/editor-store";
 import { LyricFormView } from "../lyrics/LyricFormView";
+import { EditorModalGuard } from "../session/EditorModalGuard";
 import { ChordEditor } from "../chords/ChordEditor";
 import { ChordQuickEditor } from "../chords/ChordQuickEditor";
 import type { ChordDraft } from "../chords/ChordEditor";
@@ -69,6 +70,7 @@ import { createChordEditSession } from "../chords/chord-edit-session";
 import type { SettingsGroup } from "../settings/score-settings-draft";
 import { chordIssueField } from "../chords/chord-issue-field";
 import { shouldIgnoreMusicTextKey } from "./music-text-interaction";
+import { sameMusicTextTarget } from "./music-text-hover";
 import { nextLyricTextInput } from "./text-apply-advance";
 import { isEditorInputEnter } from "../shared/editor-input-enter";
 import {
@@ -313,6 +315,7 @@ export const MusicTextSidebar = ({
   const [inspection, setInspection] = useState(0);
   const [inputEditing, setInputEditing] = useState(false);
   const [focusRequest, setFocusRequest] = useState(0);
+  const [draftDialogVisible, setDraftDialogVisible] = useState(false);
   const [surface, setSurface] = useState<"popover" | "sidebar">("popover");
   const [dismissed, setDismissed] = useState(false);
   const [contextChord, setContextChord] = useState<ContextChord | null>(null);
@@ -491,24 +494,26 @@ export const MusicTextSidebar = ({
     draft.chord.chord.name.trim() === "";
   const sequence =
     draft?.target.kind === "lyric";
+  const draftTarget = draft?.target;
+  const draftText = draft?.text;
   const parsed = useMemo(
     () =>
-      sequence && draft?.text !== undefined
-        ? parseLyricDraftSequence(draft.text)
+      sequence && draftText !== undefined
+        ? parseLyricDraftSequence(draftText)
         : null,
-    [sequence, draft],
+    [sequence, draftText],
   );
   const plan = useMemo(
     () =>
-      !textConflict && parsed?.ok && score && draft?.target.kind === "lyric"
+      !textConflict && parsed?.ok && score && draftTarget?.kind === "lyric"
         ? planLyricSequence(
             score,
-            { ...draft.target, verse: draft.target.verse! },
+            { ...draftTarget, verse: draftTarget.verse! },
             parsed.items,
             true,
           )
         : null,
-    [parsed, score, draft, textConflict],
+    [parsed, score, draftTarget, textConflict],
   );
   const issue = draft && (!score || !normalizeMusicTextTarget(score, draft.target))
     ? "原编辑目标已失效，请重新选择。"
@@ -528,16 +533,27 @@ export const MusicTextSidebar = ({
           ? validateChordDiagram(draft.chord.chord.diagram)
           : null
     : null;
-  const inspected = plan?.rows[inspection]?.target;
-  const lyricPreview = useMemo(
-    () =>
-      draft?.target
-        ? sequence && inspected && draft.target.kind === "lyric"
-          ? { kind: "lyric" as const, ...inspected }
-          : draft.target
-        : null,
-    [draft, sequence, inspected],
-  );
+  const {
+    trackId: inspectedTrackId, measureId: inspectedMeasureId,
+    eventId: inspectedEventId, tick: inspectedTick, endTick: inspectedEndTick,
+    verse: inspectedVerse,
+  } = plan?.rows[inspection]?.target ?? {};
+  // 每次键入都会生成新的映射行，只有真实的拍位或段落变化才应发布新的谱面目标。
+  // 谱面以目标引用作为布局依赖，复用同一目标可避免重算全谱和重复执行滚动定位。
+  // 显式查看其他拍仍可定位，继续输入会回到录入起点；无效输入同样保留起点。
+  const lyricPreview = useMemo((): MusicTextTarget | null => {
+    if (draftTarget?.kind !== "lyric" || inspectedTrackId === undefined || inspectedMeasureId === undefined) {
+      return draftTarget ?? null;
+    }
+    const next = {
+      kind: "lyric" as const, trackId: inspectedTrackId, measureId: inspectedMeasureId,
+      eventId: inspectedEventId, tick: inspectedTick, endTick: inspectedEndTick, verse: inspectedVerse,
+    };
+    return sameMusicTextTarget(next, draftTarget) ? draftTarget : next;
+  }, [
+    draftTarget, inspectedTrackId, inspectedMeasureId,
+    inspectedEventId, inspectedTick, inspectedEndTick, inspectedVerse,
+  ]);
   // 预览只装饰已激活的对象，面板可见和被动重渲染不能把 beat 焦点拉回文字。
   const active =
     activeObject?.kind === kind
@@ -915,6 +931,7 @@ export const MusicTextSidebar = ({
     onExpandSidebar();
     pendingVersion.current = captureEditorVersion(editorStore.getState());
     pendingGeneration.current = ownerGeneration.current;
+    setDraftDialogVisible(true);
     setPending(action);
     return "pending";
   };
@@ -1029,6 +1046,8 @@ export const MusicTextSidebar = ({
     if (request({ type: "target", target, lyricFocusSurface: source,
       targetSurface: source === "sidebar" ? "sidebar" : undefined }) !== "accepted") return false;
     surfaceFocusGroup.current = source === "sidebar" && target.kind === "numbered" ? "content" : undefined;
+    // 只在统一目标保护器接受自动跳转后标记空格，侧栏、气泡和顶部工具栏读取同一状态。
+    if (target.kind === "numbered") editorStore.getState().markNumberedAutoAdvance();
     revealAdvancedTarget.current = target;
     return true;
   };
@@ -1408,9 +1427,8 @@ export const MusicTextSidebar = ({
     let cancelled = false;
     queueMicrotask(() => {
       if (cancelled) return;
-      if (pending) confirmRef.current?.focus({ preventScroll: true });
-      else if (activeModal) return;
-      else if (restoreInputFocus.current && lastInputFocus.current?.isConnected &&
+      if (pending || activeModal || draftDialogVisible) return;
+      if (restoreInputFocus.current && lastInputFocus.current?.isConnected &&
           !lastInputFocus.current.closest("[hidden], [inert]")) {
         restoreInputFocus.current = false;
         lastInputFocus.current.focus({ preventScroll: true });
@@ -1442,19 +1460,20 @@ export const MusicTextSidebar = ({
     floating,
     popoverHidden,
     activeModal,
+    draftDialogVisible,
     popoverContainer,
   ]);
 
   // 接受键盘切页签后聚焦对应 TAB，不让表单的目标加载抢走导航焦点。
   useEffect(() => {
-    if (!pending && requestedTabFocus.current) {
+    if (!pending && !draftDialogVisible && requestedTabFocus.current) {
       const target = document.getElementById(requestedTabFocus.current);
       const control =
         target?.closest("label")?.querySelector("input") ?? target;
       control?.focus({ preventScroll: true });
       requestedTabFocus.current = null;
     }
-  }, [kind, pending]);
+  }, [kind, pending, draftDialogVisible]);
 
   const applyNumbered = async (isCurrent = () => true) => {
     const owner = numberedRef.current;
@@ -2318,32 +2337,7 @@ export const MusicTextSidebar = ({
             e.stopPropagation();
             return;
           }
-          if (pending) {
-            e.stopPropagation();
-            // 确认区域形成临时键盘边界，Tab 不逃到其他修改工具。
-            if (e.key === "Tab") {
-              const buttons = Array.from(
-                e.currentTarget.querySelectorAll<HTMLButtonElement>(
-                  '[role="alertdialog"] button:not(:disabled)',
-                ),
-              );
-              const index = buttons.indexOf(e.target as HTMLButtonElement);
-              const next =
-                buttons[
-                  (index + (e.shiftKey ? -1 : 1) + buttons.length) %
-                    buttons.length
-                ];
-              if (next) {
-                e.preventDefault();
-                next.focus({ preventScroll: true });
-              }
-            }
-            if (e.key === "Escape") {
-              e.preventDefault();
-              continueEditing();
-            }
-            return;
-          }
+          if (pending) return;
           if (e.key === "Escape") {
             e.preventDefault();
             e.stopPropagation();
@@ -2752,20 +2746,34 @@ export const MusicTextSidebar = ({
             <p className={editorToolPanelStyles.selectionTip}>快捷操作直接作用于选区，可使用撤销。</p>
           </div>
         )}
-        {/* 无编辑操作或提示时隐藏底栏，避免移除历史按钮后留下空白条。 */}
-        <footer
-          className={musicTextSidebarStyles.sidebarFooter}
-          hidden={!pending && (kind === "chord" || (!message && (kind === "lyric" || (!issue && !draft))))}
+        {/* 草稿拦截从侧栏底部移到工作台的居中弹窗。若应用简谱需要进一步确认影响，
+            先让出键盘与焦点，影响确认结束后仍可继续处理原操作。 */}
+        <Modal
+          open={!!pending && !numberedBusy && !activeModal}
+          centered
+          title="当前草稿尚未应用"
+          width={520}
+          footer={null}
+          mask={{ closable: false }}
+          keyboard={false}
+          closable={false}
+          // Ant Design 的 Portal 会把 onCancel 注册到全局 Escape 栈。即使本弹窗关闭了键盘关闭，
+          // 也要提供受控回调，避免卸载过渡期间遗留 undefined 回调导致后续弹层报错。
+          onCancel={() => continueEditing()}
+          focusable={{ focusTriggerAfterClose: false }}
+          afterOpenChange={(open) => {
+            if (open) confirmRef.current?.focus({ preventScroll: true });
+          }}
+          afterClose={() => {
+            // 等弹窗退出和工作区解除 inert 后，再聚焦原输入或切换后的目标。
+            requestAnimationFrame(() => requestAnimationFrame(() => setDraftDialogVisible(false)));
+          }}
+          modalRender={(node) => (
+            <EditorModalGuard dismissable onDismiss={continueEditing}>{node}</EditorModalGuard>
+          )}
         >
-          {pending ? (
-            <div
-              role={numberedBusy ? undefined : "alertdialog"}
-              aria-modal={numberedBusy ? undefined : true}
-              inert={numberedBusy}
-              aria-labelledby="draft-confirm-title"
-              className={musicTextSidebarStyles.draftConfirmation}
-            >
-              <h3 id="draft-confirm-title">当前草稿尚未应用</h3>
+          {pending && (
+            <div className={musicTextSidebarStyles.draftConfirmation}>
               <p>
                 请先处理修改，再继续操作。
                 {kind === "numbered" && numberedGroups.length > 1
@@ -2818,7 +2826,14 @@ export const MusicTextSidebar = ({
                 </Button>
               </div>
             </div>
-          ) : (
+          )}
+        </Modal>
+        {/* 无编辑操作或提示时隐藏底栏，草稿拦截只在居中弹窗显示。 */}
+        <footer
+          className={musicTextSidebarStyles.sidebarFooter}
+          hidden={!!pending || kind === "chord" || (!message && (kind === "lyric" || (!issue && !draft)))}
+        >
+          {!pending && (
             <>
               {issue && kind !== "lyric" && !chordSuspended && (
                 <p className={musicTextSidebarStyles.sidebarError} role="alert">

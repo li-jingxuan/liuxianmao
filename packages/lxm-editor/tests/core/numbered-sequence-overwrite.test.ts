@@ -6,6 +6,7 @@ import {
   applyScoreCommand,
   planNumberedSequenceOverwrite,
   planNumberedSequenceSlots,
+  numberedRhythmForBlockedInputPreference,
   parseNumberedSequence,
   type ILXMNumberedEvent,
 } from "../../src";
@@ -99,6 +100,43 @@ const fixture = () => {
   measure.tuplets = [];
   return { document, track, measure };
 };
+
+describe("BUG-070 附点旁边的虚拟空格", () => {
+  it("加点填满空格，减点释放空格，补音保留有歌词及圆滑线的后音", () => {
+    const { document, track, measure } = fixture();
+    const first = note("first", 2880);
+    const after = note("after", 3240, "eighth");
+    measure.numberedVoice.events = [first, after];
+    measure.lyrics = [{ id: "lyric", eventId: after.id, verse: 1, text: "词" }];
+    track.numberedMarks = [{ id: "slur", type: "slur", fromEventId: first.id, toEventId: after.id }];
+    const toggleDot = (current: typeof document, dots: number) => {
+      const result = applyScoreCommand(current, { type: "numbered.event.setRhythm", trackId: track.id,
+        measureId: measure.id, eventId: first.id, rhythm: { base: "sixteenth", dots } });
+      if (!result.ok) throw new Error(result.message);
+      return result.document;
+    };
+    const dotted = toggleDot(document, 1);
+    expect(dotted.score.tracks[0]!.measures[0]!.numberedVoice.events).toEqual([
+      { ...first, rhythm: { ...first.rhythm, dots: 1 } }, after,
+    ]);
+    const undotted = toggleDot(dotted, 0);
+    expect(undotted.score).toEqual(document.score);
+    expect(numberedRhythmForBlockedInputPreference(measure, 3120, 3240, after.rhythm)).toEqual({ base: "thirtySecond", dots: 0 });
+    expect(numberedRhythmForBlockedInputPreference(measure, 3120, 3360, after.rhythm)).toBeUndefined();
+    expect(numberedRhythmForBlockedInputPreference(measure, 0, 240, after.rhythm)).toBeUndefined();
+    const command = { type: "numbered.sequence.overwrite" as const, trackId: track.id, measureId: measure.id,
+      startTick: 3120, items: [{ kind: "set" as const, tokens: ["6"] }], allowOverwrite: true };
+    expect(applyScoreCommand(undotted, { ...command, rhythms: [after.rhythm] })).toMatchObject({ ok: false, message: "范围不能切断已有事件" });
+    const filled = applyScoreCommand(undotted, command);
+    if (!filled.ok) throw new Error(filled.message);
+    const next = filled.document.score.tracks[0]!;
+    expect(next.measures[0]!.numberedVoice.events).toEqual([
+      first, expect.objectContaining({ tick: 3120, rhythm: { base: "thirtySecond", dots: 0 } }), after,
+    ]);
+    expect(next.measures[0]!.lyrics).toEqual(measure.lyrics);
+    expect(next.numberedMarks).toEqual(track.numberedMarks);
+  });
+});
 
 describe("BUG017/020 continuous overwrite", () => {
   it("consumes virtual sixteenths before the following real quarter", () => {

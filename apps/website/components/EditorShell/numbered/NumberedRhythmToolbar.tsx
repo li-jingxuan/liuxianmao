@@ -1,6 +1,7 @@
 import type { ILXMRhythmBase } from "@liuxianmao/lxm-editor";
 import type { MusicControlIcon } from "../../../assets/svg/svg-assets-manifest";
 import { MusicAssetIcon } from "../../MusicAssetIcon";
+import toolbarStyles from "../shared/editor-tool-panel.module.scss";
 import { EditorToolSymbolButton } from "../tools/EditorToolSymbolButton";
 import styles from "./NumberedSymbolControls.module.scss";
 
@@ -54,9 +55,10 @@ export const NumberedRhythmToolbar = ({
             if (!disabled) onChange(rhythm.base, dots);
           }}
         >
-          <MusicAssetIcon assetId={rhythm.icon} className={styles.durationIcon} />
+          <MusicAssetIcon assetId={rhythm.icon} className={toolbarStyles.toolbarIcon} />
         </EditorToolSymbolButton>
       ))}
+      {/* 验收稿将附点和延音归为同组，仅在基础时值之后分隔。分隔线是装饰，不参与键盘导航。 */}
       <i className={styles.rhythmDivider} aria-hidden="true" />
       <EditorToolSymbolButton
         label="单附点"
@@ -68,7 +70,6 @@ export const NumberedRhythmToolbar = ({
       >
         <span className={styles.musicGlyph} aria-hidden="true">{"\uE1E7"}</span>
       </EditorToolSymbolButton>
-      <i className={styles.rhythmDivider} aria-hidden="true" />
       <EditorToolSymbolButton
         label="延音"
         pressed={sustain}

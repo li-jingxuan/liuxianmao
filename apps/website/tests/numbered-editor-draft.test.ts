@@ -15,15 +15,26 @@ const renderEditor = (
   props: Partial<ComponentProps<typeof NumberedEditor>> = {},
   explicit: boolean | ILXMRhythm = false,
   edits: { label: string; value: unknown }[] = [],
+  chosenHere = false,
 ) => {
   const document = props.document ?? structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);
   const track = document.score.tracks[0]!;
   const measure = track.measures[0]!;
   if (!props.document)
     measure.numberedVoice.events[0]!.rhythm = { base: "eighth", dots: 0 };
+  const target = {
+    kind: "numbered" as const,
+    trackId: track.id,
+    measureId: measure.id,
+    tick: 480,
+    endTick: 960,
+  };
   const session = createEditorSession(document);
   if (explicit)
-    session.getState().setNumberedInputRhythm(typeof explicit === "object" ? explicit : { base: "quarter", dots: 0 });
+    session.getState().setNumberedInputRhythm(
+      typeof explicit === "object" ? explicit : { base: "quarter", dots: 0 },
+      chosenHere ? { ...target, kind: "numberedTime" } : undefined,
+    );
   let edited = false;
   const change = (node: ReactNode, label: string, value: unknown): boolean => {
     if (Array.isArray(node))
@@ -58,13 +69,7 @@ const renderEditor = (
       createElement(EditorWithInput, {
         ref: null,
         document,
-        target: {
-          kind: "numbered",
-          trackId: track.id,
-          measureId: measure.id,
-          tick: 480,
-          endTick: 960,
-        },
+        target,
         commit: () => null,
         onDirty: () => {},
         onInputActive: () => {},
@@ -95,10 +100,12 @@ describe("简谱当前目标初始化", () => {
     expect(html.match(/<button[^>]*aria-label="应用简谱内容"[^>]*>/)?.[0]).toContain("disabled");
   });
 
-  it("默认时值适应短空位，显式时值保留用户选择", () => {
+  it("短空位适应过长的旧偏好，并保留用户在本格选定的时值", () => {
     const implicit = renderEditor();
     expect(implicit.match(/<button[^>]*aria-label="八分音符"[^>]*>/)?.[0]).toContain('aria-pressed="true"');
-    const explicit = renderEditor({}, true);
+    const inherited = renderEditor({}, true);
+    expect(inherited.match(/<button[^>]*aria-label="八分音符"[^>]*>/)?.[0]).toContain('aria-pressed="true"');
+    const explicit = renderEditor({}, true, [], true);
     expect(explicit.match(/<button[^>]*aria-label="四分音符"[^>]*>/)?.[0]).toContain('aria-pressed="true"');
   });
 

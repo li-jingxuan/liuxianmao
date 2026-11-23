@@ -10,14 +10,16 @@ import {
   guitarSampleKey,
   type DecodedGuitarSample,
 } from "./samples";
+import { createAudioContext, MetronomeClickAudio, resumeAudioContext } from "./metronome-audio";
+import type { ScoreMetronomeBeat, ScoreMetronomeGrid } from "./metronome-grid";
 
 const SCHEDULE_INTERVAL_MS = 25;
 const LOOKAHEAD_SECONDS = 0.12;
+const MIN_CLICK_SPACING_SECONDS = 0.01;
 const START_LEAD_SECONDS = 0.025;
 const STOP_FADE_SECONDS = 0.008;
 const RESUME_FADE_SECONDS = 0.008;
 const PREPARE_TIMEOUT_MS = 20_000;
-const UNLOCK_TIMEOUT_MS = 5_000;
 const MASTER_GAIN = 1;
 
 interface PitchSpan {
@@ -295,11 +297,20 @@ interface Run {
   next: number;
   gate: GainNode;
   voices: Set<Voice>;
+  click?: MetronomeRunOptions & { next: ScoreMetronomeBeat | null; failed: boolean };
   timer?: ReturnType<typeof setInterval>;
+}
+
+interface MetronomeRunOptions {
+  grid: ScoreMetronomeGrid;
+  enabled: boolean;
+  accent: boolean;
+  skipOnset: boolean;
 }
 
 export class ScoreAudioEngine {
   onInterrupted?: () => void;
+  onClickFailed?: () => void;
 
   private context: AudioContext | null = null;
   private master: GainNode | null = null;
@@ -313,22 +324,11 @@ export class ScoreAudioEngine {
   private run: Run | null = null;
   private frozenTick = 0;
   private disposed = false;
+  private clicks = new MetronomeClickAudio();
 
-  constructor(
-    private readonly createContext: () => AudioContext = () => {
-      const Context =
-        globalThis.AudioContext ??
-        (
-          globalThis as typeof globalThis & {
-            webkitAudioContext?: typeof AudioContext;
-          }
-        ).webkitAudioContext;
-      if (!Context) throw new Error("当前浏览器不支持 Web Audio");
-      return new Context();
-    },
-  ) {}
+  constructor(private readonly createContext = createAudioContext) {}
 
-  async unlock(): Promise<void> {
+  async unlock(signal?: AbortSignal): Promise<void> {
     if (this.disposed) throw new Error("试听已退出");
     if (this.context?.state === "closed") {
       this.stop();
@@ -339,24 +339,7 @@ export class ScoreAudioEngine {
       this.prepared = null;
     }
     const context = this.context ?? this.initializeContext();
-    if (context.state === "running") return;
-    const resume = context.resume();
-    let timeout: ReturnType<typeof setTimeout> | undefined;
-    try {
-      await Promise.race([
-        resume,
-        new Promise<never>((_, reject) => {
-          timeout = setTimeout(
-            () => reject(new Error("音频启动超时，请重试")),
-            UNLOCK_TIMEOUT_MS,
-          );
-        }),
-      ]);
-      if ((context.state as string) !== "running")
-        throw new Error("音频未启动，请重试");
-    } finally {
-      clearTimeout(timeout);
-    }
+    await resumeAudioContext(context, signal);
   }
 
   async prepare(plan: PlaybackPlan, signal: AbortSignal): Promise<void> {
@@ -395,7 +378,23 @@ export class ScoreAudioEngine {
     }
   }
 
-  start(plan: PlaybackPlan, bpm: number, offsetTick: number): void {
+  start(plan: PlaybackPlan, bpm: number, offsetTick: number, metronome?: MetronomeRunOptions): void {
+    this.startRun(plan, bpm, offsetTick, metronome, START_LEAD_SECONDS);
+  }
+
+  // 用当前音频刻度重建已排程的吉他声部和点击，保持访问顺序、游标及小节内相位。
+  // 已解码音源可复用；若原来的起播时刻尚未抵达，仍留出正常起播的排程余量。
+  changeTempo(plan: PlaybackPlan, bpm: number) {
+    const run = this.run;
+    if (!run) return;
+    const started = this.hasStarted();
+    const offset = this.currentTick();
+    const click = run.click && { ...run.click, skipOnset: started || run.click.skipOnset };
+    this.startRun(plan, bpm, offset, click, started ? 0 : START_LEAD_SECONDS, run.click?.failed);
+  }
+
+  private startRun(plan: PlaybackPlan, bpm: number, offsetTick: number, metronome: MetronomeRunOptions | undefined,
+    lead: number, clickFailed = false): void {
     const { context, master, prepared } = this;
     if (!context || !master || context.state !== "running")
       throw new Error("音频尚未启动");
@@ -408,7 +407,7 @@ export class ScoreAudioEngine {
     const gate = context.createGain();
     gate.connect(master);
     const run: Run = {
-      anchor: context.currentTime + START_LEAD_SECONDS,
+      anchor: context.currentTime + lead,
       offset,
       bpm,
       duration: plan.durationTicks,
@@ -419,6 +418,11 @@ export class ScoreAudioEngine {
       next: 0,
       gate,
       voices: new Set(),
+      click: metronome && {
+        ...metronome,
+        next: metronome.enabled ? metronome.grid.nextBeat(offset, !metronome.skipOnset) : null,
+        failed: clickFailed,
+      },
     };
     this.run = run;
     this.frozenTick = offset;
@@ -439,6 +443,33 @@ export class ScoreAudioEngine {
     }
   }
 
+  hasStarted(): boolean {
+    return !!this.run && !!this.context && this.context.currentTime >= this.run.anchor;
+  }
+
+  setClickEnabled(enabled: boolean): number {
+    const { run, context } = this;
+    if (!run?.click || !context) return Infinity;
+    this.clicks.cancel();
+    run.click.enabled = enabled;
+    run.click.failed = false;
+    run.click.next = enabled ? run.click.grid.nextBeat(this.currentTick(), !this.hasStarted() && !run.click.skipOnset) : null;
+    const nextTick = run.click.next?.tick ?? Infinity;
+    if (enabled) this.pumpClick(context, run);
+    return nextTick;
+  }
+
+  setClickAccent(accent: boolean): void {
+    const { run, context } = this;
+    if (!run?.click || !context || run.click.accent === accent) return;
+    run.click.accent = accent;
+    if (!run.click.enabled || run.click.failed) return;
+    const started = this.hasStarted();
+    this.clicks.cancel(context.currentTime + (started ? 0.000001 : 0));
+    run.click.next = run.click.grid.nextBeat(this.currentTick(), !started && !run.click.skipOnset);
+    this.pumpClick(context, run);
+  }
+
   currentTick(): number {
     if (!this.run || !this.context) return this.frozenTick;
     const { anchor, offset, bpm, duration } = this.run;
@@ -454,6 +485,7 @@ export class ScoreAudioEngine {
 
   stop(): void {
     this.preparing?.abort();
+    this.clicks.cancel();
     const { context, run } = this;
     if (!context || !run) return;
     this.frozenTick = this.currentTick();
@@ -488,6 +520,7 @@ export class ScoreAudioEngine {
     this.prepared = null;
     this.bank = null;
     this.onInterrupted = undefined;
+    this.onClickFailed = undefined;
     if (context) {
       context.onstatechange = null;
       if (context.state !== "closed")
@@ -549,6 +582,34 @@ export class ScoreAudioEngine {
         seconds(start - sound.sourceStartTick) +
         Math.max(0, now - (run.anchor + seconds(start - run.offset)));
       this.playSound(context, run, sound, seconds, elapsed, when, end);
+    }
+    this.pumpClick(context, run);
+  }
+
+  private pumpClick(context: AudioContext, run: Run): void {
+    const click = run.click;
+    if (!click?.enabled || click.failed || !click.next) return;
+    const now = context.currentTime;
+    if (context.state !== "running") return;
+    try {
+      // 后台调度若落后，直接跳过过时的拍点，避免恢复时积压的声音一起响。
+      const minimumTick = run.offset + playbackSecondsToTicks(now - run.anchor - 0.025, run.bpm);
+      if (click.next.tick < minimumTick) click.next = click.grid.nextBeat(minimumTick, true);
+      while (click.next) {
+        const beat = click.next;
+        const when = run.anchor + playbackTicksToSeconds(beat.tick - run.offset, run.bpm);
+        if (when > now + LOOKAHEAD_SECONDS) break;
+        this.clicks.schedule(context, Math.max(now, when), click.accent && beat.number === 1);
+        // 极密的导入拍号仍保留其可视拍序，但不向 Web Audio 同时提交大量听感无法区分的点击节点。
+        const next = click.grid.nextBeat(beat.tick, false);
+        const minimumNext = beat.tick + playbackSecondsToTicks(MIN_CLICK_SPACING_SECONDS, run.bpm);
+        click.next = next && next.tick < minimumNext ? click.grid.nextBeat(minimumNext, true) : next;
+      }
+    } catch {
+      // 点击声节点出错时只熄灭点击音轨，吉他、播放时钟及可视拍点继续运行。
+      click.failed = true;
+      this.clicks.cancel();
+      this.onClickFailed?.();
     }
   }
 

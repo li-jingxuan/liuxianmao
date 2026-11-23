@@ -1,4 +1,7 @@
 .root {
+  // 节拍器浮层覆盖工作区边缘但保持在全局对话框之下；避免谱面和侧栏各自的层叠上下文盖住浮层。
+  position: relative;
+  z-index: 1;
   container: editor-toolbar / inline-size;
   gap: 4px;
   align-items: center;
@@ -58,11 +61,11 @@
   min-height: 44px;
   padding: 4px 12px 4px 16px;
   flex-wrap: wrap;
-  gap: 6px 16px;
+  gap: 6px 8px;
   font-size: 12px;
 }
 .playbackGroup { flex-wrap: wrap; }
-.playbackTempoGroup { border-inline-start: 1px solid var(--border); padding-inline-start: 16px; }
+.playbackTempoGroup { border-inline-start: 1px solid var(--border); padding-inline-start: 10px; }
 .playbackDetails {
   display: grid;
   line-height: 1.4;

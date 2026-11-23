@@ -4,6 +4,7 @@ import {
   type ILXMRhythm,
 } from "@liuxianmao/lxm-editor";
 import { resolveEditorRhythmTarget } from "../components/EditorShell/tools/editor-rhythm-target";
+import type { MusicTextTarget } from "../components/EditorShell/music-text/music-text-draft";
 import { createEditorSession } from "../stores/editor-store";
 
 describe("工具栏实际时值目标", () => {
@@ -54,7 +55,7 @@ describe("工具栏实际时值目标", () => {
     expect(resolveEditorRhythmTarget(doc, selection, active, preference, false).rhythm).toEqual({ base: "half", dots: 1 });
     expect(resolveEditorRhythmTarget(doc, selection, active, preference, true).rhythm).toEqual(preference);
   });
-  it("空白首次适应较短窗口，显式偏好不被静默改写", () => {
+  it("相邻事件前的窄空位让上次偏好回退，保留本格显式选择", () => {
     const shortened = structuredClone(document);
     shortened.score.tracks[0]!.measures[0]!.numberedVoice.events[0]!.rhythm = {
       base: "eighth",
@@ -74,7 +75,38 @@ describe("工具栏实际时值目标", () => {
     expect(
       resolveEditorRhythmTarget(shortened, selection, active, preference, true)
         .rhythm,
+    ).toEqual({ base: "eighth", dots: 0 });
+    expect(
+      resolveEditorRhythmTarget(shortened, selection, active, preference, true, [], null,
+        { ...active, kind: "numberedTime" }).rhythm,
     ).toEqual(preference);
+  });
+  it("仅自动跳转的目标格覆盖上次偏好，到达后显式重选或手动重新打开时按偏好录入", () => {
+    const doc = structuredClone(document);
+    const firstMeasure = doc.score.tracks[0]!.measures[0]!;
+    firstMeasure.lyrics = [];
+    firstMeasure.numberedVoice = { events: [], tuplets: [] };
+    doc.score.tracks[0]!.numberedMarks = [];
+    const session = createEditorSession(doc);
+    const initial = { base: "sixteenth", dots: 0 } as const;
+    const target = { kind: "numberedTime", trackId: track.id, measureId: measure.id, tick: 0, endTick: 480 } as const;
+    const active = { ...target, kind: "numbered" } as const;
+    const resolve = (next: MusicTextTarget = active) => {
+      const state = session.getState();
+      return resolveEditorRhythmTarget(state.document!, selection, next, state.numberedInputRhythm,
+        state.numberedInputRhythmExplicit, [], state.numberedAutoAdvance).rhythm;
+    };
+    session.getState().setNumberedInputRhythm(initial);
+    session.getState().setNumberedSelection(target);
+    session.getState().markNumberedAutoAdvance();
+    expect(resolve()).toEqual({ base: "eighth", dots: 0 });
+    expect(resolve({ ...active, tick: 480, endTick: 960 })).toEqual(initial);
+    session.getState().setNumberedInputRhythm(initial);
+    expect(resolve()).toEqual(initial);
+    session.getState().markNumberedAutoAdvance();
+    session.getState().setNumberedSelection(null);
+    session.getState().setNumberedSelection(target);
+    expect(resolve()).toEqual(initial);
   });
   it("撤销缩短后，原空白已被音符占用，清除空白选区并禁用旧工具目标", () => {
     const session = createEditorSession(document);

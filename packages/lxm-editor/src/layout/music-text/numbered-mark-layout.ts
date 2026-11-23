@@ -185,24 +185,44 @@ export const layoutNumberedMarks = (
   for (const m of system.measures) {
     const source = track.measures.find((s) => s.id === m.id)!;
     for (const group of source.numberedVoice.tuplets) {
-      const x1 = slots.get(group.eventIds[0]!)!.x - 5,
-        x2 = slots.get(group.eventIds.at(-1)!)!.x + 5;
-      const y = allocate(x1, x2, 4),
-        text =
-          group.ratio.actual === 3 && group.ratio.normal === 2
-            ? "3"
-            : `${group.ratio.actual}:${group.ratio.normal}`;
+      const firstX = slots.get(group.eventIds[0]!)!.x;
+      const lastX = slots.get(group.eventIds.at(-1)!)!.x;
+      const centerX = (firstX + lastX) / 2;
+      const text =
+        group.ratio.actual === 3 && group.ratio.normal === 2
+          ? "3"
+          : `${group.ratio.actual}:${group.ratio.normal}`;
+      const request = musicTextRequest(text, 11);
+      const ink = musicTextInkBounds(musicTextGlyph(request, 0, 0, metrics));
+      // 按字形墨迹给断口留白；比例文字较宽时对称扩展跨度，保证两侧仍有可见的弧段。
+      const halfGap = Math.max(-ink.x, ink.x + ink.width) + 2;
+      const halfSpan = Math.max((lastX - firstX) / 2 + 5, halfGap + 4);
+      const x1 = centerX - halfSpan;
+      const x2 = centerX + halfSpan;
+      const h = Math.min(
+        profile.slurHeight[1],
+        profile.slurHeight[0] + (x2 - x1) * 0.02,
+      );
+      // 弧端和居中的文字共同参与净空计算，兼容字体度量尚未加载的情况。
+      const y = allocate(x1, x2, Math.max(0.5, ink.height / 2 - h));
+      const apexY = y - h;
       const label = musicTextGlyph(
-        musicTextRequest(text, 11),
-        (x1 + x2) / 2,
-        y - 2,
+        request,
+        centerX,
+        apexY - ink.y - ink.height / 2,
         metrics,
       );
+      // 从同一条抛物线截取左右两段，断口边缘保留原弧的斜率，数字置于弧顶。
+      const gapRatio = halfGap / halfSpan;
+      const gapY = apexY + h * gapRatio ** 2;
+      const controlY = apexY + h * gapRatio;
+      const leftGapX = centerX - halfGap;
+      const rightGapX = centerX + halfGap;
       results.push({
         markId: group.id,
         type: "tuplet",
         path: {
-          d: `M ${x1} ${y + 3} V ${y} H ${label.bounds.x - 3} M ${label.bounds.x + label.bounds.width + 3} ${y} H ${x2} V ${y + 3}`,
+          d: `M ${x1} ${y} Q ${(x1 + leftGapX) / 2} ${controlY} ${leftGapX} ${gapY} M ${rightGapX} ${gapY} Q ${(rightGapX + x2) / 2} ${controlY} ${x2} ${y}`,
           strokeWidth: 1,
         },
         lines: [],
@@ -210,7 +230,12 @@ export const layoutNumberedMarks = (
         labels: [label],
         bounds: unionMusicBounds([
           label.bounds,
-          { x: x1, y: y - 1, width: x2 - x1, height: 5 },
+          {
+            x: x1 - 0.5,
+            y: gapY - 0.5,
+            width: x2 - x1 + 1,
+            height: y - gapY + 1,
+          },
         ]),
       });
     }

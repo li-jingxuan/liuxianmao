@@ -8,11 +8,13 @@ import {
   MAX_PLAYBACK_BPM,
   MIN_PLAYBACK_BPM,
   type ILXMDocument,
+  type ILXMTimeSignature,
   type PlaybackPlan,
   type PlaybackWarningCode,
 } from "@liuxianmao/lxm-editor";
 import { chordCatalogResource } from "../chords/chord-catalog-resource";
 import { ScoreAudioEngine } from "./engine";
+import { createScoreMetronomeGrid, DEFAULT_METER, isMetronomeBpm, readMeter, type ScoreMetronomeGrid } from "./metronome-grid";
 
 type Position = {
   measureId: string;
@@ -29,6 +31,11 @@ interface SessionState {
   follow: boolean;
   position: Position | null;
   message: string;
+  clickEnabled: boolean;
+  clickAccent: boolean;
+  clickBeat: number | null;
+  clickFailed: boolean;
+  currentMeter: ILXMTimeSignature | null;
 }
 export interface ScorePlaybackControls extends SessionState {
   setEnabled(enabled: boolean): void;
@@ -40,6 +47,9 @@ export interface ScorePlaybackControls extends SessionState {
   canStartCurrent: boolean;
   togglePlay(): void;
   stop(): void;
+  setClickEnabled(enabled: boolean): void;
+  setClickAccent(accent: boolean): void;
+  startingMeter: ILXMTimeSignature;
 }
 
 // The editor also commits display, numbered notation and lyric edits to this document.
@@ -105,12 +115,21 @@ export class PlaybackSession {
     follow: true,
     position: null,
     message: "",
+    clickEnabled: false,
+    clickAccent: true,
+    clickBeat: null,
+    clickFailed: false,
+    currentMeter: null,
   };
   private listeners = new Set<() => void>();
   private engine: ScoreAudioEngine | null = null;
   private request: AbortController | null = null;
   private key: string | null = null;
   private plan: PlaybackPlan | null = null;
+  private clickGrid: ScoreMetronomeGrid | null = null;
+  private clickFromTick = 0;
+  private resumeSkipsOnset = false;
+  private documentKey?: string;
   private offset = 0;
   private frame = 0;
   private preferredFollow = true;
@@ -135,12 +154,18 @@ export class PlaybackSession {
   stop = (message = "") => {
     this.cancel();
     this.plan = null;
+    this.clickGrid = null;
     this.key = null;
     this.offset = 0;
+    this.clickFromTick = 0;
+    this.resumeSkipsOnset = false;
     this.update({
       phase: "idle",
       message,
       position: null,
+      clickBeat: null,
+      clickFailed: false,
+      currentMeter: null,
       follow: this.preferredFollow,
     });
   };
@@ -149,8 +174,19 @@ export class PlaybackSession {
     this.engine?.dispose();
     this.engine = null;
   };
-  documentChanged(doc: ILXMDocument | null) {
-    const savedBpm = doc?.score.tempoBpm ?? null;
+  documentChanged(doc: ILXMDocument | null, documentKey?: string) {
+    const value = doc?.score.tempoBpm;
+    const savedBpm = isMetronomeBpm(value) ? value : null;
+    // 文件会话版本只在真正换谱后变化。即使重新导入的是同一 ID 或打开后又取消确认，也不会误用旧试听配置。
+    if (documentKey !== undefined && documentKey !== this.documentKey) {
+      const replaced = this.documentKey !== undefined;
+      this.documentKey = documentKey;
+      if (replaced) {
+        this.stop();
+        this.update({ savedBpm, bpm: savedBpm ?? DEFAULT_PLAYBACK_BPM, start: "beginning", clickEnabled: false, clickAccent: true });
+        return;
+      }
+    }
     const { bpm: previousBpm, savedBpm: previousSavedBpm } = this.state;
     const overridden = previousBpm !== (previousSavedBpm ?? DEFAULT_PLAYBACK_BPM);
     const bpm = overridden ? previousBpm : savedBpm ?? DEFAULT_PLAYBACK_BPM;
@@ -165,19 +201,23 @@ export class PlaybackSession {
       this.stop();
       this.resetBpm();
     }
-    this.update({ enabled, message: "" });
+    this.update({ enabled, message: "", clickEnabled: false });
   };
   private get editable() {
     return this.state.phase === "idle" || this.state.phase === "error";
   }
   setBpm = (value: number) => {
-    if (this.editable && Number.isFinite(value))
-      this.update({
-        bpm: Math.max(
-          MIN_PLAYBACK_BPM,
-          Math.min(MAX_PLAYBACK_BPM, Math.round(value)),
-        ),
-      });
+    if (!Number.isFinite(value)) return;
+    const bpm = Math.max(MIN_PLAYBACK_BPM, Math.min(MAX_PLAYBACK_BPM, Math.round(value)));
+    if (bpm === this.state.bpm) return;
+    try {
+      if (this.state.phase === "playing" && this.plan) this.engine?.changeTempo(this.plan, bpm);
+      // 加载时更新目标速度；异步音源就绪后使用最新值。暂停时保留原来的刻度，继续时应用新速度。
+      this.update({ bpm });
+    } catch (error) {
+      this.update({ bpm });
+      this.fail(error);
+    }
   };
   resetBpm = () => this.setBpm(this.state.savedBpm ?? DEFAULT_PLAYBACK_BPM);
   setStart = (start: SessionState["start"]) => {
@@ -190,6 +230,27 @@ export class PlaybackSession {
   suspendFollow = () => {
     if (this.state.follow) this.update({ follow: false });
   };
+  setClickEnabled = (enabled: boolean) => {
+    if (!this.state.enabled || this.state.clickEnabled === enabled) return;
+    if (this.state.phase === "playing" && this.engine) {
+      this.update({ clickEnabled: enabled, clickBeat: null, clickFailed: false });
+      this.clickFromTick = this.engine.setClickEnabled(enabled);
+      return;
+    }
+    // 暂停或继续加载中打开时，同样从尚未经过的自然拍点加入。已停播则下次从起点开始。
+    this.clickFromTick = enabled && this.clickGrid
+      ? this.clickGrid.nextBeat(this.offset, !this.resumeSkipsOnset)?.tick ?? Infinity : 0;
+    this.update({ clickEnabled: enabled, clickBeat: null, clickFailed: false });
+  };
+  setClickAccent = (accent: boolean) => {
+    this.engine?.setClickAccent(accent);
+    this.update({ clickAccent: accent });
+  };
+  private visibleBeat(tick: number) {
+    if (!this.state.clickEnabled) return null;
+    const beat = this.clickGrid?.beatAt(tick);
+    return beat && beat.tick >= this.clickFromTick ? beat.number : null;
+  }
   private paint = () => {
     if (!this.engine || !this.plan || this.state.phase !== "playing") return;
     const tick = this.engine.currentTick();
@@ -198,23 +259,35 @@ export class PlaybackSession {
       return;
     }
     const position = getPlaybackBeatAtTick(this.plan, tick) ?? null;
-    if (this.state.position !== position) this.update({ position });
+    const currentMeter = this.clickGrid?.meterAt(tick) ?? null;
+    const clickBeat = this.engine.hasStarted() ? this.visibleBeat(tick) : this.state.clickBeat;
+    if (this.state.position !== position || this.state.currentMeter !== currentMeter || this.state.clickBeat !== clickBeat)
+      this.update({ position, currentMeter, clickBeat });
     this.frame = requestAnimationFrame(this.paint);
   };
-  pause = (message?: string) => {
+  pause = (message?: string, interrupted = false) => {
     if (this.state.phase === "loading") {
       this.stop(message);
       return;
     }
     if (this.state.phase !== "playing" || !this.engine || !this.plan) return;
     this.offset = this.engine.currentTick();
+    this.resumeSkipsOnset ||= interrupted || this.engine.hasStarted();
+    const clickBeat = interrupted ? null : this.resumeSkipsOnset ? this.visibleBeat(this.offset) : this.state.clickBeat;
+    if (interrupted) this.clickFromTick = this.clickGrid?.nextBeat(this.offset, false)?.tick ?? Infinity;
     this.cancel();
     this.update({
       phase: "paused",
       position: getPlaybackBeatAtTick(this.plan, this.offset) ?? null,
+      currentMeter: this.clickGrid?.meterAt(this.offset) ?? null,
+      clickBeat,
       message: message ?? this.state.message,
     });
   };
+  private fail(error: unknown) {
+    this.stop();
+    this.update({ phase: "error", message: error instanceof Error ? `试听失败，请重试。${error.message}` : "试听失败，请重试" });
+  }
   async togglePlay(doc: ILXMDocument | null, currentMeasure: string | null) {
     if (!this.state.enabled || !doc || this.state.phase === "loading") return;
     this.documentChanged(doc);
@@ -223,7 +296,7 @@ export class PlaybackSession {
       return;
     }
     const resume = this.state.phase === "paused";
-    const { start, bpm } = this.state;
+    const { start } = this.state;
     if (!resume && start === "current" && !currentMeasure) {
       this.stop("请先选择一个六线谱小节");
       return;
@@ -234,8 +307,9 @@ export class PlaybackSession {
     this.update({ phase: "loading", message: "正在准备木吉他音源…" });
     try {
       const engine = (this.engine ??= new ScoreAudioEngine());
-      engine.onInterrupted = () => this.pause("音频已中断，可继续播放");
-      await engine.unlock();
+      engine.onInterrupted = () => this.pause("音频已中断，可继续播放", true);
+      engine.onClickFailed = () => this.update({ clickFailed: true });
+      await engine.unlock(request.signal);
       request.signal.throwIfAborted();
       if (!resume || !this.plan) {
         const needsCatalog = doc.score.tracks[0]?.measures.some((m) =>
@@ -244,10 +318,11 @@ export class PlaybackSession {
         if (needsCatalog) await chordCatalogResource.ensureLoaded();
         request.signal.throwIfAborted();
         this.plan = createPlaybackPlan(doc, {
-          bpm,
+          bpm: this.state.bpm,
           startMeasureId: start === "current" ? currentMeasure! : undefined,
           chordCatalog: chordCatalogResource.getSnapshot().catalog,
         });
+        this.clickGrid = createScoreMetronomeGrid(this.plan, doc.score.tracks[0]?.measures ?? []);
         this.offset = 0;
       }
       const plan = this.plan;
@@ -261,19 +336,16 @@ export class PlaybackSession {
       }
       await engine.prepare(plan, request.signal);
       request.signal.throwIfAborted();
-      engine.start(plan, bpm, this.offset);
+      this.update({ clickFailed: false });
+      engine.start(plan, this.state.bpm, this.offset, this.clickGrid ? {
+        grid: this.clickGrid, enabled: this.state.clickEnabled,
+        accent: this.state.clickAccent, skipOnset: resume && this.resumeSkipsOnset,
+      } : undefined);
       this.update({ phase: "playing", message: planMessage(plan) });
       this.paint();
     } catch (error) {
       if (request.signal.aborted) return;
-      this.stop();
-      this.update({
-        phase: "error",
-        message:
-          error instanceof Error
-            ? `试听失败，请重试。${error.message}`
-            : "试听失败，请重试",
-      });
+      this.fail(error);
     }
   }
 }
@@ -281,6 +353,7 @@ export class PlaybackSession {
 export function useScorePlayback(
   doc: ILXMDocument | null,
   selectedMeasureId: string | null,
+  documentKey?: string,
 ): ScorePlaybackControls {
   const [session] = useState(() => new PlaybackSession());
   const state = useSyncExternalStore(
@@ -289,21 +362,28 @@ export function useScorePlayback(
     session.snapshot,
   );
   useLayoutEffect(() => {
-    session.documentChanged(doc);
-  }, [session, doc]);
+    session.documentChanged(doc, documentKey);
+  }, [session, doc, documentKey]);
   useLayoutEffect(() => {
     const hidden = () => {
       if (document.hidden) session.pause("页面已切至后台，试听已中断");
     };
+    // pagehide 只在离开成功后触发，也覆盖浏览器保留页面实例用于后退的情形。
+    const leave = () => { session.setEnabled(false); session.setClickAccent(true); session.setStart("beginning"); session.dispose(); };
     document.addEventListener("visibilitychange", hidden);
+    window.addEventListener("pagehide", leave);
     return () => {
       document.removeEventListener("visibilitychange", hidden);
+      window.removeEventListener("pagehide", leave);
       session.dispose();
     };
   }, [session]);
   const canStartCurrent =
     !!selectedMeasureId &&
     !!doc?.score.tracks[0]?.measures.some((m) => m.id === selectedMeasureId);
+  const measures = doc?.score.tracks[0]?.measures;
+  const startMeasure = state.start === "current" && canStartCurrent
+    ? measures?.find((measure) => measure.id === selectedMeasureId) : measures?.[0];
   return {
     ...state,
     setEnabled: session.setEnabled,
@@ -312,6 +392,9 @@ export function useScorePlayback(
     setStart: session.setStart,
     setBpm: session.setBpm,
     resetBpm: session.resetBpm,
+    setClickEnabled: session.setClickEnabled,
+    setClickAccent: session.setClickAccent,
+    startingMeter: readMeter(startMeasure?.timeSignature) ?? DEFAULT_METER,
     canStartCurrent,
     togglePlay: () => {
       void session.togglePlay(doc, canStartCurrent ? selectedMeasureId : null);

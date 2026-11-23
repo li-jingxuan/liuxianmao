@@ -8,6 +8,10 @@ const audio = vi.hoisted(() => ({
   prepare: vi.fn(async () => {}),
   start: vi.fn(),
   currentTick: vi.fn(() => 0),
+  hasStarted: vi.fn(() => true),
+  setClickEnabled: vi.fn((enabled: boolean) => enabled ? 960 : Infinity),
+  setClickAccent: vi.fn(),
+  changeTempo: vi.fn(),
   stop: vi.fn(),
   dispose: vi.fn(),
 }));
@@ -38,6 +42,7 @@ function enabled() {
 beforeEach(() => {
   vi.clearAllMocks();
   audio.currentTick.mockReturnValue(0);
+  audio.hasStarted.mockReturnValue(true);
   vi.stubGlobal(
     "requestAnimationFrame",
     vi.fn(() => 1),
@@ -134,5 +139,59 @@ describe("score playback session", () => {
     session.setFollow(false);
     session.stop();
     expect(session.snapshot().follow).toBe(false);
+  });
+
+  it("joins mid-performance on the next beat and freezes or clears it with transport", async () => {
+    const session = enabled();
+    const doc = documentFixture();
+    doc.score.tracks[0]!.measures[0]!.timeSignature = { numerator: 4, denominator: 4 };
+    await session.togglePlay(doc, null);
+    expect(session.snapshot()).toMatchObject({ clickEnabled: false, clickBeat: null });
+    const raf = vi.mocked(requestAnimationFrame);
+    const paint = () => raf.mock.lastCall![0](0);
+    audio.currentTick.mockReturnValue(450);
+    session.setClickEnabled(true);
+    paint();
+    expect(session.snapshot().clickBeat).toBeNull();
+    audio.currentTick.mockReturnValue(1020);
+    paint();
+    expect(session.snapshot().clickBeat).toBe(2);
+    session.setBpm(120);
+    expect(audio.changeTempo.mock.lastCall?.[1]).toBe(120);
+    session.pause();
+    expect(session.snapshot()).toMatchObject({ phase: "paused", clickBeat: 2 });
+    audio.hasStarted.mockReturnValue(false);
+    await session.togglePlay(doc, null);
+    expect(audio.start.mock.lastCall?.[2]).toBe(1020);
+    expect(audio.start.mock.lastCall?.[3]).toMatchObject({ enabled: true, skipOnset: true });
+    expect(session.snapshot().clickBeat).toBe(2);
+    session.setClickEnabled(false);
+    expect(session.snapshot()).toMatchObject({ phase: "playing", clickBeat: null });
+    session.setClickEnabled(true);
+    session.stop();
+    expect(session.snapshot()).toMatchObject({ phase: "idle", clickBeat: null, clickEnabled: true });
+    session.setEnabled(false);
+    session.setEnabled(true);
+    expect(session.snapshot().clickEnabled).toBe(false);
+  });
+
+  it("uses current BPM after loading and resets click settings on actual file replacement", async () => {
+    const session = enabled();
+    const doc = documentFixture();
+    session.documentChanged(doc, "original");
+    session.setClickEnabled(true);
+    session.setClickAccent(false);
+    let resolve!: () => void;
+    audio.prepare.mockImplementationOnce(() => new Promise((done) => { resolve = done; }));
+    const play = session.togglePlay(doc, null);
+    await vi.waitFor(() => expect(audio.prepare).toHaveBeenCalled());
+    expect(session.snapshot()).toMatchObject({ phase: "loading", clickBeat: null });
+    session.setBpm(120);
+    resolve();
+    await play;
+    expect(audio.start.mock.lastCall?.[1]).toBe(120);
+    expect(audio.start.mock.lastCall?.[3]).toMatchObject({ enabled: true, accent: false });
+    session.documentChanged(doc, "reopened-same-file");
+    expect(session.snapshot()).toMatchObject({ phase: "idle", clickEnabled: false, clickBeat: null, clickAccent: true });
   });
 });

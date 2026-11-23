@@ -65,7 +65,7 @@ export type {
   NumberedDraftGroup,
   NumberedPropertyApplyResult,
 } from "./numbered-submission";
-import { numberedInputRhythmForWindow, numberedInputRhythmFromTab } from "../tools/editor-rhythm-target";
+import { resolveNumberedInputDefault, numberedInputRhythmForWindow, numberedInputRhythmFromTab } from "../tools/editor-rhythm-target";
 import { shouldIgnoreMusicTextKey } from "../music-text/music-text-interaction";
 import floatingStyles from "./NumberedEditor.module.scss";
 import { NumberedRhythmToolbar } from "./NumberedRhythmToolbar";
@@ -294,6 +294,8 @@ export const NumberedEditor = ({
   const preferenceExplicit = useEditorStore(
     (state) => state.numberedInputRhythmExplicit,
   );
+  const numberedAutoAdvance = useEditorStore((state) => state.numberedAutoAdvance);
+  const preferenceTarget = useEditorStore((state) => state.numberedInputRhythmTarget);
   const targetInputKey = JSON.stringify(target);
   // 核心可能在正文成功后重建成员 ID；仅本 owner 的真实成功结果可重绑当前事件。
   const [submittedTarget, setSubmittedTarget] = useState<{
@@ -459,24 +461,22 @@ export const NumberedEditor = ({
     !!event &&
     template === "uniform" &&
     !fixedRange;
-  const [templateBase, setTemplateBase] = useState<ILXMRhythmBase>(
-    numberedInputRhythmForWindow(
-      preference,
-      preferenceExplicit,
-      window.end - window.start,
-      !event ? numberedInputRhythmFromTab(measure, window.start, window.end - window.start) : undefined,
-    ).base,
+  // 附点互补后常留下比上次录入时值更窄的空格；当前格的安全默认值和顶部工具栏统一。
+  // 真实事件（包括持久空格）继续使用自身身份和已保存时值。
+  const windowTicks = window.end - window.start;
+  const inputDefault = !event ? resolveNumberedInputDefault(measure, resolved, preference, preferenceExplicit,
+    numberedAutoAdvance, preferenceTarget) : undefined;
+  const targetInputRhythm = inputDefault?.rhythm;
+  const defaultInputRhythm = targetInputRhythm ?? numberedInputRhythmForWindow(
+    preference,
+    preferenceExplicit,
+    windowTicks,
+    !event ? numberedInputRhythmFromTab(measure, window.start, windowTicks) : undefined,
   );
-  const [templateDots, setTemplateDots] = useState(
-    numberedInputRhythmForWindow(
-      preference,
-      preferenceExplicit,
-      window.end - window.start,
-      !event ? numberedInputRhythmFromTab(measure, window.start, window.end - window.start) : undefined,
-    ).dots,
-  );
-  // An automatically highlighted value is not an instruction to retime the sequence.
-  const [inputRhythmExplicit, setInputRhythmExplicit] = useState(!event && preferenceExplicit);
+  const [templateBase, setTemplateBase] = useState<ILXMRhythmBase>(defaultInputRhythm.base);
+  const [templateDots, setTemplateDots] = useState(defaultInputRhythm.dots);
+  // 目标格仅提供默认时值。连续录入没有显式改时值时逐格沿用各自节奏，不能把首格时值套给整批。
+  const [inputRhythmExplicit, setInputRhythmExplicit] = useState(!event && preferenceExplicit && !targetInputRhythm);
   const complexRhythm =
     template !== "uniform" ||
     fixedRange ||
@@ -707,18 +707,16 @@ export const NumberedEditor = ({
   useEffect(() => {
     // 外部时值偏好只同步干净模板，已输入的内容保留自己的时值。
     if (contentDirty || pending) return;
-    const rhythm = numberedInputRhythmForWindow(
-      preference,
-      preferenceExplicit,
-      window.end - window.start,
-      !event ? numberedInputRhythmFromTab(measure, window.start, window.end - window.start) : undefined,
-    );
-    if (rhythm.base === templateBase && rhythm.dots === templateDots) return;
+    const rhythm = defaultInputRhythm;
+    // 顶部工具栏也能在到达后显式选时值。即便显示值相同，也要记下显式选择，提交时才会按此重排。
+    const explicit = targetInputRhythm ? false : inputRhythmExplicit || inputDefault?.chosenHere === true;
+    if (rhythm.base === templateBase && rhythm.dots === templateDots && explicit === inputRhythmExplicit) return;
     let cancelled = false;
     queueMicrotask(() => {
       if (cancelled) return;
       setTemplateBase(rhythm.base);
       setTemplateDots(rhythm.dots);
+      setInputRhythmExplicit(explicit);
       setContentBaseline(
         contentValue(initial, {
           template,
@@ -728,7 +726,7 @@ export const NumberedEditor = ({
           customRhythms,
           ratioIndex,
           fixedRange,
-          inputRhythmExplicit,
+          inputRhythmExplicit: explicit,
           templateBase: rhythm.base,
           templateDots: rhythm.dots,
         }),
@@ -737,17 +735,16 @@ export const NumberedEditor = ({
         ...contentBaselineValue.current,
         templateBase: rhythm.base,
         templateDots: rhythm.dots,
+        inputRhythmExplicit: explicit,
       };
     });
     return () => {
       cancelled = true;
     };
   }, [
-    preference,
-    preferenceExplicit,
-    window.end,
-    window.start,
-    measure,
+    inputDefault?.chosenHere,
+    targetInputRhythm,
+    defaultInputRhythm,
     event,
     contentDirty,
     pending,
@@ -1568,7 +1565,8 @@ export const NumberedEditor = ({
         contentBaselineValue.current = structuredClone(config);
         setContentBaseline(contentValue(latest.current.raw, config));
       }
-      editorStore.getState().setNumberedInputRhythm({ base: nextBase, dots: nextDots });
+      editorStore.getState().setNumberedInputRhythm({ base: nextBase, dots: nextDots },
+        !event && resolved?.kind === "numberedTime" ? resolved : undefined);
    };
    const applyInstantSustain = () => {
      if (immediateBlockedReason || !track || !measure) return;

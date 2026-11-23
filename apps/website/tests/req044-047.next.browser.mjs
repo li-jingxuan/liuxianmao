@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -382,17 +382,16 @@ try {
     assert.equal((await state()).document.score.tracks[0].measures.length, 3);
   });
   await shot("measure-popup");
-  await check("删除区内确认与取消；确认一次提交且无第二弹窗", async () => {
+  await check("点击即删除当前小节，无确认区或弹窗，可一次撤销", async () => {
+    const before = await state();
     await page.getByRole("button", { name: "删除当前小节", exact: true }).last().click();
-    const confirm = page.getByRole("region", { name: "删除当前小节确认" });
-    await confirm.getByRole("button", { name: /取\s*消/ }).click();
-    assert.equal((await state()).document.score.tracks[0].measures.length, 3);
-    await page.getByRole("button", { name: "删除当前小节", exact: true }).last().click();
-    await confirm.getByRole("button", { name: /确认删除第/ }).click();
+    assert.equal(await page.getByRole("region", { name: "删除当前小节确认" }).count(), 0);
     assert.equal(await page.locator('.ant-modal').count(), 0);
-    assert.equal((await state()).document.score.tracks[0].measures.length, 2);
+    const after = await state();
+    assert.deepEqual(after.document.score.tracks[0].measures.map(measure => measure.id), ["m0", "m2"]);
+    assert.equal(after.history.past, before.history.past + 1);
     await state("undo");
-    assert.equal((await state()).document.score.tracks[0].measures.length, 3);
+    assert.deepEqual((await state()).document, before.document);
   });
   await page.keyboard.press("Escape"); await load(); await select();
   await check("全部十六技巧紧凑显示，应用删除撤销", async () => {
@@ -482,7 +481,7 @@ try {
   });
   await shot("technique-parameters");
   await page.keyboard.press("Escape"); await load();
-  await check("简谱只启用节奏型与小节，跨小节选区仍按焦点定位小节", async () => {
+  await check("简谱单音和跨小节选区不沿用 TAB 连音范围，跨小节按焦点定位小节", async () => {
     await state("selection", { anchor: ref(0, 0), focus: ref(0, 2) });
     assert.equal(await toolTrigger("tuplet").isEnabled(), true);
     await page.locator('text[data-numbered-event="e00"]').first().click();
@@ -491,11 +490,47 @@ try {
     assert.equal(await toolTrigger("beat").isEnabled(), true);
     assert.equal(await toolTrigger("measure").isEnabled(), true);
     await page.locator('text[data-numbered-event="e10"]').first().click({ modifiers: ["Shift"] });
+    assert.equal(await toolTrigger("tuplet").isDisabled(), true);
     assert.equal(await toolTrigger("beat").isEnabled(), true);
     assert.equal(await rhythmSidebar.getByRole("tab", { name: "扫弦节奏型" }).count(), 0);
     await open("measure");
     assert.match(await page.getByRole("dialog", { name: "小节工具参数" }).innerText(), /第 2 小节/);
     await page.keyboard.press("Escape");
+  });
+  await check("《理想》第 32 小节三个简谱音符可用顶栏设置或删除三连音", async () => {
+    const ideal = JSON.parse(await readFile(new URL("../../../packages/lxm-editor/example/ideal-score.lxm.json", import.meta.url), "utf8"));
+    assert.equal((await state("replace", ideal)).ok, true);
+    const before = await state();
+    const measure = before.document.score.tracks[0].measures[31];
+    const notes = measure.numberedVoice.events.filter(event => event.kind === "notes").slice(0, 3);
+    assert.deepEqual(notes.map(event => event.items[0].token), ["4", "4", "4"]);
+    await page.locator(`text[data-numbered-event="${notes[0].id}"]`).first().click();
+    await page.locator(`text[data-numbered-event="${notes[2].id}"]`).first().click({ modifiers: ["Shift"] });
+    assert.equal(await toolTrigger("tuplet").isEnabled(), true);
+    await open("tuplet");
+    const tool = page.getByRole("group", { name: "简谱连音工具" });
+    await tool.getByRole("button", { name: "三连音（3:2）" }).click();
+    const after = await state();
+    const updated = after.document.score.tracks[0].measures[31];
+    assert.equal(after.history.past, before.history.past + 1);
+    assert.equal(updated.numberedVoice.tuplets.length, 1);
+    assert.deepEqual(updated.numberedVoice.tuplets[0].eventIds, notes.map(event => event.id));
+    assert.deepEqual(updated.numberedVoice.events.slice(0, 3).map(event => event.tick), [0, 320, 640]);
+    assert.deepEqual(updated.numberedVoice.events.slice(3), measure.numberedVoice.events.slice(3));
+    assert.deepEqual(updated.beats, measure.beats);
+    assert.deepEqual(updated.lyrics, measure.lyrics);
+    const mark = `[data-numbered-mark="${updated.numberedVoice.tuplets[0].id}"]`;
+    const score = page.locator('svg[aria-label="六线谱编辑器"]');
+    assert.match(await score.locator(`path${mark}`).getAttribute("d"), /^M .* Q .* M .* Q /);
+    assert.equal(await score.locator(`text${mark}`).textContent(), "3");
+    await shot("numbered-triplet");
+    if (!(await tool.isVisible())) await open("tuplet");
+    await tool.getByRole("button", { name: "删除连音组" }).click();
+    assert.deepEqual((await state()).document.score.tracks[0].measures[31], measure);
+    await state("undo");
+    assert.deepEqual((await state()).document, after.document);
+    await state("undo");
+    assert.deepEqual((await state()).document, before.document);
   });
   await check("选中歌词或和弦时，TAB 工具禁用且保留对应的小节和和弦操作", async () => {
     const document = fixture();

@@ -78,7 +78,8 @@ export const validateNumberedVoice = (
       const current = byId.get(id);
       if (!current || current.i !== first.i + i || members.has(id))
         return "简谱连音成员须完整连续且不重复归组";
-      if (JSON.stringify(current.e.rhythm) !== JSON.stringify(first.e.rhythm))
+      // 书写时值由基础音值和附点数决定，避免对象字段顺序影响同值判定。
+      if (current.e.rhythm.base !== first.e.rhythm.base || current.e.rhythm.dots !== first.e.rhythm.dots)
         return "简谱连音书写时值须一致";
       if (i > 0) {
         const last = voice.events[current.i - 1]!;

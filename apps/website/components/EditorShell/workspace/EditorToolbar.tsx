@@ -5,6 +5,7 @@ import {
   useEffect,
   useImperativeHandle,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
@@ -33,7 +34,8 @@ import { MeasureBoundary, resolveMeasureControlTarget } from "../tools/MeasureBo
 import { MeasureActions } from "../tools/MeasureActions";
 import measureStyles from "../tools/MeasureControls.module.scss";
 import { resolveEditorRhythmPatternTarget } from "../tools/editor-rhythm-pattern-target";
-import { resolveTupletToolbarTarget, TupletToolbar } from "../tools/TupletToolbar";
+import { NumberedTupletToolbar, resolveTupletToolbarTarget, TupletToolbar } from "../tools/TupletToolbar";
+import { resolveNumberedTupletTarget } from "../tools/editor-numbered-tuplet-target";
 import { TechniqueToolbar, type TechniqueToolbarController } from "../tools/TechniqueToolbar";
 import { TECHNIQUE_OPTIONS } from "../tools/technique-catalog";
 import { techniquesInToolbarSelection, toolbarTechniqueAvailability } from "../tools/technique-toolbar-model";
@@ -61,6 +63,8 @@ import symbolStyles from "../tools/EditorToolSymbolButton.module.scss";
 import toolbarStyles from "./EditorToolbar.module.scss";
 import { PlaybackToolbar } from "../playback/PlaybackToolbar";
 import type { ScorePlaybackControls } from "../playback/controller";
+import { PracticeMetronomeControls } from "../playback/MetronomeControls";
+import { PracticeMetronome } from "../playback/practice-metronome";
 
 export type { EditorToolbarAction } from "../tools/editor-tool-actions";
 export type EditorToolbarController = Pick<EditorToolPanelController,
@@ -126,9 +130,23 @@ export const EditorToolbar = ({
   const document = useEditorStore((state) => state.document),
     selection = useEditorStore((state) => state.selection),
     numberedSelection = useEditorStore((state) => state.numberedSelection);
+  const sessionVersion = useEditorStore((state) => state.sessionVersion);
+  // 用实际换谱时递增的版本区分练习会话。选择、编辑及取消确认都应复用当前参数和计拍。
+  const [practice] = useState(() => new PracticeMetronome());
+  useLayoutEffect(() => {
+    practice.reset();
+    const leave = () => practice.reset();
+    window.addEventListener("pagehide", leave);
+    return () => {
+      window.removeEventListener("pagehide", leave);
+      practice.stop();
+    };
+  }, [practice, sessionVersion]);
   const canUndo = useEditorStore((state) => state.canUndo),
     canRedo = useEditorStore((state) => state.canRedo);
   const inputRhythm = useEditorStore((state) => state.numberedInputRhythm);
+  const numberedAutoAdvance = useEditorStore((state) => state.numberedAutoAdvance);
+  const inputRhythmTarget = useEditorStore((state) => state.numberedInputRhythmTarget);
   const tabInputRhythmOverrides = useEditorStore((state) => state.tabInputRhythmOverrides);
   const inputRhythmExplicit = useEditorStore(
     (state) => state.numberedInputRhythmExplicit,
@@ -233,6 +251,11 @@ export const EditorToolbar = ({
   useEffect(() => {
     if (modal && !preserveToolForModal) host.current?.close();
   }, [modal, preserveToolForModal]);
+  // 简谱连续选区优先于之前保留的 TAB 选区；简谱单音仅打开所属连音组。
+  const numberedArc = continuousRange?.kind === "numbered" || activeTarget?.kind === "numbered" || !!numberedSelection;
+  const numberedTuplet = useMemo(() => document && numberedArc
+    ? resolveNumberedTupletTarget(document, continuousRange, activeTarget, numberedSelection) : null,
+  [document, numberedArc, continuousRange, activeTarget, numberedSelection]);
   if (!document) return null;
   const rhythmPatternTarget = resolveEditorRhythmPatternTarget(document, selection, continuousRange, activeTarget, numberedSelection);
   const rhythmPatternBlocked = (rhythmPatternTarget.ok && rhythmPatternTarget.target.layer === "numbered"
@@ -256,11 +279,11 @@ export const EditorToolbar = ({
   const toolTargetReasons = {
     measure: measureControlTarget ? null : "请选择目标小节。",
     beat: rhythmPatternTarget.ok ? null : rhythmPatternTarget.message,
-    tuplet: canUseTuplet ? null : tabPanelReason || tupletTarget.reason || "请选择同小节内符合连音比例的连续拍点，或选中已有连音组。",
+    tuplet: numberedTuplet ? numberedTuplet.ok ? null : numberedTuplet.message
+      : canUseTuplet ? null : tabPanelReason || tupletTarget.reason || "请选择同小节内符合连音比例的连续拍点，或选中已有连音组。",
     technique: canUseTechnique ? null : tabPanelReason || "当前 TAB 选区没有可用的技巧。",
   };
   // 简谱和 TAB 共享工具栏位置。回到谱面后连续选区仍指向简谱，不能由残留的 TAB 选区决定入口。
-  const numberedArc = continuousRange?.kind === "numbered" || activeTarget?.kind === "numbered" || !!numberedSelection;
   const arcBlocked = !!modal || numberedEditingBlocked;
   const chordTarget = resolveEditorChordTarget(document, selection, activeTarget, !!numberedSelection || !!continuousRange);
   const chordAvailability: ToolAvailability = modal || chordEntryBlocked
@@ -305,6 +328,8 @@ export const EditorToolbar = ({
     inputRhythm,
     inputRhythmExplicit,
     tabInputRhythmOverrides,
+    numberedAutoAdvance,
+    inputRhythmTarget,
   );
   const rhythmAvailability: ToolAvailability =
     modal ||
@@ -336,6 +361,8 @@ export const EditorToolbar = ({
     }
     setPlaybackEntryNotice("");
     beforeAction();
+    // 只有试听入口最终通过输入和浮层守卫后，才结束独立练习并交接给谱面播放。
+    practice.stop();
     playback.setEnabled(true);
   };
   return (
@@ -352,7 +379,7 @@ export const EditorToolbar = ({
         exitPlayback();
       }}
     >
-      {playback.enabled ? <PlaybackToolbar playback={playback} /> : <div className={toolbarStyles.content}>
+      {playback.enabled ? <PlaybackToolbar key={sessionVersion} playback={playback} /> : <div className={toolbarStyles.content}>
       <div className={`${toolbarStyles.row} ${toolbarStyles.primary}`} data-toolbar-row="rhythm">
       <div className={toolbarStyles.toolbarGroup} role="group" aria-label="历史">
         <ToolButton
@@ -520,6 +547,10 @@ export const EditorToolbar = ({
           tuplet: (
             <div>
               <div className={measureStyles.header}><h3>连音工具</h3><Button type="text" aria-label="关闭连音工具" onClick={() => host.current?.close(true)}>×</Button></div>
+              {numberedTuplet?.ok ? (
+                <NumberedTupletToolbar command={numberedTuplet.command} blocked={arcBlocked}
+                  onApply={(operation) => onAction({ type: "numberedTuplet", operation })} />
+              ) : !numberedTuplet && (
                 <TupletToolbar
                   document={document}
                   selection={tabPanelSelection}
@@ -528,6 +559,7 @@ export const EditorToolbar = ({
                   blockedReason={tabPanelReason ?? undefined}
                   onBusyChange={setImmediateBusy}
                 />
+              )}
             </div>
           ),
           technique: (
@@ -614,6 +646,8 @@ export const EditorToolbar = ({
             {playback.enabled ? "退出试听" : "试听"}
           </button>
         </Tooltip>
+        {!playback.enabled && <PracticeMetronomeControls key={sessionVersion} practice={practice} document={document}
+          accent={playback.clickAccent} onAccent={playback.setClickAccent} />}
         {!playback.enabled && <Tooltip title={sidebarCollapsed ? "展开编辑面板" : "收起编辑面板"} trigger={["hover", "focus"]} placement="bottomRight">
         <button
           ref={sidebarToggleRef}

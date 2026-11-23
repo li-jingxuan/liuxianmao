@@ -12,10 +12,6 @@
 }
 .insert { color: var(--accent, #1677ff); }
 .remove { color: var(--foreground, #26364a); svg { color: #ff4d4f; } &:not(:disabled):hover { color: #ff4d4f !important; background: #fff1f0 !important; } }
-.confirmation { padding: 10px; border-radius: 6px; background: var(--panel-muted, #f4f6fa); font-size: 12px; line-height: 1.6;
-  p { margin: 0 0 8px; }
-}
-.confirmButtons { display: flex; justify-content: flex-end; gap: 8px; }
 .measureMenu { display: grid; gap: 12px; }
 .header { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; color: var(--foreground, #26364a);
   h3 { margin: 0 !important; flex: 1; font-size: 16px; }

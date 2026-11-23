@@ -1,11 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyScoreCommand,
   buildLayout,
+  buildScoreScene,
   EXAMPLE_MVP_7_2_DOCUMENT,
   hitTestNumbered,
   type ILXMNumberedEvent,
 } from "../../src";
-import { musicTextInkBounds } from "../../src/layout/music-text/music-text-metrics";
+import {
+  musicTextInkBounds,
+  musicTextRequest,
+} from "../../src/layout/music-text/music-text-metrics";
 import { numberedLayoutProfile } from "../../src/layout/music-text/numbered-layout-profile";
 
 const note = (
@@ -17,6 +22,80 @@ const note = (
   kind: "notes",
   rhythm: { base, dots: 0 },
   items: [{ id: `i${tick}`, token: tick === 0 ? "5" : "6" }],
+});
+
+describe("BUG-071 简谱连音弧线", () => {
+  it.each(["editing", "presentation"] as const)(
+    "%s 使用两段对称弧线围住三连音数字，并避让已有连线",
+    (purpose) => {
+      const { document, measure } = fixture([note(0), note(480), note(960)]);
+      const track = document.score.tracks[0]!;
+      track.numberedMarks = [
+        { id: "slur", type: "slur", fromEventId: "e0", toEventId: "e960" },
+      ];
+      const result = applyScoreCommand(document, {
+        type: "numbered.tuplet.add",
+        trackId: track.id,
+        measureId: measure.id,
+        eventIds: ["e0", "e480", "e960"],
+      });
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      const metric = { x: -3, y: -8, width: 6, height: 8 };
+      const layout = buildLayout(result.document, {
+        purpose,
+        density: "compact",
+        musicTextMetrics:
+          purpose === "editing"
+            ? { [musicTextRequest("3", 11).key]: metric }
+            : undefined,
+      });
+      const system = layout.systems[0]!;
+      const frames = system.measures[0]!.numberedNotation!;
+      const slur = system.numberedMarks!.find((m) => m.type === "slur")!;
+      const tuplet = system.numberedMarks!.find((m) => m.type === "tuplet")!;
+      const path = tuplet.path!;
+      const label = tuplet.labels[0]!;
+      const ink = musicTextInkBounds(label);
+      const tokens = path.d.split(" ");
+      expect(tokens.filter((token) => /^[A-Z]$/.test(token))).toEqual([
+        "M", "Q", "M", "Q",
+      ]);
+      const [x1, y1, leftControlX, leftControlY, leftGapX, leftGapY,
+        rightGapX, rightGapY, rightControlX, rightControlY, x2, y2] =
+        tokens.filter((token) => token !== "M" && token !== "Q").map(Number);
+
+      expect(label.text).toBe("3");
+      expect(label.measured).toBe(purpose === "editing");
+      expect(label.x).toBeCloseTo(
+        (frames[0]!.labels[0]!.x + frames[2]!.labels[0]!.x) / 2,
+      );
+      expect((x1! + x2!) / 2).toBeCloseTo(label.x);
+      expect((leftGapX! + rightGapX!) / 2).toBeCloseTo(label.x);
+      expect(leftGapX).toBeLessThan(ink.x);
+      expect(rightGapX).toBeGreaterThan(ink.x + ink.width);
+      expect(leftControlX).toBeGreaterThan(x1!);
+      expect(leftControlX).toBeLessThan(leftGapX!);
+      expect(rightControlX).toBeGreaterThan(rightGapX!);
+      expect(rightControlX).toBeLessThan(x2!);
+      expect(y1).toBeCloseTo(y2!);
+      expect(leftGapY).toBeCloseTo(rightGapY!);
+      expect(leftControlY).toBeCloseTo(rightControlY!);
+      expect(leftGapY).toBeLessThan(leftControlY!);
+      expect(leftControlY).toBeLessThan(y1!);
+      expect(ink.y + ink.height / 2).toBeLessThan(leftGapY!);
+      expect(
+        Math.max(y1! + path.strokeWidth / 2, ink.y + ink.height),
+      ).toBeLessThan(slur.bounds.y);
+      const sceneItems = buildScoreScene(layout).systems[0]!.items.filter(
+        (item) => item.numberedMarkId === tuplet.markId,
+      );
+      expect(sceneItems).toMatchObject([
+        { kind: "path", d: path.d, fill: "none" },
+        { kind: "text", text: "3", x: label.x, y: label.y, textAnchor: "middle" },
+      ]);
+    },
+  );
 });
 
 const fixture = (events: ILXMNumberedEvent[]) => {

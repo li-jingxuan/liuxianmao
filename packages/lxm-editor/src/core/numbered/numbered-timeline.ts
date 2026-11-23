@@ -27,8 +27,9 @@ export type NumberedTimelineResult =
 
 /**
  * 普通时值修改使用固定时间窗：延长吞并覆盖的后音，缩短释放空位。
- * 同 base 的附点调整只与紧邻后音互补，保持后音结束与其后的时间不变；
- * 这样连续四个十六分音符加点再减点可恢复原来的四个起点。
+ * 同 base 的附点调整尽量与紧邻后音互补，保持后音结束与其后的时间不变；
+ * 这样连续四个十六分音符加点再减点可恢复原来的四个起点。取消附点时若后音
+ * 无法合法互补，则释放缩短的部分，让用户可在空白处继续录入，同时保留后音。
  * 预览与提交必须消费这一份规划，不能在 UI 另做时间推移。
  */
 export const planNumberedEventRhythm = (
@@ -85,8 +86,6 @@ export const planNumberedEventRhythm = (
       }
     } else if (adjust) {
       // 附点互补会移动并改写相邻事件，已有延音不能作为可调整的后音。
-      if (following.kind === "continuation")
-        return { ok: false, code: "CANNOT_COMPRESS", message: NUMBERED_CONTINUATION_RHYTHM_REASON };
       const duration = context.getEventDurationTicks(following);
       const followingEnd = duration.ok ? following.tick + duration.ticks : NaN;
       let boundary = 0;
@@ -95,13 +94,20 @@ export const planNumberedEventRhythm = (
         if (boundary > target.tick) break;
       }
       const complement = numberedRhythmForTicks(followingEnd - endTick);
-      if (context.tupletByEventId.has(following.id))
-        return { ok: false, code: "EVENT_IN_TUPLET", message: "附点调整不能改变后续连音成员" };
-      if (!complement || followingEnd > boundary || endTick >= followingEnd)
+      const grouped = context.tupletByEventId.has(following.id);
+      const continuation = following.kind === "continuation";
+      const canComplement = complement && followingEnd <= boundary && endTick < followingEnd;
+      if (!continuation && !grouped && canComplement) {
+        updates.set(following.id, { ...following, tick: endTick, rhythm: { ...complement } });
+        result.movedEventIds.push(following.id);
+        result.resizedEventIds.push(following.id);
+      } else if (growing) {
+        // 加点确实覆盖了后音时必须保持原保护。减点只缩短当前音，即使紧邻延音、
+        // 连音或无法记谱的后音长度，也可安全留出空位，不迁移邻音或其歌词、记号。
+        if (continuation) return { ok: false, code: "CANNOT_COMPRESS", message: NUMBERED_CONTINUATION_RHYTHM_REASON };
+        if (grouped) return { ok: false, code: "EVENT_IN_TUPLET", message: "附点调整不能改变后续连音成员" };
         return { ok: false, code: "CANNOT_COMPRESS", message: "本拍内相邻音符没有可互补的时值，请先调整相邻音符或空位" };
-      updates.set(following.id, { ...following, tick: endTick, rhythm: { ...complement } });
-      result.movedEventIds.push(following.id);
-      result.resizedEventIds.push(following.id);
+      }
     }
   } else if (next.ticks > previous.ticks) {
     const covered = events.filter(event => event.id !== eventId && event.tick >= target.tick && event.tick < endTick);

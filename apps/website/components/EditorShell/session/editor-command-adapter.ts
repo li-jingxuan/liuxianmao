@@ -161,16 +161,36 @@ export const createEditorCommandAdapter =
     }
 
     const rhythmDiscard = command.type === LXMScoreCommandEnum.ApplyRhythmPattern && impact === "modal";
-    // 先走纯 core 预检，避免确认之前写入文档与历史。
+    if (command.type === LXMScoreCommandEnum.RemoveMeasure) {
+      const expectedRevision = snapshot.document.documentRevision;
+      const preview = applyScoreCommand(snapshot.document, { ...command, expectedRevision });
+      // 删除按钮已明确指向当前小节。核心仍保护跨小节的简谱连接记号，
+      // 所以只授权本次预检报告的变化，并绑定文档版本，与小节删除一起提交和撤销。
+      if (!preview.ok && preview.code !== "NUMBERED_IMPACT_REQUIRED")
+        return { status: "blocked", message: preview.message };
+      const next = session.getState().execute({
+        ...command,
+        expectedRevision,
+        ...(!preview.ok ? {
+          confirmedRemovedMarkIds: preview.removedMarkIds ?? [],
+          confirmedChangedMarkIds: preview.changedMarkIds ?? [],
+        } : {}),
+      });
+      if (!sameEditorSession(session.getState(), snapshot))
+        return { status: "stale", message: "编辑会话已变化。" };
+      if (!next?.ok) return { status: "blocked", message: next?.message ?? "当前无法提交修改。" };
+      return { status: next.changed ? "applied" : "noop", result: next };
+    }
+
+    // 复制与节奏模板先做纯核心预检，确认之前不写入文档或历史。
     const requiresStructurePreview =
-      command.type === LXMScoreCommandEnum.RemoveMeasure ||
       command.type === LXMScoreCommandEnum.CopyMeasureRange || rhythmDiscard;
     if (requiresStructurePreview) {
       const pureResult = applyScoreCommand(snapshot.document, command);
       const confirmDiscard = rhythmDiscard && !pureResult.ok && pureResult.code === "RHYTHM_PATTERN_TEXT_CONFIRMATION_REQUIRED";
       const confirmStrum = rhythmDiscard && !pureResult.ok && pureResult.code === "RHYTHM_PATTERN_OVERWRITE_CONFIRMATION_REQUIRED";
       const requiresConfirmation =
-        confirmDiscard || confirmStrum || command.type === LXMScoreCommandEnum.RemoveMeasure ||
+        confirmDiscard || confirmStrum ||
         (!pureResult.ok && pureResult.code === "NUMBERED_IMPACT_REQUIRED") ||
         (pureResult.ok &&
           (pureResult.effects ?? []).some(
@@ -212,35 +232,19 @@ export const createEditorCommandAdapter =
           status: "blocked",
           message: preview.message,
         };
-      if (command.type === LXMScoreCommandEnum.RemoveMeasure &&
-        submission?.confirmedMeasureRemoval && submission.isCurrent) {
-        const reason = currentReason();
-        if (reason) return { status: "stale", message: reason };
-        const next = session.getState().execute(confirmedCommand);
-        if (!sameEditorSession(session.getState(), snapshot))
-          return { status: "stale", message: "编辑会话已变化。" };
-        if (!next?.ok)
-          return { status: "blocked", message: next?.message ?? "当前无法提交修改。" };
-        return { status: next.changed ? "applied" : "noop", result: next };
-      }
       return new Promise<EditorCommandResult>((resolve) => {
         let outcome: EditorCommandResult | null = null;
         const effectCount = preview.effects?.length ?? 0;
-        const title = confirmStrum ? "替换所选小节的 TAB 节奏？" : confirmDiscard ? "舍弃尾部内容？"
-          : command.type === LXMScoreCommandEnum.RemoveMeasure
-            ? "删除确认"
-            : "小节范围复制影响确认";
+        const title = confirmStrum ? "替换所选小节的 TAB 节奏？" : confirmDiscard ? "舍弃尾部内容？" : "小节范围复制影响确认";
         const message = confirmStrum || confirmDiscard ? pureResult.message
-          : command.type === LXMScoreCommandEnum.RemoveMeasure
-            ? "将删除目标小节，是否确认删除？"
-            : `本次将插入整小节双谱内容；${effectCount} 项复制或关系影响将在确认后一起提交。`;
+          : `本次将插入整小节双谱内容；${effectCount} 项复制或关系影响将在确认后一起提交。`;
         const id = modals.open({
           kind: confirmStrum || confirmDiscard ? "rhythm-pattern-discard" : "structure-impact",
           ...(command.type === LXMScoreCommandEnum.CopyMeasureRange ? { source: "measure-copy" as const } : {}),
           title,
           message,
-          confirmLabel: confirmStrum ? "确认应用" : confirmDiscard ? "确认舍弃并应用" : command.type === LXMScoreCommandEnum.RemoveMeasure ? "删除" : undefined,
-          confirmDanger: confirmDiscard || command.type === LXMScoreCommandEnum.RemoveMeasure,
+          confirmLabel: confirmStrum ? "确认应用" : confirmDiscard ? "确认舍弃并应用" : undefined,
+          confirmDanger: confirmDiscard,
           version: snapshot,
           isValid: () => !currentReason() &&
             capturedSelection ===

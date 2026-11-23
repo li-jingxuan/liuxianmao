@@ -134,52 +134,16 @@ describe("统一结构命令适配器", () => {
     expect(session.getState().historyDepth.past).toBe(1);
   });
 
-  it("删除小节先等确认，取消不写历史，确认后一次提交", async () => {
-    const session = createEditorSession(EXAMPLE_MVP_7_2_DOCUMENT);
-    const modals = createEditorModalController(session.getState, () => vi.fn());
-    const execute = createEditorCommandAdapter(session, modals);
-    const track = session.getState().document!.score.tracks[0]!;
-    const pending = execute({
-      type: LXMScoreCommandEnum.RemoveMeasure,
-      trackId: track.id,
-      measureId: track.measures[0]!.id,
-    });
-    const modal = modals.getSnapshot();
-    expect(modal?.request.kind).toBe("structure-impact");
-    expect(await modals.close(modal!.id, "cancel")).toBe(true);
-    expect(await pending).toMatchObject({ status: "cancelled" });
-    expect(session.getState().historyDepth.past).toBe(0);
-    expect(modals.getSnapshot()).toMatchObject({
-      id: modal!.id,
-      closing: true,
-    });
-    modals.restoreFocus(modal!.id);
-
-    const second = execute({
-      type: LXMScoreCommandEnum.RemoveMeasure,
-      trackId: track.id,
-      measureId: track.measures[0]!.id,
-    });
-    const nextModal = modals.getSnapshot()!;
-    expect(await modals.confirm(nextModal.id)).toBe(true);
-    expect(await second).toMatchObject({ status: "applied" });
-    expect(session.getState().historyDepth.past).toBe(1);
-  });
-
   it.each([
     ["原示例", EXAMPLE_MVP_7_2_DOCUMENT],
     ["当前默认 mock", DEFAULT_MOCK_DOCUMENT],
-  ])("%s：删除确认只放行自己的弹窗，仍检查属性草稿且可一次撤销", async (_name, document) => {
+  ])("%s：删除立即生效，仍检查草稿、弹窗和实时目标，且可一次撤销", async (_name, document) => {
     const session = createEditorSession(document);
     const original = session.getState().document!;
     const track = original.score.tracks[0]!;
     const modals = createEditorModalController(session.getState, () => vi.fn());
     let dirty = false;
-    // 对应侧栏的输出保护：弹窗阻断背景操作，但命令自己的确认不能阻断自身。
-    const guard = vi.fn((_command, _submission, ownModalId?: number) =>
-      dirty || (modals.isOpen() && modals.getSnapshot()!.id !== ownModalId)
-        ? "请先处理属性草稿或弹窗。" : null,
-    );
+    const guard = () => dirty || modals.isOpen() ? "请先处理属性草稿或弹窗。" : null;
     const execute = createEditorCommandAdapter(session, modals, guard);
     const command = {
       type: LXMScoreCommandEnum.RemoveMeasure,
@@ -187,60 +151,63 @@ describe("统一结构命令适配器", () => {
       measureId: track.measures[0]!.id,
     } as const;
 
-    const pending = execute(command);
-    const modal = modals.getSnapshot()!;
-    expect(modal.request).toMatchObject({ confirmLabel: "删除", confirmDanger: true });
-    expect(await execute(command)).toMatchObject({ status: "blocked" });
-    expect(session.getState().document).toBe(original);
-    expect(await modals.confirm(modal.id)).toBe(true);
-    expect(await pending).toMatchObject({ status: "applied" });
+    expect(await execute(command)).toMatchObject({ status: "applied" });
+    expect(modals.getSnapshot()).toBeNull();
     expect(session.getState().document!.score.tracks[0]!.measures.map((m) => m.id))
       .toEqual(track.measures.slice(1).map((m) => m.id));
     expect(session.getState().historyDepth.past).toBe(1);
-    expect(modals.getSnapshot()).toMatchObject({ id: modal.id, closing: true });
-    modals.restoreFocus(modal.id);
     session.getState().undo();
     expect(session.getState().document).toBe(original);
 
-    const blocked = execute(command);
+    expect(await execute(command, "modal", { isCurrent: () => false })).toMatchObject({ status: "blocked" });
     dirty = true;
-    expect(await modals.confirm(modals.getSnapshot()!.id)).toBe(false);
-    expect(await blocked).toMatchObject({ status: "stale" });
+    expect(await execute(command)).toMatchObject({ status: "blocked" });
     expect(session.getState().document).toBe(original);
     expect(session.getState().historyDepth.past).toBe(0);
   });
-  it("区内确认的删除无需第二次弹窗，仍预检并可一次撤销", async () => {
+  it("删除含跨小节简谱连接记号的小节时一起清理，可一次撤销", async () => {
+    const original = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);
+    const track = original.score.tracks[0]!;
+    const quarter = { base: "quarter", dots: 0 } as const;
+    const [first, second] = track.measures;
+    first!.numberedVoice = { tuplets: [], events: [
+      { id: "delete-event", kind: "notes", tick: 2880, rhythm: quarter, items: [{ id: "delete-item", token: "1" }] },
+    ] };
+    second!.numberedVoice = { tuplets: [], events: [
+      { id: "keep-event", kind: "notes", tick: 0, rhythm: quarter, items: [{ id: "keep-item", token: "1" }] },
+    ] };
+    first!.lyrics = [];
+    second!.lyrics = [];
+    track.numberedMarks = [{ id: "remove-tie", type: "tie", fromItemId: "delete-item", toItemId: "keep-item" }];
+    const session = createEditorSession(original);
+    const modals = createEditorModalController(session.getState, () => vi.fn());
+    const execute = createEditorCommandAdapter(session, modals);
+    const result = await execute({
+      type: LXMScoreCommandEnum.RemoveMeasure, trackId: track.id, measureId: track.measures[0]!.id,
+    });
+    expect(result.status).toBe("applied");
+    expect(modals.getSnapshot()).toBeNull();
+    expect(session.getState().historyDepth.past).toBe(1);
+    expect(session.getState().document!.score.tracks[0]!.measures).toHaveLength(track.measures.length - 1);
+    expect(session.getState().document!.score.tracks[0]!.numberedMarks).toEqual([]);
+    session.getState().undo();
+    expect(session.getState().document).toEqual(original);
+  });
+
+  it("命令层也禁止删除最后一个小节", async () => {
     const session = createEditorSession(EXAMPLE_MVP_7_2_DOCUMENT);
     const original = session.getState().document!;
     const track = original.score.tracks[0]!;
     const modals = createEditorModalController(session.getState, () => vi.fn());
     const execute = createEditorCommandAdapter(session, modals);
-    const result = await execute({
-      type: LXMScoreCommandEnum.RemoveMeasure, trackId: track.id, measureId: track.measures[0]!.id,
-    }, "modal", { confirmedMeasureRemoval: true, isCurrent: () => true });
-    expect(result.status).toBe("applied");
-    expect(modals.getSnapshot()).toBeNull();
-    expect(session.getState().historyDepth.past).toBe(1);
-    expect(session.getState().document!.score.tracks[0]!.measures).toHaveLength(track.measures.length - 1);
-    session.getState().undo();
-    expect(session.getState().document).toBe(original);
-  });
-
-  it("过期的区内删除确认和属性保护都不能写入文档", async () => {
-    const session = createEditorSession(EXAMPLE_MVP_7_2_DOCUMENT);
-    const original = session.getState().document!;
-    const track = original.score.tracks[0]!;
-    const modals = createEditorModalController(session.getState, () => vi.fn());
-    let dirty = false;
-    const execute = createEditorCommandAdapter(session, modals, () => dirty ? "存在属性草稿" : null);
-    const command = { type: LXMScoreCommandEnum.RemoveMeasure, trackId: track.id, measureId: track.measures[0]!.id } as const;
-    expect(await execute(command, "modal", { confirmedMeasureRemoval: true, isCurrent: () => false }))
-      .toMatchObject({ status: "blocked" });
-    dirty = true;
-    expect(await execute(command, "modal", { confirmedMeasureRemoval: true, isCurrent: () => true }))
-      .toMatchObject({ status: "blocked" });
-    expect(session.getState().document).toBe(original);
-    expect(session.getState().historyDepth.past).toBe(0);
+    for (const measure of track.measures.slice(1))
+      expect(await execute({ type: LXMScoreCommandEnum.RemoveMeasure, trackId: track.id, measureId: measure.id }))
+        .toMatchObject({ status: "applied" });
+    const beforeLast = session.getState().document;
+    expect(await execute({ type: LXMScoreCommandEnum.RemoveMeasure, trackId: track.id, measureId: track.measures[0]!.id }))
+      .toMatchObject({ status: "blocked", message: "至少需要保留一个小节" });
+    expect(session.getState().document).toBe(beforeLast);
+    expect(session.getState().historyDepth.past).toBe(track.measures.length - 1);
     expect(modals.getSnapshot()).toBeNull();
   });
 });

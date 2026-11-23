@@ -58,6 +58,12 @@ export type { HistoryEntry, HistoryTarget, EditorFeedbackEvent, EditorHistoryVie
 
 export type ScoreFileStatus = "example" | "imported" | "exported" | "pending";
 
+export interface NumberedAutoAdvance {
+  target: Extract<ILXMNumberedTarget, { kind: "numberedTime" }>;
+  previousPreference: ILXMRhythm;
+}
+type NumberedTimeTarget = Extract<ILXMNumberedTarget, { kind: "numberedTime" }>;
+
 export const selectScoreFileStatus = ({ document, fileBaseline }: Pick<EditorStore, "document" | "fileBaseline">): ScoreFileStatus => {
   if (!document) return "example";
   if (!fileBaseline) return "pending";
@@ -96,9 +102,12 @@ export interface EditorStore {
   numberedSelection: ILXMNumberedTarget | null;
   numberedInputRhythm: ILXMRhythm;
   numberedInputRhythmExplicit: boolean;
+  numberedInputRhythmTarget: NumberedTimeTarget | null;
+  numberedAutoAdvance: NumberedAutoAdvance | null;
+  markNumberedAutoAdvance: () => void;
   /** 会话中明确设置过时值的 TAB 拍，首次录入时不再套用对侧默认值。 */
   tabInputRhythmOverrides: readonly string[];
-  setNumberedInputRhythm: (rhythm: ILXMRhythm) => void;
+  setNumberedInputRhythm: (rhythm: ILXMRhythm, target?: NumberedTimeTarget) => void;
   selectedNumberedMarkId: string | null;
   setNumberedSelection: (target: ILXMNumberedTarget | null) => void;
   setSelectedNumberedMarkId: (id: string | null) => void;
@@ -293,6 +302,8 @@ export const createEditorStore = (
           numberedSelection: null,
           numberedInputRhythm: { base: "quarter", dots: 0 },
           numberedInputRhythmExplicit: false,
+          numberedInputRhythmTarget: null,
+          numberedAutoAdvance: null,
           tabInputRhythmOverrides: [],
           selectedNumberedMarkId: null,
           errorMessage: null,
@@ -315,11 +326,23 @@ export const createEditorStore = (
       numberedSelection: null,
       numberedInputRhythm: { base: "quarter", dots: 0 },
       numberedInputRhythmExplicit: false,
+      numberedInputRhythmTarget: null,
+      numberedAutoAdvance: null,
+      markNumberedAutoAdvance: () => {
+        const { numberedSelection, numberedInputRhythm } = get();
+        // 跳到已有音符或持久空格时直接读取事件时值。只有虚拟空格才需要会话标记，
+        // 并保留之前的偏好引用，用于区分上格遗留值与到达后新选的时值（两者数值可以相同）。
+        if (numberedSelection?.kind === "numberedTime")
+          set({ numberedAutoAdvance: { target: numberedSelection, previousPreference: numberedInputRhythm } });
+      },
       tabInputRhythmOverrides: [],
-      setNumberedInputRhythm: (rhythm) =>
+      setNumberedInputRhythm: (rhythm, target) =>
         set({
           numberedInputRhythm: { ...rhythm },
           numberedInputRhythmExplicit: true,
+          // 同一次编辑有意选了较长时值时保留它，让预览明确报错或确认覆盖。
+          // 正文提交只记住偏好，不把本次的选择授权带到下一格。
+          numberedInputRhythmTarget: target ?? null,
         }),
       selectedNumberedMarkId: null,
       errorMessage: initialDocument ? null : "无法加载示例乐谱。",
@@ -424,6 +447,9 @@ export const createEditorStore = (
 
       setNumberedSelection: (numberedSelection) =>
         set({
+          // 手动选中另一格再返回时，恢复常规偏好规则，不重复触发上次的自动跳转初始化。
+          numberedAutoAdvance: null,
+          numberedInputRhythmTarget: null,
           numberedSelection: get().document
             ? reconcileNumberedSelection(get().document!, numberedSelection)
             : null,

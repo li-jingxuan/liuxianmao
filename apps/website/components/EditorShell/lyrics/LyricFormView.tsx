@@ -6,13 +6,13 @@ import {
   resolveLyricPosition,
   type ILXMDocument,
 } from "@liuxianmao/lxm-editor";
-import type { RefCallback } from "react";
+import { useMemo, type RefCallback } from "react";
 import {
   BeatMappingPreview,
   type BeatMappingMeasure,
   type BeatMappingRow,
 } from "../music-text/BeatMappingPreview";
-import { parseLyricDraftSequence, type MusicTextDraft } from "../music-text/music-text-draft";
+import type { MusicTextDraft } from "../music-text/music-text-draft";
 import { formatNumberedBeatPosition } from "../numbered/numbered-editor-target";
 import { ShortcutHint, ShortcutTooltip } from "../session/EditorShortcutReference";
 import editorFormStyles from "../shared/editor-form.module.scss";
@@ -84,9 +84,12 @@ export const LyricFormView = ({
 }) => {
   const compact = presentation === "popover";
   const fieldId = (field: string) => `lyric-${presentation === "popover" ? "popover-" : ""}${field}`;
-  const parsed = parseLyricDraftSequence(draft.text);
-  const currentPlan = parsed.ok && plan?.rows.length ? plan : null;
-  const mapping = document && currentPlan ? buildLyricMappingPreview(document, currentPlan) : null;
+  // 两个表面同步显示同一份已校验的草稿。只有侧栏有映射预览，气泡直接复用上层校验结果，
+  // 无需重新分词或遍历拍位；侧栏也只在乐谱或规划变化时重建映射数据。
+  const mapping = useMemo(() =>
+    !compact && document && plan?.rows.length ? buildLyricMappingPreview(document, plan) : null,
+    [compact, document, plan],
+  );
   return (
     <section data-editor-form-section className={`${editorFormStyles.sidebarSection} ${formStyles.form}`} aria-label="歌词属性表单">
       <Form.Item layout="vertical" htmlFor={fieldId("body")} validateStatus={issue ? "error" : undefined}

@@ -104,6 +104,7 @@ import {
 import { buildEditorToolCommand, type MeasureCopyDestination } from "./tools/editor-tool-actions";
 import { resolveEditorRhythmTarget } from "./tools/editor-rhythm-target";
 import { resolveNumberedArcOptions } from "./tools/editor-tie-target";
+import { resolveNumberedTupletTarget } from "./tools/editor-numbered-tuplet-target";
 import { rhythmPatternScopeRects } from "./tools/rhythm-pattern-scope-layout";
 import { RhythmPatternProvider } from "./tools/RhythmPatternPanel";
 import { resolveEditorRhythmPatternTarget } from "./tools/editor-rhythm-pattern-target";
@@ -251,7 +252,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
   }, [document, selection]);
   const selectedPlaybackMeasure = resolvedSelection && !activeMusicTextTarget && !continuousRange && !numberedSelection
     ? selection?.focus.measureId ?? null : null;
-  const playback = useScorePlayback(document, selectedPlaybackMeasure);
+  const playback = useScorePlayback(document, selectedPlaybackMeasure, sessionKey);
   const scoreReadOnly = playback.enabled;
 
   const [imageExportSnapshot, setImageExportSnapshot] =
@@ -1345,7 +1346,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
   const handleMusicTextNavigation: React.KeyboardEventHandler<HTMLDivElement> = (event) => {
     if (scoreReadOnly || event.defaultPrevented || !event.altKey || event.ctrlKey || event.metaKey || event.shiftKey ||
       (event.key !== "ArrowLeft" && event.key !== "ArrowRight") ||
-      (event.target instanceof Element && event.target.closest("#editor-playback-controls")) ||
+      (event.target instanceof Element && event.target.closest('#editor-playback-controls, [data-practice-metronome]')) ||
       event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229 || modals.isOpen()) return;
     const handled = musicTextController.current?.moveEditTarget(
       event.key === "ArrowLeft" ? -1 : 1,
@@ -1677,6 +1678,8 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     if (reason) return { status: "blocked", message: reason };
     if (
       (command.type === "numbered.event.setRhythm" ||
+        command.type === "numbered.tuplet.add" ||
+        command.type === "numbered.tuplet.remove" ||
         command.type === "numbered.mark.add" ||
         command.type === "numbered.mark.update" ||
         command.type === "numbered.mark.remove")
@@ -1754,15 +1757,20 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
       session.getState,
       () => activeMusicTextTargetRef.current,
     );
-    if (action.type === "numberedArc") {
+    if (action.type === "numberedArc" || action.type === "numberedTuplet") {
       const now = session.getState();
       if (!now.document) return false;
       const range = continuousRangeRef.current;
       const capturedRange = JSON.stringify(range);
       // 以点击时的文档和连续选区重算所选命令。异步确认后也必须匹配原选区，避免操作落到其它音符。
-      const target = resolveNumberedArcOptions(now.document, range)[action.kind];
+      const target = action.type === "numberedArc" ? resolveNumberedArcOptions(now.document, range)[action.kind]
+        : resolveNumberedTupletTarget(now.document, range, activeMusicTextTargetRef.current, now.numberedSelection);
       if (!target.ok) {
         setErrorMessage(target.message);
+        return false;
+      }
+      if (action.type === "numberedTuplet" && target.command.type !== `numbered.tuplet.${action.operation}`) {
+        setErrorMessage("简谱连音选区已变化，请重新选择。");
         return false;
       }
       const result = await executeTool(target.command, "modal", {
@@ -1781,6 +1789,8 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
         now.numberedInputRhythm,
         now.numberedInputRhythmExplicit,
         now.tabInputRhythmOverrides,
+        now.numberedAutoAdvance,
+        now.numberedInputRhythmTarget,
       );
       if (!target.enabled || !target.rhythm) return false;
       if (target.kind === "numbered" && target.target) {
@@ -1793,7 +1803,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
             ? { ...target.rhythm, base: action.base }
             : { ...target.rhythm, dots: action.dots };
         if (target.target.kind === "numberedTime") {
-          now.setNumberedInputRhythm(rhythm);
+          now.setNumberedInputRhythm(rhythm, target.target);
           return true;
         }
         const result = await executeTool({
@@ -1820,13 +1830,11 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     }
     const result = await executeTool(command, "modal", {
       isCurrent: () => intentIsCurrent() &&
-        (action.type !== "removeMeasure" || !action.confirmation || action.confirmation.isCurrent()) &&
         (action.type !== "copyMeasures" || !action.isCurrent || action.isCurrent()),
       tabOnly: tabQuick,
-      ...(action.type === "removeMeasure" && action.confirmation
-        ? { confirmedMeasureRemoval: true as const } : {}),
     });
-    if (action.type === "copyMeasures" && (result.status === "blocked" || result.status === "stale")) setErrorMessage(result.message);
+    if ((action.type === "copyMeasures" || action.type === "removeMeasure") &&
+      (result.status === "blocked" || result.status === "stale")) setErrorMessage(result.message);
     return result.status === "applied" || result.status === "noop";
   };
   const currentPosition = deriveSidebarContext({

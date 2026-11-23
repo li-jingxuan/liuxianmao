@@ -2,7 +2,7 @@
 import { Button, Tooltip } from "antd";
 import { DeleteOutlined, WarningOutlined } from "@ant-design/icons";
 import { LXM_TUPLET_RATIOS, LXMScoreCommandEnum, resolveTupletSelection, isPureTabContinuationBeat,
-  type ILXMDocument, type ILXMScoreCommand, type ILXMTabCellSelection } from "@liuxianmao/lxm-editor";
+  type ILXMDocument, type ILXMNumberedTupletCommand, type ILXMScoreCommand, type ILXMTabCellSelection } from "@liuxianmao/lxm-editor";
 import { useMemo, useRef, useState } from "react";
 import type { EditorCommandAdapter } from "../session/editor-command-adapter";
 import { formatTupletLabel } from "../shared/tuplet-label";
@@ -14,6 +14,20 @@ export const TupletSymbol = ({ actual, normal }: { actual: number; normal: numbe
     <text x="21" y="16" textAnchor="middle" fill="currentColor" fontSize={actual === 5 ? "9" : "12"} fontFamily="Arial, sans-serif">{actual === 5 ? `${actual}:${normal}` : actual}</text>
   </svg>
 );
+
+/** 简谱入口沿用连音工具的位置与操作样式，按钮只提供已支持的三连音比例。 */
+export const NumberedTupletToolbar = ({ command, blocked, onApply }: {
+  command: ILXMNumberedTupletCommand;
+  blocked: boolean;
+  onApply: (operation: "add" | "remove") => Promise<boolean>;
+}) => {
+  const removing = command.type === "numbered.tuplet.remove";
+  const label = removing ? "删除连音组" : "三连音（3:2）";
+  return <div className={styles.root} role="group" aria-label="简谱连音工具" data-presentation="popover">
+    <Button block danger={removing} htmlType="button" data-tool-action="tuplet-actions" disabled={blocked}
+      icon={removing ? <DeleteOutlined /> : undefined} onClick={() => void onApply(removing ? "remove" : "add")}>{label}</Button>
+  </div>;
+};
 
 export const resolveTupletToolbarTarget = (document: ILXMDocument, selection: ILXMTabCellSelection | null) => {
   const range = resolveTupletSelection(document, selection);

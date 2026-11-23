@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Pause, Play, Square } from "lucide-react";
 import { DEFAULT_PLAYBACK_BPM, MAX_PLAYBACK_BPM, MIN_PLAYBACK_BPM } from "@liuxianmao/lxm-editor";
 import type { ScorePlaybackControls } from "./controller";
+import { AuditionMetronomeControls } from "./MetronomeControls";
 import styles from "../workspace/EditorToolbar.module.scss";
 
 export const PlaybackToolbar = ({ playback }: {
@@ -21,6 +22,7 @@ export const PlaybackToolbar = ({ playback }: {
   }, []);
   const scoreBpm = playback.savedBpm ?? DEFAULT_PLAYBACK_BPM;
   const adjusted = playback.bpm !== scoreBpm;
+  const restoreTempo = () => { setTempoDraft(null); playback.resetBpm(); };
   // 常用速度使用较细的滑杆范围。已应用或手动输入的极值也必须能在滑杆上正确显示和恢复。
   const sliderMin = Math.min(40, scoreBpm, playback.bpm);
   const sliderMax = Math.max(180, scoreBpm, playback.bpm);
@@ -55,8 +57,8 @@ export const PlaybackToolbar = ({ playback }: {
       <div className={`${styles.playbackGroup} ${styles.playbackTempoGroup}`}>
         <label htmlFor="editor-playback-bpm">临时调速</label>
         <input className={styles.playbackSlider} type="range" aria-label="临时调速" aria-describedby="editor-playback-tempo-note" min={sliderMin} max={sliderMax}
-          step={1} value={playback.bpm} disabled={active} onChange={(event) => playback.setBpm(event.currentTarget.valueAsNumber)} />
-        <input id="editor-playback-bpm" className={`${styles.playbackField} ${styles.playbackTempo}`} type="number" min={MIN_PLAYBACK_BPM} max={MAX_PLAYBACK_BPM} step={1} disabled={active}
+          step={1} value={playback.bpm} onChange={(event) => { setTempoDraft(null); playback.setBpm(event.currentTarget.valueAsNumber); }} />
+        <input id="editor-playback-bpm" className={`${styles.playbackField} ${styles.playbackTempo}`} type="number" min={MIN_PLAYBACK_BPM} max={MAX_PLAYBACK_BPM} step={1}
           aria-label="速度，每分钟四分音符数" aria-describedby="editor-playback-tempo-note" value={tempoDraft ?? playback.bpm}
           onChange={(event) => {
             const { value, valueAsNumber, validity } = event.currentTarget;
@@ -72,8 +74,8 @@ export const PlaybackToolbar = ({ playback }: {
           }}
         />
         <span>BPM</span>
-        <button type="button" className={styles.playbackButton} disabled={!adjusted || active}
-          onClick={() => { setTempoDraft(null); playback.resetBpm(); }}>恢复曲谱速度</button>
+        <button type="button" className={styles.playbackButton} aria-label="恢复曲谱速度" disabled={!adjusted}
+          onClick={restoreTempo}>恢复</button>
         <div id="editor-playback-tempo-note" className={styles.playbackDetails}>
           <span>{playback.savedBpm === null ? `曲谱未设置速度，默认 ${scoreBpm} BPM` : `曲谱速度 ${scoreBpm} BPM`}</span>
           <span>临时调速仅影响本次试听</span>
@@ -83,6 +85,7 @@ export const PlaybackToolbar = ({ playback }: {
         <strong>{playbackStatus}</strong>
         <span>{position ? `第 ${position.measureIndex + 1} 小节` : playback.start === "current" ? "从当前小节开始" : "从第 1 小节开始"}</span>
       </div>
+      <AuditionMetronomeControls playback={playback} onRestore={restoreTempo} />
     </div>
   );
 };

@@ -111,6 +111,7 @@ const labels: Readonly<Record<string, string>> = {
   "numbered.event.remove": "删除简谱音符",
   "numbered.event.split": "拆分简谱拍点",
   "numbered.event.merge": "合并简谱拍点",
+  "numbered.tuplet.add": "设置简谱三连音",
   "numbered.tuplet.remove": "删除简谱连音组",
   "numbered.mark.add": "添加简谱记号",
   "numbered.mark.update": "修改简谱记号",

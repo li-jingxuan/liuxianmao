@@ -27,15 +27,15 @@ export type EditorToolbarAction =
         | "continuation";
     }
   | {
-      type: "insertMeasure" | "startRepeat";
+      type: "insertMeasure" | "removeMeasure" | "startRepeat";
       target?: MeasureToolTarget;
     }
   | { type: "copyMeasures"; target?: MeasureToolTarget; destination?: MeasureCopyDestination; isCurrent?: () => boolean }
-  | { type: "removeMeasure"; target?: MeasureToolTarget; confirmation?: { isCurrent: () => boolean } }
   | { type: "rhythm"; base: ILXMRhythm["base"] }
   | { type: "dots"; dots: 0 | 1 | 2 }
   | { type: "quickTechnique"; technique: QuickTechnique }
   | { type: "numberedArc"; kind: NumberedArcKind }
+  | { type: "numberedTuplet"; operation: "add" | "remove" }
   | { type: "signature"; value: string; target?: MeasureToolTarget }
   | { type: "measureDuration"; durationTicks: number; target?: MeasureToolTarget }
   | { type: "barline"; value: ILXMBarlineType; target?: MeasureToolTarget };
@@ -51,8 +51,8 @@ export const buildEditorToolCommand = (
   tabInputRhythmOverrides: readonly string[] = [],
   selectedTraversalIds: readonly string[] = [],
 ): ILXMScoreCommand | null => {
-  // 简谱弧线由会话的连续选区解析，不能进入依赖 TAB 选区的命令构建流程。
-  if (action.type === "numberedArc") return null;
+  // 简谱弧线与连音由会话的简谱选区解析，不能使用保留的 TAB 拍点。
+  if (action.type === "numberedArc" || action.type === "numberedTuplet") return null;
   const tools = deriveEditorToolState(document, selection, selectedTraversalIds);
   if (action.type === "quickTechnique") {
     const result = resolveQuickTechnique(document, selection, action.technique);

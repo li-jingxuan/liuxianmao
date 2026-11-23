@@ -1,6 +1,6 @@
 import { normalizeMusicText } from "../music-text/music-text";
-import { planLyricPositions, resolveLyricPosition } from "./lyric-positions";
-import type { ILXMDocument, ILXMLyricVerse } from "../types";
+import { planLyricPositions, resolveLyricPosition, type LyricPosition } from "./lyric-positions";
+import type { ILXMDocument, ILXMLyricVerse, ILXMMeasure } from "../types";
 
 export type LyricSequenceItem =
   | { kind: "set"; text: string }
@@ -88,33 +88,42 @@ export const planLyricSequence = (
     return invalid("每批须包含 1–256 个位置。");
   const track = document.score.tracks.find((t) => t.id === start.trackId);
   if (!track) return invalid("目标轨道不存在。");
-  const events = track.measures.flatMap((m, mi) =>
-    planLyricPositions(m).map((position, index) => ({
-      m,
-      position,
-      mi,
-      ei: position.eventId
-        ? m.numberedVoice.events.findIndex(
-            (event) => event.id === position.eventId,
-          )
-        : index,
-    })),
-  );
-  const startMeasure = track.measures.find((m) => m.id === start.measureId);
-  const resolvedStart =
-    startMeasure && resolveLyricPosition(startMeasure, start);
-  const offset = events.findIndex(
-    ({ m, position }) =>
-      m.id === start.measureId &&
-      resolvedStart &&
-      position.tick === resolvedStart.tick,
-  );
-  if (offset < 0) return invalid("起始歌词位置已失效，请重新选择。");
+  const startMeasureIndex = track.measures.findIndex((m) => m.id === start.measureId);
+  const startMeasure = track.measures[startMeasureIndex];
+  const resolvedStart = startMeasure && resolveLyricPosition(startMeasure, start);
+  if (!resolvedStart) return invalid("起始歌词位置已失效，请重新选择。");
+
+  // 草稿预览和正式应用都只取本批需要的位置。先验证起点，再按小节向后收集，
+  // 避免每次键入时为整条轨道重算节奏和空白时间窗。遇到休止仍沿用位置规划的跳过规则，
+  // 谱尾未凑满一批时保留已找到的位置，让下面的逻辑继续显示缺项并拒绝整批提交。
+  const destinations: {
+    measure: ILXMMeasure;
+    position: LyricPosition;
+    measureNumber: number;
+    beatNumber: number;
+  }[] = [];
+  for (
+    let measureIndex = startMeasureIndex;
+    measureIndex < track.measures.length && destinations.length < items.length;
+    measureIndex++
+  ) {
+    const measure = track.measures[measureIndex]!;
+    for (const [index, position] of planLyricPositions(measure).entries()) {
+      if (destinations.length === items.length) break;
+      if (measureIndex === startMeasureIndex && position.tick < resolvedStart.tick) continue;
+      const beatIndex = position.eventId
+        ? measure.numberedVoice.events.findIndex((event) => event.id === position.eventId)
+        : index;
+      destinations.push({
+        measure, position, measureNumber: measureIndex + 1, beatNumber: beatIndex + 1,
+      });
+    }
+  }
   let issue: string | null = null;
   let changes = 0;
   let overwrites = 0;
   const rows = items.map((item, index): LyricSequenceRow => {
-    const targetEvent = events[offset + index];
+    const destination = destinations[index];
     const text =
       item.kind === "set" && typeof item.text === "string"
         ? normalizeMusicText(item.text, 64)
@@ -123,12 +132,12 @@ export const planLyricSequence = (
       item.kind === "clear" || (item.kind === "set" && text !== null && text !== "_");
     if (!valid && !issue) issue = `第 ${index + 1} 项歌词无效。`;
     const previous =
-      targetEvent?.m.lyrics.find(
+      destination?.measure.lyrics.find(
         (l) =>
-          l.eventId === targetEvent.position.eventId && l.verse === start.verse,
+          l.eventId === destination.position.eventId && l.verse === start.verse,
       )?.text ?? null;
     const status =
-      !targetEvent || !valid
+      !destination || !valid
         ? "error"
         : item.kind === "clear"
           ? previous === null ? "same" : "clear"
@@ -142,28 +151,28 @@ export const planLyricSequence = (
     return {
       index,
       item: item.kind === "set" && text ? { kind: "set", text } : { ...item },
-      target: targetEvent
+      target: destination
         ? {
             trackId: start.trackId,
             verse: start.verse,
-            measureId: targetEvent.m.id,
-            ...(targetEvent.position.eventId
-              ? { eventId: targetEvent.position.eventId }
+            measureId: destination.measure.id,
+            ...(destination.position.eventId
+              ? { eventId: destination.position.eventId }
               : {
-                  tick: targetEvent.position.tick,
-                  endTick: targetEvent.position.endTick,
+                  tick: destination.position.tick,
+                  endTick: destination.position.endTick,
                 }),
           }
         : null,
-      measureNumber: targetEvent ? targetEvent.mi + 1 : null,
-      beatNumber: targetEvent ? targetEvent.ei + 1 : null,
+      measureNumber: destination?.measureNumber ?? null,
+      beatNumber: destination?.beatNumber ?? null,
       rest: false,
       previous,
       status,
     };
   });
-  if (offset + items.length > events.length)
-    issue ??= `谱尾位置不足，还缺 ${offset + items.length - events.length} 个歌词位置；整批未应用。`;
+  if (items.length > destinations.length)
+    issue ??= `谱尾位置不足，还缺 ${items.length - destinations.length} 个歌词位置；整批未应用。`;
   if (overwrites && !allowOverwrite)
     issue ??= `将替换 ${overwrites} 项已有歌词，请先确认允许覆盖。`;
   return { rows, issue, changes, overwrites };
