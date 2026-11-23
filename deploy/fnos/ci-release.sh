@@ -25,12 +25,12 @@ nas() {
 # 构建任务只传各自所需的 Git 文件。全量发布任务只在两张同一提交的镜像都准备好后请求切换。
 case "${1:-}:${RELEASE_ACTION:-deploy}" in
     build-gateway:deploy)
-        git archive --format=tar.gz --output="$tmp/source.tar.gz" "$commit" \
+        git -c safe.directory="$PWD" archive --format=tar.gz --output="$tmp/source.tar.gz" "$commit" \
             deploy/fnos/gateway.Dockerfile deploy/fnos/proxy.cjs deploy/fnos/verify.cjs
         nas "build-gateway $commit" < "$tmp/source.tar.gz"
         ;;
     build-liuxianmao:deploy)
-        git archive --format=tar.gz --output="$tmp/source.tar.gz" "$commit" \
+        git -c safe.directory="$PWD" archive --format=tar.gz --output="$tmp/source.tar.gz" "$commit" \
             Dockerfile .dockerignore .npmrc package.json pnpm-lock.yaml pnpm-workspace.yaml apps/website packages \
             docs/design-v2/records/20261111_chord-catalog-data-audit-v2.json
         nas "build-liuxianmao $commit" < "$tmp/source.tar.gz"

@@ -15,6 +15,8 @@ steps:
         test "$CI_REPO" = li-jingxuan/liuxianmao
         test -n "$CI_COMMIT_SHA"
         export GIT_TERMINAL_PROMPT=0
+        # Docker 可能用不同 UID 创建共享工作区。只信任当前任务的工作目录。
+        git config --global --add safe.directory "$PWD"
         git init -q
         attempt=1
         until timeout 90 git -c http.version=HTTP/1.1 fetch --depth=1 --no-tags \
