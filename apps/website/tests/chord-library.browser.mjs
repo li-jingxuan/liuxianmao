@@ -33,7 +33,7 @@ const server = await createServer({
     dev.middlewares.use(async (request, response, next) => {
       if (request.url === "/__chord_prototype__") {
         response.setHeader("Content-Type", "text/html");
-        response.end(await readFile(path.resolve(website, "../../docs/design-v2/prototypes/chord-library/prototype.html"), "utf8"));
+        response.end(await readFile(path.resolve(website, "../../docs/archive/mvp/design-v2/prototypes/chord-library/prototype.html"), "utf8"));
         return;
       }
       if (request.url !== "/__chord_library__") return next();

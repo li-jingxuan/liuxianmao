@@ -12,7 +12,6 @@ COPY packages/tsconfig/package.json packages/tsconfig/package.json
 RUN pnpm install --frozen-lockfile
 COPY apps/website apps/website
 COPY packages packages
-COPY docs/design-v2/records/20261111_chord-catalog-data-audit-v2.json docs/design-v2/records/
 ENV NEXT_PUBLIC_BASE_PATH=/app/liuxianmao
 RUN pnpm --filter @liuxianmao/website build
 

@@ -55,7 +55,7 @@ export const SVG_ASSETS_MANIFEST: readonly SvgAssetDefinition[] = [
   ["actionsCopy", "actions-copy24.svg"],
 ].map(([id, fileName]) => ({
   id: id as MusicControlIcon,
-  sourcePath: `docs/extracted-svg-icons/${fileName}`,
+  sourcePath: `docs/archive/mvp/extracted-svg-icons/${fileName}`,
   runtimePath: `/assets/svg/music-controls/${fileName}`,
   usage: "toolbar" as const,
   source: USER_PROVIDED_SOURCE,

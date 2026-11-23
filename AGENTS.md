@@ -1,4 +1,5 @@
 ## 需求与实现要求
+- v1.0 新需求、交互稿、交付方案与验收记录从 [v1.0 工作区](docs/v1/README.md)建立。同一专题使用飞书 REQ／BUG 编号串联，涉及已有功能时查阅 [v1.0 设计基线](docs/v1/design-baseline/README.md)。历次评审与交付记录见 [MVP 归档](docs/archive/mvp/README.md)。
 - 我给你 bug或者req需求编号时，默认使用 lark-cli 读取飞书文档：https://pcnhehlhivqu.feishu.cn/wiki/UEivw1G7Liuaqnk20d1cqCoxnHb?from=from_copylink&sheet=tcgLfi
 - 不确认的及时与我对口径
 - 需要设计稿的要调用 ui-ux、fronted-design skills 先设计原型交互稿与我确认在写代码

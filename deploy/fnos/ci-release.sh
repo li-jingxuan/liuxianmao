@@ -26,7 +26,6 @@ if [ "$RELEASE_ACTION" = rollback ]; then
     nas rollback
 else
     git archive --format=tar.gz --output="$tmp/source.tar.gz" "$commit" \
-        Dockerfile .dockerignore .npmrc package.json pnpm-lock.yaml pnpm-workspace.yaml apps/website packages \
-        docs/design-v2/records/20261111_chord-catalog-data-audit-v2.json
+        Dockerfile .dockerignore .npmrc package.json pnpm-lock.yaml pnpm-workspace.yaml apps/website packages
     nas "deploy $commit" < "$tmp/source.tar.gz"
 fi
