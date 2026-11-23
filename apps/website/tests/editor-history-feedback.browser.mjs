@@ -43,7 +43,9 @@ try {
     headless: true,
     executablePath: process.env.LXM_CHROMIUM_EXECUTABLE,
   });
-  const page = await browser.newPage({ viewport: { width: 900, height: 650 } });
+  const page = await browser.newPage({
+    viewport: { width: 1440, height: 900 },
+  });
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.clock.install();
@@ -65,7 +67,62 @@ try {
     .locator('[data-entry-id="C"]')
     .getByRole("button", { name: "影响详情" })
     .click();
-  assert.match(await panel.innerText(), /此操作已撤销/);
+  const rowA = panel.locator('[data-entry-id="A"]');
+  const rowB = panel.locator('[data-entry-id="B"]');
+  const rowC = panel.locator('[data-entry-id="C"]');
+  assert.match(await rowC.innerText(), /已撤销/);
+  assert.match(await rowC.innerText(), /编辑前第 7 小节 · 移除上滑音/);
+  assert.doesNotMatch(await rowC.innerText(), /此操作已撤销|随操作一起提交/);
+
+  const rollbackA = rowA.getByRole("button", { name: /撤回到此步/ });
+  assert.equal(
+    await rollbackA.evaluate((button) => getComputedStyle(button).opacity),
+    "0",
+  );
+  await rowA.hover();
+  assert.equal(
+    await rollbackA.evaluate((button) => getComputedStyle(button).opacity),
+    "1",
+  );
+  assert.equal(
+    await rowB.getByRole("button", { name: /撤回到此步/ }).count(),
+    0,
+  );
+  await rollbackA.click();
+  assert.match(await rowA.innerText(), /当前/);
+  assert.match(await rowB.innerText(), /已撤销/);
+  assert.match(
+    await panel.getByRole("status").textContent(),
+    /已撤销 1 步。当前：操作 A/,
+  );
+  assert.equal(
+    await rowA
+      .locator("strong")
+      .evaluate((title) => title === document.activeElement),
+    true,
+  );
+  const rollbackBaseline = panel.getByRole("button", {
+    name: "撤回到本次会话起点",
+  });
+  await rollbackBaseline.focus();
+  await page.keyboard.press("Shift+Tab");
+  await page.keyboard.press("Tab");
+  assert.equal(
+    await rollbackBaseline.evaluate(
+      (button) =>
+        button === document.activeElement &&
+        getComputedStyle(button).opacity === "1",
+    ),
+    true,
+  );
+  await page.keyboard.press("Enter");
+  assert.match(
+    await panel.getByRole("status").textContent(),
+    /当前：本次会话起点/,
+  );
+  await panel.getByRole("button", { name: "重做", exact: true }).click();
+  await panel.getByRole("button", { name: "重做", exact: true }).click();
+  assert.match(await rowB.innerText(), /当前/);
   assert.equal(
     await page.getByRole("textbox", { name: "未应用草稿" }).inputValue(),
     "保留输入",

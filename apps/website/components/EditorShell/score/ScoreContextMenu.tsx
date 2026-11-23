@@ -2,15 +2,17 @@
 
 import { CopyOutlined } from "@ant-design/icons";
 import { useEffect, useLayoutEffect, useRef } from "react";
+import { BarlineSymbol } from "../tools/MeasureBoundary";
 import { fitContextOverlay } from "./context-panel-position";
 import styles from "./ScoreContextMenu.module.scss";
 
 const entries = [
-  { id: "measure", label: "小节工具", icon: "││", hint: "调整当前小节的小节线，或管理小节。" },
+  // 菜单入口复用小节工具中的双线符号，保持两个入口的视觉对应，并随菜单文字切换交互颜色。
+  { id: "measure", label: "小节工具", icon: <BarlineSymbol value="double" />, hint: "调整当前小节的小节线，或管理小节。" },
   { id: "beat", label: "节奏型", icon: "♫", hint: "为当前六线谱选区选择节奏型。" },
   { id: "technique", label: "技巧", icon: "⌒", hint: "查看当前选区可用的演奏技巧。" },
   { id: "chord", label: "添加和弦", icon: "▦", hint: "在当前拍点打开和弦快捷编辑。" },
-  { id: "copy", label: "复制当前小节", icon: null, hint: "选择副本要插入的位置，可以撤销。" },
+  { id: "copy", label: "复制当前小节", icon: <CopyOutlined />, hint: "选择副本要插入的位置，可以撤销。" },
 ] as const;
 
 export type ScoreContextAction = (typeof entries)[number]["id"];
@@ -88,7 +90,7 @@ export function ScoreContextMenu({ point, scope, chordLabel, disabled, active, o
             aria-disabled={disabled[id] ? true : undefined}
             onFocus={() => showHint(id)} onPointerEnter={() => showHint(id)}
             onClick={(event) => { if (!disabled[id]) onAction(id, event.currentTarget); }}>
-            <span className={styles.icon} aria-hidden="true">{icon ?? <CopyOutlined />}</span>
+            <span className={styles.icon} aria-hidden="true">{icon}</span>
             {id === "chord" ? chordLabel : label}
             <span className={styles.arrow} aria-hidden="true">›</span>
           </button>

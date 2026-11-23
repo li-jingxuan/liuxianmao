@@ -136,8 +136,8 @@ describe("guitar playback plan", () => {
     expect(getPlaybackBeatAtTick(plan, 3360)?.beatId).toBe("rest");
     expect(getPlaybackBeatAtTick(plan, 6720)).toBeUndefined();
     expect(createPlaybackPlan(track([]), { bpm: Infinity }).bpm).toBe(90);
-    expect(createPlaybackPlan(track([]), { bpm: 10 }).bpm).toBe(40);
-    expect(createPlaybackPlan(track([]), { bpm: 250 }).bpm).toBe(240);
+    expect(createPlaybackPlan(track([]), { bpm: 10 }).bpm).toBe(20);
+    expect(createPlaybackPlan(track([]), { bpm: 350 }).bpm).toBe(300);
   });
 
   it("treats a pure dash as whole-beat sustain and a mixed dash as per-string sustain", () => {

@@ -100,6 +100,7 @@ const Harness = () => {
         open={open}
         modal={modal}
         entries={entries}
+        tracks={[]}
         appliedCount={appliedCount}
         baselineAdvanced={false}
         sessionKey={sessionKey}
@@ -110,6 +111,14 @@ const Harness = () => {
         onRedo={() =>
           setAppliedCount((value) => Math.min(entries.length, value + 1))
         }
+        onRollback={(id) => {
+          const targetIndex = entries.findIndex((entry) => entry.id === id);
+          if (id !== null && targetIndex < 0) return 0;
+          const keep = targetIndex + 1;
+          if (keep >= appliedCount) return 0;
+          setAppliedCount(keep);
+          return appliedCount - keep;
+        }}
         canUndo={appliedCount > 0}
         canRedo={appliedCount < entries.length}
       />

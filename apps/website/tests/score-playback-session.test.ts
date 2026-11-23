@@ -47,6 +47,29 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("score playback session", () => {
+  it("从曲谱速度开始，临时调速只在当前试听会话有效", async () => {
+    const session = enabled();
+    const doc = documentFixture();
+    doc.score.tempoBpm = 20;
+    doc.score.showTempoMark = false;
+    await session.togglePlay(doc, null);
+    expect(audio.start.mock.lastCall?.[1]).toBe(20);
+    session.stop();
+    session.setBpm(140);
+    await session.togglePlay(doc, null);
+    expect(audio.start.mock.lastCall?.[1]).toBe(140);
+    expect(doc.score.tempoBpm).toBe(20);
+    session.stop();
+    session.resetBpm();
+    expect(session.snapshot().bpm).toBe(20);
+    session.setBpm(110);
+    session.setEnabled(false);
+    session.setEnabled(true);
+    expect(session.snapshot().bpm).toBe(20);
+    delete doc.score.tempoBpm;
+    session.documentChanged(doc);
+    expect(session.snapshot()).toMatchObject({ savedBpm: null, bpm: 90 });
+  });
   it("ignores a late preparation after stopping and starting another performance", async () => {
     const session = enabled();
     const doc = documentFixture();

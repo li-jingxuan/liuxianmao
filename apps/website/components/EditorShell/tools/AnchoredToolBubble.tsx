@@ -6,11 +6,14 @@ import { contextPanelPosition, fitContextOverlay } from "../score/context-panel-
 import styles from "./AnchoredToolBubble.module.scss";
 
 /** 小气泡挂到页面浮层，避免被工具面板的滚动区域裁切；业务目标和提交仍由入口持有。 */
-export const AnchoredToolBubble = ({ anchor, label, contextCopy = false, suspended = false, onDismiss, children }: {
+export const AnchoredToolBubble = ({ anchor, label, contextCopy = false, compactCentered = false, suspended = false, dismissOnOutside = true, className, onDismiss, children }: {
   anchor: HTMLElement | null;
   label: string;
   contextCopy?: boolean;
+  compactCentered?: boolean;
   suspended?: boolean;
+  dismissOnOutside?: boolean;
+  className?: string;
   onDismiss: (restoreFocus: boolean) => boolean | void;
   children: ReactNode;
 }) => {
@@ -32,7 +35,8 @@ export const AnchoredToolBubble = ({ anchor, label, contextCopy = false, suspend
       const above = rect.bottom + 8 + height > window.innerHeight - 8;
       const { left, top } = contextCopy
         ? contextPanelPosition(anchor, width, height)
-        : fitContextOverlay(rect.left, above ? rect.top - height - 8 : rect.bottom + 8, width, height);
+        : fitContextOverlay(compactCentered ? rect.left + (rect.width - width) / 2 : rect.left,
+          above ? rect.top - height - 8 : rect.bottom + 8, width, height);
       const side = contextCopy ? left >= rect.right ? "right" : "left" : above ? "above" : "below";
       panel.dataset.side = side;
       panel.style.left = `${left}px`;
@@ -46,8 +50,9 @@ export const AnchoredToolBubble = ({ anchor, label, contextCopy = false, suspend
     // 快捷键可能先准备方向，再由父工具面板完成定位。下一帧重新测量并让焦点进入选项。
     const frame = requestAnimationFrame(() => {
       place();
-      (panel.querySelector<HTMLElement>('[aria-pressed="true"]') ?? panel.querySelector<HTMLElement>("button:not(:disabled)"))
-        ?.focus({ preventScroll: true });
+      const firstOption = panel.querySelector<HTMLElement>('[data-bubble-initial-focus]:not(:disabled), [aria-pressed="true"]')
+        ?? panel.querySelector<HTMLElement>("button:not(:disabled)");
+      (firstOption ?? (compactCentered ? panel : null))?.focus({ preventScroll: true });
     });
     const observer = new ResizeObserver(place);
     observer.observe(anchor);
@@ -67,7 +72,7 @@ export const AnchoredToolBubble = ({ anchor, label, contextCopy = false, suspend
       event.preventDefault();
       event.stopPropagation();
     };
-    window.addEventListener("pointerdown", outside, true);
+    if (dismissOnOutside) window.addEventListener("pointerdown", outside, true);
     window.addEventListener("keydown", escape, true);
     return () => {
       cancelAnimationFrame(frame);
@@ -77,10 +82,11 @@ export const AnchoredToolBubble = ({ anchor, label, contextCopy = false, suspend
       window.removeEventListener("pointerdown", outside, true);
       window.removeEventListener("keydown", escape, true);
     };
-  }, [anchor, contextCopy, suspended]);
+  }, [anchor, compactCentered, contextCopy, dismissOnOutside, suspended]);
 
   if (!anchor) return null;
-  return createPortal(<div ref={root} className={styles.bubble} role="dialog" aria-label={label} hidden={suspended}
+  return createPortal(<div ref={root} className={`${styles.bubble}${className ? ` ${className}` : ""}`} role="dialog" aria-label={label} hidden={suspended}
+    tabIndex={compactCentered ? -1 : undefined} data-compact-centered={compactCentered || undefined}
     data-editor-anchored-tool data-score-context-panel={contextCopy ? "copy" : undefined}
     onKeyDown={(event) => event.stopPropagation()}>
     {children}

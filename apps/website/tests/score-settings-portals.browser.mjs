@@ -69,7 +69,7 @@ try {
   const info = page.locator('[data-settings-group="info"]');
   const capo = page.locator('[data-settings-group="capo"]');
   const applyInfo = info.getByRole("button", { name: "应用曲谱信息", exact: true });
-  const applyCapo = capo.getByRole("button", { name: "应用变调夹", exact: true });
+  const applyCapo = capo.getByRole("button", { name: "应用演奏设置", exact: true });
   assert.equal(await page.locator('[data-settings-surface="actions"]').count(), 0);
   assert.equal(await page.getByRole("button", { name: "恢复本组", exact: true }).count(), 0);
   assert.equal(await page.locator("dd#settings-signature").count(), 1);

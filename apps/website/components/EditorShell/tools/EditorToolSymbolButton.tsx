@@ -7,7 +7,7 @@ import styles from "./EditorToolSymbolButton.module.scss";
 /** A named symbol with a viewport-bounded tooltip outside the toolbar's scrolling clip. */
 export const EditorToolSymbolButton = ({ label, title, disabledTitle, availability, pressed, expanded, popup, onClick, children, triggerId }: {
   label: string; title?: ReactNode; disabledTitle?: ReactNode; availability: ToolAvailability; pressed?: boolean; expanded?: boolean;
-  popup?: boolean; onClick: () => void; children: ReactNode; triggerId?: string;
+  popup?: boolean; onClick: (anchor: HTMLElement) => void; children: ReactNode; triggerId?: string;
 }) => {
   const id = useId();
   const wrapper = useRef<HTMLSpanElement>(null);
@@ -41,13 +41,20 @@ export const EditorToolSymbolButton = ({ label, title, disabledTitle, availabili
   return <Tooltip id={id} title={text} placement="bottom" trigger={["hover", "focus"]}
     open={open} onOpenChange={(next) => setVisible(next && !expanded)} mouseEnterDelay={0.3} zIndex={2200}
     classNames={{ root: styles.tooltip }}
+    // 气泡展开时立即隐藏入口提示，避免 Tooltip 的退场动画遮挡选项。
+    styles={expanded ? { root: { visibility: "hidden" } } : undefined}
     getPopupContainer={(node) => node.closest<HTMLElement>("[data-editor-interactive-domain], [role=dialog]") ?? window.document.body}>
     <span ref={wrapper} className={styles.wrap} tabIndex={!availability.enabled ? 0 : undefined}
       aria-label={!availability.enabled ? label : undefined} aria-describedby={!availability.enabled && open ? id : undefined} onPointerDown={() => setVisible(false)}>
       <Button className={styles.button} aria-label={label} aria-describedby={open ? id : undefined}
         aria-pressed={pressed} aria-expanded={expanded} aria-haspopup={popup ? "dialog" : undefined}
         data-tool-trigger={triggerId} disabled={!availability.enabled} color={pressed || expanded ? "primary" : "default"}
-        variant={pressed || expanded ? "filled" : "text"} onClick={(event) => { event.stopPropagation(); setVisible(false); onClick(); }}>{children}</Button>
+        variant={pressed || expanded ? "filled" : "text"} onClick={(event) => {
+          event.stopPropagation();
+          setVisible(false);
+          // Ant Design 切换按钮样式时可能替换 DOM，用外层元素保持气泡锚点稳定。
+          onClick(wrapper.current ?? event.currentTarget);
+        }}>{children}</Button>
     </span>
   </Tooltip>;
 };

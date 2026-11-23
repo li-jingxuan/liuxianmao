@@ -10,6 +10,7 @@ import {
 } from "@liuxianmao/lxm-editor";
 import { deriveEditorToolState } from "./editor-tool-state";
 import { resolveQuickTechnique, type QuickTechnique } from "./editor-technique-target";
+import type { NumberedArcKind } from "./editor-tie-target";
 export type MeasureToolTarget = { trackId: string; measureId: string };
 export type MeasureCopyDestination = { kind: "start" } | { kind: "end" } | { kind: "after"; measureId: string };
 export type EditorToolbarAction =
@@ -34,6 +35,7 @@ export type EditorToolbarAction =
   | { type: "rhythm"; base: ILXMRhythm["base"] }
   | { type: "dots"; dots: 0 | 1 | 2 }
   | { type: "quickTechnique"; technique: QuickTechnique }
+  | { type: "numberedArc"; kind: NumberedArcKind }
   | { type: "signature"; value: string; target?: MeasureToolTarget }
   | { type: "measureDuration"; durationTicks: number; target?: MeasureToolTarget }
   | { type: "barline"; value: ILXMBarlineType; target?: MeasureToolTarget };
@@ -49,6 +51,8 @@ export const buildEditorToolCommand = (
   tabInputRhythmOverrides: readonly string[] = [],
   selectedTraversalIds: readonly string[] = [],
 ): ILXMScoreCommand | null => {
+  // 简谱弧线由会话的连续选区解析，不能进入依赖 TAB 选区的命令构建流程。
+  if (action.type === "numberedArc") return null;
   const tools = deriveEditorToolState(document, selection, selectedTraversalIds);
   if (action.type === "quickTechnique") {
     const result = resolveQuickTechnique(document, selection, action.technique);

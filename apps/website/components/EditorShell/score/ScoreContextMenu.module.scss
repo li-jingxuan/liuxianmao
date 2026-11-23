@@ -59,7 +59,15 @@
   span { color: var(--muted); font-size: 12px; }
 }
 
-.icon { flex: 0 0 22px; text-align: center; font-size: 15px; font-weight: 400; }
+.icon {
+  flex: 0 0 22px;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 400;
+
+  // 双线示意图原本用于面板按钮，按菜单图标列的宽度等比缩放并居中。
+  > svg { display: block; width: 100%; height: auto; }
+}
 .arrow { margin-left: auto; padding-right: 3px; color: var(--muted); }
 .hint {
   min-height: 43px;

@@ -59,9 +59,8 @@
         <div class="paper-heading">
           <h1>理想</h1>
           <p>编谱 · 六线猫</p>
-          <span>1=G　·　4/4</span>
+          <span id="score-info" aria-live="polite">1=G · 4/4 · ♩ = 90</span>
         </div>
-        <div id="tempo-mark" class="tempo-mark" aria-live="polite">♩ = 90</div>
         <svg class="score" viewBox="0 0 860 430" role="img" aria-label="理想曲谱示例">
           <g class="staff" transform="translate(30 54)">
             <text x="0" y="-18" class="measure-number">1</text>
@@ -94,8 +93,8 @@
         <button role="tab" aria-selected="false">和弦</button>
         <button role="tab" aria-selected="true">歌曲</button>
       </div>
-      <div class="inspector-heading inspector-heading-wide"><div><h2>整首歌曲</h2><p>歌曲信息、基础拍号与变调夹</p></div></div>
-      <form class="song-form" id="song-form">
+      <div class="inspector-heading inspector-heading-wide"><div><h2>整首歌曲</h2><p>歌曲信息、基础拍号与演奏设置</p></div></div>
+      <div class="song-form">
         <section class="form-section song-info-section">
           <div class="section-heading"><h3>曲谱信息</h3><button type="button" class="section-apply" disabled>应用</button></div>
           <label class="field-label" for="song-name">歌曲名称</label>
@@ -109,27 +108,25 @@
             <div><span>基础拍号</span><strong>4/4</strong></div>
           </div>
         </section>
-        <section class="form-section performance-section">
-          <div class="section-heading"><h3>演奏设置</h3></div>
+        <form class="form-section performance-section" id="performance-form" aria-labelledby="performance-heading">
+          <div class="section-heading"><h3 id="performance-heading">演奏设置</h3></div>
           <div class="setting-row">
             <label for="capo-select">变调夹</label>
-            <select id="capo-select" class="select-input"><option>不使用</option><option>第 1 品</option><option>第 2 品</option></select>
-            <button type="button" class="inline-apply" disabled>应用</button>
+            <select id="capo-select" class="select-input"><option value="0">不使用</option><option value="1">第 1 品</option><option value="2">第 2 品</option></select>
           </div>
           <div class="setting-row tempo-setting">
-            <label for="bpm-input">曲谱速度 <span class="help" title="全曲统一速度">?</span></label>
-            <div class="number-control"><input id="bpm-input" type="number" min="20" max="300" value="90" inputmode="numeric" aria-describedby="bpm-help"><span>BPM</span></div>
-            <button type="submit" class="inline-apply tempo-apply">应用</button>
+            <label for="bpm-input">曲谱速度 <span class="help" title="全曲统一速度" aria-hidden="true">?</span></label>
+            <div class="number-control"><input id="bpm-input" type="number" min="20" max="300" step="1" value="90" inputmode="numeric" aria-describedby="bpm-help"><span>BPM</span></div>
           </div>
-          <p id="bpm-help" class="field-note">建议范围 20–300。留空表示未设置。</p>
-        </section>
-        <div class="form-actions"><button type="button" id="clear-bpm" class="quiet-button">清空速度</button></div>
-      </form>
-      <div class="side-footnote">曲谱速度会随曲谱保存。试听中的临时调速不会修改这里的速度标记。</div>
+          <p id="bpm-help" class="field-note">输入 20–300 的整数。留空后应用可清空速度。</p>
+          <label class="display-setting"><input type="checkbox" id="display-tempo" checked>展示曲谱速度</label>
+          <div class="performance-actions"><button type="submit" id="apply-performance" class="primary-button" disabled>应用</button></div>
+        </form>
+      </div>
     </aside>
   </main>
 
-  <footer class="statusbar"><span>第 1 小节 · 4/4 · G 大调</span><span id="save-message" role="status">曲谱速度已应用</span></footer>
+  <footer class="statusbar"><span>第 1 小节 · 4/4 · G 大调</span><span id="save-message" role="status"></span></footer>
 
   <section id="playback-popover" class="playback-popover" hidden aria-label="试听速度">
     <div class="popover-head"><div><h2>播放当前曲谱</h2></div><button id="close-popover" aria-label="关闭试听设置">×</button></div>

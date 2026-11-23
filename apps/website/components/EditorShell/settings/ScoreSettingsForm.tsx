@@ -1,8 +1,8 @@
 "use client";
 
-import { Button, Form, Input, Select } from "antd";
+import { Button, Checkbox, Form, Input, Select } from "antd";
 import { CloseCircleOutlined } from "@ant-design/icons";
-import { type ILXMDocument, readScoreTonality } from "@liuxianmao/lxm-editor";
+import { type ILXMDocument, MAX_SCORE_BPM, MIN_SCORE_BPM, readScoreTonality } from "@liuxianmao/lxm-editor";
 import { ShortcutTooltip } from "../session/EditorShortcutReference";
 import type { ScoreSettingsDraft, SettingsGroup, SettingsGroupStatus } from "./score-settings-draft";
 import styles from "./ScoreSettingsForm.module.scss";
@@ -22,7 +22,7 @@ export interface SettingsFormProps {
   onRestore: (group: SettingsGroup) => void;
 }
 
-/** 歌曲基本资料只读；曲谱信息和变调夹沿用同一 owner 的独立提交。 */
+/** 曲谱信息和演奏设置沿用同一草稿 owner，演奏三项共用一次提交。 */
 export const ScoreSettingsForm = ({
   document, value, composing, busy, issues, groups,
   onChange, onApply, onRestore, infoConflict, onAcknowledgeInfo,
@@ -62,8 +62,19 @@ export const ScoreSettingsForm = ({
     <section className={styles.section} aria-labelledby="settings-performance-heading">
       <div className={styles.sectionHeading}><h3 id="settings-performance-heading" tabIndex={-1}>演奏设置</h3></div>
       <Form layout="vertical" data-settings-group="capo" onFinish={() => onApply("capo")} requiredMark={false}>
-        <div className={styles.capoRow}><label htmlFor="settings-capo">变调夹</label><Select id="settings-capo" aria-label="变调夹" disabled={busy} value={value.capo} options={Array.from({ length: 13 }, (_, capo) => ({ value: String(capo), label: capo === 0 ? "不使用" : `${capo} 品` }))} onChange={(capo) => onChange("capo", capo)} /><Button className={styles.applyButton} type="primary" htmlType="submit" aria-label="应用变调夹" disabled={!groups.capo.canApply}>应用</Button></div>
+        <div className={styles.performanceRow}><label htmlFor="settings-capo">变调夹</label><Select id="settings-capo" aria-label="变调夹" disabled={busy} value={value.capo} options={Array.from({ length: 13 }, (_, capo) => ({ value: String(capo), label: capo === 0 ? "不使用" : `${capo} 品` }))} onChange={(capo) => onChange("capo", capo)} /></div>
+        <div className={styles.performanceRow}>
+          <label htmlFor="settings-score-tempo">曲谱速度</label>
+          <Input id="settings-score-tempo" inputMode="numeric" aria-describedby="settings-tempo-hint" suffix="BPM"
+            disabled={busy} value={value.tempo} onChange={(event) => onChange("tempo", event.target.value)} />
+        </div>
+        <p id="settings-tempo-hint" className={styles.fieldNote}>输入 {MIN_SCORE_BPM}–{MAX_SCORE_BPM} 的整数。留空后应用可清空速度。</p>
+        <Checkbox className={styles.tempoCheckbox} checked={value.showTempoMark} disabled={busy}
+          onChange={(event) => onChange("showTempoMark", event.target.checked)}>展示曲谱速度</Checkbox>
         {groupError("capo")}
+        <div className={styles.performanceActions}>
+          <Button className={styles.applyButton} type="primary" htmlType="submit" aria-label="应用演奏设置" disabled={!groups.capo.canApply}>应用</Button>
+        </div>
       </Form>
     </section>
   </div>;

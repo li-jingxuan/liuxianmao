@@ -53,6 +53,10 @@ export interface ILXMScore {
   /** 编谱作者与调性属于正式记谱信息。 */
   arranger: string;
   keySignature: ILXMKeySignature | null;
+  /** 全曲统一的四分音符 BPM。旧谱或清空后可省略。 */
+  tempoBpm?: number;
+  /** 省略时展示速度；设为 false 只隐藏谱面标记，试听仍用 tempoBpm。 */
+  showTempoMark?: boolean;
   meta: ILXMRecord;
   tracks: ILXMTrack[];
 }

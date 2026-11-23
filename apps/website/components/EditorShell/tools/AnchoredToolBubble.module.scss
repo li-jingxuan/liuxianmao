@@ -11,6 +11,14 @@
   border-radius: 9px;
   box-shadow: 0 10px 30px #20385330, 0 2px 6px #20385315;
 
+  &[data-compact-centered] {
+    box-sizing: border-box;
+    width: 290px;
+    padding: 6px;
+    border-radius: 8px;
+    box-shadow: 0 6px 18px #25385922, 0 2px 4px #2538590c;
+  }
+
   &::before {
     position: absolute;
     width: 9px;

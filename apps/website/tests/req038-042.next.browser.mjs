@@ -57,7 +57,7 @@ try {
       await Promise.allSettled(el.getAnimations().map(animation => animation.finished));
       return getComputedStyle(el).backgroundColor;
     });
-  for (const name of ["应用曲谱信息", "应用变调夹"]) {
+  for (const name of ["应用曲谱信息", "应用演奏设置"]) {
     const apply = sidebar.getByRole("button", { name, exact: true });
     assert.match(await apply.getAttribute("class"), /ant-btn-primary/);
     assert.equal(Math.round((await apply.boundingBox()).height), 32);
@@ -75,7 +75,7 @@ try {
   assert.equal(saved.document.score.tracks[0].capo, before.document.score.tracks[0].capo);
   assert.deepEqual(saved.document.score.meta, before.document.score.meta);
   assert.equal(saved.document.score.keySignature, before.document.score.keySignature);
-  await sidebar.getByRole("button", { name: "应用变调夹", exact: true }).click();
+  await sidebar.getByRole("button", { name: "应用演奏设置", exact: true }).click();
   saved = await state();
   assert.equal(saved.document.score.tracks[0].capo, capo);
   assert.equal(saved.history, before.history + 2);
@@ -96,7 +96,7 @@ try {
     });
     assert.equal(await title.inputValue(), applied.document.score.title);
     assert.equal(await sidebar.getByRole("textbox", { name: "编谱作者", exact: true }).inputValue(), applied.document.score.arranger);
-    assert.equal(await sidebar.getByRole("button", { name: "应用变调夹", exact: true }).isDisabled(), true);
+    assert.equal(await sidebar.getByRole("button", { name: "应用演奏设置", exact: true }).isDisabled(), true);
     assert.equal(await page.getByRole("dialog", { name: "先处理未应用的输入" }).count(), 0);
     assert.equal(await page.getByRole("alertdialog").count(), 0);
     assert.deepEqual(await state(), applied);
@@ -114,7 +114,7 @@ try {
   for (const [group, item] of [["导出", "JSON 曲谱"], ["导出", "PNG 图片"], ["文件", "导入曲谱"]]) {
     await selectScoreAction(page, group, item);
     await blocked.getByText("曲谱信息", { exact: true }).waitFor();
-    await blocked.getByText("变调夹", { exact: true }).waitFor();
+    await blocked.getByText("演奏设置", { exact: true }).waitFor();
     await blocked.getByRole("button", { name: "关闭", exact: true }).click();
     await blocked.waitFor({ state: "hidden" });
     assert.equal(await title.inputValue(), "离开后应丢弃的名称");

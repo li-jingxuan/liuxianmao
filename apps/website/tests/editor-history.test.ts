@@ -80,18 +80,66 @@ describe("history metadata transactions", () => {
     expect(check).toHaveBeenCalledTimes(9);
   });
 
-  it("101 次操作裁切起点，全部撤销/重做仍保留裁切标记和 100 个稳定 ID", () => {
+  it("回退保留目标操作结果，只发布一次，并按原顺序接回已有重做分支", () => {
+    const onChange = vi.fn();
+    const store = createEditorStore(fixture(), { onChange });
+    const documents = [1, 2, 3, 4].map((fret) => {
+      store.getState().execute(setNote(fret));
+      return store.getState().document;
+    });
+    const entries = store.getState().historyEntries;
+    store.getState().undo();
+    store.getState().setErrorMessage("temporary");
+    onChange.mockClear();
+    const publish = vi.fn(assertHistory);
+    store.subscribe(publish);
+    const before = store.getState();
+
+    for (const id of ["missing", entries[2]!.id, entries[3]!.id])
+      expect(store.getState().rollback(id)).toBe(0);
+    expect(store.getState()).toBe(before);
+    expect(publish).not.toHaveBeenCalled();
+    expect(onChange).not.toHaveBeenCalled();
+
+    expect(store.getState().rollback(entries[0]!.id)).toBe(2);
+    const rolledBack = store.getState();
+    expect(rolledBack.document).toBe(documents[0]);
+    expect(rolledBack.pastEntries[0]).toBe(entries[0]);
+    expect(rolledBack.historyView.currentEntryId).toBe(entries[0]!.id);
+    expect(rolledBack.stateVersion).toBe(before.stateVersion + 1);
+    expect(rolledBack.errorMessage).toBeNull();
+    expect(publish).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith({ document: documents[0], reason: "undo", effects: [] });
+
+    entries.slice(1).forEach((entry, index) => {
+      expect(store.getState().futureEntries[0]).toBe(entry);
+      store.getState().redo();
+      expect(store.getState().document).toBe(documents[index + 1]);
+      expect(store.getState().pastEntries.at(-1)).toBe(entry);
+    });
+  });
+
+  it("101 次操作裁切起点，回退到保留范围起点后重做仍保留裁切标记和 100 个稳定 ID", () => {
     const store = createEditorStore(fixture());
     store.subscribe(assertHistory);
     store.getState().execute(setNote(1));
     const firstId = store.getState().pastEntries[0]!.id;
+    const baseline = store.getState().document;
     for (let index = 1; index < 101; index++)
       store.getState().execute(setNote(index % 2 ? 2 : 1));
     const retained = store.getState().historyEntries;
     expect(retained).toHaveLength(100);
     expect(retained.some((entry) => entry.id === firstId)).toBe(false);
     expect(new Set(retained.map((entry) => entry.id)).size).toBe(100);
-    for (let index = 0; index < 100; index++) store.getState().undo();
+    const before = store.getState();
+    expect(before.rollback(firstId)).toBe(0);
+    expect(store.getState()).toBe(before);
+    expect(before.rollback(null)).toBe(100);
+    const atBaseline = store.getState();
+    expect(atBaseline.document).toBe(baseline);
+    expect(atBaseline.rollback(null)).toBe(0);
+    expect(store.getState()).toBe(atBaseline);
     expect(store.getState().baselineAdvanced).toBe(true);
     expect(store.getState().historyView.currentEntryId).toBeNull();
     expect(store.getState().futureEntries).toEqual(retained);

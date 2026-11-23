@@ -120,6 +120,144 @@ export const formatEditorImpact = (
   return `${location}${description}${undone ? "（已撤销）" : ""}`;
 };
 
+const historyEffectText = (effect: ILXMCommandEffect): string => {
+  switch (effect.kind) {
+    case "beats.structured": {
+      if (effect.operation === "split") return "等分拍点，持续音加延音线";
+      return effect.consumedTieCount > 0
+        ? `合并拍点（消耗 ${effect.consumedTieCount} 条内部延音线）`
+        : "合并拍点";
+    }
+    case "beats.pasted":
+      return `${effect.mode === "insert" ? "插入" : "覆盖"}粘贴 ${effect.count} 拍`;
+    case "tuplets.structured":
+      return `${effect.operation === "set" ? "设置" : "移除"}${formatTupletLabel(effect.ratio)}（${effect.count} 组）`;
+    case "measures.copied": {
+      const range =
+        effect.measureNumber === effect.endMeasureNumber
+          ? `${effect.measureNumber}`
+          : `${effect.measureNumber}–${effect.endMeasureNumber}`;
+      const destination =
+        effect.afterMeasureNumber === 0
+          ? "谱首"
+          : `原第 ${effect.afterMeasureNumber} 小节后`;
+      return `复制编辑前第 ${range} 小节到${destination}`;
+    }
+    case "beat.compressed":
+      return "时值缩短";
+    case "beat.retimed":
+      return "起点调整";
+    case "numbered.event.retimed":
+      return "简谱音符起点调整";
+    case "numbered.event.resized":
+      return "简谱音符时值调整";
+    case "numbered.event.overwritten":
+      return "覆盖简谱音符";
+    case "numbered.mark.removed":
+    case "numbered.mark.migrated":
+    case "numbered.mark.omitted": {
+      const mark = effect.markType
+        ? (markNames[effect.markType] ?? "标记")
+        : "连接";
+      if (effect.kind === "numbered.mark.removed") return `移除简谱${mark}`;
+      if (effect.kind === "numbered.mark.migrated")
+        return `简谱${mark}端点调整`;
+      return `简谱${mark}跨越边界，未复制`;
+    }
+    case "technique.removed":
+    case "technique.omitted": {
+      const technique = techniqueNames[effect.techniqueType] ?? "技巧";
+      return effect.kind === "technique.removed"
+        ? `移除${technique}`
+        : `${technique}跨越边界，未复制`;
+    }
+    default:
+      return "其他附带影响";
+  }
+};
+
+const formatHistoryBeatRanges = (beats: ReadonlySet<number>) => {
+  const sorted = [...beats].sort((a, b) => a - b);
+  const ranges: string[] = [];
+  for (let index = 0; index < sorted.length; index++) {
+    const start = sorted[index];
+    while (sorted[index + 1] === sorted[index] + 1) index++;
+    const end = sorted[index];
+    ranges.push(start === end ? `${start}` : `${start}–${end}`);
+  }
+  return `第 ${ranges.join("、")} 拍`;
+};
+
+export interface HistoryImpactTrack {
+  readonly id: string;
+  readonly measures: readonly { readonly id: string }[];
+}
+
+/** 历史详情只合并同轨、同小节、同类的变化，使用命令记录的原拍号。预览和反馈仍使用各自的详细文案。 */
+export const formatHistoryImpacts = (
+  effects: readonly ILXMCommandEffect[],
+  tracks: readonly HistoryImpactTrack[],
+) => {
+  const groups = new Map<
+    string,
+    {
+      effect: ILXMCommandEffect;
+      text: string;
+      beats: Set<number>;
+      count: number;
+    }
+  >();
+  for (const effect of effects) {
+    const text = historyEffectText(effect);
+    const key = JSON.stringify([
+      effect.trackId,
+      effect.measureId,
+      effect.measureNumber,
+      effect.kind,
+      text,
+    ]);
+    const group = groups.get(key) ?? {
+      effect,
+      text,
+      beats: new Set<number>(),
+      count: 0,
+    };
+    if ("beatNumber" in effect) group.beats.add(effect.beatNumber);
+    group.count++;
+    groups.set(key, group);
+  }
+
+  const showTrack =
+    tracks.length > 1 ||
+    new Set(effects.map((effect) => effect.trackId)).size > 1;
+  return Array.from(groups, ([key, { effect, text, beats, count }]) => {
+    const trackIndex = tracks.findIndex((track) => track.id === effect.trackId);
+    const track = tracks[trackIndex];
+    const trackPrefix = !showTrack
+      ? ""
+      : track
+        ? `第 ${trackIndex + 1} 轨 · `
+        : "原轨道 · ";
+    // 小节被移动或删除后，原编号可能已指向别处，因此明确标出编辑前的位置。
+    const currentMeasureIndex = track?.measures.findIndex(
+      (measure) => measure.id === effect.measureId,
+    );
+    const prefix = effect.kind.endsWith(".omitted")
+      ? "复制范围"
+      : currentMeasureIndex !== undefined &&
+          currentMeasureIndex + 1 === effect.measureNumber
+        ? ""
+        : "编辑前";
+    const location =
+      effect.kind === "measures.copied"
+        ? trackPrefix
+        : `${trackPrefix}${prefix}第 ${effect.measureNumber} 小节 · `;
+    const beatLabel = beats.size ? formatHistoryBeatRanges(beats) : "";
+    const countLabel = beats.size === 0 && count > 1 ? `（${count} 项）` : "";
+    return { key, text: `${location}${beatLabel}${text}${countLabel}` };
+  });
+};
+
 const contextText: Record<
   EditorImpactContext,
   { title: string; note: string }

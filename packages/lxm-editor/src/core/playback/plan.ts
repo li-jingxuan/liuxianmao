@@ -1,12 +1,12 @@
 import type { ChordIdentity } from "../chords/chord-catalog";
-import { TICKS_PER_QUARTER } from "../constants";
+import { MAX_SCORE_BPM, MIN_SCORE_BPM, TICKS_PER_QUARTER } from "../constants";
 import type { ILXMChordString, ILXMDocument, ILXMStrokeDirection, ILXMTechniqueType, ILXMTrack } from "../types";
 import { buildPlaybackSounds } from "./sound";
 import { buildPlaybackTimeline } from "./timeline";
 
 export const DEFAULT_PLAYBACK_BPM = 90;
-export const MIN_PLAYBACK_BPM = 40;
-export const MAX_PLAYBACK_BPM = 240;
+export const MIN_PLAYBACK_BPM = MIN_SCORE_BPM;
+export const MAX_PLAYBACK_BPM = MAX_SCORE_BPM;
 
 export const playbackTicksToSeconds = (ticks: number, bpm: number): number =>
   ticks * 60 / (TICKS_PER_QUARTER * bpm);
@@ -129,7 +129,7 @@ export function createPlaybackPlan(
   const track = "score" in source ? source.score.tracks[0] : source;
   const bpm = Number.isFinite(options.bpm)
     ? Math.max(MIN_PLAYBACK_BPM, Math.min(MAX_PLAYBACK_BPM, options.bpm!))
-    : DEFAULT_PLAYBACK_BPM;
+    : ("score" in source ? source.score.tempoBpm : undefined) ?? DEFAULT_PLAYBACK_BPM;
   if (!track) return { bpm, durationTicks: 0, visits: [], beats: [], sounds: [], warnings: [] };
 
   const warnings = new Map<PlaybackWarningCode, Set<string>>();

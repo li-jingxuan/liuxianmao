@@ -54,7 +54,8 @@ import { resolveEditorRhythmTarget } from "../tools/editor-rhythm-target";
 import { resolveEditorChordTarget } from "../chords/editor-chord-target";
 import { resolveQuickTechnique } from "../tools/editor-technique-target";
 import { tabToolTargetReason } from "../tools/editor-tool-guard";
-import { isNumberedTieTarget, resolveEditorTieTarget } from "../tools/editor-tie-target";
+import { resolveNumberedArcOptions, type NumberedArcKind } from "../tools/editor-tie-target";
+import { NumberedArcTool } from "../tools/NumberedArcTool";
 import { EditorToolSymbolButton, TechniqueSymbol } from "../tools/EditorToolSymbolButton";
 import symbolStyles from "../tools/EditorToolSymbolButton.module.scss";
 import toolbarStyles from "./EditorToolbar.module.scss";
@@ -188,6 +189,11 @@ export const EditorToolbar = ({
     [],
   );
   const beforeLatest = useCallback(() => live.current.beforeAction(), []);
+  const applyNumberedArc = useCallback(async (kind: NumberedArcKind) => {
+    beforeLatest();
+    if (live.current.modal || live.current.numberedEditingBlocked) return false;
+    return onAction({ type: "numberedArc", kind });
+  }, [beforeLatest, onAction]);
   const getRhythmPatternTarget = useCallback(() => {
     const now = session.getState();
     return now.document
@@ -253,12 +259,9 @@ export const EditorToolbar = ({
     tuplet: canUseTuplet ? null : tabPanelReason || tupletTarget.reason || "请选择同小节内符合连音比例的连续拍点，或选中已有连音组。",
     technique: canUseTechnique ? null : tabPanelReason || "当前 TAB 选区没有可用的技巧。",
   };
-  const tieTarget = resolveEditorTieTarget(document, selection, continuousRange, activeTarget);
-  const tieAvailability: ToolAvailability = tieTarget.kind === "numbered"
-    ? modal || numberedEditingBlocked
-      ? { enabled: false, reason: "请先完成当前草稿或确认操作。" }
-      : { enabled: tieTarget.ok, reason: tieTarget.ok ? "" : tieTarget.message }
-    : { enabled: tieTarget.ok && !tabReason, reason: tabReason ?? (tieTarget.ok ? "" : tieTarget.message) };
+  // 简谱和 TAB 共享工具栏位置。回到谱面后连续选区仍指向简谱，不能由残留的 TAB 选区决定入口。
+  const numberedArc = continuousRange?.kind === "numbered" || activeTarget?.kind === "numbered" || !!numberedSelection;
+  const arcBlocked = !!modal || numberedEditingBlocked;
   const chordTarget = resolveEditorChordTarget(document, selection, activeTarget, !!numberedSelection || !!continuousRange);
   const chordAvailability: ToolAvailability = modal || chordEntryBlocked
     ? { enabled: false, reason: "请先完成当前输入或弹层操作。" }
@@ -283,14 +286,6 @@ export const EditorToolbar = ({
   const restAvailability = available(tabReason ? { enabled: false, reason: tabReason } : tools.beatRange);
   const run: ToolActionHandler = async (action) => {
     beforeAction();
-    if (action.type === "quickTechnique" && action.technique === "tie" &&
-      isNumberedTieTarget(live.current.continuousRange, getActiveTarget())) {
-      const now = session.getState();
-      if (live.current.modal || live.current.numberedEditingBlocked || !now.document ||
-        !resolveEditorTieTarget(now.document, now.selection, live.current.continuousRange, getActiveTarget()).ok)
-        return false;
-      return onAction(action);
-    }
     if ((action.type === "restToggle" || action.type === "quickTechnique") &&
       tabToolTargetReason(session.getState(), getActiveTarget())) return false;
     if (
@@ -347,8 +342,15 @@ export const EditorToolbar = ({
       role="toolbar"
       aria-label={playback.enabled ? "木吉他试听" : "节奏、小节与历史工具"}
       aria-describedby={playback.enabled ? "editor-playback-description" : "editor-tool-reason"}
+      onKeyDown={(event) => {
+        // 试听控件与入口同属顶栏。Esc 退出后把焦点还给原入口，组合输入时交给输入法。
+        if (event.key !== "Escape" || !playback.enabled || event.nativeEvent.isComposing || event.defaultPrevented) return;
+        event.preventDefault();
+        event.stopPropagation();
+        exitPlayback();
+      }}
     >
-      {playback.enabled ? <PlaybackToolbar playback={playback} onExit={exitPlayback} /> : <div className={toolbarStyles.content}>
+      {playback.enabled ? <PlaybackToolbar playback={playback} /> : <div className={toolbarStyles.content}>
       <div className={`${toolbarStyles.row} ${toolbarStyles.primary}`} data-toolbar-row="rhythm">
       <div className={toolbarStyles.toolbarGroup} role="group" aria-label="历史">
         <ToolButton
@@ -443,13 +445,19 @@ export const EditorToolbar = ({
       <EditorToolPanelHost
         ref={host}
         quickTechniques={(["hammerOn", "pullOff", "slide", "tie", "strumDown", "strumUp", "arpeggioDown", "arpeggioUp"] as const).map((quick) => {
-          const result = quick === "tie" ? tieTarget : resolveQuickTechnique(document, selection, quick);
+          if (quick === "tie" && numberedArc) {
+            // 选区或草稿锁变化时销毁旧气泡，避免重新选音或结束确认后弹出上一次的命令。
+            return <NumberedArcTool key={`numbered-arc:${JSON.stringify(continuousRange)}:${arcBlocked}`}
+              options={resolveNumberedArcOptions(document, continuousRange)} blocked={arcBlocked}
+              onApply={applyNumberedArc} />;
+          }
+          const result = resolveQuickTechnique(document, selection, quick);
           // map 只构造按钮并传递回调，用户点击后才读取最新选区。
           // eslint-disable-next-line react-hooks/refs
           const applyQuickTechnique = () => void run({ type: "quickTechnique", technique: quick });
           const labels = { hammerOn: "击弦 H", pullOff: "勾弦 P", slide: "滑音", tie: "延音线", strumDown: "下扫：从低音弦到高音弦，箭头向上", strumUp: "上扫：从高音弦到低音弦，箭头向下", arpeggioDown: "下琶音：从低音弦到高音弦，箭头向上", arpeggioUp: "上琶音：从高音弦到低音弦，箭头向下" };
-          return <ToolButton key={quick} label={quick === "tie" && tieTarget.kind === "numbered" ? tieTarget.label : labels[quick]}
-            availability={quick === "tie" && tieTarget.kind === "numbered" ? tieAvailability : available(tabReason ? { enabled: false, reason: tabReason } : { enabled: result.ok, reason: result.ok ? "" : result.message })}
+          return <ToolButton key={quick} label={labels[quick]}
+            availability={available(tabReason ? { enabled: false, reason: tabReason } : { enabled: result.ok, reason: result.ok ? "" : result.message })}
             pressed={result.ok && result.pressed}
             onClick={applyQuickTechnique}>
             {quick === "hammerOn" ? "H" : quick === "pullOff" ? "P" : quick === "slide" ? "S" : <TechniqueSymbol kind={quick} />}
@@ -590,28 +598,24 @@ export const EditorToolbar = ({
       </div>
       </div>}
       <div className={toolbarStyles.viewControls} role="group" aria-label="工作区布局" data-editor-associated-panel="music-text-sidebar" data-editor-panel-control>
-        <Tooltip title={playback.enabled ? "退出木吉他试听" : "进入木吉他试听"} trigger={["hover", "focus"]} placement="bottomRight">
+        <Tooltip title={playback.enabled ? null : "进入木吉他试听"} trigger={["hover", "focus"]} placement="bottomRight"
+          styles={playback.enabled ? { root: { visibility: "hidden" } } : undefined}>
           <button
             ref={playbackToggleRef}
             type="button"
-            className={toolbarStyles.panelToggle}
-            aria-label="木吉他试听"
+            className={`${toolbarStyles.panelToggle} ${toolbarStyles.playbackToggle}`}
+            aria-label={playback.enabled ? "退出试听" : "木吉他试听"}
             aria-controls={playback.enabled ? "editor-playback-controls" : undefined}
-            aria-pressed={playback.enabled}
+            aria-expanded={playback.enabled}
             data-playback-toggle
             onPointerDown={(event) => { if (event.button === 0) event.preventDefault(); }}
             onClick={togglePlayback}
-            onKeyDown={(event) => {
-              if (event.key !== "Escape" || !playback.enabled || event.nativeEvent.isComposing) return;
-              event.preventDefault();
-              event.stopPropagation();
-              exitPlayback();
-            }}
           >
-            <Headphones size={20} strokeWidth={1.7} aria-hidden="true" />
+            <Headphones size={17} strokeWidth={1.7} aria-hidden="true" />
+            {playback.enabled ? "退出试听" : "试听"}
           </button>
         </Tooltip>
-        <Tooltip title={sidebarCollapsed ? "展开编辑面板" : "收起编辑面板"} trigger={["hover", "focus"]} placement="bottomRight">
+        {!playback.enabled && <Tooltip title={sidebarCollapsed ? "展开编辑面板" : "收起编辑面板"} trigger={["hover", "focus"]} placement="bottomRight">
         <button
           ref={sidebarToggleRef}
           type="button"
@@ -627,7 +631,7 @@ export const EditorToolbar = ({
             {!sidebarCollapsed && <path d="M17 7h2v10h-2z" fill="currentColor" stroke="none" />}
           </svg>
         </button>
-        </Tooltip>
+        </Tooltip>}
       </div>
       <span id="editor-tool-reason" className={toolbarStyles.hint}>
         {rhythmAvailability.reason || reason || "当前选区可编辑音符与节奏。"}

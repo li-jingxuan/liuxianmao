@@ -103,7 +103,7 @@ import {
 } from "./session/editor-command-adapter";
 import { buildEditorToolCommand, type MeasureCopyDestination } from "./tools/editor-tool-actions";
 import { resolveEditorRhythmTarget } from "./tools/editor-rhythm-target";
-import { isNumberedTieTarget, resolveEditorTieTarget } from "./tools/editor-tie-target";
+import { resolveNumberedArcOptions } from "./tools/editor-tie-target";
 import { rhythmPatternScopeRects } from "./tools/rhythm-pattern-scope-layout";
 import { RhythmPatternProvider } from "./tools/RhythmPatternPanel";
 import { resolveEditorRhythmPatternTarget } from "./tools/editor-rhythm-pattern-target";
@@ -241,12 +241,24 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
   const sessionVersion = useEditorStore((state) => state.sessionVersion);
   const sessionKey = `${session.getState().sessionId}:${sessionVersion}`;
   const [expandedHistoryIds, setExpandedHistoryIds] = useState<string[]>([]);
+  const [activeMusicTextTarget, setActiveMusicTextTarget] =
+    useState<MusicTextTarget | null>(null);
+  const [continuousRange, setContinuousRange] = useState<MusicTextRange | null>(null);
+  const resolvedSelection = useMemo(() => {
+    if (!document || !selection) return null;
+    const result = resolveTabCellSelection(document, selection);
+    return result.ok ? result.range : null;
+  }, [document, selection]);
+  const selectedPlaybackMeasure = resolvedSelection && !activeMusicTextTarget && !continuousRange && !numberedSelection
+    ? selection?.focus.measureId ?? null : null;
+  const playback = useScorePlayback(document, selectedPlaybackMeasure);
+  const scoreReadOnly = playback.enabled;
 
   const [imageExportSnapshot, setImageExportSnapshot] =
     useState<(ImageExportSnapshot & { mode: "png" | "print" }) | null>(null);
   const [outputBlockedOpen, setOutputBlockedOpen] = useState(false);
   const outputBlockedTrigger = useRef<HTMLElement | null>(null);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [editSidebarCollapsed, setSidebarCollapsed] = useState(false);
   /** 全谱共享的会话视图偏好，不修改和弦指法或音乐历史。 */
   const [showChordDiagrams, setShowChordDiagrams] = useState(true);
   const editorRootRef = useRef<HTMLDivElement>(null);
@@ -254,7 +266,10 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
   const { width: hostWidth, mode: layoutMode } =
     useEditorHostWidth(editorRootRef, !!document);
   const narrowPanels = layoutMode === "compact" || layoutMode === "narrow";
-  const [historyOpen, setHistoryOpen] = useState(false);
+  const [editHistoryOpen, setHistoryOpen] = useState(false);
+  // 试听只覆盖面板的可见性。保留编辑时的布局偏好以及侧栏 owner，退出后自动恢复原布局和未应用草稿。
+  const sidebarCollapsed = scoreReadOnly || editSidebarCollapsed;
+  const historyOpen = !scoreReadOnly && editHistoryOpen;
   const historyTriggerRef = useRef<HTMLButtonElement>(null);
   const pendingPanel = useRef<{
     kind: "history" | "close-sidebar";
@@ -310,6 +325,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     [],
   );
   const openHistory = useCallback(() => {
+    if (scoreReadOnly) return false;
     if (narrowPanels && !sidebarCollapsed && !canHideSidebar()) {
       pendingPanel.current = {
         kind: "history",
@@ -321,7 +337,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     if (narrowPanels) setSidebarCollapsed(true);
     setHistoryOpen(true);
     return true;
-  }, [narrowPanels, sidebarCollapsed, canHideSidebar, session]);
+  }, [scoreReadOnly, narrowPanels, sidebarCollapsed, canHideSidebar, session]);
   const closeHistory = useCallback(() => {
     pendingPanel.current = null;
     setHistoryOpen(false);
@@ -348,10 +364,11 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     [session, modals, imageExportSnapshot, outputBlockedOpen, openHistory],
   );
   const openSidebar = useCallback(() => {
+    if (scoreReadOnly) return;
     pendingPanel.current = null;
     if (narrowPanels) setHistoryOpen(false);
     setSidebarCollapsed(false);
-  }, [narrowPanels]);
+  }, [narrowPanels, scoreReadOnly]);
   const closeSidebar = useCallback(() => {
     if (!canHideSidebar()) {
       pendingPanel.current = {
@@ -418,7 +435,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
             // 跨断点时原属性 owner 的组合输入优先保留可见；历史等待保护解除后再开。
             setHistoryOpen(false);
             pendingPanel.current = {
-              kind: historyOpen ? "history" : "close-sidebar",
+              kind: editHistoryOpen ? "history" : "close-sidebar",
               sessionVersion: session.getState().sessionVersion,
               narrowOnly: true,
             };
@@ -430,7 +447,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
       }
     });
     return () => cancelAnimationFrame(frame);
-  }, [hostWidth, narrowPanels, canHideSidebar, session, historyOpen]);
+  }, [hostWidth, narrowPanels, canHideSidebar, session, editHistoryOpen]);
   useEffect(() => {
     let frame = 0;
     const retry = () => {
@@ -472,9 +489,6 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     retryPendingLayout.current();
   }, [chordEntryBlocked, numberedActionBlocked, musicTextEditing]);
   const pageViewportRef = useRef<HTMLDivElement>(null);
-  const [activeMusicTextTarget, setActiveMusicTextTarget] =
-    useState<MusicTextTarget | null>(null);
-  const [continuousRange, setContinuousRange] = useState<MusicTextRange | null>(null);
   const continuousRangeRef = useRef<MusicTextRange | null>(null);
   const [rhythmPatternScope, setRhythmPatternScope] = useState<RhythmPatternTarget | null>(null);
   const [paragraphEditingSession, setParagraphEditingSession] =
@@ -603,14 +617,6 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     // transform 不会触发 ResizeObserver；浮层必须在同一次实际矩阵变化后重定位。
     window.dispatchEvent(new Event("resize"));
   }, [clearScorePointerInteraction]);
-  const resolvedSelection = useMemo(() => {
-    if (!document || !selection) return null;
-    const result = resolveTabCellSelection(document, selection);
-    return result.ok ? result.range : null;
-  }, [document, selection]);
-  const selectedPlaybackMeasure = resolvedSelection && !activeMusicTextTarget && !continuousRange && !numberedSelection
-    ? selection?.focus.measureId ?? null : null;
-  const playback = useScorePlayback(document, selectedPlaybackMeasure);
   const scoreView = useScoreView({
     viewportRef: pageViewportRef,
     layoutWidth: lxmLayout?.width ?? 0,
@@ -639,13 +645,14 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     });
     return () => messages.destroy(key);
   }, [messages, playbackMessage, playbackNoticeType]);
-  const scoreReadOnly = playback.enabled;
   const scoreReadOnlyRef = useRef(scoreReadOnly);
   useLayoutEffect(() => {
     scoreReadOnlyRef.current = scoreReadOnly;
   }, [scoreReadOnly]);
   const setPlaybackEnabled = (enabled: boolean) => {
     if (enabled) {
+      // 放弃等待中的面板切换，防止焦点离开编辑区时重新打开编辑面板。
+      pendingPanel.current = null;
       clearScorePointerInteraction();
       endFretInput();
       setRhythmPatternScope(null);
@@ -1351,19 +1358,25 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     }
   };
 
-  const runHistoryAction = (action: "undo" | "redo") => {
-    if (modals.isOpen()) return false;
+  function runHistoryAction(action: "undo" | "redo"): boolean;
+  function runHistoryAction(action: "rollback", entryId: string | null): number;
+  function runHistoryAction(action: "undo" | "redo" | "rollback", entryId: string | null = null) {
+    const blockedResult = action === "rollback" ? 0 : false;
+    // 历史面板与单步操作共享只读、弹层和草稿守卫；面板回退还遵守其禁用状态。
+    if (scoreReadOnlyRef.current || modals.isOpen() || (action === "rollback" && chordEntryBlocked))
+      return blockedResult;
     endFretInput();
     if (
       musicTextController.current?.isTransitionBlocked() ||
       drafts.inspect().pending.some((record) => record.kind === "technique")
     )
-      return false;
+      return blockedResult;
     const now = session.getState();
+    if (action === "rollback") return now.rollback(entryId);
     if (action === "undo") now.undo();
     else now.redo();
     return true;
-  };
+  }
 
   /** 编辑器级历史快捷键在 SVG 或 Toolbar 持有焦点时都生效。 */
   const handleEditorKeyDown: React.KeyboardEventHandler<HTMLDivElement> = (
@@ -1572,6 +1585,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     "--accent-soft": token.colorPrimaryBg,
   };
   const toggleSidebar = () => {
+    if (scoreReadOnly) return;
     if (!sidebarCollapsed) {
       closeSidebar();
       return;
@@ -1583,9 +1597,10 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     title={document?.score.title ?? ""}
     status={fileStatus}
     empty={!document || !lxmLayout}
-    canUndo={canUndo}
-    canRedo={canRedo}
+    canUndo={!scoreReadOnly && canUndo}
+    canRedo={!scoreReadOnly && canRedo}
     sidebarCollapsed={sidebarCollapsed}
+    sidebarToggleDisabled={scoreReadOnly}
     zoom={scoreView.zoom}
     onHistory={runHistoryAction}
     onToggleSidebar={toggleSidebar}
@@ -1722,11 +1737,9 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
       return runHistoryAction(action.type);
     if (modals.isOpen()) return false;
     endFretInput();
-    const numberedTie = action.type === "quickTechnique" && action.technique === "tie" &&
-      isNumberedTieTarget(continuousRangeRef.current, activeMusicTextTargetRef.current);
     const tabQuick =
       action.type === "restToggle" || action.type === "rest" || action.type === "restore" ||
-      action.type === "quickTechnique" && !numberedTie;
+      action.type === "quickTechnique";
     if (tabQuick) {
       const reason = tabToolTargetReason(
         session.getState(),
@@ -1741,16 +1754,13 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
       session.getState,
       () => activeMusicTextTargetRef.current,
     );
-    if (numberedTie) {
-      if (musicTextController.current?.isNumberedActionBlocked()) {
-        setErrorMessage("请先应用或取消当前草稿。");
-        return false;
-      }
+    if (action.type === "numberedArc") {
       const now = session.getState();
       if (!now.document) return false;
       const range = continuousRangeRef.current;
       const capturedRange = JSON.stringify(range);
-      const target = resolveEditorTieTarget(now.document, now.selection, range, activeMusicTextTargetRef.current);
+      // 以点击时的文档和连续选区重算所选命令。异步确认后也必须匹配原选区，避免操作落到其它音符。
+      const target = resolveNumberedArcOptions(now.document, range)[action.kind];
       if (!target.ok) {
         setErrorMessage(target.message);
         return false;
@@ -1989,6 +1999,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
       >
         <EditorHistoryRail
           open={historyOpen}
+          disabled={scoreReadOnly}
           buttonRef={historyTriggerRef}
           onToggle={() => (historyOpen ? closeHistory() : openHistory())}
         />
@@ -1996,6 +2007,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
           open={historyOpen}
           modal={narrowPanels}
           entries={historyEntries}
+          tracks={document.score.tracks}
           appliedCount={appliedHistoryCount}
           baselineAdvanced={baselineAdvanced}
           sessionKey={sessionKey}
@@ -2004,9 +2016,10 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
           onClose={closeHistory}
           onUndo={() => void handleToolbarAction({ type: "undo" })}
           onRedo={() => void handleToolbarAction({ type: "redo" })}
+          onRollback={(entryId) => runHistoryAction("rollback", entryId)}
           canUndo={canUndo}
           canRedo={canRedo}
-          blocked={chordEntryBlocked}
+          blocked={scoreReadOnly || chordEntryBlocked}
         />
         {narrowPanels && (historyOpen || !sidebarCollapsed) && (
           <div
@@ -2276,7 +2289,8 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
           showChordDiagrams={showChordDiagrams}
           onShowChordDiagramsChange={setShowChordDiagrams}
           modal={narrowPanels && !sidebarCollapsed}
-          collapsed={sidebarCollapsed}
+          collapsed={editSidebarCollapsed}
+          suspendedForPlayback={scoreReadOnly}
           onExpandSidebar={openSidebar}
           onLocate={locateSidebarObject}
           getNumberedBeatEventIds={(target) =>
@@ -2322,7 +2336,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
         onOpenHistoryEntry={openHistoryEntry}
         retryKey={`${historyOpen}:${sidebarCollapsed}:${chordEntryBlocked}:${activeModal?.id ?? ""}`}
         hidden={
-          !!activeModal ||
+          scoreReadOnly || !!activeModal ||
           !!imageExportSnapshot ||
           !!fileFlow.panel || !!fileFlow.pending ||
           outputBlockedOpen ||

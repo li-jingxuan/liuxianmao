@@ -5,8 +5,12 @@ const reviewHints = {
 };
 
 const reviewButtons = [...document.querySelectorAll('[data-review]')];
+const performanceForm = document.querySelector('#performance-form');
+const capoSelect = document.querySelector('#capo-select');
 const bpmInput = document.querySelector('#bpm-input');
-const tempoMark = document.querySelector('#tempo-mark');
+const displayTempo = document.querySelector('#display-tempo');
+const applyPerformance = document.querySelector('#apply-performance');
+const scoreInfo = document.querySelector('#score-info');
 const savedBpmLabel = document.querySelector('#saved-bpm-label');
 const playbackBpm = document.querySelector('#playback-bpm');
 const playbackBpmValue = document.querySelector('#playback-bpm-value');
@@ -15,19 +19,35 @@ const playbackPopover = document.querySelector('#playback-popover');
 const playButton = document.querySelector('#play-button');
 const saveMessage = document.querySelector('#save-message');
 const playbackState = document.querySelector('#playback-state');
-let savedBpm = 90;
+const popoverPlay = document.querySelector('#popover-play');
+const sliderLabels = document.querySelectorAll('.slider-scale span');
+const defaultBpm = 90;
+const sliderMin = Number(playbackBpm.min);
+const sliderMax = Number(playbackBpm.max);
+let savedSettings = { capo: '0', bpm: defaultBpm, displayTempo: true };
+let temporaryBpm = null;
 
-function renderSavedSpeed() {
-  const value = Number(bpmInput.value);
-  savedBpm = Number.isFinite(value) && value > 0 ? value : null;
-  tempoMark.textContent = savedBpm ? `♩ = ${savedBpm}` : '';
-  tempoMark.classList.toggle('is-empty', !savedBpm);
-  savedBpmLabel.textContent = savedBpm ? `${savedBpm} BPM` : '未设置 · 默认 90 BPM';
-  resetPlayback.querySelector('span').textContent = `${savedBpm || 90} BPM`;
-  if (!playbackPopover.hidden && playbackBpm.value === playbackBpm.dataset.previousSaved) {
-    playbackBpm.value = savedBpm || 90;
-  }
-  playbackBpm.dataset.previousSaved = String(savedBpm || 90);
+function updateApplyButton() {
+  const savedBpmInput = savedSettings.bpm === null ? '' : String(savedSettings.bpm);
+  applyPerformance.disabled = bpmInput.validity.valid
+    && capoSelect.value === savedSettings.capo
+    && bpmInput.value === savedBpmInput
+    && displayTempo.checked === savedSettings.displayTempo;
+}
+
+function renderPerformance() {
+  // 展示选项只控制谱面标记。试听仍读取已应用的 BPM，留空时使用默认速度。
+  const { capo, bpm, displayTempo: visible } = savedSettings;
+  scoreInfo.textContent = [
+    '1=G',
+    '4/4',
+    capo !== '0' ? `Capo ${capo}` : '',
+    bpm !== null && visible ? `♩ = ${bpm}` : '',
+  ].filter(Boolean).join(' · ');
+  savedBpmLabel.textContent = bpm === null ? `未设置 · 默认 ${defaultBpm} BPM` : `${bpm} BPM`;
+  resetPlayback.querySelector('span').textContent = `${bpm ?? defaultBpm} BPM`;
+  updateApplyButton();
+  updatePlaybackValue();
 }
 
 function showReview(state) {
@@ -35,21 +55,14 @@ function showReview(state) {
     button.setAttribute('aria-pressed', String(button.dataset.review === state));
   });
   document.querySelector('#review-hint').textContent = reviewHints[state];
-  if (state === 'empty') {
-    bpmInput.value = '';
-    renderSavedSpeed();
-  }
-  if (state === 'saved') {
-    bpmInput.value = 90;
-    renderSavedSpeed();
-  }
-  if (state === 'playback') {
-    bpmInput.value = 90;
-    renderSavedSpeed();
-    openPlayback();
-    playbackBpm.value = 120;
-    updatePlaybackValue();
-  }
+  savedSettings = { capo: '0', bpm: state === 'empty' ? null : defaultBpm, displayTempo: true };
+  capoSelect.value = savedSettings.capo;
+  bpmInput.value = savedSettings.bpm ?? '';
+  displayTempo.checked = savedSettings.displayTempo;
+  temporaryBpm = state === 'playback' ? 120 : null;
+  saveMessage.textContent = '';
+  renderPerformance();
+  if (state === 'playback') openPlayback();
 }
 
 function openPlayback() {
@@ -63,29 +76,48 @@ function closePlayback() {
 }
 
 function updatePlaybackValue() {
-  playbackBpmValue.textContent = `${playbackBpm.value} BPM`;
-  playbackState.textContent = Number(playbackBpm.value) === (savedBpm || 90) ? '按曲谱速度试听' : '临时调速试听';
+  const baseline = savedSettings.bpm ?? defaultBpm;
+  const effectiveBpm = temporaryBpm ?? baseline;
+  // 滑杆必须容纳已应用的速度，否则浏览器会把恢复值限制在滑杆原有范围内。
+  playbackBpm.min = Math.min(sliderMin, baseline, effectiveBpm);
+  playbackBpm.max = Math.max(sliderMax, baseline, effectiveBpm);
+  sliderLabels[0].textContent = playbackBpm.min;
+  sliderLabels[2].textContent = playbackBpm.max;
+  playbackBpm.value = effectiveBpm;
+  playbackBpmValue.textContent = `${effectiveBpm} BPM`;
+  if (popoverPlay.dataset.playing !== 'true') {
+    playbackState.textContent = effectiveBpm === baseline ? '按曲谱速度试听' : '临时调速试听';
+  }
 }
 
 reviewButtons.forEach((button) => button.addEventListener('click', () => showReview(button.dataset.review)));
 playButton.addEventListener('click', () => (playbackPopover.hidden ? openPlayback() : closePlayback()));
 document.querySelector('#close-popover').addEventListener('click', closePlayback);
-playbackBpm.addEventListener('input', updatePlaybackValue);
-resetPlayback.addEventListener('click', () => {
-  playbackBpm.value = savedBpm || 90;
+playbackBpm.addEventListener('input', () => {
+  const baseline = savedSettings.bpm ?? defaultBpm;
+  temporaryBpm = playbackBpm.valueAsNumber === baseline ? null : playbackBpm.valueAsNumber;
   updatePlaybackValue();
 });
-document.querySelector('#song-form').addEventListener('submit', (event) => {
+resetPlayback.addEventListener('click', () => {
+  temporaryBpm = null;
+  updatePlaybackValue();
+});
+performanceForm.addEventListener('input', () => {
+  saveMessage.textContent = '';
+  updateApplyButton();
+});
+performanceForm.addEventListener('submit', (event) => {
   event.preventDefault();
-  renderSavedSpeed();
-  saveMessage.textContent = savedBpm ? `曲谱速度已应用 · ♩ = ${savedBpm}` : '曲谱速度已清空';
+  if (applyPerformance.disabled) return;
+  savedSettings = {
+    capo: capoSelect.value,
+    bpm: bpmInput.value === '' ? null : bpmInput.valueAsNumber,
+    displayTempo: displayTempo.checked,
+  };
+  renderPerformance();
+  saveMessage.textContent = '演奏设置已应用';
 });
-document.querySelector('#clear-bpm').addEventListener('click', () => {
-  bpmInput.value = '';
-  renderSavedSpeed();
-  saveMessage.textContent = '曲谱速度已清空 · 试听默认 90 BPM';
-});
-document.querySelector('#popover-play').addEventListener('click', (event) => {
+popoverPlay.addEventListener('click', (event) => {
   const button = event.currentTarget;
   const isPlaying = button.dataset.playing === 'true';
   button.dataset.playing = String(!isPlaying);
@@ -96,4 +128,4 @@ document.querySelector('#popover-play').addEventListener('click', (event) => {
   playbackState.textContent = isPlaying ? '准备试听' : '正在试听';
 });
 
-renderSavedSpeed();
+renderPerformance();

@@ -27,6 +27,8 @@ export interface ScoreSettingsDraft {
   tonalityIntent: TonalityWriteIntent;
   tonalityNamespace: TonalityNamespaceSnapshot;
   capo: string;
+  tempo: string;
+  showTempoMark: boolean;
   signature: string;
   label: string;
 }
@@ -47,6 +49,8 @@ export const readScoreSettings = (
       namespaceRaw: structuredClone(document.score.meta[SCORE_TONALITY_NAMESPACE]),
     },
     capo: String(track.capo),
+    tempo: document.score.tempoBpm?.toString() ?? "",
+    showTempoMark: document.score.showTempoMark ?? true,
     signature: `${time.numerator}/${time.denominator}`,
     label: track.measures.find((m) => m.id === measureId)?.sectionLabel ?? "",
   };
@@ -54,7 +58,7 @@ export const readScoreSettings = (
 export type SettingsGroup = "info" | "capo" | "signature" | "label";
 export const settingsKeys = {
   info: ["title", "arranger", "keySignature", "tonalityIntent", "tonalityNamespace"],
-  capo: ["capo"],
+  capo: ["capo", "tempo", "showTempoMark"],
   signature: ["signature"],
   label: ["label"],
 } as const;
@@ -159,12 +163,16 @@ export const planSettingsCommands = (
       keySignature: value.keySignature,
       tonality: value.tonalityIntent.kind === "preserve" ? undefined : value.tonalityIntent.kind === "delete" ? null : value.tonalityIntent.value,
     });
-  if (changed("capo"))
-    commands.push({
-      type: LXMScoreCommandEnum.SetCapo,
-      trackId: track.id,
-      capo: value.capo.trim() === "" ? NaN : Number(value.capo),
-    });
+  if (changed("capo")) {
+    const target = { trackId: track.id, capo: value.capo.trim() === "" ? NaN : Number(value.capo) };
+    const tempo = value.tempo.trim();
+    // 变调夹、速度与显示开关属于同一表单。速度有改动时用单条命令提交，校验失败时三项都不写入。
+    commands.push(value.tempo !== initial.tempo || value.showTempoMark !== initial.showTempoMark
+      ? { ...target, type: LXMScoreCommandEnum.SetPerformanceSettings,
+        tempoBpm: tempo === "" ? null : /^\d+$/.test(tempo) ? Number(tempo) : NaN,
+        showTempoMark: value.showTempoMark }
+      : { ...target, type: LXMScoreCommandEnum.SetCapo });
+  }
   if (changed("signature")) {
     const [numerator, denominator] = value.signature.split("/").map(Number);
     commands.push({
@@ -198,6 +206,7 @@ const commandGroups = new Map<ILXMScoreCommand["type"], SettingsGroup>([
   [LXMScoreCommandEnum.SetNotationInfo, "info"],
   [LXMScoreCommandEnum.SetScoreInfo, "info"],
   [LXMScoreCommandEnum.SetCapo, "capo"],
+  [LXMScoreCommandEnum.SetPerformanceSettings, "capo"],
   [LXMScoreCommandEnum.SetTimeSignature, "signature"],
   [LXMScoreCommandEnum.SetSectionLabel, "label"],
 ]);

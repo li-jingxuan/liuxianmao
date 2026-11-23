@@ -115,6 +115,8 @@ export interface EditorStore {
   setErrorMessage: (message: string | null) => void;
   undo: () => void;
   redo: () => void;
+  /** 回到指定条目提交后的状态；传 null 回到保留范围起点，返回撤销步数。 */
+  rollback: (entryId: string | null) => number;
 }
 
 export type EditorStoreState = EditorStore & { history: EditorHistory };
@@ -173,6 +175,33 @@ export const createEditorStore = (
       } catch {
         reportError("宿主接收编辑结果失败，编辑结果已保留。");
       }
+    };
+    const undoTo = (state: EditorStoreState, keepCount: number): number => {
+      const previous = state.history.past[keepCount];
+      if (!state.document || !previous) return 0;
+      const undoneCount = state.history.past.length - keepCount;
+      const history = transitionHistory(state.history, { type: "undo", document: state.document, keepCount });
+      // 单步撤销与批量回退共用一次提交：直接在目标快照上校正选区，宿主只收到最终文档。
+      set({
+        tabInputRhythmOverrides: [],
+        effects: [],
+        document: previous,
+        numberedSelection: reconcileNumberedSelection(
+          previous,
+          state.numberedSelection,
+        ),
+        selectedNumberedMarkId: null,
+        stateVersion: state.stateVersion + 1,
+        selection: state.selection
+          ? reconcileSelection(previous, state.selection)
+          : null,
+        ...reconcileTechniqueFocus(previous, state.selectedTechniqueId, state.selectedTraversalIds),
+        errorMessage: null,
+        loadNotice: null,
+        ...toHistoryState(history),
+      });
+      notifyChange({ document: previous, reason: "undo", effects: [] });
+      return undoneCount;
     };
     return {
       stateVersion: 0,
@@ -434,28 +463,15 @@ export const createEditorStore = (
 
       undo: () => {
         const state = get();
-        const previous = state.history.past.at(-1);
-        if (!state.document || !previous) return;
-        const history = transitionHistory(state.history, { type: "undo", document: state.document });
-        set({
-          tabInputRhythmOverrides: [],
-          effects: [],
-          document: previous,
-          numberedSelection: reconcileNumberedSelection(
-            previous,
-            state.numberedSelection,
-          ),
-          selectedNumberedMarkId: null,
-          stateVersion: get().stateVersion + 1,
-          selection: state.selection
-            ? reconcileSelection(previous, state.selection)
-            : null,
-          ...reconcileTechniqueFocus(previous, state.selectedTechniqueId, state.selectedTraversalIds),
-          errorMessage: null,
-          loadNotice: null,
-          ...toHistoryState(history),
-        });
-        notifyChange({ document: previous, reason: "undo", effects: [] });
+        undoTo(state, state.history.past.length - 1);
+      },
+
+      rollback: (entryId) => {
+        const state = get();
+        if (entryId === null) return undoTo(state, 0);
+        // 目标条目仍算作已应用；只查已应用条目，已裁切或位于重做分支的 ID 直接忽略。
+        const index = state.history.pastEntries.findIndex((entry) => entry.id === entryId);
+        return index < 0 ? 0 : undoTo(state, index + 1);
       },
 
       redo: () => {

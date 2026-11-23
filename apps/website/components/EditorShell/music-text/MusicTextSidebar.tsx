@@ -180,7 +180,8 @@ export const MusicTextSidebar = ({
   getFloatingAnchor,
   getFloatingViewport,
   getFloatingObservedElements,
-  collapsed = false,
+  collapsed: collapsedByEditor = false,
+  suspendedForPlayback = false,
   modal = false,
   showChordDiagrams,
   onShowChordDiagramsChange,
@@ -218,11 +219,13 @@ export const MusicTextSidebar = ({
   getFloatingViewport: () => FloatingAnchorRect;
   getFloatingObservedElements?: () => readonly (Element | null)[];
   collapsed?: boolean;
+  suspendedForPlayback?: boolean;
   onExpandSidebar?: () => void;
   onLocate?: (location: SidebarLocation) => void;
   continuousRange?: MusicTextRange | null;
   onRangeChange?: (range: MusicTextRange | null) => void;
 }) => {
+  const collapsed = collapsedByEditor || suspendedForPlayback;
   const editorStore = useEditorSessionStore();
   const rangeEditor = useRef<MusicTextRangeEditorController>(null);
   const focusRangeOnOpen = useRef(false);
@@ -1320,7 +1323,8 @@ export const MusicTextSidebar = ({
       ownerWindow?.removeEventListener("scroll", position, true);
     };
   }, [contextChord, floating, floatingPanelRef]);
-  const popoverHidden = floating && (dismissed || (contextChord ? !contextPosition : geometry.kind !== "placed"));
+  // 浮层经由 Portal 挂载，收起属性栏时需要单独隐藏。保留同一个表单实例和其中的草稿以便退出试听后恢复。
+  const popoverHidden = floating && (suspendedForPlayback || dismissed || (contextChord ? !contextPosition : geometry.kind !== "placed"));
   useEffect(() => onPopoverHiddenChange(popoverHidden), [popoverHidden, onPopoverHiddenChange]);
   // 隐藏的干净气泡释放谱面操作；未提交草稿继续走原有阻断链。
   const editing =
@@ -2148,7 +2152,8 @@ export const MusicTextSidebar = ({
     .find((track) => track.id === detailTarget.trackId)?.measures.some((measure) => measure.id === detailTarget.measureId);
   const showSelectionInvitation = !hasExplicitSelection && !hasRequestedMeasure;
   // 正文 Portal 共用实际活动表单，owner 和 host 仍常驻以保留草稿。
-  const settingsSurface = collapsed ? null : score && propertyTab === "song" ? "song"
+  // 试听仅隐藏表单，保留表面的逻辑激活状态。手动收起或切换页签仍按既有规则处理未应用的设置。
+  const settingsSurface = collapsedByEditor ? null : score && propertyTab === "song" ? "song"
     : score && propertyTab === "selection" && selectionDetail === "measure" && !showSelectionInvitation && context.valid
       ? "measure" : null;
   const numberedFormActive = !!score && propertyTab === "paragraph" && kind === "numbered" && activeObject?.kind === "numbered";

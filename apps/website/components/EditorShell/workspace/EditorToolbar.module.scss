@@ -47,6 +47,32 @@
   &:is([aria-expanded="true"], [aria-pressed="true"]):hover { border-color: var(--accent); }
   &:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 }
+.playbackToggle { width: auto; gap: 6px; padding-inline: 10px; font-size: 12px; }
+// 试听与编辑共用工具栏行高。控件在自身区域内换行，右侧入口使用原来的布局与样式。
+.playbackControls, .playbackGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.playbackControls {
+  min-height: 44px;
+  padding: 4px 12px 4px 16px;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  font-size: 12px;
+}
+.playbackGroup { flex-wrap: wrap; }
+.playbackTempoGroup { border-inline-start: 1px solid var(--border); padding-inline-start: 16px; }
+.playbackDetails {
+  display: grid;
+  line-height: 1.4;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 11px;
+  > strong { color: var(--foreground); }
+}
+.playbackStatus { margin-inline-start: auto; }
+.playbackSlider { width: 88px; margin: 0; accent-color: var(--accent); }
 .playbackButton, .playbackField {
   box-sizing: border-box;
   min-height: 32px;
@@ -70,18 +96,11 @@
   &[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
 }
 .playbackPrimary {
-  min-width: 77px;
-  background: var(--accent-soft);
-  color: var(--accent);
+  min-width: 64px;
+  background: var(--accent);
+  color: #fff;
 }
-.playbackTempo {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-inline: 6px 4px;
-  input { width: 64px; }
-}
-.playbackPosition { margin-inline-start: 6px; color: var(--muted); white-space: nowrap; }
+.playbackTempo { width: 62px; }
 .root > :global(.ant-alert) { grid-column: 1 / -1; }
 @container editor-toolbar (width < 960px) {
   .content { flex-direction: column; align-items: stretch; }

@@ -46,7 +46,7 @@ import type { ILXMChordSymbol, ILXMLyricVerse } from "../types";
 import { editMeasureTuplet } from "../rhythm/tuplet-commands";
 import { createMeasureRhythmContext } from "../rhythm/tuplet";
 import { createNumberedRhythmContext } from "../numbered/numbered-rhythm";
-import { GUITAR_STRING_COUNT, MAX_FRET } from "../constants";
+import { GUITAR_STRING_COUNT, MAX_FRET, MAX_SCORE_BPM, MIN_SCORE_BPM } from "../constants";
 import {
   resolveBeatRange,
   resolveTabCellSelection,
@@ -117,6 +117,7 @@ export enum LXMScoreCommandEnum {
   SetBarlineBoundary = "barline.setBoundary",
   SetTuning = "track.setTuning",
   SetCapo = "track.setCapo",
+  SetPerformanceSettings = "score.setPerformanceSettings",
   SetSectionLabel = "measure.setSectionLabel",
   AddTechnique = "technique.add",
   UpdateTechnique = "technique.update",
@@ -237,6 +238,12 @@ export interface ILXMSetTuningCommand extends ILXMScoreCommandBase {
 export interface ILXMSetCapoCommand extends ILXMScoreCommandBase {
   type: LXMScoreCommandEnum.SetCapo;
   capo: number;
+}
+export interface ILXMSetPerformanceSettingsCommand extends ILXMScoreCommandBase {
+  type: LXMScoreCommandEnum.SetPerformanceSettings;
+  capo: number;
+  tempoBpm: number | null;
+  showTempoMark: boolean;
 }
 export interface ILXMSetSectionLabelCommand extends ILXMScoreCommandBase {
   type: LXMScoreCommandEnum.SetSectionLabel;
@@ -450,6 +457,7 @@ type ScoreCommandOperation =
   | ILXMSetBarlineBoundaryCommand
   | ILXMSetTuningCommand
   | ILXMSetCapoCommand
+  | ILXMSetPerformanceSettingsCommand
   | ILXMSetSectionLabelCommand
   | ILXMAddTechniqueCommand
   | ILXMUpdateTechniqueCommand
@@ -501,6 +509,7 @@ export type ILXMScoreCommandErrorCode =
   | "INVALID_FRET"
   | "INVALID_TUNING"
   | "INVALID_CAPO"
+  | "INVALID_SCORE_TEMPO"
   | "INVALID_SECTION_LABEL"
   | "MEASURE_RANGE_INVALID"
   | "INVALID_TAB_CELL_RANGE"
@@ -2014,7 +2023,7 @@ const applyScoreCommandInternal = (
     );
   }
 
-  if (command.type === LXMScoreCommandEnum.SetCapo) {
+  if (command.type === LXMScoreCommandEnum.SetCapo || command.type === LXMScoreCommandEnum.SetPerformanceSettings) {
     const track = document.score.tracks.find(
       (item) => item.id === command.trackId,
     );
@@ -2025,14 +2034,28 @@ const applyScoreCommandInternal = (
       command.capo > 12
     )
       return fail("INVALID_CAPO", "变调夹必须是 0 到 12 的整数");
-    if (track.capo === command.capo) return unchanged(document);
+    const score = { ...document.score };
+    let tempoChanged = false;
+    if (command.type === LXMScoreCommandEnum.SetPerformanceSettings) {
+      const { tempoBpm, showTempoMark } = command;
+      if ((tempoBpm !== null && (!Number.isInteger(tempoBpm) || tempoBpm < MIN_SCORE_BPM || tempoBpm > MAX_SCORE_BPM)) ||
+        typeof showTempoMark !== "boolean")
+        return fail("INVALID_SCORE_TEMPO", `曲谱速度须留空或填写 ${MIN_SCORE_BPM}–${MAX_SCORE_BPM} 的整数`);
+      // 演奏设置一次提交和撤销。留空时删除速度，默认可见时省略标记开关，兼容旧谱格式。
+      tempoChanged = (score.tempoBpm ?? null) !== tempoBpm || (score.showTempoMark ?? true) !== showTempoMark;
+      if (tempoBpm === null) delete score.tempoBpm;
+      else score.tempoBpm = tempoBpm;
+      if (showTempoMark) delete score.showTempoMark;
+      else score.showTempoMark = false;
+    }
+    if (track.capo === command.capo && !tempoChanged) return unchanged(document);
     return finalize(
       {
         ...document,
         documentRevision: document.documentRevision + 1,
         score: {
-          ...document.score,
-          tracks: document.score.tracks.map((item) =>
+          ...score,
+          tracks: track.capo === command.capo ? score.tracks : score.tracks.map((item) =>
             item.id === track.id ? { ...item, capo: command.capo } : item,
           ),
         },
