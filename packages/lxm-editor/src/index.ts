@@ -35,6 +35,7 @@ export * as EXAMPLE from "../example";
 
 export * from "./core/rhythm/tuplet";
 export * from "./core/rhythm/measure-timeline";
+export * from "./core/rhythm/measure-duration-change";
 
 export { default as EXAMPLE_MVP_5_1_DOCUMENT } from "../example/example-mvp5.1.json";
 
@@ -89,7 +90,7 @@ export * from "./core/numbered/numbered-timeline";
 export * from "./core/numbered/numbered-commands";
 export * from "./core/numbered/numbered-marks";
 export * from "./core/numbered/numbered-clipboard";
-export { getMeasureCapacityTicks, calculateRhythmTicks } from "./core/rhythm/rhythm";
+export { getMeasureCapacityTicks, getMeasureDurationTicks, calculateRhythmTicks } from "./core/rhythm/rhythm";
 export * from "./core/numbered/numbered-input-ranges";
 export * from "./core/chords/chord-catalog";
 export * from "./core/chords/chord-catalog-browse";

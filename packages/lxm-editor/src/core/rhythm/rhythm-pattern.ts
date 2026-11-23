@@ -5,7 +5,7 @@ import { validateNumberedMarks } from "../numbered/numbered-marks";
 import { buildNumberedIndex, createNumberedRhythmContext } from "../numbered/numbered-rhythm";
 import { validateTechnique } from "../techniques/technique-rules";
 import { sameTechniqueDraft } from "../techniques/technique-equality";
-import { calculateRhythmTicks, createRestRhythmsForTicks, getMeasureCapacityTicks } from "./rhythm";
+import { calculateRhythmTicks, createRestRhythmsForTicks, getMeasureDurationTicks } from "./rhythm";
 import { createMeasureRhythmContext } from "./tuplet";
 import { isPureTabContinuationBeat, tabContinuationRhythm } from "./tab-continuation";
 import type { ILXMBeat, ILXMDocument, ILXMMeasure, ILXMNumberedEvent, ILXMRhythm, ILXMStrokeDirection, ILXMTechnique, ILXMTimeSignature, ILXMTrack } from "../types";
@@ -188,16 +188,17 @@ const beatStrumTemplate = (id: string, name: string, formId: string): BeatStrumR
 };
 
 const beatStrumTemplates = Object.freeze([
+  // 收起时只显示参考图标号 1–6 的常用模板。未标号的模板按原顺序接在其后。
   beatStrumTemplate("d", "下", "quarter"),
+  beatStrumTemplate("ddu", "下下上", "eight-sixteen"),
+  beatStrumTemplate("dudu", "下上下上", "sixteenths"),
+  beatStrumTemplate("dud", "下上下", "sixteen-eight"),
   beatStrumTemplate("du", "下上", "eighths"),
+  beatStrumTemplate("dud-sync", "下上下", "small-syncopation"),
   beatStrumTemplate("uud", "上上下", "eight-sixteen"),
   beatStrumTemplate("udud", "上下上下", "sixteenths"),
-  beatStrumTemplate("ddu", "下下上", "eight-sixteen"),
-  beatStrumTemplate("dud", "下上下", "sixteen-eight"),
   beatStrumTemplate("ud", "上下", "eighths"),
-  beatStrumTemplate("dudu", "下上下上", "sixteenths"),
   beatStrumTemplate("uud-short", "上上下", "sixteen-eight"),
-  beatStrumTemplate("dud-sync", "下上下", "small-syncopation"),
   beatStrumTemplate("du-dotted", "下上", "dotted-eight"),
   beatStrumTemplate("ud-dotted", "上下", "reverse-dotted"),
 ]);
@@ -222,7 +223,7 @@ export function getRhythmPatternMeasureRanges(track: ILXMTrack, target: RhythmPa
   if (first < 0 || last < first || focus < first || focus > last) return [];
 
   return track.measures.slice(first, last + 1).map((measure, index) => {
-    const capacity = getMeasureCapacityTicks(measure.timeSignature);
+    const capacity = getMeasureDurationTicks(measure);
     const startTick = index === 0 ? target.startTick : 0;
     const endTick = first + index === last ? target.endTick : capacity;
     return { measure, startTick, endTick, capacity, focusTick: first + index === focus ? target.focusTick : startTick, index: first + index };
@@ -283,7 +284,7 @@ export const inferRhythmPatternTemplate = (document: ILXMDocument, target: Rhyth
   if (!measure || !["numbered", "tab"].includes(target.layer)) return null;
   const templates = getRhythmPatternTemplates(measure.timeSignature);
   const beatTicks = templates[0]?.beatTicks;
-  const capacity = getMeasureCapacityTicks(measure.timeSignature);
+  const capacity = getMeasureDurationTicks(measure);
   if (!beatTicks || ![focus.startTick, focus.endTick, target.focusTick].every(Number.isInteger) ||
       focus.startTick < 0 || focus.endTick < focus.startTick || focus.endTick > capacity ||
       focus.startTick >= capacity || target.focusTick < 0 || target.focusTick >= capacity) return null;
@@ -379,6 +380,8 @@ const getBeatStrumScopeStart = (range: MeasureRange): number | undefined => {
   if (!isValidMeasureRange(range, false)) return;
   const startTick = Math.floor(range.focusTick / TICKS_PER_QUARTER) * TICKS_PER_QUARTER;
   const endTick = startTick + TICKS_PER_QUARTER;
+  // 短小节的最后一段可能不足完整四分拍，不能生成越过小节边界的扫弦计划。
+  if (endTick > range.capacity) return;
   if (range.startTick >= startTick && range.startTick < endTick && range.endTick <= endTick) return startTick;
 };
 
@@ -413,6 +416,9 @@ const strumRhythms: readonly (ILXMRhythm | undefined)[] = [undefined,
 
 function planMeasureStrumPattern(range: MeasureRange, template: StrumRhythmPatternTemplate, ids: ILXMIdFactory) {
   const { measure, capacity, focusTick } = range;
+  const beatTicks = TICKS_PER_QUARTER;
+  if (capacity !== beatTicks * 4)
+    return fail("RHYTHM_PATTERN_TEMPLATE_MISMATCH", "整小节扫弦模板需要四个完整四分拍，当前小节时长不兼容。");
   const source = measure.beats;
   const firstBeat = source[0];
   const voicing = firstBeat?.tick === 0 && firstBeat.kind === "notes"
@@ -455,7 +461,6 @@ function planMeasureStrumPattern(range: MeasureRange, template: StrumRhythmPatte
     techniques.push(strumDraft(beatId, stroke, voicing));
   }
 
-  const beatTicks = TICKS_PER_QUARTER;
   const perBeat: RhythmPatternBeatSummary[] = Array.from({ length: 4 }, (_, index) => {
     const startTick = index * beatTicks;
     const endTick = startTick + beatTicks;
@@ -622,6 +627,12 @@ function planMeasureRhythmPattern(
   const short = !multiMeasure && rawEnd - rawStart < beatTicks;
   const startTick = measureBeats ? 0 : Math.floor((short ? rawFocus : rawStart) / beatTicks) * beatTicks;
   const endTick = measureBeats ? capacity : short ? startTick + beatTicks : Math.ceil(rawEnd / beatTicks) * beatTicks;
+  // 预览阶段就拒绝不完整的演奏拍或超过实际小节时长的归齐范围。
+  // 这样后续模板展开不会创建越过小节边界的事件。
+  if (endTick > capacity || startTick >= endTick || (measureBeats && endTick !== capacity))
+    return fail("RHYTHM_PATTERN_TEMPLATE_MISMATCH", "当前模板需要完整且不越界的演奏拍，请缩小选区或选择兼容小节时长的模板。");
+  if (measureBeats && measureBeats.reduce((ticks, item) => ticks + item.beatTicks, 0) !== capacity)
+    return fail("RHYTHM_PATTERN_TEMPLATE_MISMATCH", "整小节模板与当前小节实际时长不兼容。");
   const scope: RhythmPatternScope = { startTick, endTick, beatTicks, beatCount: (endTick - startTick) / beatTicks, firstBeat: startTick / beatTicks + 1, lastBeat: endTick / beatTicks };
   const interval = { start: startTick, end: endTick };
   const numberedContext = createNumberedRhythmContext(measure.numberedVoice);
@@ -776,7 +787,7 @@ function getAffectedRhythmMarks(track: ILXMTrack, numbered: boolean, scope: Inte
         beatIndex.set(beat.id, point);
         beat.notes.forEach(note => noteIndex.set(note.id, point));
       }
-      offset += getMeasureCapacityTicks(measure.timeSignature);
+      offset += getMeasureDurationTicks(measure);
     }
     for (const mark of track.techniques) {
       const points = "fromNoteId" in mark ? [noteIndex.get(mark.fromNoteId), ...("toNoteId" in mark ? [noteIndex.get(mark.toNoteId)] : [])]
@@ -843,7 +854,7 @@ export const planRhythmPattern = (document: ILXMDocument, target: RhythmPatternT
 
   const scopes = plans.map(plan => plan.scope);
   const firstScope = scopes[0]!, lastScope = scopes.at(-1)!;
-  const offset = track.measures.slice(0, first.index).reduce((ticks, measure) => ticks + getMeasureCapacityTicks(measure.timeSignature), 0);
+  const offset = track.measures.slice(0, first.index).reduce((ticks, measure) => ticks + getMeasureDurationTicks(measure), 0);
   const lastOffset = ranges.slice(0, -1).reduce((ticks, range) => ticks + range.capacity, offset);
   const alreadyApplied = plans.some(plan => "alreadyApplied" in plan && plan.alreadyApplied);
   const affectedMarks = alreadyApplied ? new Map<string, boolean>() : getAffectedRhythmMarks(track, numbered, {

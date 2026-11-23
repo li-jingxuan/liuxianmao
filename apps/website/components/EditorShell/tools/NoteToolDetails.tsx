@@ -47,6 +47,7 @@ export const NoteToolDetails = ({
   tupletTools?: ReactNode;
 }) => {
   const overrides = useEditorStore((state) => state.tabInputRhythmOverrides);
+  const selectedTraversalIds = useEditorStore((state) => state.selectedTraversalIds);
   // 简谱目标不能借仍保留的 TAB 选区执行另一谱层的时值或状态命令。
   if (numberedNote)
     return (
@@ -54,7 +55,7 @@ export const NoteToolDetails = ({
         {tupletTools}
       </section>
     );
-  const tools = deriveEditorToolState(document, selection);
+  const tools = deriveEditorToolState(document, selection, selectedTraversalIds);
   const beats =
     tools.range?.beats.flatMap(
       (ref) =>
@@ -72,7 +73,7 @@ export const NoteToolDetails = ({
         note.string <= tools.range.endString,
     ),
   );
-  const allRest = rests > 0 && rests === beats.length;
+  const allRest = tools.restState === "all";
   // 选区中存在空弦格时属于混合状态，不能仅凭已有音符高亮 x 或横线。
   const allCellsHaveNotes = !!tools.range && selectedNotes.length === beats.length * (tools.range.endString - tools.range.startString + 1);
   const rhythmDisabled = blocked || !tools.rhythm.enabled;
@@ -88,7 +89,7 @@ export const NoteToolDetails = ({
         <span className={taskStyles.statLarge}>
           {selectedNotes.length === 1
             ? selectedNotes[0]!.fret
-            : rests === beats.length && rests > 0
+            : allRest
               ? "休"
               : selectedNotes.length}
         </span>
@@ -168,7 +169,7 @@ export const NoteToolDetails = ({
           {([
             { type: "muted", label: "弹奏标记", text: "弹奏", hint: "设为 x 弹奏标记：只修改所选弦格", icon: <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" stroke="currentColor" strokeWidth="1.6" /></svg>, enabled: tools.note.enabled, reason: tools.note.reason, pressed: allCellsHaveNotes && selectedNotes.length > 0 && selectedNotes.every((note) => note.fret === "x") && rests === 0 },
             { type: "continuation", label: "延音标记", text: "延音", hint: "设为 - 延音标记：替换整拍内容，占一个单位拍，无附点", icon: <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h16" stroke="currentColor" strokeWidth="1.6" /></svg>, enabled: tools.note.enabled, reason: tools.note.reason, pressed: beats.length > 0 && beats.every(isPureTabContinuationBeat) },
-            { type: allRest ? "restore" : "rest", label: allRest ? "取消休止" : "整拍休止", text: allRest ? "取消休止" : "休止符", hint: allRest ? "取消休止：当前选中整拍休止；不会恢复已清空的原音符，恢复原内容请使用撤销" : "设为整拍休止：清空所选拍的全部弦音符", icon: <TechniqueSymbol kind="rest" />, enabled: tools.beatRange.enabled, reason: tools.beatRange.reason, pressed: allRest },
+            { type: allRest ? "restore" : "rest", label: allRest ? "取消休止" : "整拍休止", text: allRest ? "取消休止" : "休止符", hint: allRest ? "取消休止：当前选中整拍休止；不会恢复已清空的原内容，恢复原内容请使用撤销" : "设为整拍休止：清空所选拍的全部弦音符及扫弦或琶音", icon: <TechniqueSymbol kind="rest" />, enabled: tools.beatRange.enabled, reason: tools.beatRange.reason, pressed: allRest },
           ] as const).map((state) => {
             const disabled = blocked || !state.enabled;
             return <Tooltip key={state.type} trigger={["hover", "focus"]} title={`${state.hint}${disabled ? `：${blocked ? blockedReason : state.reason}` : ""}`}>
@@ -183,7 +184,7 @@ export const NoteToolDetails = ({
             </Tooltip>;
           })}
         </div>
-        {rests > 0 && !allRest && <Button type="link" size="small" className={taskStyles.restoreRest}
+        {tools.restState === "mixed" && <Button type="link" size="small" className={taskStyles.restoreRest}
           disabled={blocked || !tools.beatRange.enabled} title="取消选区休止；不会恢复已清空的原音符"
           onClick={() => void onAction({ type: "restore" })}>取消选区休止</Button>}
       </div>

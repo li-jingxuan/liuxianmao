@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Button, ConfigProvider, Input, Modal, Segmented, Select, message } from 'antd';
-import catalog from '../../../../apps/website/public/assets/chords/catalog-2026.11.11.1.json';
+import catalog from '../../../../apps/website/public/assets/chords/catalog-2026.11.11.2.json';
 
 const roots = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
 const qualities = ['major', 'm', '7', 'maj7', 'm7', 'dim', 'dim7', 'm7b5', 'aug', 'sus2', 'sus4', 'add9', '6', 'm6', '9', 'm9'];

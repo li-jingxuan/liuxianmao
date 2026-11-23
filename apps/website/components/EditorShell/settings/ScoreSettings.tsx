@@ -35,7 +35,7 @@ export interface ScoreSettingsController {
   focus: (group?: SettingsFocusGroup) => boolean;
   focusField: (field: "label" | "copy") => boolean;
 }
-const labels: Record<SettingsGroup, string> = { info: "曲谱信息", signature: "基础拍号", capo: "变调夹", label: "段落标记" };
+const labels: Record<SettingsGroup, string> = { info: "曲谱信息", signature: "基础拍号", capo: "演奏设置", label: "段落标记" };
 const fields: Record<SettingsFocusGroup, string> = { info: "settings-title", signature: "settings-signature", capo: "settings-capo", label: "settings-label", copy: "settings-copy-start" };
 const buildStatus = (draft: { value: ScoreSettingsDraft; initial: ScoreSettingsDraft; document: ILXMDocument; measureId?: string; sessionId: number; generation: number; conflicts: Partial<Record<SettingsGroup, string>> }, composing: boolean, busy: boolean): ScoreSettingsStatus => {
   const groups = {} as Record<SettingsGroup, SettingsGroupStatus>;
@@ -187,7 +187,7 @@ export const ScoreSettings = ({ ref, document, measureId, requestedMeasureId = m
     return next;
   });
   const update = <K extends keyof ScoreSettingsDraft>(key: K, value: ScoreSettingsDraft[K]) => {
-    if (key !== "title" && key !== "arranger" && key !== "capo" && key !== "label") return;
+    if (key !== "title" && key !== "arranger" && key !== "capo" && key !== "tempo" && key !== "showTempoMark" && key !== "label") return;
     if (busyRef.current) return;
     const draft = synchronize();
     if (!draft || draft.value[key] === value) return;

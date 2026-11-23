@@ -57,6 +57,7 @@ export const NumberedRhythmToolbar = ({
           <MusicAssetIcon assetId={rhythm.icon} className={styles.durationIcon} />
         </EditorToolSymbolButton>
       ))}
+      <i className={styles.rhythmDivider} aria-hidden="true" />
       <EditorToolSymbolButton
         label="单附点"
         pressed={dots === 1}
@@ -67,6 +68,7 @@ export const NumberedRhythmToolbar = ({
       >
         <span className={styles.musicGlyph} aria-hidden="true">{"\uE1E7"}</span>
       </EditorToolSymbolButton>
+      <i className={styles.rhythmDivider} aria-hidden="true" />
       <EditorToolSymbolButton
         label="延音"
         pressed={sustain}

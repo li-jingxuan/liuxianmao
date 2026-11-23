@@ -83,6 +83,10 @@ try {
   const button = (panel, name) => panel.getByRole("button", { name, exact: true });
   const fret = (value) => scoreMusic.getByText(String(value), { exact: true });
   const card = (panel, id) => panel.locator(`button[data-strum-template="${id}"]`);
+  const chooseCard = async (panel, id) => {
+    if (!await card(panel, id).isVisible()) await panel.locator('[data-rhythm-toggle="strum"]').click();
+    await card(panel, id).click();
+  };
   const strumTab = panel => panel.getByRole("tab", { name: "扫弦节奏型", exact: true });
   const regularTab = panel => panel.getByRole("tab", { name: "普通节奏型", exact: true });
   const expectPanels = async (selectedTemplate) => {
@@ -92,7 +96,7 @@ try {
       assert.equal(await strumTab(panel).getAttribute("aria-selected"), "true");
       assert.equal(await panel.locator("[data-rhythm-template]:visible").count(), 0);
       for (const { template, slots } of examples) {
-        await panel.locator(`button[data-strum-template="${template}"][aria-pressed="${template === selectedTemplate}"]`).waitFor();
+        await panel.locator(`button[data-strum-template="${template}"][aria-pressed="${template === selectedTemplate}"]`).waitFor({ state: "attached" });
         const cells = await card(panel, template).locator("[data-strum-stroke]").evaluateAll((elements) =>
           elements.map((element) => [element.dataset.strumStroke, element.textContent]));
         assert.deepEqual(cells, slots.map((stroke) => [stroke, glyphs[stroke]]));
@@ -130,7 +134,7 @@ try {
     await strumTab(panels.toolbar).click();
     await expectPanels();
     if (panel === "toolbar") {
-      await card(panels.toolbar, template).click();
+      await chooseCard(panels.toolbar, template);
       await panels.toolbar.getByRole("button", { name: /^取\s*消$/ }).click();
       await panels.toolbar.waitFor({ state: "hidden" });
       assert.deepEqual(await snap(), before);
@@ -140,16 +144,18 @@ try {
 
     const source = panels[panel];
     await source.locator('[data-strum-template]:visible').first().waitFor();
-    assert.equal(await source.locator('[data-strum-template]:visible').count(), 6);
+    const toggle = source.locator('[data-rhythm-toggle="strum"]');
+    if (await toggle.getAttribute("aria-expanded") === "true") await toggle.click();
+    assert.deepEqual(await source.locator('[data-strum-template]:visible').evaluateAll(cards => cards.map(card => card.dataset.strumTemplate)),
+      ["d", "ddu", "dudu", "dud", "du", "dud-sync"].map(id => `beat-strum-${id}`));
     await source.locator('[data-rhythm-toggle="strum"]').click();
     assert.equal(await source.locator('[data-strum-template]:visible').count(), 12);
-    await source.locator('[data-rhythm-toggle="strum"]').click();
-    await card(source, panel === "toolbar" ? examples[1].template : examples[0].template).click();
-    await card(source, template).click();
+    await chooseCard(source, panel === "toolbar" ? examples[1].template : examples[0].template);
+    await chooseCard(source, template);
     assert.deepEqual(await snap(), before, "Choosing a card must leave the beat and undo history untouched");
     await button(source, "应用").click();
     await firstString.nth(offsets.length - 1).waitFor();
-    await source.locator(`[data-strum-template="${template}"][aria-pressed="true"]`).waitFor();
+    await source.locator(`[data-strum-template="${template}"][aria-pressed="true"]`).waitFor({ state: "attached" });
     if (panel === "sidebar" && !(await panels.toolbar.isVisible())) await trigger.click();
     await expectPanels(template);
     assert.equal(await page.locator('[aria-modal="true"]:visible').count(), 0);
@@ -203,6 +209,9 @@ try {
       await button(panels.toolbar, "在侧栏展开").click();
       await panels.toolbar.waitFor({ state: "hidden" });
       await page.waitForFunction(node => node === document.activeElement, await strumTab(panels.sidebar).elementHandle());
+      // 展开卡片后，编辑反馈可能覆盖侧栏底部的撤销按钮。
+      const feedback = page.getByRole("button", { name: "关闭编辑反馈", exact: true });
+      if (await feedback.isVisible()) await feedback.click();
       await button(panels.sidebar, "撤销应用").click();
     } else {
       await button(page, "撤销").click();
@@ -233,7 +242,7 @@ try {
     assert.equal(before.selection.focus.beatId, beat.id);
     if (!(await panels.toolbar.isVisible())) await trigger.click();
     await strumTab(panels.toolbar).click();
-    await card(panels.toolbar, examples[0].template).click();
+    await chooseCard(panels.toolbar, examples[0].template);
     assert.deepEqual(await snap(), before);
     await button(panels.toolbar, "应用").click();
     assert.equal(await page.locator('[aria-modal="true"]:visible').count(), 0);

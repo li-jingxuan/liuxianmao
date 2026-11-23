@@ -48,14 +48,19 @@
   grid-column: 1 / -1;
 }
 
-.capoRow {
-  display: flex;
+.performanceRow {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
   align-items: center;
   gap: 10px;
-  label { flex-shrink: 0; color: var(--muted); font-size: 12px; }
-  :global(.ant-select) { flex: 1; min-width: 0; }
-  :global(.ant-btn) { flex-shrink: 0; font-size: 12px; }
+  + .performanceRow { margin-top: 10px; }
+  label { color: var(--muted); font-size: 12px; }
+  :global(.ant-input-suffix) { color: var(--muted); font-size: 12px; }
 }
+
+.fieldNote { margin: 6px 0 10px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+.tempoCheckbox { font-size: 12px; }
+.performanceActions { display: flex; justify-content: flex-end; margin-top: 12px; }
 
 .error {
   display: flex;

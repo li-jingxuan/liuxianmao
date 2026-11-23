@@ -1,6 +1,42 @@
-import { calculateRhythmTicks, getMeasureCapacityTicks } from "../rhythm/rhythm";
+import { LXM_RHYTHM_BASES } from "../constants";
+import { calculateRhythmTicks, getMeasureDurationTicks } from "../rhythm/rhythm";
 import { isSupportedTupletRatio } from "../rhythm/tuplet";
-import type { ILXMNumberedEvent, ILXMNumberedVoice, ILXMTrack } from "../types";
+import type { ILXMMeasure, ILXMNumberedEvent, ILXMNumberedVoice, ILXMRhythm, ILXMTimeSignature, ILXMTrack } from "../types";
+
+export const NUMBERED_CONTINUATION_RHYTHM_REASON = "延音固定占当前拍号的一个分母单位，不能调整时值或添加附点。";
+export const NUMBERED_CONTINUATION_SPACE_REASON = "当前位置不足一个拍号分母单位，无法录入延音。";
+export const NUMBERED_CONTINUATION_METER_REASON = "当前拍号的一个分母单位无法写成无附点的简谱延音。";
+
+/** 新录入按拍号分母取无附点时值；文档读取仍采用旧事件保存的时值。 */
+export const numberedContinuationRhythm = ({ denominator }: ILXMTimeSignature): ILXMRhythm | undefined => {
+  const base = LXM_RHYTHM_BASES[Math.log2(denominator)];
+  return base ? { base, dots: 0 } : undefined;
+};
+
+/** 延音可替换选中的普通事件并占用未链接空白。源音的歌词清理与记号确认沿用既有命令规则，后续锚点一律保护。 */
+export const numberedContinuationIssue = (
+  track: ILXMTrack,
+  measure: ILXMMeasure,
+  start: number,
+  end: number,
+  context = createNumberedRhythmContext(measure.numberedVoice),
+): string | null => {
+  if (end > getMeasureDurationTicks(measure)) return NUMBERED_CONTINUATION_SPACE_REASON;
+  for (const event of measure.numberedVoice.events) {
+    if (event.tick >= end) break;
+    const duration = context.getEventDurationTicks(event);
+    if (!duration.ok || event.tick + duration.ticks <= start) continue;
+    if (context.tupletByEventId.has(event.id)) return "延音不能占用简谱连音组成员。";
+    if (event.tick === start && event.kind !== "gap") continue;
+    if (measure.lyrics.some(lyric => lyric.eventId === event.id) || track.numberedMarks.some(mark => {
+      if (mark.type === "fermata") return mark.eventId === event.id;
+      if (mark.type === "slur") return mark.fromEventId === event.id || mark.toEventId === event.id;
+      return event.items.some(item => item.id === mark.fromItemId || item.id === mark.toItemId);
+    })) return "录入延音不能覆盖已有歌词或简谱记号的归属位置。";
+    if (event.tick !== start && event.kind !== "gap") return "当前位置不足一个拍号分母单位，延音会覆盖后续简谱事件。";
+  }
+  return null;
+};
 
 /** 每小节只建一次比例索引；简谱不查询 TAB 的连音成员。 */
 export const createNumberedRhythmContext = (voice: ILXMNumberedVoice) => {
@@ -94,7 +130,7 @@ export const buildNumberedIndex = (track: ILXMTrack) => {
         end: offset + event.tick + (duration.ok ? duration.ticks : 0),
       });
     }
-    offset += getMeasureCapacityTicks(m.timeSignature);
+    offset += getMeasureDurationTicks(m);
   }
   const items = new Map(
     [...events.values()].flatMap((entry) =>

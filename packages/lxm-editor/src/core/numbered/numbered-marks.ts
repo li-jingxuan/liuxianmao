@@ -2,7 +2,15 @@ import { buildNumberedIndex } from "./numbered-rhythm";
 import type { ILXMNumberedMark, ILXMTrack } from "../types";
 
 /** 同音比较不把还原号和未升降音误判为不同音。 */
-const pitchKey = (token: string) => token.replace(/^n/, "");
+export const sameNumberedPitch = (a: string, b: string): boolean =>
+  a.replace(/^n/, "") === b.replace(/^n/, "");
+
+/** 相邻音既要在事件顺序上连续，也要首尾相接；索引已计入连音组时值和跨小节偏移。 */
+export const areAdjacentNumberedEvents = (
+  from: { order: number; end: number },
+  to: { order: number; start: number },
+): boolean => from.order + 1 === to.order && from.end === to.start;
+
 export const numberedMarkEventIds = (
   track: ILXMTrack,
   mark: ILXMNumberedMark,
@@ -56,9 +64,9 @@ export const validateNumberedMarks = (
       if (mark.type === "tie") {
         const a = items.get(mark.fromItemId)!,
           b = items.get(mark.toItemId)!;
-        if (a.order + 1 !== b.order || a.end !== b.start)
+        if (!areAdjacentNumberedEvents(a, b))
           return "简谱延音线需要时间连续的相邻音";
-        if (pitchKey(a.item.token) !== pitchKey(b.item.token))
+        if (!sameNumberedPitch(a.item.token, b.item.token))
           return "简谱延音线两端音高须相同";
         if (outgoing.has(mark.fromItemId) || incoming.has(mark.toItemId))
           return "同一简谱音不能重复添加入线或出线";

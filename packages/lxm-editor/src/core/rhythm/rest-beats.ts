@@ -41,6 +41,7 @@ export const createRestBeats = (
       rhythm,
       kind: "rest",
       notes: [],
+      capacityRest: true,
     };
     tick += duration.ticks;
     return rest;
@@ -84,6 +85,7 @@ export const createBeatAlignedRestBeats = (
     rhythm,
     kind: "rest",
     notes: [],
+    capacityRest: true,
   }));
 };
 
@@ -130,5 +132,6 @@ export const createMeasureRestBeats = (
     rhythm: { base: unitBase, dots: 0 },
     kind: "rest",
     notes: [],
+    capacityRest: true,
   }));
 };

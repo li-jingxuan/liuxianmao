@@ -236,6 +236,7 @@ export const createEditorCommandAdapter =
             : `本次将插入整小节双谱内容；${effectCount} 项复制或关系影响将在确认后一起提交。`;
         const id = modals.open({
           kind: confirmStrum || confirmDiscard ? "rhythm-pattern-discard" : "structure-impact",
+          ...(command.type === LXMScoreCommandEnum.CopyMeasureRange ? { source: "measure-copy" as const } : {}),
           title,
           message,
           confirmLabel: confirmStrum ? "确认应用" : confirmDiscard ? "确认舍弃并应用" : command.type === LXMScoreCommandEnum.RemoveMeasure ? "删除" : undefined,

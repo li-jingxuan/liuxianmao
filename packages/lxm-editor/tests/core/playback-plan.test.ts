@@ -61,6 +61,20 @@ const catalog: PlaybackPlanOptions["chordCatalog"] = {
 };
 
 describe("guitar playback plan", () => {
+  it("每次反复都按弱起的实际时长推进，完整小节仍走完尾部休止", () => {
+    const pickup = measure("pickup", [beat("up", 0, [[1, 3]], { base: "eighth", dots: 0 })]);
+    pickup.actualDurationTicks = 480;
+    const full = measure("full", [
+      beat("down", 0, [[2, 2]], { base: "half", dots: 0 }),
+      beat("silence", 1920, [], { base: "half", dots: 0 }),
+    ], "repeatEnd");
+    const plan = createPlaybackPlan(track([pickup, full]));
+    expect(plan.visits.map(({ startTick, endTick }) => [startTick, endTick])).toEqual([
+      [0, 480], [480, 4320], [4320, 4800], [4800, 8640],
+    ]);
+    expect(plan.sounds.map(({ startTick }) => startTick)).toEqual([0, 480, 4320, 4800]);
+  });
+
   it("resolves saved chord frets per string, carries them across bars, and keeps muted strings quiet", () => {
     const first = measure("first", [beat("a", 0, [[5, "x"], [1, 3], [6, "x"]]), beat("b", 960, [[4, "x"]])]);
     const second = measure("second", [beat("c", 0, [[2, "x"]]), beat("d", 960, [[2, "x"], [1, 0]])]);
@@ -122,8 +136,8 @@ describe("guitar playback plan", () => {
     expect(getPlaybackBeatAtTick(plan, 3360)?.beatId).toBe("rest");
     expect(getPlaybackBeatAtTick(plan, 6720)).toBeUndefined();
     expect(createPlaybackPlan(track([]), { bpm: Infinity }).bpm).toBe(90);
-    expect(createPlaybackPlan(track([]), { bpm: 10 }).bpm).toBe(40);
-    expect(createPlaybackPlan(track([]), { bpm: 250 }).bpm).toBe(240);
+    expect(createPlaybackPlan(track([]), { bpm: 10 }).bpm).toBe(20);
+    expect(createPlaybackPlan(track([]), { bpm: 350 }).bpm).toBe(300);
   });
 
   it("treats a pure dash as whole-beat sustain and a mixed dash as per-string sustain", () => {

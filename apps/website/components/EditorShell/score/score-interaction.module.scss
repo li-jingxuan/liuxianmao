@@ -154,6 +154,14 @@
   font-family: Arial, sans-serif;
   font-weight: 400;
 
+  .durationLabel {
+    fill: #2457ac;
+    stroke: #fff;
+    stroke-width: 2px;
+    stroke-linejoin: round;
+    paint-order: stroke;
+  }
+
   [data-active="true"] {
     fill: #2864e3;
   }

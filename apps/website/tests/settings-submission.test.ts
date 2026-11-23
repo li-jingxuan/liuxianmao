@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildLayout,
+  createPlaybackPlan,
   EXAMPLE_MVP_7_2_DOCUMENT,
+  loadDocument,
   LXMScoreCommandEnum,
 } from "@liuxianmao/lxm-editor";
 import { createEditorSession } from "../stores/editor-store";
@@ -25,6 +28,45 @@ const setup = () => {
 };
 
 describe("设置表单提交适配", () => {
+  it("演奏设置整体校验、单步撤销，并保留曲谱速度与独立显示开关", () => {
+    const { session, document, initial } = setup();
+    const header = (doc: typeof document) => buildLayout(doc).scoreHeader?.at(-1)?.text;
+    const apply = (value: typeof initial, baseline = initial) => submitSettingsDraft({
+      getState: session.getState, commit: session.getState().execute, value, initial: baseline, group: "capo",
+    });
+    expect(initial).toMatchObject({ tempo: "", showTempoMark: true });
+    expect(createPlaybackPlan(document).bpm).toBe(90);
+    expect(apply({ ...initial, capo: "2", tempo: "301", showTempoMark: false }).status).toBe("blocked");
+    expect(session.getState().document).toBe(document);
+
+    expect(apply({ ...initial, capo: "2", tempo: "300", showTempoMark: false }).status).toBe("applied");
+    const saved = session.getState().document!;
+    expect(saved.score.tracks[0]!.capo).toBe(2);
+    expect(header(saved)).toMatch(/ · Capo 2$/);
+    const reopened = loadDocument(JSON.stringify(saved));
+    if (!reopened.ok) throw new Error(reopened.errors.join("\n"));
+    expect(readScoreSettings(reopened.document)).toMatchObject({ capo: "2", tempo: "300", showTempoMark: false });
+    expect(createPlaybackPlan(reopened.document).bpm).toBe(300);
+    session.getState().undo();
+    expect(session.getState().document).toEqual(document);
+    session.getState().redo();
+    expect(session.getState().document).toEqual(saved);
+
+    const hidden = readScoreSettings(saved);
+    expect(apply({ ...hidden, showTempoMark: true }, hidden).status).toBe("applied");
+    const visible = session.getState().document!;
+    expect(header(visible)).toMatch(/ · Capo 2 · ♩ = 300$/);
+    const shown = readScoreSettings(visible);
+    expect(apply({ ...shown, capo: "0" }, shown).status).toBe("applied");
+    const withoutCapo = session.getState().document!;
+    expect(header(withoutCapo)).toMatch(/\d+\/\d+ · ♩ = 300$/);
+    const withoutCapoSettings = readScoreSettings(withoutCapo);
+    expect(apply({ ...withoutCapoSettings, tempo: "" }, withoutCapoSettings).status).toBe("applied");
+    const cleared = session.getState().document!;
+    expect(cleared.score).not.toHaveProperty("tempoBpm");
+    expect(header(cleared)).toMatch(/\d+\/\d+$/);
+    expect(createPlaybackPlan(cleared).bpm).toBe(90);
+  });
   it("编辑器名称草稿跟随外部只读调性，保存和撤销均不回写旧调性", () => {
     const { session, initial, measureId } = setup();
     const tonality = { version: 1 as const, tonic: "Gb", mode: "minor" as const, minorTonicDegree: 1 as const };

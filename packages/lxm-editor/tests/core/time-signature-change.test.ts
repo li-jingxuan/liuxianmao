@@ -56,6 +56,7 @@ describe("changeMeasureTimeSignature", () => {
     expect(result.measure.beats).toEqual(
       [0, 960, 1920].map((tick, index) => ({
         id: `new-rest-${index + 1}`,
+        capacityRest: true,
         tick,
         rhythm: { base: "quarter", dots: 0 },
         kind: "rest",

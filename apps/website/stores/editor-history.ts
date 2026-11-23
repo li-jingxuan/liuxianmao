@@ -90,6 +90,7 @@ const labels: Readonly<Record<string, string>> = {
   "measure.copyRange": "复制并插入小节范围",
   "measure.remove": "删除小节",
   "measure.setTimeSignature": "修改拍号",
+  "measure.setDuration": "修改小节时长",
   "barline.setBoundary": "修改小节线",
   "track.setTuning": "修改调弦",
   "track.setCapo": "修改变调夹",
@@ -233,21 +234,24 @@ export const createHistoryEntry = (
 type HistoryTransition =
   | { type: "reset" }
   | { type: "commit"; document: ILXMDocument; entry: HistoryEntry; replaceEntry?: boolean }
-  | { type: "undo" | "redo"; document: ILXMDocument };
+  | { type: "undo"; document: ILXMDocument; keepCount: number }
+  | { type: "redo"; document: ILXMDocument };
 
 /** 快照与 metadata 永远在同一个转换内移动和裁切。 */
 export const transitionHistory = (history: EditorHistory, action: HistoryTransition): EditorHistory => {
   if (action.type === "reset")
     return { past: [], future: [], pastEntries: Object.freeze([]), futureEntries: Object.freeze([]), baselineAdvanced: false };
   if (action.type === "undo") {
-    const entry = history.pastEntries.at(-1);
-    if (!entry) return history;
+    const { keepCount } = action;
+    if (!history.pastEntries[keepCount]) return history;
+    // past[keepCount] 是首个被撤销条目的提交前快照，也就是本次恢复的文档。
+    // 其后的快照和操作前的当前文档，与新移入的重做条目逐一对应。
     return {
       ...history,
-      past: history.past.slice(0, -1),
-      future: [action.document, ...history.future],
-      pastEntries: Object.freeze(history.pastEntries.slice(0, -1)),
-      futureEntries: Object.freeze([entry, ...history.futureEntries]),
+      past: history.past.slice(0, keepCount),
+      future: [...history.past.slice(keepCount + 1), action.document, ...history.future],
+      pastEntries: Object.freeze(history.pastEntries.slice(0, keepCount)),
+      futureEntries: Object.freeze([...history.pastEntries.slice(keepCount), ...history.futureEntries]),
     };
   }
   const entry = action.type === "commit" ? action.entry : history.futureEntries[0];

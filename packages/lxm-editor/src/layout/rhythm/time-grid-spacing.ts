@@ -1,6 +1,6 @@
 import { createMeasureRhythmContext } from "../../core/rhythm/tuplet";
 import { createNumberedRhythmContext } from "../../core/numbered/numbered-rhythm";
-import { getMeasureCapacityTicks, calculateRhythmTicks } from "../../core/rhythm/rhythm";
+import { getMeasureDurationTicks, calculateRhythmTicks } from "../../core/rhythm/rhythm";
 import { TICKS_PER_QUARTER } from "../../core/constants";
 import type { ILXMMeasure } from "../../core/types";
 import type {
@@ -74,7 +74,8 @@ export const summarizeTimeGrid = (
   const numberedWidthScale = compactNumbered ? 0.72 : density === "comfortable" ? 1.25 : 1;
   const numberedGlyphGap = compactNumbered ? 4 : numberedProfile.glyphGap;
   const tabGlyphGap = density === "compact" ? 2 : 6;
-  const capacity = getMeasureCapacityTicks(measure.timeSignature);
+  // 两个谱层和编辑空格共用实际终点，避免在短小节的小节线前多排一段空白。
+  const capacity = getMeasureDurationTicks(measure);
   const tab = createMeasureRhythmContext(measure),
     numbered = createNumberedRhythmContext(measure.numberedVoice);
   const tickSet = new Set([0, capacity]);

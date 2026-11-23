@@ -9,9 +9,9 @@ import { createMeasureRhythmContext } from "./tuplet";
  * 都不需要理解休止符分解或真实内容保护规则。
  */
 import { collectMusicTextBeatIds } from "../music-text/music-text";
-import { getFixedPrefixLength } from "./measure-timeline";
-import { createMeasureRestBeats } from "./rest-beats";
-import { getMeasureCapacityTicks } from "./rhythm";
+import { getFixedPrefixLength, reconcileMeasureTimeline } from "./measure-timeline";
+import { createBeatAlignedRestBeats, createMeasureRestBeats } from "./rest-beats";
+import { getMeasureCapacityTicks, getMeasureDurationTicks } from "./rhythm";
 import type { ILXMMeasure, ILXMTimeSignature } from "../types";
 
 export type MeasureTimeSignatureChangeErrorCode =
@@ -23,8 +23,6 @@ export type MeasureTimeSignatureChangeErrorCode =
 export type MeasureTimeSignatureChangeResult =
   | { ok: true; measure: ILXMMeasure }
   | { ok: false; code: MeasureTimeSignatureChangeErrorCode };
-
-import { reconcileMeasureTimeline } from "./measure-timeline";
 
 /**
  * 将一个小节安全地改为新拍号。
@@ -40,30 +38,53 @@ export const changeMeasureTimeSignature = (
   protectedBeatIds: ReadonlySet<string> = new Set(),
 ): MeasureTimeSignatureChangeResult => {
   const capacityTicks = getMeasureCapacityTicks(timeSignature);
+  const oldCapacityTicks = getMeasureCapacityTicks(measure.timeSignature);
+  const actualDurationTicks =
+    measure.actualDurationTicks === undefined ||
+    measure.actualDurationTicks === oldCapacityTicks ||
+    measure.actualDurationTicks === capacityTicks
+      ? undefined
+      : measure.actualDurationTicks;
+  if (actualDurationTicks !== undefined && actualDurationTicks > capacityTicks)
+    return { ok: false, code: "MEASURE_CONTENT_EXCEEDS_TIME_SIGNATURE" };
+  const nextMeasure = {
+    ...measure,
+    timeSignature: { ...timeSignature },
+  };
+  if (actualDurationTicks === undefined) delete nextMeasure.actualDurationTicks;
+  const durationTicks = getMeasureDurationTicks(nextMeasure);
   const numbered = createNumberedRhythmContext(measure.numberedVoice);
   if (
     measure.numberedVoice.events.some((e) => {
       const d = numbered.getEventDurationTicks(e);
-      return !d.ok || e.tick + d.ticks > capacityTicks;
+      return !d.ok || e.tick + d.ticks > durationTicks;
     })
   )
     return { ok: false, code: "MEASURE_CONTENT_EXCEEDS_TIME_SIGNATURE" };
+
+  // 原本就是短小节且仍能按新拍号容纳时，所有实际拍点与引用都可直接保留。
+  if (measure.actualDurationTicks !== undefined && measure.actualDurationTicks < oldCapacityTicks)
+    return { ok: true, measure: nextMeasure };
 
   const isAllRest =
     measure.tuplets.length === 0 &&
     !measure.beats.some((b) => protectedBeatIds.has(b.id)) &&
     collectMusicTextBeatIds(measure).size === 0 &&
-    measure.beats.every((beat) => beat.kind === "rest");
+    measure.beats.every(
+      (beat) => beat.kind === "rest" && !beat.preserveInputRhythm,
+    );
   if (isAllRest) {
     // 空白小节按拍号的单位拍重新拼写：3/4 得到三个四分休止，6/8 得到六个八分
     // 休止，而不是仅按总容量贪心生成一个较长休止符。
-    const rests = createMeasureRestBeats(timeSignature, createBeatId);
+    const rests =
+      actualDurationTicks === undefined
+        ? createMeasureRestBeats(timeSignature, createBeatId)
+        : createBeatAlignedRestBeats(0, durationTicks, timeSignature, createBeatId);
     return rests
       ? {
           ok: true,
           measure: {
-            ...measure,
-            timeSignature: { ...timeSignature },
+            ...nextMeasure,
             beats: rests,
           },
         }
@@ -71,7 +92,7 @@ export const changeMeasureTimeSignature = (
   }
 
   const result = reconcileMeasureTimeline(
-    { ...measure, timeSignature: { ...timeSignature } },
+    nextMeasure,
     { createBeatId, protectedBeatIds },
   );
   if (!result.ok) {

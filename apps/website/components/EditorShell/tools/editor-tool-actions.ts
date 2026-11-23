@@ -10,7 +10,9 @@ import {
 } from "@liuxianmao/lxm-editor";
 import { deriveEditorToolState } from "./editor-tool-state";
 import { resolveQuickTechnique, type QuickTechnique } from "./editor-technique-target";
+import type { NumberedArcKind } from "./editor-tie-target";
 export type MeasureToolTarget = { trackId: string; measureId: string };
+export type MeasureCopyDestination = { kind: "start" } | { kind: "end" } | { kind: "after"; measureId: string };
 export type EditorToolbarAction =
   | {
       type:
@@ -25,14 +27,17 @@ export type EditorToolbarAction =
         | "continuation";
     }
   | {
-      type: "insertMeasure" | "copyMeasures" | "startRepeat";
+      type: "insertMeasure" | "startRepeat";
       target?: MeasureToolTarget;
     }
+  | { type: "copyMeasures"; target?: MeasureToolTarget; destination?: MeasureCopyDestination; isCurrent?: () => boolean }
   | { type: "removeMeasure"; target?: MeasureToolTarget; confirmation?: { isCurrent: () => boolean } }
   | { type: "rhythm"; base: ILXMRhythm["base"] }
   | { type: "dots"; dots: 0 | 1 | 2 }
   | { type: "quickTechnique"; technique: QuickTechnique }
+  | { type: "numberedArc"; kind: NumberedArcKind }
   | { type: "signature"; value: string; target?: MeasureToolTarget }
+  | { type: "measureDuration"; durationTicks: number; target?: MeasureToolTarget }
   | { type: "barline"; value: ILXMBarlineType; target?: MeasureToolTarget };
 export type ToolActionHandler = (
   action: EditorToolbarAction,
@@ -44,8 +49,11 @@ export const buildEditorToolCommand = (
   selection: ILXMTabCellSelection | null,
   action: EditorToolbarAction,
   tabInputRhythmOverrides: readonly string[] = [],
+  selectedTraversalIds: readonly string[] = [],
 ): ILXMScoreCommand | null => {
-  const tools = deriveEditorToolState(document, selection);
+  // 简谱弧线由会话的连续选区解析，不能进入依赖 TAB 选区的命令构建流程。
+  if (action.type === "numberedArc") return null;
+  const tools = deriveEditorToolState(document, selection, selectedTraversalIds);
   if (action.type === "quickTechnique") {
     const result = resolveQuickTechnique(document, selection, action.technique);
     return result.ok ? result.command : null;
@@ -73,16 +81,23 @@ export const buildEditorToolCommand = (
       ? track.measures.filter((item) => item.id === explicit.measureId)
       : track.measures.filter((item) => ids.has(item.id));
     if (!measures.length) return null;
+    const { destination } = action;
+    // 曲首由命令省略锚点表示。曲末和指定小节后绑定当前轨道的 ID；旧调用仍紧接源范围。
+    const afterMeasureId = destination?.kind === "start" ? undefined
+      : destination?.kind === "end" ? track.measures.at(-1)?.id
+      : destination?.kind === "after" ? destination.measureId : measures.at(-1)!.id;
+    if (afterMeasureId !== undefined && !track.measures.some((item) => item.id === afterMeasureId)) return null;
     return {
       type: C.CopyMeasureRange,
       trackId: track.id,
       sourceStartMeasureId: measures[0]!.id,
       sourceEndMeasureId: measures.at(-1)!.id,
-      afterMeasureId: measures.at(-1)!.id,
+      ...(afterMeasureId === undefined ? {} : { afterMeasureId }),
     };
   }
   if (
     action.type === "signature" ||
+    action.type === "measureDuration" ||
     action.type === "barline" ||
     action.type === "startRepeat"
   ) {
@@ -101,6 +116,13 @@ export const buildEditorToolCommand = (
           }
         : null;
     }
+    if (action.type === "measureDuration")
+      return {
+        type: C.SetMeasureDuration,
+        trackId: track.id,
+        measureId: measure.id,
+        durationTicks: action.durationTicks,
+      };
     if (action.type === "barline")
       return {
         type: C.SetBarlineBoundary,
@@ -156,9 +178,13 @@ export const buildEditorToolCommand = (
     return { type: C.SetTabContinuation, range };
   if (action.type === "removeNotes")
     return { type: C.RemoveNotesInRect, range };
+  const kind = action.type === "restToggle" ? (tools.restState === "all" ? "notes" : "rest") : action.type === "rest" ? "rest" : "notes";
+  // 锚点只是活动记号的定位；离散选区不能用首尾拍生成连续范围。
+  if (tools.discreteRestBeatIds.length)
+    return { type: C.SetBeatKindForBeats, trackId: focus.track.id, beatIds: tools.discreteRestBeatIds, kind };
   return {
     type: C.SetBeatKindRange,
     range,
-    kind: action.type === "restToggle" ? (tools.restState === "all" ? "notes" : "rest") : action.type === "rest" ? "rest" : "notes",
+    kind,
   };
 };

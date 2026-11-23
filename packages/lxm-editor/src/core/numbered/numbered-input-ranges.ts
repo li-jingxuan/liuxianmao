@@ -1,5 +1,5 @@
 import { LXM_RHYTHM_BASES } from "../constants";
-import { calculateRhythmTicks, getMeasureCapacityTicks } from "../rhythm/rhythm";
+import { calculateRhythmTicks, getMeasureDurationTicks } from "../rhythm/rhythm";
 import { createNumberedRhythmContext } from "./numbered-rhythm";
 import type { ILXMMeasure, ILXMRhythm } from "../types";
 
@@ -27,6 +27,7 @@ export interface NumberedInputRange {
 /** 从独立声部的完整占用区间求空白；Tuplet gap 保留成员身份，不生成假 Beat。 */
 export const planNumberedInputRanges = (
   measure: ILXMMeasure,
+  fromTick = 0,
 ): NumberedInputRange[] => {
   const result: NumberedInputRange[] = [],
     context = createNumberedRhythmContext(measure.numberedVoice);
@@ -35,7 +36,8 @@ export const planNumberedInputRanges = (
     .map((beat) => beat.tick)
     .sort((a, b) => a - b);
   const appendBlank = (start: number, end: number) => {
-    let cursor = start;
+    // 延音改变前一个槽的长度后，新空白可从批量光标直接重新分解。
+    let cursor = Math.max(start, fromTick);
     while (cursor < end) {
       const beat = measure.beats.find((item) => item.tick === cursor);
       const duration = beat && calculateRhythmTicks(beat.rhythm);
@@ -83,6 +85,6 @@ export const planNumberedInputRanges = (
       });
     cursor = endTick;
   }
-  appendBlank(cursor, getMeasureCapacityTicks(measure.timeSignature));
+  appendBlank(cursor, getMeasureDurationTicks(measure));
   return result;
 };

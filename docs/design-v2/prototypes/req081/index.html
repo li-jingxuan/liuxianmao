@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>六线猫 · REQ-081 曲谱速度</title>
+  <link rel="stylesheet" href="./prototype.css">
+  <script src="./prototype.js" defer></script>
+</head>
+<body>
+  <div class="review-bar">
+    <div>
+      <strong>REQ-081 · 曲谱速度</strong>
+      <span id="review-hint">查看已设置曲谱速度与试听临时调速的关系</span>
+    </div>
+    <nav aria-label="评审状态">
+      <button data-review="empty" aria-pressed="false">未设置速度</button>
+      <button data-review="saved" aria-pressed="true">已设置 90 BPM</button>
+      <button data-review="playback" aria-pressed="false">试听临时调速</button>
+    </nav>
+  </div>
+
+  <header class="app-header">
+    <div class="header-start">
+      <a class="brand" href="#" aria-label="六线猫首页">
+        <img src="../../../../apps/website/public/assets/brand/liuxianmao-64.png" alt="">
+        <strong>六线猫</strong>
+      </a>
+      <div class="menubar" role="menubar" aria-label="编辑器菜单">
+        <button>文件</button><button>编辑</button><button>视图</button><button>帮助</button>
+      </div>
+    </div>
+    <strong class="score-name">理想</strong>
+    <div class="header-end">
+      <span class="file-status"><i></i>已保存</span>
+      <button class="header-action">导出</button>
+    </div>
+  </header>
+
+  <div class="tools" aria-label="谱面工具栏">
+    <button class="icon-button" aria-label="撤销" title="撤销">↶</button>
+    <button class="icon-button" aria-label="重做" title="重做" disabled>↷</button>
+    <span class="tool-divider"></span>
+    <button class="tool-text">♩　时值</button>
+    <button class="tool-text">H　技巧</button>
+    <button class="tool-text">♬　节奏型</button>
+    <button class="tool-text">││　小节</button>
+    <span class="tool-spacer"></span>
+    <button id="play-button" class="play-button" aria-expanded="false" aria-controls="playback-popover">
+      <svg aria-hidden="true" viewBox="0 0 20 20"><path d="M7 4.8v10.4a1 1 0 0 0 1.54.84l7.44-5.2a1 1 0 0 0 0-1.68L8.54 3.96A1 1 0 0 0 7 4.8Z"/></svg>
+      <span>试听</span>
+    </button>
+    <button class="icon-button" aria-label="切换侧栏" title="切换侧栏">◫</button>
+  </div>
+
+  <main class="workspace">
+    <section class="canvas" aria-label="谱面预览">
+      <article class="paper">
+        <div class="paper-heading">
+          <h1>理想</h1>
+          <p>编谱 · 六线猫</p>
+          <span id="score-info" aria-live="polite">1=G · 4/4 · ♩ = 90</span>
+        </div>
+        <svg class="score" viewBox="0 0 860 430" role="img" aria-label="理想曲谱示例">
+          <g class="staff" transform="translate(30 54)">
+            <text x="0" y="-18" class="measure-number">1</text>
+            <text x="326" y="-18" class="measure-number">2</text>
+            <text x="618" y="-18" class="measure-number">3</text>
+            <line x1="0" y1="0" x2="790" y2="0"/><line x1="0" y1="12" x2="790" y2="12"/><line x1="0" y1="24" x2="790" y2="24"/><line x1="0" y1="36" x2="790" y2="36"/><line x1="0" y1="48" x2="790" y2="48"/><line x1="0" y1="60" x2="790" y2="60"/>
+            <path d="M15 38c8-25 14-25 22 0s14 25 22 0" class="melody"/><path d="M74 20v42m12-42v42m64-42v42m12-42v42m64-42v42m12-42v42m64-42v42m12-42v42m64-42v42m12-42v42m64-42v42m12-42v42m64-42v42m12-42v42m64-42v42m12-42v42" class="bar"/>
+            <text x="74" y="-5" class="chord">G</text><text x="226" y="-5" class="chord">Em</text><text x="382" y="-5" class="chord">C</text><text x="540" y="-5" class="chord">D</text><text x="694" y="-5" class="chord">G</text>
+            <text x="94" y="24" class="tab">0　2　2　0</text><text x="248" y="48" class="tab">0　2　3　2</text><text x="404" y="24" class="tab">0　1　0　2</text><text x="558" y="48" class="tab">2　3　2　0</text><text x="712" y="24" class="tab">0　2　2　0</text>
+            <path d="M286 88h110" class="lyric-line"/><path d="M524 88h110" class="lyric-line"/><text x="286" y="108" class="lyric">理 想 总 是 很 远</text><text x="524" y="108" class="lyric">我 们 仍 然 出 发</text>
+            <line x1="300" y1="-8" x2="300" y2="72" class="measure-line"/><line x1="592" y1="-8" x2="592" y2="72" class="measure-line"/><line x1="780" y1="-8" x2="780" y2="72" class="measure-line end"/>
+          </g>
+          <g class="staff" transform="translate(30 224)">
+            <text x="0" y="-18" class="measure-number">4</text><text x="326" y="-18" class="measure-number">5</text><text x="618" y="-18" class="measure-number">6</text>
+            <line x1="0" y1="0" x2="790" y2="0"/><line x1="0" y1="12" x2="790" y2="12"/><line x1="0" y1="24" x2="790" y2="24"/><line x1="0" y1="36" x2="790" y2="36"/><line x1="0" y1="48" x2="790" y2="48"/><line x1="0" y1="60" x2="790" y2="60"/>
+            <path d="M15 38c8-25 14-25 22 0s14 25 22 0" class="melody"/><path d="M74 20v42m12-42v42m64-42v42m12-42v42m64-42v42m12-42v42m64-42v42m12-42v42m64-42v42m12-42v42m64-42v42m12-42v42m64-42v42m12-42v42m64-42v42m12-42v42" class="bar"/>
+            <text x="94" y="24" class="tab">3　2　0　0</text><text x="248" y="48" class="tab">0　2　2　0</text><text x="404" y="24" class="tab">2　3　2　0</text><text x="558" y="48" class="tab">0　2　2　0</text><text x="712" y="24" class="tab">3　2　0　0</text>
+            <line x1="300" y1="-8" x2="300" y2="72" class="measure-line"/><line x1="592" y1="-8" x2="592" y2="72" class="measure-line"/><line x1="780" y1="-8" x2="780" y2="72" class="measure-line end"/>
+          </g>
+        </svg>
+        <div class="paper-footer"><span>六线猫 · 编辑中的曲谱</span><span>第 1 页</span></div>
+      </article>
+      <div class="zoom" aria-label="谱面缩放"><button aria-label="缩小">−</button><output>100%</output><button aria-label="放大">+</button></div>
+    </section>
+
+    <aside class="inspector" aria-label="属性侧栏">
+      <div class="side-tabs" role="tablist" aria-label="侧栏页签">
+        <button role="tab" aria-selected="false">选区</button>
+        <button role="tab" aria-selected="false">简谱与歌词</button>
+        <button role="tab" aria-selected="false">和弦</button>
+        <button role="tab" aria-selected="true">歌曲</button>
+      </div>
+      <div class="inspector-heading inspector-heading-wide"><div><h2>整首歌曲</h2><p>歌曲信息、基础拍号与演奏设置</p></div></div>
+      <div class="song-form">
+        <section class="form-section song-info-section">
+          <div class="section-heading"><h3>曲谱信息</h3><button type="button" class="section-apply" disabled>应用</button></div>
+          <label class="field-label" for="song-name">歌曲名称</label>
+          <input class="text-input" id="song-name" value="理想">
+          <label class="field-label" for="arranger">编谱作者</label>
+          <input class="text-input" id="arranger" value="六线猫">
+          <div class="song-facts">
+            <div><span>数字 1 的音高</span><strong>1 = G</strong></div>
+            <div><span>调性</span><strong>G 大调</strong></div>
+            <div><span>主音拼写</span><strong>G</strong></div>
+            <div><span>基础拍号</span><strong>4/4</strong></div>
+          </div>
+        </section>
+        <form class="form-section performance-section" id="performance-form" aria-labelledby="performance-heading">
+          <div class="section-heading"><h3 id="performance-heading">演奏设置</h3></div>
+          <div class="setting-row">
+            <label for="capo-select">变调夹</label>
+            <select id="capo-select" class="select-input"><option value="0">不使用</option><option value="1">第 1 品</option><option value="2">第 2 品</option></select>
+          </div>
+          <div class="setting-row tempo-setting">
+            <label for="bpm-input">曲谱速度 <span class="help" title="全曲统一速度" aria-hidden="true">?</span></label>
+            <div class="number-control"><input id="bpm-input" type="number" min="20" max="300" step="1" value="90" inputmode="numeric" aria-describedby="bpm-help"><span>BPM</span></div>
+          </div>
+          <p id="bpm-help" class="field-note">输入 20–300 的整数。留空后应用可清空速度。</p>
+          <label class="display-setting"><input type="checkbox" id="display-tempo" checked>展示曲谱速度</label>
+          <div class="performance-actions"><button type="submit" id="apply-performance" class="primary-button" disabled>应用</button></div>
+        </form>
+      </div>
+    </aside>
+  </main>
+
+  <footer class="statusbar"><span>第 1 小节 · 4/4 · G 大调</span><span id="save-message" role="status"></span></footer>
+
+  <section id="playback-popover" class="playback-popover" hidden aria-label="试听速度">
+    <div class="popover-head"><div><h2>播放当前曲谱</h2></div><button id="close-popover" aria-label="关闭试听设置">×</button></div>
+    <div class="playback-main"><button id="popover-play" class="large-play" aria-label="播放"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M7 4.8v10.4a1 1 0 0 0 1.54.84l7.44-5.2a1 1 0 0 0 0-1.68L8.54 3.96A1 1 0 0 0 7 4.8Z"/></svg></button><div><strong id="playback-state">准备试听</strong><p>从第 1 小节开始</p></div></div>
+    <div class="playback-divider"></div>
+    <div class="playback-row"><span>曲谱速度</span><strong id="saved-bpm-label">90 BPM</strong></div>
+    <label class="slider-label" for="playback-bpm"><span>临时调速</span><output id="playback-bpm-value">90 BPM</output></label>
+    <input id="playback-bpm" type="range" min="40" max="180" value="90">
+    <div class="slider-scale"><span>40</span><span>90</span><span>180</span></div>
+    <button id="reset-playback" class="reset-button">恢复曲谱速度 <span>90 BPM</span></button>
+    <p class="popover-note">临时调速只影响本次试听，不会改变谱面上的速度标记。</p>
+  </section>
+</body>
+</html>

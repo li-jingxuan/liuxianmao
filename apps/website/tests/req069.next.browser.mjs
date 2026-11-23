@@ -49,6 +49,7 @@ try {
   const menuItem = name => menu.getByRole("menuitem", { name, exact: true });
   const chord = /^(添加|编辑)和弦$/;
   const copy = "复制当前小节";
+  const destinations = page.getByRole("dialog", { name: "复制到", exact: true });
   const tools = [
     { entry: "小节工具", popup: page.getByRole("dialog", { name: "小节工具参数", exact: true }) },
     { entry: "节奏型", popup: page.getByRole("dialog", { name: "节奏型工具参数", exact: true }) },
@@ -62,7 +63,8 @@ try {
       const state = fiber.memoizedProps?.session?.getState();
       if (!state?.document) continue;
       if (load) return state.replaceDocument(JSON.stringify(load), "file");
-      return { measures: state.document.score.tracks[0].measures, selection: state.selection, history: state.pastEntries.length };
+      const track = state.document.score.tracks[0];
+      return { measures: track.measures, techniques: track.techniques, selection: state.selection, history: state.pastEntries.length };
     }
     throw new Error("Editor session unavailable");
   }, load);
@@ -150,7 +152,7 @@ try {
       assert.ok(rightmost && rightmost.bounds.x > 800, `最右拍点应留出不足以右侧展开的空间 ${JSON.stringify(rightmost)}`);
       target = fret(rightmost.value);
     }
-    for (const { entry, popup } of tools) {
+    for (const { entry, popup } of [...tools, { entry: copy, popup: destinations }]) {
       await rightClick(target);
       const item = menuItem(entry);
       const menuBounds = await menu.boundingBox();
@@ -159,12 +161,12 @@ try {
       await popup.waitFor();
       const label = `${String(entry)} (${side})`;
       // Ant 浮窗会先挂载再测量，等待实际位置稳定后检查视口边缘。
-      await page.waitForFunction(() => {
-        const panel = document.querySelector("[data-score-context-panel]");
-        const rect = panel?.getBoundingClientRect();
-        return rect && rect.width > 100 && rect.height > 50;
-      });
-      await popup.evaluate((element) => Promise.all(element.getAnimations({ subtree: true }).map((animation) => animation.finished.catch(() => {}))));
+      const popupElement = await popup.elementHandle();
+      await page.waitForFunction((panel) => {
+        const rect = panel.getBoundingClientRect();
+        return rect.width > 100 && rect.height > 50 &&
+          !panel.closest(".ant-popover")?.getAnimations().some(animation => animation.playState === "running");
+      }, popupElement);
       const bounds = await popup.boundingBox();
       assert.ok(bounds && bounds.width > 0 && bounds.height > 0, `${label} ${JSON.stringify(bounds)}`);
       assert.ok(bounds.x >= -1 && bounds.y >= -1 && bounds.x + bounds.width <= viewport.width + 1
@@ -189,11 +191,19 @@ try {
   await rightClick(fret(5));
   await expectSelection(ref(0, 3), ref(1, 1));
   await menuItem(copy).click();
+  await destinations.getByRole("button", { name: "曲首", exact: true }).and(page.locator(":focus")).waitFor();
+  assert.match(await destinations.innerText(), /来源 · 第 2 小节/);
+  assert.equal((await snapshot()).history, before.history);
+  await page.keyboard.press("Escape");
+  await destinations.waitFor({ state: "hidden" });
+  await menuItem(copy).and(page.locator(":focus")).waitFor();
+  await page.keyboard.press("ArrowRight");
+  await destinations.getByRole("button", { name: "曲首", exact: true }).click();
   await menu.waitFor({ state: "hidden" });
   const measureNumbers = score.locator("[data-measure-number]");
   await measureNumbers.filter({ hasText: /^5$/ }).waitFor();
   const after = await snapshot();
-  const [first, source, duplicate, ...remaining] = after.measures;
+  const [duplicate, first, source, ...remaining] = after.measures;
   assert.deepEqual([first, source, ...remaining], before.measures);
   assert.notEqual(duplicate.id, source.id);
   assert.deepEqual(duplicate.beats.map(beat => [beat.tick, beat.rhythm, beat.notes.map(note => [note.string, note.fret])]),
@@ -208,8 +218,96 @@ try {
   const undone = await snapshot();
   assert.deepEqual(undone.measures, before.measures);
   assert.equal(undone.history, before.history);
+
+  // 工具栏也用同一位置列表。任意小节后插入时只关闭气泡，保留小节工具。
+  await fret(7).click();
+  await page.locator('[data-tool-trigger="measure"]').click();
+  const measurePanel = tools[0].popup;
+  const copyButton = measurePanel.getByRole("button", { name: copy, exact: true });
+  await copyButton.click();
+  await destinations.getByRole("button", { name: "第 3 小节后", exact: true }).click();
+  await destinations.waitFor({ state: "hidden" });
+  assert.ok(await measurePanel.isVisible());
+  const inserted = await snapshot();
+  assert.equal(inserted.measures.length, 5);
+  assert.deepEqual(inserted.measures[3].beats.map(beat => beat.notes.map(note => note.fret)), before.measures[1].beats.map(beat => beat.notes.map(note => note.fret)));
+  await page.keyboard.press("Escape");
+  await measurePanel.waitFor({ state: "hidden" });
+  await score.focus();
+  await page.keyboard.press("ControlOrMeta+z");
+  await measureNumbers.filter({ hasText: /^5$/ }).waitFor({ state: "hidden" });
+
+  await fret(7).click();
+  await score.evaluate((svg, cell) => {
+    const key = Object.keys(svg).find(name => name.startsWith("__reactFiber$"));
+    for (let fiber = svg[key]; fiber; fiber = fiber.return) {
+      const state = fiber.memoizedProps?.session?.getState();
+      if (!state?.document) continue;
+      state.setSelection({ anchor: cell, focus: { ...cell, string: 3 } });
+      return;
+    }
+  }, ref(1, 1));
+  await rightClick(fret(7));
+  await menuItem("技巧").click();
+  const techniquePanel = tools[2].popup;
+  const strum = techniquePanel.locator('[data-technique-type="strum"]');
+  const strumDirection = page.getByRole("dialog", { name: "扫弦方向", exact: true });
+  const techniqueHistory = (await snapshot()).history;
+  await strum.click();
+  await strumDirection.getByRole("button", { name: "向下", exact: true }).and(page.locator(":focus")).waitFor();
+  assert.match(await strumDirection.innerText(), /第 2 小节第 2 拍 · 第 1–3 弦/);
+  assert.equal((await snapshot()).history, techniqueHistory);
+  await page.keyboard.press("Escape");
+  await strumDirection.waitFor({ state: "hidden" });
+  await strum.and(page.locator(":focus")).waitFor();
+  await strum.click();
+  await strumDirection.getByRole("button", { name: "向上", exact: true }).click();
+  await strumDirection.waitFor({ state: "hidden" });
+  assert.equal((await snapshot()).techniques[0]?.stroke, "up");
+  assert.ok(await techniquePanel.isVisible());
+  await strum.click();
+  assert.equal(await strumDirection.getByRole("button", { name: "向上", exact: true }).getAttribute("aria-pressed"), "true");
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("Escape");
+  await techniquePanel.waitFor({ state: "hidden" });
+  await escapeMenu();
+
+  await page.keyboard.press("ControlOrMeta+z");
+  await page.locator('[data-tool-trigger="technique"]').click();
+  await techniquePanel.locator('[data-technique-type="arpeggio"]').click();
+  const arpeggioDirection = page.getByRole("dialog", { name: "琶音方向", exact: true });
+  await arpeggioDirection.getByRole("button", { name: "上行", exact: true }).click();
+  await arpeggioDirection.waitFor({ state: "hidden" });
+  assert.equal((await snapshot()).techniques[0]?.direction, "ascending");
+  assert.ok(await techniquePanel.isVisible());
+
+  await page.keyboard.press("Escape");
+  await techniquePanel.waitFor({ state: "hidden" });
+  const withCrossMeasureTechnique = structuredClone(fixture);
+  withCrossMeasureTechnique.score.tracks[0].techniques.push({
+    id: "cross-measure", type: "letRing", fromBeatId: ref(1, 0).beatId, toBeatId: ref(2, 0).beatId,
+  });
+  assert.equal((await snapshot(withCrossMeasureTechnique)).ok, true);
+  await fret(7).click();
+  await page.locator('[data-tool-trigger="measure"]').click();
+  await copyButton.click();
+  const impact = page.getByRole("dialog", { name: "小节范围复制影响确认", exact: true });
+  assert.equal((await snapshot()).techniques[0]?.id, "cross-measure");
+  assert.match(await destinations.innerText(), /来源 · 第 2 小节/);
+  await destinations.getByRole("button", { name: "曲首", exact: true }).click();
+  await impact.getByRole("button", { name: /^取\s*消$/ }).click();
+  await destinations.getByRole("button", { name: "曲首", exact: true }).and(page.locator(":focus")).waitFor();
+  assert.equal((await snapshot()).measures.length, 4);
+  await destinations.getByRole("button", { name: "曲末", exact: true }).click();
+  await impact.getByRole("button", { name: "确认修改", exact: true }).click();
+  await measureNumbers.filter({ hasText: /^5$/ }).waitFor();
+  await destinations.waitFor({ state: "hidden" });
+  const confirmed = await snapshot();
+  assert.equal(confirmed.measures[4].beats[1].notes[0].fret, 7);
+  assert.equal(confirmed.techniques.length, 1);
+  assert.equal(confirmed.history, 1);
   assert.deepEqual(errors, []);
-  console.log("REQ-069 browser passed: TAB right-click selection, popup placement, Escape focus, and copy undo.");
+  console.log("Browser passed: score menu positioning, both copy entries, copy confirmation and undo, and both technique direction bubbles.");
 } finally {
   await browser.close();
 }

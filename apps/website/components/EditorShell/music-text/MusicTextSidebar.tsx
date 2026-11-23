@@ -69,6 +69,7 @@ import { createChordEditSession } from "../chords/chord-edit-session";
 import type { SettingsGroup } from "../settings/score-settings-draft";
 import { chordIssueField } from "../chords/chord-issue-field";
 import { shouldIgnoreMusicTextKey } from "./music-text-interaction";
+import { nextLyricTextInput } from "./text-apply-advance";
 import { isEditorInputEnter } from "../shared/editor-input-enter";
 import {
   readMusicTextDraft,
@@ -151,7 +152,7 @@ export interface MusicTextController {
   select: (
     selection: ILXMTabCellSelection | null,
     techniqueId?: string,
-    strumIds?: readonly string[],
+    traversalIds?: readonly string[],
   ) => SelectionRequestResult;
   returnToScore: () => SelectionRequestResult;
   moveEditTarget: (direction: -1 | 1, source: EventTarget | null, fromScore: boolean) => boolean;
@@ -179,7 +180,8 @@ export const MusicTextSidebar = ({
   getFloatingAnchor,
   getFloatingViewport,
   getFloatingObservedElements,
-  collapsed = false,
+  collapsed: collapsedByEditor = false,
+  suspendedForPlayback = false,
   modal = false,
   showChordDiagrams,
   onShowChordDiagramsChange,
@@ -207,7 +209,7 @@ export const MusicTextSidebar = ({
   onScoreSelection: (
     selection: ILXMTabCellSelection | null,
     techniqueId: string | null,
-    strumIds?: readonly string[],
+    traversalIds?: readonly string[],
   ) => void;
   strumInspector?: React.ReactNode;
   getNumberedBeatEventIds: (target: MusicTextTarget) => string[];
@@ -217,11 +219,13 @@ export const MusicTextSidebar = ({
   getFloatingViewport: () => FloatingAnchorRect;
   getFloatingObservedElements?: () => readonly (Element | null)[];
   collapsed?: boolean;
+  suspendedForPlayback?: boolean;
   onExpandSidebar?: () => void;
   onLocate?: (location: SidebarLocation) => void;
   continuousRange?: MusicTextRange | null;
   onRangeChange?: (range: MusicTextRange | null) => void;
 }) => {
+  const collapsed = collapsedByEditor || suspendedForPlayback;
   const editorStore = useEditorSessionStore();
   const rangeEditor = useRef<MusicTextRangeEditorController>(null);
   const focusRangeOnOpen = useRef(false);
@@ -260,6 +264,10 @@ export const MusicTextSidebar = ({
   const [numberedTarget, setNumberedTarget] = useState<MusicTextTarget | null>(
     null,
   );
+  // 两类编辑器和两个表面共用这一会话偏好，切换目标或重挂载表单时不重置。
+  const [advanceAfterApply, setAdvanceAfterApply] = useState(true);
+  const textAdvance = { checked: advanceAfterApply, onChange: setAdvanceAfterApply };
+  const revealAdvancedTarget = useRef<MusicTextTarget | null>(null);
   const [numberedPreview, setNumberedPreview] =
     useState<MusicTextTarget | null>(null);
   const [numberedMode, setNumberedMode] = useState<"single" | "sequence">(
@@ -810,7 +818,7 @@ export const MusicTextSidebar = ({
         onScoreSelection(
           nextSelection,
           action.type === "selection" ? (action.techniqueId ?? null) : null,
-          ...(action.type === "selection" && action.strumIds ? [action.strumIds] as const : []),
+          ...(action.type === "selection" && action.traversalIds ? [action.traversalIds] as const : []),
         );
       }
     } else if (action.type === "target") {
@@ -1015,6 +1023,15 @@ export const MusicTextSidebar = ({
   };
   const returnToScore = (): SelectionRequestResult =>
     request({ type: "close" });
+  const advanceTextTarget = (target: MusicTextTarget, source: LyricFocusSurface) => {
+    // 自动前进沿用统一的目标和草稿保护，但不打开其它草稿的导航确认。
+    if (settingsRef.current?.isProtectedDirty()) return false;
+    if (request({ type: "target", target, lyricFocusSurface: source,
+      targetSurface: source === "sidebar" ? "sidebar" : undefined }) !== "accepted") return false;
+    surfaceFocusGroup.current = source === "sidebar" && target.kind === "numbered" ? "content" : undefined;
+    revealAdvancedTarget.current = target;
+    return true;
+  };
   const closeContextChord = (restoreAnchorFocus = false): boolean => {
     const entry = contextChordRef.current;
     if (!entry) return true;
@@ -1144,10 +1161,10 @@ export const MusicTextSidebar = ({
       });
       return true;
     },
-    select: (next, techniqueId, strumIds) => {
+    select: (next, techniqueId, traversalIds) => {
       if (rangeEditor.current?.isComposing()) return "blocked";
       onRangeChange(null);
-      return request({ type: "selection", selection: next, techniqueId, strumIds });
+      return request({ type: "selection", selection: next, techniqueId, traversalIds });
     },
     returnToScore: () => {
       if (rangeEditor.current?.isComposing()) return "blocked";
@@ -1249,6 +1266,23 @@ export const MusicTextSidebar = ({
     : numberedTarget
       ? `${numberedTarget.trackId}/${numberedTarget.measureId}/${numberedTarget.eventId ?? `${numberedTarget.tick}-${numberedTarget.endTick}`}/${numberedTarget.itemId ?? ""}/numbered`
       : "";
+  const floatingAnchorTarget = activeObject?.kind === "numbered" && activeObject.eventId && score &&
+    !resolveNumberedEditorTarget(score, activeObject) ? numberedPreview ?? activeObject : activeObject;
+  useLayoutEffect(() => {
+    const target = revealAdvancedTarget.current;
+    if (!target || activeObject?.kind !== target.kind || activeObject.trackId !== target.trackId ||
+      activeObject.measureId !== target.measureId || activeObject.eventId !== target.eventId || activeObject.tick !== target.tick) return;
+    revealAdvancedTarget.current = null;
+    const anchor = getFloatingAnchor(activeObject);
+    const viewport = getFloatingViewport();
+    // 跨系统写入时先让新占位进入视口，再由既有气泡布局和焦点请求完成重定位。
+    if (anchor && anchor.right > viewport.left && anchor.left < viewport.right &&
+      anchor.bottom > viewport.top && anchor.top < viewport.bottom) return;
+    if (target.kind === "numbered" || target.kind === "lyric") onLocate({
+      kind: target.kind, trackId: target.trackId, measureId: target.measureId, verse: target.verse,
+      eventId: target.eventId, startTick: target.tick ?? 0, endTick: target.endTick,
+    });
+  }, [activeObject, getFloatingAnchor, getFloatingViewport, onLocate]);
   const {
     ref: floatingPanelRef,
     geometry,
@@ -1258,8 +1292,8 @@ export const MusicTextSidebar = ({
     targetKey,
     freeze: compositionActive || compositionCooling || !!pending || numberedBusy || chordModalActive,
     getAnchor: useCallback(
-      () => getFloatingAnchor(activeObject),
-      [getFloatingAnchor, activeObject],
+      () => getFloatingAnchor(floatingAnchorTarget),
+      [getFloatingAnchor, floatingAnchorTarget],
     ),
     getViewport: getFloatingViewport,
     getObservedElements: getFloatingObservedElements,
@@ -1289,7 +1323,8 @@ export const MusicTextSidebar = ({
       ownerWindow?.removeEventListener("scroll", position, true);
     };
   }, [contextChord, floating, floatingPanelRef]);
-  const popoverHidden = floating && (dismissed || (contextChord ? !contextPosition : geometry.kind !== "placed"));
+  // 浮层经由 Portal 挂载，收起属性栏时需要单独隐藏。保留同一个表单实例和其中的草稿以便退出试听后恢复。
+  const popoverHidden = floating && (suspendedForPlayback || dismissed || (contextChord ? !contextPosition : geometry.kind !== "placed"));
   useEffect(() => onPopoverHiddenChange(popoverHidden), [popoverHidden, onPopoverHiddenChange]);
   // 隐藏的干净气泡释放谱面操作；未提交草稿继续走原有阻断链。
   const editing =
@@ -1421,10 +1456,10 @@ export const MusicTextSidebar = ({
     }
   }, [kind, pending]);
 
-  const applyNumbered = async (isCurrent = () => true, advance = true) => {
+  const applyNumbered = async (isCurrent = () => true) => {
     const owner = numberedRef.current;
     if (!owner || composing.current || compositionCoolingRef.current) return "blocked" as const;
-    const result = await owner.apply(isCurrent, { advance });
+    const result = await owner.apply(isCurrent);
     if (result.status === "applied" || result.status === "noop") {
       setNumberedInputActive(false);
       return "applied" as const;
@@ -1455,7 +1490,7 @@ export const MusicTextSidebar = ({
         settingsRef.current?.isProtectedDirty()
           ? settingsRef.current.applyGroup("label") ? "applied" : "blocked"
           : kind === "numbered"
-          ? await applyNumbered(isCurrent, false)
+          ? await applyNumbered(isCurrent)
           : kind === "score"
             ? settingsRef.current?.applyGroup("label") ? "applied" : "blocked"
             : apply() ? "applied" : "blocked";
@@ -1499,6 +1534,8 @@ export const MusicTextSidebar = ({
           // 正文替换可能重建选中的多音成员；NumberedEditor 在同一 owner 内重绑，
           // 这里切换 target 会重挂载输入并丢失刚应用的完整连续内容。
           command.type !== "numbered.sequence.overwrite" &&
+          command.type !== "numbered.sequence.insert" &&
+          command.type !== "numbered.range.replace" &&
           command.type !== "numbered.event.set" &&
           (!numberedTarget ||
             !resolveNumberedEditorTarget(result.document, numberedTarget))
@@ -1516,7 +1553,7 @@ export const MusicTextSidebar = ({
       committing.current = false;
     }
   };
-  const apply = (): boolean => {
+  const apply = (advanceSource?: LyricFocusSurface): boolean => {
     if (modals.isOpen() || suspendedChord.current) return false;
     if (!draft || issue || committing.current || composing.current || compositionCoolingRef.current || compositionCooling) return false;
     if (draft.target.kind === "lyric" &&
@@ -1535,6 +1572,11 @@ export const MusicTextSidebar = ({
       return true;
     }
     const target = draft.target;
+    // 使用提交前规划的末项（包括末尾清空项）记录边界，保存后虚拟位置可能变成 gap。
+    const last = advanceSource && advanceAfterApply && plan?.rows.some((row) => row.status === "add" || row.status === "change")
+      ? plan.rows.at(-1)?.target : null;
+    const lastMeasure = last && score?.score.tracks.find((track) => track.id === last.trackId)?.measures.find((measure) => measure.id === last.measureId);
+    const lastPosition = last && lastMeasure ? resolveLyricPosition(lastMeasure, last) : null;
     const result = commit(
       target.kind === "lyric"
         ? sequence && parsed?.ok
@@ -1563,6 +1605,10 @@ export const MusicTextSidebar = ({
           },
     );
     if (!result?.ok) return false;
+    if (result.changed && last && lastPosition && advanceSource) {
+      const next = nextLyricTextInput(result.document, last, lastPosition.endTick);
+      if (next && advanceTextTarget(next, advanceSource)) return true;
+    }
     const saved = readMusicTextDraft(result.document, target, draft.lyricMode);
     // 首次填词可能创建 gap：编辑身份和锚点一起采用返回文档中的真实事件。
     if (target.kind === "lyric" && saved) setActiveObject(saved.target);
@@ -1573,13 +1619,17 @@ export const MusicTextSidebar = ({
         initial: musicTextDraftValue(draft),
       });
     } else setDraft(saved);
+    if (result.changed && advanceSource && target.kind === "lyric") {
+      lyricFocusSurface.current = advanceSource;
+      focusTarget("input");
+    }
     setMessage(target.kind === "lyric" ? null : result.changed ? removingChord ? "已删除，保留当前拍点。" : "已应用" : "内容未变化");
     if (target.kind === "chord") closeAfterApply();
     return true;
   };
-  const applyLyricPrimary = () => {
+  const applyLyricPrimary = (source: LyricFocusSurface) => {
     if (surfaceBlocked() || !draft || draft.target.kind !== "lyric") return false;
-    return lyricDirty && apply();
+    return lyricDirty && apply(source);
   };
   const remove = () => {
     if (!draft || composing.current || compositionCoolingRef.current) return;
@@ -1999,6 +2049,7 @@ export const MusicTextSidebar = ({
     issue,
     disabled: surfaceDisabled,
     canApply: lyricDirty,
+    textAdvance,
     onApply: applyLyricPrimary,
     onTextChange: (text: string) => {
       if (text !== draft.text) setTextConflict(false);
@@ -2101,7 +2152,8 @@ export const MusicTextSidebar = ({
     .find((track) => track.id === detailTarget.trackId)?.measures.some((measure) => measure.id === detailTarget.measureId);
   const showSelectionInvitation = !hasExplicitSelection && !hasRequestedMeasure;
   // 正文 Portal 共用实际活动表单，owner 和 host 仍常驻以保留草稿。
-  const settingsSurface = collapsed ? null : score && propertyTab === "song" ? "song"
+  // 试听仅隐藏表单，保留表面的逻辑激活状态。手动收起或切换页签仍按既有规则处理未应用的设置。
+  const settingsSurface = collapsedByEditor ? null : score && propertyTab === "song" ? "song"
     : score && propertyTab === "selection" && selectionDetail === "measure" && !showSelectionInvitation && context.valid
       ? "measure" : null;
   const numberedFormActive = !!score && propertyTab === "paragraph" && kind === "numbered" && activeObject?.kind === "numbered";
@@ -2302,7 +2354,9 @@ export const MusicTextSidebar = ({
           if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
             e.preventDefault();
             if (e.repeat || e.altKey) return;
-            if (kind === "numbered") numberedRef.current?.applyContent();
+            const source = e.target instanceof Element && e.target.closest("[data-music-text-floating]") ? "popover" : "sidebar";
+            if (kind === "numbered") numberedRef.current?.applyContent(undefined, source);
+            else if (kind === "lyric") applyLyricPrimary(source);
             else apply();
             return;
           }
@@ -2589,12 +2643,8 @@ export const MusicTextSidebar = ({
                   selectedMarkId={selectedNumberedMarkId}
                   target={numberedTarget ?? selection?.focus ?? null}
                   selection={selection}
-                  onSelectTarget={(next) =>
-                    request({
-                      type: "target",
-                      target: next,
-                    })
-                  }
+                  onSelectTarget={advanceTextTarget}
+                  textAdvance={textAdvance}
                   commit={commit}
                   onDirty={setNumberedDirty}
                   onInputActive={setNumberedInputActive}

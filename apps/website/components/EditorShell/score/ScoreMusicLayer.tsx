@@ -23,8 +23,9 @@ export const SceneItems = ({
       const strumId = p.techniqueId && strums?.geometry.has(p.techniqueId) ? p.techniqueId : undefined;
       const strumSelected = !!strumId && strums?.selected.has(strumId);
       const strumActive = strumSelected && strumId === strums?.activeId;
+      const traversalSelected = !!p.techniqueId && strums?.selected.has(p.techniqueId);
       const selected =
-        strumSelected ||
+        traversalSelected ||
         (!!p.techniqueId && p.techniqueId === selectedTechniqueId) ||
         (!!p.numberedMarkId && p.numberedMarkId === selectedNumberedMarkId) ||
         (!!p.numberedEventId && p.numberedEventId === selectedNumberedEventId);

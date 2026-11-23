@@ -142,3 +142,6 @@ export const LXM_KEY_SIGNATURES = [
   "Bb",
   "B",
 ] as const;
+/** 全曲速度以四分音符 BPM 保存，试听也须完整覆盖可保存的范围。 */
+export const MIN_SCORE_BPM = 20;
+export const MAX_SCORE_BPM = 300;

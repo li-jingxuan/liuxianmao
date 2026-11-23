@@ -63,7 +63,10 @@ try {
   const viewport = page.locator("[data-score-viewport]");
   const cursor = score.locator("[data-playback-cursor]");
   const toggle = page.getByRole("button", { name: "木吉他试听", exact: true });
+  const exitPlayback = page.getByRole("button", { name: "退出试听", exact: true });
   const sidebar = page.getByRole("button", { name: "编辑面板", exact: true });
+  const history = page.getByRole("button", { name: "操作历史", exact: true });
+  const workspace = page.locator('[data-sidebar-collapsed]');
   const transport = page.getByRole("group", { name: "木吉他试听工具" });
   const play = transport.getByRole("button", { name: "播放", exact: true });
   const pause = transport.getByRole("button", { name: "暂停", exact: true });
@@ -72,6 +75,8 @@ try {
   const follow = transport.getByRole("button", { name: "跟随谱面", exact: true });
   const start = transport.getByRole("combobox", { name: "播放起点" });
   const tempo = transport.getByRole("spinbutton", { name: "速度，每分钟四分音符数" });
+  const slider = transport.getByRole("slider", { name: "临时调速" });
+  const resetTempo = transport.getByRole("button", { name: "恢复曲谱速度" });
   const editorTools = page.getByRole("toolbar", { name: "节奏、小节与历史工具" });
   const playbackTools = page.getByRole("toolbar", { name: "木吉他试听", exact: true });
   const firstTabFret = score.locator('[data-layer="score-music"] [data-system-index="0"]')
@@ -121,25 +126,37 @@ try {
     await phaseButton.waitFor();
   };
 
-  const wrapper = page.locator('[class*="editorContentWrapper"]');
-  for (const width of [1440, 960, 959, 375]) {
-    // Exercise the toolbar container query independently of the page's 1400px desktop canvas.
-    await wrapper.evaluate((node) => { node.style.minWidth = "0"; });
+  for (const width of [1440, 1600]) {
     await page.setViewportSize({ width, height: 680 });
     const editBounds = await editorTools.boundingBox();
-    assert.equal(editBounds.height, width < 960 ? 89 : 45, `Editing toolbar height at ${width}px`);
     assert.ok((await toggle.boundingBox()).x < (await sidebar.boundingBox()).x);
     await toggle.click();
     await play.and(page.locator(":focus")).waitFor();
     assert.equal(await editorTools.count(), 0);
-    assert.equal((await playbackTools.boundingBox()).height, editBounds.height, `Toolbar height at ${width}px`);
+    assert.equal(await playbackTools.getByRole("group", { name: "木吉他试听工具" }).count(), 1);
+    assert.equal(await page.getByRole("dialog", { name: "试听速度" }).count(), 0);
+    assert.equal(await workspace.getAttribute("data-sidebar-collapsed"), "true");
+    assert.ok(await history.isDisabled());
+    assert.equal(await sidebar.count(), 0);
+    assert.equal((await playbackTools.boundingBox()).height, editBounds.height, `Keeps a single toolbar row at ${width}px`);
     await play.press("Escape");
     await toggle.and(page.locator(":focus")).waitFor();
     await editorTools.waitFor();
+    assert.ok(await history.isEnabled());
   }
   assert.deepEqual(flushSyncErrors, [], "Switching and focusing the toolbar logged a React flushSync lifecycle error");
   await page.setViewportSize({ width: 1440, height: 680 });
-  await wrapper.evaluate((node) => { node.style.removeProperty("min-width"); });
+  if (await sidebar.getAttribute("aria-expanded") === "true") await sidebar.click();
+  await history.click();
+  assert.equal(await workspace.getAttribute("data-history-open"), "true");
+  await toggle.click();
+  await play.and(page.locator(":focus")).waitFor();
+  assert.equal(await workspace.getAttribute("data-history-open"), "false");
+  await exitPlayback.click();
+  await toggle.and(page.locator(":focus")).waitFor();
+  assert.equal(await sidebar.getAttribute("aria-expanded"), "false", "Exit preserves a collapsed sidebar");
+  assert.equal(await workspace.getAttribute("data-history-open"), "true");
+  await history.click();
   const song = page.getByRole("tab", { name: "歌曲", exact: true });
   if (await sidebar.getAttribute("aria-expanded") === "false") await sidebar.click();
   await song.click();
@@ -147,9 +164,11 @@ try {
   await title.fill("未应用的标题");
   await toggle.click();
   await play.and(page.locator(":focus")).waitFor();
-  assert.equal(await title.inputValue(), "未应用的标题");
+  await title.waitFor({ state: "hidden" });
   assert.equal((await runInSession("snapshot")).document.score.title, "试听回归");
   await play.press("Escape");
+  await title.waitFor();
+  assert.equal(await title.inputValue(), "未应用的标题");
   await title.fill("试听回归");
 
   await runInSession("select", null);
@@ -161,6 +180,10 @@ try {
   await runInSession("select", "m3");
   await toggle.click();
   await start.selectOption("current");
+  await slider.press("ArrowRight");
+  assert.equal(await tempo.inputValue(), "91");
+  await resetTempo.click();
+  assert.equal(await tempo.inputValue(), "90");
   await tempo.fill("240");
   await tempo.press("Tab");
   const initial = await runInSession("snapshot");
@@ -279,6 +302,9 @@ try {
   await toggle.and(page.locator(":focus")).waitFor();
   await cursor.waitFor({ state: "detached" });
   assert.deepEqual(await runInSession("snapshot"), beforeExit, "Exiting playback preserves the editing selection");
+  await toggle.click();
+  assert.equal(await tempo.inputValue(), "90", "Exiting playback resets temporary tempo");
+  await exitPlayback.click();
   await appendMeasure.waitFor({ state: "attached" });
   await firstTabFret.click();
   const afterClick = await runInSession("snapshot");

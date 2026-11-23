@@ -7,7 +7,7 @@ import { validateTuning } from "./tuning";
  * Zod schema 负责验证字段形状；本模块负责验证跨字段的音乐规则，保证 layout 和
  * 命令层面对的是一条连续、完整且无冲突的时间轴。
  */
-import { getMeasureCapacityTicks } from "../rhythm/rhythm";
+import { getMeasureCapacityTicks, getMeasureDurationTicks } from "../rhythm/rhythm";
 import { createMeasureRhythmContext } from "../rhythm/tuplet";
 import { validateTechnique } from "../techniques/technique-rules";
 import type { ILXMDocument, ILXMMeasure } from "../types";
@@ -53,7 +53,14 @@ const validateMeasure = (
   issues: ILXMSemanticValidationIssue[],
 ) => {
   let expectedTick = 0;
-  const capacity = getMeasureCapacityTicks(measure.timeSignature);
+  const capacity = getMeasureDurationTicks(measure);
+  const nominalCapacity = getMeasureCapacityTicks(measure.timeSignature);
+  if (measure.actualDurationTicks !== undefined && measure.actualDurationTicks > nominalCapacity)
+    issues.push({
+      code: "MEASURE_CAPACITY_MISMATCH",
+      path: `${path}.actualDurationTicks`,
+      message: `实际时长不能超过拍号容量 ${nominalCapacity}`,
+    });
   const registerId = (id: string, entityPath: string) => {
     if (entityIds.has(id)) {
       issues.push({
@@ -294,7 +301,7 @@ export const validateDocumentSemantics = (
       );
       const message = validateNumberedVoice(
         m.numberedVoice,
-        getMeasureCapacityTicks(m.timeSignature),
+        getMeasureDurationTicks(m),
       );
       if (message)
         issues.push({ code: "INVALID_NUMBERED_VOICE", path, message });

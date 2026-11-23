@@ -20,6 +20,8 @@ describe("简谱时值符号栏", () => {
     const tree = NumberedRhythmToolbar({ base: "eighth", dots: 1, onChange: vi.fn(), onSustain: vi.fn() });
     const markup = renderToStaticMarkup(tree);
     expect((markup.match(/<button\b/g) ?? []).length).toBe(8);
+    // 两条分隔线不进入键盘顺序，分别位于六个基础时值之后与附点之后。
+    expect(markup.split(/<i\b[^>]*aria-hidden="true"[^>]*><\/i>/).map(group => group.match(/<button\b/g)?.length)).toEqual([6, 1, 1]);
     expect(markup).toContain("\uE1E7");
     expect(markup).toContain("\uE874");
     expect(markup).not.toContain(">时值<");

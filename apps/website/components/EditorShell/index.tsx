@@ -26,6 +26,7 @@ import {
   resolveTabCellSelection,
   resolveTechniqueSelection,
   type ILXMHitTarget,
+  type ILXMDocument,
   type ILXMLayout,
   type ILXMLayoutOptions,
   type ILXMFret,
@@ -60,6 +61,7 @@ import { ScoreMusicLayer } from "./score/ScoreMusicLayer";
 import type { ScoreStrumInteraction, StrumEndpoint, StrumEndpointPreview } from "./score/StrumInteractionLayer";
 import { StrumRangeInspector } from "./tools/StrumRangeInspector";
 import { ScoreContextMenu, type ScoreContextAction } from "./score/ScoreContextMenu";
+import { CopyMeasureBubble } from "./tools/CopyMeasureBubble";
 import { MeasureNumberLayer } from "./score/MeasureNumberLayer";
 import { buildScoreScene } from "@liuxianmao/lxm-editor";
 import { OutputBlockedModal } from "./output/OutputBlockedModal";
@@ -99,9 +101,9 @@ import {
   createEditorCommandAdapter,
   type EditorCommandAdapter,
 } from "./session/editor-command-adapter";
-import { buildEditorToolCommand } from "./tools/editor-tool-actions";
+import { buildEditorToolCommand, type MeasureCopyDestination } from "./tools/editor-tool-actions";
 import { resolveEditorRhythmTarget } from "./tools/editor-rhythm-target";
-import { isNumberedTieTarget, resolveEditorTieTarget } from "./tools/editor-tie-target";
+import { resolveNumberedArcOptions } from "./tools/editor-tie-target";
 import { rhythmPatternScopeRects } from "./tools/rhythm-pattern-scope-layout";
 import { RhythmPatternProvider } from "./tools/RhythmPatternPanel";
 import { resolveEditorRhythmPatternTarget } from "./tools/editor-rhythm-pattern-target";
@@ -143,7 +145,11 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
   const musicTextController = useRef<MusicTextController>(null);
   const toolbarController = useRef<EditorToolbarController>(null);
   const [scoreMenu, setScoreMenu] = useState<{ point: { x: number; y: number }; sessionKey: string } | null>(null);
-  const [scoreMenuPanel, setScoreMenuPanel] = useState<Exclude<ScoreContextAction, "copy"> | null>(null);
+  const [scoreMenuPanel, setScoreMenuPanel] = useState<ScoreContextAction | null>(null);
+  const [contextCopy, setContextCopy] = useState<{
+    anchor: HTMLElement; document: ILXMDocument;
+    selection: ILXMTabCellSelection; isCurrent: () => boolean;
+  } | null>(null);
   const toolExecute = useMemo(
     // 工厂只保存保护回调，真正提交及确认时才读取 owner 的实时状态。
     () =>
@@ -221,7 +227,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
   const setSelectedTechniqueId = useEditorStore(
     (state) => state.setSelectedTechniqueId,
   );
-  const selectedStrumIds = useEditorStore(state => state.selectedStrumIds);
+  const selectedTraversalIds = useEditorStore(state => state.selectedTraversalIds);
   const [strumPreview, setStrumPreview] = useState<StrumEndpointPreview | null>(null);
   const setErrorMessage = useEditorStore((state) => state.setErrorMessage);
   const canUndo = useEditorStore((state) => state.canUndo);
@@ -235,12 +241,24 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
   const sessionVersion = useEditorStore((state) => state.sessionVersion);
   const sessionKey = `${session.getState().sessionId}:${sessionVersion}`;
   const [expandedHistoryIds, setExpandedHistoryIds] = useState<string[]>([]);
+  const [activeMusicTextTarget, setActiveMusicTextTarget] =
+    useState<MusicTextTarget | null>(null);
+  const [continuousRange, setContinuousRange] = useState<MusicTextRange | null>(null);
+  const resolvedSelection = useMemo(() => {
+    if (!document || !selection) return null;
+    const result = resolveTabCellSelection(document, selection);
+    return result.ok ? result.range : null;
+  }, [document, selection]);
+  const selectedPlaybackMeasure = resolvedSelection && !activeMusicTextTarget && !continuousRange && !numberedSelection
+    ? selection?.focus.measureId ?? null : null;
+  const playback = useScorePlayback(document, selectedPlaybackMeasure);
+  const scoreReadOnly = playback.enabled;
 
   const [imageExportSnapshot, setImageExportSnapshot] =
     useState<(ImageExportSnapshot & { mode: "png" | "print" }) | null>(null);
   const [outputBlockedOpen, setOutputBlockedOpen] = useState(false);
   const outputBlockedTrigger = useRef<HTMLElement | null>(null);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [editSidebarCollapsed, setSidebarCollapsed] = useState(false);
   /** 全谱共享的会话视图偏好，不修改和弦指法或音乐历史。 */
   const [showChordDiagrams, setShowChordDiagrams] = useState(true);
   const editorRootRef = useRef<HTMLDivElement>(null);
@@ -248,7 +266,10 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
   const { width: hostWidth, mode: layoutMode } =
     useEditorHostWidth(editorRootRef, !!document);
   const narrowPanels = layoutMode === "compact" || layoutMode === "narrow";
-  const [historyOpen, setHistoryOpen] = useState(false);
+  const [editHistoryOpen, setHistoryOpen] = useState(false);
+  // 试听只覆盖面板的可见性。保留编辑时的布局偏好以及侧栏 owner，退出后自动恢复原布局和未应用草稿。
+  const sidebarCollapsed = scoreReadOnly || editSidebarCollapsed;
+  const historyOpen = !scoreReadOnly && editHistoryOpen;
   const historyTriggerRef = useRef<HTMLButtonElement>(null);
   const pendingPanel = useRef<{
     kind: "history" | "close-sidebar";
@@ -304,6 +325,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     [],
   );
   const openHistory = useCallback(() => {
+    if (scoreReadOnly) return false;
     if (narrowPanels && !sidebarCollapsed && !canHideSidebar()) {
       pendingPanel.current = {
         kind: "history",
@@ -315,7 +337,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     if (narrowPanels) setSidebarCollapsed(true);
     setHistoryOpen(true);
     return true;
-  }, [narrowPanels, sidebarCollapsed, canHideSidebar, session]);
+  }, [scoreReadOnly, narrowPanels, sidebarCollapsed, canHideSidebar, session]);
   const closeHistory = useCallback(() => {
     pendingPanel.current = null;
     setHistoryOpen(false);
@@ -342,10 +364,11 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     [session, modals, imageExportSnapshot, outputBlockedOpen, openHistory],
   );
   const openSidebar = useCallback(() => {
+    if (scoreReadOnly) return;
     pendingPanel.current = null;
     if (narrowPanels) setHistoryOpen(false);
     setSidebarCollapsed(false);
-  }, [narrowPanels]);
+  }, [narrowPanels, scoreReadOnly]);
   const closeSidebar = useCallback(() => {
     if (!canHideSidebar()) {
       pendingPanel.current = {
@@ -412,7 +435,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
             // 跨断点时原属性 owner 的组合输入优先保留可见；历史等待保护解除后再开。
             setHistoryOpen(false);
             pendingPanel.current = {
-              kind: historyOpen ? "history" : "close-sidebar",
+              kind: editHistoryOpen ? "history" : "close-sidebar",
               sessionVersion: session.getState().sessionVersion,
               narrowOnly: true,
             };
@@ -424,7 +447,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
       }
     });
     return () => cancelAnimationFrame(frame);
-  }, [hostWidth, narrowPanels, canHideSidebar, session, historyOpen]);
+  }, [hostWidth, narrowPanels, canHideSidebar, session, editHistoryOpen]);
   useEffect(() => {
     let frame = 0;
     const retry = () => {
@@ -466,9 +489,6 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     retryPendingLayout.current();
   }, [chordEntryBlocked, numberedActionBlocked, musicTextEditing]);
   const pageViewportRef = useRef<HTMLDivElement>(null);
-  const [activeMusicTextTarget, setActiveMusicTextTarget] =
-    useState<MusicTextTarget | null>(null);
-  const [continuousRange, setContinuousRange] = useState<MusicTextRange | null>(null);
   const continuousRangeRef = useRef<MusicTextRange | null>(null);
   const [rhythmPatternScope, setRhythmPatternScope] = useState<RhythmPatternTarget | null>(null);
   const [paragraphEditingSession, setParagraphEditingSession] =
@@ -597,14 +617,6 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     // transform 不会触发 ResizeObserver；浮层必须在同一次实际矩阵变化后重定位。
     window.dispatchEvent(new Event("resize"));
   }, [clearScorePointerInteraction]);
-  const resolvedSelection = useMemo(() => {
-    if (!document || !selection) return null;
-    const result = resolveTabCellSelection(document, selection);
-    return result.ok ? result.range : null;
-  }, [document, selection]);
-  const selectedPlaybackMeasure = resolvedSelection && !activeMusicTextTarget && !continuousRange && !numberedSelection
-    ? selection?.focus.measureId ?? null : null;
-  const playback = useScorePlayback(document, selectedPlaybackMeasure);
   const scoreView = useScoreView({
     viewportRef: pageViewportRef,
     layoutWidth: lxmLayout?.width ?? 0,
@@ -633,13 +645,14 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     });
     return () => messages.destroy(key);
   }, [messages, playbackMessage, playbackNoticeType]);
-  const scoreReadOnly = playback.enabled;
   const scoreReadOnlyRef = useRef(scoreReadOnly);
   useLayoutEffect(() => {
     scoreReadOnlyRef.current = scoreReadOnly;
   }, [scoreReadOnly]);
   const setPlaybackEnabled = (enabled: boolean) => {
     if (enabled) {
+      // 放弃等待中的面板切换，防止焦点离开编辑区时重新打开编辑面板。
+      pendingPanel.current = null;
       clearScorePointerInteraction();
       endFretInput();
       setRhythmPatternScope(null);
@@ -812,6 +825,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
         toolbarController.current?.closeContextTool() === false) return;
     setScoreMenu(null);
     setScoreMenuPanel(null);
+    setContextCopy(null);
     if (restoreFocus) focusScore();
   }, [focusScore]);
   useEffect(() => {
@@ -996,29 +1010,6 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
       setErrorMessage(result.message);
   };
 
-  /** 休止属于完整 Beat；框选的弦范围不会缩窄该命令的作用域。 */
-  const setSelectedBeatKind = (kind: "notes" | "rest") => {
-    if (!selection || !resolvedSelection?.beats.length) {
-      setErrorMessage("请先选择需要设置休止状态的 Beat。");
-      return;
-    }
-    execute({
-      type: LXMScoreCommandEnum.SetBeatKindRange,
-      range: {
-        trackId: selection.anchor.trackId,
-        anchor: {
-          measureId: selection.anchor.measureId,
-          beatId: selection.anchor.beatId,
-        },
-        focus: {
-          measureId: selection.focus.measureId,
-          beatId: selection.focus.beatId,
-        },
-      },
-      kind,
-    });
-  };
-
   const hasFileInput = () => !!musicTextController.current?.isOutputBlocked();
   const isOutputBlocked = () => !!imageExportSnapshot || modals.isOpen() || drafts.isOutputBlocked() || hasFileInput();
   const showOutputBlocked = (trigger: HTMLElement | null) => {
@@ -1035,36 +1026,41 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
   const strumTrack = document?.score.tracks.find(track => track.id === lxmLayout?.trackId);
   const strumContext = !!strumTrack && !activeMusicTextTarget && !continuousRange && !numberedSelection && selection?.focus.trackId === strumTrack.id;
   const strums = useMemo(() => {
-    if (!strumContext || !selectedStrumIds.length) return [];
-    const ids = new Set(selectedStrumIds);
+    if (!strumContext || !selectedTraversalIds.length) return [];
+    const ids = new Set(selectedTraversalIds);
     return strumTrack.techniques.filter(t => t.type === "strum").filter(t => ids.has(t.id));
-  }, [strumContext, strumTrack, selectedStrumIds]);
+  }, [strumContext, strumTrack, selectedTraversalIds]);
   const canInteractWithStrums = !scoreReadOnly && !activeModal && !imageExportSnapshot && !fileFlow.panel && !fileFlow.pending;
   const changeStrumEndpoint = useCallback(async (endpoint: StrumEndpoint, string: number) => {
     const now = session.getState();
     if (!canInteractWithStrums || !strumTrack || !strums.length || modals.isOpen() ||
-      now.document !== document || now.selectedStrumIds !== selectedStrumIds) return;
+      now.document !== document || now.selectedTraversalIds !== selectedTraversalIds) return;
     endFretInput();
     const result = await toolExecute({ type: LXMScoreCommandEnum.SetStrumEndpoint,
-      trackId: strumTrack.id, techniqueIds: selectedStrumIds, endpoint, string }, "modal", { tabOnly: true });
+      trackId: strumTrack.id, techniqueIds: strums.map((strum) => strum.id), endpoint, string }, "modal", { tabOnly: true });
     if (result.status === "blocked" || result.status === "stale") setErrorMessage(result.message);
-  }, [canInteractWithStrums, document, strumTrack, strums, selectedStrumIds, session, modals, endFretInput, toolExecute, setErrorMessage]);
+  }, [canInteractWithStrums, document, strumTrack, strums, selectedTraversalIds, session, modals, endFretInput, toolExecute, setErrorMessage]);
+  /** Alt 点击按记号 ID 增减同轨扫弦或琶音，保留活动记号的弦格定位。 */
+  const selectTraversal = useCallback((id: string, toggle: boolean) => {
+    const now = session.getState();
+    if (!now.document) return;
+    const ids = now.selectedTraversalIds;
+    const next = !toggle ? [id] : ids.includes(id) ? ids.filter(other => other !== id) : [...ids, id];
+    const active = now.selectedTechniqueId && next.includes(now.selectedTechniqueId) ? now.selectedTechniqueId : next[0];
+    const mapped = active ? resolveTechniqueSelection(now.document, active, "end") : null;
+    if (!active || mapped) musicTextController.current?.select(mapped, active, next);
+  }, [session]);
   // 避免每次悬停都重绘整谱。原 TAB 工具只接收活动音符的弦格，范围编辑直接使用离散的技巧 ID。
   const strumInteraction = useMemo<ScoreStrumInteraction | undefined>(() => {
     if (!canInteractWithStrums || !lxmLayout || !document || !strumTrack) return undefined;
-    const ids = strums.length ? selectedStrumIds : [];
+    const ids = strumContext ? selectedTraversalIds : [];
     return {
       layout: lxmLayout, selectedIds: ids, activeId: selectedTechniqueId, onPreview: setStrumPreview,
-      onSelect(id, toggle) {
-        const next = !toggle ? [id] : ids.includes(id) ? ids.filter(other => other !== id) : [...ids, id];
-        const active = selectedTechniqueId && next.includes(selectedTechniqueId) ? selectedTechniqueId : next[0];
-        const mapped = active ? resolveTechniqueSelection(document, active, "end") : null;
-        if (!active || mapped) musicTextController.current?.select(mapped, active, next);
-      },
+      onSelect: selectTraversal,
       onCommit: changeStrumEndpoint,
     };
-  }, [canInteractWithStrums, lxmLayout, document, strumTrack, strums, selectedStrumIds, selectedTechniqueId,
-    changeStrumEndpoint]);
+  }, [canInteractWithStrums, lxmLayout, document, strumTrack, strumContext, selectedTraversalIds, selectedTechniqueId,
+    selectTraversal, changeStrumEndpoint]);
   useEffect(() => {
     if (loadNotice) messages.success({ key: "score-file", content: loadNotice });
   }, [messages, loadNotice, sessionKey]);
@@ -1117,13 +1113,13 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
   const acceptScoreSelection = (
     next: ILXMTabCellSelection | null,
     techniqueId: string | null,
-    strumIds?: readonly string[],
+    traversalIds?: readonly string[],
   ) => {
     clearScoreInteraction();
     setContinuousRange(null);
     setActiveMusicTextTarget(null);
     setSelection(next);
-    setSelectedTechniqueId(techniqueId, strumIds);
+    setSelectedTechniqueId(techniqueId, traversalIds);
     setErrorMessage(
       techniqueId && !next ? "当前技巧无法映射到可编辑的 TAB 单元格。" : null,
     );
@@ -1145,6 +1141,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     clearHover();
     setRhythmPatternScope(null);
     setScoreMenuPanel(null);
+    setContextCopy(null);
     setScoreMenu({ point, sessionKey });
   };
 
@@ -1212,6 +1209,11 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
       return;
     }
     if (action.type !== "selection") return;
+    // 扫弦弦线与时值杆由交互层处理；琶音等直接命中记号时走同一离散选择入口。
+    if (event.altKey && action.techniqueId && action.dragAnchor) {
+      selectTraversal(action.techniqueId, true);
+      return;
+    }
     if (
       !action.selection &&
       !action.techniqueId &&
@@ -1356,19 +1358,25 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     }
   };
 
-  const runHistoryAction = (action: "undo" | "redo") => {
-    if (modals.isOpen()) return false;
+  function runHistoryAction(action: "undo" | "redo"): boolean;
+  function runHistoryAction(action: "rollback", entryId: string | null): number;
+  function runHistoryAction(action: "undo" | "redo" | "rollback", entryId: string | null = null) {
+    const blockedResult = action === "rollback" ? 0 : false;
+    // 历史面板与单步操作共享只读、弹层和草稿守卫；面板回退还遵守其禁用状态。
+    if (scoreReadOnlyRef.current || modals.isOpen() || (action === "rollback" && chordEntryBlocked))
+      return blockedResult;
     endFretInput();
     if (
       musicTextController.current?.isTransitionBlocked() ||
       drafts.inspect().pending.some((record) => record.kind === "technique")
     )
-      return false;
+      return blockedResult;
     const now = session.getState();
+    if (action === "rollback") return now.rollback(entryId);
     if (action === "undo") now.undo();
     else now.redo();
     return true;
-  };
+  }
 
   /** 编辑器级历史快捷键在 SVG 或 Toolbar 持有焦点时都生效。 */
   const handleEditorKeyDown: React.KeyboardEventHandler<HTMLDivElement> = (
@@ -1488,6 +1496,8 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
       event.preventDefault();
       endFretInput();
       setSelection(createCollapsedTabCellSelection(selection.focus));
+      // Esc 收起离散多选并保留活动记号，避免后续休止仍作用在已收起的对象上。
+      if (selectedTraversalIds.length > 1) setSelectedTechniqueId(selectedTechniqueId);
       setErrorMessage(null);
       return;
     }
@@ -1504,9 +1514,8 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     const beatKindAction = resolveBeatKindShortcut(event);
     if (beatKindAction && selection) {
       event.preventDefault();
-      runImmediateEditorAction(() =>
-        setSelectedBeatKind(beatKindAction === "setRest" ? "rest" : "notes"),
-      );
+      // 快捷键与顶部及侧栏共用目标解析和草稿保护，离散记号只提交一次。
+      void handleToolbarAction({ type: beatKindAction === "setRest" ? "rest" : "restore" });
       return;
     }
     if (event.key === "Backspace" || event.key === "Delete") {
@@ -1576,6 +1585,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     "--accent-soft": token.colorPrimaryBg,
   };
   const toggleSidebar = () => {
+    if (scoreReadOnly) return;
     if (!sidebarCollapsed) {
       closeSidebar();
       return;
@@ -1587,9 +1597,10 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     title={document?.score.title ?? ""}
     status={fileStatus}
     empty={!document || !lxmLayout}
-    canUndo={canUndo}
-    canRedo={canRedo}
+    canUndo={!scoreReadOnly && canUndo}
+    canRedo={!scoreReadOnly && canRedo}
     sidebarCollapsed={sidebarCollapsed}
+    sidebarToggleDisabled={scoreReadOnly}
     zoom={scoreView.zoom}
     onHistory={runHistoryAction}
     onToggleSidebar={toggleSidebar}
@@ -1726,10 +1737,9 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
       return runHistoryAction(action.type);
     if (modals.isOpen()) return false;
     endFretInput();
-    const numberedTie = action.type === "quickTechnique" && action.technique === "tie" &&
-      isNumberedTieTarget(continuousRangeRef.current, activeMusicTextTargetRef.current);
     const tabQuick =
-      action.type === "restToggle" || action.type === "quickTechnique" && !numberedTie;
+      action.type === "restToggle" || action.type === "rest" || action.type === "restore" ||
+      action.type === "quickTechnique";
     if (tabQuick) {
       const reason = tabToolTargetReason(
         session.getState(),
@@ -1744,16 +1754,13 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
       session.getState,
       () => activeMusicTextTargetRef.current,
     );
-    if (numberedTie) {
-      if (musicTextController.current?.isNumberedActionBlocked()) {
-        setErrorMessage("请先应用或取消当前草稿。");
-        return false;
-      }
+    if (action.type === "numberedArc") {
       const now = session.getState();
       if (!now.document) return false;
       const range = continuousRangeRef.current;
       const capturedRange = JSON.stringify(range);
-      const target = resolveEditorTieTarget(now.document, now.selection, range, activeMusicTextTargetRef.current);
+      // 以点击时的文档和连续选区重算所选命令。异步确认后也必须匹配原选区，避免操作落到其它音符。
+      const target = resolveNumberedArcOptions(now.document, range)[action.kind];
       if (!target.ok) {
         setErrorMessage(target.message);
         return false;
@@ -1806,18 +1813,20 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     }
     const now = session.getState();
     if (!now.document) return false;
-    const command = buildEditorToolCommand(now.document, now.selection, action, now.tabInputRhythmOverrides);
+    const command = buildEditorToolCommand(now.document, now.selection, action, now.tabInputRhythmOverrides, now.selectedTraversalIds);
     if (!command) {
       setErrorMessage("当前目标不适用此操作，请重新选择。");
       return false;
     }
     const result = await executeTool(command, "modal", {
       isCurrent: () => intentIsCurrent() &&
-        (action.type !== "removeMeasure" || !action.confirmation || action.confirmation.isCurrent()),
+        (action.type !== "removeMeasure" || !action.confirmation || action.confirmation.isCurrent()) &&
+        (action.type !== "copyMeasures" || !action.isCurrent || action.isCurrent()),
       tabOnly: tabQuick,
       ...(action.type === "removeMeasure" && action.confirmation
         ? { confirmedMeasureRemoval: true as const } : {}),
     });
+    if (action.type === "copyMeasures" && (result.status === "blocked" || result.status === "stale")) setErrorMessage(result.message);
     return result.status === "applied" || result.status === "noop";
   };
   const currentPosition = deriveSidebarContext({
@@ -1832,31 +1841,39 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
       ? `第 ${focusedMeasureContext.measureIndex + 1} 小节第 ${focusedMeasureContext.measure.beats.findIndex((beat) => beat.id === selection.focus.beatId) + 1} 拍`
       : `${resolvedSelection.beats.length} 个拍点 · 当前第 ${focusedMeasureContext.measureIndex + 1} 小节`
     : "";
-  const copyCurrentMeasure = async () => {
+  const closeContextCopy = (restoreFocus: boolean) => {
+    setContextCopy(null);
+    setScoreMenuPanel((active) => active === "copy" ? null : active);
+    if (restoreFocus && contextCopy?.anchor.isConnected) contextCopy.anchor.focus({ preventScroll: true });
+  };
+  const copyCurrentMeasure = async (destination: MeasureCopyDestination): Promise<boolean> => {
     const now = session.getState();
-    const target = now.selection?.focus;
-    if (!now.document || !target) return;
-    // 显式指定焦点小节。复用现有复制命令及其影响确认，跨小节选区也只复制当前小节。
-    const command = buildEditorToolCommand(now.document, now.selection, { type: "copyMeasures", target });
-    if (!command) return;
+    if (!contextCopy?.isCurrent() || !now.document || modals.isOpen() || scoreReadOnlyRef.current) return false;
+    const target = contextCopy.selection.focus;
+    // 跨小节选区仍只复制 focus 小节。目标位置改变时，副本按插入锚点定位，而不再假设它紧跟来源。
+    const command = buildEditorToolCommand(now.document, now.selection, { type: "copyMeasures", target, destination });
+    if (command?.type !== LXMScoreCommandEnum.CopyMeasureRange) return false;
     const result = await executeTool(command, "modal", {
-      isCurrent: captureEditorToolIntent(session.getState, () => activeMusicTextTargetRef.current),
+      isCurrent: contextCopy.isCurrent,
     });
     if (result.status !== "applied") {
-      if (result.status === "blocked") setErrorMessage(result.message);
-      return;
+      if (result.status === "blocked" || result.status === "stale") setErrorMessage(result.message);
+      return false;
     }
     const current = session.getState();
     // 命令或确认弹窗返回后，若已换谱或进入播放，不能再把焦点移回旧副本。
-    if (current.document !== result.result.document || scoreReadOnlyRef.current) return;
+    if (current.document !== result.result.document || scoreReadOnlyRef.current) return true;
+    dismissScoreMenu(true);
     const measures = current.document.score.tracks.find((track) => track.id === target.trackId)?.measures;
-    const index = measures?.findIndex((measure) => measure.id === target.measureId) ?? -1;
-    const duplicate = index >= 0 ? measures?.[index + 1] : undefined;
+    const index = command.afterMeasureId === undefined ? -1 : measures?.findIndex((measure) => measure.id === command.afterMeasureId) ?? -1;
+    const duplicate = measures?.[index + 1];
     const beat = duplicate?.beats[0];
     if (duplicate && beat) musicTextController.current?.select(createCollapsedTabCellSelection({
       trackId: target.trackId, measureId: duplicate.id, beatId: beat.id, string: target.string,
     }));
+    return true;
   };
+  const visibleContextCopy = scoreMenuPanel === "copy" && contextCopy?.document === document && contextCopy.selection === selection ? contextCopy : null;
   const handleScoreMenuAction = (action: ScoreContextAction, anchor: HTMLButtonElement) => {
     if (modals.isOpen() || scoreReadOnlyRef.current) return;
     // 和弦编辑占用文字编辑目标。切回 TAB 工具前先让退出状态提交，目标校验才能读到 TAB 选区。
@@ -1868,10 +1885,15 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     const activate = () => {
       if (!anchor.isConnected || modals.isOpen() || scoreReadOnlyRef.current) return;
       if (action === "copy") {
-        dismissScoreMenu(true);
-        void copyCurrentMeasure();
+        if (visibleContextCopy) { closeContextCopy(true); return; }
+        const now = session.getState();
+        if (!now.document || !now.selection) return;
+        setContextCopy({ anchor, document: now.document, selection: now.selection,
+          isCurrent: captureEditorToolIntent(session.getState, () => activeMusicTextTargetRef.current) });
+        setScoreMenuPanel("copy");
         return;
       }
+      if (scoreMenuPanel === "copy") closeContextCopy(false);
       const onClose = () => setScoreMenuPanel((active) => active === action ? null : active);
       const accepted = action === "chord"
         ? musicTextController.current?.openContextChord(anchor, onClose)
@@ -1977,6 +1999,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
       >
         <EditorHistoryRail
           open={historyOpen}
+          disabled={scoreReadOnly}
           buttonRef={historyTriggerRef}
           onToggle={() => (historyOpen ? closeHistory() : openHistory())}
         />
@@ -1984,6 +2007,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
           open={historyOpen}
           modal={narrowPanels}
           entries={historyEntries}
+          tracks={document.score.tracks}
           appliedCount={appliedHistoryCount}
           baselineAdvanced={baselineAdvanced}
           sessionKey={sessionKey}
@@ -1992,9 +2016,10 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
           onClose={closeHistory}
           onUndo={() => void handleToolbarAction({ type: "undo" })}
           onRedo={() => void handleToolbarAction({ type: "redo" })}
+          onRollback={(entryId) => runHistoryAction("rollback", entryId)}
           canUndo={canUndo}
           canRedo={canRedo}
-          blocked={chordEntryBlocked}
+          blocked={scoreReadOnly || chordEntryBlocked}
         />
         {narrowPanels && (historyOpen || !sidebarCollapsed) && (
           <div
@@ -2150,6 +2175,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
                 )}
                 <MeasureNumberLayer
                   layout={lxmLayout}
+                  editingMeasures={scoreReadOnly ? undefined : strumTrack?.measures}
                   activeMeasureId={continuousRange?.focus.measureId ?? activeMusicTextTarget?.measureId ?? numberedSelection?.measureId ?? selection?.focus.measureId}
                 />
                 {playback.enabled && <ScorePlaybackCursor layout={lxmLayout} viewportRef={pageViewportRef} playback={playback} />}
@@ -2263,7 +2289,8 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
           showChordDiagrams={showChordDiagrams}
           onShowChordDiagramsChange={setShowChordDiagrams}
           modal={narrowPanels && !sidebarCollapsed}
-          collapsed={sidebarCollapsed}
+          collapsed={editSidebarCollapsed}
+          suspendedForPlayback={scoreReadOnly}
           onExpandSidebar={openSidebar}
           onLocate={locateSidebarObject}
           getNumberedBeatEventIds={(target) =>
@@ -2289,13 +2316,17 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
         />
       </div>
       {scoreMenu?.sessionKey === sessionKey && !scoreReadOnly && contextScope && (
-        <ScoreContextMenu point={scoreMenu.point} scope={contextScope} active={scoreMenuPanel}
+        <ScoreContextMenu point={scoreMenu.point} scope={contextScope} active={scoreMenuPanel === "copy" && !visibleContextCopy ? null : scoreMenuPanel}
           chordLabel={contextChord.label}
           disabled={{
             chord: contextChord.enabled ? undefined : contextChord.reason,
             beat: !rhythmTarget.ok && scoreMenuPanel !== "chord" ? rhythmTarget.message : undefined,
           }}
           onAction={handleScoreMenuAction} onDismiss={dismissScoreMenu} />
+      )}
+      {visibleContextCopy && scoreMenu?.sessionKey === sessionKey && !scoreReadOnly && contextScope && (
+        <CopyMeasureBubble anchor={visibleContextCopy.anchor} document={visibleContextCopy.document} target={visibleContextCopy.selection.focus}
+          contextCopy blocked={!!activeModal} onCopy={copyCurrentMeasure} onDismiss={closeContextCopy} />
       )}
       <EditorFeedback
         event={feedbackEvent}
@@ -2305,7 +2336,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
         onOpenHistoryEntry={openHistoryEntry}
         retryKey={`${historyOpen}:${sidebarCollapsed}:${chordEntryBlocked}:${activeModal?.id ?? ""}`}
         hidden={
-          !!activeModal ||
+          scoreReadOnly || !!activeModal ||
           !!imageExportSnapshot ||
           !!fileFlow.panel || !!fileFlow.pending ||
           outputBlockedOpen ||

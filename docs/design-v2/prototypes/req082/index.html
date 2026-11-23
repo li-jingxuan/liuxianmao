@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>REQ-082 · 不完全小节</title>
+  <style>
+    :root {
+      --app: #1f2b43;
+      --app-2: #2b3a56;
+      --canvas: #edf1f6;
+      --paper: #ffffff;
+      --ink: #26344b;
+      --muted: #68778e;
+      --line: #d9e0ea;
+      --line-strong: #bec9d9;
+      --blue: #2a63c7;
+      --blue-soft: #e9f0ff;
+      --blue-pale: #f4f7ff;
+      --green: #16815e;
+      --green-soft: #e7f6ef;
+      --amber: #9a6500;
+      --amber-soft: #fff4d9;
+      --red: #b63838;
+      --shadow: 0 16px 36px rgba(36, 51, 75, .08);
+      color: var(--ink);
+      background: var(--canvas);
+      font: 14px/1.5 Inter, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { min-width: 1440px; min-height: 840px; margin: 0; background: var(--canvas); }
+    button, select { font: inherit; }
+    button { cursor: pointer; }
+    button:disabled { cursor: default; }
+    :focus-visible { outline: 2px solid #78a3f3; outline-offset: 3px; }
+    [hidden] { display: none !important; }
+
+    .appbar { height: 56px; display: grid; grid-template-columns: 300px 1fr 300px; align-items: center; padding: 0 22px; color: #e9eff9; background: var(--app); }
+    .brand { display: flex; align-items: center; gap: 11px; color: #fff; font-size: 15px; font-weight: 680; }
+    .brand-mark { width: 27px; height: 27px; display: grid; place-items: center; border: 1px solid #7b96c2; border-radius: 8px; color: #dbe8ff; background: #334766; }
+    .brand-mark svg { width: 19px; height: 19px; }
+    .document-name { justify-self: center; color: #f6f8fc; font-size: 14px; letter-spacing: .03em; }
+    .app-actions { display: flex; justify-content: end; align-items: center; gap: 12px; }
+    .saved { display: inline-flex; align-items: center; gap: 7px; color: #b8c6dc; font-size: 12px; }
+    .saved::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #5ed09f; }
+    .app-actions button { min-height: 30px; padding: 4px 11px; border: 1px solid #607394; border-radius: 5px; color: #edf3ff; background: transparent; }
+    .app-actions button:hover { border-color: #b5c9eb; background: #334766; }
+
+    .menubar { height: 39px; display: flex; align-items: center; gap: 4px; padding: 0 20px; border-bottom: 1px solid #d4dce8; background: #f8fafc; color: #485a74; }
+    .menubar button { min-height: 29px; padding: 3px 11px; border: 0; border-radius: 4px; color: inherit; background: transparent; }
+    .menubar button:hover, .menubar button[aria-pressed="true"] { color: var(--blue); background: var(--blue-soft); }
+    .menu-divider { width: 1px; height: 20px; margin: 0 9px; background: var(--line); }
+    .prototype-switch { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; color: var(--muted); font-size: 12px; }
+    .prototype-switch button { min-height: 25px; padding: 2px 8px; font-size: 12px; }
+    .prototype-switch button[aria-pressed="true"] { color: var(--blue); background: var(--blue-soft); }
+
+    .workspace { height: calc(100vh - 95px); min-height: 745px; display: grid; grid-template-columns: 54px minmax(0, 1fr) 360px; }
+    .rail { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 15px 0; border-right: 1px solid var(--line); background: #f7f9fc; }
+    .rail button { width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: 6px; color: #708099; background: transparent; }
+    .rail button:hover, .rail button[aria-pressed="true"] { color: var(--blue); background: var(--blue-soft); }
+    .rail button[aria-pressed="true"] { box-shadow: inset 3px 0 0 var(--blue); }
+    .rail svg { width: 18px; height: 18px; }
+    .rail-spacer { flex: 1; }
+    .rail-label { writing-mode: vertical-rl; color: #9aa8ba; font-size: 10px; letter-spacing: .08em; }
+
+    .score-viewport { min-width: 0; overflow: hidden; padding: 28px 42px 42px; background: var(--canvas); }
+    .score-toolbar { max-width: 1030px; margin: 0 auto 18px; display: flex; align-items: center; gap: 10px; }
+    .score-toolbar h1 { margin: 0; font-size: 14px; font-weight: 680; color: var(--ink); }
+    .score-toolbar p { margin: 0; color: var(--muted); font-size: 12px; }
+    .score-toolbar .toolbar-right { display: flex; align-items: center; gap: 14px; margin-left: auto; color: var(--muted); font-size: 12px; }
+    .zoom { display: flex; align-items: center; gap: 7px; }
+    .zoom button { width: 25px; height: 25px; padding: 0; border: 1px solid var(--line); border-radius: 4px; color: var(--muted); background: #fff; }
+    .paper { max-width: 1030px; min-height: 610px; margin: 0 auto; padding: 51px 54px 44px; border: 1px solid var(--line); border-radius: 5px; background: var(--paper); box-shadow: var(--shadow); }
+    .title { text-align: center; font: 600 27px/1.2 Georgia, "Noto Serif SC", serif; letter-spacing: .11em; }
+    .subtitle { margin-top: 8px; text-align: center; color: var(--muted); font-size: 12px; }
+    .score-head { display: flex; align-items: end; margin-top: 50px; }
+    .system-label { width: 87px; padding: 0 18px 8px 0; color: #52647b; font-size: 11px; line-height: 1.3; }
+    .system-label strong { display: block; color: var(--ink); font-size: 16px; }
+    .ruler { position: relative; flex: 1; height: 29px; border-bottom: 1px solid #c9d3e1; }
+    .ruler::before { content: ""; position: absolute; left: 0; right: 0; bottom: 9px; border-top: 1px solid #d9e1ec; }
+    .beat-tick { position: absolute; bottom: 4px; width: 1px; height: 7px; background: #9aa9bd; }
+    .beat-tick span { position: absolute; bottom: 9px; left: -5px; width: 11px; text-align: center; color: #8493a7; font-size: 10px; }
+    .beat-tick.cut { background: var(--blue); }
+    .beat-tick.cut span { color: var(--blue); font-weight: 680; }
+    .score-system { display: flex; min-height: 244px; }
+    .notation-label { width: 87px; flex: none; padding-top: 42px; color: #738198; font-size: 11px; }
+    .notation-label span { display: block; margin-top: 64px; color: #45546d; font: 18px/1 Georgia, serif; }
+    .measures { display: flex; flex: 1; align-items: stretch; }
+    .measure { position: relative; flex: none; min-width: 0; border-right: 1px solid #556273; }
+    .measure:first-child { border-left: 1px solid #556273; }
+    .measure.selected { z-index: 1; background: var(--blue-pale); box-shadow: inset 0 0 0 2px #6d99e5; }
+    .measure.repeat-end { border-right: 4px double #37445a; }
+    .measure .measure-no { position: absolute; top: 13px; left: 12px; color: #8997a9; font-size: 10px; }
+    .measure .duration-badge { position: absolute; top: 9px; right: 10px; padding: 3px 7px; border: 1px solid #cbdaf6; border-radius: 4px; color: #2357ac; background: #eaf1ff; font-size: 11px; font-weight: 650; }
+    .staff { position: absolute; top: 52px; left: 0; right: 0; height: 58px; border-top: 1px solid #768397; border-bottom: 1px solid #768397; background: repeating-linear-gradient(to bottom, transparent 0 10px, #768397 10px 11px); }
+    .measure .chord { position: absolute; top: 29px; left: 15px; color: var(--ink); font-size: 16px; font-weight: 700; }
+    .note { position: absolute; top: 86px; transform: translateX(-50%); color: #26344b; font-size: 12px; font-weight: 650; text-align: center; }
+    .note::before { content: ""; position: absolute; left: 50%; top: -24px; height: 21px; border-left: 1px solid #35435a; }
+    .note .tab { display: block; min-width: 14px; padding: 0 2px; background: var(--paper); }
+    .selected .note .tab { background: var(--blue-pale); }
+    .rhythm { position: absolute; top: 159px; transform: translateX(-50%); color: #3d4b61; font-size: 16px; text-align: center; }
+    .rhythm::after { content: ""; position: absolute; left: -5px; right: -5px; bottom: -4px; border-bottom: 1px solid #3d4b61; }
+    .rhythm.beam::before { content: ""; position: absolute; top: -7px; left: 5px; width: 100%; border-top: 2px solid #3d4b61; }
+    .rest { position: absolute; top: 87px; transform: translateX(-50%); color: #53627a; font: 21px/1 Georgia, serif; }
+    .lyric { position: absolute; top: 201px; left: 50%; transform: translateX(-50%); color: #52647b; font-size: 12px; white-space: nowrap; }
+    .ghost-zone { position: absolute; top: 52px; bottom: 28px; border-left: 1px dashed #aec4ec; background: repeating-linear-gradient(135deg, transparent 0 7px, rgba(42, 99, 199, .045) 7px 8px); }
+    .ghost-label { position: absolute; top: 133px; transform: translateX(-50%); color: #8198bd; font-size: 11px; white-space: nowrap; }
+    .barline-note { max-width: 900px; margin: 22px auto 0; padding: 12px 14px; border: 1px solid #dce6f8; border-radius: 5px; color: #496589; background: #f7faff; font-size: 12px; }
+    .barline-note strong { color: #2357ac; }
+
+    .inspector { overflow: auto; border-left: 1px solid var(--line); background: #fff; }
+    .inspector-top { display: flex; align-items: center; justify-content: space-between; height: 57px; padding: 0 21px; border-bottom: 1px solid var(--line); }
+    .inspector-top h2 { margin: 0; font-size: 15px; font-weight: 700; }
+    .inspector-top button { width: 28px; height: 28px; padding: 0; border: 0; border-radius: 4px; color: var(--muted); background: transparent; font-size: 18px; }
+    .inspector-top button:hover { color: var(--blue); background: var(--blue-soft); }
+    .inspector-tabs { display: flex; gap: 22px; height: 40px; padding: 0 21px; border-bottom: 1px solid var(--line); }
+    .inspector-tabs button { position: relative; height: 40px; padding: 0; border: 0; color: var(--muted); background: transparent; font-size: 12px; }
+    .inspector-tabs button[aria-selected="true"] { color: var(--blue); font-weight: 680; }
+    .inspector-tabs button[aria-selected="true"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--blue); }
+    .panel { padding: 22px 21px; }
+    .context { display: flex; align-items: center; gap: 10px; margin-bottom: 21px; }
+    .bar-number { width: 39px; height: 39px; display: grid; place-items: center; border-radius: 7px; color: #2457ac; background: var(--blue-soft); font-size: 17px; font-weight: 700; }
+    .context p { margin: 0; color: var(--muted); font-size: 12px; }
+    .context strong { display: block; margin-bottom: 2px; color: var(--ink); font-size: 14px; }
+    .section-title { display: flex; align-items: baseline; justify-content: space-between; margin: 0 0 11px; font-size: 13px; }
+    .section-title small { color: var(--muted); font-size: 11px; font-weight: 400; }
+    .duration-field { margin-top: 17px; }
+    .duration-field label { display: block; margin-bottom: 5px; color: #55657d; font-size: 12px; }
+    .duration-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px; }
+    .duration-field select { width: 100%; min-height: 36px; padding: 4px 10px; border: 1px solid var(--line-strong); border-radius: 5px; color: var(--ink); background: #fff; }
+    .duration-field select:focus { border-color: var(--blue); }
+    .apply { min-width: 62px; min-height: 36px; padding: 4px 12px; border: 1px solid var(--blue); border-radius: 5px; color: #fff; background: var(--blue); }
+    .apply:hover:not(:disabled) { background: #1f54b2; }
+    .apply:disabled { border-color: #d8dee8; color: #97a4b7; background: #edf0f4; }
+    .error { margin-top: 9px; color: var(--red); font-size: 11px; }
+    .inspector-footer { padding: 14px 21px 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; }
+    .inspector-footer button { margin-top: 9px; padding: 0; border: 0; color: var(--blue); background: transparent; font-size: 11px; }
+
+    body.preview .prototype-switch, body.preview .rail, body.preview .menubar, body.preview .score-toolbar, body.preview .inspector, body.preview .barline-note { display: none; }
+    body.preview .workspace { display: block; height: calc(100vh - 56px); }
+    body.preview .score-viewport { height: 100%; padding: 72px 60px; }
+    body.preview .paper { max-width: 1120px; min-height: 620px; box-shadow: none; }
+    body.preview .measure.selected { background: transparent; box-shadow: none; }
+    body.preview .selected .note .tab { background: #fff; }
+    @media print {
+      @page { size: A4 landscape; margin: 12mm; }
+      body { min-width: 0; background: #fff; }
+      .appbar, .menubar, .rail, .score-toolbar, .inspector, .barline-note, .duration-badge, .measure-no { display: none !important; }
+      .workspace { display: block; height: auto; }
+      .score-viewport { padding: 0; background: #fff; }
+      .paper { max-width: none; min-height: 0; padding: 25px 30px; box-shadow: none; border: 0; }
+      .measure.selected { background: transparent; box-shadow: none; }
+      .selected .note .tab { background: #fff; }
+    }
+  </style>
+</head>
+<body>
+  <header class="appbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M5 9.5c1.1-3 3.2-4.5 7-4.5s5.9 1.5 7 4.5M7 9v6m10-6v6M8 16c1.2 2 2.5 3 4 3s2.8-1 4-3M9 10h.01M15 10h.01" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span>
+      六线猫 · 编辑器
+    </div>
+    <span class="document-name">风吹过山谷 · 原谱整理</span>
+    <div class="app-actions"><span class="saved">已保存</span><button id="print">预览导出</button></div>
+  </header>
+  <nav class="menubar" aria-label="编辑器菜单">
+    <button>文件</button><button>编辑</button><button aria-pressed="true">视图</button><button>帮助</button>
+    <span class="menu-divider"></span>
+    <span>小节 8 / 16</span>
+    <div class="prototype-switch" aria-label="原型示例"><span>示例</span><button data-scene="middle" aria-pressed="true">段中</button><button data-scene="pickup" aria-pressed="false">弱起</button><button data-scene="ending" aria-pressed="false">结尾</button></div>
+  </nav>
+  <main class="workspace">
+    <aside class="rail" aria-label="编辑工具">
+      <button aria-label="选择工具" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none"><path d="m6 4 11 9-6 .5 3 6-2 1-3-6-3.5 4.5L6 4Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></button>
+      <button aria-label="音符工具"><svg viewBox="0 0 24 24" fill="none"><path d="M8 18V6l10-2v12M8 9l10-2M5 18.5c0 1.4 1.4 2.3 3 1.8 1.3-.4 2-1.3 2-2.3s-.7-1.5-2-1.2c-1.6.4-3 .8-3 1.7ZM15 15.5c0 1.4 1.4 2.3 3 1.8 1.3-.4 2-1.3 2-2.3s-.7-1.5-2-1.2c-1.6.4-3 .8-3 1.7Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg></button>
+      <button aria-label="小节工具" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none"><path d="M5 5v14M19 5v14M5 8h14M5 16h14" stroke="currentColor" stroke-width="1.6"/></svg></button>
+      <button aria-label="播放工具"><svg viewBox="0 0 24 24" fill="none"><path d="M8 5v14l11-7L8 5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></button>
+      <span class="rail-spacer"></span><span class="rail-label">小节属性</span>
+    </aside>
+    <section class="score-viewport" aria-label="谱面画布">
+      <div class="score-toolbar"><div><h1>谱面</h1><p>点击小节查看属性，时长设置只作用于当前小节</p></div><div class="toolbar-right"><span>4/4</span><span>♩ = 90</span><span class="zoom"><button aria-label="缩小">−</button><span>125%</span><button aria-label="放大">＋</button></span></div></div>
+      <article class="paper">
+        <div class="title">风吹过山谷</div><div class="subtitle">木吉他 · 原谱整理</div>
+        <div class="score-head"><div class="system-label"><strong>第 7–9 小节</strong>段落试听</div><div class="ruler" id="ruler"></div></div>
+        <div class="score-system"><div class="notation-label">4/4<span>𝄞<br>譜</span></div><div class="measures" id="measures"></div></div>
+        <p class="barline-note" id="note"><strong>当前例谱</strong> 第 8 小节的四分、八分和两个十六分合计 2 拍。蓝色虚线是实际结束位置，后续小节按它推进。</p>
+      </article>
+    </section>
+    <aside class="inspector" aria-label="小节属性检查器">
+      <div class="inspector-top"><h2>小节属性</h2><button id="close" aria-label="关闭属性面板">×</button></div>
+      <div class="inspector-tabs" role="tablist"><button role="tab" aria-selected="true">小节</button><button role="tab" aria-selected="false">小节线</button></div>
+      <div class="panel">
+        <div class="context"><span class="bar-number" id="bar-number">8</span><div><strong id="bar-title">第 8 小节</strong><p>当前拍号　<span id="signature">4/4</span></p></div></div>
+        <h3 class="section-title">小节时长 <small id="stored">当前 2 拍</small></h3>
+        <div class="duration-field"><label for="duration">小节结束时长</label><div class="duration-row"><select id="duration" aria-describedby="error"></select><button class="apply" id="apply">应用</button></div><p class="error" id="error" hidden></p></div>
+      </div>
+      <div class="inspector-footer"><span id="status">已应用：第 8 小节实际 2 拍</span><br><button id="reset">恢复本示例</button></div>
+    </aside>
+  </main>
+  <script>
+    // 原型只模拟交互状态，不写入真实 LXM 文档。每个示例独立保存，便于逐项核对首版范围。
+    const examples = {
+      middle: { numbers: [7, 8, 9], selected: 1, lengths: [4, 2, 4], phrases: ['regular', 'middle', 'rest'], note: '<strong>当前例谱</strong> 第 8 小节的四分、八分和两个十六分合计 2 拍。蓝色虚线是实际结束位置，后续小节按它推进。', repeat: true },
+      pickup: { numbers: [1, 2, 3], selected: 0, lengths: [.5, 4, 4], phrases: ['pickup', 'regular', 'rest'], note: '<strong>开头弱起</strong> 第 1 小节只保留半拍，试听从弱起开始，半拍后进入第 2 小节。', repeat: false },
+      ending: { numbers: [13, 14, 15], selected: 2, lengths: [4, 4, 3], phrases: ['regular', 'rest', 'ending'], note: '<strong>结尾补足</strong> 如果全曲开头使用弱起，末小节可以手动设为 3 拍，由编谱人确认首尾是否互补。', repeat: false },
+    };
+    const phrases = {
+      regular: { chord: 'Am', notes: [[.55, '3'], [1.55, '2'], [2.55, '1'], [3.55, '1']], lyric: '谢了又开　给我惊喜' },
+      middle: { chord: 'C', notes: [[.3, '4'], [1.0, '4'], [1.5, '3'], [1.78, '1']], lyric: '沉入大类里的生' },
+      rest: { chord: 'Dsus4', notes: [[.45, '3'], [1.35, '2'], [1.62, '2'], [1.84, '2']], rest: 3, lyric: '活着　—　—' },
+      pickup: { chord: '', notes: [[.18, '5']], lyric: '—' },
+      ending: { chord: 'C', notes: [[.45, '1'], [1.45, '3'], [2.45, '1']], lyric: '又一个' },
+    };
+    const durationOptions = [.25, .5, .75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3, 3.25, 3.5, 3.75, 4];
+    const text = value => `${value % 1 === 0 ? value : value === .5 ? '½' : value === .25 ? '¼' : value === .75 ? '¾' : value} 拍`;
+    const $ = id => document.getElementById(id);
+    let scene = 'middle'; let selected = 1; let saved = [4, 2, 4];
+    const drafts = new Map();
+    const current = () => examples[scene];
+    const phrase = () => phrases[current().phrases[selected]];
+    const minDuration = () => scene === 'middle' ? 2 : scene === 'pickup' ? .5 : 3;
+
+    // 根据实际小节长度重新分配宽度，保证谱面上的短小节与时间轴长度一致。
+    function renderScore() {
+      const data = current(); const total = saved.reduce((sum, value) => sum + value, 0);
+      const measures = $('measures');
+      measures.innerHTML = data.phrases.map((kind, index) => {
+        const item = phrases[kind]; const length = saved[index]; const width = 100 * length / total;
+        const x = tick => `${Math.max(11, Math.min(89, tick / length * 100))}%`;
+        const notes = item.notes.map(([tick, fret]) => `<span class="note" style="left:${x(tick)}"><span class="tab">${fret}</span></span>`).join('');
+        const rhythms = item.notes.map(([tick], noteIndex) => `<span class="rhythm ${noteIndex > 1 ? 'beam' : ''}" style="left:${x(tick)}">${noteIndex === 0 ? '♩' : noteIndex === 1 ? '♪' : '♬'}</span>`).join('');
+        const rest = item.rest ? `<span class="rest" style="left:${x(item.rest)}">𝄼</span>` : '';
+        const ghost = length < 4 ? `<span class="ghost-zone" style="left:${x(length)};right:0"></span><span class="ghost-label" style="left:${x(length)}">结束</span>` : '';
+        const short = length < 4; const selectedClass = index === selected ? 'selected' : '';
+        const repeatClass = data.repeat && index === data.lengths.length - 1 ? 'repeat-end' : '';
+        return `<button class="measure ${selectedClass} ${repeatClass}" style="width:${width}%" data-index="${index}" aria-pressed="${index === selected}" aria-label="第 ${data.numbers[index]} 小节 ${text(length)}"><span class="measure-no">${data.numbers[index]}</span>${short ? `<span class="duration-badge">实际 ${text(length)}</span>` : ''}<span class="chord">${item.chord}</span><span class="staff"></span>${notes}${rhythms}${rest}<span class="lyric">${item.lyric}</span>${ghost}</button>`;
+      }).join('');
+      $('note').innerHTML = data.note;
+      const ruler = $('ruler');
+      ruler.innerHTML = data.lengths.map((length, index) => [0, 1, 2, 3, 4].filter(tick => tick <= length).map(tick => `<i class="beat-tick ${tick === length ? 'cut' : ''}" style="left:${(data.lengths.slice(0, index).reduce((sum, value) => sum + value, 0) + tick) / total * 100}%"><span>${tick === length ? '⌁' : tick + 1}</span></i>`).join('')).join('');
+    }
+
+    function renderInspector() {
+      const data = current(); const length = Number($('duration').value); const minimum = minDuration(); const invalid = length < minimum;
+      $('bar-number').textContent = data.numbers[selected]; $('bar-title').textContent = `第 ${data.numbers[selected]} 小节`;
+      $('stored').textContent = `当前 ${text(saved[selected])}`;
+      $('duration').setAttribute('aria-invalid', String(invalid)); $('error').hidden = !invalid;
+      $('error').textContent = invalid ? `已有内容需要至少 ${text(minimum)}，请增加时长后再应用。` : '';
+      $('apply').disabled = invalid || saved[selected] === length;
+    }
+
+    function loadScene(name) {
+      scene = name; selected = current().selected; saved = drafts.get(name) ?? [...current().lengths];
+      $('duration').value = String(saved[selected]); document.querySelectorAll('[data-scene]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.scene === scene)));
+      renderScore(); renderInspector(); $('status').textContent = `已应用：第 ${current().numbers[selected]} 小节实际 ${text(saved[selected])}`;
+    }
+
+    durationOptions.forEach(value => $('duration').add(new Option(text(value), value)));
+    $('duration').addEventListener('change', renderInspector);
+    $('measures').addEventListener('click', event => { const measure = event.target.closest('.measure'); if (!measure) return; selected = Number(measure.dataset.index); $('duration').value = String(saved[selected]); renderScore(); renderInspector(); });
+    $('apply').addEventListener('click', () => { const length = Number($('duration').value); if ($('apply').disabled) return; saved = saved.map((value, index) => index === selected ? length : value); drafts.set(scene, [...saved]); renderScore(); renderInspector(); $('status').textContent = `已应用：第 ${current().numbers[selected]} 小节实际 ${text(length)}`; });
+    document.querySelectorAll('[data-scene]').forEach(button => button.addEventListener('click', () => loadScene(button.dataset.scene)));
+    $('reset').addEventListener('click', () => { drafts.delete(scene); loadScene(scene); });
+    $('close').addEventListener('click', () => { $('inspector').hidden = true; document.querySelector('.workspace').style.gridTemplateColumns = '54px minmax(0, 1fr)'; });
+    $('print').addEventListener('click', event => { document.body.classList.toggle('preview'); event.currentTarget.textContent = document.body.classList.contains('preview') ? '返回编辑' : '预览导出'; });
+    loadScene('middle');
+  </script>
+</body>
+</html>

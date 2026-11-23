@@ -134,9 +134,27 @@ describe("REQ045 compact technique toolbar", () => {
     await click(find(panel.render(), props => props.children === "上行"));
     expect(panel.execute.mock.calls[0]![0]).toMatchObject({ type: C.AddTechnique,
       technique: { type: "arpeggio", direction: "ascending", minString: 2, maxString: 3 } });
+    expect(panel.tile("arpeggio")["aria-expanded"]).toBe(false);
+    await click(panel.tile("arpeggio"));
+    expect(find(panel.render(), props => props.children === "上行")["aria-pressed"]).toBe(true);
     await click(find(panel.render(), props => props.children === "下行"));
     expect(panel.execute.mock.calls[1]![0]).toMatchObject({ type: C.UpdateTechnique,
       technique: { type: "arpeggio", direction: "descending", minString: 2, maxString: 3 } });
+  });
+
+  it("keeps a direction picker transient and rejects a choice from an old selection", async () => {
+    const panel = fixture();
+    panel.session.getState().setSelection({ anchor: panel.cell("2", 2), focus: panel.cell("2", 3) });
+    await click(panel.tile("strum"));
+    expect(panel.tile("strum")["aria-expanded"]).toBe(true);
+    const oldChoice = find(panel.render(), props => props.children === "向上");
+    await click(panel.tile("strum"));
+    expect(panel.tile("strum")["aria-expanded"]).toBe(false);
+    expect(panel.session.getState().document).toBe(panel.document);
+    await click(panel.tile("strum"));
+    panel.session.getState().setSelection({ anchor: panel.cell("5"), focus: panel.cell("5") });
+    await click(oldChoice);
+    expect(panel.execute).not.toHaveBeenCalled();
   });
 
   it("retains the slide shortcut's explicit up/down choice and closes through the optional callback", async () => {

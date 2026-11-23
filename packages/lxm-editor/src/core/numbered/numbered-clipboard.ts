@@ -9,6 +9,7 @@ import {
   validateNumberedVoice,
 } from "./numbered-rhythm";
 import { validateNumberedMarks } from "./numbered-marks";
+import { getMeasureDurationTicks } from "../rhythm/rhythm";
 import type { ILXMDocument, ILXMTrack } from "../types";
 const schema = z
   .object({
@@ -81,7 +82,7 @@ export const createNumberedClipboard = (
     range.startTick < 0 ||
     range.startTick >= range.endTick ||
     range.endTick >
-      (m.timeSignature.numerator * 3840) / m.timeSignature.denominator
+      getMeasureDurationTicks(m)
   )
     return { ok: false as const, message: "简谱复制范围无效" };
   const context = createNumberedRhythmContext(m.numberedVoice);

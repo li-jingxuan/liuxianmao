@@ -30,7 +30,7 @@ type MenuAction = {
 
 /** 顶栏组织入口，导航、草稿保护与谱面操作交由编辑器会话处理。 */
 export const EditorHeader = ({
-  title, status, empty = false, canUndo, canRedo, sidebarCollapsed, zoom,
+  title, status, empty = false, canUndo, canRedo, sidebarCollapsed, sidebarToggleDisabled = false, zoom,
   onFileAction, onExportAction, onNavigate, onLearning, onShortcuts,
   onHistory, onToggleSidebar, onZoom, exportButtonRef,
 }: {
@@ -40,6 +40,7 @@ export const EditorHeader = ({
   canUndo: boolean;
   canRedo: boolean;
   sidebarCollapsed: boolean;
+  sidebarToggleDisabled?: boolean;
   zoom: ScoreZoom;
   onFileAction: (action: Exclude<ScoreFilePanel, "json"> | "home", trigger: HTMLButtonElement) => void;
   onExportAction: (action: "json" | "png" | "print", trigger: HTMLButtonElement) => void;
@@ -189,7 +190,7 @@ export const EditorHeader = ({
             run: () => onHistory(action),
           })))}
           {renderMenu("view", "视图", [
-            { key: "sidebar", label: sidebarCollapsed ? "显示侧栏" : "隐藏侧栏", disabled: empty, run: onToggleSidebar },
+            { key: "sidebar", label: sidebarCollapsed ? "显示侧栏" : "隐藏侧栏", disabled: empty || sidebarToggleDisabled, run: onToggleSidebar },
             { key: "zoom-in", label: "放大", disabled: empty || !nextZoom, run: () => nextZoom && onZoom(nextZoom) },
             { key: "zoom-out", label: "缩小", disabled: empty || !previousZoom, run: () => previousZoom && onZoom(previousZoom) },
             { key: "zoom-reset", label: "实际大小", disabled: empty || zoom === 100, run: () => onZoom(100) },

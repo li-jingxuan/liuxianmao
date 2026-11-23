@@ -31,6 +31,13 @@ const createMeasure = (beats: ILXMMeasure["beats"]): ILXMMeasure => ({
 });
 
 describe("summarizeMeasureSpacingWidth", () => {
+  it("不完全小节的最后一列与实际小节线对齐", () => {
+    const measure = createMeasure([createBeat("pickup", 0, "eighth")]);
+    measure.actualDurationTicks = 480;
+    const summary = summarizeMeasureSpacingWidth(measure, "compact");
+    expect(summary.columns.map(({ tick, endTick }) => [tick, endTick])).toEqual([[0, 480]]);
+  });
+
   it("按节拍时值计算小节最小宽度和理想宽度", () => {
     const summary = summarizeMeasureSpacingWidth(
       createMeasure([

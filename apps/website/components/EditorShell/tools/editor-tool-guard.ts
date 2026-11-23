@@ -13,7 +13,7 @@ export interface EditorToolSubmission {
   confirmedMeasureRemoval?: true;
 }
 export const isTabOnlyToolCommand = (command: ILXMScoreCommand) =>
-  command.type === C.SetBeatKindRange || command.type === C.AddTechnique ||
+  command.type === C.SetBeatKindRange || command.type === C.SetBeatKindForBeats || command.type === C.AddTechnique ||
   command.type === C.UpdateTechnique || command.type === C.RemoveTechnique;
 
 export const tabToolTargetReason = (
@@ -36,10 +36,13 @@ export const captureEditorToolIntent = (
   const numbered = JSON.stringify(state.numberedSelection);
   const active = JSON.stringify(getActiveTarget());
   const techniqueId = state.selectedTechniqueId;
+  // 增减离散记号可能保留同一个主技巧和 TAB 矩形，仍需使旧的待提交操作失效。
+  const traversalIds = JSON.stringify(state.selectedTraversalIds);
   return () => sameEditorVersion(getState(), version) &&
     selection === JSON.stringify(getState().selection) &&
     numbered === JSON.stringify(getState().numberedSelection) &&
     techniqueId === getState().selectedTechniqueId &&
+    traversalIds === JSON.stringify(getState().selectedTraversalIds) &&
     active === JSON.stringify(getActiveTarget());
 };
 

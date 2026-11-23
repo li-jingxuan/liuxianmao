@@ -1,6 +1,7 @@
 import {
   calculateRhythmTicks,
   createNumberedRhythmContext,
+  NUMBERED_CONTINUATION_RHYTHM_REASON,
   numberedRhythmForTicks,
   tabInputRhythmFromNumbered,
   type ILXMDocument,
@@ -81,12 +82,14 @@ export const resolveEditorRhythmTarget = (
             event.tick + duration.ticks > target.tick)
         );
       });
+    // 工具带与侧栏共享此目标，旧谱延音仍显示原节奏，但不开放时值或附点操作。
+    const continuation = event?.kind === "continuation";
     return {
       kind: "numbered" as const,
       target,
       rhythm,
-      enabled: !!target && !occupied,
-      reason: target && !occupied ? "" : "当前简谱目标已失效。",
+      enabled: !!target && !occupied && !continuation,
+      reason: continuation ? NUMBERED_CONTINUATION_RHYTHM_REASON : target && !occupied ? "" : "当前简谱目标已失效。",
     };
   }
   if (active)

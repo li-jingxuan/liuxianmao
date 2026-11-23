@@ -1,6 +1,6 @@
 /** 统一保护明确内容、重排实际 tick，并精确协调尾部容量休止。 */
 import { createMeasureRhythmContext } from "./tuplet";
-import { getMeasureCapacityTicks } from "./rhythm";
+import { getMeasureDurationTicks } from "./rhythm";
 import { collectMusicTextBeatIds } from "../music-text/music-text";
 import { createBeatAlignedRestBeats } from "./rest-beats";
 import type { ILXMMeasure } from "../types";
@@ -37,6 +37,7 @@ export const reconcileMeasureTimeline = (
   },
 ): MeasureTimelineResult => {
   const context = createMeasureRhythmContext(measure);
+  const capacity = getMeasureDurationTicks(measure);
   const prefixLength = getFixedPrefixLength(measure, options.protectedBeatIds);
   let tick = 0;
   const prefix = [];
@@ -46,7 +47,6 @@ export const reconcileMeasureTimeline = (
     prefix.push(beat.tick === tick ? beat : { ...beat, tick });
     tick += duration.ticks;
   }
-  const capacity = getMeasureCapacityTicks(measure.timeSignature);
   if (tick > capacity) return { ok: false, code: "MEASURE_OVERFLOW" };
   // 原尾部已经精确匹配时保留 ID 与对象引用，避免无关引用失效。
   const tail = measure.beats.slice(prefixLength);
