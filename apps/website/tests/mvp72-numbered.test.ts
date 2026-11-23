@@ -47,7 +47,7 @@ describe("MVP v7.2 简谱 mock", () => {
     const loaded = loadDocument(JSON.stringify(DEFAULT_MOCK_DOCUMENT));
     expect(loaded.ok, JSON.stringify(loaded)).toBe(true);
     expect(editorStore.getState().document).toEqual(DEFAULT_MOCK_DOCUMENT);
-    expect(DEFAULT_MOCK_DOCUMENT.documentRevision).toBe(540);
+    expect(DEFAULT_MOCK_DOCUMENT.documentRevision).toBe(724);
     expect(DEFAULT_MOCK_DOCUMENT.score).toMatchObject({
       title: "理想",
       keySignature: "G",
@@ -60,9 +60,10 @@ describe("MVP v7.2 简谱 mock", () => {
     );
     expect(track.measures.map((m) => m.numberedVoice.events.length)).toEqual([
       4, 4, 4, 4, 4, 4, 4, 4, 12, 12, 11, 5, 12, 10, 13, 5,
-      10, 4, 10, 5, 11, 10, 10, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      10, 4, 10, 5, 11, 10, 10, 7, 11, 11, 12, 9, 8, 12, 12, 6,
+      5, 11, 6, 5, 4, 12, 5, 14, 5, 4,
     ]);
-    expect(track.measures.flatMap((m) => m.numberedVoice.events)).toHaveLength(179);
+    expect(track.measures.flatMap((m) => m.numberedVoice.events)).toHaveLength(331);
     expect(track.techniques).toHaveLength(194);
     expect(track.measures.flatMap((m) => m.chordSymbols.map((c) => c.chord.name))).toEqual([
       "G", "C", "Asus2", "G", "G", "Am", "D", "G", "G", "Gadd9",
