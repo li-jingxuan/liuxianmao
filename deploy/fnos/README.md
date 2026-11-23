@@ -39,7 +39,7 @@ sh deploy.sh deploy "$WEB_IMAGE_ID" "$GATEWAY_IMAGE_ID" "$COMMIT_SHA"
 sh deploy.sh rollback
 ```
 
-Compose 从独立镜像启动 Next.js 和 Node Socket 代理。代理保留 `/app/liuxianmao` 请求路径，Next.js 监听 Compose 网络内的 `3000`，飞牛通过 `app.sock` 访问。脚本核对两个运行容器的镜像 ID，再从 Socket 检查首页、编辑器、品牌图标和当前和弦目录，并从宿主机验证同一个 Socket。切换版本期间可能短暂中断访问。
+Compose 从独立镜像启动 Next.js 和 Node Socket 代理。代理保留 `/app/liuxianmao` 请求路径，Next.js 监听 Compose 网络内的 `3000`，飞牛通过 `app.sock` 访问。脚本核对两个运行容器的镜像 ID，再从 Socket 检查首页及其编辑器预览图、编辑器、品牌图标和当前和弦目录，并从宿主机验证同一个 Socket。切换版本期间可能短暂中断访问。
 
 `releases` 第一行为当前通过检查的提交、应用镜像 ID 和网关镜像 ID，第二行为上一健康版本。候选版本检查失败时，脚本恢复当前健康版本并仍以失败退出。首发失败时，脚本停止失败容器并保留其日志。`pending` 记录中断或恢复失败的切换，下次调用时先完成恢复。保留当前和上一版本的 `liuxianmao-local:sha-*`、`liuxianmao-gateway-local:sha-*` 标签和镜像，用于恢复或回滚。
 

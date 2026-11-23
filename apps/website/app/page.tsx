@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, ChevronDown } from "lucide-react";
 import { BrandIcon } from "../components/BrandIcon";
+import { sitePath } from "../lib/site-path";
 import { HomeScoreActions } from "./HomeScoreActions";
 import { HomeScorePreview } from "./HomeScorePreview";
 import styles from "./page.module.scss";
@@ -60,8 +61,9 @@ export default function HomePage() {
           <figure className={styles.heroFigure}>
             <div className={styles.editorStage}>
               <div className={styles.editorFrame}>
+                {/* unoptimized 会直接输出 src，飞牛子路径部署时需要显式加上站点前缀。 */}
                 <Image
-                  src="/assets/home/editor-preview.png"
+                  src={sitePath("/assets/home/editor-preview.png")}
                   alt="六线猫编辑器。左侧谱面同时显示和弦图、六线谱、简谱和歌词，右侧是编辑面板。"
                   width={1440}
                   height={900}
