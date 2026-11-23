@@ -72,6 +72,25 @@ try {
   await page.waitForFunction(() => window.numberedSequenceTest.commands.length === 1 && !window.numberedSequenceTest.groups().content.dirty);
   assert.deepEqual((await events()).filter(event => event.tick < 960).map(event => [event.id, event.tick, event.items[0]?.token]), [["first", 0, "2"], ["middle", 480, "3"]]);
 
+  await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/__sequence__?scenario=adjacent-gaps`);
+  await input().waitFor();
+  const originalGapEvents = await events();
+  assert.equal(await rhythm(page).getByRole("button", { name: "三十二分音符", exact: true }).getAttribute("aria-pressed"), "true");
+  await rhythm(page).getByRole("button", { name: "八分音符", exact: true }).click();
+  assert.equal(await page.evaluate(() => window.numberedSequenceTest.commands.length), 0);
+  await input().fill("1");
+  assert.equal(await page.getByRole("button", { name: "应用简谱内容" }).isEnabled(), true);
+  await input().press("Enter");
+  await page.waitForFunction(() => window.numberedSequenceTest.commands.length === 1 && !window.numberedSequenceTest.groups().content.dirty);
+  const adjacentGapEvents = await events();
+  assert.deepEqual(adjacentGapEvents.map(event => [event.kind, event.tick, event.rhythm.base, event.items[0]?.token]), [
+    ["notes", 1680, "sixteenth", "6"], ["notes", 1920, "eighth", "1"],
+    ["gap", 2400, "thirtySecond", undefined], ["notes", 2880, "quarter", "7"],
+  ]);
+  assert.equal(adjacentGapEvents[2].id, "gap");
+  await page.evaluate(() => window.numberedSequenceTest.undo());
+  assert.deepEqual(await events(), originalGapEvents);
+
   await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/__sequence__?scenario=dependency`);
   await input().waitFor();
   await rhythm(page).getByRole("button", { name: "二分音符", exact: true }).click();
@@ -132,13 +151,16 @@ try {
   await page.waitForFunction(() => window.numberedSequenceTest.commands.length === 6 && !Object.values(window.numberedSequenceTest.groups()).some(group => group.dirty));
   assert.equal(await sidebarInput.inputValue(), "-");
   assert.equal(await popoverInput.inputValue(), "-");
-  assert.equal((await events())[0].rhythm.base, "eighth");
+  // 4/4 的延音占一个四分音符，原音的八分时值保留在撤销历史中。
+  assert.deepEqual((await events())[0].rhythm, { base: "quarter", dots: 0 });
   assert.equal((await events())[0].tick, 0);
-  await rhythm(sidebar).getByRole("button", { name: "延音", exact: true }).click();
+  assert.equal(await rhythm(sidebar).getByRole("button", { name: "单附点", exact: true }).isDisabled(), true);
+  assert.equal(await rhythm(sidebar).getByRole("button", { name: "八分音符", exact: true }).isDisabled(), true);
   assert.equal(await page.evaluate(() => window.numberedSequenceTest.commands.length), 6);
   assert.deepEqual(await page.evaluate(() => window.numberedSequenceTest.selections), []);
   await page.evaluate(() => window.numberedSequenceTest.undo());
   assert.deepEqual((await events())[0].items.map(item => item.token), ["1", "#3'"]);
+  assert.deepEqual((await events())[0].rhythm, { base: "eighth", dots: 0 });
   await page.waitForFunction(() => window.numberedSequenceTest.snapshot().raw === "1+#3'" && !Object.values(window.numberedSequenceTest.groups()).some(group => group.dirty));
   assert.equal(await sidebarInput.inputValue(), "1+#3'");
   assert.equal(await popoverInput.inputValue(), "1+#3'");
@@ -172,8 +194,8 @@ try {
   await rhythm(page).getByRole("button", { name: "延音", exact: true }).click();
   await page.waitForFunction(() => window.numberedSequenceTest.commands.length === 1 && !window.numberedSequenceTest.groups().content.dirty);
   assert.equal(await input().inputValue(), "-");
-  assert.equal((await events())[0].rhythm.base, "eighth");
-  await rhythm(page).getByRole("button", { name: "延音", exact: true }).click();
+  assert.deepEqual((await events())[0].rhythm, { base: "quarter", dots: 0 });
+  assert.equal(await rhythm(page).getByRole("button", { name: "延音", exact: true }).getAttribute("aria-pressed"), "true");
   assert.equal(await page.evaluate(() => window.numberedSequenceTest.commands.length), 1);
   await page.evaluate(() => window.numberedSequenceTest.undo());
   assert.deepEqual(await events(), []);

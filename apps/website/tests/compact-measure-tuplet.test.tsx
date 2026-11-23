@@ -52,6 +52,16 @@ describe("紧凑连音及小节即时控件", () => {
       sourceEndMeasureId: selection.focus.measureId, afterMeasureId: selection.focus.measureId,
     });
   });
+  it("把复制位置解析到来源轨道的曲首、曲末或指定稳定小节 ID", () => {
+    const { document, track, selection } = fixture();
+    const target = { trackId: track.id, measureId: selection.focus.measureId };
+    const command = (destination: import("../components/EditorShell/tools/editor-tool-actions").MeasureCopyDestination) =>
+      buildEditorToolCommand(document, selection, { type: "copyMeasures", target, destination });
+    expect(command({ kind: "start" })).not.toHaveProperty("afterMeasureId");
+    expect(command({ kind: "end" })).toMatchObject({ afterMeasureId: track.measures.at(-1)!.id });
+    expect(command({ kind: "after", measureId: track.measures[0]!.id })).toMatchObject({ afterMeasureId: track.measures[0]!.id });
+    expect(command({ kind: "after", measureId: "missing" })).toBeNull();
+  });
   it("删除预检不写原谱，并提供技巧及简谱关系影响", () => {
     const { document, track, measure } = fixture();
     const original = structuredClone(document);

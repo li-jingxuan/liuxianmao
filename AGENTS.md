@@ -20,10 +20,12 @@
 - 修复 Bug 或完成需求后，在对应行的「备注」补充验收路径。有合并提交时，在验收完成后补充分支名和提交号。
 
 ## lark-cli 凭证
-<!-- - 在本项目中运行 `lark-cli` 时，每次都显式传入 `--profile nice007`，例如 `lark-cli --profile nice007 whoami`。 -->
+- 在本项目中运行 `lark-cli` 时，每次都显式传入 `--profile nice007`，例如 `lark-cli --profile nice007 whoami`。
 
 ## 飞牛 NAS 连接
-- 管理地址为 `192.168.2.13:5666`，登录账号为 `nice007` 密码 123qwe....
+<!-- - 管理地址为 `192.168.2.13:5666` -->
+- 远程地址：tcp://1.tcp.cpolar.cn  prot：20642
+- SSH 登录账号: `nice007`,密码 123qwe....
 - 可以使用飞牛 skill 或 SSH。SSH 主机为 `192.168.2.13`，端口以 NAS 的 SSH 服务设置为准。
 - 需要密码时，通过 OpenChamber 的私密凭证卡输入。使用 SSH 时也可以使用已配置的密钥。
 

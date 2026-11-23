@@ -18,6 +18,8 @@ import {
   LXM_ARPEGGIO_DIRECTIONS,
   LXM_TRACK_START_BARLINE_TYPES,
   MAX_FRET,
+  MIN_SCORE_BPM,
+  MAX_SCORE_BPM,
   SCORE_DOCUMENT_SCHEMA,
 } from "../constants";
 import {
@@ -284,6 +286,7 @@ export const LXMBeatSchema = z
     kind: z.enum(LXM_BEAT_KINDS),
     notes: z.array(LXMNoteSchema),
     preserveInputRhythm: z.literal(true).optional(),
+    capacityRest: z.literal(true).optional(),
   })
   .strict() satisfies z.ZodType<ILXMBeat>;
 
@@ -412,6 +415,7 @@ export const LXMMeasureSchema = z
     tuplets: z.array(LXMTupletSchema),
     numberedVoice: LXMNumberedVoiceSchema,
     sectionLabel: musicTextSchema(32).optional(),
+    actualDurationTicks: z.number().int().positive().optional(),
   })
   .strict() satisfies z.ZodType<ILXMMeasure>;
 
@@ -447,6 +451,9 @@ export const LXMScoreSchema = z
         "编谱作者须为单行文字，最多 64 个字符",
       ),
     keySignature: z.enum(LXM_KEY_SIGNATURES).nullable(),
+    // 两个字段均可省略，原版本曲谱无需迁移或写入默认值。
+    tempoBpm: z.number().int().min(MIN_SCORE_BPM).max(MAX_SCORE_BPM).optional(),
+    showTempoMark: z.boolean().optional(),
     meta: LXMRecordSchema,
     tracks: z.array(LXMTrackSchema),
   })

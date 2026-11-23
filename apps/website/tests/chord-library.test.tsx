@@ -35,16 +35,12 @@ vi.mock("../components/EditorShell/chords/chord-catalog-resource", () => ({
     retry: async () => {},
   },
 }));
+// 通过发布清单选取测试数据，让界面断言始终覆盖网站当前提供的指法。
+const directory = new URL("../public/assets/chords/", import.meta.url);
+const manifest = JSON.parse(readFileSync(new URL("manifest.json", directory), "utf8"));
 const parsed = parseChordCatalog(
-  JSON.parse(
-    readFileSync(
-      new URL(
-        "../public/assets/chords/catalog-2026.11.11.1.json",
-        import.meta.url,
-      ),
-      "utf8",
-    ),
-  ),
+  JSON.parse(readFileSync(new URL(manifest.catalogUrl, directory), "utf8")),
+  manifest.dataVersion,
 );
 if (!parsed.ok) throw new Error(parsed.error);
 const catalog = parsed.catalog;

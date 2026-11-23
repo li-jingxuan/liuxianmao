@@ -157,6 +157,7 @@ export interface ILXMTechniqueArrowHeadLayout {
 export interface ILXMTechniqueSegmentLayout {
   techniqueId: string;
   type: ILXMTechniqueType;
+  strum?: { beatId: string; minString: number; maxString: number };
   systemIndex: number;
   segmentIndex: number;
   continuation: ILXMTechniqueContinuation;

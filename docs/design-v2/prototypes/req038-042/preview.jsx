@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Button, ConfigProvider, Input, Segmented, Select, Switch, Tag } from 'antd';
-import catalog from '../../../../apps/website/public/assets/chords/catalog-2026.11.11.1.json';
+import catalog from '../../../../apps/website/public/assets/chords/catalog-2026.11.11.2.json';
 import { queryChordCatalog } from '../../../../packages/lxm-editor/src/core/chords/chord-catalog';
 import { quickChordMatches, recommendedVoicing } from '../../../../apps/website/components/EditorShell/chords/chord-recommendations';
 

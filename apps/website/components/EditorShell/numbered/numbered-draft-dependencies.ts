@@ -50,10 +50,14 @@ export const numberedContentDependency = (
       }),
     });
   }
-  if (operation?.type === "numbered.sequence.overwrite" || operation?.type === "numbered.sequence.set") {
-    const plan = planNumberedSequenceOverwrite(track, { ...operation, allowOverwrite: true });
+  // 单个延音也依赖完整的覆盖范围，后续音符或锚点变化时要重新校验草稿。
+  const continuation = operation?.type === "numbered.event.set" && operation.tokens[0] === "-";
+  if (operation?.type === "numbered.sequence.overwrite" || operation?.type === "numbered.sequence.set" || continuation) {
+    const plan = planNumberedSequenceOverwrite(track, operation.type === "numbered.event.set"
+      ? { ...operation, items: [{ kind: "set", tokens: operation.tokens }], allowOverwrite: true }
+      : { ...operation, allowOverwrite: true });
     if (plan.ok) {
-      const explicit = operation.type === "numbered.sequence.overwrite" && !!operation.rhythms;
+      const explicit = continuation || (operation.type === "numbered.sequence.overwrite" && !!operation.rhythms);
       // A reflow can consume old events between planned onsets. Snapshot the
       // entire written interval, including events removed by the operation.
       return JSON.stringify(track.measures.flatMap(measure => {

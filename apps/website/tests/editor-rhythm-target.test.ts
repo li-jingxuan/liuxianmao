@@ -35,6 +35,15 @@ describe("工具栏实际时值目标", () => {
       ),
     ).toMatchObject({ kind: "numbered", enabled: true, rhythm: event.rhythm });
   });
+  it("工具栏禁用延音时值，保留旧谱书写值", () => {
+    const doc = structuredClone(document);
+    const melody = doc.score.tracks[0]!.measures[0]!.numberedVoice.events;
+    melody[0] = { ...melody[0]!, kind: "continuation", items: [{ id: "legacy-dash", token: "-" }] };
+    expect(resolveEditorRhythmTarget(doc, selection, {
+      kind: "numbered", trackId: track.id, measureId: measure.id, eventId: event.id,
+    }, preference, false)).toMatchObject({ kind: "numbered", enabled: false, rhythm: event.rhythm,
+      reason: expect.stringContaining("不能调整时值或添加附点") });
+  });
   it("直接点击空简谱继承同 tick 的长音与附点，显式选择仍优先", () => {
     const doc = structuredClone(document);
     const m = doc.score.tracks[0]!.measures[0]!;

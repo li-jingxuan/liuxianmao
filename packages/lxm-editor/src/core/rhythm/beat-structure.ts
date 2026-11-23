@@ -58,9 +58,10 @@ export const splitBeat = (
   const duration = calculateRhythmTicks(b.rhythm);
   if (!duration.ok || duration.ticks % 2)
     return { ok: false, message: "该时值不能精确等分。" };
+  // 主动拆写或合并休止符后，所得时值均属于编谱内容。
+  const { capacityRest: _capacityRest, ...body } = b;
   const rhythm = { ...b.rhythm, base },
-    first = { ...b, rhythm };
-  const body = b;
+    first = { ...body, rhythm };
   const second = {
     ...body,
     id: factory.createBeatId(),
@@ -212,13 +213,14 @@ export const mergeBeats = (
       });
     }
   }
+  const { capacityRest: _capacityRest, ...merged } = first;
   return finish(
     track,
     {
       ...m,
       beats: [
         ...m.beats.slice(0, start),
-        { ...first, rhythm },
+        { ...merged, rhythm },
         ...m.beats.slice(end + 1),
       ],
     },

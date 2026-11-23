@@ -113,6 +113,43 @@ describe("BUG044 当前演奏拍节奏型识别", () => {
   });
 });
 
+describe("短小节节奏型边界", () => {
+  it("拍内模板可用于容得下的完整拍，不能把半拍窗口归齐到小节外", () => {
+    const { document, target, measure } = fixture();
+    measure.actualDurationTicks = Q * 1.75;
+    measure.numberedVoice.events = measure.numberedVoice.events.slice(0, 2);
+    measure.beats = measure.beats.slice(0, 2);
+
+    const valid = planRhythmPattern(document, target, "eighths");
+    expect(valid.ok).toBe(true);
+    if (valid.ok) {
+      expect(valid.scope.endTick).toBe(Q);
+      const ends = valid.after.map(item => {
+        const duration = calculateRhythmTicks(item.rhythm);
+        return duration.ok ? item.tick + duration.ticks : Infinity;
+      });
+      expect(Math.max(...ends)).toBeLessThanOrEqual(Q * 2);
+    }
+
+    expect(planRhythmPattern(document, { ...target, startTick: Q + Q / 2, endTick: Q + Q / 2, focusTick: Q + Q / 2 }, "eighths"))
+      .toMatchObject({ ok: false });
+  });
+
+  it("整小节模板和一拍扫弦模板拒绝短小节，不生成越界计划", () => {
+    const { document, target, measure } = fixture();
+    measure.actualDurationTicks = Q * 1.75;
+    measure.numberedVoice.events = measure.numberedVoice.events.slice(0, 2);
+    measure.beats = measure.beats.slice(0, 2);
+
+    expect(planRhythmPattern(document, target, "measure-44-eighths"))
+      .toMatchObject({ ok: false, code: "RHYTHM_PATTERN_TEMPLATE_MISMATCH" });
+    expect(planRhythmPattern(document, { ...target, layer: "tab", focusTick: Q + Q / 2 }, "beat-strum-d"))
+      .toMatchObject({ ok: false });
+    expect(planRhythmPattern(document, { ...target, layer: "tab" }, "strum-down-up-down-up"))
+      .toMatchObject({ ok: false, code: "RHYTHM_PATTERN_TEMPLATE_MISMATCH" });
+  });
+});
+
 describe("REQ045 整小节模板", () => {
   it.each([
     [4, 4, 14, 4], [3, 4, 10, 3], [6, 8, 10, 2],
@@ -261,15 +298,15 @@ describe("REQ077 扫弦节奏模板", () => {
 describe("逐拍扫弦模板", () => {
   const approved = [
     ["d", "下", "四分音符", "下···"],
+    ["ddu", "下下上", "前八后十六", "下·下上"],
+    ["dudu", "下上下上", "四个十六分", "下上下上"],
+    ["dud", "下上下", "前十六后八", "下上下·"],
     ["du", "下上", "两个八分", "下·上·"],
+    ["dud-sync", "下上下", "小切分", "下上·下"],
     ["uud", "上上下", "前八后十六", "上·上下"],
     ["udud", "上下上下", "四个十六分", "上下上下"],
-    ["ddu", "下下上", "前八后十六", "下·下上"],
-    ["dud", "下上下", "前十六后八", "下上下·"],
     ["ud", "上下", "两个八分", "上·下·"],
-    ["dudu", "下上下上", "四个十六分", "下上下上"],
     ["uud-short", "上上下", "前十六后八", "上上下·"],
-    ["dud-sync", "下上下", "小切分", "下上·下"],
     ["du-dotted", "下上", "附点八分＋十六", "下··上"],
     ["ud-dotted", "上下", "十六＋附点八分", "上下··"],
   ] as const;
@@ -284,7 +321,7 @@ describe("逐拍扫弦模板", () => {
     return { document, track, measure, target: { ...target, layer: "tab" as const, startTick: Q, endTick: Q, focusTick: Q } };
   };
 
-  it.each([3, 4])("%s/4 的十二个模板遵循原型顺序、拍内方向与时值", numerator => {
+  it.each([3, 4])("%s/4 的十二个模板遵循参考图顺序、拍内方向与时值", numerator => {
     const { document, measure, target } = beatFixture();
     measure.timeSignature = { numerator, denominator: 4 };
     measure.beats = measure.beats.slice(0, numerator);

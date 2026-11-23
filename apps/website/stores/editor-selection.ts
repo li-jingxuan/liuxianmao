@@ -3,6 +3,7 @@ import {
   buildOrderedBeatIndex,
   createCollapsedTabCellSelection,
   getFirstTabCellReference,
+  getMeasureDurationTicks,
   LXMScoreCommandEnum,
   resolveTabCellSelection,
   type ILXMDocument,
@@ -11,6 +12,21 @@ import {
   type ILXMTabCellReference,
   type ILXMTabCellSelection,
 } from "@liuxianmao/lxm-editor";
+
+/** 离散选区保存扫弦及琶音记号 ID，同一四分拍内的八分和十六分起音互不包含。
+ * 文档替换、删除或撤销后按当前轨道重验。主技巧消失时结束编辑，避免把手柄挂在其它拍点上。 */
+export function reconcileTechniqueFocus(document: ILXMDocument | null, active: string | null, ids: readonly string[]) {
+  const track = active ? document?.score.tracks.find(item => item.techniques.some(t => t.id === active)) : null;
+  const technique = track?.techniques.find(t => t.id === active);
+  if (!track || !technique) return { selectedTechniqueId: null, selectedTraversalIds: [] };
+  const wanted = new Set(ids);
+  wanted.add(technique.id);
+  return {
+    selectedTechniqueId: technique.id,
+    selectedTraversalIds: technique.type === "strum" || technique.type === "arpeggio"
+      ? track.techniques.filter(t => (t.type === "strum" || t.type === "arpeggio") && wanted.has(t.id)).map(t => t.id) : [],
+  };
+}
 
 /** 简谱焦点只验证本谱层身份，不向最近 TAB Beat 偷偷回退。 */
 export const reconcileNumberedSelection = (
@@ -28,9 +44,7 @@ export const reconcileNumberedSelection = (
       : null;
   return target.tick >= 0 &&
     target.endTick > target.tick &&
-    target.endTick <=
-      (measure.timeSignature.numerator * 3840) /
-        measure.timeSignature.denominator &&
+    target.endTick <= getMeasureDurationTicks(measure) &&
     !measure.numberedVoice.events.some((event) => {
       const duration = createNumberedRhythmContext(
         measure.numberedVoice,
@@ -106,7 +120,10 @@ export const getSelectionCandidateAfterCommand = (
 ): ILXMTabCellSelection | null => {
   if (!selection) return null;
 
-  if (command.type === LXMScoreCommandEnum.SetTimeSignature) {
+  if (
+    command.type === LXMScoreCommandEnum.SetTimeSignature ||
+    command.type === LXMScoreCommandEnum.SetMeasureDuration
+  ) {
     const targetTrack = nextDocument.score.tracks.find(
       (candidate) => candidate.id === command.trackId,
     );
@@ -121,12 +138,12 @@ export const getSelectionCandidateAfterCommand = (
     if (!targetTrack || !targetMeasure || !firstTargetBeat) return selection;
 
     /**
-     * 拍号协调只会删除并重建尾部容量休止，真实内容 Beat ID 会保持稳定。因此逐个
-     * 检查端点：仍存在的端点原样保留；只有落在被替换休止上的端点才回到命令目标
+     * 缩短实际时长可能裁掉空白输入槽，改拍号可能重建尾部休止。逐个
+     * 检查端点：仍存在的端点原样保留；只有落在已移除槽位上的端点才回到命令目标
      * 小节首拍。多小节范围也统一回到用户最初操作的小节，避免突然跳到后续小节或
      * 整首谱第一格。弦号属于用户的垂直编辑位置，回退时继续保留。
      */
-    const reconcileTimeSignatureEndpoint = (
+    const reconcileMeasureEndpoint = (
       reference: ILXMTabCellReference,
     ): ILXMTabCellReference => {
       const beatStillExists = nextDocument.score.tracks
@@ -143,8 +160,8 @@ export const getSelectionCandidateAfterCommand = (
           };
     };
     return {
-      anchor: reconcileTimeSignatureEndpoint(selection.anchor),
-      focus: reconcileTimeSignatureEndpoint(selection.focus),
+      anchor: reconcileMeasureEndpoint(selection.anchor),
+      focus: reconcileMeasureEndpoint(selection.focus),
     };
   }
 

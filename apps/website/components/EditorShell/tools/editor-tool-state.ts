@@ -19,6 +19,7 @@ const available = (enabled: boolean, reason: string): ToolAvailability => ({
 export const deriveEditorToolState = (
   document: ILXMDocument,
   selection: ILXMTabCellSelection | null,
+  selectedTraversalIds: readonly string[] = [],
 ) => {
   const result = selection
     ? resolveTabCellSelection(document, selection)
@@ -81,12 +82,23 @@ export const deriveEditorToolState = (
   const selectedBeats = range?.beats.flatMap((reference) =>
     track?.measures.find((measure) => measure.id === reference.measureId)
       ?.beats.filter((beat) => beat.id === reference.beatId) ?? []) ?? [];
-  const rests = selectedBeats.filter((beat) => beat.kind === "rest").length;
+  const traversals = track?.techniques.filter((technique) => technique.type === "strum" || technique.type === "arpeggio") ?? [];
+  const traversalBeatIds = new Set(traversals.map((technique) => technique.beatId));
+  const selectedIds = new Set(selectedTraversalIds);
+  const discreteRestBeatIds = [...new Set(traversals.filter((technique) => selectedIds.has(technique.id)).map((technique) => technique.beatId))];
+  const discreteIds = new Set(discreteRestBeatIds);
+  // 技巧对象的 TAB 矩形仅用于定位。休止只作用于离散记号所在的拍；普通矩形则覆盖完整的时间范围。
+  const restBeats = track && discreteIds.size
+    ? track.measures.flatMap((measure) => measure.beats.filter((beat) => discreteIds.has(beat.id)))
+    : selectedBeats;
+  // 有扫弦或琶音的存储休止仍有发音内容，工具应显示为可设置休止。
+  const restBeatCount = restBeats.filter((beat) => beat.kind === "rest" && !traversalBeatIds.has(beat.id)).length;
   const hasContinuation = selectedBeats.some(isPureTabContinuationBeat);
-  const restState: "all" | "mixed" | "none" = selectedBeats.length && rests === selectedBeats.length
-    ? "all" : rests ? "mixed" : "none";
+  const restState: "all" | "mixed" | "none" = restBeats.length && restBeatCount === restBeats.length
+    ? "all" : restBeatCount ? "mixed" : "none";
   return {
     restState,
+    discreteRestBeatIds,
     range,
     focused,
     sustain: available(!sustainReason, sustainReason),
@@ -96,7 +108,7 @@ export const deriveEditorToolState = (
       range?.beats.length === 1 && !hasContinuation,
       hasContinuation ? "延音标记固定占一个单位拍，无附点。" : "时值与附点需要单拍选区，可同时选择多根弦。",
     ),
-    beatRange: available(!!range?.beats.length, "请先选择目标拍点。"),
+    beatRange: available(restBeats.length > 0, "请先选择目标拍点。"),
     singleMeasure: available(measureIds.size === 1, "请选择同一小节内的选区。"),
     removeMeasure: available(
       measureIds.size === 1 && !!track && track.measures.length > 1,

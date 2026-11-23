@@ -52,8 +52,9 @@ const fixture = () => {
   ] };
   return { document, track, measure };
 };
-const setup = (eventId: string) => {
+const setup = (eventId: string | number, adjust?: (measure: ReturnType<typeof fixture>["measure"], track: ReturnType<typeof fixture>["track"]) => void) => {
   const { document, track, measure } = fixture();
+  adjust?.(measure, track);
   const session = createEditorSession(document);
   expect(session.getState().document, session.getState().errorMessage ?? "valid fixture").not.toBeNull();
   const ref: RefObject<NumberedEditorController | null> = { current: null };
@@ -61,7 +62,8 @@ const setup = (eventId: string) => {
   let tree: ReactNode;
   const Harness = () => {
     harness.effects = [];
-    tree = NumberedEditor({ ref, document, target: { kind: "numbered", trackId: track.id, measureId: measure.id, eventId },
+    const target = typeof eventId === "string" ? { eventId } : { tick: eventId, endTick: eventId + 240 };
+    tree = NumberedEditor({ ref, document, target: { kind: "numbered", trackId: track.id, measureId: measure.id, ...target },
       mode: "sequence", commit, onDirty: () => {}, onInputActive: () => {}, onPreviewTargetChange: () => {},
       onActivate: () => {}, onCanApply: () => {}, onSelectTarget: () => {}, onModeChange: () => {}, onCancel: () => {},
       getClipboard: () => null, copyRange: () => false, selectedMarkId: null,
@@ -72,7 +74,7 @@ const setup = (eventId: string) => {
   harness.effects.splice(0).forEach((effect) => { const cleanup = effect(); if (cleanup) harness.cleanups.push(cleanup); });
   return { session, ref, commit, tree: tree! };
 };
-const findRhythm = (tree: ReactNode): { onChange: (base: "quarter", dots: number) => void } | null => {
+const findRhythm = (tree: ReactNode): { onChange: (base: "quarter", dots: number) => void; onSustain: () => void; disabled: boolean; disabledReason?: string; sustain: boolean } | null => {
   if (Array.isArray(tree)) {
     for (const child of tree) { const found = findRhythm(child); if (found) return found; }
   } else if (isValidElement<Record<string, unknown>>(tree)) {
@@ -119,6 +121,60 @@ describe("BUG036 fixed onset rhythm editing", () => {
     const result = ref.current!.setRhythm({ base: "quarter", dots: 0 });
     harness.submission!.cancel();
     expect(await result).toMatchObject({ status: "cancelled", group: "rhythm" });
+    expect(commit).not.toHaveBeenCalled();
+    expect(session.getState().document).toBe(before.document);
+    expect(session.getState().history).toBe(before.history);
+  });
+});
+
+describe("BUG067 continuation controls", () => {
+  it.each(["first", 2160])("the continuation button writes an undotted quarter at %s", (target) => {
+    const { tree, commit } = setup(target, (measure) => {
+      if (typeof target === "number") measure.numberedVoice.events = measure.numberedVoice.events.filter((event) => event.id !== "later");
+    });
+    findRhythm(tree)!.onSustain();
+    expect(commit).toHaveBeenCalledOnce();
+    const result = commit.mock.results[0]?.value;
+    expect(result).toMatchObject({ ok: true });
+    if (!result?.ok) return;
+    expect(result.document.score.tracks[0]?.measures[0]?.numberedVoice.events).toContainEqual(expect.objectContaining({
+      tick: target === "first" ? 0 : target, kind: "continuation", rhythm: { base: "quarter", dots: 0 },
+    }));
+  });
+
+  it("explains the blocked continuation button and leaves the following note and history intact", async () => {
+    const { tree, session, commit } = setup("target");
+    const before = session.getState();
+    findRhythm(tree)!.onSustain();
+    await Promise.resolve(); await Promise.resolve();
+    expect(harness.changes).toContainEqual(expect.stringContaining("会覆盖后续简谱事件"));
+    expect(commit).not.toHaveBeenCalled();
+    expect(session.getState().document).toBe(before.document);
+    expect(session.getState().history).toBe(before.history);
+  });
+
+  it("disables duration and dot controls for a continuation imported with old timing", async () => {
+    const { tree, ref, commit } = setup("target", (measure) => {
+      const event = measure.numberedVoice.events.find((item) => item.id === "target")!;
+      measure.numberedVoice.events[3] = { ...event, kind: "continuation", items: [{ id: "item-target", token: "-" }] };
+    });
+    const controls = findRhythm(tree)!;
+    expect(controls).toMatchObject({ disabled: true, disabledReason: expect.stringContaining("不能调整时值或添加附点"), sustain: true });
+    controls.onChange("quarter", 1);
+    expect(await ref.current!.setRhythm({ base: "quarter", dots: 1 })).toMatchObject({ status: "blocked" });
+    expect(commit).not.toHaveBeenCalled();
+  });
+
+  it("requests confirmation for a slur at the source and preserves it on cancel", () => {
+    const { tree, session, commit } = setup("first", (measure, track) => {
+      const [source] = measure.numberedVoice.events;
+      measure.numberedVoice.events[0] = { ...source!, kind: "notes", items: [{ id: "item-first", token: "1" }] };
+      track.numberedMarks = [{ id: "source-slur", type: "slur", fromEventId: "first", toEventId: "covered" }];
+    });
+    const before = session.getState();
+    findRhythm(tree)!.onSustain();
+    expect(harness.submission!.isBusy()).toBe(true);
+    harness.submission!.cancel();
     expect(commit).not.toHaveBeenCalled();
     expect(session.getState().document).toBe(before.document);
     expect(session.getState().history).toBe(before.history);

@@ -9,10 +9,16 @@ import {
 } from "../../src/core/chords/chord-catalog";
 import { browseChordCatalog } from "../../src/core/chords/chord-catalog-browse";
 
-const parsed = parseChordCatalog(JSON.parse(readFileSync(new URL(
-  "../../../../apps/website/public/assets/chords/catalog-2026.11.11.1.json",
+// 浏览测试跟随发布清单，覆盖用户实际加载的和弦数据版本。
+const directory = new URL(
+  "../../../../apps/website/public/assets/chords/",
   import.meta.url,
-), "utf8")));
+);
+const manifest = JSON.parse(readFileSync(new URL("manifest.json", directory), "utf8"));
+const parsed = parseChordCatalog(
+  JSON.parse(readFileSync(new URL(manifest.catalogUrl, directory), "utf8")),
+  manifest.dataVersion,
+);
 if (!parsed.ok) throw new Error(parsed.error);
 const catalog = parsed.catalog;
 const key = (tonicSpelling: string, mode: ChordCatalogKey["mode"] = "major"): ChordCatalogKey => ({

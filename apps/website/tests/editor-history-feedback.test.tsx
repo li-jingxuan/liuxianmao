@@ -51,12 +51,14 @@ const copy = (eventId: string): EditorFeedbackEvent => ({
 const panelProps = {
   open: true,
   entries: [item("A"), item("B"), item("C")],
+  tracks: [],
   appliedCount: 2,
   baselineAdvanced: false,
   sessionKey: 1,
   onClose: vi.fn(),
   onUndo: vi.fn(),
   onRedo: vi.fn(),
+  onRollback: vi.fn(() => 0),
   canUndo: true,
   canRedo: true,
 };
@@ -77,6 +79,10 @@ describe("历史列表只读呈现", () => {
     expect(markup.indexOf("操作 B")).toBeLessThan(markup.indexOf("操作 A"));
     expect(markup).toContain("已撤销");
     expect(markup).toContain("提交时第 7 小节");
+    expect(markup).toContain("撤回到此步：操作 A");
+    expect(markup).toContain("撤回到本次会话起点");
+    expect(markup).not.toContain("撤回到此步：操作 B");
+    expect(markup).not.toContain("撤回到此步：操作 C");
     expect(markup).toContain('id="editor-history-panel"');
     expect(markup).toContain("data-history-panel");
     expect(markup).not.toContain('role="dialog"');
@@ -88,6 +94,7 @@ describe("历史列表只读呈现", () => {
     expect(markup).toContain("更早状态（保留范围起点）");
     expect(markup.match(/已撤销/g)).toHaveLength(3);
     expect(markup.match(/>当前</g)).toHaveLength(1);
+    expect(markup).not.toContain("撤回到起点");
   });
   it("收起时不创建列表正文，空列表有明确说明", () => {
     expect(
@@ -117,10 +124,54 @@ describe("历史列表只读呈现", () => {
         expandedEntryIds={["C"]}
       />,
     );
-    expect(markup).toContain("此操作已撤销");
-    expect(markup).toContain("编辑前第 7 小节");
-    expect(markup).toContain("曾因目标或关系失效而移除");
+    expect(markup.match(/已撤销/g)).toHaveLength(1);
+    expect(markup).toContain("编辑前第 7 小节 · 移除上滑音");
+    expect(markup).not.toContain("此操作已撤销");
+    expect(markup).not.toContain("随操作一起提交");
     expect(JSON.stringify(entries)).toBe(before);
+  });
+  it("连续拍合成范围，非连续拍保留拍号，不合并不同影响和原小节位置", () => {
+    const retimed = (
+      beatNumber: number,
+      measureId = "m7",
+    ): ILXMCommandEffect => ({
+      kind: "beat.retimed",
+      trackId: "track",
+      measureId,
+      measureNumber: 7,
+      beatId: `b${beatNumber}`,
+      beatNumber,
+      beforeTick: 0,
+      afterTick: 1,
+    });
+    const tracks = [
+      {
+        id: "track",
+        measures: Array.from({ length: 7 }, (_, i) => ({ id: `m${i + 1}` })),
+      },
+    ];
+    const markup = renderToStaticMarkup(
+      <EditorHistoryPanel
+        {...panelProps}
+        tracks={tracks}
+        appliedCount={1}
+        expandedEntryIds={["A"]}
+        entries={[
+          item("A", [
+            retimed(5),
+            retimed(3),
+            retimed(2),
+            retimed(2, "removed"),
+            { ...effect, measureId: "m7" },
+            { ...omission, measureId: "m7" },
+          ]),
+        ]}
+      />,
+    );
+    expect(markup).toContain("第 7 小节 · 第 2–3、5 拍起点调整");
+    expect(markup).toContain("编辑前第 7 小节 · 第 2 拍起点调整");
+    expect(markup).toContain("第 7 小节 · 移除上滑音");
+    expect(markup).toContain("复制范围第 7 小节 · 上滑音跨越边界，未复制");
   });
   it("分叉和裁切清理不存在及无详情 ID，不复用到其他条目", () => {
     expect(
@@ -138,6 +189,7 @@ describe("历史列表只读呈现", () => {
     expect(markup).toContain('aria-modal="true"');
     expect(markup).toContain('tabindex="-1"');
     expect(markup.match(/disabled=""/g)).toHaveLength(2);
+    expect(markup).not.toContain("撤回到此步");
     const rail = renderToStaticMarkup(
       <EditorHistoryRail open onToggle={() => {}} />,
     );

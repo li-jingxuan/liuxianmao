@@ -3,7 +3,10 @@
 import { useEffect, useId, useMemo, useState, type Ref } from "react";
 import { History, Redo2, Undo2, X, ChevronDown } from "lucide-react";
 import type { ILXMCommandEffect } from "@liuxianmao/lxm-editor";
-import { EditorImpactDetails } from "./EditorImpactNotice";
+import {
+  formatHistoryImpacts,
+  type HistoryImpactTrack,
+} from "./EditorImpactNotice";
 import styles from "./EditorHistoryPanel.module.scss";
 
 /** Structurally compatible with the store metadata; no score snapshots required. */
@@ -40,6 +43,7 @@ export const reconcileExpandedHistoryIds = (
 
 export interface EditorHistoryRailProps {
   open: boolean;
+  disabled?: boolean;
   panelId?: string;
   onToggle: () => void;
   buttonRef?: Ref<HTMLButtonElement>;
@@ -47,6 +51,7 @@ export interface EditorHistoryRailProps {
 
 export const EditorHistoryRail = ({
   open,
+  disabled = false,
   panelId = "editor-history-panel",
   onToggle,
   buttonRef,
@@ -57,7 +62,8 @@ export const EditorHistoryRail = ({
       type="button"
       className={styles.railButton}
       aria-label="操作历史"
-      title="操作历史"
+      title={disabled ? "试听期间无法打开操作历史" : "操作历史"}
+      disabled={disabled}
       aria-expanded={open}
       aria-controls={panelId}
       onClick={onToggle}
@@ -72,6 +78,7 @@ export interface EditorHistoryPanelProps {
   open: boolean;
   modal?: boolean;
   entries: readonly EditorHistoryItem[];
+  tracks: readonly HistoryImpactTrack[];
   appliedCount: number;
   baselineAdvanced: boolean;
   sessionKey: string | number;
@@ -80,6 +87,7 @@ export interface EditorHistoryPanelProps {
   onClose: () => void;
   onUndo: () => void;
   onRedo: () => void;
+  onRollback: (entryId: string | null) => number;
   canUndo: boolean;
   canRedo: boolean;
   blocked?: boolean;
@@ -90,6 +98,7 @@ export const EditorHistoryPanel = ({
   open,
   modal = false,
   entries,
+  tracks,
   appliedCount,
   baselineAdvanced,
   sessionKey,
@@ -98,12 +107,17 @@ export const EditorHistoryPanel = ({
   onClose,
   onUndo,
   onRedo,
+  onRollback,
   canUndo,
   canRedo,
   blocked = false,
 }: EditorHistoryPanelProps) => {
   const titleId = useId();
   const detailsPrefix = useId();
+  const [announcement, setAnnouncement] = useState<{
+    sessionKey: string | number;
+    text: string;
+  }>();
   const [stored, setLocal] = useState<{
     sessionKey: string | number;
     entries: readonly EditorHistoryItem[];
@@ -157,6 +171,25 @@ export const EditorHistoryPanel = ({
     setLocal({ sessionKey, entries, ids: next });
     onExpandedEntryIdsChange?.(next);
   };
+  const rollback = (
+    entryId: string | null,
+    label: string,
+    button: HTMLButtonElement,
+  ) => {
+    const title = button.parentElement?.querySelector("strong");
+    const undoneCount = onRollback(entryId);
+    if (!undoneCount) return;
+    // 成功后该条目成为当前状态，按钮会消失，把焦点留在目标条目标题。
+    title?.focus({ preventScroll: true });
+    setAnnouncement({
+      sessionKey,
+      text: `已撤销 ${undoneCount} 步。当前：${label}`,
+    });
+  };
+  const baselineLabel = baselineAdvanced
+    ? "更早状态（保留范围起点）"
+    : "本次会话起点";
+  const showRollback = canUndo && !blocked;
   const Container = modal ? "section" : "aside";
   return (
     <Container
@@ -198,10 +231,22 @@ export const EditorHistoryPanel = ({
                     data-entry-id={entry.id}
                   >
                     <div className={styles.entryHeading}>
-                      <strong>{entry.label}</strong>
+                      <strong tabIndex={-1}>{entry.label}</strong>
                       {current && <span className={styles.badge}>当前</span>}
                       {undone && (
                         <span className={styles.undoneBadge}>已撤销</span>
+                      )}
+                      {showRollback && !current && !undone && (
+                        <button
+                          type="button"
+                          className={styles.rollback}
+                          aria-label={`撤回到此步：${entry.label}，${entry.target.summary}`}
+                          onClick={(event) =>
+                            rollback(entry.id, entry.label, event.currentTarget)
+                          }
+                        >
+                          撤回到此步
+                        </button>
                       )}
                     </div>
                     <p className={styles.target}>{entry.target.summary}</p>
@@ -226,12 +271,13 @@ export const EditorHistoryPanel = ({
                           />
                         </button>
                         {expanded && (
-                          <div id={detailId} className={styles.impact}>
-                            <EditorImpactDetails
-                              effects={entry.effects}
-                              context={undone ? "undone" : "committed"}
-                            />
-                          </div>
+                          <ul id={detailId} className={styles.impact}>
+                            {formatHistoryImpacts(entry.effects, tracks).map(
+                              ({ key, text }) => (
+                                <li key={key}>{text}</li>
+                              ),
+                            )}
+                          </ul>
                         )}
                       </>
                     )}
@@ -243,13 +289,21 @@ export const EditorHistoryPanel = ({
               className={`${styles.baseline} ${appliedCount === 0 ? styles.current : ""}`}
             >
               <div className={styles.entryHeading}>
-                <strong>
-                  {baselineAdvanced
-                    ? "更早状态（保留范围起点）"
-                    : "本次会话起点"}
-                </strong>
+                <strong tabIndex={-1}>{baselineLabel}</strong>
                 {appliedCount === 0 && (
                   <span className={styles.badge}>当前</span>
+                )}
+                {showRollback && appliedCount > 0 && (
+                  <button
+                    type="button"
+                    className={styles.rollback}
+                    aria-label={`撤回到${baselineAdvanced ? "保留范围起点" : baselineLabel}`}
+                    onClick={(event) =>
+                      rollback(null, baselineLabel, event.currentTarget)
+                    }
+                  >
+                    撤回到起点
+                  </button>
                 )}
               </div>
               <p className={styles.target}>
@@ -262,7 +316,6 @@ export const EditorHistoryPanel = ({
         </div>
       )}
       <footer className={styles.footer}>
-        <p>仅逐步撤销／重做，不跳转历史</p>
         <div>
           <button type="button" disabled={!canUndo || blocked} onClick={onUndo}>
             <Undo2 size={14} aria-hidden="true" />
@@ -274,6 +327,9 @@ export const EditorHistoryPanel = ({
           </button>
         </div>
       </footer>
+      <span className={styles.visuallyHidden} role="status">
+        {announcement?.sessionKey === sessionKey ? announcement.text : ""}
+      </span>
     </Container>
   );
 };

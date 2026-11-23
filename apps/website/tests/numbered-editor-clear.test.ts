@@ -192,6 +192,7 @@ const setup = (
         onActivate: () => {},
         onCanApply: () => {},
         onSelectTarget: () => {},
+        textAdvance: { checked: true, onChange: () => {} },
         mode,
         onModeChange: () => {},
         onCancel: () => {},
@@ -254,26 +255,22 @@ describe("clearing a single numbered event", () => {
     expect(commit.mock.calls[0]![0]).not.toHaveProperty("itemId");
   });
 
-  it.each([undefined, true, false])(
-    "apply advance=%s controls the next target at submission success",
-    async (advance) => {
-      const { ref } = setup("");
-      harness.stateChanges = [];
-      const applyCurrent = ref.current!.apply;
-      expect(
-        await applyCurrent(undefined, { advance }),
-      ).toMatchObject({ status: "applied" });
-      expect(
-        harness.stateChanges.some(
-          (value) =>
-            typeof value === "object" &&
-            value !== null &&
-            "kind" in value &&
-            value.kind === "numbered",
-        ),
-      ).toBe(advance === true);
-    },
-  );
+  it("primary apply does not advance when clearing, even with advance checked", async () => {
+    const { ref } = setup("");
+    harness.stateChanges = [];
+    expect(await ref.current!.applyContent()).toMatchObject({ status: "applied" });
+    expect(harness.stateChanges).not.toContainEqual(expect.objectContaining({ surface: "sidebar" }));
+  });
+
+  it.each(["primary", "global"] as const)("only a %s text apply eligible for advance can queue a new target", async (entry) => {
+    const { ref } = setup("7");
+    harness.stateChanges = [];
+    const result = await (entry === "primary" ? ref.current!.applyContent(undefined, "popover") : ref.current!.apply());
+    expect(result).toMatchObject({ status: "applied" });
+    const advance = expect.objectContaining({ surface: "popover", target: expect.objectContaining({ kind: "numbered" }) });
+    if (entry === "primary") expect(harness.stateChanges).toContainEqual(advance);
+    else expect(harness.stateChanges).not.toContainEqual(advance);
+  });
 
   it.each(["", " \n\t "])("an existing gap stays clean for %j", async (raw) => {
     const { ref, commit, session, document, html } = setup(raw, "gap");
@@ -355,7 +352,7 @@ describe("clearing a single numbered event", () => {
     );
     harness.stateChanges = [];
     const applyCurrent = ref.current!.apply;
-    const pending = applyCurrent(undefined, { advance: false });
+    const pending = applyCurrent();
     expect(harness.submission!.isBusy()).toBe(true);
     expect(commit).not.toHaveBeenCalled();
     harness.submission!.confirm();

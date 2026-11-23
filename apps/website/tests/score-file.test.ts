@@ -10,7 +10,9 @@ import {
   applyScoreCommand,
   LXMScoreCommandEnum,
   getFirstTabCellReference,
+  getMeasureDurationTicks,
 } from "@liuxianmao/lxm-editor";
+import { createBlankScore } from "../components/EditorShell/output/new-score";
 import { createEditorSession } from "../stores/editor-store";
 import {
   decodeScoreFile,
@@ -42,6 +44,36 @@ const expectIndependentObjects = (source: unknown, copy: unknown): void => {
 
 /** 不仅断言 JSON 可解析，还实际走下载字节、载入、布局和编辑命令。 */
 describe("原生曲谱文件往返", () => {
+  it("新建谱的段中短小节保留有效选区，复制和存档保留实际时长，新插入小节继承完整拍号", () => {
+    const document = createBlankScore({ title: "短小节", arranger: "", timeSignature: { numerator: 4, denominator: 4 },
+      tonality: { version: 1, mode: "major", tonic: "C" } });
+    const session = createEditorSession(document);
+    const track = document.score.tracks[0]!;
+    const measure = track.measures[1]!;
+    const last = { trackId: track.id, measureId: measure.id, beatId: measure.beats[3]!.id, string: 2 };
+    session.getState().setSelection({ anchor: last, focus: last });
+    const result = session.getState().execute({ type: LXMScoreCommandEnum.SetMeasureDuration,
+      trackId: track.id, measureId: measure.id, durationTicks: 1920 });
+    if (!result?.ok) throw new Error(result?.message ?? "缩短失败");
+    const resized = result.document.score.tracks[0]!.measures[1]!;
+    expect(resized.beats.map(beat => beat.id)).toEqual(measure.beats.slice(0, 2).map(beat => beat.id));
+    expect(session.getState().selection?.focus).toEqual({ ...last, beatId: resized.beats[0]!.id });
+    session.getState().undo();
+    expect(session.getState().document).toEqual(document);
+    session.getState().redo();
+    expect(session.getState().execute({ type: LXMScoreCommandEnum.CopyMeasure,
+      trackId: track.id, measureId: measure.id })?.ok).toBe(true);
+    expect(session.getState().execute({ type: LXMScoreCommandEnum.InsertMeasure,
+      trackId: track.id, afterMeasureId: measure.id })?.ok).toBe(true);
+    const saved = serializeScoreFile(session.getState().document!);
+    if (!saved.ok) throw new Error(saved.errors.join("；"));
+    const reopened = decodeScoreFile(encode(saved.text));
+    if (!reopened.ok) throw new Error(reopened.errors.join("；"));
+    const measures = reopened.document.score.tracks[0]!.measures;
+    expect(measures.map(getMeasureDurationTicks)).toEqual([3840, 1920, 3840, 1920, 3840, 3840]);
+    expect(measures.every(item => item.timeSignature.numerator === 4 && item.timeSignature.denominator === 4)).toBe(true);
+  });
+
   it("旧文件只在文件导入预检中显式升级，宿主加载仍严格拒绝旧格式", () => {
     const legacyScore = {
       ...structuredClone(EXAMPLE_MVP_7_2_DOCUMENT),
@@ -54,6 +86,8 @@ describe("原生曲谱文件往返", () => {
             measures: track.measures.map(
               ({ numberedVoice: _voice, ...measure }) => ({
                 ...measure,
+                // v7 固定格式没有自动补空的来源字段，新版示例须还原为当时的文件形状。
+                beats: measure.beats.map(({ capacityRest: _capacityRest, ...beat }) => beat),
                 lyrics: [],
               }),
             ),

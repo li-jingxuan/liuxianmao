@@ -37,6 +37,39 @@ const addTie = (data = fixture()) => execute(data.document,
   { type: C.AddTechnique, trackId: data.track.id, technique: data.draft }).document;
 
 describe("扫弦/琶音延音线", () => {
+  it("矩形休止清除已存储为休止的扫弦和琶音及其延音线，并保留其他小节", () => {
+    const data = fixture();
+    const unrelated = { id: "unrelated", beatId: "b-0", type: "strum", stroke: "up", minString: 1, maxString: 3 } as const;
+    data.track.techniques.push(unrelated);
+    const document = addTie(data);
+    const result = execute(document, {
+      type: C.SetBeatKindRange, kind: "rest",
+      range: { trackId: data.track.id, anchor: { measureId: "a", beatId: "a-0" }, focus: { measureId: "a", beatId: "a-1" } },
+    });
+    expect(result.document.documentRevision).toBe(document.documentRevision + 1);
+    expect(result.document.score.tracks[0]!.techniques).toEqual([unrelated]);
+    expect(result.document.score.tracks[0]!.measures[0]).toBe(data.track.measures[0]);
+    expect(result.document.score.tracks[0]!.measures[1]).toBe(data.track.measures[1]);
+  });
+
+  it("离散休止跳过中间拍并原子拒绝失效拍点", () => {
+    const data = fixture();
+    const later = { id: "later", beatId: "a-2", type: "strum", stroke: "up", minString: 1, maxString: 3 } as const;
+    data.track.techniques.push(later);
+    const beat = data.track.measures[0]!.beats[2]!;
+    beat.kind = "notes";
+    beat.notes = [{ id: "later-note", string: 1, fret: 2 }];
+    const document = addTie(data);
+    const command = { type: C.SetBeatKindForBeats, kind: "rest", trackId: data.track.id, beatIds: ["a-2", "a-0"] } as const;
+    expect(applyScoreCommand(document, { ...command, beatIds: ["a-0", "missing"] })).toMatchObject({ ok: false, code: "INVALID_BEAT_RANGE" });
+    const result = execute(document, command);
+    expect(result.document.score.tracks[0]!.techniques).toEqual([data.track.techniques[1]]);
+    const after = result.document.score.tracks[0]!.measures[0]!.beats;
+    expect(after[1]).toBe(data.track.measures[0]!.beats[1]);
+    expect(after[2]).toMatchObject({ kind: "rest", notes: [], rhythm: beat.rhythm });
+    expect(execute(result.document, command).changed).toBe(false);
+  });
+
   it.each(["rest", "notes"] as const)("保留两端无音符的 %s 拍，支持单弦交集、往返加载和重复新增", (kind) => {
     const data = fixture();
     for (const beat of data.track.measures[0]!.beats.slice(0, 2)) beat.kind = kind;

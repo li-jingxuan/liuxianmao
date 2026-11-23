@@ -23,3 +23,4 @@
   > button { width: 24px; height: 24px; padding: 0; }
 }
 .sidebarControls { display: grid; gap: 12px; }
+.durationControl { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }

@@ -1,11 +1,11 @@
 import {
   calculateRhythmTicks,
-  getMeasureCapacityTicks,
+  getMeasureDurationTicks,
   getTimeSignatureBeatGroupTicks,
 } from "../rhythm/rhythm";
-import { createNumberedRhythmContext } from "./numbered-rhythm";
+import { createNumberedRhythmContext, NUMBERED_CONTINUATION_RHYTHM_REASON } from "./numbered-rhythm";
 import { numberedRhythmForTicks } from "./numbered-input-ranges";
-import type { ILXMMeasure, ILXMNumberedVoice, ILXMRhythm } from "../types";
+import type { ILXMMeasure, ILXMNumberedEvent, ILXMNumberedVoice, ILXMRhythm } from "../types";
 
 export type NumberedTimelineErrorCode =
   | "EVENT_NOT_FOUND"
@@ -42,6 +42,8 @@ export const planNumberedEventRhythm = (
   if (index < 0)
     return { ok: false, code: "EVENT_NOT_FOUND", message: "简谱事件不存在" };
   const target = events[index]!;
+  if (target.kind === "continuation")
+    return { ok: false, code: "INVALID_RHYTHM", message: NUMBERED_CONTINUATION_RHYTHM_REASON };
   const context = createNumberedRhythmContext(voice);
   if (context.tupletByEventId.has(eventId))
     return { ok: false, code: "EVENT_IN_TUPLET", message: "连音成员须整组修改时值" };
@@ -55,9 +57,9 @@ export const planNumberedEventRhythm = (
   if (target.rhythm.base === rhythm.base && target.rhythm.dots === rhythm.dots) return result;
   const oldEnd = target.tick + previous.ticks;
   const endTick = target.tick + next.ticks;
-  if (endTick > getMeasureCapacityTicks(measure.timeSignature))
+  if (endTick > getMeasureDurationTicks(measure))
     return { ok: false, code: "TIMELINE_OVERFLOW", message: "简谱时值超出小节容量" };
-  const updates = new Map([[target.id, { ...target, rhythm: { ...rhythm } }]]);
+  const updates = new Map<string, ILXMNumberedEvent>([[target.id, { ...target, rhythm: { ...rhythm } }]]);
   result.resizedEventIds.push(target.id);
   if (target.rhythm.base === rhythm.base && target.rhythm.dots !== rhythm.dots) {
     const following = events[index + 1];
@@ -82,10 +84,13 @@ export const planNumberedEventRhythm = (
         } else result.overwrittenEventIds.push(gap.id);
       }
     } else if (adjust) {
+      // 附点互补会移动并改写相邻事件，已有延音不能作为可调整的后音。
+      if (following.kind === "continuation")
+        return { ok: false, code: "CANNOT_COMPRESS", message: NUMBERED_CONTINUATION_RHYTHM_REASON };
       const duration = context.getEventDurationTicks(following);
       const followingEnd = duration.ok ? following.tick + duration.ticks : NaN;
       let boundary = 0;
-      for (const ticks of getTimeSignatureBeatGroupTicks(measure.timeSignature) ?? [getMeasureCapacityTicks(measure.timeSignature)]) {
+      for (const ticks of getTimeSignatureBeatGroupTicks(measure.timeSignature) ?? [getMeasureDurationTicks(measure)]) {
         boundary += ticks;
         if (boundary > target.tick) break;
       }
@@ -100,6 +105,8 @@ export const planNumberedEventRhythm = (
     }
   } else if (next.ticks > previous.ticks) {
     const covered = events.filter(event => event.id !== eventId && event.tick >= target.tick && event.tick < endTick);
+    if (covered.some(event => event.kind === "continuation"))
+      return { ok: false, code: "CANNOT_COMPRESS", message: "时值扩展不能覆盖已有简谱延音。" };
     if (covered.some(event => context.tupletByEventId.has(event.id)))
       return { ok: false, code: "EVENT_IN_TUPLET", message: "时值扩展不能覆盖连音组，请使用整组窗口编辑" };
     result.overwrittenEventIds = covered.map(event => event.id);

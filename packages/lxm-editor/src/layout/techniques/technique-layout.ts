@@ -24,6 +24,7 @@ import {
   LXM_TECHNIQUE_NOTE_CLEARANCE_Y,
   LXM_TECHNIQUE_FRET_GAP_X,
   LXM_TECHNIQUE_CURVE_HEIGHT,
+  LXM_TECHNIQUE_CURVE_INK_GAP,
   LXM_TECHNIQUE_CURVE_FRET_GAP_Y,
   LXM_TECHNIQUE_STAFF_CLEARANCE_Y,
   LXM_NATURAL_HARMONIC_TEXT_FONT_SIZE,
@@ -169,7 +170,7 @@ const getChordTraversalSuppressionRanges = (
   });
 
 /**
- * 在所有时值、技巧 anchor 与 SVG segment 完成后，裁剪最终可见的基础品位和休止符。
+ * 在建立完整的技巧 anchor 后，裁剪最终可见的基础品位和休止符。
  * 休止符属于整拍，只要该拍存在有效扫弦/琶音范围就隐藏；源 Beat 保留以便删除技巧后恢复。
  * 保持结构共享既减少无关对象变化，也让调用方可以可靠判断哪些 system/measure
  * 真正受到了投影影响。
@@ -344,6 +345,7 @@ const assignLanes = (
   candidates: ILXMTechniqueCandidate[],
   naturalPlans: Map<ILXMTechniqueCandidate, ILXMTechniqueSegmentLayout>,
   anchors: ILXMAnchorMaps,
+  visibleSystems: ILXMSystemLayout[],
 ): Map<number, ILXMTechniqueSegmentLayout[]> => {
   const segmentsBySystem = new Map<number, ILXMTechniqueSegmentLayout[]>();
   const ordered = [...candidates].sort((left, right) => {
@@ -405,17 +407,21 @@ const assignLanes = (
         .get(technique.beatId)
         ?.notes.forEach((note) => ownNoteIds.add(note.id));
     }
-    // 区间说明始终位于 staff 上方；只有音符局部技巧需要避让其它品位文字。
+    // 扫弦延音线贴近谱线，需避让实际可见的品位；区间说明仍保持较高位置。
     const obstacles =
-      candidate.staffLocal || "fromBeatId" in technique
-        ? []
-        : [...anchors.notes.values()]
-            .filter(
-              (note) =>
-                note.systemIndex === candidate.systemIndex &&
-                !ownNoteIds.has(note.layout.id),
-            )
-            .map((note) => getFretTextBounds(note.layout));
+      technique.type === "traversalTie"
+        ? visibleSystems[candidate.systemIndex]!.measures.flatMap((measure) =>
+            measure.notes.map(getFretTextBounds),
+          )
+        : candidate.staffLocal || "fromBeatId" in technique
+          ? []
+          : [...anchors.notes.values()]
+              .filter(
+                (note) =>
+                  note.systemIndex === candidate.systemIndex &&
+                  !ownNoteIds.has(note.layout.id),
+              )
+              .map((note) => getFretTextBounds(note.layout));
     let lane = candidate.staffLocal ? -1 : bendLane;
     let segment =
       lane > 0
@@ -427,9 +433,13 @@ const assignLanes = (
     } else if (!candidate.staffLocal) {
       while (
         placed.some((other) => techniqueInkIntersects(segment, other)) ||
-        obstacles.some((bounds) =>
-          boundsIntersect(segment.collisionBounds, bounds),
-        )
+        (technique.type === "traversalTie"
+          ? getTechniqueInkBounds(segment).some((piece) =>
+              obstacles.some((bounds) => boundsIntersect(piece, bounds)),
+            )
+          : obstacles.some((bounds) =>
+              boundsIntersect(segment.collisionBounds, bounds),
+            ))
       ) {
         lane += 1;
         segment = translateTechniqueSegment(
@@ -603,6 +613,10 @@ const createNaturalSegmentLayout = (
   candidate: ILXMTechniqueCandidate,
   system: ILXMSystemLayout,
   anchors: ILXMAnchorMaps,
+  traversalTieAnchors?: {
+    topByBeatId: ReadonlyMap<string, number>;
+    visibleNoteIds: ReadonlySet<string>;
+  },
 ): ILXMTechniqueSegmentLayout => {
   const technique = candidate.technique;
   const anchorNotes: ILXMNoteLayout[] = [];
@@ -723,12 +737,23 @@ const createNaturalSegmentLayout = (
         ];
     }
   } else if (technique.type === "traversalTie") {
+    const inkTop = Math.min(
+      staffTop,
+      ...candidate.coveredBeatIds.map(
+        (id) => traversalTieAnchors?.topByBeatId.get(id) ?? staffTop,
+      ),
+      ...rangeNotes
+        .filter((note) => traversalTieAnchors?.visibleNoteIds.has(note.id))
+        .map((note) => getFretTextBounds(note).y),
+    );
+    const tieY =
+      inkTop - LXM_TECHNIQUE_CURVE_INK_GAP - LXM_TECHNIQUE_PATH_STROKE_WIDTH / 2;
     x1 = candidate.x1;
     x2 = Math.max(x1, candidate.x2);
-    path = upwardCurvePath(x1, x2, laneY);
+    path = upwardCurvePath(x1, x2, tieY);
     focusEndpoints = {
-      start: { x: x1, y: laneY },
-      end: { x: x2, y: laneY },
+      start: { x: x1, y: tieY },
+      end: { x: x2, y: tieY },
     };
   } else if ("fromBeatId" in technique) {
     const label = technique.type === "palmMute" ? "P.M." : "let ring";
@@ -927,6 +952,9 @@ const createNaturalSegmentLayout = (
   return withTechniqueBounds({
     techniqueId: technique.id,
     type: technique.type,
+    ...(technique.type === "strum" && path ? {
+      strum: { beatId: technique.beatId, minString: technique.minString, maxString: technique.maxString },
+    } : {}),
     systemIndex: candidate.systemIndex,
     segmentIndex: candidate.segmentIndex,
     continuation: candidate.continuation,
@@ -969,45 +997,60 @@ export const planTrackTechniques = (
     track.techniques.flatMap((t) => (t.type === "bend" ? [t.fromNoteId] : [])),
   );
   const candidates = createCandidates(track, baseSystems, baseAnchors);
-  const naturalPlans = new Map(
-    candidates.map((candidate) => [
-      candidate,
-      createNaturalSegmentLayout(
+  // 隐藏品位不参与扫弦延音线的避让，其他技巧仍使用完整的音符锚点。
+  const visibleSystems = applyChordTraversalVisibilityProjection(
+    projectedSystems,
+    getChordTraversalSuppressionRanges(track.techniques, baseAnchors),
+  );
+  const naturalPlans = new Map<ILXMTechniqueCandidate, ILXMTechniqueSegmentLayout>();
+  const topByBeatId = new Map<string, number>();
+  const ties = candidates.filter(({ technique }) => technique.type === "traversalTie");
+  for (const candidate of candidates) {
+    if (candidate.technique.type === "traversalTie") continue;
+    const plan = createNaturalSegmentLayout(
+      candidate, projectedSystems[candidate.systemIndex]!, baseAnchors,
+    );
+    naturalPlans.set(candidate, plan);
+    if (ties.length && hasChordTraversalRange(candidate.technique) && plan.path) {
+      const { beatId } = candidate.technique;
+      topByBeatId.set(beatId, Math.min(
+        topByBeatId.get(beatId) ?? Infinity,
+        ...getTechniqueInkBounds(plan).map((bounds) => bounds.y),
+      ));
+    }
+  }
+  if (ties.length) {
+    const visibleNoteIds = new Set(visibleSystems.flatMap((system) =>
+      system.measures.flatMap((measure) => measure.notes.map((note) => note.id)),
+    ));
+    for (const candidate of ties) {
+      naturalPlans.set(candidate, createNaturalSegmentLayout(
         candidate,
         projectedSystems[candidate.systemIndex]!,
         baseAnchors,
-      ),
-    ]),
-  );
-  const segmentsBySystem = assignLanes(candidates, naturalPlans, baseAnchors);
-  const systems = projectedSystems.map((system) => ({
+        { topByBeatId, visibleNoteIds },
+      ));
+    }
+  }
+  const segmentsBySystem = assignLanes(candidates, naturalPlans, baseAnchors, visibleSystems);
+  const systemsWithTechniques = visibleSystems.map((system) => ({
     ...system,
-    techniques: segmentsBySystem.get(system.index) ?? [],
-  }));
-  const systemsWithTechniques = systems.map((system) => ({
-    ...system,
-    techniques: [...system.techniques].sort(
+    techniques: (segmentsBySystem.get(system.index) ?? []).sort(
       (left, right) =>
         left.lane - right.lane ||
         left.bounds.x - right.bounds.x ||
         left.techniqueId.localeCompare(right.techniqueId),
     ),
   }));
-  // anchors 在投影前由完整 Note layout 建立；技巧跨度、时值符干与其他 Note 技巧
-  // 均已消费真实坐标。这里过滤只影响最终 adapter 可见的基础品位文本和休止符。
-  const visibleSystems = applyChordTraversalVisibilityProjection(
-    systemsWithTechniques,
-    getChordTraversalSuppressionRanges(track.techniques, baseAnchors),
-  );
   return naturalNoteIds.size
-    ? visibleSystems.map((system) => ({
+    ? systemsWithTechniques.map((system) => ({
         ...system,
         measures: system.measures.map((measure) => ({
           ...measure,
           notes: measure.notes.filter((note) => !naturalNoteIds.has(note.id)),
         })),
       }))
-    : visibleSystems;
+    : systemsWithTechniques;
 };
 
 /** 原公开门面复用同一规划；新联合布局在文本规划后统一平移。 */

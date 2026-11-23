@@ -97,6 +97,21 @@ describe("工具动作与目录", () => {
       buildEditorToolCommand(d, null, { type: "startRepeat", target }),
     ).toBeNull();
   });
+  it("小节时长使用明确目标并以四分音符 tick 派发", () => {
+    const d = EXAMPLE_MVP_7_2_DOCUMENT;
+    const track = d.score.tracks[0]!;
+    const measure = track.measures[1]!;
+    expect(buildEditorToolCommand(d, null, {
+      type: "measureDuration",
+      target: { trackId: track.id, measureId: measure.id },
+      durationTicks: 1440,
+    })).toEqual({
+      type: C.SetMeasureDuration,
+      trackId: track.id,
+      measureId: measure.id,
+      durationTicks: 1440,
+    });
+  });
   it("无效小节引用不回落为首小节，谱首反复使用独立边界", () => {
     const d = EXAMPLE_MVP_7_2_DOCUMENT,
       first = getFirstTabCellReference(d)!;

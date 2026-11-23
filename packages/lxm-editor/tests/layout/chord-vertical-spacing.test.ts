@@ -7,6 +7,7 @@ import {
 } from "../../src";
 import { getFretTextBounds } from "../../src/layout/techniques/technique-geometry";
 import type { ILXMSystemLayout } from "../../src/layout/layout-types";
+import { LXM_CHORD_CONTENT_CLEARANCE_Y } from "../../src/layout/layout-constants";
 
 /** 固定三小节低弦音符，隔离上方占位与同一行对齐行为。 */
 const createDocument = () => {
@@ -112,6 +113,29 @@ describe("和弦动态上方占位", () => {
       ),
     ).toBe(true);
     expect(chordGap(distant)).toBeCloseTo(chordGap(without));
+  });
+  it("BUG-061 扫弦延音线贴近弦线，和弦图在实际弧顶上方留出净空", () => {
+    const document = createDocument();
+    const track = document.score.tracks[0]!;
+    const [from, to] = track.measures[0]!.beats;
+    track.techniques = [
+      { id: "sweep-from", type: "strum", beatId: from!.id, minString: 1, maxString: 6, stroke: "up" },
+      { id: "sweep-to", type: "strum", beatId: to!.id, minString: 1, maxString: 6, stroke: "down" },
+      { id: "sweep-tie", type: "traversalTie", fromBeatId: from!.id, toBeatId: to!.id },
+    ];
+
+    const system = buildLayout(document, { systemWidth: 1800 }).systems[0]!;
+    const measure = system.measures[0]!;
+    const diagram = measure.chordSymbols![0]!.diagram!;
+    const tie = system.techniques.find((segment) => segment.type === "traversalTie")!;
+    const [, , startY, , , controlY, , endY] = tie.path!.d.split(" ");
+    const apexInkY = (Number(startY) + 2 * Number(controlY) + Number(endY)) / 4 - tie.path!.strokeWidth / 2;
+    const diagramBottom = diagram.bounds.y + diagram.bounds.height;
+    const staffTop = measure.strings[0]!.y1;
+    expect(staffTop - Number(startY)).toBeLessThan(6);
+    expect(apexInkY - diagramBottom).toBeCloseTo(LXM_CHORD_CONTENT_CLEARANCE_Y);
+    expect(staffTop - diagramBottom).toBeLessThan(14);
+    expectAligned(system);
   });
   it.each([true, false])(
     "不同品格高度、显示指法图 %s 与窄宽度换行按各行独立计算",

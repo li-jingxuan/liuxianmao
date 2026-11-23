@@ -35,6 +35,12 @@
   background: #e4efff;
   color: #2563eb;
 }
+.railButton:disabled {
+  opacity: 0.45;
+  background: transparent;
+  color: #637b9b;
+  cursor: default;
+}
 .panel {
   width: min(272px, 100%);
   min-width: 0;
@@ -115,16 +121,45 @@
 }
 .entryHeading {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   flex-wrap: wrap;
   gap: 6px;
+  min-height: 24px;
   line-height: 1.6;
   strong {
     flex: 1;
     min-width: 100px;
     font-size: 12px;
     font-weight: 600;
+    &:focus-visible {
+      outline: 2px solid #3b82f6;
+      outline-offset: 2px;
+    }
   }
+}
+.panel .rollback {
+  padding: 2px 6px;
+  border: 1px solid #c9dbf4;
+  border-radius: 4px;
+  background: #f3f8ff;
+  color: #235fb7;
+  font-size: 11px;
+  white-space: nowrap;
+  cursor: pointer;
+  // 留出按钮空间，悬停时条目不跳动。透明按钮仍可用 Tab 聚焦。
+  opacity: 0;
+  pointer-events: none;
+  &:hover {
+    background: #e8f1ff;
+    border-color: #a9c8f3;
+  }
+}
+.entry:hover .rollback,
+.baseline:hover .rollback,
+.entry:has(:focus-visible) .rollback,
+.baseline:has(:focus-visible) .rollback {
+  opacity: 1;
+  pointer-events: auto;
 }
 .badge,
 .undoneBadge {
@@ -159,9 +194,12 @@
   cursor: pointer;
 }
 .impact {
-  margin-top: 9px;
-  padding-top: 9px;
+  display: grid;
+  gap: 4px;
+  margin: 6px 0 0;
+  padding: 8px 0 0;
   border-top: 1px solid #e1eafa;
+  list-style: none;
 }
 .baseline {
   border-style: dashed;
@@ -169,11 +207,6 @@
 .footer {
   padding: 11px 14px 14px;
   border-top: 1px solid #e5edf7;
-  p {
-    margin: 0 0 10px;
-    color: #8694a8;
-    font-size: 11px;
-  }
   div {
     display: flex;
     gap: 8px;
@@ -200,6 +233,14 @@
     background: #f6f8fb;
     cursor: default;
   }
+}
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 @media print {
   .rail,

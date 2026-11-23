@@ -24,6 +24,7 @@ interface SessionState {
   enabled: boolean;
   phase: "idle" | "loading" | "playing" | "paused" | "error";
   bpm: number;
+  savedBpm: number | null;
   start: "beginning" | "current";
   follow: boolean;
   position: Position | null;
@@ -32,6 +33,7 @@ interface SessionState {
 export interface ScorePlaybackControls extends SessionState {
   setEnabled(enabled: boolean): void;
   setBpm(bpm: number): void;
+  resetBpm(): void;
   setStart(start: SessionState["start"]): void;
   setFollow(follow: boolean): void;
   suspendFollow(): void;
@@ -56,6 +58,7 @@ function performanceKey(doc: ILXMDocument | null) {
       m.id,
       m.barline,
       m.timeSignature,
+      m.actualDurationTicks,
       m.tuplets,
       m.beats.map((b) => [b.id, b.tick, b.rhythm, b.kind, b.notes]),
       m.chordSymbols.map((s) => [
@@ -97,6 +100,7 @@ export class PlaybackSession {
     enabled: false,
     phase: "idle",
     bpm: DEFAULT_PLAYBACK_BPM,
+    savedBpm: null,
     start: "beginning",
     follow: true,
     position: null,
@@ -146,11 +150,21 @@ export class PlaybackSession {
     this.engine = null;
   };
   documentChanged(doc: ILXMDocument | null) {
-    if (this.key !== null && this.key !== performanceKey(doc))
+    const savedBpm = doc?.score.tempoBpm ?? null;
+    const { bpm: previousBpm, savedBpm: previousSavedBpm } = this.state;
+    const overridden = previousBpm !== (previousSavedBpm ?? DEFAULT_PLAYBACK_BPM);
+    const bpm = overridden ? previousBpm : savedBpm ?? DEFAULT_PLAYBACK_BPM;
+    // 显示开关不参与音频状态。已应用速度变化时，仅使受影响的播放计划失效。
+    if (this.key !== null && (bpm !== previousBpm || this.key !== performanceKey(doc)))
       this.stop("谱面已更新，请重新播放");
+    if (savedBpm !== previousSavedBpm) this.update({ savedBpm, bpm });
   }
   setEnabled = (enabled: boolean) => {
-    if (!enabled) this.stop();
+    // 停止可用相同的临时速度再次试听，退出试听则开始新的会话。
+    if (!enabled) {
+      this.stop();
+      this.resetBpm();
+    }
     this.update({ enabled, message: "" });
   };
   private get editable() {
@@ -165,6 +179,7 @@ export class PlaybackSession {
         ),
       });
   };
+  resetBpm = () => this.setBpm(this.state.savedBpm ?? DEFAULT_PLAYBACK_BPM);
   setStart = (start: SessionState["start"]) => {
     if (this.editable) this.update({ start });
   };
@@ -202,6 +217,7 @@ export class PlaybackSession {
   };
   async togglePlay(doc: ILXMDocument | null, currentMeasure: string | null) {
     if (!this.state.enabled || !doc || this.state.phase === "loading") return;
+    this.documentChanged(doc);
     if (this.state.phase === "playing") {
       this.pause();
       return;
@@ -295,6 +311,7 @@ export function useScorePlayback(
     suspendFollow: session.suspendFollow,
     setStart: session.setStart,
     setBpm: session.setBpm,
+    resetBpm: session.resetBpm,
     canStartCurrent,
     togglePlay: () => {
       void session.togglePlay(doc, canStartCurrent ? selectedMeasureId : null);

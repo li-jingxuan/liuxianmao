@@ -13,7 +13,7 @@ import { createMeasureRhythmContext } from "./tuplet";
 import { isPureTabContinuationBeat } from "./tab-continuation";
 import {
   calculateRhythmTicks,
-  getMeasureCapacityTicks,
+  getMeasureDurationTicks,
   getShorterRhythmOptions,
 } from "./rhythm";
 import type { ILXMBeat, ILXMMeasure, ILXMRhythm } from "../types";
@@ -250,9 +250,11 @@ export const changeMeasureBeatRhythm = (
     return { ok: false, code: "INVALID_RHYTHM" };
 
   // 只复制目标 beat；其他对象先复用，后续仅在 rhythm 或 tick 实际变化时再复制。
-  const candidate = measure.beats.map((beat, index) =>
-    index === targetIndex ? { ...beat, rhythm } : beat,
-  );
+  const candidate = measure.beats.map((beat, index) => {
+    if (index !== targetIndex) return beat;
+    const { capacityRest: _capacityRest, ...editedBeat } = beat;
+    return { ...editedBeat, rhythm };
+  });
   const protectedBeatIds = new Set([beatId, ...externalProtectedBeatIds]);
   const candidateMeasure = { ...measure, beats: candidate };
   const fixedBeats = candidate.slice(
@@ -266,7 +268,7 @@ export const changeMeasureBeatRhythm = (
     fixedEndTicks += duration.ticks;
   }
 
-  const capacityTicks = getMeasureCapacityTicks(measure.timeSignature);
+  const capacityTicks = getMeasureDurationTicks(measure);
   const overflowTicks = Math.max(0, fixedEndTicks - capacityTicks);
   const compression =
     overflowTicks === 0

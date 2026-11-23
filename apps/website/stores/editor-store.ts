@@ -36,6 +36,7 @@ import { EditorStoreContext } from "./editor-context";
 import {
   reconcileNumberedSelection,
   reconcileSelection,
+  reconcileTechniqueFocus,
   getSelectionCandidateAfterCommand,
 } from "./editor-selection";
 import { useStore } from "zustand";
@@ -91,6 +92,7 @@ export interface EditorStore {
   selection: ILXMTabCellSelection | null;
   /** 当前点击的技巧仅属于 UI 焦点，不进入文档历史。 */
   selectedTechniqueId: string | null;
+  selectedTraversalIds: readonly string[];
   numberedSelection: ILXMNumberedTarget | null;
   numberedInputRhythm: ILXMRhythm;
   numberedInputRhythmExplicit: boolean;
@@ -109,10 +111,12 @@ export interface EditorStore {
   historyDepth: { past: number; future: number };
   execute: (command: ILXMScoreCommand, replaceFretEntryId?: string) => ILXMApplyScoreCommandResult | null;
   setSelection: (selection: ILXMTabCellSelection | null) => void;
-  setSelectedTechniqueId: (techniqueId: string | null) => void;
+  setSelectedTechniqueId: (techniqueId: string | null, traversalIds?: readonly string[]) => void;
   setErrorMessage: (message: string | null) => void;
   undo: () => void;
   redo: () => void;
+  /** 回到指定条目提交后的状态；传 null 回到保留范围起点，返回撤销步数。 */
+  rollback: (entryId: string | null) => number;
 }
 
 export type EditorStoreState = EditorStore & { history: EditorHistory };
@@ -171,6 +175,33 @@ export const createEditorStore = (
       } catch {
         reportError("宿主接收编辑结果失败，编辑结果已保留。");
       }
+    };
+    const undoTo = (state: EditorStoreState, keepCount: number): number => {
+      const previous = state.history.past[keepCount];
+      if (!state.document || !previous) return 0;
+      const undoneCount = state.history.past.length - keepCount;
+      const history = transitionHistory(state.history, { type: "undo", document: state.document, keepCount });
+      // 单步撤销与批量回退共用一次提交：直接在目标快照上校正选区，宿主只收到最终文档。
+      set({
+        tabInputRhythmOverrides: [],
+        effects: [],
+        document: previous,
+        numberedSelection: reconcileNumberedSelection(
+          previous,
+          state.numberedSelection,
+        ),
+        selectedNumberedMarkId: null,
+        stateVersion: state.stateVersion + 1,
+        selection: state.selection
+          ? reconcileSelection(previous, state.selection)
+          : null,
+        ...reconcileTechniqueFocus(previous, state.selectedTechniqueId, state.selectedTraversalIds),
+        errorMessage: null,
+        loadNotice: null,
+        ...toHistoryState(history),
+      });
+      notifyChange({ document: previous, reason: "undo", effects: [] });
+      return undoneCount;
     };
     return {
       stateVersion: 0,
@@ -258,6 +289,7 @@ export const createEditorStore = (
             trackId: firstTrack.id, measureId: firstMeasure.id, beatId: firstBeat.id, string: 1,
           }) : null,
           selectedTechniqueId: null,
+          selectedTraversalIds: [],
           numberedSelection: null,
           numberedInputRhythm: { base: "quarter", dots: 0 },
           numberedInputRhythmExplicit: false,
@@ -279,6 +311,7 @@ export const createEditorStore = (
       fileBaseline: initialDocument ? { document: initialDocument, status: "example" } : null,
       selection: null,
       selectedTechniqueId: null,
+      selectedTraversalIds: [],
       numberedSelection: null,
       numberedInputRhythm: { base: "quarter", dots: 0 },
       numberedInputRhythmExplicit: false,
@@ -375,13 +408,7 @@ export const createEditorStore = (
           selection: command.type.startsWith("numbered.")
             ? state.selection
             : reconcileSelection(result.document, selectionCandidate),
-          selectedTechniqueId: result.document.score.tracks.some((track) =>
-            track.techniques.some(
-              (technique) => technique.id === state.selectedTechniqueId,
-            ),
-          )
-            ? state.selectedTechniqueId
-            : null,
+          ...reconcileTechniqueFocus(result.document, state.selectedTechniqueId, state.selectedTraversalIds),
           errorMessage: null,
           loadNotice: null,
           ...toHistoryState(history),
@@ -424,16 +451,9 @@ export const createEditorStore = (
         set({ selection, errorMessage: null });
       },
 
-      setSelectedTechniqueId: (selectedTechniqueId) => {
-        const document = get().document;
-        const exists = document?.score.tracks.some((track) =>
-          track.techniques.some(
-            (technique) => technique.id === selectedTechniqueId,
-          ),
-        );
+      setSelectedTechniqueId: (selectedTechniqueId, traversalIds = []) => {
         set({
-          selectedTechniqueId:
-            selectedTechniqueId === null || exists ? selectedTechniqueId : null,
+          ...reconcileTechniqueFocus(get().document, selectedTechniqueId, traversalIds),
           errorMessage: null,
         });
       },
@@ -443,34 +463,15 @@ export const createEditorStore = (
 
       undo: () => {
         const state = get();
-        const previous = state.history.past.at(-1);
-        if (!state.document || !previous) return;
-        const history = transitionHistory(state.history, { type: "undo", document: state.document });
-        set({
-          tabInputRhythmOverrides: [],
-          effects: [],
-          document: previous,
-          numberedSelection: reconcileNumberedSelection(
-            previous,
-            state.numberedSelection,
-          ),
-          selectedNumberedMarkId: null,
-          stateVersion: get().stateVersion + 1,
-          selection: state.selection
-            ? reconcileSelection(previous, state.selection)
-            : null,
-          selectedTechniqueId: previous.score.tracks.some((track) =>
-            track.techniques.some(
-              (technique) => technique.id === state.selectedTechniqueId,
-            ),
-          )
-            ? state.selectedTechniqueId
-            : null,
-          errorMessage: null,
-          loadNotice: null,
-          ...toHistoryState(history),
-        });
-        notifyChange({ document: previous, reason: "undo", effects: [] });
+        undoTo(state, state.history.past.length - 1);
+      },
+
+      rollback: (entryId) => {
+        const state = get();
+        if (entryId === null) return undoTo(state, 0);
+        // 目标条目仍算作已应用；只查已应用条目，已裁切或位于重做分支的 ID 直接忽略。
+        const index = state.history.pastEntries.findIndex((entry) => entry.id === entryId);
+        return index < 0 ? 0 : undoTo(state, index + 1);
       },
 
       redo: () => {
@@ -492,13 +493,7 @@ export const createEditorStore = (
           selection: state.selection
             ? reconcileSelection(next, state.selection)
             : null,
-          selectedTechniqueId: next.score.tracks.some((track) =>
-            track.techniques.some(
-              (technique) => technique.id === state.selectedTechniqueId,
-            ),
-          )
-            ? state.selectedTechniqueId
-            : null,
+          ...reconcileTechniqueFocus(next, state.selectedTechniqueId, state.selectedTraversalIds),
           errorMessage: null,
           loadNotice: null,
           ...toHistoryState(history),

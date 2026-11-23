@@ -17,6 +17,7 @@ import type { ILXMIdFactory } from "../id-factory";
 import type { ILXMDocument, ILXMMeasure, ILXMTrack } from "../types";
 import { copyMeasureRangeTechniques } from "../techniques/copy-measure-techniques";
 import { createMeasureRhythmContext } from "./tuplet";
+import { getMeasureDurationTicks } from "./rhythm";
 import { validateTechnique } from "../techniques/technique-rules";
 import { techniqueBeatIds } from "../techniques/content-protection";
 import {
@@ -593,7 +594,7 @@ export const planBeatPaste = (
     );
     const error = validateNumberedVoice(
       candidate.numberedVoice,
-      (m.timeSignature.numerator * 3840) / m.timeSignature.denominator,
+      getMeasureDurationTicks(m),
     );
     if (error) return reject(error);
     numberedRemoved = touched.length;

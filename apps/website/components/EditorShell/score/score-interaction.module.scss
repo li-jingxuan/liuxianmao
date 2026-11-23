@@ -154,6 +154,14 @@
   font-family: Arial, sans-serif;
   font-weight: 400;
 
+  .durationLabel {
+    fill: #2457ac;
+    stroke: #fff;
+    stroke-width: 2px;
+    stroke-linejoin: round;
+    paint-order: stroke;
+  }
+
   [data-active="true"] {
     fill: #2864e3;
   }
@@ -209,6 +217,50 @@
 .techniqueHitArea {
   fill: transparent;
   stroke: none;
+}
+
+.strumInteraction {
+  [data-strum-hit] {
+    fill: transparent;
+    stroke: transparent;
+    stroke-width: 5;
+    stroke-linecap: round;
+    cursor: pointer;
+  }
+
+  @media print {
+    display: none;
+  }
+}
+
+.strumHandle {
+  color: #2864e3;
+
+  line {
+    stroke: currentColor;
+    stroke-width: 1;
+    pointer-events: none;
+  }
+
+  circle {
+    fill: white;
+    stroke: currentColor;
+    stroke-width: 1.5;
+    cursor: ns-resize;
+    touch-action: none;
+
+    &:hover,
+    &[data-strum-preview] {
+      fill: currentColor;
+    }
+  }
+}
+
+.strumSnapLine {
+  stroke: #2864e3;
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  pointer-events: none;
 }
 
 @media print {
