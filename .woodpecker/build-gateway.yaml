@@ -10,11 +10,8 @@ steps:
     environment:
       HTTPS_PROXY: http://172.17.0.1:7890
     commands:
+      # 各工作流使用独立工作区。通过 NAS 出口代理检出触发时的提交，并核对 SHA。
       - |
-        case "${RELEASE_ACTION:-}" in
-          ''|check|deploy|rollback) ;;
-          *) echo 'RELEASE_ACTION must be check, deploy or rollback' >&2; exit 2 ;;
-        esac
         test "$CI_REPO" = li-jingxuan/liuxianmao
         test -n "$CI_COMMIT_SHA"
         export GIT_TERMINAL_PROMPT=0
@@ -29,29 +26,18 @@ steps:
         test "$(git rev-parse FETCH_HEAD)" = "$CI_COMMIT_SHA"
         git checkout --detach FETCH_HEAD
 
-  - name: checks
+  - name: check-gateway
     image: docker.m.daocloud.io/library/node:22-alpine
     when:
-      - event: manual
-        evaluate: 'RELEASE_ACTION != "rollback"'
-    environment:
-      NPM_CONFIG_REGISTRY: https://registry.npmmirror.com
-      NEXT_PUBLIC_BASE_PATH: /app/liuxianmao
-      NEXT_TELEMETRY_DISABLED: "1"
-      NODE_OPTIONS: --max-old-space-size=1100
-      VITEST_MAX_WORKERS: "1"
+      - evaluate: 'RELEASE_ACTION != "rollback"'
     commands:
-      - npm install --global pnpm@9.15.9
-      - pnpm install --frozen-lockfile
-      - pnpm exec turbo run lint type-check test --concurrency=1
-      - pnpm --filter @liuxianmao/website build
-      - test -f apps/website/.next/standalone/apps/website/server.js
+      - node --check deploy/fnos/proxy.cjs
+      - node --check deploy/fnos/verify.cjs
 
-  - name: release-to-nas
+  - name: build-gateway-image-on-nas
     image: quay.io/woodpeckerci/plugin-git:2.11.0
     when:
-      - event: manual
-        evaluate: 'RELEASE_ACTION in ["deploy", "rollback"]'
+      - evaluate: 'RELEASE_ACTION not in ["check", "rollback"]'
     environment:
       LXM_NAS_SSH_HOST: 172.17.0.1
       LXM_NAS_SSH_KEY:
@@ -59,4 +45,4 @@ steps:
       LXM_NAS_KNOWN_HOSTS:
         from_secret: lxm_nas_known_hosts
     commands:
-      - sh deploy/fnos/ci-release.sh
+      - sh deploy/fnos/ci-release.sh build-gateway

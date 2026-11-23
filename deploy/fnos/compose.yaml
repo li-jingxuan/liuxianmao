@@ -1,19 +1,19 @@
 services:
   web:
-    image: ${LXM_IMAGE:?set by deploy.sh}
+    image: ${LXM_WEB_IMAGE:?set by deploy.sh}
     restart: unless-stopped
     environment:
       HOSTNAME: 0.0.0.0
       PORT: "3000"
 
   gateway:
-    image: ${LXM_IMAGE:?set by deploy.sh}
+    image: ${LXM_GATEWAY_IMAGE:?set by deploy.sh}
     restart: unless-stopped
     depends_on:
       - web
     entrypoint: ["node", "/deployment/proxy.cjs"]
     command: []
-    # The root-owned fnOS target needs to be writable only by the socket proxy.
+    # 只有 Socket 代理需要写入飞牛管理的应用目录。
     user: "0:0"
     read_only: true
     cap_drop: [ALL]
@@ -25,18 +25,6 @@ services:
       - type: bind
         source: ${LXM_APPDEST:?set by deploy.sh}
         target: /gateway
-        bind:
-          create_host_path: false
-      - type: bind
-        source: ./proxy.cjs
-        target: /deployment/proxy.cjs
-        read_only: true
-        bind:
-          create_host_path: false
-      - type: bind
-        source: ./verify.cjs
-        target: /deployment/verify.cjs
-        read_only: true
         bind:
           create_host_path: false
     healthcheck:

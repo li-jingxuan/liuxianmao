@@ -19,7 +19,8 @@ valid_commit() {
 }
 
 valid_release() {
-    valid_commit "${1%% *}" && valid_image "${1#* }"
+    record_images=${1#* }
+    valid_commit "${1%% *}" && valid_image "${record_images%% *}" && valid_image "${record_images#* }"
 }
 
 mode=${1:-}
@@ -29,8 +30,13 @@ case "$mode:$#" in
         valid_commit "$3" || fail 'Expected a full Git commit SHA.'
         candidate="$3 $2"
         ;;
+    deploy:4)
+        valid_image "$2" && valid_image "$3" || fail 'Expected a web image and a gateway image by digest or local ID.'
+        valid_commit "$4" || fail 'Expected a full Git commit SHA.'
+        candidate="$4 $2 $3"
+        ;;
     rollback:1) ;;
-    *) fail 'Usage: sh deploy.sh deploy IMAGE@sha256:DIGEST COMMIT | sh deploy.sh rollback' ;;
+    *) fail 'Usage: sh deploy.sh deploy WEB_IMAGE GATEWAY_IMAGE COMMIT | sh deploy.sh rollback' ;;
 esac
 
 cd -- "$(dirname -- "$0")"
@@ -44,24 +50,46 @@ case "$LXM_APPDEST" in
 esac
 export LXM_APPDEST
 
-compose() {
-    compose_image=$1
+compose() (
+    images=${1#* }
     shift
-    LXM_IMAGE="$compose_image" docker compose --env-file /dev/null --project-name liuxianmao-fnos --file compose.yaml "$@"
+    export LXM_WEB_IMAGE="${images%% *}" LXM_GATEWAY_IMAGE="${images#* }"
+    # 兼容历史的「提交 + 单镜像」记录；独立网关直接使用镜像内的代理与探活脚本。
+    case "$images" in
+        *' '*) ;;
+        *) set -- --file compose-legacy.yaml "$@" ;;
+    esac
+    docker compose --env-file /dev/null --project-name liuxianmao-fnos --file compose.yaml "$@"
+)
+
+verify_image() {
+    container=$(compose "$1" ps --quiet "$2") && [ -n "$container" ] &&
+        running=$(docker inspect --format '{{.Image}}' "$container") &&
+        expected=$(docker image inspect --format '{{.Id}}' "$3") &&
+        [ "$running" = "$expected" ]
 }
 
 apply() {
-    image=${1#* }
-    compose "$image" up --detach --force-recreate --pull never --wait --wait-timeout 90 &&
-        compose "$image" exec -T gateway node /deployment/verify.cjs &&
+    images=${1#* }
+    # 仅有 HTTP 200 可能来自旧容器。先核对两项实际镜像 ID，再通过飞牛 Socket 验证页面和数据。
+    compose "$1" up --detach --force-recreate --pull never --wait --wait-timeout 90 &&
+        verify_image "$1" web "${images%% *}" &&
+        verify_image "$1" gateway "${images#* }" &&
+        compose "$1" exec -T gateway node /deployment/verify.cjs &&
         status=$(curl --noproxy '*' --unix-socket "$LXM_APPDEST/app.sock" --silent --show-error \
             --max-time 5 --output /dev/null --write-out '%{http_code}' http://localhost/app/liuxianmao) &&
         [ "$status" = 200 ]
 }
 
 report_logs() {
-    compose "${1#* }" ps --all >&2 || true
-    compose "${1#* }" logs --no-color --tail 60 >&2 || true
+    compose "$1" ps --all >&2 || true
+    compose "$1" logs --no-color --tail 60 >&2 || true
+}
+
+ensure_release_images() {
+    images=${1#* }
+    ensure_image "${images%% *}" &&
+        { [ "${images%% *}" = "${images#* }" ] || ensure_image "${images#* }"; }
 }
 
 ensure_image() {
@@ -83,10 +111,10 @@ fi
 restore() {
     failed_release=$1
     if [ -z "$current" ]; then
-        compose "${failed_release#* }" stop || return 1
+        compose "$failed_release" stop || return 1
         printf '%s\n' 'No previous healthy release. Stopped the failed release and kept container logs.' >&2
     else
-        ensure_image "${current#* }" || return 1
+        ensure_release_images "$current" || return 1
         if ! apply "$current"; then
             report_logs "$current"
             return 1
@@ -108,10 +136,9 @@ if [ "$mode" = rollback ]; then
     candidate=$previous
 fi
 
-# Pull before marking the switch in progress. Existing containers keep serving
-# if the registry rejects or cannot deliver the candidate digest.
+# 两张候选镜像都可用才记录切换。拉取失败时现有容器继续服务。
 printf 'Deploying %s\n' "$candidate"
-ensure_image "${candidate#* }"
+ensure_release_images "$candidate"
 
 new_previous=$previous
 if [ "$candidate" != "$current" ]; then
