@@ -43,30 +43,33 @@ describe("简谱八度语法边界", () => {
 
 /** 验证首页默认 mock；历史谱例继续覆盖布局、会话和导出投影。 */
 describe("MVP v7.2 简谱 mock", () => {
-  it("首页通过正式加载器默认加载二十二小节《理想》", () => {
+  it("首页通过正式加载器默认加载四十二小节《理想》", () => {
     const loaded = loadDocument(JSON.stringify(DEFAULT_MOCK_DOCUMENT));
     expect(loaded.ok, JSON.stringify(loaded)).toBe(true);
     expect(editorStore.getState().document).toEqual(DEFAULT_MOCK_DOCUMENT);
-    expect(DEFAULT_MOCK_DOCUMENT.documentRevision).toBe(253);
+    expect(DEFAULT_MOCK_DOCUMENT.documentRevision).toBe(540);
     expect(DEFAULT_MOCK_DOCUMENT.score).toMatchObject({
       title: "理想",
       keySignature: "G",
       meta: { "lxm:tonality": { version: 1, tonic: "G", mode: "major" } },
     });
     const track = DEFAULT_MOCK_DOCUMENT.score.tracks[0]!;
-    expect(track.measures).toHaveLength(22);
+    expect(track.measures).toHaveLength(42);
     expect(track.measures.map((measure) => measure.timeSignature)).toEqual(
-      Array.from({ length: 22 }, () => ({ numerator: 4, denominator: 4 })),
+      Array.from({ length: 42 }, () => ({ numerator: 4, denominator: 4 })),
     );
     expect(track.measures.map((m) => m.numberedVoice.events.length)).toEqual([
-      4, 4, 4, 4, 4, 4, 4, 4, 12, 12, 11, 5, 12, 10, 13, 5, 0, 0, 0, 0, 0, 0,
+      4, 4, 4, 4, 4, 4, 4, 4, 12, 12, 11, 5, 12, 10, 13, 5,
+      10, 4, 10, 5, 11, 10, 10, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     ]);
-    expect(track.measures.flatMap((m) => m.numberedVoice.events)).toHaveLength(112);
-    expect(track.techniques).toHaveLength(46);
+    expect(track.measures.flatMap((m) => m.numberedVoice.events)).toHaveLength(179);
+    expect(track.techniques).toHaveLength(194);
     expect(track.measures.flatMap((m) => m.chordSymbols.map((c) => c.chord.name))).toEqual([
       "G", "C", "Asus2", "G", "G", "Am", "D", "G", "G", "Gadd9",
       "Asus2", "Dsus2", "Gadd9", "G", "Asus2", "Dsus2", "Gadd9",
-      "C", "G", "C", "G", "C", "Bm", "E",
+      "C", "G", "C", "G", "C", "Bm", "E", "Am", "C", "Am", "D", "C",
+      "G", "Am", "D", "G", "G7", "C", "Bm", "E", "Am", "C", "Dsus4", "D",
+      "C", "C", "Dsus4", "D", "C", "G", "C", "D7", "G",
     ]);
     for (const measure of track.measures.slice(0, 8)) {
       expect(measure.numberedVoice.events.map((event) => ({
@@ -95,6 +98,7 @@ describe("MVP v7.2 简谱 mock", () => {
       .toEqual(["1", "2", "2", "1", "2", "2", "1", "6", "5", "5", "5", "3", "2"]);
     expect(fifteenth.lyrics.map((lyric) => lyric.text).join("")).toBe("想哭就把泪咽进一腔热血的胸");
     expect(track.measures[15]!.barline).toBe("repeatStart");
+    expect(track.measures[32]!.barline).toBe("repeatEnd");
   });
 
   it("历史八小节 fixture 保留特殊符号与空拍的正式加载覆盖", () => {

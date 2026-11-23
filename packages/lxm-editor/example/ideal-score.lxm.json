@@ -1,7 +1,7 @@
 {
   "schema": "lxm-tab-score",
   "schemaVersion": 8,
-  "documentRevision": 253,
+  "documentRevision": 540,
   "score": {
     "id": "ideal-next-mock",
     "title": "理想",
@@ -6609,7 +6609,158 @@
             ],
             "tuplets": [],
             "numberedVoice": {
-              "events": [],
+              "events": [
+                {
+                  "kind": "rest",
+                  "items": [
+                    {
+                      "id": "numbered-item-438-1",
+                      "token": "0"
+                    }
+                  ],
+                  "id": "numbered-event-438-1",
+                  "tick": 0,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-438-2",
+                      "token": "1"
+                    }
+                  ],
+                  "id": "numbered-event-438-2",
+                  "tick": 480,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-438-3",
+                      "token": "6."
+                    }
+                  ],
+                  "id": "numbered-event-438-3",
+                  "tick": 720,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-444-1",
+                      "token": "1"
+                    }
+                  ],
+                  "id": "numbered-event-444-1",
+                  "tick": 960,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 1
+                  }
+                },
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-447-1",
+                      "token": "6."
+                    }
+                  ],
+                  "id": "numbered-event-447-1",
+                  "tick": 1680,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-456-1",
+                      "token": "1"
+                    }
+                  ],
+                  "id": "numbered-event-456-1",
+                  "tick": 1920,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-458-1",
+                      "token": "1"
+                    }
+                  ],
+                  "id": "numbered-event-458-1",
+                  "tick": 2400,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-460-1",
+                      "token": "1"
+                    }
+                  ],
+                  "id": "numbered-event-460-1",
+                  "tick": 2880,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-461-1",
+                      "token": "1"
+                    }
+                  ],
+                  "id": "numbered-event-461-1",
+                  "tick": 3120,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-462-1",
+                      "token": "6."
+                    }
+                  ],
+                  "id": "numbered-event-462-1",
+                  "tick": 3600,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  }
+                }
+              ],
               "tuplets": []
             }
           },
@@ -6906,7 +7057,68 @@
             ],
             "tuplets": [],
             "numberedVoice": {
-              "events": [],
+              "events": [
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-463-1",
+                      "token": "5."
+                    }
+                  ],
+                  "id": "numbered-event-463-1",
+                  "tick": 0,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "continuation",
+                  "items": [
+                    {
+                      "id": "numbered-item-465-1",
+                      "token": "-"
+                    }
+                  ],
+                  "id": "numbered-event-465-1",
+                  "tick": 960,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "rest",
+                  "items": [
+                    {
+                      "id": "numbered-item-466-1",
+                      "token": "0"
+                    }
+                  ],
+                  "id": "numbered-event-466-1",
+                  "tick": 1920,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "rest",
+                  "items": [
+                    {
+                      "id": "numbered-item-466-2",
+                      "token": "0"
+                    }
+                  ],
+                  "id": "numbered-event-466-2",
+                  "tick": 2880,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  }
+                }
+              ],
               "tuplets": []
             }
           },
@@ -7197,7 +7409,158 @@
             ],
             "tuplets": [],
             "numberedVoice": {
-              "events": [],
+              "events": [
+                {
+                  "kind": "rest",
+                  "items": [
+                    {
+                      "id": "numbered-item-467-1",
+                      "token": "0"
+                    }
+                  ],
+                  "id": "numbered-event-467-1",
+                  "tick": 0,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-472-1",
+                      "token": "1"
+                    }
+                  ],
+                  "id": "numbered-event-468-1",
+                  "tick": 480,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-472-2",
+                      "token": "6."
+                    }
+                  ],
+                  "id": "numbered-event-469-1",
+                  "tick": 720,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-467-2",
+                      "token": "1"
+                    }
+                  ],
+                  "id": "numbered-event-467-2",
+                  "tick": 960,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 1
+                  }
+                },
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-475-1",
+                      "token": "6."
+                    }
+                  ],
+                  "id": "numbered-event-470-1",
+                  "tick": 1680,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-467-3",
+                      "token": "1"
+                    }
+                  ],
+                  "id": "numbered-event-467-3",
+                  "tick": 1920,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-476-1",
+                      "token": "1"
+                    }
+                  ],
+                  "id": "numbered-event-470-2",
+                  "tick": 2400,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-478-1",
+                      "token": "6"
+                    }
+                  ],
+                  "id": "numbered-event-471-1",
+                  "tick": 2880,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  }
+                },
+                {
+                  "id": "numbered-event-471-2",
+                  "tick": 3120,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-479-1",
+                      "token": "5"
+                    }
+                  ]
+                },
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-484-1",
+                      "token": "3"
+                    }
+                  ],
+                  "id": "numbered-event-471-4",
+                  "tick": 3600,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  }
+                }
+              ],
               "tuplets": []
             }
           },
@@ -7494,7 +7857,83 @@
             ],
             "tuplets": [],
             "numberedVoice": {
-              "events": [],
+              "events": [
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-485-1",
+                      "token": "2"
+                    }
+                  ],
+                  "id": "numbered-event-485-1",
+                  "tick": 0,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-489-1",
+                      "token": "3"
+                    }
+                  ],
+                  "id": "numbered-event-489-1",
+                  "tick": 240,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 1
+                  }
+                },
+                {
+                  "id": "numbered-event-491-1",
+                  "tick": 960,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-492-1",
+                      "token": "3"
+                    }
+                  ]
+                },
+                {
+                  "kind": "continuation",
+                  "items": [
+                    {
+                      "id": "numbered-item-494-1",
+                      "token": "-"
+                    }
+                  ],
+                  "id": "numbered-event-494-1",
+                  "tick": 1920,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "continuation",
+                  "items": [
+                    {
+                      "id": "numbered-item-495-1",
+                      "token": "-"
+                    }
+                  ],
+                  "id": "numbered-event-495-1",
+                  "tick": 2880,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  }
+                }
+              ],
               "tuplets": []
             }
           },
@@ -7791,7 +8230,173 @@
             ],
             "tuplets": [],
             "numberedVoice": {
-              "events": [],
+              "events": [
+                {
+                  "kind": "rest",
+                  "items": [
+                    {
+                      "id": "numbered-item-497-1",
+                      "token": "0"
+                    }
+                  ],
+                  "id": "numbered-event-497-1",
+                  "tick": 0,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-498-1",
+                      "token": "6."
+                    }
+                  ],
+                  "id": "numbered-event-498-1",
+                  "tick": 480,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-498-2",
+                      "token": "1"
+                    }
+                  ],
+                  "id": "numbered-event-498-2",
+                  "tick": 720,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-503-1",
+                      "token": "1"
+                    }
+                  ],
+                  "id": "numbered-event-503-1",
+                  "tick": 960,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-506-1",
+                      "token": "1"
+                    }
+                  ],
+                  "id": "numbered-event-499-1",
+                  "tick": 1200,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 1
+                  }
+                },
+                {
+                  "kind": "rest",
+                  "items": [
+                    {
+                      "id": "numbered-item-507-1",
+                      "token": "0"
+                    }
+                  ],
+                  "id": "numbered-event-507-1",
+                  "tick": 1920,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-509-1",
+                      "token": "1"
+                    }
+                  ],
+                  "id": "numbered-event-509-1",
+                  "tick": 2400,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-509-2",
+                      "token": "1"
+                    }
+                  ],
+                  "id": "numbered-event-509-2",
+                  "tick": 2640,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-510-1",
+                      "token": "1"
+                    }
+                  ],
+                  "id": "numbered-event-510-1",
+                  "tick": 2880,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-511-1",
+                      "token": "1"
+                    }
+                  ],
+                  "id": "numbered-event-511-1",
+                  "tick": 3120,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-512-1",
+                      "token": "3"
+                    }
+                  ],
+                  "id": "numbered-event-512-1",
+                  "tick": 3600,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  }
+                }
+              ],
               "tuplets": []
             }
           },
@@ -8140,9 +8745,3915 @@
             ],
             "tuplets": [],
             "numberedVoice": {
-              "events": [],
+              "events": [
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-513-1",
+                      "token": "3"
+                    }
+                  ],
+                  "id": "numbered-event-513-1",
+                  "tick": 0,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-513-2",
+                      "token": "5"
+                    }
+                  ],
+                  "id": "numbered-event-513-2",
+                  "tick": 480,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-514-1",
+                      "token": "6"
+                    }
+                  ],
+                  "id": "numbered-event-514-1",
+                  "tick": 960,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-515-1",
+                      "token": "5"
+                    }
+                  ],
+                  "id": "numbered-event-515-1",
+                  "tick": 1200,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-516-1",
+                      "token": "3"
+                    }
+                  ],
+                  "id": "numbered-event-516-1",
+                  "tick": 1680,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-518-1",
+                      "token": "6"
+                    }
+                  ],
+                  "id": "numbered-event-517-1",
+                  "tick": 1920,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-519-1",
+                      "token": "6"
+                    }
+                  ],
+                  "id": "numbered-event-519-1",
+                  "tick": 2160,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 1
+                  }
+                },
+                {
+                  "kind": "rest",
+                  "items": [
+                    {
+                      "id": "numbered-item-520-1",
+                      "token": "0"
+                    }
+                  ],
+                  "id": "numbered-event-520-1",
+                  "tick": 2880,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-522-1",
+                      "token": "6."
+                    }
+                  ],
+                  "id": "numbered-event-522-1",
+                  "tick": 3120,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-523-1",
+                      "token": "6."
+                    }
+                  ],
+                  "id": "numbered-event-523-1",
+                  "tick": 3600,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  }
+                }
+              ],
               "tuplets": []
             }
+          },
+          {
+            "id": "measure-254-1",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "chordSymbols": [
+              {
+                "id": "chord-306-1",
+                "beatId": "beat-254-1",
+                "display": "name",
+                "chord": {
+                  "name": "Am",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 2,
+                        "finger": 3
+                      },
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 5,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              },
+              {
+                "id": "chord-307-1",
+                "beatId": "beat-254-3",
+                "display": "name",
+                "chord": {
+                  "name": "C",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 5,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ],
+            "lyrics": [],
+            "tuplets": [],
+            "numberedVoice": {
+              "events": [
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-524-1",
+                      "token": "2"
+                    }
+                  ],
+                  "id": "numbered-event-524-1",
+                  "tick": 0,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-525-1",
+                      "token": "2"
+                    }
+                  ],
+                  "id": "numbered-event-525-1",
+                  "tick": 480,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-525-2",
+                      "token": "2"
+                    }
+                  ],
+                  "id": "numbered-event-525-2",
+                  "tick": 720,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-526-1",
+                      "token": "2"
+                    }
+                  ],
+                  "id": "numbered-event-526-1",
+                  "tick": 960,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-526-2",
+                      "token": "3"
+                    }
+                  ],
+                  "id": "numbered-event-526-2",
+                  "tick": 1440,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-527-1",
+                      "token": "6"
+                    }
+                  ],
+                  "id": "numbered-event-527-1",
+                  "tick": 1920,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-527-2",
+                      "token": "5"
+                    }
+                  ],
+                  "id": "numbered-event-527-2",
+                  "tick": 2400,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-527-3",
+                      "token": "5"
+                    }
+                  ],
+                  "id": "numbered-event-527-3",
+                  "tick": 2880,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-527-4",
+                      "token": "3"
+                    }
+                  ],
+                  "id": "numbered-event-527-4",
+                  "tick": 3360,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-529-1",
+                      "token": "5"
+                    }
+                  ],
+                  "id": "numbered-event-528-1",
+                  "tick": 3600,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  }
+                }
+              ],
+              "tuplets": []
+            },
+            "beats": [
+              {
+                "id": "beat-254-1",
+                "tick": 0,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "note-256-1",
+                    "string": 5,
+                    "fret": "x"
+                  }
+                ]
+              },
+              {
+                "id": "beat-255-1",
+                "tick": 480,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "note-257-1",
+                    "string": 4,
+                    "fret": "x"
+                  }
+                ],
+                "preserveInputRhythm": true
+              },
+              {
+                "id": "beat-255-2",
+                "tick": 720,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "note-258-1",
+                    "string": 3,
+                    "fret": "x"
+                  }
+                ],
+                "preserveInputRhythm": true
+              },
+              {
+                "id": "beat-254-2",
+                "tick": 960,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "note-259-1",
+                    "string": 3,
+                    "fret": "x"
+                  }
+                ]
+              },
+              {
+                "id": "beat-255-3",
+                "tick": 1200,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "note-260-1",
+                    "string": 2,
+                    "fret": "x"
+                  }
+                ],
+                "preserveInputRhythm": true
+              },
+              {
+                "id": "beat-255-4",
+                "tick": 1440,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "note-261-1",
+                    "string": 4,
+                    "fret": "x"
+                  }
+                ],
+                "preserveInputRhythm": true
+              },
+              {
+                "id": "beat-255-5",
+                "tick": 1680,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "note-262-1",
+                    "string": 3,
+                    "fret": "x"
+                  }
+                ],
+                "preserveInputRhythm": true
+              },
+              {
+                "id": "beat-254-3",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "note-283-1",
+                    "string": 5,
+                    "fret": "x"
+                  }
+                ]
+              },
+              {
+                "id": "beat-255-6",
+                "tick": 2400,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "note-284-1",
+                    "string": 4,
+                    "fret": "x"
+                  }
+                ],
+                "preserveInputRhythm": true
+              },
+              {
+                "id": "beat-255-7",
+                "tick": 2640,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "note-285-1",
+                    "string": 3,
+                    "fret": "x"
+                  }
+                ],
+                "preserveInputRhythm": true
+              },
+              {
+                "id": "beat-254-4",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "note-286-1",
+                    "string": 3,
+                    "fret": "x"
+                  }
+                ]
+              },
+              {
+                "id": "beat-255-8",
+                "tick": 3120,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "note-287-1",
+                    "string": 2,
+                    "fret": "x"
+                  }
+                ],
+                "preserveInputRhythm": true
+              },
+              {
+                "id": "beat-255-9",
+                "tick": 3360,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "note-288-1",
+                    "string": 4,
+                    "fret": "x"
+                  }
+                ],
+                "preserveInputRhythm": true
+              },
+              {
+                "id": "beat-255-10",
+                "tick": 3600,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "note-289-1",
+                    "string": 3,
+                    "fret": "x"
+                  }
+                ],
+                "preserveInputRhythm": true
+              }
+            ]
+          },
+          {
+            "id": "measure-281-1",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "double",
+            "chordSymbols": [
+              {
+                "id": "chord-304-1",
+                "beatId": "beat-281-1",
+                "display": "name",
+                "chord": {
+                  "name": "Am",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 2,
+                        "fret": 3,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 2,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 6,
+                        "fret": 0,
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              },
+              {
+                "id": "chord-310-1",
+                "beatId": "beat-281-3",
+                "display": "name",
+                "chord": {
+                  "name": "D",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 2,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 3,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": "x",
+                        "finger": null
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ],
+            "lyrics": [],
+            "tuplets": [],
+            "numberedVoice": {
+              "events": [
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-532-1",
+                      "token": "5"
+                    }
+                  ],
+                  "id": "numbered-event-532-1",
+                  "tick": 0,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-532-2",
+                      "token": "5"
+                    }
+                  ],
+                  "id": "numbered-event-532-2",
+                  "tick": 480,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-532-3",
+                      "token": "5"
+                    }
+                  ],
+                  "id": "numbered-event-532-3",
+                  "tick": 960,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "continuation",
+                  "items": [
+                    {
+                      "id": "numbered-item-536-1",
+                      "token": "-"
+                    }
+                  ],
+                  "id": "numbered-event-536-1",
+                  "tick": 1920,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-537-1",
+                      "token": "1'"
+                    }
+                  ],
+                  "id": "numbered-event-537-1",
+                  "tick": 2880,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-538-1",
+                      "token": "7"
+                    }
+                  ],
+                  "id": "numbered-event-538-1",
+                  "tick": 3360,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  }
+                },
+                {
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-539-1",
+                      "token": "1'"
+                    }
+                  ],
+                  "id": "numbered-event-539-1",
+                  "tick": 3600,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  }
+                }
+              ],
+              "tuplets": []
+            },
+            "beats": [
+              {
+                "id": "beat-281-1",
+                "tick": 0,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "note-292-1",
+                    "string": 4,
+                    "fret": "x"
+                  }
+                ]
+              },
+              {
+                "id": "beat-291-1",
+                "tick": 480,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "note-293-1",
+                    "string": 3,
+                    "fret": "x"
+                  }
+                ],
+                "preserveInputRhythm": true
+              },
+              {
+                "id": "beat-291-2",
+                "tick": 720,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "note-294-1",
+                    "string": 2,
+                    "fret": "x"
+                  }
+                ],
+                "preserveInputRhythm": true
+              },
+              {
+                "id": "beat-281-2",
+                "tick": 960,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "note-295-1",
+                    "string": 2,
+                    "fret": "x"
+                  }
+                ]
+              },
+              {
+                "id": "beat-291-3",
+                "tick": 1200,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "note-296-1",
+                    "string": 1,
+                    "fret": "x"
+                  }
+                ],
+                "preserveInputRhythm": true
+              },
+              {
+                "id": "beat-291-4",
+                "tick": 1440,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "note-297-1",
+                    "string": 2,
+                    "fret": "x"
+                  }
+                ],
+                "preserveInputRhythm": true
+              },
+              {
+                "id": "beat-291-5",
+                "tick": 1680,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "note-298-1",
+                    "string": 3,
+                    "fret": "x"
+                  }
+                ],
+                "preserveInputRhythm": true
+              },
+              {
+                "id": "beat-281-3",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-291-6",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-291-9",
+                "tick": 3360,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-291-10",
+                "tick": 3600,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              }
+            ]
+          },
+          {
+            "id": "measure-311-1",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "chordSymbols": [
+              {
+                "id": "chord-318-1",
+                "beatId": "beat-311-1",
+                "display": "name",
+                "chord": {
+                  "name": "C",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 5,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ],
+            "lyrics": [],
+            "tuplets": [],
+            "numberedVoice": {
+              "events": [],
+              "tuplets": []
+            },
+            "beats": [
+              {
+                "id": "beat-311-1",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-311-2",
+                "tick": 960,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-312-1",
+                "tick": 1440,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-312-2",
+                "tick": 1680,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-311-3",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-313-1",
+                "tick": 2160,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-313-2",
+                "tick": 2400,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-313-3",
+                "tick": 2640,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-311-4",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-312-3",
+                "tick": 3360,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-312-4",
+                "tick": 3600,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              }
+            ]
+          },
+          {
+            "id": "measure-320-1",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "chordSymbols": [
+              {
+                "id": "chord-325-1",
+                "beatId": "beat-320-1",
+                "display": "name",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ],
+            "lyrics": [],
+            "tuplets": [],
+            "numberedVoice": {
+              "events": [],
+              "tuplets": []
+            },
+            "beats": [
+              {
+                "id": "beat-320-1",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-320-2",
+                "tick": 960,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-322-1",
+                "tick": 1440,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-322-2",
+                "tick": 1680,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-320-3",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-323-1",
+                "tick": 2160,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-323-2",
+                "tick": 2400,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-323-3",
+                "tick": 2640,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-320-4",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-324-1",
+                "tick": 3360,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-324-2",
+                "tick": 3600,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              }
+            ]
+          },
+          {
+            "id": "measure-326-1",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "chordSymbols": [
+              {
+                "id": "chord-331-1",
+                "beatId": "beat-326-1",
+                "display": "name",
+                "chord": {
+                  "name": "Am",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 2,
+                        "finger": 3
+                      },
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 5,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              },
+              {
+                "id": "chord-332-1",
+                "beatId": "beat-326-3",
+                "display": "name",
+                "chord": {
+                  "name": "D",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 2,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 3,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": "x",
+                        "finger": null
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ],
+            "lyrics": [],
+            "tuplets": [],
+            "numberedVoice": {
+              "events": [],
+              "tuplets": []
+            },
+            "beats": [
+              {
+                "id": "beat-326-1",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-326-2",
+                "tick": 960,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-328-1",
+                "tick": 1440,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-328-2",
+                "tick": 1680,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-326-3",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-326-4",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-330-1",
+                "tick": 3360,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-330-2",
+                "tick": 3600,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              }
+            ]
+          },
+          {
+            "id": "measure-333-1",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "chordSymbols": [
+              {
+                "id": "chord-338-1",
+                "beatId": "beat-333-1",
+                "display": "name",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              },
+              {
+                "id": "chord-339-1",
+                "beatId": "beat-333-3",
+                "display": "name",
+                "chord": {
+                  "name": "G7",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 3
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ],
+            "lyrics": [],
+            "tuplets": [],
+            "numberedVoice": {
+              "events": [],
+              "tuplets": []
+            },
+            "beats": [
+              {
+                "id": "beat-333-1",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-333-2",
+                "tick": 960,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-335-1",
+                "tick": 1440,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-335-2",
+                "tick": 1680,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-333-3",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-333-4",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-337-1",
+                "tick": 3360,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-337-2",
+                "tick": 3600,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              }
+            ]
+          },
+          {
+            "id": "measure-340-1",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "chordSymbols": [
+              {
+                "id": "chord-347-1",
+                "beatId": "beat-340-1",
+                "display": "name",
+                "chord": {
+                  "name": "C",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 5,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ],
+            "lyrics": [],
+            "tuplets": [],
+            "numberedVoice": {
+              "events": [],
+              "tuplets": []
+            },
+            "beats": [
+              {
+                "id": "beat-340-1",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-340-2",
+                "tick": 960,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-342-1",
+                "tick": 1440,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-342-2",
+                "tick": 1680,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-340-3",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-345-1",
+                "tick": 2160,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-345-2",
+                "tick": 2400,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-345-3",
+                "tick": 2640,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-340-4",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-344-1",
+                "tick": 3360,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-344-2",
+                "tick": 3600,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              }
+            ]
+          },
+          {
+            "id": "measure-348-1",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "chordSymbols": [
+              {
+                "id": "chord-353-1",
+                "beatId": "beat-348-1",
+                "display": "name",
+                "chord": {
+                  "name": "Bm",
+                  "diagram": {
+                    "startFret": 2,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 2,
+                        "fret": 3,
+                        "finger": 2
+                      },
+                      {
+                        "string": 3,
+                        "fret": 4,
+                        "finger": 4
+                      },
+                      {
+                        "string": 4,
+                        "fret": 4,
+                        "finger": 3
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": [
+                      {
+                        "fret": 2,
+                        "minString": 1,
+                        "maxString": 5,
+                        "finger": 1
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "id": "chord-354-1",
+                "beatId": "beat-348-3",
+                "display": "name",
+                "chord": {
+                  "name": "E",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "finger": 3
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 6,
+                        "fret": 0,
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ],
+            "lyrics": [],
+            "tuplets": [],
+            "numberedVoice": {
+              "events": [],
+              "tuplets": []
+            },
+            "beats": [
+              {
+                "id": "beat-348-1",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-348-2",
+                "tick": 960,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-350-1",
+                "tick": 1440,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-350-2",
+                "tick": 1680,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-348-3",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-348-4",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-352-1",
+                "tick": 3360,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-352-2",
+                "tick": 3600,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              }
+            ]
+          },
+          {
+            "id": "measure-355-1",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "chordSymbols": [
+              {
+                "id": "chord-361-1",
+                "beatId": "beat-355-1",
+                "display": "name",
+                "chord": {
+                  "name": "Am",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 2,
+                        "finger": 3
+                      },
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 5,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ],
+            "lyrics": [],
+            "tuplets": [],
+            "numberedVoice": {
+              "events": [],
+              "tuplets": []
+            },
+            "beats": [
+              {
+                "id": "beat-355-1",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-355-2",
+                "tick": 960,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-357-1",
+                "tick": 1440,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-357-2",
+                "tick": 1680,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-355-3",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-358-1",
+                "tick": 2160,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-358-2",
+                "tick": 2400,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-358-3",
+                "tick": 2640,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-355-4",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-359-1",
+                "tick": 3360,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-359-2",
+                "tick": 3600,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              }
+            ]
+          },
+          {
+            "id": "measure-362-1",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "chordSymbols": [
+              {
+                "id": "chord-366-1",
+                "beatId": "beat-362-1",
+                "display": "name",
+                "chord": {
+                  "name": "C",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 5,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ],
+            "lyrics": [],
+            "tuplets": [],
+            "numberedVoice": {
+              "events": [],
+              "tuplets": []
+            },
+            "beats": [
+              {
+                "id": "beat-362-1",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-362-2",
+                "tick": 960,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-364-1",
+                "tick": 1440,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-364-2",
+                "tick": 1680,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-362-3",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": []
+              },
+              {
+                "id": "beat-362-4",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": []
+              }
+            ]
+          },
+          {
+            "id": "measure-365-1",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "repeatEnd",
+            "chordSymbols": [
+              {
+                "id": "chord-371-1",
+                "beatId": "beat-365-1",
+                "display": "name",
+                "chord": {
+                  "name": "Dsus4",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": null
+                      },
+                      {
+                        "string": 2,
+                        "fret": 3,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 2,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": "x",
+                        "finger": null
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              },
+              {
+                "id": "chord-392-1",
+                "beatId": "beat-365-3",
+                "display": "name",
+                "chord": {
+                  "name": "D",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 2,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 3,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": "x",
+                        "finger": null
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ],
+            "lyrics": [],
+            "tuplets": [],
+            "numberedVoice": {
+              "events": [],
+              "tuplets": []
+            },
+            "beats": [
+              {
+                "id": "beat-365-1",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-365-2",
+                "tick": 960,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-390-1",
+                "tick": 1440,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-390-2",
+                "tick": 1680,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-365-3",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-365-4",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "note-393-1",
+                    "string": 3,
+                    "fret": "-"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "measure-395-1",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "chordSymbols": [
+              {
+                "id": "chord-396-1",
+                "beatId": "beat-395-1",
+                "display": "name",
+                "chord": {
+                  "name": "C",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 5,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ],
+            "lyrics": [],
+            "tuplets": [],
+            "numberedVoice": {
+              "events": [],
+              "tuplets": []
+            },
+            "beats": [
+              {
+                "id": "beat-395-1",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-395-2",
+                "tick": 960,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-398-1",
+                "tick": 1440,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-398-2",
+                "tick": 1680,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-395-3",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-402-1",
+                "tick": 2160,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 1
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-404-1",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-403-2",
+                "tick": 3360,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-406-1",
+                "tick": 3600,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              }
+            ]
+          },
+          {
+            "id": "measure-408-1",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "chordSymbols": [
+              {
+                "id": "chord-413-1",
+                "beatId": "beat-408-1",
+                "display": "name",
+                "chord": {
+                  "name": "C",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 5,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ],
+            "lyrics": [],
+            "tuplets": [],
+            "numberedVoice": {
+              "events": [],
+              "tuplets": []
+            },
+            "beats": [
+              {
+                "id": "beat-408-1",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-408-2",
+                "tick": 960,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-410-1",
+                "tick": 1440,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-410-2",
+                "tick": 1680,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-408-3",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": []
+              },
+              {
+                "id": "beat-408-4",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": []
+              }
+            ]
+          },
+          {
+            "id": "measure-414-1",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "chordSymbols": [
+              {
+                "id": "chord-415-1",
+                "beatId": "beat-414-1",
+                "display": "name",
+                "chord": {
+                  "name": "Dsus4",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": null
+                      },
+                      {
+                        "string": 2,
+                        "fret": 3,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 2,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": "x",
+                        "finger": null
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ],
+            "lyrics": [],
+            "tuplets": [],
+            "numberedVoice": {
+              "events": [],
+              "tuplets": []
+            },
+            "beats": [
+              {
+                "id": "beat-414-1",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-414-2",
+                "tick": 960,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-417-1",
+                "tick": 1440,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-417-2",
+                "tick": 1680,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-414-3",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-418-1",
+                "tick": 2160,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-418-2",
+                "tick": 2400,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-418-3",
+                "tick": 2640,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-414-4",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-419-1",
+                "tick": 3360,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-419-2",
+                "tick": 3600,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              }
+            ]
+          },
+          {
+            "id": "measure-420-1",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "chordSymbols": [
+              {
+                "id": "chord-421-1",
+                "beatId": "beat-420-1",
+                "display": "name",
+                "chord": {
+                  "name": "D",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 2,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 3,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": "x",
+                        "finger": null
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ],
+            "lyrics": [],
+            "tuplets": [],
+            "numberedVoice": {
+              "events": [],
+              "tuplets": []
+            },
+            "beats": [
+              {
+                "id": "beat-420-1",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-420-2",
+                "tick": 960,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "note-423-3",
+                    "string": 3,
+                    "fret": "-"
+                  }
+                ]
+              },
+              {
+                "id": "beat-420-3",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "note-423-2",
+                    "string": 3,
+                    "fret": "-"
+                  }
+                ]
+              },
+              {
+                "id": "beat-420-4",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "note-423-1",
+                    "string": 3,
+                    "fret": "-"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "measure-426-1",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "chordSymbols": [
+              {
+                "id": "chord-426-1",
+                "beatId": "beat-426-1",
+                "display": "name",
+                "chord": {
+                  "name": "C",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 5,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ],
+            "lyrics": [],
+            "tuplets": [],
+            "numberedVoice": {
+              "events": [],
+              "tuplets": []
+            },
+            "beats": [
+              {
+                "id": "beat-426-1",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-426-2",
+                "tick": 960,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-426-3",
+                "tick": 1440,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-426-4",
+                "tick": 1680,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-426-5",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-426-6",
+                "tick": 2160,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-426-7",
+                "tick": 2400,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-426-8",
+                "tick": 2640,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-426-9",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-426-10",
+                "tick": 3360,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-426-11",
+                "tick": 3600,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              }
+            ]
+          },
+          {
+            "id": "measure-426-2",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "chordSymbols": [
+              {
+                "id": "chord-426-2",
+                "beatId": "beat-426-12",
+                "display": "name",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ],
+            "lyrics": [],
+            "tuplets": [],
+            "numberedVoice": {
+              "events": [],
+              "tuplets": []
+            },
+            "beats": [
+              {
+                "id": "beat-426-12",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-426-13",
+                "tick": 960,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-426-14",
+                "tick": 1440,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-426-15",
+                "tick": 1680,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-426-16",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-426-17",
+                "tick": 2160,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-426-18",
+                "tick": 2400,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-426-19",
+                "tick": 2640,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-426-20",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-426-21",
+                "tick": 3360,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-426-22",
+                "tick": 3600,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              }
+            ]
+          },
+          {
+            "id": "measure-428-1",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "chordSymbols": [
+              {
+                "id": "chord-428-1",
+                "beatId": "beat-428-1",
+                "display": "name",
+                "chord": {
+                  "name": "C",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 5,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ],
+            "lyrics": [],
+            "tuplets": [],
+            "numberedVoice": {
+              "events": [],
+              "tuplets": []
+            },
+            "beats": [
+              {
+                "id": "beat-428-1",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-428-2",
+                "tick": 960,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-428-3",
+                "tick": 1440,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-428-4",
+                "tick": 1680,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-428-5",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-428-6",
+                "tick": 2160,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-428-7",
+                "tick": 2400,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-428-8",
+                "tick": 2640,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-428-9",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "eighth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-428-10",
+                "tick": 3360,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-428-11",
+                "tick": 3600,
+                "rhythm": {
+                  "base": "sixteenth",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              }
+            ]
+          },
+          {
+            "id": "measure-429-1",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "chordSymbols": [
+              {
+                "id": "chord-430-1",
+                "beatId": "beat-429-1",
+                "display": "name",
+                "chord": {
+                  "name": "D7",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 2,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 1,
+                        "finger": 1
+                      },
+                      {
+                        "string": 3,
+                        "fret": 2,
+                        "finger": 2
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": "x",
+                        "finger": null
+                      },
+                      {
+                        "string": 6,
+                        "fret": "x",
+                        "finger": null
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ],
+            "lyrics": [],
+            "tuplets": [],
+            "numberedVoice": {
+              "events": [],
+              "tuplets": []
+            },
+            "beats": [
+              {
+                "id": "beat-429-1",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-429-2",
+                "tick": 960,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "note-432-3",
+                    "string": 3,
+                    "fret": "-"
+                  }
+                ]
+              },
+              {
+                "id": "beat-429-3",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "note-432-2",
+                    "string": 3,
+                    "fret": "-"
+                  }
+                ]
+              },
+              {
+                "id": "beat-429-4",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "note-432-1",
+                    "string": 3,
+                    "fret": "-"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "measure-433-1",
+            "timeSignature": {
+              "numerator": 4,
+              "denominator": 4
+            },
+            "barline": "single",
+            "chordSymbols": [
+              {
+                "id": "chord-434-1",
+                "beatId": "beat-433-1",
+                "display": "name",
+                "chord": {
+                  "name": "G",
+                  "diagram": {
+                    "startFret": 1,
+                    "fretCount": 5,
+                    "strings": [
+                      {
+                        "string": 1,
+                        "fret": 3,
+                        "finger": 3
+                      },
+                      {
+                        "string": 2,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 3,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 4,
+                        "fret": 0,
+                        "finger": null
+                      },
+                      {
+                        "string": 5,
+                        "fret": 2,
+                        "finger": 1
+                      },
+                      {
+                        "string": 6,
+                        "fret": 3,
+                        "finger": 2
+                      }
+                    ],
+                    "barres": []
+                  }
+                }
+              }
+            ],
+            "lyrics": [],
+            "tuplets": [],
+            "numberedVoice": {
+              "events": [],
+              "tuplets": []
+            },
+            "beats": [
+              {
+                "id": "beat-433-1",
+                "tick": 0,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "rest",
+                "notes": []
+              },
+              {
+                "id": "beat-433-2",
+                "tick": 960,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "note-437-3",
+                    "string": 3,
+                    "fret": "-"
+                  }
+                ]
+              },
+              {
+                "id": "beat-433-3",
+                "tick": 1920,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "note-437-2",
+                    "string": 3,
+                    "fret": "-"
+                  }
+                ]
+              },
+              {
+                "id": "beat-433-4",
+                "tick": 2880,
+                "rhythm": {
+                  "base": "quarter",
+                  "dots": 0
+                },
+                "kind": "notes",
+                "notes": [
+                  {
+                    "id": "note-437-1",
+                    "string": 3,
+                    "fret": "-"
+                  }
+                ]
+              }
+            ]
           }
         ],
         "techniques": [
@@ -8315,12 +12826,12 @@
             "toNoteId": "note-86-1"
           },
           {
+            "id": "technique-185-1",
             "type": "arpeggio",
             "beatId": "beat-137-1",
             "minString": 3,
             "maxString": 5,
-            "direction": "ascending",
-            "id": "technique-185-1"
+            "direction": "ascending"
           },
           {
             "id": "technique-223-1",
@@ -8347,12 +12858,12 @@
             "toNoteId": "note-219-1"
           },
           {
+            "id": "technique-227-1",
             "type": "arpeggio",
             "beatId": "beat-227-1",
             "minString": 3,
             "maxString": 5,
-            "direction": "ascending",
-            "id": "technique-227-1"
+            "direction": "ascending"
           },
           {
             "id": "technique-227-2",
@@ -8403,28 +12914,1196 @@
             "toNoteId": "note-235-11"
           },
           {
+            "id": "technique-242-1",
             "type": "tie",
             "fromNoteId": "note-88-1",
-            "toNoteId": "note-89-1",
-            "id": "technique-242-1"
+            "toNoteId": "note-89-1"
           },
           {
+            "id": "technique-243-1",
             "type": "tie",
             "fromNoteId": "note-122-1",
-            "toNoteId": "note-125-1",
-            "id": "technique-243-1"
+            "toNoteId": "note-125-1"
           },
           {
+            "id": "technique-244-1",
             "type": "tie",
             "fromNoteId": "note-147-1",
-            "toNoteId": "note-148-1",
-            "id": "technique-244-1"
+            "toNoteId": "note-148-1"
+          },
+          {
+            "id": "technique-245-1",
+            "type": "tie",
+            "fromNoteId": "note-156-1",
+            "toNoteId": "note-161-1"
           },
           {
             "type": "tie",
-            "fromNoteId": "note-156-1",
-            "toNoteId": "note-161-1",
-            "id": "technique-245-1"
+            "fromNoteId": "note-258-1",
+            "toNoteId": "note-259-1",
+            "id": "technique-263-1"
+          },
+          {
+            "type": "tie",
+            "fromNoteId": "note-285-1",
+            "toNoteId": "note-286-1",
+            "id": "technique-290-1"
+          },
+          {
+            "type": "arpeggio",
+            "beatId": "beat-281-3",
+            "minString": 2,
+            "maxString": 5,
+            "direction": "ascending",
+            "id": "technique-299-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-291-6",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-303-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-291-9",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-303-2"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-291-10",
+            "stroke": "up",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-303-3"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-311-1",
+            "minString": 3,
+            "maxString": 5,
+            "stroke": "down",
+            "id": "technique-314-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-311-2",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-315-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-312-1",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-315-2"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-312-2",
+            "stroke": "up",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-315-3"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-311-3",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-316-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-313-1",
+            "stroke": "up",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-316-2"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-313-2",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-316-3"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-313-3",
+            "stroke": "up",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-316-4"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-311-4",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-317-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-312-3",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-317-2"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-312-4",
+            "stroke": "up",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-317-3"
+          },
+          {
+            "type": "traversalTie",
+            "fromBeatId": "beat-312-2",
+            "toBeatId": "beat-311-3",
+            "id": "technique-319-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-320-1",
+            "minString": 2,
+            "maxString": 5,
+            "stroke": "down",
+            "id": "technique-321-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-320-2",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-322-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-322-1",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-322-2"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-322-2",
+            "stroke": "up",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-322-3"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-320-3",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-323-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-323-1",
+            "stroke": "up",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-323-2"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-323-2",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-323-3"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-323-3",
+            "stroke": "up",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-323-4"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-320-4",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-324-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-324-1",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-324-2"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-324-2",
+            "stroke": "up",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-324-3"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-326-1",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-327-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-326-2",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-328-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-328-1",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-328-2"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-328-2",
+            "stroke": "up",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-328-3"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-326-3",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-329-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-326-4",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-330-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-330-1",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-330-2"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-330-2",
+            "stroke": "up",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-330-3"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-333-1",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-334-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-333-2",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-335-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-335-1",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-335-2"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-335-2",
+            "stroke": "up",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-335-3"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-333-3",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-336-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-333-4",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-337-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-337-1",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-337-2"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-337-2",
+            "stroke": "up",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-337-3"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-340-1",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-341-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-340-2",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-342-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-342-1",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-342-2"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-342-2",
+            "stroke": "up",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-342-3"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-340-3",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-343-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-340-4",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-344-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-344-1",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-344-2"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-344-2",
+            "stroke": "up",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-344-3"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-345-1",
+            "stroke": "up",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-345-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-345-2",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-345-2"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-345-3",
+            "stroke": "up",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-345-3"
+          },
+          {
+            "type": "traversalTie",
+            "fromBeatId": "beat-342-2",
+            "toBeatId": "beat-340-3",
+            "id": "technique-346-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-348-1",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-349-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-348-2",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-350-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-350-1",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-350-2"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-350-2",
+            "stroke": "up",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-350-3"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-348-3",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-351-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-348-4",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-352-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-352-1",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-352-2"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-352-2",
+            "stroke": "up",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-352-3"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-355-1",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-356-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-355-2",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-357-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-357-1",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-357-2"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-357-2",
+            "stroke": "up",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-357-3"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-355-3",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-358-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-358-1",
+            "stroke": "up",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-358-2"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-358-2",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-358-3"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-358-3",
+            "stroke": "up",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-358-4"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-355-4",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-359-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-359-1",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-359-2"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-359-2",
+            "stroke": "up",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-359-3"
+          },
+          {
+            "type": "traversalTie",
+            "fromBeatId": "beat-357-2",
+            "toBeatId": "beat-355-3",
+            "id": "technique-360-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-362-1",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-363-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-362-2",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-364-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-364-1",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-364-2"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-364-2",
+            "stroke": "up",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-364-3"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-365-1",
+            "minString": 2,
+            "maxString": 5,
+            "stroke": "down",
+            "id": "technique-370-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-365-2",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-390-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-390-1",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-390-2"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-390-2",
+            "stroke": "up",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-390-3"
+          },
+          {
+            "type": "arpeggio",
+            "beatId": "beat-365-3",
+            "minString": 2,
+            "maxString": 5,
+            "direction": "ascending",
+            "id": "technique-391-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-395-1",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-397-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-395-2",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-398-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-398-1",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-398-2"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-398-2",
+            "stroke": "up",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-398-3"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-395-3",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-399-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-404-1",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-404-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-403-2",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-407-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-406-1",
+            "stroke": "up",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-407-2"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-408-1",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-409-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-408-2",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-410-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-410-1",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-410-2"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-410-2",
+            "stroke": "up",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-410-3"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-414-1",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-416-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-414-2",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-417-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-417-1",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-417-2"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-417-2",
+            "stroke": "up",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-417-3"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-414-3",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-418-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-418-1",
+            "stroke": "up",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-418-2"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-418-2",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-418-3"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-418-3",
+            "stroke": "up",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-418-4"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-414-4",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-419-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-419-1",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-419-2"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-419-2",
+            "stroke": "up",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-419-3"
+          },
+          {
+            "type": "arpeggio",
+            "beatId": "beat-420-1",
+            "minString": 2,
+            "maxString": 5,
+            "direction": "ascending",
+            "id": "technique-422-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-426-1",
+            "minString": 3,
+            "maxString": 5,
+            "stroke": "down",
+            "id": "technique-426-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-426-2",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-426-2"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-426-3",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-426-3"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-426-4",
+            "stroke": "up",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-426-4"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-426-5",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-426-5"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-426-6",
+            "stroke": "up",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-426-6"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-426-7",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-426-7"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-426-8",
+            "stroke": "up",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-426-8"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-426-9",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-426-9"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-426-10",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-426-10"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-426-11",
+            "stroke": "up",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-426-11"
+          },
+          {
+            "type": "traversalTie",
+            "fromBeatId": "beat-426-4",
+            "toBeatId": "beat-426-5",
+            "id": "technique-426-12"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-426-12",
+            "minString": 2,
+            "maxString": 5,
+            "stroke": "down",
+            "id": "technique-426-13"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-426-13",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-426-14"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-426-14",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-426-15"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-426-15",
+            "stroke": "up",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-426-16"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-426-16",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-426-17"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-426-17",
+            "stroke": "up",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-426-18"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-426-18",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-426-19"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-426-19",
+            "stroke": "up",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-426-20"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-426-20",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-426-21"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-426-21",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-426-22"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-426-22",
+            "stroke": "up",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-426-23"
+          },
+          {
+            "type": "traversalTie",
+            "fromBeatId": "beat-417-2",
+            "toBeatId": "beat-414-3",
+            "id": "technique-427-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-428-1",
+            "minString": 3,
+            "maxString": 5,
+            "stroke": "down",
+            "id": "technique-428-1"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-428-2",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-428-2"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-428-3",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-428-3"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-428-4",
+            "stroke": "up",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-428-4"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-428-5",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-428-5"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-428-6",
+            "stroke": "up",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-428-6"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-428-7",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-428-7"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-428-8",
+            "stroke": "up",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-428-8"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-428-9",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-428-9"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-428-10",
+            "stroke": "down",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-428-10"
+          },
+          {
+            "type": "strum",
+            "beatId": "beat-428-11",
+            "stroke": "up",
+            "minString": 1,
+            "maxString": 6,
+            "id": "technique-428-11"
+          },
+          {
+            "type": "traversalTie",
+            "fromBeatId": "beat-428-4",
+            "toBeatId": "beat-428-5",
+            "id": "technique-428-12"
+          },
+          {
+            "type": "arpeggio",
+            "beatId": "beat-429-1",
+            "minString": 2,
+            "maxString": 5,
+            "direction": "ascending",
+            "id": "technique-431-1"
+          },
+          {
+            "type": "arpeggio",
+            "beatId": "beat-433-1",
+            "minString": 2,
+            "maxString": 5,
+            "direction": "ascending",
+            "id": "technique-435-1"
           }
         ],
         "numberedMarks": [
@@ -8457,6 +14136,30 @@
             "type": "tie",
             "fromItemId": "numbered-item-160-1",
             "toItemId": "numbered-item-173-1"
+          },
+          {
+            "type": "tie",
+            "fromItemId": "numbered-item-489-1",
+            "toItemId": "numbered-item-492-1",
+            "id": "numbered-mark-496-1"
+          },
+          {
+            "type": "tie",
+            "fromItemId": "numbered-item-512-1",
+            "toItemId": "numbered-item-513-1",
+            "id": "numbered-mark-530-1"
+          },
+          {
+            "type": "tie",
+            "fromItemId": "numbered-item-525-2",
+            "toItemId": "numbered-item-526-1",
+            "id": "numbered-mark-531-1"
+          },
+          {
+            "type": "tie",
+            "fromItemId": "numbered-item-532-2",
+            "toItemId": "numbered-item-532-3",
+            "id": "numbered-mark-535-1"
           }
         ]
       }
