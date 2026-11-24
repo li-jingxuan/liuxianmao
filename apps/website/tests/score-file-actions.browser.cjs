@@ -12,18 +12,19 @@ async function selectScoreAction(page, group, item, { dispatch = false } = {}) {
 }
 
 async function downloadScoreJson(page) {
-  await selectScoreAction(page, "导出", "JSON 曲谱");
-  const dialog = page.getByRole("dialog", { name: "导出 JSON", exact: true });
+  await selectScoreAction(page, "导出", "六线猫专用谱(.lxm)");
+  const label = "导出六线猫专用谱(.lxm)";
+  const dialog = page.getByRole("dialog", { name: label, exact: true });
   const [download] = await Promise.all([
     page.waitForEvent("download"),
-    button(dialog, "导出 JSON").click(),
+    button(dialog, label).click(),
   ]);
   await dialog.waitFor({ state: "hidden" });
   return download;
 }
 
 function openScorePng(page, options) {
-  return selectScoreAction(page, "导出", "PNG 图片", options);
+  return selectScoreAction(page, "导出", "图片(.png)", options);
 }
 
 async function openScoreImport(page, file, options) {

@@ -9,6 +9,10 @@ import {
 import { loadEditorDocument } from "../../../stores/editor-store";
 import { buildScoreScene } from "@liuxianmao/lxm-editor";
 
+// 文件扩展名和界面显示名共用此约定，文档内部仍使用现有 JSON 和 Schema 版本。
+export const SCORE_FILE_EXTENSION = ".lxm";
+export const SCORE_FILE_LABEL = `六线猫专用谱(${SCORE_FILE_EXTENSION})`;
+
 /** 文件大小、结构深度和乐谱规模共用同一预算，保证本版导出的文件可再次导入。 */
 export const SCORE_FILE_MAX_BYTES = 10 * 1024 * 1024;
 const MAX_DEPTH = 64;
@@ -194,12 +198,12 @@ export const inspectScoreFile = (text: string): FileResult => {
   try {
     raw = JSON.parse(text.replace(/^\uFEFF/, ""));
   } catch {
-    return fail("JSON 格式错误，无法导入曲谱", "syntax");
+    return fail("曲谱文件内容格式错误，无法导入。", "syntax");
   }
   const structureError = inspectStructure(raw);
   if (structureError) return fail(structureError);
   if (!raw || typeof raw !== "object" || !("schema" in raw) || raw.schema !== SCORE_DOCUMENT_SCHEMA)
-    return fail("请选择六线猫导出的 JSON 曲谱。当前不支持 MusicXML、MIDI 或其他 JSON。", "format");
+    return fail(`文件内容不是有效的${SCORE_FILE_LABEL}，请选择由六线猫导出的曲谱。`, "format");
   const sourceVersion =
     raw &&
     typeof raw === "object" &&
@@ -238,7 +242,8 @@ export const decodeScoreFile = (bytes: ArrayBuffer): FileResult => {
   }
 };
 
-export const scoreFileName = (title: string): string => {
+/** 沿用曲名清理和默认名，按浏览器本地日期生成 yyMMdd，避免 UTC 换日时文件名早一天或晚一天。 */
+export const scoreFileName = (title: string, date = new Date()): string => {
   const clean = [...title]
     .map((char) =>
       /[\\/:*?"<>|]/.test(char) ||
@@ -252,7 +257,10 @@ export const scoreFileName = (title: string): string => {
     .trim()
     .slice(0, 80)
     .replace(/[.\s]+$/g, "");
-  return `${clean || "未命名曲谱"}.lxm.json`;
+  const year = String(date.getFullYear()).slice(-2).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${clean || "未命名曲谱"}_${year}${month}${day}${SCORE_FILE_EXTENSION}`;
 };
 
 /** 下载前再次走完整导入预检，保证生成的文件能够用本编辑器重新打开。 */
@@ -263,7 +271,7 @@ export const serializeScoreFile = (document: ILXMDocument): ExportResult => {
   try {
     text = `${JSON.stringify(document, null, 2)}\n`;
   } catch {
-    return { ok: false, errors: ["曲谱无法序列化为 JSON"] };
+    return { ok: false, errors: ["无法生成曲谱文件。"] };
   }
   const checked = inspectScoreFile(text);
   return checked.ok
@@ -271,7 +279,7 @@ export const serializeScoreFile = (document: ILXMDocument): ExportResult => {
     : checked;
 };
 
-/** Keep the URL alive across immediate navigation or document replacement after handoff. */
+/** 主动导出与离开确认都在实际下载时取当天日期，保留 UTF-8 JSON 内容类型。 */
 export const downloadScoreFile = (score: ILXMDocument): { ok: true; name: string } | { ok: false; errors: string[] } => {
   const result = serializeScoreFile(score);
   if (!result.ok) return result;
@@ -290,6 +298,7 @@ export const downloadScoreFile = (score: ILXMDocument): { ok: true; name: string
   } finally {
     link?.remove();
     const capturedUrl = url;
+    // 下载交给浏览器后可能立即跳转或换谱，延迟回收地址，给浏览器留出读取文件的时间。
     if (capturedUrl) window.setTimeout(() => URL.revokeObjectURL(capturedUrl), 60_000);
   }
 };

@@ -1,5 +1,6 @@
 "use client";
 import {
+  type ComponentProps,
   type Ref,
   useCallback,
   useEffect,
@@ -82,7 +83,8 @@ const RHYTHMS: {
   { base: "sixteenth", icon: "noteSixteenth", label: "十六分音符" },
   { base: "thirtySecond", icon: "noteThirtySecond", label: "三十二分音符" },
 ];
-const ToolButton = EditorToolSymbolButton;
+const ToolButton = (props: ComponentProps<typeof EditorToolSymbolButton>) =>
+  <EditorToolSymbolButton {...props} showDisabledReason={false} />;
 
 /** 桌面菜单只组织入口；预览控制器随会话存活。 */
 export const EditorToolbar = ({
@@ -385,7 +387,6 @@ export const EditorToolbar = ({
         <ToolButton
           label="撤销"
           title={<ShortcutHint shortcuts={["undo"]} />}
-          disabledTitle={modal ? undefined : <ShortcutHint shortcuts={["undo"]} note="没有可撤销的修改。" />}
           availability={{
             enabled: canUndo && !modal,
             reason: modal
@@ -401,7 +402,6 @@ export const EditorToolbar = ({
         <ToolButton
           label="重做"
           title={<ShortcutHint shortcuts={["redo"]} />}
-          disabledTitle={modal ? undefined : <ShortcutHint shortcuts={["redo"]} note="没有可重做的修改。" />}
           availability={{
             enabled: canRedo && !modal,
             reason: modal
@@ -446,7 +446,6 @@ export const EditorToolbar = ({
           <ToolButton
             key={dots}
             label={dots === 1 ? "单附点" : "双附点"}
-            title={`${dots === 1 ? "单附点：原时值的 1.5 倍" : "双附点：原时值的 1.75 倍"}；再次点击取消附点`}
             availability={rhythmAvailability}
             pressed={rhythmTarget.rhythm?.dots === dots}
             onClick={() =>
@@ -465,8 +464,7 @@ export const EditorToolbar = ({
         ))}
         <ToolButton label="切换休止" availability={restAvailability}
           pressed={tools.restState === "all"}
-          title={<ShortcutHint shortcuts={["rest", "restore"]} note={tools.restState === "all" ? "取消休止后得到空拍。" : "将所选整拍设为休止，清空弦音符及扫弦或琶音。"} />}
-          disabledTitle={modal ? undefined : <ShortcutHint shortcuts={["rest", "restore"]} note={restAvailability.reason} />}
+          title={<ShortcutHint shortcuts={["rest", "restore"]} />}
           onClick={() => void run({ type: "restToggle" })}><TechniqueSymbol kind="rest" /></ToolButton>
       </div>
       </div>
@@ -481,7 +479,7 @@ export const EditorToolbar = ({
               onApply={applyNumberedArc} />;
            }
            const result = resolveQuickTechnique(document, selection, quick);
-           const labels = { hammerOn: "击弦 H", pullOff: "勾弦 P", slide: "滑音", tie: "延音线", strumDown: "下扫：从低音弦到高音弦，箭头向上", strumUp: "上扫：从高音弦到低音弦，箭头向下", arpeggioDown: "下琶音：从低音弦到高音弦，箭头向上", arpeggioUp: "上琶音：从高音弦到低音弦，箭头向下" };
+           const labels = { hammerOn: "击弦", pullOff: "勾弦", slide: "滑音", tie: "延音线", strumDown: "下扫", strumUp: "上扫", arpeggioDown: "下琶音", arpeggioUp: "上琶音" };
            return <ToolButton key={quick} label={labels[quick]}
              availability={available(tabReason ? { enabled: false, reason: tabReason } : { enabled: result.ok, reason: result.ok ? "" : result.message })}
              pressed={result.ok && result.pressed}
@@ -589,7 +587,6 @@ export const EditorToolbar = ({
       <div className={toolbarStyles.toolbarGroup} role="group" aria-label="和弦">
         <ToolButton
           label={chordTarget.label}
-          title={chordTarget.title}
           availability={chordAvailability}
           pressed={chordActive}
           expanded={chordActive}
@@ -608,7 +605,6 @@ export const EditorToolbar = ({
         {chordTarget.chord && chordTarget.target && (
           <ToolButton
             label="删除和弦"
-            title={`删除当前拍的和弦名称与指法 · ${chordTarget.chord.chord.name}`}
             availability={chordDeletionAvailability}
             onClick={async () => {
               if (!chordDeletionAvailability.enabled || !chordTarget.target || !chordTarget.chord) return;
@@ -629,7 +625,7 @@ export const EditorToolbar = ({
       </div>
       </div>}
       <div className={toolbarStyles.viewControls} role="group" aria-label="工作区布局" data-editor-associated-panel="music-text-sidebar" data-editor-panel-control>
-        <Tooltip title={playback.enabled ? null : "进入木吉他试听"} trigger={["hover", "focus"]} placement="bottomRight"
+        <Tooltip title={playback.enabled ? null : "木吉他试听"} trigger={["hover", "focus"]} placement="bottomRight"
           styles={playback.enabled ? { root: { visibility: "hidden" } } : undefined}>
           <button
             ref={playbackToggleRef}

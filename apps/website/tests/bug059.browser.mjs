@@ -35,6 +35,29 @@ try {
   await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/__bug059__`, { waitUntil: "commit" });
   const score = page.getByRole("application", { name: "六线谱编辑器" });
   await score.waitFor({ timeout: 90000 });
+  const toolbar = page.getByRole("toolbar", { name: "节奏、小节与历史工具" });
+  const toolbarButton = name => toolbar.getByRole("button", { name, exact: true });
+  const sweep = toolbarButton("下扫");
+  const undo = toolbarButton("撤销");
+  // 切换焦点时，上一个提示可能仍在执行退场动画。按操作名定位本次提示，再精确校验内容。
+  const tooltipFor = name => page.getByRole("tooltip").filter({ hasText: name });
+  const checkFocusedHint = async (button, disabled, name, keys = []) => {
+    assert.equal(await button.isDisabled(), disabled);
+    const trigger = disabled ? button.locator("..") : button;
+    const tooltip = tooltipFor(name);
+    if (disabled) assert.equal(await trigger.getAttribute("tabindex"), "0");
+    await trigger.focus();
+    await tooltip.waitFor();
+    assert.deepEqual(await tooltip.locator("kbd").allTextContents(), keys);
+    assert.equal(await tooltip.evaluate(el => {
+      const copy = el.cloneNode(true);
+      for (const key of copy.querySelectorAll("kbd")) key.remove();
+      return copy.textContent.trim();
+    }), name);
+    await page.keyboard.press("Escape");
+    await tooltip.waitFor({ state: "hidden" });
+    await trigger.and(page.locator(":focus")).waitFor();
+  };
   const tie = page.getByRole("button", { name: "延音线", exact: true });
   const allTechniques = page.getByRole("button", { name: "所有技巧", exact: true });
   const rangeTechnique = (type) => page.locator(`[data-technique-type="${type}"]`);
@@ -77,6 +100,12 @@ try {
   await page.keyboard.up("Shift");
   await assertRange(0, 1);
 
+  // 跨拍选择仍禁用扫弦和琶音。聚焦禁用按钮的外层也能看到操作名称并按 Esc 收起提示。
+  const historyKeys = await page.evaluate(() => [/mac|iphone|ipad|ipod/i.test(navigator.platform) ? "⌘" : "Ctrl", "Z"]);
+  await checkFocusedHint(undo, true, "撤销", historyKeys);
+  for (const name of ["下扫", "上扫", "下琶音", "上琶音"])
+    await checkFocusedHint(toolbarButton(name), true, name);
+
   const before = await state();
   for (const [from, to] of [[0, 1], [2, 1]]) {
     await drag(from, to);
@@ -93,6 +122,7 @@ try {
     await tie.click();
     assert.deepEqual((await state()).techniques, before.techniques);
   }
+  await checkFocusedHint(undo, false, "撤销", historyKeys);
 
   await drag(3, 2);
   await assertRange(3, 2);
@@ -195,9 +225,19 @@ try {
     ["eighth", "notes", []], ["sixteenth", "notes", []], ["sixteenth", "notes", []],
   ]);
 
-  const sweep = page.getByRole("button", { name: /^下扫：/ });
   for (const index of [0, 1, 2]) {
     await drag(index, index, 2, 5);
+    if (index === 0) {
+      // 同拍跨弦选择已启用时，鼠标悬停与键盘焦点显示同样的短名称。
+      const tooltip = tooltipFor("下扫");
+      await sweep.hover();
+      await tooltip.waitFor();
+      assert.equal(await tooltip.innerText(), "下扫");
+      await page.mouse.move(20, 30);
+      await tooltip.waitFor({ state: "hidden" });
+      await checkFocusedHint(sweep, false, "下扫");
+      await checkFocusedHint(toolbarButton("下琶音"), false, "下琶音");
+    }
     await sweep.click();
   }
   const sweepIds = patterned.map(({ id }) => id);

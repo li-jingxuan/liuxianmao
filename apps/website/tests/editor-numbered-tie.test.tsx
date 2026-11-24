@@ -234,7 +234,7 @@ const renderToolbar = (options: { single?: boolean; blocked?: boolean; numberedB
     onNavigate: () => "accepted", sidebarCollapsed: false, onToggleSidebar: () => {}, sidebarToggleRef: null,
   };
   let tool: ArcToolProps | null = null;
-  const Harness = () => { const tree = EditorToolbar({ ...props, playback: useScorePlayback(document, null), isPlaybackEntryBlocked: () => false }); tool = findArcTool(tree); return tree; };
+  const Harness = () => { const tree = EditorToolbar({ ...props, playback: useScorePlayback(document), isPlaybackEntryBlocked: () => false }); tool = findArcTool(tree); return tree; };
   const markup = renderToStaticMarkup(<EditorStoreContext.Provider value={{ ...session, getInitialState: session.getState }}>
     <EditorSessionRuntime session={session}><Harness /></EditorSessionRuntime>
   </EditorStoreContext.Provider>);

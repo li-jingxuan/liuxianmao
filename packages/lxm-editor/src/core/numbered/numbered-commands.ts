@@ -59,6 +59,8 @@ export type ILXMNumberedVoiceCommand = Base &
         startTick: number;
         items: NumberedSequenceItem[];
         rhythms?: ILXMRhythm[];
+        /** 旧录入偏好可逐格回退，和本次显式选择的 rhythms 分开。 */
+        preferredRhythm?: ILXMRhythm;
         allowOverwrite: boolean;
       }
     | {
@@ -346,6 +348,8 @@ export const editNumberedTrack = (
     if (!planned.ok) return failure(planned.message);
     sequenceTargets = planned.targets;
     sequenceAvailableTicks = planned.availableTicks;
+    // 整个后音被显式时值覆盖时，传给现有影响确认，避免从空位录入时静默删音。
+    overwrittenEventIds = planned.removedEventIds;
     const removed = new Set(planned.removedEventIds);
     next = {
       ...track,

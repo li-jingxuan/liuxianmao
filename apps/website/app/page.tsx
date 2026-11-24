@@ -9,7 +9,7 @@ import styles from "./page.module.scss";
 const steps = [
   {
     title: "新建或导入曲谱",
-    description: "从空白谱开始，也可以导入之前保存的六线猫曲谱继续写。",
+    description: "从空白谱开始，也可以导入六线猫专用谱(.lxm)继续写。",
   },
   {
     title: "在谱面上调整",
@@ -17,7 +17,7 @@ const steps = [
   },
   {
     title: "保存或导出",
-    description: "保存曲谱文件供下次编辑，或导出谱面图片，方便发给琴友。",
+    description: "导出六线猫专用谱(.lxm)供下次编辑，或导出谱面图片发给琴友。",
   },
 ];
 

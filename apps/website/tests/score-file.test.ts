@@ -419,10 +419,11 @@ describe("原生曲谱文件往返", () => {
     ).toBe(false);
   });
 
-  it("下载文件名兼容中文、空标题和路径字符", () => {
-    expect(scoreFileName("春风/又绿:江南?岸.")).toBe(
-      "春风_又绿_江南_岸.lxm.json",
+  it("下载文件名按本地日期使用 yyMMdd，兼容中文、空标题和路径字符", () => {
+    const localDate = new Date(2006, 0, 2);
+    expect(scoreFileName("春风/又绿:江南?岸.", localDate)).toBe(
+      "春风_又绿_江南_岸_060102.lxm",
     );
-    expect(scoreFileName("  ")).toBe("未命名曲谱.lxm.json");
+    expect(scoreFileName("  ", localDate)).toBe("未命名曲谱_060102.lxm");
   });
 });

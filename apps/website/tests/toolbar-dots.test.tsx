@@ -114,7 +114,7 @@ const renderToolbar = ({
   let single: Record<string, unknown> | null = null;
   let double: Record<string, unknown> | null = null;
   const Harness = () => {
-    const tree = EditorToolbar({ ...props, playback: useScorePlayback(session.getState().document, null), isPlaybackEntryBlocked: () => false });
+    const tree = EditorToolbar({ ...props, playback: useScorePlayback(session.getState().document), isPlaybackEntryBlocked: () => false });
     single = findButton(tree, "单附点");
     double = findButton(tree, "双附点");
     return tree;

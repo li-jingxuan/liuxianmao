@@ -6,7 +6,7 @@ import type { StoreApi } from "zustand/vanilla";
 import { selectScoreFileStatus, type EditorStoreState } from "../../../stores/editor-store";
 import type { EditorDraftCoordinator } from "../session/editor-draft-coordinator";
 import { captureEditorVersion, sameEditorVersion, type EditorSessionVersion } from "../session/editor-session-version";
-import { downloadScoreFile } from "./score-file";
+import { downloadScoreFile, SCORE_FILE_LABEL } from "./score-file";
 
 export type ScoreFilePanel = "new" | "import" | "json";
 type PendingAction = {
@@ -165,7 +165,7 @@ export function useScoreFileFlow({ session, drafts, isBlocked, onBlocked, onRepl
     if (forLeave) setDownloaded(result.name);
     else {
       cancel();
-      showNotice("success", `已发起 JSON 下载「${result.name}」。`);
+      showNotice("success", `已发起${SCORE_FILE_LABEL}下载「${result.name}」。`);
     }
   };
 

@@ -475,8 +475,9 @@ export const NumberedEditor = ({
   );
   const [templateBase, setTemplateBase] = useState<ILXMRhythmBase>(defaultInputRhythm.base);
   const [templateDots, setTemplateDots] = useState(defaultInputRhythm.dots);
-  // 目标格仅提供默认时值。连续录入没有显式改时值时逐格沿用各自节奏，不能把首格时值套给整批。
-  const [inputRhythmExplicit, setInputRhythmExplicit] = useState(!event && preferenceExplicit && !targetInputRhythm);
+  // 仅本格主动选定的时值才作为整批模板。旧偏好交给核心逐格试用，自动跳入或回退的空位沿用各格时值。
+  const [inputRhythmExplicit, setInputRhythmExplicit] = useState(inputDefault?.chosenHere === true);
+  const useInheritedInputRhythm = !event && preferenceExplicit && !targetInputRhythm;
   const complexRhythm =
     template !== "uniform" ||
     fixedRange ||
@@ -597,6 +598,7 @@ export const NumberedEditor = ({
         measureId: measure.id,
         startTick: event?.tick ?? start,
         items: parsed.items,
+        ...(useInheritedInputRhythm ? { preferredRhythm: { base: templateBase, dots: templateDots } } : {}),
         allowOverwrite: true,
       };
     let rhythms = parsed.items.map((_, i) =>
@@ -671,6 +673,7 @@ export const NumberedEditor = ({
     clearSingleEvent,
     targetInvalid,
     inputRhythmExplicit,
+    useInheritedInputRhythm,
   ]);
   const plan = useMemo(
     () =>
@@ -709,7 +712,7 @@ export const NumberedEditor = ({
     if (contentDirty || pending) return;
     const rhythm = defaultInputRhythm;
     // 顶部工具栏也能在到达后显式选时值。即便显示值相同，也要记下显式选择，提交时才会按此重排。
-    const explicit = targetInputRhythm ? false : inputRhythmExplicit || inputDefault?.chosenHere === true;
+    const explicit = event ? inputRhythmExplicit : inputDefault?.chosenHere === true;
     if (rhythm.base === templateBase && rhythm.dots === templateDots && explicit === inputRhythmExplicit) return;
     let cancelled = false;
     queueMicrotask(() => {

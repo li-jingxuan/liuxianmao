@@ -1,3 +1,5 @@
+@use "shared/editor-scrollbar";
+
 // 工作区只管理列轨道和宿主变量；跨模块子栏通过稳定 data 标记参与布局。
 .editor {
   --history-rail-width: 40px;
@@ -88,12 +90,18 @@
   display: flex;
   align-items: center;
   margin: 16px;
+  // 在原有边距外留出竖槽净空。有横向溢出时再上移，避免挡住底部滚动条。
+  margin-inline-end: 16px + editor-scrollbar.$gutter;
   padding: 2px;
   pointer-events: auto;
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 6px;
   box-shadow: 0 2px 8px rgb(15 23 42 / 10%);
+
+  [data-score-viewport][data-score-overflows-x] ~ & {
+    margin-block-end: 16px + editor-scrollbar.$gutter;
+  }
 
   .scoreZoomStep,
   .scoreZoomValue {

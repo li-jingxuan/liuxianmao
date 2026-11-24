@@ -33,6 +33,9 @@ track.measures = [
   measure("exact-fit", [[0, "quarter"], [960, "quarter"], [1920, "quarter"], [2880, "eighth"], [3360, "sixteenth"], [3600, "sixteenth"]], [note("exact-first", 2880, "sixteenth"), note("exact-second", 3120, "eighth")]),
   screenshotMeasure,
   revisedMeasure,
+  measure("inherited-batch", [[0, "quarter"], [960, "quarter"], [1920, "eighth"], [2400, "sixteenth"], [2640, "sixteenth"], [2880, "quarter"]], [
+    note("batch-dotted", 1440, "eighth", 1), note("batch-short", 2160, "sixteenth"), note("batch-after", 3000, "eighth"),
+  ]),
 ];
 
 const browser = await chromium.launch({ executablePath: process.env.LXM_CHROMIUM_EXECUTABLE });
@@ -44,7 +47,7 @@ try {
   await page.getByRole("button", { name: "导入曲谱", exact: true }).click();
   const importer = page.getByRole("dialog", { name: "导入曲谱" });
   await importer.locator('input[type="file"]').setInputFiles({
-    name: "numbered-auto-advance.lxm.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(document)),
+    name: "numbered-auto-advance.lxm", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(document)),
   });
   await importer.getByRole("button", { name: "打开曲谱", exact: true }).click();
   await page.waitForURL("**/editor");
@@ -84,6 +87,7 @@ try {
     if (target.tick !== undefined) {
       const placeholder = score.locator(`[data-paragraph-cell^="numbered/${target.measureId}/${target.tick}/"]`);
       await placeholder.waitFor({ state: "attached", timeout: 5000 });
+      await placeholder.scrollIntoViewIfNeeded();
       const point = await placeholder.evaluate((node) => {
         const box = node.getBBox();
         const point = new DOMPoint(box.x + box.width / 2, box.y + box.height / 2).matrixTransform(node.getScreenCTM());
@@ -185,13 +189,53 @@ try {
   assert.deepEqual(await events(revisedMeasure.id), revisedBefore);
   await select("revised-numbered-event-592-1");
   await selectPosition({ measureId: revisedMeasure.id, tick: 3120 });
+  // 先用顶部工具栏手选八分，再输入；本格的主动选择必须报错，不能当作旧偏好静默回退。
+  await toolbarRhythm("八分音符").click();
+  await rhythm("八分音符").and(popover.locator('[aria-pressed="true"]')).waitFor();
   await input.fill("1");
-  await rhythm("八分音符").click();
-  const issue = popover.getByRole("status").filter({ hasText: "范围不能切断已有事件" });
+  const issue = popover.getByRole("status").filter({ hasText: "所选时值会占用后面的简谱音符。请缩短时值或取消附点。" });
   await issue.waitFor();
   assert.equal(await apply.isDisabled(), true);
   assert.deepEqual(await events(revisedMeasure.id), revisedBefore);
+  // 同一份草稿可以选短时值修正。在这个空位上，三十二分的附点也会碰到后音。
+  await rhythm("三十二分音符").click();
+  assert.equal(await apply.isEnabled(), true);
+  await rhythm("单附点").click();
+  await issue.waitFor();
+  assert.equal(await apply.isDisabled(), true);
+  await rhythm("单附点").click();
+  assert.equal(await apply.isEnabled(), true);
+  await input.press("Enter");
+  assert.deepEqual((await events(revisedMeasure.id)).find(({ tick }) => tick === 3120)?.rhythm, { base: "thirtySecond", dots: 0 });
+  await page.getByRole("button", { name: "撤销", exact: true }).click();
+  assert.deepEqual(await events(revisedMeasure.id), revisedBefore);
   console.log("BUG-070 revised gap: toggle round-trip, guarded explicit overlap, 3120–3240 saved without neighbor changes");
+
+  // 上一格选的八分能放入第一个连续空窗，但第二项只能用后音前的三十二分余量。
+  await input.press("Escape");
+  await select("batch-after");
+  await rhythm("八分音符").click();
+  const batchBefore = await events("inherited-batch");
+  await selectPosition({ measureId: "inherited-batch", tick: 2400 });
+  assert.equal(await rhythm("八分音符").getAttribute("aria-pressed"), "true");
+  await input.fill("2 3");
+  assert.equal(await apply.isEnabled(), true, await popover.innerText());
+  await input.press("Enter");
+  const batch = await events("inherited-batch");
+  assert.deepEqual(batch.filter(({ tick }) => tick === 2400 || tick === 2880).map(({ tick, rhythm, items }) => [tick, rhythm, items[0].token]), [
+    [2400, { base: "eighth", dots: 0 }, "2"], [2880, { base: "thirtySecond", dots: 0 }, "3"],
+  ]);
+  assert.deepEqual(batch.filter(({ tick }) => tick !== 2400 && tick !== 2880), batchBefore);
+  await page.getByRole("button", { name: "撤销", exact: true }).click();
+  assert.deepEqual(await events("inherited-batch"), batchBefore);
+  console.log("BUG-070 inherited batch saved as eighth + thirty-second and undone");
+  await input.press("Escape");
+  await selectPosition({ measureId: "inherited-batch", tick: 2400 });
+  await input.fill("2 3");
+  await rhythm("八分音符").click();
+  await issue.waitFor();
+  assert.equal(await apply.isDisabled(), true);
+  assert.deepEqual(await events("inherited-batch"), batchBefore);
 
   // 再切到实际 TAB 空拍，顶部工具栏应读写 TAB，自身的四分时值不继承简谱录入偏好。
   await input.press("Escape");
@@ -199,6 +243,17 @@ try {
   assert.equal(await toolbarRhythm("四分音符").getAttribute("aria-pressed"), "true");
   await toolbarRhythm("八分音符").click();
   assert.deepEqual((await savedMeasure("advance")).beats.find(({ id }) => id === "advance-2880").rhythm, { base: "eighth", dots: 0 });
+
+  // 手选四分从 2880 延伸到小节末时，会完整盖住后音，应用前必须确认影响。
+  await selectPosition({ measureId: "inherited-batch", tick: 2880 });
+  await input.fill("4");
+  await rhythm("四分音符").click();
+  await input.press("Enter");
+  const impact = page.getByRole("dialog", { name: "确认简谱修改影响" });
+  await impact.waitFor();
+  assert.deepEqual(await events("inherited-batch"), batchBefore);
+  await impact.getByRole("button", { name: /取.*消/ }).click();
+  assert.deepEqual(await events("inherited-batch"), batchBefore);
 
   assert.equal(destinationEighth, "true");
   assert.equal(toolbarEighth, "true");

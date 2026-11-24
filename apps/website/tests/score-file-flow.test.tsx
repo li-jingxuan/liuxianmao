@@ -56,7 +56,7 @@ function importHarness() {
     const reading = new Promise<ArrayBuffer>((done) => { resolve = done; });
     const input = render().find((node) => node.props.type === "file")!;
     input.props.onChange!({ currentTarget: {
-      files: [{ size: bytes.byteLength, name: "同名.lxm.json", arrayBuffer: () => reading }], value: "同名.lxm.json",
+      files: [{ size: bytes.byteLength, name: "同名.LxM", arrayBuffer: () => reading }], value: "同名.LxM",
     } });
     return async () => { resolve(bytes); await reading; await Promise.resolve(); };
   };

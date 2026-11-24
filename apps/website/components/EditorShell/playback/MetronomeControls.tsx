@@ -213,18 +213,23 @@ export function AuditionMetronomeControls({ playback, onRestore }: { playback: S
   const popover = useMetronomePopover(anchor, trigger);
   const meter = playback.currentMeter ?? playback.startingMeter;
   const source = playback.savedBpm ?? DEFAULT_PLAYBACK_BPM;
-  const status = !playback.clickEnabled ? "未启用" : playback.phase === "paused" ? "已暂停"
+  const status = playback.phase === "paused" ? "已暂停"
     : playback.phase === "playing" ? "跟随播放" : "待播放";
 
   return (
-    <div className={styles.audition} role="group" aria-label="试听节拍器">
-      <div className={styles.auditionStatus}><strong>节拍器</strong><span role="status">{status}</span></div>
+    <div className={styles.audition} role="group" aria-label="试听节拍器" data-click-disabled={!playback.clickEnabled || undefined}>
+      <div className={styles.auditionStatus}><strong>节拍器</strong>{playback.clickEnabled && <span role="status">{status}</span>}</div>
       <BeatCells meter={meter} beat={playback.clickBeat} accent={playback.clickAccent} />
+      {/* 关闭只会停止随谱点击并清掉拍点。设置随组件灰显，复选框继续可操作，以便播放中恢复。 */}
       <label className={styles.check}><input type="checkbox" checked={playback.clickEnabled}
-        onChange={(event) => playback.setClickEnabled(event.currentTarget.checked)} />启用节拍器</label>
+        onChange={(event) => {
+          const enabled = event.currentTarget.checked;
+          if (!enabled && popover.open) popover.close(false);
+          playback.setClickEnabled(enabled);
+        }} />启用节拍器</label>
       <div className={styles.settingsAnchor} ref={anchor} onKeyDown={popover.onKeyDown}>
         <button type="button" className={toolbar.playbackButton} aria-label="节拍器设置" aria-haspopup="dialog"
-          aria-expanded={popover.open} aria-controls={popover.panelId} ref={trigger}
+          aria-expanded={popover.open} aria-controls={popover.panelId} ref={trigger} disabled={!playback.clickEnabled}
           onClick={() => { if (popover.open) popover.close(false); else popover.setOpen(true); }}>
           设置<ChevronDown size={12} aria-hidden="true" />
         </button>

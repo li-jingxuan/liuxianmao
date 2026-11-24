@@ -382,7 +382,7 @@ try {
     assert.equal((await state()).document.score.tracks[0].measures.length, 3);
   });
   await shot("measure-popup");
-  await check("点击即删除当前小节，无确认区或弹窗，可一次撤销", async () => {
+  await check("点击即删除当前小节，无确认，提示原小节编号，可一次撤销", async () => {
     const before = await state();
     await page.getByRole("button", { name: "删除当前小节", exact: true }).last().click();
     assert.equal(await page.getByRole("region", { name: "删除当前小节确认" }).count(), 0);
@@ -390,6 +390,7 @@ try {
     const after = await state();
     assert.deepEqual(after.document.score.tracks[0].measures.map(measure => measure.id), ["m0", "m2"]);
     assert.equal(after.history.past, before.history.past + 1);
+    await page.locator(".ant-message-success").getByText("第 2 小节已删除", { exact: true }).waitFor();
     await state("undo");
     assert.deepEqual((await state()).document, before.document);
   });

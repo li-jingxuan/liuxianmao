@@ -21,7 +21,7 @@
 - 修复 Bug 或完成需求后，在对应行的「备注」补充验收路径。有合并提交时，在验收完成后补充分支名和提交号。
 
 ## lark-cli 凭证
-<!-- - 在本项目中运行 `lark-cli` 时，每次都显式传入 `--profile nice007`，例如 `lark-cli --profile nice007 whoami`。 -->
+- 在本项目中运行 `lark-cli` 时，每次都显式传入 `--profile nice007`，例如 `lark-cli --profile nice007 whoami`。
 
 ## 飞牛 NAS 连接
 - 通过飞牛 skill、已配置的 SSH 密钥或本地连接配置访问。

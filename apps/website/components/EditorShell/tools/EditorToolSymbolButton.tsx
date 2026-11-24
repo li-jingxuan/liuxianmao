@@ -5,14 +5,16 @@ import type { ToolAvailability } from "./editor-tool-state";
 import styles from "./EditorToolSymbolButton.module.scss";
 
 /** A named symbol with a viewport-bounded tooltip outside the toolbar's scrolling clip. */
-export const EditorToolSymbolButton = ({ label, title, disabledTitle, availability, pressed, expanded, popup, onClick, children, triggerId }: {
-  label: string; title?: ReactNode; disabledTitle?: ReactNode; availability: ToolAvailability; pressed?: boolean; expanded?: boolean;
+export const EditorToolSymbolButton = ({ label, title, showDisabledReason = true, availability, pressed, expanded, popup, onClick, children, triggerId }: {
+  label: string; title?: ReactNode; showDisabledReason?: boolean; availability: ToolAvailability; pressed?: boolean; expanded?: boolean;
   popup?: boolean; onClick: (anchor: HTMLElement) => void; children: ReactNode; triggerId?: string;
 }) => {
   const id = useId();
   const wrapper = useRef<HTMLSpanElement>(null);
   const [visible, setVisible] = useState(false);
-  const text = availability.reason ? (disabledTitle ?? availability.reason) : (title ?? label);
+  // 主工具栏禁用时也用同一提示标识工具，让键盘和鼠标用户仍能查到名称及已登记的快捷键。
+  // 简谱侧栏等共用入口继续显示选区或草稿限制，工具的实际禁用状态仍由 availability 决定。
+  const text = showDisabledReason && availability.reason ? availability.reason : (title ?? label);
   useEffect(() => {
     if (!visible || expanded) return;
     const escape = (event: KeyboardEvent) => {

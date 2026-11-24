@@ -57,11 +57,11 @@ describe("score playback session", () => {
     const doc = documentFixture();
     doc.score.tempoBpm = 20;
     doc.score.showTempoMark = false;
-    await session.togglePlay(doc, null);
+    await session.togglePlay(doc);
     expect(audio.start.mock.lastCall?.[1]).toBe(20);
     session.stop();
     session.setBpm(140);
-    await session.togglePlay(doc, null);
+    await session.togglePlay(doc);
     expect(audio.start.mock.lastCall?.[1]).toBe(140);
     expect(doc.score.tempoBpm).toBe(20);
     session.stop();
@@ -85,13 +85,13 @@ describe("score playback session", () => {
           finishOld = resolve;
         }),
     );
-    const old = session.togglePlay(doc, null);
+    const old = session.togglePlay(doc);
     await vi.waitFor(() => expect(audio.prepare).toHaveBeenCalledTimes(1));
-    await session.togglePlay(doc, null);
+    await session.togglePlay(doc);
     expect(audio.unlock).toHaveBeenCalledTimes(1);
     session.stop();
     session.setBpm(144);
-    await session.togglePlay(doc, null);
+    await session.togglePlay(doc);
     finishOld();
     await old;
     expect(audio.start).toHaveBeenCalledTimes(1);
@@ -102,7 +102,7 @@ describe("score playback session", () => {
   it("preserves playback across display edits and invalidates paused audio on capo edits", async () => {
     const session = enabled();
     const doc = documentFixture();
-    await session.togglePlay(doc, null);
+    await session.togglePlay(doc);
     doc.score.title += " 改名";
     const symbol = doc.score.tracks[0]!.measures.flatMap(
       (m) => m.chordSymbols,
@@ -112,7 +112,7 @@ describe("score playback session", () => {
     expect(session.snapshot().phase).toBe("playing");
     audio.currentTick.mockReturnValue(1500);
     session.pause();
-    await session.togglePlay(doc, null);
+    await session.togglePlay(doc);
     expect(audio.start.mock.lastCall?.[2]).toBe(1500);
     session.pause();
     doc.score.tracks[0]!.capo++;
@@ -129,27 +129,47 @@ describe("score playback session", () => {
     const session = enabled();
     const doc = documentFixture();
     audio.unlock.mockRejectedValueOnce(new Error("解码失败"));
-    await session.togglePlay(doc, null);
+    await session.togglePlay(doc);
     expect(session.snapshot().phase).toBe("error");
-    await session.togglePlay(doc, null);
+    await session.togglePlay(doc);
     session.suspendFollow();
     expect(session.snapshot().follow).toBe(false);
     session.stop();
     expect(session.snapshot().follow).toBe(true);
-    session.setFollow(false);
+    await session.togglePlay(doc);
+    expect(session.snapshot().follow).toBe(true);
+  });
+
+  it("从选定小节起播，播放期间锁定起点，停播可切回谱首", async () => {
+    const session = enabled();
+    const doc = documentFixture();
+    const [first, second] = doc.score.tracks[0]!.measures;
+    session.setStartMeasure(second!.id);
+    await session.togglePlay(doc);
+    expect(audio.start.mock.lastCall?.[0].visits[0].measureId).toBe(second!.id);
+    session.setStartMeasure(first!.id);
+    session.pause();
+    session.setStartMeasure(null);
+    expect(session.snapshot().startMeasureId).toBe(second!.id);
     session.stop();
-    expect(session.snapshot().follow).toBe(false);
+    expect(session.snapshot().startMeasureId).toBe(second!.id);
+    session.setStartMeasure(null);
+    await session.togglePlay(doc);
+    expect(audio.start.mock.lastCall?.[0].visits[0].measureId).toBe(first!.id);
   });
 
   it("joins mid-performance on the next beat and freezes or clears it with transport", async () => {
     const session = enabled();
     const doc = documentFixture();
     doc.score.tracks[0]!.measures[0]!.timeSignature = { numerator: 4, denominator: 4 };
-    await session.togglePlay(doc, null);
-    expect(session.snapshot()).toMatchObject({ clickEnabled: false, clickBeat: null });
+    await session.togglePlay(doc);
+    expect(audio.start.mock.lastCall?.[3]).toMatchObject({ enabled: true });
+    expect(session.snapshot()).toMatchObject({ clickEnabled: true, clickBeat: 1 });
     const raf = vi.mocked(requestAnimationFrame);
     const paint = () => raf.mock.lastCall![0](0);
     audio.currentTick.mockReturnValue(450);
+    session.setClickEnabled(false);
+    expect(session.snapshot()).toMatchObject({ phase: "playing", clickBeat: null });
     session.setClickEnabled(true);
     paint();
     expect(session.snapshot().clickBeat).toBeNull();
@@ -161,7 +181,7 @@ describe("score playback session", () => {
     session.pause();
     expect(session.snapshot()).toMatchObject({ phase: "paused", clickBeat: 2 });
     audio.hasStarted.mockReturnValue(false);
-    await session.togglePlay(doc, null);
+    await session.togglePlay(doc);
     expect(audio.start.mock.lastCall?.[2]).toBe(1020);
     expect(audio.start.mock.lastCall?.[3]).toMatchObject({ enabled: true, skipOnset: true });
     expect(session.snapshot().clickBeat).toBe(2);
@@ -170,20 +190,21 @@ describe("score playback session", () => {
     session.setClickEnabled(true);
     session.stop();
     expect(session.snapshot()).toMatchObject({ phase: "idle", clickBeat: null, clickEnabled: true });
+    session.setClickEnabled(false);
     session.setEnabled(false);
     session.setEnabled(true);
-    expect(session.snapshot().clickEnabled).toBe(false);
+    expect(session.snapshot().clickEnabled).toBe(true);
   });
 
   it("uses current BPM after loading and resets click settings on actual file replacement", async () => {
     const session = enabled();
     const doc = documentFixture();
     session.documentChanged(doc, "original");
-    session.setClickEnabled(true);
     session.setClickAccent(false);
+    session.setStartMeasure(doc.score.tracks[0]!.measures[1]!.id);
     let resolve!: () => void;
     audio.prepare.mockImplementationOnce(() => new Promise((done) => { resolve = done; }));
-    const play = session.togglePlay(doc, null);
+    const play = session.togglePlay(doc);
     await vi.waitFor(() => expect(audio.prepare).toHaveBeenCalled());
     expect(session.snapshot()).toMatchObject({ phase: "loading", clickBeat: null });
     session.setBpm(120);
@@ -191,7 +212,8 @@ describe("score playback session", () => {
     await play;
     expect(audio.start.mock.lastCall?.[1]).toBe(120);
     expect(audio.start.mock.lastCall?.[3]).toMatchObject({ enabled: true, accent: false });
+    session.setClickEnabled(false);
     session.documentChanged(doc, "reopened-same-file");
-    expect(session.snapshot()).toMatchObject({ phase: "idle", clickEnabled: false, clickBeat: null, clickAccent: true });
+    expect(session.snapshot()).toMatchObject({ phase: "idle", startMeasureId: null, clickEnabled: true, clickBeat: null, clickAccent: true });
   });
 });

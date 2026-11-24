@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useState, useSyncExternalStore } from "react";
+import { useLayoutEffect, useMemo, useState, useSyncExternalStore } from "react";
 import {
   createPlaybackPlan,
   DEFAULT_PLAYBACK_BPM,
@@ -27,7 +27,7 @@ interface SessionState {
   phase: "idle" | "loading" | "playing" | "paused" | "error";
   bpm: number;
   savedBpm: number | null;
-  start: "beginning" | "current";
+  startMeasureId: string | null;
   follow: boolean;
   position: Position | null;
   message: string;
@@ -41,10 +41,9 @@ export interface ScorePlaybackControls extends SessionState {
   setEnabled(enabled: boolean): void;
   setBpm(bpm: number): void;
   resetBpm(): void;
-  setStart(start: SessionState["start"]): void;
-  setFollow(follow: boolean): void;
+  setStartMeasure(measureId: string | null): void;
   suspendFollow(): void;
-  canStartCurrent: boolean;
+  startOptions: { value: number; label: string; measureId: string | null }[];
   togglePlay(): void;
   stop(): void;
   setClickEnabled(enabled: boolean): void;
@@ -111,7 +110,7 @@ export class PlaybackSession {
     phase: "idle",
     bpm: DEFAULT_PLAYBACK_BPM,
     savedBpm: null,
-    start: "beginning",
+    startMeasureId: null,
     follow: true,
     position: null,
     message: "",
@@ -132,7 +131,6 @@ export class PlaybackSession {
   private documentKey?: string;
   private offset = 0;
   private frame = 0;
-  private preferredFollow = true;
 
   snapshot = () => this.state;
   subscribe = (fn: () => void) => {
@@ -166,7 +164,8 @@ export class PlaybackSession {
       clickBeat: null,
       clickFailed: false,
       currentMeter: null,
-      follow: this.preferredFollow,
+      // 手动滚动只让出本轮播放的视口。停播、播完或失败后，下轮起播重新自动跟随。
+      follow: true,
     });
   };
   dispose = () => {
@@ -183,7 +182,7 @@ export class PlaybackSession {
       this.documentKey = documentKey;
       if (replaced) {
         this.stop();
-        this.update({ savedBpm, bpm: savedBpm ?? DEFAULT_PLAYBACK_BPM, start: "beginning", clickEnabled: false, clickAccent: true });
+        this.update({ savedBpm, bpm: savedBpm ?? DEFAULT_PLAYBACK_BPM, startMeasureId: null, clickEnabled: this.state.enabled, clickAccent: true });
         return;
       }
     }
@@ -201,7 +200,8 @@ export class PlaybackSession {
       this.stop();
       this.resetBpm();
     }
-    this.update({ enabled, message: "", clickEnabled: false });
+    // 每次进入试听时默认启用随谱点击音。停播保留本轮选择，退出后清除试听起点与开关状态。
+    this.update({ enabled, message: "", startMeasureId: null, clickEnabled: enabled });
   };
   private get editable() {
     return this.state.phase === "idle" || this.state.phase === "error";
@@ -220,12 +220,10 @@ export class PlaybackSession {
     }
   };
   resetBpm = () => this.setBpm(this.state.savedBpm ?? DEFAULT_PLAYBACK_BPM);
-  setStart = (start: SessionState["start"]) => {
-    if (this.editable) this.update({ start });
-  };
-  setFollow = (follow: boolean) => {
-    this.preferredFollow = follow;
-    this.update({ follow });
+  setStartMeasure = (startMeasureId: string | null) => {
+    // 起点同时驱动下拉和谱面高亮。加载、播放和暂停期间锁定，以免更改已建立的播放计划或续播位置。
+    if (this.state.enabled && this.editable && startMeasureId !== this.state.startMeasureId)
+      this.update({ startMeasureId });
   };
   suspendFollow = () => {
     if (this.state.follow) this.update({ follow: false });
@@ -288,7 +286,7 @@ export class PlaybackSession {
     this.stop();
     this.update({ phase: "error", message: error instanceof Error ? `试听失败，请重试。${error.message}` : "试听失败，请重试" });
   }
-  async togglePlay(doc: ILXMDocument | null, currentMeasure: string | null) {
+  async togglePlay(doc: ILXMDocument | null) {
     if (!this.state.enabled || !doc || this.state.phase === "loading") return;
     this.documentChanged(doc);
     if (this.state.phase === "playing") {
@@ -296,11 +294,7 @@ export class PlaybackSession {
       return;
     }
     const resume = this.state.phase === "paused";
-    const { start } = this.state;
-    if (!resume && start === "current" && !currentMeasure) {
-      this.stop("请先选择一个六线谱小节");
-      return;
-    }
+    const { startMeasureId } = this.state;
     const request = new AbortController();
     this.request = request;
     this.key = performanceKey(doc);
@@ -319,7 +313,7 @@ export class PlaybackSession {
         request.signal.throwIfAborted();
         this.plan = createPlaybackPlan(doc, {
           bpm: this.state.bpm,
-          startMeasureId: start === "current" ? currentMeasure! : undefined,
+          startMeasureId: startMeasureId ?? undefined,
           chordCatalog: chordCatalogResource.getSnapshot().catalog,
         });
         this.clickGrid = createScoreMetronomeGrid(this.plan, doc.score.tracks[0]?.measures ?? []);
@@ -352,7 +346,6 @@ export class PlaybackSession {
 
 export function useScorePlayback(
   doc: ILXMDocument | null,
-  selectedMeasureId: string | null,
   documentKey?: string,
 ): ScorePlaybackControls {
   const [session] = useState(() => new PlaybackSession());
@@ -369,7 +362,7 @@ export function useScorePlayback(
       if (document.hidden) session.pause("页面已切至后台，试听已中断");
     };
     // pagehide 只在离开成功后触发，也覆盖浏览器保留页面实例用于后退的情形。
-    const leave = () => { session.setEnabled(false); session.setClickAccent(true); session.setStart("beginning"); session.dispose(); };
+    const leave = () => { session.setEnabled(false); session.setClickAccent(true); session.dispose(); };
     document.addEventListener("visibilitychange", hidden);
     window.addEventListener("pagehide", leave);
     return () => {
@@ -378,26 +371,28 @@ export function useScorePlayback(
       session.dispose();
     };
   }, [session]);
-  const canStartCurrent =
-    !!selectedMeasureId &&
-    !!doc?.score.tracks[0]?.measures.some((m) => m.id === selectedMeasureId);
   const measures = doc?.score.tracks[0]?.measures;
-  const startMeasure = state.start === "current" && canStartCurrent
-    ? measures?.find((measure) => measure.id === selectedMeasureId) : measures?.[0];
+  // 下拉值使用显示序号，0 专供谱首选项，避免与导入曲谱中任意字符串形式的小节 ID 冲突。
+  const startOptions = useMemo(() => [
+    { value: 0, label: "从头开始", measureId: null },
+    ...(measures?.map((measure, index) => ({ value: index + 1, label: `从第 ${index + 1} 小节开始`, measureId: measure.id })) ?? []),
+  ], [measures]);
+  const selectedMeasure = state.startMeasureId === null ? undefined : measures?.find((measure) => measure.id === state.startMeasureId);
   return {
     ...state,
+    // 文档内容更新导致起点小节消失时，显示与播放计划一致的谱首回退，也用谱首拍号预览节拍器。
+    startMeasureId: selectedMeasure?.id ?? null,
     setEnabled: session.setEnabled,
-    setFollow: session.setFollow,
     suspendFollow: session.suspendFollow,
-    setStart: session.setStart,
+    setStartMeasure: session.setStartMeasure,
     setBpm: session.setBpm,
     resetBpm: session.resetBpm,
     setClickEnabled: session.setClickEnabled,
     setClickAccent: session.setClickAccent,
-    startingMeter: readMeter(startMeasure?.timeSignature) ?? DEFAULT_METER,
-    canStartCurrent,
+    startingMeter: readMeter((selectedMeasure ?? measures?.[0])?.timeSignature) ?? DEFAULT_METER,
+    startOptions,
     togglePlay: () => {
-      void session.togglePlay(doc, canStartCurrent ? selectedMeasureId : null);
+      void session.togglePlay(doc);
     },
     stop: () => session.stop(),
   };

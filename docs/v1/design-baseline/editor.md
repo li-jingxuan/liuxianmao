@@ -3,6 +3,7 @@
 ## 工作台与会话
 
 - 首页提供默认曲谱《理想》及新建、导入入口。编辑页顶栏提供「文件」「编辑」「视图」「帮助」和独立「导出」入口。「帮助 → 快捷键」可查询按键和适用条件。工具栏右端切换右侧面板，当前选区决定可用的谱层操作和侧栏内容。旧 REQ-062 评审稿把快捷键放在文件区域左侧。 [工具栏实现](../../../apps/website/components/EditorShell/workspace/EditorToolbar.tsx) · [快捷键回归](../../../apps/website/tests/req062-063.next.browser.mjs) · [首页与选区历史确认](../../archive/mvp/design-v2/records/20261115_REQ017-030首轮实现与设计回溯.md)
+- 主谱面和右侧属性正文独立滚动。经典滚动条使用透明操作槽和浅灰蓝细滑块，悬停、键盘聚焦与拖动时颜色加深。右栏页签、对象摘要和页脚位于正文滚动范围外。谱面产生横向溢出时，右下角缩放控件上移避让。 [REQ-097](../features/REQ-097-编辑器滚动条/README.md)
 - 操作历史按会话记录已提交编辑，最多保留 100 条，最新在上。点击历史项回到该步执行后的状态，后续动作仍可依原顺序重做。回退后提交新编辑会清除重做分支，换谱会清空会话历史。 [历史回归](../../../apps/website/tests/editor-history.test.ts) · [REQ-086 历史评审稿](../../archive/mvp/design-v2/prototypes/req086/index.html)
 - 和弦和简谱歌词在切换编辑对象时通常丢弃未应用输入，收起侧栏或气泡时同一会话仍可恢复输入。歌曲设置离开其编辑区域或收起面板时清理草稿，仍参与文件操作的离开确认。段落标记的有效输入可通过 Enter 或失焦保存，仍有未应用修改时由原小节的草稿保护处理。 [歌曲设置实现](../../../apps/website/components/EditorShell/settings/ScoreSettings.tsx) · [草稿协调测试](../../../apps/website/tests/editor-draft-coordinator.test.ts) · [历史工具栏交付](../../archive/mvp/design-v2/records/REQ-044-047产品实现与验证.md)
 

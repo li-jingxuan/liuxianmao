@@ -111,7 +111,7 @@ try {
   await assertDiscarded();
   await dirtySong();
   const blocked = page.getByRole("dialog", { name: "先处理未应用的输入", exact: true });
-  for (const [group, item] of [["导出", "JSON 曲谱"], ["导出", "PNG 图片"], ["文件", "导入曲谱"]]) {
+  for (const [group, item] of [["导出", "六线猫专用谱(.lxm)"], ["导出", "图片(.png)"], ["文件", "导入曲谱"]]) {
     await selectScoreAction(page, group, item);
     await blocked.getByText("曲谱信息", { exact: true }).waitFor();
     await blocked.getByText("演奏设置", { exact: true }).waitFor();

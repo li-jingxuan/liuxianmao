@@ -132,6 +132,24 @@ const isTextEditingTarget = (target: EventTarget | null): boolean =>
         '[role="combobox"], [role="listbox"], .ant-select-dropdown',
       )));
 
+/** Chromium 会把经典滚动条的 pointerdown 发给谱面容器，须保留选区和侧栏滚动位置。 */
+function isScoreScrollbarPointerDown(event: React.PointerEvent<HTMLDivElement>): boolean {
+  const { target, currentTarget: viewport, clientX, clientY } = event;
+  if (target !== viewport) return false;
+  const { left, top, right, bottom } = viewport.getBoundingClientRect();
+  if (clientX < left || clientX >= right || clientY < top || clientY >= bottom) return false;
+
+  // 谱面容器无边框，外框与 client 尺寸之差就是经典滚动槽的实际尺寸。
+  // 覆盖式没有占槽，只有预留竖槽但内容未溢出时也保留灰区点击语义。
+  const verticalSlot = viewport.offsetWidth - viewport.clientWidth;
+  const horizontalSlot = viewport.offsetHeight - viewport.clientHeight;
+  const inVerticalSlot = viewport.clientLeft > 0
+    ? clientX < left + verticalSlot
+    : clientX >= right - verticalSlot;
+  return (verticalSlot > 0 && viewport.scrollHeight > viewport.clientHeight && inVerticalSlot) ||
+    (horizontalSlot > 0 && viewport.scrollWidth > viewport.clientWidth && clientY >= bottom - horizontalSlot);
+}
+
 export const EditorShell: React.FC<{ navigate?: (destination: string) => void }> = ({ navigate }) => {
   const session = useEditorSessionStore();
   const { token } = theme.useToken();
@@ -250,9 +268,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     const result = resolveTabCellSelection(document, selection);
     return result.ok ? result.range : null;
   }, [document, selection]);
-  const selectedPlaybackMeasure = resolvedSelection && !activeMusicTextTarget && !continuousRange && !numberedSelection
-    ? selection?.focus.measureId ?? null : null;
-  const playback = useScorePlayback(document, selectedPlaybackMeasure, sessionKey);
+  const playback = useScorePlayback(document, sessionKey);
   const scoreReadOnly = playback.enabled;
 
   const [imageExportSnapshot, setImageExportSnapshot] =
@@ -668,6 +684,19 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
         : [],
     [lxmLayout, resolvedSelection],
   );
+  const playbackStartBounds = playback.startMeasureId === null ? undefined
+    : lxmLayout?.hitIndex.measureBounds.find(({ measureId }) => measureId === playback.startMeasureId);
+  const selectPlaybackMeasure: React.MouseEventHandler<SVGSVGElement> = (event) => {
+    if (event.button !== 0 || !lxmLayout) return;
+    const point = getLayoutPoint(event.currentTarget, event);
+    if (!point) return;
+    // 试听按排版的小节边界整体命中，弦线间的空白也能选择。沿用 SVG 坐标换算以支持缩放，
+    // 只更新试听会话，避免触碰编辑选区、未应用的草稿、待导出状态及撤销历史。
+    const bounds = lxmLayout.hitIndex.measureBounds.find(({ x, y, width, height }) =>
+      point.x >= x && point.x <= x + width && point.y >= y && point.y <= y + height,
+    );
+    if (bounds) playback.setStartMeasure(bounds.measureId);
+  };
   const lyricFocus = useMemo(
     () => resolveParagraphFocus(lxmLayout, activeMusicTextTarget),
     [lxmLayout, activeMusicTextTarget],
@@ -1560,7 +1589,8 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
     const target = event.target;
     if (
       scoreReadOnly || event.button !== 0 || event.shiftKey ||
-      (target instanceof Node && scoreSvgRef.current?.contains(target))
+      (target instanceof Node && scoreSvgRef.current?.contains(target)) ||
+      isScoreScrollbarPointerDown(event)
     )
       return;
 
@@ -2041,7 +2071,9 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
           ref={pageViewportRef}
           className={scoreInteractionStyles.pageViewport}
           data-score-viewport
-          onPointerDownCapture={(event) => { if (!scoreReadOnly && event.button === 0) setRhythmPatternScope(null); }}
+          onPointerDownCapture={(event) => {
+            if (!scoreReadOnly && event.button === 0 && !isScoreScrollbarPointerDown(event)) setRhythmPatternScope(null);
+          }}
           onPointerDown={handleWorkspacePointerDown}
           onScroll={clearHover}
         >
@@ -2067,6 +2099,7 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
                 role="application"
                 aria-label="六线谱编辑器"
                 data-score-read-only={scoreReadOnly || undefined}
+                onClick={scoreReadOnly ? selectPlaybackMeasure : undefined}
                 onPointerDown={handlePointerDown}
                 onContextMenu={handleScoreContextMenu}
                 onPointerMove={handlePointerMove}
@@ -2080,14 +2113,19 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
                   handleScoreKeyDown(event);
                 }}
               >
-                <MusicTextEditingHints
+                {!scoreReadOnly && <MusicTextEditingHints
                   layout={lxmLayout}
                   activeFocus={lyricFocus}
                   hoverFocus={musicTextHoverFocus}
                   beatContext={numberedBeatContext?.bounds ?? null}
-                />
+                />}
+                {scoreReadOnly && playbackStartBounds && (
+                  <rect data-playback-start-measure={playbackStartBounds.measureId} aria-hidden="true" pointerEvents="none"
+                    className={scoreInteractionStyles.focusCaret} x={playbackStartBounds.x} y={playbackStartBounds.y}
+                    width={playbackStartBounds.width} height={playbackStartBounds.height} rx={3} />
+                )}
                 {/* 选区层位于音乐元素下方，且永不参与指针命中。 */}
-                <g className={scoreInteractionStyles.selectionLayer} pointerEvents="none">
+                {!scoreReadOnly && <g className={scoreInteractionStyles.selectionLayer} pointerEvents="none">
                   {rhythmPatternRects.map(({ measureId, ...rect }) => <rect key={measureId} data-rhythm-pattern-scope
                     data-rhythm-pattern-measure={measureId}
                     data-rhythm-pattern-layer={rhythmPatternScope?.layer}
@@ -2150,8 +2188,8 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
                       height={focusCaret.height}
                     />
                   )}
-                </g>
-                {lyricFocus && (
+                </g>}
+                {!scoreReadOnly && lyricFocus && (
                   <rect
                     data-paragraph-focus={lyricFocus.kind}
                     data-numbered-event-focus={
@@ -2172,10 +2210,10 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
                   <ScoreMusicLayer
                     scene={scoreScene}
                     strumInteraction={strumInteraction}
-                    selectedTechniqueId={selectedTechniqueId}
-                    selectedNumberedMarkId={selectedNumberedMarkId}
+                    selectedTechniqueId={scoreReadOnly ? null : selectedTechniqueId}
+                    selectedNumberedMarkId={scoreReadOnly ? null : selectedNumberedMarkId}
                     selectedNumberedEventId={
-                      activeMusicTextTarget?.kind === "numbered"
+                      !scoreReadOnly && activeMusicTextTarget?.kind === "numbered"
                         ? activeMusicTextTarget.eventId
                         : null
                     }
@@ -2184,7 +2222,8 @@ export const EditorShell: React.FC<{ navigate?: (destination: string) => void }>
                 <MeasureNumberLayer
                   layout={lxmLayout}
                   editingMeasures={scoreReadOnly ? undefined : strumTrack?.measures}
-                  activeMeasureId={continuousRange?.focus.measureId ?? activeMusicTextTarget?.measureId ?? numberedSelection?.measureId ?? selection?.focus.measureId}
+                  activeMeasureId={scoreReadOnly ? playback.startMeasureId ?? undefined
+                    : continuousRange?.focus.measureId ?? activeMusicTextTarget?.measureId ?? numberedSelection?.measureId ?? selection?.focus.measureId}
                 />
                 {playback.enabled && <ScorePlaybackCursor layout={lxmLayout} viewportRef={pageViewportRef} playback={playback} />}
                 {!scoreReadOnly && tailMeasure && tailTop && tailBottom && (

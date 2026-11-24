@@ -11,13 +11,14 @@ import { useShortcutPlatform } from "../session/EditorShortcutReference";
 import { shortcutKeys } from "../session/editor-shortcuts";
 import type { ScoreZoom } from "../score/score-view";
 import { SCORE_ZOOM_LEVELS } from "../score/score-view";
+import { SCORE_FILE_LABEL } from "../output/score-file";
 import styles from "./EditorHeader.module.scss";
 
 const statusText = {
   example: "示例曲谱",
   imported: "与导入文件一致",
-  exported: "JSON 已导出",
-  pending: "待导出 JSON",
+  exported: `${SCORE_FILE_LABEL} 已导出`,
+  pending: `待导出 ${SCORE_FILE_LABEL}`,
 };
 
 type MenuName = "file" | "edit" | "view" | "help" | "export";
@@ -209,8 +210,8 @@ export const EditorHeader = ({
       {!empty && <div className={styles.headerActions}>
         <span className={styles.fileStatus} data-file-status={status} role="status">{statusText[status]}</span>
         {renderMenu("export", "导出", [
-          { key: "json", label: "JSON 曲谱", run: (trigger) => onExportAction("json", trigger) },
-          { key: "png", label: "PNG 图片", run: (trigger) => onExportAction("png", trigger) },
+          { key: "json", label: SCORE_FILE_LABEL, run: (trigger) => onExportAction("json", trigger) },
+          { key: "png", label: "图片(.png)", run: (trigger) => onExportAction("png", trigger) },
           "divider",
           { key: "print", label: "打印", run: (trigger) => onExportAction("print", trigger) },
         ])}

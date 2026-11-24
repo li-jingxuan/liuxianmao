@@ -455,8 +455,8 @@ try {
   stage = "background output remains blocked during library modal";
   await openLibrary(popover);
   const beforeOutput = await snapshot();
-  await selectScoreAction(page, "导出", "JSON 曲谱", { dispatch: true });
-  await selectScoreAction(page, "导出", "PNG 图片", { dispatch: true });
+  await selectScoreAction(page, "导出", "六线猫专用谱(.lxm)", { dispatch: true });
+  await selectScoreAction(page, "导出", "图片(.png)", { dispatch: true });
   assert.deepEqual(await snapshot(), beforeOutput);
   assert.equal(downloads.length, 0);
   assert.equal(await page.getByRole("dialog").count(), 1, "output never opens a second modal");

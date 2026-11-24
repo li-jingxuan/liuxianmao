@@ -2,8 +2,8 @@
 
 ## 新建、导入和离开保护
 
-- 首页与编辑器均可新建和导入。直接打开 `/editor` 加载示例曲《理想》。新建必填曲名，作者可选，默认 C 大调、4/4、标准调弦，生成四个空小节。导入可选文件或拖拽，支持单个不超过 10 MiB 的六线猫原生 JSON。校验后先预览元数据，再确认换谱。当前文件格式为 v8，导入时可升级 v4–v7。 [REQ-048 产品回归](../../../apps/website/tests/req048.next.browser.mjs) · [文件格式测试](../../../apps/website/tests/score-file.test.ts) · [历史评审稿](../../archive/mvp/design-v2/prototypes/req048/README.md)
-- 「导出 → JSON 曲谱」下载 `曲名.lxm.json`，发起下载后更新当前曲谱的文件基线。新建或修改后未导出时，换谱、回首页、进入吉他进阶有离开确认。用户可继续编辑、不导出并继续，或下载后手动确认继续。若有登记的未应用输入，先处理草稿，定位或放弃后再发起原操作。图片和打印保留待导出的 JSON 状态。 [文件流程实现](../../../apps/website/components/EditorShell/output/use-score-file-flow.ts) · [流程测试](../../../apps/website/tests/score-file-flow.test.tsx)
+- 首页与编辑器均可新建和导入。直接打开 `/editor` 加载示例曲《理想》。新建必填曲名，作者可选，默认 C 大调、4/4、标准调弦，生成四个空小节。导入可选文件或拖拽，只接受单个不超过 10 MiB 的 `.lxm` 文件。文件内容为 UTF-8 JSON，当前为曲谱 v8，导入时可升级 v4–v7。校验后先预览元数据，再确认换谱。 [REQ-096](../features/REQ-096-六线猫曲谱文件/README.md) · [产品回归](../../../apps/website/tests/req048.next.browser.mjs) · [文件格式测试](../../../apps/website/tests/score-file.test.ts)
+- 「导出 → 六线猫专用谱(.lxm)」下载 `{曲谱名}_{yyMMdd}.lxm`，日期取浏览器本地当天。发起下载后更新当前曲谱的文件基线。新建或修改后未导出时，换谱、回首页、进入吉他进阶有离开确认。用户可继续编辑、不导出并继续，或下载后手动确认继续。若有登记的未应用输入，先处理草稿，定位或放弃后再发起原操作。图片和打印保留曲谱文件的待导出状态。 [文件流程实现](../../../apps/website/components/EditorShell/output/use-score-file-flow.ts) · [流程测试](../../../apps/website/tests/score-file-flow.test.tsx)
 
 ## A4 图片和打印
 

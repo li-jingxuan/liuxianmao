@@ -93,15 +93,26 @@ export function useScoreView({
     }
     pendingAnchor.current = null;
     previous.current = { geometry, sessionKey, viewportWidth };
-    if (viewport) lastScroll.current = {
-      left: viewport.scrollLeft, top: viewport.scrollTop,
-      viewportWidth: viewport.clientWidth, viewportHeight: viewport.clientHeight,
-    };
+    if (viewport) {
+      // 缩放档位相同也可能因谱面或工作区宽度不同而溢出。直接读原生滚动区的实际尺寸，
+      // 让同级缩放控件只在横轨存在时让位，避让尺寸不参与谱面锚点计算。
+      viewport.toggleAttribute("data-score-overflows-x", viewport.scrollWidth > viewport.clientWidth);
+      lastScroll.current = {
+        left: viewport.scrollLeft, top: viewport.scrollTop,
+        viewportWidth: viewport.clientWidth, viewportHeight: viewport.clientHeight,
+      };
+    }
   }, [geometry, sessionKey, gutter, topInset, viewportWidth, viewportRef, onGeometryChange, zoomState.sessionKey]);
 
   useLayoutEffect(() => {
     const viewport = viewportRef.current;
     if (!viewport) return;
+    const workspace = viewport.parentElement;
+    // 用无自定义样式的探针区分占槽和覆盖式滚动条。观察内容区尺寸，系统切换模式时
+    // 也能给工作区下的两个滚动容器同步样式，探针本身不占布局空间。
+    const scrollbarProbe = viewport.ownerDocument.createElement("div");
+    scrollbarProbe.style.cssText = "position:fixed;top:0;left:0;width:100px;height:100px;overflow:scroll;visibility:hidden;";
+    viewport.ownerDocument.body.append(scrollbarProbe);
     let frame: number | null = null;
     const rememberScroll = () => {
       lastScroll.current = {
@@ -111,6 +122,7 @@ export function useScoreView({
     };
     const measure = () => {
       frame = null;
+      workspace?.toggleAttribute("data-editor-classic-scrollbars", scrollbarProbe.offsetWidth > scrollbarProbe.clientWidth);
       const current = latest.current;
       if (viewport.clientWidth === current.viewportWidth) return;
       if (lastScroll.current && !pendingAnchor.current) {
@@ -127,10 +139,13 @@ export function useScoreView({
     viewport.addEventListener("scroll", rememberScroll, { passive: true });
     const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(schedule);
     observer?.observe(viewport);
+    observer?.observe(scrollbarProbe);
     window.addEventListener("resize", schedule);
     return () => {
       if (frame !== null) cancelAnimationFrame(frame);
       observer?.disconnect();
+      scrollbarProbe.remove();
+      workspace?.removeAttribute("data-editor-classic-scrollbars");
       viewport.removeEventListener("scroll", rememberScroll);
       window.removeEventListener("resize", schedule);
     };

@@ -1,3 +1,5 @@
+@use "../shared/editor-scrollbar";
+
 // 编辑谱面的缩放容器与交互标记；成品打印分页由 score-print.module.scss 管理。
 /** TAB 与拍号是乐谱正文，打印时保留；这里只集中设置文字的视觉重量。 */
 .tabLabel {
@@ -112,6 +114,10 @@
   overscroll-behavior: contain;
   overflow-anchor: none;
   background: var(--panel-muted);
+
+  &[data-score-viewport] {
+    @include editor-scrollbar.native-scrollbar;
+  }
 }
 
 .scoreStage {

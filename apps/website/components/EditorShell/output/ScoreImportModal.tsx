@@ -8,7 +8,7 @@ import type { EditorStoreState } from "../../../stores/editor-store";
 import { captureEditorVersion, sameEditorVersion, type EditorSessionVersion } from "../session/editor-session-version";
 import { displaySignature } from "./new-score";
 import { ScoreFileDialog } from "./ScoreFileDialog";
-import { decodeScoreFile, SCORE_FILE_MAX_BYTES } from "./score-file";
+import { decodeScoreFile, SCORE_FILE_EXTENSION, SCORE_FILE_LABEL, SCORE_FILE_MAX_BYTES } from "./score-file";
 import styles from "./score-file.module.scss";
 
 type Candidate = {
@@ -41,8 +41,14 @@ export function ScoreImportModal({ session, canContinue, onClose, onOpen }: {
     setCandidate(undefined);
     setErrors([]);
     setErrorSummary("");
-    if (files.length !== 1) { setErrors(["请一次选择一个 JSON 曲谱文件。"]); return; }
+    if (files.length !== 1) { setErrors([`请一次选择一个 ${SCORE_FILE_EXTENSION} 曲谱文件。`]); return; }
     const file = files[0]!;
+    // 文件选择器的过滤可被绕过，拖放也会直达这里。先校验最终扩展名，兼容大小写，
+    // 再校验内容、版本和排版，避免把任意改名文件识别成六线猫曲谱。
+    if (!file.name.toLowerCase().endsWith(SCORE_FILE_EXTENSION)) {
+      setErrors([`请选择 ${SCORE_FILE_EXTENSION} 曲谱文件。`]);
+      return;
+    }
     if (file.size > SCORE_FILE_MAX_BYTES) {
       setErrors([`曲谱文件为 ${(file.size / 1024 / 1024).toFixed(2)} MiB，超过 10 MiB 上限。`]);
       return;
@@ -65,7 +71,7 @@ export function ScoreImportModal({ session, canContinue, onClose, onOpen }: {
         if (checked.reason !== "format") setErrorSummary(checked.reason === "version"
           ? "此文件版本暂不支持，请使用兼容版本导出的曲谱。"
           : checked.reason === "syntax"
-            ? "文件内容无法读取，请重新选择原始 JSON 文件。"
+            ? `文件内容无法读取，请重新选择原始 ${SCORE_FILE_EXTENSION} 文件。`
             : "曲谱结构无效，请检查原文件后重试。");
         return;
       }
@@ -100,10 +106,10 @@ export function ScoreImportModal({ session, canContinue, onClose, onOpen }: {
         onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = busy ? "none" : "copy"; }}
         onDrop={(event) => { event.preventDefault(); void readFile(event.dataTransfer.files); }}>
         <p>将曲谱拖到这里，或从电脑选择文件。</p>
-        <small>.json · 六线猫原生曲谱 · 最大 10 MiB</small>
+        <small>{SCORE_FILE_LABEL} · 最大 10 MiB</small>
         <Button data-initial-focus htmlType="button" disabled={busy}
           onClick={() => input.current?.click()}>{candidate ? "重新选择" : "选择文件"}</Button>
-        <input ref={input} type="file" accept=".json,.lxm.json,application/json" className={styles.hiddenInput}
+        <input ref={input} type="file" accept={SCORE_FILE_EXTENSION} className={styles.hiddenInput}
           aria-label="选择六线猫曲谱文件" onChange={(event) => {
             const fileInput = event.currentTarget;
             void readFile(fileInput.files ?? undefined);

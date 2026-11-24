@@ -42,7 +42,7 @@ export function NumberedArcTool({ options, blocked, onApply }: {
   };
 
   return <>
-    <EditorToolSymbolButton label="简谱弧线" popup expanded={open}
+    <EditorToolSymbolButton label="简谱弧线" showDisabledReason={false} popup expanded={open}
       availability={{ enabled: !blocked, reason: blocked ? "请先完成当前草稿或确认操作。" : "" }}
       onClick={(trigger) => { if (open) close(true); else setAnchor(trigger); }}>
       <TechniqueSymbol kind="tie" />

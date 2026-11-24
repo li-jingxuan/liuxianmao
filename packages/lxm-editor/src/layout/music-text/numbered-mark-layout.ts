@@ -9,7 +9,7 @@ import {
 import {
   musicTextGlyph,
   musicTextInkBounds,
-  musicTextRequest,
+  numberedTupletMeasureRequest,
   unionMusicBounds,
   type MusicTextGlyph,
   type MusicTextRect,
@@ -188,11 +188,7 @@ export const layoutNumberedMarks = (
       const firstX = slots.get(group.eventIds[0]!)!.x;
       const lastX = slots.get(group.eventIds.at(-1)!)!.x;
       const centerX = (firstX + lastX) / 2;
-      const text =
-        group.ratio.actual === 3 && group.ratio.normal === 2
-          ? "3"
-          : `${group.ratio.actual}:${group.ratio.normal}`;
-      const request = musicTextRequest(text, 11);
+      const request = numberedTupletMeasureRequest(group.ratio);
       const ink = musicTextInkBounds(musicTextGlyph(request, 0, 0, metrics));
       // 按字形墨迹给断口留白；比例文字较宽时对称扩展跨度，保证两侧仍有可见的弧段。
       const halfGap = Math.max(-ink.x, ink.x + ink.width) + 2;

@@ -13,11 +13,20 @@ import {
   LXM_TUPLET_FONT_SIZE,
   LXM_TUPLET_CLEARANCE,
   LXM_TUPLET_HOOK,
-  LXM_TUPLET_GAP,
+  LXM_TUPLET_LABEL_PADDING,
+  LXM_TUPLET_BRACKET_WING_MIN_WIDTH,
   LXM_TUPLET_STROKE,
   LXM_TUPLET_BOTTOM_PADDING,
 } from "../layout-constants";
 import { getRhythmBottom } from "./rhythm-bounds";
+
+// TAB 使用固定字号的数字。按每个数字 0.7 倍字号保守估算墨迹宽度，再在左右各留一小段空白。
+const tupletLabelHalfGap = (label: string) =>
+  label.length * LXM_TUPLET_FONT_SIZE * 0.35 + LXM_TUPLET_LABEL_PADDING;
+
+/** 首末拍所需跨度同时容纳居中数字、留白和两侧横线。向上取整供节奏列分配。 */
+export const tabTupletBracketMinSpan = (label: string) =>
+  Math.ceil(2 * (tupletLabelHalfGap(label) + LXM_TUPLET_BRACKET_WING_MIN_WIDTH));
 
 /** 同一谱行共用最深的连音标注带；平移完整括号，保留首末 Beat 锚点。 */
 export const alignSystemTuplets = (
@@ -77,7 +86,8 @@ export const layoutTuplets = (
       x = (x1 + x2) / 2;
     const text = String(group.ratio.actual);
     const y = labelY - LXM_TUPLET_FONT_SIZE / 3;
-    const halfGap = Math.min((x2 - x1) / 2, text.length * LXM_TUPLET_FONT_SIZE * 0.35 + LXM_TUPLET_GAP);
+    // 排版已为数字和横线预留足够跨度，括线按真实首末拍锚点落位；相邻音符与休止符仍由节奏网格避让。
+    const halfGap = tupletLabelHalfGap(text);
     const gapX1 = x - halfGap,
       gapX2 = x + halfGap;
     return {

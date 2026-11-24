@@ -1,6 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { buildLayout } from "../../src/layout";
-import { buildRhythmicColumns } from "../../src/layout/structure/measure-spacing";
+import { buildScoreScene } from "../../src/presentation/score-scene";
+import {
+  buildRhythmicColumns,
+  summarizeMeasureSpacingWidth,
+} from "../../src/layout/structure/measure-spacing";
 import { layoutMeasure } from "../../src/layout/structure/measure-layout";
 import {
   applyScoreCommand,
@@ -12,7 +16,10 @@ import v6 from "../../example/example-mvp6.json";
 import { alignSystemTuplets } from "../../src/layout/rhythm/tuplet-layout";
 import { getTextBounds } from "../../src/layout/techniques/technique-geometry";
 import { MUSIC_TEXT_LANE_GAP } from "../../src/layout/music-text/music-text-metrics";
-import { getDurationFlagBottom } from "../../src/layout/rhythm/rhythm-bounds";
+import {
+  getDurationFlagBottom,
+  getRhythmBottom,
+} from "../../src/layout/rhythm/rhythm-bounds";
 const measures = example.score.tracks[0]!.measures;
 
 describe("连音布局的最终几何", () => {
@@ -120,9 +127,14 @@ describe("连音布局的最终几何", () => {
     });
     expect(layout.systems.length).toBeGreaterThanOrEqual(2);
     const layouts = layout.systems.flatMap((system) => system.measures);
-    layouts.forEach((measure) =>
-      expect(measure.tuplets[0]!.bracket?.lines).toHaveLength(4),
-    );
+    layouts.forEach((measure) => {
+      const bracket = measure.tuplets[0]!.bracket!;
+      expect(bracket.lines).toHaveLength(4);
+      // 各比例都用实际拍点绘制括线，五连音和六连音也要保留两侧横线。
+      bracket.lines.slice(0, 2).forEach((line) =>
+        expect(line.x2 - line.x1).toBeGreaterThanOrEqual(6 - 1e-9),
+      );
+    });
     expect(layouts[7]!.tuplets[0]!.bracket?.lines).toHaveLength(4);
     expect(layouts[3]!.tuplets[0]!.label.text).toBe("5");
     expect(layouts[4]!.tuplets[0]!.label.text).toBe("5");
@@ -148,6 +160,69 @@ describe("连音布局的最终几何", () => {
     expect(bracket.lines.slice(2).every((line) => line.y2 < line.y1)).toBe(
       true,
     );
+  });
+  it("紧凑双谱小节压到硬下限时，短三连音保留横线和邻接净空", () => {
+    const doc = structuredClone(example);
+    const track = doc.score.tracks[0]!;
+    const source = track.measures[0]!;
+    track.measures = [source];
+    track.techniques = [];
+    const members = source.beats.slice(0, 3);
+    members.forEach((beat, index) => {
+      beat.tick = index * 160;
+      beat.rhythm.base = "sixteenth";
+    });
+    const nextRest = {
+      id: "after-triplet-rest",
+      tick: 480,
+      kind: "rest" as const,
+      rhythm: { base: "eighth" as const, dots: 0 },
+      notes: [],
+    };
+    source.beats.splice(3, 0, nextRest);
+    source.numberedVoice.events = [0, 480].map((tick) => ({
+      id: `numbered-${tick}`,
+      tick,
+      kind: "notes",
+      rhythm: { base: "eighth", dots: 0 },
+      items: [{ id: `item-${tick}`, token: "4" }],
+    }));
+    const density = "compact";
+    const summary = summarizeMeasureSpacingWidth(source, density);
+    const compressed = layoutMeasure(source, {
+      index: 0,
+      systemIndex: 0,
+      x: 20,
+      y: 30,
+      density,
+      assignedWidth: summary.minWidth,
+      spacingSummary: summary,
+    });
+    const [first, middle, last, rest] = compressed.beats;
+    const bracket = compressed.tuplets[0]!.bracket!;
+    // 旧网格在单字品位下每拍只留 9，首末跨度 18，数字断口两侧各仅余 0.2。
+    expect(middle!.x - first!.x).toBeGreaterThanOrEqual(12);
+    expect(last!.x - middle!.x).toBeGreaterThanOrEqual(12);
+    expect(bracket.x1).toBe(first!.x);
+    expect(bracket.x2).toBe(last!.x);
+    expect(bracket.gapX1 - bracket.x1).toBeGreaterThanOrEqual(6);
+    expect(bracket.x2 - bracket.gapX2).toBeGreaterThanOrEqual(6);
+    expect(rest!.x - bracket.x2).toBeGreaterThanOrEqual(9 - 1e-9);
+    expect(bracket.y - bracket.hookLength - bracket.strokeWidth / 2).toBeGreaterThan(
+      getRhythmBottom(compressed.strings, compressed.beamSegments, compressed.durationMarks, compressed.restMarks),
+    );
+
+    for (const purpose of ["editing", "presentation"] as const) {
+      const layout = buildLayout(doc, { density, purpose });
+      const measure = layout.systems[0]!.measures[0]!;
+      const group = measure.tuplets[0]!;
+      const numbered = measure.numberedNotation![0]!.labels[0]!;
+      expect(numbered.bounds.y).toBeGreaterThan(group.label.y);
+      expect(numbered.x).toBe(group.bracket!.x1);
+      const scene = buildScoreScene(layout).systems[0]!.items;
+      for (const line of group.bracket!.lines)
+        expect(scene).toContainEqual(expect.objectContaining({ kind: "line", ...line }));
+    }
   });
   it("旗帜、附点、休止符下方净空与动态 system 高度", () => {
     const doc = structuredClone(example);

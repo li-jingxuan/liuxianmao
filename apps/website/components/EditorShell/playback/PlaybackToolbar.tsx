@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Select } from "antd";
 import { Pause, Play, Square } from "lucide-react";
 import { DEFAULT_PLAYBACK_BPM, MAX_PLAYBACK_BPM, MIN_PLAYBACK_BPM } from "@liuxianmao/lxm-editor";
 import type { ScorePlaybackControls } from "./controller";
@@ -28,6 +29,7 @@ export const PlaybackToolbar = ({ playback }: {
   const sliderMax = Math.max(180, scoreBpm, playback.bpm);
   const playbackStatus = phase === "playing" ? "正在试听" : phase === "paused" ? "试听已暂停"
     : phase === "loading" ? "正在准备试听" : adjusted ? "临时调速试听" : "按曲谱速度试听";
+  const startValue = playback.startOptions.find(({ measureId }) => measureId === playback.startMeasureId)?.value ?? 0;
 
   return (
     <div
@@ -47,12 +49,10 @@ export const PlaybackToolbar = ({ playback }: {
         <button type="button" className={styles.playbackButton} disabled={!active && phase !== "error"} onClick={playback.stop}>
           <Square size={14} aria-hidden="true" />停止
         </button>
-        <select className={styles.playbackField} aria-label="播放起点" disabled={active} value={playback.start}
-          onChange={(event) => playback.setStart(event.target.value === "current" ? "current" : "beginning")}>
-          <option value="beginning">从头开始</option>
-          <option value="current" disabled={!active && !playback.canStartCurrent}>从当前小节</option>
-        </select>
-        <button type="button" className={styles.playbackButton} aria-pressed={playback.follow} onClick={() => playback.setFollow(!playback.follow)}>跟随谱面</button>
+        {/* 下拉和谱面单选共用起点。播放期间锁定已选值，暂停后可继续原位置。 */}
+        <Select<number> className={styles.playbackStart} aria-label="播放起点" disabled={active}
+          value={startValue} options={playback.startOptions}
+          onChange={(value) => playback.setStartMeasure(playback.startOptions[value]?.measureId ?? null)} />
       </div>
       <div className={`${styles.playbackGroup} ${styles.playbackTempoGroup}`}>
         <label htmlFor="editor-playback-bpm">临时调速</label>
@@ -78,12 +78,11 @@ export const PlaybackToolbar = ({ playback }: {
           onClick={restoreTempo}>恢复</button>
         <div id="editor-playback-tempo-note" className={styles.playbackDetails}>
           <span>{playback.savedBpm === null ? `曲谱未设置速度，默认 ${scoreBpm} BPM` : `曲谱速度 ${scoreBpm} BPM`}</span>
-          <span>临时调速仅影响本次试听</span>
         </div>
       </div>
       <div className={`${styles.playbackDetails} ${styles.playbackStatus}`}>
         <strong>{playbackStatus}</strong>
-        <span>{position ? `第 ${position.measureIndex + 1} 小节` : playback.start === "current" ? "从当前小节开始" : "从第 1 小节开始"}</span>
+        {position && <span>第 {position.measureIndex + 1} 小节</span>}
       </div>
       <AuditionMetronomeControls playback={playback} onRestore={restoreTempo} />
     </div>

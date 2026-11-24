@@ -3,6 +3,7 @@ import { summarizeTimeGrid } from "../rhythm/time-grid-spacing";
 import { musicTextInsets } from "../music-text/music-text-layout";
 import type { ILXMMusicTextMetrics } from "../music-text/music-text-metrics";
 import { createMeasureRhythmContext } from "../../core/rhythm/tuplet";
+import { tabTupletBracketMinSpan } from "../rhythm/tuplet-layout";
 import { fretHalfWidth, type TechniqueInsets } from "../techniques/technique-spacing";
 import type { ILXMMeasure } from "../../core/types";
 import {
@@ -95,7 +96,7 @@ export const buildRhythmicColumns = (
         ),
       };
     });
-  // 数字标注是独立宽度贡献者；仅在组跨度不足时稳定扩宽成员列。
+  // 纯 TAB 的旧节奏列与双谱时间网格共用括线宽度下限；跨度只累计到末拍起点。
   const byBeat = new Map(
     columns.flatMap((column) =>
       column.tabBeatIds.map((id) => [id, column] as const),
@@ -106,7 +107,7 @@ export const buildRhythmicColumns = (
     const span = members
       .slice(0, -1)
       .reduce((sum, column) => sum + column.minWidth, 0);
-    const required = String(group.ratio.actual).length * 8 + 16;
+    const required = tabTupletBracketMinSpan(String(group.ratio.actual));
     if (span < required) {
       const extra = (required - span) / Math.max(1, members.length - 1);
       members.slice(0, -1).forEach((column) => {

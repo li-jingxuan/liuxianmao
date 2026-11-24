@@ -1,7 +1,7 @@
 # REQ-095 吉他节拍器
 
 - 飞书「需求」子表按编号定位。 [REQ-095](https://pcnhehlhivqu.feishu.cn/wiki/UEivw1G7Liuaqnk20d1cqCoxnHb?sheet=tcgLfi&range=A88%3AI88)
-- 对应版本 v1.0。用户确认以双参考图修订后的原型进入实现。
+- 对应版本 v1.0，产品验收已完成。
 
 ## 需求与验收标准
 

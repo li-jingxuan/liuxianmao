@@ -1,5 +1,5 @@
 "use client";
-import { Button, Tooltip } from "antd";
+import { App, Button, Tooltip } from "antd";
 import { CopyOutlined, DeleteOutlined } from "@ant-design/icons";
 import { useLayoutEffect, useRef, useState } from "react";
 import type { ILXMDocument } from "@liuxianmao/lxm-editor";
@@ -12,6 +12,7 @@ export const MeasureActions = ({ document, target, blocked, onAction, getDocumen
   document: ILXMDocument; target?: MeasureToolTarget | null; blocked: boolean; onAction: ToolActionHandler;
   getDocument?: () => ILXMDocument | null; getTargetIdentity?: () => string; onBusyChange?: (busy: boolean) => void;
 }) => {
+  const { message } = App.useApp();
   const [busy, setBusy] = useState(false);
   const [copy, setCopy] = useState<{ anchor: HTMLElement; document: ILXMDocument; target: MeasureToolTarget; identity: string } | null>(null);
   const lock = useRef(false);
@@ -33,6 +34,15 @@ export const MeasureActions = ({ document, target, blocked, onAction, getDocumen
     onBusyChange?.(true);
     try { return await onAction(action); }
     finally { lock.current = false; setBusy(false); onBusyChange?.(false); }
+  };
+  const removeCurrentMeasure = async () => {
+    if (!target || !resolved || removeReason) return;
+    // 删除后选区可能迁移、小节可能重排，先按当前轨道记下删除前的序号。
+    const measureNumber = resolved.index + 1;
+    // 沿用命令的并发与草稿检查，提交成功才使用页面级消息，面板卸载也能显示。
+    if (await run({ type: "removeMeasure", target })) {
+      void message.success(`第 ${measureNumber} 小节已删除`);
+    }
   };
   const copyTo = (destination: MeasureCopyDestination) => {
     if (!copy) return Promise.resolve(false);
@@ -58,10 +68,7 @@ export const MeasureActions = ({ document, target, blocked, onAction, getDocumen
         }}>复制小节</Button></span>
       </Tooltip>
       <Tooltip trigger={["hover", "focus"]} title={removeReason || "删除当前小节，可撤销"}>
-        <span tabIndex={removeReason ? 0 : undefined} aria-label={removeReason || undefined}><Button type="text" className={styles.remove} disabled={!!removeReason} icon={<DeleteOutlined />} aria-label="删除当前小节" onClick={() => {
-          // 点击即提交一个删除命令。命令层检查草稿与当前目标，并把小节及其关联内容作为一步记录。
-          if (target && !removeReason) void run({ type: "removeMeasure", target });
-        }}>删除小节</Button></span>
+        <span tabIndex={removeReason ? 0 : undefined} aria-label={removeReason || undefined}><Button type="text" className={styles.remove} disabled={!!removeReason} icon={<DeleteOutlined />} aria-label="删除当前小节" onClick={() => { void removeCurrentMeasure(); }}>删除小节</Button></span>
       </Tooltip>
     </div>
     {openCopy && copy && <CopyMeasureBubble anchor={copy.anchor} document={copy.document} target={copy.target}

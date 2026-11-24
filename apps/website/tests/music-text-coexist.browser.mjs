@@ -275,7 +275,7 @@ try {
   for (let index = 0; index < 3; index++) await capo.press("ArrowDown");
   await capo.press("Enter");
   await page.getByRole("button", { name: "编辑面板", exact: true }).click();
-  await selectScoreAction(page, "导出", "JSON 曲谱");
+  await selectScoreAction(page, "导出", "六线猫专用谱(.lxm)");
   const blockedOutput = page.getByRole("dialog", { name: "先处理未应用的输入" });
   await blockedOutput.waitFor();
   await blockedOutput.getByRole("button", { name: "返回编辑", exact: true }).click();

@@ -75,6 +75,7 @@
   > strong { color: var(--foreground); }
 }
 .playbackStatus { margin-inline-start: auto; }
+.playbackStart { width: 151px; }
 .playbackSlider { width: 88px; margin: 0; accent-color: var(--accent); }
 .playbackButton, .playbackField {
   box-sizing: border-box;

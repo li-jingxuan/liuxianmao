@@ -32,6 +32,7 @@ import {
 } from "../music-text/numbered-reduction-groups";
 import { fretHalfWidth, type TechniqueInsets } from "../techniques/technique-spacing";
 import { createChordBlock } from "../music-text/music-text-layout";
+import { tabTupletBracketMinSpan } from "./tuplet-layout";
 
 interface Source {
   id: string;
@@ -274,6 +275,18 @@ export const summarizeTimeGrid = (
     edge(a, b, 1, ideal);
   }
   sources.forEach((s) => edge(s.start, s.end, s.min, s.ideal));
+  // 括线挂在首末拍起点，不能把末拍时值算入可用跨度。把最低跨度均摊到组内相邻拍，
+  // 避免紧凑三连音只拉开最后一拍。硬、理想两套位置均保留该间距；简谱、歌词和 TAB 墨迹约束照常参与求解。
+  for (const group of measure.tuplets) {
+    const minSpan = tabTupletBracketMinSpan(String(group.ratio.actual));
+    const memberGap = minSpan / (group.beatIds.length - 1);
+    for (let i = 1; i < group.beatIds.length; i++)
+      edge(
+        tabById.get(group.beatIds[i - 1]!)!.tick,
+        tabById.get(group.beatIds[i]!)!.tick,
+        memberGap,
+      );
+  }
   // 独立减时线组之间保留可见净空；约束同时进入硬/理想 DAG，窄行压缩也不能粘连。
   for (const groups of numberedReductionGroups(measure)) {
     for (let i = 1; i < groups.length; i++) {

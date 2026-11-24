@@ -106,6 +106,12 @@
   .cell[data-accent="true"]::before { left: 1px; font-size: 6px; }
   .cell[data-group-break="true"] { margin-inline-start: 3px; }
   .cell[data-group-break="true"]::before { left: -5px; }
+  // 只降低试听节拍器的视觉权重。复选框仍能响应键盘和点击，同一行的谱面播放控件不受影响。
+  &[data-click-disabled] {
+    color: var(--muted);
+    filter: grayscale(1);
+    .beats { opacity: 0.55; }
+  }
 }
 .auditionStatus {
   display: grid;

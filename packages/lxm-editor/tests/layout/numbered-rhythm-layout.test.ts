@@ -8,10 +8,12 @@ import {
   type ILXMNumberedEvent,
 } from "../../src";
 import {
+  collectMusicTextMeasureRequests,
   musicTextInkBounds,
   musicTextRequest,
 } from "../../src/layout/music-text/music-text-metrics";
 import { numberedLayoutProfile } from "../../src/layout/music-text/numbered-layout-profile";
+import mixedTuplets from "../../example/example-mvp6.json";
 
 const note = (
   tick: number,
@@ -24,7 +26,7 @@ const note = (
   items: [{ id: `i${tick}`, token: tick === 0 ? "5" : "6" }],
 });
 
-describe("BUG-071 简谱连音弧线", () => {
+describe("简谱连音标注", () => {
   it.each(["editing", "presentation"] as const)(
     "%s 使用两段对称弧线围住三连音数字，并避让已有连线",
     (purpose) => {
@@ -42,12 +44,14 @@ describe("BUG-071 简谱连音弧线", () => {
       expect(result.ok).toBe(true);
       if (!result.ok) return;
       const metric = { x: -3, y: -8, width: 6, height: 8 };
+      const request = musicTextRequest("3", 9);
+      expect(collectMusicTextMeasureRequests(result.document)).toContainEqual(request);
       const layout = buildLayout(result.document, {
         purpose,
         density: "compact",
         musicTextMetrics:
           purpose === "editing"
-            ? { [musicTextRequest("3", 11).key]: metric }
+            ? { [request.key]: metric }
             : undefined,
       });
       const system = layout.systems[0]!;
@@ -66,6 +70,8 @@ describe("BUG-071 简谱连音弧线", () => {
         tokens.filter((token) => token !== "M" && token !== "Q").map(Number);
 
       expect(label.text).toBe("3");
+      expect(label.fontSize).toBe(9);
+      expect(frames[0]!.labels[0]!.fontSize).toBe(11);
       expect(label.measured).toBe(purpose === "editing");
       expect(label.x).toBeCloseTo(
         (frames[0]!.labels[0]!.x + frames[2]!.labels[0]!.x) / 2,
@@ -92,10 +98,27 @@ describe("BUG-071 简谱连音弧线", () => {
       );
       expect(sceneItems).toMatchObject([
         { kind: "path", d: path.d, fill: "none" },
-        { kind: "text", text: "3", x: label.x, y: label.y, textAnchor: "middle" },
+        { kind: "text", text: "3", x: label.x, y: label.y, fontSize: 9, textAnchor: "middle" },
       ]);
     },
   );
+
+  it("五连音和六连音保留完整比例和数字左右的弧段", () => {
+    const layout = buildLayout(mixedTuplets, { density: "compact" });
+    const marks = layout.systems.flatMap((system) => system.numberedMarks!);
+    for (const text of ["5:3", "5:4", "6:4"]) {
+      const mark = marks.find((item) => item.labels[0]?.text === text)!;
+      const ink = musicTextInkBounds(mark.labels[0]!);
+      const [x1, , , , leftGap, , rightGap, , , , x2] = mark.path!.d
+        .split(" ").filter((token) => token !== "M" && token !== "Q").map(Number);
+      expect(mark.labels[0]!.fontSize).toBe(9);
+      // 无浏览器度量时，较宽比例文字的断口仍须跨出估算墨迹并留出两段弧线。
+      expect(leftGap! - x1!).toBeGreaterThanOrEqual(4 - 1e-9);
+      expect(x2! - rightGap!).toBeGreaterThanOrEqual(4 - 1e-9);
+      expect(leftGap).toBeLessThan(ink.x);
+      expect(rightGap).toBeGreaterThan(ink.x + ink.width);
+    }
+  });
 });
 
 const fixture = (events: ILXMNumberedEvent[]) => {

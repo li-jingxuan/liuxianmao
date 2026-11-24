@@ -471,27 +471,29 @@ export const EditorToolPanelHost = ({
     const reason = disabledReason(id);
     const active = open && !contextEntry && group === id;
     const button = (
-      <Tooltip title={reason ?? (id === "beat" ? "节奏型" : `${label}工具`)} trigger={["hover", "focus"]}>
-        <Button
-          data-tool-trigger={id}
-          disabled={!!reason}
-          aria-description={reason ?? undefined}
-          aria-label={`${label}工具`}
-          aria-expanded={active}
-          aria-haspopup="dialog"
-          color={active ? "primary" : "default"}
-          variant={active ? "filled" : "text"}
-          onClick={(event) => {
-            event.stopPropagation();
-            if (active) close(true);
-            else show(id);
-          }}
-        >
-          {symbol}
-        </Button>
-      </Tooltip>
+      <Button
+        data-tool-trigger={id}
+        disabled={!!reason}
+        aria-description={reason ?? undefined}
+        aria-label={`${label}工具`}
+        aria-expanded={active}
+        aria-haspopup="dialog"
+        color={active ? "primary" : "default"}
+        variant={active ? "filled" : "text"}
+        onClick={(event) => {
+          event.stopPropagation();
+          if (active) close(true);
+          else show(id);
+        }}
+      >
+        {symbol}
+      </Button>
     );
-    return <span className={toolbarStyles.panelTrigger}>{id === "beat" ? rhythmPopover(button) : button}</span>;
+    // 禁用的原生按钮不能接收焦点，外层补上一个焦点入口，让键盘用户也能查看同一条名称提示。
+    const entry = <Tooltip title={id === "beat" ? label : `${label}工具`} trigger={["hover", "focus"]}>
+      {reason ? <span tabIndex={0} aria-label={`${label}工具`}>{button}</span> : button}
+    </Tooltip>;
+    return <span className={toolbarStyles.panelTrigger}>{id === "beat" ? rhythmPopover(entry) : entry}</span>;
   };
   return (
     <Popover
@@ -516,7 +518,7 @@ export const EditorToolPanelHost = ({
       >
         <div className={toolbarStyles.toolbarGroup} role="group" aria-label="演奏技巧">
           {quickTechniques}
-          <EditorToolSymbolButton triggerId="technique" label="所有技巧" title="所有技巧"
+          <EditorToolSymbolButton triggerId="technique" label="所有技巧" showDisabledReason={false}
             popup expanded={open && !contextEntry && group === "technique"} availability={{ enabled: !disabledReason("technique"), reason: disabledReason("technique") ?? "" }}
             onClick={() => { if (open && !contextEntry && group === "technique") close(true); else show("technique"); }}>
             <TechniqueSymbol kind="technique" />
