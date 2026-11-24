@@ -52,6 +52,7 @@ export const EditorHeader = ({
   title, status, empty = false, canUndo, canRedo, sidebarCollapsed, sidebarToggleDisabled = false, zoom,
   onFileAction, onExportAction, onNavigate, onFollowLink, navigation, onLearning, onShortcuts,
   onHistory, onToggleSidebar, onZoom, exportButtonRef,
+  onSave,
 }: {
   title: string;
   status: ScoreFileStatus;
@@ -62,6 +63,7 @@ export const EditorHeader = ({
   sidebarToggleDisabled?: boolean;
   zoom: ScoreZoom;
   onFileAction: (action: Exclude<ScoreFilePanel, "json"> | "home", trigger: HTMLButtonElement) => void;
+  onSave?: (saveAs: boolean, trigger: HTMLButtonElement) => void;
   onExportAction: (action: "json" | "png" | "print", trigger: HTMLButtonElement) => void;
   navigation?: LxmEditorNavigation;
   onNavigate: (destination: string, label: string, trigger: HTMLElement | null) => boolean;
@@ -195,7 +197,11 @@ export const EditorHeader = ({
         <nav className={styles.menuBar} aria-label="编辑器菜单" onKeyDown={moveBetweenMenus}>
           {renderMenu("file", "文件", [
             { key: "new", label: "新建曲谱", run: (trigger) => onFileAction("new", trigger) },
-            { key: "import", label: "导入曲谱", run: (trigger) => onFileAction("import", trigger) },
+            { key: "import", label: onSave ? "打开曲谱" : "导入曲谱", run: (trigger) => onFileAction("import", trigger) },
+            ...(onSave ? [
+              { key: "save", label: "保存", disabled: empty, run: (trigger: HTMLButtonElement) => onSave(false, trigger) },
+              { key: "saveAs", label: "另存为…", disabled: empty, run: (trigger: HTMLButtonElement) => onSave(true, trigger) },
+            ] : []),
             ...(homeHref ? ["divider" as const, { key: "home", label: "返回首页", run: (trigger: HTMLButtonElement) => onFileAction("home", trigger) }] : []),
           ])}
           {renderMenu("edit", "编辑", (["undo", "redo"] as const).map((action) => ({
@@ -225,9 +231,9 @@ export const EditorHeader = ({
       </div>
       <strong className={styles.editorHeading} title={scoreTitle}>{scoreTitle}</strong>
       {!empty && <div className={styles.headerActions}>
-        <span className={styles.fileStatus} data-file-status={status} role="status">{statusText[status]}</span>
+        <span className={styles.fileStatus} data-file-status={status} role="status">{onSave && status === "exported" ? "已保存" : onSave && status === "pending" ? "未保存" : statusText[status]}</span>
         {renderMenu("export", "导出", [
-          { key: "json", label: SCORE_FILE_LABEL, run: (trigger) => onExportAction("json", trigger) },
+          ...(!onSave ? [{ key: "json", label: SCORE_FILE_LABEL, run: (trigger: HTMLButtonElement) => onExportAction("json", trigger) }] : []),
           { key: "png", label: "图片(.png)", run: (trigger) => onExportAction("png", trigger) },
           "divider",
           { key: "print", label: "打印", run: (trigger) => onExportAction("print", trigger) },

@@ -11,6 +11,7 @@
 - **写一份吉他谱。** 启动本地站点，打开 `/editor` 试着修改示例曲《理想》，也可以新建空白谱或导入已有的六线猫专用谱（`.lxm`）。[本地开发](#本地开发)
 - **在 React 应用里嵌入编辑器。** 在 React 19 应用中使用 `@liuxianmao/lxm-editor-react`，通过 `createEditorSession` 创建会话，再挂载自带谱面、工具栏和侧栏的 `LxmEditor`。[React 接入指南](packages/lxm-editor-react/README.md) · [网站接入示例](apps/website/app/editor/EditorWorkspace.tsx)
 - **自己做编辑器或处理曲谱数据。** `@liuxianmao/lxm-editor` 是 JavaScript Core，提供曲谱加载与校验、编辑命令、撤销重做、谱面布局与点击命中、绘制图元和播放计划。开发者可以用这些接口实现自己的界面与播放逻辑，也可以在 Node.js 中处理曲谱。[Core 使用指南与示例](packages/lxm-editor/README.md) · [v1.0 公共 API](packages/lxm-editor/docs/api-v1.md)
+- **用 Agent Skill 接入。** 安装 `lxm-editor` 后，可在自己的项目中查询 Core 和 React 公共 API，运行 Node.js 或 React 19 示例。[安装和调用](skills/README.md)
 
 ## 写谱、试听与导出
 

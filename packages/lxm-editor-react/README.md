@@ -37,7 +37,7 @@ npm install @liuxianmao/lxm-editor-react@1.0.0 --registry=https://registry.npmjs
 
 React 包依赖同版本 Core，并从包根入口重新导出 Core 的公开 API。如果应用通过 `@liuxianmao/lxm-editor` 包名直接导入 API，将 Core 声明为应用的直接依赖。
 
-导入组件、会话工厂和样式，给编辑器外层容器一个明确的高度。下面的组件可以直接放进 React 页面。
+导入组件、会话工厂和样式，给嵌入编辑器的容器一个明确的高度。独占窗口的应用可传入 `fullPage`，并导入 `@liuxianmao/lxm-editor-react/page.css` 使用与 Web 相同的页面字体、颜色和浮层样式。整页模式填满视口，窗口窄于 1400px 时可横向滚动。
 
 ```tsx
 "use client";
@@ -253,7 +253,7 @@ export function CompareScores({
 
 ### 网页嵌入时需要自己部署和弦库和试听音源吗？
 
-采用包的默认资源时，和弦库与木吉他试听采样通过打包器按需加载。导入 `@liuxianmao/lxm-editor-react/styles.css` 后，样式也会带入 Bravura 谱面字体和工具字形。需要使用站点自己的和弦库或音源目录时，可以配置 `resources`。
+采用包的默认资源时，和弦库与木吉他试听采样通过打包器按需加载。导入 `@liuxianmao/lxm-editor-react/styles.css` 后，样式也会带入 Bravura 谱面字体和内联的工具栏 SVG。需要使用站点自己的和弦库或音源目录时，可以配置 `resources`。
 
 ### 可以在同一页面同时编辑两份曲谱吗？
 
@@ -267,12 +267,12 @@ export function CompareScores({
 
 ### 使用自定义资源目录
 
-默认资源随应用的打包产物交付，包括内置品牌图和按需加载的和弦库、木吉他采样。使用默认资源时，应用无需手工复制资源或配置资源根路径。只有在由应用托管资源时才需要设置相关 `resources` 属性。
+默认资源随应用的打包产物交付，包括内置品牌图、与 Web 共用的工具栏 SVG，以及按需加载的和弦库与木吉他采样。使用默认资源时，应用无需手工复制资源或配置资源根路径。只有在由应用托管资源时才需要设置相关 `resources` 属性。
 
 - `resources.basePath` 为和弦库和试听音源设置共同的部署前缀。配置后分别从 `<basePath>/assets/chords/` 和 `<basePath>/assets/audio/meta-steel-guitar-v1/` 加载。空字符串代表站点根目录。
 - `resources.chordCatalogDirectory` 单独指定同源和弦库目录，覆盖共同前缀。目录需包含 `manifest.json` 和清单引用的版本文件。包内的 `dist/assets/chords/` 提供可部署的数据。
 - `resources.audioDirectory` 单独指定压缩采样目录，覆盖共同前缀。目录需包含 `manifest.json` 和 `ogg/`，可以提供 `m4a/` 作为 AAC 兼容版本。遇到请求或解码失败时，播放器会尝试另一种编码，两种都失败时会在试听栏提示并允许重试。
-- `resources.musicIconBaseUrl` 指向自定义工具 SVG 目录，文件名如 `note-quarter.svg`、`note-dot.svg` 和 `triplet.svg`。`resources.brandIconUrl` 可单独覆盖品牌图。
+- `resources.musicIconBaseUrl` 指向自定义工具 SVG 目录，文件名如 `note-quarter.svg`、`note-dot.svg` 和 `triplet.svg`。缺省时使用样式内联的 18 个 SVG，无需请求图标文件。`resources.brandIconUrl` 可单独覆盖品牌图。
 
 内置音源从 6 根弦、3 层力度里各选低、中、高三个录音，共 54 个 OGG 采样和对应的 AAC 版本。播放器按谱面的调弦、品位和技巧计算音高，再对最接近的同弦采样移调。需要在改动调弦后获得更接近原始录音的音色时，可以通过 `audioDirectory` 提供全量音源。播放器只请求实际演奏用到的采样。
 
@@ -284,9 +284,9 @@ Safari 18.4 起在对应系统版本支持 Ogg，播放器也提供 AAC 回退�
 
 在 Electron 渲染进程中使用相同的 React 入口、样式和会话工厂。窗口内可沿用内置的新建、导入和试听流程，内置音源与和弦库随渲染应用的异步打包块交付。
 
-使用系统原生菜单时，由 Electron 宿主通过 preload 桥接处理文件选择和磁盘读写。打开 Schema 8 文件时，把 `.lxm` 的 JSON 文本交给渲染进程中的 `session.replaceDocument(text)`。若原生菜单也支持 Schema 4–7，先解析 JSON，再用 `@liuxianmao/lxm-editor-react` 根入口导出的 `upgradeDocumentToCurrent` 迁移旧文档。迁移成功后，把结果的 `document` 传给 `session.replaceDocument`，并根据加载结果反馈是否打开成功。
+将实现 `EditorHost` 的 preload 桥接传给 `<LxmEditor session={session} host={host} />`。`onAction` 接收系统菜单和窗口动作，工作区复用原有的文件预览、Schema 4–7 迁移、未应用输入保护和打印预览。主进程负责系统对话框、文件 IO 和打印，保存成功后组件按实际写入的快照更新基线。
 
-保存时，渲染进程读取 `session.getDocument()`，将非空快照序列化为 JSON，再通过 IPC 保存到用户选择的 `.lxm` 路径。
+`openScore` 返回 `.lxm` 的字节、显示名和不透明文件标识。`saveScore` 缺少 `fileId` 时弹出保存对话框，有标识时覆盖对应文件。取消由宿主返回 `status: "cancelled"`。窗口关闭前等候组件调用 `resolveClose`，并在组件卸载后取消原生菜单订阅。[桌面宿主实现](../../apps/desktop/)
 
 自定义资源目录由渲染页面可请求的同源地址提供。离线发行可使用支持 Fetch 的 Electron 应用协议。
 

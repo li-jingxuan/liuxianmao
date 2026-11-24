@@ -2,13 +2,13 @@
 
 ## 首次安装
 
-1. 用官方 fnpack 1.3.3 打包。在 `192.168.2.13` 的飞牛应用中心手动安装生成的 `deploy/fnos/dist/liuxianmao.fpk`。安装包用于本机调试，飞牛桌面入口会在新标签页打开 `/app/liuxianmao/`。 [fnpack](https://developer.fnnas.com/docs/cli/fnpack) · [飞牛统一网关](https://developer.fnnas.com/docs/core-concepts/gateway-registration)
+1. 在仓库根目录用官方 fnpack 1.3.3 打包。在 `192.168.2.13` 的飞牛应用中心手动安装生成的 `apps/fnos/dist/liuxianmao.fpk`。安装包用于本机调试，飞牛桌面入口会在新标签页打开 `/app/liuxianmao/`。 [fnpack](https://developer.fnnas.com/docs/cli/fnpack) · [飞牛统一网关](https://developer.fnnas.com/docs/core-concepts/gateway-registration)
 
    ```sh
-   sh deploy/fnos/package.sh
+   sh apps/fnos/package.sh
    ```
 
-2. 在 NAS 的 `nice007` 账号下创建发布目录 `/home/nice007/.local/share/liuxianmao`，将 `build-release.sh`、`extract-main.py`、`ssh-release.sh`、`deploy.sh`、`compose.yaml`、`proxy.cjs` 和 `verify.cjs` 复制到该目录。部署账号需能操作 Docker、写入发布目录以及连接 FPK 目录内的 Socket。NAS 需提供 `python3`、`curl`、`flock` 和支持 `up --wait` 的 Docker Compose。
+2. 在 NAS 的 `nice007` 账号下创建发布目录 `/home/nice007/.local/share/liuxianmao`，将 `apps/fnos/` 中的 `build-release.sh`、`extract-main.py`、`ssh-release.sh`、`deploy.sh`、`compose.yaml`、`proxy.cjs` 和 `verify.cjs` 复制到该目录。部署账号需能操作 Docker、写入发布目录以及连接 FPK 目录内的 Socket。NAS 需提供 `python3`、`curl`、`flock` 和支持 `up --wait` 的 Docker Compose。
 3. 在发布目录写入 `appdest`，内容为本次 FPK 安装的实际 `target` 目录。安装位置随飞牛存储卷变化，可通过安装后创建的链接查询。
 
    ```sh

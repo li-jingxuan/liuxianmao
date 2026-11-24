@@ -5,14 +5,17 @@
   background: currentColor;
   mask: var(--music-icon-url) center / contain no-repeat;
 
-  // 独立嵌入缺省使用 Bravura；宿主传入 SVG 路径时继续走上面的 mask 着色。
-  &[data-lxm-music-glyph] {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: transparent;
+  // 缺省图标直接从 Web 使用的原文件内联，供离线宿主按当前文字颜色着色。
+  // 只有未配置图标目录的组件会设置此属性，宿主图标继续通过同一遮罩变量渲染。
+  @each $name in (
+    note-whole, note-half, note-quarter, note-eighth, note-sixteenth, note-thirty-second,
+    note-dot, note-double-dotted, note-tie, duplet, triplet, quadruplet,
+    quintuplet-5-4, quintuplet-5-3, sextuplet, measure-add24, measure-remove24, actions-copy24
+  ) {
+    &[data-lxm-music-icon="#{$name}"] {
+      --music-icon-url: url("../../../../../apps/website/public/assets/svg/music-controls/#{$name}.svg?inline");
+    }
   }
-  &[data-lxm-music-glyph="music"] { font-family: Bravura, serif; font-size: 18px; }
 }
 
 .toolbarField {

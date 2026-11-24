@@ -8,6 +8,10 @@ import {
   type ScorePrimitive,
   type ScoreScene,
 } from "@liuxianmao/lxm-editor";
+import {
+  getScoreWatermarkLayout,
+  type ScoreWatermark,
+} from "../output/score-watermark";
 
 /** 保存/恢复图元样式，防止 dash、描边或字体污染后一项。 */
 const drawPrimitive = (ctx: CanvasRenderingContext2D, p: ScorePrimitive) => {
@@ -59,6 +63,7 @@ const drawPrimitive = (ctx: CanvasRenderingContext2D, p: ScorePrimitive) => {
 export const renderPageCanvas = (
   scene: ScoreScene,
   page: ILXMPageLayout,
+  watermark?: ScoreWatermark,
 ): HTMLCanvasElement => {
   const canvas = document.createElement("canvas");
   canvas.width = A4_IMAGE_WIDTH;
@@ -68,6 +73,31 @@ export const renderPageCanvas = (
   ctx.fillStyle = "#fff";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.scale(canvas.width / page.width, canvas.height / page.height);
+  const mark = getScoreWatermarkLayout(watermark, page);
+  if (mark) {
+    // 水印使用与 SVG 相同的逻辑坐标。恢复上下文后谱面沿用原有字体、颜色和透明度。
+    ctx.save();
+    ctx.translate(mark.centerX, mark.centerY);
+    ctx.rotate((mark.angle * Math.PI) / 180);
+    ctx.globalAlpha = mark.opacity;
+    if (mark.kind === "image") {
+      ctx.drawImage(
+        mark.asset.raster,
+        -mark.width / 2,
+        -mark.height / 2,
+        mark.width,
+        mark.height,
+      );
+    } else {
+      ctx.fillStyle = "#000";
+      ctx.font = `${mark.fontSize}px ${mark.fontFamily}`;
+      ctx.direction = "ltr";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "alphabetic";
+      ctx.fillText(mark.text, 0, mark.baseline);
+    }
+    ctx.restore();
+  }
   const draw = (items: ScorePrimitive[], x: number, y: number) => {
     ctx.save();
     ctx.translate(x, y);

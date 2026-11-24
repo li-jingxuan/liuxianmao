@@ -197,7 +197,7 @@
       <p class="field-hint">支持原生 v8 及 v4–v7 升级。MusicXML、MIDI 暂不支持。</p><div class="demo-line"><span>评审样例</span><button id="load-demo">载入有效文件</button><button id="load-error">载入错误文件</button></div>
       ${error ? `<div class="notice error" role="alert"><strong>无法打开此文件</strong><br>${escape(error)}<br>请重新选择正确文件，当前曲谱未被替换。</div>` : ''}
       ${data ? `<section class="file-preview" aria-label="待导入文件预览"><div class="file-preview-heading"><span class="file-icon">JSON</span><div><strong>${escape(filename || '风吹过山谷.lxm.json')}</strong><small>文件读取完成 · 校验通过（演示）</small></div></div><div class="preview-data"><div><span>曲名</span><b>${escape(data.title)}</b></div><div><span>编谱作者</span><b>${escape(data.arranger.trim() || '未填写')}</b></div><div><span>拍号</span><b>${escape(data.meter)}</b></div><div><span>数字1音高</span><b>${escape(data.numberedKey)}</b></div><div><span>最终调性</span><b>${escape(tonalitySummary(data))}</b></div><div><span>小节</span><b>${data.bars} 小节</b></div><div><span>调弦</span><b>标准调弦</b></div><div><span>轨道</span><b>单轨</b></div></div></section>` : ''}
-      <p class="review-note">审稿说明：真实选择/拖拽只读取本目录的 sample-score.demo.json 演示结构，不表示支持产品 lxm-tab-score 协议或版本迁移。样例不可导入产品。打开前完成预览与替换保护。</p></div><div class="dialog-footer">${cancel}<button id="open-import" class="primary" ${data ? '' : 'disabled'}>打开曲谱</button></div>`);
+      <p class="review-note">审稿说明：使用“载入有效文件”或“载入错误文件”检查导入流程。打开前完成预览与替换保护。</p></div><div class="dialog-footer">${cancel}<button id="open-import" class="primary" ${data ? '' : 'disabled'}>打开曲谱</button></div>`);
     bindCancel();
     $('#load-demo').onclick = () => showImport({candidate:sample(),filename:'风吹过山谷.lxm.json'});
     $('#load-error').onclick = () => showImport({error:'文件内容不是有效的 JSON。请检查文件是否完整，或重新导出后重试。'});
@@ -226,7 +226,7 @@
       const minor = d.key.endsWith('m'), degree = d.minorTonicDegree === undefined ? 6 : d.minorTonicDegree;
       if (!pitches.includes(numberedKey) || typeof arranger !== 'string' || arranger.length > 64 || /[\r\n\u2028\u2029]/.test(arranger) || (minor ? ![1,6].includes(degree) : d.minorTonicDegree !== undefined) || !matchesTonality(d.key,numberedKey,degree)) throw new Error('schema');
       showImport({candidate:{title:d.title,arranger,meter:d.meter,key:d.key,numberedKey,...(minor ? {minorTonicDegree:degree} : {}),capo:d.capo,bars:d.bars,notes:d.notes,blank:!!d.blank},filename:file.name});
-    } catch (err) {if (generation !== importGeneration || !modal.open || modalKind !== 'import') return; showImport({error:err instanceof SyntaxError ? '文件内容不是有效的 JSON。请重新选择完整文件。' : '文件结构或版本不匹配。本原型只读取提供的演示样例，请重新选择；此结果不代表产品校验结论。'});}
+    } catch (err) {if (generation !== importGeneration || !modal.open || modalKind !== 'import') return; showImport({error:err instanceof SyntaxError ? '文件内容不是有效的 JSON。请重新选择完整文件。' : '文件结构或版本不匹配。请用“载入有效文件”查看演示预览。'});}
   }
 
   function showDraftBlock() {

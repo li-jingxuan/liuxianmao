@@ -1,0 +1,44 @@
+appId: cn.liuxianmao.desktop
+productName: 六线猫
+artifactName: Liuxianmao-${version}-${os}-${arch}.${ext}
+asar: true
+npmRebuild: false
+forceCodeSigning: true
+publish: null
+directories:
+  output: build/installers
+files:
+  - dist/main/**
+  - dist/renderer/**
+extraResources:
+  - from: ../../packages/lxm-editor-react/Bravura-OFL.txt
+    to: licenses/Bravura-OFL.txt
+  - from: ../../apps/website/public/assets/audio/meta-steel-guitar-v1
+    to: licenses/Meta-Steel-Guitar
+    filter: [LICENSE, SOURCE.md]
+win:
+  executableName: Liuxianmao
+  icon: ../website/public/assets/brand/liuxianmao-512.png
+  target:
+    - target: nsis
+      arch: [x64]
+  signtoolOptions:
+    signingHashAlgorithms: [sha256]
+nsis:
+  oneClick: false
+  perMachine: false
+  allowElevation: false
+  deleteAppDataOnUninstall: false
+  differentialPackage: false
+mac:
+  icon: ../website/public/assets/brand/liuxianmao-512.png
+  category: public.app-category.music
+  target:
+    - target: dmg
+      arch: [arm64]
+  hardenedRuntime: true
+  notarize: false
+  minimumSystemVersion: '14.0'
+dmg:
+  sign: true
+  writeUpdateInfo: false

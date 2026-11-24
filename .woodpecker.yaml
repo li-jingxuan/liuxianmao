@@ -38,12 +38,13 @@ steps:
       NPM_CONFIG_REGISTRY: https://registry.npmmirror.com
       NEXT_PUBLIC_BASE_PATH: /app/liuxianmao
       NEXT_TELEMETRY_DISABLED: "1"
+      ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
       NODE_OPTIONS: --max-old-space-size=1100
       VITEST_MAX_WORKERS: "1"
     commands:
       - npm install --global pnpm@9.15.9
       - pnpm install --frozen-lockfile
-      - pnpm exec turbo run lint type-check test --concurrency=1
+      - pnpm exec turbo run lint type-check test --filter=@liuxianmao/website... --concurrency=1
       - pnpm --filter @liuxianmao/website build
       - test -f apps/website/.next/standalone/apps/website/server.js
 
@@ -59,4 +60,4 @@ steps:
       LXM_NAS_KNOWN_HOSTS:
         from_secret: lxm_nas_known_hosts
     commands:
-      - sh deploy/fnos/ci-release.sh
+      - sh apps/fnos/ci-release.sh

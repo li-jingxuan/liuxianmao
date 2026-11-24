@@ -13,6 +13,7 @@ import { buildScoreScene, type ScoreScene } from "@liuxianmao/lxm-editor";
 import { renderPageCanvas } from "../score/score-canvas-renderer";
 import { setPngResolution } from "./png-resolution";
 import type { EditorSessionVersion } from "../session/editor-session-version";
+import type { ScoreWatermark } from "./score-watermark";
 
 export interface PreparedScoreImages {
   scene: ScoreScene;
@@ -211,12 +212,13 @@ export const encodeScorePage = async (
   prepared: PreparedScoreImages,
   index: number,
   signal: AbortSignal,
+  watermark?: ScoreWatermark,
 ): Promise<Blob> => {
   checkCancelled(signal);
   const page = prepared.pages[index];
   if (!page)
     throw new ImageExportError("layout-geometry", "页面不存在，请重新准备预览");
-  const canvas = renderPageCanvas(prepared.scene, page);
+  const canvas = renderPageCanvas(prepared.scene, page, watermark);
   try {
     const png = await bounded(
       new Promise<Blob>((resolve, reject) =>
@@ -245,16 +247,17 @@ export const encodeScorePage = async (
     canvas.height = 1;
   }
 };
-/** 多页按 STORE 打包；禁止并行持有整谱高分辨率画布。 */
+/** 多页按 STORE 打包，每页沿用生成时锁定的水印，逐张释放高分辨率画布。 */
 export const exportScoreImages = async (
   prepared: PreparedScoreImages,
   signal: AbortSignal,
   onProgress: (page: number) => void,
+  watermark?: ScoreWatermark,
 ): Promise<{ blob: Blob; name: string }> => {
   if (prepared.pages.length === 1) {
     onProgress(1);
     return {
-      blob: await encodeScorePage(prepared, 0, signal),
+      blob: await encodeScorePage(prepared, 0, signal, watermark),
       name: pageImageName(prepared.title, 0),
     };
   }
@@ -281,7 +284,7 @@ export const exportScoreImages = async (
     for (let i = 0; i < prepared.pages.length; i++) {
       checkCancelled(signal);
       onProgress(i + 1);
-      const blob = await encodeScorePage(prepared, i, signal);
+      const blob = await encodeScorePage(prepared, i, signal, watermark);
       total += blob.size;
       if (total > MAX_IMAGE_BYTES)
         throw new ImageExportError(

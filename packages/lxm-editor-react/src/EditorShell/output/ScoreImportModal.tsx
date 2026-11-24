@@ -9,6 +9,7 @@ import { captureEditorVersion, sameEditorVersion, type EditorSessionVersion } fr
 import { displaySignature } from "./new-score";
 import { ScoreFileDialog } from "./ScoreFileDialog";
 import { decodeScoreFile, SCORE_FILE_EXTENSION, SCORE_FILE_LABEL, SCORE_FILE_MAX_BYTES } from "./score-file";
+import type { NativeImport } from "./use-score-file-flow";
 import styles from "./score-file.module.scss";
 
 type Candidate = {
@@ -18,39 +19,55 @@ type Candidate = {
   version: EditorSessionVersion;
 };
 
-export function ScoreImportModal({ session, canContinue, onClose, onOpen }: {
+/** 桌面和 Web 共用严格解码、失败分类和预览，文件来源仅影响选择入口。 */
+function inspectCandidate(name: string, bytes: ArrayBuffer, version: EditorSessionVersion) {
+  const checked = decodeScoreFile(bytes);
+  if (checked.ok) {
+    const candidate: Candidate = { name, document: checked.document, sourceVersion: checked.upgraded ? checked.sourceVersion : undefined, version };
+    return { candidate, errors: [], summary: "" };
+  }
+  const summary = checked.reason === "format" ? "" : checked.reason === "version"
+    ? "此文件版本暂不支持，请使用兼容版本导出的曲谱。"
+    : checked.reason === "syntax"
+      ? `文件内容无法读取，请重新选择原始 ${SCORE_FILE_EXTENSION} 文件。`
+      : "曲谱结构无效，请检查原文件后重试。";
+  return { candidate: undefined, errors: checked.errors, summary };
+}
+
+export function ScoreImportModal({ session, canContinue, onClose, onOpen, nativeFile }: {
   session: StoreApi<EditorStoreState>;
   canContinue: () => boolean;
   onClose: () => void;
-  onOpen: (document: ILXMDocument, filename: string, version: EditorSessionVersion) => void;
+  onOpen: (document: ILXMDocument, filename: string, version: EditorSessionVersion, sourceVersion?: number) => void;
+  nativeFile?: NativeImport;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const canContinueRef = useRef(canContinue);
   const request = useRef(0);
   const reading = useRef(false);
   const [busy, setBusy] = useState(false);
-  const [candidate, setCandidate] = useState<Candidate>();
-  const [errors, setErrors] = useState<string[]>([]);
-  const [errorSummary, setErrorSummary] = useState("");
+  const [{ candidate, errors, summary: errorSummary }, setPreview] = useState(() => nativeFile
+    ? inspectCandidate(nativeFile.name, nativeFile.bytes, nativeFile.version)
+    : { candidate: undefined, errors: [], summary: "" });
+
+  const clearCandidate = (errors: string[] = []) => setPreview({ candidate: undefined, errors, summary: "" });
 
   useEffect(() => () => { request.current += 1; }, []);
   useEffect(() => { canContinueRef.current = canContinue; }, [canContinue]);
 
   const readFile = async (files: FileList | undefined) => {
     if (!files?.length || reading.current || !canContinueRef.current()) return;
-    setCandidate(undefined);
-    setErrors([]);
-    setErrorSummary("");
-    if (files.length !== 1) { setErrors([`请一次选择一个 ${SCORE_FILE_EXTENSION} 曲谱文件。`]); return; }
+    clearCandidate();
+    if (files.length !== 1) { clearCandidate([`请一次选择一个 ${SCORE_FILE_EXTENSION} 曲谱文件。`]); return; }
     const file = files[0]!;
     // 文件选择器的过滤可被绕过，拖放也会直达这里。先校验最终扩展名，兼容大小写，
     // 再校验内容、版本和排版，避免把任意改名文件识别成六线猫曲谱。
     if (!file.name.toLowerCase().endsWith(SCORE_FILE_EXTENSION)) {
-      setErrors([`请选择 ${SCORE_FILE_EXTENSION} 曲谱文件。`]);
+      clearCandidate([`请选择 ${SCORE_FILE_EXTENSION} 曲谱文件。`]);
       return;
     }
     if (file.size > SCORE_FILE_MAX_BYTES) {
-      setErrors([`曲谱文件为 ${(file.size / 1024 / 1024).toFixed(2)} MiB，超过 10 MiB 上限。`]);
+      clearCandidate([`曲谱文件为 ${(file.size / 1024 / 1024).toFixed(2)} MiB，超过 10 MiB 上限。`]);
       return;
     }
     const version = captureEditorVersion(session.getState());
@@ -61,23 +78,13 @@ export function ScoreImportModal({ session, canContinue, onClose, onOpen }: {
       const bytes = await file.arrayBuffer();
       if (generation !== request.current) return;
       if (!sameEditorVersion(session.getState(), version)) {
-        setErrors(["读取期间曲谱已变化，请重新选择文件。"]);
+        clearCandidate(["读取期间曲谱已变化，请重新选择文件。"]);
         return;
       }
       if (!canContinueRef.current()) return;
-      const checked = decodeScoreFile(bytes);
-      if (!checked.ok) {
-        setErrors(checked.errors);
-        if (checked.reason !== "format") setErrorSummary(checked.reason === "version"
-          ? "此文件版本暂不支持，请使用兼容版本导出的曲谱。"
-          : checked.reason === "syntax"
-            ? `文件内容无法读取，请重新选择原始 ${SCORE_FILE_EXTENSION} 文件。`
-            : "曲谱结构无效，请检查原文件后重试。");
-        return;
-      }
-      setCandidate({ name: file.name, document: checked.document, sourceVersion: checked.upgraded ? checked.sourceVersion : undefined, version });
+      setPreview(inspectCandidate(file.name, bytes, version));
     } catch {
-      if (generation === request.current) setErrors(["文件读取失败，请重新选择。"]);
+      if (generation === request.current) clearCandidate(["文件读取失败，请重新选择。"]);
     } finally {
       if (generation === request.current) {
         reading.current = false;
@@ -90,19 +97,18 @@ export function ScoreImportModal({ session, canContinue, onClose, onOpen }: {
   const open = () => {
     if (!candidate) return;
     if (!sameEditorVersion(session.getState(), candidate.version)) {
-      setCandidate(undefined);
-      setErrors(["当前曲谱已变化，请重新选择文件。"]);
+      clearCandidate(["当前曲谱已变化，请重新选择文件。"]);
       return;
     }
-    onOpen(candidate.document, candidate.name, candidate.version);
+    onOpen(candidate.document, candidate.name, candidate.version, candidate.sourceVersion);
   };
   const score = candidate?.document.score;
   const measures = score?.tracks[0]?.measures;
   const tonality = candidate && readScoreTonality(candidate.document);
 
   return (
-    <ScoreFileDialog title="导入曲谱" onClose={close}>
-      <div className={styles.dropZone}
+    <ScoreFileDialog title={nativeFile ? "打开曲谱预览" : "导入曲谱"} onClose={close}>
+      {!nativeFile && <div className={styles.dropZone}
         onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = busy ? "none" : "copy"; }}
         onDrop={(event) => { event.preventDefault(); void readFile(event.dataTransfer.files); }}>
         <p>将曲谱拖到这里，或从电脑选择文件。</p>
@@ -115,7 +121,7 @@ export function ScoreImportModal({ session, canContinue, onClose, onOpen }: {
             void readFile(fileInput.files ?? undefined);
             fileInput.value = "";
           }} />
-      </div>
+      </div>}
       {busy && <p role="status">正在读取曲谱…</p>}
       {!!errors.length && <div role="alert" className={styles.error}>
         <p>{errorSummary || errors[0]}</p>
@@ -136,7 +142,7 @@ export function ScoreImportModal({ session, canContinue, onClose, onOpen }: {
         {candidate.sourceVersion !== undefined && <p>版本 {candidate.sourceVersion} 将升级后打开，原文件不会被覆盖。</p>}
       </>}
       <div className={styles.actions}>
-        <Button onClick={close}>取消</Button>
+        <Button data-initial-focus={nativeFile ? true : undefined} onClick={close}>取消</Button>
         <Button type="primary" onClick={open} disabled={!candidate || busy}>打开曲谱</Button>
       </div>
     </ScoreFileDialog>

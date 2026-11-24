@@ -11,9 +11,13 @@
     "./styles.css": {
       "types": "./dist/styles.css.d.ts",
       "default": "./dist/styles.css"
+    },
+    "./page.css": {
+      "types": "./dist/styles.css.d.ts",
+      "default": "./page.css"
     }
   },
-  "files": ["dist", "README.md", "Bravura-OFL.txt"],
+  "files": ["dist", "page.css", "README.md", "Bravura-OFL.txt"],
   "sideEffects": ["**/*.css"],
   "scripts": {
     "dev": "tsc -p tsconfig.build.json && vite build --watch --emptyOutDir false",

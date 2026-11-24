@@ -67,8 +67,10 @@ import { OutputBlockedModal } from "./output/OutputBlockedModal";
 import { ImageExportModal } from "./output/ImageExportModal";
 import type { ImageExportSnapshot } from "./output/image-export-controller";
 import { ScorePrintLayer } from "./output/ScorePrintLayer";
+import type { ScoreWatermark } from "./output/score-watermark";
 import { ScoreFilePanels } from "./output/ScoreFilePanels";
-import { useScoreFileFlow } from "./output/use-score-file-flow";
+import { useScoreFileFlow, type BoundScoreFile } from "./output/use-score-file-flow";
+import type { EditorHost, EditorHostAction, EditorHostResult } from "../editor-host";
 import { MusicTextSidebar, type MusicTextController } from "./music-text/MusicTextSidebar";
 import { deriveSidebarContext, type SidebarLocation } from "./music-text/sidebar-context";
 import type { MusicTextTarget } from "./music-text/music-text-draft";
@@ -166,7 +168,12 @@ function isScoreScrollbarPointerDown(event: React.PointerEvent<HTMLDivElement>):
     (horizontalSlot > 0 && viewport.scrollWidth > viewport.clientWidth && clientY >= bottom - horizontalSlot);
 }
 
-export const EditorShell: React.FC<{ navigation?: LxmEditorNavigation; toolbar?: LxmEditorToolbar }> = ({ navigation, toolbar }) => {
+export const EditorShell: React.FC<{
+  navigation?: LxmEditorNavigation;
+  toolbar?: LxmEditorToolbar;
+  host?: EditorHost;
+  boundFileRef?: React.RefObject<BoundScoreFile | undefined>;
+}> = ({ navigation, toolbar, host, boundFileRef }) => {
   const session = useEditorSessionStore();
   const { token } = theme.useToken();
   const [messages, messageHolder] = message.useMessage();
@@ -288,8 +295,13 @@ export const EditorShell: React.FC<{ navigation?: LxmEditorNavigation; toolbar?:
   const playback = useScorePlayback(document, sessionKey);
   const scoreReadOnly = playback.enabled;
 
-  const [imageExportSnapshot, setImageExportSnapshot] =
-    useState<(ImageExportSnapshot & { mode: "png" | "print" }) | null>(null);
+  const [imageExportSnapshot, setImageExportSnapshot] = useState<ImageExportSnapshot | null>(null);
+  const [outputMode, setOutputMode] = useState<"png" | "print">("png");
+  // 会话替换时 EditorSession 会重建整个壳。水印跟随当前谱，改字、换图或旋转均不写入曲谱历史。
+  const [watermark, setWatermark] = useState<{
+    value: ScoreWatermark;
+    version: number;
+  }>({ value: null, version: 0 });
   const [outputBlockedOpen, setOutputBlockedOpen] = useState(false);
   const outputBlockedTrigger = useRef<HTMLElement | null>(null);
   const [editSidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -1067,7 +1079,7 @@ export const EditorShell: React.FC<{ navigation?: LxmEditorNavigation; toolbar?:
     }
   };
   const fileFlow = useScoreFileFlow({
-    session, drafts, isBlocked: isOutputBlocked, onBlocked: showOutputBlocked,
+    session, drafts, isBlocked: isOutputBlocked, onBlocked: showOutputBlocked, host, boundFileRef,
     onNotice: (type, content) => messages.open({ key: "score-file", type, content }),
   });
   const strumTrack = document?.score.tracks.find(track => track.id === lxmLayout?.trackId);
@@ -1641,6 +1653,38 @@ export const EditorShell: React.FC<{ navigation?: LxmEditorNavigation; toolbar?:
     openSidebar();
     requestAnimationFrame(() => musicTextController.current?.restoreSidebarFocus());
   };
+  const openOutput = (mode: "json" | "png" | "print", trigger: HTMLElement | null) => {
+    if (mode === "json") {
+      fileFlow.showPanel(mode, trigger);
+      return;
+    }
+    if (host && (fileFlow.panel || fileFlow.pending || fileFlow.isNativeBusy())) return;
+    if (isOutputBlocked()) {
+      showOutputBlocked(trigger);
+      return;
+    }
+    const state = session.getState();
+    if (!state.document) return;
+    // 已打开的对话框独占导出任务；弹窗内部的模式切换会先核对是否仍有草稿或输出在途。
+    if (imageExportSnapshot) return;
+    setOutputMode(mode);
+    setImageExportSnapshot({ version: captureEditorVersion(state), document: state.document, density, showChordDiagrams });
+  };
+  const handleHostAction = useRef<(action: EditorHostAction) => void>(() => {});
+  useLayoutEffect(() => {
+    handleHostAction.current = (action) => {
+      switch (action) {
+        case "open": fileFlow.showPanel("import", null); break;
+        case "save": void fileFlow.saveNative(); break;
+        case "saveAs": void fileFlow.saveNative(true); break;
+        case "print": openOutput("print", null); break;
+        case "close": fileFlow.requestClose(); break;
+      }
+    };
+  });
+  // 只在换谱重建或宿主改变时重订阅，避免一次关闭确认因界面重渲染而被宿主重复派发。
+  useLayoutEffect(() => host?.onAction((action) => handleHostAction.current(action)), [host]);
+
   const editorHeader = <EditorHeader
     title={document?.score.title ?? ""}
     status={fileStatus}
@@ -1683,20 +1727,9 @@ export const EditorShell: React.FC<{ navigation?: LxmEditorNavigation; toolbar?:
       if (action !== "home") fileFlow.showPanel(action, trigger);
       else if (navigation?.homeHref && requestNavigation(navigation.homeHref, "返回首页", trigger)) navigateTo(navigation.homeHref);
     }}
+    onSave={host ? (saveAs, trigger) => void fileFlow.saveNative(saveAs, false, trigger) : undefined}
     exportButtonRef={imageExportButtonRef}
-    onExportAction={(mode, trigger) => {
-      if (mode === "json") {
-        fileFlow.showPanel(mode, trigger);
-        return;
-      }
-      if (isOutputBlocked()) {
-        showOutputBlocked(trigger);
-        return;
-      }
-      const state = session.getState();
-      if (!state.document) return;
-      setImageExportSnapshot({ mode, version: captureEditorVersion(state), document: state.document, density, showChordDiagrams });
-    }}
+    onExportAction={openOutput}
   />;
 
   if (!document || !lxmLayout)
@@ -1705,10 +1738,10 @@ export const EditorShell: React.FC<{ navigation?: LxmEditorNavigation; toolbar?:
         {messageHolder}
         {editorHeader}
         <div ref={workspaceRef} className={styles.emptyWorkspace}>
-          <p className={editorFormStyles.errorMessage} role="alert">{errorMessage ?? "当前没有可编辑的乐谱文档。"}</p>
+          {(!host || errorMessage) && <p className={editorFormStyles.errorMessage} role="alert">{errorMessage ?? "当前没有可编辑的乐谱文档。"}</p>}
           <div>
             <Button type="primary" onClick={(event) => fileFlow.showPanel("new", event.currentTarget)}>新建曲谱</Button>
-            <Button onClick={(event) => fileFlow.showPanel("import", event.currentTarget)}>导入曲谱</Button>
+            <Button onClick={(event) => fileFlow.showPanel("import", event.currentTarget)}>{host ? "打开曲谱" : "导入曲谱"}</Button>
           </div>
         </div>
         <ScoreFilePanels flow={fileFlow} session={session} document={document} />
@@ -2446,6 +2479,8 @@ export const EditorShell: React.FC<{ navigation?: LxmEditorNavigation; toolbar?:
       />
       <ScorePrintLayer
         score={document}
+        watermark={watermark.value}
+        watermarkVersion={watermark.version}
         density={density}
         showChordDiagrams={showChordDiagrams}
       />
@@ -2463,15 +2498,36 @@ export const EditorShell: React.FC<{ navigation?: LxmEditorNavigation; toolbar?:
       {imageExportSnapshot && (
         <ImageExportModal
           snapshot={imageExportSnapshot}
+          watermark={watermark.value}
+          onWatermarkApply={(value) =>
+            setWatermark((previous) => ({ value, version: previous.version + 1 }))
+          }
+          onSwitchPreview={() =>
+            setOutputMode((mode) => mode === "png" ? "print" : "png")
+          }
           returnFocus={imageExportButtonRef}
           onClose={() => setImageExportSnapshot(null)}
-          onPrint={imageExportSnapshot.mode === "print" ? () => {
+          writeOutput={host ? (request) => host.writeOutput(request) : undefined}
+          onPrint={outputMode === "print" ? () => {
             const root = editorRootRef.current;
-            if (!root?.querySelector('[data-score-print-layer][data-print-ready="true"]')) return false;
+            // 显式打印只消费本次成品快照和已经提交到常驻打印层的水印版本。
+            const readyLayer = `[data-score-print-layer][data-print-ready="true"][data-watermark-version="${watermark.version}"]`;
+            if (!root?.querySelector(readyLayer)) return false;
             // 页面嵌入多个会话时，显式打印只输出触发操作的工作区。
             // Safari 的 print() 可能在打印窗口关闭前返回，等 afterprint 才恢复默认打印范围。
             root.setAttribute("data-lxm-print-active", "");
             const reset = () => root.removeAttribute("data-lxm-print-active");
+            if (host) {
+              // 系统打印异步结束。字体加载后再次检查快照，退出对话框时统一清理打印标记。
+              return (async (): Promise<EditorHostResult> => {
+                try {
+                  await root.ownerDocument.fonts.ready;
+                  if (!root.isConnected || !root.querySelector(readyLayer) || !sameEditorVersion(session.getState(), imageExportSnapshot.version))
+                    return { status: "error", message: "曲谱已变化，请重新打开打印预览。" };
+                  return await host.print();
+                } finally { reset(); }
+              })();
+            }
             window.addEventListener("afterprint", reset, { once: true });
             try {
               window.print();

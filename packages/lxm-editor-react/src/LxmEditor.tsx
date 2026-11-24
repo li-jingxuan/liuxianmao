@@ -1,6 +1,6 @@
 "use client";
 
-import { ConfigProvider, type ThemeConfig } from "antd";
+import { App, ConfigProvider, type ThemeConfig } from "antd";
 import zhCN from "antd/locale/zh_CN";
 import type { ReactNode } from "react";
 import { useStore } from "zustand";
@@ -9,12 +9,14 @@ import { ScoreFilePanels } from "./EditorShell/output/ScoreFilePanels";
 import { useScoreFileFlow } from "./EditorShell/output/use-score-file-flow";
 import { getEditorSessionStore, type EditorSession } from "./editor-session.js";
 import type { LxmEditorNavigation, LxmEditorResources, LxmEditorToolbar } from "./editor-integration.js";
+import type { EditorHost } from "./editor-host.js";
+import page from "./editor-page.module.scss";
 
 // 保留工作区既有色彩和 Ant Design 控件密度。配置仅作用于编辑器子树和它打开的 Portal。
 const editorTheme = {
   components: {
     Radio: { buttonSolidCheckedBg: "#F0F7FF", buttonSolidCheckedColor: "#285BE0", buttonSolidCheckedHoverBg: "#E7F0FE", buttonSolidCheckedActiveBg: "#DFEAFD" },
-    Form: { itemMarginBottom: 16, labelColor: "#626E82", labelFontSize: 13 },
+    Form: { itemMarginBottom: 16, verticalLabelPadding: "0 0 6px", labelColor: "#626E82", labelFontSize: 13 },
   },
   token: {
     colorPrimary: "#285BE0", colorText: "#202838", colorTextSecondary: "#626E82",
@@ -27,16 +29,26 @@ const editorTheme = {
 
 export interface LxmEditorProps {
   session: EditorSession;
+  /** 整页编辑采用 Web 工作台的视口高度和 1400px 最小画布，窄窗可横向滚动。 */
+  fullPage?: boolean;
+  host?: EditorHost;
   toolbar?: LxmEditorToolbar;
   navigation?: LxmEditorNavigation;
   resources?: LxmEditorResources;
 }
 
 /** 工作区为句柄对应的已存在会话构建界面。卸载界面后，宿主仍能通过句柄访问曲谱和历史。 */
-export function LxmEditor({ session, ...props }: LxmEditorProps) {
+export function LxmEditor({ session, fullPage, ...props }: LxmEditorProps) {
   const store = getEditorSessionStore(session);
+  const editor = <EditorSessionView session={store} {...props} />;
   return <ConfigProvider locale={zhCN} theme={editorTheme}>
-    <EditorSessionView session={store} {...props} />
+    {fullPage ? (
+      <div className={page.editorShell} data-editor-page>
+        <div className={page.editorContentWrapper}>
+          <App className={page.editorContentContainer}>{editor}</App>
+        </div>
+      </div>
+    ) : <App component={false}>{editor}</App>}
   </ConfigProvider>;
 }
 

@@ -2,13 +2,14 @@
 set -eu
 
 if [ "$#" -gt 1 ]; then
-    echo 'Usage: sh deploy/fnos/package.sh [output-dir]' >&2
+    echo 'Usage: sh apps/fnos/package.sh [output-dir]' >&2
     exit 2
 fi
 
 command -v fnpack >/dev/null 2>&1 || { echo 'Install the official fnpack CLI first.' >&2; exit 1; }
 script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-brand="$script_dir/../../apps/website/public/assets/brand"
+# 以脚本位置定位相邻的网站应用，复用现有品牌图标，支持从其他目录运行打包命令。
+brand="$script_dir/../website/public/assets/brand"
 output=${1:-"$script_dir/dist"}
 mkdir -p -- "$output"
 output=$(CDPATH= cd -- "$output" && pwd)

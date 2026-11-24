@@ -13,7 +13,7 @@
 
 ## 复核方式
 
-从仓库根目录运行 `pnpm dev`，按专题入口在 1440px 及以上视口复核。当前 `/editor` 样式将工作区最小宽度设为 1400px，窄窗横向滚动。旧稿可从 [MVP 设计 v2 归档](../../archive/mvp/design-v2/README.md)或[原型导航](../../archive/mvp/design-v2/index.html)打开。 [编辑页样式](../../../apps/website/app/editor/page.module.scss)
+从仓库根目录运行 `pnpm dev`，按专题入口在 1440px 及以上视口复核。Web 和桌面整页工作区的最小宽度为 1400px，窄窗横向滚动。旧稿可从 [MVP 设计 v2 归档](../../archive/mvp/design-v2/README.md)或[原型导航](../../archive/mvp/design-v2/index.html)打开。 [编辑页样式](../../../packages/lxm-editor-react/src/editor-page.module.scss)
 
 ## 产品确认
 

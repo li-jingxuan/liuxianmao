@@ -8,7 +8,7 @@ export interface LxmEditorResources {
   chordCatalogDirectory?: string;
   /** 包含 manifest.json、ogg/ 和可选 m4a/ 的采样目录。 */
   audioDirectory?: string;
-  /** 指向宿主自己的工具图标目录。缺省时使用包内 Bravura 字形。 */
+  /** 指向宿主自己的工具 SVG 目录。缺省时使用样式内联的 Web 同款 SVG。 */
   musicIconBaseUrl?: string;
   /** 覆盖顶栏内置品牌图片。 */
   brandIconUrl?: string;

@@ -5,11 +5,12 @@ import { useRef, type ReactNode } from "react";
 import { EditorModalGuard } from "../session/EditorModalGuard";
 import styles from "./score-file.module.scss";
 
-export function ScoreFileDialog({ title, wide, onClose, children }: {
+export function ScoreFileDialog({ title, wide, onClose, children, busy = false }: {
   title: string;
   wide?: boolean;
   onClose: () => void;
   children: ReactNode;
+  busy?: boolean;
 }) {
   const content = useRef<HTMLDivElement>(null);
 
@@ -17,7 +18,7 @@ export function ScoreFileDialog({ title, wide, onClose, children }: {
     <Modal open centered width={wide ? 560 : 480} title={<h2>{title}</h2>} footer={null}
       className={styles.dialog} mask={{ closable: false }} keyboard={false} closable={false}
       focusable={{ focusTriggerAfterClose: false }} transitionName="" maskTransitionName=""
-      modalRender={(node) => <EditorModalGuard ref={content} dismissable onDismiss={onClose}>{node}</EditorModalGuard>}
+      modalRender={(node) => <EditorModalGuard ref={content} dismissable={!busy} busy={busy} onDismiss={onClose}>{node}</EditorModalGuard>}
       afterOpenChange={(open) => {
         if (!open) return;
         const active = document.activeElement;

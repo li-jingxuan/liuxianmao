@@ -2,6 +2,7 @@
 
 // @env browser
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { EditorHostResult } from "../../editor-host";
 import {
   encodeScorePage,
   exportScoreImages,
@@ -20,7 +21,7 @@ import type {
 } from "./image-export-task-types";
 
 /**
- * 管理一次导出预览的准备、生成、取消与下载资源，不直接修改曲谱或操作历史。
+ * 管理一次导出预览的准备、生成、取消与成品交付，不直接修改曲谱或操作历史。
  * snapshot 是打开预览时捕获的输入；isCurrent 在异步结果落地前复核会话版本。
  * 字体变化使成品几何失效，需重新准备；会话失效则通知 Modal 决定如何关闭。
  * AbortSignal 用于中止协作任务，递增令牌用于拒绝无法及时中止的迟到结果。
@@ -29,9 +30,12 @@ export const useImageExportTask = ({
   snapshot,
   isCurrent,
   onInvalid,
+  writeOutput,
+  watermark = null,
 }: ImageExportTaskOptions) => {
   const task = useRef<AbortController | null>(null);
   const taskToken = useRef(0);
+  const writePending = useRef(false);
   const urlRef = useRef<string | null>(null);
   const preparedRef = useRef<PreparedScoreImages | null>(null);
   const currentRef = useRef(isCurrent);
@@ -47,6 +51,8 @@ export const useImageExportTask = ({
   const [rangeAll, setRangeAll] = useState(true);
   const [lastRange, setLastRange] = useState<ExportRange>({ type: "all" });
   const [download, setDownload] = useState<DownloadState | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveResult, setSaveResult] = useState<EditorHostResult>();
 
   useEffect(() => {
     // 始终调用最新的宿主检查，但不因回调引用变化而重新执行字体测量与分页。
@@ -62,6 +68,7 @@ export const useImageExportTask = ({
   const clearDownload = useCallback(() => {
     releaseUrl();
     setDownload(null);
+    setSaveResult(undefined);
   }, [releaseUrl]);
   const abortTask = useCallback(() => {
     taskToken.current += 1;
@@ -75,6 +82,18 @@ export const useImageExportTask = ({
     abortTask();
     setProgress(0);
   }, [abortTask]);
+
+  // 应用水印或切换预览会撤下旧成品。保留已准备的谱页、查看页码及范围，
+  // 字体失效时则沿用原有的重新准备入口，不能把失效快照标成 ready。
+  const invalidateOutput = useCallback(() => {
+    if (stopped.current || writePending.current) return;
+    clearDownload();
+    if (!preparedRef.current) return;
+    abortTask();
+    setProgress(0);
+    setError(null);
+    setStatus("ready");
+  }, [abortTask, clearDownload]);
 
   useEffect(() => {
     stopped.current = false;
@@ -139,7 +158,7 @@ export const useImageExportTask = ({
     );
     return () => {
       controller.abort();
-      // snapshot 改变也必须取消生成，不能把旧快照的下载写入新预览。
+      // snapshot 改变后，旧生成任务和宿主保存回调都不能再更新预览。
       abortTask();
       releaseUrl();
       document.fonts.removeEventListener("loadingdone", invalidate);
@@ -155,7 +174,7 @@ export const useImageExportTask = ({
   };
 
   const generate = async (target: ExportRange): Promise<void> => {
-    if (!prepared || status === "generating" || status === "preparing") return;
+    if (!prepared || writePending.current || status === "generating" || status === "preparing") return;
     if (!validateCurrent()) return;
     if (target.type === "all" && prepared.pages.length > MAX_IMAGE_PAGES) {
       setError(new ImageExportError("zip-too-many-pages", "超过 100 页，请在预览中按页下载"));
@@ -174,20 +193,31 @@ export const useImageExportTask = ({
     setStatus("generating");
     try {
       const result = target.type === "all"
-        ? await exportScoreImages(prepared, controller.signal, (page) => {
-            if (taskToken.current === token && !controller.signal.aborted)
-              setProgress(page);
-          })
+        ? await exportScoreImages(
+            prepared,
+            controller.signal,
+            (page) => {
+              if (taskToken.current === token && !controller.signal.aborted)
+                setProgress(page);
+            },
+            watermark,
+          )
         : {
-            blob: await encodeScorePage(prepared, target.index, controller.signal),
+            blob: await encodeScorePage(prepared, target.index, controller.signal, watermark),
             name: pageImageName(prepared.title, target.index),
           };
       // 取消、字体变化、关闭和卸载都先撤销令牌；迟到结果不能创建 URL。
       if (taskToken.current !== token || controller.signal.aborted) return;
       if (!validateCurrent()) return;
-      const url = URL.createObjectURL(result.blob);
-      urlRef.current = url;
-      setDownload({ url, name: result.name, range: target.type === "all" ? "all" : target.index });
+      // 浏览器沿用下载链接。宿主只保留 Blob，保存时再读取字节，取消后可复用同一份成品。
+      const range = target.type === "all" ? "all" : target.index;
+      if (writeOutput) {
+        setDownload({ name: result.name, range, blob: result.blob });
+      } else {
+        const url = URL.createObjectURL(result.blob);
+        urlRef.current = url;
+        setDownload({ name: result.name, range, url });
+      }
       setProgress(prepared.pages.length);
       setStatus("generated");
     } catch (cause) {
@@ -200,17 +230,44 @@ export const useImageExportTask = ({
     }
   };
 
+  const save = async (): Promise<void> => {
+    if (!writeOutput || !download || !("blob" in download) || writePending.current) return;
+    if (!validateCurrent()) return;
+    // 同步锁覆盖 Blob 转换和宿主对话框。只有仍属于当前快照的成品才可调用宿主或显示结果。
+    const token = taskToken.current;
+    const isActive = () => taskToken.current === token && validateCurrent();
+    writePending.current = true;
+    setSaving(true);
+    setSaveResult(undefined);
+    try {
+      const bytes = await download.blob.arrayBuffer();
+      if (!isActive()) return;
+      const result = await writeOutput({ suggestedName: download.name, bytes });
+      if (isActive()) setSaveResult(result);
+    } catch (cause) {
+      if (isActive()) {
+        setSaveResult({
+          status: "error",
+          message: cause instanceof Error && cause.message ? cause.message : "暂时无法保存图片，请重试。",
+        });
+      }
+    } finally {
+      writePending.current = false;
+      if (!stopped.current) setSaving(false);
+    }
+  };
+
   const cancel = (): void => {
     // 用户取消编码可继续使用已准备的预览；与关闭整个导出会话的 stop 区分。
-    if (stopped.current) return;
+    if (stopped.current || writePending.current) return;
     abortTask();
     setProgress(0);
     setError(null);
     setStatus(preparedRef.current ? "ready" : "preparing");
   };
   const reprepare = (): void => {
-    // 重新准备会改变页数及坐标，旧页码、范围和下载地址必须一起失效。
-    if (!validateCurrent()) return;
+    // 重新准备会改变页数及坐标，旧页码、范围和成品必须一起失效。
+    if (writePending.current || !validateCurrent()) return;
     abortTask();
     preparedRef.current = null;
     setPrepared(null);
@@ -224,7 +281,7 @@ export const useImageExportTask = ({
     setPrepareAttempt((value) => value + 1);
   };
   const inspectPage = (index: number): void => {
-    if (stopped.current) return;
+    if (stopped.current || writePending.current) return;
     if (status === "generating" || status === "preparing") return;
     setInspected(index);
     if (download && download.range !== "all" && download.range !== index) {
@@ -233,7 +290,7 @@ export const useImageExportTask = ({
     }
   };
   const changeRange = (value: "all" | "page"): void => {
-    if (stopped.current) return;
+    if (stopped.current || writePending.current) return;
     if (status === "generating" || status === "preparing") return;
     setRangeAll(value === "all");
     if (download) {
@@ -244,7 +301,7 @@ export const useImageExportTask = ({
 
   return {
     prepared, status, error, staleReason, progress, inspected, rangeAll, lastRange,
-    download, generate, cancel, reprepare, inspectPage, changeRange, stop,
-    validateCurrent,
+    download, saving, saveResult, save, generate, cancel, reprepare, inspectPage, changeRange, stop,
+    validateCurrent, invalidateOutput,
   };
 };

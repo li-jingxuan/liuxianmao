@@ -11,4 +11,4 @@
 - **开发与构建** · [项目命令](../README.md#commands) · [原始 SVG 素材](archive/mvp/extracted-svg-icons/README.txt)。
 - **网站编辑器** · [EditorShell 源码导航](../packages/lxm-editor-react/src/EditorShell/README.md) · [模块边界重构方案](./archive/mvp/versions/v8/20261111_编辑器模块与职责边界重构技术方案.md) · [目录分组与迁移记录](./archive/mvp/versions/v8/20261111_编辑器目录分组与模块内聚整理.md) · [右侧编辑台历史技术方案](./archive/mvp/design-v2/implementation/05-右侧编辑台实施技术方案.md)。
 - **领域模型与谱面布局** · [编辑器核心](../packages/lxm-editor/src/core/README.md) · [结构排版、谱面几何与命中](../packages/lxm-editor/src/layout/README.md) · [MVP 布局设计留档](./archive/mvp/notes/core-layout/)。
-- **飞牛 NAS 与 Woodpecker** · [当前发布、健康检查与回滚说明](../deploy/fnos/README.md) · [REQ-078 技术方案](./archive/mvp/versions/v8/REQ-078-飞牛NAS部署与Woodpecker技术方案.md)。
+- **飞牛 NAS 与 Woodpecker** · [当前发布、健康检查与回滚说明](../apps/fnos/README.md) · [REQ-078 技术方案](./archive/mvp/versions/v8/REQ-078-飞牛NAS部署与Woodpecker技术方案.md)。

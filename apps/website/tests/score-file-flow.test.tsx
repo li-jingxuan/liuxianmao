@@ -4,7 +4,8 @@ import { keySignatureForTonality, LXMScoreCommandEnum, readScoreTonality, type S
 import { EXAMPLE_MVP_7_2_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
 import { createEditorSessionStore as createEditorSession, selectScoreFileStatus } from "../../../packages/lxm-editor-react/src/stores/editor-store";
 import { ScoreImportModal } from "../../../packages/lxm-editor-react/src/EditorShell/output/ScoreImportModal";
-import { useScoreFileFlow } from "../../../packages/lxm-editor-react/src/EditorShell/output/use-score-file-flow";
+import { useScoreFileFlow, type BoundScoreFile } from "../../../packages/lxm-editor-react/src/EditorShell/output/use-score-file-flow";
+import type { EditorHost, EditorHostFile, EditorHostResult } from "../../../packages/lxm-editor-react/src/editor-host";
 import { captureEditorVersion } from "../../../packages/lxm-editor-react/src/EditorShell/session/editor-session-version";
 import { decodeScoreFile, serializeScoreFile } from "../../../packages/lxm-editor-react/src/EditorShell/output/score-file";
 import { createBlankScore, newScoreSignatures, newScoreTonics } from "../../../packages/lxm-editor-react/src/EditorShell/output/new-score";
@@ -14,7 +15,7 @@ vi.mock("react", async (importOriginal) => ({
   ...(await importOriginal<typeof import("react")>()),
   useState: (initial: unknown) => {
     const index = harness.cursor++;
-    if (!(index in harness.values)) harness.values[index] = initial;
+    if (!(index in harness.values)) harness.values[index] = typeof initial === "function" ? initial() : initial;
     return [harness.values[index], (next: unknown) => { harness.values[index] = next; }];
   },
   useRef: (initial: unknown) => {
@@ -62,6 +63,21 @@ function importHarness() {
     return async () => { resolve(bytes); await reading; await Promise.resolve(); };
   };
   return { session, canContinue, onOpen, open, choose };
+}
+
+function desktopFileHarness() {
+  const session = createEditorSession(EXAMPLE_MVP_7_2_DOCUMENT);
+  const host = {
+    openScore: vi.fn<EditorHost["openScore"]>(), saveScore: vi.fn<EditorHost["saveScore"]>(),
+    writeOutput: vi.fn<EditorHost["writeOutput"]>(), print: vi.fn<EditorHost["print"]>(),
+    onAction: vi.fn<EditorHost["onAction"]>(), resolveClose: vi.fn<EditorHost["resolveClose"]>(),
+  } satisfies EditorHost;
+  const boundFileRef = { current: undefined as BoundScoreFile | undefined };
+  const useFileFlowForTest = () => {
+    harness.cursor = 0;
+    return useScoreFileFlow({ session, host, boundFileRef });
+  };
+  return { session, host, render: useFileFlowForTest, boundFileRef };
 }
 
 describe("曲谱文件流程", () => {
@@ -168,5 +184,49 @@ describe("曲谱文件流程", () => {
     session.getState().recordScoreExport(baseline.document!, baseline.sessionVersion);
     expect(read()).toBe("pending");
     expect(session.getState().selection).not.toBeNull();
+  });
+
+  it("桌面确认打开后沿用文件标识，失败和取消保留旧谱覆盖提示", async () => {
+    const { session, host, render, boundFileRef } = desktopFileHarness();
+    host.openScore.mockResolvedValue({ status: "ok", value: { id: "old", name: "旧谱.lxm", bytes: new ArrayBuffer(0) } });
+    render().showPanel("import", null);
+    await Promise.resolve();
+    const preview = render();
+    expect(preview.nativeImport?.id).toBe("old");
+    expect(boundFileRef.current).toBeUndefined();
+    preview.requestReplacement(EXAMPLE_MVP_7_2_DOCUMENT, "file", preview.nativeImport!.version, "旧谱.lxm", 7);
+    expect(boundFileRef.current).toMatchObject({ id: "old", sourceVersion: 7 });
+    rename(session, "改过的谱");
+
+    host.saveScore.mockResolvedValueOnce({ status: "cancelled" }).mockResolvedValueOnce({ status: "error", message: "磁盘写入失败" });
+    await render().saveNative();
+    await render().saveNative();
+    expect(host.saveScore).toHaveBeenCalledTimes(2);
+    expect(host.saveScore).toHaveBeenLastCalledWith(expect.objectContaining({ fileId: "old", confirmUpgrade: true }));
+    expect(selectScoreFileStatus(session.getState())).toBe("pending");
+    expect(boundFileRef.current).toMatchObject({ id: "old", sourceVersion: 7 });
+
+    host.saveScore.mockResolvedValueOnce({ status: "ok", value: { id: "copy", name: "副本.lxm" } });
+    await render().saveNative(true);
+    expect(host.saveScore).toHaveBeenLastCalledWith(expect.objectContaining({ fileId: undefined, confirmUpgrade: false }));
+    expect(selectScoreFileStatus(session.getState())).toBe("exported");
+    expect(boundFileRef.current).toMatchObject({ id: "copy" });
+  });
+
+  it("保存并关闭时按系统回执记录实际快照，新修改阻止关闭", async () => {
+    const { session, host, render } = desktopFileHarness();
+    rename(session, "保存时的曲名");
+    render().requestClose();
+    let finish!: (result: EditorHostResult<EditorHostFile>) => void;
+    host.saveScore.mockReturnValue(new Promise((resolve) => { finish = resolve; }));
+    const saving = render().saveNative(false, true);
+    rename(session, "等待期间修改的曲名");
+    finish({ status: "ok", value: { id: "saved", name: "测试.lxm" } });
+    await saving;
+
+    expect(host.resolveClose).not.toHaveBeenCalled();
+    expect(render().error).toContain("保存期间曲谱已变化");
+    expect(session.getState().fileBaseline?.document.score.title).toBe("保存时的曲名");
+    expect(selectScoreFileStatus(session.getState())).toBe("pending");
   });
 });

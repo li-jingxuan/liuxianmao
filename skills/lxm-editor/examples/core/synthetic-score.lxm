@@ -1,0 +1,51 @@
+{
+  "schema": "lxm-tab-score",
+  "schemaVersion": 8,
+  "documentRevision": 1,
+  "score": {
+    "id": "skill-score",
+    "title": "六线猫技能合成谱",
+    "arranger": "",
+    "keySignature": null,
+    "tempoBpm": 120,
+    "meta": {},
+    "tracks": [
+      {
+        "id": "skill-guitar",
+        "name": "吉他",
+        "instrument": "guitar",
+        "capo": 0,
+        "startBarline": "none",
+        "tuning": {
+          "strings": [
+            { "index": 1, "pitch": "E4", "midi": 64 },
+            { "index": 2, "pitch": "B3", "midi": 59 },
+            { "index": 3, "pitch": "G3", "midi": 55 },
+            { "index": 4, "pitch": "D3", "midi": 50 },
+            { "index": 5, "pitch": "A2", "midi": 45 },
+            { "index": 6, "pitch": "E2", "midi": 40 }
+          ]
+        },
+        "techniques": [],
+        "numberedMarks": [],
+        "measures": [
+          {
+            "id": "skill-measure",
+            "timeSignature": { "numerator": 4, "denominator": 4 },
+            "barline": "single",
+            "chordSymbols": [],
+            "lyrics": [],
+            "tuplets": [],
+            "numberedVoice": { "events": [], "tuplets": [] },
+            "beats": [
+              { "id": "skill-beat-1", "tick": 0, "rhythm": { "base": "quarter", "dots": 0 }, "kind": "notes", "notes": [] },
+              { "id": "skill-beat-2", "tick": 960, "rhythm": { "base": "quarter", "dots": 0 }, "kind": "notes", "notes": [] },
+              { "id": "skill-beat-3", "tick": 1920, "rhythm": { "base": "quarter", "dots": 0 }, "kind": "notes", "notes": [] },
+              { "id": "skill-beat-4", "tick": 2880, "rhythm": { "base": "quarter", "dots": 0 }, "kind": "notes", "notes": [] }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

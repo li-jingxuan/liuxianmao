@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { defineConfig, type Plugin } from "vite";
+import { defineConfig, normalizePath, type Plugin } from "vite";
 
 const filePattern = /^(INSGuitarSteel_String(?:HighE|B|G|D|A|LowE)_Vel0[123])_([A-G])(s?)(\d)_01\.wav$/;
 const pitchClasses = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 } as const;
@@ -30,7 +30,8 @@ function editorAssets(): Plugin {
   const assets = new URL("../../apps/website/public/assets/", import.meta.url);
   const audio = new URL("audio/meta-steel-guitar-v1/", assets);
   const chords = new URL("chords/", assets);
-  const bundledSource = fileURLToPath(new URL("./src/resources/bundled-assets.ts", import.meta.url));
+  // Windows 的系统路径带反斜杠，Vite 的模块 ID 使用正斜杠。
+  const bundledSource = normalizePath(fileURLToPath(new URL("./src/resources/bundled-assets.ts", import.meta.url)));
   const virtualPrefix = "lxm-editor-resource:";
   const resources = new Map<string, URL>();
   const read = (url: URL) => readFileSync(url, "utf8");
@@ -66,7 +67,7 @@ function editorAssets(): Plugin {
       return `export default ${JSON.stringify(readFileSync(url).toString("base64"))};`;
     },
     transform(_source, id) {
-      if (id !== bundledSource) return;
+      if (normalizePath(id) !== bundledSource) return;
       const loaders = [...resources.keys()].filter((key) => key !== "chord-catalog")
         .map(key => `${JSON.stringify(key)}: () => ${importResource(key)}`).join(",\n");
       return `const loaders = {${loaders}};

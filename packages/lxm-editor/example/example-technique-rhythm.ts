@@ -1,4 +1,4 @@
-import source from "./technique-rhythm-score.json";
+import source from "./technique-rhythm-score.lxm.json";
 import { loadDocument } from "../src/core/document/loader";
 /** Fixture 直接保存当前简谱歌词锚点，并通过正式 loader 校验。 */
 const loaded = loadDocument(JSON.stringify(source));

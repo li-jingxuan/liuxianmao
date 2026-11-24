@@ -100,7 +100,7 @@
 
   BUG-015/016 联合验证：受影响核心、布局和网站合计 69 文件 735 项测试通过；核心与网站类型检查、56 份改动 TypeScript 文件 ESLint（零警告）、`git diff --check` 通过。默认原谱编辑/打印仍为 5+3，六根弦命中、和弦命中、曲谱往返及 A4 PNG 2480×3508 通过。未跑全仓库测试，代码未提交。
 
-  复跑脚本与专用谱例：`artifacts/bug015-016/verify.js`、`build-fixtures.py`、`tab-first.lxm.json`、`numbered-first.lxm.json`、`compact-tail.lxm.json`；浏览器验收后已恢复原始默认曲谱。截图：`compact-tail.png`、`numbered-first.png`。
+  当轮浏览器验收使用了紧凑末拍、先录 TAB 和先录简谱的专用谱例，验收后已恢复原始默认曲谱。仓库中的回归用例可复跑[紧凑末拍横梁](../../../../../../packages/lxm-editor/tests/layout/duration-beam-compact.test.ts)、[空简谱继承 TAB 节奏](../../../../../../packages/lxm-editor/tests/core/numbered-input-inheritance.test.ts)和[空 TAB 继承简谱节奏](../../../../../../packages/lxm-editor/tests/core/tab-input-rhythm.test.ts)。
 
 ## BUG-061～067 验收路径
 
