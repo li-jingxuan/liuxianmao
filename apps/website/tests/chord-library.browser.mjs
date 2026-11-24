@@ -64,8 +64,8 @@ try {
   const sidebar = page.getByRole("complementary", { name: "编辑器属性" });
   const svg = page.getByRole("application", { name: "六线谱编辑器" });
   const toolbar = page.getByRole("toolbar", { name: "节奏、小节与历史工具" });
-  const popover = page.locator("#chord-edit-popover");
-  const quickName = page.locator("#chord-popover-name");
+  const popover = page.locator("[id$=chord-edit-popover]");
+  const quickName = page.locator("[data-chord-popover-name]");
   const sideName = sidebar.getByRole("textbox", { name: "和弦名称", exact: true });
   const popup = page.locator(".ant-dropdown:not(.ant-dropdown-hidden)");
   const library = page.getByRole("dialog", { name: /^和弦库/ });
@@ -82,7 +82,7 @@ try {
     const state = window.coexistStore.getState(), target = state.selection.focus;
     return state.document.score.tracks.find((track) => track.id === target.trackId).measures.find((measure) => measure.id === target.measureId).chordSymbols.find((chord) => chord.beatId === target.beatId);
   });
-  const settled = () => page.waitForFunction(() => !document.querySelector("#music-text-sidebar[inert]"));
+  const settled = () => page.waitForFunction(() => !document.querySelector("[data-music-text-sidebar][inert]"));
   const modalSettled = async () => {
     // Let Ant's entrance animation finish: disabling it during its first frame
     // can capture a mask while the actual modal still has opacity zero.
@@ -140,7 +140,7 @@ try {
     const chord = await page.evaluate(() => window.coexistStore.getState().document.score.tracks[0].measures.flatMap((measure) => measure.chordSymbols).find((symbol) => symbol.chord.diagram));
     await svg.getByText(chord.chord.name, { exact: true }).first().click();
     await quickName.waitFor();
-    await page.waitForFunction(() => [...document.querySelectorAll('#chord-edit-popover [aria-label="我的常用和弦"] button')].some((element) => !element.disabled && element.textContent === "C"));
+    await page.waitForFunction(() => [...document.querySelectorAll('[id$=chord-edit-popover] [aria-label="我的常用和弦"] button')].some((element) => !element.disabled && element.textContent === "C"));
     return { baseline: await snapshot(), chord: await currentChord() };
   };
   // Trigger background handlers directly as well as native keys: inert DOM alone
@@ -160,7 +160,7 @@ try {
     const probe = { observed: false, snapshot: null };
     const observer = new MutationObserver(() => {
       const closing = document.querySelector(".ant-modal-wrap")?.style.display === "none" || document.querySelector('[class*="ant-zoom-leave"]');
-      if (!probe.observed && closing && document.querySelector("#music-text-sidebar[inert]")) {
+      if (!probe.observed && closing && document.querySelector("[data-music-text-sidebar][inert]")) {
         probe.observed = true;
         const toolbar = document.querySelector('[role="toolbar"][aria-label="节奏、小节与历史工具"]');
         [...toolbar.querySelectorAll("button")].find((button) => button.getAttribute("aria-label") === "撤销" || button.textContent.trim() === "撤销")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -392,7 +392,7 @@ try {
   await settled();
 
   stage = "settings info-only Enter commits SetScoreInfo, then recommendations update";
-  await sidebar.locator("#settings-title").fill("Chord integration song");
+  await sidebar.locator("[id$=settings-title]").fill("Chord integration song");
   await sidebar.locator("#settings-mode").click();
   await page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item-option-content').getByText("小调", { exact: true }).click();
   await sidebar.locator("#settings-tonic").fill("A");
@@ -638,7 +638,7 @@ try {
   await openLibrary(popover);
   await button(library, "设置曲谱调性").click();
   await settled();
-  await sidebar.locator("#settings-title").fill("Discarded parity title");
+  await sidebar.locator("[id$=settings-title]").fill("Discarded parity title");
   await button(sidebar, "返回和弦编辑").click();
   await sidebar.getByRole("alertdialog", { name: "处理未应用的曲谱信息", exact: true }).getByRole("button", { name: "放弃设置修改并返回", exact: true }).click();
   await quickName.waitFor();

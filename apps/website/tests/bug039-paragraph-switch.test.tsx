@@ -1,14 +1,15 @@
 import { isValidElement, type ComponentProps, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { buildLayout, EXAMPLE_MVP_7_2_DOCUMENT, type ILXMNumberedEvent } from "@liuxianmao/lxm-editor";
-import { MusicTextSidebar, type ParagraphEditingSession } from "../components/EditorShell/music-text/MusicTextSidebar";
-import type { MusicTextDraft, MusicTextTarget } from "../components/EditorShell/music-text/music-text-draft";
-import { resolveParagraphLyricTarget } from "../components/EditorShell/music-text/music-text-target";
-import { resolveParagraphFocus } from "../components/EditorShell/score/music-text-focus";
-import { EditorSessionRuntime } from "../components/EditorShell/session/EditorSessionRuntime";
-import { EditorStoreContext } from "../stores/editor-context";
-import { createEditorSession } from "../stores/editor-store";
+import { buildLayout, type ILXMNumberedEvent } from "@liuxianmao/lxm-editor";
+import { EXAMPLE_MVP_7_2_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { MusicTextSidebar, type ParagraphEditingSession } from "../../../packages/lxm-editor-react/src/EditorShell/music-text/MusicTextSidebar";
+import type { MusicTextDraft, MusicTextTarget } from "../../../packages/lxm-editor-react/src/EditorShell/music-text/music-text-draft";
+import { resolveParagraphLyricTarget } from "../../../packages/lxm-editor-react/src/EditorShell/music-text/music-text-target";
+import { resolveParagraphFocus } from "../../../packages/lxm-editor-react/src/EditorShell/score/music-text-focus";
+import { EditorSessionRuntime } from "../../../packages/lxm-editor-react/src/EditorShell/session/EditorSessionRuntime";
+import { EditorStoreContext } from "../../../packages/lxm-editor-react/src/stores/editor-context";
+import { createEditorSessionStore as createEditorSession } from "../../../packages/lxm-editor-react/src/stores/editor-store";
 
 const effects = vi.hoisted(() => ({ callback: null as unknown, paragraph: null as (() => void) | null }));
 // The suite's SSR harness exercises real event handlers and render-phase updates.

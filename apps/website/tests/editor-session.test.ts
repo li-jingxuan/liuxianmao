@@ -1,15 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  EXAMPLE_TECHNIQUE_RHYTHM_DOCUMENT,
   LXMScoreCommandEnum,
   createCollapsedTabCellSelection,
   getFirstTabCellReference,
-  EXAMPLE_MVP_7_2_DOCUMENT,
 } from "@liuxianmao/lxm-editor";
+import { EXAMPLE_TECHNIQUE_RHYTHM_DOCUMENT, EXAMPLE_MVP_7_2_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
 import {
-  createEditorSession,
+  createEditorSessionStore as createEditorSession,
   type EditorChangeEvent,
-} from "../stores/editor-store";
+} from "../../../packages/lxm-editor-react/src/stores/editor-store";
 
 const input = EXAMPLE_TECHNIQUE_RHYTHM_DOCUMENT;
 const copyCommand = {

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyScoreCommand,
+  LXMScoreCommandEnum,
+  getFirstTabCellReference,
+  getMeasureDurationTicks,
+} from "@liuxianmao/lxm-editor";
+import {
   EXAMPLE_MVP_7_2_DOCUMENT,
   EXAMPLE_TECHNIQUE_RHYTHM_DOCUMENT,
   EXAMPLE_MVP7C_DOCUMENT,
@@ -7,20 +13,16 @@ import {
   EXAMPLE_MUTED_NOTE_DOCUMENT,
   EXAMPLE_MVP_6_DOCUMENT,
   createQualityScore,
-  applyScoreCommand,
-  LXMScoreCommandEnum,
-  getFirstTabCellReference,
-  getMeasureDurationTicks,
-} from "@liuxianmao/lxm-editor";
-import { createBlankScore } from "../components/EditorShell/output/new-score";
-import { createEditorSession } from "../stores/editor-store";
+} from "../../../packages/lxm-editor/example/fixtures";
+import { createBlankScore } from "../../../packages/lxm-editor-react/src/EditorShell/output/new-score";
+import { createEditorSessionStore as createEditorSession } from "../../../packages/lxm-editor-react/src/stores/editor-store";
 import {
   decodeScoreFile,
   inspectScoreFile,
   scoreFileName,
   serializeScoreFile,
   SCORE_FILE_MAX_BYTES,
-} from "../components/EditorShell/output/score-file";
+} from "../../../packages/lxm-editor-react/src/EditorShell/output/score-file";
 
 const examples = [
   EXAMPLE_MVP_7_2_DOCUMENT,

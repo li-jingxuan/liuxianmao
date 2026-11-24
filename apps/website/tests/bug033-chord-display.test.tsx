@@ -1,13 +1,10 @@
 import { Children, isValidElement, type ReactElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import {
-  buildLayout,
-  copyChordPreset,
-  EXAMPLE_MVP_6_DOCUMENT,
-} from "@liuxianmao/lxm-editor";
-import { ChordEditor, type ChordDraft } from "../components/EditorShell/chords/ChordEditor";
-import { createEditorStore } from "../stores/editor-store";
+import { buildLayout, copyChordPreset } from "@liuxianmao/lxm-editor";
+import { EXAMPLE_MVP_6_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { ChordEditor, type ChordDraft } from "../../../packages/lxm-editor-react/src/EditorShell/chords/ChordEditor";
+import { createEditorStore } from "../../../packages/lxm-editor-react/src/stores/editor-store";
 
 type Element = ReactElement<Record<string, unknown> & { children?: ReactNode }>;
 const descendants = (node: ReactNode): Element[] => Children.toArray(node).flatMap(child => {

@@ -1,21 +1,21 @@
 import { describe, expect, it } from "vitest";
 import {
   buildLayout,
-  EXAMPLE_MVP_7_2_DOCUMENT,
   applyScoreCommand,
   LXMScoreCommandEnum,
 } from "@liuxianmao/lxm-editor";
-import { readMusicTextDraft } from "../components/EditorShell/music-text/music-text-draft";
+import { EXAMPLE_MVP_7_2_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { readMusicTextDraft } from "../../../packages/lxm-editor-react/src/EditorShell/music-text/music-text-draft";
 import {
   resolveNextLyricTarget,
   resolveParagraphInsertionTarget,
-} from "../components/EditorShell/music-text/music-text-target";
-import { resolveScorePointerAction } from "../components/EditorShell/session/editor-object-selection";
+} from "../../../packages/lxm-editor-react/src/EditorShell/music-text/music-text-target";
+import { resolveScorePointerAction } from "../../../packages/lxm-editor-react/src/EditorShell/session/editor-object-selection";
 import {
   resolveMusicTextHoverTarget,
   sameMusicTextTarget,
-} from "../components/EditorShell/music-text/music-text-hover";
-import { resolveParagraphFocus } from "../components/EditorShell/score/music-text-focus";
+} from "../../../packages/lxm-editor-react/src/EditorShell/music-text/music-text-hover";
+import { resolveParagraphFocus } from "../../../packages/lxm-editor-react/src/EditorShell/score/music-text-focus";
 
 describe("空简谱歌词入口", () => {
   it("空小节可添加歌词，点击、悬停、草稿和前进均使用同一时间位置", () => {

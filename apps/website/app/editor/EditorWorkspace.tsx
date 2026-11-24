@@ -1,7 +1,9 @@
 "use client";
 
-import { editorStore } from "../../stores/editor-store";
-import { EditorSession } from "../../components/EditorShell/session/EditorSession";
+import { LxmEditor } from "@liuxianmao/lxm-editor-react";
+import Link from "next/link";
+import { websiteEditorResources } from "../../lib/editor-resources";
+import { resetWebsiteEditorSession, websiteEditorSession } from "../website-editor-session";
 import styles from "./page.module.scss";
 
 export function EditorWorkspace({ navigate }: { navigate?: (destination: string) => void }) {
@@ -9,7 +11,18 @@ export function EditorWorkspace({ navigate }: { navigate?: (destination: string)
     <div className={styles.editorShell}>
       <div className={styles.editorContentWrapper}>
         <div className={styles.editorContentContainer}>
-          <EditorSession session={editorStore} navigate={navigate} />
+          <LxmEditor
+            session={websiteEditorSession}
+            resources={websiteEditorResources}
+            navigation={{
+              homeHref: "/",
+              learningHref: "/guitar-advanced",
+              onNavigate: navigate,
+              onDiscard: resetWebsiteEditorSession,
+              // 交由 Next Link 处理 basePath、修饰键打开和客户端导航，编辑器会话继续负责离开确认。
+              renderLink: (props) => <Link {...props} />,
+            }}
+          />
         </div>
       </div>
     </div>

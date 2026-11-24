@@ -143,7 +143,7 @@ try {
   const beforeParagraph = await snapshot();
   await sidebar.getByRole("button", { name: "录入简谱", exact: true }).click();
   await numbered.first().waitFor();
-  await sidebar.locator("#paragraph-tab-lyric").click();
+  await sidebar.locator("[data-editor-paragraph-tab=lyric]").click();
   const startLyric = sidebar.getByRole("button", { name: "录入歌词", exact: true });
   await startLyric.waitFor();
   assert.ok(await numbered.count());
@@ -153,7 +153,7 @@ try {
   await startLyric.click();
   await lyrics.first().waitFor();
   for (const kind of ["lyric", "numbered", "lyric"]) {
-    await sidebar.locator(`#paragraph-tab-${kind}`).click();
+    await sidebar.locator(`[data-editor-paragraph-tab=${kind}]`).click();
     await score.locator(`[data-paragraph-focus="${kind}"]`).waitFor();
     assert.ok(await numbered.count());
     assert.ok(await lyrics.count());
@@ -163,7 +163,7 @@ try {
   assert.equal(afterParagraph.past, beforeParagraph.past);
 
   stage = "add, remove and re-add the numbered row without a focus error";
-  await sidebar.locator("#paragraph-tab-numbered").click();
+  await sidebar.locator("[data-editor-paragraph-tab=numbered]").click();
   const addNumbered = sidebar.getByRole("button", { name: "添加简谱行", exact: true });
   const numberedInput = sidebar.getByRole("textbox", { name: "简谱内容", exact: true });
   const expectNumberedFocus = () => page.waitForFunction(
@@ -191,7 +191,7 @@ try {
   const blank = await snapshot();
   assert.equal(blank.beatId, "beat-1-1");
   await sidebar.getByRole("tab", { name: "简谱与歌词", exact: true }).click();
-  await sidebar.locator("#paragraph-tab-lyric").click();
+  await sidebar.locator("[data-editor-paragraph-tab=lyric]").click();
   await startLyric.waitFor();
   await sidebar.getByRole("heading", { name: "从当前谱面位置开始" }).waitFor();
   assert.equal(await numbered.count(), 0);

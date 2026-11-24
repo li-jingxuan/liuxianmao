@@ -52,7 +52,7 @@ try {
   await importer.getByRole("button", { name: "打开曲谱", exact: true }).click();
   await page.waitForURL("**/editor");
   const score = page.getByRole("application", { name: "六线谱编辑器" });
-  const popover = page.locator("#music-text-edit-popover");
+  const popover = page.locator("[id$=music-text-edit-popover]");
   const input = popover.getByRole("textbox", { name: "简谱内容", exact: true });
   const advance = popover.getByRole("checkbox", { name: "应用后跳转到下一处" });
   const apply = popover.getByRole("button", { name: "应用简谱内容", exact: true });

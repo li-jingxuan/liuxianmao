@@ -138,6 +138,8 @@ export {
   hitTestTechniqueTarget,
   hitTestTuplet,
 } from "./hit-test";
+/** 命中输入与技巧端点结果作为根入口类型提供，方便宿主封装坐标转换。 */
+export type { ILXMLayoutPoint, ILXMTechniqueHitTarget } from "./hit-test";
 export { layoutTabCellCaret, layoutTabCellSelection } from "./selection-layout";
 export type {
   ILXMTabCellCaretLayout,

@@ -1,16 +1,12 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { deflateSync } from "node:zlib";
-import {
-  buildLayout,
-  createQualityScore,
-  EXAMPLE_MVP7C_DOCUMENT,
-  A4_CONTENT_WIDTH,
-} from "@liuxianmao/lxm-editor";
+import { buildLayout, A4_CONTENT_WIDTH } from "@liuxianmao/lxm-editor";
+import { createQualityScore, EXAMPLE_MVP7C_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
 import {
   pngCrc32,
   readPngChunks,
   setPngResolution,
-} from "../components/EditorShell/output/png-resolution";
+} from "../../../packages/lxm-editor-react/src/EditorShell/output/png-resolution";
 import {
   imageBasename,
   pageImageName,
@@ -20,9 +16,9 @@ import {
   ImageExportError,
   toImageExportError,
   type PreparedScoreImages,
-} from "../components/EditorShell/output/image-export-controller";
-import { renderPageCanvas } from "../components/EditorShell/score/score-canvas-renderer";
-vi.mock("../components/EditorShell/score/score-canvas-renderer", () => ({
+} from "../../../packages/lxm-editor-react/src/EditorShell/output/image-export-controller";
+import { renderPageCanvas } from "../../../packages/lxm-editor-react/src/EditorShell/score/score-canvas-renderer";
+vi.mock("../../../packages/lxm-editor-react/src/EditorShell/score/score-canvas-renderer", () => ({
   renderPageCanvas: vi.fn(),
 }));
 import { buildScoreScene } from "@liuxianmao/lxm-editor";

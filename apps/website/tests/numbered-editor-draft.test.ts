@@ -6,10 +6,11 @@ import {
 } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { EXAMPLE_MVP_7_2_DOCUMENT, type ILXMRhythm } from "@liuxianmao/lxm-editor";
-import { NumberedEditor } from "../components/EditorShell/numbered/NumberedEditor";
-import { createEditorSession } from "../stores/editor-store";
-import { EditorStoreContext } from "../stores/editor-context";
+import { type ILXMRhythm } from "@liuxianmao/lxm-editor";
+import { EXAMPLE_MVP_7_2_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { NumberedEditor } from "../../../packages/lxm-editor-react/src/EditorShell/numbered/NumberedEditor";
+import { createEditorSessionStore as createEditorSession } from "../../../packages/lxm-editor-react/src/stores/editor-store";
+import { EditorStoreContext } from "../../../packages/lxm-editor-react/src/stores/editor-context";
 
 const renderEditor = (
   props: Partial<ComponentProps<typeof NumberedEditor>> = {},

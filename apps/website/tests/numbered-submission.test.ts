@@ -1,19 +1,19 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  EXAMPLE_MVP_7_2_DOCUMENT,
   LXMScoreCommandEnum,
   createDocumentIdFactory,
   editNumberedTrack,
   type ILXMDocument,
   type ILXMNumberedVoiceCommand,
 } from "@liuxianmao/lxm-editor";
-import { createEditorSession } from "../stores/editor-store";
-import { createNumberedSubmission } from "../components/EditorShell/numbered/numbered-submission";
+import { EXAMPLE_MVP_7_2_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { createEditorSessionStore as createEditorSession } from "../../../packages/lxm-editor-react/src/stores/editor-store";
+import { createNumberedSubmission } from "../../../packages/lxm-editor-react/src/EditorShell/numbered/numbered-submission";
 import {
   createEditorDraftCoordinator,
   type EditorDraftRecord,
-} from "../components/EditorShell/session/editor-draft-coordinator";
-import { captureEditorVersion } from "../components/EditorShell/session/editor-session-version";
+} from "../../../packages/lxm-editor-react/src/EditorShell/session/editor-draft-coordinator";
+import { captureEditorVersion } from "../../../packages/lxm-editor-react/src/EditorShell/session/editor-session-version";
 
 const setup = (prepare?: (document: ILXMDocument) => void) => {
   const document = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);

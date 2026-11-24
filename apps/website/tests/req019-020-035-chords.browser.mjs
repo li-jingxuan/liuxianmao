@@ -58,8 +58,8 @@ try {
   const chord = baseline.document.score.tracks[0].measures.flatMap(m => m.chordSymbols).find(c => c.chord.diagram);
   const svg = page.getByRole("application", { name: "六线谱编辑器" });
   await svg.getByText(chord.chord.name, { exact: true }).first().click();
-  const popover = page.locator("#chord-edit-popover");
-  const name = page.locator("#chord-popover-name");
+  const popover = page.locator("[id$=chord-edit-popover]");
+  const name = page.locator("[data-chord-popover-name]");
   await name.waitFor();
   const sideGroup = sidebar.getByRole("group", { name: "本调常用和弦", exact: true });
   const popupGroup = popover.getByRole("group", { name: "本调常用和弦", exact: true });

@@ -1,13 +1,13 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { A4_CONTENT_WIDTH } from "@liuxianmao/lxm-editor";
-import { useScoreView } from "../components/EditorShell/score/use-score-view";
-import { SCORE_ZOOM_LEVELS } from "../components/EditorShell/score/score-view";
-import styles from "../components/EditorShell/index.module.scss";
-import editorHeaderStyles from "../components/EditorShell/workspace/EditorHeader.module.scss";
-import musicTextSidebarStyles from "../components/EditorShell/music-text/MusicTextSidebar.module.scss";
-import scoreInteractionStyles from "../components/EditorShell/score/score-interaction.module.scss";
-import printStyles from "../components/EditorShell/output/score-print.module.scss";
+import { useScoreView } from "../../../packages/lxm-editor-react/src/EditorShell/score/use-score-view";
+import { SCORE_ZOOM_LEVELS } from "../../../packages/lxm-editor-react/src/EditorShell/score/score-view";
+import styles from "../../../packages/lxm-editor-react/src/EditorShell/index.module.scss";
+import editorHeaderStyles from "../../../packages/lxm-editor-react/src/EditorShell/workspace/EditorHeader.module.scss";
+import musicTextSidebarStyles from "../../../packages/lxm-editor-react/src/EditorShell/music-text/MusicTextSidebar.module.scss";
+import scoreInteractionStyles from "../../../packages/lxm-editor-react/src/EditorShell/score/score-interaction.module.scss";
+import printStyles from "../../../packages/lxm-editor-react/src/EditorShell/output/score-print.module.scss";
 import "../app/globals.scss";
 
 function Fixture() {

@@ -8,12 +8,13 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY apps/website/package.json apps/website/package.json
 COPY packages/eslint-config/package.json packages/eslint-config/package.json
 COPY packages/lxm-editor/package.json packages/lxm-editor/package.json
+COPY packages/lxm-editor-react/package.json packages/lxm-editor-react/package.json
 COPY packages/tsconfig/package.json packages/tsconfig/package.json
 RUN pnpm install --frozen-lockfile
 COPY apps/website apps/website
 COPY packages packages
 ENV NEXT_PUBLIC_BASE_PATH=/app/liuxianmao
-RUN pnpm --filter @liuxianmao/website build
+RUN pnpm --filter @liuxianmao/website... build
 
 FROM ${NODE_IMAGE} AS runtime
 WORKDIR /app

@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { EXAMPLE_MVP_7_2_DOCUMENT } from "@liuxianmao/lxm-editor";
-import { createEditorSession } from "../stores/editor-store";
+import { EXAMPLE_MVP_7_2_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { createEditorSessionStore as createEditorSession } from "../../../packages/lxm-editor-react/src/stores/editor-store";
 import {
   createEditorDraftCoordinator,
   type EditorDraftRecord,
-} from "../components/EditorShell/session/editor-draft-coordinator";
-import { captureEditorVersion } from "../components/EditorShell/session/editor-session-version";
-import { useEditorDraftRecords } from "../components/EditorShell/session/EditorSessionRuntime";
+} from "../../../packages/lxm-editor-react/src/EditorShell/session/editor-draft-coordinator";
+import { captureEditorVersion } from "../../../packages/lxm-editor-react/src/EditorShell/session/editor-session-version";
+import { useEditorDraftRecords } from "../../../packages/lxm-editor-react/src/EditorShell/session/EditorSessionRuntime";
 
 const harness = vi.hoisted(() => ({
   runtime: null as {
@@ -32,7 +32,7 @@ vi.mock("react", async (importOriginal) => ({
     harness.effects.push(effect);
   },
 }));
-vi.mock("../components/EditorShell/session/EditorModalHost", () => ({
+vi.mock("../../../packages/lxm-editor-react/src/EditorShell/session/EditorModalHost", () => ({
   EditorModalHost: () => null,
 }));
 

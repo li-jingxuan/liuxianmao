@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { EXAMPLE_MVP_7_2_DOCUMENT } from "@liuxianmao/lxm-editor";
-import { resolveEditorChordTarget } from "../components/EditorShell/chords/editor-chord-target";
+import { EXAMPLE_MVP_7_2_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { resolveEditorChordTarget } from "../../../packages/lxm-editor-react/src/EditorShell/chords/editor-chord-target";
 
 function fixture() {
   const document = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);

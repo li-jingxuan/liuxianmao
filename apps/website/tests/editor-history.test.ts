@@ -1,16 +1,13 @@
-import {
-  EXAMPLE_MVP_4_DOCUMENT,
-  LXMScoreCommandEnum as C,
-  type ILXMScoreCommand,
-} from "@liuxianmao/lxm-editor";
+import { LXMScoreCommandEnum as C, type ILXMScoreCommand } from "@liuxianmao/lxm-editor";
+import { EXAMPLE_MVP_4_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
 import { describe, expect, it, vi } from "vitest";
 import {
   createEditorStore,
   selectEditorHistory,
   selectHistoryEntries,
   type EditorStoreState,
-} from "../stores/editor-store";
-import { createHistoryEntry } from "../stores/editor-history";
+} from "../../../packages/lxm-editor-react/src/stores/editor-store";
+import { createHistoryEntry } from "../../../packages/lxm-editor-react/src/stores/editor-history";
 
 const target = {
   trackId: "mvp2-track-guitar",

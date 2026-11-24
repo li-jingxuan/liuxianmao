@@ -1,11 +1,7 @@
 import { describe, expect, it } from "vitest";
-import {
-  EXAMPLE_TECHNIQUE_RHYTHM_DOCUMENT,
-  EXAMPLE_MUTED_NOTE_DOCUMENT,
-  LXMScoreCommandEnum,
-  getFirstTabCellReference,
-} from "@liuxianmao/lxm-editor";
-import { createEditorSession } from "../stores/editor-store";
+import { LXMScoreCommandEnum, getFirstTabCellReference } from "@liuxianmao/lxm-editor";
+import { EXAMPLE_TECHNIQUE_RHYTHM_DOCUMENT, EXAMPLE_MUTED_NOTE_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { createEditorSessionStore as createEditorSession } from "../../../packages/lxm-editor-react/src/stores/editor-store";
 
 describe("x 弹奏标记会话集成", () => {
   it("初始/SSR 快照直接携带合法混合谱，不先闪现空文档错误", () => {

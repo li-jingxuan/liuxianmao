@@ -3,6 +3,7 @@ import type React from "react";
 import type { ReactNode } from "react";
 import { sitePath } from "../lib/site-path";
 import { AppProviders } from "./providers";
+import "@liuxianmao/lxm-editor-react/styles.css";
 import "./globals.scss";
 
 export const metadata: Metadata = {

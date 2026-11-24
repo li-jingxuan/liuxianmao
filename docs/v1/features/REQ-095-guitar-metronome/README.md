@@ -9,7 +9,7 @@
 
 用户打开吉他谱后，可以用稳定的节拍练扫弦、分解和弦或单段指法。编辑态可独立计拍并调节练习速度和拍号。试听态可开启随谱节拍，听曲谱的同时看拍点、听重音。
 
-当前工作区通过工具栏右侧的耳机按钮进入「木吉他试听」。试听模式将谱面设为只读，可播放、暂停、继续或停止已提交的 TAB，可从谱首或当前 TAB 小节开始。曲谱速度和试听临时速度均为 20–300 整数 BPM，以四分音符为单位，曲谱未设置速度时按 90 BPM 试听。编辑器可设置 2/4、3/4、4/4、6/8 拍，拍号按小节记录。 [曲谱与试听基线](../../design-baseline/score-files.md#木吉他试听与曲谱速度) · [工具栏](../../../../apps/website/components/EditorShell/workspace/EditorToolbar.tsx) · [试听控件](../../../../apps/website/components/EditorShell/playback/PlaybackToolbar.tsx) · [拍号选项](../../../../packages/lxm-editor/src/core/constants.ts#L94)
+当前工作区通过工具栏右侧的耳机按钮进入「木吉他试听」。试听模式将谱面设为只读，可播放、暂停、继续或停止已提交的 TAB，可从谱首或当前 TAB 小节开始。曲谱速度和试听临时速度均为 20–300 整数 BPM，以四分音符为单位，曲谱未设置速度时按 90 BPM 试听。编辑器可设置 2/4、3/4、4/4、6/8 拍，拍号按小节记录。 [曲谱与试听基线](../../design-baseline/score-files.md#木吉他试听与曲谱速度) · [工具栏](../../../../packages/lxm-editor-react/src/EditorShell/workspace/EditorToolbar.tsx) · [试听控件](../../../../packages/lxm-editor-react/src/EditorShell/playback/PlaybackToolbar.tsx) · [拍号选项](../../../../packages/lxm-editor/src/core/constants.ts#L94)
 
 ### 首版需求
 

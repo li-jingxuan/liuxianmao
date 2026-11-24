@@ -2,11 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   buildLayout,
   createPlaybackPlan,
-  EXAMPLE_MVP_7_2_DOCUMENT,
   loadDocument,
   LXMScoreCommandEnum,
 } from "@liuxianmao/lxm-editor";
-import { createEditorSession } from "../stores/editor-store";
+import { EXAMPLE_MVP_7_2_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { createEditorSessionStore as createEditorSession } from "../../../packages/lxm-editor-react/src/stores/editor-store";
 import {
   readScoreSettings,
   prepareSettingsSubmission,
@@ -17,7 +17,7 @@ import {
   isSettingsGroupDirty,
   acknowledgeScoreInfo,
   changeScoreSettingsField,
-} from "../components/EditorShell/settings/score-settings-draft";
+} from "../../../packages/lxm-editor-react/src/EditorShell/settings/score-settings-draft";
 
 const setup = () => {
   const session = createEditorSession(EXAMPLE_MVP_7_2_DOCUMENT);

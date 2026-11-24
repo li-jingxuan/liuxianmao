@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_MOCK_DOCUMENT, collectMusicTextRangeSlots, buildLayout, LXMScoreCommandEnum, type MusicTextRange } from "@liuxianmao/lxm-editor";
-import { rangeFromTarget, navigateMusicTextRange, musicTextRangeRects } from "../components/EditorShell/music-text/music-text-range-selection";
-import { createEditorSession } from "../stores/editor-store";
+import { collectMusicTextRangeSlots, buildLayout, LXMScoreCommandEnum, type MusicTextRange } from "@liuxianmao/lxm-editor";
+import { DEFAULT_MOCK_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { rangeFromTarget, navigateMusicTextRange, musicTextRangeRects } from "../../../packages/lxm-editor-react/src/EditorShell/music-text/music-text-range-selection";
+import { createEditorSessionStore as createEditorSession } from "../../../packages/lxm-editor-react/src/stores/editor-store";
 
 describe("音乐文本范围界面接缝", () => {
   const document = DEFAULT_MOCK_DOCUMENT;

@@ -1,11 +1,8 @@
 import { describe, expect, it } from "vitest";
-import {
-  EXAMPLE_MVP_6_DOCUMENT,
-  LXMScoreCommandEnum as C,
-  copyChordPreset,
-} from "@liuxianmao/lxm-editor";
-import { createEditorStore } from "../stores/editor-store";
-import { shouldIgnoreMusicTextKey } from "../components/EditorShell/music-text/music-text-interaction";
+import { LXMScoreCommandEnum as C, copyChordPreset } from "@liuxianmao/lxm-editor";
+import { EXAMPLE_MVP_6_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { createEditorStore } from "../../../packages/lxm-editor-react/src/stores/editor-store";
+import { shouldIgnoreMusicTextKey } from "../../../packages/lxm-editor-react/src/EditorShell/music-text/music-text-interaction";
 
 describe("音乐文本网站边界", () => {
   it("歌词与和弦各自一次入历史，失败、同值和导航不入历史，完整撤销重做", () => {

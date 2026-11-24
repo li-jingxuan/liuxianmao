@@ -1,8 +1,6 @@
 import { expect, it } from "vitest";
-import {
-  buildLayout,
-  EXAMPLE_MVP7C_LONG_DOCUMENT,
-} from "@liuxianmao/lxm-editor";
+import { buildLayout } from "@liuxianmao/lxm-editor";
+import { EXAMPLE_MVP7C_LONG_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
 import { buildScoreScene } from "@liuxianmao/lxm-editor";
 /** 记录双层几何的真实规模，文件结构预算与派生布局预算分别验证。 */
 it("100 小节独立简谱派生几何具有有限节点预算", () => {

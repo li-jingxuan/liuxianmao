@@ -54,7 +54,7 @@ try {
     { entry: "小节工具", popup: page.getByRole("dialog", { name: "小节工具参数", exact: true }) },
     { entry: "节奏型", popup: page.getByRole("dialog", { name: "节奏型工具参数", exact: true }) },
     { entry: "技巧", popup: page.getByRole("dialog", { name: "技巧工具参数", exact: true }) },
-    { entry: chord, popup: page.locator("#chord-edit-popover") },
+    { entry: chord, popup: page.locator("[id$=chord-edit-popover]") },
   ];
 
   const snapshot = load => score.evaluate((svg, load) => {

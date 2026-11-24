@@ -1,0 +1,50 @@
+@font-face {
+  font-family: "Bravura";
+  src: url("./resources/Bravura.otf") format("opentype"), local("Bravura");
+  font-display: swap;
+}
+
+// 嵌入宿主无需引入 Tailwind 或修改 body reset。作用域覆盖工具栏、谱面和侧栏。
+[data-editor-shell] {
+  font-family: "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+  font-size: 13px;
+  background: var(--background);
+  color: var(--foreground);
+
+  &, *, *::before, *::after { box-sizing: border-box; }
+  button { font: inherit; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-editor-shell] *, [data-editor-shell] *::before, [data-editor-shell] *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media print {
+  // 工作区输出成品谱，外部页面未挂载曲谱时保留宿主自己的打印样式。
+  // 文字测量 SVG 即使位于编辑工作区外也需要布局，用于打印期间完成字体尺寸校准。
+  html:has([data-score-print-layer]), body:has([data-score-print-layer]) {
+    height: auto;
+    overflow: visible;
+    background: #fff;
+  }
+  body:has([data-score-print-layer]) *:not([data-score-print-layer]):not([data-score-print-layer] *):not(:has([data-score-print-layer])):not([data-score-text-measure]):not([data-score-text-measure] *) {
+    display: none !important;
+  }
+  body:has([data-lxm-print-active]) [data-editor-shell]:not([data-lxm-print-active]) {
+    display: none !important;
+  }
+  [data-score-print-layer] {
+    display: block !important;
+    position: static !important;
+    transform: none !important;
+  }
+  [data-editor-shell]:has([data-score-print-layer]) {
+    display: block;
+    height: auto;
+    overflow: visible;
+  }
+}

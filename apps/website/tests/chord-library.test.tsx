@@ -9,16 +9,16 @@ import {
   queryChordCatalog,
   type ILXMDocument,
 } from "@liuxianmao/lxm-editor";
-import { ChordLibraryModal } from "../components/EditorShell/chords/ChordLibraryModal";
+import { ChordLibraryModal } from "../../../packages/lxm-editor-react/src/EditorShell/chords/ChordLibraryModal";
 import {
   ChordPresetControls,
   resolveChordReference,
   selectedCatalogChord,
   standardChordTuning,
-} from "../components/EditorShell/chords/ChordPresetControls";
-import { createDefaultChordPreferences } from "../components/EditorShell/chords/chord-preferences";
-import type { ChordDraft } from "../components/EditorShell/chords/ChordEditor";
-import { quickChordMatches } from "../components/EditorShell/chords/chord-recommendations";
+} from "../../../packages/lxm-editor-react/src/EditorShell/chords/ChordPresetControls";
+import { createDefaultChordPreferences } from "../../../packages/lxm-editor-react/src/EditorShell/chords/chord-preferences";
+import type { ChordDraft } from "../../../packages/lxm-editor-react/src/EditorShell/chords/ChordEditor";
+import { quickChordMatches } from "../../../packages/lxm-editor-react/src/EditorShell/chords/chord-recommendations";
 
 const state = vi.hoisted(() => ({
   snapshot: {
@@ -27,7 +27,7 @@ const state = vi.hoisted(() => ({
     error: null as string | null,
   },
 }));
-vi.mock("../components/EditorShell/chords/chord-catalog-resource", () => ({
+vi.mock("../../../packages/lxm-editor-react/src/EditorShell/chords/chord-catalog-resource", () => ({
   chordCatalogResource: {
     getSnapshot: () => state.snapshot,
     subscribe: () => () => {},

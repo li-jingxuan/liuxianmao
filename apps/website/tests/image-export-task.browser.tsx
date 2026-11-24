@@ -1,8 +1,8 @@
 import { StrictMode, useLayoutEffect } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
-import type { ImageExportSnapshot, PreparedScoreImages } from "../components/EditorShell/output/image-export-controller";
-import { useImageExportTask } from "../components/EditorShell/output/use-image-export-task";
+import type { ImageExportSnapshot, PreparedScoreImages } from "../../../packages/lxm-editor-react/src/EditorShell/output/image-export-controller";
+import { useImageExportTask } from "../../../packages/lxm-editor-react/src/EditorShell/output/use-image-export-task";
 import { preparations, encodings } from "./image-export-task-controller.fixture";
 
 const snapshot = {} as ImageExportSnapshot;

@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { EXAMPLE_MVP_5_1_DOCUMENT, LXMScoreCommandEnum as C, applyScoreCommand, type ILXMScoreCommand } from "@liuxianmao/lxm-editor";
-import { TupletToolDetails } from "../components/EditorShell/tools/TupletToolDetails";
-import type { EditorCommandAdapter, EditorCommandResult } from "../components/EditorShell/session/editor-command-adapter";
-import { createEditorStore, useEditorStore } from "../stores/editor-store";
-import { EditorStoreContext } from "../stores/editor-context";
+import { LXMScoreCommandEnum as C, applyScoreCommand, type ILXMScoreCommand } from "@liuxianmao/lxm-editor";
+import { EXAMPLE_MVP_5_1_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { TupletToolDetails } from "../../../packages/lxm-editor-react/src/EditorShell/tools/TupletToolDetails";
+import type { EditorCommandAdapter, EditorCommandResult } from "../../../packages/lxm-editor-react/src/EditorShell/session/editor-command-adapter";
+import { createEditorStore, useEditorStore } from "../../../packages/lxm-editor-react/src/stores/editor-store";
+import { EditorStoreContext } from "../../../packages/lxm-editor-react/src/stores/editor-context";
 
 const store = createEditorStore(structuredClone(EXAMPLE_MVP_5_1_DOCUMENT));
 const commands: ILXMScoreCommand[] = [];

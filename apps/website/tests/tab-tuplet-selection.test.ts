@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
-  EXAMPLE_MVP_5_1_DOCUMENT,
   buildLayout,
   resolveTupletSelection,
   type ILXMTabCellSelection,
 } from "@liuxianmao/lxm-editor";
-import { resolveScorePointerAction } from "../components/EditorShell/session/editor-object-selection";
-import { createEditorStore } from "../stores/editor-store";
+import { EXAMPLE_MVP_5_1_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { resolveScorePointerAction } from "../../../packages/lxm-editor-react/src/EditorShell/session/editor-object-selection";
+import { createEditorStore } from "../../../packages/lxm-editor-react/src/stores/editor-store";
 
 const fixture = () => {
   const document = structuredClone(EXAMPLE_MVP_5_1_DOCUMENT);

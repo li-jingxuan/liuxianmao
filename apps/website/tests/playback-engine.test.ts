@@ -4,13 +4,13 @@ import type {
   PlaybackSound,
 } from "@liuxianmao/lxm-editor";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ScoreAudioEngine } from "../components/EditorShell/playback/engine";
-import { createScoreMetronomeGrid } from "../components/EditorShell/playback/metronome-grid";
-import { PracticeMetronome } from "../components/EditorShell/playback/practice-metronome";
+import { ScoreAudioEngine } from "../../../packages/lxm-editor-react/src/EditorShell/playback/engine";
+import { createScoreMetronomeGrid } from "../../../packages/lxm-editor-react/src/EditorShell/playback/metronome-grid";
+import { PracticeMetronome } from "../../../packages/lxm-editor-react/src/EditorShell/playback/practice-metronome";
 import {
   GuitarSampleBank,
   guitarSampleKey,
-} from "../components/EditorShell/playback/samples";
+} from "../../../packages/lxm-editor-react/src/EditorShell/playback/samples";
 
 const envelope: PlaybackEnvelope = {
   gain: 0.85,

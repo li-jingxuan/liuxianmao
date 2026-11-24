@@ -1,10 +1,10 @@
-import type { PreparedScoreImages } from "../components/EditorShell/output/image-export-controller";
+import type { PreparedScoreImages } from "../../../packages/lxm-editor-react/src/EditorShell/output/image-export-controller";
 export {
   MAX_IMAGE_PAGES,
   pageImageName,
   toImageExportError,
   ImageExportError,
-} from "../components/EditorShell/output/image-export-controller";
+} from "../../../packages/lxm-editor-react/src/EditorShell/output/image-export-controller";
 
 // 浏览器夹具故意不响应 abort，让测试能交付取消后的迟到结果。
 interface PendingTask<T> {

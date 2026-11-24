@@ -42,7 +42,7 @@ try {
   });
   const sidebar = page.getByRole("complementary", { name: "编辑器属性" });
   const svg = page.getByRole("application", { name: "六线谱编辑器" });
-  const popover = page.locator("#chord-edit-popover");
+  const popover = page.locator("[id$=chord-edit-popover]");
   const library = page.getByRole("dialog", { name: /^和弦库/ });
   const selectLibraryCategory = async (name) => {
     const radio = library.getByRole("radio", { name, exact: true });
@@ -63,7 +63,7 @@ try {
   });
   const chord = await page.evaluate(() => window.coexistStore.getState().document.score.tracks[0].measures.flatMap(m => m.chordSymbols).find(c => c.chord.diagram));
   await svg.getByText(chord.chord.name, { exact: true }).first().click();
-  const quickName = page.locator("#chord-popover-name");
+  const quickName = page.locator("[data-chord-popover-name]");
   const sideName = sidebar.getByRole("textbox", { name: "和弦名称", exact: true });
   await quickName.waitFor();
   const quickCards = popover.getByRole("group", { name: "本调常用和弦" }).getByRole("button");

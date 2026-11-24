@@ -42,7 +42,7 @@ try {
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/__bug017-020__`);
   const score = page.getByRole("application", { name: "六线谱编辑器" });
-  const sidebar = page.locator("#music-text-sidebar");
+  const sidebar = page.locator("[data-music-text-sidebar]");
   await score.waitFor({ timeout: Number(process.env.LXM_BROWSER_READY_TIMEOUT ?? 90000) });
   const baseline = await page.evaluate(() => window.coexistStore.getState().document);
   const reset = async (scenario) => {

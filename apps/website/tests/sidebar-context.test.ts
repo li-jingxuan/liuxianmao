@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { EXAMPLE_MVP_6_DOCUMENT } from "@liuxianmao/lxm-editor";
-import { deriveSidebarContext } from "../components/EditorShell/music-text/sidebar-context";
+import { EXAMPLE_MVP_6_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { deriveSidebarContext } from "../../../packages/lxm-editor-react/src/EditorShell/music-text/sidebar-context";
 
 describe("编辑台对象位置", () => {
   it("独立简谱事件按真实tick显示，失效成员不回退", () => {

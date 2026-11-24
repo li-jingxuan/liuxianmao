@@ -2,7 +2,7 @@
 
 在这里开始新增需求、交互设计和交付审查。[v1.0 设计基线](design-baseline/README.md)记录当前分支的产品行为，供后续需求和设计对照。[MVP 归档](../archive/mvp/README.md)保留各轮历史决策和验收证据。v1.0 发布范围待确认。
 
-首发范围、开源与三端交付、百度与 Google 搜索以及国内推广安排见[六线猫 v1.0 首发计划书](首发筹备/README.md)。REQ-087 至 REQ-094 在[飞书「v1.0」工作表](https://pcnhehlhivqu.feishu.cn/wiki/UEivw1G7Liuaqnk20d1cqCoxnHb?sheet=D9eELE)跟踪。
+首发需求、飞书与仓库编号对照、双包与桌面端排期见[六线猫 v1.0 交付计划](首发筹备/README.md)。版本与进度以[飞书「v1.0」工作表](https://pcnhehlhivqu.feishu.cn/wiki/UEivw1G7Liuaqnk20d1cqCoxnHb?sheet=D9eELE)为准。搜索与推广的筹备资料见[搜索与内容发现](首发筹备/01-搜索与内容发现.md)和[国内宣传与海外分发](首发筹备/03-国内宣传与海外分发.md)。
 
 ## 开始一个需求
 

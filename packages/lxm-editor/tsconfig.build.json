@@ -2,11 +2,13 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "noEmit": false,
+    "noEmitOnError": true,
     "declaration": true,
-    "emitDeclarationOnly": true,
-    "rootDir": ".",
-    "outDir": "dist"
+    "incremental": false,
+    "rootDir": "src",
+    "outDir": "dist",
+    "types": []
   },
-  "include": ["example/*.ts", "src/**/*.ts"],
-  "exclude": ["tests", "scripts", "vitest.config.ts"]
+  "files": ["src/public.ts"],
+  "include": []
 }

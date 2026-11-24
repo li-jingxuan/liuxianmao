@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   buildLayout,
-  EXAMPLE_MVP_7_2_DOCUMENT,
   getRhythmPatternTemplates,
   loadDocument,
   LXMDocumentSchema,
@@ -15,10 +14,11 @@ import {
   type MusicTextRange,
   type RhythmPatternTarget,
 } from "@liuxianmao/lxm-editor";
-import type { MusicTextTarget } from "../components/EditorShell/music-text/music-text-draft";
-import { resolveEditorRhythmPatternTarget } from "../components/EditorShell/tools/editor-rhythm-pattern-target";
-import { rhythmPatternScopeRect, rhythmPatternScopeRects } from "../components/EditorShell/tools/rhythm-pattern-scope-layout";
-import { createEditorSession } from "../stores/editor-store";
+import { EXAMPLE_MVP_7_2_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import type { MusicTextTarget } from "../../../packages/lxm-editor-react/src/EditorShell/music-text/music-text-draft";
+import { resolveEditorRhythmPatternTarget } from "../../../packages/lxm-editor-react/src/EditorShell/tools/editor-rhythm-pattern-target";
+import { rhythmPatternScopeRect, rhythmPatternScopeRects } from "../../../packages/lxm-editor-react/src/EditorShell/tools/rhythm-pattern-scope-layout";
+import { createEditorSessionStore as createEditorSession } from "../../../packages/lxm-editor-react/src/stores/editor-store";
 
 const fixture = () => {
   const document = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);

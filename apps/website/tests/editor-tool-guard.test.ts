@@ -1,13 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
-import { EXAMPLE_MVP_7_2_DOCUMENT, LXMScoreCommandEnum as C, getFirstTabCellReference } from "@liuxianmao/lxm-editor";
-import { createEditorSession } from "../stores/editor-store";
-import { captureEditorToolIntent, editorToolSubmissionReason, tabToolTargetReason } from "../components/EditorShell/tools/editor-tool-guard";
-import { createEditorCommandAdapter } from "../components/EditorShell/session/editor-command-adapter";
-import { createEditorModalController } from "../components/EditorShell/session/editor-modal-controller";
-import { createEditorDraftCoordinator, createEditorDraftOwner } from "../components/EditorShell/session/editor-draft-coordinator";
-import { captureEditorVersion } from "../components/EditorShell/session/editor-session-version";
-import { createTechniqueParameterOwner } from "../components/EditorShell/tools/technique-parameter-owner";
-import type { MusicTextTarget } from "../components/EditorShell/music-text/music-text-draft";
+import { LXMScoreCommandEnum as C, getFirstTabCellReference } from "@liuxianmao/lxm-editor";
+import { EXAMPLE_MVP_7_2_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { createEditorSessionStore as createEditorSession } from "../../../packages/lxm-editor-react/src/stores/editor-store";
+import { captureEditorToolIntent, editorToolSubmissionReason, tabToolTargetReason } from "../../../packages/lxm-editor-react/src/EditorShell/tools/editor-tool-guard";
+import { createEditorCommandAdapter } from "../../../packages/lxm-editor-react/src/EditorShell/session/editor-command-adapter";
+import { createEditorModalController } from "../../../packages/lxm-editor-react/src/EditorShell/session/editor-modal-controller";
+import { createEditorDraftCoordinator, createEditorDraftOwner } from "../../../packages/lxm-editor-react/src/EditorShell/session/editor-draft-coordinator";
+import { captureEditorVersion } from "../../../packages/lxm-editor-react/src/EditorShell/session/editor-session-version";
+import { createTechniqueParameterOwner } from "../../../packages/lxm-editor-react/src/EditorShell/tools/technique-parameter-owner";
+import type { MusicTextTarget } from "../../../packages/lxm-editor-react/src/EditorShell/music-text/music-text-draft";
 
 const setup = (document = EXAMPLE_MVP_7_2_DOCUMENT) => {
   const session = createEditorSession(document);

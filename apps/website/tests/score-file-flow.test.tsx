@@ -1,12 +1,13 @@
 import { isValidElement, type ReactElement, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { EXAMPLE_MVP_7_2_DOCUMENT, keySignatureForTonality, LXMScoreCommandEnum, readScoreTonality, type ScoreTonalityV1 } from "@liuxianmao/lxm-editor";
-import { createEditorSession, selectScoreFileStatus } from "../stores/editor-store";
-import { ScoreImportModal } from "../components/EditorShell/output/ScoreImportModal";
-import { useScoreFileFlow } from "../components/EditorShell/output/use-score-file-flow";
-import { captureEditorVersion } from "../components/EditorShell/session/editor-session-version";
-import { decodeScoreFile, serializeScoreFile } from "../components/EditorShell/output/score-file";
-import { createBlankScore, newScoreSignatures, newScoreTonics } from "../components/EditorShell/output/new-score";
+import { keySignatureForTonality, LXMScoreCommandEnum, readScoreTonality, type ScoreTonalityV1 } from "@liuxianmao/lxm-editor";
+import { EXAMPLE_MVP_7_2_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { createEditorSessionStore as createEditorSession, selectScoreFileStatus } from "../../../packages/lxm-editor-react/src/stores/editor-store";
+import { ScoreImportModal } from "../../../packages/lxm-editor-react/src/EditorShell/output/ScoreImportModal";
+import { useScoreFileFlow } from "../../../packages/lxm-editor-react/src/EditorShell/output/use-score-file-flow";
+import { captureEditorVersion } from "../../../packages/lxm-editor-react/src/EditorShell/session/editor-session-version";
+import { decodeScoreFile, serializeScoreFile } from "../../../packages/lxm-editor-react/src/EditorShell/output/score-file";
+import { createBlankScore, newScoreSignatures, newScoreTonics } from "../../../packages/lxm-editor-react/src/EditorShell/output/new-score";
 
 const harness = vi.hoisted(() => ({ values: [] as unknown[], cursor: 0 }));
 vi.mock("react", async (importOriginal) => ({

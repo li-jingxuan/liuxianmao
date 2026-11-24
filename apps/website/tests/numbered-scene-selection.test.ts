@@ -1,13 +1,10 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import {
-  buildLayout,
-  EXAMPLE_MVP_7_2_DOCUMENT,
-  type ILXMNumberedEvent,
-} from "@liuxianmao/lxm-editor";
+import { buildLayout, type ILXMNumberedEvent } from "@liuxianmao/lxm-editor";
+import { EXAMPLE_MVP_7_2_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
 import { buildScoreScene } from "@liuxianmao/lxm-editor";
-import { ScoreMusicLayer } from "../components/EditorShell/score/ScoreMusicLayer";
+import { ScoreMusicLayer } from "../../../packages/lxm-editor-react/src/EditorShell/score/ScoreMusicLayer";
 
 const fixture = (withTabBeams = false) => {
   const document = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);

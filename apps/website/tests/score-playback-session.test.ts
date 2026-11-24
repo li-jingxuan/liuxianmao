@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { loadDocument } from "@liuxianmao/lxm-editor";
 import ideal from "../../../packages/lxm-editor/example/ideal-score.lxm.json";
-import { PlaybackSession } from "../components/EditorShell/playback/controller";
+import { PlaybackSession } from "../../../packages/lxm-editor-react/src/EditorShell/playback/controller";
 
 const audio = vi.hoisted(() => ({
   unlock: vi.fn(async () => {}),
@@ -15,14 +15,14 @@ const audio = vi.hoisted(() => ({
   stop: vi.fn(),
   dispose: vi.fn(),
 }));
-vi.mock("../components/EditorShell/playback/engine", () => ({
+vi.mock("../../../packages/lxm-editor-react/src/EditorShell/playback/engine", () => ({
   ScoreAudioEngine: class {
     constructor() {
       return audio;
     }
   },
 }));
-vi.mock("../components/EditorShell/chords/chord-catalog-resource", () => ({
+vi.mock("../../../packages/lxm-editor-react/src/EditorShell/chords/chord-catalog-resource", () => ({
   chordCatalogResource: {
     ensureLoaded: vi.fn(async () => {}),
     getSnapshot: () => ({ catalog: null }),

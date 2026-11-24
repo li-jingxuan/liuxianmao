@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { EXAMPLE_MVP_7_2_DOCUMENT, type ILXMScoreCommand } from "@liuxianmao/lxm-editor";
-import { ScoreSettings, type ScoreSettingsController } from "../components/EditorShell/settings/ScoreSettings";
-import { TechniqueToolbar } from "../components/EditorShell/tools/TechniqueToolbar";
-import { EditorSessionRuntime, useEditorRuntime } from "../components/EditorShell/session/EditorSessionRuntime";
-import { createEditorCommandAdapter, type EditorCommandAdapter } from "../components/EditorShell/session/editor-command-adapter";
-import { createEditorSession, useEditorStore } from "../stores/editor-store";
-import { EditorStoreContext } from "../stores/editor-context";
+import { type ILXMScoreCommand } from "@liuxianmao/lxm-editor";
+import { EXAMPLE_MVP_7_2_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { ScoreSettings, type ScoreSettingsController } from "../../../packages/lxm-editor-react/src/EditorShell/settings/ScoreSettings";
+import { TechniqueToolbar } from "../../../packages/lxm-editor-react/src/EditorShell/tools/TechniqueToolbar";
+import { EditorSessionRuntime, useEditorRuntime } from "../../../packages/lxm-editor-react/src/EditorShell/session/EditorSessionRuntime";
+import { createEditorCommandAdapter, type EditorCommandAdapter } from "../../../packages/lxm-editor-react/src/EditorShell/session/editor-command-adapter";
+import { createEditorSessionStore as createEditorSession, useEditorStore } from "../../../packages/lxm-editor-react/src/stores/editor-store";
+import { EditorStoreContext } from "../../../packages/lxm-editor-react/src/stores/editor-context";
 
 const fixture = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);
 fixture.score.tracks[0]!.techniques = [];

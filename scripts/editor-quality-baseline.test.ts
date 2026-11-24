@@ -13,7 +13,7 @@ import {
   LXMScoreCommandEnum,
   loadDocument,
 } from "../packages/lxm-editor/src";
-import { createEditorSession } from "../apps/website/stores/editor-store";
+import { createEditorSessionStore } from "../packages/lxm-editor-react/src/stores/editor-store";
 
 /** 固定数据、预热及采样；报告 Node 计算耗时，不伪装为浏览器可见更新。 */
 it("记录 100 小节计算与历史基线", () => {
@@ -60,7 +60,7 @@ it("记录 100 小节计算与历史基线", () => {
       }),
     ),
   };
-  const session = createEditorSession(score);
+  const session = createEditorSessionStore(score);
   const before = process.memoryUsage();
   const start = performance.now();
   for (let i = 0; i < 100; i++)

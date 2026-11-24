@@ -9,7 +9,7 @@ const nextConfig: NextConfig = {
   basePath: process.env.NEXT_PUBLIC_BASE_PATH ?? "",
   output: "standalone",
   outputFileTracingRoot: WORKSPACE_ROOT,
-  transpilePackages: ["@liuxianmao/lxm-editor"],
+  transpilePackages: ["@liuxianmao/lxm-editor", "@liuxianmao/lxm-editor-react"],
   turbopack: {
     root: WORKSPACE_ROOT,
   },

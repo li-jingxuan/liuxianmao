@@ -1,10 +1,10 @@
 import { createRef, useState, type ComponentProps } from "react";
 import { createRoot } from "react-dom/client";
-import { EXAMPLE_MVP_6_DOCUMENT } from "@liuxianmao/lxm-editor";
-import { MusicTextSidebar, type MusicTextController } from "../components/EditorShell/music-text/MusicTextSidebar";
-import { EditorSessionRuntime } from "../components/EditorShell/session/EditorSessionRuntime";
-import { EditorStoreContext } from "../stores/editor-context";
-import { createEditorSession } from "../stores/editor-store";
+import { EXAMPLE_MVP_6_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { MusicTextSidebar, type MusicTextController } from "../../../packages/lxm-editor-react/src/EditorShell/music-text/MusicTextSidebar";
+import { EditorSessionRuntime } from "../../../packages/lxm-editor-react/src/EditorShell/session/EditorSessionRuntime";
+import { EditorStoreContext } from "../../../packages/lxm-editor-react/src/stores/editor-context";
+import { createEditorSessionStore as createEditorSession } from "../../../packages/lxm-editor-react/src/stores/editor-store";
 import "../app/globals.scss";
 
 const document = structuredClone(EXAMPLE_MVP_6_DOCUMENT);

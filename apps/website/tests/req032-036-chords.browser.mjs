@@ -76,7 +76,7 @@ try {
   assert.equal(await sideName.inputValue(), "同拍未应用");
   await svg.focus();
   await page.keyboard.press("ArrowRight");
-  await page.waitForFunction(() => document.querySelector('#music-text-sidebar input[aria-label="和弦名称"]')?.value !== "同拍未应用");
+  await page.waitForFunction(() => document.querySelector('[data-music-text-sidebar] input[aria-label="和弦名称"]')?.value !== "同拍未应用");
   assert.equal(await sideName.evaluate(node => node === document.activeElement), false);
   assert.deepEqual(await snapshot(), baseline);
   checks.push("进入和弦页签直接绑定；同拍跨弦/重复页签保留草稿；键盘换拍重新绑定且不抢输入焦点");

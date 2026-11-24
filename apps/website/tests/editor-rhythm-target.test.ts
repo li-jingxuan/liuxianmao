@@ -1,11 +1,9 @@
 import { describe, expect, it } from "vitest";
-import {
-  EXAMPLE_MVP_7_2_DOCUMENT,
-  type ILXMRhythm,
-} from "@liuxianmao/lxm-editor";
-import { resolveEditorRhythmTarget } from "../components/EditorShell/tools/editor-rhythm-target";
-import type { MusicTextTarget } from "../components/EditorShell/music-text/music-text-draft";
-import { createEditorSession } from "../stores/editor-store";
+import { type ILXMRhythm } from "@liuxianmao/lxm-editor";
+import { EXAMPLE_MVP_7_2_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { resolveEditorRhythmTarget } from "../../../packages/lxm-editor-react/src/EditorShell/tools/editor-rhythm-target";
+import type { MusicTextTarget } from "../../../packages/lxm-editor-react/src/EditorShell/music-text/music-text-draft";
+import { createEditorSessionStore as createEditorSession } from "../../../packages/lxm-editor-react/src/stores/editor-store";
 
 describe("工具栏实际时值目标", () => {
   const document = EXAMPLE_MVP_7_2_DOCUMENT;

@@ -1,11 +1,11 @@
 import { describe, it, expect, vi } from "vitest";
-import { createEditorStore } from "../stores/editor-store";
+import { createEditorStore } from "../../../packages/lxm-editor-react/src/stores/editor-store";
 import {
-  EXAMPLE_MVP_6_DOCUMENT,
   createCollapsedTabCellSelection,
   LXMScoreCommandEnum as C,
   planBeatPaste,
 } from "@liuxianmao/lxm-editor";
+import { EXAMPLE_MVP_6_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
 /** 真实 store 验证通知/历史和私有剪贴板边界，避免只测试 UI 对命令的包装。 */
 const fixture = () => {
   const d = structuredClone(EXAMPLE_MVP_6_DOCUMENT),

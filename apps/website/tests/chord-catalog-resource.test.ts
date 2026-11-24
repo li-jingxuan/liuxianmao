@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createChordCatalogResource } from "../components/EditorShell/chords/chord-catalog-resource";
+import { createChordCatalogResource } from "../../../packages/lxm-editor-react/src/EditorShell/chords/chord-catalog-resource";
 
 const directory = new URL("../public/assets/chords/", import.meta.url);
 const manifest = JSON.parse(

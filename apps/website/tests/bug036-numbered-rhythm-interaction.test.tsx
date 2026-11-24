@@ -1,11 +1,12 @@
 import { isValidElement, type ReactNode, type RefObject } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { EXAMPLE_MVP_7_2_DOCUMENT, type ILXMNumberedEvent, type ILXMScoreCommand } from "@liuxianmao/lxm-editor";
-import { NumberedEditor, type NumberedEditorController } from "../components/EditorShell/numbered/NumberedEditor";
-import type { createNumberedSubmission } from "../components/EditorShell/numbered/numbered-submission";
-import { createEditorSession } from "../stores/editor-store";
-import { EditorStoreContext } from "../stores/editor-context";
+import { type ILXMNumberedEvent, type ILXMScoreCommand } from "@liuxianmao/lxm-editor";
+import { EXAMPLE_MVP_7_2_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { NumberedEditor, type NumberedEditorController } from "../../../packages/lxm-editor-react/src/EditorShell/numbered/NumberedEditor";
+import type { createNumberedSubmission } from "../../../packages/lxm-editor-react/src/EditorShell/numbered/numbered-submission";
+import { createEditorSessionStore as createEditorSession } from "../../../packages/lxm-editor-react/src/stores/editor-store";
+import { EditorStoreContext } from "../../../packages/lxm-editor-react/src/stores/editor-context";
 
 const harness = vi.hoisted(() => ({
   effects: [] as (() => void | (() => void))[], cleanups: [] as (() => void)[],
@@ -22,8 +23,8 @@ vi.mock("react", async (load) => {
     useImperativeHandle: (ref: RefObject<unknown> | null, create: () => unknown) => { if (ref) ref.current = create(); },
   };
 });
-vi.mock("../components/EditorShell/numbered/numbered-submission", async (load) => {
-  const original = await load<typeof import("../components/EditorShell/numbered/numbered-submission")>();
+vi.mock("../../../packages/lxm-editor-react/src/EditorShell/numbered/numbered-submission", async (load) => {
+  const original = await load<typeof import("../../../packages/lxm-editor-react/src/EditorShell/numbered/numbered-submission")>();
   return { ...original, createNumberedSubmission: (...args: Parameters<typeof createNumberedSubmission>) => {
     harness.submission = original.createNumberedSubmission(...args);
     return harness.submission;

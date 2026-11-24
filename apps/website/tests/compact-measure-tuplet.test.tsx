@@ -1,10 +1,11 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { EXAMPLE_MVP_5_1_DOCUMENT, LXMScoreCommandEnum } from "@liuxianmao/lxm-editor";
-import { TupletToolbar } from "../components/EditorShell/tools/TupletToolbar";
-import { MeasureBoundary } from "../components/EditorShell/tools/MeasureBoundary";
-import { MeasureActions } from "../components/EditorShell/tools/MeasureActions";
-import { buildEditorToolCommand } from "../components/EditorShell/tools/editor-tool-actions";
+import { LXMScoreCommandEnum } from "@liuxianmao/lxm-editor";
+import { EXAMPLE_MVP_5_1_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { TupletToolbar } from "../../../packages/lxm-editor-react/src/EditorShell/tools/TupletToolbar";
+import { MeasureBoundary } from "../../../packages/lxm-editor-react/src/EditorShell/tools/MeasureBoundary";
+import { MeasureActions } from "../../../packages/lxm-editor-react/src/EditorShell/tools/MeasureActions";
+import { buildEditorToolCommand } from "../../../packages/lxm-editor-react/src/EditorShell/tools/editor-tool-actions";
 
 const fixture = () => {
   const document = structuredClone(EXAMPLE_MVP_5_1_DOCUMENT);
@@ -54,7 +55,7 @@ describe("紧凑连音及小节即时控件", () => {
   it("把复制位置解析到来源轨道的曲首、曲末或指定稳定小节 ID", () => {
     const { document, track, selection } = fixture();
     const target = { trackId: track.id, measureId: selection.focus.measureId };
-    const command = (destination: import("../components/EditorShell/tools/editor-tool-actions").MeasureCopyDestination) =>
+    const command = (destination: import("../../../packages/lxm-editor-react/src/EditorShell/tools/editor-tool-actions").MeasureCopyDestination) =>
       buildEditorToolCommand(document, selection, { type: "copyMeasures", target, destination });
     expect(command({ kind: "start" })).not.toHaveProperty("afterMeasureId");
     expect(command({ kind: "end" })).toMatchObject({ afterMeasureId: track.measures.at(-1)!.id });

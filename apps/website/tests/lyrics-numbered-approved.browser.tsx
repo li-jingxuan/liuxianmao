@@ -1,7 +1,7 @@
 import { createRoot } from "react-dom/client";
-import { EXAMPLE_MVP_7_2_DOCUMENT } from "@liuxianmao/lxm-editor";
-import { EditorSession } from "../components/EditorShell/session/EditorSession";
-import { createEditorSession } from "../stores/editor-store";
+import { EXAMPLE_MVP_7_2_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { EditorSession } from "../../../packages/lxm-editor-react/src/EditorShell/session/EditorSession";
+import { createEditorSessionStore as createEditorSession } from "../../../packages/lxm-editor-react/src/stores/editor-store";
 import "../app/globals.scss";
 
 const fixture = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);

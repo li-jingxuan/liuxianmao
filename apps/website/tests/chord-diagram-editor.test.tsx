@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { copyChordPreset, layoutChordDiagram } from "@liuxianmao/lxm-editor";
-import { ChordDiagramEditorModal, replaceChordDiagramEditorSnapshot, type ChordDiagramEditorSnapshot } from "../components/EditorShell/chords/ChordDiagramEditorModal";
+import { ChordDiagramEditorModal, replaceChordDiagramEditorSnapshot, type ChordDiagramEditorSnapshot } from "../../../packages/lxm-editor-react/src/EditorShell/chords/ChordDiagramEditorModal";
 
 describe("自定义指法宿主正文", () => {
   it("紧凑网格、统一手指选择器和右侧有效预览，删除精细表单", () => {

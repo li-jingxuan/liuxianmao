@@ -1,17 +1,15 @@
 import { describe, it, expect, vi } from "vitest";
-import {
-  EXAMPLE_MVP_6_DOCUMENT,
-  LXMScoreCommandEnum,
-} from "@liuxianmao/lxm-editor";
+import { LXMScoreCommandEnum } from "@liuxianmao/lxm-editor";
+import { EXAMPLE_MVP_6_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
 import {
   readScoreSettings,
   planSettingsCommands,
-} from "../components/EditorShell/settings/score-settings-draft";
+} from "../../../packages/lxm-editor-react/src/EditorShell/settings/score-settings-draft";
 import {
   readMusicTextDraft,
   resolveSidebarRequest,
-} from "../components/EditorShell/music-text/music-text-draft";
-import { createEditorSession } from "../stores/editor-store";
+} from "../../../packages/lxm-editor-react/src/EditorShell/music-text/music-text-draft";
+import { createEditorSessionStore as createEditorSession } from "../../../packages/lxm-editor-react/src/stores/editor-store";
 
 describe("谱面设置与连续填词默认", () => {
   it("信息表单一条历史/一次通知，撤销重做保留音乐", () => {

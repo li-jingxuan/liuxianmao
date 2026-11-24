@@ -1,6 +1,5 @@
 import { createRoot } from "react-dom/client";
-import { EditorWorkspace } from "../app/editor/EditorWorkspace";
-import { editorStore } from "../stores/editor-store";
+import { editorStore, EditorWorkspace } from "./editor-workspace.fixture";
 import "../app/globals.scss";
 
 Object.assign(window, { coexistStore: editorStore });

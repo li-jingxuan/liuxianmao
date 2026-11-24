@@ -1,12 +1,12 @@
 import {
   buildLayout,
-  EXAMPLE_MVP_4_DOCUMENT,
   LXMScoreCommandEnum,
   validateDocumentSemantics,
 } from "@liuxianmao/lxm-editor";
+import { EXAMPLE_MVP_4_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
 import { describe, expect, it } from "vitest";
 
-import { createEditorStore } from "../stores/editor-store";
+import { createEditorStore } from "../../../packages/lxm-editor-react/src/stores/editor-store";
 
 const EXAMPLE_MVP_4 = EXAMPLE_MVP_4_DOCUMENT;
 

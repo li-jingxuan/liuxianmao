@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { editorLayoutMode } from "../components/EditorShell/workspace/use-editor-host-width";
+import { editorLayoutMode } from "../../../packages/lxm-editor-react/src/EditorShell/workspace/use-editor-host-width";
 
 describe("editor host breakpoints", () => {
   it.each([

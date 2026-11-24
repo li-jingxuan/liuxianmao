@@ -3,21 +3,21 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import {
   buildLayout,
-  EXAMPLE_MVP_7_2_DOCUMENT,
   LXM_BARLINE_TYPES,
   type ILXMNumberedEvent,
   type MusicTextRange,
 } from "@liuxianmao/lxm-editor";
-import { resolveNumberedArcOptions, NUMBERED_TIE_SELECTION_REASON } from "../components/EditorShell/tools/editor-tie-target";
-import { NumberedArcTool } from "../components/EditorShell/tools/NumberedArcTool";
-import { captureEditorToolIntent, editorToolSubmissionReason, isTabOnlyToolCommand } from "../components/EditorShell/tools/editor-tool-guard";
-import { createEditorDraftCoordinator } from "../components/EditorShell/session/editor-draft-coordinator";
-import { captureEditorVersion } from "../components/EditorShell/session/editor-session-version";
-import { EditorToolbar } from "../components/EditorShell/workspace/EditorToolbar";
-import { useScorePlayback } from "../components/EditorShell/playback/controller";
-import { EditorSessionRuntime } from "../components/EditorShell/session/EditorSessionRuntime";
-import { EditorStoreContext } from "../stores/editor-context";
-import { createEditorSession } from "../stores/editor-store";
+import { EXAMPLE_MVP_7_2_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { resolveNumberedArcOptions, NUMBERED_TIE_SELECTION_REASON } from "../../../packages/lxm-editor-react/src/EditorShell/tools/editor-tie-target";
+import { NumberedArcTool } from "../../../packages/lxm-editor-react/src/EditorShell/tools/NumberedArcTool";
+import { captureEditorToolIntent, editorToolSubmissionReason, isTabOnlyToolCommand } from "../../../packages/lxm-editor-react/src/EditorShell/tools/editor-tool-guard";
+import { createEditorDraftCoordinator } from "../../../packages/lxm-editor-react/src/EditorShell/session/editor-draft-coordinator";
+import { captureEditorVersion } from "../../../packages/lxm-editor-react/src/EditorShell/session/editor-session-version";
+import { EditorToolbar } from "../../../packages/lxm-editor-react/src/EditorShell/workspace/EditorToolbar";
+import { useScorePlayback } from "../../../packages/lxm-editor-react/src/EditorShell/playback/controller";
+import { EditorSessionRuntime } from "../../../packages/lxm-editor-react/src/EditorShell/session/EditorSessionRuntime";
+import { EditorStoreContext } from "../../../packages/lxm-editor-react/src/stores/editor-context";
+import { createEditorSessionStore as createEditorSession } from "../../../packages/lxm-editor-react/src/stores/editor-store";
 
 const setup = () => {
   const document = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);

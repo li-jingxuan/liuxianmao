@@ -1,0 +1,9 @@
+{
+  "extends": "@liuxianmao/tsconfig/base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "types": ["node", "react", "react-dom"],
+    "incremental": false
+  },
+  "include": ["src", "vite.config.ts"]
+}

@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
-import { EXAMPLE_MVP_7_2_DOCUMENT } from "@liuxianmao/lxm-editor";
+import { EXAMPLE_MVP_7_2_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
 import {
   createChordEditSession,
   type ChordEditContext,
-} from "../components/EditorShell/chords/chord-edit-session";
-import { createEditorDraftOwner } from "../components/EditorShell/session/editor-draft-coordinator";
-import { captureEditorVersion } from "../components/EditorShell/session/editor-session-version";
-import { createEditorSession } from "../stores/editor-store";
+} from "../../../packages/lxm-editor-react/src/EditorShell/chords/chord-edit-session";
+import { createEditorDraftOwner } from "../../../packages/lxm-editor-react/src/EditorShell/session/editor-draft-coordinator";
+import { captureEditorVersion } from "../../../packages/lxm-editor-react/src/EditorShell/session/editor-session-version";
+import { createEditorSessionStore as createEditorSession } from "../../../packages/lxm-editor-react/src/stores/editor-store";
 
 const setup = () => {
   const session = createEditorSession(EXAMPLE_MVP_7_2_DOCUMENT);

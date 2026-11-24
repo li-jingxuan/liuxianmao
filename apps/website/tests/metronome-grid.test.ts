@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { createPlaybackPlan, loadDocument, TICKS_PER_QUARTER } from "@liuxianmao/lxm-editor";
 import ideal from "../../../packages/lxm-editor/example/ideal-score.lxm.json";
-import { createScoreMetronomeGrid, DEFAULT_METER } from "../components/EditorShell/playback/metronome-grid";
-import { readPracticeSource } from "../components/EditorShell/playback/practice-metronome";
+import { createScoreMetronomeGrid, DEFAULT_METER } from "../../../packages/lxm-editor-react/src/EditorShell/playback/metronome-grid";
+import { readPracticeSource } from "../../../packages/lxm-editor-react/src/EditorShell/playback/practice-metronome";
 
 function documentFixture() {
   const result = loadDocument(JSON.stringify(ideal));

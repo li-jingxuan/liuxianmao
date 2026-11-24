@@ -71,7 +71,7 @@ try {
   // Actual lyrics: simultaneous surfaces and explicit focus; no obsolete mode or full-settings button.
   await score.getByText("旋", { exact: true }).click();
   const popover = page.locator('[data-text-surface="popover"]');
-  const fields = sidebar.locator("#music-text-fields");
+  const fields = sidebar.locator("[data-music-text-fields]");
   const sidebarInput = fields.getByRole("textbox", { name: "连续歌词", exact: true });
   const input = popover.getByRole("textbox", { name: "连续歌词", exact: true });
   const lyricApply = popover.getByRole("button", { name: "应用", exact: true });
@@ -109,7 +109,7 @@ try {
     node.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", keyCode: 229, bubbles: true, cancelable: true }));
   });
   assert.deepEqual(await snapshot(), lyricBaseline);
-  await page.waitForFunction(() => document.querySelector('#music-text-edit-popover button[aria-label="应用"]')?.disabled === false);
+  await page.waitForFunction(() => document.querySelector('[id$=music-text-edit-popover] button[aria-label="应用"]')?.disabled === false);
   await popover.getByRole("button", { name: "关闭歌词浮窗", exact: true }).click();
   assert.equal(await popover.isVisible(), false);
   assert.equal(await sidebarInput.inputValue(), "侧栏草稿");
@@ -281,15 +281,15 @@ try {
   await blockedOutput.getByRole("button", { name: "返回编辑", exact: true }).click();
   await blockedOutput.waitFor({ state: "hidden" });
   assert.equal(await sidebar.isVisible(), true);
-  assert.equal(await sidebar.locator("#settings-capo").locator("..").getAttribute("title"), "3 品");
+  assert.equal(await sidebar.locator("[id$=settings-capo]").locator("..").getAttribute("title"), "3 品");
   await sidebar.getByRole("button", { name: "恢复本组", exact: true }).click();
   assert.equal(await blockedOutput.isVisible(), false);
   await sidebar.getByRole("tab", { name: "选区", exact: true }).click();
   await sidebar.getByRole("radio", { name: "小节", exact: true }).locator("..").click();
-  const sectionInput = sidebar.locator("#settings-label");
+  const sectionInput = sidebar.locator("[id$=settings-label]");
   await sectionInput.fill("共存自动保存");
   const beforeLabel = await history();
-  await sidebar.locator("#settings-copy-start").focus();
+  await sidebar.locator("[id$=settings-copy-start]").focus();
   await page.waitForFunction(() => window.coexistStore.getState().document.score.tracks[0].measures.some(measure => measure.sectionLabel === "共存自动保存"));
   assert.equal((await history()).past, beforeLabel.past + 1);
   const countBeforeCopy = await page.evaluate(() => window.coexistStore.getState().document.score.tracks[0].measures.length);

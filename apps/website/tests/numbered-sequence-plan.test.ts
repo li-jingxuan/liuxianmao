@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { EXAMPLE_MVP_7_2_DOCUMENT, createDocumentIdFactory, editNumberedTrack, type ILXMNumberedVoiceCommand } from "@liuxianmao/lxm-editor";
-import { buildNumberedPreviewRows } from "../components/EditorShell/numbered/numbered-preview";
+import { createDocumentIdFactory, editNumberedTrack, type ILXMNumberedVoiceCommand } from "@liuxianmao/lxm-editor";
+import { EXAMPLE_MVP_7_2_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { buildNumberedPreviewRows } from "../../../packages/lxm-editor-react/src/EditorShell/numbered/numbered-preview";
 
 describe("BUG017/020 preview shares the committed time targets", () => {
   it.each([false, true])("includes virtual slots and skips without inventing source events; skip=%s", skip => {

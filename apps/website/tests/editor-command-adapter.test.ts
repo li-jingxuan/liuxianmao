@@ -1,12 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import {
-  DEFAULT_MOCK_DOCUMENT,
-  EXAMPLE_MVP_7_2_DOCUMENT,
-  LXMScoreCommandEnum,
-} from "@liuxianmao/lxm-editor";
-import { createEditorCommandAdapter } from "../components/EditorShell/session/editor-command-adapter";
-import { createEditorModalController } from "../components/EditorShell/session/editor-modal-controller";
-import { createEditorSession } from "../stores/editor-store";
+import { LXMScoreCommandEnum } from "@liuxianmao/lxm-editor";
+import { DEFAULT_MOCK_DOCUMENT, EXAMPLE_MVP_7_2_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { createEditorCommandAdapter } from "../../../packages/lxm-editor-react/src/EditorShell/session/editor-command-adapter";
+import { createEditorModalController } from "../../../packages/lxm-editor-react/src/EditorShell/session/editor-modal-controller";
+import { createEditorSessionStore as createEditorSession } from "../../../packages/lxm-editor-react/src/stores/editor-store";
 
 describe("统一结构命令适配器", () => {
   it("简谱吞并无记号影响也先预览，取消零写入，确认后可一次撤销", async () => {

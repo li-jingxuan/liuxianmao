@@ -4,7 +4,8 @@ import { readFile } from "node:fs/promises";
 const { chromium } = await import(process.env.LXM_PLAYWRIGHT_MODULE ?? "playwright");
 const browser = await chromium.launch({ headless: true, channel: process.env.LXM_BROWSER_CHANNEL });
 const page = await browser.newPage({ viewport: { width: 1600, height: 1000 }, timezoneId: "America/Los_Angeles" });
-const base = process.env.REQ_NEXT_ORIGIN ?? "http://127.0.0.1:3031";
+const base = (process.env.REQ_NEXT_ORIGIN ?? "http://127.0.0.1:3031").replace(/\/$/, "");
+const homeUrl = new URL(base).href;
 const button = (name, root = page) => root.getByRole("button", { name, exact: true });
 const dialog = (name) => page.getByRole("dialog", { name });
 const a4Dialog = (name) => page.getByRole("dialog").filter({ has: page.getByRole("heading", { name }) });
@@ -30,7 +31,7 @@ try {
       window.dispatchEvent(new Event("afterprint"));
     };
   });
-  await page.goto(base, { waitUntil: "domcontentloaded" });
+  await page.goto(homeUrl, { waitUntil: "domcontentloaded" });
   await page.setViewportSize({ width: 360, height: 520 });
   const newScore = dialog("新建曲谱");
   const title = newScore.getByRole("textbox", { name: "曲名" });
@@ -54,7 +55,7 @@ try {
   await button("创建曲谱", newScore).click();
   await newScore.getByText("请输入曲名", { exact: true }).waitFor();
   assert.equal(await title.getAttribute("aria-invalid"), "true");
-  assert.equal(page.url(), base + "/");
+  assert.equal(page.url(), homeUrl);
   await tuning.click();
   const standardTuning = newScore.getByRole("option", { name: /标准调弦/ });
   await standardTuning.waitFor();
@@ -67,7 +68,7 @@ try {
   await title.fill("取消前的曲名");
   await page.keyboard.press("Escape");
   await newScore.waitFor({ state: "hidden" });
-  assert.equal(page.url(), base + "/");
+  assert.equal(page.url(), homeUrl);
   await page.waitForFunction(() => document.activeElement?.textContent.trim() === "新建曲谱");
   await page.setViewportSize({ width: 1600, height: 1000 });
   await button("新建曲谱").click();
@@ -158,7 +159,7 @@ try {
   assert.deepEqual(await readFile(await retry.path()), bytes);
   assert.equal(page.url(), base + "/editor");
   await button("已下载，继续", leave).click();
-  await page.waitForURL(base + "/");
+  await page.waitForURL(homeUrl);
 
   const importer = dialog("导入曲谱");
   await button("导入曲谱").click();
@@ -226,7 +227,7 @@ try {
   await button("应用曲谱信息").click();
   await action("文件", "返回首页");
   await button("不导出并继续", leave).click();
-  await page.waitForURL(base + "/");
+  await page.waitForURL(homeUrl);
   await page.getByRole("navigation", { name: "首页导航" }).getByRole("link", { name: "打开编辑器", exact: true }).click();
   await page.waitForURL(base + "/editor");
   assert.equal(await status(), "示例曲谱");

@@ -32,8 +32,8 @@ try {
   page.on("pageerror", error => { errors.push(error.message); console.error(error.message); });
   await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/__lyrics__`);
   await page.waitForFunction(() => !!window.lyricTest?.controller.current);
-  const sidebar = page.locator("#music-text-sidebar");
-  const popover = page.locator("#music-text-edit-popover");
+  const sidebar = page.locator("[data-music-text-sidebar]");
+  const popover = page.locator("[id$=music-text-edit-popover]");
   const input = sidebar.getByRole("textbox", { name: "连续歌词", exact: true });
   const popInput = popover.getByRole("textbox", { name: "连续歌词", exact: true });
   const apply = sidebar.getByRole("button", { name: /^应\s*用$/ });
@@ -239,7 +239,7 @@ try {
     node.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", keyCode: 229, bubbles: true }));
   });
   assert.equal((await snapshot()).history, history);
-  await page.waitForFunction(() => !document.querySelector('#music-text-sidebar button[aria-label="应用"]')?.disabled);
+  await page.waitForFunction(() => !document.querySelector('[data-music-text-sidebar] button[aria-label="应用"]')?.disabled);
   await apply.click();
   await page.waitForFunction(history => window.lyricTest.session.getState().historyDepth.past === history + 1, history);
   assert.equal((await snapshot()).target.eventId, beforeAdd.target.eventId);

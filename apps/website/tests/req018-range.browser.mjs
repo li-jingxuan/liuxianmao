@@ -174,7 +174,7 @@ try {
   await score.getByText("G", { exact: true }).first().click();
   assert.equal(await page.locator("[data-music-text-range-editor]").count(), 1);
   assert.equal(await input.inputValue(), "6 7");
-  assert.equal(await page.locator("#chord-edit-popover").count(), 0);
+  assert.equal(await page.locator("[id$=chord-edit-popover]").count(), 0);
   await input.dispatchEvent("compositionend", { data: "唱" });
   await score.getByText("G", { exact: true }).first().click();
   assert.equal(await page.locator("[data-music-text-range-editor]").count(), 1);

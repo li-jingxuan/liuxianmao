@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
-  EXAMPLE_MVP_6_DOCUMENT,
   parseLyricSequence,
   planLyricSequence,
   planLyricPositions,
 } from "@liuxianmao/lxm-editor";
-import { buildLyricMappingPreview, LyricFormView } from "../components/EditorShell/lyrics/LyricFormView";
-import { readMusicTextDraft } from "../components/EditorShell/music-text/music-text-draft";
+import { EXAMPLE_MVP_6_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { buildLyricMappingPreview, LyricFormView } from "../../../packages/lxm-editor-react/src/EditorShell/lyrics/LyricFormView";
+import { readMusicTextDraft } from "../../../packages/lxm-editor-react/src/EditorShell/music-text/music-text-draft";
 
 function fixture() {
   const document = structuredClone(EXAMPLE_MVP_6_DOCUMENT);

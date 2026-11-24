@@ -4,22 +4,22 @@ import { renderToStaticMarkup } from "react-dom/server";
 import {
   applyScoreCommand,
   buildLayout,
-  EXAMPLE_MVP_7_2_DOCUMENT,
   type ILXMRhythm,
 } from "@liuxianmao/lxm-editor";
+import { EXAMPLE_MVP_7_2_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
 import {
   resolveMusicTextHoverTarget,
   sameMusicTextTarget,
-} from "../components/EditorShell/music-text/music-text-hover";
-import { resolveScorePointerAction } from "../components/EditorShell/session/editor-object-selection";
-import { resolveParagraphFocus } from "../components/EditorShell/score/music-text-focus";
+} from "../../../packages/lxm-editor-react/src/EditorShell/music-text/music-text-hover";
+import { resolveScorePointerAction } from "../../../packages/lxm-editor-react/src/EditorShell/session/editor-object-selection";
+import { resolveParagraphFocus } from "../../../packages/lxm-editor-react/src/EditorShell/score/music-text-focus";
 import {
   resolveNumberedEditorTarget,
   numberedTargetWindow,
-} from "../components/EditorShell/numbered/numbered-editor-target";
-import { MusicTextEditingHints } from "../components/EditorShell/score/MusicTextEditingHints";
-import { createEditorSession } from "../stores/editor-store";
-import { createMusicTextMetricReader } from "../components/EditorShell/score/music-text-metric-reader";
+} from "../../../packages/lxm-editor-react/src/EditorShell/numbered/numbered-editor-target";
+import { MusicTextEditingHints } from "../../../packages/lxm-editor-react/src/EditorShell/score/MusicTextEditingHints";
+import { createEditorSessionStore as createEditorSession } from "../../../packages/lxm-editor-react/src/stores/editor-store";
+import { createMusicTextMetricReader } from "../../../packages/lxm-editor-react/src/EditorShell/score/music-text-metric-reader";
 
 describe("简谱空位与 hover 接入", () => {
   it.each([

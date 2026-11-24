@@ -1,8 +1,7 @@
+import { websiteEditorSession } from "../app/website-editor-session";
 import { describe, expect, it } from "vitest";
 import {
   A4_CONTENT_WIDTH,
-  EXAMPLE_MVP_7_2_DOCUMENT,
-  DEFAULT_MOCK_DOCUMENT,
   buildLayout,
   hitTestNumbered,
   loadDocument,
@@ -11,8 +10,9 @@ import {
   collectMusicTextMeasureRequests,
   copyChordPreset,
 } from "@liuxianmao/lxm-editor";
+import { EXAMPLE_MVP_7_2_DOCUMENT, DEFAULT_MOCK_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
 import { getMeasureContentBottom } from "../../../packages/lxm-editor/src/layout/rhythm/rhythm-bounds";
-import { createEditorSession, editorStore } from "../stores/editor-store";
+import { createEditorSessionStore as createEditorSession } from "../../../packages/lxm-editor-react/src/stores/editor-store";
 import { buildScoreScene } from "@liuxianmao/lxm-editor";
 import historicalSource from "../../../packages/lxm-editor/example/default-score.lxm.json";
 
@@ -46,7 +46,7 @@ describe("MVP v7.2 简谱 mock", () => {
   it("首页通过正式加载器默认加载四十二小节《理想》", () => {
     const loaded = loadDocument(JSON.stringify(DEFAULT_MOCK_DOCUMENT));
     expect(loaded.ok, JSON.stringify(loaded)).toBe(true);
-    expect(editorStore.getState().document).toEqual(DEFAULT_MOCK_DOCUMENT);
+    expect(websiteEditorSession.getDocument()).toEqual(DEFAULT_MOCK_DOCUMENT);
     expect(DEFAULT_MOCK_DOCUMENT.documentRevision).toBe(724);
     expect(DEFAULT_MOCK_DOCUMENT.score).toMatchObject({
       title: "理想",

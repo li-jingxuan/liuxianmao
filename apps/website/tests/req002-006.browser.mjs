@@ -42,7 +42,7 @@ try {
   page.on("pageerror", error => errors.push(error.message));
   await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/__req002-006__`);
   const svg = page.getByRole("application", { name: "六线谱编辑器" });
-  const sidebar = page.locator("#music-text-sidebar");
+  const sidebar = page.locator("[data-music-text-sidebar]");
   await svg.waitFor({ timeout: 90000 });
   const snapshot = () => page.evaluate(() => {
     const state = window.coexistStore.getState();

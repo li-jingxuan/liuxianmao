@@ -5,11 +5,11 @@ import {
   A4_CONTENT_WIDTH,
   buildLayout,
   collectMusicTextMeasureRequests,
-  EXAMPLE_MVP_7_2_DOCUMENT,
 } from "@liuxianmao/lxm-editor";
-import { prepareScorePresentation } from "../components/EditorShell/output/image-export-controller";
+import { EXAMPLE_MVP_7_2_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { prepareScorePresentation } from "../../../packages/lxm-editor-react/src/EditorShell/output/image-export-controller";
 import { buildScoreScene } from "@liuxianmao/lxm-editor";
-import { ScorePresentationPage } from "../components/EditorShell/output/ScorePresentationPage";
+import { ScorePresentationPage } from "../../../packages/lxm-editor-react/src/EditorShell/output/ScorePresentationPage";
 
 afterEach(() => vi.unstubAllGlobals());
 describe("成品快照供预览、图片与打印消费", () => {

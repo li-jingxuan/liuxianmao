@@ -1,7 +1,6 @@
 import { createRoot } from "react-dom/client";
-import { EditorWorkspace } from "../app/editor/EditorWorkspace";
-import { createBlankScore } from "../components/EditorShell/output/new-score";
-import { editorStore } from "../stores/editor-store";
+import { editorStore, EditorWorkspace } from "./editor-workspace.fixture";
+import { createBlankScore } from "../../../packages/lxm-editor-react/src/EditorShell/output/new-score";
 import "../app/globals.scss";
 
 const score = structuredClone(editorStore.getState().document!);

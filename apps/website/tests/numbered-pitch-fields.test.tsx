@@ -1,7 +1,7 @@
 import { isValidElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { NumberedPitchFields } from "../components/EditorShell/numbered/NumberedPitchFields";
+import { NumberedPitchFields } from "../../../packages/lxm-editor-react/src/EditorShell/numbered/NumberedPitchFields";
 
 const find = (tree: ReactNode, label: string): Record<string, unknown> | null => {
   if (Array.isArray(tree)) {

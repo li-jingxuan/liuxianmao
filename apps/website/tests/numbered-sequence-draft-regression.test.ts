@@ -1,11 +1,12 @@
 import { createElement, type RefObject } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { createDocumentIdFactory, editNumberedTrack, EXAMPLE_MVP_7_2_DOCUMENT, type ILXMNumberedVoiceCommand } from "@liuxianmao/lxm-editor";
-import { checkNumberedDraftDependencies, NumberedEditor, type NumberedEditorController } from "../components/EditorShell/numbered/NumberedEditor";
-import { numberedContentDependency } from "../components/EditorShell/numbered/numbered-draft-dependencies";
-import { createEditorSession } from "../stores/editor-store";
-import { EditorStoreContext } from "../stores/editor-context";
+import { createDocumentIdFactory, editNumberedTrack, type ILXMNumberedVoiceCommand } from "@liuxianmao/lxm-editor";
+import { EXAMPLE_MVP_7_2_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { checkNumberedDraftDependencies, NumberedEditor, type NumberedEditorController } from "../../../packages/lxm-editor-react/src/EditorShell/numbered/NumberedEditor";
+import { numberedContentDependency } from "../../../packages/lxm-editor-react/src/EditorShell/numbered/numbered-draft-dependencies";
+import { createEditorSessionStore as createEditorSession } from "../../../packages/lxm-editor-react/src/stores/editor-store";
+import { EditorStoreContext } from "../../../packages/lxm-editor-react/src/stores/editor-context";
 
 const fixture = () => {
   const document = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);

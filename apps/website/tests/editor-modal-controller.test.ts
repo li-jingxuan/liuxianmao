@@ -1,16 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  EXAMPLE_MVP_7_2_DOCUMENT,
   LXMScoreCommandEnum,
   createCollapsedTabCellSelection,
   getFirstTabCellReference,
 } from "@liuxianmao/lxm-editor";
-import { createEditorSession } from "../stores/editor-store";
+import { EXAMPLE_MVP_7_2_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { createEditorSessionStore as createEditorSession } from "../../../packages/lxm-editor-react/src/stores/editor-store";
 import {
   createEditorModalController,
   type EditorModalRequest,
-} from "../components/EditorShell/session/editor-modal-controller";
-import { captureEditorVersion } from "../components/EditorShell/session/editor-session-version";
+} from "../../../packages/lxm-editor-react/src/EditorShell/session/editor-modal-controller";
+import { captureEditorVersion } from "../../../packages/lxm-editor-react/src/EditorShell/session/editor-session-version";
 
 const setup = () => {
   const session = createEditorSession(EXAMPLE_MVP_7_2_DOCUMENT);
