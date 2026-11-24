@@ -84,6 +84,14 @@ lxm_workbench exec --timeout 120 --command "
 "
 ```
 
-## 备案通过后开放公网
+## 通过公网 IP 访问
 
-备案期间保持站点仅供本机访问。备案通过后，在宿主机配置 Nginx，将 `https://www.liuxianmao.com` 的请求代理到 `http://127.0.0.1:3000`。为两个域名配置有效证书，并将 `liuxianmao.com` 以 301 跳转至 `https://www.liuxianmao.com$request_uri`，保留路径和查询参数。上线验收覆盖 HTTPS、裸域跳转、`/editor` 刷新和备案号展示。[阿里云轻量应用服务器备案说明](https://help.aliyun.com/zh/simple-application-server/user-guide/apply-for-an-icp-filing-for-a-domain-name)
+轻量服务器的云防火墙放行 TCP 80。宿主机运行 Nginx，通过 `http://59.110.24.228` 将请求转发给本机的 `127.0.0.1:3000`。Nginx 默认站点对其他 Host 返回 404。
+
+首次安装使用 Nginx 官方 EL8 稳定版软件源，仓库 URL 中的版本填写 `8`。本机的 DNF 排除列表包含 `nginx`，用 `sudo dnf --disableexcludes=main install nginx` 安装，后续用 `sudo dnf --disableexcludes=main upgrade nginx` 更新。[Nginx 官方 RPM 软件源](https://nginx.org/en/linux_packages.html#RHEL)
+
+通过 Workbench 将 `deploy/aliyun/nginx-ip.conf` 安装到 `/etc/nginx/conf.d/liuxianmao-ip.conf`。将软件包自带的 `/etc/nginx/conf.d/default.conf` 移到 `/etc/nginx/conf.d/default.conf.disabled`，然后执行 `sudo nginx -t` 和 `sudo systemctl enable --now nginx`。从服务器外部访问公网 IP 的 `/` 和 `/editor`，确认均返回 HTTP 200。
+
+## 备案通过后启用域名和 HTTPS
+
+在宿主机配置 Nginx，将 `https://www.liuxianmao.com` 的请求代理到 `http://127.0.0.1:3000`。为两个域名配置有效证书，并将 `liuxianmao.com` 以 301 跳转至 `https://www.liuxianmao.com$request_uri`，保留路径和查询参数。上线验收覆盖 HTTPS、裸域跳转、`/editor` 刷新和备案号展示。[阿里云轻量应用服务器备案说明](https://help.aliyun.com/zh/simple-application-server/user-guide/apply-for-an-icp-filing-for-a-domain-name)
