@@ -10,11 +10,15 @@ import {
 } from "../../src";
 
 const example = readFileSync(new URL("../../example/ideal-score.lxm.json", import.meta.url), "utf8");
+const beforeTuplets = JSON.parse(readFileSync(new URL("../fixtures/ideal-measure-32-before-tuplets.json", import.meta.url), "utf8"));
 
 const getMeasure = (document: ILXMDocument) => document.score.tracks[0]!.measures[31]!;
 
 const fixture = () => {
-  const loaded = loadDocument(example);
+  const source: ILXMDocument = JSON.parse(example);
+  // 新版将本小节缩短并录入两组三连音。回归用例恢复编组前的简谱、歌词与 TAB 拍点及容量。
+  Object.assign(getMeasure(source), beforeTuplets);
+  const loaded = loadDocument(JSON.stringify(source));
   if (!loaded.ok) throw new Error(loaded.errors.join("\n"));
   const document = loaded.document;
   const track = document.score.tracks[0]!;

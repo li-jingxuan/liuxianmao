@@ -13,7 +13,10 @@ COPY packages/tsconfig/package.json packages/tsconfig/package.json
 RUN pnpm install --frozen-lockfile
 COPY apps/website apps/website
 COPY packages packages
-ENV NEXT_PUBLIC_BASE_PATH=/app/liuxianmao
+# Next.js 在构建时把路径前缀写入页面和静态资源链接。飞牛构建默认使用网关前缀，
+# 阿里云构建显式传入 --build-arg NEXT_PUBLIC_BASE_PATH=，以便从域名根路径访问。
+ARG NEXT_PUBLIC_BASE_PATH=/app/liuxianmao
+ENV NEXT_PUBLIC_BASE_PATH=${NEXT_PUBLIC_BASE_PATH}
 RUN pnpm --filter @liuxianmao/website... build
 
 FROM ${NODE_IMAGE} AS runtime

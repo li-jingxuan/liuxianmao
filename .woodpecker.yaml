@@ -60,4 +60,4 @@ steps:
       LXM_NAS_KNOWN_HOSTS:
         from_secret: lxm_nas_known_hosts
     commands:
-      - sh apps/fnos/ci-release.sh
+      - sh deploy/fnos/ci-release.sh

@@ -255,6 +255,14 @@
 
 .range .options {
   margin-top: 5px;
+
+  // 旋转预设的图标随按钮文字对齐，并沿用选中和悬停时的文字颜色。
+  button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+  }
 }
 
 .feedback,

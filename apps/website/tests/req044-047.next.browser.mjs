@@ -500,6 +500,9 @@ try {
   });
   await check("《理想》第 32 小节三个简谱音符可用顶栏设置或删除三连音", async () => {
     const ideal = JSON.parse(await readFile(new URL("../../../packages/lxm-editor/example/ideal-score.lxm.json", import.meta.url), "utf8"));
+    // 默认谱面已经编组，从历史小节状态开始才能通过顶栏完整验证新增、删除和撤销。
+    const beforeTuplets = JSON.parse(await readFile(new URL("../../../packages/lxm-editor/tests/fixtures/ideal-measure-32-before-tuplets.json", import.meta.url), "utf8"));
+    Object.assign(ideal.score.tracks[0].measures[31], beforeTuplets);
     assert.equal((await state("replace", ideal)).ok, true);
     const before = await state();
     const measure = before.document.score.tracks[0].measures[31];

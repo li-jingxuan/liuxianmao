@@ -1,5 +1,6 @@
 "use client";
 
+import { RotateLeftOutlined, RotateRightOutlined } from "@ant-design/icons";
 import {
   useId,
   useLayoutEffect,
@@ -9,21 +10,33 @@ import {
 } from "react";
 import {
   createExampleWatermarkAsset,
-  DEFAULT_IMAGE_STYLE,
-  IMAGE_WATERMARK_LIMITS,
+  DEFAULT_WATERMARK_STYLE,
+  WATERMARK_LIMITS,
   readWatermarkAsset,
   type ScoreWatermark,
   type WatermarkAsset,
+  type WatermarkStyle,
 } from "./score-watermark";
 import styles from "./watermark-form.module.scss";
 
 const textLimit = 32;
 const graphemes = new Intl.Segmenter("zh", { granularity: "grapheme" });
 const lineBreaks = /(?:\r\n|\r|\n)+/g;
+// 文字和图片水印共用预设组。方向图标用于辅助识别，按钮的无障碍名称完整描述旋转方向与角度。
 const angles = [
-  { value: -30, label: "↶ −30°", name: "逆时针旋转到 30 度" },
-  { value: 0, label: "水平 0°", name: "恢复水平，0 度" },
-  { value: 30, label: "↷ +30°", name: "顺时针旋转到 30 度" },
+  {
+    value: -30,
+    label: "−30°",
+    name: "逆时针旋转到 30 度",
+    icon: RotateLeftOutlined,
+  },
+  { value: 0, label: "水平 0°", name: "恢复水平，0 度", icon: null },
+  {
+    value: 30,
+    label: "+30°",
+    name: "顺时针旋转到 30 度",
+    icon: RotateRightOutlined,
+  },
 ] as const;
 const positions = [
   { value: "center", label: "居中" },
@@ -32,7 +45,7 @@ const positions = [
 ] as const;
 
 type ImageWatermark = Extract<ScoreWatermark, { kind: "image" }>;
-type ImageStyle = Omit<ImageWatermark, "kind" | "asset">;
+type TextWatermark = Extract<ScoreWatermark, { kind: "text" }>;
 type ImageDraft = Omit<ImageWatermark, "asset"> & {
   asset: WatermarkAsset | null;
 };
@@ -40,7 +53,7 @@ type WatermarkDraft = {
   base: ScoreWatermark;
   enabled: boolean;
   kind: "text" | "image";
-  text: string;
+  text: TextWatermark;
   image: ImageDraft;
   reading: boolean;
   uploadError: string;
@@ -50,28 +63,34 @@ const newDraft = (base: ScoreWatermark): WatermarkDraft => ({
   base,
   enabled: base !== null,
   kind: base?.kind ?? "text",
-  text: base?.kind === "text" ? base.text : "",
+  text:
+    base?.kind === "text"
+      ? base
+      : { kind: "text", ...DEFAULT_WATERMARK_STYLE.text, text: "" },
   image:
     base?.kind === "image"
       ? base
-      : { kind: "image", ...DEFAULT_IMAGE_STYLE, asset: null },
+      : { kind: "image", ...DEFAULT_WATERMARK_STYLE.image, asset: null },
   reading: false,
   uploadError: "",
 });
 
-/** 比较成品所用值。文字草稿中的首尾空白可以还原，应用后仍是原文时可继续使用旧成品。 */
+/** 内容和样式共同决定成品是否失效。仅整理首尾空白且样式一致时，可继续使用旧成品。 */
 export const sameWatermark = (a: ScoreWatermark, b: ScoreWatermark) => {
   if (a === b) return true;
-  if (a?.kind === "text" && b?.kind === "text") return a.text === b.text;
-  return (
-    a?.kind === "image" &&
-    b?.kind === "image" &&
-    a.asset === b.asset &&
-    a.size === b.size &&
-    a.opacity === b.opacity &&
-    a.angle === b.angle &&
-    a.position === b.position
-  );
+  if (
+    !a ||
+    !b ||
+    a.kind !== b.kind ||
+    a.size !== b.size ||
+    a.opacity !== b.opacity ||
+    a.angle !== b.angle ||
+    a.position !== b.position
+  )
+    return false;
+  return a.kind === "text"
+    ? b.kind === "text" && a.text === b.text
+    : b.kind === "image" && a.asset === b.asset;
 };
 
 /** 草稿只存在一个预览里。弹窗读取同一份状态决定试排和输出锁，表单负责编辑它。 */
@@ -89,7 +108,7 @@ export const useWatermarkDraft = (watermark: ScoreWatermark) => {
   );
 
   const { enabled, kind, text, image, reading } = draft;
-  const trimmed = text.trim();
+  const trimmed = text.text.trim();
   const count = [...graphemes.segment(trimmed)].length;
   const imageValue = image.asset ? { ...image, asset: image.asset } : undefined;
   const textError =
@@ -112,7 +131,7 @@ export const useWatermarkDraft = (watermark: ScoreWatermark) => {
     : error
       ? undefined
       : kind === "text"
-        ? { kind, text: trimmed }
+        ? { ...text, text: trimmed }
         : imageValue;
   const dirty =
     value === undefined ||
@@ -120,8 +139,10 @@ export const useWatermarkDraft = (watermark: ScoreWatermark) => {
     (enabled &&
       kind === "text" &&
       watermark?.kind === "text" &&
-      text !== watermark.text);
-  const trial = dirty && enabled && kind === "image" ? imageValue : undefined;
+      text.text !== watermark.text);
+  // 试排值只交给当前页。文字不合法时回到已应用的预览，换图解码期间继续展示上一张可用的草稿图片。
+  const trial =
+    dirty && enabled ? (kind === "image" ? imageValue : value) : undefined;
 
   const setEnabled = (next: boolean) => {
     readVersion.current += 1;
@@ -185,15 +206,18 @@ export const useWatermarkDraft = (watermark: ScoreWatermark) => {
     setKind,
     reset,
     load,
-    setText: (next: string) => setState((old) => ({ ...old, text: next })),
-    setImageStyle: (style: Partial<ImageStyle>) => {
-      setState((old) => ({ ...old, image: { ...old.image, ...style } }));
+    setText: (next: string) => {
+      setState((old) => ({ ...old, text: { ...old.text, text: next } }));
+    },
+    setStyle: (style: Partial<WatermarkStyle>) => {
+      // 两种水印各自保存弹窗内的草稿。切换类型时保留正在试过的布局，避免把图片长边百分比用作文字字号。
+      setState((old) => ({ ...old, [kind]: { ...old[kind], ...style } }));
     },
   };
 };
 
 const rangeFields = [
-  { field: "size", label: "图片长边" },
+  { field: "size", label: { image: "图片长边", text: "文字大小" } },
   { field: "opacity", label: "不透明度" },
   { field: "angle", label: "旋转角度" },
 ] as const;
@@ -216,8 +240,8 @@ export const WatermarkForm = ({
   const {
     enabled,
     kind,
-    text,
-    image,
+    text: { text },
+    image: { asset },
     reading,
     uploadError,
     count,
@@ -225,16 +249,13 @@ export const WatermarkForm = ({
     dirty,
     value,
   } = draft;
-  const { asset, angle, position } = image;
-  let feedback = error;
+  const style = draft[kind];
+  const { angle, position } = style;
+  // 文字校验紧跟输入框，并通过 aria-describedby 关联。下方只显示试排状态或图片选择提示，避免重复播报错误。
+  let feedback = kind === "image" && !uploadError ? error : "";
   if (!enabled && dirty) feedback = "应用后将移除全部页的水印。";
-  else if (dirty && !error)
-    feedback =
-      kind === "image"
-        ? "当前页正在试排，应用后更新全部谱页。"
-        : "应用后更新全部谱页。";
+  else if (dirty && !error) feedback = "当前页正在试排，应用后更新全部谱页。";
   else if (enabled && !dirty) feedback = "已应用于本曲谱的全部页。";
-  if (uploadError && enabled && kind === "image" && error) feedback = "";
 
   const restore = () => {
     setDragging(false);
@@ -330,7 +351,7 @@ export const WatermarkForm = ({
                 disabled={disabled}
                 value={text}
                 aria-invalid={!!error}
-                aria-describedby={`${id}-feedback ${id}-count`}
+                aria-describedby={`${id}-text-error ${id}-count`}
                 onChange={(event) => draft.setText(event.currentTarget.value)}
                 onPaste={pasteText}
                 onKeyDown={(event) => {
@@ -346,6 +367,13 @@ export const WatermarkForm = ({
                   }
                 }}
               />
+              <p
+                id={`${id}-text-error`}
+                className={styles.error}
+                aria-live="polite"
+              >
+                {error}
+              </p>
             </>
           ) : (
             <>
@@ -437,110 +465,101 @@ export const WatermarkForm = ({
               >
                 {uploadError}
               </p>
-              {asset && (
-                <fieldset
-                  className={styles.placement}
-                  disabled={disabled || reading}
-                >
-                  {rangeFields.map(({ field, label }) => {
-                    const current = image[field];
-                    const { min, max } = IMAGE_WATERMARK_LIMITS[field];
-                    const formatted =
-                      field === "size"
-                        ? `纸宽的 ${current}%`
-                        : field === "opacity"
-                          ? `${current}%`
-                          : `${current > 0 ? "+" : ""}${current}°`;
-                    const spoken =
-                      field === "angle"
-                        ? angle === 0
-                          ? "水平，0 度"
-                          : `${angle < 0 ? "逆时针" : "顺时针"} ${Math.abs(angle)} 度`
-                        : formatted;
-                    return (
-                      <div key={field} className={styles.range}>
-                        <div className={styles.fieldLabel}>
-                          <label htmlFor={`${id}-${field}`}>{label}</label>
-                          <span aria-hidden="true">{formatted}</span>
-                        </div>
-                        <input
-                          id={`${id}-${field}`}
-                          type="range"
-                          min={min}
-                          max={max}
-                          step={1}
-                          value={current}
-                          aria-valuetext={spoken}
-                          onChange={(event) =>
-                            draft.setImageStyle({
-                              [field]: event.currentTarget.valueAsNumber,
-                            })
-                          }
-                        />
-                        {field === "angle" && (
-                          <div
-                            className={styles.options}
-                            role="group"
-                            aria-label="常用角度"
-                          >
-                            {angles.map(
-                              ({
-                                value: degrees,
-                                label: name,
-                                name: accessibleName,
-                              }) => (
-                                <button
-                                  key={degrees}
-                                  type="button"
-                                  aria-label={accessibleName}
-                                  aria-pressed={angle === degrees}
-                                  onClick={() =>
-                                    draft.setImageStyle({ angle: degrees })
-                                  }
-                                >
-                                  {name}
-                                </button>
-                              ),
-                            )}
-                          </div>
+            </>
+          )}
+          {(kind === "text" || asset) && (
+            <fieldset
+              className={styles.placement}
+              disabled={disabled || (kind === "image" && reading)}
+            >
+              {rangeFields.map(({ field, label }) => {
+                const current = style[field];
+                const { min, max } = WATERMARK_LIMITS[kind][field];
+                const formatted =
+                  field === "size"
+                    ? kind === "image"
+                      ? `纸宽的 ${current}%`
+                      : `${current} px`
+                    : field === "opacity"
+                      ? `${current}%`
+                      : `${current > 0 ? "+" : ""}${current}°`;
+                const spoken =
+                  field === "angle"
+                    ? angle === 0
+                      ? "水平，0 度"
+                      : `${angle < 0 ? "逆时针" : "顺时针"} ${Math.abs(angle)} 度`
+                    : formatted;
+                return (
+                  <div key={field} className={styles.range}>
+                    <div className={styles.fieldLabel}>
+                      <label htmlFor={`${id}-${field}`}>
+                        {typeof label === "string" ? label : label[kind]}
+                      </label>
+                      <span aria-hidden="true">{formatted}</span>
+                    </div>
+                    <input
+                      id={`${id}-${field}`}
+                      type="range"
+                      min={min}
+                      max={max}
+                      step={1}
+                      value={current}
+                      aria-valuetext={spoken}
+                      onChange={(event) =>
+                        draft.setStyle({
+                          [field]: event.currentTarget.valueAsNumber,
+                        })
+                      }
+                    />
+                    {field === "angle" && (
+                      <div
+                        className={styles.options}
+                        role="group"
+                        aria-label="常用角度"
+                      >
+                        {angles.map(
+                          ({ value: degrees, label, name, icon: Icon }) => (
+                            <button
+                              key={degrees}
+                              type="button"
+                              aria-label={name}
+                              aria-pressed={angle === degrees}
+                              onClick={() => draft.setStyle({ angle: degrees })}
+                            >
+                              {Icon && <Icon aria-hidden="true" />}
+                              {label}
+                            </button>
+                          ),
                         )}
                       </div>
-                    );
-                  })}
-                  <div className={styles.positionLabel} id={`${id}-position`}>
-                    每页位置
+                    )}
                   </div>
-                  <div
-                    className={styles.options}
-                    role="group"
-                    aria-labelledby={`${id}-position`}
+                );
+              })}
+              <div className={styles.positionLabel} id={`${id}-position`}>
+                每页位置
+              </div>
+              <div
+                className={styles.options}
+                role="group"
+                aria-labelledby={`${id}-position`}
+              >
+                {positions.map(({ value: option, label }) => (
+                  <button
+                    key={option}
+                    type="button"
+                    aria-pressed={position === option}
+                    onClick={() => draft.setStyle({ position: option })}
                   >
-                    {positions.map(({ value: option, label }) => (
-                      <button
-                        key={option}
-                        type="button"
-                        aria-pressed={position === option}
-                        onClick={() =>
-                          draft.setImageStyle({ position: option })
-                        }
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </fieldset>
-              )}
-            </>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
           )}
         </>
       )}
-      <p
-        id={`${id}-feedback`}
-        className={
-          enabled && kind === "text" && error ? styles.error : styles.feedback
-        }
-        aria-live="polite"
-      >
+      <p className={styles.feedback} aria-live="polite">
         {feedback}
       </p>
       {dirty && (

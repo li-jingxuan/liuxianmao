@@ -35,7 +35,7 @@ const PageWatermark = ({
         />
       ) : (
         <text
-          x={0}
+          x={mark.textX}
           y={mark.baseline}
           fontFamily={mark.fontFamily}
           fontSize={mark.fontSize}

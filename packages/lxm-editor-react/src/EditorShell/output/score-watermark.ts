@@ -9,7 +9,7 @@ export interface WatermarkAsset {
   readonly raster: HTMLCanvasElement;
 }
 
-interface ImageWatermarkStyle {
+export interface WatermarkStyle {
   size: number;
   opacity: number;
   angle: number;
@@ -18,20 +18,23 @@ interface ImageWatermarkStyle {
 
 export type ScoreWatermark =
   | null
-  | { kind: "text"; text: string }
-  | ({ kind: "image"; asset: WatermarkAsset } & ImageWatermarkStyle);
+  | ({ kind: "text"; text: string } & WatermarkStyle)
+  | ({ kind: "image"; asset: WatermarkAsset } & WatermarkStyle);
 
-export const DEFAULT_IMAGE_STYLE: Readonly<ImageWatermarkStyle> = {
-  size: 38,
-  opacity: 18,
-  angle: 0,
-  position: "center",
-};
+// 文字大小为 A4 逻辑像素字号，图片大小为长边占纸宽的百分比。保留各自原有的默认视觉效果。
+export const DEFAULT_WATERMARK_STYLE = {
+  text: { size: 40, opacity: 12, angle: -30, position: "center" },
+  image: { size: 38, opacity: 18, angle: 0, position: "center" },
+} as const satisfies Record<"text" | "image", Readonly<WatermarkStyle>>;
 
-export const IMAGE_WATERMARK_LIMITS = {
-  size: { min: 10, max: 65 },
+const commonLimits = {
   opacity: { min: 5, max: 45 },
   angle: { min: -180, max: 180 },
+};
+
+export const WATERMARK_LIMITS = {
+  text: { ...commonLimits, size: { min: 12, max: 96 } },
+  image: { ...commonLimits, size: { min: 10, max: 65 } },
 } as const;
 
 const unreadableImage = "无法读取这张图片，请重新导出或换一张。";
@@ -127,14 +130,43 @@ export const createExampleWatermarkAsset = (): WatermarkAsset => {
   return freezeRaster("青禾吉他教室.png", raster, raster.width, raster.height);
 };
 
-const limitImageStyle = (
-  key: keyof typeof IMAGE_WATERMARK_LIMITS,
-  value: number,
+const limitStyle = (
+  watermark: NonNullable<ScoreWatermark>,
+  key: keyof typeof WATERMARK_LIMITS.text,
 ) => {
-  const { min, max } = IMAGE_WATERMARK_LIMITS[key];
+  const { min, max } = WATERMARK_LIMITS[watermark.kind][key];
+  const value = watermark[key];
   return Number.isFinite(value)
     ? Math.max(min, Math.min(max, value))
-    : DEFAULT_IMAGE_STYLE[key];
+    : DEFAULT_WATERMARK_STYLE[watermark.kind][key];
+};
+
+type PaperSize = Pick<ILXMPageLayout, "width" | "height">;
+
+/** 文字墨迹与图片都绕自身中心旋转。角位按旋转后的外框对齐纸边，保持纸宽 6% 的边距。 */
+const getPlacement = (
+  page: PaperSize,
+  width: number,
+  height: number,
+  angle: number,
+  position: WatermarkStyle["position"],
+) => {
+  if (position === "center")
+    return { centerX: page.width / 2, centerY: page.height / 2 };
+
+  const radians = (angle * Math.PI) / 180;
+  const cos = Math.abs(Math.cos(radians));
+  const sin = angle % 180 === 0 ? 0 : Math.abs(Math.sin(radians));
+  const halfOuterWidth = (width * cos + height * sin) / 2;
+  const halfOuterHeight = (width * sin + height * cos) / 2;
+  const margin = page.width * 0.06;
+  return {
+    centerX:
+      position === "left"
+        ? margin + halfOuterWidth
+        : page.width - margin - halfOuterWidth,
+    centerY: page.height - margin - halfOuterHeight,
+  };
 };
 
 let textMeasureContext: CanvasRenderingContext2D | undefined;
@@ -142,11 +174,14 @@ let textMeasureContext: CanvasRenderingContext2D | undefined;
 /** 在 A4 逻辑坐标内计算同一份变换参数，SVG 与 Canvas 都绕水印中心旋转。 */
 export const getScoreWatermarkLayout = (
   watermark: ScoreWatermark | undefined,
-  page: Pick<ILXMPageLayout, "width" | "height">,
+  page: PaperSize,
 ) => {
   if (!watermark) return null;
-  const centerX = page.width / 2;
-  const centerY = page.height / 2;
+  const size = limitStyle(watermark, "size");
+  const angle = limitStyle(watermark, "angle");
+  const opacity = limitStyle(watermark, "opacity") / 100;
+  const { position = DEFAULT_WATERMARK_STYLE[watermark.kind].position } =
+    watermark;
   if (watermark.kind === "text") {
     // Canvas 会将 ASCII 制表及换行字符画成空格，SVG 也使用同一行内容。
     const text = watermark.text.replace(/[\t\n\f\r]/g, " ");
@@ -155,65 +190,55 @@ export const getScoreWatermarkLayout = (
       document.createElement("canvas").getContext("2d") ?? undefined;
     if (!textMeasureContext) return null;
     const ctx = textMeasureContext;
-    const baseSize = 40;
     ctx.direction = "ltr";
     ctx.textAlign = "center";
     ctx.textBaseline = "alphabetic";
-    ctx.font = `${baseSize}px ${SCORE_TEXT_FONT}`;
-    const width = ctx.measureText(text).width;
-    const fontSize =
-      width > page.width * 0.75
-        ? (baseSize * page.width * 0.75) / width
-        : baseSize;
-    ctx.font = `${fontSize}px ${SCORE_TEXT_FONT}`;
-    const metrics = ctx.measureText(text);
-    // 按缩放后墨迹的上下边界微调字母基线，保证中英文、带下伸部的字形均按实际高度居中。
-    const baseline =
-      (metrics.actualBoundingBoxAscent - metrics.actualBoundingBoxDescent) / 2;
+    ctx.font = `${size}px ${SCORE_TEXT_FONT}`;
+    let metrics = ctx.measureText(text);
+    const lineWidth = Math.max(
+      metrics.width,
+      metrics.actualBoundingBoxLeft + metrics.actualBoundingBoxRight,
+    );
+    const maxWidth = page.width * 0.75;
+    let fontSize = size;
+    // 保留单行署名的宽度上限。长文字用选定字号试算后等比缩小，避免大字号旋转后越过纸边。
+    if (lineWidth > maxWidth) {
+      fontSize = (size * maxWidth) / lineWidth;
+      ctx.font = `${fontSize}px ${SCORE_TEXT_FONT}`;
+      metrics = ctx.measureText(text);
+    }
+    const {
+      actualBoundingBoxLeft: left,
+      actualBoundingBoxRight: right,
+      actualBoundingBoxAscent: ascent,
+      actualBoundingBoxDescent: descent,
+    } = metrics;
+    // 以可见墨迹而非字宽或字体行高定位，避免中英文混排和下伸字形在旋转、贴边时产生偏移。
     return {
       kind: "text" as const,
       text,
       fontFamily: SCORE_TEXT_FONT,
       fontSize,
-      baseline,
-      centerX,
-      centerY,
-      angle: -30,
-      opacity: 0.12,
+      textX: (left - right) / 2,
+      baseline: (ascent - descent) / 2,
+      ...getPlacement(page, left + right, ascent + descent, angle, position),
+      angle,
+      opacity,
     };
   }
 
-  const { asset, position } = watermark;
-  const size = limitImageStyle("size", watermark.size);
-  const angle = limitImageStyle("angle", watermark.angle);
+  const { asset } = watermark;
   const scale =
     (page.width * size) / (100 * Math.max(asset.width, asset.height));
   const width = asset.width * scale;
   const height = asset.height * scale;
-  let x = centerX;
-  let y = centerY;
-  if (position !== "center") {
-    // 角位按旋转后外接矩形的边缘定位。水平与正负 180° 共享同一外框。
-    const radians = (angle * Math.PI) / 180;
-    const cos = Math.abs(Math.cos(radians));
-    const sin = angle % 180 === 0 ? 0 : Math.abs(Math.sin(radians));
-    const halfOuterWidth = (width * cos + height * sin) / 2;
-    const halfOuterHeight = (width * sin + height * cos) / 2;
-    const margin = page.width * 0.06;
-    x =
-      position === "left"
-        ? margin + halfOuterWidth
-        : page.width - margin - halfOuterWidth;
-    y = page.height - margin - halfOuterHeight;
-  }
   return {
     kind: "image" as const,
     asset,
     width,
     height,
-    centerX: x,
-    centerY: y,
+    ...getPlacement(page, width, height, angle, position),
     angle,
-    opacity: limitImageStyle("opacity", watermark.opacity) / 100,
+    opacity,
   };
 };

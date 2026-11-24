@@ -150,6 +150,42 @@ function assertRotatedPixels(samples, label, clean) {
   }
 }
 
+async function assertTextPng(page, actual, clean) {
+  const { dimensions, rightInk, leftInk } = await page.evaluate(async ({ actual, clean }) => {
+    const decode = (base64) => createImageBitmap(new Blob([
+      Uint8Array.from(atob(base64), (char) => char.charCodeAt(0)),
+    ], { type: "image/png" }));
+    const [marked, baseline] = await Promise.all([decode(actual), decode(clean)]);
+    const { width, height } = marked;
+    const canvas = document.createElement("canvas");
+    // 仅检查纸面底部，比较同一页的白纸像素以排除原有谱面。
+    canvas.width = width;
+    canvas.height = Math.round(height * 0.12);
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    const pixels = (bitmap) => {
+      ctx.drawImage(bitmap, 0, canvas.height - height);
+      bitmap.close();
+      return ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+    };
+    const before = pixels(baseline);
+    const after = pixels(marked);
+    let rightInk = 0;
+    let leftInk = 0;
+    for (let offset = 0; offset < after.length; offset += 4) {
+      const x = (offset / 4) % width;
+      if (before[offset] < 250 || before[offset + 1] < 250 || before[offset + 2] < 250) continue;
+      const gray = after[offset];
+      if (gray < 135 || gray > 150 || after[offset + 1] !== gray || after[offset + 2] !== gray) continue;
+      if (x > width * 0.5) rightInk++;
+      if (x < width * 0.25) leftInk++;
+    }
+    return { dimensions: [width, height], rightInk, leftInk };
+  }, { actual: actual.toString("base64"), clean: Buffer.from(clean).toString("base64") });
+  assert.deepEqual(dimensions, [2480, 3508]);
+  assert.ok(rightInk > 100, `PNG 右下应有 45% 不透明度的文字像素，实际 ${rightInk}`);
+  assert.equal(leftInk, 0, "PNG 左下不应出现新增文字像素");
+}
+
 function zipPages(bytes, expectedCount) {
   const pages = Object.entries(unzipSync(bytes)).sort(([a], [b]) => a.localeCompare(b));
   assert.equal(pages.length, expectedCount);
@@ -202,10 +238,14 @@ try {
   const thumbnails = (root) => root.locator('[aria-label="页面缩略图"]');
   const printLayer = page.locator(printLayerSelector);
   const toggle = (root) => root.getByRole("switch", { name: "自定义水印", exact: true });
-  const angle = (root) => root.getByRole("slider", { name: /旋转角度/ });
+  const slider = (root, name) => root.getByRole("slider", { name, exact: true });
+  const angle = (root) => slider(root, "旋转角度");
   const input = (root) => root.getByRole("textbox", { name: /水印文字/ });
   const apply = (root) => button(root, "应用到全部页");
   const restore = (root) => button(root, "还原");
+  const position = (root, name) => button(root.getByRole("group", { name: "每页位置" }), name);
+  const previewMode = (root, name) => button(root.getByRole("group", { name: "预览方式" }), name);
+  const printButton = button(print, "打开打印窗口");
   const status = () => page.locator("[data-file-status]").innerText({ timeout: 45000 });
   const ready = (root) => root.locator('[data-image-export-status="ready"]').waitFor({ timeout: 45000 });
   const close = async (root) => {
@@ -228,6 +268,33 @@ try {
   }[degrees]);
   const sliderAngle = (root) => angle(root).evaluate((element) => Number(element.getAttribute("aria-valuenow") ?? element.value));
   const markCount = (root) => root.locator(watermarkSelector).count();
+  const textMark = (root) => root.locator('[data-score-watermark="text"]');
+  const defaultTextStyle = { size: 40, opacity: 12, angle: -30, position: "居中" };
+  const assertTextMarks = async (root, expectedCount, style = defaultTextStyle) => {
+    const marks = await textMark(root).evaluateAll((nodes) => nodes.map((node) => {
+      const transform = node.transform.baseVal;
+      const { e: x, f: y } = transform.getItem(0).matrix;
+      const { width, height } = node.ownerSVGElement.viewBox.baseVal;
+      return {
+        text: node.textContent,
+        size: Number(node.querySelector("text").getAttribute("font-size")),
+        opacity: Number(node.getAttribute("opacity")),
+        angle: transform.getItem(1).angle,
+        x: x / width,
+        y: y / height,
+      };
+    }));
+    assert.equal(marks.length, expectedCount);
+    for (const { x, y, ...mark } of marks) {
+      assert.deepEqual(mark, { text, size: style.size, opacity: style.opacity / 100, angle: style.angle });
+      if (style.position === "居中") {
+        assert.ok(Math.abs(x - 0.5) < 0.001 && Math.abs(y - 0.5) < 0.001, `水印应居中，实际为 ${x}, ${y}`);
+      } else {
+        const correctSide = style.position === "左下" ? x < 0.5 : x > 0.5;
+        assert.ok(correctSide && y > 0.75 && y < 1, `水印应在${style.position}，实际为 ${x}, ${y}`);
+      }
+    }
+  };
   const assertAngles = async (root, expectedCount, degrees) => {
     const marks = root.locator(watermarkSelector);
     const transforms = await marks.evaluateAll((nodes) => nodes.map((node) => ({
@@ -271,12 +338,25 @@ try {
   await button(image, "文字水印").click();
   await input(image).fill("   ");
   assert.equal(await apply(image).isDisabled(), true);
+  assert.equal(await markCount(main(image)), 0);
   await input(image).fill("e\u0301".repeat(33));
   assert.equal(await apply(image).isDisabled(), true);
   await input(image).fill("e\u0301".repeat(32));
   assert.equal(await apply(image).isEnabled(), true);
   await input(image).fill(`  ${text}  `);
-  assert.equal(await markCount(image), 0);
+  for (const [label, min, max, value] of [
+    ["文字大小", "12", "96", "40"],
+    ["不透明度", "5", "45", "12"],
+    ["旋转角度", "-180", "180", "-30"],
+  ]) {
+    const control = slider(image, label);
+    assert.deepEqual([await control.getAttribute("min"), await control.getAttribute("max"), await control.inputValue()], [min, max, value]);
+  }
+  assert.equal(await anglePreset(image, -30).getAttribute("aria-pressed"), "true");
+  assert.equal(await position(image, "居中").getAttribute("aria-pressed"), "true");
+  await assertTextMarks(main(image), 1);
+  assert.equal(await image.getByText("当前页试排", { exact: true }).isVisible(), true);
+  assert.equal(await markCount(thumbnails(image)), 0);
   assert.equal(await markCount(printLayer), 0);
   assert.equal(await link("下载图片包").count(), 0);
   await restore(image).click();
@@ -291,9 +371,88 @@ try {
   await ready(image);
   assert.equal(await link("下载图片包").count(), 0);
   await waitRevoked(cleanZip.url);
-  assert.equal(await main(image).locator('[data-score-watermark="text"]').textContent(), text);
-  assert.deepEqual(await thumbnails(image).locator('[data-score-watermark="text"]').allTextContents(), Array(pageCount).fill(text));
-  assert.deepEqual(await printLayer.locator('[data-score-watermark="text"]').allTextContents(), Array(pageCount).fill(text));
+  await assertTextMarks(main(image), 1);
+  await assertTextMarks(thumbnails(image), pageCount);
+  await assertTextMarks(printLayer, pageCount);
+
+  await button(thumbnails(image), "第 2 页").click();
+  await slider(image, "文字大小").press("ArrowRight");
+  assert.equal(await input(image).inputValue(), text);
+  assert.equal(await apply(image).isEnabled(), true);
+  assert.equal(await allImages().isDisabled(), true);
+  assert.equal(await currentImage().isDisabled(), true);
+  assert.equal(await previewMode(image, "打印").isDisabled(), true);
+  await assertTextMarks(main(image), 1, { ...defaultTextStyle, size: 41 });
+  await assertTextMarks(thumbnails(image), pageCount);
+  await assertTextMarks(printLayer, pageCount);
+  await restore(image).click();
+  await assertTextMarks(main(image), 1);
+  assert.equal(await slider(image, "文字大小").inputValue(), "40");
+  assert.equal(await allImages().isEnabled(), true);
+
+  await input(image).fill("W".repeat(32));
+  await slider(image, "文字大小").press("End");
+  const fitted = await textMark(main(image)).locator("text").evaluate((node) => ({
+    size: Number(node.getAttribute("font-size")),
+    widthRatio: node.getComputedTextLength() / node.ownerSVGElement.viewBox.baseVal.width,
+  }));
+  assert.ok(fitted.size < 96 && fitted.widthRatio >= 0.72 && fitted.widthRatio <= 0.76, JSON.stringify(fitted));
+  await input(image).fill("W".repeat(33));
+  assert.equal(await apply(image).isDisabled(), true);
+  assert.equal(await allImages().isDisabled(), true);
+  await assertTextMarks(main(image), 1);
+  assert.equal(await image.getByText("当前页试排", { exact: true }).count(), 0);
+  await restore(image).click();
+
+  await slider(image, "文字大小").press("ArrowRight");
+  await slider(image, "不透明度").press("End");
+  await anglePreset(image, 30).click();
+  assert.equal(await sliderAngle(image), 30);
+  await assertTextMarks(main(image), 1, { size: 41, opacity: 45, angle: 30, position: "居中" });
+  await anglePreset(image, 0).click();
+  await position(image, "右下").click();
+  const styledText = { size: 41, opacity: 45, angle: 0, position: "右下" };
+  await assertTextMarks(main(image), 1, styledText);
+  await assertTextMarks(thumbnails(image), pageCount);
+  await assertTextMarks(printLayer, pageCount);
+  await apply(image).click();
+  await ready(image);
+  await assertTextMarks(thumbnails(image), pageCount, styledText);
+  await assertTextMarks(printLayer, pageCount, styledText);
+  assert.equal(await button(thumbnails(image), "第 2 页").getAttribute("aria-current"), "page");
+  const styledPng = await downloadImage(currentImage(), "下载图片", ".png");
+  await assertTextPng(page, styledPng.bytes, cleanPages[1]);
+  await position(image, "左下").click();
+  assert.equal(await link("下载图片").count(), 0);
+  await restore(image).click();
+  assert.equal(await link("下载图片").getAttribute("href"), styledPng.url);
+
+  await previewMode(image, "打印").click();
+  await ready(print);
+  await waitRevoked(styledPng.url);
+  assert.equal(await button(thumbnails(print), "第 2 页").getAttribute("aria-current"), "page");
+  assert.equal(await slider(print, "文字大小").inputValue(), "41");
+  assert.equal(await slider(print, "不透明度").inputValue(), "45");
+  assert.equal(await anglePreset(print, 0).getAttribute("aria-pressed"), "true");
+  assert.equal(await position(print, "右下").getAttribute("aria-pressed"), "true");
+  await assertTextMarks(main(print), 1, styledText);
+  await position(print, "左下").click();
+  assert.equal(await printButton.isDisabled(), true);
+  await assertTextMarks(main(print), 1, { ...styledText, position: "左下" });
+  await assertTextMarks(thumbnails(print), pageCount, styledText);
+  await assertTextMarks(printLayer, pageCount, styledText);
+  await restore(print).click();
+  assert.equal(await printButton.isEnabled(), true);
+  await assertTextMarks(main(print), 1, styledText);
+  await position(print, "左下").click();
+  await apply(print).click();
+  const leftText = { ...styledText, position: "左下" };
+  await assertTextMarks(thumbnails(print), pageCount, leftText);
+  await assertTextMarks(printLayer, pageCount, leftText);
+  await previewMode(print, "图片").click();
+  await ready(image);
+  await assertTextMarks(main(image), 1, leftText);
+  console.log("PASS 文字水印试排、样式还原及应用、跨预览同步和第 2 页 PNG 右下文字像素");
 
   const logo = await createTransparentLogo(page);
   const chooseLogo = async (root) => {
@@ -302,7 +461,6 @@ try {
     await chooser.setFiles(logo);
     await angle(root).waitFor();
   };
-  await button(thumbnails(image), "第 2 页").click();
   await chooseLogo(image);
   assert.equal(await sliderAngle(image), 0);
   await assertAngles(main(image), 1, 0);
@@ -344,7 +502,7 @@ try {
     assert.deepEqual([actual.width, actual.height], [2480, 3508]);
     assertRotatedPixels(actual.samples, `ZIP 第 ${index + 1} 页`, clean.samples);
   }
-  console.log(`PASS 默认关闭、文字、上传、旋转试排、旧下载恢复和回收、ZIP ${pageCount} 页 +31° 实际透明像素`);
+  console.log(`PASS 默认关闭、图片上传和旋转试排、旧下载恢复和回收、ZIP ${pageCount} 页 +31° 实际透明像素`);
 
   // 关闭预览丢弃尚未应用的角度；切换到打印后仍显示已应用的版本。
   await anglePreset(image, 0).click();
@@ -360,7 +518,6 @@ try {
   await assertAngles(main(print), 1, -30);
   await assertAngles(thumbnails(print), pageCount, 31);
   await assertAngles(printLayer, pageCount, 31);
-  const printButton = button(print, "打开打印窗口");
   assert.equal(await printButton.isDisabled(), true);
   await page.evaluate(() => {
     const layer = document.querySelector("[data-score-print-layer]");

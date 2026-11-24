@@ -47,7 +47,8 @@ describe("MVP v7.2 简谱 mock", () => {
     const loaded = loadDocument(JSON.stringify(DEFAULT_MOCK_DOCUMENT));
     expect(loaded.ok, JSON.stringify(loaded)).toBe(true);
     expect(websiteEditorSession.getDocument()).toEqual(DEFAULT_MOCK_DOCUMENT);
-    expect(DEFAULT_MOCK_DOCUMENT.documentRevision).toBe(724);
+    // 通过修订号确认首页会话读到的是用户导出的新版《理想》。
+    expect(DEFAULT_MOCK_DOCUMENT.documentRevision).toBe(793);
     expect(DEFAULT_MOCK_DOCUMENT.score).toMatchObject({
       title: "理想",
       keySignature: "G",
@@ -64,7 +65,7 @@ describe("MVP v7.2 简谱 mock", () => {
       5, 11, 6, 5, 4, 12, 5, 14, 5, 4,
     ]);
     expect(track.measures.flatMap((m) => m.numberedVoice.events)).toHaveLength(331);
-    expect(track.techniques).toHaveLength(194);
+    expect(track.techniques).toHaveLength(196);
     expect(track.measures.flatMap((m) => m.chordSymbols.map((c) => c.chord.name))).toEqual([
       "G", "C", "Asus2", "G", "G", "Am", "D", "G", "G", "Gadd9",
       "Asus2", "Dsus2", "Gadd9", "G", "Asus2", "Dsus2", "Gadd9",

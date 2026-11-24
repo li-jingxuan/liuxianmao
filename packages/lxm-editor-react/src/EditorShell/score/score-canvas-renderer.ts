@@ -94,7 +94,7 @@ export const renderPageCanvas = (
       ctx.direction = "ltr";
       ctx.textAlign = "center";
       ctx.textBaseline = "alphabetic";
-      ctx.fillText(mark.text, 0, mark.baseline);
+      ctx.fillText(mark.text, mark.textX, mark.baseline);
     }
     ctx.restore();
   }

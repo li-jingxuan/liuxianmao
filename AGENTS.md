@@ -21,7 +21,7 @@
 - 修复 Bug 或完成需求后，在对应行的「备注」补充验收路径。有合并提交时，在验收完成后补充分支名和提交号。
 
 ## lark-cli 凭证
-- 在本项目中运行 `lark-cli` 时，每次都显式传入 `--profile nice007`，例如 `lark-cli --profile nice007 whoami`。
+<!-- - 在本项目中运行 `lark-cli` 时，每次都显式传入 `--profile nice007`，例如 `lark-cli --profile nice007 whoami`。 -->
 
 ## 飞牛 NAS 连接
 - 通过飞牛 skill、已配置的 SSH 密钥或本地连接配置访问。
@@ -33,3 +33,7 @@
 - 当前工作区有其他任务的未提交改动时，先检查是否与本次改动重叠。可独立修改时继续在当前分支处理，并保留其他任务的改动。若必须隔离才能避免覆盖，先与我确认处理方式，并确认最终交付分支。
 - 多任务同时修改代码时，要注意处理冲突，不要多窗口影响导致Bugfix，尽量并行，不要去排队等
 - 实现新需求或者新需求/bugfix与现有功能冲突时，要与我对口径，不要把已经确认的功能和能力给删掉了
+
+## 域名和服务
+- 服务器在阿里云上面，统一使用 alibabacloud-workbench-cli Skill 操作
+- 域名：解析 www.liuxianmao.com、liuxianmao.com -> www.liuxianmao.com

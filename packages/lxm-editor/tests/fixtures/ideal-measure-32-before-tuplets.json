@@ -1,0 +1,72 @@
+{
+  "actualDurationTicks": 2640,
+  "beats": [
+    { "id": "beat-362-1", "tick": 0, "rhythm": { "base": "quarter", "dots": 0 }, "kind": "rest", "notes": [] },
+    { "id": "beat-362-2", "tick": 960, "rhythm": { "base": "eighth", "dots": 0 }, "kind": "rest", "notes": [] },
+    { "id": "beat-364-1", "tick": 1440, "rhythm": { "base": "sixteenth", "dots": 0 }, "kind": "rest", "notes": [] },
+    { "id": "beat-364-2", "tick": 1680, "rhythm": { "base": "sixteenth", "dots": 0 }, "kind": "rest", "notes": [] },
+    {
+      "id": "beat-621-1",
+      "tick": 1920,
+      "rhythm": { "base": "eighth", "dots": 1 },
+      "kind": "rest",
+      "notes": [],
+      "capacityRest": true
+    }
+  ],
+  "numberedVoice": {
+    "events": [
+      {
+        "id": "numbered-event-620-1",
+        "tick": 0,
+        "rhythm": { "base": "eighth", "dots": 0 },
+        "kind": "notes",
+        "items": [{ "id": "numbered-item-620-1", "token": "4" }]
+      },
+      {
+        "id": "numbered-event-620-2",
+        "tick": 480,
+        "rhythm": { "base": "eighth", "dots": 0 },
+        "kind": "notes",
+        "items": [{ "id": "numbered-item-620-2", "token": "4" }]
+      },
+      {
+        "id": "numbered-event-620-3",
+        "tick": 960,
+        "rhythm": { "base": "eighth", "dots": 0 },
+        "kind": "notes",
+        "items": [{ "id": "numbered-item-620-3", "token": "4" }]
+      },
+      {
+        "id": "numbered-event-705-1",
+        "tick": 1440,
+        "rhythm": { "base": "sixteenth", "dots": 0 },
+        "kind": "gap",
+        "items": []
+      },
+      {
+        "id": "numbered-event-705-2",
+        "tick": 1680,
+        "rhythm": { "base": "sixteenth", "dots": 0 },
+        "kind": "gap",
+        "items": []
+      },
+      {
+        "id": "numbered-event-705-3",
+        "tick": 1920,
+        "rhythm": { "base": "eighth", "dots": 1 },
+        "kind": "gap",
+        "items": []
+      }
+    ],
+    "tuplets": []
+  },
+  "lyrics": [
+    { "id": "lyric-705-15", "eventId": "numbered-event-620-1", "verse": 1, "text": "沉" },
+    { "id": "lyric-705-16", "eventId": "numbered-event-620-2", "verse": 1, "text": "入" },
+    { "id": "lyric-705-17", "eventId": "numbered-event-620-3", "verse": 1, "text": "失" },
+    { "id": "lyric-705-18", "eventId": "numbered-event-705-1", "verse": 1, "text": "望" },
+    { "id": "lyric-705-19", "eventId": "numbered-event-705-2", "verse": 1, "text": "的" },
+    { "id": "lyric-705-20", "eventId": "numbered-event-705-3", "verse": 1, "text": "生" }
+  ]
+}
