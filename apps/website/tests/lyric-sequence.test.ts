@@ -1,17 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
-  EXAMPLE_MVP_6_DOCUMENT,
   LXMScoreCommandEnum as C,
   parseLyricSequence,
   buildLayout,
   getLyricVerseCount,
 } from "@liuxianmao/lxm-editor";
-import { createEditorStore } from "../stores/editor-store";
+import { EXAMPLE_MVP_6_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { createEditorStore } from "../../../packages/lxm-editor-react/src/stores/editor-store";
 import {
   readMusicTextDraft,
   resolveSidebarRequest,
-} from "../components/EditorShell/music-text/music-text-draft";
-import { resolveLyricFocus } from "../components/EditorShell/score/music-text-focus";
+} from "../../../packages/lxm-editor-react/src/EditorShell/music-text/music-text-draft";
+import { resolveLyricFocus } from "../../../packages/lxm-editor-react/src/EditorShell/score/music-text-focus";
 
 const fixture = () => {
   const document = structuredClone(EXAMPLE_MVP_6_DOCUMENT);

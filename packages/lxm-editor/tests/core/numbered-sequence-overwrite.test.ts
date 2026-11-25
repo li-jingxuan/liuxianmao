@@ -6,6 +6,7 @@ import {
   applyScoreCommand,
   planNumberedSequenceOverwrite,
   planNumberedSequenceSlots,
+  numberedRhythmForBlockedInputPreference,
   parseNumberedSequence,
   type ILXMNumberedEvent,
 } from "../../src";
@@ -99,6 +100,103 @@ const fixture = () => {
   measure.tuplets = [];
   return { document, track, measure };
 };
+
+describe("BUG-070 附点旁边的虚拟空格", () => {
+  it("加点填满空格，减点释放空格，补音保留有歌词及圆滑线的后音", () => {
+    const { document, track, measure } = fixture();
+    const first = note("first", 2880);
+    const after = note("after", 3240, "eighth");
+    measure.numberedVoice.events = [first, after];
+    measure.lyrics = [{ id: "lyric", eventId: after.id, verse: 1, text: "词" }];
+    track.numberedMarks = [{ id: "slur", type: "slur", fromEventId: first.id, toEventId: after.id }];
+    const toggleDot = (current: typeof document, dots: number) => {
+      const result = applyScoreCommand(current, { type: "numbered.event.setRhythm", trackId: track.id,
+        measureId: measure.id, eventId: first.id, rhythm: { base: "sixteenth", dots } });
+      if (!result.ok) throw new Error(result.message);
+      return result.document;
+    };
+    const dotted = toggleDot(document, 1);
+    expect(dotted.score.tracks[0]!.measures[0]!.numberedVoice.events).toEqual([
+      { ...first, rhythm: { ...first.rhythm, dots: 1 } }, after,
+    ]);
+    const undotted = toggleDot(dotted, 0);
+    expect(undotted.score).toEqual(document.score);
+    expect(numberedRhythmForBlockedInputPreference(measure, 3120, 3240, after.rhythm)).toEqual({ base: "thirtySecond", dots: 0 });
+    expect(numberedRhythmForBlockedInputPreference(measure, 3120, 3360, after.rhythm)).toBeUndefined();
+    expect(numberedRhythmForBlockedInputPreference(measure, 0, 240, after.rhythm)).toBeUndefined();
+    const command = { type: "numbered.sequence.overwrite" as const, trackId: track.id, measureId: measure.id,
+      startTick: 3120, items: [{ kind: "set" as const, tokens: ["6"] }], allowOverwrite: true };
+    expect(applyScoreCommand(undotted, { ...command, rhythms: [after.rhythm] })).toMatchObject({
+      ok: false, message: "所选时值会占用后面的简谱音符。请缩短时值或取消附点。",
+    });
+    const filled = applyScoreCommand(undotted, command);
+    if (!filled.ok) throw new Error(filled.message);
+    const next = filled.document.score.tracks[0]!;
+    expect(next.measures[0]!.numberedVoice.events).toEqual([
+      first, expect.objectContaining({ tick: 3120, rhythm: { base: "thirtySecond", dots: 0 } }), after,
+    ]);
+    expect(next.measures[0]!.lyrics).toEqual(measure.lyrics);
+    expect(next.numberedMarks).toEqual(track.numberedMarks);
+  });
+
+  it("每一项独立继承旧时值，遇到后音前的短空位时回退，保留歌词和圆滑线", () => {
+    const { document, track, measure } = fixture();
+    const before = note("before", 2160);
+    const after = note("after", 3000, "eighth");
+    measure.numberedVoice.events = [before, after];
+    measure.lyrics = [{ id: "lyric", eventId: after.id, verse: 1, text: "词" }];
+    track.numberedMarks = [{ id: "slur", type: "slur", fromEventId: before.id, toEventId: after.id }];
+    const command = { type: "numbered.sequence.overwrite" as const, trackId: track.id, measureId: measure.id,
+      startTick: 2400, items: ["2", "3"].map(token => ({ kind: "set" as const, tokens: [token] })), allowOverwrite: true };
+    const snapshot = structuredClone(document);
+    expect(applyScoreCommand(document, { ...command, rhythms: [after.rhythm, after.rhythm] })).toMatchObject({
+      ok: false, message: "所选时值会占用后面的简谱音符。请缩短时值或取消附点。",
+    });
+    const result = applyScoreCommand(document, { ...command, preferredRhythm: after.rhythm });
+    if (!result.ok) throw new Error(result.message);
+    const next = result.document.score.tracks[0]!;
+    expect(next.measures[0]!.numberedVoice.events).toEqual([
+      before, expect.objectContaining({ tick: 2400, rhythm: after.rhythm }),
+      expect.objectContaining({ tick: 2880, rhythm: { base: "thirtySecond", dots: 0 } }), after,
+    ]);
+    expect(next.measures[0]!.lyrics).toEqual(measure.lyrics);
+    expect(next.numberedMarks).toEqual(track.numberedMarks);
+    expect(document).toEqual(snapshot);
+  });
+
+  it("旧时值停在虚拟格内部时可继续补音，精确写到小节末尾", () => {
+    const { track, measure } = fixture();
+    measure.numberedVoice.events = [note("before", 3360)];
+    measure.beats = [];
+    const command = { measureId: measure.id, startTick: 3600, allowOverwrite: true,
+      items: ["2", "3"].map(token => ({ kind: "set" as const, tokens: [token] })) };
+    const short = { base: "thirtySecond", dots: 0 } as const;
+    expect(planNumberedSequenceOverwrite(track, { ...command, preferredRhythm: short })).toMatchObject({
+      ok: true, targets: [{ startTick: 3600, endTick: 3720, rhythm: short }, { startTick: 3720, endTick: 3840, rhythm: short }],
+    });
+    const tail = { ...command, startTick: 3600, items: command.items.slice(0, 1) };
+    expect(planNumberedSequenceOverwrite(track, { ...tail, preferredRhythm: { base: "sixteenth", dots: 1 } })).toMatchObject({
+      ok: true, targets: [{ startTick: 3600, endTick: 3840, rhythm: { base: "sixteenth", dots: 0 } }],
+    });
+    expect(planNumberedSequenceOverwrite(track, { ...tail, rhythms: [{ base: "sixteenth", dots: 1 }] })).toMatchObject({
+      ok: false, message: "所选时值超出本小节末尾。请缩短时值或取消附点。",
+    });
+  });
+
+  it("补音禁止覆盖时，手选时值完整盖住后音或对齐后音起点也不能改写", () => {
+    const { track, measure } = fixture();
+    measure.numberedVoice.events = [note("after", 3240, "sixteenth")];
+    const command = { measureId: measure.id, startTick: 3120, allowOverwrite: false,
+      items: [{ kind: "set" as const, tokens: ["6"] }] };
+    expect(planNumberedSequenceOverwrite(track, { ...command, rhythms: [{ base: "eighth", dots: 0 }] })).toMatchObject({
+      ok: false, message: "所选时值会占用后面的简谱音符。请缩短时值或取消附点。",
+    });
+    expect(planNumberedSequenceOverwrite(track, { ...command, items: [...command.items, ...command.items],
+      rhythms: [{ base: "thirtySecond", dots: 0 }, { base: "sixteenth", dots: 0 }] })).toMatchObject({
+      ok: false, message: "输入会改写后面的简谱音符。请减少输入，或单独编辑该位置。",
+    });
+  });
+});
 
 describe("BUG017/020 continuous overwrite", () => {
   it("consumes virtual sixteenths before the following real quarter", () => {

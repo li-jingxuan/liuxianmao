@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>六线猫 · 编辑器交互评审</title>
+  <link rel="stylesheet" href="./prototype.css">
+  <script src="./prototype.js" defer></script>
+</head>
+<body>
+  <div class="review">
+    <strong>编辑器交互评审</strong>
+    <nav aria-label="需求预览">
+      <button data-review="selection" aria-pressed="true">侧栏选区</button>
+      <button data-review="tail" aria-pressed="false">谱尾新增</button>
+      <button data-review="header" aria-pressed="false">桌面菜单</button>
+    </nav>
+    <span id="review-hint">选中单音或 Shift 扩选，查看右侧入口</span>
+  </div>
+  <header class="app-header">
+    <div class="header-start">
+      <a class="brand" href="#home" aria-label="六线猫首页"><img src="../../../../../../apps/website/public/assets/brand/liuxianmao-64.png" alt=""><strong>六线猫</strong></a>
+      <div class="menubar" role="menubar" aria-label="编辑器菜单" id="menubar"></div>
+    </div>
+    <strong class="score-name" id="score-name">理想</strong>
+    <div class="header-end">
+      <span class="file-status" id="file-status"><i></i><span>示例曲谱</span></span>
+      <div class="menubar export-menu" role="menubar" aria-label="导出菜单" id="export-menu"></div>
+    </div>
+  </header>
+  <div class="tools" aria-label="谱面工具栏">
+    <button data-command="undo" title="撤销" aria-label="撤销" disabled>↶</button>
+    <button data-command="redo" title="重做" aria-label="重做" disabled>↷</button>
+    <span class="tool-divider"></span>
+    <span aria-hidden="true" class="tool-glyphs">𝅝　𝅗𝅥　♩　♫　𝅘𝅥𝅯</span><span class="tool-divider"></span>
+    <span aria-hidden="true" class="tool-glyphs">·　··　𝄽</span><span class="tool-divider"></span>
+    <span aria-hidden="true" class="tool-glyphs">H　P　S　⌒　↟　↡</span><span class="tool-divider"></span>
+    <span aria-hidden="true" class="tool-glyphs">♬　││</span>
+    <button id="inspector-tool" data-command="inspector" aria-label="切换侧栏" aria-pressed="true" title="切换侧栏">◫</button>
+  </div>
+  <main id="workspace" class="workspace">
+    <div class="canvas" id="canvas" tabindex="-1">
+      <article class="paper" aria-label="理想曲谱">
+        <h1>理想</h1>
+        <p class="credit">编谱 · 六线猫</p>
+        <p class="signature">1=G · 4/4</p>
+        <svg id="score" viewBox="0 0 810 475" role="group" aria-label="可选择拍点的曲谱"></svg>
+      </article>
+      <div class="zoom" role="group" aria-label="谱面缩放"><button data-command="zoom-out" aria-label="缩小">−</button><output id="zoom-value">100%</output><button data-command="zoom-in" aria-label="放大">+</button></div>
+    </div>
+    <aside id="inspector" class="inspector" aria-label="属性侧栏">
+      <div class="side-tabs" role="group" aria-label="侧栏页签">
+        <button data-side="selection" aria-pressed="true">选区</button><button data-side="text" aria-pressed="false">简谱与歌词</button><button data-side="chords" aria-pressed="false">和弦</button><button data-side="song" aria-pressed="false">歌曲</button>
+      </div>
+      <div class="location" id="location" aria-live="polite"></div>
+      <div id="selection-panel" class="inspector-body">
+        <div class="segmented" role="group" aria-label="选区任务">
+          <button data-detail="note" aria-pressed="true">音符</button><button data-detail="measure" aria-pressed="false">小节</button>
+        </div>
+        <section id="note-panel" aria-label="音符详情">
+          <div id="numbered-summary" class="numbered-summary"></div>
+          <section class="section" aria-label="连音">
+            <h2>连音</h2>
+            <div class="tuplets"><button disabled>⌙ 2 ⌟</button><button disabled>⌙ 3 ⌟</button><button disabled>⌙ 4 ⌟</button><button disabled>⌙ 5:4 ⌟</button><button disabled>⌙ 5:3 ⌟</button><button disabled>⌙ 6 ⌟</button></div>
+            <p class="muted">在同一小节选中对应数量的连续 TAB 拍点。</p>
+          </section>
+          <section class="section" aria-label="常见节奏型">
+            <div class="section-title"><h2>常见节奏型</h2><small>4/4</small></div>
+            <div class="patterns" role="group" aria-label="拍内模板"><button aria-pressed="false">四分音符 <b>♩</b></button><button aria-pressed="false">两个八分 <b>♫</b></button><button aria-pressed="true">前八后十六 <b>♫ 𝅘𝅥𝅯</b></button><button aria-pressed="false">前十六后八 <b>𝅘𝅥𝅯 ♫</b></button></div>
+          </section>
+        </section>
+        <section id="measure-panel" class="section measure-panel" aria-label="小节详情" hidden>
+          <h2>小节拍号</h2><p id="measure-meter" class="muted"></p>
+          <h2>小节范围</h2><button class="text-action" data-command="copy-measures">配置小节范围复制 <span aria-hidden="true">→</span></button>
+        </section>
+      </div>
+      <section id="text-panel" class="inspector-body" aria-label="简谱与歌词编辑" hidden>
+        <div class="segmented" role="group" aria-label="简谱或歌词">
+          <button data-text="numbered" aria-pressed="true">简谱</button><button data-text="lyrics" aria-pressed="false">歌词</button>
+        </div>
+        <form id="text-form" class="text-form">
+          <label id="text-label" for="text-input">简谱音高</label>
+          <input id="text-input" autocomplete="off">
+          <button class="apply" type="submit">应用</button>
+        </form>
+        <button class="text-action" data-command="back-to-selection">← 返回选区</button>
+      </section>
+      <section id="other-panel" class="inspector-body section" hidden><h2 id="other-title"></h2><p id="other-help" class="muted"></p></section>
+    </aside>
+  </main>
+  <footer class="statusbar"><span id="status-location"></span><span id="message" role="status"></span></footer>
+  <dialog id="dialog" aria-labelledby="dialog-title">
+    <h2 id="dialog-title"></h2><p id="dialog-copy"></p>
+    <form method="dialog"><button>关闭</button></form>
+  </dialog>
+</body>
+</html>

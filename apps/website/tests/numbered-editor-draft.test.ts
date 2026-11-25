@@ -6,24 +6,36 @@ import {
 } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { EXAMPLE_MVP_7_2_DOCUMENT, type ILXMRhythm } from "@liuxianmao/lxm-editor";
-import { NumberedEditor } from "../components/EditorShell/numbered/NumberedEditor";
-import { createEditorSession } from "../stores/editor-store";
-import { EditorStoreContext } from "../stores/editor-context";
+import { type ILXMRhythm } from "@liuxianmao/lxm-editor";
+import { EXAMPLE_MVP_7_2_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { NumberedEditor } from "../../../packages/lxm-editor-react/src/EditorShell/numbered/NumberedEditor";
+import { createEditorSessionStore as createEditorSession } from "../../../packages/lxm-editor-react/src/stores/editor-store";
+import { EditorStoreContext } from "../../../packages/lxm-editor-react/src/stores/editor-context";
 
 const renderEditor = (
   props: Partial<ComponentProps<typeof NumberedEditor>> = {},
   explicit: boolean | ILXMRhythm = false,
   edits: { label: string; value: unknown }[] = [],
+  chosenHere = false,
 ) => {
   const document = props.document ?? structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);
   const track = document.score.tracks[0]!;
   const measure = track.measures[0]!;
   if (!props.document)
     measure.numberedVoice.events[0]!.rhythm = { base: "eighth", dots: 0 };
+  const target = {
+    kind: "numbered" as const,
+    trackId: track.id,
+    measureId: measure.id,
+    tick: 480,
+    endTick: 960,
+  };
   const session = createEditorSession(document);
   if (explicit)
-    session.getState().setNumberedInputRhythm(typeof explicit === "object" ? explicit : { base: "quarter", dots: 0 });
+    session.getState().setNumberedInputRhythm(
+      typeof explicit === "object" ? explicit : { base: "quarter", dots: 0 },
+      chosenHere ? { ...target, kind: "numberedTime" } : undefined,
+    );
   let edited = false;
   const change = (node: ReactNode, label: string, value: unknown): boolean => {
     if (Array.isArray(node))
@@ -58,13 +70,7 @@ const renderEditor = (
       createElement(EditorWithInput, {
         ref: null,
         document,
-        target: {
-          kind: "numbered",
-          trackId: track.id,
-          measureId: measure.id,
-          tick: 480,
-          endTick: 960,
-        },
+        target,
         commit: () => null,
         onDirty: () => {},
         onInputActive: () => {},
@@ -95,10 +101,12 @@ describe("简谱当前目标初始化", () => {
     expect(html.match(/<button[^>]*aria-label="应用简谱内容"[^>]*>/)?.[0]).toContain("disabled");
   });
 
-  it("默认时值适应短空位，显式时值保留用户选择", () => {
+  it("短空位适应过长的旧偏好，并保留用户在本格选定的时值", () => {
     const implicit = renderEditor();
     expect(implicit.match(/<button[^>]*aria-label="八分音符"[^>]*>/)?.[0]).toContain('aria-pressed="true"');
-    const explicit = renderEditor({}, true);
+    const inherited = renderEditor({}, true);
+    expect(inherited.match(/<button[^>]*aria-label="八分音符"[^>]*>/)?.[0]).toContain('aria-pressed="true"');
+    const explicit = renderEditor({}, true, [], true);
     expect(explicit.match(/<button[^>]*aria-label="四分音符"[^>]*>/)?.[0]).toContain('aria-pressed="true"');
   });
 

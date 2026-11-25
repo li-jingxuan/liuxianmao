@@ -42,7 +42,7 @@ export const SVG_ASSETS_MANIFEST = [
     ["actionsCopy", "actions-copy24.svg"],
 ].map(([id, fileName]) => ({
     id: id,
-    sourcePath: `docs/extracted-svg-icons/${fileName}`,
+    sourcePath: `docs/archive/mvp/extracted-svg-icons/${fileName}`,
     runtimePath: `/assets/svg/music-controls/${fileName}`,
     usage: "toolbar",
     source: USER_PROVIDED_SOURCE,

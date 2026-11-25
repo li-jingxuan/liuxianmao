@@ -1,17 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
-  EXAMPLE_MVP_7_2_DOCUMENT,
   createCollapsedTabCellSelection,
   getFirstTabCellReference,
   LXMScoreCommandEnum as C,
 } from "@liuxianmao/lxm-editor";
-import { buildEditorToolCommand } from "../components/EditorShell/tools/editor-tool-actions";
-import { createEditorSession } from "../stores/editor-store";
+import { EXAMPLE_MVP_7_2_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { buildEditorToolCommand } from "../../../packages/lxm-editor-react/src/EditorShell/tools/editor-tool-actions";
+import { createEditorSessionStore as createEditorSession } from "../../../packages/lxm-editor-react/src/stores/editor-store";
 import {
   TECHNIQUE_OPTIONS,
   TECHNIQUE_GROUPS,
-} from "../components/EditorShell/tools/technique-catalog";
-import { createTechniqueTypeController } from "../components/EditorShell/tools/technique-type-controller";
+} from "../../../packages/lxm-editor-react/src/EditorShell/tools/technique-catalog";
+import { createTechniqueTypeController } from "../../../packages/lxm-editor-react/src/EditorShell/tools/technique-type-controller";
 
 /** 验证入口翻译实际影响的谱层、目标和历史边界，不复制核心音乐算法。 */
 describe("工具动作与目录", () => {

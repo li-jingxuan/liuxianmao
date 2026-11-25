@@ -29,6 +29,9 @@ import {
   type ILXMDocument,
   type ILXMMeasure,
   type ILXMNote,
+  type ILXMPlaybackReplay,
+  type ILXMRepeatEnding,
+  type ILXMRepeatEndingGroup,
   type ILXMRhythm,
   type ILXMScore,
   type ILXMTimeSignature,
@@ -150,17 +153,16 @@ export const LXMLyricSchema = z
   })
   .strict();
 /** 和弦保存局部名称/图快照，不依赖未定义的外部字典。 */
+const LXMChordValueSchema = z.object({
+  name: musicTextSchema(32),
+  diagram: LXMChordDiagramSchema.nullable(),
+}).strict();
 export const LXMChordSymbolSchema = z
   .object({
     id: z.string(),
     beatId: z.string(),
     display: z.enum(LXM_CHORD_SYMBOL_DISPLAY_TYPES),
-    chord: z
-      .object({
-        name: musicTextSchema(32),
-        diagram: LXMChordDiagramSchema.nullable(),
-      })
-      .strict(),
+    chord: LXMChordValueSchema,
   })
   .strict()
   .refine(
@@ -372,6 +374,7 @@ export const LXMNumberedVoiceSchema = z
           id: z.string().min(1),
           eventIds: z.array(z.string()),
           ratio: LXMTupletRatioSchema,
+          crossBar: z.object({ nextMeasureId: z.string().min(1) }).strict().optional(),
         })
         .strict(),
     ),
@@ -404,6 +407,20 @@ export const LXMNumberedMarkSchema = z.discriminatedUnion("type", [
 ]);
 
 /** 一个小节内包含节拍、和弦标记和小节线信息。 */
+const jumpMarkId = z.string().min(1);
+export const LXMJumpMarkSchema = z.discriminatedUnion("kind", [
+  z.object({ id: jumpMarkId, kind: z.literal("segno") }).strict(),
+  z.object({ id: jumpMarkId, kind: z.literal("coda") }).strict(),
+  z.object({ id: jumpMarkId, kind: z.literal("ds"), segnoId: jumpMarkId.optional() }).strict(),
+  z.object({ id: jumpMarkId, kind: z.literal("dsAlCoda"), segnoId: jumpMarkId.optional(), toCodaId: jumpMarkId.optional() }).strict(),
+  z.object({ id: jumpMarkId, kind: z.literal("toCoda"), codaId: jumpMarkId.optional() }).strict(),
+  z.object({ id: jumpMarkId, kind: z.literal("dc") }).strict(),
+  z.object({ id: jumpMarkId, kind: z.literal("fine") }).strict(),
+  z.object({ id: jumpMarkId, kind: z.literal("dcAlFine"), fineId: jumpMarkId.optional() }).strict(),
+  z.object({ id: jumpMarkId, kind: z.literal("dsAlFine"), segnoId: jumpMarkId.optional(), fineId: jumpMarkId.optional() }).strict(),
+  z.object({ id: jumpMarkId, kind: z.literal("dcAlCoda"), toCodaId: jumpMarkId.optional() }).strict(),
+]);
+
 export const LXMMeasureSchema = z
   .object({
     id: z.string(),
@@ -415,9 +432,40 @@ export const LXMMeasureSchema = z
     tuplets: z.array(LXMTupletSchema),
     numberedVoice: LXMNumberedVoiceSchema,
     sectionLabel: musicTextSchema(32).optional(),
+    jumpMarks: z.array(LXMJumpMarkSchema).max(2).optional(),
     actualDurationTicks: z.number().int().positive().optional(),
+    measureRepeat: z.object({ type: z.literal("previousSingle") }).strict().optional(),
+    openingChordPlayback: LXMChordValueSchema.nullable().optional(),
   })
   .strict() satisfies z.ZodType<ILXMMeasure>;
+
+/** 重奏锚点和首尾小节由稳定 ID 保存，引用关系交给语义校验。 */
+export const LXMPlaybackReplaySchema = z
+  .object({
+    afterMeasureId: z.string().min(1),
+    fromMeasureId: z.string().min(1),
+    throughMeasureId: z.string().min(1),
+  })
+  .strict() satisfies z.ZodType<ILXMPlaybackReplay>;
+
+const repeatEndingPass = z.number().int().min(1).max(3);
+const repeatEndingMeasureId = z.string().min(1);
+export const LXMRepeatEndingSchema = z.object({
+  id: z.string().min(1),
+  startMeasureId: repeatEndingMeasureId,
+  endMeasureId: repeatEndingMeasureId,
+  passes: z.array(repeatEndingPass).min(1).max(3),
+}).strict() satisfies z.ZodType<ILXMRepeatEnding>;
+
+/** 房子和反复组以稳定身份保存；未配齐的遍次允许写入文件并在重开后修复。 */
+export const LXMRepeatEndingGroupSchema = z.object({
+  id: z.string().min(1),
+  startMeasureId: repeatEndingMeasureId,
+  sharedEndMeasureId: repeatEndingMeasureId,
+  endMeasureId: repeatEndingMeasureId,
+  passCount: repeatEndingPass.min(2),
+  endings: z.array(LXMRepeatEndingSchema).max(3),
+}).strict() satisfies z.ZodType<ILXMRepeatEndingGroup>;
 
 /** 单个演奏轨道校验，MVP 中对应一把吉他。 */
 export const LXMTrackSchema = z
@@ -429,6 +477,8 @@ export const LXMTrackSchema = z
     capo: z.number().int().min(0).max(MAX_CAPO),
     startBarline: z.enum(LXM_TRACK_START_BARLINE_TYPES),
     measures: z.array(LXMMeasureSchema),
+    playbackReplay: LXMPlaybackReplaySchema.optional(),
+    repeatEndingGroups: z.array(LXMRepeatEndingGroupSchema).optional(),
     techniques: z.array(LXMTechniqueSchema),
     numberedMarks: z.array(LXMNumberedMarkSchema),
   })

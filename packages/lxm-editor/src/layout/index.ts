@@ -8,6 +8,7 @@ import { layoutScoreHeader } from "./structure/score-header-layout";
  */
 
 import type { ILXMDocument } from "../core/types";
+import { createNumberedTrackRhythmContext } from "../core/numbered/numbered-rhythm";
 import { getMusicTextRows } from "../core/music-text/music-text-rows";
 import {
   LXM_LAYOUT_DEFAULT_X,
@@ -58,6 +59,7 @@ export const buildLayout = (
   const sourceTrack = document.score.tracks[0];
   if (!sourceTrack) return getDefaultLayout(options);
   const track = chordDisplayTrack(sourceTrack, options.showChordDiagrams);
+  const numberedRhythm = createNumberedTrackRhythmContext(track);
   const purpose = options.purpose ?? "presentation";
   const editing = purpose === "editing" ? options.paragraphEditing : undefined;
   const placeholders = purpose === "editing" ? options.paragraphPlaceholders : undefined;
@@ -89,6 +91,7 @@ export const buildLayout = (
     musicTextMetrics: options.musicTextMetrics,
     techniqueInsets: buildTechniqueInsets(track),
     chordTraversalBottomOffsets: getChordTraversalBottomOffsets(track.techniques),
+    numberedRhythm,
     purpose,
     editingTailWidth,
     editingNumberedMeasureId:
@@ -103,6 +106,8 @@ export const buildLayout = (
     purpose,
     purpose === "editing" ? getMusicTextRows(document) : undefined,
     placeholders,
+    numberedRhythm,
+    purpose === "editing" ? options.repeatEndingPreview : undefined,
   );
   const lastSystem = systems[systems.length - 1];
 
@@ -138,6 +143,8 @@ export {
   hitTestTechniqueTarget,
   hitTestTuplet,
 } from "./hit-test";
+/** 命中输入与技巧端点结果作为根入口类型提供，方便宿主封装坐标转换。 */
+export type { ILXMLayoutPoint, ILXMTechniqueHitTarget } from "./hit-test";
 export { layoutTabCellCaret, layoutTabCellSelection } from "./selection-layout";
 export type {
   ILXMTabCellCaretLayout,

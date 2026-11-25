@@ -39,7 +39,7 @@ try {
   await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/__bugs__`, { waitUntil: "commit" });
   const sidebar = page.getByRole("complementary", { name: "编辑器属性" });
   const svg = page.getByRole("application", { name: "六线谱编辑器" });
-  const popover = page.locator("#chord-edit-popover");
+  const popover = page.locator("[id$=chord-edit-popover]");
   const library = page.getByRole("dialog", { name: /^和弦库/ });
   const search = library.getByRole("textbox", { name: "库内搜索全部和弦", exact: true });
   const button = (root, name) => root.getByRole("button", { name: /^\p{Script=Han}{2}$/u.test(name) ? new RegExp(`^${[...name].join("\\s*")}$`) : name, exact: true });
@@ -49,7 +49,7 @@ try {
   const chord = baseline.document.score.tracks[0].measures.flatMap(m => m.chordSymbols).find(c => c.chord.diagram);
   const open = async () => {
     await svg.getByText(chord.chord.name, { exact: true }).first().click();
-    await page.locator("#chord-popover-name").waitFor();
+    await page.locator("[data-chord-popover-name]").waitFor();
   };
   const opener = button(popover, "和弦库");
   await open();
@@ -82,12 +82,12 @@ try {
     await page.keyboard.press("Escape");
     await library.waitFor({ state: "hidden" });
     await button(popover, "关闭快捷编辑").click();
-    await page.locator("#chord-popover-name").waitFor({ state: "detached" });
+    await page.locator("[data-chord-popover-name]").waitFor({ state: "detached" });
     await open();
   }
   checks.push("反复退出和弦库、关闭并重新打开快捷编辑");
   await sidebar.getByRole("tab", { name: "歌曲", exact: true }).click();
-  await page.locator("#chord-popover-name").waitFor({ state: "detached" });
+  await page.locator("[data-chord-popover-name]").waitFor({ state: "detached" });
   await open();
   assert.deepEqual(await snapshot(), baseline);
   checks.push("切换侧栏再进入和弦编辑，草稿链路与历史正常");

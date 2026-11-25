@@ -1,16 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
-import {
-  EXAMPLE_MVP_7_2_DOCUMENT,
-  LXMScoreCommandEnum,
-} from "@liuxianmao/lxm-editor";
-import { createEditorSession } from "../stores/editor-store";
+import { LXMScoreCommandEnum } from "@liuxianmao/lxm-editor";
+import { EXAMPLE_MVP_7_2_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { createEditorSessionStore as createEditorSession } from "../../../packages/lxm-editor-react/src/stores/editor-store";
 import {
   createEditorDraftCoordinator,
   createEditorDraftOwner,
   type EditorDraftRecord,
   type EditorDraftApplyResult,
-} from "../components/EditorShell/session/editor-draft-coordinator";
-import { captureEditorVersion } from "../components/EditorShell/session/editor-session-version";
+} from "../../../packages/lxm-editor-react/src/EditorShell/session/editor-draft-coordinator";
+import { captureEditorVersion } from "../../../packages/lxm-editor-react/src/EditorShell/session/editor-session-version";
 
 const setup = () => {
   const session = createEditorSession(EXAMPLE_MVP_7_2_DOCUMENT);

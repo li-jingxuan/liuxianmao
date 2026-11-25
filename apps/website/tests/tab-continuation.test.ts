@@ -4,12 +4,12 @@ import {
   createCollapsedTabCellSelection,
   loadDocument,
 } from "@liuxianmao/lxm-editor";
-import { createEditorSession } from "../stores/editor-store";
-import { buildEditorToolCommand } from "../components/EditorShell/tools/editor-tool-actions";
+import { createEditorSessionStore as createEditorSession } from "../../../packages/lxm-editor-react/src/stores/editor-store";
+import { buildEditorToolCommand } from "../../../packages/lxm-editor-react/src/EditorShell/tools/editor-tool-actions";
 import { buildScoreScene } from "@liuxianmao/lxm-editor";
-import { inspectScoreFile, serializeScoreFile } from "../components/EditorShell/output/score-file";
-import { deriveEditorToolState } from "../components/EditorShell/tools/editor-tool-state";
-import { resolveTechniqueDraft } from "../components/EditorShell/tools/editor-technique-target";
+import { inspectScoreFile, serializeScoreFile } from "../../../packages/lxm-editor-react/src/EditorShell/output/score-file";
+import { deriveEditorToolState } from "../../../packages/lxm-editor-react/src/EditorShell/tools/editor-tool-state";
+import { resolveTechniqueDraft } from "../../../packages/lxm-editor-react/src/EditorShell/tools/editor-technique-target";
 import historicalSource from "../../../packages/lxm-editor/example/default-score.lxm.json";
 
 describe("TAB 横线延音标记", () => {

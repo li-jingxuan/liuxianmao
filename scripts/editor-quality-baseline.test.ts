@@ -1,6 +1,7 @@
 import { it, expect } from "vitest";
 import { cpus, platform, release, totalmem } from "node:os";
 import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { performance } from "node:perf_hooks";
 import {
   createQualityScore,
@@ -12,7 +13,7 @@ import {
   LXMScoreCommandEnum,
   loadDocument,
 } from "../packages/lxm-editor/src";
-import { createEditorSession } from "../apps/website/stores/editor-store";
+import { createEditorSessionStore } from "../packages/lxm-editor-react/src/stores/editor-store";
 
 /** 固定数据、预热及采样；报告 Node 计算耗时，不伪装为浏览器可见更新。 */
 it("记录 100 小节计算与历史基线", () => {
@@ -59,7 +60,7 @@ it("记录 100 小节计算与历史基线", () => {
       }),
     ),
   };
-  const session = createEditorSession(score);
+  const session = createEditorSessionStore(score);
   const before = process.memoryUsage();
   const start = performance.now();
   for (let i = 0; i < 100; i++)
@@ -81,7 +82,7 @@ it("记录 100 小节计算与历史基线", () => {
     true,
   );
   const result = {
-    date: "2026-10-12",
+    date: new Date().toISOString().slice(0, 10),
     runtime: process.version,
     machine: {
       cpu: cpus()[0]?.model,
@@ -109,9 +110,11 @@ it("记录 100 小节计算与历史基线", () => {
     limitations:
       "Node 计算与进程内存，不含真实字体度量、React/DOM、浏览器峰值内存或图片编码；不替代桌面性能验收",
   };
-  mkdirSync("docs/mvp/v7/验收数据", { recursive: true });
+  // 本次采样是本机生成的验证产物，写入忽略目录以保留 MVP 当轮归档基线。
+  const outputDirectory = "output/editor-quality";
+  mkdirSync(outputDirectory, { recursive: true });
   writeFileSync(
-    "docs/mvp/v7/验收数据/20261012_100小节性能基线.json",
+    join(outputDirectory, "100小节性能基线.json"),
     JSON.stringify(result, null, 2) + "\n",
   );
   console.log(JSON.stringify(result));

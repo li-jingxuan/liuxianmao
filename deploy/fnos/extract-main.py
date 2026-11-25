@@ -8,16 +8,12 @@ import urllib.request
 
 
 API = 'https://api.github.com/repos/li-jingxuan/liuxianmao'
-BUILD_INPUTS = {
-    'build-liuxianmao': ({
-        'Dockerfile', '.dockerignore', '.npmrc', 'package.json', 'pnpm-lock.yaml',
-        'pnpm-workspace.yaml',
-        'docs/design-v2/records/20261111_chord-catalog-data-audit-v2.json',
-    }, ('apps/website/', 'packages/')),
-    'build-gateway': ({
-        'deploy/fnos/gateway.Dockerfile', 'deploy/fnos/proxy.cjs', 'deploy/fnos/verify.cjs',
-    }, ()),
+BUILD_FILES = {
+    'Dockerfile', '.dockerignore', '.npmrc', 'package.json', 'pnpm-lock.yaml',
+    'pnpm-workspace.yaml',
+    'docs/design-v2/records/20261111_chord-catalog-data-audit-v2.json',
 }
+BUILD_DIRS = ('apps/website', 'packages')
 
 
 def github(path):
@@ -26,33 +22,27 @@ def github(path):
         return json.load(response)
 
 
-def check_main(commit):
+def extract(commit, destination):
     if not re.fullmatch('[0-9a-f]{40}', commit) or github('/git/ref/heads/main')['object']['sha'] != commit:
         raise SystemExit('Deployment requires the current GitHub main commit. Start a new run for main.')
 
-
-def extract(target, commit, destination):
-    check_main(commit)
-    # 仅接受目标镜像实际需要的文件；每个文件的 Git blob 校验沿用发布前的源码完整性校验。
-    files, prefixes = BUILD_INPUTS[target]
     tree = github('/git/trees/' + commit + '?recursive=1')
     if tree.get('truncated'):
         raise SystemExit('GitHub returned an incomplete tree.')
     expected = {}
     for entry in tree['tree']:
         name = entry['path']
-        if entry['type'] == 'tree' or (name not in files and not name.startswith(prefixes)):
+        if entry['type'] == 'tree' or (name not in BUILD_FILES and not name.startswith(tuple(p + '/' for p in BUILD_DIRS))):
             continue
         if entry['type'] != 'blob' or entry['mode'] not in ('100644', '100755'):
             raise SystemExit(f'Unsupported Git entry: {name}')
         expected[name] = entry
-    if not files <= expected.keys():
-        raise SystemExit('The Git tree is missing required build files.')
-    directories = {str(parent) for name in expected for parent in Path(name).parents}
 
     with tarfile.open(fileobj=sys.stdin.buffer, mode='r|gz') as archive:
         for member in archive:
-            if member.isdir() and member.name in directories:
+            if member.isdir() and member.name in ('apps', 'docs', 'docs/design-v2', 'docs/design-v2/records'):
+                continue
+            if member.isdir() and any(name.startswith(member.name + '/') for name in expected):
                 continue
             entry = expected.pop(member.name, None)
             if not member.isfile() or entry is None or member.size != entry['size']:
@@ -71,7 +61,4 @@ def extract(target, commit, destination):
 
 
 if __name__ == '__main__':
-    if sys.argv[1] == 'check-main':
-        check_main(sys.argv[2])
-    else:
-        extract(sys.argv[1], sys.argv[2], Path(sys.argv[3]))
+    extract(sys.argv[1], Path(sys.argv[2]))

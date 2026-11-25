@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { EXAMPLE_MVP_7_2_DOCUMENT, keySignatureForTonality, LXMScoreCommandEnum, type ILXMScoreCommand, type ScoreTonalityV1 } from "@liuxianmao/lxm-editor";
-import { ScoreSettings, type ScoreSettingsController } from "../components/EditorShell/settings/ScoreSettings";
-import { MeasureToolDetails } from "../components/EditorShell/tools/MeasureToolDetails";
-import { EditorSessionRuntime, useEditorRuntime } from "../components/EditorShell/session/EditorSessionRuntime";
-import { createEditorSession, useEditorStore } from "../stores/editor-store";
-import { EditorStoreContext } from "../stores/editor-context";
-import type { EditorCommandResult } from "../components/EditorShell/session/editor-command-adapter";
+import { keySignatureForTonality, LXMScoreCommandEnum, type ILXMScoreCommand, type ScoreTonalityV1 } from "@liuxianmao/lxm-editor";
+import { EXAMPLE_MVP_7_2_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { ScoreSettings, type ScoreSettingsController } from "../../../packages/lxm-editor-react/src/EditorShell/settings/ScoreSettings";
+import { MeasureToolDetails } from "../../../packages/lxm-editor-react/src/EditorShell/tools/MeasureToolDetails";
+import { EditorSessionRuntime, useEditorRuntime } from "../../../packages/lxm-editor-react/src/EditorShell/session/EditorSessionRuntime";
+import { createEditorSessionStore as createEditorSession, useEditorStore } from "../../../packages/lxm-editor-react/src/stores/editor-store";
+import { EditorStoreContext } from "../../../packages/lxm-editor-react/src/stores/editor-context";
+import type { EditorCommandResult } from "../../../packages/lxm-editor-react/src/EditorShell/session/editor-command-adapter";
 
 const session = createEditorSession(EXAMPLE_MVP_7_2_DOCUMENT);
 const trackId = session.getState().document!.score.tracks[0]!.id;

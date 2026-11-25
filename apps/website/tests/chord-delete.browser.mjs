@@ -45,8 +45,8 @@ try {
   const toolbar = page.getByRole('toolbar', {name:'节奏、小节与历史工具'});
   const chordGroup = toolbar.getByRole('group', {name:'和弦',exact:true});
   const deleteTool = chordGroup.getByRole('button', {name:'删除和弦',exact:true});
-  const popover = page.locator('#chord-edit-popover');
-  const input = page.locator('#chord-popover-name');
+  const popover = page.locator('[id$=chord-edit-popover]');
+  const input = page.locator('[data-chord-popover-name]');
   const applyChord = popover.getByRole('button', {name:'应用和弦',exact:true});
   const undo = toolbar.getByRole('button', {name:'撤销',exact:true});
   const redo = toolbar.getByRole('button', {name:'重做',exact:true});
@@ -104,7 +104,7 @@ try {
   await input.dispatchEvent('compositionend');
   await sidebar.getByRole('button',{name:'编辑指法',exact:true}).waitFor({state:'visible'});
   await page.waitForFunction(() => Array.from(document.querySelectorAll('button')).some(button => button.textContent === '编辑指法' && !button.disabled));
-  await page.waitForFunction(() => { const e=document.querySelector('#chord-popover-name'); return e && !e.readOnly; });
+  await page.waitForFunction(() => { const e=document.querySelector('[data-chord-popover-name]'); return e && !e.readOnly; });
   await page.screenshot({path:path.join(artifacts,'selected-chord-delete-button.png'),animations:'disabled'});
   await deleteTool.click();
   await assertRemoved();

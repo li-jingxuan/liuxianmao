@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>六线猫 Core 原生 JavaScript 编辑示例</title>
+  <style>
+    body { margin: 2rem auto; padding: 0 1rem; max-width: 48rem; font: 1rem system-ui, sans-serif; color: #20262d; }
+    button, input { font: inherit; }
+    svg { display: block; width: 100%; margin-block: 1rem; border: 1px solid #d2d8df; }
+    output { display: block; min-height: 1.5em; }
+  </style>
+  <!-- 原生浏览器需要 import map 来解析 npm 包名。已有构建器时由构建器读取 exports。 -->
+  <script type="importmap">
+    {
+      "imports": {
+        "@liuxianmao/lxm-editor": "/node_modules/@liuxianmao/lxm-editor/dist/public.js",
+        "zod": "/node_modules/zod/index.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <h1>六线谱编辑示例</h1>
+  <p>选择一个品位，然后点击谱面上的弦线。</p>
+  <label>品位 <input id="fret" type="number" value="3" min="0" max="24"></label>
+  <button id="undo" type="button" disabled>撤销</button>
+  <button id="redo" type="button" disabled>重做</button>
+  <svg id="score" role="img" aria-label="六线谱谱面"></svg>
+  <output id="status" aria-live="polite">正在加载谱面</output>
+  <script type="module" src="./browser.mjs"></script>
+</body>
+</html>

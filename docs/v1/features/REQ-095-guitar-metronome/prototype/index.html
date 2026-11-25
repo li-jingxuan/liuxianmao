@@ -1,0 +1,936 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>六线猫 · 吉他节拍器交互稿</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --panel: #fff;
+      --canvas: #f4f6fa;
+      --ink: #202838;
+      --muted: #626e82;
+      --border: #dce2ec;
+      --border-strong: #8995a8;
+      --accent: #285be0;
+      --accent-soft: #edf3ff;
+      --error: #a53322;
+      font: 13px/1.5 "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+      color: var(--ink);
+      background: var(--canvas);
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    body { margin: 0; min-width: 1440px; min-height: 100dvh; display: flex; flex-direction: column; }
+    h1, h2, h3, p { margin: 0; }
+    button, input, select { font: inherit; color: inherit; }
+    button { cursor: pointer; }
+    button:disabled { cursor: default; }
+    :is(button, input, select, a):focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+    .icon { width: 17px; height: 17px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.65; stroke-linecap: round; stroke-linejoin: round; }
+    .header {
+      display: grid; grid-template-columns: 1fr minmax(0, 30rem) 1fr; align-items: center;
+      min-height: 46px; padding: 0 20px; border-bottom: 1px solid var(--border); background: var(--panel);
+    }
+    .header-start, .header-end, .brand, .menu, .toolbar, .edit-tools, .tool-group, .view-controls, .audition-tools {
+      display: flex; align-items: center;
+    }
+    .brand { gap: 6px; color: var(--accent); margin-right: 12px; padding-right: 14px; border-right: 1px solid var(--border); }
+    .brand img { width: 32px; height: 32px; }
+    .menu { gap: 20px; padding-inline: 10px; }
+    .header h1 { text-align: center; font-size: 14px; font-weight: 600; }
+    .header-end { justify-content: flex-end; gap: 12px; }
+    .file-status { font-size: 12px; color: var(--muted); }
+    .file-status::before { content: ""; display: inline-block; width: 6px; height: 6px; margin: 0 6px 2px 0; border-radius: 50%; background: currentColor; }
+    .export-copy { border-left: 1px solid var(--border); padding-left: 12px; color: var(--accent); }
+    .toolbar { justify-content: space-between; min-height: 45px; padding: 4px 8px 4px 16px; border-bottom: 1px solid var(--border); background: var(--panel); }
+    .edit-tools { gap: 9px; }
+    .tool-group { gap: 4px; }
+    .tool-group + .tool-group { padding-left: 9px; border-left: 1px solid var(--border); }
+    .tool-icon { display: grid; place-items: center; width: 32px; height: 34px; border-radius: 6px; font-size: 19px; }
+    .tool-icon img { width: 24px; height: 24px; opacity: .7; }
+    .tool-icon.selected img { filter: invert(29%) sepia(80%) saturate(3300%) hue-rotate(219deg); opacity: 1; }
+    .tool-icon.selected, .sidebar-toggle { background: var(--accent-soft); color: var(--accent); }
+    .tool-icon.text { width: auto; padding: 0 6px; font-size: 13px; }
+    .scene-control { color: var(--muted); cursor: default; }
+    .view-controls { gap: 4px; padding-left: 8px; border-left: 1px solid var(--border); }
+    .control, .tool-button {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 34px;
+      padding: 0 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel); white-space: nowrap;
+    }
+    .control:hover:enabled { border-color: var(--accent); }
+    .control:disabled { color: var(--muted); background: var(--canvas); }
+    .tool-button { min-height: 36px; border-color: transparent; font-size: 12px; color: var(--muted); }
+    .tool-button:hover { background: var(--canvas); color: var(--ink); }
+    .tool-button:is([aria-expanded="true"], [aria-pressed="true"], [data-running="true"]) { background: var(--accent-soft); color: var(--accent); }
+    .sidebar-toggle { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 6px; }
+    .running-label { border-left: 1px solid #b5c8f6; padding-left: 6px; font-weight: 600; }
+    .quick-stop-slot { width: 58px; display: flex; justify-content: center; }
+    .quick-stop-slot .control { min-height: 32px; font-size: 12px; padding-inline: 7px; }
+    .audition-tools { gap: 8px; font-size: 12px; }
+    .audition-tools .control { min-height: 32px; }
+    .audition-tools #play-score { min-width: 70px; }
+    .audition-extra { display: flex; align-items: center; gap: 10px; margin-left: 7px; padding-left: 16px; border-left: 1px solid var(--border); color: var(--muted); }
+    .audition-slider { width: 91px; margin: 0; accent-color: var(--accent); }
+    .audition-tempo .fake-field { white-space: nowrap; }
+    .detail-stack { display: grid; font-size: 11px; line-height: 1.4; }
+    .detail-stack strong { color: var(--ink); }
+    .toolbar[data-audition="true"] { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; }
+    .inline-metronome { display: grid; grid-template-columns: auto 140px auto; align-items: center; justify-content: start; gap: 0 10px; padding-left: 12px; border-left: 1px solid var(--border); font-size: 12px; }
+    .inline-metronome > :is(.panel-actions, .micro-note), .inline-metronome > .popover-head > .close { display: none; }
+    .inline-metronome .heading-group { display: grid; gap: 0; min-width: 48px; white-space: nowrap; }
+    .inline-metronome h2 { font-size: 12px; }
+    .inline-metronome .phase { font-size: 11px; }
+    .inline-metronome :is(.beat-heading, .beat-readout) { position: absolute; width: 1px; height: 1px; margin: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+    .inline-metronome .beat-area { margin: 0; padding: 0; border: 0; }
+    .inline-metronome .beat-groups, .inline-metronome .beat-group { margin: 0; gap: 3px; }
+    .inline-metronome .beat-group + .beat-group { margin-left: 3px; padding-left: 5px; }
+    .inline-metronome .beat { height: 25px; border-radius: 4px; font-size: 11px; }
+    .inline-metronome .beat[data-accent="true"]::before { top: 0; left: 2px; font-size: 6px; }
+    .inline-metronome .beat[data-current="true"]::after { bottom: 2px; width: 7px; }
+    .inline-metronome > .button-row { flex-wrap: nowrap; gap: 10px; margin: 0; }
+    .inline-metronome #enable-option { gap: 5px; white-space: nowrap; }
+    .inline-metronome #enable-click { width: 14px; height: 14px; }
+    .inline-metronome > .message { grid-column: 1 / -1; margin: 3px 0 0; padding: 0; background: transparent; }
+    @media (max-width: 1500px) {
+      .audition-extra { gap: 7px; margin-left: 3px; padding-left: 9px; }
+      .audition-slider { width: 78px; }
+      .audition-tempo .fake-field { padding-inline: 7px; }
+    }
+    .workspace { display: grid; grid-template-columns: 40px minmax(0, 1fr) 352px; flex: 1; min-height: 0; }
+    .history { display: grid; justify-items: center; align-content: start; padding-top: 14px; color: var(--muted); border-right: 1px solid var(--border); background: var(--panel); }
+    .score-host { display: grid; align-items: start; justify-items: center; padding: 24px; }
+    .paper {
+      width: min(100%, 1010px); min-height: 604px; padding: 36px 53px 42px;
+      border: 1px solid #e2e7ef; background: var(--panel); color: #1d2025; box-shadow: 0 2px 8px #19213d0a;
+    }
+    .paper h2 { text-align: center; font-size: 26px; font-weight: 600; letter-spacing: .09em; }
+    .score-meta { text-align: right; margin: 8px 0 17px; font-size: 12px; }
+    .notation-meta { display: flex; gap: 14px; align-items: center; font-size: 13px; }
+    .notation-meta > strong { font-weight: 600; }
+    .staff { position: relative; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 54px 0 70px 35px; height: 51px; }
+    .staff:last-child { margin-bottom: 42px; }
+    .staff::before { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(to bottom, #46505d 0 1px, transparent 1px 10px); }
+    .tab-clef { position: absolute; right: calc(100% + 18px); top: 3px; font-size: 13px; font-weight: 700; line-height: 15px; }
+    .score-meter { position: absolute; right: calc(100% + 5px); top: 10px; font: 700 17px/.9 Georgia, serif; }
+    .measure { position: relative; display: grid; grid-template-columns: repeat(4, 1fr); justify-items: center; border-left: 1px solid #46505d; }
+    .measure:last-child { border-right: 1px solid #46505d; }
+    .measure[data-playhead="true"] { background: #285be010; }
+    .measure[data-playhead="true"]::after { content: ""; position: absolute; inset: -5px auto -7px -1px; border-left: 2px solid var(--accent); }
+    .chord { position: absolute; top: -26px; left: 13px; font-size: 14px; font-weight: 600; }
+    .bar-no { position: absolute; left: -31px; top: -26px; color: var(--muted); font-size: 11px; }
+    .note { position: absolute; left: var(--x); top: calc(var(--string) * 10px - 6px); transform: translateX(-50%); padding: 0 3px; background: var(--panel); font: 12px/12px ui-monospace, monospace; }
+    .note.selected { border-radius: 3px; outline: 1px solid #81a3ff; background: var(--accent-soft); color: var(--accent); }
+    .stem { position: absolute; top: 58px; left: var(--x); height: 14px; border-left: 1px solid #1d2025; }
+    .sidebar { background: var(--panel); border-left: 1px solid var(--border); }
+    .sidebar-title { padding: 13px 20px; border-bottom: 1px solid var(--border); font-size: 14px; font-weight: 600; }
+    .tabs { display: flex; gap: 21px; padding-inline: 20px; border-bottom: 1px solid var(--border); color: var(--muted); }
+    .tabs span { padding-block: 10px; }
+    .tabs .current { color: var(--accent); border-bottom: 2px solid var(--accent); font-weight: 600; }
+    .settings { padding: 17px 20px; }
+    .settings + .settings { border-top: 1px solid var(--border); }
+    .settings h3 { margin-bottom: 12px; font-size: 13px; }
+    .settings label { display: block; margin-bottom: 5px; }
+    .fake-field { display: block; min-height: 32px; padding: 6px 9px; border: 1px solid var(--border); border-radius: 6px; color: var(--muted); }
+    .settings dl, .settings p { margin: 12px 0 0; color: var(--muted); }
+    .settings dl > div { display: flex; justify-content: space-between; margin-bottom: 6px; }
+    .settings dd { margin: 0; color: var(--ink); }
+    .status { min-height: 29px; padding: 5px 18px; color: var(--muted); border-top: 1px solid var(--border); background: var(--panel); font-size: 12px; }
+    .anchor { position: relative; }
+    .popover {
+      position: absolute; z-index: 3; top: calc(100% + 7px); right: 0; width: 370px;
+      padding: 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel);
+      box-shadow: 0 14px 32px #19213d24, 0 3px 8px #19213d0c;
+    }
+    .popover-head, .heading-group, .beat-heading, .button-row { display: flex; align-items: center; }
+    .popover-head, .beat-heading { justify-content: space-between; }
+    .heading-group { gap: 8px; }
+    .popover h2 { font-size: 15px; }
+    .settings-popover { width: 324px; }
+    .settings-popover::before { content: ""; position: absolute; top: -5px; right: 26px; width: 8px; height: 8px; border-top: 1px solid var(--border); border-left: 1px solid var(--border); background: var(--panel); transform: rotate(45deg); }
+    .settings-popover h3 { font-size: 14px; }
+    .settings-trigger, .settings-popover .control { min-height: 32px; }
+    .settings-popover .field-grid { margin-top: 12px; }
+    .settings-popover .source { margin: 12px 0 0; }
+    .settings-popover output { display: block; min-height: 36px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--canvas); font-variant-numeric: tabular-nums; }
+    .settings-trigger[aria-expanded="true"] { background: var(--accent-soft); color: var(--accent); border-color: #bdcef8; }
+    .settings-trigger .icon { width: 13px; height: 13px; }
+    .settings-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 12px; }
+    .phase { color: var(--muted); font-size: 12px; }
+    .phase[data-running="true"] { color: var(--accent); font-weight: 600; }
+    .close { min-height: 32px; padding-inline: 9px; }
+    .source { margin: 11px 0 14px; padding: 8px 10px; border-radius: 5px; background: var(--canvas); color: var(--muted); font-size: 12px; }
+    .source strong { color: var(--ink); font-weight: 600; }
+    .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .field-grid label { display: block; margin-bottom: 5px; font-weight: 600; }
+    .field-grid :is(input, select) { width: 100%; min-height: 36px; padding: 0 9px; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--panel); }
+    .field-grid :is(input, select):disabled { border-color: var(--border); background: var(--canvas); opacity: 1; color: var(--muted); }
+    .field-grid input[aria-invalid="true"] { border-color: var(--error); }
+    .field-hint, .micro-note { margin-top: 5px; color: var(--muted); font-size: 12px; }
+    .field-hint.error { color: var(--error); }
+    .beat-area { margin-top: 15px; padding-top: 12px; border-top: 1px solid var(--border); }
+    .beat-heading h3 { font-size: 13px; }
+    .beat-format { color: var(--muted); font-size: 12px; }
+    .beat-groups, .beat-group { display: flex; gap: 6px; }
+    .beat-groups { margin-top: 8px; gap: 12px; }
+    .beat-group { flex: 1; }
+    .beat-group + .beat-group { border-left: 1px solid var(--border); padding-left: 12px; }
+    .beat {
+      position: relative; flex: 1; display: grid; place-items: center; height: 42px;
+      border: 1px solid var(--border); border-radius: 6px; background: var(--canvas); font-variant-numeric: tabular-nums;
+    }
+    .beat[data-accent="true"] { border-style: dashed; border-color: var(--border-strong); font-weight: 700; }
+    .beat[data-accent="true"]::before { content: "◆"; position: absolute; left: 5px; top: 2px; font-size: 8px; }
+    .beat[data-current="true"] { border: 2px solid var(--accent); background: var(--accent-soft); color: #1644b0; font-weight: 700; }
+    .beat[data-current="true"]::after { content: ""; position: absolute; width: 12px; height: 2px; bottom: 4px; background: currentColor; border-radius: 2px; }
+    .beat-readout { margin-top: 6px; color: var(--muted); font-size: 12px; min-height: 18px; }
+    .button-row { flex-wrap: wrap; gap: 8px 14px; margin-top: 10px; }
+    .check { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; cursor: pointer; }
+    .check input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); cursor: pointer; }
+    .panel-actions { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-top: 12px; }
+    .primary { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
+    .primary:hover:enabled { background: #1d4bd0; }
+    .panel-actions .control { min-height: 36px; }
+    .message { padding: 7px 9px; margin-top: 10px; color: var(--error); background: #fff3eb; border-radius: 5px; font-size: 12px; }
+    .stop-icon { display: inline-block; width: 9px; height: 9px; border: 1.5px solid; border-radius: 1px; }
+    .review {
+      display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 6px 18px;
+      background: #eef1f6; border-top: 1px solid var(--border); color: var(--muted); font-size: 12px;
+    }
+    .review strong { color: var(--ink); }
+    .review .control { min-height: 29px; }
+    .review .control[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+    .review-actions { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+    .leave-view { flex: 1; display: grid; justify-items: center; align-content: center; gap: 10px; min-height: 420px; }
+    .leave-view h2 { font-size: 18px; }
+  </style>
+</head>
+<body>
+  <svg class="sr-only" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="metro-icon" viewBox="0 0 24 24"><path d="M8.5 3h7L20 21H4L8.5 3ZM7 17h10m-5-4 5-6"/><circle cx="12" cy="13" r="1.1"/></symbol>
+    <symbol id="headphones-icon" viewBox="0 0 24 24"><path d="M3 14v-2a9 9 0 0 1 18 0v2m-18 0v4a2 2 0 0 0 2 2h1a1 1 0 0 0 1-1v-5a1 1 0 0 0-1-1H4m17 1v4a2 2 0 0 1-2 2h-1a1 1 0 0 1-1-1v-5a1 1 0 0 1 1-1h2"/></symbol>
+    <symbol id="sidebar-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16m3-13v10"/></symbol>
+    <symbol id="history-icon" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 1 2.6 6.4M3 7v5h5m4-5v5l3 2"/></symbol>
+    <symbol id="play-icon" viewBox="0 0 24 24"><path d="m8 5 11 7-11 7z"/></symbol>
+    <symbol id="pause-icon" viewBox="0 0 24 24"><path d="M9 5v14m6-14v14"/></symbol>
+  </svg>
+  <header class="header" id="header">
+    <div class="header-start">
+      <div class="brand"><img src="../../../../../apps/website/public/assets/brand/liuxianmao-32.png" width="32" height="32" alt=""><strong>六线猫</strong></div>
+      <div class="menu scene-control" aria-hidden="true"><span>文件</span><span>编辑</span><span>视图</span><span>帮助</span></div>
+    </div>
+    <h1>木吉他分解练习</h1>
+    <div class="header-end" aria-hidden="true"><span class="file-status">示例曲谱</span><span class="export-copy scene-control">导出 ⌄</span></div>
+  </header>
+  <section class="toolbar" id="toolbar" aria-label="编辑器工具栏">
+    <div class="edit-tools scene-control" id="edit-tools" aria-hidden="true">
+      <div class="tool-group"><span class="tool-icon">↶</span><span class="tool-icon">↷</span></div>
+      <div class="tool-group">
+        <span class="tool-icon"><img alt="" src="../../../../../apps/website/public/assets/svg/music-controls/note-whole.svg"></span>
+        <span class="tool-icon"><img alt="" src="../../../../../apps/website/public/assets/svg/music-controls/note-half.svg"></span>
+        <span class="tool-icon selected"><img alt="" src="../../../../../apps/website/public/assets/svg/music-controls/note-quarter.svg"></span>
+        <span class="tool-icon"><img alt="" src="../../../../../apps/website/public/assets/svg/music-controls/note-eighth.svg"></span>
+        <span class="tool-icon"><img alt="" src="../../../../../apps/website/public/assets/svg/music-controls/note-sixteenth.svg"></span>
+        <span class="tool-icon"><img alt="" src="../../../../../apps/website/public/assets/svg/music-controls/note-thirty-second.svg"></span>
+      </div>
+      <div class="tool-group"><span class="tool-icon">·</span><span class="tool-icon">··</span><span class="tool-icon"><svg class="icon"><path d="m8 1 4 5-3 4 4 4-5 2 3 3"/></svg></span></div>
+      <div class="tool-group"><span class="tool-icon text">H</span><span class="tool-icon text">P</span><span class="tool-icon text">S</span></div>
+      <div class="tool-group"><span class="tool-icon text">小节</span><span class="tool-icon text">节奏型</span><span class="tool-icon text">连音</span><span class="tool-icon text">技巧</span><span class="tool-icon text">和弦</span></div>
+    </div>
+    <div class="audition-tools" id="audition-tools" hidden>
+      <button class="control primary" id="play-score" type="button"><svg class="icon" aria-hidden="true"><use href="#play-icon"/></svg><span id="score-action">播放</span></button>
+      <button class="control" id="stop-score" type="button" disabled><span class="stop-icon" aria-hidden="true"></span>停止</button>
+      <div class="audition-extra" aria-hidden="true"><span class="fake-field">从头开始 ⌄</span><span>跟随谱面</span></div>
+      <div class="audition-extra audition-tempo"><label for="audition-tempo">临时调速</label><input type="range" class="audition-slider" id="audition-tempo" min="20" max="300" value="88"><span class="fake-field" id="audition-bpm">88 BPM</span><button class="control" type="button" id="restore-audition-tempo" aria-label="恢复曲谱试听速度" disabled>恢复</button><span class="detail-stack"><strong id="audition-state">按曲谱速度试听</strong><span>从第 1 小节开始</span></span></div>
+    </div>
+    <div id="audition-metronome" hidden></div>
+    <div class="view-controls">
+      <button class="tool-button" id="audition" type="button" aria-label="木吉他试听" aria-controls="audition-tools" aria-expanded="false"><svg class="icon" aria-hidden="true"><use href="#headphones-icon"/></svg><span id="audition-label">试听</span></button>
+      <div class="anchor" id="anchor">
+        <button class="tool-button" id="metro" type="button" aria-haspopup="dialog" aria-expanded="true" aria-controls="metronome">
+          <svg class="icon" aria-hidden="true"><use href="#metro-icon"/></svg><span>节拍器</span><span class="running-label" id="running-label" hidden>运行中</span>
+        </button>
+        <section class="popover" id="metronome" role="dialog" aria-labelledby="metro-title">
+          <div class="popover-head"><div class="heading-group"><h2 id="metro-title">节拍器</h2><span class="phase" id="phase">已停止</span></div><button type="button" class="control close" id="close" aria-label="收起节拍器">收起</button></div>
+           <div id="practice-fields">
+             <p class="source"><strong id="source-label">曲谱设置</strong> <span id="source-values">88 BPM / 4/4</span><br><span id="source-detail">练习设置仅影响节拍器。</span></p>
+             <div class="field-grid">
+               <div><label for="bpm">练习速度（BPM）</label><input id="bpm" type="number" value="88" min="20" max="300" step="1" required aria-label="节拍器练习速度（BPM）" aria-describedby="bpm-unit"><p class="field-hint" id="bpm-unit">每分钟四分音符数</p><p class="field-hint error" id="bpm-error" hidden>输入 20–300 的整数。</p></div>
+               <div><label for="meter">练习拍号</label><select id="meter" aria-label="节拍器练习拍号" aria-describedby="meter-hint"><option>2/4</option><option>3/4</option><option selected>4/4</option><option>6/8</option></select><p class="field-hint" id="meter-hint">每小节 4 个四分音符</p></div>
+             </div>
+           </div>
+           <section class="beat-area" id="beat-area" aria-labelledby="beat-heading"><div class="beat-heading"><h3 id="beat-heading">拍点</h3><span class="beat-format" id="beat-format">四分音符</span></div>
+            <div id="beat-groups" class="beat-groups" aria-hidden="true"></div><p id="beat-readout" class="beat-readout">等待开始 · ◆ 首拍重音</p>
+          </section>
+          <div class="button-row">
+             <label class="check" id="accent-option"><input type="checkbox" id="accent" checked>首拍重音</label>
+             <label class="check" id="mute-option"><input type="checkbox" id="mute" aria-label="静音节拍器">静音</label>
+             <label class="check" id="enable-option" hidden><input type="checkbox" id="enable-click">启用节拍器</label>
+             <div class="anchor" id="settings-anchor" hidden>
+               <button class="control settings-trigger" id="settings-trigger" type="button" aria-label="节拍器设置" aria-haspopup="dialog" aria-expanded="false" aria-controls="practice-settings">设置<svg class="icon" aria-hidden="true" viewBox="0 0 16 16"><path d="m4 6 4 4 4-4"/></svg></button>
+               <section class="popover settings-popover" id="practice-settings" role="dialog" aria-labelledby="practice-title" hidden>
+                 <div class="popover-head"><h3 id="practice-title">节拍器设置</h3><button class="control close" id="settings-close" type="button" aria-label="收起节拍器设置">收起</button></div>
+                 <div class="field-grid">
+                   <div><label for="sync-bpm">试听速度（BPM）</label><output id="sync-bpm" aria-live="off">88</output></div>
+                   <div><label for="sync-meter">当前小节拍号</label><output id="sync-meter" aria-live="off">4/4</output></div>
+                 </div>
+                 <p class="source"><strong>曲谱设置</strong> <span id="sync-source">88 BPM / 4/4</span><br><span id="sync-source-detail">节拍跟随谱面试听。</span></p>
+                 <div class="settings-footer" id="settings-footer"><button class="control" id="restore-sync-tempo" type="button" aria-label="恢复曲谱试听速度" disabled>恢复</button></div>
+               </section>
+             </div>
+           </div>
+           <div class="panel-actions" id="panel-actions">
+            <button class="control primary" type="button" id="start-stop"><svg class="icon" id="start-icon" aria-hidden="true"><use href="#play-icon"/></svg><span class="stop-icon" id="stop-icon" aria-hidden="true" hidden></span><span id="start-label">开始节拍器</span></button>
+             <button class="control" type="button" id="restore" aria-label="恢复曲谱设置" title="恢复节拍器的曲谱速度与拍号" disabled>恢复曲谱设置</button>
+          </div>
+          <p class="micro-note" id="panel-note">收起面板后，节拍器会继续运行。</p>
+          <p id="message" class="message" hidden></p>
+        </section>
+      </div>
+      <div class="quick-stop-slot" id="quick-stop-slot"><button class="control" id="quick-stop" type="button" aria-label="停止节拍器" hidden><span class="stop-icon" aria-hidden="true"></span>停止</button></div>
+      <span class="sidebar-toggle" id="sidebar-toggle" aria-hidden="true"><svg class="icon"><use href="#sidebar-icon"/></svg></span>
+    </div>
+  </section>
+  <main class="workspace" id="workspace">
+    <aside class="history" aria-hidden="true"><svg class="icon"><use href="#history-icon"/></svg></aside>
+    <div class="score-host">
+      <article class="paper" aria-label="练习示例六线谱">
+        <h2>木吉他分解练习</h2>
+        <p class="score-meta">标准调弦　E A D G B E</p>
+        <p class="notation-meta"><strong>1=C</strong><strong id="paper-bpm">♩ = 88</strong></p>
+        <div id="score" aria-hidden="true"></div>
+      </article>
+    </div>
+    <aside class="sidebar" aria-label="曲谱设置场景">
+      <div class="tabs" aria-hidden="true"><span>选区</span><span>简谱与歌词</span><span>和弦</span><span class="current">歌曲</span></div>
+      <p class="sidebar-title">当前曲谱</p>
+      <section class="settings"><h3>曲谱信息</h3><p>歌曲名称</p><span class="fake-field">木吉他分解练习</span><dl><div><dt>数字 1 的音高</dt><dd>1=C</dd></div><div><dt>基础拍号</dt><dd id="score-meter-field">4/4</dd></div></dl></section>
+      <section class="settings"><h3>演奏设置</h3><dl><div><dt>变调夹</dt><dd>不使用</dd></div><div><dt>曲谱速度</dt><dd id="score-bpm-field">88 BPM</dd></div></dl><p>曲谱设置为示例背景。</p></section>
+    </aside>
+  </main>
+  <section class="status" id="status" aria-label="编辑器位置">当前位置：第 1 小节，第 3 拍点，第 3 弦。</section>
+  <main class="leave-view" id="leave-view" hidden><h2>已离开编辑器</h2><p>节拍器和试听已停止。</p><button class="control primary" id="return-editor" type="button">返回编辑器</button></main>
+  <footer class="review" aria-label="原型评审工具">
+    <strong>评审原型</strong><span>可操作节拍器与模拟试听。菜单、编辑工具和谱面为场景背景。</span>
+    <div class="review-actions">
+      <label for="score-scenario">曲谱场景</label><select class="control" id="score-scenario"><option value="regular">88 BPM、4/4</option><option value="duple">72 BPM（隐藏标记）、2/4</option><option value="missing">速度与拍号缺失</option><option value="imported">无速度、导入 5/8</option></select>
+      <button type="button" class="control" id="audio-failure" aria-pressed="false">模拟声音不可用</button>
+      <button type="button" class="control" id="leave">模拟离开编辑器</button>
+    </div>
+  </footer>
+  <div class="sr-only" id="announcement" role="status" aria-live="polite" aria-atomic="true"></div>
+
+  <script>
+    const byId = (id) => document.getElementById(id);
+    const bpmInput = byId('bpm');
+    const meterInput = byId('meter');
+    const trigger = byId('metro');
+    const panel = byId('metronome');
+    const anchor = byId('anchor');
+    const inlineHost = byId('audition-metronome');
+    const settingsAnchor = byId('settings-anchor');
+    const settingsTrigger = byId('settings-trigger');
+    const settingsPanel = byId('practice-settings');
+    const accentOption = byId('accent-option');
+    const startStop = byId('start-stop');
+    const restore = byId('restore');
+    const enableClick = byId('enable-click');
+    const auditionTempo = byId('audition-tempo');
+    const meterInfo = {
+      '2/4': { groups: [2], fraction: 1, label: '四分音符', hint: '每小节 2 个四分音符' },
+      '4/4': { groups: [4], fraction: 1, label: '四分音符', hint: '每小节 4 个四分音符' },
+      '3/4': { groups: [3], fraction: 1, label: '四分音符', hint: '每小节 3 个四分音符' },
+      '6/8': { groups: [3, 3], fraction: 0.5, label: '八分音符 · 3 + 3', hint: '每小节两组，各 3 个八分音符' },
+    };
+    const state = {
+      bpm: 88, meter: '4/4', accent: true, mute: false, running: false, beat: -1,
+      audioFailure: false, audioIssue: '',
+      audition: false, playback: 'idle', playhead: 0, clickEnabled: false, auditionBpm: 88, auditionBeat: -1,
+    };
+    let timer;
+    let playbackTimer;
+    let loadingTimer;
+    let nextPlaybackBeat = 0;
+    let remainingBeat = 0;
+    let playbackPoint = -1;
+    let audio;
+    let clockRevision = 0;
+    let audioRevision = 0;
+    const voices = new Set();
+    let beatCells = [];
+
+    const scoreScenario = byId('score-scenario');
+    const scoreScenarios = {
+      regular: { bpm: 88, meter: '4/4', count: 4, detail: '练习设置仅影响节拍器。' },
+      duple: { bpm: 72, meter: '2/4', count: 2, detail: '练习设置仅影响节拍器。' },
+      missing: { bpm: null, meter: null, count: 4, detail: '曲谱速度和谱首拍号缺失，使用默认值。' },
+      imported: { bpm: null, meter: '5/8', count: 5, detail: '曲谱速度未设置。谱首为 5/8，练习按 4/4。' },
+    };
+    const currentScore = () => scoreScenarios[scoreScenario.value];
+    const sourceBpm = () => currentScore().bpm ?? 90;
+    const sourceMeter = () => Object.hasOwn(meterInfo, currentScore().meter) ? currentScore().meter : '4/4';
+    const auditionMeter = () => currentScore().meter ?? '4/4';
+    const playbackBeatMs = () => 60000 / state.auditionBpm * (auditionMeter().endsWith('/8') ? 0.5 : 1);
+
+    // 每组练习分解音型各有四个拍点，弦格用实际和弦音展示选区场景。
+    const chords = [
+      ['C', [4, 3, 2, 1], [3, 2, 0, 1]], ['Am', [4, 3, 2, 1], [0, 2, 2, 1]],
+      ['Fmaj7', [3, 2, 1, 0], [3, 2, 1, 0]], ['G', [5, 3, 2, 0], [3, 0, 0, 3]],
+      ['C', [4, 2, 1, 0], [3, 0, 1, 0]], ['Em', [5, 3, 2, 1], [0, 2, 0, 0]],
+      ['Dm', [3, 2, 1, 0], [0, 2, 3, 1]], ['G', [5, 3, 2, 0], [3, 0, 0, 3]],
+      ['Am', [4, 3, 2, 0], [0, 2, 2, 0]], ['Fmaj7', [3, 2, 1, 0], [3, 2, 1, 0]],
+      ['G', [5, 3, 2, 1], [3, 0, 0, 0]], ['C', [4, 3, 2, 1], [3, 2, 0, 1]],
+    ];
+    function renderScore() {
+      const { meter, count } = currentScore();
+      const selectedIndex = Math.min(2, count - 1);
+      byId('status').textContent = `当前位置：第 1 小节，第 ${selectedIndex + 1} 拍点，第 ${chords[0][1][selectedIndex] + 1} 弦。`;
+      const score = byId('score');
+      score.replaceChildren();
+      for (let line = 0; line < 3; line += 1) {
+        const staff = document.createElement('div');
+        staff.className = 'staff';
+        staff.innerHTML = '<span class="tab-clef">T<br>A<br>B</span>' + (line === 0 && meter ? `<span class="score-meter">${meter.replace('/', '<br>')}</span>` : '');
+        for (let bar = 0; bar < 4; bar += 1) {
+          const barIndex = line * 4 + bar;
+          const [chord, strings, frets] = chords[barIndex];
+          const measure = document.createElement('div');
+          measure.className = 'measure';
+          measure.innerHTML = `<span class="chord">${chord}</span>${bar === 0 ? `<span class="bar-no">${barIndex + 1}</span>` : ''}`;
+          for (let index = 0; index < count; index += 1) {
+            const string = strings[index % strings.length];
+            const fret = frets[index % frets.length];
+            const selected = barIndex === 0 && index === selectedIndex;
+            const position = `${100 * (index + 0.5) / count}%`;
+            measure.innerHTML += `<span class="note${selected ? ' selected' : ''}" style="--string:${string};--x:${position}">${fret}</span><span class="stem" style="--x:${position}">${meter === '5/8' ? '⌝' : ''}</span>`;
+          }
+          staff.append(measure);
+        }
+        score.append(staff);
+      }
+      return [...score.querySelectorAll('.measure')];
+    }
+    let measures = renderScore();
+
+    function announce(text) {
+      byId('announcement').textContent = text;
+    }
+
+    function renderBeat() {
+      const currentBeat = state.audition ? state.auditionBeat : state.beat;
+      beatCells.forEach((cell, index) => {
+        cell.dataset.current = String(currentBeat === index);
+        cell.dataset.accent = String(index === 0 && state.accent);
+      });
+      const position = currentBeat < 0 ? '等待开始' : `当前拍点 ${currentBeat + 1} / ${beatCells.length}`;
+      byId('beat-readout').textContent = state.accent ? `${position} · ◆ 首拍重音` : position;
+    }
+
+    function rebuildBeats() {
+      const { label, hint } = meterInfo[state.meter];
+      const groups = state.audition ? (meterInfo[auditionMeter()]?.groups ?? [currentScore().count]) : meterInfo[state.meter].groups;
+      const container = byId('beat-groups');
+      container.replaceChildren();
+      byId('beat-format').textContent = state.audition ? (auditionMeter().endsWith('/8') ? '八分音符' : '四分音符') : label;
+      byId('meter-hint').textContent = hint;
+      beatCells = [];
+      for (const size of groups) {
+        const group = document.createElement('div');
+        group.className = 'beat-group';
+        for (let index = 0; index < size; index += 1) {
+          const cell = document.createElement('span');
+          cell.className = 'beat';
+          cell.textContent = String(beatCells.length + 1);
+          group.append(cell);
+          beatCells.push(cell);
+        }
+        container.append(group);
+      }
+      renderBeat();
+    }
+
+    function renderControls() {
+      const { running, mute, playback, audition, audioIssue } = state;
+      const score = currentScore();
+      const scoreActive = playback !== 'idle';
+      const phase = running ? (mute ? '运行中 · 已静音' : '运行中') : '已停止';
+      const syncPhase = !state.clickEnabled ? '未启用' : { idle: '待播放', loading: '待播放', playing: '跟随播放', paused: '已暂停' }[playback];
+      byId('phase').textContent = audition ? syncPhase : phase;
+      byId('phase').dataset.running = String(audition ? syncPhase === '跟随播放' : running);
+      trigger.dataset.running = String(running);
+      byId('running-label').textContent = phase;
+      byId('running-label').hidden = !running;
+      byId('quick-stop').hidden = !running;
+      bpmInput.disabled = running;
+      meterInput.disabled = running;
+      byId('start-label').textContent = running ? '停止节拍器' : '开始节拍器';
+      byId('start-icon').toggleAttribute('hidden', running);
+      byId('stop-icon').hidden = !running;
+      restore.disabled = running || (state.bpm === sourceBpm() && state.meter === sourceMeter() && bpmInput.validity.valid && Number(bpmInput.value) === sourceBpm());
+      byId('panel-note').textContent = running ? '收起后继续运行。停止后可调整速度与拍号。' : '收起面板后，节拍器会继续运行。';
+      byId('message').hidden = !audioIssue;
+      byId('message').textContent = audioIssue;
+      byId('source-label').textContent = score.bpm === null ? '练习默认值' : '曲谱设置';
+      byId('source-values').textContent = `${sourceBpm()} BPM / ${sourceMeter()}`;
+      byId('source-detail').textContent = score.detail;
+      byId('score-bpm-field').textContent = score.bpm === null ? '未设置' : `${score.bpm} BPM`;
+      byId('score-meter-field').textContent = score.meter ?? '未设置';
+      byId('paper-bpm').hidden = scoreScenario.value !== 'regular';
+      auditionTempo.value = state.auditionBpm;
+      auditionTempo.setAttribute('aria-valuetext', `${state.auditionBpm} BPM`);
+      byId('audition-bpm').textContent = `${state.auditionBpm} BPM`;
+      byId('sync-bpm').value = state.auditionBpm;
+      byId('sync-meter').value = auditionMeter();
+      byId('sync-source').textContent = `${sourceBpm()} BPM / ${auditionMeter()}`;
+      const speedFallback = score.bpm === null ? '曲谱速度未设置，试听按 90 BPM。' : '';
+      const meterFallback = score.meter === null ? '曲谱拍号未设置，试听按 4/4。' : '';
+      byId('sync-source-detail').textContent = speedFallback + meterFallback || '节拍跟随谱面试听。';
+      byId('restore-audition-tempo').disabled = state.auditionBpm === sourceBpm();
+      byId('restore-sync-tempo').disabled = state.auditionBpm === sourceBpm();
+      byId('audition').setAttribute('aria-expanded', String(audition));
+      byId('audition').setAttribute('aria-label', audition ? '退出试听' : '木吉他试听');
+      byId('audition-label').textContent = audition ? '退出试听' : '试听';
+      byId('audition-tools').hidden = !audition;
+      byId('edit-tools').hidden = audition;
+      byId('sidebar-toggle').hidden = audition;
+      byId('play-score').querySelector('use').setAttribute('href', playback === 'playing' ? '#pause-icon' : '#play-icon');
+      byId('play-score').setAttribute('aria-disabled', String(playback === 'loading'));
+      byId('score-action').textContent = { idle: '播放', loading: '加载中…', playing: '暂停', paused: '继续' }[playback];
+      byId('stop-score').disabled = !scoreActive;
+      byId('audition-state').textContent = { idle: state.auditionBpm === sourceBpm() ? '按曲谱速度试听' : '按临时速度试听', loading: '正在准备试听', playing: '正在试听', paused: '试听已暂停' }[playback];
+      const showPlayhead = playback === 'playing' || playback === 'paused';
+      measures.forEach((measure, index) => { measure.dataset.playhead = String(showPlayhead && index === state.playhead); });
+    }
+
+    function setPanel(open, restoreFocus = false) {
+      if (state.audition) return;
+      if (!open) discardInvalidBpm();
+      panel.hidden = !open;
+      trigger.setAttribute('aria-expanded', String(open));
+      if (open) (state.running ? startStop : bpmInput).focus();
+      if (restoreFocus) trigger.focus();
+    }
+
+    function setSettings(open, restoreFocus = false) {
+      if (!state.audition) return;
+      settingsPanel.hidden = !open;
+      settingsTrigger.setAttribute('aria-expanded', String(open));
+      if (open) byId('accent').focus();
+      if (restoreFocus) settingsTrigger.focus();
+    }
+
+    function discardInvalidBpm() {
+      if (!state.running && !bpmInput.validity.valid) {
+        bpmInput.value = state.bpm;
+        validateBpm();
+      }
+    }
+
+    function validateBpm() {
+      const valid = bpmInput.validity.valid;
+      if (valid) state.bpm = Number(bpmInput.value);
+      bpmInput.setAttribute('aria-invalid', String(!valid));
+      bpmInput.setAttribute('aria-describedby', valid ? 'bpm-unit' : 'bpm-unit bpm-error');
+      byId('bpm-error').hidden = valid;
+      renderControls();
+      return valid;
+    }
+
+    function applySource() {
+      bpmInput.value = sourceBpm();
+      state.meter = sourceMeter();
+      meterInput.value = state.meter;
+      validateBpm();
+      rebuildBeats();
+    }
+
+    async function prepareAudio() {
+      try {
+        const Audio = window.AudioContext || window.webkitAudioContext;
+        if (!Audio || state.audioFailure) return false;
+        audio ??= new Audio();
+        await audio.resume();
+        return audio.state === 'running' && !state.audioFailure;
+      } catch {
+        return false;
+      }
+    }
+
+    function stopForAudioIssue() {
+      stopMetronome();
+      state.audioIssue = '声音不可用。可重试，或勾选「静音」后开始看拍点。';
+      renderControls();
+      announce(state.audioIssue);
+    }
+
+    function playClick(beat) {
+      if (state.audioFailure || audio?.state !== 'running') return;
+      const strong = state.accent && beat === 0;
+      const tone = audio.createOscillator();
+      const gain = audio.createGain();
+      const now = audio.currentTime;
+      tone.frequency.value = strong ? 1220 : 790;
+      gain.gain.setValueAtTime(0.001, now);
+      gain.gain.exponentialRampToValueAtTime(strong ? 0.18 : 0.09, now + 0.004);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.046);
+      tone.connect(gain).connect(audio.destination);
+      voices.add(tone);
+      tone.onended = () => { voices.delete(tone); tone.disconnect(); gain.disconnect(); };
+      tone.start(now);
+      tone.stop(now + 0.05);
+    }
+
+    function silenceVoices() {
+      for (const tone of voices) tone.stop();
+      voices.clear();
+    }
+
+    function stopMetronome() {
+      clockRevision += 1;
+      audioRevision += 1;
+      clearTimeout(timer);
+      silenceVoices();
+      state.running = false;
+      state.beat = -1;
+      state.audioIssue = '';
+      renderBeat();
+      renderControls();
+    }
+
+    async function startMetronome() {
+      if (!validateBpm()) {
+        bpmInput.focus();
+        announce(byId('bpm-error').textContent);
+        return;
+      }
+      const audioAttempt = ++audioRevision;
+      if (!state.mute) {
+        const ready = await prepareAudio();
+        if (audioAttempt !== audioRevision || state.audition) return;
+        if (!ready && !state.mute) { stopForAudioIssue(); return; }
+      }
+      state.running = true;
+      state.audioIssue = '';
+      state.beat = 0;
+      const revision = ++clockRevision;
+      const interval = 60000 / state.bpm * meterInfo[state.meter].fraction;
+      renderBeat();
+      renderControls();
+      announce('节拍器已开始。');
+      if (!state.mute) playClick(state.beat);
+      const start = performance.now();
+      let next = start + interval;
+      const advance = () => {
+        if (!state.running || revision !== clockRevision) return;
+        const elapsed = Math.max(1, Math.floor((performance.now() - next) / interval) + 1);
+        if (!state.mute && (state.audioFailure || audio?.state !== 'running')) { stopForAudioIssue(); return; }
+        state.beat = (state.beat + elapsed) % beatCells.length;
+        next += elapsed * interval;
+        renderBeat();
+        if (!state.mute) playClick(state.beat);
+        timer = setTimeout(advance, Math.max(0, next - performance.now()));
+      };
+      timer = setTimeout(advance, interval);
+    }
+
+    function stopPlayback() {
+      clearTimeout(loadingTimer);
+      clearTimeout(playbackTimer);
+      audioRevision += 1;
+      silenceVoices();
+      state.playback = 'idle';
+      state.playhead = 0;
+      state.auditionBeat = -1;
+      state.audioIssue = '';
+      playbackPoint = -1;
+      remainingBeat = 0;
+      renderBeat();
+      renderControls();
+    }
+
+    // 小节游标、拍点和提示音使用同一个试听时钟。浏览器延迟时跳到当前拍，避免补播堆积的点击声。
+    function advancePlayback() {
+      if (state.playback !== 'playing') return;
+      const interval = playbackBeatMs();
+      const elapsed = Math.max(1, Math.floor((performance.now() - nextPlaybackBeat) / interval) + 1);
+      playbackPoint += elapsed;
+      const { count } = currentScore();
+      const measure = Math.floor(playbackPoint / count);
+      if (measure >= measures.length) {
+        stopPlayback();
+        announce('谱面试听结束。');
+        return;
+      }
+      state.playhead = measure;
+      if (state.clickEnabled) {
+        state.auditionBeat = playbackPoint % count;
+        checkAuditionAudio();
+        playClick(state.auditionBeat);
+        renderBeat();
+      }
+      renderControls();
+      nextPlaybackBeat += elapsed * interval;
+      schedulePlaybackBeat();
+    }
+
+    function schedulePlaybackBeat() {
+      clearTimeout(playbackTimer);
+      playbackTimer = setTimeout(advancePlayback, Math.max(0, nextPlaybackBeat - performance.now()));
+    }
+
+    function beginPlayback() {
+      state.playback = 'playing';
+      nextPlaybackBeat = performance.now() + remainingBeat;
+      if (playbackPoint < 0) advancePlayback();
+      else schedulePlaybackBeat();
+      renderControls();
+      announce('谱面正在试听。');
+    }
+
+    function pausePlayback() {
+      clearTimeout(playbackTimer);
+      remainingBeat = Math.max(0, nextPlaybackBeat - performance.now());
+      silenceVoices();
+      state.playback = 'paused';
+      renderControls();
+      announce('谱面试听已暂停。');
+    }
+
+    function setAuditionTempo(bpm) {
+      // 调速时保留当前拍已度过的比例。暂停期间调速也按同一比例恢复剩余时长。
+      const previousInterval = playbackBeatMs();
+      state.auditionBpm = bpm;
+      const ratio = playbackBeatMs() / previousInterval;
+      if (state.playback === 'playing') {
+        const now = performance.now();
+        nextPlaybackBeat = now + Math.max(0, nextPlaybackBeat - now) * ratio;
+        schedulePlaybackBeat();
+      } else if (state.playback === 'paused') {
+        remainingBeat *= ratio;
+      }
+      renderControls();
+    }
+
+    function checkAuditionAudio() {
+      if (!state.clickEnabled || (!state.audioFailure && audio?.state === 'running') || state.audioIssue) return;
+      state.audioIssue = '节拍提示音不可用，拍点继续跟随谱面。';
+      announce(state.audioIssue);
+    }
+
+    async function prepareAuditionClick() {
+      if (!state.clickEnabled) return;
+      const attempt = ++audioRevision;
+      const ready = await prepareAudio();
+      if (attempt !== audioRevision || !state.audition || !state.clickEnabled) return;
+      if (ready) state.audioIssue = '';
+      else checkAuditionAudio();
+      renderControls();
+    }
+
+    function setAudition(enabled) {
+      // 两种模式用各自的播放时钟。切换时结束旧时钟，保留编辑态已提交的练习参数。
+      if (enabled) {
+        setPanel(false);
+        stopMetronome();
+      } else {
+        setSettings(false);
+        stopPlayback();
+      }
+      state.audition = enabled;
+      state.clickEnabled = false;
+      enableClick.checked = false;
+      state.auditionBpm = sourceBpm();
+      const host = enabled ? inlineHost : anchor;
+      host.append(panel);
+      panel.className = enabled ? 'inline-metronome' : 'popover';
+      panel.setAttribute('role', enabled ? 'group' : 'dialog');
+      panel.hidden = !enabled;
+      anchor.hidden = enabled;
+      inlineHost.hidden = !enabled;
+      settingsAnchor.hidden = !enabled;
+      byId('practice-fields').hidden = enabled;
+      byId('mute-option').hidden = enabled;
+      byId('enable-option').hidden = !enabled;
+      if (enabled) byId('settings-footer').prepend(accentOption);
+      else byId('mute-option').before(accentOption);
+      byId('quick-stop-slot').hidden = enabled;
+      byId('toolbar').dataset.audition = String(enabled);
+      rebuildBeats();
+      renderControls();
+    }
+
+    function resetPractice() {
+      state.accent = true;
+      state.mute = false;
+      byId('accent').checked = true;
+      byId('mute').checked = false;
+      applySource();
+    }
+
+    trigger.addEventListener('click', () => setPanel(panel.hidden, !panel.hidden));
+    byId('close').addEventListener('click', () => setPanel(false, true));
+    settingsTrigger.addEventListener('click', () => setSettings(settingsPanel.hidden, !settingsPanel.hidden));
+    byId('settings-close').addEventListener('click', () => setSettings(false, true));
+    document.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape' || event.isComposing) return;
+      if (state.audition && !settingsPanel.hidden) {
+        event.preventDefault();
+        setSettings(false, settingsAnchor.contains(event.target));
+      } else if (!state.audition && !panel.hidden && anchor.contains(event.target)) {
+        event.preventDefault();
+        setPanel(false, true);
+      } else if (state.audition && !panel.contains(event.target) && byId('toolbar').contains(event.target)) {
+        setAudition(false);
+        byId('audition').focus();
+      }
+    });
+    document.addEventListener('click', (event) => {
+      if (state.audition) {
+        if (!settingsPanel.hidden && !event.target.closest('#settings-anchor')) {
+          setSettings(false, settingsPanel.contains(document.activeElement));
+        }
+        return;
+      }
+      if (panel.hidden || event.target.closest('#anchor, #quick-stop, #audition, .review')) return;
+      setPanel(false, panel.contains(document.activeElement));
+    });
+    bpmInput.addEventListener('input', () => { if (bpmInput.getAttribute('aria-invalid') === 'true') validateBpm(); else renderControls(); });
+    bpmInput.addEventListener('blur', validateBpm);
+    bpmInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' && !event.isComposing) {
+        event.preventDefault();
+        if (!validateBpm()) announce(byId('bpm-error').textContent);
+      }
+    });
+    meterInput.addEventListener('change', () => { state.meter = meterInput.value; rebuildBeats(); renderControls(); });
+    byId('accent').addEventListener('change', (event) => { state.accent = event.target.checked; renderBeat(); });
+    byId('mute').addEventListener('change', async (event) => {
+      const turningOnSound = !event.target.checked;
+      const attempt = ++audioRevision;
+      if (turningOnSound && state.running) {
+        const ready = await prepareAudio();
+        if (attempt !== audioRevision) { event.target.checked = state.mute; return; }
+        if (!ready) {
+          event.target.checked = true;
+          state.audioIssue = '声音无法恢复。节拍器保持静音，拍点继续运行。';
+          renderControls();
+          announce(state.audioIssue);
+          return;
+        }
+      }
+      state.mute = !turningOnSound;
+      state.audioIssue = '';
+      if (state.mute) silenceVoices();
+      renderControls();
+    });
+    startStop.addEventListener('click', () => {
+      if (state.running) { stopMetronome(); announce('节拍器已停止。'); }
+      else void startMetronome();
+    });
+    byId('quick-stop').addEventListener('click', () => {
+      stopMetronome();
+      (panel.hidden ? trigger : byId('start-stop')).focus();
+      announce('节拍器已停止。');
+    });
+    restore.addEventListener('click', () => { applySource(); bpmInput.focus(); announce('已恢复曲谱来源的速度与拍号。'); });
+
+    enableClick.addEventListener('change', () => {
+      state.clickEnabled = enableClick.checked;
+      if (state.clickEnabled) {
+        void prepareAuditionClick();
+      } else {
+        audioRevision += 1;
+        silenceVoices();
+        state.auditionBeat = -1;
+        state.audioIssue = '';
+        renderBeat();
+      }
+      renderControls();
+    });
+    auditionTempo.addEventListener('input', () => setAuditionTempo(Number(auditionTempo.value)));
+    byId('restore-audition-tempo').addEventListener('click', () => {
+      setAuditionTempo(sourceBpm());
+      auditionTempo.focus();
+      announce('已恢复曲谱试听速度。');
+    });
+    byId('restore-sync-tempo').addEventListener('click', () => {
+      setAuditionTempo(sourceBpm());
+      byId('accent').focus();
+      announce('已恢复曲谱试听速度。');
+    });
+
+    byId('audition').addEventListener('click', () => {
+      setAudition(!state.audition);
+      (state.audition ? byId('play-score') : byId('audition')).focus();
+    });
+    byId('play-score').addEventListener('click', () => {
+      if (state.playback === 'loading') return;
+      if (state.playback === 'playing') {
+        pausePlayback();
+        return;
+      }
+      void prepareAuditionClick();
+      if (state.playback === 'paused') {
+        beginPlayback();
+        return;
+      }
+      state.playback = 'loading';
+      loadingTimer = setTimeout(beginPlayback, 800);
+      renderControls();
+      announce('正在准备谱面试听。');
+    });
+    byId('stop-score').addEventListener('click', () => { stopPlayback(); byId('play-score').focus(); announce('谱面试听已停止。'); });
+
+    scoreScenario.addEventListener('change', () => {
+      stopMetronome();
+      stopPlayback();
+      measures = renderScore();
+      state.clickEnabled = false;
+      enableClick.checked = false;
+      state.auditionBpm = sourceBpm();
+      resetPractice();
+      if (panel.hidden) setPanel(true);
+      announce(`当前练习设置 ${sourceBpm()} BPM、${sourceMeter()}。${byId('source-detail').textContent}`);
+    });
+    byId('audio-failure').addEventListener('click', (event) => {
+      state.audioFailure = !state.audioFailure;
+      event.currentTarget.setAttribute('aria-pressed', String(state.audioFailure));
+      if (state.running && !state.mute && state.audioFailure) stopForAudioIssue();
+      if (state.audition && state.clickEnabled) {
+        if (state.audioFailure) { silenceVoices(); checkAuditionAudio(); }
+        else void prepareAuditionClick();
+      } else if (!state.audioFailure) state.audioIssue = '';
+      renderControls();
+      if (panel.hidden) setPanel(true);
+    });
+    const editorSections = ['header', 'toolbar', 'workspace', 'status'];
+    byId('leave').addEventListener('click', () => {
+      stopMetronome();
+      stopPlayback();
+      setPanel(false);
+      setSettings(false);
+      editorSections.forEach((id) => { byId(id).hidden = true; });
+      byId('leave-view').hidden = false;
+      byId('leave').disabled = true;
+      scoreScenario.disabled = true;
+      byId('audio-failure').disabled = true;
+      byId('return-editor').focus();
+    });
+    byId('return-editor').addEventListener('click', () => {
+      setAudition(false);
+      resetPractice();
+      editorSections.forEach((id) => { byId(id).hidden = false; });
+      byId('leave-view').hidden = true;
+      byId('leave').disabled = false;
+      scoreScenario.disabled = false;
+      byId('audio-failure').disabled = false;
+      trigger.focus();
+    });
+    window.addEventListener('pagehide', () => { stopMetronome(); stopPlayback(); });
+    rebuildBeats();
+    renderControls();
+  </script>
+</body>
+</html>

@@ -25,8 +25,8 @@ try {
   await page.waitForFunction(() => !!window.parameterEnterTest);
   const commands = () => page.evaluate(() => window.parameterEnterTest.commands());
   const count = async () => (await commands()).length;
-  const title = page.locator("#settings-title");
-  const label = page.locator("#settings-label");
+  const title = page.locator("[id$=settings-title]");
+  const label = page.locator("[id$=settings-label]");
   await title.fill("Enter 歌曲");
   await title.press("Enter");
   assert.deepEqual((await commands()).map((command) => command.type), ["score.setInfo"]);
@@ -35,21 +35,21 @@ try {
   await label.press("Enter");
   assert.deepEqual((await commands()).map((command) => command.type), ["score.setInfo", "measure.setSectionLabel"]);
   assert.equal(await page.evaluate(() => window.parameterEnterTest.status().groups.label.dirty), false);
-  await page.locator("#settings-arranger").fill("Enter 作者");
-  await page.locator("#settings-arranger").press("Enter");
+  await page.locator("[id$=settings-arranger]").fill("Enter 作者");
+  await page.locator("[id$=settings-arranger]").press("Enter");
   assert.equal(await page.evaluate(() => window.parameterEnterTest.document().score.arranger), "Enter 作者");
 
   // Select keeps Enter for option selection; neither settings nor copy auto-submit.
   const beforeSelect = await count();
-  await page.locator("#settings-capo").click();
-  await page.locator("#settings-capo").press("ArrowDown");
-  await page.locator("#settings-capo").press("Enter");
+  await page.locator("[id$=settings-capo]").click();
+  await page.locator("[id$=settings-capo]").press("ArrowDown");
+  await page.locator("[id$=settings-capo]").press("Enter");
   assert.equal(await count(), beforeSelect);
   assert.equal(await page.evaluate(() => window.parameterEnterTest.status().groups.capo.dirty), true);
-  assert.equal(await page.locator("#settings-copy-start").evaluate((element) => !!element.closest("details")), false);
-  await page.locator("#settings-copy-start").click();
-  await page.locator("#settings-copy-start").press("ArrowDown");
-  await page.locator("#settings-copy-start").press("Enter");
+  assert.equal(await page.locator("[id$=settings-copy-start]").evaluate((element) => !!element.closest("details")), false);
+  await page.locator("[id$=settings-copy-start]").click();
+  await page.locator("[id$=settings-copy-start]").press("ArrowDown");
+  await page.locator("[id$=settings-copy-start]").press("Enter");
   assert.equal(await count(), beforeSelect);
 
   const protectedEnter = async (input, composing) => {

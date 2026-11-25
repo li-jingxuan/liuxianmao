@@ -45,7 +45,7 @@ import type { ILXMChordSymbol, ILXMLyricVerse } from "../types";
  */
 import { editMeasureTuplet } from "../rhythm/tuplet-commands";
 import { createMeasureRhythmContext } from "../rhythm/tuplet";
-import { createNumberedRhythmContext } from "../numbered/numbered-rhythm";
+import { createNumberedTrackRhythmContext } from "../numbered/numbered-rhythm";
 import { GUITAR_STRING_COUNT, MAX_FRET, MAX_SCORE_BPM, MIN_SCORE_BPM } from "../constants";
 import {
   resolveBeatRange,
@@ -54,11 +54,17 @@ import {
   type ILXMTabCellReference,
 } from "../../editing/tab-cell-selection";
 import { createDocumentIdFactory } from "../id-factory";
+import { createJumpMarkIndex, getJumpMarkFields, getJumpMarkSide, resolveJumpMarkDraft } from "../playback/jump-marks";
+import { inspectRepeatEndingGroups, withoutRepeatEndingMeasure } from "../playback/repeat-endings";
 import { createMeasureRestBeats } from "../rhythm/rest-beats";
 import { changeMeasureBeatRhythm } from "../rhythm/rhythm-change";
 import { getMeasureCapacityTicks, isEditableTimeSignature, isSameTimeSignature } from "../rhythm/rhythm";
 import { LXMDocumentSchema, LXMScoreSchema } from "../document/schema";
 import { validateDocumentSemantics } from "../document/semantic-validation";
+import {
+  copyMeasureRepeatFields, createMeasureRepeatSnapshot, findEditedMeasureRepeat, findInvalidMeasureRepeats,
+  getMeasureRepeatAvailability, isMeasureRepeat, withoutMeasureRepeat,
+} from "../document/measure-repeat";
 import { changeMeasureTimeSignature } from "../rhythm/time-signature-change";
 import { changeMeasureDuration } from "../rhythm/measure-duration-change";
 import { pruneInvalidTechniques, pruneInvalidTraversalTies, validateTechnique } from "../techniques/technique-rules";
@@ -67,6 +73,9 @@ import type {
   ILXMTupletRatio,
   ILXMBeat,
   ILXMDocument,
+  ILXMJumpMark,
+  ILXMRepeatEnding,
+  ILXMRepeatEndingGroup,
   ILXMMeasure,
   ILXMNote,
   ILXMFret,
@@ -112,6 +121,8 @@ export enum LXMScoreCommandEnum {
   CopyMeasure = "measure.copy",
   CopyMeasureRange = "measure.copyRange",
   RemoveMeasure = "measure.remove",
+  AddMeasureRepeat = "measureRepeat.add",
+  ExpandMeasureRepeat = "measureRepeat.expand",
   SetTimeSignature = "measure.setTimeSignature",
   SetMeasureDuration = "measure.setDuration",
   SetBarlineBoundary = "barline.setBoundary",
@@ -119,10 +130,16 @@ export enum LXMScoreCommandEnum {
   SetCapo = "track.setCapo",
   SetPerformanceSettings = "score.setPerformanceSettings",
   SetSectionLabel = "measure.setSectionLabel",
+  SetJumpMark = "jumpMark.set",
+  RemoveJumpMark = "jumpMark.remove",
+  UpsertRepeatEnding = "repeatEnding.upsert",
+  DeleteRepeatEnding = "repeatEnding.delete",
+  DeleteRepeatEndingGroup = "repeatEnding.deleteGroup",
   AddTechnique = "technique.add",
   UpdateTechnique = "technique.update",
   RemoveTechnique = "technique.remove",
   SetStrumEndpoint = "strum.setEndpoint",
+  SetArpeggioEndpoint = "arpeggio.setEndpoint",
   SetTuplet = "tuplet.set",
   RemoveTuplet = "tuplet.remove",
 }
@@ -265,11 +282,17 @@ export interface ILXMRemoveTechniqueCommand extends ILXMScoreCommandBase {
   type: LXMScoreCommandEnum.RemoveTechnique;
   techniqueId: string;
 }
-export interface ILXMSetStrumEndpointCommand extends ILXMScoreCommandBase {
-  type: LXMScoreCommandEnum.SetStrumEndpoint;
+/** 端点按谱面弦序定义，与每个技巧的弹奏方向无关。 */
+interface ILXMSetTraversalEndpointCommandBase extends ILXMScoreCommandBase {
   techniqueIds: readonly string[];
   endpoint: "minString" | "maxString";
   string: number;
+}
+export interface ILXMSetStrumEndpointCommand extends ILXMSetTraversalEndpointCommandBase {
+  type: LXMScoreCommandEnum.SetStrumEndpoint;
+}
+export interface ILXMSetArpeggioEndpointCommand extends ILXMSetTraversalEndpointCommandBase {
+  type: LXMScoreCommandEnum.SetArpeggioEndpoint;
 }
 
 export interface ILXMSetTupletCommand extends ILXMScoreCommandBase {
@@ -328,6 +351,8 @@ export interface ILXMReplaceMusicTextRangeCommand {
   type: LXMScoreCommandEnum.ReplaceMusicTextRange;
   range: MusicTextRange;
   text: string;
+  /** 菜单清空最后一处内容时，原先由音符隐式开启的简谱行也应保留。 */
+  preserveNumberedRow?: true;
 }
 
 /** 新增全谱空白歌词段，不创建占位歌词实体。 */
@@ -452,6 +477,8 @@ type ScoreCommandOperation =
   | ILXMCopyMeasureCommand
   | ILXMCopyMeasureRangeCommand
   | ILXMRemoveMeasureCommand
+  | (ILXMScoreCommandBase & { type: LXMScoreCommandEnum.AddMeasureRepeat; measureId: string; allowOverwrite?: boolean })
+  | (ILXMScoreCommandBase & { type: LXMScoreCommandEnum.ExpandMeasureRepeat; measureId: string })
   | ILXMSetTimeSignatureCommand
   | ILXMSetMeasureDurationCommand
   | ILXMSetBarlineBoundaryCommand
@@ -459,10 +486,16 @@ type ScoreCommandOperation =
   | ILXMSetCapoCommand
   | ILXMSetPerformanceSettingsCommand
   | ILXMSetSectionLabelCommand
+  | (ILXMScoreCommandBase & { type: LXMScoreCommandEnum.SetJumpMark; measureId: string; mark: ILXMJumpMark })
+  | (ILXMScoreCommandBase & { type: LXMScoreCommandEnum.RemoveJumpMark; markId: string })
+  | (ILXMScoreCommandBase & { type: LXMScoreCommandEnum.UpsertRepeatEnding; group: ILXMRepeatEndingGroup; ending: ILXMRepeatEnding })
+  | (ILXMScoreCommandBase & { type: LXMScoreCommandEnum.DeleteRepeatEnding; endingId: string })
+  | (ILXMScoreCommandBase & { type: LXMScoreCommandEnum.DeleteRepeatEndingGroup; groupId: string })
   | ILXMAddTechniqueCommand
   | ILXMUpdateTechniqueCommand
   | ILXMRemoveTechniqueCommand
-  | ILXMSetStrumEndpointCommand;
+  | ILXMSetStrumEndpointCommand
+  | ILXMSetArpeggioEndpointCommand;
 
 export type ILXMScoreCommand = ScoreCommandOperation & {
   expectedRevision?: number;
@@ -504,6 +537,10 @@ export type ILXMScoreCommandErrorCode =
   | "BEAT_IN_TUPLET"
   | "TRACK_NOT_FOUND"
   | "MEASURE_NOT_FOUND"
+  | "INVALID_MEASURE_REPEAT"
+  | "MEASURE_REPEAT_OVERWRITE_REQUIRED"
+  | "STALE_MEASURE_REPEAT_PLAN"
+  | "MEASURE_REPEAT_HIDDEN_CONTENT"
   | "BEAT_NOT_FOUND"
   | "INVALID_STRING"
   | "INVALID_FRET"
@@ -511,6 +548,8 @@ export type ILXMScoreCommandErrorCode =
   | "INVALID_CAPO"
   | "INVALID_SCORE_TEMPO"
   | "INVALID_SECTION_LABEL"
+  | "INVALID_JUMP_MARK"
+  | "INVALID_REPEAT_ENDING"
   | "MEASURE_RANGE_INVALID"
   | "INVALID_TAB_CELL_RANGE"
   | "TAB_CELL_RANGE_TOO_LARGE"
@@ -594,6 +633,14 @@ const MEASURE_BARLINES = new Set<ILXMBarlineType>([
   "repeatBoth",
 ]);
 
+/** 原相邻小节是跨线组展开的必要信息，复制和删除不能只带走其中一边。 */
+const cutsNumberedCrossBar = (track: ILXMTrack, measureIds: Set<string>): boolean =>
+  track.measures.some(measure => measure.numberedVoice.tuplets.some(group => group.crossBar &&
+    measureIds.has(measure.id) !== measureIds.has(group.crossBar.nextMeasureId)));
+
+const hasNumberedCrossBarAfter = (measure: ILXMMeasure | undefined): boolean =>
+  measure?.numberedVoice.tuplets.some(group => group.crossBar) ?? false;
+
 /** no-op 必须保留原引用与 revision，store 据此跳过历史快照。 */
 const unchanged = (document: ILXMDocument): ILXMApplyScoreCommandResult => ({
   ok: true,
@@ -626,14 +673,39 @@ const removeChordTraversalTechniquesAtCell = (
     : { ...track, techniques };
 };
 
-/** 对候选文档执行两层守卫，保证命令无法写入结构或音乐语义非法的数据。 */
-const validateCommandDocument = (document: ILXMDocument): ILXMApplyScoreCommandResult => {
+/** 结构协调与命令一起提交；隐藏内容不接受拍内编辑，因源变化失效时只移除缩写。 */
+const validateCommandDocument = (
+  document: ILXMDocument,
+  previous: ILXMDocument,
+  command: ILXMScoreCommand,
+): ILXMApplyScoreCommandResult => {
+  const effects: ILXMCommandEffect[] = [];
+  const canChangeStructure = command.type.startsWith("measure.") ||
+    command.type === LXMScoreCommandEnum.AddMeasureRepeat || command.type === LXMScoreCommandEnum.ExpandMeasureRepeat;
+  const tracks = document.score.tracks.map((track) => {
+    if (previous.score.tracks.find((item) => item.id === track.id) === track) return track;
+    const invalid = findInvalidMeasureRepeats(track);
+    if (!invalid.length) return track;
+    const ids = new Set(invalid.map(({ measureId, index }) => {
+      effects.push({ kind: "measureRepeat.expanded", trackId: track.id, measureId, measureNumber: index + 1 });
+      return measureId;
+    }));
+    return { ...track, measures: track.measures.map((measure) => ids.has(measure.id) ? withoutMeasureRepeat(measure) : measure) };
+  });
+  if (!canChangeStructure) {
+    for (const after of document.score.tracks) {
+      const before = previous.score.tracks.find((item) => item.id === after.id);
+      if (before && before !== after && findEditedMeasureRepeat(before, after))
+        return fail("MEASURE_REPEAT_HIDDEN_CONTENT", "请先将重复记号展开为普通小节，再编辑拍内内容。");
+    }
+  }
+  if (effects.length) document = { ...document, score: { ...document.score, tracks } };
   const parsed = LXMDocumentSchema.safeParse(document);
   if (!parsed.success)
     return fail("DOCUMENT_INVALID", "命令结果不符合乐谱文档格式");
   const semantic = validateDocumentSemantics(document);
   return semantic.ok
-    ? { ok: true, changed: true, document }
+    ? { ok: true, changed: true, document, ...(effects.length ? { effects } : {}) }
     : fail(
         "SEMANTIC_VALIDATION_FAILED",
         semantic.issues[0]?.message ?? "命令结果不符合乐谱语义",
@@ -652,6 +724,7 @@ const finalize = (
   if (cleanedTracks.some((track, index) => track !== document.score.tracks[index]))
     document = { ...document, score: { ...document.score, tracks: cleanedTracks } };
   if (!command.type.startsWith("numbered.") && command.type !== LXMScoreCommandEnum.ApplyRhythmPattern &&
+      command.type !== LXMScoreCommandEnum.AddMeasureRepeat &&
       command.type !== LXMScoreCommandEnum.RemoveNumberedRow) {
     const removed: string[] = [];
     const tracks = document.score.tracks.map((track) => {
@@ -691,7 +764,7 @@ const finalize = (
       };
     document = { ...document, score: { ...document.score, tracks } };
   }
-  return validateCommandDocument(document);
+  return validateCommandDocument(document, previous, command);
 };
 
 /** 仅复制受影响 track/measure 分支；其他分支引用保持不变。 */
@@ -718,6 +791,19 @@ const replaceMeasure = (
   },
 });
 
+/** 复制范围内的端点一起改用新 ID；跨范围的引用仍明确指向原目标。 */
+const copyMeasureJumpMarks = (measure: ILXMMeasure, ids: ReadonlyMap<string, string>): Pick<ILXMMeasure, "jumpMarks"> => {
+  if (!measure.jumpMarks?.length) return {};
+  return { jumpMarks: measure.jumpMarks.map((mark) => {
+    const copy = { ...mark, id: ids.get(mark.id)! };
+    for (const field of getJumpMarkFields(mark.kind)) {
+      const target = mark[field];
+      if (target) copy[field] = ids.get(target) ?? target;
+    }
+    return copy;
+  }) };
+};
+
 /** 设置当前小节的实际时长，并只重建可自动补齐的尾部休止。 */
 const setMeasureDuration = (
   document: ILXMDocument,
@@ -732,10 +818,12 @@ const setMeasureDuration = (
     return fail("INVALID_MEASURE_DURATION", "小节实际时长必须为正整数且不超过拍号容量");
   const actualDurationTicks = command.durationTicks === nominalDuration ? undefined : command.durationTicks;
   if (measure.actualDurationTicks === actualDurationTicks) return unchanged(document);
+  if (hasNumberedCrossBarAfter(measure))
+    return fail("MEASURE_CONTENT_EXCEEDS_TIME_SIGNATURE", "请先移除跨小节简谱连音组，再移动原小节线");
   // 普通简谱空位越过边界时可退回隐式空白。连音成员和带歌词的空位有稳定身份，
   // 必须完整保留；音符、休止和延音事件也必须完整容纳。记号端点由最终语义校验复核。
   const voice = measure.numberedVoice;
-  const numbered = createNumberedRhythmContext(voice);
+  const numbered = createNumberedTrackRhythmContext(track);
   const lyricEvents = new Set(measure.lyrics.map(lyric => lyric.eventId));
   const events: typeof voice.events = [];
   for (const event of voice.events) {
@@ -762,7 +850,7 @@ const setMeasureDuration = (
     ...document,
     documentRevision: document.documentRevision + 1,
     score: { ...document.score, tracks: document.score.tracks.map(item => item === track ? nextTrack : item) },
-  });
+  }, document, command);
 };
 
 /**
@@ -821,12 +909,14 @@ const setTimeSignature = (
 
   const factory = createDocumentIdFactory(document);
   const plannedByIndex = new Map<number, ILXMMeasure>();
+  const numbered = createNumberedTrackRhythmContext(track);
   for (const index of targetIndexes) {
     const result = changeMeasureTimeSignature(
       track.measures[index]!,
       command.timeSignature,
       factory.createBeatId,
       techniqueBeatIds(track),
+      numbered,
     );
     if (!result.ok) {
       if (result.code === "MEASURE_CONTENT_EXCEEDS_TIME_SIGNATURE")
@@ -1342,23 +1432,28 @@ const editTechnique = (
   );
 };
 
-const setStrumEndpoint = (
+const setTraversalEndpoint = (
   document: ILXMDocument,
-  command: ILXMSetStrumEndpointCommand,
+  command: ILXMSetStrumEndpointCommand | ILXMSetArpeggioEndpointCommand,
 ): ILXMApplyScoreCommandResult => {
   const track = document.score.tracks.find((candidate) => candidate.id === command.trackId);
   if (!track) return fail("TRACK_NOT_FOUND", "目标轨道不存在");
   if (!isValidString(command.string))
     return fail("INVALID_STRING", `弦序必须是 1 到 ${GUITAR_STRING_COUNT} 的整数`);
 
+  const techniqueType = command.type === LXMScoreCommandEnum.SetStrumEndpoint ? "strum" : "arpeggio";
   const techniquesById = new Map(track.techniques.map((item) => [item.id, item]));
   const updated = new Map<string, (typeof track.techniques)[number]>();
   for (const id of new Set(command.techniqueIds)) {
     const technique = techniquesById.get(id);
     if (!technique) return fail("TECHNIQUE_NOT_FOUND", "目标技巧不存在");
-    if (technique.type !== "strum")
-      return fail("TECHNIQUE_TARGET_INVALID", "只能修改扫弦技巧的弦线范围");
+    if (technique.type !== techniqueType)
+      return fail(
+        "TECHNIQUE_TARGET_INVALID",
+        techniqueType === "strum" ? "只能修改扫弦技巧的弦线范围" : "只能修改琶音技巧的弦线范围",
+      );
     if (technique[command.endpoint] === command.string) continue;
+    // 以原技巧为基底更新指定端点，保留 ID、对端和方向。每个候选都须满足至少两根弦。
     const next = { ...technique, [command.endpoint]: command.string };
     const validation = validateTechnique(track, next, id);
     if (!validation.ok) return fail(validation.error.code, validation.error.message);
@@ -1367,7 +1462,7 @@ const setStrumEndpoint = (
   if (!updated.size) return unchanged(document);
 
   const techniques = track.techniques.map((item) => updated.get(item.id) ?? item);
-  // 直接校验整体候选，范围调整导致延音线失效时拒绝整次修改。
+  // 整批只形成一个新版本。直接校验所有新端点与保留的技巧关系，若延音线失效则拒绝整批。
   return validateCommandDocument({
     ...document,
     documentRevision: document.documentRevision + 1,
@@ -1375,7 +1470,7 @@ const setStrumEndpoint = (
       ...document.score,
       tracks: document.score.tracks.map((item) => item === track ? { ...track, techniques } : item),
     },
-  });
+  }, document, command);
 };
 
 /** 应用所有领域命令；分发器本身不包含页面状态或历史逻辑。 */
@@ -1391,7 +1486,36 @@ const applyScoreCommandInternal = (
     command.expectedRevision !== undefined &&
     command.expectedRevision !== document.documentRevision
   )
-    return fail("STALE_NUMBERED_PLAN", "确认已过期，请重新预览");
+    return fail(command.type === LXMScoreCommandEnum.AddMeasureRepeat || command.type === LXMScoreCommandEnum.ExpandMeasureRepeat
+      ? "STALE_MEASURE_REPEAT_PLAN" : "STALE_NUMBERED_PLAN", "确认已过期，请重新预览");
+  if (command.type === LXMScoreCommandEnum.AddMeasureRepeat || command.type === LXMScoreCommandEnum.ExpandMeasureRepeat) {
+    const track = document.score.tracks.find((item) => item.id === command.trackId);
+    if (!track) return fail("TRACK_NOT_FOUND", "轨道不存在");
+    const index = track.measures.findIndex((item) => item.id === command.measureId);
+    const target = track.measures[index];
+    if (!target) return fail("MEASURE_NOT_FOUND", "目标小节不存在");
+    if (command.type === LXMScoreCommandEnum.ExpandMeasureRepeat) {
+      if (!isMeasureRepeat(target)) return unchanged(document);
+      const expanded = withoutMeasureRepeat(target);
+      const result = finalize(replaceMeasure(document, track.id, target.id, expanded), document, command);
+      const firstBeat = target.beats.reduce<ILXMBeat | undefined>((first, beat) => !first || beat.tick < first.tick ? beat : first, undefined);
+      return result.ok && firstBeat
+        ? { ...result, nextFocus: { trackId: track.id, measureId: target.id, beatId: firstBeat.id } }
+        : result;
+    }
+    if (isMeasureRepeat(target)) return unchanged(document);
+    const preview = getMeasureRepeatAvailability(document.score, target.id, track.id);
+    if (!preview.enabled) return fail("INVALID_MEASURE_REPEAT", preview.reason!);
+    // 覆盖确认绑定到看到的版本，过期的预览不能替换后来写入的拍内内容。
+    if (preview.replacement && (!command.allowOverwrite || command.expectedRevision === undefined))
+      return fail("MEASURE_REPEAT_OVERWRITE_REQUIRED", "目标小节已有内容，请先预览并确认替换。");
+    const snapshot = createMeasureRepeatSnapshot(track, track.measures[index - 1]!, target, createDocumentIdFactory(document));
+    return finalize({
+      ...document,
+      documentRevision: document.documentRevision + 1,
+      score: { ...document.score, tracks: document.score.tracks.map((item) => item === track ? snapshot : item) },
+    }, document, command);
+  }
   if (isNumberedVoiceCommand(command)) {
     const numbered = command as ILXMNumberedVoiceCommand;
     if (
@@ -1481,10 +1605,15 @@ const applyScoreCommandInternal = (
     const candidate = replaceMusicTextRange(document, command.range, command.text, createDocumentIdFactory(document));
     if (!candidate.ok) return fail("INVALID_MUSIC_TEXT_RANGE", candidate.message);
     if (!candidate.changed) return unchanged(document);
+    const score = { ...document.score, tracks: document.score.tracks.map(track => track.id === command.range.trackId ? candidate.track : track) };
+    // 只在最后一个非空简谱事件被清空时补上显式行标记，与内容及关联记号一起撤销。
+    if (command.preserveNumberedRow && command.range.kind === "numbered" &&
+      getMusicTextRows(document).numbered && !getMusicTextRows({ ...document, score }).numbered)
+      score.meta = { ...score.meta, showNumberedRow: true };
     return finalize({
       ...document,
       documentRevision: document.documentRevision + 1,
-      score: { ...document.score, tracks: document.score.tracks.map(track => track.id === command.range.trackId ? candidate.track : track) },
+      score,
     }, document, command);
   }
   if (command.type === LXMScoreCommandEnum.PasteBeats) {
@@ -1513,6 +1642,7 @@ const applyScoreCommandInternal = (
           ...result,
           nextFocus: plan.nextFocus,
           effects: [
+            ...(result.effects ?? []),
             ...plan.effects.filter((e) => e.kind !== "technique.removed"),
             {
               kind: "beats.pasted",
@@ -1609,6 +1739,7 @@ const applyScoreCommandInternal = (
         beatId: result.focusBeatId,
       },
       effects: [
+        ...(finalized.effects ?? []),
         {
           kind: "beats.structured",
           trackId: track.id,
@@ -1717,9 +1848,7 @@ const applyScoreCommandInternal = (
     if (command.type === LXMScoreCommandEnum.RemoveNumberedRow) {
       if (!rows.numbered) return unchanged(document);
       delete meta.showNumberedRow;
-      tracks = document.score.tracks.map((track, index) => index === 0 ? {
-        ...track, numberedMarks: [], measures: track.measures.map(clearNumberedRow),
-      } : track);
+      tracks = document.score.tracks.map((track, index) => index === 0 ? clearNumberedRow(track) : track);
     } else {
       const { verse } = command;
       if (!Number.isInteger(verse) || verse < 1 || verse > rows.lyricVerses) return unchanged(document);
@@ -1747,6 +1876,7 @@ const applyScoreCommandInternal = (
     if (!plan.changes) return unchanged(document);
     const track = document.score.tracks.find((t) => t.id === command.trackId)!;
     const factory = createDocumentIdFactory(document);
+    const numbered = createNumberedTrackRhythmContext(track);
     const candidates = new Map(track.measures.map((m) => [m.id, m]));
     for (const row of plan.rows) {
       if (row.status === "same") continue;
@@ -1759,6 +1889,7 @@ const applyScoreCommandInternal = (
           text: row.item.kind === "clear" ? "" : row.item.text,
         },
         factory,
+        numbered,
       );
       if (!result.ok) return result;
       candidates.set(target.measureId, result.measure);
@@ -1798,6 +1929,7 @@ const applyScoreCommandInternal = (
       measure,
       command,
       createDocumentIdFactory(document),
+      command.type === LXMScoreCommandEnum.SetLyric ? createNumberedTrackRhythmContext(track) : undefined,
     );
     if (!result.ok) return result;
     return result.changed
@@ -1834,8 +1966,11 @@ const applyScoreCommandInternal = (
       command,
     );
   }
-  if (command.type === LXMScoreCommandEnum.SetStrumEndpoint)
-    return setStrumEndpoint(document, command);
+  if (
+    command.type === LXMScoreCommandEnum.SetStrumEndpoint ||
+    command.type === LXMScoreCommandEnum.SetArpeggioEndpoint
+  )
+    return setTraversalEndpoint(document, command);
   if (
     command.type === LXMScoreCommandEnum.AddTechnique ||
     command.type === LXMScoreCommandEnum.UpdateTechnique ||
@@ -2107,6 +2242,81 @@ const applyScoreCommandInternal = (
   );
   if (!track) return fail("TRACK_NOT_FOUND", "目标轨道不存在");
   const factory = createDocumentIdFactory(document);
+  if (command.type === LXMScoreCommandEnum.UpsertRepeatEnding || command.type === LXMScoreCommandEnum.DeleteRepeatEnding ||
+    command.type === LXMScoreCommandEnum.DeleteRepeatEndingGroup) {
+    const groups = [...(track.repeatEndingGroups ?? [])];
+    if (command.type === LXMScoreCommandEnum.UpsertRepeatEnding) {
+      const { group, ending } = command;
+      const groupIndex = groups.findIndex(({ id }) => id === group.id);
+      const previous = groups[groupIndex];
+      if (group.id && !previous) return fail("INVALID_REPEAT_ENDING", "反复组已不存在");
+      const endings = [...(previous?.endings ?? [])];
+      const endingIndex = endings.findIndex(({ id }) => id === ending.id);
+      if (ending.id && endingIndex < 0) return fail("INVALID_REPEAT_ENDING", "此房子已不存在或不属于此组");
+      // 命令只应用本次的一个房子，已有同组的其它房子以当前文档为准，防止草稿覆盖它们。
+      const next = { ...ending, id: ending.id || factory.createRepeatEndingId(), passes: [...ending.passes].sort((a, b) => a - b) };
+      endings[endingIndex < 0 ? endings.length : endingIndex] = next;
+      const updated = { ...group, id: group.id || factory.createRepeatEndingGroupId(), endings };
+      groups[groupIndex < 0 ? groups.length : groupIndex] = updated;
+      const [issue] = inspectRepeatEndingGroups(track.measures, groups).issues;
+      if (issue) return fail("INVALID_REPEAT_ENDING", issue.message);
+      if (previous && JSON.stringify(previous) === JSON.stringify(updated)) return unchanged(document);
+    } else if (command.type === LXMScoreCommandEnum.DeleteRepeatEnding) {
+      const groupIndex = groups.findIndex(({ endings }) => endings.some(({ id }) => id === command.endingId));
+      if (groupIndex < 0) return fail("INVALID_REPEAT_ENDING", "要删除的反复房子已不存在");
+      const group = groups[groupIndex]!;
+      // 即使删掉最后一个房子也保留组和缺房遍次，便于从试听返回补房。
+      groups[groupIndex] = { ...group, endings: group.endings.filter(({ id }) => id !== command.endingId) };
+    } else {
+      const groupIndex = groups.findIndex(({ id }) => id === command.groupId);
+      if (groupIndex < 0) return fail("INVALID_REPEAT_ENDING", "要删除的反复组已不存在");
+      groups.splice(groupIndex, 1);
+    }
+    const { repeatEndingGroups: _before, ...rest } = track;
+    const nextTrack = groups.length ? { ...track, repeatEndingGroups: groups } : rest;
+    return finalize({
+      ...document,
+      documentRevision: document.documentRevision + 1,
+      score: { ...document.score, tracks: document.score.tracks.map((item) => item === track ? nextTrack : item) },
+    }, document, command);
+  }
+  if (command.type === LXMScoreCommandEnum.SetJumpMark || command.type === LXMScoreCommandEnum.RemoveJumpMark) {
+    const index = createJumpMarkIndex(track.measures);
+    const id = command.type === LXMScoreCommandEnum.SetJumpMark ? command.mark.id : command.markId;
+    const previous = id ? index.byId.get(id) : undefined;
+    if ((id || command.type === LXMScoreCommandEnum.RemoveJumpMark) && !previous)
+      return fail("INVALID_JUMP_MARK", "要编辑的跳转记号已不存在");
+
+    let targetId: string | undefined;
+    let applied: ILXMJumpMark | undefined;
+    if (command.type === LXMScoreCommandEnum.SetJumpMark) {
+      const targetIndex = track.measures.findIndex(({ id }) => id === command.measureId);
+      const target = track.measures[targetIndex];
+      if (!target) return fail("MEASURE_NOT_FOUND", "目标小节不存在");
+      if (target.jumpMarks?.some((mark) => mark.id !== id && getJumpMarkSide(mark.kind) === getJumpMarkSide(command.mark.kind)))
+        return fail("INVALID_JUMP_MARK", "这个小节的同一端已有记号，请编辑现有记号");
+      targetId = target.id;
+      // 移动与新增都从目标小节判定可达范围，已有配对 ID 随记号保留并重新校验。
+      applied = resolveJumpMarkDraft({ ...command.mark, id: id || factory.createJumpMarkId() }, index, targetIndex);
+      if (previous?.measureId === targetId && previous.mark.kind === applied.kind &&
+          getJumpMarkFields(applied.kind).every((field) => previous.mark[field] === applied?.[field]))
+        return unchanged(document);
+    }
+    // 一次提交完成移出和移入，撤销还原原小节和配对；外部引用保留相同身份。
+    const measures = track.measures.map((measure) => {
+      if (measure.id !== previous?.measureId && measure.id !== targetId) return measure;
+      const { jumpMarks, ...rest } = measure;
+      const marks = (jumpMarks ?? []).filter((mark) => mark.id !== id);
+      if (measure.id === targetId && applied) marks.push(applied);
+      return marks.length ? { ...rest, jumpMarks: marks } : rest;
+    });
+    return finalize({
+      ...document,
+      score: { ...document.score, tracks: document.score.tracks.map((item) =>
+        item === track ? { ...track, measures } : item,
+      ) },
+    }, document, command);
+  }
   if (command.type === LXMScoreCommandEnum.CopyMeasureRange) {
     const start = track.measures.findIndex(
       (m) => m.id === command.sourceStartMeasureId,
@@ -2125,9 +2335,17 @@ const applyScoreCommandInternal = (
     // 允许把副本紧接源范围之后插入；仅禁止落在源范围内部。
     if (anchor >= start && anchor < end)
       return fail("MEASURE_RANGE_INVALID", "插入位置不能位于复制源范围内");
+    if (hasNumberedCrossBarAfter(track.measures[anchor]))
+      return fail("MEASURE_RANGE_INVALID", "不能在跨小节简谱连音组的两个小节之间插入副本");
     const sourceMeasures = track.measures.slice(start, end + 1);
+    if (cutsNumberedCrossBar(track, new Set(sourceMeasures.map(measure => measure.id))))
+      return fail("MEASURE_RANGE_INVALID", "请同时复制跨小节简谱连音组涉及的两个小节");
+    const measureIds = new Map(sourceMeasures.map(measure => [measure.id, factory.createMeasureId()]));
     const copiedMeasures: ILXMMeasure[] = [];
-    const numberedCopy = copyNumberedVoices(track, sourceMeasures, factory);
+    const numberedCopy = copyNumberedVoices(track, sourceMeasures, factory, measureIds);
+    const jumpIds = new Map(sourceMeasures.flatMap((measure) => (measure.jumpMarks ?? []).map(
+      (mark) => [mark.id, factory.createJumpMarkId()] as const,
+    )));
 
     sourceMeasures.forEach((copySource, sourceOffset) => {
       const copiedBeats = copySource.beats.map((beat) => ({
@@ -2147,9 +2365,11 @@ const applyScoreCommandInternal = (
       );
       copiedMeasures.push({
         ...copySource,
+        ...copyMeasureRepeatFields(copySource),
+        ...copyMeasureJumpMarks(copySource, jumpIds),
         timeSignature: { ...copySource.timeSignature },
         numberedVoice: numberedCopy.voices[sourceOffset]!,
-        id: factory.createMeasureId(),
+        id: measureIds.get(copySource.id)!,
         beats: copiedBeats,
         barline: copySource.barline,
         tuplets: copySource.tuplets.map((group) => ({
@@ -2228,7 +2448,7 @@ const applyScoreCommandInternal = (
     };
     const result = finalize(nextDocument, document, command);
     return result.ok && result.changed && effects.length > 0
-      ? { ...result, effects }
+      ? { ...result, effects: [...(result.effects ?? []), ...effects] }
       : result;
   }
   if (command.type === LXMScoreCommandEnum.RemoveMeasure) {
@@ -2236,9 +2456,23 @@ const applyScoreCommandInternal = (
       return fail("MEASURE_NOT_FOUND", "目标小节不存在");
     if (track.measures.length <= 1)
       return fail("CANNOT_REMOVE_LAST_MEASURE", "至少需要保留一个小节");
-    const next = track.measures.filter(
+    if (cutsNumberedCrossBar(track, new Set([command.measureId])))
+      return fail("NUMBERED_INVALID", "请先移除跨小节简谱连音组，再删除此小节");
+    const measures = track.measures.filter(
       (measure) => measure.id !== command.measureId,
     );
+    const { playbackReplay, ...trackWithoutReplay } = track;
+    // 删掉任一重奏端点就取消整条指令，不把它改绑到相邻小节。区间内部的小节
+    // 由两个端点之间的书写顺序决定，删除中间项时只缩短重奏段。
+    const removesReplay = playbackReplay && (
+      command.measureId === playbackReplay.afterMeasureId ||
+      command.measureId === playbackReplay.fromMeasureId ||
+      command.measureId === playbackReplay.throughMeasureId
+    );
+    const nextTrack = pruneInvalidTechniques({
+      ...withoutRepeatEndingMeasure(removesReplay ? trackWithoutReplay : track, command.measureId),
+      measures,
+    });
     return finalize(
       {
         ...document,
@@ -2246,9 +2480,7 @@ const applyScoreCommandInternal = (
         score: {
           ...document.score,
           tracks: document.score.tracks.map((item) =>
-            item.id === track.id
-              ? pruneInvalidTechniques({ ...track, measures: next })
-              : item,
+            item.id === track.id ? nextTrack : item,
           ),
         },
       },
@@ -2274,6 +2506,10 @@ const applyScoreCommandInternal = (
     return fail("MEASURE_NOT_FOUND", "目标小节不存在");
   const source = track.measures[Math.max(sourceIndex, 0)];
   if (!source) return fail("MEASURE_NOT_FOUND", "轨道没有可继承拍号的小节");
+  if (command.type === LXMScoreCommandEnum.CopyMeasure && cutsNumberedCrossBar(track, new Set([source.id])))
+    return fail("MEASURE_RANGE_INVALID", "请同时复制跨小节简谱连音组涉及的两个小节");
+  if (sourceIndex >= 0 && hasNumberedCrossBarAfter(source))
+    return fail("NUMBERED_INVALID", "不能在跨小节简谱连音组的两个小节之间插入小节");
   let inserted: ILXMMeasure;
   let numberedCopies: typeof track.numberedMarks = [];
   let numberedOmittedMarks: typeof track.numberedMarks = [];
@@ -2296,6 +2532,10 @@ const applyScoreCommandInternal = (
     );
     inserted = {
       ...copySource,
+      ...copyMeasureRepeatFields(copySource),
+      ...copyMeasureJumpMarks(copySource, new Map((copySource.jumpMarks ?? []).map(
+        (mark) => [mark.id, factory.createJumpMarkId()],
+      ))),
       timeSignature: { ...copySource.timeSignature },
       numberedVoice: numberedCopy.voices[0]!,
       tuplets: copySource.tuplets.map((group) => ({
@@ -2379,7 +2619,7 @@ const applyScoreCommandInternal = (
     command,
   );
   return result.ok && result.changed && effects.length > 0
-    ? { ...result, effects }
+    ? { ...result, effects: [...(result.effects ?? []), ...effects] }
     : result;
 };
 

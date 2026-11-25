@@ -4,7 +4,7 @@ import {
   resolveBeatKindShortcut,
   resolveEditorHistoryShortcut,
   resolveTabContinuationShortcut,
-} from "../components/EditorShell/session/editor-interaction";
+} from "../../../packages/lxm-editor-react/src/EditorShell/session/editor-interaction";
 
 describe("editor interaction", () => {
   it("只在对应历史可用时解析撤销和重做快捷键", () => {
@@ -77,7 +77,7 @@ describe("editor interaction", () => {
 describe("闷音快捷键", () => {
   it("仅非组合输入的 x/X 生效", async () => {
     const { resolveMutedNoteShortcut } =
-      await import("../components/EditorShell/session/editor-interaction");
+      await import("../../../packages/lxm-editor-react/src/EditorShell/session/editor-interaction");
     const input = {
       key: "x",
       metaKey: false,

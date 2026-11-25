@@ -1,0 +1,27 @@
+{
+  "schema": "lxm-tab-score",
+  "schemaVersion": 8,
+  "documentRevision": 1,
+  "score": {
+    "id": "req105-practice", "title": "跳转练习", "arranger": "", "keySignature": "C", "meta": {}, "tempoBpm": 120,
+    "tracks": [{
+      "id": "track", "name": "吉他", "instrument": "guitar", "capo": 0, "startBarline": "none",
+      "tuning": {"strings": [
+        {"index": 1, "pitch": "E4", "midi": 64}, {"index": 2, "pitch": "B3", "midi": 59},
+        {"index": 3, "pitch": "G3", "midi": 55}, {"index": 4, "pitch": "D3", "midi": 50},
+        {"index": 5, "pitch": "A2", "midi": 45}, {"index": 6, "pitch": "E2", "midi": 40}
+      ]},
+      "techniques": [], "numberedMarks": [],
+      "measures": [
+        {"id": "m1", "timeSignature": {"numerator": 4, "denominator": 4}, "barline": "single", "tuplets": [], "chordSymbols": [], "numberedVoice": {"events": [], "tuplets": []}, "lyrics": [], "beats": [{"id": "b1", "tick": 0, "kind": "notes", "rhythm": {"base": "whole", "dots": 0}, "notes": [{"id": "n1", "string": 1, "fret": 0}]}]},
+        {"id": "m2", "timeSignature": {"numerator": 4, "denominator": 4}, "barline": "single", "tuplets": [], "chordSymbols": [], "numberedVoice": {"events": [], "tuplets": []}, "lyrics": [], "beats": [{"id": "b2", "tick": 0, "kind": "notes", "rhythm": {"base": "whole", "dots": 0}, "notes": [{"id": "n2", "string": 1, "fret": 1}]}], "jumpMarks": [{"id": "jm-segno", "kind": "segno"}]},
+        {"id": "m3", "timeSignature": {"numerator": 4, "denominator": 4}, "barline": "single", "tuplets": [], "chordSymbols": [], "numberedVoice": {"events": [], "tuplets": []}, "lyrics": [], "beats": [{"id": "b3", "tick": 0, "kind": "notes", "rhythm": {"base": "whole", "dots": 0}, "notes": [{"id": "n3", "string": 1, "fret": 2}]}]},
+        {"id": "m4", "timeSignature": {"numerator": 4, "denominator": 4}, "barline": "single", "tuplets": [], "chordSymbols": [], "numberedVoice": {"events": [], "tuplets": []}, "lyrics": [], "beats": [{"id": "b4", "tick": 0, "kind": "notes", "rhythm": {"base": "whole", "dots": 0}, "notes": [{"id": "n4", "string": 1, "fret": 3}]}], "jumpMarks": [{"id": "jm-exit", "kind": "toCoda", "codaId": "jm-coda"}]},
+        {"id": "m5", "timeSignature": {"numerator": 4, "denominator": 4}, "barline": "single", "tuplets": [], "chordSymbols": [], "numberedVoice": {"events": [], "tuplets": []}, "lyrics": [], "beats": [{"id": "b5", "tick": 0, "kind": "notes", "rhythm": {"base": "whole", "dots": 0}, "notes": [{"id": "n5", "string": 1, "fret": 4}]}]},
+        {"id": "m6", "timeSignature": {"numerator": 4, "denominator": 4}, "barline": "single", "tuplets": [], "chordSymbols": [], "numberedVoice": {"events": [], "tuplets": []}, "lyrics": [], "beats": [{"id": "b6", "tick": 0, "kind": "notes", "rhythm": {"base": "whole", "dots": 0}, "notes": [{"id": "n6", "string": 1, "fret": 5}]}], "jumpMarks": [{"id": "jm-ds", "kind": "dsAlCoda", "segnoId": "jm-segno", "toCodaId": "jm-exit"}]},
+        {"id": "m7", "timeSignature": {"numerator": 4, "denominator": 4}, "barline": "single", "tuplets": [], "chordSymbols": [], "numberedVoice": {"events": [], "tuplets": []}, "lyrics": [], "beats": [{"id": "b7", "tick": 0, "kind": "notes", "rhythm": {"base": "whole", "dots": 0}, "notes": [{"id": "n7", "string": 1, "fret": 6}]}]},
+        {"id": "m8", "timeSignature": {"numerator": 4, "denominator": 4}, "barline": "single", "tuplets": [], "chordSymbols": [], "numberedVoice": {"events": [], "tuplets": []}, "lyrics": [], "beats": [{"id": "b8", "tick": 0, "kind": "notes", "rhythm": {"base": "whole", "dots": 0}, "notes": [{"id": "n8", "string": 1, "fret": 7}]}], "jumpMarks": [{"id": "jm-coda", "kind": "coda"}]}
+      ]
+    }]
+  }
+}

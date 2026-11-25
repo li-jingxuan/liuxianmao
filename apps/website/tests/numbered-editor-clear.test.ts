@@ -7,18 +7,18 @@ import {
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  EXAMPLE_MVP_7_2_DOCUMENT,
   parseNumberedSequence,
   type ILXMNumberedEvent,
   type ILXMScoreCommand,
 } from "@liuxianmao/lxm-editor";
+import { EXAMPLE_MVP_7_2_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
 import {
   NumberedEditor,
   type NumberedEditorController,
-} from "../components/EditorShell/numbered/NumberedEditor";
-import { createEditorSession } from "../stores/editor-store";
-import { EditorStoreContext } from "../stores/editor-context";
-import type { createNumberedSubmission } from "../components/EditorShell/numbered/numbered-submission";
+} from "../../../packages/lxm-editor-react/src/EditorShell/numbered/NumberedEditor";
+import { createEditorSessionStore as createEditorSession } from "../../../packages/lxm-editor-react/src/stores/editor-store";
+import { EditorStoreContext } from "../../../packages/lxm-editor-react/src/stores/editor-context";
+import type { createNumberedSubmission } from "../../../packages/lxm-editor-react/src/EditorShell/numbered/numbered-submission";
 
 const harness = vi.hoisted(() => ({
   effects: [] as (() => void | (() => void))[],
@@ -53,11 +53,11 @@ vi.mock("react", async (importOriginal) => {
   };
 });
 vi.mock(
-  "../components/EditorShell/numbered/numbered-submission",
+  "../../../packages/lxm-editor-react/src/EditorShell/numbered/numbered-submission",
   async (importOriginal) => {
     const original =
       await importOriginal<
-        typeof import("../components/EditorShell/numbered/numbered-submission")
+        typeof import("../../../packages/lxm-editor-react/src/EditorShell/numbered/numbered-submission")
       >();
     return {
       ...original,

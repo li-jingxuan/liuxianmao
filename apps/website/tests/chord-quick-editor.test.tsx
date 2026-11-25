@@ -10,8 +10,8 @@ import { copyChordPreset } from "@liuxianmao/lxm-editor";
 import {
   ChordQuickEditor,
   type ChordQuickEditorProps,
-} from "../components/EditorShell/chords/ChordQuickEditor";
-import { ChordPresetControls } from "../components/EditorShell/chords/ChordPresetControls";
+} from "../../../packages/lxm-editor-react/src/EditorShell/chords/ChordQuickEditor";
+import { ChordPresetControls } from "../../../packages/lxm-editor-react/src/EditorShell/chords/ChordPresetControls";
 
 type Element = ReactElement<Record<string, unknown> & { children?: ReactNode }>;
 const descendants = (node: ReactNode): Element[] =>

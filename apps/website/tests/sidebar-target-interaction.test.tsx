@@ -1,14 +1,15 @@
 import { isValidElement, type ComponentProps, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { EXAMPLE_MVP_6_DOCUMENT, type ILXMScoreCommand } from "@liuxianmao/lxm-editor";
-import { TupletToolDetails } from "../components/EditorShell/tools/TupletToolDetails";
-import { NoteToolDetails } from "../components/EditorShell/tools/NoteToolDetails";
-import { MeasureBoundary } from "../components/EditorShell/tools/MeasureBoundary";
-import { MusicTextSidebar } from "../components/EditorShell/music-text/MusicTextSidebar";
-import { EditorSessionRuntime } from "../components/EditorShell/session/EditorSessionRuntime";
-import { createEditorSession } from "../stores/editor-store";
-import { EditorStoreContext } from "../stores/editor-context";
+import { type ILXMScoreCommand } from "@liuxianmao/lxm-editor";
+import { EXAMPLE_MVP_6_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { TupletToolDetails } from "../../../packages/lxm-editor-react/src/EditorShell/tools/TupletToolDetails";
+import { NoteToolDetails } from "../../../packages/lxm-editor-react/src/EditorShell/tools/NoteToolDetails";
+import { MeasureBoundary } from "../../../packages/lxm-editor-react/src/EditorShell/tools/MeasureBoundary";
+import { MusicTextSidebar } from "../../../packages/lxm-editor-react/src/EditorShell/music-text/MusicTextSidebar";
+import { EditorSessionRuntime } from "../../../packages/lxm-editor-react/src/EditorShell/session/EditorSessionRuntime";
+import { createEditorSessionStore as createEditorSession } from "../../../packages/lxm-editor-react/src/stores/editor-store";
+import { EditorStoreContext } from "../../../packages/lxm-editor-react/src/stores/editor-context";
 
 const find = (tree: ReactNode, predicate: (props: Record<string, unknown>) => boolean): Record<string, unknown> | null => {
   if (Array.isArray(tree)) {
@@ -154,7 +155,7 @@ describe("紧凑选区详情的即时命令", () => {
       tree = NoteToolDetails({ document, selection, blocked: false, onAction: action });
       return tree;
     };
-    const markup = renderToStaticMarkup(<Harness />);
+    const markup = renderToStaticMarkup(<EditorStoreContext.Provider value={createEditorSession(document)}><Harness /></EditorStoreContext.Provider>);
     expect(markup).toMatch(/aria-label="弹奏标记"[^>]*aria-pressed="true"/);
     for (const label of ["延续一拍", "编辑此拍和弦", "演奏技巧", "删除所选弦音符"]) expect(markup).not.toContain(label);
     for (const [label, command] of [["双附点", { type: "dots", dots: 2 }], ["弹奏标记", { type: "muted" }], ["延音标记", { type: "continuation" }], ["整拍休止", { type: "rest" }]] as const) {
@@ -168,7 +169,7 @@ describe("紧凑选区详情的即时命令", () => {
   it("多拍禁用时值和附点，并提供可聚焦的原因提示", () => {
     const { document, selection, measure } = fixture();
     selection.focus = { ...selection.focus, beatId: measure.beats[1]!.id };
-    const markup = renderToStaticMarkup(<NoteToolDetails document={document} selection={selection} blocked={false} onAction={async () => true} />);
+    const markup = renderToStaticMarkup(<EditorStoreContext.Provider value={createEditorSession(document)}><NoteToolDetails document={document} selection={selection} blocked={false} onAction={async () => true} /></EditorStoreContext.Provider>);
     for (const label of ["四分音符", "无附点", "单附点", "双附点"]) {
       expect(markup).toMatch(new RegExp(`<span[^>]*tabindex="0"[^>]*aria-label="${label}"`));
       expect(markup).toMatch(new RegExp(`<button[^>]*aria-label="${label}"[^>]*disabled`));
@@ -190,7 +191,7 @@ describe("紧凑选区详情的即时命令", () => {
       (restore!.onClick as () => void)();
       return tree;
     };
-    renderToStaticMarkup(<Harness />);
+    renderToStaticMarkup(<EditorStoreContext.Provider value={createEditorSession(document)}><Harness /></EditorStoreContext.Provider>);
     expect(action).toHaveBeenCalledWith({ type: "restore" });
   });
 

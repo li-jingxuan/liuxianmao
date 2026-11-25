@@ -54,7 +54,7 @@ try {
   }, fixture);
   assert.equal(imported.ok, true, JSON.stringify(imported.errors));
 
-  const popover = page.locator("#music-text-edit-popover");
+  const popover = page.locator("[id$=music-text-edit-popover]");
   const lyric = popover.getByRole("textbox", { name: "连续歌词" });
   const numbered = popover.getByRole("textbox", { name: "简谱内容" });
   const waitForInput = async (input, value) => {
@@ -81,9 +81,22 @@ try {
   await waitForInput(lyric, "美");
   await lyric.fill("新");
   await lyric.press("Alt+ArrowRight");
-  const confirm = page.getByRole("alertdialog", { name: "当前草稿尚未应用" });
-  await confirm.getByRole("button", { name: "继续编辑" }).click();
+  const confirm = page.getByRole("dialog", { name: "当前草稿尚未应用" });
+  await confirm.waitFor();
+  assert.equal(await page.locator("[data-music-text-sidebar] footer").getByText("当前草稿尚未应用").count(), 0);
+  const bounds = await confirm.boundingBox();
+  const viewport = page.viewportSize();
+  assert.ok(Math.abs(bounds.x + bounds.width / 2 - viewport.width / 2) < 3);
+  assert.ok(Math.abs(bounds.y + bounds.height / 2 - viewport.height / 2) < 3);
+  await page.waitForFunction(() => document.activeElement?.textContent === "继续编辑");
+  await page.keyboard.press("Tab");
+  assert.equal(await confirm.getByRole("button", { name: "应用并切换" }).evaluate(node => node === document.activeElement), true);
+  await page.keyboard.press("Shift+Tab");
+  assert.equal(await confirm.getByRole("button", { name: "继续编辑" }).evaluate(node => node === document.activeElement), true);
+  await page.keyboard.press("Escape");
+  await confirm.waitFor({ state: "hidden" });
   await waitForInput(lyric, "新");
+  assert.equal(await lyric.evaluate(node => node === document.activeElement), true);
   await lyric.press("Alt+ArrowRight");
   await confirm.getByRole("button", { name: "应用并切换" }).click();
   await waitForInput(lyric, "梦");

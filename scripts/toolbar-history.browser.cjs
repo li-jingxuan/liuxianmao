@@ -44,7 +44,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
       await fs.readFile(
         path.join(
           __dirname,
-          "../packages/lxm-editor/example/technique-rhythm-score.json",
+          "../packages/lxm-editor/example/technique-rhythm-score.lxm.json",
         ),
         "utf8",
       ),

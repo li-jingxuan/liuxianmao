@@ -47,7 +47,7 @@ try {
   assert.equal(await page.locator("[data-editor-actions-host]").count(), 0);
   assert.equal(await sidebar.getByRole("button", { name: /编辑当前小节|清除调性|应用基础拍号|恢复本组/ }).count(), 0);
   assert.equal(await sidebar.getByRole("button", { name: "应用曲谱信息", exact: true }).isDisabled(), true);
-  assert.equal(await sidebar.locator("#settings-signature").innerText(), `${before.document.score.tracks[0].measures[0].timeSignature.numerator}/${before.document.score.tracks[0].measures[0].timeSignature.denominator}`);
+  assert.equal(await sidebar.locator("[data-editor-setting=signature]").innerText(), `${before.document.score.tracks[0].measures[0].timeSignature.numerator}/${before.document.score.tracks[0].measures[0].timeSignature.denominator}`);
   await shot("01-song-readonly");
   await title.fill("REQ040独立保存名称");
   const capo = before.document.score.tracks[0].capo === 2 ? 3 : 2;
@@ -67,7 +67,7 @@ try {
     }, { name, color: applyColor });
     assert.equal(await apply.evaluate(el => getComputedStyle(el).backgroundColor), applyColor);
   }
-  assert.equal(await sidebar.locator('dl[aria-label="曲谱调性（只读）"] #settings-signature').count(), 1);
+  assert.equal(await sidebar.locator('dl[aria-label="曲谱调性（只读）"] [data-editor-setting=signature]').count(), 1);
   await shot("08-song-primary-buttons");
   await sidebar.getByRole("button", { name: "应用曲谱信息", exact: true }).click();
   let saved = await state();
@@ -91,7 +91,7 @@ try {
   }
   async function assertDiscarded() {
     await page.waitForFunction(() => {
-      const input = document.querySelector("#settings-title");
+      const input = document.querySelector("[id$=settings-title]");
       return input && input.value !== "离开后应丢弃的名称";
     });
     assert.equal(await title.inputValue(), applied.document.score.title);
@@ -111,7 +111,7 @@ try {
   await assertDiscarded();
   await dirtySong();
   const blocked = page.getByRole("dialog", { name: "先处理未应用的输入", exact: true });
-  for (const [group, item] of [["导出", "JSON 曲谱"], ["导出", "PNG 图片"], ["文件", "导入曲谱"]]) {
+  for (const [group, item] of [["导出", "六线猫专用谱(.lxm)"], ["导出", "图片(.png)"], ["文件", "导入曲谱"]]) {
     await selectScoreAction(page, group, item);
     await blocked.getByText("曲谱信息", { exact: true }).waitFor();
     await blocked.getByText("演奏设置", { exact: true }).waitFor();
@@ -148,9 +148,9 @@ try {
   const beforeScoreClick = await state();
   const score = page.getByRole("application", { name: "六线谱编辑器" });
   await score.getByText("C", { exact: true }).first().click();
-  const popover = page.locator("#chord-edit-popover");
+  const popover = page.locator("[id$=chord-edit-popover]");
   await popover.waitFor();
-  await page.waitForFunction(() => document.querySelector("#settings-title")?.value === "保留的名称草稿");
+  await page.waitForFunction(() => document.querySelector("[id$=settings-title]")?.value === "保留的名称草稿");
   assert.equal(await page.getByRole("alertdialog").count(), 0);
   assert.deepEqual(await state(), beforeScoreClick);
   const common = popover.getByRole("group", { name: "本调常用和弦", exact: true });

@@ -19,7 +19,7 @@ try {
   await page.goto(url, { waitUntil: "networkidle", timeout: 120000 });
   const score = page.getByRole("application", { name: "六线谱编辑器" });
   const sidebar = page.getByRole("complementary", { name: "编辑器属性" });
-  const popover = page.locator("#chord-edit-popover");
+  const popover = page.locator("[id$=chord-edit-popover]");
   const library = page.getByRole("dialog", { name: /^和弦库/ });
   const button = (root, name) => root.getByRole("button", { name, exact: true });
   await score.waitFor();
@@ -33,7 +33,7 @@ try {
     await library.waitFor({ state: "hidden" });
     await page.waitForFunction(element => element === document.activeElement, await opener.elementHandle());
     await button(popover, "关闭快捷编辑").click();
-    await page.locator("#chord-popover-name").waitFor({ state: "detached" });
+    await page.locator("[data-chord-popover-name]").waitFor({ state: "detached" });
   }
   await score.getByText("C", { exact: true }).first().click();
   const circles = await score.locator("circle").count();
@@ -46,7 +46,7 @@ try {
   await page.waitForFunction(count => document.querySelectorAll('svg[role="application"] circle').length === count, circles);
   await page.screenshot({ path: new URL("next-names-and-diagrams.png", output).pathname, animations: "disabled" });
   assert.deepEqual(errors, []);
-  const result = { passed: true, url, checks: ["Next.js 16.2.9 Turbopack 开发模式", "反复打开完整库、搜索、Escape恢复、关闭快捷编辑", "全局仅名称与名称指法即时切换及Tips", "无控制台错误或警告，无pageerror"], errors };
+  const result = { passed: true, url, checks: ["反复打开完整库、搜索、Escape恢复、关闭快捷编辑", "全局仅名称与名称指法即时切换及Tips", "无控制台错误或警告，无pageerror"], errors };
   await writeFile(new URL("next-result.json", output), JSON.stringify(result, null, 2));
   console.log(JSON.stringify(result, null, 2));
 } catch (error) {

@@ -1,4 +1,5 @@
 import { planNumberedInputRanges } from "../../core/numbered/numbered-input-ranges";
+import type { createNumberedTrackRhythmContext } from "../../core/numbered/numbered-rhythm";
 import type {
   ILXMMeasure,
   ILXMNumberedTarget,
@@ -25,6 +26,7 @@ export const numberedXAtTick = (
   const exact = anchors.find((a) => a.tick === tick);
   if (exact) return exact.x;
   const next = anchors.findIndex((a) => a.tick > tick);
+  if (next < 0) return anchors.at(-1)!.x;
   const left = anchors[Math.max(0, next - 1)]!,
     right = anchors[next];
   return right
@@ -39,8 +41,9 @@ export const layoutNumberedInputSlots = (
   source: ILXMMeasure,
   measure: ILXMMeasureLayout,
   band: { y: number; height: number },
+  context?: ReturnType<typeof createNumberedTrackRhythmContext>,
 ): NumberedInputSlot[] =>
-  planNumberedInputRanges(source).map((range) => {
+  planNumberedInputRanges(source, 0, context).map((range) => {
     const anchorX = numberedXAtTick(measure, range.startTick);
     const endX = numberedXAtTick(measure, range.endTick);
     const available = Math.max(2, endX - anchorX);

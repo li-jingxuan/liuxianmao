@@ -1,0 +1,191 @@
+.root {
+  // 节拍器浮层覆盖工作区边缘但保持在全局对话框之下；避免谱面和侧栏各自的层叠上下文盖住浮层。
+  position: relative;
+  z-index: 1;
+  container: editor-toolbar / inline-size;
+  gap: 4px;
+  align-items: center;
+  flex: none;
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  height: auto;
+  min-height: 44px;
+  padding: 0;
+  overflow: visible;
+}
+.content { display: flex; min-width: 0; width: 100%; align-items: center; }
+.root[data-custom-toolbar="true"] > .content { display: none; }
+.custom { min-width: 0; }
+.row { display: flex; flex: 0 0 auto; gap: 4px; align-items: center; min-width: 0; min-height: 44px; overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; scrollbar-width: thin; }
+.primary { padding-left: 16px; }
+.secondary { flex: 1 1 auto; padding-right: 16px; }
+.hint { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.panelTrigger { display: inline-flex; > span > button, > button { min-width: 34px; height: 34px; padding: 0 5px; } }
+.moreTrigger { display: none; }
+.triggers { display: inline-flex; flex: 0 0 auto; gap: 4px; align-items: center; }
+.popupContent { box-sizing: border-box; width: 100% !important; padding: 14px; }
+.popupContent.measurePopup { padding: 16px 22px; }
+.viewControls {
+  display: flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-left: 1px solid var(--border);
+}
+.panelToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  min-height: 36px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background-color 140ms, color 140ms;
+  svg { flex-shrink: 0; }
+  &:hover { background: var(--panel-muted); color: var(--foreground); }
+  &:is([aria-expanded="true"], [aria-pressed="true"]) { background: var(--accent-soft); color: var(--accent); }
+  &:is([aria-expanded="true"], [aria-pressed="true"]):hover { border-color: var(--accent); }
+  &:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+}
+.playbackToggle { width: auto; gap: 6px; padding-inline: 10px; font-size: 12px; }
+// 试听与编辑共用工具栏行高。控件在自身区域内换行，右侧入口使用原来的布局与样式。
+.playbackControls, .playbackGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.playbackControls {
+  min-height: 44px;
+  padding: 4px 12px 4px 16px;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  font-size: 12px;
+}
+.playbackGroup { flex-wrap: wrap; }
+.playbackTempoGroup { border-inline-start: 1px solid var(--border); padding-inline-start: 10px; }
+.playbackDetails {
+  display: grid;
+  line-height: 1.4;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 11px;
+  > strong { color: var(--foreground); }
+}
+.playbackStatus { margin-inline-start: auto; }
+.playbackStart { width: 151px; }
+.playbackSlider { width: 88px; margin: 0; accent-color: var(--accent); }
+.playbackButton, .playbackField {
+  box-sizing: border-box;
+  min-height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding-inline: 8px;
+  background: var(--panel);
+  color: var(--foreground);
+  font: inherit;
+  white-space: nowrap;
+  &:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  &:is(:disabled, [aria-disabled="true"]) { opacity: 0.5; }
+}
+.playbackButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  &:enabled:not([aria-disabled="true"]) { cursor: pointer; }
+  &:enabled:not([aria-disabled="true"]):hover { border-color: var(--accent); }
+  &[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
+}
+.playbackPrimary {
+  min-width: 64px;
+  background: var(--accent);
+  color: #fff;
+}
+.playbackTempo { width: 62px; }
+.root > :global(.ant-alert) { grid-column: 1 / -1; }
+@container editor-toolbar (width < 960px) {
+  .content { flex-direction: column; align-items: stretch; }
+  .row { flex: none; min-height: 44px; padding: 3px 8px; overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; scrollbar-width: thin; }
+  .primary { border-bottom: 1px solid var(--border); }
+  .row > * { flex-shrink: 0; }
+  .moreTrigger { display: inline-flex; }
+}
+@container editor-toolbar (width < 600px) {
+  .viewControls { padding-inline: 4px; }
+}
+@media (pointer: coarse) {
+  .row { min-height: 50px; }
+  .panelToggle { min-width: 44px; min-height: 44px; }
+  .playbackButton, .playbackField { min-height: 44px; }
+}
+@media print { .root { display: none !important; } }
+
+
+
+// inert 保留正常禁用语义，同时向用户提示哪些谱面操作暂时暂停。
+.toolbarGroup[inert] > * {
+  opacity: 0.45;
+}
+
+.toolbarGroup {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 4px;
+}
+
+.toolbarGroup + .toolbarGroup,
+.secondary > .toolbarGroup {
+  border-inline-start: 1px solid var(--border);
+  margin-inline-start: 5px;
+  padding-inline-start: 9px;
+}
+
+@container editor-toolbar (width >= 960px) {
+  .triggers > .toolbarGroup:first-child {
+    border-inline-start: 1px solid var(--border);
+    margin-inline-start: 5px;
+    padding-inline-start: 9px;
+  }
+}
+
+.toolButtonWrap {
+  display: inline-flex;
+}
+
+.musicToolButton {
+  min-width: 32px;
+  padding-inline: 6px;
+}
+
+.toolbarHint {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 11px;
+  max-width: 190px;
+}
+
+@media print {
+.editorToolbar {
+    display: none !important;
+  }
+}
+
+/** 桌面工具入口与参数保持同一实例。 */
+.advancedToolTriggers {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.toolbarNotice {
+  flex-basis: 100%;
+  padding-block: 4px;
+  font-size: 12px;
+}

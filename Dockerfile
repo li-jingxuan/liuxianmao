@@ -8,13 +8,16 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY apps/website/package.json apps/website/package.json
 COPY packages/eslint-config/package.json packages/eslint-config/package.json
 COPY packages/lxm-editor/package.json packages/lxm-editor/package.json
+COPY packages/lxm-editor-react/package.json packages/lxm-editor-react/package.json
 COPY packages/tsconfig/package.json packages/tsconfig/package.json
 RUN pnpm install --frozen-lockfile
 COPY apps/website apps/website
 COPY packages packages
-COPY docs/design-v2/records/20261111_chord-catalog-data-audit-v2.json docs/design-v2/records/
-ENV NEXT_PUBLIC_BASE_PATH=/app/liuxianmao
-RUN pnpm --filter @liuxianmao/website build
+# Next.js 在构建时把路径前缀写入页面和静态资源链接。飞牛构建默认使用网关前缀，
+# 阿里云构建显式传入 --build-arg NEXT_PUBLIC_BASE_PATH=，以便从域名根路径访问。
+ARG NEXT_PUBLIC_BASE_PATH=/app/liuxianmao
+ENV NEXT_PUBLIC_BASE_PATH=${NEXT_PUBLIC_BASE_PATH}
+RUN pnpm --filter @liuxianmao/website... build
 
 FROM ${NODE_IMAGE} AS runtime
 WORKDIR /app

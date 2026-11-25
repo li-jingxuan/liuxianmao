@@ -1,13 +1,10 @@
 import { describe, expect, it } from "vitest";
-import {
-  EXAMPLE_MVP_7_2_DOCUMENT,
-  planNumberedInputRanges,
-  type ILXMNumberedEvent,
-} from "@liuxianmao/lxm-editor";
+import { planNumberedInputRanges, type ILXMNumberedEvent } from "@liuxianmao/lxm-editor";
+import { EXAMPLE_MVP_7_2_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
 import {
   numberedTargetWindow,
   resolveNumberedEditorTarget,
-} from "../components/EditorShell/numbered/numbered-editor-target";
+} from "../../../packages/lxm-editor-react/src/EditorShell/numbered/numbered-editor-target";
 
 const fixture = () => {
   const document = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);

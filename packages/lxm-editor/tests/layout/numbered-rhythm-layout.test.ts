@@ -1,12 +1,20 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyScoreCommand,
   buildLayout,
+  buildScoreScene,
   EXAMPLE_MVP_7_2_DOCUMENT,
+  getMeasureDurationTicks,
   hitTestNumbered,
   type ILXMNumberedEvent,
 } from "../../src";
-import { musicTextInkBounds } from "../../src/layout/music-text/music-text-metrics";
+import {
+  collectMusicTextMeasureRequests,
+  musicTextInkBounds,
+  musicTextRequest,
+} from "../../src/layout/music-text/music-text-metrics";
 import { numberedLayoutProfile } from "../../src/layout/music-text/numbered-layout-profile";
+import mixedTuplets from "../../example/example-mvp6.json";
 
 const note = (
   tick: number,
@@ -17,6 +25,139 @@ const note = (
   kind: "notes",
   rhythm: { base, dots: 0 },
   items: [{ id: `i${tick}`, token: tick === 0 ? "5" : "6" }],
+});
+
+describe("简谱连音标注", () => {
+  it.each(["editing", "presentation"] as const)(
+    "%s 使用两段对称弧线围住三连音数字，并避让已有连线",
+    (purpose) => {
+      const { document, measure } = fixture([note(0), note(480), note(960)]);
+      const track = document.score.tracks[0]!;
+      track.numberedMarks = [
+        { id: "slur", type: "slur", fromEventId: "e0", toEventId: "e960" },
+      ];
+      const result = applyScoreCommand(document, {
+        type: "numbered.tuplet.add",
+        trackId: track.id,
+        measureId: measure.id,
+        eventIds: ["e0", "e480", "e960"],
+      });
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      const metric = { x: -3, y: -8, width: 6, height: 8 };
+      const request = musicTextRequest("3", 9);
+      expect(collectMusicTextMeasureRequests(result.document)).toContainEqual(request);
+      const layout = buildLayout(result.document, {
+        purpose,
+        density: "compact",
+        musicTextMetrics:
+          purpose === "editing"
+            ? { [request.key]: metric }
+            : undefined,
+      });
+      const system = layout.systems[0]!;
+      const frames = system.measures[0]!.numberedNotation!;
+      const slur = system.numberedMarks!.find((m) => m.type === "slur")!;
+      const tuplet = system.numberedMarks!.find((m) => m.type === "tuplet")!;
+      const path = tuplet.path!;
+      const label = tuplet.labels[0]!;
+      const ink = musicTextInkBounds(label);
+      const tokens = path.d.split(" ");
+      expect(tokens.filter((token) => /^[A-Z]$/.test(token))).toEqual([
+        "M", "Q", "M", "Q",
+      ]);
+      const [x1, y1, leftControlX, leftControlY, leftGapX, leftGapY,
+        rightGapX, rightGapY, rightControlX, rightControlY, x2, y2] =
+        tokens.filter((token) => token !== "M" && token !== "Q").map(Number);
+
+      expect(label.text).toBe("3");
+      expect(label.fontSize).toBe(9);
+      expect(frames[0]!.labels[0]!.fontSize).toBe(11);
+      expect(label.measured).toBe(purpose === "editing");
+      expect(label.x).toBeCloseTo(
+        (frames[0]!.labels[0]!.x + frames[2]!.labels[0]!.x) / 2,
+      );
+      expect((x1! + x2!) / 2).toBeCloseTo(label.x);
+      expect((leftGapX! + rightGapX!) / 2).toBeCloseTo(label.x);
+      expect(leftGapX).toBeLessThan(ink.x);
+      expect(rightGapX).toBeGreaterThan(ink.x + ink.width);
+      expect(leftControlX).toBeGreaterThan(x1!);
+      expect(leftControlX).toBeLessThan(leftGapX!);
+      expect(rightControlX).toBeGreaterThan(rightGapX!);
+      expect(rightControlX).toBeLessThan(x2!);
+      expect(y1).toBeCloseTo(y2!);
+      expect(leftGapY).toBeCloseTo(rightGapY!);
+      expect(leftControlY).toBeCloseTo(rightControlY!);
+      expect(leftGapY).toBeLessThan(leftControlY!);
+      expect(leftControlY).toBeLessThan(y1!);
+      expect(ink.y + ink.height / 2).toBeLessThan(leftGapY!);
+      expect(
+        Math.max(y1! + path.strokeWidth / 2, ink.y + ink.height),
+      ).toBeLessThan(slur.bounds.y);
+      const sceneItems = buildScoreScene(layout).systems[0]!.items.filter(
+        (item) => item.numberedMarkId === tuplet.markId,
+      );
+      expect(sceneItems).toMatchObject([
+        { kind: "path", d: path.d, fill: "none" },
+        { kind: "text", text: "3", x: label.x, y: label.y, fontSize: 9, textAnchor: "middle" },
+      ]);
+    },
+  );
+
+  it("五连音和六连音保留完整比例和数字左右的弧段", () => {
+    const layout = buildLayout(mixedTuplets, { density: "compact" });
+    const marks = layout.systems.flatMap((system) => system.numberedMarks!);
+    for (const text of ["5:3", "5:4", "6:4"]) {
+      const mark = marks.find((item) => item.labels[0]?.text === text)!;
+      const ink = musicTextInkBounds(mark.labels[0]!);
+      const [x1, , , , leftGap, , rightGap, , , , x2] = mark.path!.d
+        .split(" ").filter((token) => token !== "M" && token !== "Q").map(Number);
+      expect(mark.labels[0]!.fontSize).toBe(9);
+      // 无浏览器度量时，较宽比例文字的断口仍须跨出估算墨迹并留出两段弧线。
+      expect(leftGap! - x1!).toBeGreaterThanOrEqual(4 - 1e-9);
+      expect(x2! - rightGap!).toBeGreaterThanOrEqual(4 - 1e-9);
+      expect(leftGap).toBeLessThan(ink.x);
+      expect(rightGap).toBeGreaterThan(ink.x + ink.width);
+    }
+  });
+
+  it("跨小节三连音随谱行拆段且只显示一个组号，跨线持续不生成输入空位", () => {
+    const { document, measure } = fixture([]);
+    const track = document.score.tracks[0]!;
+    const capacity = getMeasureDurationTicks(measure);
+    const first = note(capacity - 480);
+    measure.numberedVoice.events = [first];
+    const next = { ...structuredClone(measure), id: "next-measure" };
+    next.beats = next.beats.map((beat) => ({ ...beat, id: `next-${beat.id}`, notes: beat.notes.map((item) => ({ ...item, id: `next-${item.id}` })) }));
+    next.numberedVoice.events = [note(0), note(480)];
+    track.measures.push(next);
+    const result = applyScoreCommand(document, {
+      type: "numbered.tuplet.add", trackId: track.id, measureId: measure.id,
+      eventIds: [first.id, "e0", "e480"],
+    });
+    if (!result.ok) throw new Error(result.message);
+    for (const purpose of ["editing", "presentation"] as const) {
+      const wide = buildLayout(result.document, { purpose, density: "compact", systemWidth: 1100 });
+      const narrow = buildLayout(result.document, { purpose, density: "compact", systemWidth: 100 });
+      expect(wide.systems).toHaveLength(1);
+      expect(narrow.systems).toHaveLength(2);
+      const marks = (layout: typeof wide) => layout.systems.flatMap((system) => system.numberedMarks!.filter(({ type }) => type === "tuplet"));
+      const sameLine = marks(wide);
+      expect(sameLine).toHaveLength(1);
+      expect(sameLine[0]!.labels.map(({ text }) => text)).toEqual(["3"]);
+      const wrapped = marks(narrow);
+      expect(wrapped).toHaveLength(2);
+      expect(wrapped.every(({ markId, path }) => markId === sameLine[0]!.markId && !!path && !/NaN|Infinity/.test(path.d))).toBe(true);
+      expect(wrapped.map(({ labels }) => labels.map(({ text }) => text))).toEqual([["3"], []]);
+      const [left, right] = wide.systems[0]!.measures;
+      expect(left!.timeAnchors.at(-1)!.tick).toBe(capacity);
+      expect(right!.numberedSlots.find(({ id }) => id === "e480")?.tick).toBe(160);
+      if (purpose === "editing") {
+        expect(right!.numberedInputSlots?.length).toBeGreaterThan(0);
+        expect(right!.numberedInputSlots!.every(({ startTick }) => startTick >= 160)).toBe(true);
+      }
+    }
+  });
 });
 
 const fixture = (events: ILXMNumberedEvent[]) => {

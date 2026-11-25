@@ -1,10 +1,11 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { EXAMPLE_MVP_7_2_DOCUMENT, type MusicTextRange } from "@liuxianmao/lxm-editor";
-import { MusicTextRangeEditor, previewMusicTextRange } from "../components/EditorShell/music-text/MusicTextRangeEditor";
-import { EditorSessionRuntime } from "../components/EditorShell/session/EditorSessionRuntime";
-import { EditorStoreContext } from "../stores/editor-context";
-import { createEditorStore } from "../stores/editor-store";
+import { type MusicTextRange } from "@liuxianmao/lxm-editor";
+import { EXAMPLE_MVP_7_2_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { MusicTextRangeEditor, previewMusicTextRange } from "../../../packages/lxm-editor-react/src/EditorShell/music-text/MusicTextRangeEditor";
+import { EditorSessionRuntime } from "../../../packages/lxm-editor-react/src/EditorShell/session/EditorSessionRuntime";
+import { EditorStoreContext } from "../../../packages/lxm-editor-react/src/stores/editor-context";
+import { createEditorStore } from "../../../packages/lxm-editor-react/src/stores/editor-store";
 
 function fixture(kind: MusicTextRange["kind"] = "numbered") {
   const document = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);

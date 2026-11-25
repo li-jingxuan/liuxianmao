@@ -1,8 +1,8 @@
 import { useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { ChordDiagramEditorModal, replaceChordDiagramEditorSnapshot, type ChordDiagramEditorSnapshot } from "../components/EditorShell/chords/ChordDiagramEditorModal";
-import type { ChordDraft } from "../components/EditorShell/chords/ChordEditor";
-import type { EditorModalCloseSource } from "../components/EditorShell/session/editor-modal-controller";
+import { ChordDiagramEditorModal, replaceChordDiagramEditorSnapshot, type ChordDiagramEditorSnapshot } from "../../../packages/lxm-editor-react/src/EditorShell/chords/ChordDiagramEditorModal";
+import type { ChordDraft } from "../../../packages/lxm-editor-react/src/EditorShell/chords/ChordEditor";
+import type { EditorModalCloseSource } from "../../../packages/lxm-editor-react/src/EditorShell/session/editor-modal-controller";
 
 const seed: ChordDraft = { display: "name", chord: { name: "C", diagram: { startFret: 1, fretCount: 5, strings: [1, 2, 3, 4, 5, 6].map((string) => ({ string: string as 1, fret: 0, finger: null })), barres: [] } } };
 const state = { completed: [] as ChordDraft[], saved: [] as ChordDraft[], cancelled: 0, backgroundKeys: 0, saveOk: true, snapshot: null as ChordDiagramEditorSnapshot | null };

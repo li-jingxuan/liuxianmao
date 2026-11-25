@@ -7,7 +7,7 @@ import type {
   ILXMTrack,
 } from "../types";
 import { createMeasureRhythmContext } from "../rhythm/tuplet";
-import { createNumberedRhythmContext } from "../numbered/numbered-rhythm";
+import { buildNumberedIndex } from "../numbered/numbered-rhythm";
 
 interface EffectLocation {
   trackId: string;
@@ -16,6 +16,7 @@ interface EffectLocation {
 }
 /** 编辑影响只随命令结果返回，不进入 document 或历史快照。 */
 export type ILXMCommandEffect =
+  | (EffectLocation & { kind: "measureRepeat.expanded" })
   | (EffectLocation & { kind: "numbered.event.overwritten"; eventId: string })
   | (EffectLocation & {
       kind: "numbered.event.retimed" | "numbered.event.resized";
@@ -160,6 +161,8 @@ export const collectCommandEffects = (
     const nextMeasures = new Map(
       nextTrack?.measures.map((measure) => [measure.id, measure]) ?? [],
     );
+    const previousEvents = buildNumberedIndex(track).events;
+    const nextEvents = nextTrack ? buildNumberedIndex(nextTrack).events : undefined;
     // 两谱各自比较稳定身份；简谱变化不从 TAB Beat 的变化反推。
     track.measures.forEach((measure, measureIndex) => {
       const nextMeasure = nextMeasures.get(measure.id);
@@ -194,22 +197,14 @@ export const collectCommandEffects = (
           });
         }
       }
-      const previousContext = createNumberedRhythmContext(
-        measure.numberedVoice,
-      );
-      const nextContext = createNumberedRhythmContext(
-        nextMeasure.numberedVoice,
-      );
-      const nextEvents = new Map(
-        nextMeasure.numberedVoice.events.map((e) => [e.id, e]),
-      );
       const location = {
         trackId: track.id,
         measureId: measure.id,
         measureNumber: measureIndex + 1,
       };
       measure.numberedVoice.events.forEach((event) => {
-        const nextEvent = nextEvents.get(event.id);
+        const nextEntry = nextEvents?.get(event.id);
+        const nextEvent = nextEntry?.event;
         if (!nextEvent) {
           if (
             command.type === "numbered.event.setRhythm" &&
@@ -223,7 +218,8 @@ export const collectCommandEffects = (
             });
           return;
         }
-        if (event.tick !== nextEvent.tick)
+        // 起音可以随连音组移动到另一小节，仍按事件 ID 核对实际时长和小节内起点。
+        if (event.tick !== nextEvent.tick || nextEntry.measureId !== measure.id)
           effects.push({
             ...location,
             kind: "numbered.event.retimed",
@@ -231,15 +227,16 @@ export const collectCommandEffects = (
             beforeValue: event.tick,
             afterValue: nextEvent.tick,
           });
-        const previous = previousContext.getEventDurationTicks(event),
-          next = nextContext.getEventDurationTicks(nextEvent);
-        if (previous.ok && next.ok && previous.ticks !== next.ticks)
+        const previous = previousEvents.get(event.id)!;
+        const beforeTicks = previous.end - previous.start;
+        const afterTicks = nextEntry.end - nextEntry.start;
+        if (beforeTicks !== afterTicks)
           effects.push({
             ...location,
             kind: "numbered.event.resized",
             eventId: event.id,
-            beforeValue: previous.ticks,
-            afterValue: next.ticks,
+            beforeValue: beforeTicks,
+            afterValue: afterTicks,
           });
       });
     });

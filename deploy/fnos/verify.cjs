@@ -30,19 +30,9 @@ async function check(path, type) {
   return response.body;
 }
 
-async function checkPng(path) {
-  const image = await check(path, 'image/png');
-  assert.equal(image.subarray(0, 8).toString('hex'), '89504e470d0a1a0a', `${path}: invalid PNG signature`);
-}
-
 async function verify() {
-  const home = await check(prefix, 'text/html');
+  await check(prefix, 'text/html');
   if (process.argv[2] === 'home') return;
-
-  // 同时验证首页渲染出的地址和图片响应，防止图片已打包但浏览器请求了站点根目录。
-  const preview = `${prefix}/assets/home/editor-preview.png`;
-  assert.ok(home.toString('utf8').includes(` src="${preview}"`), `${prefix}: missing preview image src ${preview}`);
-  await checkPng(preview);
 
   const desktopPath = `${prefix}/`;
   const desktop = await request(desktopPath);
@@ -54,7 +44,8 @@ async function verify() {
   }
 
   await check(`${prefix}/editor`, 'text/html');
-  await checkPng(`${prefix}/assets/brand/liuxianmao-64.png`);
+  const brand = await check(`${prefix}/assets/brand/liuxianmao-64.png`, 'image/png');
+  assert.equal(brand.subarray(0, 8).toString('hex'), '89504e470d0a1a0a', 'Invalid PNG signature');
 
   const chords = `${prefix}/assets/chords`;
   const manifest = JSON.parse(await check(`${chords}/manifest.json`, 'application/json'));

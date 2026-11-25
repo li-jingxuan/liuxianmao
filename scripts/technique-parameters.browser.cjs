@@ -18,7 +18,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     const svg = page.getByRole("application", { name: "六线谱编辑器" });
     await svg.waitFor();
     await page.waitForTimeout(300);
-    const fixture = JSON.parse(await fs.readFile(path.join(__dirname, "../packages/lxm-editor/example/technique-rhythm-score.json"), "utf8"));
+    const fixture = JSON.parse(await fs.readFile(path.join(__dirname, "../packages/lxm-editor/example/technique-rhythm-score.lxm.json"), "utf8"));
     fixture.score.title = "技巧参数 owner 回归";
     const track = fixture.score.tracks[0];
     track.techniques = []; track.numberedMarks = []; track.measures = [track.measures[0]];

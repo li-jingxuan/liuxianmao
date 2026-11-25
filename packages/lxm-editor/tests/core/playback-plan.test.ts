@@ -196,8 +196,8 @@ describe("guitar playback plan", () => {
       beat.notes.map((note) => [note.id, note] as const))));
     const baseline = createPlaybackPlan({ ...source, techniques: [] });
     expect([...notes.values()].filter(({ fret }) => fret === "x")).toHaveLength(252);
-    // 谱面有 246 个可按和弦指法发声的叉音，第 17 至 33 小节反复时再播放其中 103 个。
-    expect(baseline.sounds.filter(({ noteId }) => notes.get(noteId!)?.fret === "x")).toHaveLength(349);
+    // 新版谱面有 251 个可按和弦指法发声的叉音，第 17 至 33 小节反复时再播放其中 103 个。
+    expect(baseline.sounds.filter(({ noteId }) => notes.get(noteId!)?.fret === "x")).toHaveLength(354);
     expect(baseline.sounds.filter(({ noteId }) => typeof notes.get(noteId!)?.fret === "number")).toHaveLength(50);
     expect(baseline.warnings).toEqual([]);
     const plan = createPlaybackPlan(DEFAULT_MOCK_DOCUMENT);

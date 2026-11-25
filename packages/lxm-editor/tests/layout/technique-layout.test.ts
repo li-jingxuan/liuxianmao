@@ -9,7 +9,6 @@ import {
 } from "../../src/layout";
 import {
   LXM_DURATION_STEM_NOTE_GAP,
-  LXM_TECHNIQUE_ARROW_OFFSET_Y,
   LXM_TECHNIQUE_CURVE_INK_GAP,
   LXM_TECHNIQUE_PATH_STROKE_WIDTH,
 } from "../../src/layout/layout-constants";
@@ -97,7 +96,6 @@ describe("MVP v5 技巧布局", () => {
         maxString: 6,
         stroke: "down" as const,
       },
-      bottomOffset: 0,
     },
     {
       label: "上行琶音",
@@ -109,7 +107,6 @@ describe("MVP v5 技巧布局", () => {
         maxString: 6,
         direction: "ascending" as const,
       },
-      bottomOffset: 0,
     },
     {
       label: "下行琶音",
@@ -121,12 +118,10 @@ describe("MVP v5 技巧布局", () => {
         maxString: 6,
         direction: "descending" as const,
       },
-      // 下行琶音的显式箭头越过最下方弦线，符干必须同步避让这段几何。
-      bottomOffset: LXM_TECHNIQUE_ARROW_OFFSET_Y,
     },
   ])(
     "$label 范围低于最低 Note 时，符干避开技巧最下方可见几何",
-    ({ technique, bottomOffset }) => {
+    ({ technique }) => {
       const document = createDocument();
       document.score.tracks[0]!.techniques = [technique];
 
@@ -142,50 +137,93 @@ describe("MVP v5 技巧布局", () => {
       )!.y1;
 
       expect(mark.stemY1).toBe(
-        string6Y + LXM_DURATION_STEM_NOTE_GAP + bottomOffset,
+        string6Y + LXM_DURATION_STEM_NOTE_GAP,
       );
       const segment = layout.systems
         .flatMap((system) => system.techniques)
         .find((candidate) => candidate.techniqueId === technique.id)!;
       const arrowBottomY = Math.max(
-        ...(segment.arrowHead?.points.map(([, y]) => y) ?? [-Infinity]),
+        ...(segment.arrowHead?.points ?? segment.path!.arrowPoints!).map(([, y]) => y),
       );
       expect(mark.stemY1).toBeGreaterThan(arrowBottomY);
     },
   );
 
-  it.each(["ascending", "descending"] as const)(
-    "琶音 %s 使用垂直居中的显式箭头，而不是自动旋转 marker",
-    (direction) => {
+  it.each([
+    { direction: "ascending", stroke: "down", minString: 1 },
+    { direction: "descending", stroke: "up", minString: 1 },
+    { direction: "ascending", stroke: "down", minString: 5 },
+    { direction: "descending", stroke: "up", minString: 5 },
+  ] as const)(
+    "$direction 琶音与同范围扫弦对齐（第 $minString 弦到第 6 弦）",
+    ({ direction, stroke, minString }) => {
       const document = createDocument();
       document.score.tracks[0]!.techniques = [
         {
-          id: `tech-arrow-${direction}`,
+          id: "arpeggio",
           type: "arpeggio",
           beatId: "mvp2-beat-1-2",
-          minString: 2,
+          minString,
           maxString: 6,
           direction,
         },
+        {
+          id: "strum",
+          type: "strum",
+          beatId: "mvp2-beat-1-5",
+          minString,
+          maxString: 6,
+          stroke,
+        },
       ];
 
-      const segment = buildLayout(document).systems
-        .flatMap((system) => system.techniques)
-        .find((technique) => technique.type === "arpeggio")!;
-      expect(segment.path?.markerEnd).toBeUndefined();
-      expect(segment.arrowHead?.points).toHaveLength(3);
-      const [tip, left, right] = segment.arrowHead!.points;
-      expect(tip![0]).toBe(left![0] + (right![0] - left![0]) / 2);
-      expect(left![1]).toBe(right![1]);
-      expect(direction === "ascending" ? tip![1] < left![1] : tip![1] > left![1]).toBe(true);
-      expect(
-        hitTestTechniqueTarget(buildLayout(document), {
-          x: tip![0],
-          y: tip![1],
-        }),
-      ).toMatchObject({
-        techniqueId: `tech-arrow-${direction}`,
+      const layout = buildLayout(document);
+      const techniques = layout.systems.flatMap((system) => system.techniques);
+      const arpeggio = techniques.find((technique) => technique.type === "arpeggio")!;
+      const strum = techniques.find((technique) => technique.type === "strum")!;
+      const strumStartY = strum.focusEndpoints!.start.y;
+      const strokeRadius = strum.path!.strokeWidth / 2;
+      // 扫弦的 marker bounds 预留了任意角度的空间，此处用实际三角形和圆头路径的外沿比较。
+      const strumInkYs = [
+        strumStartY - strokeRadius,
+        strumStartY + strokeRadius,
+        ...strum.path!.arrowPoints!.map(([, y]) => y),
+      ];
+      expect(arpeggio.visualBounds.y).toBeCloseTo(Math.min(...strumInkYs));
+      expect(arpeggio.visualBounds.y + arpeggio.visualBounds.height).toBeCloseTo(Math.max(...strumInkYs));
+
+      expect(arpeggio.path?.markerEnd).toBeUndefined();
+      expect(arpeggio.arrowHead?.points).toHaveLength(3);
+      const [tip, firstBase, secondBase] = arpeggio.arrowHead!.points;
+      const [tipX, tipY] = tip!;
+      const baseY = firstBase![1];
+      const sign = direction === "ascending" ? -1 : 1;
+      expect(tipX).toBeCloseTo((firstBase![0] + secondBase![0]) / 2);
+      expect(baseY).toBeCloseTo(secondBase![1]);
+      expect(Math.sign(tipY - baseY)).toBe(sign);
+
+      const [move, ...curves] = arpeggio.path!.d.split(" Q ");
+      const waveStartY = Number(move!.split(" ").at(-1));
+      expect(waveStartY).toBeCloseTo(strumStartY);
+      expect(curves.length).toBeGreaterThanOrEqual(2);
+      expect(curves.length % 2).toBe(0);
+      let previousY = waveStartY;
+      for (const [index, curve] of curves.entries()) {
+        const [controlX, controlY, endX, endY] = curve.split(" ").map(Number);
+        expect(Math.sign(controlX! - tipX)).toBe(index % 2 === 0 ? -1 : 1);
+        expect(endX).toBeCloseTo(tipX);
+        expect((controlY! - previousY) * sign).toBeGreaterThan(0);
+        expect((endY! - controlY!) * sign).toBeGreaterThan(0);
+        previousY = endY!;
+      }
+      expect(previousY).toBeCloseTo(baseY);
+      expect(hitTestTechniqueTarget(layout, { x: tipX, y: tipY })).toMatchObject({
+        techniqueId: "arpeggio",
         focusEndpoint: "end",
+      });
+      expect(hitTestTechniqueTarget(layout, { x: tipX, y: waveStartY })).toMatchObject({
+        techniqueId: "arpeggio",
+        focusEndpoint: "start",
       });
     },
   );

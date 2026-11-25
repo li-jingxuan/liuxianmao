@@ -1,6 +1,6 @@
 import { buildNumberedIndex } from "../../core/numbered/numbered-rhythm";
 import type { ILXMTrack } from "../../core/types";
-import type { ILXMSystemLayout } from "../layout-types";
+import type { ILXMBarlinePartLayout, ILXMSystemLayout } from "../layout-types";
 import type { NumberedLayout } from "./numbered-notation-layout";
 import {
   numberedLayoutProfile,
@@ -9,7 +9,7 @@ import {
 import {
   musicTextGlyph,
   musicTextInkBounds,
-  musicTextRequest,
+  numberedTupletMeasureRequest,
   unionMusicBounds,
   type MusicTextGlyph,
   type MusicTextRect,
@@ -25,6 +25,29 @@ export interface NumberedMarkLayout {
   bounds: MusicTextRect;
   target?: { measureId: string; eventId: string };
 }
+
+/** 从小节线墨迹的内侧边缘量留白，反复线的圆点也计入。 */
+const barlineInkEdge = (part: ILXMBarlinePartLayout, inward: 1 | -1) =>
+  part.kind === "line"
+    ? part.x + (inward * part.strokeWidth) / 2
+    : part.cx + inward * part.radius;
+
+/**
+ * 弧端常态内缩 5 个逻辑单位。窄位取余量的一半，把另一半留给从音符到行边的弧段。
+ * 多音数字若已进入复合线组的横向范围，改用谱行外边界计算可用宽度，保留数字中心和弧线方向。
+ */
+const continuationX = (
+  inkEdge: number,
+  rowEdge: number,
+  noteX: number | undefined,
+  inward: 1 | -1,
+) => {
+  if (noteX === undefined) return inkEdge + inward * 5;
+  const edge = (noteX - inkEdge) * inward > 0 ? inkEdge : rowEdge;
+  const available = Math.max(0, (noteX - edge) * inward);
+  return edge + inward * Math.min(5, available / 2);
+};
+
 /** 独立简谱连接按谱行拆段，音符 ID 保持为同一领域关系。 */
 export const layoutNumberedMarks = (
   track: ILXMTrack,
@@ -47,6 +70,21 @@ export const layoutNumberedMarks = (
   );
   const left = system.measures[0]!.x + 8,
     right = system.measures.at(-1)!.x + system.measures.at(-1)!.width - 8;
+  // 普通行首沿用最左收边线，行首反复线和行末小节线使用实际投影，而非配置行宽。
+  // 再计半个弧线宽度，保证端点靠边时其描边也留在边线内侧。
+  const lastMeasure = system.measures.at(-1)!;
+  const rowLeft = system.x + 1.5;
+  const rowRight = lastMeasure.x + lastMeasure.width - 0.5;
+  const leftInk = Math.max(
+    rowLeft,
+    ...(system.header.leadingBarline?.parts ?? []).map(
+      (p) => barlineInkEdge(p, 1) + 0.5,
+    ),
+  );
+  const rightInk = Math.min(
+    rowRight,
+    ...lastMeasure.barline.parts.map((p) => barlineInkEdge(p, -1) - 0.5),
+  );
   const results: NumberedMarkLayout[] = [];
   const obstacles = (x1: number, x2: number) =>
     [
@@ -126,8 +164,8 @@ export const layoutNumberedMarks = (
         : index.events.get(mark.toEventId);
     if (!from || !to || from.measureIndex > hi || to.measureIndex < lo)
       continue;
-    let x1 = slots.get(from.event.id)?.x ?? left,
-      x2 = slots.get(to.event.id)?.x ?? right;
+    let fromX = slots.get(from.event.id)?.x,
+      toX = slots.get(to.event.id)?.x;
     // 多音 Tie 端点选中实际 item 的数字中心，不默认连接音组第一项。
     if (mark.type === "tie") {
       for (const side of ["from", "to"] as const) {
@@ -140,18 +178,43 @@ export const layoutNumberedMarks = (
           entry.event.items.findIndex((i) => i.id === entry.item.id)
         ];
         if (label) {
-          if (side === "from") x1 = label.x;
-          else x2 = label.x;
+          if (side === "from") fromX = label.x;
+          else toX = label.x;
         }
       }
     }
+    const x1 = fromX ?? continuationX(leftInk, rowLeft, toX, 1);
+    const x2 = toX ?? continuationX(rightInk, rowRight, fromX, -1);
+    const span = x2 - x1;
+    const outgoing = fromX !== undefined && toX === undefined;
+    const incoming = fromX === undefined && toX !== undefined;
     const limits = mark.type === "tie" ? profile.tieHeight : profile.slurHeight;
-    const h = Math.min(limits[1], limits[0] + (x2 - x1) * 0.02);
+    const naturalHeight = Math.min(limits[1], limits[0] + span * 0.02);
+    const h =
+      outgoing || incoming
+        ? Math.min(naturalHeight, span * 0.35)
+        : fromX === undefined
+          ? Math.min(2, span * 0.02)
+          : naturalHeight;
     const control = h / 0.75;
-    // 对称三次曲线的可见弧高为控制点抬升的 3/4；使用真实极值回算净空。
+    // 换行端与相邻控制点同高，向小节线延伸时切线保持水平。没有音符端点的中间行用浅弧。
+    // 同行仍用原来的对称弧，可见弧高为控制点抬升的 3/4。
+    const startLift = incoming ? h : 0;
+    const endLift = outgoing ? h : 0;
+    const leftControl = incoming ? h : outgoing ? h * 0.8 : control;
+    const rightControl = outgoing ? h : incoming ? h * 0.8 : control;
+    const liftSpan = Math.max(incoming || outgoing ? Number.EPSILON : 1, span);
     const lift = (x: number) => {
-      const t = Math.max(0, Math.min(1, (x - x1) / Math.max(1, x2 - x1)));
-      return 3 * control * t * (1 - t);
+      const t = Math.max(0, Math.min(1, (x - x1) / liftSpan));
+      if (!incoming && !outgoing) return 3 * control * t * (1 - t);
+      // 控制点横向等分，直接按 x 求参数。半弧的抬升单调，取障碍物两侧较低处确保净空。
+      const u = 1 - t;
+      return (
+        startLift * u ** 3 +
+        3 * leftControl * u ** 2 * t +
+        3 * rightControl * u * t ** 2 +
+        endLift * t ** 3
+      );
     };
     const y = Math.min(
       -8,
@@ -168,7 +231,7 @@ export const layoutNumberedMarks = (
       type: mark.type,
       target: { measureId: from.measureId, eventId: from.event.id },
       path: {
-        d: `M ${x1} ${y} C ${x1 + (x2 - x1) / 3} ${y - control} ${x2 - (x2 - x1) / 3} ${y - control} ${x2} ${y}`,
+        d: `M ${x1} ${y - startLift} C ${x1 + span / 3} ${y - leftControl} ${x2 - span / 3} ${y - rightControl} ${x2} ${y - endLift}`,
         strokeWidth: 1,
       },
       lines: [],
@@ -177,32 +240,73 @@ export const layoutNumberedMarks = (
       bounds: {
         x: x1 - 0.5,
         y: y - h - 0.5,
-        width: x2 - x1 + 1,
+        width: span + 1,
         height: h + 1,
       },
     });
   }
-  for (const m of system.measures) {
-    const source = track.measures.find((s) => s.id === m.id)!;
+  // 组保存在起音小节。实际末音在次小节时，同一行仍画一个数字与完整弧线；换行后只在起音行标号。
+  for (const source of track.measures.slice(Math.max(0, lo - 1), hi + 1)) {
     for (const group of source.numberedVoice.tuplets) {
-      const x1 = slots.get(group.eventIds[0]!)!.x - 5,
-        x2 = slots.get(group.eventIds.at(-1)!)!.x + 5;
-      const y = allocate(x1, x2, 4),
-        text =
-          group.ratio.actual === 3 && group.ratio.normal === 2
-            ? "3"
-            : `${group.ratio.actual}:${group.ratio.normal}`;
+      const firstId = group.eventIds[0]!;
+      const lastId = group.eventIds.at(-1)!;
+      const start = index.events.get(firstId);
+      const end = index.events.get(lastId);
+      if (!start || !end || start.measureIndex > hi || end.measureIndex < lo) continue;
+      const firstSlot = slots.get(firstId);
+      const lastSlot = slots.get(lastId);
+      if (!firstSlot) {
+        // 续入端贴近行首；保留同一组 ID 供编辑谱面和图片、打印场景关联。
+        const x2 = Math.max(left + 4, (lastSlot?.x ?? right) + 5);
+        const y = allocate(left, x2);
+        const h = Math.min(profile.slurHeight[1], profile.slurHeight[0] + (x2 - left) * 0.02);
+        results.push({
+          markId: group.id,
+          type: "tuplet",
+          path: { d: `M ${left} ${y - h} Q ${(left + x2) / 2} ${y - h} ${x2} ${y}`, strokeWidth: 1 },
+          lines: [], dots: [], labels: [],
+          bounds: { x: left - 0.5, y: y - h - 0.5, width: x2 - left + 1, height: h + 1 },
+        });
+        continue;
+      }
+      const firstX = firstSlot.x;
+      const lastX = lastSlot?.x ?? Math.max(firstX, right - 5);
+      const request = numberedTupletMeasureRequest(group.ratio);
+      const ink = musicTextInkBounds(musicTextGlyph(request, 0, 0, metrics));
+      // 按字形墨迹给断口留白；比例文字较宽时对称扩展跨度，保证两侧仍有可见的弧段。
+      const halfGap = Math.max(-ink.x, ink.x + ink.width) + 2;
+      const halfSpan = Math.max((lastX - firstX) / 2 + 5, halfGap + 4);
+      const midpoint = (firstX + lastX) / 2;
+      const centerX = lastSlot ? midpoint : Math.min(midpoint, right - halfSpan);
+      const x1 = centerX - halfSpan;
+      const x2 = centerX + halfSpan;
+      const h = Math.min(
+        profile.slurHeight[1],
+        profile.slurHeight[0] + (x2 - x1) * 0.02,
+      );
+      // 弧端和居中的文字共同参与净空计算，兼容字体度量尚未加载的情况。
+      const y = allocate(x1, x2, Math.max(0.5, ink.height / 2 - h));
+      const apexY = y - h;
       const label = musicTextGlyph(
-        musicTextRequest(text, 11),
-        (x1 + x2) / 2,
-        y - 2,
+        request,
+        centerX,
+        apexY - ink.y - ink.height / 2,
         metrics,
       );
+      // 从同一条抛物线截取左右两段，断口边缘保留原弧的斜率，数字置于弧顶。
+      const gapRatio = halfGap / halfSpan;
+      const gapY = apexY + h * gapRatio ** 2;
+      const controlY = apexY + h * gapRatio;
+      const leftGapX = centerX - halfGap;
+      const rightGapX = centerX + halfGap;
+      // 换行的右端水平伸出；与次行从边缘接回末音的弧段对应。
+      const rightEndY = lastSlot ? y : gapY;
+      const rightControlY = lastSlot ? controlY : gapY;
       results.push({
         markId: group.id,
         type: "tuplet",
         path: {
-          d: `M ${x1} ${y + 3} V ${y} H ${label.bounds.x - 3} M ${label.bounds.x + label.bounds.width + 3} ${y} H ${x2} V ${y + 3}`,
+          d: `M ${x1} ${y} Q ${(x1 + leftGapX) / 2} ${controlY} ${leftGapX} ${gapY} M ${rightGapX} ${gapY} Q ${(rightGapX + x2) / 2} ${rightControlY} ${x2} ${rightEndY}`,
           strokeWidth: 1,
         },
         lines: [],
@@ -210,7 +314,12 @@ export const layoutNumberedMarks = (
         labels: [label],
         bounds: unionMusicBounds([
           label.bounds,
-          { x: x1, y: y - 1, width: x2 - x1, height: 5 },
+          {
+            x: x1 - 0.5,
+            y: gapY - 0.5,
+            width: x2 - x1 + 1,
+            height: y - gapY + 1,
+          },
         ]),
       });
     }

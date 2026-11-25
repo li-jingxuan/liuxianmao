@@ -4,7 +4,7 @@ import type {
   GuitarAdvancedData,
   ScoreExampleRef,
 } from "../../lib/guitar-advanced/model";
-import { ScoreMusicLayer } from "../EditorShell/score/ScoreMusicLayer";
+import { ScoreMusicLayer } from "../../../../packages/lxm-editor-react/src/EditorShell/score/ScoreMusicLayer";
 import { prepareScore, type PreparedScore } from "./score-presentation";
 import styles from "./TheoryLessonView.module.scss";
 /**

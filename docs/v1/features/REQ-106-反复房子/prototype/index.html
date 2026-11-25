@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>六线猫 · 反复房子</title>
+  <link rel="stylesheet" href="106.css">
+  <script src="106.js" defer></script>
+</head>
+<body>
+  <header class="top">
+    <div class="brand"><img src="liuxianmao-32.png" width="24" height="24" alt="">六线猫</div>
+    <details class="file-menu" id="file-menu"><summary>文件</summary><div class="dropdown"><button id="save">保存模拟</button><button id="reopen">重开已保存</button></div></details>
+    <span class="document">分遍结尾练习</span>
+    <nav aria-label="评审谱例"><a href="../../REQ-105-谱面跳转记号/prototype/index.html">跳转练习</a><a href="index.html" aria-current="page">反复房子</a><a href="../../REQ-105-谱面跳转记号/prototype/index.html#ideal">《理想》联验</a></nav>
+  </header>
+  <div class="toolbar" role="toolbar" aria-label="小节与试听工具">
+    <button id="measure-tool">小节</button><span class="divider"></span><button id="audition" aria-pressed="false">试听</button>
+    <span class="file-state" id="file-state" role="status">交互原型 · 保存模拟</span>
+  </div>
+  <main class="workspace">
+    <section class="canvas" aria-label="六线谱谱面">
+      <article class="paper" id="paper"></article>
+    </section>
+    <aside class="inspector" aria-label="小节属性">
+      <header class="inspector-header"><span class="tab">小节</span><span id="selection-label"></span></header>
+      <div class="inspector-content" id="inspector-content"></div>
+    </aside>
+  </main>
+  <footer class="transport" aria-label="试听控制">
+    <div class="transport-buttons">
+      <button id="play" class="primary">播放</button><button id="back">上一步</button><button id="step">下一步</button><button id="stop">停止</button>
+    </div><span class="playing-label" id="playing-label" role="status"></span><div class="transport-end"><label><input id="follow" type="checkbox" checked> 跟随谱面</label><label><input id="sound" type="checkbox" checked> 示意音</label></div>
+  </footer>
+  <div id="context-menu" class="context-menu" hidden><button id="context-entry">反复与跳转…</button></div>
+  <dialog id="confirm"><form method="dialog"><h2>删除反复房子？</h2><p id="confirm-text"></p><div class="actions"><button value="cancel" autofocus>取消</button><button value="confirm" class="danger">删除</button></div></form></dialog>
+</body>
+</html>

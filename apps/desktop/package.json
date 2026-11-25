@@ -1,0 +1,31 @@
+{
+  "name": "@liuxianmao/desktop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "六线猫离线写谱工作区",
+  "author": "六线猫",
+  "main": "dist/main/main.cjs",
+  "scripts": {
+    "dev": "pnpm run build:main && node scripts/dev.mjs",
+    "start": "electron .",
+    "build": "pnpm run build:main && vite build",
+    "build:main": "tsc -p tsconfig.main.json",
+    "type-check": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.renderer.json",
+    "dist:win": "electron-builder --win nsis --x64",
+    "dist:mac": "electron-builder --mac dmg --arm64",
+    "dist:mac:unsigned": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg --arm64 -c.forceCodeSigning=false -c.directories.output=build/installers-unsigned"
+  },
+  "devDependencies": {
+    "@liuxianmao/lxm-editor-react": "workspace:*",
+    "@types/node": "^25.9.3",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "electron": "45.4.1",
+    "electron-builder": "26.18.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^6.0.3",
+    "vite": "^7.3.5"
+  }
+}

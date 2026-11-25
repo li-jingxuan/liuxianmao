@@ -1,10 +1,10 @@
-import { createRef, useState } from "react";
+import { createRef, useState, type ComponentProps } from "react";
 import { createRoot } from "react-dom/client";
-import { EXAMPLE_MVP_6_DOCUMENT } from "@liuxianmao/lxm-editor";
-import { MusicTextSidebar, type MusicTextController } from "../components/EditorShell/music-text/MusicTextSidebar";
-import { EditorSessionRuntime } from "../components/EditorShell/session/EditorSessionRuntime";
-import { EditorStoreContext } from "../stores/editor-context";
-import { createEditorSession } from "../stores/editor-store";
+import { EXAMPLE_MVP_6_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { MusicTextSidebar, type MusicTextController } from "../../../packages/lxm-editor-react/src/EditorShell/music-text/MusicTextSidebar";
+import { EditorSessionRuntime } from "../../../packages/lxm-editor-react/src/EditorShell/session/EditorSessionRuntime";
+import { EditorStoreContext } from "../../../packages/lxm-editor-react/src/stores/editor-context";
+import { createEditorSessionStore as createEditorSession } from "../../../packages/lxm-editor-react/src/stores/editor-store";
 import "../app/globals.scss";
 
 const document = structuredClone(EXAMPLE_MVP_6_DOCUMENT);
@@ -35,6 +35,11 @@ if (new URLSearchParams(location.search).has("advance")) {
 const session = createEditorSession(document);
 const controller = createRef<MusicTextController>();
 const noop = () => {};
+let lyricTargetUpdates = 0;
+const reportTarget: ComponentProps<typeof MusicTextSidebar>["onTargetChange"] = (value) => {
+  if (value?.kind === "lyric") lyricTargetUpdates += 1;
+  Object.assign(window, { lyricActive: value, lyricTargetUpdates });
+};
 const target = (index = 0, verse: 1 | 2 | 3 | 4 = 1) => ({ kind: "lyric" as const, trackId: track.id, measureId: measure.id, eventId: measure.numberedVoice.events[index]!.id, verse });
 const Harness = () => {
   const [collapsed, setCollapsed] = useState(false);
@@ -43,7 +48,7 @@ const Harness = () => {
     <div style={{ display: "flex", height: 850 }}>
       <main style={{ flex: 1 }}><button id="score-focus">谱面位置</button></main>
       <MusicTextSidebar ref={controller} collapsed={collapsed} onOpen={noop} onEditingChange={noop} onPopoverHiddenChange={noop}
-        onNumberedActionBlockedChange={noop} onTargetChange={(value) => { Object.assign(window, { lyricActive: value }); }}
+        onNumberedActionBlockedChange={noop} onTargetChange={reportTarget}
         onScoreFocus={() => globalThis.document.getElementById("score-focus")?.focus()}
         onScoreSelection={noop} getNumberedBeatEventIds={() => []}
         getFloatingAnchor={() => ({ left: 240, top: 130, right: 280, bottom: 160, width: 40, height: 30 })}

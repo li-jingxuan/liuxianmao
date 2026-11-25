@@ -1,16 +1,16 @@
 import { describe, it, expect, vi } from "vitest";
 import {
-  EXAMPLE_MVP_7_2_DOCUMENT,
   createCollapsedTabCellSelection,
   planBeatPaste,
   type ILXMScoreCommand,
   LXMScoreCommandEnum as C,
 } from "@liuxianmao/lxm-editor";
-import { createEditorSession } from "../stores/editor-store";
-import { createEditorDraftCoordinator } from "../components/EditorShell/session/editor-draft-coordinator";
-import { createEditorModalController } from "../components/EditorShell/session/editor-modal-controller";
-import { createEditorCommandAdapter } from "../components/EditorShell/session/editor-command-adapter";
-import { createBeatPasteController } from "../components/EditorShell/tools/beat-paste-controller";
+import { EXAMPLE_MVP_7_2_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { createEditorSessionStore as createEditorSession } from "../../../packages/lxm-editor-react/src/stores/editor-store";
+import { createEditorDraftCoordinator } from "../../../packages/lxm-editor-react/src/EditorShell/session/editor-draft-coordinator";
+import { createEditorModalController } from "../../../packages/lxm-editor-react/src/EditorShell/session/editor-modal-controller";
+import { createEditorCommandAdapter } from "../../../packages/lxm-editor-react/src/EditorShell/session/editor-command-adapter";
+import { createBeatPasteController } from "../../../packages/lxm-editor-react/src/EditorShell/tools/beat-paste-controller";
 
 /** 使用真实 store/核心规划验证历史、版本与影响确认，而非只断言组件 state。 */
 const setup = (marked = false) => {

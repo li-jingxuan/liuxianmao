@@ -1,8 +1,9 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { EXAMPLE_MVP_5_1_DOCUMENT, LXM_TUPLET_RATIOS, type ILXMTabCellSelection } from "@liuxianmao/lxm-editor";
-import { TupletToolDetails } from "../components/EditorShell/tools/TupletToolDetails";
-import { formatTupletExplanation, formatTupletLabel } from "../components/EditorShell/shared/tuplet-label";
+import { LXM_TUPLET_RATIOS, type ILXMTabCellSelection } from "@liuxianmao/lxm-editor";
+import { EXAMPLE_MVP_5_1_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { TupletToolDetails } from "../../../packages/lxm-editor-react/src/EditorShell/tools/TupletToolDetails";
+import { formatTupletExplanation, formatTupletLabel } from "../../../packages/lxm-editor-react/src/EditorShell/shared/tuplet-label";
 
 const fixture = () => {
   const document = structuredClone(EXAMPLE_MVP_5_1_DOCUMENT);

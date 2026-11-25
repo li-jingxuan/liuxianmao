@@ -250,4 +250,30 @@ describe("连续填词语法与原子领域命令", () => {
     expect(plan.rows[1]).toMatchObject({ target: null, status: "error" });
     expect(plan.issue).toContain("还缺 1 个歌词位置");
   });
+  it("从中间小节开始只规划本批覆盖的小节，保留全轨的小节号和拍位置", () => {
+    const { document, track, target } = fixture();
+    const first = track.measures[0]!;
+    const second = track.measures[1]!;
+    const before = { ...first, id: "before" };
+    const after = { ...second, id: "after" };
+    const visited: string[] = [];
+    for (const measure of [before, after]) {
+      const voice = measure.numberedVoice;
+      Object.defineProperty(measure, "numberedVoice", {
+        get() {
+          visited.push(measure.id);
+          return voice;
+        },
+      });
+    }
+    track.measures = [before, first, second, after];
+
+    const plan = planLyricSequence(document, target, items("尾 新"), true);
+    expect(plan.issue).toBeNull();
+    expect(plan.rows.map((row) => [row.target?.measureId, row.measureNumber, row.beatNumber])).toEqual([
+      [first.id, 2, first.numberedVoice.events.length],
+      [second.id, 3, 1],
+    ]);
+    expect(visited).toEqual([]);
+  });
 });

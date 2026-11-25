@@ -1,0 +1,123 @@
+.practice, .settingsAnchor { position: relative; }
+.practice { display: flex; flex: none; align-items: center; gap: 4px; white-space: nowrap; }
+.running { color: var(--accent); font-size: 11px; }
+.panel {
+  position: absolute;
+  z-index: 2;
+  inset: calc(100% + 5px) 0 auto auto;
+  box-sizing: border-box;
+  width: 370px;
+  padding: 12px;
+  background: var(--panel);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgb(22 35 65 / 16%);
+  white-space: normal;
+  font-size: 12px;
+  display: grid;
+  gap: 10px;
+  :is(h2, h3, p) { margin: 0; }
+  h2 { font-size: 15px; }
+  h3 { font-size: 12px; }
+  :is(input, select, button):focus-visible { outline: 2px solid var(--accent); }
+}
+.settings { width: 324px; }
+.heading, .options { display: flex; align-items: center; gap: 8px; }
+.heading, .settingsFooter { justify-content: space-between; }
+.detail, .source > span { color: var(--muted); }
+.detail { font-size: 11px; }
+.source, .message { padding: 7px 9px; border-radius: 6px; background: var(--panel-muted); line-height: 1.5; }
+.warning, .message, .auditionMessage { color: var(--destructive, #9b3414); }
+.fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  > div { display: flex; flex-direction: column; gap: 4px; }
+  output {
+    min-height: 32px;
+    display: flex;
+    align-items: center;
+    padding-inline: 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--panel-muted);
+    font-variant-numeric: tabular-nums;
+  }
+}
+.beatArea { border-block: 1px solid var(--border); padding-block: 8px; }
+.cells { display: flex; align-items: stretch; gap: 5px; margin-block: 5px; }
+.cell {
+  flex: 1 1 0;
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  min-height: 32px;
+  border: 2px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel-muted);
+  font-variant-numeric: tabular-nums;
+  &[data-accent="true"] {
+    border-style: dashed;
+    &::before { content: "◆"; position: absolute; top: 0; left: 3px; font-size: 8px; color: var(--accent); }
+  }
+  &[data-current="true"] {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-soft);
+    font-weight: 700;
+    &::after { content: ""; position: absolute; inset: auto 25% 2px; height: 2px; background: currentColor; }
+  }
+  &[data-group-break="true"] {
+    margin-inline-start: 7px;
+    &::before { content: ""; position: absolute; inset: 0 auto 0 -8px; width: 1px; background: var(--border); }
+  }
+}
+.readout { margin: 0; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  cursor: pointer;
+  input { accent-color: var(--accent); margin: 0; }
+  input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+}
+.assistive, .audition .readout {
+  position: absolute;
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+// 试听沿用单行工具栏。拍点区可容纳常用和导入拍号，文本和设置按钮保留可辨认的尺寸。
+.audition {
+  display: grid;
+  grid-template-columns: max-content minmax(70px, 137px) max-content max-content;
+  align-items: center;
+  gap: 3px 7px;
+  padding-inline-start: 10px;
+  border-inline-start: 1px solid var(--border);
+  .cells { margin: 0; gap: 3px; }
+  .cell { min-height: 25px; border-radius: 4px; font-size: 11px; }
+  .cell[data-accent="true"]::before { left: 1px; font-size: 6px; }
+  .cell[data-group-break="true"] { margin-inline-start: 3px; }
+  .cell[data-group-break="true"]::before { left: -5px; }
+  // 只降低试听节拍器的视觉权重。复选框仍能响应键盘和点击，同一行的谱面播放控件不受影响。
+  &[data-click-disabled] {
+    color: var(--muted);
+    filter: grayscale(1);
+    .beats { opacity: 0.55; }
+  }
+}
+.auditionStatus {
+  display: grid;
+  min-width: 50px;
+  line-height: 1.35;
+  white-space: nowrap;
+  > span { font-size: 11px; color: var(--muted); }
+}
+.auditionMessage { grid-column: 1 / -1; margin: 0; font-size: 11px; }

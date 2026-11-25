@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>自定义水印 · 六线猫交互稿</title>
+  <link rel="stylesheet" href="prototype.css">
+  <script defer src="score-pages.js"></script>
+  <script defer src="output-codec.js"></script>
+  <script defer src="image-watermark.js"></script>
+  <script defer src="prototype.js"></script>
+</head>
+<body>
+  <main class="editor">
+    <header class="editor-bar"><strong>六线猫</strong><span>曲谱工作台</span><span class="file-name">理想.lxm</span><button data-open="image">图片预览</button><button data-open="print">打印预览</button></header>
+    <div class="editor-surface" aria-hidden="true"></div>
+  </main>
+  <dialog id="preview" aria-labelledby="title">
+    <header class="modal-head">
+      <div class="document-symbol" aria-hidden="true">♫</div>
+      <div class="title-block"><h1 id="title">A4 成品预览</h1><p>理想.lxm <span>／</span> A4 纵向</p></div>
+      <div class="mode-switch" role="group" aria-label="预览方式"><button id="image-mode" aria-pressed="true">图片</button><button id="print-mode" aria-pressed="false">打印</button></div>
+      <button id="close" class="close" aria-label="关闭预览" title="关闭预览">×</button>
+    </header>
+    <div class="workbench">
+      <aside class="rail" aria-label="页面缩略图"><div class="rail-head"><h2>谱页</h2><span id="page-total"></span></div><div id="thumbs" class="thumbs"></div></aside>
+      <section class="viewer" aria-label="A4 成品页预览">
+        <div id="viewport" class="viewport"><div id="main-page" class="paper"></div></div>
+        <div class="view-tools"><div class="pager"><button id="previous" aria-label="上一页">‹</button><span id="page-count"></span><button id="next" aria-label="下一页">›</button></div><span class="divider"></span><button id="zoom" aria-pressed="false">放大查看</button><span id="trial" hidden>当前页试排</span></div>
+      </section>
+      <aside class="settings" aria-label="输出设置">
+        <div class="setting-scroll">
+          <section class="watermark-section">
+            <div class="section-head"><h2>自定义水印</h2><button id="toggle" role="switch" aria-label="自定义水印" aria-checked="false"><i></i></button></div>
+            <p class="hint" id="off-hint">为每页曲谱添加文字署名或自己的标志。</p>
+            <div id="kind-picker" class="kind-picker" role="group" aria-label="水印类型" hidden><button id="text-kind" aria-pressed="true">文字水印</button><button id="image-kind" aria-pressed="false">图片水印</button></div>
+            <div id="text-panel" hidden>
+            <label for="signature" class="field-label">水印文字 <span id="counter">0 / 32</span></label>
+            <input id="signature" type="text" autocomplete="off" placeholder="例如：青禾吉他教室 · 练习用" aria-describedby="feedback counter" disabled>
+            </div>
+            <div id="image-panel" hidden>
+              <input id="logo-file" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+              <button id="upload" class="upload" aria-describedby="upload-help upload-message">
+                <span id="empty-upload"><strong>选择图片</strong><small>或拖放图片到这里</small></span>
+                <span id="filled-upload" hidden><span class="asset-tile"><img id="logo-thumb" alt=""></span><span class="asset-meta"><strong id="logo-name"></strong><small id="logo-size"></small><span class="replace-label">替换图片</span></span></span>
+              </button>
+              <div class="upload-foot"><small id="upload-help">PNG、JPG、WebP · 最大 5 MB</small><button id="sample-logo" class="text-button">试用示例</button></div>
+              <p id="upload-message" class="feedback" role="status"></p>
+              <fieldset id="placement" hidden>
+                <label for="size" class="field-label">图片长边 <output id="size-value" for="size"></output></label>
+                <input id="size" type="range" min="10" max="65" value="38" aria-description="图片长边占纸宽的百分比">
+                <label for="opacity" class="field-label">不透明度 <output id="opacity-value" for="opacity"></output></label>
+                <input id="opacity" type="range" min="5" max="45" value="18">
+                <label for="angle" class="field-label">旋转角度 <output id="angle-value" for="angle">0°</output></label>
+                <input id="angle" type="range" min="-180" max="180" step="1" value="0">
+                <div id="angle-presets" class="positions" role="group" aria-label="常用角度">
+                  <button data-angle="-30" aria-label="逆时针旋转到 30 度">↶ −30°</button><button data-angle="0" aria-label="恢复水平，0 度">水平 0°</button><button data-angle="30" aria-label="顺时针旋转到 30 度">↷ +30°</button>
+                </div>
+                <div class="field-label" id="position-label">每页位置</div>
+                <div id="positions" class="positions" role="group" aria-labelledby="position-label"><button data-position="center">居中</button><button data-position="left">左下</button><button data-position="right">右下</button></div>
+              </fieldset>
+            </div>
+            <p id="feedback" class="feedback" aria-live="polite"></p>
+            <div id="draft-actions" class="draft-actions" hidden><button id="apply" class="apply">应用到全部页</button><button id="restore">还原</button></div>
+          </section>
+          <section class="output-section"><h2 id="settings-title">图片设置</h2>
+            <div id="range-field"><label for="range" class="field-label">生成范围</label><select id="range"><option value="all">全部页面</option><option value="page">当前页</option></select></div>
+            <dl><div><dt>纸张</dt><dd>A4 · 纵向</dd></div><div><dt>页面尺寸</dt><dd>210 × 297 mm</dd></div><div id="resolution"><dt>图片精度</dt><dd>300 DPI</dd></div><div id="pixels"><dt>像素尺寸</dt><dd>2480 × 3508</dd></div></dl>
+            <p id="print-help" class="hint" hidden>在系统打印窗口选择打印机，或将曲谱另存为 PDF。</p>
+          </section>
+        </div>
+        <div class="delivery"><p class="delivery-note" id="output-message" role="status"></p><button id="produce" class="primary">生成图片</button><button id="cancel-job" hidden>取消生成</button><a id="download" class="primary" hidden>下载</a></div>
+      </aside>
+    </div>
+  </dialog>
+  <div id="print-pages" aria-hidden="true"></div>
+</body>
+</html>

@@ -1,12 +1,8 @@
 import { describe, expect, it } from "vitest";
-import {
-  EXAMPLE_MVP_7_2_DOCUMENT,
-  EXAMPLE_MVP_5_1_DOCUMENT,
-  createCollapsedTabCellSelection,
-  getFirstTabCellReference,
-} from "@liuxianmao/lxm-editor";
-import { deriveEditorToolState } from "../components/EditorShell/tools/editor-tool-state";
-import { createEditorSession } from "../stores/editor-store";
+import { createCollapsedTabCellSelection, getFirstTabCellReference } from "@liuxianmao/lxm-editor";
+import { EXAMPLE_MVP_7_2_DOCUMENT, EXAMPLE_MVP_5_1_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { deriveEditorToolState } from "../../../packages/lxm-editor-react/src/EditorShell/tools/editor-tool-state";
+import { createEditorSessionStore as createEditorSession } from "../../../packages/lxm-editor-react/src/stores/editor-store";
 
 describe("编辑工具入口条件", () => {
   it("无选区或失效选区不产生默认首拍目标", () => {

@@ -1,6 +1,7 @@
-import { validateNumberedVoice } from "../numbered/numbered-rhythm";
+import { findInvalidNumberedTrack } from "../numbered/numbered-rhythm";
 import { validateNumberedMarks } from "../numbered/numbered-marks";
 import { validateTuning } from "./tuning";
+import { findInvalidMeasureRepeats } from "./measure-repeat";
 /**
  * 乐谱语义校验。
  *
@@ -9,6 +10,9 @@ import { validateTuning } from "./tuning";
  */
 import { getMeasureCapacityTicks, getMeasureDurationTicks } from "../rhythm/rhythm";
 import { createMeasureRhythmContext } from "../rhythm/tuplet";
+import { resolvePlaybackReplay } from "../playback/replay";
+import { inspectRepeatEndingGroups } from "../playback/repeat-endings";
+import { getJumpMarkSide } from "../playback/jump-marks";
 import { validateTechnique } from "../techniques/technique-rules";
 import type { ILXMDocument, ILXMMeasure } from "../types";
 
@@ -33,6 +37,10 @@ export type ILXMSemanticValidationIssueCode =
   | "TUPLET_OVERLAP"
   | "TUPLET_ORDER_INVALID"
   | "NON_INTEGER_TUPLET_TICKS"
+  | "INVALID_PLAYBACK_REPLAY"
+  | "INVALID_MEASURE_REPEAT"
+  | "INVALID_REPEAT_ENDING"
+  | "INVALID_JUMP_MARK"
   | "INVALID_TUNING";
 
 export interface ILXMSemanticValidationIssue {
@@ -72,6 +80,17 @@ const validateMeasure = (
   };
 
   registerId(measure.id, `${path}.id`);
+  const jumpSides = new Set<string>();
+  // 只拒绝无法表示的实体冲突。悬空、方向和配对错误允许保存，供用户重开后修复。
+  measure.jumpMarks?.forEach((mark, index) => {
+    const markPath = `${path}.jumpMarks.${index}`;
+    registerId(mark.id, `${markPath}.id`);
+    const side = getJumpMarkSide(mark.kind);
+    if (jumpSides.has(side)) issues.push({
+      code: "INVALID_JUMP_MARK", path: markPath, message: "同一小节的同一端只能有一个跳转记号",
+    });
+    jumpSides.add(side);
+  });
   const context = createMeasureRhythmContext(measure);
   const beatIndexById = new Map(
     measure.beats.map((beat, index) => [beat.id, index]),
@@ -274,12 +293,28 @@ export const validateDocumentSemantics = (
   document.score.tracks.forEach((track, trackIndex) => {
     const trackPath = `score.tracks.${trackIndex}`;
     registerId(track.id, `${trackPath}.id`);
+    for (const repeat of findInvalidMeasureRepeats(track)) {
+      issues.push({
+        code: "INVALID_MEASURE_REPEAT",
+        path: `${trackPath}.measures.${repeat.index}.measureRepeat`,
+        message: `第 ${repeat.index + 1} 小节的重复记号无效。${repeat.reason}`,
+      });
+    }
     if (!validateTuning(track.tuning))
       issues.push({
         code: "INVALID_TUNING",
         path: `${trackPath}.tuning`,
         message: "六弦调弦索引或 pitch/MIDI 不一致",
       });
+    if (track.playbackReplay) {
+      const replay = resolvePlaybackReplay(track.measures, track.playbackReplay);
+      if (!replay.ok)
+        issues.push({
+          code: "INVALID_PLAYBACK_REPLAY",
+          path: `${trackPath}.playbackReplay.${replay.field}`,
+          message: replay.message,
+        });
+    }
     track.measures.forEach((measure, measureIndex) =>
       validateMeasure(
         measure,
@@ -288,6 +323,21 @@ export const validateDocumentSemantics = (
         issues,
       ),
     );
+    if (track.repeatEndingGroups?.length) {
+      const groupPath = `${trackPath}.repeatEndingGroups`;
+      track.repeatEndingGroups.forEach((group, groupIndex) => {
+        registerId(group.id, `${groupPath}.${groupIndex}.id`);
+        group.endings.forEach((ending, endingIndex) =>
+          registerId(ending.id, `${groupPath}.${groupIndex}.endings.${endingIndex}.id`));
+      });
+      // 缺房是可保存的编谱状态，只在到达该遍分岔时停止试听。
+      for (const { groupIndex, endingIndex, field, message } of inspectRepeatEndingGroups(track.measures, track.repeatEndingGroups).issues)
+        issues.push({
+          code: "INVALID_REPEAT_ENDING",
+          path: `${groupPath}.${groupIndex}${endingIndex === undefined ? "" : `.endings.${endingIndex}`}.${field}`,
+          message,
+        });
+    }
     track.measures.forEach((m, mi) => {
       const path = `${trackPath}.measures.${mi}.numberedVoice`;
       m.numberedVoice.events.forEach((e, ei) => {
@@ -299,12 +349,12 @@ export const validateDocumentSemantics = (
       m.numberedVoice.tuplets.forEach((g, gi) =>
         registerId(g.id, `${path}.tuplets.${gi}.id`),
       );
-      const message = validateNumberedVoice(
-        m.numberedVoice,
-        getMeasureDurationTicks(m),
-      );
-      if (message)
-        issues.push({ code: "INVALID_NUMBERED_VOICE", path, message });
+    });
+    const numberedVoiceError = findInvalidNumberedTrack(track);
+    if (numberedVoiceError) issues.push({
+      code: "INVALID_NUMBERED_VOICE",
+      path: `${trackPath}.measures.${numberedVoiceError.measureIndex}.numberedVoice`,
+      message: numberedVoiceError.message,
     });
     track.numberedMarks.forEach((mark, i) =>
       registerId(mark.id, `${trackPath}.numberedMarks.${i}.id`),

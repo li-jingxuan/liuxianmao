@@ -1,15 +1,20 @@
 {
   "name": "@liuxianmao/lxm-editor",
-  "version": "0.1.0",
-  "private": true,
+  "version": "1.0.0",
+  "description": "六线猫曲谱文档、编辑命令、布局与播放计划的 JavaScript Core",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "types": "./dist/public.d.ts",
+      "import": "./dist/public.js"
+    }
   },
+  "files": ["dist", "README.md", "docs/api-v1.md", "demo"],
   "scripts": {
     "assets:build": "node ./scripts/standardize-svg-assets.mjs",
-    "dev": "tsc -p tsconfig.dev.json --watch",
-    "build": "tsc -p tsconfig.build.json",
+    "dev": "node ./scripts/build.mjs --watch",
+    "build": "node ./scripts/build.mjs",
+    "prepack": "npm run build",
     "lint": "eslint src tests --max-warnings=0",
     "test": "vitest run",
     "type-check": "tsc --noEmit"

@@ -174,7 +174,7 @@ try {
   await score.getByText("G", { exact: true }).first().click();
   assert.equal(await page.locator("[data-music-text-range-editor]").count(), 1);
   assert.equal(await input.inputValue(), "6 7");
-  assert.equal(await page.locator("#chord-edit-popover").count(), 0);
+  assert.equal(await page.locator("[id$=chord-edit-popover]").count(), 0);
   await input.dispatchEvent("compositionend", { data: "唱" });
   await score.getByText("G", { exact: true }).first().click();
   assert.equal(await page.locator("[data-music-text-range-editor]").count(), 1);
@@ -204,7 +204,7 @@ try {
   await input.fill("6 7");
   await page.getByRole("button", { name: "编辑面板", exact: true }).click();
   await page.locator("[data-music-text-range-editor]").waitFor({ state: "hidden" });
-  await selectScoreAction(page, "导出", "JSON 曲谱");
+  await selectScoreAction(page, "导出", "六线猫专用谱(.lxm)");
   const blocked = page.getByRole("dialog", { name: "先处理未应用的输入", exact: true });
   await blocked.waitFor();
   await blocked.getByRole("button", { name: "返回编辑", exact: true }).click();

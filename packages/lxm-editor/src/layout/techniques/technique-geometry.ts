@@ -8,7 +8,6 @@ import {
   LXM_NATURAL_HARMONIC_TEXT_FONT_SIZE,
   LXM_STRING_SPACING,
   LXM_TECHNIQUE_ARROW_HEIGHT,
-  LXM_TECHNIQUE_ARROW_OFFSET_Y,
   LXM_TECHNIQUE_ARROW_WIDTH,
   LXM_TECHNIQUE_COLLISION_PADDING,
   LXM_TECHNIQUE_CURVE_LABEL_GAP,
@@ -38,18 +37,14 @@ export const hasChordTraversalRange = (
   technique.maxString <= GUITAR_STRING_COUNT &&
   technique.minString < technique.maxString;
 
-/** 符干起点需要避开最低技巧弦线，以及向下伸出的琶音箭头。 */
+/** 扫弦与琶音共用箭头外沿，最低弦线下方原有的符干间距足以避开两种记号。 */
 export const getChordTraversalBottomOffsets = (
   techniques: readonly ILXMTechnique[],
 ): ReadonlyMap<string, number> => {
   const offsets = new Map<string, number>();
   for (const technique of techniques) {
     if (!hasChordTraversalRange(technique)) continue;
-    const arrowOffset =
-      technique.type === "arpeggio" && technique.direction === "descending"
-        ? LXM_TECHNIQUE_ARROW_OFFSET_Y
-        : 0;
-    const bottom = (technique.maxString - 1) * LXM_STRING_SPACING + arrowOffset;
+    const bottom = (technique.maxString - 1) * LXM_STRING_SPACING;
     offsets.set(technique.beatId, Math.max(offsets.get(technique.beatId) ?? 0, bottom));
   }
   return offsets;
@@ -281,6 +276,23 @@ export const getTechniqueVisualBounds = (
   );
 };
 
+/** 将原 SVG marker 的三角形按末端方向旋转，显式箭头也可复用相同的尖端与底边。 */
+export const getTechniqueMarkerArrowPoints = (
+  [x, y]: readonly [number, number],
+  angle: number,
+) => {
+  const scale = Math.min(LXM_TECHNIQUE_ARROW_WIDTH, LXM_TECHNIQUE_ARROW_HEIGHT) / 10;
+  const point = (markerX: number, markerY: number): [number, number] => {
+    const dx = (markerX - 8) * scale;
+    const dy = (markerY - 5) * scale;
+    return [
+      x + dx * Math.cos(angle) - dy * Math.sin(angle),
+      y + dx * Math.sin(angle) + dy * Math.cos(angle),
+    ];
+  };
+  return [point(0, 0), point(10, 5), point(0, 10)] as const;
+};
+
 export const withTechniqueBounds = (
   segment: Omit<
     ILXMTechniqueSegmentLayout,
@@ -293,24 +305,11 @@ export const withTechniqueBounds = (
     const end = points.at(-1)!;
     const previous = points.at(-2)!;
     const angle = Math.atan2(end[1] - previous[1], end[0] - previous[0]);
-    const scale =
-      Math.min(LXM_TECHNIQUE_ARROW_WIDTH, LXM_TECHNIQUE_ARROW_HEIGHT) / 10;
     segment = {
       ...segment,
       path: {
         ...segment.path,
-        arrowPoints: [
-          [0, 0],
-          [10, 5],
-          [0, 10],
-        ].map(([x, y]): [number, number] => {
-          const dx = (x! - 8) * scale,
-            dy = (y! - 5) * scale;
-          return [
-            end[0] + dx * Math.cos(angle) - dy * Math.sin(angle),
-            end[1] + dx * Math.sin(angle) + dy * Math.cos(angle),
-          ];
-        }),
+        arrowPoints: getTechniqueMarkerArrowPoints(end, angle),
       },
     };
   }

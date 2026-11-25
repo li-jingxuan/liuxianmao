@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import path from "node:path";
+import { nextBrowserDefines } from "./next-browser-env.fixture.mjs";
 const require = createRequire(import.meta.url);
 const viteRequire = createRequire(require.resolve("vitest/package.json"));
 const { createServer } = await import(pathToFileURL(viteRequire.resolve("vite")).href);
@@ -10,6 +11,7 @@ const { chromium } = await import(process.env.LXM_PLAYWRIGHT_MODULE ?? "playwrig
 const website = fileURLToPath(new URL("..", import.meta.url));
 const server = await createServer({
   root: website, configFile: false, cacheDir: path.resolve(website, "node_modules/.vite/lyric-lifecycle"),
+  define: { ...nextBrowserDefines, "process.env.NEXT_PUBLIC_BASE_PATH": JSON.stringify("") },
   optimizeDeps: { entries: ["tests/lyric-lifecycle.browser.tsx"], include: ["react/jsx-dev-runtime"] },
   esbuild: { jsx: "automatic" },
   server: { host: "127.0.0.1", port: 0, watch: null, hmr: false, fs: { allow: [path.resolve(website, "../..")] } },
@@ -30,8 +32,8 @@ try {
   page.on("pageerror", error => { errors.push(error.message); console.error(error.message); });
   await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/__lyrics__`);
   await page.waitForFunction(() => !!window.lyricTest?.controller.current);
-  const sidebar = page.locator("#music-text-sidebar");
-  const popover = page.locator("#music-text-edit-popover");
+  const sidebar = page.locator("[data-music-text-sidebar]");
+  const popover = page.locator("[id$=music-text-edit-popover]");
   const input = sidebar.getByRole("textbox", { name: "连续歌词", exact: true });
   const popInput = popover.getByRole("textbox", { name: "连续歌词", exact: true });
   const apply = sidebar.getByRole("button", { name: /^应\s*用$/ });
@@ -82,10 +84,21 @@ try {
   assert.equal(await popover.locator("footer button").count(), 0);
   assert.equal(await popover.getByRole("button", { name: /^应\s*用$/ }).count(), 1);
   for (const name of ["歌词录入方式", "允许替换", "下一歌词位置", "完整设置", "应用并下一处", "移除歌词"]) assert.equal((await sidebar.innerText()).includes(name), false);
+
+  // 草稿更新立即同步两个输入和拍位预览。同一拍位的文字变化不重新发布谱面目标。
+  const updates = () => page.evaluate(() => window.lyricTargetUpdates);
+  const beforeTyping = await updates();
   await input.fill("风 _");
+  assert.equal(await popInput.inputValue(), "风 _");
+  assert.equal(await updates(), beforeTyping);
+  const mapping = sidebar.getByRole("region", { name: "音符与歌词映射" });
+  await mapping.getByRole("button").nth(1).click();
+  assert.equal(await updates(), beforeTyping + 1);
   await popInput.press("End");
   await popInput.press("Enter");
   await popInput.pressSequentially("过");
+  assert.equal(await updates(), beforeTyping + 2);
+  assert.equal(await popInput.evaluate(node => node.selectionStart), "风 _\n过".length);
   assert.equal(await popInput.inputValue(), "风 _\n过");
   assert.equal(await input.inputValue(), "风 _\n过");
   assert.equal(await sidebar.getByLabel("清空为占位", { exact: true }).count(), 1);
@@ -97,6 +110,22 @@ try {
   assert.deepEqual(saved.words.filter(w => w.verse === 1).map(w => w.text), ["风", "过"]);
   assert.equal(await apply.isDisabled(), true);
   assert.equal(await sidebar.getByRole("button", { name: /^恢\s*复$/ }).count(), 0);
+
+  // 多行歌词保持浏览器原生光标和滚动，草稿仍不进入历史。
+  const longDraft = Array.from({ length: 20 }, () => "词").join("\n");
+  await input.fill(longDraft);
+  const beforeEdit = await input.evaluate(node => {
+    node.setSelectionRange(node.value.length - 1, node.value.length - 1);
+    node.scrollTop = node.scrollHeight;
+    return { scrollTop: node.scrollTop, caret: node.selectionStart };
+  });
+  assert.ok(beforeEdit.scrollTop > 0);
+  await page.keyboard.insertText("字");
+  assert.deepEqual(await input.evaluate(node => ({ scrollTop: node.scrollTop, caret: node.selectionStart })), {
+    scrollTop: beforeEdit.scrollTop, caret: beforeEdit.caret + 1,
+  });
+  assert.equal(await popInput.inputValue(), `${longDraft.slice(0, -1)}字词`);
+  assert.equal((await snapshot()).history, saved.history);
   await input.fill("");
   await apply.click();
   saved = await snapshot();
@@ -138,7 +167,7 @@ try {
   const [locationBounds, addBounds] = await Promise.all([position.locator("strong").boundingBox(), add.boundingBox()]);
   assert.ok(Math.abs(locationBounds.y + locationBounds.height / 2 - addBounds.y - addBounds.height / 2) <= 1);
   await add.press("Enter");
-  await sidebar.getByRole("alertdialog", { name: "当前草稿尚未应用" }).getByRole("button", { name: "放弃并切换" }).click();
+  await page.getByRole("dialog", { name: "当前草稿尚未应用" }).getByRole("button", { name: "放弃并切换" }).click();
   await page.waitForFunction(() => window.lyricActive?.verse === 2);
   await page.waitForFunction(() => document.activeElement?.id === "lyric-body");
   assert.equal(await input.inputValue(), "");
@@ -175,7 +204,7 @@ try {
   await selectVerse("第二段");
   await input.fill("删除前的草稿");
   await removeVerse();
-  const draftGate = sidebar.getByRole("alertdialog", { name: "当前草稿尚未应用" });
+  const draftGate = page.getByRole("dialog", { name: "当前草稿尚未应用" });
   await draftGate.getByRole("button", { name: "继续编辑" }).click();
   assert.equal(await input.inputValue(), "删除前的草稿");
   await removeVerse();
@@ -210,7 +239,7 @@ try {
     node.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", keyCode: 229, bubbles: true }));
   });
   assert.equal((await snapshot()).history, history);
-  await page.waitForFunction(() => !document.querySelector('#music-text-sidebar button[aria-label="应用"]')?.disabled);
+  await page.waitForFunction(() => !document.querySelector('[data-music-text-sidebar] button[aria-label="应用"]')?.disabled);
   await apply.click();
   await page.waitForFunction(history => window.lyricTest.session.getState().historyDepth.past === history + 1, history);
   assert.equal((await snapshot()).target.eventId, beforeAdd.target.eventId);
@@ -273,7 +302,7 @@ try {
   await sideNumbered.press("Enter");
   assert.equal((await snapshot()).target.eventId, "advance-end");
   assert.deepEqual(errors, []);
-  console.log("Lyric lifecycle and BUG-066 passed: shared advance preference, text buttons and shortcuts, cross-measure blank targets, same-surface focus, stationary apply with advance off or at the end, draft lifecycle and IME guards.");
+  console.log("Lyric lifecycle, BUG-066 and BUG-072 passed: stable preview targets, shared edits and caret/scroll, apply and advance, draft lifecycle and IME guards.");
 } finally {
   await browser?.close();
   await server.close();

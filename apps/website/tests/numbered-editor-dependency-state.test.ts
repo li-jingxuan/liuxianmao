@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
-import {
-  createDocumentIdFactory,
-  editNumberedTrack,
-  EXAMPLE_MVP_7_2_DOCUMENT,
-} from "@liuxianmao/lxm-editor";
-import { checkNumberedDraftDependencies } from "../components/EditorShell/numbered/NumberedEditor";
+import { createDocumentIdFactory, editNumberedTrack } from "@liuxianmao/lxm-editor";
+import { EXAMPLE_MVP_7_2_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { checkNumberedDraftDependencies } from "../../../packages/lxm-editor-react/src/EditorShell/numbered/NumberedEditor";
 
 const setup = () => {
   const document = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);

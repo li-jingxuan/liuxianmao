@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
-import { StrumRangeInspector } from "../components/EditorShell/tools/StrumRangeInspector";
+import { StrumRangeInspector } from "../../../packages/lxm-editor-react/src/EditorShell/tools/StrumRangeInspector";
 
 const render = (ranges: ComponentProps<typeof StrumRangeInspector>["ranges"], disabled = false) => {
   const markup = renderToStaticMarkup(

@@ -13,6 +13,9 @@ export interface ILXMIdFactory {
   createNumberedItemId(): string;
   createNumberedTupletId(): string;
   createNumberedMarkId(): string;
+  createJumpMarkId(): string;
+  createRepeatEndingId(): string;
+  createRepeatEndingGroupId(): string;
 }
 
 /** 收集所有可持久化实体 ID；不同实体类型同样禁止重名，便于后续引用。 */
@@ -23,8 +26,13 @@ const collectEntityIds = (document: ILXMDocument): Set<string> =>
       track.id,
       ...track.numberedMarks.map((mark) => mark.id),
       ...track.techniques.map((technique) => technique.id),
+      ...(track.repeatEndingGroups ?? []).flatMap((group) => [group.id, ...group.endings.map(({ id }) => id)]),
       ...track.measures.flatMap((measure) => [
         measure.id,
+        ...(measure.jumpMarks ?? []).flatMap((mark) =>
+          // 预留悬空引用，防止导入外部文件后创建的记号碰巧复用旧 ID。
+          [mark.id, mark.segnoId, mark.toCodaId, mark.codaId].filter((id): id is string => Boolean(id)),
+        ),
         ...measure.numberedVoice.tuplets.map((g) => g.id),
         ...measure.numberedVoice.events.flatMap((e) => [
           e.id,
@@ -74,5 +82,8 @@ export const createDocumentIdFactory = (
     createNumberedItemId: () => create("numbered-item"),
     createNumberedTupletId: () => create("numbered-tuplet"),
     createNumberedMarkId: () => create("numbered-mark"),
+    createJumpMarkId: () => create("jump-mark"),
+    createRepeatEndingId: () => create("repeat-ending"),
+    createRepeatEndingGroupId: () => create("repeat-ending-group"),
   };
 };

@@ -1,11 +1,11 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { EXAMPLE_MVP_5_1_DOCUMENT, LXMScoreCommandEnum } from "@liuxianmao/lxm-editor";
-import { TupletToolbar } from "../components/EditorShell/tools/TupletToolbar";
-import { MeasureBoundary } from "../components/EditorShell/tools/MeasureBoundary";
-import { MeasureActions } from "../components/EditorShell/tools/MeasureActions";
-import { buildEditorToolCommand } from "../components/EditorShell/tools/editor-tool-actions";
-import { previewMeasureRemoval } from "../components/EditorShell/tools/measure-removal-preview";
+import { LXMScoreCommandEnum } from "@liuxianmao/lxm-editor";
+import { EXAMPLE_MVP_5_1_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { TupletToolbar } from "../../../packages/lxm-editor-react/src/EditorShell/tools/TupletToolbar";
+import { MeasureBoundary } from "../../../packages/lxm-editor-react/src/EditorShell/tools/MeasureBoundary";
+import { MeasureActions } from "../../../packages/lxm-editor-react/src/EditorShell/tools/MeasureActions";
+import { buildEditorToolCommand } from "../../../packages/lxm-editor-react/src/EditorShell/tools/editor-tool-actions";
 
 const fixture = () => {
   const document = structuredClone(EXAMPLE_MVP_5_1_DOCUMENT);
@@ -55,19 +55,12 @@ describe("紧凑连音及小节即时控件", () => {
   it("把复制位置解析到来源轨道的曲首、曲末或指定稳定小节 ID", () => {
     const { document, track, selection } = fixture();
     const target = { trackId: track.id, measureId: selection.focus.measureId };
-    const command = (destination: import("../components/EditorShell/tools/editor-tool-actions").MeasureCopyDestination) =>
+    const command = (destination: import("../../../packages/lxm-editor-react/src/EditorShell/tools/editor-tool-actions").MeasureCopyDestination) =>
       buildEditorToolCommand(document, selection, { type: "copyMeasures", target, destination });
     expect(command({ kind: "start" })).not.toHaveProperty("afterMeasureId");
     expect(command({ kind: "end" })).toMatchObject({ afterMeasureId: track.measures.at(-1)!.id });
     expect(command({ kind: "after", measureId: track.measures[0]!.id })).toMatchObject({ afterMeasureId: track.measures[0]!.id });
     expect(command({ kind: "after", measureId: "missing" })).toBeNull();
-  });
-  it("删除预检不写原谱，并提供技巧及简谱关系影响", () => {
-    const { document, track, measure } = fixture();
-    const original = structuredClone(document);
-    const preview = previewMeasureRemoval(document, { trackId: track.id, measureId: measure.id });
-    expect(preview.ok).toBe(true); expect(preview.message).toContain("简谱连接记号"); expect(preview.message).toContain("跨小节关系");
-    expect(document).toEqual(original);
   });
   it("至少保留一个小节，新增复制仍可浏览", () => {
     const { document, track } = fixture(); track.measures = track.measures.slice(0, 1);

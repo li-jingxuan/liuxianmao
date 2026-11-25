@@ -29,6 +29,13 @@ export const translateMeasure = (
 ): ILXMMeasureLayout => ({
   ...measure,
   y: measure.y + dy,
+  ...(measure.measureRepeat && {
+    measureRepeat: {
+      ...measure.measureRepeat,
+      y: measure.measureRepeat.y + dy,
+      bounds: { ...measure.measureRepeat.bounds, y: measure.measureRepeat.bounds.y + dy },
+    },
+  }),
   strings: measure.strings.map((line) => ({
     ...line,
     y1: line.y1 + dy,

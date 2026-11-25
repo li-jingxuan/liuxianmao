@@ -56,7 +56,7 @@ try {
     if (!result.ok) throw new Error(result.errors.join("; "));
   });
   await score.locator('text[data-numbered-event="empty-event-0"], [data-numbered-event="empty-event-0"] text').first().click();
-  const sidebar = page.locator("#music-text-sidebar");
+  const sidebar = page.locator("[data-music-text-sidebar]");
   await sidebar.getByRole("tab", { name: "简谱与歌词", exact: true }).click();
   const input = sidebar.getByRole("textbox", { name: "简谱内容", exact: true });
   const popover = page.locator('[data-text-surface="popover"]');

@@ -1,16 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import {
-  EXAMPLE_MVP_7_2_DOCUMENT,
-  type ILXMScoreCommand,
-} from "@liuxianmao/lxm-editor";
+import { type ILXMScoreCommand } from "@liuxianmao/lxm-editor";
+import { EXAMPLE_MVP_7_2_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
 import {
   NumberedEditor,
   type NumberedEditorController,
-} from "../components/EditorShell/numbered/NumberedEditor";
-import type { MusicTextTarget } from "../components/EditorShell/music-text/music-text-draft";
-import { createEditorSession, useEditorStore } from "../stores/editor-store";
-import { EditorStoreContext } from "../stores/editor-context";
+} from "../../../packages/lxm-editor-react/src/EditorShell/numbered/NumberedEditor";
+import type { MusicTextTarget } from "../../../packages/lxm-editor-react/src/EditorShell/music-text/music-text-draft";
+import { createEditorSessionStore as createEditorSession, useEditorStore } from "../../../packages/lxm-editor-react/src/stores/editor-store";
+import { EditorStoreContext } from "../../../packages/lxm-editor-react/src/stores/editor-context";
 
 const parameters = new URLSearchParams(location.search);
 const scenario = parameters.get("scenario");

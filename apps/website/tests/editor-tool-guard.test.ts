@@ -1,16 +1,17 @@
 import { describe, expect, it, vi } from "vitest";
-import { EXAMPLE_MVP_7_2_DOCUMENT, LXMScoreCommandEnum as C, getFirstTabCellReference } from "@liuxianmao/lxm-editor";
-import { createEditorSession } from "../stores/editor-store";
-import { captureEditorToolIntent, editorToolSubmissionReason, tabToolTargetReason } from "../components/EditorShell/tools/editor-tool-guard";
-import { createEditorCommandAdapter } from "../components/EditorShell/session/editor-command-adapter";
-import { createEditorModalController } from "../components/EditorShell/session/editor-modal-controller";
-import { createEditorDraftCoordinator, createEditorDraftOwner } from "../components/EditorShell/session/editor-draft-coordinator";
-import { captureEditorVersion } from "../components/EditorShell/session/editor-session-version";
-import { createTechniqueParameterOwner } from "../components/EditorShell/tools/technique-parameter-owner";
-import type { MusicTextTarget } from "../components/EditorShell/music-text/music-text-draft";
+import { LXMScoreCommandEnum as C, getFirstTabCellReference } from "@liuxianmao/lxm-editor";
+import { EXAMPLE_MVP_7_2_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { createEditorSessionStore as createEditorSession } from "../../../packages/lxm-editor-react/src/stores/editor-store";
+import { captureEditorToolIntent, editorToolSubmissionReason, tabToolTargetReason } from "../../../packages/lxm-editor-react/src/EditorShell/tools/editor-tool-guard";
+import { createEditorCommandAdapter } from "../../../packages/lxm-editor-react/src/EditorShell/session/editor-command-adapter";
+import { createEditorModalController } from "../../../packages/lxm-editor-react/src/EditorShell/session/editor-modal-controller";
+import { createEditorDraftCoordinator, createEditorDraftOwner } from "../../../packages/lxm-editor-react/src/EditorShell/session/editor-draft-coordinator";
+import { captureEditorVersion } from "../../../packages/lxm-editor-react/src/EditorShell/session/editor-session-version";
+import { createTechniqueParameterOwner } from "../../../packages/lxm-editor-react/src/EditorShell/tools/technique-parameter-owner";
+import type { MusicTextTarget } from "../../../packages/lxm-editor-react/src/EditorShell/music-text/music-text-draft";
 
-const setup = () => {
-  const session = createEditorSession(EXAMPLE_MVP_7_2_DOCUMENT);
+const setup = (document = EXAMPLE_MVP_7_2_DOCUMENT) => {
+  const session = createEditorSession(document);
   const cell = getFirstTabCellReference(session.getState().document!)!;
   session.getState().setSelection({ anchor: cell, focus: cell });
   const drafts = createEditorDraftCoordinator(() => captureEditorVersion(session.getState()));
@@ -46,12 +47,26 @@ describe("toolbar final submission guard", () => {
     expect(next()).toBe(false);
   });
   it("asynchronous confirmation rechecks the live active target before writing", async () => {
-    const { session, cell, drafts } = setup();
+    const document = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);
+    const track = document.score.tracks[0]!;
+    const [first, second] = track.measures;
+    const quarter = { base: "quarter", dots: 0 } as const;
+    first!.numberedVoice = { tuplets: [], events: [
+      { id: "copy-event", kind: "notes", tick: 2880, rhythm: quarter, items: [{ id: "copy-item", token: "1" }] },
+    ] };
+    second!.numberedVoice = { tuplets: [], events: [
+      { id: "next-event", kind: "notes", tick: 0, rhythm: quarter, items: [{ id: "next-item", token: "1" }] },
+    ] };
+    first!.lyrics = [];
+    second!.lyrics = [];
+    track.numberedMarks = [{ id: "crossing-tie", type: "tie", fromItemId: "copy-item", toItemId: "next-item" }];
+    const { session, cell, drafts } = setup(document);
     let active: MusicTextTarget | null = null;
     const modals = createEditorModalController(session.getState, () => vi.fn());
     const adapter = createEditorCommandAdapter(session, modals,
       (cmd, submission) => editorToolSubmissionReason(session.getState(), active, drafts, cmd, submission));
-    const pending = adapter({ type: C.RemoveMeasure, trackId: cell.trackId, measureId: cell.measureId }, "modal", {
+    const pending = adapter({ type: C.CopyMeasureRange, trackId: cell.trackId,
+      sourceStartMeasureId: first!.id, sourceEndMeasureId: first!.id, afterMeasureId: first!.id }, "modal", {
       tabOnly: true, isCurrent: captureEditorToolIntent(session.getState, () => active),
     });
     expect(modals.getSnapshot()).not.toBeNull();

@@ -1,15 +1,13 @@
 import { isValidElement, type ComponentProps, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import {
-  EXAMPLE_MVP_7_2_DOCUMENT,
-  LXMScoreCommandEnum,
-} from "@liuxianmao/lxm-editor";
-import { EditorToolbar } from "../components/EditorShell/workspace/EditorToolbar";
-import { useScorePlayback } from "../components/EditorShell/playback/controller";
-import { EditorSessionRuntime } from "../components/EditorShell/session/EditorSessionRuntime";
-import { EditorStoreContext } from "../stores/editor-context";
-import { createEditorSession } from "../stores/editor-store";
+import { LXMScoreCommandEnum } from "@liuxianmao/lxm-editor";
+import { EXAMPLE_MVP_7_2_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { EditorToolbar } from "../../../packages/lxm-editor-react/src/EditorShell/workspace/EditorToolbar";
+import { useScorePlayback } from "../../../packages/lxm-editor-react/src/EditorShell/playback/controller";
+import { EditorSessionRuntime } from "../../../packages/lxm-editor-react/src/EditorShell/session/EditorSessionRuntime";
+import { EditorStoreContext } from "../../../packages/lxm-editor-react/src/stores/editor-context";
+import { createEditorSessionStore as createEditorSession } from "../../../packages/lxm-editor-react/src/stores/editor-store";
 
 const findButton = (
   tree: ReactNode,
@@ -110,11 +108,14 @@ const renderToolbar = ({
     beforeAction: () => {},
     execute: async () => ({ status: "cancelled", message: "test" }),
     onNavigate: () => "accepted",
+    onOpenRepeatEnding: () => false,
+    onOpenJumpMarks: () => false,
+    onOpenMeasureRepeat: () => false,
   };
   let single: Record<string, unknown> | null = null;
   let double: Record<string, unknown> | null = null;
   const Harness = () => {
-    const tree = EditorToolbar({ ...props, playback: useScorePlayback(session.getState().document, null), isPlaybackEntryBlocked: () => false });
+    const tree = EditorToolbar({ ...props, playback: useScorePlayback(session.getState().document), isPlaybackEntryBlocked: () => false });
     single = findButton(tree, "单附点");
     double = findButton(tree, "双附点");
     return tree;

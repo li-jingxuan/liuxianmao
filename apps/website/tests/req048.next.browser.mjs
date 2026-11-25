@@ -3,8 +3,9 @@ import { readFile } from "node:fs/promises";
 
 const { chromium } = await import(process.env.LXM_PLAYWRIGHT_MODULE ?? "playwright");
 const browser = await chromium.launch({ headless: true, channel: process.env.LXM_BROWSER_CHANNEL });
-const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
-const base = process.env.REQ_NEXT_ORIGIN ?? "http://127.0.0.1:3031";
+const page = await browser.newPage({ viewport: { width: 1600, height: 1000 }, timezoneId: "America/Los_Angeles" });
+const base = (process.env.REQ_NEXT_ORIGIN ?? "http://127.0.0.1:3031").replace(/\/$/, "");
+const homeUrl = new URL(base).href;
 const button = (name, root = page) => root.getByRole("button", { name, exact: true });
 const dialog = (name) => page.getByRole("dialog", { name });
 const a4Dialog = (name) => page.getByRole("dialog").filter({ has: page.getByRole("heading", { name }) });
@@ -14,12 +15,15 @@ const action = async (group, item) => {
   await button(group).click();
   await page.getByRole("menuitem", { name: item, exact: true }).click();
 };
-const download = async (root) => (await Promise.all([page.waitForEvent("download"), button("导出 JSON", root).click()]))[0];
+const exportLabel = "导出六线猫专用谱(.lxm)";
+const download = async (root) => (await Promise.all([page.waitForEvent("download"), button(exportLabel, root).click()]))[0];
 const errors = [];
 page.on("pageerror", (error) => errors.push(error.message));
 page.setDefaultTimeout(10000);
 
 try {
+  // 洛杉矶仍是 1 月 2 日，文件名应取浏览器的日期，即使 UTC 已经换日。
+  await page.clock.setFixedTime(new Date("2026-01-03T02:00:00Z"));
   await page.route("https://**/*", (route) => route.abort());
   await page.addInitScript(() => {
     window.print = () => {
@@ -27,7 +31,7 @@ try {
       window.dispatchEvent(new Event("afterprint"));
     };
   });
-  await page.goto(base, { waitUntil: "domcontentloaded" });
+  await page.goto(homeUrl, { waitUntil: "domcontentloaded" });
   await page.setViewportSize({ width: 360, height: 520 });
   const newScore = dialog("新建曲谱");
   const title = newScore.getByRole("textbox", { name: "曲名" });
@@ -51,7 +55,7 @@ try {
   await button("创建曲谱", newScore).click();
   await newScore.getByText("请输入曲名", { exact: true }).waitFor();
   assert.equal(await title.getAttribute("aria-invalid"), "true");
-  assert.equal(page.url(), base + "/");
+  assert.equal(page.url(), homeUrl);
   await tuning.click();
   const standardTuning = newScore.getByRole("option", { name: /标准调弦/ });
   await standardTuning.waitFor();
@@ -64,7 +68,7 @@ try {
   await title.fill("取消前的曲名");
   await page.keyboard.press("Escape");
   await newScore.waitFor({ state: "hidden" });
-  assert.equal(page.url(), base + "/");
+  assert.equal(page.url(), homeUrl);
   await page.waitForFunction(() => document.activeElement?.textContent.trim() === "新建曲谱");
   await page.setViewportSize({ width: 1600, height: 1000 });
   await button("新建曲谱").click();
@@ -80,12 +84,12 @@ try {
   await button("创建曲谱", newScore).click();
   await page.waitForURL(base + "/editor");
   await page.waitForFunction(() => document.activeElement?.getAttribute("aria-label") === "六线谱编辑器");
-  assert.equal(await status(), "待导出 JSON");
+  assert.equal(await status(), "待导出 六线猫专用谱(.lxm)");
   assert.equal(await beforeUnload(), false);
   const measureNumbers = page.locator('[data-layer="measure-numbers"]');
   await measureNumbers.waitFor();
 
-  await action("导出", "PNG 图片");
+  await action("导出", "图片(.png)");
   const image = a4Dialog("A4 图片预览");
   await image.locator("[data-image-export-status=ready]").waitFor();
   assert.equal(await image.locator('[data-measure-number]').count(), 0);
@@ -98,7 +102,7 @@ try {
   assert.equal(pngBytes.readUInt32BE(20), 3508);
   await button("关闭预览", image).click();
   await image.waitFor({ state: "hidden" });
-  assert.equal(await status(), "待导出 JSON");
+  assert.equal(await status(), "待导出 六线猫专用谱(.lxm)");
 
   await action("导出", "打印");
   const print = a4Dialog("A4 打印预览");
@@ -119,7 +123,7 @@ try {
   await page.emulateMedia({ media: "screen" });
   await button("关闭预览", print).click();
   await print.waitFor({ state: "hidden" });
-  assert.equal(await status(), "待导出 JSON");
+  assert.equal(await status(), "待导出 六线猫专用谱(.lxm)");
 
   const home = page.getByRole("link", { name: "六线猫首页" });
   const leave = dialog("离开前导出曲谱？");
@@ -130,13 +134,13 @@ try {
     window.originalCreateObjectURL = URL.createObjectURL;
     URL.createObjectURL = () => { throw new Error("simulated download handoff failure"); };
   });
-  await button("导出 JSON", leave).click();
+  await button(exportLabel, leave).click();
   await leave.getByRole("alert").getByText("浏览器未能发起下载，请重试。").waitFor();
-  assert.equal(await status(), "待导出 JSON");
+  assert.equal(await status(), "待导出 六线猫专用谱(.lxm)");
   await page.evaluate(() => { URL.createObjectURL = window.originalCreateObjectURL; });
   const firstDownload = await download(leave);
   const filename = firstDownload.suggestedFilename();
-  assert.equal(filename, "测试_曲谱.lxm.json");
+  assert.equal(filename, "测试_曲谱_260102.lxm");
   const bytes = await readFile(await firstDownload.path());
   const saved = JSON.parse(bytes.toString());
   assert.equal(saved.score.arranger, "作者 <&>");
@@ -149,13 +153,13 @@ try {
   assert.equal(measures.length, 4);
   assert.ok(measures.every((measure) => measure.beats.length === 6 && measure.beats.every((beat) => beat.kind === "notes" && !beat.notes.length)));
   assert.equal(page.url(), base + "/editor");
-  assert.equal(await status(), "JSON 已导出");
+  assert.equal(await status(), "六线猫专用谱(.lxm) 已导出");
   assert.equal(await beforeUnload(), true);
   const [retry] = await Promise.all([page.waitForEvent("download"), button("重新下载", leave).click()]);
   assert.deepEqual(await readFile(await retry.path()), bytes);
   assert.equal(page.url(), base + "/editor");
   await button("已下载，继续", leave).click();
-  await page.waitForURL(base + "/");
+  await page.waitForURL(homeUrl);
 
   const importer = dialog("导入曲谱");
   await button("导入曲谱").click();
@@ -180,7 +184,7 @@ try {
   const song = page.getByRole("textbox", { name: "歌曲名称" });
   await song.fill("待处理的改名");
   assert.equal(await beforeUnload(), false);
-  for (const item of ["JSON 曲谱", "PNG 图片", "打印"]) {
+  for (const item of ["六线猫专用谱(.lxm)", "图片(.png)", "打印"]) {
     await action("导出", item);
     const blocked = dialog("先处理未应用的输入");
     await blocked.waitFor();
@@ -190,7 +194,7 @@ try {
     assert.equal(await song.inputValue(), "待处理的改名");
   }
   await button("应用曲谱信息").click();
-  assert.equal(await status(), "待导出 JSON");
+  assert.equal(await status(), "待导出 六线猫专用谱(.lxm)");
   await button("文件").press("ArrowDown");
   await page.waitForFunction(() => document.activeElement?.matches('[role="menuitem"]') && document.activeElement.textContent === "新建曲谱");
   await page.keyboard.press("Enter");
@@ -203,12 +207,12 @@ try {
   await leave.waitFor({ state: "hidden" });
   assert.equal(await song.inputValue(), "待处理的改名");
 
-  await action("导出", "JSON 曲谱");
-  const output = await download(dialog("导出 JSON"));
-  assert.equal(output.suggestedFilename(), "待处理的改名.lxm.json");
+  await action("导出", "六线猫专用谱(.lxm)");
+  const output = await download(dialog(exportLabel));
+  assert.equal(output.suggestedFilename(), "待处理的改名_260102.lxm");
   const reexported = JSON.parse(await readFile(await output.path(), "utf8"));
   assert.deepEqual(reexported.score.tracks[0].tuning, saved.score.tracks[0].tuning);
-  assert.equal(await status(), "JSON 已导出");
+  assert.equal(await status(), "六线猫专用谱(.lxm) 已导出");
 
   await song.fill("准备放弃的修改");
   await action("文件", "返回首页");
@@ -223,7 +227,7 @@ try {
   await button("应用曲谱信息").click();
   await action("文件", "返回首页");
   await button("不导出并继续", leave).click();
-  await page.waitForURL(base + "/");
+  await page.waitForURL(homeUrl);
   await page.getByRole("navigation", { name: "首页导航" }).getByRole("link", { name: "打开编辑器", exact: true }).click();
   await page.waitForURL(base + "/editor");
   assert.equal(await status(), "示例曲谱");

@@ -19,7 +19,7 @@ try {
   await page.goto(url, { waitUntil: "networkidle", timeout: 90000 });
   const score = page.getByRole("application", { name: "六线谱编辑器" });
   await score.getByText("C", { exact: true }).first().click();
-  const popover = page.locator("#chord-edit-popover");
+  const popover = page.locator("[id$=chord-edit-popover]");
   await button(popover, "和弦库").click();
   await library.waitFor();
   const list = library.getByTestId("chord-library-scroll");

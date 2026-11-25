@@ -1,0 +1,37 @@
+# 固定 Compose 项目名。不同 Git 版本的配置可以放在各自的发布目录中，
+# 切换版本时仍更新同一个 Web 服务。
+name: liuxianmao-aliyun
+
+services:
+  web:
+    # 发布时替换为已构建并导入的完整 Git SHA 标签。升级和回滚均从本机镜像启动。
+    image: liuxianmao-web:sha-REPLACE_WITH_GIT_SHA
+    platform: linux/amd64
+    pull_policy: never
+    restart: unless-stopped
+
+    ports:
+      # 备案期间通过 Workbench 在服务器内验收。备案通过后由宿主机 Nginx 代理到此地址。
+      - "127.0.0.1:3000:3000"
+
+    healthcheck:
+      # 用镜像自带的 Node 检查根路径。超时、跳转和非 2xx 响应都会使检查失败。
+      test:
+        - CMD
+        - node
+        - -e
+        - >-
+          fetch('http://127.0.0.1:3000/', {
+            method: 'HEAD', redirect: 'error', signal: AbortSignal.timeout(3000)
+          }).then(response => process.exit(response.ok ? 0 : 1), () => process.exit(1))
+      start_period: 20s
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+    logging:
+      # 限制每个容器的日志文件大小和数量，避免日志持续占用轻量服务器的系统盘。
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "3"

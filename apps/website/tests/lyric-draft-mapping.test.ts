@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { EXAMPLE_MVP_7_2_DOCUMENT } from "@liuxianmao/lxm-editor";
-import { lyricDraftMappingDependency, readMusicTextDraft } from "../components/EditorShell/music-text/music-text-draft";
+import { EXAMPLE_MVP_7_2_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { lyricDraftMappingDependency, readMusicTextDraft } from "../../../packages/lxm-editor-react/src/EditorShell/music-text/music-text-draft";
 
 const fixture = () => {
   const document = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);

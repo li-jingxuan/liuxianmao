@@ -1,15 +1,16 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import {
-  DEFAULT_MOCK_DOCUMENT,
   LXMScoreCommandEnum as C,
   createCollapsedTabCellSelection,
   type ILXMDocument,
 } from "@liuxianmao/lxm-editor";
-import { createEditorStore } from "../stores/editor-store";
-import { resolveEditorRhythmTarget } from "../components/EditorShell/tools/editor-rhythm-target";
-import { buildEditorToolCommand } from "../components/EditorShell/tools/editor-tool-actions";
-import { NoteToolDetails } from "../components/EditorShell/tools/NoteToolDetails";
+import { DEFAULT_MOCK_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { createEditorStore } from "../../../packages/lxm-editor-react/src/stores/editor-store";
+import { EditorStoreContext } from "../../../packages/lxm-editor-react/src/stores/editor-context";
+import { resolveEditorRhythmTarget } from "../../../packages/lxm-editor-react/src/EditorShell/tools/editor-rhythm-target";
+import { buildEditorToolCommand } from "../../../packages/lxm-editor-react/src/EditorShell/tools/editor-tool-actions";
+import { NoteToolDetails } from "../../../packages/lxm-editor-react/src/EditorShell/tools/NoteToolDetails";
 
 const setup = () => {
   const document: ILXMDocument = structuredClone(DEFAULT_MOCK_DOCUMENT);
@@ -17,6 +18,8 @@ const setup = () => {
   track.techniques = [];
   track.numberedMarks = [];
   track.measures = [track.measures[0]!];
+  delete track.playbackReplay;
+  delete track.repeatEndingGroups;
   const measure = track.measures[0]!;
   measure.chordSymbols = [];
   measure.lyrics = [];
@@ -32,9 +35,9 @@ const setup = () => {
 
 describe("BUG016 TAB 首次录入与默认时值", () => {
   it("toolbar和sidebar展示可继承的完整附点节奏", () => {
-    const { document, selection } = setup();
+    const { document, selection, store } = setup();
     expect(resolveEditorRhythmTarget(document, selection, null, { base: "quarter", dots: 0 }, false).rhythm).toEqual({ base: "eighth", dots: 1 });
-    const html = renderToStaticMarkup(<NoteToolDetails document={document} selection={selection} blocked={false} onAction={async () => true} />);
+    const html = renderToStaticMarkup(<EditorStoreContext.Provider value={store}><NoteToolDetails document={document} selection={selection} blocked={false} onAction={async () => true} /></EditorStoreContext.Provider>);
     expect(html).toMatch(/aria-label="八分音符"[^>]*aria-pressed="true"/);
     expect(html).toMatch(/aria-label="单附点"[^>]*aria-pressed="true"/);
   });

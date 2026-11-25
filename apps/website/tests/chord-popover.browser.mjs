@@ -42,8 +42,8 @@ try {
   await sidebar.waitFor({ timeout: 90000 });
   const svg = page.getByRole("application", { name: "六线谱编辑器" });
   const tool = page.getByRole("button", { name: /^(添加|编辑)和弦$/ });
-  const popover = page.locator('#chord-edit-popover');
-  const input = page.locator('#chord-popover-name');
+  const popover = page.locator('[id$=chord-edit-popover]');
+  const input = page.locator('[data-chord-popover-name]');
   const fullInput = sidebar.getByRole('textbox', { name: '和弦名称', exact: true });
   const snapshot = () => page.evaluate(() => ({ document: window.coexistStore.getState().document, history: window.coexistStore.getState().historyDepth }));
   const currentChord = () => page.evaluate(() => {
@@ -60,7 +60,7 @@ try {
   });
   await svg.getByText(initial.chord.chord.name, { exact: true }).first().click();
   await popover.waitFor({ state: 'visible' });
-  await page.waitForFunction(() => document.activeElement?.id === 'chord-popover-name');
+  await page.waitForFunction(() => document.activeElement?.hasAttribute('data-chord-popover-name'));
   assert.equal(await popover.getByRole('button', { name: '结束编辑', exact: true }).count(), 0);
   assert.equal(await popover.getByRole('button', { name: '完整设置', exact: true }).count(), 0);
   assert.equal(await popover.locator('footer button').count(), 1);
@@ -96,7 +96,7 @@ try {
   assert.equal(await sidebar.isVisible(), false);
   assert.equal(await input.inputValue(), 'Side draft');
   await tool.click();
-  await page.waitForFunction(()=>document.activeElement?.id==='chord-popover-name');
+  await page.waitForFunction(()=>document.activeElement?.hasAttribute('data-chord-popover-name'));
   assert.equal(await input.inputValue(),'Side draft');
   await page.getByRole('button', { name: '编辑面板', exact: true }).click();
   const preset = popover.getByRole('button', { name: 'Am', exact: true });
@@ -126,7 +126,7 @@ try {
   await input.press('Control+Enter');
   assert.equal((await currentChord()).chord.name, initial.chord.chord.name);
   await input.dispatchEvent('compositionend');
-  await page.waitForFunction(() => !document.querySelector('#chord-edit-popover footer button')?.disabled);
+  await page.waitForFunction(() => !document.querySelector('[id$=chord-edit-popover] footer button')?.disabled);
   await input.press('Escape');
   // Select an actual empty TAB beat through the real store, then use the toolbar.
   await page.evaluate(() => {
@@ -171,9 +171,9 @@ try {
   for (const viewport of [{width:1440,height:900},{width:1440,height:720},{width:1920,height:1080}]) {
     await page.setViewportSize(viewport);
     await popover.waitFor({ state: 'visible' });
-    await page.waitForFunction(() => document.querySelector('#chord-edit-popover')?.dataset.popoverPlacement);
+    await page.waitForFunction(() => document.querySelector('[id$=chord-edit-popover]')?.dataset.popoverPlacement);
     await page.waitForFunction(() => {
-      const bubble = document.querySelector('#chord-edit-popover')?.getBoundingClientRect();
+      const bubble = document.querySelector('[id$=chord-edit-popover]')?.getBoundingClientRect();
       const anchor = document.querySelector('[data-chord-focus]')?.getBoundingClientRect();
       return bubble && anchor && (bubble.right <= anchor.left || bubble.left >= anchor.right || bubble.bottom <= anchor.top || bubble.top >= anchor.bottom);
     });

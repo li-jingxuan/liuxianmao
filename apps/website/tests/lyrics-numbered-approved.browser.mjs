@@ -35,7 +35,7 @@ try {
   const errors = [];
   page.on("pageerror", error => errors.push(error.message));
   await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/__approved__`, { waitUntil: "domcontentloaded", timeout: 60000 });
-  const sidebar = page.locator("#music-text-sidebar");
+  const sidebar = page.locator("[data-music-text-sidebar]");
   await sidebar.waitFor({ timeout: 60000 }).catch(async error => {
     await page.screenshot({ path: path.join(output, "failure.png"), fullPage: true });
     console.error("Page errors:", errors, "Page text:", await page.locator("body").innerText());

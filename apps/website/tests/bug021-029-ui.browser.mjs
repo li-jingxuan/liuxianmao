@@ -37,7 +37,7 @@ try {
   page.setDefaultTimeout(15000);
   page.on("pageerror", error => errors.push(error.message));
   await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/__bug021-029-ui__`);
-  const sidebar = page.locator("#music-text-sidebar");
+  const sidebar = page.locator("[data-music-text-sidebar]");
   const score = page.getByRole("application", { name: "六线谱编辑器" });
   await score.waitFor({ timeout: 90000 });
   const history = () => page.evaluate(() => window.coexistStore.getState().historyDepth.past);
@@ -57,7 +57,7 @@ try {
   // BUG026 / BUG027: shared draft, Apply on both surfaces and IME protection.
   await score.getByText("个", { exact: true }).first().click();
   const input = sidebar.getByRole("textbox", { name: "连续歌词", exact: true });
-  const popover = page.locator('#music-text-edit-popover');
+  const popover = page.locator('[id$=music-text-edit-popover]');
   const floatingInput = popover.getByRole("textbox", { name: "连续歌词", exact: true });
   const apply = sidebar.getByRole("button", { name: "应用", exact: true });
   const floatingApply = popover.getByRole("button", { name: "应用", exact: true });
@@ -75,7 +75,7 @@ try {
   await input.dispatchEvent("compositionstart", { data: "词" });
   assert.equal(await apply.isDisabled(), true);
   await input.dispatchEvent("compositionend", { data: "词" });
-  await page.waitForFunction(() => document.querySelector('#music-text-sidebar button[aria-label="应用"]')?.disabled === false);
+  await page.waitForFunction(() => document.querySelector('[data-music-text-sidebar] button[aria-label="应用"]')?.disabled === false);
   assert.equal(await input.inputValue(), "新 歌", "IME结束应保留草稿");
   assert.equal(await apply.isEnabled(), true);
   const before = await history();
@@ -106,7 +106,7 @@ try {
 
   // BUG021: same production preset component on both chord surfaces.
   await score.getByText("G", { exact: true }).first().click();
-  const chordPopover = page.locator("#chord-edit-popover");
+  const chordPopover = page.locator("[id$=chord-edit-popover]");
   const chordLibrary = page.getByRole("dialog", { name: /^和弦库/ });
   for (const surface of [sidebar, chordPopover]) {
     const opener = surface.getByRole("button", { name: "和弦库", exact: true });
@@ -137,13 +137,13 @@ try {
   // BUG029: permanently visible copy range; real command and undo; no footer toolbar.
   await sidebar.getByRole("tab", { name: "选区", exact: true }).click();
   await sidebar.getByRole("radio", { name: "小节", exact: true }).locator("..").click();
-  const start = sidebar.locator("#settings-copy-start");
-  const after = sidebar.locator("#settings-copy-after");
+  const start = sidebar.locator("[id$=settings-copy-start]");
+  const after = sidebar.locator("[id$=settings-copy-after]");
   const confirm = sidebar.getByRole("button", { name: "应用复制小节范围", exact: true });
   const copyForm = sidebar.locator('[data-settings-group="copy"]');
-  const startControl = copyForm.locator(".ant-select").filter({ has: page.locator("#settings-copy-start") });
-  const endControl = copyForm.locator(".ant-select").filter({ has: page.locator("#settings-copy-end") });
-  const afterControl = copyForm.locator(".ant-select").filter({ has: page.locator("#settings-copy-after") });
+  const startControl = copyForm.locator(".ant-select").filter({ has: page.locator("[id$=settings-copy-start]") });
+  const endControl = copyForm.locator(".ant-select").filter({ has: page.locator("[id$=settings-copy-end]") });
+  const afterControl = copyForm.locator(".ant-select").filter({ has: page.locator("[id$=settings-copy-after]") });
   await start.waitFor();
   assert.equal(await start.evaluate(element => !!element.closest("details")), false);
   assert.equal((await confirm.innerText()).replace(/\s/g, ""), "应用");
@@ -153,7 +153,7 @@ try {
     await sameRow(startControl, endControl);
     await sameRow(afterControl, confirm);
     const rangeLabel = await copyForm.getByText("复制范围", { exact: true }).boundingBox();
-    const insertionLabel = await copyForm.locator('label[for="settings-copy-after"]').boundingBox();
+    const insertionLabel = await copyForm.locator('label[for$="settings-copy-after"]').boundingBox();
     const a = await startControl.boundingBox(), b = await endControl.boundingBox();
     const c = await afterControl.boundingBox(), button = await confirm.boundingBox();
     const form = await copyForm.boundingBox();

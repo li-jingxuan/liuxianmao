@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
-import {
-  EXAMPLE_MVP_6_DOCUMENT,
-  copyChordPreset,
-  planLyricPositions,
-} from "@liuxianmao/lxm-editor";
+import { copyChordPreset, planLyricPositions } from "@liuxianmao/lxm-editor";
+import { EXAMPLE_MVP_6_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
 import {
   readMusicTextDraft,
   normalizeMusicTextTarget,
@@ -11,10 +8,10 @@ import {
   resolveSidebarRequest,
   selectedChordTarget,
   type SidebarAction,
-} from "../components/EditorShell/music-text/music-text-draft";
+} from "../../../packages/lxm-editor-react/src/EditorShell/music-text/music-text-draft";
 import {
   resolveParagraphInsertionTarget,
-} from "../components/EditorShell/music-text/music-text-target";
+} from "../../../packages/lxm-editor-react/src/EditorShell/music-text/music-text-target";
 
 const fixture = () => {
   const document = structuredClone(EXAMPLE_MVP_6_DOCUMENT);

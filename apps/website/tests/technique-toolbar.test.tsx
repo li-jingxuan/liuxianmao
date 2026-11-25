@@ -2,11 +2,11 @@ import { isValidElement, type ReactNode, type ComponentProps } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { LXMScoreCommandEnum as C } from "@liuxianmao/lxm-editor";
 import EXAMPLE from "../../../packages/lxm-editor/example/example-mvp2.json";
-import { createEditorSession } from "../stores/editor-store";
-import { createEditorDraftCoordinator } from "../components/EditorShell/session/editor-draft-coordinator";
-import { createEditorModalController } from "../components/EditorShell/session/editor-modal-controller";
-import { TechniqueToolbar, type TechniqueToolbarController } from "../components/EditorShell/tools/TechniqueToolbar";
-import { resolveToolbarTechnique, toolbarTechniqueAvailability, techniquesInToolbarSelection } from "../components/EditorShell/tools/technique-toolbar-model";
+import { createEditorSessionStore as createEditorSession } from "../../../packages/lxm-editor-react/src/stores/editor-store";
+import { createEditorDraftCoordinator } from "../../../packages/lxm-editor-react/src/EditorShell/session/editor-draft-coordinator";
+import { createEditorModalController } from "../../../packages/lxm-editor-react/src/EditorShell/session/editor-modal-controller";
+import { TechniqueToolbar, type TechniqueToolbarController } from "../../../packages/lxm-editor-react/src/EditorShell/tools/TechniqueToolbar";
+import { resolveToolbarTechnique, toolbarTechniqueAvailability, techniquesInToolbarSelection } from "../../../packages/lxm-editor-react/src/EditorShell/tools/technique-toolbar-model";
 
 // Exercise the real event handlers, owner, session and core commands. The hook host
 // keeps component state across renders without substituting musical validation.
@@ -31,8 +31,8 @@ vi.mock("react", async load => {
     useMemo: (factory: () => unknown) => factory(), useEffect: effect, useLayoutEffect: effect,
     useImperativeHandle: (ref: { current?: unknown } | undefined, factory: () => unknown) => { if (ref) ref.current = factory(); } };
 });
-vi.mock("../stores/editor-store", async load => ({ ...await load<object>(), useEditorSessionStore: () => host.session }));
-vi.mock("../components/EditorShell/session/EditorSessionRuntime", () => ({ useEditorRuntime: () => host.runtime }));
+vi.mock("../../../packages/lxm-editor-react/src/stores/editor-store", async load => ({ ...await load<object>(), useEditorSessionStore: () => host.session }));
+vi.mock("../../../packages/lxm-editor-react/src/EditorShell/session/EditorSessionRuntime", () => ({ useEditorRuntime: () => host.runtime }));
 afterEach(() => {
   host.cleanups.reverse().forEach(cleanup => cleanup()); host.cleanups = []; host.slots = []; host.cursor = 0;
   vi.useRealTimers(); vi.unstubAllGlobals();

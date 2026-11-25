@@ -1,12 +1,12 @@
 import { describe, it, expect } from "vitest";
 import {
-  EXAMPLE_MVP_5_1_DOCUMENT,
   LXMScoreCommandEnum as Command,
   resolveTupletSelection,
   validateDocumentSemantics,
   type ILXMTabCellSelection,
 } from "@liuxianmao/lxm-editor";
-import { createEditorStore } from "../stores/editor-store";
+import { EXAMPLE_MVP_5_1_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { createEditorStore } from "../../../packages/lxm-editor-react/src/stores/editor-store";
 const example = EXAMPLE_MVP_5_1_DOCUMENT;
 const selection = (index: number): ILXMTabCellSelection => {
   const track = example.score.tracks[0]!,

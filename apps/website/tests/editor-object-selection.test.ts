@@ -1,24 +1,24 @@
 import { describe, expect, it } from "vitest";
 import {
   A4_CONTENT_WIDTH,
-  EXAMPLE_MVP_7_2_DOCUMENT,
   buildLayout,
   createCollapsedTabCellSelection,
   resolveTechniqueSelection,
   LXMScoreCommandEnum as C,
   type ILXMTabCellReference,
 } from "@liuxianmao/lxm-editor";
+import { EXAMPLE_MVP_7_2_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
 import {
   resolveScorePointerAction,
   isScoreSelectionValid,
   resolveScoreDeleteCommand,
-} from "../components/EditorShell/session/editor-object-selection";
+} from "../../../packages/lxm-editor-react/src/EditorShell/session/editor-object-selection";
 import {
   readMusicTextDraft,
   resolveSidebarRequest,
-} from "../components/EditorShell/music-text/music-text-draft";
-import { createEditorStore } from "../stores/editor-store";
-import { resolveChordFocus } from "../components/EditorShell/score/music-text-focus";
+} from "../../../packages/lxm-editor-react/src/EditorShell/music-text/music-text-draft";
+import { createEditorStore } from "../../../packages/lxm-editor-react/src/stores/editor-store";
+import { resolveChordFocus } from "../../../packages/lxm-editor-react/src/EditorShell/score/music-text-focus";
 
 /** 路由与草稿决策直接调用生产模块，保持真实布局、命中和业务 ID。 */
 const fixture = () => {

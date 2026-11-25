@@ -1,5 +1,5 @@
 import { planNumberedInputRanges } from "../numbered/numbered-input-ranges";
-import { createNumberedRhythmContext } from "../numbered/numbered-rhythm";
+import { createNumberedRhythmContext, type NumberedTrackRhythmContext } from "../numbered/numbered-rhythm";
 import type { ILXMMeasure } from "../types";
 
 export interface LyricPosition {
@@ -9,7 +9,7 @@ export interface LyricPosition {
 }
 
 /** 歌词位置包含音符、保留时值的空事件及尚未录入简谱的时间窗。 */
-export const planLyricPositions = (measure: ILXMMeasure): LyricPosition[] => {
+export const planLyricPositions = (measure: ILXMMeasure, trackContext?: NumberedTrackRhythmContext): LyricPosition[] => {
   measure = {
     ...measure,
     numberedVoice: {
@@ -19,7 +19,7 @@ export const planLyricPositions = (measure: ILXMMeasure): LyricPosition[] => {
         .sort((a, b) => a.tick - b.tick),
     },
   };
-  const context = createNumberedRhythmContext(measure.numberedVoice);
+  const context = trackContext ?? createNumberedRhythmContext(measure.numberedVoice);
   return [
     ...measure.numberedVoice.events.flatMap((event) => {
       if (event.kind !== "notes" && event.kind !== "gap") return [];
@@ -34,7 +34,7 @@ export const planLyricPositions = (measure: ILXMMeasure): LyricPosition[] => {
           ]
         : [];
     }),
-    ...planNumberedInputRanges(measure)
+    ...planNumberedInputRanges(measure, 0, trackContext)
       .filter((range) => !range.eventId)
       .map((range) => ({ tick: range.startTick, endTick: range.endTick })),
   ].sort((a, b) => a.tick - b.tick);
@@ -44,8 +44,9 @@ export const planLyricPositions = (measure: ILXMMeasure): LyricPosition[] => {
 export const resolveLyricPosition = (
   measure: ILXMMeasure,
   target: { eventId?: string; tick?: number; endTick?: number },
+  trackContext?: NumberedTrackRhythmContext,
 ): LyricPosition | undefined =>
-  planLyricPositions(measure).find((position) =>
+  planLyricPositions(measure, trackContext).find((position) =>
     target.eventId
       ? position.eventId === target.eventId
       : position.tick === target.tick && position.endTick === target.endTick,

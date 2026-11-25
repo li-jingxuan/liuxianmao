@@ -1,10 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
-import {
-  EXAMPLE_MVP_6_DOCUMENT,
-  LXMScoreCommandEnum,
-  createTuningPreset,
-} from "@liuxianmao/lxm-editor";
-import { createEditorSession } from "../stores/editor-store";
+import { LXMScoreCommandEnum, createTuningPreset } from "@liuxianmao/lxm-editor";
+import { EXAMPLE_MVP_6_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { createEditorSessionStore as createEditorSession } from "../../../packages/lxm-editor-react/src/stores/editor-store";
 
 describe("v7.1-B 会话、历史与通知", () => {
   it("范围复制为单条历史；撤销重做、重复复制和独立实例保真", () => {

@@ -1,0 +1,930 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>单小节重复 · 六线猫交互稿</title>
+<style>
+  :root {
+    --workbench: #f0f1f3;
+    --paper: #fff;
+    --ink: #252b35;
+    --muted: #566171;
+    --line: #dce0e5;
+    --blue: #1d5bc6;
+    --blue-soft: #edf4ff;
+    --teal: #087d75;
+    --teal-soft: #e9f7f4;
+    --amber: #79501a;
+    --amber-soft: #fff7e8;
+    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: var(--ink);
+    background: var(--workbench);
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; min-width: 1440px; }
+  button, input, select { font: inherit; color: inherit; }
+  button, select { cursor: pointer; }
+  button:disabled, select:disabled { cursor: default; color: #707986; background: #f0f2f4; }
+  :focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
+  button, select, input { border: 1px solid #c8ced7; border-radius: 5px; background: var(--paper); min-height: 34px; padding: 4px 10px; }
+  button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; white-space: nowrap; }
+  button:hover:not(:disabled), select:hover:not(:disabled) { border-color: #8396b4; background: #f4f7fb; }
+  button:active:not(:disabled) { background: #e9eef6; }
+  button.primary { background: var(--blue); border-color: var(--blue); color: white; }
+  button.primary:hover:not(:disabled) { background: #154ba8; color: white; }
+  button.primary:disabled { background: #f0f2f4; border-color: #c8ced7; color: #707986; }
+  button.quiet { border-color: transparent; background: transparent; }
+  button.link { justify-content: flex-start; background: transparent; border-color: transparent; padding-left: 0; color: var(--blue); }
+  p, h1, h2, h3, dl, dd { margin: 0; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .icons { position: absolute; width: 0; height: 0; }
+  .icon { width: 17px; height: 17px; flex: 0 0 auto; }
+  .sign { width: 20px; height: 20px; }
+  .shell { display: grid; grid-template-rows: 54px 49px minmax(0, 1fr) 43px; height: 100vh; min-height: 640px; }
+  .header, .toolbar, .footer { background: var(--paper); padding: 0 22px; display: flex; align-items: center; gap: 10px; }
+  .header, .toolbar { border-bottom: 1px solid var(--line); }
+  .header { position: relative; z-index: 3; }
+  .brand { display: inline-flex; align-items: center; gap: 8px; font-size: 17px; margin-right: 17px; }
+  .brand img { width: 32px; height: 32px; }
+  .document-name { position: absolute; left: 50%; transform: translateX(-50%); font-weight: 600; }
+  .spacer { flex: 1; }
+  .file-state { font-size: 12px; color: var(--muted); }
+  .file-state[data-dirty="true"] { color: var(--amber); }
+  .menu { position: relative; }
+  .menu summary { list-style: none; cursor: pointer; padding: 6px 11px; border-radius: 5px; }
+  .menu summary::-webkit-details-marker { display: none; }
+  .menu summary:hover, .menu[open] summary { background: #edf0f5; }
+  .menu-items { position: absolute; top: calc(100% + 9px); left: 0; min-width: 164px; padding: 5px; background: white; border: 1px solid var(--line); border-radius: 7px; box-shadow: 0 5px 20px #252b351b; }
+  .menu-items button { display: flex; width: 100%; justify-content: flex-start; }
+  .export summary { padding-inline: 13px; border: 1px solid #c8ced7; }
+  .export .menu-items { left: auto; right: 0; }
+  .export summary[aria-disabled="true"] { color: var(--muted); background: #f0f2f4; cursor: default; }
+  .toolbar { gap: 12px; z-index: 2; }
+  .toolbar-cluster { display: flex; align-items: center; gap: 5px; }
+  .toolbar [aria-pressed="true"] { color: var(--blue); background: var(--blue-soft); border-color: #c3d6fb; }
+  .toolbar-divider { height: 21px; width: 1px; background: var(--line); }
+  .headphones { margin-left: 3px; }
+  .workspace { display: grid; grid-template-columns: minmax(0, 1fr) 348px; min-height: 0; }
+  .workspace[data-view="wide"] { grid-template-columns: minmax(0, 1fr); }
+  .viewport { overflow: auto; padding: 34px 42px 18px; }
+  .paper { margin: 0 auto; width: 100%; max-width: 994px; min-height: 480px; padding: 33px 49px 31px; border: 1px solid #dde0e4; background: var(--paper); box-shadow: 0 2px 9px #252b3510; }
+  .paper h1 { font-size: 28px; line-height: 1.3; letter-spacing: .04em; font-weight: 650; text-align: center; }
+  .paper-meta { text-align: center; margin-top: 7px; color: var(--muted); font-size: 13px; }
+  .tab-system { margin-top: 33px; display: grid; grid-template-columns: 60px repeat(3, minmax(0, 1fr)); position: relative; }
+  .track-head { padding-top: 33px; color: #353e4b; display: grid; grid-template-columns: 27px 20px; gap: 4px; align-items: center; height: 109px; text-align: center; }
+  .tab-label { font: 700 16px/17px ui-monospace, Menlo, monospace; }
+  .meter { font: 700 22px/21px Georgia, serif; color: var(--ink); }
+  .bar { min-width: 0; position: relative; height: 146px; }
+  .bar-number { position: absolute; top: 0; left: 7px; width: 30px; padding: 0; min-height: 27px; justify-content: center; font-size: 12px; font-variant-numeric: tabular-nums; border-radius: 4px; color: var(--muted); }
+  .bar-number:hover:not(:disabled) { color: var(--blue); }
+  .bar-number[aria-pressed="true"] { color: var(--blue); border-color: #b3ccf5; background: var(--blue-soft); font-weight: 700; }
+  .bar-number[aria-current="location"] { color: var(--teal); font-weight: 700; opacity: 1; }
+  .bar-number:disabled { background: transparent; }
+  .staff-selection { position: absolute; inset: 29px 1px 26px; border: 1px solid transparent; border-radius: 4px; }
+  .bar.selected .staff-selection { border-color: #7eabef; background: var(--blue-soft); }
+  .bar.sounding .staff-selection { border-color: #79c7bb; background: var(--teal-soft); }
+  .staff { position: absolute; top: 37px; height: 71px; width: 100%; border-right: 1px solid #4b525c; pointer-events: none; }
+  .track-head + .bar .staff { border-left: 1px solid #4b525c; }
+  .bar:last-child .staff { border-right: 4px double #4b525c; }
+  .staff i { position: absolute; left: 0; right: 0; height: 1px; background: #818893; }
+  .signature-change { position: absolute; top: 49px; left: 9px; background: var(--paper); pointer-events: none; }
+  .repeat-hit { position: absolute; inset: 30px 2px 31px; display: grid; place-items: center; width: calc(100% - 4px); background: transparent !important; border: 0; border-radius: 3px; padding: 0; }
+  .repeat-hit .sign { width: 39px; height: 39px; color: #202733; }
+  .repeat-hit::before { content: ""; position: absolute; width: 48px; height: 45px; background: white; border-radius: 4px; }
+  .selected .repeat-hit::before { background: var(--blue-soft); }
+  .sounding .repeat-hit::before { background: var(--teal-soft); }
+  .repeat-hit svg { position: relative; }
+  .beat { width: 29px; min-height: 27px; padding: 0; border: 1px solid transparent; position: absolute; top: var(--y); left: var(--x); transform: translate(-50%, -50%); font: 600 16px/1 ui-monospace, Menlo, monospace; }
+  .beat:disabled { color: var(--ink); background: var(--paper); }
+  .beat[aria-pressed="true"] { border-color: #6c9de9; color: var(--blue); }
+  .rest { position: absolute; left: 50%; top: 50px; transform: translateX(-50%); color: var(--muted); font-size: 12px; background: var(--paper); padding: 3px 7px; border-radius: 3px; }
+  .selected .rest { background: var(--blue-soft); }
+  .sounding .rest { background: var(--teal-soft); }
+  .lyric { position: absolute; top: 116px; left: 0; right: 0; text-align: center; font-size: 13px; }
+  .cursor { position: absolute; z-index: 1; pointer-events: none; top: 31px; bottom: 27px; width: 3px; background: var(--teal); }
+  .cursor::before { content: ""; position: absolute; top: -5px; left: -3px; border: 4px solid transparent; border-top-color: var(--teal); }
+  .under-score { margin: 30px 0 0 60px; padding-top: 16px; border-top: 1px solid var(--line); }
+  .legend { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 3px 8px; align-items: start; font-size: 13px; color: var(--muted); }
+  .legend .sign { color: var(--ink); grid-row: span 2; margin-top: 1px; }
+  .legend strong { color: var(--ink); font-size: 13px; }
+  .timeline { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; margin-top: 11px; }
+  .timeline > div { padding: 8px 10px; background: #f4f5f7; border: 1px solid transparent; border-radius: 5px; }
+  .timeline > div[data-active="true"] { color: #08655f; background: var(--teal-soft); border-color: #79c7bb; }
+  .timeline strong, .timeline span { display: block; }
+  .timeline span { font-size: 12px; margin-top: 2px; }
+  .timeline-title { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; }
+  .timeline-title span { color: var(--teal); }
+  .sidebar { background: var(--paper); border-left: 1px solid var(--line); min-height: 0; display: flex; flex-direction: column; }
+  .side-tab { display: flex; gap: 17px; align-items: center; min-height: 48px; border-bottom: 1px solid var(--line); padding: 0 20px; color: var(--muted); font-size: 13px; }
+  .side-tab strong { align-self: stretch; display: grid; place-items: center; border-bottom: 2px solid var(--blue); color: var(--blue); padding: 0 4px; }
+  .side-head { padding: 17px 20px 13px; border-bottom: 1px solid var(--line); }
+  .side-head h2 { font-size: 18px; }
+  .side-head p { font-size: 13px; color: var(--muted); margin-top: 4px; }
+  .side-body { overflow: auto; padding: 0 20px 18px; }
+  .side-section { padding: 17px 0; border-bottom: 1px solid var(--line); }
+  .side-section:last-child { border-bottom: 0; }
+  .side-section h3 { font-size: 14px; margin-bottom: 10px; }
+  .line-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 13px; }
+  .metrics dt { color: var(--muted); }
+  .metrics dd { font-weight: 600; margin-top: 3px; }
+  .repeat-summary { display: flex; gap: 9px; align-items: center; background: #f3f5f8; border-radius: 5px; padding: 10px 11px; font-size: 13px; }
+  .repeat-summary span { color: var(--muted); }
+  .muted-text { margin-top: 8px; font-size: 13px; color: var(--muted); }
+  .tool-actions { display: grid; gap: 6px; margin-top: 11px; }
+  .tool-actions > button { width: 100%; }
+  .feedback { margin-top: 10px; border-left: 3px solid #bc8b45; padding: 7px 10px; background: var(--amber-soft); color: var(--amber); font-size: 13px; }
+  .feedback button { display: flex; color: inherit; background: transparent; border-color: transparent; padding: 0; min-height: 26px; text-decoration: underline; text-underline-offset: 3px; }
+  .edit-form label { display: block; color: var(--muted); font-size: 13px; margin-bottom: 6px; }
+  .edit-form input { width: 95px; }
+  .edit-form button { margin-left: 6px; }
+  .review { max-width: 994px; margin: 15px auto 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 15px; color: var(--muted); font-size: 12px; }
+  .review label { display: flex; align-items: center; gap: 7px; white-space: nowrap; }
+  .review select, .review button { min-height: 29px; }
+  .review-title { font-weight: 650; color: var(--ink); }
+  .footer { border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+  .footer em { color: var(--ink); font-style: normal; }
+  .context { position: fixed; z-index: 4; width: 253px; border: 1px solid var(--line); border-radius: 7px; padding: 9px; background: var(--paper); box-shadow: 0 5px 20px #252b3525; }
+  .context-title { display: flex; justify-content: space-between; margin: 0 7px 6px; font-size: 12px; color: var(--muted); }
+  .context button { width: 100%; justify-content: flex-start; }
+  .context small { display: block; margin: 6px 7px 3px; color: var(--muted); }
+  dialog { border: 1px solid var(--line); border-radius: 9px; width: 444px; max-width: calc(100vw - 40px); color: var(--ink); padding: 22px; box-shadow: 0 18px 58px #21283828; }
+  dialog::backdrop { background: #1b24344d; }
+  dialog h2 { font-size: 19px; margin: 0 0 9px; }
+  dialog p { color: var(--muted); }
+  .preview-diff { display: grid; gap: 5px; margin-top: 12px; padding: 9px 11px; background: #f2f4f7; color: var(--ink); font-size: 13px; }
+  .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+  .play-note { color: var(--muted); font-size: 12px; }
+  .score-start { display: flex; gap: 7px; align-items: center; font-size: 13px; }
+  .tempo { font-size: 13px; font-variant-numeric: tabular-nums; color: var(--muted); }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; } }
+</style>
+</head>
+<body>
+<svg class="icons" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="repeat-icon" viewBox="0 0 40 40"><path d="m32 7-3.8-3.8L7 32l3.8 3.8Z" fill="currentColor"/><circle cx="12" cy="13" r="3.4" fill="currentColor"/><circle cx="28" cy="27" r="3.4" fill="currentColor"/></symbol>
+  <symbol id="undo-icon" viewBox="0 0 24 24"><path d="M9 10H4m0 0 4-4m-4 4h11a5 5 0 1 1 0 10h-3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="redo-icon" viewBox="0 0 24 24"><use href="#undo-icon" transform="translate(24 0) scale(-1 1)"/></symbol>
+  <symbol id="barline-icon" viewBox="0 0 24 24"><path d="M9 4v16m6-16v16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+  <symbol id="listen-icon" viewBox="0 0 24 24"><path d="M4 13v-2a8 8 0 0 1 16 0v2M4 13h2a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2H4Zm16 0h-2a2 2 0 0 0-2 2v2a2 2 0 0 0 2 2h2Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="panel-icon" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M15 5v14" stroke="currentColor" stroke-width="1.6"/></symbol>
+  <symbol id="play-icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7Z" fill="currentColor"/></symbol>
+  <symbol id="pause-icon" viewBox="0 0 24 24"><path d="M9 6v12m6-12v12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></symbol>
+  <symbol id="stop-icon" viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="1" fill="currentColor"/></symbol>
+</svg>
+<div class="shell">
+  <header class="header">
+    <span class="brand"><img src="brand.png" alt=""><strong>六线猫</strong></span>
+    <details class="menu"><summary>文件</summary><div class="menu-items">
+      <button class="quiet" id="save">保存模拟</button><button class="quiet" id="reopen">重开模拟</button>
+    </div></details>
+    <details class="menu"><summary>编辑</summary><div class="menu-items">
+      <button class="quiet" id="menu-undo">撤销</button><button class="quiet" id="menu-redo">重做</button>
+    </div></details>
+    <details class="menu"><summary>视图</summary><div class="menu-items">
+      <button class="quiet" id="menu-panel">显示／隐藏小节属性</button>
+    </div></details>
+    <details class="menu"><summary>帮助</summary><div class="menu-items">
+      <button class="quiet" id="help">单小节重复释义</button>
+    </div></details>
+    <strong class="document-name">单小节重复练习</strong>
+    <span class="spacer"></span>
+    <span class="file-state" id="file-state"></span>
+    <details class="menu export"><summary id="export-menu" title="在此交互稿中保存演示快照">导出 <span aria-hidden="true">⌄</span></summary><div class="menu-items">
+      <button class="quiet" id="export">保存演示快照</button>
+    </div></details>
+  </header>
+
+  <div class="toolbar" id="edit-toolbar">
+    <div class="toolbar-cluster">
+      <button class="quiet" id="undo" aria-label="撤销" title="撤销"><svg class="icon" aria-hidden="true"><use href="#undo-icon"/></svg></button>
+      <button class="quiet" id="redo" aria-label="重做" title="重做"><svg class="icon" aria-hidden="true"><use href="#redo-icon"/></svg></button>
+    </div>
+    <span class="toolbar-divider"></span>
+    <button class="quiet" id="measure-tool"><svg class="icon" aria-hidden="true"><use href="#barline-icon"/></svg>小节</button>
+    <span class="spacer"></span>
+    <button class="quiet" id="panel-toggle" aria-label="小节属性" title="显示／隐藏小节属性"><svg class="icon" aria-hidden="true"><use href="#panel-icon"/></svg></button>
+    <button class="headphones" id="enter"><svg class="icon" aria-hidden="true"><use href="#listen-icon"/></svg>试听</button>
+  </div>
+
+  <div class="toolbar" id="play-toolbar" aria-label="试听工具" hidden>
+    <button class="primary" id="play"><svg class="icon" aria-hidden="true"><use href="#play-icon"/></svg><span>播放</span></button>
+    <button id="stop"><svg class="icon" aria-hidden="true"><use href="#stop-icon"/></svg>停止</button>
+    <label class="score-start">起点<select id="start" aria-label="播放起点">
+      <option value="0">第 1 小节（谱首）</option><option value="1">第 2 小节</option><option value="2">第 3 小节</option>
+    </select></label>
+    <span class="toolbar-divider"></span>
+    <button id="back-beat">上一拍</button><button id="next-beat">下一拍</button>
+    <span class="tempo">♩ = 90</span><span class="play-note" id="audio-note">示意音 · Web Audio 合成</span>
+    <span class="spacer"></span>
+    <button id="exit"><svg class="icon" aria-hidden="true"><use href="#listen-icon"/></svg>退出试听</button>
+  </div>
+
+  <main class="workspace" id="workspace">
+    <div class="viewport">
+      <article class="paper" aria-label="单小节重复练习谱面">
+        <h1>单小节重复练习</h1>
+        <p class="paper-meta">木吉他　标准调弦　♩ = 90</p>
+        <div class="tab-system" id="score" aria-label="三小节六线谱"></div>
+        <div class="under-score legend" id="legend" tabindex="-1">
+          <svg class="sign" aria-hidden="true"><use href="#repeat-icon"/></svg>
+          <strong>重复前一小节（形似 %）</strong>
+          <p>在当前小节内照前一小节的内容再弹一遍，占当前小节的正常拍数，接着演奏下一小节。</p>
+        </div>
+        <div class="under-score" id="play-readout" hidden>
+          <div class="timeline-title"><strong>演奏顺序</strong><span id="play-status" role="status"></span></div>
+          <div class="timeline" id="timeline"></div>
+        </div>
+      </article>
+      <div class="review" id="review">
+        <span class="review-title">原型评审</span>
+        <label>试验谱例<select id="scenario">
+          <option value="normal">三小节基础谱</option><option value="filled">第 2 小节有内容</option>
+          <option value="meter">第 2 小节拍号不同</option><option value="source-lyric">第 1 小节有歌词</option>
+          <option value="target-lyric">第 2 小节有歌词</option><option value="first">选择第一小节</option>
+          <option value="chain">重复链</option>
+        </select></label>
+        <button class="quiet" id="reset">重置谱例</button>
+        <label>源小节修改后的方案<select id="mode">
+          <option value="keep">A 保留原内容并展开（待确认）</option><option value="sync">B 随前一小节同步（待确认）</option>
+        </select></label>
+      </div>
+    </div>
+
+    <aside class="sidebar" id="sidebar" aria-labelledby="measure-title">
+      <div class="side-tab"><strong>小节</strong></div>
+      <header class="side-head"><h2 id="measure-title"></h2><p id="measure-kind"></p></header>
+      <div class="side-body">
+        <section class="side-section" aria-label="小节设置">
+          <dl class="metrics"><div><dt>小节拍号</dt><dd id="measure-meter"></dd></div><div><dt>小节时长</dt><dd id="measure-length"></dd></div></dl>
+        </section>
+        <section class="side-section" id="repeat-panel" aria-labelledby="repeat-heading">
+          <h3 tabindex="-1" id="repeat-heading">反复与跳转</h3>
+          <div id="repeat-controls"></div>
+        </section>
+        <section class="side-section" id="note-section" aria-labelledby="note-heading">
+          <h3 id="note-heading" tabindex="-1">小节内容</h3><div id="edit-contents"></div>
+        </section>
+      </div>
+    </aside>
+  </main>
+
+  <footer class="footer">
+    <em>REQ-108 交互稿</em><span class="toolbar-divider"></span>
+    <span id="message" role="status"></span>
+    <button class="link" id="message-undo" hidden>撤销</button>
+    <span class="spacer"></span><span>保存与重开为本地演示</span>
+  </footer>
+</div>
+
+<div class="context" id="context" aria-label="小节上下文" hidden>
+  <div class="context-title"><strong>谱面工具</strong><span id="context-target"></span></div>
+  <button class="quiet" id="context-tool"><svg class="icon" aria-hidden="true"><use href="#barline-icon"/></svg>小节工具　›　反复与跳转</button>
+  <small>打开右侧小节属性中的同一个工具。</small>
+</div>
+
+<dialog id="confirm" aria-labelledby="confirm-title" aria-describedby="confirm-copy">
+  <form method="dialog">
+    <h2 id="confirm-title"></h2><p id="confirm-copy"></p><div class="preview-diff" id="confirm-preview" hidden></div>
+    <div class="dialog-actions"><button value="cancel" autofocus>取消</button><button class="primary" id="confirm-action" value="accept"></button></div>
+  </form>
+</dialog>
+
+<script>
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  const sign = '<svg class="sign" aria-hidden="true"><use href="#repeat-icon"/></svg>';
+  const clone = (value) => JSON.parse(JSON.stringify(value));
+  const serialize = (value) => JSON.stringify(value);
+  const storageKey = 'liuxianmao.req108.prototype.v1';
+  const modes = { keep: '保留原内容并展开', sync: '随前一小节同步' };
+  const baseFrets = [[3, 0, 2, 0], [], [0, 2, 3, 0]];
+  const baseStrings = [[4, 3, 2, 1], [1, 2, 3, 4], [2, 2, 1, 1]];
+  const midi = [64, 59, 55, 50, 45, 40];
+  const beatMs = 60000 / 90;
+  const lines = Array.from({ length: 6 }, (_, i) => `<i style="top:${i * 14}px"></i>`).join('');
+
+  function fixture(name, mode) {
+    const bars = baseFrets.map((frets, index) => ({
+      meter: 4, lyric: '', repeat: false, notes: frets.map((fret, i) => ({ fret, string: baseStrings[index][i] })),
+    }));
+    if (name === 'filled') bars[1].notes = [5, 3, 2, 0].map((fret, i) => ({ fret, string: baseStrings[1][i] }));
+    if (name === 'meter') bars[1].meter = 3;
+    if (name === 'source-lyric') bars[0].lyric = '沿 着 河 岸';
+    if (name === 'target-lyric') bars[1].lyric = '慢 慢 向 前';
+    if (name === 'chain') Object.assign(bars[1], { repeat: true, notes: clone(bars[0].notes) });
+    return { mode, bars };
+  }
+
+  let documentState = fixture('normal', 'keep');
+  let saved = readStorage();
+  let savedInMemory = false;
+  let scenario = 'normal';
+  let selected = 1;
+  let selectedBeat = null;
+  let sidebarOpen = true;
+  let contextAnchor = null;
+  let dialogAction = null;
+  let dialogReturn = null;
+  let undoHistory = [];
+  let redoHistory = [];
+  let audition = false;
+  let phase = 'idle';
+  let playStart = 0;
+  let sequence = [];
+  let playIndex = -1;
+  let timer = null;
+  let dueAt = 0;
+  let remaining = beatMs;
+  let pausedInBackground = false;
+  let audio = null;
+  let audioAvailable = false;
+  let activeTone = null;
+
+  function readStorage() {
+    try { return JSON.parse(localStorage.getItem(storageKey)); } catch { return null; }
+  }
+
+  function notify(message, allowUndo = false) {
+    $('message').textContent = message;
+    $('message-undo').hidden = !allowUndo || audition;
+  }
+
+  function formatBar(index) { return `第 ${index + 1} 小节`; }
+  function isDirty() { return !saved || serialize(documentState) !== serialize(saved.document); }
+
+  function updateFileState() {
+    const dirty = isDirty();
+    $('file-state').textContent = dirty ? '未保存' : '已保存（模拟）';
+    $('file-state').dataset.dirty = dirty;
+    $('reopen').disabled = !saved || audition;
+    $('save').disabled = audition;
+    $('export').disabled = audition;
+    $('export-menu').setAttribute('aria-disabled', String(audition));
+  }
+
+  function focusMeasure(index = selected) { $(`bar-${index}`)?.focus({ preventScroll: true }); }
+
+  function renderScore() {
+    const firstMeter = documentState.bars[0].meter;
+    $('score').innerHTML = `<div class="track-head" aria-label="六线谱，${firstMeter}/4 拍"><div class="tab-label" aria-hidden="true">T<br>A<br>B</div><div class="meter" aria-hidden="true">${firstMeter}<br>4</div></div>` + documentState.bars.map((bar, index) => {
+      const current = selected === index && !audition;
+      const active = audition && sequence[playIndex]?.bar === index;
+      const left = index > 0 && bar.meter !== documentState.bars[index - 1].meter ? 21 : 12;
+      const contents = bar.repeat ? `<button class="repeat-hit" type="button" data-bar="${index}" aria-label="${formatBar(index)}，重复前一小节" ${audition ? 'disabled' : `aria-pressed="${current}"`}>${sign}</button>` :
+        bar.notes.map((note, beat) => `<button type="button" class="beat" data-beat="${beat}" data-bar="${index}" style="--x:${beatX(beat, bar.meter, left)}%;--y:${37 + (note.string - 1) * 14}px" aria-label="${formatBar(index)}第 ${beat + 1} 拍，${note.string} 弦 ${note.fret} 品" aria-pressed="${current && beat === selectedBeat}" ${audition ? 'disabled' : ''}>${note.fret}</button>`).join('') || '<span class="rest">空小节</span>';
+      const meter = left === 21 ? `<span class="meter signature-change" aria-label="${bar.meter}/4 拍">${bar.meter}<br>4</span>` : '';
+      return `<div class="bar${current ? ' selected' : ''}${active ? ' sounding' : ''}" data-measure="${index}">
+        <button class="bar-number quiet" type="button" id="bar-${index}" data-bar="${index}" aria-label="${formatBar(index)}${bar.repeat ? '，重复前一小节' : ''}" ${audition ? '' : `aria-pressed="${current}"`}>${index + 1}</button>
+        <div class="staff-selection" aria-hidden="true"></div><div class="staff" aria-hidden="true">${lines}</div>${meter}${contents}
+        <span class="lyric" id="lyric-${index}"></span><i class="cursor" hidden></i>
+      </div>`;
+    }).join('');
+    documentState.bars.forEach((bar, index) => { $(`lyric-${index}`).textContent = bar.lyric; });
+  }
+
+  function beatX(beat, count, left = 12) { return left + beat * (90 - left) / Math.max(1, count - 1); }
+
+  function availability(index) {
+    const target = documentState.bars[index];
+    const source = documentState.bars[index - 1];
+    if (!source) return { reason: '第一小节没有前一小节可重复。', action: 'next', label: '去第 2 小节' };
+    if (source.meter !== target.meter) {
+      const reason = `${formatBar(index - 1)}为 ${source.meter}/4，${formatBar(index)}为 ${target.meter}/4。拍号一致后才能添加。`;
+      if (target.notes.length > source.meter) return { reason: `${reason}缩短此小节会影响现有音符。`, action: 'contents', label: '查看此小节内容' };
+      return { reason, action: 'meter', label: `将此小节改为 ${source.meter}/4` };
+    }
+    const lyricIndex = source.lyric ? index - 1 : target.lyric ? index : null;
+    if (lyricIndex !== null) return { reason: `${formatBar(lyricIndex)}有歌词。添加记号前，请先处理该小节的歌词。`, action: 'lyric', label: `查看${formatBar(lyricIndex)}的歌词`, index: lyricIndex };
+    if (source.repeat) return { reason: '前一小节已经是重复小节。展开前一小节后可继续。', action: 'source', label: '查看前一小节' };
+    if (!source.notes.length) return { reason: '前一小节仍为空。请先录入前一小节的演奏内容。', action: 'source', label: '查看前一小节' };
+    return null;
+  }
+
+  function renderSidebar() {
+    const bar = documentState.bars[selected];
+    const blocked = !bar.repeat && availability(selected);
+    const sourceText = selected ? formatBar(selected - 1) : '无前一小节';
+    const kind = bar.repeat ? '单小节重复' : bar.notes.length ? '普通小节' : '空小节';
+    $('measure-title').textContent = formatBar(selected);
+    $('measure-kind').textContent = kind;
+    $('measure-meter').textContent = `${bar.meter}/4`;
+    $('measure-length').textContent = `${bar.meter} 拍`;
+    $('repeat-controls').innerHTML = `<div class="repeat-summary">${sign}<div><strong>重复前一小节</strong><br><span>${selected ? `${sourceText} → ${formatBar(selected)}` : sourceText}</span></div></div>` + (bar.repeat ? `
+      <p class="muted-text">占 ${bar.meter} 拍。${modes[documentState.mode]}（评审方案）。</p>
+      <div class="tool-actions"><button class="primary" data-action="expand">展开为普通小节</button><button data-action="source">编辑前一小节</button></div>` : `
+      ${blocked ? '' : `<p class="muted-text">把${sourceText}的内容记在此处，占 ${bar.meter} 拍。</p>`}
+      <div class="tool-actions"><button class="primary" data-action="add" ${blocked ? 'disabled aria-describedby="repeat-reason"' : ''}>添加单小节重复</button></div>
+      ${blocked ? `<div class="feedback" id="repeat-reason">${blocked.reason}<button data-action="${blocked.action}" data-lyric-index="${blocked.index ?? ''}">${blocked.label}</button></div>` : bar.notes.length ? '<p class="muted-text">此小节已有演奏内容，添加前会确认是否替换。</p>' : ''}`);
+    if (bar.repeat) {
+      $('edit-contents').innerHTML = '<p class="muted-text">展开为普通小节后，可编辑音符和节奏。</p>';
+    } else if (bar.notes.length) {
+      const beat = selectedBeat ?? 0;
+      const note = bar.notes[beat];
+      $('edit-contents').innerHTML = `<form class="edit-form" id="fret-form"><label for="fret">第 ${beat + 1} 拍 · 第 ${note.string} 弦品位</label><input id="fret" type="number" required min="0" max="24" step="1" value="${note.fret}"><button>应用品位</button></form>`;
+    } else {
+      $('edit-contents').innerHTML = '<p class="muted-text">当前没有演奏内容。</p><button class="link" data-action="insert-note">录入首拍示例音</button>';
+    }
+    if (bar.lyric) {
+      const lyric = document.createElement('p');
+      lyric.id = 'lyric-in-sidebar';
+      lyric.className = 'muted-text';
+      lyric.textContent = `歌词　${bar.lyric}`;
+      $('edit-contents').append(lyric);
+      const remove = document.createElement('button');
+      remove.className = 'link';
+      remove.dataset.action = 'remove-lyric';
+      remove.textContent = '清除此小节歌词…';
+      $('edit-contents').append(remove);
+    }
+  }
+
+  function renderEdit() {
+    $('mode').value = documentState.mode;
+    $('scenario').value = scenario;
+    $('undo').disabled = $('menu-undo').disabled = !undoHistory.length || audition;
+    $('redo').disabled = $('menu-redo').disabled = !redoHistory.length || audition;
+    $('menu-panel').disabled = audition;
+    $('panel-toggle').setAttribute('aria-pressed', String(sidebarOpen));
+    $('measure-tool').setAttribute('aria-pressed', String(sidebarOpen));
+    $('sidebar').hidden = audition || !sidebarOpen;
+    $('workspace').dataset.view = $('sidebar').hidden ? 'wide' : 'edit';
+    $('review').hidden = audition;
+    $('edit-toolbar').hidden = audition;
+    $('play-toolbar').hidden = !audition;
+    $('play-readout').hidden = !audition;
+    $('legend').hidden = audition;
+    renderScore();
+    renderSidebar();
+    updateFileState();
+  }
+
+  // 一个提交同时记录源修改及受影响的小节，撤销时一起恢复。
+  function commit(next, message, focus, nextBeat = selectedBeat) {
+    undoHistory.push({ document: clone(documentState), selected, beat: selectedBeat });
+    redoHistory = [];
+    documentState = next;
+    selectedBeat = nextBeat;
+    renderEdit();
+    notify(message, true);
+    focus?.();
+  }
+
+  function historyMove(direction) {
+    if (audition) return;
+    const from = direction === 'undo' ? undoHistory : redoHistory;
+    const to = direction === 'undo' ? redoHistory : undoHistory;
+    if (!from.length) return;
+    to.push({ document: clone(documentState), selected, beat: selectedBeat });
+    const previous = from.pop();
+    documentState = previous.document;
+    selected = previous.selected;
+    selectedBeat = previous.beat;
+    renderEdit();
+    notify(direction === 'undo' ? '已撤销上一步。' : '已重做上一步。', direction === 'redo');
+    focusMeasure();
+  }
+
+  function selectMeasure(index, beat = null, reveal = false) {
+    selected = index;
+    selectedBeat = beat;
+    if (reveal) sidebarOpen = true;
+    renderEdit();
+    focusMeasure(index);
+  }
+
+  function openMeasureTool() {
+    sidebarOpen = true;
+    renderEdit();
+    $('repeat-heading').focus();
+  }
+
+  function showDialog({ title, text, preview = [], label, action }) {
+    dialogReturn = document.activeElement;
+    dialogAction = action;
+    $('confirm-title').textContent = title;
+    $('confirm-copy').textContent = text;
+    $('confirm-preview').replaceChildren(...preview.map((line) => {
+      const div = document.createElement('div');
+      div.textContent = line;
+      return div;
+    }));
+    $('confirm-preview').hidden = !preview.length;
+    $('confirm-action').textContent = label;
+    $('confirm').returnValue = '';
+    $('confirm').showModal();
+  }
+
+  $('confirm').addEventListener('close', () => {
+    const accepted = $('confirm').returnValue === 'accept';
+    const action = dialogAction;
+    const target = dialogReturn;
+    dialogAction = dialogReturn = null;
+    if (accepted) action?.();
+    else target?.focus();
+  });
+
+  function addRepeat() {
+    const index = selected;
+    if (availability(index) || documentState.bars[index].repeat) return;
+    const source = documentState.bars[index - 1];
+    const target = documentState.bars[index];
+    const apply = () => {
+      const next = clone(documentState);
+      next.bars[index].notes = clone(source.notes);
+      next.bars[index].repeat = true;
+      commit(next, `已在${formatBar(index)}添加单小节重复。`, () => $('repeat-heading').focus(), null);
+    };
+    if (!target.notes.length) { apply(); return; }
+    showDialog({
+      title: `替换${formatBar(index)}的内容？`,
+      text: `用${formatBar(index - 1)}的演奏内容替换此处，谱面显示单小节重复记号。替换后可撤销。`,
+      preview: [`现有 ${target.notes.length} 个 TAB 音符　品位 ${target.notes.map((note) => note.fret).join(' / ')}`,
+        `替换为 ${source.notes.length} 个 TAB 音符　品位 ${source.notes.map((note) => note.fret).join(' / ')}`],
+      label: '替换并添加记号', action: apply,
+    });
+  }
+
+  function expand() {
+    const next = clone(documentState);
+    next.bars[selected].repeat = false;
+    commit(next, `已展开${formatBar(selected)}。现在可以编辑实际音符。`, () => $('fret')?.focus(), 0);
+  }
+
+  function editNotes(notes, focus = () => $('fret')?.focus()) {
+    const next = clone(documentState);
+    next.bars[selected].notes = notes;
+    const following = next.bars[selected + 1];
+    let message = `已修改${formatBar(selected)}的 TAB。`;
+    if (following?.repeat) {
+      if (next.mode === 'sync') {
+        following.notes = clone(notes);
+        message = `${formatBar(selected + 1)}已同步更新，保留重复记号。`;
+      } else {
+        following.repeat = false;
+        message = `${formatBar(selected + 1)}已展开，保留源小节修改前的内容。`;
+      }
+    }
+    commit(next, message, focus);
+  }
+
+  function snapshot() {
+    saved = { document: clone(documentState), scenario, selected };
+    try { localStorage.setItem(storageKey, serialize(saved)); savedInMemory = false; }
+    catch { savedInMemory = true; }
+    updateFileState();
+    notify(savedInMemory ? '已保存至当前页面。重开模拟仍可使用，关闭页面会清除快照。' : '演示快照已保存到此浏览器。');
+  }
+
+  function reopen() {
+    if (!saved) return;
+    const apply = () => {
+      documentState = clone(saved.document);
+      scenario = saved.scenario;
+      selected = saved.selected;
+      selectedBeat = null;
+      undoHistory = [];
+      redoHistory = [];
+      renderEdit();
+      notify('已重开演示快照。');
+      focusMeasure();
+    };
+    if (isDirty()) showDialog({ title: '重开已保存的曲谱？', text: '本次未保存的修改会丢弃。', label: '丢弃并重开', action: apply });
+    else apply();
+  }
+
+  function loadScenario(name) {
+    scenario = name;
+    documentState = fixture(name, documentState.mode);
+    selected = name === 'first' ? 0 : name === 'chain' ? 2 : 1;
+    selectedBeat = null;
+    undoHistory = [];
+    redoHistory = [];
+    sidebarOpen = true;
+    renderEdit();
+    notify('已加载试验谱例。');
+  }
+
+  function openContext(index, x, y) {
+    if (audition) return;
+    selectMeasure(index);
+    const context = $('context');
+    contextAnchor = $(`bar-${index}`);
+    $('context-target').textContent = formatBar(index);
+    context.hidden = false;
+    context.style.left = `${Math.max(8, Math.min(x, innerWidth - context.offsetWidth - 8))}px`;
+    context.style.top = `${Math.max(8, Math.min(y, innerHeight - context.offsetHeight - 8))}px`;
+    $('context-tool').focus();
+  }
+
+  function closeContext(restore = false) {
+    $('context').hidden = true;
+    if (restore) contextAnchor?.focus();
+    contextAnchor = null;
+  }
+
+  function buildSequence() {
+    // 位置由目标小节生成，音符来自该小节的当前实际内容或重复快照。
+    return documentState.bars.flatMap((bar, index) => Array.from({ length: bar.meter }, (_, beat) => ({
+      bar: index, beat, notes: bar.notes[beat] ? [bar.notes[beat]] : [],
+    })));
+  }
+
+  function firstIndex() { return sequence.findIndex((unit) => unit.bar === playStart); }
+
+  function renderPlayback() {
+    const active = sequence[playIndex];
+    const playing = phase === 'playing';
+    const paused = phase === 'paused';
+    const play = $('play');
+    play.querySelector('use').setAttribute('href', playing ? '#pause-icon' : '#play-icon');
+    play.querySelector('span').textContent = playing ? '暂停' : paused ? '继续' : '播放';
+    $('stop').disabled = phase === 'idle';
+    $('start').disabled = playing || paused;
+    $('start').value = playStart;
+    $('back-beat').disabled = playing || playIndex <= firstIndex();
+    $('next-beat').disabled = playing || playIndex === sequence.length - 1;
+    $('audio-note').textContent = audioAvailable ? '示意音 · Web Audio 合成' : '示意音 · 可逐拍查看';
+    const pauseLabel = pausedInBackground ? '页面已切至后台，试听已暂停，' : '已暂停，';
+    const cue = phase === 'done' ? '试听结束' : active ? `${paused ? pauseLabel : ''}${formatBar(active.bar)}` : `从${formatBar(playStart)}开始`;
+    if ($('play-status').textContent !== cue) $('play-status').textContent = cue;
+    const activeBar = active?.bar;
+    $('timeline').innerHTML = documentState.bars.map((bar, index) => {
+      const title = `第 ${index + 1} 小节 · ${bar.meter} 拍`;
+      const detail = bar.repeat ? `照${formatBar(index - 1)}演奏` : bar.notes.length ? '演奏本小节内容' : '空小节';
+      return `<div ${activeBar === index ? 'data-active="true" aria-current="step"' : ''}><strong>${title}</strong><span>${detail}${activeBar === index ? ` · 第 ${active.beat + 1} 拍` : ''}</span></div>`;
+    }).join('');
+    documentState.bars.forEach((bar, index) => {
+      const element = $(`bar-${index}`).closest('.bar');
+      const sounding = activeBar === index;
+      const cursor = element.querySelector('.cursor');
+      const tag = $(`bar-${index}`);
+      element.classList.toggle('sounding', sounding);
+      if (sounding) tag.setAttribute('aria-current', 'location');
+      else tag.removeAttribute('aria-current');
+      tag.disabled = playing || paused;
+      cursor.hidden = !sounding;
+      if (sounding) cursor.style.left = `${beatX(active.beat, bar.meter, element.querySelector('.signature-change') ? 21 : 12)}%`;
+    });
+  }
+
+  function activateAudio() {
+    try {
+      const Context = window.AudioContext || window.webkitAudioContext;
+      audio ||= new Context();
+      audio.resume().catch(() => { audioAvailable = false; if (audition) renderPlayback(); });
+      audioAvailable = true;
+    } catch { audioAvailable = false; }
+  }
+
+  function endTone() {
+    if (!activeTone) return;
+    try { activeTone.stop(); } catch { /* 音已自然结束。 */ }
+    activeTone = null;
+  }
+
+  function playTone(unit) {
+    endTone();
+    if (!audioAvailable || !unit.notes.length) return;
+    const { fret, string } = unit.notes[0];
+    const oscillator = audio.createOscillator();
+    const volume = audio.createGain();
+    const now = audio.currentTime;
+    oscillator.type = 'triangle';
+    oscillator.frequency.value = 440 * 2 ** ((midi[string - 1] + fret - 69) / 12);
+    volume.gain.setValueAtTime(0.0001, now);
+    volume.gain.exponentialRampToValueAtTime(0.16, now + 0.018);
+    volume.gain.exponentialRampToValueAtTime(0.0001, now + 0.49);
+    oscillator.connect(volume).connect(audio.destination);
+    oscillator.start(now);
+    oscillator.stop(now + 0.5);
+    oscillator.onended = () => { oscillator.disconnect(); volume.disconnect(); };
+    activeTone = oscillator;
+  }
+
+  function clearClock() {
+    clearTimeout(timer);
+    timer = null;
+    endTone();
+  }
+
+  function playCurrent(delay, sound) {
+    if (sound) playTone(sequence[playIndex]);
+    renderPlayback();
+    dueAt = performance.now() + delay;
+    timer = setTimeout(() => {
+      if (playIndex + 1 === sequence.length) {
+        clearClock();
+        phase = 'done';
+        renderPlayback();
+        return;
+      }
+      playIndex += 1;
+      playCurrent(beatMs, true);
+    }, delay);
+  }
+
+  function pausePlayback(fromBackground = false) {
+    // 按页面计时器记住当前拍还剩多久。回到前台后，由用户明确继续。
+    remaining = Math.max(0, dueAt - performance.now());
+    clearClock();
+    pausedInBackground = fromBackground;
+    phase = 'paused';
+    renderPlayback();
+  }
+
+  function togglePlay() {
+    if (phase === 'playing') { pausePlayback(); return; }
+    activateAudio();
+    const resume = phase === 'paused';
+    if (!resume && phase !== 'step') playIndex = firstIndex();
+    phase = 'playing';
+    playCurrent(resume ? remaining : beatMs, !resume);
+  }
+
+  function stopPlayback() {
+    clearClock();
+    phase = 'idle';
+    playIndex = -1;
+    renderPlayback();
+  }
+
+  function step(delta) {
+    if (phase === 'playing') return;
+    activateAudio();
+    const minimum = firstIndex();
+    playIndex = Math.min(sequence.length - 1, Math.max(minimum, playIndex + delta));
+    phase = 'step';
+    playTone(sequence[playIndex]);
+    renderPlayback();
+  }
+
+  function setStart(index) {
+    if (phase === 'playing' || phase === 'paused') return;
+    playStart = index;
+    stopPlayback();
+  }
+
+  function toggleAudition(next) {
+    audition = next;
+    if (next) {
+      closeContext();
+      $('message-undo').hidden = true;
+      sequence = buildSequence();
+      playStart = selected;
+      renderEdit();
+      stopPlayback();
+      notify('试听期间谱面只读。可选择从谱首开始或逐拍查看。');
+      $('play').focus();
+    } else {
+      clearClock();
+      renderEdit();
+      notify('已退出试听，恢复编辑选区。');
+      $('enter').focus();
+    }
+  }
+
+  $('score').addEventListener('click', (event) => {
+    const target = event.target.closest('[data-measure]');
+    if (!target) return;
+    const index = Number(target.dataset.measure);
+    if (audition) { setStart(index); return; }
+    const beat = event.target.closest('[data-beat]');
+    selectMeasure(index, beat ? Number(beat.dataset.beat) : null, Boolean(beat) || documentState.bars[index].repeat);
+    if (beat) $('fret')?.focus();
+  });
+  $('score').addEventListener('contextmenu', (event) => {
+    const target = event.target.closest('[data-measure]');
+    if (!target || audition) return;
+    event.preventDefault();
+    openContext(Number(target.dataset.measure), event.clientX, event.clientY);
+  });
+  $('score').addEventListener('keydown', (event) => {
+    const target = event.target.closest('[data-measure]');
+    if (!target || audition) return;
+    const index = Number(target.dataset.measure);
+    if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
+      event.preventDefault();
+      const rect = event.target.getBoundingClientRect();
+      openContext(index, rect.left, rect.bottom + 4);
+    }
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+      event.preventDefault();
+      const next = index + (event.key === 'ArrowLeft' ? -1 : 1);
+      if (next >= 0 && next < documentState.bars.length) selectMeasure(next);
+    }
+  });
+  $('sidebar').addEventListener('click', (event) => {
+    const button = event.target.closest('[data-action]');
+    if (!button) return;
+    const index = selected;
+    const action = button.dataset.action;
+    if (action === 'add') addRepeat();
+    if (action === 'expand') expand();
+    if (action === 'next') { selectMeasure(1); $('repeat-heading').focus(); }
+    if (action === 'source') { selectMeasure(index - 1, 0); ($('fret') || $('repeat-heading')).focus(); }
+    if (action === 'contents') $('note-heading').focus();
+    if (action === 'lyric') {
+      selectMeasure(Number(button.dataset.lyricIndex));
+      $('edit-contents').querySelector('[data-action="remove-lyric"]')?.focus();
+    }
+    if (action === 'meter') {
+      const next = clone(documentState);
+      const meter = next.bars[index - 1].meter;
+      next.bars[index].meter = meter;
+      commit(next, `${formatBar(index)}已调整为 ${meter}/4，可添加记号。`, () => $('repeat-heading').focus());
+    }
+    if (action === 'insert-note') editNotes([{ fret: 0, string: 3 }]);
+    if (action === 'remove-lyric') showDialog({
+      title: `清除${formatBar(index)}的歌词？`, text: '这会清除此小节的整行示例歌词。可撤销。',
+      preview: [documentState.bars[index].lyric], label: '清除歌词', action: () => {
+        const next = clone(documentState);
+        next.bars[index].lyric = '';
+        commit(next, '已清除示例歌词。返回目标小节继续添加。', () => $('repeat-heading').focus());
+      },
+    });
+  });
+  $('sidebar').addEventListener('submit', (event) => {
+    if (event.target.id !== 'fret-form') return;
+    event.preventDefault();
+    const notes = clone(documentState.bars[selected].notes);
+    const beat = selectedBeat ?? 0;
+    const fret = $('fret').valueAsNumber;
+    if (notes[beat].fret === fret) { notify('品位未修改。'); return; }
+    notes[beat].fret = fret;
+    editNotes(notes);
+  });
+  $('context-tool').onclick = () => { closeContext(); openMeasureTool(); };
+  $('measure-tool').onclick = openMeasureTool;
+  $('panel-toggle').onclick = $('menu-panel').onclick = () => {
+    sidebarOpen = !sidebarOpen;
+    renderEdit();
+    $('panel-toggle').focus();
+  };
+  $('undo').onclick = $('menu-undo').onclick = $('message-undo').onclick = () => historyMove('undo');
+  $('redo').onclick = $('menu-redo').onclick = () => historyMove('redo');
+  $('save').onclick = snapshot;
+  $('reopen').onclick = reopen;
+  $('export').onclick = snapshot;
+  $('export-menu').onclick = (event) => { if (audition) event.preventDefault(); };
+  $('help').onclick = () => {
+    const target = audition ? $('play-readout') : $('legend');
+    target.tabIndex = -1;
+    target.focus();
+  };
+  $('scenario').onchange = (event) => loadScenario(event.target.value);
+  $('reset').onclick = () => loadScenario(scenario);
+  $('mode').onchange = (event) => {
+    const next = clone(documentState);
+    next.mode = event.target.value;
+    commit(next, `已切换为「${modes[next.mode]}」。修改前一小节可比较结果。`);
+  };
+  $('enter').onclick = () => toggleAudition(true);
+  $('exit').onclick = () => toggleAudition(false);
+  $('play').onclick = togglePlay;
+  $('stop').onclick = stopPlayback;
+  $('next-beat').onclick = () => step(1);
+  $('back-beat').onclick = () => step(-1);
+  $('start').onchange = (event) => setStart(Number(event.target.value));
+
+  document.addEventListener('pointerdown', (event) => {
+    if (!event.target.closest('#context')) closeContext();
+    document.querySelectorAll('.menu[open]').forEach((menu) => {
+      if (!menu.contains(event.target)) menu.open = false;
+    });
+  });
+  document.querySelectorAll('.menu button').forEach((button) => {
+    button.addEventListener('click', () => {
+      const menu = button.closest('.menu');
+      if (button === document.activeElement) menu.querySelector('summary').focus();
+      menu.open = false;
+    });
+  });
+  document.addEventListener('keydown', (event) => {
+    if ($('confirm').open || event.isComposing) return;
+    if (event.key === 'Escape') {
+      if (!$('context').hidden) { closeContext(true); return; }
+      const menu = document.querySelector('.menu[open]');
+      if (menu) { menu.open = false; menu.querySelector('summary').focus(); return; }
+      if (audition) toggleAudition(false);
+    }
+    if ((event.metaKey || event.ctrlKey) && !audition) {
+      const key = event.key.toLowerCase();
+      if (key === 's') { event.preventDefault(); snapshot(); }
+      if ((key === 'z' || key === 'y') && !['INPUT', 'SELECT'].includes(document.activeElement.tagName)) {
+        event.preventDefault();
+        historyMove(key === 'y' || event.shiftKey ? 'redo' : 'undo');
+      }
+    }
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && audition && phase === 'playing') pausePlayback(true);
+  });
+
+  renderEdit();
+  notify(saved ? '可从「文件」重开已保存的演示快照。' : '已选择第 2 小节，可添加单小节重复。');
+</script>
+</body>
+</html>

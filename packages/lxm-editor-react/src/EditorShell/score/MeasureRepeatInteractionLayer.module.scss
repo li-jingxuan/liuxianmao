@@ -1,0 +1,14 @@
+.target {
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    stroke: #6e9bd8;
+  }
+
+  &[aria-pressed="true"] {
+    stroke: #2457d7;
+    fill: #2457d7;
+    fill-opacity: 0.08;
+  }
+}

@@ -68,6 +68,8 @@ export const LXM_NATURAL_HARMONIC_TEXT_FONT_SIZE = Math.max(
 export const LXM_FRET_TEXT_HALO_WIDTH = 0.4;
 export const LXM_FRET_TEXT_BASELINE_OFFSET_Y = 2.5;
 export const LXM_NUMBERED_TEXT_FONT_SIZE = 11;
+/** 连音数字是简谱的辅助标注，字号比正文小一档。 */
+export const LXM_NUMBERED_TUPLET_FONT_SIZE = 9;
 /** 普通简谱与空位共用窄焦点框；特殊宽内容仅按实际边界扩展。 */
 export const LXM_NUMBERED_FOCUS_WIDTH = 18;
 /** 以验收图普通四分休止蓝框为基准，不随减时线或八度点撑高。 */
@@ -185,7 +187,6 @@ export const LXM_DURATION_STEM_NOTE_GAP = 6;
 /** 显式技巧箭头尺寸；不依赖 SVG marker 的路径切线自动旋转。 */
 export const LXM_TECHNIQUE_ARROW_WIDTH = 4.5;
 export const LXM_TECHNIQUE_ARROW_HEIGHT = 4.5;
-export const LXM_TECHNIQUE_ARROW_OFFSET_Y = 5;
 
 /** 基础时值的主梁/符干终点到第六弦最小距离；复杂图形按实际净空扩展。 */
 export const LXM_DURATION_MIN_BEAM_OFFSET_Y = 22;
@@ -266,7 +267,9 @@ export const LXM_TUPLET_FONT_SIZE = 8;
 export const LXM_TUPLET_CLEARANCE = 1;
 /** 括号两端短竖线收为 3，同行对齐时随完整括号一起平移。 */
 export const LXM_TUPLET_HOOK = 3;
-export const LXM_TUPLET_GAP = 6;
+/** TAB 连音数字墨迹外留白与单侧横线的可读下限。 */
+export const LXM_TUPLET_LABEL_PADDING = 3;
+export const LXM_TUPLET_BRACKET_WING_MIN_WIDTH = 6;
 export const LXM_TUPLET_STROKE = 1;
 export const LXM_TUPLET_BOTTOM_PADDING = 12;
 

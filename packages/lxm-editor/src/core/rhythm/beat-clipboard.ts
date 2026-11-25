@@ -1,6 +1,7 @@
 import { copyNumberedVoices } from "../numbered/numbered-copy";
 import {
-  createNumberedRhythmContext,
+  createNumberedTrackRhythmContext,
+  findInvalidNumberedTrack,
   validateNumberedVoice,
 } from "../numbered/numbered-rhythm";
 import { validateNumberedMarks } from "../numbered/numbered-marks";
@@ -17,7 +18,6 @@ import type { ILXMIdFactory } from "../id-factory";
 import type { ILXMDocument, ILXMMeasure, ILXMTrack } from "../types";
 import { copyMeasureRangeTechniques } from "../techniques/copy-measure-techniques";
 import { createMeasureRhythmContext } from "./tuplet";
-import { getMeasureDurationTicks } from "./rhythm";
 import { validateTechnique } from "../techniques/technique-rules";
 import { techniqueBeatIds } from "../techniques/content-protection";
 import {
@@ -291,12 +291,15 @@ export const createBeatClipboard = (
   const layers = range.layers ?? "both";
   const startTick = beats[0]!.tick,
     endTick = startTick + totalTicks;
-  const numberedContext = createNumberedRhythmContext(m.numberedVoice);
+  const numberedContext = createNumberedTrackRhythmContext(track);
   const selectedEvents = m.numberedVoice.events.filter((e) => {
     const d = numberedContext.getEventDurationTicks(e);
     return d.ok && e.tick < endTick && e.tick + d.ticks > startTick;
   });
   const selectedIds = new Set(selectedEvents.map((e) => e.id));
+  if (layers === "both" && (startTick < (numberedContext.incomingSustainEndTickByMeasureId.get(m.id) ?? 0) ||
+      selectedEvents.some(event => numberedContext.tupletByEventId.get(event.id)?.crossBar)))
+    return { ok: false, message: "请同时复制跨小节简谱连音组涉及的两个小节，或仅复制六线谱" };
   if (layers === "both")
     content.lyrics = structuredClone(
       m.lyrics.filter((lyric) => selectedIds.has(lyric.eventId)),
@@ -505,7 +508,8 @@ export const planBeatPaste = (
   if (c.layers === "both") {
     const start = m.beats[index]!.tick,
       end = start + c.totalTicks;
-    const ncontext = createNumberedRhythmContext(m.numberedVoice);
+    const ncontext = createNumberedTrackRhythmContext(track);
+    const crossBarMember = (id: string) => !!ncontext.tupletByEventId.get(id)?.crossBar;
     const touched = m.numberedVoice.events.filter((e) => {
       const d = ncontext.getEventDurationTicks(e);
       return (
@@ -515,6 +519,10 @@ export const planBeatPaste = (
           : e.tick < end && e.tick + d.ticks > start)
       );
     });
+    if (start < (ncontext.incomingSustainEndTickByMeasureId.get(m.id) ?? 0) ||
+        touched.some(event => crossBarMember(event.id)) ||
+        (target.mode === "insert" && m.numberedVoice.events.some(event => event.tick >= start && crossBarMember(event.id))))
+      return reject("粘贴范围不能覆盖或移动跨小节简谱连音组，请先移除该组");
     if (
       (target.mode === "insert" && touched.length) ||
       (target.mode === "overwrite" &&
@@ -537,6 +545,7 @@ export const planBeatPaste = (
     if (
       target.mode === "insert" &&
       m.numberedVoice.tuplets.some((g) => {
+        if (g.crossBar) return false; // 实际跨线区间与起音已在上方完整保护。
         const first = m.numberedVoice.events.find(
             (e) => e.id === g.eventIds[0],
           )!,
@@ -592,11 +601,6 @@ export const planBeatPaste = (
         lyricOrder.get(a.eventId)! - lyricOrder.get(b.eventId)! ||
         a.verse - b.verse,
     );
-    const error = validateNumberedVoice(
-      candidate.numberedVoice,
-      getMeasureDurationTicks(m),
-    );
-    if (error) return reject(error);
     numberedRemoved = touched.length;
     requiresConfirmation ||= numberedRemoved > 0;
   }
@@ -605,6 +609,10 @@ export const planBeatPaste = (
     measures: track.measures.map((x) => (x.id === m.id ? candidate : x)),
     techniques: track.techniques,
   };
+  if (c.layers === "both") {
+    const error = findInvalidNumberedTrack(base);
+    if (error) return reject(error.message);
+  }
   const kept: typeof track.techniques = [];
   const effects: ILXMCommandEffect[] = [
     ...c.omissions,

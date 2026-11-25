@@ -1,12 +1,9 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import {
-  buildLayout,
-  EXAMPLE_MVP_7_2_DOCUMENT,
-  type ILXMNumberedEvent,
-} from "@liuxianmao/lxm-editor";
-import { MusicTextEditingHints } from "../components/EditorShell/score/MusicTextEditingHints";
+import { buildLayout, type ILXMNumberedEvent } from "@liuxianmao/lxm-editor";
+import { EXAMPLE_MVP_7_2_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { MusicTextEditingHints } from "../../../packages/lxm-editor-react/src/EditorShell/score/MusicTextEditingHints";
 
 describe("歌词占位框渲染", () => {
   it.each(["single", "whole", "eighths"] as const)(

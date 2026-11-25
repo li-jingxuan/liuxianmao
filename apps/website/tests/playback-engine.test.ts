@@ -4,11 +4,13 @@ import type {
   PlaybackSound,
 } from "@liuxianmao/lxm-editor";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ScoreAudioEngine } from "../components/EditorShell/playback/engine";
+import { ScoreAudioEngine } from "../../../packages/lxm-editor-react/src/EditorShell/playback/engine";
+import { createScoreMetronomeGrid } from "../../../packages/lxm-editor-react/src/EditorShell/playback/metronome-grid";
+import { PracticeMetronome } from "../../../packages/lxm-editor-react/src/EditorShell/playback/practice-metronome";
 import {
   GuitarSampleBank,
   guitarSampleKey,
-} from "../components/EditorShell/playback/samples";
+} from "../../../packages/lxm-editor-react/src/EditorShell/playback/samples";
 
 const envelope: PlaybackEnvelope = {
   gain: 0.85,
@@ -55,6 +57,7 @@ const param = () => ({
   value: 1,
   setValueAtTime: vi.fn<(value: number, time: number) => void>(),
   linearRampToValueAtTime: vi.fn<(value: number, time: number) => void>(),
+  exponentialRampToValueAtTime: vi.fn<(value: number, time: number) => void>(),
   setTargetAtTime:
     vi.fn<(value: number, time: number, timeConstant: number) => void>(),
 });
@@ -100,6 +103,7 @@ function audioContext(sampleLength = 2) {
     ),
     createBiquadFilter: vi.fn(filter),
     createBufferSource: vi.fn(source),
+    createOscillator: vi.fn(() => ({ ...source(), frequency: param(), type: "" })),
     createDynamicsCompressor: vi.fn(compressor),
     createGain: vi.fn(gain),
   };
@@ -224,6 +228,47 @@ describe("steel guitar samples", () => {
 });
 
 describe("Web Audio playback", () => {
+  it("anchors audition clicks to the guitar clock and isolates click failure", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("fetch", fetchAudio);
+    const { context, webAudio } = audioContext();
+    const engine = new ScoreAudioEngine(() => webAudio);
+    const score = plan(note({ endTick: 1920 }));
+    score.visits = [{ measureId: "measure", measureIndex: 0, visitIndex: 0, startTick: 0, endTick: 1920, jumped: false }];
+    const grid = createScoreMetronomeGrid(score, [{ timeSignature: { numerator: 4, denominator: 8 } }]);
+    const fail = engine.onClickFailed = vi.fn();
+    await engine.unlock();
+    await engine.prepare(score, new AbortController().signal);
+    engine.start(score, 120, 0, { grid, enabled: true, accent: true, skipOnset: false });
+    const first = context.createOscillator.mock.results[0]!.value;
+    expect(first.start).toHaveBeenCalledWith(0.025);
+    expect(first.frequency.value).toBe(1300);
+    expect(context.createBufferSource.mock.results[0]!.value.start).toHaveBeenCalledWith(0.025, 0);
+    expect(engine.hasStarted()).toBe(false);
+
+    context.currentTime = 0.16;
+    vi.advanceTimersByTime(25);
+    const second = context.createOscillator.mock.results[1]!.value;
+    expect(second.start).toHaveBeenCalledWith(0.275);
+    expect(second.frequency.value).toBe(920);
+    engine.setClickEnabled(false);
+    expect(second.disconnect).toHaveBeenCalledOnce();
+    expect(context.createBufferSource.mock.results[0]!.value.stop).toHaveBeenCalledTimes(1);
+
+    const tick = engine.currentTick();
+    engine.changeTempo(score, 60);
+    expect(engine.currentTick()).toBeCloseTo(tick);
+    expect(engine.setClickEnabled(true)).toBe(480);
+    context.currentTime = 0.32;
+    context.createOscillator.mockImplementationOnce(() => { throw new Error("click unavailable"); });
+    vi.advanceTimersByTime(25);
+    expect(fail).toHaveBeenCalledOnce();
+    const failedTick = engine.currentTick();
+    context.currentTime = 0.42;
+    expect(engine.currentTick()).toBeGreaterThan(failedTick);
+    engine.dispose();
+  });
+
   it("unlocks on the gesture, advances the lookahead against the audio clock, and cancels queued voices", async () => {
     vi.useFakeTimers();
     vi.stubGlobal("fetch", fetchAudio);
@@ -470,5 +515,53 @@ describe("Web Audio playback", () => {
     await engine.prepare(score, new AbortController().signal);
     expect(context.decodeAudioData).toHaveBeenCalledTimes(2);
     engine.dispose();
+  });
+});
+
+describe("independent practice metronome", () => {
+  it("cycles 6/8 on eighth notes, accents only one, and preserves sequence when muted", async () => {
+    vi.useFakeTimers();
+    const { context, webAudio } = audioContext();
+    let now = 0;
+    const practice = new PracticeMetronome(() => webAudio, () => now);
+    const advanceTo = (time: number) => {
+      now = time;
+      context.currentTime = time / 1000;
+      vi.advanceTimersByTime(20);
+    };
+    practice.initialize({ bpm: 120, meter: { numerator: 6, denominator: 8 } });
+    await practice.start();
+    expect(context.createOscillator.mock.results[0]!.value.start).toHaveBeenCalledWith(0.025);
+    advanceTo(25);
+    expect(practice.snapshot().beat).toBe(1);
+    for (const time of [250, 500, 750, 1000, 1250, 1500]) advanceTo(time);
+    expect(context.createOscillator.mock.results.map(({ value }) => value.frequency.value))
+      .toEqual([1300, 920, 920, 920, 920, 920, 1300]);
+    await practice.setMute(true);
+    advanceTo(1775);
+    expect(practice.snapshot()).toMatchObject({ beat: 2, mute: true, phase: "running" });
+    expect(context.createOscillator).toHaveBeenCalledTimes(7);
+    practice.stop();
+    expect(practice.snapshot()).toMatchObject({ beat: null, phase: "stopped" });
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("leaves an unavailable audio device stopped and an unsuccessful unmute running", async () => {
+    vi.useFakeTimers();
+    const { context, webAudio } = audioContext();
+    context.resume.mockRejectedValue(new Error("device blocked"));
+    let now = 0;
+    const practice = new PracticeMetronome(() => webAudio, () => now);
+    practice.initialize({ bpm: 120, meter: { numerator: 4, denominator: 4 } });
+    await practice.start();
+    expect(practice.snapshot()).toMatchObject({ phase: "stopped", beat: null, message: expect.stringContaining("声音不可用") });
+    await practice.setMute(true);
+    await practice.start();
+    expect(practice.snapshot()).toMatchObject({ phase: "running", beat: 1, mute: true });
+    await practice.setMute(false);
+    now = 520;
+    vi.advanceTimersByTime(20);
+    expect(practice.snapshot()).toMatchObject({ phase: "running", beat: 2, mute: true, message: expect.stringContaining("已保持静音") });
+    practice.stop();
   });
 });

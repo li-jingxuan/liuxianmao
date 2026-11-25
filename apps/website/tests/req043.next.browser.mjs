@@ -139,6 +139,8 @@ async function triggerFocus() {
 async function saveReload(filename) {
   const committed = (await state()).document;
   const download = await downloadScoreJson(page), path = new URL(filename, output).pathname;
+  // 保留产品下载的扩展名，落盘后再核对曲谱内容。
+  assert.match(download.suggestedFilename(), /\.lxm$/);
   await download.saveAs(path);
   const serialized = await readFile(path, "utf8");
   assert.deepEqual(JSON.parse(serialized), committed);
@@ -466,12 +468,8 @@ try {
 
   await check("真实导出文件保存重载后 UI 点击空位补音继承十六分", async () => {
     await load(); await numbered(); await open(); await apply();
-    const committed = (await state()).document;
-    const download = await downloadScoreJson(page), path = new URL("saved-score.lxm.json", output).pathname;
-    await download.saveAs(path);
-    const serialized = await readFile(path, "utf8"), parsed = JSON.parse(serialized);
-    assert.deepEqual(parsed, committed);
-    await load(serialized); assert.deepEqual((await state()).document, committed);
+    const filename = "saved-score.lxm";
+    const committed = await saveReload(filename);
     await gap(480);
     const input = page.getByRole("textbox", { name: "简谱内容", exact: true }).filter({ visible: true }).first();
     await input.waitFor(); await input.fill("7");
@@ -488,7 +486,7 @@ try {
     assert.deepEqual(m.lyrics, measureOf(committed).lyrics);
     assert.deepEqual(m.chordSymbols, measureOf(committed).chordSymbols);
     await shot("10-export-reload-gap-filled");
-    return { saved: "saved-score.lxm.json", filledTick: 480, rhythm: filled.rhythm };
+    return { saved: filename, filledTick: 480, rhythm: filled.rhythm };
   });
 
   await check("旧显式二分偏好不覆盖保存重载后的简谱十六分空位，其余空位不变", async () => {
@@ -496,7 +494,7 @@ try {
     await state("numberedRhythm", rhythm("half"));
     assert.equal((await state("inputState")).numberedInputRhythmExplicit, true);
     await numbered(); await open(); await apply();
-    const committed = await saveReload("saved-numbered-explicit-rhythm.lxm.json");
+    const committed = await saveReload("saved-numbered-explicit-rhythm.lxm");
     // File import intentionally resets session preferences: restore the user's old
     // explicit preference before clicking the saved score's real input slot.
     await state("numberedRhythm", rhythm("half"));
@@ -522,7 +520,7 @@ try {
       m.chordSymbols = []; m.lyrics = [];
       m.numberedVoice.events = [event("conflicting-numbered", fillTick, "quarter", "6")];
       await load(d); await tab("b0"); await open(templateId); await apply();
-      const committed = await saveReload(`saved-tab-${templateId}.lxm.json`), before = measureOf(committed);
+      const committed = await saveReload(`saved-tab-${templateId}.lxm`), before = measureOf(committed);
       const empty = before.beats.find(b => b.tick === fillTick);
       assert.equal(empty.notes.length, 0); assert.deepEqual(empty.rhythm, rhythm(expectedBase));
       assert.equal(empty.preserveInputRhythm, true);

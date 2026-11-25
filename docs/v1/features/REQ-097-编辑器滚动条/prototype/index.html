@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>REQ-097 编辑器滚动条交互稿</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #1e293b;
+      --secondary: #586779;
+      --border: #e1e7ef;
+      --workspace: #f4f6fa;
+      --blue: #285be0;
+      --gutter: 12px;
+      font: 14px/1.45 -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { min-width: 1440px; margin: 0; color: var(--ink); background: white; }
+    button { font: inherit; color: inherit; cursor: pointer; }
+    button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
+    .demo { height: 100dvh; min-height: 460px; display: grid; grid-template-rows: 58px 42px 44px minmax(0, 1fr) 29px; }
+    .review { display: flex; align-items: center; gap: 14px; padding: 0 22px; color: #e2e9f3; background: #202c40; }
+    .review strong { color: white; font-size: 14px; }
+    .review p { margin: 0; font-size: 12px; }
+    .review-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+    .review button { color: #e2e9f3; border: 1px solid #4d5b70; background: transparent; padding: 5px 10px; border-radius: 5px; font-size: 12px; }
+    .review button[aria-pressed="true"] { background: #f1f5fa; color: #23334d; border-color: #f1f5fa; }
+    .review button:focus-visible { outline-color: #aecdff; }
+    .review .mode { display: flex; gap: 4px; margin-right: 9px; }
+    .header, .toolbar { display: flex; align-items: center; gap: 18px; border-bottom: 1px solid var(--border); padding: 0 16px; white-space: nowrap; }
+    .header { position: relative; }
+    .brand { color: var(--blue); font-weight: 700; border-right: 1px solid var(--border); padding-right: 12px; }
+    .title { position: absolute; left: 50%; transform: translateX(-50%); font-weight: 650; }
+    .file-status { margin-left: auto; color: var(--secondary); font-size: 12px; }
+    .toolbar { gap: 0; color: #64748b; }
+    .toolbar-group { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 0 14px; height: 30px; border-right: 1px solid var(--border); }
+    .toolbar-group:first-child { padding-left: 3px; }
+    .toolbar-group span { min-width: 15px; text-align: center; }
+    .toolbar-tail { margin-left: auto; display: flex; align-items: center; gap: 16px; }
+    .sidebar-toggle { padding: 4px 8px; border: 1px solid #dbe7fe; background: #eff5ff; color: var(--blue); border-radius: 4px; }
+    .workspace { min-height: 0; display: grid; grid-template-columns: 40px minmax(0, 1fr) 352px; background: var(--workspace); }
+    .workspace[data-sidebar="closed"] { grid-template-columns: 40px minmax(0, 1fr); }
+    .history-rail { display: grid; justify-content: center; align-content: start; padding-top: 12px; color: #64748b; font-size: 19px; background: white; border-right: 1px solid var(--border); }
+    .score-area { position: relative; min-width: 0; min-height: 0; display: grid; }
+    .score-scroll { overflow: auto; padding: 24px 24px 54px; min-width: 0; min-height: 0; overscroll-behavior: contain; }
+    .paper { width: var(--paper-width, 780px); margin: 0 auto; padding-block: 22px; background: white; box-shadow: 0 3px 22px rgb(32 52 86 / 5%); }
+    .paper img { display: block; width: 100%; height: auto; }
+    .paper img + img { padding-top: 24px; }
+    .zoom { position: absolute; right: 16px; bottom: 16px; display: flex; align-items: center; padding: 2px; border: 1px solid var(--border); border-radius: 6px; background: white; box-shadow: 0 2px 8px rgb(15 23 42 / 10%); }
+    .design .zoom { right: calc(16px + var(--gutter)); }
+    .score-area[data-horizontal="yes"] .zoom { bottom: calc(16px + var(--gutter)); }
+    .zoom button { width: 28px; height: 28px; padding: 0; border: 0; border-radius: 4px; background: white; }
+    .zoom button:hover { background: #eff4fb; }
+    .zoom button:disabled { color: #8691a0; cursor: default; }
+    .zoom output { min-width: 54px; text-align: center; font-size: 12px; font-variant-numeric: tabular-nums; }
+    .panel { min-width: 0; min-height: 0; display: grid; grid-template-rows: 39px auto minmax(0, 1fr) 40px; background: white; border-left: 1px solid var(--border); }
+    [hidden] { display: none !important; }
+    .panel-tabs { display: flex; align-items: center; justify-content: space-between; padding: 0 13px; border-bottom: 1px solid var(--border); color: var(--secondary); font-size: 13px; }
+    .panel-tabs strong { height: 100%; display: grid; place-items: center; color: var(--blue); border-bottom: 2px solid var(--blue); padding: 0 12px; }
+    .panel-context { padding: 13px 16px 12px; background: #f7f9fc; border-bottom: 1px solid var(--border); }
+    .panel-context strong { font-size: 13px; }
+    .panel-context p { margin: 5px 0 0; color: var(--secondary); font-size: 12px; }
+    .panel-scroll { overflow-y: auto; overflow-x: hidden; padding: 14px 16px 18px; font-size: 13px; scrollbar-width: thin; scrollbar-color: #ccd5e3 transparent; }
+    .segment { display: grid; grid-template-columns: 1fr 1fr; background: #edf1f7; border-radius: 5px; padding: 3px; text-align: center; }
+    .segment span { padding: 4px; }
+    .segment span:first-child { border-radius: 3px; background: white; box-shadow: 0 1px 3px #18284218; }
+    .panel-scroll h2 { font-size: 14px; margin: 15px 0 9px; }
+    .panel-scroll h3 { font-size: 12px; margin: 10px 0 6px; }
+    .panel-scroll hr { margin: 14px -16px 0; border: 0; border-top: 1px solid var(--border); }
+    .ratio, .beats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+    .ratio span { display: grid; height: 31px; place-items: center; border: 1px solid #e7eaf0; border-radius: 5px; background: #f7f8fa; color: #7d8898; }
+    .hint { color: var(--secondary); font-size: 12px; }
+    .beats { grid-template-columns: 1fr 1fr; }
+    .beats div { border: 1px solid var(--border); border-radius: 5px; padding: 4px 7px; color: var(--secondary); font-size: 11px; }
+    .beats div[data-selected] { border-color: #4e7af1; background: #eff5ff; color: #285be0; }
+    .beats span { display: block; height: 18px; text-align: center; font: 17px/1 "Apple Symbols", serif; color: var(--ink); }
+    .beats div[data-selected] span { color: #285be0; }
+    .templates { margin: 0; padding: 0; list-style: none; }
+    .templates li { display: flex; justify-content: space-between; align-items: center; min-height: 33px; gap: 6px; border-top: 1px solid var(--border); font-size: 11px; color: var(--secondary); }
+    .templates span { color: var(--ink); font: 17px/1 "Apple Symbols", serif; letter-spacing: 3px; }
+    .panel-footer, .status { display: flex; align-items: center; padding: 0 16px; border-top: 1px solid var(--border); color: var(--secondary); font-size: 12px; background: white; }
+    .status { padding-inline: 14px; }
+    .design {
+      --thumb: rgb(66 84 110 / 18%);
+      --thumb-hover: #98a4b4;
+      --thumb-focus: #7e899c;
+      --thumb-active: #65758c;
+      --thumb-inset: 5px;
+    }
+    .design[data-mode="previous"] {
+      --thumb-inset: 4px;
+    }
+    .scroll-area { overflow-anchor: none; }
+    .design .scroll-area { scrollbar-gutter: stable; }
+    @media (forced-colors: none) {
+      .design .scroll-area { scrollbar-width: thin; scrollbar-color: var(--thumb) transparent; }
+      .design .scroll-area:focus-visible { scrollbar-color: var(--thumb-focus) transparent; }
+      @supports selector(::-webkit-scrollbar) {
+        .design .scroll-area, .design .scroll-area:focus-visible { scrollbar-width: auto; scrollbar-color: auto; }
+        .design .scroll-area::-webkit-scrollbar { width: var(--gutter); height: var(--gutter); }
+        .design .scroll-area::-webkit-scrollbar-track, .design .scroll-area::-webkit-scrollbar-corner { background: transparent; }
+        .design .scroll-area::-webkit-scrollbar-thumb { border: var(--thumb-inset) solid transparent; border-radius: 99px; background: var(--thumb) padding-box; min-width: 32px; min-height: 32px; }
+        .design .scroll-area::-webkit-scrollbar-thumb:hover { background-color: var(--thumb-hover); }
+        .design .scroll-area:focus-visible::-webkit-scrollbar-thumb { background-color: var(--thumb-focus); }
+        .design .scroll-area::-webkit-scrollbar-thumb:active { background-color: var(--thumb-active); }
+      }
+    }
+    @media (prefers-contrast: more) {
+      .design, .design[data-mode="previous"] { --thumb: #7e899c; --thumb-hover: #65758c; --thumb-focus: #65758c; --thumb-inset: 3px; }
+    }
+    @media (forced-colors: active) {
+      .design .scroll-area { scrollbar-width: auto; scrollbar-color: auto; }
+    }
+  </style>
+</head>
+<body>
+  <main class="demo design" id="demo" data-mode="proposed">
+    <header class="review">
+      <strong>编辑器滚动条交互稿</strong>
+      <p>用滚轮分别滚动两栏，也可直接拖动滚动条。点「＋」查看谱面的横向滚动。</p>
+      <div class="review-actions">
+        <div class="mode" role="group" aria-label="滚动条样式">
+          <button type="button" id="current" aria-pressed="false">编辑器现状</button>
+          <button type="button" id="previous" aria-pressed="false">4 px</button>
+          <button type="button" id="proposed" aria-pressed="true">2 px</button>
+        </div>
+        <button type="button" id="short" aria-pressed="false">侧栏内容不足一屏</button>
+        <button type="button" id="reset">重置视图</button>
+      </div>
+    </header>
+    <div class="header">
+      <span class="brand">六线猫</span><span>文件</span><span>编辑</span><span>视图</span><span>帮助</span>
+      <span class="title">理想</span><span class="file-status">示例曲谱</span><span>导出</span>
+    </div>
+    <div class="toolbar">
+      <div class="toolbar-group" aria-label="撤销与重做"><span>↶</span><span>↷</span></div>
+      <div class="toolbar-group" aria-label="时值"><span>○</span><span>♩</span><span>♩</span><span>♪</span><span>♫</span><span>♬</span></div>
+      <div class="toolbar-group" aria-label="附点与休止"><span>·</span><span>··</span><span>—</span></div>
+      <div class="toolbar-group" aria-label="技巧"><span>H</span><span>P</span><span>S</span><span>⌢</span><span>↑</span><span>↓</span><span>♫</span></div>
+      <div class="toolbar-group" aria-label="小节与和弦"><span>♬</span><span>Ⅱ</span><span>▦</span></div>
+      <div class="toolbar-tail"><span>试听</span><span>节拍器</span><button class="sidebar-toggle" type="button" id="sidebar-toggle" aria-controls="panel" aria-expanded="true">编辑面板</button></div>
+    </div>
+    <div class="workspace" id="workspace" data-sidebar="open">
+      <div class="history-rail" aria-label="操作历史">↶</div>
+      <section class="score-area" aria-label="主谱面">
+        <div class="scroll-area score-scroll" role="region" tabindex="0" aria-label="谱面滚动区" id="score">
+          <div class="paper"><img src="score.png" alt="含六线谱、简谱、歌词和和弦的示例曲谱"><img src="score.png" alt=""></div>
+        </div>
+        <div class="zoom" role="group" aria-label="谱面缩放">
+          <button type="button" id="smaller" aria-label="缩小谱面">−</button><output id="zoom-value">100%</output><button type="button" id="larger" aria-label="放大谱面">＋</button>
+        </div>
+      </section>
+      <aside class="panel" id="panel" aria-label="编辑器属性">
+        <div class="panel-tabs"><strong>选区</strong><span>简谱与歌词</span><span>和弦</span><span>歌曲</span></div>
+        <header class="panel-context"><strong>简谱音符</strong><p>第 43 小节 · 第 2 拍 + 3/4</p></header>
+        <div class="scroll-area panel-scroll" role="region" tabindex="0" aria-label="选区工具滚动区" id="panel-scroll">
+          <div class="segment"><span>音符</span><span>小节</span></div>
+          <h2>连音</h2>
+          <div class="ratio"><span>└ 2 ┘</span><span>└ 3 ┘</span><span>└ 4 ┘</span><span>└ 5:4 ┘</span><span>└ 5:3 ┘</span><span>└ 6 ┘</span></div>
+          <p class="hint">同小节内，连续拍点数须与连音数字一致。</p>
+          <div id="rhythm">
+            <hr>
+            <h2>常见节奏型</h2>
+            <h3>拍内模板</h3>
+            <div class="beats">
+              <div>四分音符<span>♩</span></div><div>两个八分<span>♫</span></div>
+              <div>前八后十六<span>♪ ♬</span></div><div>前十六后八<span>♬ ♪</span></div>
+              <div data-selected>四个十六分<span>♬ ♬</span></div><div>附点八分＋十六<span>♪· ♬</span></div>
+              <div>小切分<span>♬ ♪ ♬</span></div><div>附点八分休止<span>— ♪</span></div>
+            </div>
+            <h3>整小节模板</h3>
+            <ul class="templates" id="templates"></ul>
+          </div>
+        </div>
+        <footer class="panel-footer">快捷操作直接作用于选区，可使用撤销。</footer>
+      </aside>
+    </div>
+    <footer class="status">简谱音符 · 第 43 小节 · 第 2 拍 + 3/4</footer>
+  </main>
+  <script>
+    const byId = (id) => document.getElementById(id);
+    const demo = byId('demo');
+    const workspace = byId('workspace');
+    const score = byId('score');
+    const panelScroll = byId('panel-scroll');
+    const scaleValues = [1, 1.25, 1.5, 2];
+    let scaleIndex = 0;
+
+    const names = ['交替分解', '前后十六交替', '四分与分解', '均匀八分', '四拍扫弦', '分解和弦', '前八后十六', '后拍重音', '交替八分', '附点节奏', '低音加扫弦', '分解与扫弦', '均匀十六分', '四分休止'];
+    const rhythms = ['♪ ♫ ♪ ♫', '♬ ♪ ♬ ♪', '♩ ♫ ♩ ♫', '♫ ♫ ♫ ♫'];
+    names.forEach((name, index) => {
+      const item = document.createElement('li');
+      const notes = document.createElement('span');
+      item.textContent = name;
+      notes.textContent = rhythms[index % rhythms.length];
+      item.append(notes);
+      byId('templates').append(item);
+    });
+
+    function updateOverflow() {
+      score.parentElement.dataset.horizontal = score.scrollWidth > score.clientWidth + 1 ? 'yes' : 'no';
+    }
+
+    function changeScale(index) {
+      const anchor = score.scrollTop / scaleValues[scaleIndex];
+      scaleIndex = Math.min(scaleValues.length - 1, Math.max(0, index));
+      const scale = scaleValues[scaleIndex];
+      score.style.setProperty('--paper-width', `${780 * scale}px`);
+      score.scrollTop = anchor * scale;
+      byId('zoom-value').value = `${scale * 100}%`;
+      byId('smaller').disabled = scaleIndex === 0;
+      byId('larger').disabled = scaleIndex === scaleValues.length - 1;
+      updateOverflow();
+    }
+
+    const modes = ['current', 'previous', 'proposed'];
+
+    function setDesign(mode) {
+      // 原生滚动条的宽度可能改变侧栏换行。对稿切换后恢复两个区域的位置，便于对比同一段内容。
+      const { scrollTop, scrollLeft } = score;
+      const panelTop = panelScroll.scrollTop;
+      demo.classList.toggle('design', mode !== 'current');
+      demo.dataset.mode = mode;
+      for (const id of modes) byId(id).setAttribute('aria-pressed', String(id === mode));
+      updateOverflow();
+      score.scrollTo(scrollLeft, scrollTop);
+      panelScroll.scrollTop = panelTop;
+    }
+
+    function setShort(short) {
+      byId('rhythm').hidden = short;
+      byId('short').setAttribute('aria-pressed', String(short));
+    }
+
+    function setPanel(open) {
+      byId('panel').hidden = !open;
+      byId('sidebar-toggle').setAttribute('aria-expanded', String(open));
+      workspace.dataset.sidebar = open ? 'open' : 'closed';
+      updateOverflow();
+    }
+
+    for (const id of modes) byId(id).onclick = () => setDesign(id);
+    byId('short').onclick = () => setShort(!byId('rhythm').hidden);
+    byId('sidebar-toggle').onclick = () => setPanel(byId('panel').hidden);
+    byId('smaller').onclick = () => changeScale(scaleIndex - 1);
+    byId('larger').onclick = () => changeScale(scaleIndex + 1);
+    byId('reset').onclick = () => {
+      setDesign('proposed');
+      setShort(false);
+      setPanel(true);
+      changeScale(0);
+      score.scrollTo(0, 0);
+      panelScroll.scrollTo(0, 0);
+    };
+    changeScale(0);
+    new ResizeObserver(updateOverflow).observe(score);
+  </script>
+</body>
+</html>

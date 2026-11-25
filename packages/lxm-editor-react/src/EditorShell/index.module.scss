@@ -1,0 +1,166 @@
+@use "shared/editor-scrollbar";
+
+// 工作区只管理列轨道和宿主变量；跨模块子栏通过稳定 data 标记参与布局。
+.editor {
+  --history-rail-width: 40px;
+  --history-panel-width: 272px;
+  --sidebar-width: 352px;
+  --score-view-gutter: 24px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
+}
+
+.editorWorkspace {
+  --history-column-width: 0px;
+  --sidebar-column-width: var(--sidebar-width);
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: var(--history-rail-width) var(--history-column-width) minmax(0, 1fr) var(--sidebar-column-width);
+  grid-template-rows: minmax(0, 1fr);
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  background: var(--panel-muted);
+  &[data-sidebar-collapsed="true"] { --sidebar-column-width: 0px; }
+  &[data-layout="wide"][data-history-open="true"] { --history-column-width: var(--history-panel-width); }
+  &[data-layout="compact"],
+  &[data-layout="narrow"] { --sidebar-column-width: 0px; }
+  // 试听用同一右栏列展示到访顺序，编辑属性仍按既有模式暂停显示。
+  &[data-jump-audition-open="true"] { --sidebar-column-width: var(--sidebar-width); }
+  &[data-layout="narrow"][data-jump-audition-open="true"] {
+    --sidebar-column-width: 0px;
+    grid-template-rows: minmax(0, 1fr) minmax(0, min(38%, 220px));
+
+    > [data-jump-audition] { grid-area: 2 / 3; }
+  }
+  > [data-score-viewport] { grid-area: 1 / 3; }
+  > [data-music-text-sidebar] { grid-area: 1 / 4; }
+  > .historyRail,
+  > [data-history-rail] {
+    grid-area: 1 / 1;
+    position: relative;
+    z-index: 25;
+    width: var(--history-rail-width);
+    min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+  }
+  > .historyPanel,
+  > [data-history-panel] {
+    position: absolute;
+    z-index: 30;
+    inset: 0 auto 0 var(--history-rail-width);
+    width: min(var(--history-panel-width), calc(100% - var(--history-rail-width)));
+    min-width: 0;
+    min-height: 0;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    box-shadow: 8px 0 24px rgb(15 23 42 / 10%);
+  }
+  &[data-layout="wide"] > .historyPanel,
+  &[data-layout="wide"] > [data-history-panel] {
+    grid-area: 1 / 2;
+    position: relative;
+    inset: auto;
+    width: var(--history-panel-width);
+    box-shadow: none;
+  }
+  &[data-history-open="false"] > .historyPanel,
+  &[data-history-open="false"] > [data-history-panel] { display: none; }
+  &[data-layout="compact"] > [data-music-text-sidebar],
+  &[data-layout="narrow"] > [data-music-text-sidebar] {
+    grid-area: auto;
+    position: absolute;
+    z-index: 30;
+    inset: 0 0 0 auto;
+    width: min(var(--sidebar-width), calc(100% - var(--history-rail-width)));
+    max-width: calc(100% - var(--history-rail-width));
+    box-shadow: -8px 0 24px rgb(15 23 42 / 12%);
+  }
+}
+
+.historyRail,
+.historyPanel { min-width: 0; min-height: 0; }
+
+// 仅控件自身接收事件，覆盖层位于谱面列且低于抽屉遮罩（20）。
+.scoreZoom {
+  grid-area: 1 / 3;
+  align-self: end;
+  justify-self: end;
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  margin: 16px;
+  // 在原有边距外留出竖槽净空。有横向溢出时再上移，避免挡住底部滚动条。
+  margin-inline-end: 16px + editor-scrollbar.$gutter;
+  padding: 2px;
+  pointer-events: auto;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgb(15 23 42 / 10%);
+
+  [data-score-viewport][data-score-overflows-x] ~ & {
+    margin-block-end: 16px + editor-scrollbar.$gutter;
+  }
+
+  .scoreZoomStep,
+  .scoreZoomValue {
+    height: 28px;
+    padding: 0;
+    font-size: 12px;
+  }
+  .scoreZoomStep { width: 26px; }
+  .scoreZoomValue {
+    width: 60px;
+    gap: 4px;
+    font-variant-numeric: tabular-nums;
+    :global(.anticon) { font-size: 10px; }
+  }
+}
+
+.workspaceBackdrop,
+.drawerMask,
+.editorWorkspace > [data-drawer-mask] {
+  position: absolute;
+  z-index: 20;
+  inset: 0 0 0 var(--history-rail-width);
+  padding: 0;
+  border: 0;
+  background: rgb(15 23 42 / 22%);
+}
+
+@media print {
+  .editorWorkspace {
+    height: auto;
+    overflow: visible;
+  }
+  .editorControls,
+  .editorWorkspace {
+    display: none !important;
+  }
+  .editor {
+    display: block;
+    height: auto;
+    min-width: 0;
+  }
+}
+.emptyWorkspace {
+  display: grid;
+  max-width: 100vw;
+  align-content: center;
+  justify-items: center;
+  flex: 1;
+  gap: 12px;
+  padding: 16px;
+  text-align: center;
+
+  > div { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+}

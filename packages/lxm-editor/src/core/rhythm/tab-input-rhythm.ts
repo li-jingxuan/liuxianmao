@@ -1,4 +1,5 @@
 import { techniqueBeatIds } from "../techniques/content-protection";
+import { createNumberedMeasureRhythmContext, createNumberedRhythmContext } from "../numbered/numbered-rhythm";
 import { calculateRhythmTicks, createRestRhythmsForTicks } from "./rhythm";
 import type { ILXMBeat, ILXMMeasure, ILXMRhythm, ILXMTrack } from "../types";
 
@@ -8,7 +9,10 @@ const planTabInputRhythm = (track: ILXMTrack, measure: ILXMMeasure, beatId: stri
   const beat = measure.beats[index];
   if (!beat || beat.preserveInputRhythm) return;
   const event = measure.numberedVoice.events.find((item) => item.tick === beat.tick && item.kind !== "gap");
-  if (!event || measure.numberedVoice.tuplets.some((group) => group.eventIds.includes(event.id))) return;
+  if (!event) return;
+  const measureIndex = track.measures.findIndex(candidate => candidate.id === measure.id);
+  const numbered = measureIndex < 0 ? createNumberedRhythmContext(measure.numberedVoice) : createNumberedMeasureRhythmContext(track, measureIndex);
+  if (numbered.tupletByEventId.has(event.id)) return;
   const duration = calculateRhythmTicks(event.rhythm);
   if (!duration.ok) return;
   const endTick = beat.tick + duration.ticks;

@@ -1,0 +1,282 @@
+.form {
+  display: grid;
+  gap: 8px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #e5e7eb;
+
+  button {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  :is(button, input):focus-visible {
+    outline: 2px solid #1677ff;
+    outline-offset: 2px;
+  }
+}
+
+.heading,
+.fieldLabel,
+.uploadFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.switch {
+  width: 36px;
+  height: 22px;
+  padding: 3px;
+  border: 0;
+  border-radius: 12px;
+  background: #8190a3;
+
+  span {
+    display: block;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 2px rgb(38 54 75 / 25%);
+  }
+
+  &[aria-checked="true"] {
+    background: #1677ff;
+
+    span {
+      margin-left: auto;
+    }
+  }
+}
+
+.fieldLabel,
+.positionLabel {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.fieldLabel span {
+  color: #5b6270;
+  font-size: 12px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+.kind,
+.options,
+.actions {
+  display: flex;
+  gap: 6px;
+
+  button {
+    min-width: 0;
+    padding: 4px 8px;
+    border: 1px solid #cbd2db;
+    border-radius: 5px;
+    color: #1d2025;
+    font: inherit;
+    font-size: 12px;
+    background: #fff;
+
+    &:hover:not(:disabled) {
+      border-color: #83ade6;
+      color: #155ab9;
+    }
+  }
+}
+
+.kind {
+  gap: 3px;
+  margin-top: 4px;
+  padding: 3px;
+  border-radius: 7px;
+  background: #f1f4f8;
+
+  button {
+    flex: 1;
+    border-color: transparent;
+    background: transparent;
+  }
+
+  button[aria-pressed="true"] {
+    color: #155ab9;
+    font-weight: 600;
+    background: #fff;
+    box-shadow: 0 1px 4px rgb(32 55 84 / 15%);
+  }
+}
+
+.options {
+  button {
+    flex: 1;
+  }
+
+  button[aria-pressed="true"] {
+    border-color: #83ade6;
+    color: #155ab9;
+    background: #eaf2ff;
+  }
+}
+
+.actions .apply {
+  border-color: #a9c8f6;
+  color: #155ab9;
+  background: #eff5ff;
+}
+
+.textInput {
+  width: 100%;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid #bdc7d3;
+  border-radius: 6px;
+  color: inherit;
+  font: inherit;
+
+  &[aria-invalid="true"] {
+    border-color: #be3b36;
+  }
+
+  &:disabled {
+    background: #f5f6f8;
+  }
+}
+
+.upload {
+  display: block;
+  width: 100%;
+  min-height: 76px;
+  padding: 10px;
+  border: 1px dashed #93afd0;
+  border-radius: 6px;
+  color: #1d2025;
+  font: inherit;
+  text-align: left;
+  background: #f8faff;
+
+  &:hover:not(:disabled),
+  &[data-dragging] {
+    border-color: #1677ff;
+    background: #eaf2ff;
+  }
+
+  strong {
+    font-size: 13px;
+    font-weight: 600;
+  }
+}
+
+.emptyUpload {
+  display: grid;
+  gap: 2px;
+  justify-items: center;
+}
+
+.asset {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.assetTile {
+  display: grid;
+  flex: none;
+  width: 54px;
+  height: 54px;
+  place-items: center;
+  border: 1px solid #dce2e8;
+  border-radius: 4px;
+  background: repeating-conic-gradient(#edf0f2 0 25%, #fff 0 50%) 0 0 / 12px
+    12px;
+
+  img {
+    width: 90%;
+    height: 90%;
+    object-fit: contain;
+  }
+}
+
+.assetDetails {
+  display: grid;
+  min-width: 0;
+
+  strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  span {
+    color: #155ab9;
+    font-size: 12px;
+  }
+}
+
+.upload small,
+.uploadFoot small {
+  color: #5b6270;
+  font-size: 11px;
+}
+
+.example {
+  padding: 0;
+  border: 0;
+  color: #155ab9;
+  font: inherit;
+  font-size: 12px;
+  background: transparent;
+
+  &:hover:not(:disabled) {
+    text-decoration: underline;
+  }
+}
+
+.placement {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.range input {
+  display: block;
+  width: 100%;
+  height: 20px;
+  margin: 2px 0;
+  accent-color: #1677ff;
+}
+
+.range .options {
+  margin-top: 5px;
+
+  // 旋转预设的图标随按钮文字对齐，并沿用选中和悬停时的文字颜色。
+  button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+  }
+}
+
+.feedback,
+.error {
+  margin: 0;
+  color: #5b6270;
+  font-size: 12px;
+  line-height: 1.6;
+
+  &:empty {
+    display: none;
+  }
+}
+
+.error {
+  color: #ac302c;
+}

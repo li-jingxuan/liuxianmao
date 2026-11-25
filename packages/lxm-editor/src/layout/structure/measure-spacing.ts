@@ -1,10 +1,13 @@
-import { createNumberedRhythmContext } from "../../core/numbered/numbered-rhythm";
+import { createNumberedRhythmContext, type createNumberedTrackRhythmContext } from "../../core/numbered/numbered-rhythm";
 import { summarizeTimeGrid } from "../rhythm/time-grid-spacing";
 import { musicTextInsets } from "../music-text/music-text-layout";
 import type { ILXMMusicTextMetrics } from "../music-text/music-text-metrics";
 import { createMeasureRhythmContext } from "../../core/rhythm/tuplet";
+import { tabTupletBracketMinSpan } from "../rhythm/tuplet-layout";
 import { fretHalfWidth, type TechniqueInsets } from "../techniques/technique-spacing";
 import type { ILXMMeasure } from "../../core/types";
+import { isMeasureRepeat } from "../../core/document/measure-repeat";
+import { getMeasureDurationTicks } from "../../core/rhythm/rhythm";
 import {
   LXM_DURATION_MIN_COLUMN_WIDTH,
   LXM_DURATION_VISUAL_WEIGHT,
@@ -95,7 +98,7 @@ export const buildRhythmicColumns = (
         ),
       };
     });
-  // 数字标注是独立宽度贡献者；仅在组跨度不足时稳定扩宽成员列。
+  // 纯 TAB 的旧节奏列与双谱时间网格共用括线宽度下限；跨度只累计到末拍起点。
   const byBeat = new Map(
     columns.flatMap((column) =>
       column.tabBeatIds.map((id) => [id, column] as const),
@@ -106,7 +109,7 @@ export const buildRhythmicColumns = (
     const span = members
       .slice(0, -1)
       .reduce((sum, column) => sum + column.minWidth, 0);
-    const required = String(group.ratio.actual).length * 8 + 16;
+    const required = tabTupletBracketMinSpan(String(group.ratio.actual));
     if (span < required) {
       const extra = (required - span) / Math.max(1, members.length - 1);
       members.slice(0, -1).forEach((column) => {
@@ -126,9 +129,20 @@ export const summarizeMeasureSpacingWidth = (
   musicTextMetrics?: ILXMMusicTextMetrics,
   reserveChordTail = true,
   techniqueInsets?: ReadonlyMap<string, TechniqueInsets>,
-  numberedOptions?: { purpose?: ILXMLayoutPurpose; active?: boolean },
+  numberedOptions?: { purpose?: ILXMLayoutPurpose; active?: boolean; rhythm?: ReturnType<typeof createNumberedTrackRhythmContext> },
 ): ILXMSummarizeMeasureSpacingWidth => {
   const profile = LXM_LAYOUT_DENSITY_PROFILES[density];
+  if (isMeasureRepeat(measure)) {
+    // 用一个无音符 ID 的可见列给符号留净空。快照再密也不应撑宽小节或产生编辑坐标。
+    const contentWidth = 44;
+    const width = contentWidth + profile.measurePaddingX * 2 + leadingWidth;
+    const endTick = getMeasureDurationTicks(measure);
+    return {
+      measureId: measure.id, leadingWidth, leftExtra: 0, tailExtra: 0,
+      minWidth: width, idealWidth: width, assignedWidth: width, contentWidth,
+      columns: [{ tick: 0, endTick, rhythmTicks: endTick, durationWeight: 1, tabBeatIds: [], numberedEventIds: [], minWidth: contentWidth, idealWidth: contentWidth }],
+    };
+  }
   if (density === "compact" || measure.numberedVoice.events.length || numberedOptions?.active)
     return summarizeTimeGrid(
       measure,
@@ -140,6 +154,7 @@ export const summarizeMeasureSpacingWidth = (
       measure.numberedVoice.events.length || numberedOptions?.active
         ? numberedOptions?.purpose
         : "presentation",
+      numberedOptions?.rhythm,
     );
   // 计算每个 beat 节拍列信息
   const columns = buildRhythmicColumns(measure, density);
@@ -235,6 +250,7 @@ export const layoutMeasureSpacing = (
     leadingWidth?: number;
     musicTextMetrics?: ILXMMusicTextMetrics;
     spacingSummary?: ILXMSummarizeMeasureSpacingWidth;
+    numberedRhythm?: ReturnType<typeof createNumberedTrackRhythmContext>;
   },
 ): ILXMMeasureSpacingSummary => {
   const density = context.density ?? LXM_LAYOUT_DEFAULT_DENSITY;
@@ -249,6 +265,9 @@ export const layoutMeasureSpacing = (
       density,
       leadingWidth,
       context.musicTextMetrics,
+      true,
+      undefined,
+      { rhythm: context.numberedRhythm },
     );
   const intrinsicWidth = summary.assignedWidth;
   const assignedWidth = context.assignedWidth ?? intrinsicWidth;
@@ -346,19 +365,20 @@ export const layoutMeasureSpacing = (
   const terminalTick = summary.columns.at(-1)!.endTick;
   xByTick[terminalTick] = cursorX;
   const tabContext = createMeasureRhythmContext(measure);
-  const numberedContext = createNumberedRhythmContext(measure.numberedVoice);
+  const numberedContext = context.numberedRhythm ?? createNumberedRhythmContext(measure.numberedVoice);
   for (const beat of measure.beats) {
     const duration = tabContext.getBeatDurationTicks(beat);
-    if (duration.ok)
-      slotsByBeatId[beat.id]!.width =
-        xByTick[beat.tick + duration.ticks]! - slotsByBeatId[beat.id]!.x;
+    const slot = slotsByBeatId[beat.id];
+    if (duration.ok && slot)
+      slot.width = xByTick[beat.tick + duration.ticks]! - slot.x;
   }
   for (const event of measure.numberedVoice.events) {
     const duration = numberedContext.getEventDurationTicks(event);
-    if (duration.ok)
-      slotsByNumberedEventId[event.id]!.width =
-        xByTick[event.tick + duration.ticks]! -
-        slotsByNumberedEventId[event.id]!.x;
+    const slot = slotsByNumberedEventId[event.id];
+    if (duration.ok && slot)
+      slot.width =
+        xByTick[Math.min(terminalTick, event.tick + duration.ticks)]! -
+        slot.x;
   }
   return {
     ...summary,

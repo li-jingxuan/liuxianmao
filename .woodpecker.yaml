@@ -1,0 +1,63 @@
+when:
+  - event: manual
+    branch: main
+
+skip_clone: true
+
+steps:
+  - name: checkout-main
+    image: quay.io/woodpeckerci/plugin-git:2.11.0
+    environment:
+      HTTPS_PROXY: http://172.17.0.1:7890
+    commands:
+      - |
+        case "${RELEASE_ACTION:-}" in
+          ''|check|deploy|rollback) ;;
+          *) echo 'RELEASE_ACTION must be check, deploy or rollback' >&2; exit 2 ;;
+        esac
+        test "$CI_REPO" = li-jingxuan/liuxianmao
+        test -n "$CI_COMMIT_SHA"
+        export GIT_TERMINAL_PROMPT=0
+        git init -q
+        attempt=1
+        until timeout 90 git -c http.version=HTTP/1.1 fetch --depth=1 --no-tags \
+          https://github.com/li-jingxuan/liuxianmao.git "$CI_COMMIT_SHA"; do
+          test "$attempt" -lt 3 || exit 1
+          attempt=$((attempt + 1))
+          sleep 3
+        done
+        test "$(git rev-parse FETCH_HEAD)" = "$CI_COMMIT_SHA"
+        git checkout --detach FETCH_HEAD
+
+  - name: checks
+    image: docker.m.daocloud.io/library/node:22-alpine
+    when:
+      - event: manual
+        evaluate: 'RELEASE_ACTION != "rollback"'
+    environment:
+      NPM_CONFIG_REGISTRY: https://registry.npmmirror.com
+      NEXT_PUBLIC_BASE_PATH: /app/liuxianmao
+      NEXT_TELEMETRY_DISABLED: "1"
+      ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+      NODE_OPTIONS: --max-old-space-size=1100
+      VITEST_MAX_WORKERS: "1"
+    commands:
+      - npm install --global pnpm@9.15.9
+      - pnpm install --frozen-lockfile
+      - pnpm exec turbo run lint type-check test --filter=@liuxianmao/website... --concurrency=1
+      - pnpm --filter @liuxianmao/website build
+      - test -f apps/website/.next/standalone/apps/website/server.js
+
+  - name: release-to-nas
+    image: quay.io/woodpeckerci/plugin-git:2.11.0
+    when:
+      - event: manual
+        evaluate: 'RELEASE_ACTION in ["deploy", "rollback"]'
+    environment:
+      LXM_NAS_SSH_HOST: 172.17.0.1
+      LXM_NAS_SSH_KEY:
+        from_secret: lxm_nas_ssh_key
+      LXM_NAS_KNOWN_HOSTS:
+        from_secret: lxm_nas_known_hosts
+    commands:
+      - sh deploy/fnos/ci-release.sh

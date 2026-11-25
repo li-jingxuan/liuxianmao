@@ -61,6 +61,31 @@ export interface ILXMScore {
   tracks: ILXMTrack[];
 }
 
+/** 在锚点小节的最后一次常规演奏后，按书写顺序额外演奏一段闭区间。 */
+export interface ILXMPlaybackReplay {
+  afterMeasureId: string;
+  fromMeasureId: string;
+  throughMeasureId: string;
+}
+
+/** 房子的两个端点均为包含边界。遍次以 1 开始，多个遍次可以共用同一房。 */
+export interface ILXMRepeatEnding {
+  id: string;
+  startMeasureId: string;
+  endMeasureId: string;
+  passes: number[];
+}
+
+/** 反复组是轨道级结构。共享段结束的下一小节进入结尾区，组末下一小节是共同出口。 */
+export interface ILXMRepeatEndingGroup {
+  id: string;
+  startMeasureId: string;
+  sharedEndMeasureId: string;
+  endMeasureId: string;
+  passCount: number;
+  endings: ILXMRepeatEnding[];
+}
+
 /** 单个演奏轨道，MVP 中对应一把吉他。 */
 export interface ILXMTrack {
   id: string;
@@ -72,6 +97,10 @@ export interface ILXMTrack {
   /** 第一小节之前的谱首边界；普通谱面使用 none。 */
   startBarline: ILXMTrackStartBarlineType;
   measures: ILXMMeasure[];
+  /** 可选的试听顺序指令，以同轨小节的稳定 ID 为准，旧谱省略即可。 */
+  playbackReplay?: ILXMPlaybackReplay;
+  /** 旧谱省略此字段，继续按普通反复线和原有回跳规则演奏。 */
+  repeatEndingGroups?: ILXMRepeatEndingGroup[];
   /**
    * 吉他技巧独立于 Note/Beat 保存，引用稳定业务 ID。
    *
@@ -98,6 +127,20 @@ export interface ILXMTuningString {
 /** 标准吉他调弦的只读结构，可直接承接 constants 中的默认值。 */
 export type ILXMStandardGuitarTuning = typeof STANDARD_GUITAR_TUNING;
 
+export type ILXMJumpMarkKind = "segno" | "coda" | "ds" | "dsAlCoda" | "toCoda" |
+  "dc" | "fine" | "dcAlFine" | "dsAlFine" | "dcAlCoda";
+
+/** 配对指向记号 ID。移动或改类不更换身份，删除后的悬空引用仍可保存并修复。 */
+export interface ILXMJumpMark {
+  id: string;
+  kind: ILXMJumpMarkKind;
+  segnoId?: string;
+  toCodaId?: string;
+  codaId?: string;
+  /** al Fine 指令选择的重奏终点；独立 Fine 无须保存反向引用。 */
+  fineId?: string;
+}
+
 /** 一个小节内包含节拍、和弦标记和小节线信息。 */
 export interface ILXMMeasure {
   id: string;
@@ -112,8 +155,14 @@ export interface ILXMMeasure {
   numberedVoice: ILXMNumberedVoice;
   /** 可选的小节段落标记，仅用于记谱展示。 */
   sectionLabel?: string;
+  /** 落点和末端指令各至多一个。旧谱省略此字段即可。 */
+  jumpMarks?: ILXMJumpMark[];
   /** 小节实际时长覆盖；省略时沿用拍号容量。 */
   actualDurationTicks?: number;
+  /** 用单小节重复记号简写；本节仍拥有独立音乐内容及拍位。 */
+  measureRepeat?: { type: "previousSingle" };
+  /** 重复快照刻录的节内起始和弦。null 表示无和弦；省略时依书写顺序继承。展开后仍有效。 */
+  openingChordPlayback?: ILXMChordSymbol["chord"] | null;
 }
 
 /** 小节拍号，例如 4/4。 */
@@ -321,6 +370,8 @@ export interface ILXMNumberedTuplet {
   id: string;
   eventIds: string[];
   ratio: ILXMTupletRatio;
+  /** 仅由相邻小节的普通事件转换为 3:2 时设置。组存于首音小节，次小节用于还原原书写位置。 */
+  crossBar?: { nextMeasureId: string };
 }
 export interface ILXMNumberedVoice {
   events: ILXMNumberedEvent[];

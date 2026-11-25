@@ -1,0 +1,67 @@
+.boundaries { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
+.boundaryItem { display: flex; min-width: 0; flex-direction: column; align-items: center; gap: 4px;
+  > button { width: 100%; height: 38px; padding: 0; border-radius: 5px; }
+  &:focus-visible { outline: 2px solid var(--accent, #1677ff); outline-offset: 2px; border-radius: 5px; }
+}
+.boundaryLabel { color: var(--muted, #63748a); font-size: 9px; white-space: nowrap; }
+.startRepeat { border-left: 1px solid var(--border, #e9edf3); padding-left: 5px; }
+.actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: center; height: 44px; padding: 3px; background: var(--panel-muted, #f4f6fa); border: 1px solid var(--border, #e9edf3); border-radius: 6px; box-sizing: border-box;
+  > span { display: flex; min-width: 0; justify-content: center; border-right: 1px solid var(--border, #e9edf3); &:last-child { border-right: 0; } }
+  button { height: 36px; width: 100%; padding: 0 3px; gap: 5px; font-size: 12px; }
+  svg { width: 18px; height: 18px; flex-shrink: 0; }
+}
+.insert { color: var(--accent, #1677ff); }
+.remove { color: var(--foreground, #26364a); svg { color: #ff4d4f; } &:not(:disabled):hover { color: #ff4d4f !important; background: #fff1f0 !important; } }
+.measureMenu { display: grid; gap: 12px; }
+.measureMenu .boundaryItem > button { height: 50px; }
+.symbolSection {
+  // 小节线、演奏符号和结构操作保持三段；符号之间的竖线表示不同的记谱用途。
+  border-top: 1px solid var(--border, #d8e0eb);
+  padding-top: 12px;
+
+  h4 { margin: 0 0 8px; font-size: 12px; color: var(--muted, #63748a); }
+}
+.symbols {
+  display: grid;
+  grid-template-columns: minmax(44px, 1fr) minmax(0, 10fr) minmax(44px, 1fr);
+  align-items: stretch;
+  gap: 8px;
+
+  button {
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 44px !important;
+
+    &[aria-pressed="true"] { background: var(--accent-soft, #edf4ff); }
+    &[aria-disabled="true"] {
+      color: var(--muted, #63748a);
+      border-color: var(--border, #d8e0eb);
+      background: var(--panel-muted, #f4f6fa);
+      cursor: not-allowed;
+    }
+    &:focus-visible { outline: 2px solid var(--accent, #1677ff); outline-offset: 2px; }
+    svg { width: 30px; height: 26px; }
+  }
+}
+.jumpSymbols, .repeatSymbol {
+  display: grid;
+  border-inline-start: 1px solid var(--border, #d8e0eb);
+  padding-inline-start: 8px;
+}
+.jumpSymbols { grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 6px; }
+.musicSymbol { font-family: Bravura, serif; font-size: 32px; line-height: 1; }
+// Segno 和 Coda 的墨迹偏上，向下校准以留出按钮上边距。
+.jumpSymbols .musicSymbol { transform: translateY(8px); }
+.jumpText {
+  font: italic 600 15px/1.05 Georgia, serif;
+  text-align: center;
+  white-space: nowrap;
+  span { display: block; font-size: 11px; }
+}
+.header { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; color: var(--foreground, #26364a);
+  h3 { margin: 0 !important; flex: 1; font-size: 16px; }
+  > span { color: var(--muted, #63748a); font-size: 12px; }
+  > button { width: 24px; height: 24px; padding: 0; }
+}
+.sidebarControls { display: grid; gap: 12px; }
+.durationControl { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }

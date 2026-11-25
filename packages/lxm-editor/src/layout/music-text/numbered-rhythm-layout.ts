@@ -16,11 +16,12 @@ export const layoutNumberedRhythm = (
   source: ILXMMeasure,
   layout: ILXMMeasureLayout,
   frames: NumberedLayout[],
+  context = createNumberedRhythmContext(source.numberedVoice),
 ): NumberedLayout[] => {
-  const context = createNumberedRhythmContext(source.numberedVoice);
   const events = source.numberedVoice.events;
-  const timeAnchors = new Map(layout.timeAnchors.map((a) => [a.tick, a.x]));
-  const eventSlots = new Map(layout.numberedSlots.map((s) => [s.id, s]));
+  const timeAnchors = new Map(layout.timeAnchors.map((anchor) => [anchor.tick, anchor.x]));
+  const eventSlots = new Map(layout.numberedSlots.map((slot) => [slot.id, slot]));
+  const measureEnd = layout.timeAnchors.at(-1)!.tick;
   const byId = new Map(frames.map((f) => [f.eventId, f]));
   const baseY =
     Math.max(
@@ -57,16 +58,15 @@ export const layoutNumberedRhythm = (
     n.rhythmDots = [];
     const duration = context.getEventDurationTicks(event),
       written = calculateRhythmTicks(event.rhythm);
-    const anchors = timeAnchors;
     let dotX = right + 4;
     if (duration.ok && written.ok && written.ticks > TICKS_PER_QUARTER) {
       const units = written.ticks / TICKS_PER_QUARTER;
+      // 长时值图元属于起音小节。跨小节实际时长由轨道计时保留，绘制只使用本小节可见槽宽。
+      const visibleTicks = Math.min(duration.ticks, measureEnd - event.tick);
+      const slot = eventSlots.get(event.id)!;
       for (let i = 1; i < Math.floor(units); i++) {
-        const tick = event.tick + (duration.ticks * i) / units;
-        const cx =
-          anchors.get(tick) ??
-          eventSlots.get(event.id)!.x +
-            (eventSlots.get(event.id)!.width * i) / units;
+        const tick = event.tick + (visibleTicks * i) / units;
+        const cx = timeAnchors.get(tick) ?? slot.x + (slot.width * i) / units;
         n.lines.push({
           x1: cx - 5,
           x2: cx + 5,
@@ -118,7 +118,7 @@ export const layoutNumberedRhythm = (
   }
   // 逐层合并 notes/rest；gap、continuation、隐式空白与不同实际拍组断开。
   const coveredLines = new Set<NonNullable<NumberedLayout["lines"]>[number]>();
-  numberedReductionGroups(source).forEach((groups, layer) => {
+  numberedReductionGroups(source, context).forEach((groups, layer) => {
     for (const group of groups) {
       if (group.length > 1) {
         const first = byId.get(group[0]!.id)!,

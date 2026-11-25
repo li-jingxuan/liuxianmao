@@ -7,6 +7,7 @@ import type { ILXMMusicTextMetrics } from "../music-text/music-text-metrics";
  */
 
 import type { ILXMMeasure, ILXMTrackStartBarlineType } from "../../core/types";
+import type { createNumberedTrackRhythmContext } from "../../core/numbered/numbered-rhythm";
 import type { ILXMLayoutMeasureContext } from "./measure-layout";
 import { layoutMeasure } from "./measure-layout";
 import {
@@ -51,6 +52,7 @@ export interface ILXMSystemLayoutOptions {
   /** 技巧与拍点共享横向空间，在自动断行前参与最小列宽计算。 */
   techniqueInsets?: ReadonlyMap<string, TechniqueInsets>;
   chordTraversalBottomOffsets?: ReadonlyMap<string, number>;
+  numberedRhythm?: ReturnType<typeof createNumberedTrackRhythmContext>;
 }
 
 /**
@@ -149,6 +151,7 @@ export const layoutSystems = (
         {
           purpose: options.purpose,
           active: measure.id === options.editingNumberedMeasureId,
+          rhythm: options.numberedRhythm,
         },
       );
       return {
@@ -400,6 +403,7 @@ export const layoutSystems = (
         const context: ILXMLayoutMeasureContext = {
           musicTextMetrics: options.musicTextMetrics,
           spacingSummary,
+          numberedRhythm: options.numberedRhythm,
           chordTraversalBottomOffsets: options.chordTraversalBottomOffsets,
           index,
           systemIndex,

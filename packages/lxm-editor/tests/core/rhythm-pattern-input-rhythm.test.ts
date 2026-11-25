@@ -18,6 +18,8 @@ const fixture = () => {
   document.score.tracks = [track];
   const measure = track.measures[0]!;
   track.measures = [measure];
+  delete track.playbackReplay;
+  delete track.repeatEndingGroups;
   track.techniques = [];
   track.numberedMarks = [];
   measure.timeSignature = { numerator: 4, denominator: 4 };

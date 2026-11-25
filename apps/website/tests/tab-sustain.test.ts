@@ -1,12 +1,9 @@
 import { describe, expect, it } from "vitest";
-import {
-  EXAMPLE_MVP_7_2_DOCUMENT,
-  createCollapsedTabCellSelection,
-  LXMScoreCommandEnum as C,
-} from "@liuxianmao/lxm-editor";
-import { buildEditorToolCommand } from "../components/EditorShell/tools/editor-tool-actions";
-import { deriveEditorToolState } from "../components/EditorShell/tools/editor-tool-state";
-import { createEditorSession } from "../stores/editor-store";
+import { createCollapsedTabCellSelection, LXMScoreCommandEnum as C } from "@liuxianmao/lxm-editor";
+import { EXAMPLE_MVP_7_2_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { buildEditorToolCommand } from "../../../packages/lxm-editor-react/src/EditorShell/tools/editor-tool-actions";
+import { deriveEditorToolState } from "../../../packages/lxm-editor-react/src/EditorShell/tools/editor-tool-state";
+import { createEditorSessionStore as createEditorSession } from "../../../packages/lxm-editor-react/src/stores/editor-store";
 
 const fixture = () => {
   const document = structuredClone(EXAMPLE_MVP_7_2_DOCUMENT);

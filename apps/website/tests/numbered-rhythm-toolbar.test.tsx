@@ -1,7 +1,7 @@
 import { isValidElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { NumberedRhythmToolbar } from "../components/EditorShell/numbered/NumberedRhythmToolbar";
+import { NumberedRhythmToolbar } from "../../../packages/lxm-editor-react/src/EditorShell/numbered/NumberedRhythmToolbar";
 
 const find = (tree: ReactNode, label: string): Record<string, unknown> | null => {
   if (Array.isArray(tree)) {
@@ -20,8 +20,10 @@ describe("简谱时值符号栏", () => {
     const tree = NumberedRhythmToolbar({ base: "eighth", dots: 1, onChange: vi.fn(), onSustain: vi.fn() });
     const markup = renderToStaticMarkup(tree);
     expect((markup.match(/<button\b/g) ?? []).length).toBe(8);
-    // 两条分隔线不进入键盘顺序，分别位于六个基础时值之后与附点之后。
-    expect(markup.split(/<i\b[^>]*aria-hidden="true"[^>]*><\/i>/).map(group => group.match(/<button\b/g)?.length)).toEqual([6, 1, 1]);
+    // 验收稿只在六个基础时值之后分组，附点与延音之间无分隔线。
+    expect(markup.split(/<i\b[^>]*aria-hidden="true"[^>]*><\/i>/).map(group => group.match(/<button\b/g)?.length)).toEqual([6, 2]);
+    expect((markup.match(/ant-btn-variant-text\b/g) ?? [])).toHaveLength(6);
+    expect((markup.match(/ant-btn-variant-filled\b/g) ?? [])).toHaveLength(2);
     expect(markup).toContain("\uE1E7");
     expect(markup).toContain("\uE874");
     expect(markup).not.toContain(">时值<");

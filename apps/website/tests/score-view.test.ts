@@ -6,7 +6,7 @@ import {
   restoreScoreViewAnchor,
   SCORE_CONTENT_SCALE,
   SCORE_ZOOM_LEVELS,
-} from "../components/EditorShell/score/score-view";
+} from "../../../packages/lxm-editor-react/src/EditorShell/score/score-view";
 
 const standard = {
   layoutWidth: A4_CONTENT_WIDTH,

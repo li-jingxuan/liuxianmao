@@ -225,11 +225,9 @@ const manifest = {
 };
 const serialized = JSON.stringify(catalog, null, 2) + "\n";
 const destination = `${target}catalog-${version}.json`;
+// 审计校验文件随 packages 一起打包，供网站构建时读取及生成脚本更新。
 const auditDestination = fileURLToPath(
-  new URL(
-    "../../../docs/design-v2/records/20261111_chord-catalog-data-audit-v2.json",
-    import.meta.url,
-  ),
+  new URL("./chord-catalog-audit.json", import.meta.url),
 );
 const audit =
   JSON.stringify(

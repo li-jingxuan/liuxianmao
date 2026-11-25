@@ -2,7 +2,7 @@ import { GUITAR_STRING_COUNT, LXM_RHYTHM_BASES, TICKS_PER_QUARTER } from "../con
 import { createDocumentIdFactory, type ILXMIdFactory } from "../id-factory";
 import { semanticJsonEqual } from "../document/score-tonality";
 import { validateNumberedMarks } from "../numbered/numbered-marks";
-import { buildNumberedIndex, createNumberedRhythmContext } from "../numbered/numbered-rhythm";
+import { buildNumberedIndex, createNumberedTrackRhythmContext, type NumberedTrackRhythmContext } from "../numbered/numbered-rhythm";
 import { validateTechnique } from "../techniques/technique-rules";
 import { sameTechniqueDraft } from "../techniques/technique-equality";
 import { calculateRhythmTicks, createRestRhythmsForTicks, getMeasureDurationTicks } from "./rhythm";
@@ -281,7 +281,7 @@ export const inferRhythmPatternTemplate = (document: ILXMDocument, target: Rhyth
   const ranges = track ? getRhythmPatternMeasureRanges(track, target) : [];
   const focus = ranges.find(range => range.measure.id === (target.focusMeasureId ?? target.measureId));
   const measure = focus?.measure;
-  if (!measure || !["numbered", "tab"].includes(target.layer)) return null;
+  if (!track || !measure || !["numbered", "tab"].includes(target.layer)) return null;
   const templates = getRhythmPatternTemplates(measure.timeSignature);
   const beatTicks = templates[0]?.beatTicks;
   const capacity = getMeasureDurationTicks(measure);
@@ -290,7 +290,8 @@ export const inferRhythmPatternTemplate = (document: ILXMDocument, target: Rhyth
       focus.startTick >= capacity || target.focusTick < 0 || target.focusTick >= capacity) return null;
   const start = Math.floor(target.focusTick / beatTicks) * beatTicks;
   const end = start + beatTicks;
-  const numberedContext = createNumberedRhythmContext(measure.numberedVoice);
+  const numberedContext = createNumberedTrackRhythmContext(track);
+  if (target.layer === "numbered" && start < (numberedContext.incomingSustainEndTickByMeasureId.get(measure.id) ?? 0)) return null;
   const tabContext = createMeasureRhythmContext(measure);
   const source: RhythmPatternEvent[] = target.layer === "numbered" ? measure.numberedVoice.events : measure.beats;
   const events: { tick: number; ticks: number }[] = [];
@@ -617,6 +618,7 @@ function planMeasureRhythmPattern(
   multiMeasure: boolean,
   numbered: boolean,
   createId: () => string,
+  numberedContext: NumberedTrackRhythmContext,
 ) {
   const { measure, capacity, startTick: rawStart, endTick: rawEnd, focusTick: rawFocus } = range;
   if (!isValidMeasureRange(range, multiMeasure))
@@ -635,7 +637,6 @@ function planMeasureRhythmPattern(
     return fail("RHYTHM_PATTERN_TEMPLATE_MISMATCH", "整小节模板与当前小节实际时长不兼容。");
   const scope: RhythmPatternScope = { startTick, endTick, beatTicks, beatCount: (endTick - startTick) / beatTicks, firstBeat: startTick / beatTicks + 1, lastBeat: endTick / beatTicks };
   const interval = { start: startTick, end: endTick };
-  const numberedContext = createNumberedRhythmContext(measure.numberedVoice);
   const tabContext = createMeasureRhythmContext(measure);
   const source: RhythmPatternEvent[] = numbered ? measure.numberedVoice.events : measure.beats;
   const durations = new Map<string, number>();
@@ -653,6 +654,10 @@ function planMeasureRhythmPattern(
     ? event.kind !== "gap" || lyricIds.has(event.id)
     : event.kind === "rest" || event.notes.length > 0 || chordIds.has(event.id);
   const relevant = source.filter(event => overlaps(eventInterval(event), interval));
+  // 模板会切分或重写事件，跨线组只能先按原书写位置展开，再参与模板规划。
+  if (numbered && (startTick < (numberedContext.incomingSustainEndTickByMeasureId.get(measure.id) ?? 0) ||
+      relevant.some(event => numberedContext.tupletByEventId.get(event.id)?.crossBar)))
+    return fail("RHYTHM_PATTERN_PARTIAL_TUPLET", "请先移除目标范围内的跨小节简谱连音组。");
   const removedMarks: RhythmPatternRemovedMark[] = [];
   const addMark = (id: string, type: string, crossesScope = false) => removedMarks.push({ id, type, name: markNames[type] ?? type, crossesScope });
   const groups = numbered
@@ -803,6 +808,7 @@ export const planRhythmPattern = (document: ILXMDocument, target: RhythmPatternT
   const track = document.score.tracks.find(t => t.id === target.trackId);
   if (!track || !["numbered", "tab"].includes(target.layer))
     return fail("INVALID_RHYTHM_PATTERN_TARGET", "请先在当前简谱或 TAB 谱层选择同轨的位置。");
+  const numberedContext = createNumberedTrackRhythmContext(track);
   const ranges = getRhythmPatternMeasureRanges(track, target);
   const first = ranges[0];
   if (!first) return fail("INVALID_RHYTHM_PATTERN_TARGET", "选区已失效，请重新选择谱面位置。");
@@ -847,7 +853,7 @@ export const planRhythmPattern = (document: ILXMDocument, target: RhythmPatternT
     if (!wholeMeasure && !templates.some(item => item.id === templateId)) {
       return fail("RHYTHM_PATTERN_TEMPLATE_MISMATCH", `当前模板不适用于${describeMeasure(range)}，请重新选择。`);
     }
-    const plan = planMeasureRhythmPattern(range, template, templates[0]!.beatTicks, multiMeasure, numbered, createId);
+    const plan = planMeasureRhythmPattern(range, template, templates[0]!.beatTicks, multiMeasure, numbered, createId, numberedContext);
     if (!plan.ok) return multiMeasure ? fail(plan.code, `${describeMeasure(range)}：${plan.message}`) : plan;
     plans.push(plan);
   }

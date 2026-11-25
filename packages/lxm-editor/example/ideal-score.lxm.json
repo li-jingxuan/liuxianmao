@@ -1,7 +1,7 @@
 {
   "schema": "lxm-tab-score",
   "schemaVersion": 8,
-  "documentRevision": 724,
+  "documentRevision": 799,
   "score": {
     "id": "ideal-next-mock",
     "title": "理想",
@@ -2976,7 +2976,7 @@
                       },
                       {
                         "string": 2,
-                        "fret": "x",
+                        "fret": 0,
                         "finger": null
                       },
                       {
@@ -2991,7 +2991,7 @@
                       },
                       {
                         "string": 5,
-                        "fret": "x",
+                        "fret": 0,
                         "finger": null
                       },
                       {
@@ -5441,7 +5441,7 @@
                     "strings": [
                       {
                         "string": 1,
-                        "fret": "x",
+                        "fret": 0,
                         "finger": null
                       },
                       {
@@ -5461,7 +5461,7 @@
                       },
                       {
                         "string": 5,
-                        "fret": "x",
+                        "fret": 0,
                         "finger": null
                       },
                       {
@@ -6835,7 +6835,7 @@
                 "chord": {
                   "name": "G",
                   "diagram": {
-                    "startFret": 2,
+                    "startFret": 1,
                     "fretCount": 5,
                     "strings": [
                       {
@@ -10364,173 +10364,179 @@
             "numberedVoice": {
               "events": [
                 {
+                  "id": "numbered-event-541-1",
+                  "tick": 0,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-541-1",
                       "token": "1'"
                     }
-                  ],
-                  "id": "numbered-event-541-1",
-                  "tick": 0,
+                  ]
+                },
+                {
+                  "id": "numbered-event-542-1",
+                  "tick": 480,
                   "rhythm": {
                     "base": "eighth",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-543-1",
                       "token": "6"
                     }
-                  ],
-                  "id": "numbered-event-542-1",
-                  "tick": 480,
-                  "rhythm": {
-                    "base": "eighth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-544-1",
+                  "tick": 960,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-544-1",
                       "token": "5"
                     }
-                  ],
-                  "id": "numbered-event-544-1",
-                  "tick": 960,
-                  "rhythm": {
-                    "base": "sixteenth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-545-1",
+                  "tick": 1200,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-545-1",
                       "token": "6"
                     }
-                  ],
-                  "id": "numbered-event-545-1",
-                  "tick": 1200,
-                  "rhythm": {
-                    "base": "eighth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-546-1",
+                  "tick": 1680,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-546-1",
                       "token": "6"
                     }
-                  ],
-                  "id": "numbered-event-546-1",
-                  "tick": 1680,
-                  "rhythm": {
-                    "base": "sixteenth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-547-1",
+                  "tick": 1920,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-547-1",
                       "token": "6"
                     }
-                  ],
-                  "id": "numbered-event-547-1",
-                  "tick": 1920,
-                  "rhythm": {
-                    "base": "eighth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-548-1",
+                  "tick": 2400,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-548-1",
                       "token": "1'"
                     }
-                  ],
-                  "id": "numbered-event-548-1",
-                  "tick": 2400,
+                  ]
+                },
+                {
+                  "id": "numbered-event-548-2",
+                  "tick": 2640,
                   "rhythm": {
                     "base": "sixteenth",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-548-2",
                       "token": "1'"
                     }
-                  ],
-                  "id": "numbered-event-548-2",
-                  "tick": 2640,
+                  ]
+                },
+                {
+                  "id": "numbered-event-549-1",
+                  "tick": 2880,
                   "rhythm": {
                     "base": "sixteenth",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-549-1",
                       "token": "1'"
                     }
-                  ],
-                  "id": "numbered-event-549-1",
-                  "tick": 2880,
-                  "rhythm": {
-                    "base": "sixteenth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-550-1",
+                  "tick": 3120,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-550-1",
                       "token": "6"
                     }
-                  ],
-                  "id": "numbered-event-550-1",
-                  "tick": 3120,
-                  "rhythm": {
-                    "base": "eighth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-551-1",
+                  "tick": 3600,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-551-1",
                       "token": "3"
                     }
-                  ],
-                  "id": "numbered-event-551-1",
-                  "tick": 3600,
-                  "rhythm": {
-                    "base": "sixteenth",
-                    "dots": 0
-                  }
+                  ]
                 }
               ],
               "tuplets": []
-            }
+            },
+            "jumpMarks": [
+              {
+                "id": "jump-mark-794-1",
+                "kind": "segno"
+              }
+            ]
           },
           {
             "id": "measure-320-1",
@@ -10812,169 +10818,169 @@
             "numberedVoice": {
               "events": [
                 {
+                  "id": "numbered-event-555-1",
+                  "tick": 0,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-555-1",
                       "token": "3"
                     }
-                  ],
-                  "id": "numbered-event-555-1",
-                  "tick": 0,
-                  "rhythm": {
-                    "base": "sixteenth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-556-1",
+                  "tick": 240,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-556-1",
                       "token": "6"
                     }
-                  ],
-                  "id": "numbered-event-556-1",
-                  "tick": 240,
-                  "rhythm": {
-                    "base": "eighth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-557-1",
+                  "tick": 720,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-557-1",
                       "token": "5"
                     }
-                  ],
-                  "id": "numbered-event-557-1",
-                  "tick": 720,
-                  "rhythm": {
-                    "base": "sixteenth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-558-1",
+                  "tick": 960,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-558-1",
                       "token": "3"
                     }
-                  ],
-                  "id": "numbered-event-558-1",
-                  "tick": 960,
-                  "rhythm": {
-                    "base": "eighth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-559-1",
+                  "tick": 1440,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-559-1",
                       "token": "2"
                     }
-                  ],
-                  "id": "numbered-event-559-1",
-                  "tick": 1440,
+                  ]
+                },
+                {
+                  "id": "numbered-event-559-2",
+                  "tick": 1680,
                   "rhythm": {
                     "base": "sixteenth",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-559-2",
                       "token": "5"
                     }
-                  ],
-                  "id": "numbered-event-559-2",
-                  "tick": 1680,
+                  ]
+                },
+                {
+                  "id": "numbered-event-560-1",
+                  "tick": 1920,
                   "rhythm": {
                     "base": "sixteenth",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-560-1",
                       "token": "5"
                     }
-                  ],
-                  "id": "numbered-event-560-1",
-                  "tick": 1920,
-                  "rhythm": {
-                    "base": "sixteenth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-561-1",
+                  "tick": 2160,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 1
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-561-1",
                       "token": "3"
                     }
-                  ],
-                  "id": "numbered-event-561-1",
-                  "tick": 2160,
-                  "rhythm": {
-                    "base": "eighth",
-                    "dots": 1
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-562-1",
+                  "tick": 2880,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-562-1",
                       "token": "3"
                     }
-                  ],
-                  "id": "numbered-event-562-1",
-                  "tick": 2880,
-                  "rhythm": {
-                    "base": "eighth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-564-1",
+                  "tick": 3360,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-564-1",
                       "token": "5"
                     }
-                  ],
-                  "id": "numbered-event-564-1",
-                  "tick": 3360,
+                  ]
+                },
+                {
+                  "id": "numbered-event-564-2",
+                  "tick": 3600,
                   "rhythm": {
                     "base": "sixteenth",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-564-2",
                       "token": "5"
                     }
-                  ],
-                  "id": "numbered-event-564-2",
-                  "tick": 3600,
-                  "rhythm": {
-                    "base": "sixteenth",
-                    "dots": 0
-                  }
+                  ]
                 }
               ],
               "tuplets": []
@@ -11287,184 +11293,184 @@
             "numberedVoice": {
               "events": [
                 {
+                  "id": "numbered-event-565-1",
+                  "tick": 0,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-565-1",
                       "token": "5"
                     }
-                  ],
-                  "id": "numbered-event-565-1",
-                  "tick": 0,
-                  "rhythm": {
-                    "base": "sixteenth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-566-1",
+                  "tick": 240,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-566-1",
                       "token": "2"
                     }
-                  ],
-                  "id": "numbered-event-566-1",
-                  "tick": 240,
-                  "rhythm": {
-                    "base": "eighth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-567-1",
+                  "tick": 720,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-567-1",
                       "token": "2"
                     }
-                  ],
-                  "id": "numbered-event-567-1",
-                  "tick": 720,
+                  ]
+                },
+                {
+                  "id": "numbered-event-568-1",
+                  "tick": 960,
                   "rhythm": {
                     "base": "sixteenth",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-568-1",
                       "token": "2"
                     }
-                  ],
-                  "id": "numbered-event-568-1",
-                  "tick": 960,
-                  "rhythm": {
-                    "base": "sixteenth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-569-1",
+                  "tick": 1200,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-569-1",
                       "token": "2"
                     }
-                  ],
-                  "id": "numbered-event-569-1",
-                  "tick": 1200,
-                  "rhythm": {
-                    "base": "eighth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-570-1",
+                  "tick": 1680,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-570-1",
                       "token": "1"
                     }
-                  ],
-                  "id": "numbered-event-570-1",
-                  "tick": 1680,
+                  ]
+                },
+                {
+                  "id": "numbered-event-571-1",
+                  "tick": 1920,
                   "rhythm": {
                     "base": "sixteenth",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-571-1",
                       "token": "1"
                     }
-                  ],
-                  "id": "numbered-event-571-1",
-                  "tick": 1920,
-                  "rhythm": {
-                    "base": "sixteenth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-572-1",
+                  "tick": 2160,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-572-1",
                       "token": "2"
                     }
-                  ],
-                  "id": "numbered-event-572-1",
-                  "tick": 2160,
-                  "rhythm": {
-                    "base": "eighth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-573-1",
+                  "tick": 2640,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-573-1",
                       "token": "6"
                     }
-                  ],
-                  "id": "numbered-event-573-1",
-                  "tick": 2640,
+                  ]
+                },
+                {
+                  "id": "numbered-event-575-1",
+                  "tick": 2880,
                   "rhythm": {
                     "base": "sixteenth",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-575-1",
                       "token": "6"
                     }
-                  ],
-                  "id": "numbered-event-575-1",
-                  "tick": 2880,
-                  "rhythm": {
-                    "base": "sixteenth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-576-1",
+                  "tick": 3120,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-576-1",
                       "token": "5"
                     }
-                  ],
-                  "id": "numbered-event-576-1",
-                  "tick": 3120,
-                  "rhythm": {
-                    "base": "eighth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-577-1",
+                  "tick": 3600,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-577-1",
                       "token": "6"
                     }
-                  ],
-                  "id": "numbered-event-577-1",
-                  "tick": 3600,
-                  "rhythm": {
-                    "base": "sixteenth",
-                    "dots": 0
-                  }
+                  ]
                 }
               ],
               "tuplets": []
@@ -11741,139 +11747,139 @@
             "numberedVoice": {
               "events": [
                 {
+                  "id": "numbered-event-578-1",
+                  "tick": 0,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-578-1",
                       "token": "3"
                     }
-                  ],
-                  "id": "numbered-event-578-1",
-                  "tick": 0,
-                  "rhythm": {
-                    "base": "sixteenth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-579-1",
+                  "tick": 240,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 1
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-579-1",
                       "token": "3"
                     }
-                  ],
-                  "id": "numbered-event-579-1",
-                  "tick": 240,
-                  "rhythm": {
-                    "base": "eighth",
-                    "dots": 1
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-580-1",
+                  "tick": 960,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-580-1",
                       "token": "3"
                     }
-                  ],
-                  "id": "numbered-event-580-1",
-                  "tick": 960,
-                  "rhythm": {
-                    "base": "quarter",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-581-1",
+                  "tick": 1920,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  },
                   "kind": "rest",
                   "items": [
                     {
                       "id": "numbered-item-581-1",
                       "token": "0"
                     }
-                  ],
-                  "id": "numbered-event-581-1",
-                  "tick": 1920,
-                  "rhythm": {
-                    "base": "eighth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-582-1",
+                  "tick": 2400,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-582-1",
                       "token": "1"
                     }
-                  ],
-                  "id": "numbered-event-582-1",
-                  "tick": 2400,
+                  ]
+                },
+                {
+                  "id": "numbered-event-582-2",
+                  "tick": 2640,
                   "rhythm": {
                     "base": "sixteenth",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-582-2",
                       "token": "1"
                     }
-                  ],
-                  "id": "numbered-event-582-2",
-                  "tick": 2640,
+                  ]
+                },
+                {
+                  "id": "numbered-event-583-1",
+                  "tick": 2880,
                   "rhythm": {
                     "base": "sixteenth",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-583-1",
                       "token": "1'"
                     }
-                  ],
-                  "id": "numbered-event-583-1",
-                  "tick": 2880,
-                  "rhythm": {
-                    "base": "sixteenth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-584-1",
+                  "tick": 3120,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-584-1",
                       "token": "7"
                     }
-                  ],
-                  "id": "numbered-event-584-1",
-                  "tick": 3120,
-                  "rhythm": {
-                    "base": "eighth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-585-1",
+                  "tick": 3600,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-585-1",
                       "token": "6"
                     }
-                  ],
-                  "id": "numbered-event-585-1",
-                  "tick": 3600,
-                  "rhythm": {
-                    "base": "sixteenth",
-                    "dots": 0
-                  }
+                  ]
                 }
               ],
               "tuplets": []
@@ -12111,109 +12117,109 @@
             "numberedVoice": {
               "events": [
                 {
+                  "id": "numbered-event-586-1",
+                  "tick": 0,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-586-1",
                       "token": "5"
                     }
-                  ],
-                  "id": "numbered-event-586-1",
-                  "tick": 0,
-                  "rhythm": {
-                    "base": "sixteenth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-587-1",
+                  "tick": 240,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 1
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-587-1",
                       "token": "6"
                     }
-                  ],
-                  "id": "numbered-event-587-1",
-                  "tick": 240,
-                  "rhythm": {
-                    "base": "eighth",
-                    "dots": 1
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-588-1",
+                  "tick": 960,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-588-1",
                       "token": "6"
                     }
-                  ],
-                  "id": "numbered-event-588-1",
-                  "tick": 960,
-                  "rhythm": {
-                    "base": "quarter",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-589-1",
+                  "tick": 1920,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 1
+                  },
                   "kind": "rest",
                   "items": [
                     {
                       "id": "numbered-item-589-1",
                       "token": "0"
                     }
-                  ],
-                  "id": "numbered-event-589-1",
-                  "tick": 1920,
-                  "rhythm": {
-                    "base": "eighth",
-                    "dots": 1
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-590-1",
+                  "tick": 2640,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 1
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-590-1",
                       "token": "1'"
                     }
-                  ],
-                  "id": "numbered-event-590-1",
-                  "tick": 2640,
-                  "rhythm": {
-                    "base": "sixteenth",
-                    "dots": 1
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-590-2",
+                  "tick": 3000,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-590-2",
                       "token": "1'"
                     }
-                  ],
-                  "id": "numbered-event-590-2",
-                  "tick": 3000,
-                  "rhythm": {
-                    "base": "sixteenth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-592-1",
+                  "tick": 3240,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-592-1",
                       "token": "1'"
                     }
-                  ],
-                  "id": "numbered-event-592-1",
-                  "tick": 3240,
-                  "rhythm": {
-                    "base": "eighth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
                   "id": "numbered-event-702-1",
@@ -12555,184 +12561,184 @@
             "numberedVoice": {
               "events": [
                 {
+                  "id": "numbered-event-601-1",
+                  "tick": 0,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-601-1",
                       "token": "7"
                     }
-                  ],
-                  "id": "numbered-event-601-1",
-                  "tick": 0,
-                  "rhythm": {
-                    "base": "sixteenth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-602-1",
+                  "tick": 240,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-602-1",
                       "token": "7"
                     }
-                  ],
-                  "id": "numbered-event-602-1",
-                  "tick": 240,
-                  "rhythm": {
-                    "base": "eighth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-602-2",
+                  "tick": 720,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-602-2",
                       "token": "7"
                     }
-                  ],
-                  "id": "numbered-event-602-2",
-                  "tick": 720,
-                  "rhythm": {
-                    "base": "sixteenth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-603-1",
+                  "tick": 960,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-605-1",
                       "token": "7"
                     }
-                  ],
-                  "id": "numbered-event-603-1",
-                  "tick": 960,
-                  "rhythm": {
-                    "base": "eighth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-606-1",
+                  "tick": 1440,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-606-1",
                       "token": "5"
                     }
-                  ],
-                  "id": "numbered-event-606-1",
-                  "tick": 1440,
+                  ]
+                },
+                {
+                  "id": "numbered-event-606-2",
+                  "tick": 1680,
                   "rhythm": {
                     "base": "sixteenth",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-606-2",
                       "token": "7"
                     }
-                  ],
-                  "id": "numbered-event-606-2",
-                  "tick": 1680,
+                  ]
+                },
+                {
+                  "id": "numbered-event-607-1",
+                  "tick": 1920,
                   "rhythm": {
                     "base": "sixteenth",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-607-1",
                       "token": "7"
                     }
-                  ],
-                  "id": "numbered-event-607-1",
-                  "tick": 1920,
-                  "rhythm": {
-                    "base": "sixteenth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-608-1",
+                  "tick": 2160,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 1
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-608-1",
                       "token": "6"
                     }
-                  ],
-                  "id": "numbered-event-608-1",
-                  "tick": 2160,
-                  "rhythm": {
-                    "base": "eighth",
-                    "dots": 1
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-609-1",
+                  "tick": 2880,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  },
                   "kind": "rest",
                   "items": [
                     {
                       "id": "numbered-item-609-1",
                       "token": "0"
                     }
-                  ],
-                  "id": "numbered-event-609-1",
-                  "tick": 2880,
+                  ]
+                },
+                {
+                  "id": "numbered-event-609-2",
+                  "tick": 3120,
                   "rhythm": {
                     "base": "sixteenth",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-609-2",
                       "token": "6."
                     }
-                  ],
-                  "id": "numbered-event-609-2",
-                  "tick": 3120,
+                  ]
+                },
+                {
+                  "id": "numbered-event-609-3",
+                  "tick": 3360,
                   "rhythm": {
                     "base": "sixteenth",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-609-3",
                       "token": "6."
                     }
-                  ],
-                  "id": "numbered-event-609-3",
-                  "tick": 3360,
+                  ]
+                },
+                {
+                  "id": "numbered-event-609-4",
+                  "tick": 3600,
                   "rhythm": {
                     "base": "sixteenth",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-609-4",
                       "token": "6."
                     }
-                  ],
-                  "id": "numbered-event-609-4",
-                  "tick": 3600,
-                  "rhythm": {
-                    "base": "sixteenth",
-                    "dots": 0
-                  }
+                  ]
                 }
               ],
               "tuplets": []
@@ -13048,184 +13054,184 @@
             "numberedVoice": {
               "events": [
                 {
+                  "id": "numbered-event-610-1",
+                  "tick": 0,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-610-1",
                       "token": "3"
                     }
-                  ],
-                  "id": "numbered-event-610-1",
-                  "tick": 0,
+                  ]
+                },
+                {
+                  "id": "numbered-event-610-2",
+                  "tick": 240,
                   "rhythm": {
                     "base": "sixteenth",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-610-2",
                       "token": "4"
                     }
-                  ],
-                  "id": "numbered-event-610-2",
-                  "tick": 240,
+                  ]
+                },
+                {
+                  "id": "numbered-event-610-3",
+                  "tick": 480,
                   "rhythm": {
                     "base": "sixteenth",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-610-3",
                       "token": "3"
                     }
-                  ],
-                  "id": "numbered-event-610-3",
-                  "tick": 480,
+                  ]
+                },
+                {
+                  "id": "numbered-event-610-4",
+                  "tick": 720,
                   "rhythm": {
                     "base": "sixteenth",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-610-4",
                       "token": "4"
                     }
-                  ],
-                  "id": "numbered-event-610-4",
-                  "tick": 720,
+                  ]
+                },
+                {
+                  "id": "numbered-event-611-1",
+                  "tick": 960,
                   "rhythm": {
                     "base": "sixteenth",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-611-1",
                       "token": "4"
                     }
-                  ],
-                  "id": "numbered-event-611-1",
-                  "tick": 960,
-                  "rhythm": {
-                    "base": "sixteenth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-612-1",
+                  "tick": 1200,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-612-1",
                       "token": "3"
                     }
-                  ],
-                  "id": "numbered-event-612-1",
-                  "tick": 1200,
-                  "rhythm": {
-                    "base": "eighth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-613-1",
+                  "tick": 1680,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-613-1",
                       "token": "4"
                     }
-                  ],
-                  "id": "numbered-event-613-1",
-                  "tick": 1680,
+                  ]
+                },
+                {
+                  "id": "numbered-event-614-1",
+                  "tick": 1920,
                   "rhythm": {
                     "base": "sixteenth",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-614-1",
                       "token": "5"
                     }
-                  ],
-                  "id": "numbered-event-614-1",
-                  "tick": 1920,
-                  "rhythm": {
-                    "base": "sixteenth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-615-1",
+                  "tick": 2160,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 1
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-615-1",
                       "token": "4"
                     }
-                  ],
-                  "id": "numbered-event-615-1",
-                  "tick": 2160,
-                  "rhythm": {
-                    "base": "eighth",
-                    "dots": 1
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-617-1",
+                  "tick": 2880,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-617-1",
                       "token": "6."
                     }
-                  ],
-                  "id": "numbered-event-617-1",
-                  "tick": 2880,
-                  "rhythm": {
-                    "base": "eighth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-618-1",
+                  "tick": 3360,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-618-1",
                       "token": "6."
                     }
-                  ],
-                  "id": "numbered-event-618-1",
-                  "tick": 3360,
+                  ]
+                },
+                {
+                  "id": "numbered-event-618-2",
+                  "tick": 3600,
                   "rhythm": {
                     "base": "sixteenth",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-618-2",
                       "token": "6."
                     }
-                  ],
-                  "id": "numbered-event-618-2",
-                  "tick": 3600,
-                  "rhythm": {
-                    "base": "sixteenth",
-                    "dots": 0
-                  }
+                  ]
                 }
               ],
               "tuplets": []
@@ -13305,14 +13311,14 @@
                 "text": "失"
               },
               {
-                "id": "lyric-705-18",
-                "eventId": "numbered-event-705-1",
+                "id": "lyric-734-1",
+                "eventId": "numbered-event-728-1",
                 "verse": 1,
                 "text": "望"
               },
               {
-                "id": "lyric-705-19",
-                "eventId": "numbered-event-705-2",
+                "id": "lyric-705-18",
+                "eventId": "numbered-event-705-1",
                 "verse": 1,
                 "text": "的"
               },
@@ -13363,101 +13369,130 @@
                 },
                 "kind": "rest",
                 "notes": []
-              },
-              {
-                "id": "beat-621-1",
-                "tick": 1920,
-                "rhythm": {
-                  "base": "eighth",
-                  "dots": 1
-                },
-                "kind": "rest",
-                "notes": [],
-                "capacityRest": true
               }
             ],
             "tuplets": [],
             "numberedVoice": {
               "events": [
                 {
+                  "id": "numbered-event-620-1",
+                  "tick": 0,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-620-1",
                       "token": "4"
                     }
-                  ],
-                  "id": "numbered-event-620-1",
-                  "tick": 0,
+                  ]
+                },
+                {
+                  "id": "numbered-event-620-2",
+                  "tick": 320,
                   "rhythm": {
                     "base": "eighth",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-620-2",
                       "token": "4"
                     }
-                  ],
-                  "id": "numbered-event-620-2",
-                  "tick": 480,
+                  ]
+                },
+                {
+                  "id": "numbered-event-620-3",
+                  "tick": 640,
                   "rhythm": {
                     "base": "eighth",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-620-3",
                       "token": "4"
                     }
-                  ],
-                  "id": "numbered-event-620-3",
+                  ]
+                },
+                {
+                  "id": "numbered-event-728-1",
                   "tick": 960,
                   "rhythm": {
                     "base": "eighth",
                     "dots": 0
-                  }
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-728-1",
+                      "token": "4"
+                    }
+                  ]
                 },
                 {
                   "id": "numbered-event-705-1",
-                  "tick": 1440,
+                  "tick": 1280,
                   "rhythm": {
-                    "base": "sixteenth",
+                    "base": "eighth",
                     "dots": 0
                   },
-                  "kind": "gap",
-                  "items": []
-                },
-                {
-                  "id": "numbered-event-705-2",
-                  "tick": 1680,
-                  "rhythm": {
-                    "base": "sixteenth",
-                    "dots": 0
-                  },
-                  "kind": "gap",
-                  "items": []
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-728-2",
+                      "token": "3"
+                    }
+                  ]
                 },
                 {
                   "id": "numbered-event-705-3",
-                  "tick": 1920,
+                  "tick": 1600,
                   "rhythm": {
                     "base": "eighth",
-                    "dots": 1
+                    "dots": 0
                   },
-                  "kind": "gap",
-                  "items": []
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-730-1",
+                      "token": "1"
+                    }
+                  ]
                 }
               ],
-              "tuplets": []
+              "tuplets": [
+                {
+                  "id": "numbered-tuplet-727-1",
+                  "eventIds": [
+                    "numbered-event-620-1",
+                    "numbered-event-620-2",
+                    "numbered-event-620-3"
+                  ],
+                  "ratio": {
+                    "actual": 3,
+                    "normal": 2
+                  }
+                },
+                {
+                  "id": "numbered-tuplet-732-1",
+                  "eventIds": [
+                    "numbered-event-728-1",
+                    "numbered-event-705-1",
+                    "numbered-event-705-3"
+                  ],
+                  "ratio": {
+                    "actual": 3,
+                    "normal": 2
+                  }
+                }
+              ]
             },
-            "actualDurationTicks": 2640
+            "actualDurationTicks": 1920
           },
           {
             "id": "measure-365-1",
@@ -13644,79 +13679,79 @@
             "numberedVoice": {
               "events": [
                 {
+                  "id": "numbered-event-623-1",
+                  "tick": 0,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-623-1",
                       "token": "3"
                     }
-                  ],
-                  "id": "numbered-event-623-1",
-                  "tick": 0,
-                  "rhythm": {
-                    "base": "sixteenth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-624-1",
+                  "tick": 240,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 1
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-624-1",
                       "token": "2"
                     }
-                  ],
-                  "id": "numbered-event-624-1",
-                  "tick": 240,
-                  "rhythm": {
-                    "base": "eighth",
-                    "dots": 1
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-625-1",
+                  "tick": 960,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-625-1",
                       "token": "2"
                     }
-                  ],
-                  "id": "numbered-event-625-1",
-                  "tick": 960,
+                  ]
+                },
+                {
+                  "id": "numbered-event-626-1",
+                  "tick": 1920,
                   "rhythm": {
                     "base": "quarter",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "continuation",
                   "items": [
                     {
                       "id": "numbered-item-626-1",
                       "token": "-"
                     }
-                  ],
-                  "id": "numbered-event-626-1",
-                  "tick": 1920,
+                  ]
+                },
+                {
+                  "id": "numbered-event-627-1",
+                  "tick": 2880,
                   "rhythm": {
                     "base": "quarter",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "continuation",
                   "items": [
                     {
                       "id": "numbered-item-627-1",
                       "token": "-"
                     }
-                  ],
-                  "id": "numbered-event-627-1",
-                  "tick": 2880,
-                  "rhythm": {
-                    "base": "quarter",
-                    "dots": 0
-                  }
+                  ]
                 }
               ],
               "tuplets": []
@@ -13728,7 +13763,7 @@
               "numerator": 4,
               "denominator": 4
             },
-            "barline": "single",
+            "barline": "double",
             "chordSymbols": [
               {
                 "id": "chord-396-1",
@@ -13790,14 +13825,14 @@
                 "text": "入"
               },
               {
-                "id": "lyric-708-1",
-                "eventId": "numbered-event-707-1",
+                "id": "lyric-706-3",
+                "eventId": "numbered-event-628-3",
                 "verse": 1,
                 "text": "失"
               },
               {
-                "id": "lyric-706-3",
-                "eventId": "numbered-event-628-3",
+                "id": "lyric-786-1",
+                "eventId": "numbered-event-738-1",
                 "verse": 1,
                 "text": "望"
               },
@@ -13808,20 +13843,20 @@
                 "text": "的"
               },
               {
-                "id": "lyric-706-5",
-                "eventId": "numbered-event-706-2",
+                "id": "lyric-706-6",
+                "eventId": "numbered-event-632-1",
                 "verse": 1,
                 "text": "生"
               },
               {
-                "id": "lyric-706-6",
-                "eventId": "numbered-event-632-1",
+                "id": "lyric-787-1",
+                "eventId": "numbered-event-745-1",
                 "verse": 1,
                 "text": "活"
               },
               {
-                "id": "lyric-706-7",
-                "eventId": "numbered-event-633-1",
+                "id": "lyric-788-1",
+                "eventId": "numbered-event-744-1",
                 "verse": 1,
                 "text": "里"
               },
@@ -13940,142 +13975,197 @@
             "numberedVoice": {
               "events": [
                 {
-                  "kind": "gap",
-                  "items": [],
                   "id": "numbered-event-628-1",
                   "tick": 0,
                   "rhythm": {
                     "base": "eighth",
                     "dots": 0
-                  }
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-735-1",
+                      "token": "4"
+                    }
+                  ]
                 },
                 {
-                  "kind": "gap",
-                  "items": [],
                   "id": "numbered-event-628-2",
-                  "tick": 480,
+                  "tick": 320,
                   "rhythm": {
-                    "base": "sixteenth",
-                    "dots": 0
-                  }
-                },
-                {
-                  "id": "numbered-event-707-1",
-                  "tick": 720,
-                  "rhythm": {
-                    "base": "sixteenth",
+                    "base": "eighth",
                     "dots": 0
                   },
-                  "kind": "gap",
-                  "items": []
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-735-2",
+                      "token": "4"
+                    }
+                  ]
                 },
                 {
-                  "kind": "gap",
-                  "items": [],
                   "id": "numbered-event-628-3",
+                  "tick": 640,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-735-4",
+                      "token": "4"
+                    }
+                  ]
+                },
+                {
+                  "id": "numbered-event-738-1",
                   "tick": 960,
                   "rhythm": {
                     "base": "eighth",
                     "dots": 0
-                  }
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-738-1",
+                      "token": "4"
+                    }
+                  ]
                 },
                 {
                   "id": "numbered-event-706-1",
-                  "tick": 1440,
+                  "tick": 1280,
                   "rhythm": {
-                    "base": "sixteenth",
+                    "base": "eighth",
                     "dots": 0
                   },
-                  "kind": "gap",
-                  "items": []
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-735-5",
+                      "token": "4"
+                    }
+                  ]
                 },
                 {
-                  "id": "numbered-event-706-2",
-                  "tick": 1680,
+                  "id": "numbered-event-632-1",
+                  "tick": 1600,
                   "rhythm": {
-                    "base": "sixteenth",
+                    "base": "eighth",
                     "dots": 0
                   },
-                  "kind": "gap",
-                  "items": []
-                },
-                {
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-632-1",
-                      "token": "5"
+                      "token": "4"
                     }
-                  ],
-                  "id": "numbered-event-632-1",
+                  ]
+                },
+                {
+                  "id": "numbered-event-745-1",
                   "tick": 1920,
                   "rhythm": {
                     "base": "sixteenth",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "notes",
                   "items": [
                     {
-                      "id": "numbered-item-633-1",
+                      "id": "numbered-item-745-1",
                       "token": "5"
                     }
-                  ],
-                  "id": "numbered-event-633-1",
+                  ]
+                },
+                {
+                  "id": "numbered-event-744-1",
                   "tick": 2160,
                   "rhythm": {
                     "base": "eighth",
                     "dots": 1
-                  }
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-744-1",
+                      "token": "5"
+                    }
+                  ]
                 },
                 {
+                  "id": "numbered-event-635-1",
+                  "tick": 2880,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-635-1",
                       "token": "1'"
                     }
-                  ],
-                  "id": "numbered-event-635-1",
-                  "tick": 2880,
-                  "rhythm": {
-                    "base": "sixteenth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-636-1",
+                  "tick": 3120,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-636-1",
                       "token": "7"
                     }
-                  ],
-                  "id": "numbered-event-636-1",
-                  "tick": 3120,
-                  "rhythm": {
-                    "base": "eighth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-637-1",
+                  "tick": 3600,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-637-1",
                       "token": "5"
                     }
-                  ],
-                  "id": "numbered-event-637-1",
-                  "tick": 3600,
-                  "rhythm": {
-                    "base": "sixteenth",
-                    "dots": 0
-                  }
+                  ]
                 }
               ],
-              "tuplets": []
+              "tuplets": [
+                {
+                  "id": "numbered-tuplet-737-1",
+                  "eventIds": [
+                    "numbered-event-628-1",
+                    "numbered-event-628-2",
+                    "numbered-event-628-3"
+                  ],
+                  "ratio": {
+                    "actual": 3,
+                    "normal": 2
+                  }
+                },
+                {
+                  "id": "numbered-tuplet-743-1",
+                  "eventIds": [
+                    "numbered-event-738-1",
+                    "numbered-event-706-1",
+                    "numbered-event-632-1"
+                  ],
+                  "ratio": {
+                    "actual": 3,
+                    "normal": 2
+                  }
+                }
+              ]
             }
           },
           {
@@ -14146,14 +14236,14 @@
                 "text": "儿"
               },
               {
-                "id": "lyric-721-3",
-                "eventId": "numbered-event-720-1",
+                "id": "lyric-721-4",
+                "eventId": "numbered-event-721-1",
                 "verse": 1,
                 "text": "会"
               },
               {
-                "id": "lyric-721-4",
-                "eventId": "numbered-event-721-1",
+                "id": "lyric-797-1",
+                "eventId": "numbered-event-752-1",
                 "verse": 1,
                 "text": "再"
               },
@@ -14164,8 +14254,8 @@
                 "text": "次"
               },
               {
-                "id": "lyric-721-6",
-                "eventId": "numbered-event-721-3",
+                "id": "lyric-798-1",
+                "eventId": "numbered-event-756-1",
                 "verse": 1,
                 "text": "的"
               }
@@ -14222,63 +14312,124 @@
                     "base": "eighth",
                     "dots": 0
                   },
-                  "kind": "gap",
-                  "items": []
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-748-1",
+                      "token": "5"
+                    }
+                  ]
                 },
                 {
                   "id": "numbered-event-719-1",
-                  "tick": 480,
+                  "tick": 320,
                   "rhythm": {
-                    "base": "sixteenth",
+                    "base": "eighth",
                     "dots": 0
                   },
-                  "kind": "gap",
-                  "items": []
-                },
-                {
-                  "id": "numbered-event-720-1",
-                  "tick": 720,
-                  "rhythm": {
-                    "base": "sixteenth",
-                    "dots": 0
-                  },
-                  "kind": "gap",
-                  "items": []
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-749-1",
+                      "token": "4"
+                    }
+                  ]
                 },
                 {
                   "id": "numbered-event-721-1",
+                  "tick": 640,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  },
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-750-1",
+                      "token": "3"
+                    }
+                  ]
+                },
+                {
+                  "id": "numbered-event-752-1",
                   "tick": 960,
                   "rhythm": {
                     "base": "eighth",
                     "dots": 0
                   },
-                  "kind": "gap",
-                  "items": []
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-752-1",
+                      "token": "3"
+                    }
+                  ]
                 },
                 {
                   "id": "numbered-event-721-2",
-                  "tick": 1440,
+                  "tick": 1280,
                   "rhythm": {
-                    "base": "sixteenth",
+                    "base": "eighth",
                     "dots": 0
                   },
-                  "kind": "gap",
-                  "items": []
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-752-2",
+                      "token": "1"
+                    }
+                  ]
                 },
                 {
-                  "id": "numbered-event-721-3",
-                  "tick": 1680,
+                  "id": "numbered-event-756-1",
+                  "tick": 1600,
                   "rhythm": {
-                    "base": "sixteenth",
+                    "base": "eighth",
                     "dots": 0
                   },
-                  "kind": "gap",
-                  "items": []
+                  "kind": "notes",
+                  "items": [
+                    {
+                      "id": "numbered-item-756-1",
+                      "token": "3"
+                    }
+                  ]
                 }
               ],
-              "tuplets": []
+              "tuplets": [
+                {
+                  "id": "numbered-tuplet-751-1",
+                  "eventIds": [
+                    "numbered-event-706-3",
+                    "numbered-event-719-1",
+                    "numbered-event-721-1"
+                  ],
+                  "ratio": {
+                    "actual": 3,
+                    "normal": 2
+                  }
+                },
+                {
+                  "id": "numbered-tuplet-757-1",
+                  "eventIds": [
+                    "numbered-event-752-1",
+                    "numbered-event-721-2",
+                    "numbered-event-756-1"
+                  ],
+                  "ratio": {
+                    "actual": 3,
+                    "normal": 2
+                  }
+                }
+              ]
             },
-            "actualDurationTicks": 1920
+            "actualDurationTicks": 1920,
+            "jumpMarks": [
+              {
+                "id": "jump-mark-794-2",
+                "kind": "coda"
+              }
+            ]
           },
           {
             "id": "measure-414-1",
@@ -14342,8 +14493,8 @@
                 "text": "盛"
               },
               {
-                "id": "lyric-721-8",
-                "eventId": "numbered-event-646-1",
+                "id": "lyric-760-1",
+                "eventId": "numbered-event-759-1",
                 "verse": 1,
                 "text": "开"
               }
@@ -14464,79 +14615,79 @@
             "numberedVoice": {
               "events": [
                 {
+                  "id": "numbered-event-642-1",
+                  "tick": 0,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-642-1",
                       "token": "3"
                     }
-                  ],
-                  "id": "numbered-event-642-1",
-                  "tick": 0,
-                  "rhythm": {
-                    "base": "sixteenth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
-                  "id": "numbered-event-646-1",
-                  "tick": 240,
+                  "id": "numbered-event-759-1",
+                  "tick": 480,
                   "rhythm": {
                     "base": "eighth",
-                    "dots": 1
+                    "dots": 0
                   },
                   "kind": "notes",
                   "items": [
                     {
-                      "id": "numbered-item-647-1",
+                      "id": "numbered-item-759-1",
                       "token": "2"
                     }
                   ]
                 },
                 {
+                  "id": "numbered-event-643-1",
+                  "tick": 960,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-643-1",
                       "token": "2"
                     }
-                  ],
-                  "id": "numbered-event-643-1",
-                  "tick": 960,
+                  ]
+                },
+                {
+                  "id": "numbered-event-644-1",
+                  "tick": 1920,
                   "rhythm": {
                     "base": "quarter",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "continuation",
                   "items": [
                     {
                       "id": "numbered-item-644-1",
                       "token": "-"
                     }
-                  ],
-                  "id": "numbered-event-644-1",
-                  "tick": 1920,
+                  ]
+                },
+                {
+                  "id": "numbered-event-645-1",
+                  "tick": 2880,
                   "rhythm": {
                     "base": "quarter",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "continuation",
                   "items": [
                     {
                       "id": "numbered-item-645-1",
                       "token": "-"
                     }
-                  ],
-                  "id": "numbered-event-645-1",
-                  "tick": 2880,
-                  "rhythm": {
-                    "base": "quarter",
-                    "dots": 0
-                  }
+                  ]
                 }
               ],
               "tuplets": []
@@ -14661,64 +14812,64 @@
             "numberedVoice": {
               "events": [
                 {
+                  "id": "numbered-event-653-1",
+                  "tick": 0,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
                   "kind": "rest",
                   "items": [
                     {
                       "id": "numbered-item-653-1",
                       "token": "0"
                     }
-                  ],
-                  "id": "numbered-event-653-1",
-                  "tick": 0,
+                  ]
+                },
+                {
+                  "id": "numbered-event-653-2",
+                  "tick": 960,
                   "rhythm": {
                     "base": "quarter",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "rest",
                   "items": [
                     {
                       "id": "numbered-item-653-2",
                       "token": "0"
                     }
-                  ],
-                  "id": "numbered-event-653-2",
-                  "tick": 960,
+                  ]
+                },
+                {
+                  "id": "numbered-event-653-3",
+                  "tick": 1920,
                   "rhythm": {
                     "base": "quarter",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "rest",
                   "items": [
                     {
                       "id": "numbered-item-653-3",
                       "token": "0"
                     }
-                  ],
-                  "id": "numbered-event-653-3",
-                  "tick": 1920,
+                  ]
+                },
+                {
+                  "id": "numbered-event-653-4",
+                  "tick": 2880,
                   "rhythm": {
                     "base": "quarter",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "rest",
                   "items": [
                     {
                       "id": "numbered-item-653-4",
                       "token": "0"
                     }
-                  ],
-                  "id": "numbered-event-653-4",
-                  "tick": 2880,
-                  "rhythm": {
-                    "base": "quarter",
-                    "dots": 0
-                  }
+                  ]
                 }
               ],
               "tuplets": []
@@ -14962,184 +15113,184 @@
             "numberedVoice": {
               "events": [
                 {
+                  "id": "numbered-event-654-1",
+                  "tick": 0,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  },
                   "kind": "rest",
                   "items": [
                     {
                       "id": "numbered-item-654-1",
                       "token": "0"
                     }
-                  ],
-                  "id": "numbered-event-654-1",
-                  "tick": 0,
-                  "rhythm": {
-                    "base": "eighth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-655-1",
+                  "tick": 480,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-655-1",
                       "token": "1"
                     }
-                  ],
-                  "id": "numbered-event-655-1",
-                  "tick": 480,
+                  ]
+                },
+                {
+                  "id": "numbered-event-655-2",
+                  "tick": 720,
                   "rhythm": {
                     "base": "sixteenth",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-655-2",
                       "token": "6."
                     }
-                  ],
-                  "id": "numbered-event-655-2",
-                  "tick": 720,
+                  ]
+                },
+                {
+                  "id": "numbered-event-656-1",
+                  "tick": 960,
                   "rhythm": {
                     "base": "sixteenth",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-656-1",
                       "token": "1"
                     }
-                  ],
-                  "id": "numbered-event-656-1",
-                  "tick": 960,
+                  ]
+                },
+                {
+                  "id": "numbered-event-656-2",
+                  "tick": 1200,
                   "rhythm": {
                     "base": "sixteenth",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-656-2",
                       "token": "1"
                     }
-                  ],
-                  "id": "numbered-event-656-2",
-                  "tick": 1200,
+                  ]
+                },
+                {
+                  "id": "numbered-event-656-3",
+                  "tick": 1440,
                   "rhythm": {
                     "base": "sixteenth",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-656-3",
                       "token": "1"
                     }
-                  ],
-                  "id": "numbered-event-656-3",
-                  "tick": 1440,
+                  ]
+                },
+                {
+                  "id": "numbered-event-656-4",
+                  "tick": 1680,
                   "rhythm": {
                     "base": "sixteenth",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-656-4",
                       "token": "6."
                     }
-                  ],
-                  "id": "numbered-event-656-4",
-                  "tick": 1680,
+                  ]
+                },
+                {
+                  "id": "numbered-event-657-1",
+                  "tick": 1920,
                   "rhythm": {
                     "base": "sixteenth",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-657-1",
                       "token": "6."
                     }
-                  ],
-                  "id": "numbered-event-657-1",
-                  "tick": 1920,
-                  "rhythm": {
-                    "base": "sixteenth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-658-1",
+                  "tick": 2160,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 1
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-658-1",
                       "token": "1"
                     }
-                  ],
-                  "id": "numbered-event-658-1",
-                  "tick": 2160,
-                  "rhythm": {
-                    "base": "eighth",
-                    "dots": 1
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-659-1",
+                  "tick": 2880,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-659-1",
                       "token": "1"
                     }
-                  ],
-                  "id": "numbered-event-659-1",
-                  "tick": 2880,
-                  "rhythm": {
-                    "base": "eighth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-660-1",
+                  "tick": 3360,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-660-1",
                       "token": "1"
                     }
-                  ],
-                  "id": "numbered-event-660-1",
-                  "tick": 3360,
+                  ]
+                },
+                {
+                  "id": "numbered-event-660-2",
+                  "tick": 3600,
                   "rhythm": {
                     "base": "sixteenth",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-660-2",
                       "token": "6."
                     }
-                  ],
-                  "id": "numbered-event-660-2",
-                  "tick": 3600,
-                  "rhythm": {
-                    "base": "sixteenth",
-                    "dots": 0
-                  }
+                  ]
                 }
               ],
               "tuplets": []
@@ -15329,79 +15480,79 @@
             "numberedVoice": {
               "events": [
                 {
+                  "id": "numbered-event-661-1",
+                  "tick": 0,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-661-1",
                       "token": "6."
                     }
-                  ],
-                  "id": "numbered-event-661-1",
-                  "tick": 0,
-                  "rhythm": {
-                    "base": "sixteenth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-662-1",
+                  "tick": 240,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 1
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-662-1",
                       "token": "5."
                     }
-                  ],
-                  "id": "numbered-event-662-1",
-                  "tick": 240,
-                  "rhythm": {
-                    "base": "eighth",
-                    "dots": 1
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-663-1",
+                  "tick": 960,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-663-1",
                       "token": "5."
                     }
-                  ],
-                  "id": "numbered-event-663-1",
-                  "tick": 960,
+                  ]
+                },
+                {
+                  "id": "numbered-event-664-1",
+                  "tick": 1920,
                   "rhythm": {
                     "base": "quarter",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "continuation",
                   "items": [
                     {
                       "id": "numbered-item-664-1",
                       "token": "-"
                     }
-                  ],
-                  "id": "numbered-event-664-1",
-                  "tick": 1920,
+                  ]
+                },
+                {
+                  "id": "numbered-event-665-1",
+                  "tick": 2880,
                   "rhythm": {
                     "base": "quarter",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "continuation",
                   "items": [
                     {
                       "id": "numbered-item-665-1",
                       "token": "-"
                     }
-                  ],
-                  "id": "numbered-event-665-1",
-                  "tick": 2880,
-                  "rhythm": {
-                    "base": "quarter",
-                    "dots": 0
-                  }
+                  ]
                 }
               ],
               "tuplets": []
@@ -15651,214 +15802,214 @@
             "numberedVoice": {
               "events": [
                 {
+                  "id": "numbered-event-666-1",
+                  "tick": 0,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  },
                   "kind": "rest",
                   "items": [
                     {
                       "id": "numbered-item-666-1",
                       "token": "0"
                     }
-                  ],
-                  "id": "numbered-event-666-1",
-                  "tick": 0,
-                  "rhythm": {
-                    "base": "eighth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-667-1",
+                  "tick": 480,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-667-1",
                       "token": "1"
                     }
-                  ],
-                  "id": "numbered-event-667-1",
-                  "tick": 480,
+                  ]
+                },
+                {
+                  "id": "numbered-event-667-2",
+                  "tick": 720,
                   "rhythm": {
                     "base": "sixteenth",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-667-2",
                       "token": "6."
                     }
-                  ],
-                  "id": "numbered-event-667-2",
-                  "tick": 720,
+                  ]
+                },
+                {
+                  "id": "numbered-event-668-1",
+                  "tick": 960,
                   "rhythm": {
                     "base": "sixteenth",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-668-1",
                       "token": "1"
                     }
-                  ],
-                  "id": "numbered-event-668-1",
-                  "tick": 960,
+                  ]
+                },
+                {
+                  "id": "numbered-event-668-2",
+                  "tick": 1200,
                   "rhythm": {
                     "base": "sixteenth",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-668-2",
                       "token": "1"
                     }
-                  ],
-                  "id": "numbered-event-668-2",
-                  "tick": 1200,
+                  ]
+                },
+                {
+                  "id": "numbered-event-668-3",
+                  "tick": 1440,
                   "rhythm": {
                     "base": "sixteenth",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-668-3",
                       "token": "1"
                     }
-                  ],
-                  "id": "numbered-event-668-3",
-                  "tick": 1440,
+                  ]
+                },
+                {
+                  "id": "numbered-event-668-4",
+                  "tick": 1680,
                   "rhythm": {
                     "base": "sixteenth",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-668-4",
                       "token": "6."
                     }
-                  ],
-                  "id": "numbered-event-668-4",
-                  "tick": 1680,
+                  ]
+                },
+                {
+                  "id": "numbered-event-669-1",
+                  "tick": 1920,
                   "rhythm": {
                     "base": "sixteenth",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-669-1",
                       "token": "6."
                     }
-                  ],
-                  "id": "numbered-event-669-1",
-                  "tick": 1920,
-                  "rhythm": {
-                    "base": "sixteenth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-670-1",
+                  "tick": 2160,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-670-1",
                       "token": "1"
                     }
-                  ],
-                  "id": "numbered-event-670-1",
-                  "tick": 2160,
-                  "rhythm": {
-                    "base": "eighth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-671-1",
+                  "tick": 2640,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-671-1",
                       "token": "1"
                     }
-                  ],
-                  "id": "numbered-event-671-1",
-                  "tick": 2640,
+                  ]
+                },
+                {
+                  "id": "numbered-event-672-1",
+                  "tick": 2880,
                   "rhythm": {
                     "base": "sixteenth",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-672-1",
                       "token": "1"
                     }
-                  ],
-                  "id": "numbered-event-672-1",
-                  "tick": 2880,
+                  ]
+                },
+                {
+                  "id": "numbered-event-672-2",
+                  "tick": 3120,
                   "rhythm": {
                     "base": "sixteenth",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-672-2",
                       "token": "6."
                     }
-                  ],
-                  "id": "numbered-event-672-2",
-                  "tick": 3120,
+                  ]
+                },
+                {
+                  "id": "numbered-event-672-3",
+                  "tick": 3360,
                   "rhythm": {
                     "base": "sixteenth",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-672-3",
                       "token": "1"
                     }
-                  ],
-                  "id": "numbered-event-672-3",
-                  "tick": 3360,
+                  ]
+                },
+                {
+                  "id": "numbered-event-672-4",
+                  "tick": 3600,
                   "rhythm": {
                     "base": "sixteenth",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-672-4",
                       "token": "1"
                     }
-                  ],
-                  "id": "numbered-event-672-4",
-                  "tick": 3600,
-                  "rhythm": {
-                    "base": "sixteenth",
-                    "dots": 0
-                  }
+                  ]
                 }
               ],
               "tuplets": []
@@ -15996,79 +16147,79 @@
             "numberedVoice": {
               "events": [
                 {
+                  "id": "numbered-event-673-1",
+                  "tick": 0,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-673-1",
                       "token": "1"
                     }
-                  ],
-                  "id": "numbered-event-673-1",
-                  "tick": 0,
+                  ]
+                },
+                {
+                  "id": "numbered-event-674-1",
+                  "tick": 960,
                   "rhythm": {
                     "base": "quarter",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "continuation",
                   "items": [
                     {
                       "id": "numbered-item-674-1",
                       "token": "-"
                     }
-                  ],
-                  "id": "numbered-event-674-1",
-                  "tick": 960,
+                  ]
+                },
+                {
+                  "id": "numbered-event-675-1",
+                  "tick": 1920,
                   "rhythm": {
                     "base": "quarter",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "continuation",
                   "items": [
                     {
                       "id": "numbered-item-675-1",
                       "token": "-"
                     }
-                  ],
-                  "id": "numbered-event-675-1",
-                  "tick": 1920,
-                  "rhythm": {
-                    "base": "quarter",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-676-1",
+                  "tick": 2880,
+                  "rhythm": {
+                    "base": "sixteenth",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-676-1",
                       "token": "2"
                     }
-                  ],
-                  "id": "numbered-event-676-1",
-                  "tick": 2880,
-                  "rhythm": {
-                    "base": "sixteenth",
-                    "dots": 0
-                  }
+                  ]
                 },
                 {
+                  "id": "numbered-event-677-1",
+                  "tick": 3120,
+                  "rhythm": {
+                    "base": "eighth",
+                    "dots": 1
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-677-1",
                       "token": "2"
                     }
-                  ],
-                  "id": "numbered-event-677-1",
-                  "tick": 3120,
-                  "rhythm": {
-                    "base": "eighth",
-                    "dots": 1
-                  }
+                  ]
                 }
               ],
               "tuplets": []
@@ -16200,70 +16351,75 @@
             "numberedVoice": {
               "events": [
                 {
+                  "id": "numbered-event-678-1",
+                  "tick": 0,
+                  "rhythm": {
+                    "base": "quarter",
+                    "dots": 0
+                  },
                   "kind": "notes",
                   "items": [
                     {
                       "id": "numbered-item-682-1",
                       "token": "1"
                     }
-                  ],
-                  "id": "numbered-event-678-1",
-                  "tick": 0,
+                  ]
+                },
+                {
+                  "id": "numbered-event-682-2",
+                  "tick": 960,
                   "rhythm": {
                     "base": "quarter",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "continuation",
                   "items": [
                     {
                       "id": "numbered-item-685-1",
                       "token": "-"
                     }
-                  ],
-                  "id": "numbered-event-682-2",
-                  "tick": 960,
+                  ]
+                },
+                {
+                  "id": "numbered-event-679-1",
+                  "tick": 1920,
                   "rhythm": {
                     "base": "quarter",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "continuation",
                   "items": [
                     {
                       "id": "numbered-item-686-1",
                       "token": "-"
                     }
-                  ],
-                  "id": "numbered-event-679-1",
-                  "tick": 1920,
+                  ]
+                },
+                {
+                  "id": "numbered-event-680-1",
+                  "tick": 2880,
                   "rhythm": {
                     "base": "quarter",
                     "dots": 0
-                  }
-                },
-                {
+                  },
                   "kind": "continuation",
                   "items": [
                     {
                       "id": "numbered-item-687-1",
                       "token": "-"
                     }
-                  ],
-                  "id": "numbered-event-680-1",
-                  "tick": 2880,
-                  "rhythm": {
-                    "base": "quarter",
-                    "dots": 0
-                  }
+                  ]
                 }
               ],
               "tuplets": []
             }
           }
         ],
+        "playbackReplay": {
+          "afterMeasureId": "measure-395-1",
+          "fromMeasureId": "measure-311-1",
+          "throughMeasureId": "measure-355-1"
+        },
         "techniques": [
           {
             "id": "technique-51-1",
@@ -16561,8 +16717,8 @@
             "id": "technique-299-1",
             "type": "arpeggio",
             "beatId": "beat-281-3",
-            "minString": 2,
-            "maxString": 5,
+            "minString": 1,
+            "maxString": 4,
             "direction": "ascending"
           },
           {
@@ -16570,7 +16726,7 @@
             "type": "strum",
             "beatId": "beat-291-6",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -16578,7 +16734,7 @@
             "type": "strum",
             "beatId": "beat-291-9",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -16586,7 +16742,7 @@
             "type": "strum",
             "beatId": "beat-291-10",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "up"
           },
           {
@@ -16602,7 +16758,7 @@
             "type": "strum",
             "beatId": "beat-311-2",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -16610,7 +16766,7 @@
             "type": "strum",
             "beatId": "beat-312-1",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -16618,7 +16774,7 @@
             "type": "strum",
             "beatId": "beat-312-2",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "up"
           },
           {
@@ -16626,7 +16782,7 @@
             "type": "strum",
             "beatId": "beat-311-3",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -16634,7 +16790,7 @@
             "type": "strum",
             "beatId": "beat-313-1",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "up"
           },
           {
@@ -16642,7 +16798,7 @@
             "type": "strum",
             "beatId": "beat-313-2",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -16650,7 +16806,7 @@
             "type": "strum",
             "beatId": "beat-313-3",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "up"
           },
           {
@@ -16658,7 +16814,7 @@
             "type": "strum",
             "beatId": "beat-311-4",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -16666,7 +16822,7 @@
             "type": "strum",
             "beatId": "beat-312-3",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -16674,7 +16830,7 @@
             "type": "strum",
             "beatId": "beat-312-4",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "up"
           },
           {
@@ -16687,7 +16843,7 @@
             "id": "technique-321-1",
             "type": "strum",
             "beatId": "beat-320-1",
-            "minString": 2,
+            "minString": 3,
             "maxString": 5,
             "stroke": "down"
           },
@@ -16696,7 +16852,7 @@
             "type": "strum",
             "beatId": "beat-320-2",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -16704,7 +16860,7 @@
             "type": "strum",
             "beatId": "beat-322-1",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -16712,7 +16868,7 @@
             "type": "strum",
             "beatId": "beat-322-2",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "up"
           },
           {
@@ -16720,7 +16876,7 @@
             "type": "strum",
             "beatId": "beat-320-3",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -16728,7 +16884,7 @@
             "type": "strum",
             "beatId": "beat-323-1",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "up"
           },
           {
@@ -16736,7 +16892,7 @@
             "type": "strum",
             "beatId": "beat-323-2",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -16744,7 +16900,7 @@
             "type": "strum",
             "beatId": "beat-323-3",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "up"
           },
           {
@@ -16752,7 +16908,7 @@
             "type": "strum",
             "beatId": "beat-320-4",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -16760,7 +16916,7 @@
             "type": "strum",
             "beatId": "beat-324-1",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -16768,15 +16924,15 @@
             "type": "strum",
             "beatId": "beat-324-2",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "up"
           },
           {
             "id": "technique-327-1",
             "type": "strum",
             "beatId": "beat-326-1",
-            "minString": 1,
-            "maxString": 6,
+            "minString": 3,
+            "maxString": 5,
             "stroke": "down"
           },
           {
@@ -16784,7 +16940,7 @@
             "type": "strum",
             "beatId": "beat-326-2",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -16792,7 +16948,7 @@
             "type": "strum",
             "beatId": "beat-328-1",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -16800,15 +16956,15 @@
             "type": "strum",
             "beatId": "beat-328-2",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "up"
           },
           {
             "id": "technique-329-1",
             "type": "strum",
             "beatId": "beat-326-3",
-            "minString": 1,
-            "maxString": 6,
+            "minString": 3,
+            "maxString": 5,
             "stroke": "down"
           },
           {
@@ -16816,7 +16972,7 @@
             "type": "strum",
             "beatId": "beat-326-4",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -16824,7 +16980,7 @@
             "type": "strum",
             "beatId": "beat-330-1",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -16832,15 +16988,15 @@
             "type": "strum",
             "beatId": "beat-330-2",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "up"
           },
           {
             "id": "technique-334-1",
             "type": "strum",
             "beatId": "beat-333-1",
-            "minString": 1,
-            "maxString": 6,
+            "minString": 3,
+            "maxString": 5,
             "stroke": "down"
           },
           {
@@ -16848,7 +17004,7 @@
             "type": "strum",
             "beatId": "beat-333-2",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -16856,7 +17012,7 @@
             "type": "strum",
             "beatId": "beat-335-1",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -16864,15 +17020,15 @@
             "type": "strum",
             "beatId": "beat-335-2",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "up"
           },
           {
             "id": "technique-336-1",
             "type": "strum",
             "beatId": "beat-333-3",
-            "minString": 1,
-            "maxString": 6,
+            "minString": 3,
+            "maxString": 5,
             "stroke": "down"
           },
           {
@@ -16880,7 +17036,7 @@
             "type": "strum",
             "beatId": "beat-333-4",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -16888,7 +17044,7 @@
             "type": "strum",
             "beatId": "beat-337-1",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -16896,15 +17052,15 @@
             "type": "strum",
             "beatId": "beat-337-2",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "up"
           },
           {
             "id": "technique-341-1",
             "type": "strum",
             "beatId": "beat-340-1",
-            "minString": 1,
-            "maxString": 6,
+            "minString": 3,
+            "maxString": 5,
             "stroke": "down"
           },
           {
@@ -16912,7 +17068,7 @@
             "type": "strum",
             "beatId": "beat-340-2",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -16920,7 +17076,7 @@
             "type": "strum",
             "beatId": "beat-342-1",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -16928,7 +17084,7 @@
             "type": "strum",
             "beatId": "beat-342-2",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "up"
           },
           {
@@ -16936,7 +17092,7 @@
             "type": "strum",
             "beatId": "beat-340-3",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -16944,7 +17100,7 @@
             "type": "strum",
             "beatId": "beat-340-4",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -16952,7 +17108,7 @@
             "type": "strum",
             "beatId": "beat-344-1",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -16960,7 +17116,7 @@
             "type": "strum",
             "beatId": "beat-344-2",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "up"
           },
           {
@@ -16968,7 +17124,7 @@
             "type": "strum",
             "beatId": "beat-345-1",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "up"
           },
           {
@@ -16976,7 +17132,7 @@
             "type": "strum",
             "beatId": "beat-345-2",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -16984,7 +17140,7 @@
             "type": "strum",
             "beatId": "beat-345-3",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "up"
           },
           {
@@ -16997,8 +17153,8 @@
             "id": "technique-349-1",
             "type": "strum",
             "beatId": "beat-348-1",
-            "minString": 1,
-            "maxString": 6,
+            "minString": 3,
+            "maxString": 5,
             "stroke": "down"
           },
           {
@@ -17006,7 +17162,7 @@
             "type": "strum",
             "beatId": "beat-348-2",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -17014,7 +17170,7 @@
             "type": "strum",
             "beatId": "beat-350-1",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -17022,15 +17178,15 @@
             "type": "strum",
             "beatId": "beat-350-2",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "up"
           },
           {
             "id": "technique-351-1",
             "type": "strum",
             "beatId": "beat-348-3",
-            "minString": 1,
-            "maxString": 6,
+            "minString": 3,
+            "maxString": 5,
             "stroke": "down"
           },
           {
@@ -17038,7 +17194,7 @@
             "type": "strum",
             "beatId": "beat-348-4",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -17046,7 +17202,7 @@
             "type": "strum",
             "beatId": "beat-352-1",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -17054,15 +17210,15 @@
             "type": "strum",
             "beatId": "beat-352-2",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "up"
           },
           {
             "id": "technique-356-1",
             "type": "strum",
             "beatId": "beat-355-1",
-            "minString": 1,
-            "maxString": 6,
+            "minString": 3,
+            "maxString": 5,
             "stroke": "down"
           },
           {
@@ -17070,7 +17226,7 @@
             "type": "strum",
             "beatId": "beat-355-2",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -17078,7 +17234,7 @@
             "type": "strum",
             "beatId": "beat-357-1",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -17086,7 +17242,7 @@
             "type": "strum",
             "beatId": "beat-357-2",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "up"
           },
           {
@@ -17094,7 +17250,7 @@
             "type": "strum",
             "beatId": "beat-355-3",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -17102,7 +17258,7 @@
             "type": "strum",
             "beatId": "beat-358-1",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "up"
           },
           {
@@ -17110,7 +17266,7 @@
             "type": "strum",
             "beatId": "beat-358-2",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -17118,7 +17274,7 @@
             "type": "strum",
             "beatId": "beat-358-3",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "up"
           },
           {
@@ -17126,7 +17282,7 @@
             "type": "strum",
             "beatId": "beat-355-4",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -17134,7 +17290,7 @@
             "type": "strum",
             "beatId": "beat-359-1",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -17142,7 +17298,7 @@
             "type": "strum",
             "beatId": "beat-359-2",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "up"
           },
           {
@@ -17155,8 +17311,8 @@
             "id": "technique-363-1",
             "type": "strum",
             "beatId": "beat-362-1",
-            "minString": 1,
-            "maxString": 6,
+            "minString": 3,
+            "maxString": 5,
             "stroke": "down"
           },
           {
@@ -17164,7 +17320,7 @@
             "type": "strum",
             "beatId": "beat-362-2",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -17172,7 +17328,7 @@
             "type": "strum",
             "beatId": "beat-364-1",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -17180,14 +17336,14 @@
             "type": "strum",
             "beatId": "beat-364-2",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "up"
           },
           {
             "id": "technique-370-1",
             "type": "strum",
             "beatId": "beat-365-1",
-            "minString": 2,
+            "minString": 3,
             "maxString": 5,
             "stroke": "down"
           },
@@ -17196,7 +17352,7 @@
             "type": "strum",
             "beatId": "beat-365-2",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -17204,7 +17360,7 @@
             "type": "strum",
             "beatId": "beat-390-1",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -17212,23 +17368,23 @@
             "type": "strum",
             "beatId": "beat-390-2",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "up"
           },
           {
             "id": "technique-391-1",
             "type": "arpeggio",
             "beatId": "beat-365-3",
-            "minString": 2,
-            "maxString": 5,
+            "minString": 1,
+            "maxString": 4,
             "direction": "ascending"
           },
           {
             "id": "technique-397-1",
             "type": "strum",
             "beatId": "beat-395-1",
-            "minString": 1,
-            "maxString": 6,
+            "minString": 3,
+            "maxString": 5,
             "stroke": "down"
           },
           {
@@ -17236,7 +17392,7 @@
             "type": "strum",
             "beatId": "beat-395-2",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -17244,7 +17400,7 @@
             "type": "strum",
             "beatId": "beat-398-1",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -17252,7 +17408,7 @@
             "type": "strum",
             "beatId": "beat-398-2",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "up"
           },
           {
@@ -17260,7 +17416,7 @@
             "type": "strum",
             "beatId": "beat-395-3",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -17268,7 +17424,7 @@
             "type": "strum",
             "beatId": "beat-404-1",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -17276,7 +17432,7 @@
             "type": "strum",
             "beatId": "beat-403-2",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -17284,15 +17440,15 @@
             "type": "strum",
             "beatId": "beat-406-1",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "up"
           },
           {
             "id": "technique-409-1",
             "type": "strum",
             "beatId": "beat-408-1",
-            "minString": 1,
-            "maxString": 6,
+            "minString": 3,
+            "maxString": 5,
             "stroke": "down"
           },
           {
@@ -17300,7 +17456,7 @@
             "type": "strum",
             "beatId": "beat-408-2",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -17308,7 +17464,7 @@
             "type": "strum",
             "beatId": "beat-410-1",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -17316,15 +17472,15 @@
             "type": "strum",
             "beatId": "beat-410-2",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "up"
           },
           {
             "id": "technique-416-1",
             "type": "strum",
             "beatId": "beat-414-1",
-            "minString": 1,
-            "maxString": 6,
+            "minString": 3,
+            "maxString": 5,
             "stroke": "down"
           },
           {
@@ -17332,7 +17488,7 @@
             "type": "strum",
             "beatId": "beat-414-2",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -17340,7 +17496,7 @@
             "type": "strum",
             "beatId": "beat-417-1",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -17348,7 +17504,7 @@
             "type": "strum",
             "beatId": "beat-417-2",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "up"
           },
           {
@@ -17356,7 +17512,7 @@
             "type": "strum",
             "beatId": "beat-414-3",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -17364,7 +17520,7 @@
             "type": "strum",
             "beatId": "beat-418-1",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "up"
           },
           {
@@ -17372,7 +17528,7 @@
             "type": "strum",
             "beatId": "beat-418-2",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -17380,7 +17536,7 @@
             "type": "strum",
             "beatId": "beat-418-3",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "up"
           },
           {
@@ -17388,7 +17544,7 @@
             "type": "strum",
             "beatId": "beat-414-4",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -17396,7 +17552,7 @@
             "type": "strum",
             "beatId": "beat-419-1",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -17404,7 +17560,7 @@
             "type": "strum",
             "beatId": "beat-419-2",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "up"
           },
           {
@@ -17428,7 +17584,7 @@
             "type": "strum",
             "beatId": "beat-426-2",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -17436,7 +17592,7 @@
             "type": "strum",
             "beatId": "beat-426-3",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -17444,7 +17600,7 @@
             "type": "strum",
             "beatId": "beat-426-4",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "up"
           },
           {
@@ -17452,7 +17608,7 @@
             "type": "strum",
             "beatId": "beat-426-5",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -17460,7 +17616,7 @@
             "type": "strum",
             "beatId": "beat-426-6",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "up"
           },
           {
@@ -17468,7 +17624,7 @@
             "type": "strum",
             "beatId": "beat-426-7",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -17476,7 +17632,7 @@
             "type": "strum",
             "beatId": "beat-426-8",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "up"
           },
           {
@@ -17484,7 +17640,7 @@
             "type": "strum",
             "beatId": "beat-426-9",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -17492,7 +17648,7 @@
             "type": "strum",
             "beatId": "beat-426-10",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -17500,7 +17656,7 @@
             "type": "strum",
             "beatId": "beat-426-11",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "up"
           },
           {
@@ -17513,7 +17669,7 @@
             "id": "technique-426-13",
             "type": "strum",
             "beatId": "beat-426-12",
-            "minString": 2,
+            "minString": 3,
             "maxString": 5,
             "stroke": "down"
           },
@@ -17522,7 +17678,7 @@
             "type": "strum",
             "beatId": "beat-426-13",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -17530,7 +17686,7 @@
             "type": "strum",
             "beatId": "beat-426-14",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -17538,7 +17694,7 @@
             "type": "strum",
             "beatId": "beat-426-15",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "up"
           },
           {
@@ -17546,7 +17702,7 @@
             "type": "strum",
             "beatId": "beat-426-16",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -17554,7 +17710,7 @@
             "type": "strum",
             "beatId": "beat-426-17",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "up"
           },
           {
@@ -17562,7 +17718,7 @@
             "type": "strum",
             "beatId": "beat-426-18",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -17570,7 +17726,7 @@
             "type": "strum",
             "beatId": "beat-426-19",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "up"
           },
           {
@@ -17578,7 +17734,7 @@
             "type": "strum",
             "beatId": "beat-426-20",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -17586,7 +17742,7 @@
             "type": "strum",
             "beatId": "beat-426-21",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -17594,7 +17750,7 @@
             "type": "strum",
             "beatId": "beat-426-22",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "up"
           },
           {
@@ -17616,7 +17772,7 @@
             "type": "strum",
             "beatId": "beat-428-2",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -17624,7 +17780,7 @@
             "type": "strum",
             "beatId": "beat-428-3",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -17632,7 +17788,7 @@
             "type": "strum",
             "beatId": "beat-428-4",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "up"
           },
           {
@@ -17640,7 +17796,7 @@
             "type": "strum",
             "beatId": "beat-428-5",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -17648,7 +17804,7 @@
             "type": "strum",
             "beatId": "beat-428-6",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "up"
           },
           {
@@ -17656,7 +17812,7 @@
             "type": "strum",
             "beatId": "beat-428-7",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -17664,7 +17820,7 @@
             "type": "strum",
             "beatId": "beat-428-8",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "up"
           },
           {
@@ -17672,7 +17828,7 @@
             "type": "strum",
             "beatId": "beat-428-9",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -17680,7 +17836,7 @@
             "type": "strum",
             "beatId": "beat-428-10",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "down"
           },
           {
@@ -17688,7 +17844,7 @@
             "type": "strum",
             "beatId": "beat-428-11",
             "minString": 1,
-            "maxString": 6,
+            "maxString": 4,
             "stroke": "up"
           },
           {
@@ -17712,6 +17868,18 @@
             "minString": 2,
             "maxString": 5,
             "direction": "ascending"
+          },
+          {
+            "id": "technique-792-1",
+            "type": "traversalTie",
+            "fromBeatId": "beat-322-2",
+            "toBeatId": "beat-320-3"
+          },
+          {
+            "id": "technique-793-1",
+            "type": "traversalTie",
+            "fromBeatId": "beat-426-15",
+            "toBeatId": "beat-426-16"
           }
         ],
         "numberedMarks": [
@@ -17770,16 +17938,61 @@
             "toItemId": "numbered-item-532-3"
           },
           {
+            "id": "numbered-mark-553-1",
             "type": "tie",
             "fromItemId": "numbered-item-546-1",
-            "toItemId": "numbered-item-547-1",
-            "id": "numbered-mark-553-1"
+            "toItemId": "numbered-item-547-1"
           },
           {
+            "id": "numbered-mark-761-1",
             "type": "tie",
-            "fromItemId": "numbered-item-647-1",
-            "toItemId": "numbered-item-643-1",
-            "id": "numbered-mark-650-1"
+            "fromItemId": "numbered-item-759-1",
+            "toItemId": "numbered-item-643-1"
+          },
+          {
+            "id": "numbered-mark-762-1",
+            "type": "tie",
+            "fromItemId": "numbered-item-672-4",
+            "toItemId": "numbered-item-673-1"
+          },
+          {
+            "id": "numbered-mark-763-1",
+            "type": "tie",
+            "fromItemId": "numbered-item-662-1",
+            "toItemId": "numbered-item-663-1"
+          },
+          {
+            "id": "numbered-mark-764-1",
+            "type": "tie",
+            "fromItemId": "numbered-item-671-1",
+            "toItemId": "numbered-item-672-1"
+          }
+        ],
+        "repeatEndingGroups": [
+          {
+            "id": "repeat-ending-group-794-1",
+            "startMeasureId": "measure-137-1",
+            "sharedEndMeasureId": "measure-355-1",
+            "endMeasureId": "measure-408-1",
+            "passCount": 2,
+            "endings": [
+              {
+                "id": "repeat-ending-794-1",
+                "startMeasureId": "measure-362-1",
+                "endMeasureId": "measure-365-1",
+                "passes": [
+                  1
+                ]
+              },
+              {
+                "id": "repeat-ending-795-1",
+                "startMeasureId": "measure-395-1",
+                "endMeasureId": "measure-408-1",
+                "passes": [
+                  2
+                ]
+              }
+            ]
           }
         ]
       }

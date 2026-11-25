@@ -1,0 +1,37 @@
+.panel {
+  grid-area: 1 / 4;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px;
+  color: var(--foreground);
+  background: var(--panel);
+  border-left: 1px solid var(--border);
+
+  h2, h3, p { margin: 0; }
+  h2 { font-size: 16px; }
+  h3 { margin: 16px 0 8px; font-size: 14px; }
+}
+
+.position { padding: 8px 0 4px; color: #00796e; font-variant-numeric: tabular-nums; }
+.actions, .options, .visits { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.actions, .options { margin-top: 10px; }
+.visits {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  li { display: flex; align-items: center; gap: 5px; }
+  button[aria-current] { color: #006657; background: #e0f4ef; border-color: #78b8ad; }
+}
+.jump { color: var(--accent); }
+.fragments { display: flex; align-items: start; flex-direction: column; gap: 6px; }
+.issue {
+  padding: 8px;
+  margin-top: 10px;
+  color: #8a4e00;
+  background: #fff7e6;
+  border-radius: 4px;
+
+  button { margin-top: 6px; }
+}

@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>六线猫 · 反复与跳转设计评审</title>
+<style>
+  :root { color-scheme: light; --ink: #17243a; --muted: #52617a; --line: #d9e1eb; --paper: #fff; --blue: #194fc0; --accent: #fff2ce; }
+  * { box-sizing: border-box; }
+  body { min-width: 1440px; margin: 0; color: var(--ink); background: #f2f5f9; font: 15px/1.55 system-ui, "PingFang SC", "Microsoft YaHei", sans-serif; }
+  header { display: flex; gap: 22px; align-items: center; padding: 16px 40px; background: var(--paper); border-bottom: 1px solid var(--line); }
+  header b { font-size: 18px; }
+  header span { color: var(--muted); }
+  main { width: 1300px; margin: 36px auto; display: grid; grid-template-columns: minmax(0, 2.15fr) minmax(0, 1fr); gap: 32px; align-items: start; }
+  h1, h2, h3, p { margin: 0; }
+  h1 { font-size: 30px; line-height: 1.2; margin-bottom: 10px; }
+  h2 { font-size: 19px; margin-bottom: 12px; }
+  a { color: var(--blue); text-underline-offset: 4px; }
+  a:focus-visible { outline: 2px solid var(--blue); outline-offset: 4px; }
+  .sub, .note { color: var(--muted); }
+  .score { margin-top: 28px; padding: 24px 28px; background: var(--paper); border: 1px solid var(--line); border-radius: 12px; }
+  .route { padding: 14px 0; border-top: 1px solid var(--line); display: grid; grid-template-columns: 5.8em 1fr; gap: 12px; }
+  .route p { font-variant-numeric: tabular-nums; }
+  .route span { display: block; margin-top: 3px; font-size: 13px; color: var(--muted); }
+  mark { color: var(--ink); background: var(--accent); padding: 1px 4px; border-radius: 3px; font-weight: 650; }
+  .decision { margin-top: 16px; padding: 16px 0 0; border-top: 1px solid var(--line); }
+  .decision h3 { font-size: 16px; margin-bottom: 5px; }
+  .decision p + p { margin-top: 5px; }
+  .launch { display: inline-block; margin-top: 18px; padding: 8px 14px; border-radius: 6px; background: var(--blue); color: var(--paper); text-decoration: none; font-weight: 650; }
+  .launch:hover { text-decoration: underline; }
+  aside { padding-top: 4px; }
+  nav { background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 4px 18px; }
+  .topic { padding: 12px 2px; }
+  .topic + .topic { border-top: 1px solid var(--line); }
+  .topic > a { font-weight: 650; text-decoration: none; }
+  .topic > a:hover { text-decoration: underline; }
+  .topic p { color: var(--muted); font-size: 13px; margin-top: 3px; }
+  .topic p a { margin-left: 6px; white-space: nowrap; }
+  .note { margin-top: 16px; font-size: 13px; }
+  .sources { margin-top: 18px; display: flex; gap: 18px; font-size: 13px; }
+</style>
+<header><b>六线猫</b><span>反复与跳转设计评审</span></header>
+<main>
+  <section aria-labelledby="title">
+    <h1 id="title">《理想》试听联验</h1>
+    <p class="sub">播放顺序由谱上的反复、回跳和尾声记号决定。以下两条路线用来核对《理想》的谱面写法。</p>
+    <section class="score" aria-labelledby="passes">
+      <h2 id="passes">历史试听路线对照</h2>
+      <div class="route">
+        <strong>原描述</strong>
+        <div><p>1–33 → <mark>17–31 → 34</mark> → 25–31 → 35–42</p><span>第 31 小节演奏完直接接 34，共到访 64 次。</span></div>
+      </div>
+      <div class="route">
+        <strong>当前实现</strong>
+        <div><p>1–33 → <mark>17–34</mark> → 25–31 → 35–42</p><span>第二遍仍播放 32、33 小节，共到访 66 次。</span></div>
+      </div>
+      <p class="note">谱件的 32–33 与 34 小节都写有「沉入失望的生活里」。34 末另有「又一个」，随后从 34 的 C 和弦接到 25 的 C 和弦。</p>
+      <div class="decision">
+        <h3>用谱面符号说明 31→35</h3>
+        <p>两条历史路线都包含 33→17、34→25，以及重奏 25–31 后的 31→35。</p>
+        <p>原型可对照两种谱面写法。35 若是三房起点，则由反复房子选路。35 若是共同尾声，则由 31 的 To Coda 跳到 35 的 Coda。</p>
+      </div>
+      <a class="launch" href="index.html#ideal">打开《理想》试听对照</a>
+      <p class="sources"><a href="https://pcnhehlhivqu.feishu.cn/wiki/UEivw1G7Liuaqnk20d1cqCoxnHb?sheet=0d8c47&amp;range=A84%3AI84">BUG-083 原描述与修复方案</a><a href="https://pcnhehlhivqu.feishu.cn/wiki/UEivw1G7Liuaqnk20d1cqCoxnHb?sheet=tcgLfi&amp;range=A98%3AI101">飞书需求</a></p>
+    </section>
+  </section>
+  <aside aria-labelledby="prototypes">
+    <h2 id="prototypes">可点击原型</h2>
+    <nav aria-label="四个专题">
+      <div class="topic"><a href="index.html">REQ-105 谱面跳转记号</a><p>Segno、D.S. 与 Coda 配对 <a href="../README.md">规格与验收</a></p></div>
+      <div class="topic"><a href="../../REQ-106-反复房子/prototype/index.html">REQ-106 反复房子</a><p>跨谱行括线与按遍选路 <a href="../../REQ-106-反复房子/README.md">规格与验收</a></p></div>
+      <div class="topic"><a href="../../REQ-107-曲首回跳与结束/prototype/index.html">REQ-107 曲首回跳与结束</a><p>D.C.、Fine 与重奏后续动作 <a href="../../REQ-107-曲首回跳与结束/README.md">规格与验收</a></p></div>
+      <div class="topic"><a href="../../REQ-108-单小节重复/prototype/index.html">REQ-108 单小节重复</a><p>展开、同步与保留快照 <a href="../../REQ-108-单小节重复/README.md">规格与验收</a></p></div>
+    </nav>
+    <p class="note">建议在 1440px 或更宽的窗口打开。通用编辑规则在负责人会话确认。</p>
+  </aside>
+</main>
+</html>

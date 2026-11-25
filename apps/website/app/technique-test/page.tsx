@@ -1,48 +1,37 @@
 "use client";
 
+import { createEditorSession, LxmEditor } from "@liuxianmao/lxm-editor-react";
 import {
   EXAMPLE_TECHNIQUE_RHYTHM_DOCUMENT,
   createQualityScore,
   EXAMPLE_MUTED_NOTE_DOCUMENT,
   EXAMPLE_MVP7C_DOCUMENT,
   EXAMPLE_MVP7C_LONG_DOCUMENT,
-} from "@liuxianmao/lxm-editor";
+} from "../../../../packages/lxm-editor/example/fixtures";
 import Link from "next/link";
-import { useState } from "react";
-import { useStore } from "zustand";
-import { EditorSession } from "../../components/EditorShell/session/EditorSession";
-import { createEditorSession } from "../../stores/editor-store";
+import { useRouter } from "next/navigation";
+import { useCallback, useState, useSyncExternalStore } from "react";
+import { websiteEditorResources } from "../../lib/editor-resources";
 import styles from "./page.module.scss";
 
 /** 测试页独立会话；恢复只替换本页文档，不触碰编辑器谱面与历史。 */
 const TechniqueTestPage = () => {
+  const router = useRouter();
   const [session] = useState(() =>
     createEditorSession(EXAMPLE_TECHNIQUE_RHYTHM_DOCUMENT),
   );
 
-  const title = useStore(
-    session,
-    (state) => state.document?.score.title ?? "技巧与时值测试谱",
+  // 接入页仅订阅公共会话的文档变更。服务端与首次客户端渲染都读取该会话的初始谱。
+  const subscribe = useCallback(
+    (notify: () => void) => session.on("change", notify),
+    [session],
   );
-  const qualityCount = useStore(session, (state) =>
-    state.document?.score.title.startsWith("A4 图片质量验收")
-      ? state.document.score.tracks[0]?.measures.length
-      : null,
-  );
-  const isMutedFixture = useStore(
-    session,
-    (state) =>
-      state.document?.score.id === EXAMPLE_MUTED_NOTE_DOCUMENT.score.id,
-  );
-
-  const measureCount = useStore(
-    session,
-    (state) => state.document?.score.tracks[0]?.measures.length ?? 0,
-  );
-  const isCFixture = useStore(
-    session,
-    (state) => state.document?.score.id.startsWith("mvp7c-") ?? false,
-  );
+  const score = useSyncExternalStore(subscribe, session.getDocument, session.getDocument)?.score;
+  const title = score?.title ?? "技巧与时值测试谱";
+  const measureCount = score?.tracks[0]?.measures.length ?? 0;
+  const qualityCount = title.startsWith("A4 图片质量验收") ? measureCount : null;
+  const isMutedFixture = score?.id === EXAMPLE_MUTED_NOTE_DOCUMENT.score.id;
+  const isCFixture = score?.id.startsWith("mvp7c-") ?? false;
   return (
     <div className={styles.testPage}>
       <header className={styles.header}>
@@ -59,14 +48,14 @@ const TechniqueTestPage = () => {
         <nav>
           <button
             onClick={() =>
-              session.getState().replaceDocument(EXAMPLE_MVP7C_DOCUMENT)
+              session.replaceDocument(EXAMPLE_MVP7C_DOCUMENT)
             }
           >
             载入 MVP7.1-C 混合谱
           </button>
           <button
             onClick={() =>
-              session.getState().replaceDocument(EXAMPLE_MVP7C_LONG_DOCUMENT)
+              session.replaceDocument(EXAMPLE_MVP7C_LONG_DOCUMENT)
             }
           >
             载入 100 小节基线谱
@@ -75,7 +64,7 @@ const TechniqueTestPage = () => {
           <button
             type="button"
             onClick={() =>
-              session.getState().replaceDocument(createQualityScore(16))
+              session.replaceDocument(createQualityScore(16))
             }
           >
             载入 16 小节验收谱
@@ -83,7 +72,7 @@ const TechniqueTestPage = () => {
           <button
             type="button"
             onClick={() =>
-              session.getState().replaceDocument(createQualityScore(100))
+              session.replaceDocument(createQualityScore(100))
             }
           >
             载入 100 小节验收谱
@@ -91,7 +80,7 @@ const TechniqueTestPage = () => {
           <button
             type="button"
             onClick={() =>
-              session.getState().replaceDocument(EXAMPLE_MUTED_NOTE_DOCUMENT)
+              session.replaceDocument(EXAMPLE_MUTED_NOTE_DOCUMENT)
             }
           >
             载入 x 混合谱
@@ -99,9 +88,7 @@ const TechniqueTestPage = () => {
           <button
             type="button"
             onClick={() =>
-              session
-                .getState()
-                .replaceDocument(EXAMPLE_TECHNIQUE_RHYTHM_DOCUMENT)
+              session.replaceDocument(EXAMPLE_TECHNIQUE_RHYTHM_DOCUMENT)
             }
           >
             恢复测试谱
@@ -109,7 +96,17 @@ const TechniqueTestPage = () => {
         </nav>
       </header>
       <div className={styles.workspace}>
-        <EditorSession session={session} />
+        <LxmEditor
+          session={session}
+          resources={websiteEditorResources}
+          navigation={{
+            homeHref: "/",
+            learningHref: "/guitar-advanced",
+            onNavigate: router.push,
+            onDiscard: () => session.replaceDocument(EXAMPLE_TECHNIQUE_RHYTHM_DOCUMENT),
+            renderLink: (props) => <Link {...props} />,
+          }}
+        />
       </div>
     </div>
   );

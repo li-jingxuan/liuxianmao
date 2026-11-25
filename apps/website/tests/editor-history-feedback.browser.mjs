@@ -54,7 +54,7 @@ try {
   );
   await page.waitForFunction(() => !!window.historyFeedbackTest);
   await page.getByRole("button", { name: "操作历史", exact: true }).click();
-  const panel = page.locator("#editor-history-panel");
+  const panel = page.locator("[data-history-panel]");
   assert.deepEqual(
     await panel
       .locator("[data-entry-id]")

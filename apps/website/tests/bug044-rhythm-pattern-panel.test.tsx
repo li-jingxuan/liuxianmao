@@ -1,13 +1,14 @@
 import { isValidElement, type ComponentProps, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { EXAMPLE_MVP_7_2_DOCUMENT, planRhythmPattern, TICKS_PER_QUARTER as Q, type ILXMNumberedEvent } from "@liuxianmao/lxm-editor";
-import { RhythmPatternPanel, RhythmPatternProvider, useSharedRhythmPatternBusy, type RhythmPatternConfig } from "../components/EditorShell/tools/RhythmPatternPanel";
-import { resolveEditorRhythmPatternTarget } from "../components/EditorShell/tools/editor-rhythm-pattern-target";
-import type { MusicTextTarget } from "../components/EditorShell/music-text/music-text-draft";
-import { createEditorCommandAdapter } from "../components/EditorShell/session/editor-command-adapter";
-import { createEditorModalController } from "../components/EditorShell/session/editor-modal-controller";
-import { createEditorSession } from "../stores/editor-store";
+import { planRhythmPattern, TICKS_PER_QUARTER as Q, type ILXMNumberedEvent } from "@liuxianmao/lxm-editor";
+import { EXAMPLE_MVP_7_2_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { RhythmPatternPanel, RhythmPatternProvider, useSharedRhythmPatternBusy, type RhythmPatternConfig } from "../../../packages/lxm-editor-react/src/EditorShell/tools/RhythmPatternPanel";
+import { resolveEditorRhythmPatternTarget } from "../../../packages/lxm-editor-react/src/EditorShell/tools/editor-rhythm-pattern-target";
+import type { MusicTextTarget } from "../../../packages/lxm-editor-react/src/EditorShell/music-text/music-text-draft";
+import { createEditorCommandAdapter } from "../../../packages/lxm-editor-react/src/EditorShell/session/editor-command-adapter";
+import { createEditorModalController } from "../../../packages/lxm-editor-react/src/EditorShell/session/editor-modal-controller";
+import { createEditorSessionStore as createEditorSession } from "../../../packages/lxm-editor-react/src/stores/editor-store";
 
 // SSR keeps the real hooks and markup. Retain only lazy state between renders
 // so card callbacks and submission guards can be exercised without a DOM shim.

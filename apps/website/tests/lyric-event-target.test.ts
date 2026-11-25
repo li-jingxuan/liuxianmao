@@ -1,18 +1,19 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { buildLayout, EXAMPLE_MVP_6_DOCUMENT } from "@liuxianmao/lxm-editor";
-import { resolveNextLyricTarget } from "../components/EditorShell/music-text/music-text-target";
+import { buildLayout } from "@liuxianmao/lxm-editor";
+import { EXAMPLE_MVP_6_DOCUMENT } from "../../../packages/lxm-editor/example/fixtures";
+import { resolveNextLyricTarget } from "../../../packages/lxm-editor-react/src/EditorShell/music-text/music-text-target";
 import {
   resolveLyricFocus,
   resolveParagraphFocus,
-} from "../components/EditorShell/score/music-text-focus";
+} from "../../../packages/lxm-editor-react/src/EditorShell/score/music-text-focus";
 import {
   resolveMusicTextHoverTarget,
   sameMusicTextTarget,
-} from "../components/EditorShell/music-text/music-text-hover";
-import { resolveScorePointerAction } from "../components/EditorShell/session/editor-object-selection";
-import { MusicTextEditingHints } from "../components/EditorShell/score/MusicTextEditingHints";
+} from "../../../packages/lxm-editor-react/src/EditorShell/music-text/music-text-hover";
+import { resolveScorePointerAction } from "../../../packages/lxm-editor-react/src/EditorShell/session/editor-object-selection";
+import { MusicTextEditingHints } from "../../../packages/lxm-editor-react/src/EditorShell/score/MusicTextEditingHints";
 import { buildScoreScene } from "@liuxianmao/lxm-editor";
 
 const fixture = () => {

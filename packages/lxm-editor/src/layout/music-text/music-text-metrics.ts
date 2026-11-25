@@ -1,7 +1,10 @@
 import { scoreHeaderText } from "../structure/score-header-text";
 import { effectiveChordDisplay } from "./chord-display";
-import type { ILXMDocument } from "../../core/types";
-import { LXM_NUMBERED_TEXT_FONT_SIZE } from "../layout-constants";
+import type { ILXMDocument, ILXMTupletRatio } from "../../core/types";
+import {
+  LXM_NUMBERED_TEXT_FONT_SIZE,
+  LXM_NUMBERED_TUPLET_FONT_SIZE,
+} from "../layout-constants";
 
 export interface ILXMMusicTextMeasureRequest {
   key: string;
@@ -77,6 +80,13 @@ export const musicTextRequest = (
     textAnchor,
   };
 };
+/** 三连音用惯例数字，其他比例保留完整标记；测量缓存和弧线断口共用实际标注字号。 */
+export const numberedTupletMeasureRequest = ({ actual, normal }: ILXMTupletRatio) =>
+  musicTextRequest(
+    actual === 3 && normal === 2 ? "3" : `${actual}:${normal}`,
+    LXM_NUMBERED_TUPLET_FONT_SIZE,
+  );
+
 /** 音乐字体请求的 key 必须包含真实字体，不能沿用普通文字的缓存身份。 */
 export const numberedAccidentalMeasureRequest = (prefix: string) =>
   musicTextRequest(
@@ -162,14 +172,7 @@ export const collectMusicTextMeasureRequests = (
       }
 
     for (const group of measure.numberedVoice.tuplets)
-      requests.push(
-        musicTextRequest(
-          group.ratio.actual === 3 && group.ratio.normal === 2
-            ? "3"
-            : `${group.ratio.actual}:${group.ratio.normal}`,
-          11,
-        ),
-      );
+      requests.push(numberedTupletMeasureRequest(group.ratio));
     for (const lyric of measure.lyrics) {
       requests.push(musicTextRequest(lyric.text, MUSIC_LYRIC_FONT_SIZE));
     }
