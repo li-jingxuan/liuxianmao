@@ -102,17 +102,18 @@ const auditionFromHead = async (page) => {
 };
 
 const waitForEntrance = (locator) => locator.evaluate(async (element) => {
-    const animations = [];
-    for (let ancestor = element; ancestor; ancestor = ancestor.parentElement) {
-      animations.push(...ancestor.getAnimations().filter((animation) => Number.isFinite(animation.effect?.getComputedTiming().endTime)));
-    }
-    await Promise.allSettled(animations.map((animation) => animation.finished));
+  const animations = [];
+  for (let ancestor = element; ancestor; ancestor = ancestor.parentElement) {
+    animations.push(...ancestor.getAnimations().filter((animation) => Number.isFinite(animation.effect?.getComputedTiming().endTime)));
+  }
+  await Promise.allSettled(animations.map((animation) => animation.finished));
 });
 
 async function checkSymbolGrid(row) {
   await row.waitFor();
   const items = row.getByRole("button");
-  await waitForEntrance(symbol(row, "反复房子"));
+  await symbol(row, "反复房子").click({ trial: true });
+  await waitForEntrance(row);
   const lines = await row.locator("..").getByRole("group", { name: "小节线与反复", exact: true })
     .getByRole("button").evaluateAll((buttons) => buttons.map((item) => {
       const { width, height } = getComputedStyle(item);
