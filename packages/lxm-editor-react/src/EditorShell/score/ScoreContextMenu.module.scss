@@ -42,11 +42,20 @@
       &:is(:hover, :focus) { background: var(--panel-muted); }
     }
 
-    &:last-child {
+    &[data-separator] {
       height: 39px;
       margin-top: 4px;
       border-top: 1px solid var(--border);
     }
+
+    &[data-danger]:not([aria-disabled="true"]) { color: var(--error, #cf1322); }
+  }
+
+  // 六线谱保留原来的末项分组，简谱按剪贴板操作和清空操作分别分组。
+  &:not([data-numbered-menu]) button:last-child {
+    height: 39px;
+    margin-top: 4px;
+    border-top: 1px solid var(--border);
   }
 }
 

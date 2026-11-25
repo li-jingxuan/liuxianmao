@@ -3,6 +3,11 @@ import { MAX_SCORE_BPM, MIN_SCORE_BPM, TICKS_PER_QUARTER } from "../constants";
 import type { ILXMChordString, ILXMDocument, ILXMStrokeDirection, ILXMTechniqueType, ILXMTrack } from "../types";
 import { buildPlaybackSounds } from "./sound";
 import { buildPlaybackTimeline } from "./timeline";
+import type { PlaybackRepeatEndingVisit } from "./repeat-ending-order";
+import type { PlaybackJumpEnd, PlaybackJumpIssue, PlaybackJumpTransition, PlaybackRepeatEndingIssue } from "./jump-order";
+export type { PlaybackRepeatEndingVisit } from "./repeat-ending-order";
+export type { PlaybackJumpEnd, PlaybackJumpIssue, PlaybackJumpTransition, PlaybackRepeatEndingIssue,
+  PlaybackRepeatBoundary, PlaybackRepeatBoundaryResolver } from "./jump-order";
 
 export const DEFAULT_PLAYBACK_BPM = 90;
 export const MIN_PLAYBACK_BPM = MIN_SCORE_BPM;
@@ -42,6 +47,9 @@ export interface PlaybackMeasureVisit {
   startTick: number;
   endTick: number;
   jumped: boolean;
+  jump?: PlaybackJumpTransition;
+  /** 显式反复组内，这次到访实际演奏的遍次。 */
+  repeatEnding?: PlaybackRepeatEndingVisit;
 }
 
 export interface PlaybackBeat extends PlaybackMeasureVisit {
@@ -119,6 +127,10 @@ export interface PlaybackPlan {
   beats: readonly PlaybackBeat[];
   sounds: readonly PlaybackSound[];
   warnings: readonly PlaybackWarning[];
+  jumpIssue?: PlaybackJumpIssue;
+  /** 曲谱跳转路线正常停止的书写边界，Fine 和曲尾由同一实际到访产生。 */
+  jumpEnd?: PlaybackJumpEnd;
+  repeatEndingIssue?: PlaybackRepeatEndingIssue;
 }
 
 /** Pure preview of a single guitar track, with no dependency on the audio runtime. */
@@ -139,7 +151,7 @@ export function createPlaybackPlan(
     else warnings.set(code, new Set([measureId]));
   };
 
-  const timeline = buildPlaybackTimeline(track, options.chordCatalog, warn);
+  const timeline = buildPlaybackTimeline(track, options.chordCatalog, warn, options.startMeasureId);
   const ticksPerSecond = playbackSecondsToTicks(1, bpm);
   const sounds = buildPlaybackSounds(track, timeline.runs, ticksPerSecond, options.midiRange ?? [0, 127], warn);
   const selected = timeline.visits.find((visit) => visit.measureId === options.startMeasureId);
@@ -153,6 +165,8 @@ export function createPlaybackPlan(
     measureId: beat.measureId,
     measureIndex: beat.measureIndex,
     jumped: beat.jumped,
+    ...(beat.jump ? { jump: beat.jump } : {}),
+    ...(beat.repeatEnding ? { repeatEnding: beat.repeatEnding } : {}),
     beatId: beat.beatId,
     startTick: beat.startTick - origin,
     endTick: beat.endTick - origin,
@@ -162,6 +176,9 @@ export function createPlaybackPlan(
     durationTicks: timeline.durationTicks - origin,
     visits,
     beats,
+    ...(timeline.jumpIssue ? { jumpIssue: timeline.jumpIssue } : {}),
+    ...(timeline.jumpEnd ? { jumpEnd: timeline.jumpEnd } : {}),
+    ...(timeline.repeatEndingIssue ? { repeatEndingIssue: timeline.repeatEndingIssue } : {}),
     sounds: sounds.filter(({ endTick, startTick }) => endTick > origin && endTick > startTick).map((sound) => ({
       ...sound,
       startTick: Math.max(0, sound.startTick - origin),

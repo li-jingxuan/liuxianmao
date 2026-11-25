@@ -1,5 +1,6 @@
 import {
   buildLayout,
+  createNumberedClipboard,
   LXMScoreCommandEnum,
   validateDocumentSemantics,
 } from "@liuxianmao/lxm-editor";
@@ -37,6 +38,45 @@ const createTimeSignatureDocument = (measureIndex = 0) => {
 };
 
 describe("editor store history", () => {
+  it.each([false, true])("简谱粘贴撤销和重做保留目标拍位（已有事件 %s）", (occupied) => {
+    const document = createTimeSignatureDocument();
+    const track = document.score.tracks[0]!;
+    const measure = track.measures[0]!;
+    const location = { trackId: track.id, measureId: measure.id };
+    track.numberedMarks = [];
+    measure.lyrics = [];
+    measure.numberedVoice = {
+      events: [{ id: "source-note", tick: 0, rhythm: { base: "quarter", dots: 0 }, kind: "notes", items: [{ id: "source-item", token: "1" }] }],
+      tuplets: [],
+    };
+    if (occupied) measure.numberedVoice.events.push({
+      id: "original-note", tick: 960, rhythm: { base: "quarter", dots: 0 }, kind: "notes", items: [{ id: "original-item", token: "2" }],
+    });
+    const copy = createNumberedClipboard(document, { ...location, startTick: 0, endTick: 960 });
+    if (!copy.ok) throw new Error(copy.message);
+    const store = createEditorStore(document);
+    store.getState().setSelection(null);
+    store.getState().setNumberedSelection(occupied
+      ? { ...location, kind: "numberedEvent", eventId: "original-note" }
+      : { ...location, kind: "numberedTime", tick: 960, endTick: 1920 });
+    const originalFocus = store.getState().numberedSelection;
+    expect(store.getState().execute({
+      type: "numbered.range.paste", ...location, startTick: 960,
+      mode: "overwrite", allowOverwrite: true, numberedOnly: true, clipboard: copy.clipboard,
+    })).toMatchObject({ ok: true, changed: true });
+    const pastedFocus = store.getState().numberedSelection;
+    expect(pastedFocus).toMatchObject({ ...location, kind: "numberedEvent" });
+    expect(pastedFocus).not.toEqual(originalFocus);
+    expect(store.getState().historyDepth.past).toBe(1);
+
+    store.getState().undo();
+    expect(store.getState().document).toBe(document);
+    expect(store.getState().numberedSelection).toEqual(originalFocus);
+    store.getState().redo();
+    expect(store.getState().numberedSelection).toEqual(pastedFocus);
+    expect(store.getState().selection).toBeNull();
+  });
+
   it("小节边界修改产生一条历史并可撤销重做", () => {
     const initial = structuredClone(EXAMPLE_MVP_4);
     const store = createEditorStore(initial);

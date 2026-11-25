@@ -1,0 +1,140 @@
+.inspector {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--ant-color-border-secondary, #e7ebf0);
+  color: var(--ant-color-text, #202838);
+  font-size: 13px;
+  line-height: 1.5;
+
+  .row > h3 {
+    margin: 0;
+    font-size: inherit;
+    font-weight: 600;
+  }
+
+  p {
+    margin: 0;
+  }
+
+  small,
+  .hint {
+    display: block;
+    color: var(--ant-color-text-secondary, #626e82);
+    font-size: 12px;
+  }
+
+  .issue {
+    color: var(--ant-color-error-text, #a12d34);
+    font-size: 12px;
+    overflow-wrap: anywhere;
+  }
+}
+
+.marks,
+.form {
+  display: grid;
+  gap: 8px;
+}
+
+.card,
+.form {
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--ant-color-border-secondary, #e7ebf0);
+  border-radius: 6px;
+  background: var(--panel-muted, #f5f7fb);
+}
+
+.row,
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.row {
+  justify-content: space-between;
+}
+
+.actions .delete {
+  margin-inline-start: auto;
+}
+
+.field {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.pairings,
+.unresolved ul {
+  list-style: none;
+  padding: 0;
+  margin: 6px 0 0;
+  display: grid;
+  gap: 6px;
+}
+
+.pairings {
+  padding-top: 6px;
+  border-top: 1px solid var(--ant-color-border-secondary, #e7ebf0);
+}
+
+.chain {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 3px 5px;
+  margin-top: 3px;
+  font-size: 12px;
+}
+
+.chain .link,
+.node {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.chain .link {
+  color: var(--ant-color-primary, #285be0);
+  border-color: var(--ant-color-primary-border, #cbd9f0);
+  padding-inline: 4px;
+  font-size: inherit;
+}
+
+.number {
+  min-width: 16px;
+  padding-inline: 2px;
+  border-radius: 3px;
+  text-align: center;
+  background: var(--ant-color-fill-quaternary, #e8edf5);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.missing {
+  padding: 1px 4px;
+  border: 1px dashed var(--ant-color-warning-border, #c49a4c);
+  border-radius: 4px;
+  color: var(--ant-color-warning-text, #78500c);
+  background: var(--ant-color-warning-bg, #fcf4e4);
+}
+
+.unresolved summary {
+  color: var(--ant-color-text-secondary, #626e82);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.unresolved li > button,
+.issue > button {
+  padding-inline: 0;
+}
+
+.impactList {
+  margin: 8px 0 0;
+  padding-inline-start: 20px;
+}

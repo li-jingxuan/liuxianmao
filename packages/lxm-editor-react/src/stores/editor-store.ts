@@ -12,6 +12,7 @@ import {
  */
 import {
   applyScoreCommand,
+  collectMusicTextRangeSlots,
   createCollapsedTabCellSelection,
   loadDocument,
   semanticJsonEqual,
@@ -62,6 +63,26 @@ export interface NumberedAutoAdvance {
   previousPreference: ILXMRhythm;
 }
 type NumberedTimeTarget = Extract<ILXMNumberedTarget, { kind: "numberedTime" }>;
+
+/** 历史切换可能还原粘贴覆盖前的事件 ID。原身份失效时用同一简谱拍位接续焦点。 */
+const restoreNumberedHistoryFocus = (
+  document: ILXMDocument,
+  previous: ILXMDocument,
+  target: ILXMNumberedTarget | null,
+): ILXMNumberedTarget | null => {
+  const retained = reconcileNumberedSelection(document, target);
+  if (retained || !target) return retained;
+  const { trackId, measureId } = target;
+  const tick = target.kind === "numberedTime" ? target.tick : previous.score.tracks
+    .find((track) => track.id === trackId)?.measures.find((measure) => measure.id === measureId)
+    ?.numberedVoice.events.find((event) => event.id === target.eventId)?.tick;
+  if (tick === undefined) return null;
+  const slot = collectMusicTextRangeSlots(document, { kind: "numbered", trackId })
+    .find((item) => item.measureId === measureId && item.tick <= tick && tick < item.endTick);
+  if (!slot) return null;
+  return slot.eventId ? { kind: "numberedEvent", trackId, measureId, eventId: slot.eventId }
+    : slot.rhythm ? { kind: "numberedTime", trackId, measureId, tick: slot.tick, endTick: slot.endTick } : null;
+};
 
 export const selectScoreFileStatus = ({ document, fileBaseline }: Pick<EditorStore, "document" | "fileBaseline">): ScoreFileStatus => {
   if (!document) return "example";
@@ -185,8 +206,9 @@ export const createEditorStore = (
         tabInputRhythmOverrides: [],
         effects: [],
         document: previous,
-        numberedSelection: reconcileNumberedSelection(
+        numberedSelection: restoreNumberedHistoryFocus(
           previous,
+          state.document,
           state.numberedSelection,
         ),
         selectedNumberedMarkId: null,
@@ -425,7 +447,8 @@ export const createEditorStore = (
             ? state.selectedNumberedMarkId
             : null,
           stateVersion: get().stateVersion + 1,
-          selection: command.type.startsWith("numbered.")
+          selection: command.type.startsWith("numbered.") ||
+            (command.type === LXMScoreCommandEnum.ReplaceMusicTextRange && command.range.kind === "numbered" && command.preserveNumberedRow)
             ? state.selection
             : reconcileSelection(result.document, selectionCandidate),
           ...reconcileTechniqueFocus(result.document, state.selectedTechniqueId, state.selectedTraversalIds),
@@ -508,8 +531,9 @@ export const createEditorStore = (
           effects: [],
           document: next,
           feedbackEvent: retainFeedback(state.feedbackEvent, history),
-          numberedSelection: reconcileNumberedSelection(
+          numberedSelection: restoreNumberedHistoryFocus(
             next,
+            state.document,
             state.numberedSelection,
           ),
           selectedNumberedMarkId: null,

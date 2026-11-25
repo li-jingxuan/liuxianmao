@@ -1,6 +1,6 @@
 import {
   calculateRhythmTicks,
-  createNumberedRhythmContext,
+  createNumberedTrackRhythmContext,
   NUMBERED_CONTINUATION_RHYTHM_REASON,
   numberedRhythmForTicks,
   numberedRhythmForBlockedInputPreference,
@@ -91,9 +91,8 @@ export const resolveEditorRhythmTarget = (
 ) => {
   if (active?.kind === "numbered") {
     const target = resolveNumberedEditorTarget(document, active);
-    const measure = document.score.tracks
-      .find((track) => track.id === target?.trackId)
-      ?.measures.find((item) => item.id === target?.measureId);
+    const track = document.score.tracks.find((track) => track.id === target?.trackId);
+    const measure = track?.measures.find((item) => item.id === target?.measureId);
     const event =
       target?.kind === "numberedEvent"
         ? measure?.numberedVoice.events.find(
@@ -110,13 +109,13 @@ export const resolveEditorRhythmTarget = (
             numberedInputRhythmFromTab(measure, target.tick, target.endTick - target.tick),
           )
         : null);
+    const numberedRhythm = track && createNumberedTrackRhythmContext(track);
     const occupied =
       target?.kind === "numberedTime" &&
+      numberedRhythm &&
       measure &&
       measure.numberedVoice.events.some((event) => {
-        const duration = createNumberedRhythmContext(
-          measure.numberedVoice,
-        ).getEventDurationTicks(event);
+        const duration = numberedRhythm.getEventDurationTicks(event);
         return (
           !duration.ok ||
           (event.tick < target.endTick &&

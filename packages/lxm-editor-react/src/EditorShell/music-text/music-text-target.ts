@@ -1,4 +1,5 @@
 import {
+  createNumberedTrackRhythmContext,
   getLyricVerseCount,
   planLyricPositions,
   resolveLyricPosition,
@@ -39,10 +40,12 @@ export const resolveParagraphInsertionTarget = (
 ): ParagraphInsertionTarget | null => {
   if (!document || !preferred || !("kind" in preferred) || preferred.kind === "chord") return null;
   const track = document.score.tracks.find((item) => item.id === preferred.trackId);
-  const measure = track?.measures.find((item) => item.id === preferred.measureId);
+  const measure = preferred.eventId
+    ? track?.measures.find((item) => item.numberedVoice.events.some((event) => event.id === preferred.eventId))
+    : track?.measures.find((item) => item.id === preferred.measureId);
   if (!track || !measure) return null;
   const position = preferred.eventId || preferred.tick !== undefined
-    ? resolveLyricPosition(measure, preferred) : null;
+    ? resolveLyricPosition(measure, preferred, createNumberedTrackRhythmContext(track)) : null;
   if (position)
     return {
       trackId: track.id,
@@ -62,26 +65,22 @@ export const resolveNextLyricTarget = (
   const track = document.score.tracks.find(
     (item) => item.id === target.trackId,
   );
+  if (!track) return null;
+  const rhythm = createNumberedTrackRhythmContext(track);
   const events: Omit<ParagraphInsertionTarget, "trackId">[] =
-    track?.measures.flatMap((measure) =>
-      planLyricPositions(measure).map((position) => ({
+    track.measures.flatMap((measure) =>
+      planLyricPositions(measure, rhythm).map((position) => ({
         measureId: measure.id,
         ...(position.eventId
           ? { eventId: position.eventId }
           : { tick: position.tick, endTick: position.endTick }),
       })),
-    ) ?? [];
-  const measure = track?.measures.find(
-    (measure) => measure.id === target.measureId,
-  );
-  const position = measure && resolveLyricPosition(measure, target);
+    );
+  const current = resolveParagraphInsertionTarget(document, target);
   const index = events.findIndex(
     (event) =>
-      event.measureId === target.measureId &&
-      position &&
-      (position.eventId
-        ? event.eventId === position.eventId
-        : event.tick === position.tick),
+      current && event.measureId === current.measureId &&
+      (current.eventId ? event.eventId === current.eventId : event.tick === current.tick),
   );
   const next = index >= 0 ? events[index + 1] : undefined;
   return next

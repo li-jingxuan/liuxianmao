@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BUG-081 简谱跨行弧线 · 六线猫交互稿</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --white: #fff;
+      --workspace: #f4f6fa;
+      --ink: #202838;
+      --score-ink: #1d2025;
+      --muted: #626e82;
+      --border: #dce2ec;
+      --blue: #285be0;
+      --blue-soft: #edf3ff;
+      font: 13px/1.5 "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    body { min-width: 1440px; margin: 0; background: var(--workspace); color: var(--ink); }
+    .editor { height: 100dvh; min-height: 570px; display: grid; grid-template-rows: 46px 52px minmax(0, 1fr) 30px; }
+    .header,
+    .toolbar { display: flex; align-items: center; padding-inline: 20px; border-bottom: 1px solid var(--border); background: var(--white); }
+    .header { display: grid; grid-template-columns: 1fr auto 1fr; }
+    .brand { display: flex; align-items: center; gap: 8px; color: var(--blue); font-weight: 700; }
+    h1 { margin: 0; font-size: 14px; font-weight: 600; }
+    .review-status { justify-self: end; color: var(--muted); font-size: 12px; }
+    .toolbar { gap: 20px; }
+    .toolbar-title { display: flex; align-items: center; gap: 8px; padding-right: 20px; border-right: 1px solid var(--border); color: var(--muted); }
+    .toolbar-title svg { color: var(--blue); }
+    .compare { margin-left: auto; }
+    .segment { display: flex; gap: 2px; padding: 3px; border: 1px solid var(--border); border-radius: 6px; background: var(--workspace); }
+    .segment label { position: relative; display: block; cursor: pointer; }
+    .segment input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+    .segment span { display: grid; min-width: 74px; min-height: 32px; place-items: center; padding-inline: 10px; border: 1px solid transparent; border-radius: 4px; color: var(--muted); }
+    .segment label:hover span { background: var(--white); color: var(--ink); }
+    .segment input:checked + span { border-color: #c8d8fd; background: var(--blue-soft); color: var(--blue); font-weight: 600; }
+    .segment input:focus-visible + span,
+    .overlay-toggle input:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+    .workspace { display: grid; grid-template-columns: 40px minmax(0, 1fr) 352px; min-height: 0; }
+    .rail { display: flex; justify-content: center; padding-top: 15px; border-right: 1px solid var(--border); background: var(--white); color: var(--muted); }
+    .score-scroll { min-height: 0; overflow-y: auto; padding: 24px; scrollbar-width: thin; scrollbar-color: #a9b4c5 transparent; }
+    .paper { width: 100%; max-width: 1120px; margin: 0 auto; background: var(--white); box-shadow: 0 2px 10px rgb(25 33 61 / 6%); }
+    .score { display: block; width: 100%; height: auto; color: var(--score-ink); }
+    .score-title { fill: currentColor; font-size: 25px; font-weight: 600; text-anchor: middle; }
+    .score-line { fill: none; stroke: currentColor; stroke-width: 1; }
+    .score-line.fine { stroke-width: .65; }
+    .arc { fill: none; stroke: currentColor; stroke-width: 1.45; stroke-linecap: round; }
+    .note { fill: currentColor; font: 600 18px Arial, sans-serif; text-anchor: middle; }
+    .lyric { fill: currentColor; font-size: 14px; text-anchor: middle; }
+    .tab-note { fill: currentColor; stroke: var(--white); stroke-width: 3px; paint-order: stroke; font: 12px Arial, sans-serif; text-anchor: middle; }
+    .tab-label { fill: currentColor; stroke: var(--white); stroke-width: 3px; paint-order: stroke; font: 10px Georgia, serif; text-anchor: middle; }
+    .measure-number { fill: var(--muted); font: 11px Arial, sans-serif; }
+    .chord-name { fill: currentColor; font: 600 12px Arial, sans-serif; text-anchor: middle; }
+    .dot { fill: currentColor; }
+    .selection { fill: var(--blue-soft); stroke: var(--blue); }
+    .review-guide { stroke: var(--blue); stroke-dasharray: 2 3; stroke-width: 1; }
+    .review-label { fill: var(--blue); font-size: 11px; }
+
+    .inspector { min-height: 0; overflow-y: auto; background: var(--white); border-left: 1px solid var(--border); }
+    .inspector h2 { margin: 0; padding: 14px 20px; border-bottom: 1px solid var(--border); font-size: 13px; font-weight: 600; }
+    .inspector ol { margin: 0; padding: 0 20px; list-style: none; }
+    .inspector li { padding: 16px 0; border-bottom: 1px solid var(--border); }
+    .inspector h3 { margin: 0; font-size: 13px; font-weight: 600; }
+    .inspector p { margin: 4px 0 0; color: var(--muted); }
+    .overlay-toggle { display: flex; align-items: center; gap: 9px; min-height: 44px; margin: 9px 20px; width: fit-content; cursor: pointer; }
+    .overlay-toggle input { width: 16px; height: 16px; margin: 0; accent-color: var(--blue); cursor: pointer; }
+    .status { display: flex; align-items: center; margin: 0; padding: 0 14px; border-top: 1px solid var(--border); background: var(--white); color: var(--muted); font-size: 12px; }
+    .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+    @media (forced-colors: active) {
+      .segment input:checked + span { border-color: Highlight; color: Highlight; }
+      .segment input:focus-visible + span,
+      .overlay-toggle input:focus-visible { outline-color: Highlight; }
+      .selection, .review-guide { stroke: Highlight; }
+      .review-label { fill: Highlight; }
+    }
+  </style>
+</head>
+<body>
+  <div class="editor">
+    <header class="header">
+      <div class="brand">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 10V4l5 4a11 11 0 0 1 6 0l5-4v6a7 7 0 0 1 1 4c0 4-4 6-9 6s-9-2-9-6a7 7 0 0 1 1-4Z M8 13h.1m7.9 0h.1M11 16h2"/>
+        </svg>
+        六线猫
+      </div>
+      <h1>简谱跨行弧线</h1>
+      <span class="review-status">BUG-081 · 待确认原型</span>
+    </header>
+
+    <section class="toolbar" aria-label="对稿工具">
+      <div class="toolbar-title">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true">
+          <path d="M2 11Q9 1 16 11 M3 14h2m8 0h2"/>
+        </svg>
+        简谱弧线
+      </div>
+      <div class="segment" role="group" aria-label="弧线类型">
+        <label><input type="radio" name="kind" value="tie" aria-controls="score" checked><span>延音线</span></label>
+        <label><input type="radio" name="kind" value="slur" aria-controls="score"><span>圆滑线</span></label>
+      </div>
+      <div class="segment compare" role="group" aria-label="对比样式">
+        <label><input type="radio" name="version" value="before" aria-controls="score"><span>修改前</span></label>
+        <label><input type="radio" name="version" value="after" aria-controls="score" checked><span>建议稿</span></label>
+      </div>
+    </section>
+
+    <main class="workspace" aria-label="简谱弧线对稿">
+      <div class="rail" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 4H3v5h5M3.4 8A7 7 0 1 1 4 14m6-8v4l3 2"/>
+        </svg>
+      </div>
+      <section class="score-scroll" aria-label="谱面预览">
+        <figure class="paper">
+          <svg id="score" class="score" viewBox="0 0 1000 576" role="img" aria-labelledby="score-title score-description">
+            <title id="score-title">沿途，简谱弧线示例</title>
+            <desc id="score-description">延音线建议稿。同一谱行保留完整弧线。上行最后一个 1 向右小节线延伸，下行从左小节线内侧接到首音 1。</desc>
+            <defs>
+              <g id="chord-grid" class="score-line fine">
+                <path d="M0 0H38V27H0Z M0 0H38 M0 9H38 M0 18H38 M7.6 0V27 M15.2 0V27 M22.8 0V27 M30.4 0V27"/>
+              </g>
+            </defs>
+            <text class="score-title" x="500" y="53">沿途</text>
+            <text class="measure-number" x="52" y="63">1 = C　4/4</text>
+            <g id="upper-row" transform="translate(0 132)"></g>
+            <g id="lower-row" transform="translate(0 367)"></g>
+          </svg>
+        </figure>
+      </section>
+
+      <aside class="inspector" aria-labelledby="review-heading">
+        <h2 id="review-heading">对稿要点</h2>
+        <ol>
+          <li>
+            <h3>同一谱行</h3>
+            <p>起音到落音保留完整弧线。</p>
+          </li>
+          <li>
+            <h3>上行行尾</h3>
+            <p id="outgoing-note">从起音向右延伸，停在右小节线内侧。</p>
+          </li>
+          <li>
+            <h3>下行行首</h3>
+            <p id="incoming-note">从左小节线内侧起弧，接到落音。</p>
+          </li>
+        </ol>
+        <label class="overlay-toggle"><input id="show-guides" type="checkbox" aria-controls="score" checked> 显示对稿标记</label>
+      </aside>
+    </main>
+
+    <p class="status" id="preview-status" role="status">延音线 · 建议稿</p>
+  </div>
+
+  <script>
+    // 固定谱例坐标供原位比较。TAB、节奏和歌词随谱例绘制，仅用于交代谱面上下文。
+    const leftBar = 52;
+    const rightBar = 948;
+    const sourceX = 902;
+    const destinationX = 104;
+    const rows = [
+      {
+        id: 'upper-row',
+        bars: [leftBar, 275, 483, 705, rightBar],
+        firstMeasure: 36,
+        chords: [[92, 'C', [[2, 3], [3, 2], [5, 1]]], [302, 'Am', [[3, 2], [4, 2], [5, 1]]], [512, 'F', [[2, 3], [3, 3], [4, 2]]], [735, 'G', [[1, 3], [2, 2], [6, 3]]]],
+        notes: [[100, '3', '清'], [142, '2', '风'], [174, '2'], [213, '3', '过'], [246, '5', '窗'], [312, '6', '沿', 1], [351, '5', '着'], [392, '3', '那'], [431, '2', '条'], [515, '1', '河'], [557, '1'], [599, '2', '慢'], [642, '3', '慢'], [735, '5', '走'], [770, '3', '向'], [802, '2', '远'], [835, '1', '处'], [870, '6', '的', -1], [sourceX, '1', '光']],
+        reductions: [[134, 182], [303, 360], [383, 439], [591, 650], [761, 843], [861, 910], [862, 910, 126]],
+      },
+      {
+        id: 'lower-row',
+        bars: [leftBar, 292, 501, 716, rightBar],
+        firstMeasure: 40,
+        chords: [[92, 'D7', [[3, 2], [4, 1], [5, 2]]], [321, 'G', [[1, 3], [2, 2], [6, 3]]], [531, 'Em', [[2, 2], [3, 2]]], [746, 'C', [[2, 3], [3, 2], [5, 1]]]],
+        notes: [[destinationX, '1'], [147, '–'], [187, '–'], [227, '2', '若'], [258, '3', '有'], [325, '5', '微'], [364, '3', '雨'], [408, '2', '落'], [462, '–'], [535, '3', '也'], [577, '5', '随'], [623, '6', '风'], [671, '–'], [749, '5', '走'], [790, '3', '过'], [835, '1', '去'], [892, '–']],
+        reductions: [[218, 266], [316, 373], [527, 586], [740, 799]],
+      },
+    ];
+
+    const arcPaths = {
+      tie: {
+        same: 'M 142 88 C 153 79 163 79 174 88',
+        before: ['M 901 88 Q 906 79 911 88', 'M 101 88 Q 104 81 107 88'],
+        after: [`M ${sourceX} 88 C 913 77 928 74 ${rightBar - 5} 74`, `M ${leftBar + 5} 74 C 72 74 92 78 ${destinationX} 88`],
+      },
+      slur: {
+        same: 'M 142 88 C 163 75 192 75 213 88',
+        before: ['M 898 88 Q 906 77 914 88', 'M 97 88 Q 103 76 109 88'],
+        after: [`M ${sourceX} 88 C 913 74 928 69 ${rightBar - 5} 69`, `M ${leftBar + 5} 69 C 74 69 92 74 ${destinationX} 88`],
+      },
+    };
+
+    const svgLine = (x1, y1, x2, y2, weight = '') =>
+      `<line class="score-line ${weight}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`;
+
+    function chordDiagram([x, name, fingers]) {
+      return `<g transform="translate(${x} -45)">
+        <text class="chord-name" x="19" y="-5">${name}</text>
+        <use href="#chord-grid"/>
+        ${fingers.map(([string, fret]) => `<circle class="dot" cx="${(string - 1) * 7.6}" cy="${(fret - .5) * 9}" r="2.6"/>`).join('')}
+      </g>`;
+    }
+
+    function drawRow(row, upper) {
+      const { bars, firstMeasure, chords, notes, reductions } = row;
+      const isEndpoint = (x) => x === (upper ? sourceX : destinationX);
+      const boundary = upper ? rightBar : leftBar;
+      const tag = upper ? '上行行尾' : '下行行首';
+      const edge = upper ? 'end' : 'start';
+      const tagX = upper ? boundary - 7 : boundary + 7;
+      const strings = Array.from({ length: 6 }, (_, index) => svgLine(leftBar, index * 10, rightBar, index * 10, 'fine'));
+      const tablature = notes.flatMap(([x, digit], i) => {
+        if (digit === '–') return [];
+        const fret = [0, 1, 0, 2, 3, 0, 2, 1][i % 8];
+        const stringY = (i % 5) * 10;
+        return [`<text class="tab-note" x="${x}" y="${stringY + 4}">${fret}</text>`, svgLine(x, 54, x, 66, 'fine')];
+      });
+
+      document.getElementById(row.id).innerHTML = `
+        ${chords.map(chordDiagram).join('')}
+        ${strings.join('')}
+        ${['T', 'A', 'B'].map((letter, i) => `<text class="tab-label" x="${leftBar + 11}" y="${11 + i * 15}">${letter}</text>`).join('')}
+        ${bars.map((x, i) => `
+          ${svgLine(x, 0, x, i === 0 ? 135 : 50)}
+          ${i === 0 ? '' : svgLine(x, 91, x, 135)}
+          ${i === bars.length - 1 ? '' : `<text class="measure-number" x="${x + 1}" y="-6">${firstMeasure + i}</text>`}
+        `).join('')}
+        ${tablature.join('')}
+        ${reductions.map(([from, to, y = 122]) => svgLine(from, y, to, y)).join('')}
+        <g data-guide>
+          ${upper ? `<rect class="selection" x="${sourceX - 12}" y="93" width="24" height="26" rx="3"/>` : ''}
+          <path class="review-guide" d="M ${boundary} 69V89"/>
+          <text class="review-label" x="${tagX}" y="64" text-anchor="${edge}">${tag}</text>
+          ${upper ? '<text class="review-label" x="142" y="73">同一谱行</text>' : ''}
+        </g>
+        ${notes.map(([x, digit, lyric, octave]) => `
+          <text class="note" x="${x}" y="113" ${isEndpoint(x) ? 'data-endpoint' : ''}>${digit}</text>
+          ${octave ? `<circle class="dot" cx="${x}" cy="${octave > 0 ? 93 : 132}" r="1.4"/>` : ''}
+          ${lyric ? `<text class="lyric" x="${x}" y="154">${lyric}</text>` : ''}
+        `).join('')}
+        ${upper ? '<path class="arc" id="same-row-arc"/>' : ''}
+        <path class="arc" id="${upper ? 'outgoing-arc' : 'incoming-arc'}"/>`;
+    }
+
+    drawRow(rows[0], true);
+    drawRow(rows[1], false);
+
+    const score = document.getElementById('score');
+    const guides = document.getElementById('show-guides');
+    const descriptions = {
+      before: ['短弧挤在起音上方。', '短弧挤在落音上方。'],
+      after: ['从起音向右延伸，停在右小节线内侧。', '从左小节线内侧起弧，接到落音。'],
+    };
+
+    function showPreview() {
+      const kind = document.querySelector('input[name="kind"]:checked').value;
+      const version = document.querySelector('input[name="version"]:checked').value;
+      const kindLabel = kind === 'tie' ? '延音线' : '圆滑线';
+      const versionLabel = version === 'after' ? '建议稿' : '修改前';
+      const destination = kind === 'tie' ? '1' : '5';
+      const [outgoingPath, incomingPath] = arcPaths[kind][version];
+      const [outgoing, incoming] = descriptions[version];
+
+      score.querySelector('#same-row-arc').setAttribute('d', arcPaths[kind].same);
+      score.querySelector('#outgoing-arc').setAttribute('d', outgoingPath);
+      score.querySelector('#incoming-arc').setAttribute('d', incomingPath);
+      score.querySelector('#lower-row [data-endpoint]').textContent = destination;
+      document.getElementById('outgoing-note').textContent = outgoing;
+      document.getElementById('incoming-note').textContent = incoming;
+      document.getElementById('preview-status').textContent = `${kindLabel} · ${versionLabel}`;
+      document.getElementById('score-description').textContent =
+        `${kindLabel}${versionLabel}，起音 1，落音 ${destination}。同一谱行保留完整弧线。上行行尾${outgoing}下行行首${incoming}`;
+    }
+
+    document.querySelector('.toolbar').addEventListener('change', showPreview);
+    guides.addEventListener('change', () => {
+      score.querySelectorAll('[data-guide]').forEach((guide) => {
+        guide.style.display = guides.checked ? '' : 'none';
+      });
+    });
+    showPreview();
+  </script>
+</body>
+</html>

@@ -67,6 +67,11 @@
         },
         "capo": 0,
         "startBarline": "none",
+        "playbackReplay": {
+          "afterMeasureId": "measure-395-1",
+          "fromMeasureId": "measure-311-1",
+          "throughMeasureId": "measure-355-1"
+        },
         "measures": [
           {
             "id": "mvp72-measure-1",

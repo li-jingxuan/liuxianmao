@@ -3,6 +3,7 @@ import { parseLyricSequence } from "../lyrics/lyric-sequence";
 import { editMeasureMusicText } from "../music-text/music-text-commands";
 import { parseNumberedSequence, type NumberedSequenceItem } from "../numbered/numbered-notation";
 import { numberedSequenceContent, planNumberedSequenceSlots } from "../numbered/numbered-sequence-overwrite";
+import { createNumberedTrackRhythmContext } from "../numbered/numbered-rhythm";
 import type { ILXMIdFactory } from "../id-factory";
 import type { ILXMDocument, ILXMLyricVerse, ILXMRhythm, ILXMTrack } from "../types";
 
@@ -39,33 +40,34 @@ export const collectMusicTextRangeSlots = (
   if (range.kind !== "numbered" && range.kind !== "lyric") return [];
   if (range.kind === "lyric" && ![1, 2, 3, 4].includes(range.verse!)) return [];
   const track = document.score.tracks.find(track => track.id === range.trackId);
-  return track?.measures.flatMap(original => {
+  if (!track) return [];
+  const context = createNumberedTrackRhythmContext(track);
+  return track.measures.flatMap(original => {
     const measure = {
       ...original,
       numberedVoice: { ...original.numberedVoice, events: [...original.numberedVoice.events].sort((a, b) => a.tick - b.tick) },
     };
     return range.kind === "lyric"
-      ? planLyricPositions(measure).map(position => ({ measureId: measure.id, ...position }))
-      : planNumberedSequenceSlots(measure).map(slot => ({
+      ? planLyricPositions(measure, context).map(position => ({ measureId: measure.id, ...position }))
+      : planNumberedSequenceSlots(measure, context).map(slot => ({
           measureId: measure.id,
           ...(slot.eventId ? { eventId: slot.eventId } : {}),
           tick: slot.startTick,
           endTick: slot.endTick,
           ...(slot.rhythm ? { rhythm: slot.rhythm } : {}),
         }));
-  }) ?? [];
+  });
 };
 
-/** Stale event IDs never silently fall back to a different event at the same tick. */
+/** 跨线连音转换会迁移起音小节，显式事件按轨道内的稳定 ID 解析；时间窗仍绑定原小节。 */
 export const resolveMusicTextRange = (
   document: ILXMDocument,
   range: MusicTextRange,
 ): ResolvedRange | Failure => {
   const all = collectMusicTextRangeSlots(document, range);
-  const find = (position: MusicTextRangePosition) => all.findIndex(slot =>
-    slot.measureId === position.measureId && (position.eventId
-      ? slot.eventId === position.eventId
-      : slot.tick === position.tick && slot.endTick === position.endTick));
+  const find = (position: MusicTextRangePosition) => all.findIndex(slot => position.eventId
+    ? slot.eventId === position.eventId
+    : slot.measureId === position.measureId && slot.tick === position.tick && slot.endTick === position.endTick);
   const anchor = find(range.anchor), focus = find(range.focus);
   if (anchor < 0 || focus < 0)
     return { ok: false, message: "音乐文本选区已失效，请重新选择同轨道、同歌词段的位置。" };
@@ -117,6 +119,7 @@ export const replaceMusicTextRange = (
   if (parsed.items.length > resolved.slots.length)
     return { ok: false, message: "输入数量超过所选范围，整批未应用。" };
   const measures = new Map(track.measures.map(measure => [measure.id, measure]));
+  const context = createNumberedTrackRhythmContext(track);
   let changed = false;
   for (const [index, slot] of resolved.slots.entries()) {
     let measure = measures.get(slot.measureId)!;
@@ -128,7 +131,7 @@ export const replaceMusicTextRange = (
         ...slot,
         verse: range.verse!,
         text: item?.kind === "set" && "text" in item ? item.text : "",
-      }, factory);
+      }, factory, context);
       if (!result.ok) return result;
       changed ||= result.changed;
       measures.set(measure.id, result.measure);
@@ -138,6 +141,8 @@ export const replaceMusicTextRange = (
     const previous = measure.numberedVoice.events.find(event => event.id === slot.eventId);
     const tokens = item?.kind === "set" && "tokens" in item ? item.tokens : [];
     if ((!previous && !tokens.length) || (previous && JSON.stringify(previous.items.map(item => item.token)) === JSON.stringify(tokens))) continue;
+    if (tokens[0] === "-" && previous && context.tupletByEventId.get(previous.id)?.crossBar)
+      return { ok: false, message: "跨小节简谱连音成员不能录入固定时值的延音。" };
     if ((tokens[0] === "0" || tokens[0] === "-") && measure.lyrics.some(lyric => lyric.eventId === previous?.id))
       return { ok: false, message: "休止或延音无法保留该位置的歌词锚点，整批未应用。" };
     if (!slot.rhythm) return { ok: false, message: "选区包含无法保存时值的时间窗，整批未应用。" };

@@ -8,7 +8,7 @@ import type {
   MusicTextRange,
 } from "@liuxianmao/lxm-editor";
 import type { ChordDraft } from "../chords/ChordEditor";
-import { parseLyricSequence, planLyricSequence, resolveLyricPosition } from "@liuxianmao/lxm-editor";
+import { createNumberedMeasureRhythmContext, parseLyricSequence, planLyricSequence, resolveLyricPosition } from "@liuxianmao/lxm-editor";
 import { resolveNumberedEditorTarget } from "../numbered/numbered-editor-target";
 import { sameMusicTextTarget } from "./music-text-hover";
 
@@ -129,7 +129,7 @@ export const lyricDraftMappingDependency = (
   if (!document || draft.target.kind !== "lyric") return "";
   const target = { ...draft.target, verse: draft.target.verse ?? 1 };
   const track = document.score.tracks.find((item) => item.id === target.trackId);
-  const measures = new Map(track?.measures.map((measure) => [measure.id, measure]));
+  const measures = new Map(track?.measures.map((measure, index) => [measure.id, { measure, index }]));
   const parsed = parseLyricDraftSequence(draft.text);
   const targets = draft.lyricMode === "sequence"
     ? planLyricSequence(document, target, parsed.ok ? parsed.items : [{ kind: "clear" }], true)
@@ -141,15 +141,17 @@ export const lyricDraftMappingDependency = (
     mode: draft.lyricMode,
     positions: targets.map((item) => {
       if (!item) return null;
-      const measure = measures.get(item.measureId);
-      const position = measure && resolveLyricPosition(measure, item);
+      const entry = measures.get(item.measureId);
+      if (!track || !entry) return null;
+      const { measure, index } = entry;
+      const position = resolveLyricPosition(measure, item, createNumberedMeasureRhythmContext(track, index));
       if (!position) return null;
       return {
         measureId: item.measureId,
         eventId: position.eventId,
         // 单点仍跟随存活事件；连续输入必须核对完整有序时间映射。
         ...(draft.lyricMode === "sequence" ? { tick: position.tick, endTick: position.endTick } : {}),
-        previous: measure!.lyrics.find((lyric) => lyric.eventId === position.eventId && lyric.verse === target.verse)?.text ?? null,
+        previous: measure.lyrics.find((lyric) => lyric.eventId === position.eventId && lyric.verse === target.verse)?.text ?? null,
       };
     }),
   });
@@ -161,8 +163,10 @@ export const normalizeMusicTextTarget = (
   target: MusicTextTarget,
 ): MusicTextTarget | null => {
   if (!document) return null;
-  const measure = document.score.tracks.find((track) => track.id === target.trackId)
-    ?.measures.find((item) => item.id === target.measureId);
+  const track = document.score.tracks.find((track) => track.id === target.trackId);
+  if (!track) return null;
+  const measureIndex = track.measures.findIndex((item) => item.id === target.measureId);
+  const measure = track.measures[measureIndex];
   if (!measure) return null;
   const base = { trackId: target.trackId, measureId: target.measureId };
   if (target.kind === "numbered") {
@@ -174,7 +178,7 @@ export const normalizeMusicTextTarget = (
   }
   if (target.kind === "chord") return measure.beats.some((beat) => beat.id === target.beatId)
     ? { ...base, kind: "chord", beatId: target.beatId, string: 1 } : null;
-  const position = resolveLyricPosition(measure, target);
+  const position = resolveLyricPosition(measure, target, createNumberedMeasureRhythmContext(track, measureIndex));
   if (!position) return null;
   return position.eventId
     ? { ...base, kind: "lyric", eventId: position.eventId, verse: target.verse ?? 1 }
@@ -220,18 +224,16 @@ export const readMusicTextDraft = (
 ): MusicTextDraft | null => {
   void selection;
   const track = document?.score.tracks.find((t) => t.id === target.trackId);
-  const measure = track?.measures.find((m) => m.id === target.measureId);
-  if (
-    target.kind === "numbered" ||
-    !measure ||
-    (target.kind === "lyric"
-      ? !resolveLyricPosition(measure, target)
-      : !measure.beats.some((beat) => beat.id === target.beatId))
-  )
-    return null;
+  if (target.kind === "numbered" || !track) return null;
+  const measureIndex = track.measures.findIndex((m) => m.id === target.measureId);
+  const measure = track.measures[measureIndex];
+  if (!measure) return null;
   const verse = target.verse ?? 1;
-  const position =
-    target.kind === "lyric" ? resolveLyricPosition(measure, target) : undefined;
+  // 歌词随简谱实际时值，次小节被跨线持续占据的部分不属于可录入的空位。
+  const position = target.kind === "lyric"
+    ? resolveLyricPosition(measure, target, createNumberedMeasureRhythmContext(track, measureIndex))
+    : undefined;
+  if (target.kind === "lyric" ? !position : !measure.beats.some((beat) => beat.id === target.beatId)) return null;
   if (target.kind === "lyric" && position?.eventId)
     target = {
       ...target,

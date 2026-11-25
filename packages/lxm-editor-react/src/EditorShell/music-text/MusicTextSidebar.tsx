@@ -41,6 +41,8 @@ import {
   getMusicTextRows,
   LXMScoreCommandEnum,
   normalizeMusicText,
+  createNumberedMeasureRhythmContext,
+  createNumberedTrackRhythmContext,
   planLyricPositions,
   planLyricSequence,
   resolveLyricPosition,
@@ -141,7 +143,7 @@ type PendingSidebarAction = SidebarAction | { type: "paragraphRow"; command: Par
 
 export interface MusicTextController {
   discardSong: () => boolean;
-  navigateTool: (destination: ToolNavigation) => SelectionRequestResult;
+  navigateTool: (destination: ToolNavigation, target?: MeasureToolTarget) => SelectionRequestResult;
   /** 输出前只读检查草稿，不自动提交或取消用户输入。 */
   isOutputBlocked: (options?: { allowSettingsBusy?: boolean; ignoreModalId?: number }) => boolean;
   isNumberedActionBlocked: (options?: { ignoreModalId?: number }) => boolean;
@@ -176,6 +178,9 @@ export const MusicTextSidebar = ({
   onScoreFocus,
   onScoreSelection,
   strumInspector,
+  renderMeasureMarks,
+  onOpenMeasureSymbols,
+  wholeMeasureTarget,
   getNumberedBeatEventIds,
   onToolAction,
   executeTool,
@@ -214,6 +219,9 @@ export const MusicTextSidebar = ({
     traversalIds?: readonly string[],
   ) => void;
   strumInspector?: React.ReactNode;
+  renderMeasureMarks?: (target: MeasureToolTarget) => React.ReactNode;
+  onOpenMeasureSymbols?: () => void;
+  wholeMeasureTarget?: MeasureToolTarget;
   getNumberedBeatEventIds: (target: MusicTextTarget) => string[];
   getFloatingAnchor: (
     target: MusicTextTarget | null,
@@ -410,8 +418,9 @@ export const MusicTextSidebar = ({
     // 仅为录入按钮准备起点，浏览歌词页签时不激活这个位置。
     const track = score.score.tracks[0];
     if (!track) return null;
+    const rhythm = createNumberedTrackRhythmContext(track);
     for (const measure of track.measures) {
-      const [position] = planLyricPositions(measure);
+      const [position] = planLyricPositions(measure, rhythm);
       if (position) return { ...position, trackId: track.id, measureId: measure.id, kind: "lyric" as const, verse: paragraphVerse };
     }
     return null;
@@ -942,6 +951,12 @@ export const MusicTextSidebar = ({
   /** 统一处理对象／页签切换；先校验目标和输入状态，再丢弃旧输入并迁移 selection。 */
   const request = (action: SidebarAction): SelectionRequestResult => {
     if (suspendedChord.current) { setMessage("请先返回和弦编辑，或处理当前曲谱信息输入。"); return "blocked"; }
+    // 小节记号草稿由属性区持有。切换选区、页签或工具前先处理草稿，避免移动预览被卸载。
+    const measureMarkDraft = drafts.inspect().pending.find((record) => record.kind === "jumpMark" || record.kind === "repeatEnding");
+    if (measureMarkDraft) {
+      setMessage(measureMarkDraft.kind === "jumpMark" ? "请先应用或取消跳转记号草稿。" : "请先应用或取消反复房子草稿。");
+      return "blocked";
+    }
     if (
       composing.current ||
       compositionCoolingRef.current ||
@@ -1119,7 +1134,7 @@ export const MusicTextSidebar = ({
       if (previous?.isConnected && !previous.closest("[hidden], [inert]")) previous.focus({ preventScroll: true });
       else frameRef.current?.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]')?.focus({ preventScroll: true });
     },
-    canCollapse: () => !rangeEditor.current?.isComposing() && !pending && !activeModal && !numberedBusy && !numberedRef.current?.readStatus().busy && !settingsRef.current?.readStatus().busy && !settingsRef.current?.isComposing() &&
+    canCollapse: () => !drafts.inspect().pending.some((record) => record.kind === "jumpMark" || record.kind === "repeatEnding") && !rangeEditor.current?.isComposing() && !pending && !activeModal && !numberedBusy && !numberedRef.current?.readStatus().busy && !settingsRef.current?.readStatus().busy && !settingsRef.current?.isComposing() &&
       (!(composing.current || compositionCoolingRef.current) || (kind !== "chord" && compositionSurface.current === "popover")),
     isTransitionBlocked: () => !!rangeEditor.current?.isComposing() || surfaceBlocked() || !!settingsRef.current?.isComposing() || !!settingsRef.current?.readStatus().busy || !!numberedRef.current?.readStatus().busy,
     isOutputBlocked: (options) =>
@@ -1196,7 +1211,7 @@ export const MusicTextSidebar = ({
       return returnToScore();
     },
     dismissCleanPopover,
-    navigateTool: (destination) => {
+    navigateTool: (destination, target) => {
       if (rangeEditor.current?.isComposing() || rangeEditor.current?.isDirty()) return "blocked";
       const current = editorStore.getState();
       const source = continuousRange ? { trackId: continuousRange.trackId, measureId: continuousRange.focus.measureId }
@@ -1207,9 +1222,9 @@ export const MusicTextSidebar = ({
         destination,
         sessionId: current.sessionId,
         sessionVersion: current.sessionVersion,
-        target: source
+        target: target ?? (source
           ? { trackId: source.trackId, measureId: source.measureId }
-          : undefined,
+          : undefined),
       });
       if (result === "accepted" && continuousRange) setShowRangeTools(true);
       return result;
@@ -1598,8 +1613,11 @@ export const MusicTextSidebar = ({
     // 使用提交前规划的末项（包括末尾清空项）记录边界，保存后虚拟位置可能变成 gap。
     const last = advanceSource && advanceAfterApply && plan?.rows.some((row) => row.status === "add" || row.status === "change")
       ? plan.rows.at(-1)?.target : null;
-    const lastMeasure = last && score?.score.tracks.find((track) => track.id === last.trackId)?.measures.find((measure) => measure.id === last.measureId);
-    const lastPosition = last && lastMeasure ? resolveLyricPosition(lastMeasure, last) : null;
+    const lastTrack = last && score?.score.tracks.find((track) => track.id === last.trackId);
+    const lastMeasureIndex = lastTrack && last ? lastTrack.measures.findIndex((measure) => measure.id === last.measureId) : -1;
+    const lastMeasure = lastTrack && lastTrack.measures[lastMeasureIndex];
+    const lastPosition = last && lastTrack && lastMeasure
+      ? resolveLyricPosition(lastMeasure, last, createNumberedMeasureRhythmContext(lastTrack, lastMeasureIndex)) : null;
     const result = commit(
       target.kind === "lyric"
         ? sequence && parsed?.ok
@@ -2009,7 +2027,7 @@ export const MusicTextSidebar = ({
       const source = activeLyric ?? (resolved ? { ...resolved, kind: "numbered" as const } : null);
       let lyricTarget = resolveParagraphLyricTarget(next, source, verse);
       if (!lyricTarget && !preferred && track && firstMeasure) {
-        const firstPosition = planLyricPositions(firstMeasure)[0];
+        const firstPosition = planLyricPositions(firstMeasure, createNumberedTrackRhythmContext(track))[0];
         if (firstPosition) lyricTarget = { ...firstPosition, trackId: track.id, measureId: firstMeasure.id, kind: "lyric", verse };
       }
       setLyricVerse(verse);
@@ -2084,8 +2102,10 @@ export const MusicTextSidebar = ({
       setInspection(index);
       const target = plan?.rows[index]?.target;
       if (!target) return;
-      const measure = score?.score.tracks.find((track) => track.id === target.trackId)?.measures.find((measure) => measure.id === target.measureId);
-      const position = measure && resolveLyricPosition(measure, target);
+      const track = score?.score.tracks.find((track) => track.id === target.trackId);
+      const measureIndex = track?.measures.findIndex((measure) => measure.id === target.measureId) ?? -1;
+      const measure = track?.measures[measureIndex];
+      const position = track && measure && resolveLyricPosition(measure, target, createNumberedMeasureRhythmContext(track, measureIndex));
       if (position) onLocate({ kind: "lyric", verse: target.verse, trackId: target.trackId, measureId: target.measureId, eventId: position.eventId, startTick: position.tick, endTick: position.endTick });
     },
   };
@@ -2139,7 +2159,7 @@ export const MusicTextSidebar = ({
       })}
     </div>
   ) : null;
-  const measureTarget = rangeFocus ?? detailTarget ?? numberedSelection ?? selection?.focus;
+  const measureTarget = wholeMeasureTarget ?? rangeFocus ?? detailTarget ?? numberedSelection ?? selection?.focus;
   const copyTrack = score?.score.tracks[0];
   let selectedCopyRange: { start: string; end: string } | undefined;
   if (score && copyTrack) {
@@ -2171,8 +2191,10 @@ export const MusicTextSidebar = ({
   const hasExplicitSelection = !!rangeFocus || (numberedSelection
     ? !!score && !!resolveNumberedEditorTarget(score, numberedSelection)
     : !!selection && isScoreSelectionValid(score, selection));
-  const hasRequestedMeasure = selectionToolsRequested && !!detailTarget && !!score?.score.tracks
-    .find((track) => track.id === detailTarget.trackId)?.measures.some((measure) => measure.id === detailTarget.measureId);
+  // 整节选区没有 TAB 拍点，仍可在现有小节页显示属性。选区清空后恢复使用普通的导航请求。
+  const requestedMeasure = wholeMeasureTarget ?? (selectionToolsRequested ? detailTarget : undefined);
+  const hasRequestedMeasure = !!requestedMeasure && !!score?.score.tracks
+    .find((track) => track.id === requestedMeasure.trackId)?.measures.some((measure) => measure.id === requestedMeasure.measureId);
   const showSelectionInvitation = !hasExplicitSelection && !hasRequestedMeasure;
   // 正文 Portal 共用实际活动表单，owner 和 host 仍常驻以保留草稿。
   // 试听仅隐藏表单，保留表面的逻辑激活状态。手动收起或切换页签仍按既有规则处理未应用的设置。
@@ -2477,7 +2499,7 @@ export const MusicTextSidebar = ({
                     ref={measureDetailsRef}
                     document={score}
                     selection={selection}
-                    target={detailTarget}
+                    target={wholeMeasureTarget ?? detailTarget}
                     measureHost={setMeasureHost}
                     blocked={editing}
                     onAction={onToolAction}
@@ -2499,6 +2521,10 @@ export const MusicTextSidebar = ({
                       })
                     }
                   />
+                  {!collapsed && propertyTab === "selection" && selectionDetail === "measure" && measureTarget && <>
+                    {onOpenMeasureSymbols && <Button size="small" disabled={editing || !!activeModal} onClick={onOpenMeasureSymbols}>选记号…</Button>}
+                    {renderMeasureMarks?.(measureTarget)}
+                  </>}
                 </div>
               </>
             ) : (

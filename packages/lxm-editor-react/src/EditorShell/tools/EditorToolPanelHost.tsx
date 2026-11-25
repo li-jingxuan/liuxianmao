@@ -21,9 +21,10 @@ import { TupletSymbol } from "./TupletToolbar";
 import { BarlineSymbol } from "./MeasureBoundary";
 import type { TechniqueIntent } from "./editor-technique-target";
 import toolbarStyles from "../workspace/EditorToolbar.module.scss";
-import { contextPanelPosition } from "../score/context-panel-position";
+import { contextPanelPosition, fitContextOverlay } from "../score/context-panel-position";
 
-export type ContextToolGroup = Extract<ToolGroupId, "measure" | "beat" | "technique">;
+export type ContextToolGroup = ToolGroupId;
+const MEASURE_PANEL_WIDTH = 790;
 
 interface ContextToolEntry {
   anchor: HTMLElement;
@@ -32,7 +33,7 @@ interface ContextToolEntry {
 
 export interface EditorToolPanelController {
   open: (group: ToolGroupId, focusSelector?: string) => void;
-  openContextTool: (group: ContextToolGroup, anchor: HTMLElement, onClose: () => void) => boolean;
+  openContextTool: (group: ContextToolGroup, anchor: HTMLElement, onClose: () => void, focusSelector?: string) => boolean;
   closeContextTool: () => boolean;
   getContextToolDisabledReason: (group: ContextToolGroup) => string | null;
   close: (restore?: boolean) => void;
@@ -50,6 +51,7 @@ export const EditorToolPanelHost = ({
   preserveOnBlock,
   targetReasons,
   contextTechniqueReason,
+  contextTupletReason,
   canHide,
   subscribeProtection,
   onTechniqueIntent,
@@ -65,6 +67,7 @@ export const EditorToolPanelHost = ({
   preserveOnBlock?: boolean;
   targetReasons: Record<ToolGroupId, string | null>;
   contextTechniqueReason: string | null;
+  contextTupletReason: string | null;
   canHide?: () => boolean;
   subscribeProtection?: (listener: () => void) => () => void;
   onTechniqueIntent?: (intent: TechniqueIntent) => boolean;
@@ -78,8 +81,12 @@ export const EditorToolPanelHost = ({
   const [anchorInMore, setAnchorInMore] = useState(false);
   const [contextEntry, setContextEntry] = useState<ContextToolEntry | null>(null);
   const contextEntryRef = useRef<ContextToolEntry | null>(null);
-  const targetReason = (target: ToolGroupId, fromContext: boolean) =>
-    fromContext && target === "technique" ? contextTechniqueReason : targetReasons[target];
+  const targetReason = (target: ToolGroupId, fromContext: boolean) => {
+    if (fromContext && target === "technique") return contextTechniqueReason;
+    // 简谱菜单可查看连音工具的选区说明；工具栏仍按照原来的连音目标启用按钮。
+    if (fromContext && target === "tuplet") return contextTupletReason;
+    return targetReasons[target];
+  };
   const activeTargetMissing = !moreMenu && !!targetReason(group, !!contextEntry);
   const disabledReason = (target: ToolGroupId, fromContext = false) =>
     blocked ? "请先完成当前弹层操作。" : targetReason(target, fromContext);
@@ -166,7 +173,7 @@ export const EditorToolPanelHost = ({
     const anchor = button?.getBoundingClientRect();
     if (!editor || !anchor) return;
     const bounds = editor.getBoundingClientRect();
-    const width = Math.min(group === "beat" && !moreMenu ? 456 : group === "measure" ? 410 : group === "tuplet" ? 300 : 392,
+    const width = Math.min(group === "beat" && !moreMenu ? 456 : group === "measure" ? (moreMenu ? 410 : MEASURE_PANEL_WIDTH) : group === "tuplet" ? 300 : 392,
       Math.max(0, bounds.width - 16), window.innerWidth - 16);
     const minLeft = Math.max(8, bounds.left + 8);
     const maxRight = Math.min(window.innerWidth - 8, bounds.right - 8);
@@ -188,7 +195,7 @@ export const EditorToolPanelHost = ({
     invalidateOutside();
     pendingClose.current = null;
     if (open && group === "technique" && target !== group && !moreMenu) onHideTechnique?.();
-    requestedFocus.current = focusSelector;
+    requestedFocus.current = focusSelector ?? (target === "measure" ? "[data-measure-tool-heading]" : undefined);
     beforeOpen(target);
     setGroup(target);
     setMoreMenu(false);
@@ -209,9 +216,9 @@ export const EditorToolPanelHost = ({
       }
       show(target, focusSelector);
     },
-    openContextTool: (target, anchor, onClose) => {
+    openContextTool: (target, anchor, onClose, focusSelector) => {
       if (!anchor.isConnected || !anchor.closest("[data-score-context-menu]")) return false;
-      return show(target, undefined, false, { anchor, onClose });
+      return show(target, focusSelector ?? (target === "tuplet" ? '[data-tool-action="tuplet-actions"]' : undefined), false, { anchor, onClose });
     },
     closeContextTool: () => {
       if (!contextEntryRef.current) return true;
@@ -278,10 +285,23 @@ export const EditorToolPanelHost = ({
     if (!menu) return;
     const update = () => {
       // 菜单行决定垂直起点，父菜单边缘决定水平起点。按实际内容高度重新定位，参数展开后也能保持在视口内。
-      const width = Math.min(group === "beat" ? 456 : group === "measure" ? 410 : 392, window.innerWidth - 16);
-      const maxHeight = Math.min(660, window.innerHeight - 16);
+      const width = Math.min(group === "beat" ? 456 : group === "measure" ? MEASURE_PANEL_WIDTH : group === "tuplet" ? 300 : 392, window.innerWidth - 16);
+      let maxHeight = Math.min(660, window.innerHeight - 16);
       const height = Math.min(contextContent?.getBoundingClientRect().height || maxHeight, maxHeight);
-      const { left, top } = contextPanelPosition(anchor, width, height);
+      let { left, top } = contextPanelPosition(anchor, width, height);
+      if (group === "measure") {
+        const bounds = menu.getBoundingClientRect();
+        const edgeGap = 14; // 视口保留 8px，气泡与菜单留 6px。
+        if (Math.max(bounds.left, window.innerWidth - bounds.right) < width + edgeGap) {
+          // 一行 12 个符号需要完整宽度。菜单两侧空间不足时上下摆放，保留菜单行和全部符号的点击区域。
+          const above = bounds.top - edgeGap;
+          const below = window.innerHeight - bounds.bottom - edgeGap;
+          const after = height <= below || below >= above;
+          maxHeight = Math.min(maxHeight, Math.max(80, after ? below : above));
+          const visibleHeight = Math.min(height, maxHeight);
+          ({ left, top } = fitContextOverlay(bounds.left, after ? bounds.bottom + 6 : bounds.top - visibleHeight - 6, width, visibleHeight));
+        }
+      }
       setGeometry((previous) => previous.left === left && previous.top === top && previous.width === width &&
         previous.maxHeight === maxHeight && !previous.more ? previous : { left, top, width, maxHeight, more: false });
     };
@@ -341,7 +361,9 @@ export const EditorToolPanelHost = ({
           return;
         }
         if (requestedFocus.current) {
-          panel?.querySelector<HTMLElement>(requestedFocus.current)?.focus({ preventScroll: true });
+          const target = panel?.querySelector<HTMLElement>(requestedFocus.current);
+          target?.focus({ preventScroll: true });
+          if (group === "measure") target?.scrollIntoView({ block: "nearest" });
         } else if (group === "beat" && !moreMenu) {
           const tab = panel?.querySelector<HTMLElement>('[data-rhythm-tab][aria-selected="true"]');
           const activePane = tab ? window.document.getElementById(tab.getAttribute("aria-controls") ?? "") : panel;
@@ -410,7 +432,7 @@ export const EditorToolPanelHost = ({
           }}
           onKeyDownCapture={handlePopupKeyDownCapture}
         >
-          <div className={`${editorToolPanelStyles.toolPanelHost} ${toolbarStyles.popupContent}`} style={{ maxHeight: geometry.maxHeight, ...(group === "beat" && !moreMenu ? { padding: 0, "--rhythm-panel-max-height": `${geometry.maxHeight}px` } : {}) } as CSSProperties}>
+          <div className={`${editorToolPanelStyles.toolPanelHost} ${toolbarStyles.popupContent}${group === "measure" && !moreMenu ? ` ${toolbarStyles.measurePopup}` : ""}`} style={{ maxHeight: geometry.maxHeight, ...(group === "beat" && !moreMenu ? { padding: 0, "--rhythm-panel-max-height": `${geometry.maxHeight}px` } : {}) } as CSSProperties}>
           {moreMenu && <h3>更多工具</h3>}
           {moreMenu && <div className={editorToolPanelStyles.toolMenu}>
             {TOOL_GROUPS.filter((item) => item.id !== "technique").map((item) =>

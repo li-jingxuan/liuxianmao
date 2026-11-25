@@ -29,6 +29,14 @@
   &[data-layout="wide"][data-history-open="true"] { --history-column-width: var(--history-panel-width); }
   &[data-layout="compact"],
   &[data-layout="narrow"] { --sidebar-column-width: 0px; }
+  // 试听用同一右栏列展示到访顺序，编辑属性仍按既有模式暂停显示。
+  &[data-jump-audition-open="true"] { --sidebar-column-width: var(--sidebar-width); }
+  &[data-layout="narrow"][data-jump-audition-open="true"] {
+    --sidebar-column-width: 0px;
+    grid-template-rows: minmax(0, 1fr) minmax(0, min(38%, 220px));
+
+    > [data-jump-audition] { grid-area: 2 / 3; }
+  }
   > [data-score-viewport] { grid-area: 1 / 3; }
   > [data-music-text-sidebar] { grid-area: 1 / 4; }
   > .historyRail,

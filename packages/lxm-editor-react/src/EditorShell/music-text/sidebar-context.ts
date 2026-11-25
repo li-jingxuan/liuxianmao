@@ -1,5 +1,5 @@
 import type { ILXMDocument, ILXMTabCellSelection, ILXMNumberedTarget, ILXMLyricVerse } from "@liuxianmao/lxm-editor";
-import { resolveTupletSelection } from "@liuxianmao/lxm-editor";
+import { createNumberedTrackRhythmContext, resolveTupletSelection } from "@liuxianmao/lxm-editor";
 import { normalizeMusicTextTarget, type MusicTextTarget } from "./music-text-draft";
 import { sameMusicTextTarget } from "./music-text-hover";
 import { formatNumberedBeatPosition } from "../numbered/numbered-editor-target";
@@ -55,7 +55,7 @@ export function deriveSidebarContext({ document, target, selection, numberedSele
       if (member >= 0) scope = `第 ${member + 1} 音`;
       if (resolved.endTick !== undefined) scope += ` 至 ${formatNumberedBeatPosition(resolved.endTick, measure.timeSignature.denominator)}`;
       if (task === "tuplet") {
-        const group = event && measure.numberedVoice.tuplets.find((item) => item.eventIds.includes(event.id));
+        const group = track && event && createNumberedTrackRhythmContext(track).tupletByEventId.get(event.id);
         title = "简谱连音组";
         scope = group ? `${group.eventIds.length} 个成员 · ${formatTupletLabel(group.ratio)}` : "当前简谱位置没有连音组";
       }

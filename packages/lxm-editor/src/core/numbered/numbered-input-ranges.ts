@@ -1,6 +1,6 @@
 import { LXM_RHYTHM_BASES } from "../constants";
 import { calculateRhythmTicks, getMeasureDurationTicks } from "../rhythm/rhythm";
-import { createNumberedRhythmContext } from "./numbered-rhythm";
+import { createNumberedRhythmContext, type NumberedTrackRhythmContext } from "./numbered-rhythm";
 import type { ILXMMeasure, ILXMRhythm } from "../types";
 
 const rhythms = LXM_RHYTHM_BASES.flatMap((base) =>
@@ -28,9 +28,10 @@ export interface NumberedInputRange {
 export const planNumberedInputRanges = (
   measure: ILXMMeasure,
   fromTick = 0,
+  trackContext?: NumberedTrackRhythmContext,
 ): NumberedInputRange[] => {
   const result: NumberedInputRange[] = [],
-    context = createNumberedRhythmContext(measure.numberedVoice);
+    context = trackContext ?? createNumberedRhythmContext(measure.numberedVoice);
   const unit = 3840 / measure.timeSignature.denominator;
   const tabStarts = measure.beats
     .map((beat) => beat.tick)
@@ -70,7 +71,8 @@ export const planNumberedInputRanges = (
       cursor = next;
     }
   };
-  let cursor = 0;
+  // 上小节已经起音的持续区间占据本小节开头，不能生成可录入的空槽。
+  let cursor = trackContext?.incomingSustainEndTickByMeasureId.get(measure.id) ?? 0;
   for (const event of measure.numberedVoice.events) {
     const duration = context.getEventDurationTicks(event);
     if (!duration.ok) continue;
@@ -100,6 +102,7 @@ export function numberedRhythmForBlockedInputPreference(
   startTick: number,
   endTick: number,
   preference: ILXMRhythm,
+  trackContext?: NumberedTrackRhythmContext,
 ): ILXMRhythm | undefined {
   const duration = calculateRhythmTicks(preference);
   if (!duration.ok || startTick + duration.ticks <= endTick) return undefined;
@@ -107,6 +110,6 @@ export function numberedRhythmForBlockedInputPreference(
   if (preferredEnd <= getMeasureDurationTicks(measure) &&
     !measure.numberedVoice.events.some((event) => event.tick >= endTick && event.tick < preferredEnd))
     return undefined;
-  return planNumberedInputRanges(measure).find((slot) =>
+  return planNumberedInputRanges(measure, 0, trackContext).find((slot) =>
     !slot.eventId && slot.startTick === startTick && slot.endTick === endTick)?.rhythm;
 }

@@ -6,6 +6,7 @@ import {
   getMeasureDurationTicks,
 } from "@liuxianmao/lxm-editor";
 import {
+  DEFAULT_MOCK_DOCUMENT,
   EXAMPLE_MVP_7_2_DOCUMENT,
   EXAMPLE_TECHNIQUE_RHYTHM_DOCUMENT,
   EXAMPLE_MVP7C_DOCUMENT,
@@ -46,6 +47,45 @@ const expectIndependentObjects = (source: unknown, copy: unknown): void => {
 
 /** 不仅断言 JSON 可解析，还实际走下载字节、载入、布局和编辑命令。 */
 describe("原生曲谱文件往返", () => {
+  it("带隐藏简谱的单小节重复可通过布局预检并原样导出和重开", () => {
+    const document = createBlankScore({ title: "单小节重复", arranger: "", timeSignature: { numerator: 4, denominator: 4 },
+      tonality: { version: 1, mode: "major", tonic: "C" } });
+    const track = document.score.tracks[0]!;
+    const [source, target] = track.measures;
+    const { capacityRest: _capacityRest, ...beat } = source!.beats[0]!;
+    source!.beats[0] = { ...beat, kind: "notes", notes: [{ id: "repeat-file-note", string: 1, fret: 3 }] };
+    source!.numberedVoice.events.push({ id: "repeat-file-event", tick: 0, rhythm: { base: "quarter", dots: 0 },
+      kind: "notes", items: [{ id: "repeat-file-item", token: "1" }] });
+    const added = applyScoreCommand(document, { type: LXMScoreCommandEnum.AddMeasureRepeat, trackId: track.id,
+      measureId: target!.id, allowOverwrite: true, expectedRevision: document.documentRevision });
+    if (!added.ok) throw new Error(added.message);
+
+    const exported = serializeScoreFile(added.document);
+    if (!exported.ok) throw new Error(exported.errors.join("；"));
+    const reopened = decodeScoreFile(encode(exported.text));
+    if (!reopened.ok) throw new Error(reopened.errors.join("；"));
+    const copy = reopened.document.score.tracks[0]!.measures[1]!;
+    expect(copy.measureRepeat).toEqual({ type: "previousSingle" });
+    expect(copy.beats[0]?.notes[0]?.fret).toBe(3);
+    expect(copy.numberedVoice.events[0]?.items[0]?.token).toBe("1");
+    expect(reopened.document).toEqual(added.document);
+  });
+
+  it("《理想》改名后导出并重新打开仍保留重奏指令", () => {
+    const document = structuredClone(DEFAULT_MOCK_DOCUMENT);
+    document.score.title = "已改名的曲谱";
+    const exported = serializeScoreFile(document);
+    if (!exported.ok) throw new Error(exported.errors.join("；"));
+    const reopened = decodeScoreFile(encode(exported.text));
+    if (!reopened.ok) throw new Error(reopened.errors.join("；"));
+    expect(reopened.document.score.title).toBe(document.score.title);
+    expect(reopened.document.score.tracks[0]!.playbackReplay).toEqual({
+      afterMeasureId: "measure-395-1",
+      fromMeasureId: "measure-311-1",
+      throughMeasureId: "measure-355-1",
+    });
+  });
+
   it("新建谱的段中短小节保留有效选区，复制和存档保留实际时长，新插入小节继承完整拍号", () => {
     const document = createBlankScore({ title: "短小节", arranger: "", timeSignature: { numerator: 4, denominator: 4 },
       tonality: { version: 1, mode: "major", tonic: "C" } });

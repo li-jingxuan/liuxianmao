@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   applyScoreCommand,
+  createNumberedRhythmContext,
+  LXM_TUPLET_RATIOS,
   loadDocument,
   previewNumberedTupletEdit,
   type ILXMDocument,
@@ -165,5 +167,52 @@ describe("BUG-071 简谱三连音", () => {
     expect(restored.numberedVoice.events[1]).toMatchObject({ id: eventId, tick: 480, kind: "gap" });
     expect(restored.lyrics).toContainEqual(expect.objectContaining({ eventId }));
     expect(restored.lyrics).toEqual(before.lyrics);
+  });
+});
+
+describe("BUG-078 简谱连音比例", () => {
+  it.each(LXM_TUPLET_RATIOS)("$actual:$normal 保留事件和歌词，可重新加载并拆组", (ratio) => {
+    const { document, track, measure, add } = fixture();
+    const notes = Array.from({ length: ratio.actual }, (_, index) => {
+      const id = `ratio-note-${index}`;
+      return { kind: "notes" as const, id, tick: 240 + index * 240, rhythm: { base: "sixteenth", dots: 0 } as const,
+        items: [{ id: `${id}-item`, token: "4" }] };
+    });
+    measure.numberedVoice = { events: notes, tuplets: [] };
+    measure.lyrics = [{ id: "ratio-lyric", eventId: notes[1]!.id, verse: 1, text: "词" }];
+    const command = { ...add, ratio, eventIds: notes.map(({ id }) => id).reverse() };
+    expect(previewNumberedTupletEdit(track, command)).toEqual({ ok: true });
+    const converted = execute(document, command);
+    const reloaded = loadDocument(JSON.stringify(converted));
+    if (!reloaded.ok) throw new Error(reloaded.errors.join("\n"));
+    const updated = getMeasure(reloaded.document);
+    const { events, tuplets } = updated.numberedVoice;
+    const ticks = 240 * ratio.normal / ratio.actual;
+    expect(events).toEqual(notes.map((event, index) => ({ ...event, tick: 240 + index * ticks })));
+    expect(events.map(createNumberedRhythmContext(updated.numberedVoice).getEventDurationTicks))
+      .toEqual(notes.map(() => ({ ok: true, ticks })));
+    expect(tuplets[0]?.ratio).toEqual(ratio);
+    expect(updated.lyrics).toEqual(measure.lyrics);
+    const restored = execute(reloaded.document, { type: "numbered.tuplet.remove", trackId: track.id,
+      measureId: measure.id, tupletId: tuplets[0]!.id });
+    expect(getMeasure(restored)).toEqual(measure);
+  });
+
+  it("2:3 延长拒绝占用组外事件或越过小节，非 3:2 比例拒绝跨小节", () => {
+    const { document, track, measure, selected, add } = fixture();
+    const ratio = { actual: 2, normal: 3 } as const;
+    const command = { ...add, eventIds: add.eventIds.slice(0, 2), ratio };
+    const overlap = previewNumberedTupletEdit(track, command);
+    expect(overlap).toMatchObject({ ok: false, code: "NUMBERED_OVERLAP", message: expect.stringContaining("连续空位不足") });
+    expect(applyScoreCommand(document, command)).toEqual(overlap);
+    const crossing = { ...command, eventIds: [selected[0]!.id, track.measures[32]!.numberedVoice.events[0]!.id] };
+    expect(previewNumberedTupletEdit(track, crossing)).toMatchObject({ ok: false, message: expect.stringContaining("同一小节") });
+
+    // 两个普通八分音原本恰好填到短小节末尾，按 2:3 延长后才溢出。
+    measure.numberedVoice.events = selected.slice(0, 2).map((event, index) => ({
+      ...event, tick: measure.actualDurationTicks! - (2 - index) * 480,
+    }));
+    measure.lyrics = measure.lyrics.filter(({ eventId }) => command.eventIds.includes(eventId));
+    expect(previewNumberedTupletEdit(track, command)).toEqual(overlap);
   });
 });

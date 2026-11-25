@@ -1,0 +1,45 @@
+.inspector {
+  display: grid;
+  gap: 10px;
+
+  h3,
+  p {
+    margin: 0;
+  }
+
+  h3 {
+    font-size: 15px;
+  }
+}
+
+.detail {
+  display: flex;
+  gap: 6px 14px;
+  flex-wrap: wrap;
+
+  span {
+    color: #53647a;
+  }
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.reason,
+.confirmation {
+  color: #75480e;
+}
+
+.confirmation {
+  padding: 8px 10px;
+  background: #fff5e6;
+  border-radius: 6px;
+
+  ul {
+    margin: 4px 0 0;
+    padding-left: 20px;
+  }
+}

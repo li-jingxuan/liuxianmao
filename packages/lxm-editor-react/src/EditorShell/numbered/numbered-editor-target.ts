@@ -1,5 +1,5 @@
 import {
-  createNumberedRhythmContext,
+  createNumberedTrackRhythmContext,
   getMeasureDurationTicks,
   planNumberedInputRanges,
   type ILXMDocument,
@@ -38,13 +38,14 @@ export const resolveNumberedEditorTarget = (
   target: MusicTextTarget | ILXMTabCellReference | ILXMNumberedTarget | null,
 ): ILXMNumberedTarget | null => {
   if (!target) return null;
-  const measure = document.score.tracks
-    .find((t) => t.id === target.trackId)
-    ?.measures.find((m) => m.id === target.measureId);
+  const track = document.score.tracks.find((t) => t.id === target.trackId);
+  if (!track) return null;
+  const measure = track.measures.find((m) => m.id === target.measureId);
   if (!measure) return null;
+  const context = createNumberedTrackRhythmContext(track);
+  const incomingEnd = context.incomingSustainEndTickByMeasureId.get(measure.id) ?? 0;
   // TAB 入口以当前简谱声部为准；区间采用半开边界，避免末端误选前音。
   const resolveTick = (tick: number): ILXMNumberedTarget | null => {
-    const context = createNumberedRhythmContext(measure.numberedVoice);
     const existing = measure.numberedVoice.events.find((event) => {
       const duration = context.getEventDurationTicks(event);
       return duration.ok && event.tick <= tick && tick < event.tick + duration.ticks;
@@ -57,7 +58,7 @@ export const resolveNumberedEditorTarget = (
         eventId: existing.id,
         itemId: existing.items[0]?.id,
       };
-    const range = planNumberedInputRanges(measure).find(
+    const range = planNumberedInputRanges(measure, 0, context).find(
       (item) => item.startTick === tick,
     );
     // 不为缺少可靠节奏映射的 TAB 连音内部位置伪造普通录入窗口。
@@ -100,7 +101,7 @@ export const resolveNumberedEditorTarget = (
   )
     return Number.isInteger(target.tick) &&
       Number.isInteger(target.endTick) &&
-      target.tick >= 0 &&
+      target.tick >= incomingEnd &&
       target.tick < target.endTick &&
       target.endTick <= getMeasureDurationTicks(measure)
       ? {
@@ -124,16 +125,13 @@ export const numberedTargetWindow = (
   document: ILXMDocument,
   target: ILXMNumberedTarget,
 ) => {
-  const measure = document.score.tracks
-    .find((t) => t.id === target.trackId)!
-    .measures.find((m) => m.id === target.measureId)!;
+  const track = document.score.tracks.find((t) => t.id === target.trackId)!;
+  const measure = track.measures.find((m) => m.id === target.measureId)!;
   if (target.kind === "numberedTime")
     return { start: target.tick, end: target.endTick };
   const event = measure.numberedVoice.events.find(
     (e) => e.id === target.eventId,
   )!;
-  const d = createNumberedRhythmContext(
-    measure.numberedVoice,
-  ).getEventDurationTicks(event);
+  const d = createNumberedTrackRhythmContext(track).getEventDurationTicks(event);
   return { start: event.tick, end: event.tick + (d.ok ? d.ticks : 0) };
 };

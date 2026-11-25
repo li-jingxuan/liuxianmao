@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { loadDocument } from "@liuxianmao/lxm-editor";
+import { createPlaybackPlan, loadDocument } from "@liuxianmao/lxm-editor";
 import ideal from "../../../packages/lxm-editor/example/ideal-score.lxm.json";
 import { PlaybackSession } from "../../../packages/lxm-editor-react/src/EditorShell/playback/controller";
 
@@ -11,6 +11,7 @@ const audio = vi.hoisted(() => ({
   hasStarted: vi.fn(() => true),
   setClickEnabled: vi.fn((enabled: boolean) => enabled ? 960 : Infinity),
   setClickAccent: vi.fn(),
+  setGuitarMuted: vi.fn(),
   changeTempo: vi.fn(),
   stop: vi.fn(),
   dispose: vi.fn(),
@@ -156,6 +157,53 @@ describe("score playback session", () => {
     session.setStartMeasure(null);
     await session.togglePlay(doc);
     expect(audio.start.mock.lastCall?.[0].visits[0].measureId).toBe(first!.id);
+  });
+
+  it("游标随《理想》的反复与重奏跳转，修改指令使暂停的计划失效", async () => {
+    const session = enabled();
+    const doc = documentFixture();
+    const track = doc.score.tracks[0]!;
+    const startMeasureId = track.measures[32]!.id;
+    session.setStartMeasure(startMeasureId);
+    await session.togglePlay(doc);
+    const plan = createPlaybackPlan(doc, { startMeasureId });
+    const raf = vi.mocked(requestAnimationFrame);
+    for (const [visitIndex, measureNumber] of [[33, 17], [51, 25], [58, 35]] as const) {
+      const visit = plan.visits.find((item) => item.visitIndex === visitIndex)!;
+      audio.currentTick.mockReturnValue(visit.startTick);
+      raf.mock.lastCall![0](0);
+      expect(session.snapshot().position).toMatchObject({
+        measureId: track.measures[measureNumber - 1]!.id,
+        visitIndex,
+      });
+    }
+    session.pause();
+    delete track.playbackReplay;
+    session.documentChanged(doc);
+    expect(session.snapshot()).toMatchObject({ phase: "idle", position: null });
+  });
+
+  it("跳转配对失效时播完整小节，包括没有拍点的末尾留白，并保留修复位置", async () => {
+    const session = enabled();
+    const doc = documentFixture();
+    const track = doc.score.tracks[0]!;
+    const first = track.measures[0]!;
+    first.beats = [];
+    first.jumpMarks = [{ id: "broken-ds", kind: "ds", segnoId: "missing" }];
+    await session.togglePlay(doc);
+    const plan = createPlaybackPlan(doc);
+    expect(plan.sounds).toHaveLength(0);
+    expect(audio.start).toHaveBeenCalledTimes(1);
+    audio.currentTick.mockReturnValue(plan.durationTicks);
+    vi.mocked(requestAnimationFrame).mock.lastCall![0](0);
+    expect(session.snapshot()).toMatchObject({
+      phase: "paused",
+      position: { measureId: first.id, visitIndex: 0 },
+      jumpIssue: { repairMarkId: "broken-ds" },
+    });
+    first.jumpMarks = [{ id: "segno", kind: "segno" }, { id: "broken-ds", kind: "ds", segnoId: "segno" }];
+    session.documentChanged(doc);
+    expect(session.snapshot()).toMatchObject({ phase: "idle", position: null, jumpIssue: undefined });
   });
 
   it("joins mid-performance on the next beat and freezes or clears it with transport", async () => {

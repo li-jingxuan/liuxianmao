@@ -234,6 +234,11 @@
     cursor: pointer;
   }
 
+  // 琶音使用波线路径的描边扩大点选区域，避免 SVG 将开放曲线两端连起来命中整块填充区。
+  path[data-strum-hit="arrow"] {
+    fill: none;
+  }
+
   @media print {
     display: none;
   }

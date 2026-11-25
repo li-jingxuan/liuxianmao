@@ -5,7 +5,7 @@ import {
   LXMLyricSchema,
 } from "../document/schema";
 import {
-  createNumberedRhythmContext,
+  createNumberedTrackRhythmContext,
   validateNumberedVoice,
 } from "./numbered-rhythm";
 import { validateNumberedMarks } from "./numbered-marks";
@@ -85,13 +85,17 @@ export const createNumberedClipboard = (
       getMeasureDurationTicks(m)
   )
     return { ok: false as const, message: "简谱复制范围无效" };
-  const context = createNumberedRhythmContext(m.numberedVoice);
+  const context = createNumberedTrackRhythmContext(track);
   const events = m.numberedVoice.events.filter((e) => {
     const d = context.getEventDurationTicks(e);
     return d.ok && e.tick < range.endTick && e.tick + d.ticks > range.startTick;
   });
   const ids = new Set(events.map((e) => e.id)),
     items = new Set(events.flatMap((e) => e.items.map((i) => i.id)));
+  // 单小节剪贴板无法携带相邻小节和还原信息，应改用双小节范围复制。
+  if (range.startTick < (context.incomingSustainEndTickByMeasureId.get(m.id) ?? 0) ||
+      events.some(event => context.tupletByEventId.get(event.id)?.crossBar))
+    return { ok: false as const, message: "请同时复制跨小节简谱连音组涉及的两个小节" };
   if (
     events.length > 256 ||
     events.some((e) => {

@@ -5,6 +5,7 @@ import { useRef, useState } from "react";
 import {
   LXMScoreCommandEnum as C,
   LXM_TUPLET_RATIOS,
+  createNumberedTrackRhythmContext,
   resolveTupletSelection,
   type ILXMDocument,
   type ILXMNumberedTarget,
@@ -40,7 +41,7 @@ export const TupletToolDetails = ({ numberedSelection, onEditNumberedRhythm, ...
   const measure = track?.measures[measureIndex];
   const event = resolved?.kind === "numberedEvent"
     ? measure?.numberedVoice.events.find((item) => item.id === resolved.eventId) : null;
-  const group = event && measure?.numberedVoice.tuplets.find((item) => item.eventIds.includes(event.id));
+  const group = track && event && createNumberedTrackRhythmContext(track).tupletByEventId.get(event.id);
   const tick = event?.tick ?? (resolved?.kind === "numberedTime" ? resolved.tick : undefined);
   return <section className={editorToolPanelStyles.toolDetails} aria-label="简谱连音组详情">
     <h3 tabIndex={-1}>简谱连音组</h3>

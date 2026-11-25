@@ -9,6 +9,8 @@ export interface EditorToolSubmission {
   /** Checked immediately before execution and again inside every asynchronous confirmation. */
   isCurrent?: () => boolean;
   tabOnly?: boolean;
+  /** 右键菜单执行前会收起，确认弹窗用实际写入范围和谱面焦点承接操作。 */
+  numberedContext?: { scope: string; overwrite?: boolean; restoreFocus: () => void };
 }
 export const isTabOnlyToolCommand = (command: ILXMScoreCommand) =>
   command.type === C.SetBeatKindRange || command.type === C.SetBeatKindForBeats || command.type === C.AddTechnique ||

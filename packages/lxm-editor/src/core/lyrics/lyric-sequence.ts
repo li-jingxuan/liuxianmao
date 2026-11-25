@@ -1,4 +1,5 @@
 import { normalizeMusicText } from "../music-text/music-text";
+import { createNumberedMeasureRhythmContext } from "../numbered/numbered-rhythm";
 import { planLyricPositions, resolveLyricPosition, type LyricPosition } from "./lyric-positions";
 import type { ILXMDocument, ILXMLyricVerse, ILXMMeasure } from "../types";
 
@@ -90,7 +91,9 @@ export const planLyricSequence = (
   if (!track) return invalid("目标轨道不存在。");
   const startMeasureIndex = track.measures.findIndex((m) => m.id === start.measureId);
   const startMeasure = track.measures[startMeasureIndex];
-  const resolvedStart = startMeasure && resolveLyricPosition(startMeasure, start);
+  if (!startMeasure) return invalid("起始歌词位置已失效，请重新选择。");
+  const startContext = createNumberedMeasureRhythmContext(track, startMeasureIndex);
+  const resolvedStart = resolveLyricPosition(startMeasure, start, startContext);
   if (!resolvedStart) return invalid("起始歌词位置已失效，请重新选择。");
 
   // 草稿预览和正式应用都只取本批需要的位置。先验证起点，再按小节向后收集，
@@ -108,7 +111,8 @@ export const planLyricSequence = (
     measureIndex++
   ) {
     const measure = track.measures[measureIndex]!;
-    for (const [index, position] of planLyricPositions(measure).entries()) {
+    const context = measureIndex === startMeasureIndex ? startContext : createNumberedMeasureRhythmContext(track, measureIndex);
+    for (const [index, position] of planLyricPositions(measure, context).entries()) {
       if (destinations.length === items.length) break;
       if (measureIndex === startMeasureIndex && position.tick < resolvedStart.tick) continue;
       const beatIndex = position.eventId

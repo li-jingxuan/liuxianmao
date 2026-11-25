@@ -1,5 +1,5 @@
 import { createMeasureRhythmContext } from "../../core/rhythm/tuplet";
-import { createNumberedRhythmContext } from "../../core/numbered/numbered-rhythm";
+import { createNumberedRhythmContext, type createNumberedTrackRhythmContext } from "../../core/numbered/numbered-rhythm";
 import { getMeasureDurationTicks, calculateRhythmTicks } from "../../core/rhythm/rhythm";
 import { TICKS_PER_QUARTER } from "../../core/constants";
 import type { ILXMMeasure } from "../../core/types";
@@ -66,6 +66,7 @@ export const summarizeTimeGrid = (
   metrics?: ILXMMusicTextMetrics,
   techniqueInsets?: ReadonlyMap<string, TechniqueInsets>,
   purpose: ILXMLayoutPurpose = "presentation",
+  numberedRhythm?: ReturnType<typeof createNumberedTrackRhythmContext>,
 ) => {
   const profile = LXM_LAYOUT_DENSITY_PROFILES[density];
   const numberedProfile = numberedLayoutProfile(purpose, density);
@@ -78,7 +79,7 @@ export const summarizeTimeGrid = (
   // 两个谱层和编辑空格共用实际终点，避免在短小节的小节线前多排一段空白。
   const capacity = getMeasureDurationTicks(measure);
   const tab = createMeasureRhythmContext(measure),
-    numbered = createNumberedRhythmContext(measure.numberedVoice);
+    numbered = numberedRhythm ?? createNumberedRhythmContext(measure.numberedVoice);
   const tickSet = new Set([0, capacity]);
   const sources: Source[] = [],
     extents: Extent[] = [];
@@ -156,11 +157,13 @@ export const summarizeTimeGrid = (
   for (const e of measure.numberedVoice.events) {
     const duration = numbered.getEventDurationTicks(e);
     if (!duration.ok) throw new Error("简谱时值无效");
+    // 跨线持续计入下一小节的占用，由输入窗规划使用。小节视觉时间列始终止于自己的边界。
+    const visibleTicks = Math.min(duration.ticks, capacity - e.tick);
     addSource(
       e.id,
       "numbered",
       e.tick,
-      duration.ticks,
+      visibleTicks,
       e.rhythm.base,
       e.rhythm.dots,
       e.kind !== "gap",
@@ -193,7 +196,7 @@ export const summarizeTimeGrid = (
     let right = glyph.bounds.x + glyph.bounds.width - 2;
     if (density === "compact" && dotCount > 0) {
       if (lastSustainUnit > 0) {
-        const tick = e.tick + duration.ticks * lastSustainUnit / units;
+        const tick = e.tick + visibleTicks * lastSustainUnit / units;
         extents.push({ tick, left: 6, right: 9 + (dotCount - 1) * 4 + 1.3, lane: "numbered" });
       } else right = Math.max(right, reduction.right + 4 + (dotCount - 1) * 4 + 1.3);
     } else if (density !== "compact") right += e.rhythm.dots * 4;
@@ -232,7 +235,7 @@ export const summarizeTimeGrid = (
     });
   }
   const inputRanges =
-    purpose === "editing" ? planNumberedInputRanges(measure) : [];
+    purpose === "editing" ? planNumberedInputRanges(measure, 0, numberedRhythm) : [];
   for (const range of inputRanges) {
     tickSet.add(range.startTick);
     tickSet.add(range.endTick);
@@ -288,7 +291,7 @@ export const summarizeTimeGrid = (
       );
   }
   // 独立减时线组之间保留可见净空；约束同时进入硬/理想 DAG，窄行压缩也不能粘连。
-  for (const groups of numberedReductionGroups(measure)) {
+  for (const groups of numberedReductionGroups(measure, numbered)) {
     for (let i = 1; i < groups.length; i++) {
       const previous = groups[i - 1]!.at(-1)!;
       const next = groups[i]![0]!;
@@ -313,14 +316,14 @@ export const summarizeTimeGrid = (
       );
   }
   for (const g of measure.numberedVoice.tuplets) {
-    const members = g.eventIds.map((id) => numberedById.get(id)!);
+    const members = g.eventIds.flatMap((id) => numberedById.get(id) ?? []);
     const first = members[0]!,
       last = members.at(-1)!;
     const d = numbered.getEventDurationTicks(last);
     if (d.ok)
       edge(
         first.tick,
-        last.tick + d.ticks,
+        Math.min(capacity, last.tick + d.ticks),
         String(g.ratio.actual).length * 8 + 16,
       );
   }

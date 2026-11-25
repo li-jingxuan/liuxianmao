@@ -1,4 +1,5 @@
-import { buildNumberedIndex } from "../../core/numbered/numbered-rhythm";
+import { buildNumberedIndex, createNumberedTrackRhythmContext } from "../../core/numbered/numbered-rhythm";
+import { getVisibleMeasureRepeatTrack } from "../../core/document/measure-repeat";
 import { planLyricPositions } from "../../core/lyrics/lyric-positions";
 import {
   layoutNumberedInputSlots,
@@ -23,6 +24,9 @@ import type {
 import { numberedLayoutProfile } from "../music-text/numbered-layout-profile";
 import { planTrackTechniques } from "../techniques/technique-layout";
 import { translateMeasure, translateBarline } from "../layout-translation";
+import { layoutBarline } from "./barline-layout";
+import { isJumpDestination, layoutJumpMarks } from "./jump-mark-layout";
+import { layoutRepeatEndingSegments, REPEAT_ENDING_LANE_HEIGHT } from "./repeat-ending-layout";
 import {
   getFretTextBounds,
   translateTechniqueSegment,
@@ -96,11 +100,16 @@ export const layoutSystemContent = (
   purpose: ILXMLayoutPurpose = "presentation",
   rows?: ReturnType<typeof getMusicTextRows>,
   placeholders?: ILXMLayoutOptions["paragraphPlaceholders"],
+  numberedRhythm = createNumberedTrackRhythmContext(track),
+  endingPreview?: ILXMLayoutOptions["repeatEndingPreview"],
 ): ILXMSystemLayout[] => {
   const profile = numberedLayoutProfile(purpose);
-  const planned = planTrackTechniques(track, baseSystems);
-  const numberedIndex = buildNumberedIndex(track);
-  const source = new Map(track.measures.map((m) => [m.id, m]));
+  const visibleTrack = getVisibleMeasureRepeatTrack(track);
+  const planned = planTrackTechniques(visibleTrack, baseSystems);
+  const numberedIndex = buildNumberedIndex(visibleTrack, numberedRhythm);
+  const source = new Map(visibleTrack.measures.map((m) => [m.id, m]));
+  const repeatEndings = track.repeatEndingGroups?.flatMap(({ endings }) => endings) ?? [];
+  const measureIndexes = new Map(track.measures.map(({ id }, index) => [id, index]));
   let nextTop = planned[0]?.y ?? 0;
   return planned.map((system) => {
     const techniqueTop = Math.min(
@@ -141,15 +150,18 @@ export const layoutSystemContent = (
           }),
       ]),
     );
-    for (const m of system.measures)
+    for (const m of system.measures) {
+      if (m.measureRepeat) continue;
       numberedByMeasure.set(
         m.id,
         layoutNumberedRhythm(
           source.get(m.id)!,
           m,
           numberedByMeasure.get(m.id)!,
+          numberedRhythm,
         ),
       );
+    }
     const active = system.measures.some((m) => m.id === editing?.measureId)
       ? editing
       : undefined;
@@ -161,7 +173,7 @@ export const layoutSystemContent = (
       musicTextRequest("0", LXM_NUMBERED_TEXT_FONT_SIZE), 0, 0, metrics,
     );
     const rawNumberedMarks = layoutNumberedMarks(
-      track,
+      visibleTrack,
       system,
       rawNumbered,
       metrics,
@@ -170,7 +182,7 @@ export const layoutSystemContent = (
     );
     if (rawNumbered.length || rawNumberedMarks.length || showNumberedInput)
       rawNumberedMarks.push(
-        ...layoutNumberedStructure(track, system, rawNumbered, metrics),
+        ...layoutNumberedStructure(visibleTrack, system, rawNumbered, metrics),
       );
     const numberedDy =
       rawNumbered.length || rawNumberedMarks.length || showNumberedInput
@@ -291,12 +303,29 @@ export const layoutSystemContent = (
         ]),
       };
     });
+    // 跳转记号在既有和弦与技巧排版后加入，只占用上方净空，不重新分配拍点。
+    const jumpBounds = layoutJumpMarks(system, measures, source);
+    const [firstMeasure] = measures;
+    // 行首无反复线时，落点仍需对应一根真实的起始线。已有反复线直接复用。
+    const leadingBarline = system.header.leadingBarline ?? (
+      firstMeasure?.jumpMarks?.some((mark) => isJumpDestination(mark.kind))
+        ? layoutBarline("single", firstMeasure.strings, system.header.staffX)
+        : null
+    );
     const musicTop = Math.min(
       system.y - techniqueHeight,
+      jumpBounds?.y ?? Infinity,
       ...measures.flatMap((m) =>
         (m.chordSymbols ?? []).map((b) => b.bounds.y - 2),
       ),
     );
+    // 反复括线在跳转记号和和弦上方另占一层。草稿单独排版，调整范围时仍能核对原括线。
+    const endingTop = musicTop - REPEAT_ENDING_LANE_HEIGHT - 2;
+    const endingSegments = layoutRepeatEndingSegments(system, repeatEndings, measureIndexes, endingTop);
+    const previewTop = endingTop - (endingSegments.length ? REPEAT_ENDING_LANE_HEIGHT : 0);
+    const endingPreviewSegments = endingPreview
+      ? layoutRepeatEndingSegments(system, [endingPreview], measureIndexes, previewTop)
+      : [];
     const finalBottom = maxVerse
       ? lyricBaseline +
         (maxVerse - 1) * rowHeight +
@@ -307,7 +336,7 @@ export const layoutSystemContent = (
           system.y + system.height,
         );
     // 段落标记仅保存在文档中，不再投影为标签或影响顶部占位。
-    const originalTop = musicTop;
+    const originalTop = endingPreviewSegments.length ? previewTop : endingSegments.length ? endingTop : musicTop;
     const dy = nextTop - originalTop;
     // 全部简谱事件参与中点划分，只有音符生成歌词入口；真实文字优先命中。
     const musicTextCells: NonNullable<ILXMSystemLayout["musicTextCells"]> = [];
@@ -319,7 +348,9 @@ export const layoutSystemContent = (
     const numberedTop = body.bounds.y + numberedDy;
     const numberedHeight = Math.max(LXM_NUMBERED_TEXT_FONT_SIZE + 4, body.bounds.height);
     for (const m of maxVerse > 0 ? measures : []) {
-      const positions = planLyricPositions(source.get(m.id)!);
+      // 缩写小节的谱面交互只接收整节命中，歌词普通空位也要隐藏。
+      if (m.measureRepeat) continue;
+      const positions = planLyricPositions(source.get(m.id)!, numberedRhythm);
       const slots = [
         ...m.numberedSlots.map((slot) => ({
           ...slot,
@@ -379,6 +410,12 @@ export const layoutSystemContent = (
     }
     const result: ILXMSystemLayout = {
       ...system,
+      ...(endingSegments.length && { repeatEndings: endingSegments.map((segment) => ({
+        ...segment, bounds: { ...segment.bounds, y: segment.bounds.y + dy },
+      })) }),
+      ...(endingPreviewSegments.length && { repeatEndingPreview: endingPreviewSegments.map((segment) => ({
+        ...segment, bounds: { ...segment.bounds, y: segment.bounds.y + dy },
+      })) }),
       ...(rawNumbered.length || rawNumberedMarks.length || showNumberedInput
         ? {
             numberedRow: {
@@ -408,7 +445,7 @@ export const layoutSystemContent = (
           y1: l.y1 + dy,
           y2: l.y2 + dy,
         })),
-        leadingBarline: translateBarline(system.header.leadingBarline, dy),
+        leadingBarline: translateBarline(leadingBarline, dy),
       },
       measures: measures.map((m) => ({
         ...translateMeasure(m, dy),
@@ -421,6 +458,19 @@ export const layoutSystemContent = (
           bounds: { ...l.bounds, y: l.bounds.y + dy },
         })),
         chordSymbols: m.chordSymbols!.map((b) => translateChordBlock(b, 0, dy)),
+        ...(m.jumpMarks && {
+          jumpMarks: m.jumpMarks.map((mark) => ({
+            ...mark,
+            y: mark.y + dy,
+            bounds: { ...mark.bounds, y: mark.bounds.y + dy },
+          })),
+        }),
+        ...(m.jumpMarkStartBarline && {
+          jumpMarkStartBarline: translateBarline(m.jumpMarkStartBarline, dy)!,
+        }),
+        ...(m.numberPosition && {
+          numberPosition: { ...m.numberPosition, y: m.numberPosition.y + dy },
+        }),
         visualBounds: { ...m.visualBounds!, y: m.visualBounds!.y + dy },
       })),
       techniques: system.techniques.map((t) =>
@@ -429,19 +479,20 @@ export const layoutSystemContent = (
       visualBounds: {
         x: system.x,
         y: nextTop,
-        width: system.width,
+        width: Math.max(system.width, jumpBounds ? jumpBounds.x + jumpBounds.width - system.x : 0),
         height: finalBottom - originalTop,
       },
     };
     result.measures = result.measures.map((m) => ({
       ...m,
       numberedInputSlots:
-        purpose === "editing" && result.numberedRow
+        purpose === "editing" && result.numberedRow && !m.measureRepeat
           ? layoutNumberedInputSlots(
               track.id,
               source.get(m.id)!,
               m,
               result.numberedRow,
+              numberedRhythm,
             )
           : [],
     }));

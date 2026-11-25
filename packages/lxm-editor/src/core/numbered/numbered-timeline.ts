@@ -3,7 +3,7 @@ import {
   getMeasureDurationTicks,
   getTimeSignatureBeatGroupTicks,
 } from "../rhythm/rhythm";
-import { createNumberedRhythmContext, NUMBERED_CONTINUATION_RHYTHM_REASON } from "./numbered-rhythm";
+import { createNumberedRhythmContext, NUMBERED_CONTINUATION_RHYTHM_REASON, type NumberedTrackRhythmContext } from "./numbered-rhythm";
 import { numberedRhythmForTicks } from "./numbered-input-ranges";
 import type { ILXMMeasure, ILXMNumberedEvent, ILXMNumberedVoice, ILXMRhythm } from "../types";
 
@@ -36,6 +36,7 @@ export const planNumberedEventRhythm = (
   measure: ILXMMeasure,
   eventId: string,
   rhythm: ILXMRhythm,
+  trackContext?: NumberedTrackRhythmContext,
 ): NumberedTimelineResult => {
   const voice = measure.numberedVoice;
   const events = [...voice.events].sort((a, b) => a.tick - b.tick);
@@ -45,7 +46,7 @@ export const planNumberedEventRhythm = (
   const target = events[index]!;
   if (target.kind === "continuation")
     return { ok: false, code: "INVALID_RHYTHM", message: NUMBERED_CONTINUATION_RHYTHM_REASON };
-  const context = createNumberedRhythmContext(voice);
+  const context = trackContext ?? createNumberedRhythmContext(voice);
   if (context.tupletByEventId.has(eventId))
     return { ok: false, code: "EVENT_IN_TUPLET", message: "连音成员须整组修改时值" };
   const previous = context.getEventDurationTicks(target);

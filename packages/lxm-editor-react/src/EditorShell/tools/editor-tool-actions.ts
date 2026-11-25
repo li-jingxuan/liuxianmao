@@ -7,6 +7,7 @@ import {
   type ILXMRhythm,
   type ILXMScoreCommand,
   type ILXMTabCellSelection,
+  type ILXMTupletRatio,
 } from "@liuxianmao/lxm-editor";
 import { deriveEditorToolState } from "./editor-tool-state";
 import { resolveQuickTechnique, type QuickTechnique } from "./editor-technique-target";
@@ -35,7 +36,8 @@ export type EditorToolbarAction =
   | { type: "dots"; dots: 0 | 1 | 2 }
   | { type: "quickTechnique"; technique: QuickTechnique }
   | { type: "numberedArc"; kind: NumberedArcKind }
-  | { type: "numberedTuplet"; operation: "add" | "remove" }
+  | { type: "numberedTuplet"; operation: "add"; ratio: ILXMTupletRatio }
+  | { type: "numberedTuplet"; operation: "remove" | "createInBeat" }
   | { type: "signature"; value: string; target?: MeasureToolTarget }
   | { type: "measureDuration"; durationTicks: number; target?: MeasureToolTarget }
   | { type: "barline"; value: ILXMBarlineType; target?: MeasureToolTarget };

@@ -10,10 +10,11 @@ export const copyNumberedVoices = (
   track: ILXMTrack,
   sources: ILXMMeasure[],
   factory: ILXMIdFactory,
+  measureIds?: ReadonlyMap<string, string>,
 ) => {
   const ids = new Map<string, string>();
-  const voices: ILXMNumberedVoice[] = sources.map((m) => {
-    const events = m.numberedVoice.events.map((e) => {
+  const eventsByMeasure = sources.map(m =>
+    m.numberedVoice.events.map((e) => {
       const id = factory.createNumberedEventId();
       ids.set(e.id, id);
       const items = e.items.map((i) => {
@@ -24,17 +25,18 @@ export const copyNumberedVoices = (
       return e.kind === "gap"
         ? { ...e, id, rhythm: { ...e.rhythm }, items: [] as [] }
         : { ...e, id, rhythm: { ...e.rhythm }, items };
-    });
-    return {
-      events,
+    }));
+  // 先分配所有事件与音符 ID，再映射组，确保首小节的组能引用副本的次小节事件。
+  const voices: ILXMNumberedVoice[] = sources.map((m, index) => ({
+      events: eventsByMeasure[index]!,
       tuplets: m.numberedVoice.tuplets.map((g) => ({
         ...g,
         id: factory.createNumberedTupletId(),
         ratio: { ...g.ratio },
         eventIds: g.eventIds.map((id) => ids.get(id)!),
+        ...(g.crossBar ? { crossBar: { nextMeasureId: measureIds!.get(g.crossBar.nextMeasureId)! } } : {}),
       })),
-    };
-  });
+  }));
   const omittedMarks: ILXMNumberedMark[] = [];
   const marks = track.numberedMarks.flatMap((m): ILXMNumberedMark[] => {
     if (m.type === "tie") {

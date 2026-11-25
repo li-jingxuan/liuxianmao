@@ -34,10 +34,11 @@ import { ShortcutHint } from "../session/EditorShortcutReference";
 import { RhythmPatternPanel, useSharedRhythmPatternBusy } from "../tools/RhythmPatternPanel";
 import { MeasureBoundary, resolveMeasureControlTarget } from "../tools/MeasureBoundary";
 import { MeasureActions } from "../tools/MeasureActions";
+import { MeasureSymbols } from "../tools/MeasureSymbols";
 import measureStyles from "../tools/MeasureControls.module.scss";
 import { resolveEditorRhythmPatternTarget } from "../tools/editor-rhythm-pattern-target";
 import { NumberedTupletToolbar, resolveTupletToolbarTarget, TupletToolbar } from "../tools/TupletToolbar";
-import { resolveNumberedTupletTarget } from "../tools/editor-numbered-tuplet-target";
+import { resolveNumberedBeatTupletTarget, resolveNumberedTupletTarget } from "../tools/editor-numbered-tuplet-target";
 import { TechniqueToolbar, type TechniqueToolbarController } from "../tools/TechniqueToolbar";
 import { TECHNIQUE_OPTIONS } from "../tools/technique-catalog";
 import { techniquesInToolbarSelection, toolbarTechniqueAvailability } from "../tools/technique-toolbar-model";
@@ -49,7 +50,8 @@ import {
 import { createBeatPasteController } from "../tools/beat-paste-controller";
 import { useEditorRuntime } from "../session/EditorSessionRuntime";
 import type { EditorCommandAdapter } from "../session/editor-command-adapter";
-import type { ToolActionHandler } from "../tools/editor-tool-actions";
+import type { MeasureToolTarget, ToolActionHandler } from "../tools/editor-tool-actions";
+import type { JumpMarkInspectorRequest } from "../tools/JumpMarkInspector";
 import type { ToolNavigation } from "../tools/editor-tool-catalog";
 import type { SelectionRequestResult } from "../session/editor-object-selection";
 import editorToolPanelStyles from "../shared/editor-tool-panel.module.scss";
@@ -59,7 +61,7 @@ import { resolveEditorChordTarget } from "../chords/editor-chord-target";
 import { resolveQuickTechnique, type QuickTechnique } from "../tools/editor-technique-target";
 import { tabToolTargetReason } from "../tools/editor-tool-guard";
 import { resolveNumberedArcOptions, type NumberedArcKind } from "../tools/editor-tie-target";
-import { NumberedArcTool } from "../tools/NumberedArcTool";
+import { NumberedArcTool, type NumberedArcToolController } from "../tools/NumberedArcTool";
 import { EditorToolSymbolButton, TechniqueSymbol } from "../tools/EditorToolSymbolButton";
 import symbolStyles from "../tools/EditorToolSymbolButton.module.scss";
 import toolbarStyles from "./EditorToolbar.module.scss";
@@ -69,8 +71,13 @@ import { PracticeMetronomeControls } from "../playback/MetronomeControls";
 import { PracticeMetronome } from "../playback/practice-metronome";
 
 export type { EditorToolbarAction } from "../tools/editor-tool-actions";
-export type EditorToolbarController = Pick<EditorToolPanelController,
-  "openContextTool" | "closeContextTool" | "getContextToolDisabledReason">;
+type ToolbarContextTool = ContextToolGroup | "numberedArc";
+export interface EditorToolbarController {
+  openContextTool: (group: ToolbarContextTool, anchor: HTMLElement, onClose: () => void, focusSelector?: string) => boolean;
+  openMeasureSymbols: () => void;
+  closeContextTool: EditorToolPanelController["closeContextTool"];
+  getContextToolDisabledReason: (group: ToolbarContextTool) => string | null;
+}
 
 const RHYTHMS: {
   base: ILXMRhythm["base"];
@@ -92,6 +99,7 @@ export const EditorToolbar = ({
   ref,
   activeTarget,
   continuousRange = null,
+  measureSelection,
   blocked,
   numberedBlocked,
   onAction,
@@ -107,11 +115,15 @@ export const EditorToolbar = ({
   sidebarToggleRef,
   playback,
   isPlaybackEntryBlocked,
+  onOpenJumpMarks,
+  onOpenRepeatEnding,
+  onOpenMeasureRepeat,
   customToolbar,
 }: {
   ref?: Ref<EditorToolbarController>;
   activeTarget: MusicTextTarget | null;
   continuousRange?: MusicTextRange | null;
+  measureSelection?: { anchor: MeasureToolTarget; focus: MeasureToolTarget };
   blocked: boolean;
   numberedBlocked: boolean;
   onAction: ToolActionHandler;
@@ -128,6 +140,9 @@ export const EditorToolbar = ({
   sidebarToggleRef: Ref<HTMLButtonElement>;
   playback: ScorePlaybackControls;
   isPlaybackEntryBlocked: () => boolean;
+  onOpenJumpMarks: (target: MeasureToolTarget, request: JumpMarkInspectorRequest) => boolean;
+  onOpenRepeatEnding: (target: MeasureToolTarget, measureIds: readonly string[], endingId?: string) => boolean;
+  onOpenMeasureRepeat: (target: MeasureToolTarget) => boolean;
   customToolbar?: ReactNode;
 }) => {
   const session = useEditorSessionStore();
@@ -175,18 +190,28 @@ export const EditorToolbar = ({
     drafts.getSnapshot,
   );
   const host = useRef<EditorToolPanelController>(null);
+  const arcTool = useRef<NumberedArcToolController>(null);
   // 右键菜单复用工具栏现有面板和草稿保护。工具栏未挂载或正在试听时，没有可打开的工具面板。
   useImperativeHandle(ref, () => ({
-    openContextTool: (group, anchor, onClose) => host.current?.openContextTool(group, anchor, onClose) ?? false,
-    closeContextTool: () => host.current?.closeContextTool() ?? true,
-    getContextToolDisabledReason: (group: ContextToolGroup) =>
-      host.current ? host.current.getContextToolDisabledReason(group) : "当前没有可用的编辑工具。",
+    openContextTool: (group, anchor, onClose, focusSelector) => {
+      if (group === "numberedArc") {
+        if (!host.current?.prepareHide()) return false;
+        return arcTool.current?.openContextTool(anchor, onClose) ?? false;
+      }
+      arcTool.current?.closeContextTool();
+      return host.current?.openContextTool(group, anchor, onClose, focusSelector) ?? false;
+    },
+    openMeasureSymbols: () => host.current?.open("measure", "[data-measure-symbol-heading]"),
+    closeContextTool: () => (host.current?.closeContextTool() ?? true) && (arcTool.current?.closeContextTool() ?? true),
+    getContextToolDisabledReason: (group) => group === "numberedArc"
+      ? arcTool.current ? arcTool.current.getDisabledReason() : "当前没有可用的简谱弧线工具。"
+      : host.current ? host.current.getContextToolDisabledReason(group) : "当前没有可用的编辑工具。",
   }), []);
   const playbackToggleRef = useRef<HTMLButtonElement>(null);
   const [playbackEntryNotice, setPlaybackEntryNotice] = useState("");
   const sharedRhythmBusy = useSharedRhythmPatternBusy();
   const immediateBusyRef = useRef(false);
-  const [, setImmediateBusyState] = useState(false);
+  const [immediateBusy, setImmediateBusyState] = useState(false);
   const setImmediateBusy = useCallback((busy: boolean) => { immediateBusyRef.current = busy; setImmediateBusyState(busy); }, []);
   const rhythmBusyRef = useRef(false);
   const [, setRhythmBusy] = useState(false);
@@ -206,7 +231,7 @@ export const EditorToolbar = ({
   const techniqueBlocked = blocked || drafts.inspect().pending.some(
     (item) => item.kind !== "beatPaste" && item.kind !== "technique",
   );
-  const live = useRef({ editingBlocked, numberedEditingBlocked, continuousRange, modal, beforeAction, execute });
+  const live = useRef({ editingBlocked, numberedEditingBlocked, continuousRange, measureSelection, modal, beforeAction, execute });
   const executeLatest: EditorCommandAdapter = useCallback(
     (command, impact, submission) => live.current.execute(command, impact, submission),
     [],
@@ -225,7 +250,8 @@ export const EditorToolbar = ({
   }, [session, getActiveTarget]);
   const getSelectionIdentity = useCallback(() => {
     const now = session.getState();
-    return JSON.stringify({ selection: now.selection, numberedSelection: now.numberedSelection, continuousRange: live.current.continuousRange, activeTarget: getActiveTarget() });
+    return JSON.stringify({ selection: now.selection, numberedSelection: now.numberedSelection, continuousRange: live.current.continuousRange,
+      measureSelection: live.current.measureSelection, activeTarget: getActiveTarget() });
   }, [session, getActiveTarget]);
   const blockedReason = useCallback(
     () => (live.current.editingBlocked ? "先完成属性编辑，再修改 TAB。" : null),
@@ -248,9 +274,9 @@ export const EditorToolbar = ({
   );
   useEffect(() => paste.start(), [paste]);
   useLayoutEffect(() => {
-    live.current = { editingBlocked, numberedEditingBlocked, continuousRange, modal, beforeAction, execute };
+    live.current = { editingBlocked, numberedEditingBlocked, continuousRange, measureSelection, modal, beforeAction, execute };
     paste.invalidate();
-  }, [paste, editingBlocked, numberedEditingBlocked, continuousRange, modal, beforeAction, execute]);
+  }, [paste, editingBlocked, numberedEditingBlocked, continuousRange, measureSelection, modal, beforeAction, execute]);
   // 复制确认的关闭动画晚于命令回调。按弹窗来源保留工具直到动画结束，取消后可以回到原位置列表。
   const preserveToolForModal = modal?.request.kind === "rhythm-pattern-discard" || modal?.request.kind === "shortcuts" ||
     (modal?.request.kind === "structure-impact" && modal.request.source === "measure-copy");
@@ -262,16 +288,38 @@ export const EditorToolbar = ({
   const numberedTuplet = useMemo(() => document && numberedArc
     ? resolveNumberedTupletTarget(document, continuousRange, activeTarget, numberedSelection) : null,
   [document, numberedArc, continuousRange, activeTarget, numberedSelection]);
+  const numberedBeatTuplet = useMemo(() => document && numberedArc
+    ? resolveNumberedBeatTupletTarget(document, continuousRange, activeTarget, numberedSelection) : null,
+  [document, numberedArc, continuousRange, activeTarget, numberedSelection]);
   if (!document) return null;
   const rhythmPatternTarget = resolveEditorRhythmPatternTarget(document, selection, continuousRange, activeTarget, numberedSelection);
   const rhythmPatternBlocked = (rhythmPatternTarget.ok && rhythmPatternTarget.target.layer === "numbered"
     ? numberedEditingBlocked : editingBlocked) || !!modal || drafts.inspect().pending.length > 0;
   const tools = deriveEditorToolState(document, selection, selectedTraversalIds);
   const measureFocus = activeTarget ?? numberedSelection ?? selection?.focus;
-  const measureTarget = continuousRange
+  const measureTarget = measureSelection?.focus ?? (continuousRange
     ? { trackId: continuousRange.trackId, measureId: continuousRange.focus.measureId }
-    : measureFocus ? { trackId: measureFocus.trackId, measureId: measureFocus.measureId } : null;
+    : measureFocus ? { trackId: measureFocus.trackId, measureId: measureFocus.measureId } : null);
   const measureControlTarget = resolveMeasureControlTarget(document, measureTarget);
+  // 小节范围以谱序列出的稳定 ID 表示。简谱／歌词范围优先，避免沿用已退出的 TAB 选区。
+  const measureAnchor = measureSelection?.anchor ?? continuousRange?.anchor ?? (!activeTarget && !numberedSelection ? selection?.anchor : undefined);
+  const measureIndex = measureControlTarget?.index ?? -1;
+  const anchorIndex = measureAnchor && measureControlTarget
+    ? measureControlTarget.track.measures.findIndex(({ id }) => id === measureAnchor.measureId) : measureIndex;
+  const firstMeasureIndex = Math.min(anchorIndex < 0 ? measureIndex : anchorIndex, measureIndex);
+  const lastMeasureIndex = Math.max(anchorIndex, measureIndex);
+  const measureIds = measureControlTarget?.track.measures.slice(firstMeasureIndex, lastMeasureIndex + 1).map(({ id }) => id) ?? [];
+  // 简谱和歌词的连续选区仍以焦点小节显示并操作。只有房子需要读取完整的小节范围。
+  const multipleMeasures = !continuousRange && measureIds.length > 1;
+  const measureLabel = !measureControlTarget ? "未选择小节" : multipleMeasures
+    ? `第 ${firstMeasureIndex + 1}–${lastMeasureIndex + 1} 小节` : `第 ${measureIndex + 1} 小节`;
+  const endingId = measureControlTarget?.track.repeatEndingGroups?.flatMap(({ endings }) => endings).find((ending) => {
+    if (measureIds.length > 1) return ending.startMeasureId === measureIds[0] && ending.endMeasureId === measureIds.at(-1);
+    const { measures } = measureControlTarget.track;
+    const first = measures.findIndex(({ id }) => id === ending.startMeasureId);
+    const last = measures.findIndex(({ id }) => id === ending.endMeasureId);
+    return first >= 0 && first <= measureIndex && measureIndex <= last;
+  })?.id;
   const tabReason = tabToolTargetReason(session.getState(), activeTarget);
   const tabPanelReason = activeTarget || continuousRange ? "请先选择 TAB 目标。" : tabReason;
   const tabPanelSelection = tabPanelReason ? null : selection;
@@ -285,7 +333,7 @@ export const EditorToolbar = ({
   const toolTargetReasons = {
     measure: measureControlTarget ? null : "请选择目标小节。",
     beat: rhythmPatternTarget.ok ? null : rhythmPatternTarget.message,
-    tuplet: numberedTuplet ? numberedTuplet.ok ? null : numberedTuplet.message
+    tuplet: numberedTuplet ? numberedTuplet.ok || numberedBeatTuplet?.ok ? null : numberedTuplet.message
       : canUseTuplet ? null : tabPanelReason || tupletTarget.reason || "请选择同小节内符合连音比例的连续拍点，或选中已有连音组。",
     technique: canUseTechnique ? null : tabPanelReason || "当前 TAB 选区没有可用的技巧。",
   };
@@ -360,7 +408,7 @@ export const EditorToolbar = ({
     }
     const protection = drafts.inspect();
     if (modals.isOpen() || protection.composing || protection.busy || isPlaybackEntryBlocked() ||
-      protection.pending.some((item) => item.kind === "technique" || item.kind === "beatPaste") ||
+      protection.pending.some((item) => item.kind === "technique" || item.kind === "beatPaste" || item.kind === "jumpMark") ||
       host.current?.prepareHide() === false) {
       setPlaybackEntryNotice("请先完成当前输入或处理编辑工具中的草稿，再切换至试听。");
       return;
@@ -481,7 +529,7 @@ export const EditorToolbar = ({
         quickTechniques={(["hammerOn", "pullOff", "slide", "tie", "strumDown", "strumUp", "arpeggioDown", "arpeggioUp"] as const).map((quick) => {
           if (quick === "tie" && numberedArc) {
             // 选区或草稿锁变化时销毁旧气泡，避免重新选音或结束确认后弹出上一次的命令。
-            return <NumberedArcTool key={`numbered-arc:${JSON.stringify(continuousRange)}:${arcBlocked}`}
+            return <NumberedArcTool ref={arcTool} key={`numbered-arc:${JSON.stringify(continuousRange ?? numberedSelection)}:${arcBlocked}`}
               options={resolveNumberedArcOptions(document, continuousRange)} blocked={arcBlocked}
               onApply={applyNumberedArc} />;
            }
@@ -500,6 +548,7 @@ export const EditorToolbar = ({
         targetReasons={toolTargetReasons}
         // 休止拍也允许打开技巧面板。面板内仍按当前 TAB 选择判定每个技巧是否适用。
         contextTechniqueReason={tabPanelReason}
+        contextTupletReason={numberedArc ? null : "请先选择简谱目标。"}
         canHide={() => !rhythmBusyRef.current && !sharedRhythmBusy && !immediateBusyRef.current && (techniquePanel.current?.canHide() ?? true)}
         onHideTechnique={() => techniquePanel.current?.discard()}
         subscribeProtection={drafts.subscribe}
@@ -514,11 +563,18 @@ export const EditorToolbar = ({
           measure: (
             <div aria-label="小节工具菜单">
               <div className={measureStyles.header}>
-                <h3>小节工具</h3><span>{measureControlTarget ? `第 ${measureControlTarget.index + 1} 小节` : "未选择小节"}</span>
+                <h3 tabIndex={-1} data-measure-tool-heading>小节工具</h3><span>{measureLabel}</span>
                 <Button type="text" aria-label="关闭小节工具" onClick={() => host.current?.close(true)}>×</Button>
               </div>
               <div className={measureStyles.measureMenu}>
-                <MeasureBoundary document={document} target={measureTarget} blocked={editingBlocked || !!modal} onAction={run} />
+                <MeasureBoundary document={document} target={measureTarget} blocked={editingBlocked || !!modal}
+                  multipleMeasures={multipleMeasures} onAction={run} />
+                {measureTarget && measureControlTarget && <MeasureSymbols document={document} trackId={measureTarget.trackId} measure={measureControlTarget.measure}
+                  multipleMeasures={multipleMeasures} blocked={editingBlocked || !!modal || immediateBusy} repeatEndingId={endingId}
+                  repeatEndingDisabledReason={measureControlTarget.track.measures.length < 2 ? "至少需要一个共享小节和一个结尾小节" : undefined}
+                  onOpenRepeatEnding={() => { if (onOpenRepeatEnding(measureTarget, measureIds, endingId)) host.current?.close(); }}
+                  onOpenJumpMarks={(request) => { if (onOpenJumpMarks(measureTarget, request)) host.current?.close(); }}
+                  onOpenMeasureRepeat={() => { if (onOpenMeasureRepeat(measureTarget)) host.current?.close(); }} />}
                 <MeasureActions document={document} target={measureTarget} blocked={editingBlocked || !!modal} onAction={run}
                   getDocument={() => session.getState().document}
                   getTargetIdentity={getSelectionIdentity}
@@ -552,9 +608,14 @@ export const EditorToolbar = ({
           tuplet: (
             <div>
               <div className={measureStyles.header}><h3>连音工具</h3><Button type="text" aria-label="关闭连音工具" onClick={() => host.current?.close(true)}>×</Button></div>
-              {numberedTuplet?.ok ? (
-                <NumberedTupletToolbar command={numberedTuplet.command} blocked={arcBlocked}
-                  onApply={(operation) => onAction({ type: "numberedTuplet", operation })} />
+              {numberedTuplet && numberedBeatTuplet ? (
+                <NumberedTupletToolbar target={numberedTuplet}
+                  beatTarget={numberedBeatTuplet} blocked={arcBlocked}
+                  onApply={async (action) => {
+                    const applied = await onAction(action);
+                    if (applied && action.operation === "createInBeat") host.current?.close(true);
+                    return applied;
+                  }} />
               ) : !numberedTuplet && (
                 <TupletToolbar
                   document={document}

@@ -27,8 +27,7 @@ export const numberedReductionExtent = (frame: NumberedLayout) => {
 };
 
 /** 绘制与硬间距共用逐层分组，休止 0 与音符遵循相同的实际时值规则。 */
-export const numberedReductionGroups = (measure: ILXMMeasure) => {
-  const context = createNumberedRhythmContext(measure.numberedVoice);
+export const numberedReductionGroups = (measure: ILXMMeasure, context = createNumberedRhythmContext(measure.numberedVoice)) => {
   const groupTicks = getTimeSignatureBeatGroupTicks(measure.timeSignature) ?? [Infinity];
   const groupIndex = (tick: number) => {
     let sum = 0;

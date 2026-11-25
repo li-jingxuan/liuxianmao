@@ -1,4 +1,4 @@
-import { createNumberedRhythmContext } from "../numbered/numbered-rhythm";
+import { createNumberedRhythmContext, type NumberedTrackRhythmContext } from "../numbered/numbered-rhythm";
 import { createMeasureRhythmContext } from "./tuplet";
 /**
  * 单小节拍号修改与容量协调模块。
@@ -36,6 +36,7 @@ export const changeMeasureTimeSignature = (
   timeSignature: ILXMTimeSignature,
   createBeatId: () => string,
   protectedBeatIds: ReadonlySet<string> = new Set(),
+  numberedContext?: NumberedTrackRhythmContext,
 ): MeasureTimeSignatureChangeResult => {
   const capacityTicks = getMeasureCapacityTicks(timeSignature);
   const oldCapacityTicks = getMeasureCapacityTicks(measure.timeSignature);
@@ -53,11 +54,16 @@ export const changeMeasureTimeSignature = (
   };
   if (actualDurationTicks === undefined) delete nextMeasure.actualDurationTicks;
   const durationTicks = getMeasureDurationTicks(nextMeasure);
-  const numbered = createNumberedRhythmContext(measure.numberedVoice);
+  const numbered = numberedContext ?? createNumberedRhythmContext(measure.numberedVoice);
+  const keepsBarline = durationTicks === getMeasureDurationTicks(measure);
   if (
+    (!keepsBarline && measure.numberedVoice.tuplets.some(group => group.crossBar)) ||
+    (numberedContext?.incomingSustainEndTickByMeasureId.get(measure.id) ?? 0) > durationTicks ||
     measure.numberedVoice.events.some((e) => {
       const d = numbered.getEventDurationTicks(e);
-      return !d.ok || e.tick + d.ticks > durationTicks;
+      const group = numbered.tupletByEventId.get(e.id);
+      const mayCross = keepsBarline && group?.crossBar && measure.numberedVoice.tuplets.includes(group);
+      return !d.ok || (e.tick + d.ticks > durationTicks && !mayCross);
     })
   )
     return { ok: false, code: "MEASURE_CONTENT_EXCEEDS_TIME_SIGNATURE" };

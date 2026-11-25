@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>六线猫 | 曲首回跳与结束</title>
+  <link rel="stylesheet" href="prototype.css">
+  <script defer src="prototype.js"></script>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-start">
+      <div class="brand"><img src="liuxianmao-32.png" width="30" height="30" alt=""><strong>六线猫</strong></div>
+      <nav aria-label="工作台菜单">
+        <details class="file-menu" id="file-menu">
+          <summary>文件</summary>
+          <div class="menu-sheet">
+            <button data-action="save">模拟保存</button>
+            <button data-action="reopen">模拟重开</button>
+          </div>
+        </details>
+        <button class="plain" disabled>编辑</button>
+        <button class="plain" disabled>视图</button>
+        <button class="plain" data-action="legend">帮助</button>
+      </nav>
+    </div>
+    <strong class="doc-name">回到曲首</strong>
+    <div class="header-end"><span id="file-status">示例曲谱</span><button disabled>导出</button></div>
+  </header>
+
+  <div class="toolbar" id="toolbar" aria-label="谱面工具栏">
+    <div class="tools" id="edit-tools">
+      <button class="plain" disabled>♪　时值</button><button class="plain" disabled>H　技巧</button><button class="plain" disabled>节奏型</button>
+      <span class="divider" aria-hidden="true"></span>
+      <button id="measure-tool" data-action="measure-tool" aria-controls="inspector"><span aria-hidden="true">‖</span> 小节</button>
+      <span class="toolbar-hint">选中小节后设置记号</span>
+    </div>
+    <div class="tools playback-tools" id="play-tools" hidden>
+      <button class="primary" id="play" data-action="play">播放</button>
+      <button id="stop" data-action="stop">停止</button>
+      <span class="divider" aria-hidden="true"></span>
+      <label for="start">起点</label><select id="start"></select>
+      <button id="step" data-action="step">单步</button>
+      <label class="check"><input type="checkbox" id="follow" checked> 跟随谱面</label>
+      <span id="sound-label">示意音（合成音）</span>
+    </div>
+    <div class="tools">
+      <button id="audition-toggle" data-action="audition" aria-pressed="false">
+        <svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 14v-3a9 9 0 0 1 18 0v3M3 13h3a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2 3 3 0 0 1-3-3zm18 0h-3a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2 3 3 0 0 0 3-3z"/></svg>
+        <span id="audition-label">试听</span>
+      </button>
+    </div>
+  </div>
+
+  <main class="workspace">
+    <section id="canvas" class="canvas" aria-label="曲谱画布">
+      <article class="paper" aria-labelledby="score-title">
+        <header class="paper-header"><h1 id="score-title">回到曲首</h1><p>六线猫练习谱</p></header>
+        <div class="score-meta"><span>1 = C</span><span>4/4</span><span>♩ = 90</span></div>
+        <div id="score" class="score" aria-label="八小节六线谱"></div>
+        <footer class="paper-footer"><span>标准调弦</span><span>第 1 页</span></footer>
+      </article>
+    </section>
+
+    <aside class="inspector" id="inspector" aria-label="右侧属性">
+      <div class="side-tab"><span id="side-tab">小节</span><button class="plain text-button" data-action="legend">符号释义</button></div>
+      <div id="side-body" class="side-body"></div>
+      <div id="side-foot" class="side-foot"></div>
+    </aside>
+  </main>
+
+  <div class="status-bar"><span id="selection-status"></span><span id="message" role="status"></span></div>
+  <footer class="review-bar" aria-label="原型评审工具">
+    <div class="review-group"><strong>REQ-107 交互评审</strong><span class="divider" aria-hidden="true"></span>
+      <label for="scenario">示例</label><select id="scenario"></select>
+    </div>
+    <div class="review-group">
+      <label for="policy">独立 D.C. 备选</label>
+      <select id="policy" aria-describedby="policy-note">
+        <option value="tail">到曲尾（同条指令只触发一次）</option>
+        <option value="explicit">只提供 al Fine / al Coda，显式设置终止方式</option>
+      </select>
+      <span id="policy-note">待确认</span>
+    </div>
+  </footer>
+
+  <div id="context" class="menu-sheet context" role="group" aria-label="小节上下文操作" hidden>
+    <div id="context-title" class="menu-title"></div>
+    <button data-action="context-edit">反复与跳转…</button>
+  </div>
+
+  <dialog id="legend" aria-labelledby="legend-title">
+    <div class="dialog-heading"><h2 id="legend-title">符号释义</h2><button class="plain" data-action="close-legend" aria-label="关闭符号释义">×</button></div>
+    <dl class="legend-list" id="legend-list"></dl>
+    <p class="small">谱面蓝色描边表示编辑选中，青绿线表示试听当前拍。记号的位置和结束边界在演奏顺序中同步显示。</p>
+  </dialog>
+  <dialog id="confirm" aria-labelledby="confirm-title">
+    <div class="dialog-heading"><h2 id="confirm-title"></h2></div>
+    <p id="confirm-copy"></p>
+    <div class="actions end"><button data-action="cancel-confirm" autofocus>取消</button><button id="confirm-action" data-action="confirm"></button></div>
+  </dialog>
+</body>
+</html>

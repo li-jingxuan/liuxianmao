@@ -182,15 +182,18 @@ export const createEditorCommandAdapter =
       return { status: next.changed ? "applied" : "noop", result: next };
     }
 
-    // 复制与节奏模板先做纯核心预检，确认之前不写入文档或历史。
+    // 复制、节奏模板与简谱覆盖先做纯核心预检，确认之前不写入文档或历史。
+    const numberedPaste = command.type === "numbered.range.paste" && submission?.numberedContext?.overwrite
+      ? submission.numberedContext : null;
+    const numberedClear = command.type === LXMScoreCommandEnum.ReplaceMusicTextRange && submission?.numberedContext;
     const requiresStructurePreview =
-      command.type === LXMScoreCommandEnum.CopyMeasureRange || rhythmDiscard;
+      command.type === LXMScoreCommandEnum.CopyMeasureRange || rhythmDiscard || !!numberedPaste;
     if (requiresStructurePreview) {
       const pureResult = applyScoreCommand(snapshot.document, command);
       const confirmDiscard = rhythmDiscard && !pureResult.ok && pureResult.code === "RHYTHM_PATTERN_TEXT_CONFIRMATION_REQUIRED";
       const confirmStrum = rhythmDiscard && !pureResult.ok && pureResult.code === "RHYTHM_PATTERN_OVERWRITE_CONFIRMATION_REQUIRED";
       const requiresConfirmation =
-        confirmDiscard || confirmStrum ||
+        !!numberedPaste || confirmDiscard || confirmStrum ||
         (!pureResult.ok && pureResult.code === "NUMBERED_IMPACT_REQUIRED") ||
         (pureResult.ok &&
           (pureResult.effects ?? []).some(
@@ -235,16 +238,20 @@ export const createEditorCommandAdapter =
       return new Promise<EditorCommandResult>((resolve) => {
         let outcome: EditorCommandResult | null = null;
         const effectCount = preview.effects?.length ?? 0;
-        const title = confirmStrum ? "替换所选小节的 TAB 节奏？" : confirmDiscard ? "舍弃尾部内容？" : "小节范围复制影响确认";
-        const message = confirmStrum || confirmDiscard ? pureResult.message
+        const removed = !pureResult.ok ? pureResult.removedMarkIds?.length ?? 0 : 0;
+        const changed = !pureResult.ok ? pureResult.changedMarkIds?.length ?? 0 : 0;
+        const title = numberedPaste ? "覆盖已有简谱？" : confirmStrum ? "替换所选小节的 TAB 节奏？" : confirmDiscard ? "舍弃尾部内容？" : "小节范围复制影响确认";
+        const message = numberedPaste ? `${numberedPaste.scope}为实际写入范围。${removed ? `覆盖将移除 ${removed} 个简谱连接记号。` : ""}${changed ? `另有 ${changed} 个连接记号将调整。` : ""}提交后可一步撤销。`
+          : confirmStrum || confirmDiscard ? pureResult.message
           : `本次将插入整小节双谱内容；${effectCount} 项复制或关系影响将在确认后一起提交。`;
         const id = modals.open({
           kind: confirmStrum || confirmDiscard ? "rhythm-pattern-discard" : "structure-impact",
           ...(command.type === LXMScoreCommandEnum.CopyMeasureRange ? { source: "measure-copy" as const } : {}),
           title,
           message,
-          confirmLabel: confirmStrum ? "确认应用" : confirmDiscard ? "确认舍弃并应用" : undefined,
+          confirmLabel: numberedPaste ? "覆盖并粘贴" : confirmStrum ? "确认应用" : confirmDiscard ? "确认舍弃并应用" : undefined,
           confirmDanger: confirmDiscard,
+          restoreFocus: numberedPaste?.restoreFocus,
           version: snapshot,
           isValid: () => !currentReason() &&
             capturedSelection ===
@@ -279,7 +286,9 @@ export const createEditorCommandAdapter =
       });
     }
 
-    const result = session.getState().execute(command);
+    // 清空需要确认时先预检，避免在显示影响前把一次正常的确认请求报成编辑错误。
+    const clearPreview = numberedClear ? applyScoreCommand(snapshot.document, command) : null;
+    const result = clearPreview && !clearPreview.ok ? clearPreview : session.getState().execute(command);
     if (!sameEditorSession(session.getState(), snapshot))
       return { status: "stale", message: "编辑会话已变化。" };
     if (result?.ok)
@@ -290,12 +299,17 @@ export const createEditorCommandAdapter =
         message: result?.message ?? "当前无法提交修改。",
       };
     if (impact === "caller") return { status: "needs-impact", result };
+    const changed = result.changedMarkIds?.length ?? 0;
     return new Promise<EditorCommandResult>((resolve) => {
       let outcome: EditorCommandResult | null = null;
       const id = modals.open({
         kind: "structure-impact",
-        title: "公共结构影响确认",
-        message: `这次结构修改将删除 ${result.removedMarkIds?.length ?? 0} 个简谱连接记号。确认后与结构修改一起提交、一起撤销。`,
+        title: numberedClear ? "简谱连接记号影响确认" : "公共结构影响确认",
+        message: numberedClear
+          ? `清空${numberedClear.scope}将删除 ${result.removedMarkIds?.length ?? 0} 个简谱连接记号。${changed ? `另有 ${changed} 个连接记号将调整。` : ""}确认后可一步撤销。`
+          : `这次结构修改将删除 ${result.removedMarkIds?.length ?? 0} 个简谱连接记号。确认后与结构修改一起提交、一起撤销。`,
+        confirmLabel: numberedClear ? "清空内容" : undefined,
+        restoreFocus: numberedClear ? numberedClear.restoreFocus : undefined,
         version: snapshot,
         isValid: () => !currentReason() &&
           capturedSelection === JSON.stringify(session.getState().selection) &&

@@ -4,9 +4,11 @@ import { numberedRhythmForTicks, planNumberedInputRanges, type NumberedInputRang
 import { validNumberedTokens, type NumberedSequenceItem } from "./numbered-notation";
 import {
   createNumberedRhythmContext,
+  createNumberedTrackRhythmContext,
   numberedContinuationIssue,
   numberedContinuationRhythm,
   NUMBERED_CONTINUATION_METER_REASON,
+  type NumberedTrackRhythmContext,
 } from "./numbered-rhythm";
 
 export interface NumberedSequenceTarget {
@@ -40,10 +42,10 @@ export type NumberedSequenceOverwritePlan =
   | { ok: false; message: string };
 
 /** The same real + virtual targets serve both selection backfill and writes. */
-export const planNumberedSequenceSlots = (measure: ILXMMeasure): (NumberedInputRange & { ratio?: ILXMTupletRatio })[] => {
-  const context = createNumberedRhythmContext(measure.numberedVoice);
+export const planNumberedSequenceSlots = (measure: ILXMMeasure, trackContext?: NumberedTrackRhythmContext): (NumberedInputRange & { ratio?: ILXMTupletRatio })[] => {
+  const context = trackContext ?? createNumberedRhythmContext(measure.numberedVoice);
   return [
-    ...planNumberedInputRanges(measure),
+    ...planNumberedInputRanges(measure, 0, trackContext),
     ...measure.numberedVoice.events.filter(event => event.kind !== "gap").map(event => {
       const duration = context.getEventDurationTicks(event);
       return { eventId: event.id, startTick: event.tick, endTick: event.tick + (duration.ok ? duration.ticks : 0), rhythm: event.rhythm };
@@ -65,6 +67,7 @@ export const planNumberedSequenceOverwrite = (
     !input.items.length || input.items.length > 256 || (input.rhythms && input.rhythms.length !== input.items.length))
     return fail("简谱起点、输入数量或模板无效，整批未应用");
   const preferredDuration = input.preferredRhythm && calculateRhythmTicks(input.preferredRhythm);
+  const context = createNumberedTrackRhythmContext(track);
   const targets: NumberedSequenceTarget[] = [];
   let cursor: number = startTick;
   const removedEventIds: string[] = [];
@@ -72,14 +75,16 @@ export const planNumberedSequenceOverwrite = (
   let measureIndex = firstMeasure;
   for (const [index, item] of input.items.entries()) {
     let current = track.measures[measureIndex];
-    if (current && cursor === getMeasureDurationTicks(current)) {
+    if (current && cursor >= getMeasureDurationTicks(current)) {
+      // 跨线成员本身是一个起音，下一项从它在次小节的实际终点继续。
+      cursor -= getMeasureDurationTicks(current);
       current = track.measures[++measureIndex];
-      cursor = 0;
     }
     if (!current) return fail("简谱目标不足，整批未应用");
+    if (cursor < (context.incomingSustainEndTickByMeasureId.get(current.id) ?? 0))
+      return fail("录入起点落在跨小节简谱连音成员内。请从该事件的起点录入。");
     if (item.kind === "set" && item.tokens.length && !validNumberedTokens(item.tokens)) return fail("简谱内容无效");
-    const context = createNumberedRhythmContext(current.numberedVoice);
-    const slots = planNumberedSequenceSlots(current);
+    const slots = planNumberedSequenceSlots(current, context);
     let slot = slots.find(slot => slot.startTick === cursor);
     if (!slot && !input.rhythms) {
       const continuations = targets.filter(target => target.measureId === current.id &&
@@ -92,13 +97,13 @@ export const planNumberedSequenceOverwrite = (
           return !duration.ok || !continuations.some(target =>
             event.tick < target.endTick && event.tick + duration.ticks > target.startTick);
         });
-        slot = planNumberedInputRanges({ ...current, numberedVoice: { ...current.numberedVoice, events } }, cursor)
+        slot = planNumberedInputRanges({ ...current, numberedVoice: { ...current.numberedVoice, events } }, cursor, context)
           .find(range => range.startTick === cursor);
       }
       // 继承时值可以越过虚拟格分界，也可能停在某一格中间。用真实光标重算剩余空白，
       // 仍以既有事件边界为准；从音符内部开始时不会生成新槽。
       if (!slot && preferredDuration?.ok)
-        slot = planNumberedInputRanges(current, cursor).find(range => range.startTick === cursor);
+        slot = planNumberedInputRanges(current, cursor, context).find(range => range.startTick === cursor);
     }
     const event = current.numberedVoice.events.find(event => event.tick === cursor);
     const group = event && context.tupletByEventId.get(event.id);
@@ -125,7 +130,8 @@ export const planNumberedSequenceOverwrite = (
       const issue = numberedContinuationIssue(track, current, cursor, endTick, context);
       if (issue) return fail(issue);
     }
-    if (ticks <= 0 || endTick > measureEnd) return fail("所选时值超出本小节末尾。请缩短时值或取消附点。");
+    if (ticks <= 0 || (endTick > measureEnd && !(group?.crossBar && endTick === slot?.endTick)))
+      return fail("所选时值超出本小节末尾。请缩短时值或取消附点。");
     if (input.rhythms && group && (JSON.stringify(rhythm) !== JSON.stringify(event!.rhythm) || endTick !== slot?.endTick))
       return fail("显式节奏不能改变连音成员，请使用整组窗口编辑");
     if (item.kind === "skip" && event && endTick !== slot?.endTick) return fail("跳过项必须保留已有事件的完整时长");
@@ -138,7 +144,6 @@ export const planNumberedSequenceOverwrite = (
     const planned = targets.filter(target => target.measureId === current.id);
     if (!planned.length) continue;
     const start = planned[0]!.startTick, end = planned.at(-1)!.endTick;
-    const context = createNumberedRhythmContext(current.numberedVoice);
     for (const event of current.numberedVoice.events) {
       const duration = context.getEventDurationTicks(event);
       if (!duration.ok) return fail("简谱目标时值无效");

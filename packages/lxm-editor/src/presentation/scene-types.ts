@@ -27,6 +27,8 @@ export type ScorePrimitive = (
       fontSize: number;
       fontFamily: string;
       fontWeight: number;
+      /** 跳转指令由共享场景显式声明斜体。 */
+      fontStyle?: "italic";
       textAnchor: "start" | "middle" | "end";
     }
 ) &
@@ -35,6 +37,9 @@ export type ScorePrimitive = (
     numberedMarkId?: string;
     numberedEventId?: string;
     numberedItemId?: string;
+    jumpMarkId?: string;
+    measureRepeatId?: string;
+    repeatEndingId?: string;
   };
 export interface ScoreScene {
   header: ScorePrimitive[];

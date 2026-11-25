@@ -3,6 +3,7 @@ import { cloneChordDiagram } from "../chords/chord-diagram";
 import { LXMChordSymbolSchema } from "../document/schema";
 import { resolveLyricPosition } from "../lyrics/lyric-positions";
 import { numberedRhythmForTicks } from "../numbered/numbered-input-ranges";
+import type { NumberedTrackRhythmContext } from "../numbered/numbered-rhythm";
 import type { ILXMIdFactory } from "../id-factory";
 import type {
   ILXMMusicTextCommand,
@@ -19,6 +20,7 @@ export const editMeasureMusicText = (
   measure: ILXMMeasure,
   command: ILXMMusicTextCommand,
   factory: ILXMIdFactory,
+  trackContext?: NumberedTrackRhythmContext,
 ): Result => {
   const fail = (code: ILXMScoreCommandErrorCode, message: string): Result => ({
     ok: false,
@@ -47,7 +49,7 @@ export const editMeasureMusicText = (
     };
   }
   if (command.type === "lyric.set") {
-    const position = resolveLyricPosition(measure, command);
+    const position = resolveLyricPosition(measure, command, trackContext);
     if (!position)
       return fail("MUSIC_TEXT_BEAT_NOT_FOUND", "歌词目标时间位置不存在");
     if (![1, 2, 3, 4].includes(command.verse))

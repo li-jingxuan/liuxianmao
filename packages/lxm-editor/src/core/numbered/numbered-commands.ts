@@ -3,21 +3,28 @@ import {
   type NumberedClipboard,
 } from "./numbered-clipboard";
 import { copyNumberedVoices } from "./numbered-copy";
+import { addNumberedCrossBarTuplet, removeNumberedCrossBarTuplet } from "./numbered-cross-bar-tuplet";
 import {
   validNumberedTokens,
   type NumberedSequenceItem,
 } from "./numbered-notation";
-import { calculateRhythmTicks, createRestRhythmsForTicks, getMeasureDurationTicks } from "../rhythm/rhythm";
-import { LXM_RHYTHM_BASES } from "../constants";
 import {
-  createNumberedRhythmContext,
+  calculateRhythmTicks,
+  createRestRhythmsForTicks,
+  getMeasureDurationTicks,
+  getTimeSignatureBeatGroupTicks,
+} from "../rhythm/rhythm";
+import { LXM_RHYTHM_BASES, TICKS_PER_QUARTER } from "../constants";
+import { isSupportedTupletRatio } from "../rhythm/tuplet";
+import {
+  createNumberedTrackRhythmContext,
   buildNumberedIndex,
+  findInvalidNumberedTrack,
   numberedContinuationIssue,
   numberedContinuationRhythm,
   NUMBERED_CONTINUATION_METER_REASON,
   NUMBERED_CONTINUATION_RHYTHM_REASON,
   NUMBERED_CONTINUATION_SPACE_REASON,
-  validateNumberedVoice,
 } from "./numbered-rhythm";
 import { validateNumberedMarks } from "./numbered-marks";
 import { planNumberedEventRhythm } from "./numbered-timeline";
@@ -41,7 +48,13 @@ interface Base {
   confirmedChangedMarkIds?: string[];
 }
 type NumberedTupletOperation =
-  | { type: "numbered.tuplet.add"; measureId: string; eventIds: string[] }
+  | { type: "numbered.tuplet.add"; measureId: string; eventIds: string[]; ratio?: ILXMTupletRatio }
+  | {
+      type: "numbered.tuplet.createInBeat";
+      measureId: string;
+      /** 小节内完整四分拍的起点。 */
+      startTick: number;
+    }
   | { type: "numbered.tuplet.remove"; measureId: string; tupletId: string };
 export type ILXMNumberedTupletCommand = Base & NumberedTupletOperation;
 export type ILXMNumberedVoiceCommand = Base &
@@ -95,6 +108,8 @@ export type ILXMNumberedVoiceCommand = Base &
         mode: "insert" | "overwrite";
         allowOverwrite?: boolean;
         clipboard: NumberedClipboard;
+        /** 简谱菜单仅覆盖简谱。目标歌词受保护，旧调用仍可按原语义携带歌词。 */
+        numberedOnly?: true;
       }
     | {
         type: "numbered.event.setRhythm";
@@ -155,47 +170,73 @@ const failure = (
   code: NumberedFailure["code"] = "NUMBERED_INVALID",
 ): NumberedFailure => ({ ok: false, code, message });
 
-/** 添加与移除共用候选声部。只有提交需要为新增连音组分配持久化 ID。 */
+const numberedTripletRatio = { actual: 3, normal: 2 } as const;
+const numberedTripletEighth: ILXMRhythm = { base: "eighth", dots: 0 };
+
+/** 添加、拍内转换与移除共用声部和记号校验。纯校验可省略 ID 工厂。 */
 const editNumberedTuplet = (
   track: ILXMTrack,
   command: ILXMNumberedTupletCommand,
-  factory?: Pick<ILXMIdFactory, "createNumberedTupletId">,
+  factory?: Pick<ILXMIdFactory, "createNumberedTupletId" | "createNumberedEventId">,
 ): NumberedCandidate => {
   if (track.id !== command.trackId) return failure("简谱轨道不存在");
   const { measureId } = command;
   const measure = track.measures.find((m) => m.id === measureId);
   if (!measure) return failure("简谱小节不存在");
+  // 省略比例的旧调用继续创建三连音。跨小节组只接受已有 3:2 规则，其他比例在同小节内变换。
+  const ratio = command.type === "numbered.tuplet.add" ? command.ratio ?? numberedTripletRatio : numberedTripletRatio;
+  if (command.type === "numbered.tuplet.add") {
+    if (!isSupportedTupletRatio(ratio)) return failure("不支持该简谱连音比例");
+    if (command.eventIds.some(id => !measure.numberedVoice.events.some(event => event.id === id))) {
+      if (ratio.actual !== 3 || ratio.normal !== 2) return failure("该连音比例只能在同一小节内使用");
+      return addNumberedCrossBarTuplet(track, measure, command, factory);
+    }
+  }
+  if (command.type === "numbered.tuplet.remove") {
+    // 组只存于首小节。工具也可从原次小节发出移除命令，组仍以全局 ID 识别。
+    const owner = track.measures.find(item => item.numberedVoice.tuplets.some(group =>
+      group.id === command.tupletId && group.crossBar && (item.id === measureId || group.crossBar.nextMeasureId === measureId)));
+    const crossBar = owner?.numberedVoice.tuplets.find(group => group.id === command.tupletId);
+    if (owner && crossBar) return removeNumberedCrossBarTuplet(track, owner, crossBar);
+  }
+  const capacity = getMeasureDurationTicks(measure);
+  const context = createNumberedTrackRhythmContext(track);
   let { events, tuplets } = measure.numberedVoice;
   const movedEventIds: string[] = [];
   const resizedEventIds: string[] = [];
   let addedGroup: ILXMNumberedTuplet | undefined;
+  let addedGap: ILXMNumberedEvent | undefined;
+  let unfoldsToThreeEighths = false;
 
   if (command.type === "numbered.tuplet.add") {
-    // 按谱面顺序取选区，支持反向框选；只接受同小节内未归组且时间相接的三个普通音事件。
+    // 按谱面顺序取选区，支持反向框选；按所选比例检查成员数量和实际时间是否相接。
     const selectedIds = new Set(command.eventIds);
     const selected = events.filter((e) => selectedIds.has(e.id));
     const [first] = selected;
     if (
-      command.eventIds.length !== 3 ||
-      selected.length !== 3 ||
+      command.eventIds.length !== ratio.actual ||
+      selected.length !== ratio.actual ||
       !first ||
       selected.some((e) => e.kind !== "notes")
     )
-      return failure("请选择同一小节内的三个普通简谱音事件");
-    if (tuplets.some((group) => group.eventIds.some((id) => selectedIds.has(id))))
+      return failure(`请选择同一小节内的 ${ratio.actual} 个普通简谱音事件`);
+    if (selected.some(event => context.tupletByEventId.has(event.id)))
       return failure("已有简谱连音组的成员不能再次归组");
     if (selected.some((e) => e.rhythm.base !== first.rhythm.base || e.rhythm.dots !== first.rhythm.dots))
-      return failure("三连音成员的书写时值须一致");
+      return failure("简谱连音成员的书写时值须一致");
     const written = calculateRhythmTicks(first.rhythm);
-    const ratio = { actual: 3, normal: 2 } as const;
     if (!written.ok || (written.ticks * ratio.normal) % ratio.actual !== 0)
-      return failure("简谱三连音实际时值无法表示为整数 tick");
+      return failure("简谱连音实际时值无法表示为整数 tick");
     const firstIndex = events.indexOf(first);
     if (selected.some((e, i) => e !== events[firstIndex + i] || e.tick !== first.tick + i * written.ticks))
-      return failure("请选择三个时间连续且中间无空位的简谱音事件");
+      return failure(`请选择 ${ratio.actual} 个时间连续且中间无空位的简谱音事件`);
 
-    // 固定首音位置，只压缩本组选中的事件；保留书写节奏、事件及音符 ID，歌词仍挂在原事件。
+    // 固定首音与组外事件。2:3 延长时必须既不碰后续事件，也不越过实际小节边界。
+    // 仅改组内起点与实际时值，书写节奏、事件与音符 ID 保留，歌词仍挂在原事件。
     const step = (written.ticks * ratio.normal) / ratio.actual;
+    const nextEvent = events[firstIndex + selected.length];
+    if (first.tick + step * selected.length > (nextEvent?.tick ?? capacity))
+      return failure("本小节连续空位不足，连音会占到后续事件或越过小节线", "NUMBERED_OVERLAP");
     const eventIds = selected.map((e) => e.id);
     movedEventIds.push(...eventIds.slice(1));
     resizedEventIds.push(...eventIds);
@@ -204,13 +245,86 @@ const editNumberedTuplet = (
         ? { ...e, tick: first.tick + (i - firstIndex) * step }
         : e,
     );
-    // 声部和记号校验仅使用成员身份与比例。通过后再申请真正的组 ID。
-    addedGroup = { id: "", eventIds, ratio };
-    tuplets = [...tuplets, addedGroup].sort(
-      (a, b) =>
-        events.findIndex((e) => e.id === a.eventIds[0]) -
-        events.findIndex((e) => e.id === b.eventIds[0]),
-    );
+    addedGroup = { id: "", eventIds, ratio: { ...ratio } };
+  } else if (command.type === "numbered.tuplet.createInBeat") {
+    const { startTick } = command;
+    const endTick = startTick + TICKS_PER_QUARTER;
+    const beatGroups = getTimeSignatureBeatGroupTicks(measure.timeSignature);
+    if (measure.timeSignature.denominator !== 4 || !beatGroups?.includes(TICKS_PER_QUARTER))
+      return failure("当前拍号不支持在本拍创建八分三连音");
+    // 沿既有拍组定位，实际小节时长可能短于拍号容量。末拍恰好结束于小节边界时可转换。
+    let beatStart = 0;
+    const isQuarterBeat = beatGroups.some((ticks) => {
+      const matches = beatStart === startTick && ticks === TICKS_PER_QUARTER;
+      beatStart += ticks;
+      return matches;
+    });
+    if (!isQuarterBeat || endTick > capacity)
+      return failure("请选择小节内完整的四分拍，三连音不能跨小节");
+
+    if (startTick < (context.incomingSustainEndTickByMeasureId.get(measure.id) ?? 0))
+      return failure("本拍范围不能切断跨小节简谱连音组", "NUMBERED_PARTIAL_RANGE");
+    const selected: { event: ILXMNumberedEvent; duration: number }[] = [];
+    for (const event of events) {
+      if (event.tick >= endTick) break;
+      const duration = context.getEventDurationTicks(event);
+      if (!duration.ok) return failure("简谱实际时值无法表示为整数 tick");
+      if (event.tick + duration.ticks <= startTick) continue;
+      if (context.tupletByEventId.has(event.id))
+        return failure("已有简谱连音组的成员不能再次归组");
+      if (event.tick < startTick || event.tick + duration.ticks > endTick)
+        return failure("本拍范围不能切断简谱事件", "NUMBERED_PARTIAL_RANGE");
+      selected.push({ event, duration: duration.ticks });
+    }
+
+    const sourceBases =
+      selected.length === 2 ? ["eighth", "eighth"] : ["eighth", "sixteenth", "sixteenth"];
+    let cursor = startTick;
+    const matchesSource =
+      selected.length === sourceBases.length &&
+      selected.every(({ event, duration }, index) => {
+        const matches =
+          event.tick === cursor &&
+          event.kind === "notes" &&
+          event.rhythm.base === sourceBases[index] &&
+          event.rhythm.dots === 0;
+        cursor += duration;
+        return matches;
+      });
+    if (!matchesSource || cursor !== endTick)
+      return failure("本拍须为两个普通八分音符，或前八后十六的三个普通音符");
+
+    // 统一为三个书写八分音槽。原音按顺序保留事件与音符 ID，歌词和弧线仍引用原端点。
+    const slotTicks = TICKS_PER_QUARTER / numberedTripletRatio.actual;
+    const members = selected.map(({ event }, index) => {
+      const tick = startTick + index * slotTicks;
+      if (event.tick !== tick) movedEventIds.push(event.id);
+      resizedEventIds.push(event.id);
+      return { ...event, tick, rhythm: { ...numberedTripletEighth } };
+    });
+    if (members.length === 2) {
+      // 用实际连音成员表示待填位，因此现有简谱输入可以直接在第三槽录入。
+      // 合法持久化 ID 非空，占位 ID 只在候选里联结事件与连音组。
+      addedGap = {
+        id: "",
+        tick: startTick + 2 * slotTicks,
+        rhythm: { ...numberedTripletEighth },
+        kind: "gap",
+        items: [],
+      };
+      members.push(addedGap);
+    }
+    const firstIndex = events.indexOf(selected[0]!.event);
+    events = [
+      ...events.slice(0, firstIndex),
+      ...members,
+      ...events.slice(firstIndex + selected.length),
+    ];
+    addedGroup = {
+      id: "",
+      eventIds: members.map((event) => event.id),
+      ratio: { ...numberedTripletRatio },
+    };
   } else {
     const group = tuplets.find((g) => g.id === command.tupletId);
     if (!group) return failure("简谱连音组不存在");
@@ -230,6 +344,18 @@ const editNumberedTuplet = (
 
     // 旧连音组的无歌词缺项还原为空白；有歌词的缺项仍是锚点。声部按原顺序校验，拦截扩展挤占或越过组外事件。
     const lyricEventIds = new Set(measure.lyrics.map((lyric) => lyric.eventId));
+    // 使用组的书写时值识别三八分展开，已保存的连音组同样沿用容量校验。
+    unfoldsToThreeEighths =
+      group.ratio.actual === numberedTripletRatio.actual &&
+      group.ratio.normal === numberedTripletRatio.normal &&
+      group.eventIds.every((id) => {
+        const event = eventsById.get(id)!;
+        return (
+          event.rhythm.base === numberedTripletEighth.base &&
+          event.rhythm.dots === numberedTripletEighth.dots &&
+          (event.kind !== "gap" || lyricEventIds.has(id))
+        );
+      });
     events = events.flatMap((e) => {
       const tick = changes.get(e.id);
       if (tick === undefined) return [e];
@@ -242,21 +368,38 @@ const editNumberedTuplet = (
     tuplets = tuplets.filter((g) => g !== group);
   }
 
-  const voice = { events, tuplets };
-  const invalid = validateNumberedVoice(voice, getMeasureDurationTicks(measure));
-  if (invalid)
-    return failure(
-      command.type === "numbered.tuplet.remove" ? `无法移除简谱连音组：${invalid}` : invalid,
-      "NUMBERED_OVERLAP",
+  if (addedGroup) {
+    tuplets = [...tuplets, addedGroup].sort(
+      (a, b) =>
+        events.findIndex((e) => e.id === a.eventIds[0]) -
+        events.findIndex((e) => e.id === b.eventIds[0]),
     );
+  }
+  const voice = { events, tuplets };
   const next = {
     ...track,
     measures: track.measures.map((m) => m === measure ? { ...m, numberedVoice: voice } : m),
   };
+  const invalid = findInvalidNumberedTrack(next)?.message;
+  if (invalid) {
+    if (unfoldsToThreeEighths)
+      return failure(`本拍空间不足，无法展开成三个普通八分音符（${invalid}）`, "NUMBERED_OVERLAP");
+    return failure(
+      command.type === "numbered.tuplet.remove" ? `无法移除简谱连音组：${invalid}` : invalid,
+      "NUMBERED_OVERLAP",
+    );
+  }
   // 连接端点可能跨小节。若任一记号失效，整笔拒绝，避免走通用的删除确认流程。
   const markError = next.numberedMarks.length ? validateNumberedMarks(next) : null;
   if (markError) return failure(`简谱连音修改与现有记号冲突：${markError}`);
-  if (addedGroup && factory) addedGroup.id = factory.createNumberedTupletId();
+  // 校验完整候选后再分配 ID，确保预览或记号冲突不会占用组与空位的身份。
+  if (addedGroup && factory) {
+    if (addedGap) {
+      addedGap.id = factory.createNumberedEventId();
+      addedGroup.eventIds[addedGroup.eventIds.length - 1] = addedGap.id;
+    }
+    addedGroup.id = factory.createNumberedTupletId();
+  }
   return {
     ok: true,
     track: next,
@@ -297,6 +440,8 @@ export const editNumberedTrack = (
   factory: ILXMIdFactory,
   preview = false,
 ): NumberedCandidate => {
+  if (command.type === "numbered.tuplet.createInBeat")
+    return editNumberedTuplet(track, command, preview ? undefined : factory);
   if (command.type === "numbered.tuplet.add" || command.type === "numbered.tuplet.remove")
     return editNumberedTuplet(track, command, factory);
   let next = track;
@@ -385,10 +530,6 @@ export const editNumberedTrack = (
         return { ...m, numberedVoice: { ...m.numberedVoice, events: [...m.numberedVoice.events.filter(event => !removed.has(event.id)).map(event => updates.get(event.id) ?? event), ...created].sort((a, b) => a.tick - b.tick) } };
       }),
     };
-    for (const m of next.measures) {
-      const invalid = validateNumberedVoice(m.numberedVoice, getMeasureDurationTicks(m));
-      if (invalid) return failure(invalid, "NUMBERED_OVERLAP");
-    }
     measureId = command.measureId;
     const first = planned.targets[0]!;
     focusEventId = next.measures.find(m => m.id === first.measureId)?.numberedVoice.events.find(event => event.tick === first.startTick)?.id;
@@ -401,8 +542,10 @@ export const editNumberedTrack = (
     let events = measure.numberedVoice.events;
     let lyrics = measure.lyrics;
     let tuplets = measure.numberedVoice.tuplets;
-    const context = createNumberedRhythmContext(measure.numberedVoice);
+    const context = createNumberedTrackRhythmContext(track);
     const grouped = (id: string) => context.tupletByEventId.has(id);
+    const crossBarMember = (id: string) => !!context.tupletByEventId.get(id)?.crossBar;
+    const incomingEnd = context.incomingSustainEndTickByMeasureId.get(measure.id) ?? 0;
     const event =
       "eventId" in command
         ? events.find((e) => e.id === command.eventId)
@@ -431,6 +574,8 @@ export const editNumberedTrack = (
         rhythms.length !== items.length
       )
         return failure("简谱空白窗口或录入时值无效");
+      if (startTick < incomingEnd)
+        return failure("简谱空白窗口遇到跨小节简谱连音组", "NUMBERED_OVERLAP");
       let cursor = startTick;
       const created: ILXMNumberedEvent[] = [];
       for (const [index, item] of items.entries()) {
@@ -528,6 +673,7 @@ export const editNumberedTrack = (
         measure,
         event!.id,
         command.rhythm,
+        context,
       );
       if (!planned.ok) return failure(planned.message, "NUMBERED_OVERLAP");
       events = planned.voice.events;
@@ -592,6 +738,8 @@ export const editNumberedTrack = (
         return d.ok && e.tick < end && e.tick + d.ticks > start;
       });
       if (
+        start < incomingEnd ||
+        affected.some(event => crossBarMember(event.id)) ||
         affected.some((e) => {
           const d = context.getEventDurationTicks(e);
           return e.tick < start || !d.ok || e.tick + d.ticks > end;
@@ -718,6 +866,13 @@ export const editNumberedTrack = (
             : e.tick < end && e.tick + d.ticks > start)
         );
       });
+      if (start < incomingEnd || touched.some(event => crossBarMember(event.id)) ||
+          (command.mode === "insert" && events.some(event => event.tick >= start && crossBarMember(event.id))))
+        return failure("粘贴范围不能覆盖或移动跨小节简谱连音组，请先移除该组", "NUMBERED_PARTIAL_RANGE");
+      const ids = new Set(touched.map((e) => e.id));
+      // 歌词绑定事件而非拍点。即使目标是空槽，或调用方已允许覆盖，也不能删除它的歌词锚点。
+      if (command.numberedOnly && lyrics.some((lyric) => ids.has(lyric.eventId)))
+        return failure("写入范围有关联歌词，请选择其他简谱位置。");
       if (
         (command.mode === "insert" && touched.length) ||
         (command.mode === "overwrite" &&
@@ -733,9 +888,9 @@ export const editNumberedTrack = (
         !command.allowOverwrite
       )
         return failure("请确认允许覆盖已有简谱");
-      const ids = new Set(touched.map((e) => e.id));
       if (
-        tuplets.some((g) => {
+         tuplets.some((g) => {
+          if (g.crossBar) return false; // 跨小节组已按实际占用和就地起音保护。
           const first = events.find((e) => e.id === g.eventIds[0])!,
             last = events.find((e) => e.id === g.eventIds.at(-1))!;
           const d = context.getEventDurationTicks(last);
@@ -754,7 +909,7 @@ export const editNumberedTrack = (
       const voice = copied.voices[0]!;
       lyrics = [
         ...lyrics.filter((lyric) => !ids.has(lyric.eventId)),
-        ...c.lyrics.map((lyric) => ({
+        ...(command.numberedOnly ? [] : c.lyrics).map((lyric) => ({
           ...lyric,
           id: factory.createLyricId(),
           eventId: copied.ids.get(lyric.eventId)!,
@@ -925,11 +1080,6 @@ export const editNumberedTrack = (
           events.findIndex((e) => e.id === b.eventIds[0]),
       ),
     };
-    const invalid = validateNumberedVoice(
-      voice,
-      getMeasureDurationTicks(measure),
-    );
-    if (invalid) return failure(invalid, "NUMBERED_OVERLAP");
     next = {
       ...next,
       measures: track.measures.map((m) =>
@@ -950,6 +1100,8 @@ export const editNumberedTrack = (
   }
   // 仅清理因内容改变失效的旧关系，新增关系冲突不能悄悄删除旧关系。
   if (!command.type.startsWith("numbered.mark.")) {
+    const invalid = findInvalidNumberedTrack(next);
+    if (invalid) return failure(invalid.message, "NUMBERED_OVERLAP");
     next = {
       ...next,
       measures: next.measures.map((measure) => ({

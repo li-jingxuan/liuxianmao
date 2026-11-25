@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>REQ-101 简谱右键菜单</title>
+  <link rel="stylesheet" href="prototype.css">
+  <script defer src="prototype.js"></script>
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand"><img src="../../../../../apps/website/public/assets/brand/liuxianmao-32.png" width="26" height="26" alt="">六线猫</div>
+    <strong>风过原野</strong><span class="muted">示例曲谱</span>
+  </header>
+  <div class="toolbar" aria-label="编辑操作">
+    <button type="button" id="undo" disabled><span aria-hidden="true">↶</span> 撤销</button>
+    <span class="toolbar-context">编辑模式</span>
+  </div>
+  <main class="workspace">
+    <section class="canvas" id="canvas" aria-label="谱面画布">
+      <article class="paper" aria-labelledby="score-title">
+        <h1 id="score-title">风过原野</h1>
+        <div class="metadata"><span>1 = C　 4/4</span><span>♩ = 84</span></div>
+        <div id="score" aria-label="六线谱与简谱"></div>
+      </article>
+    </section>
+    <aside class="inspector" aria-label="简谱与歌词">
+      <div class="property-tabs"><span>选区</span><strong>简谱与歌词</strong><span>和弦</span><span>歌曲</span></div>
+      <section class="property-section">
+        <h2 id="selection-title">当前简谱选区</h2>
+        <strong class="accent" id="selection"></strong>
+        <p class="score-values" id="values"></p>
+      </section>
+      <section class="property-section clipboard">
+        <h2>简谱剪贴板</h2><p id="clipboard">尚未复制</p>
+      </section>
+    </aside>
+  </main>
+  <footer class="review">
+    <strong>REQ-101 交互稿</strong>
+    <nav aria-label="评审示例">
+      <button type="button" data-scene="default">单小节选区</button>
+      <button type="button" data-scene="cross">跨小节选区</button>
+      <button type="button" data-scene="paste">空位粘贴</button>
+      <button type="button" data-scene="group">连音组保护</button>
+    </nav>
+    <span id="status" role="status"></span>
+    <button type="button" id="reset">重置示例</button>
+  </footer>
+  <div id="context" class="overlay context" hidden>
+    <header><strong id="menu-title"></strong><span id="menu-scope"></span></header>
+    <div id="menu" role="menu" aria-labelledby="menu-title"></div>
+  </div>
+  <section id="tool" class="overlay tool" role="dialog" aria-labelledby="tool-title" hidden>
+    <header><div><h2 id="tool-title"></h2><p id="tool-scope"></p></div><button type="button" id="close-tool" aria-label="关闭工具">×</button></header>
+    <div id="tool-body" class="tool-body"></div>
+  </section>
+  <dialog id="confirmation" aria-labelledby="confirm-title" aria-describedby="confirm-copy">
+    <h2 id="confirm-title"></h2>
+    <p id="confirm-copy"></p>
+    <div class="actions">
+      <button type="button" id="cancel" autofocus>取消</button>
+      <button type="button" class="primary" id="confirm"></button>
+    </div>
+  </dialog>
+</body>
+</html>

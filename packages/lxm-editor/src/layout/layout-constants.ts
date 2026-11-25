@@ -187,7 +187,6 @@ export const LXM_DURATION_STEM_NOTE_GAP = 6;
 /** 显式技巧箭头尺寸；不依赖 SVG marker 的路径切线自动旋转。 */
 export const LXM_TECHNIQUE_ARROW_WIDTH = 4.5;
 export const LXM_TECHNIQUE_ARROW_HEIGHT = 4.5;
-export const LXM_TECHNIQUE_ARROW_OFFSET_Y = 5;
 
 /** 基础时值的主梁/符干终点到第六弦最小距离；复杂图形按实际净空扩展。 */
 export const LXM_DURATION_MIN_BEAM_OFFSET_Y = 22;

@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>六线猫 | 扫弦框选</title>
+  <link rel="stylesheet" href="prototype.css">
+  <script defer src="prototype.js"></script>
+</head>
+<body>
+  <header class="editor-top">
+    <img src="editor-toolbar.png" width="2880" height="182" alt="六线猫编辑器工具栏 · 沿河公路">
+  </header>
+
+  <main class="workspace">
+    <section class="canvas" aria-label="主谱面">
+      <article class="paper" aria-labelledby="score-title">
+        <header class="paper-heading">
+          <h1 id="score-title">沿河公路</h1>
+          <p>木吉他伴奏</p>
+        </header>
+        <div class="score-meta"><span>1 = G　　4/4　　♩ = 88</span><span>标准调弦</span></div>
+        <svg id="score" viewBox="0 0 852 504" tabindex="-1" role="group" aria-label="九小节吉他六线谱" aria-describedby="gesture-help">
+          <g id="tab-selection" aria-hidden="true"></g>
+          <g id="staff" aria-hidden="true"></g>
+          <g id="techniques" aria-label="扫弦与琶音"></g>
+          <g id="marquee" aria-hidden="true" hidden>
+            <rect id="marquee-box" vector-effect="non-scaling-stroke"/>
+            <g id="marquee-badge">
+              <rect width="140" height="23" rx="4"/>
+              <text x="9" y="15" id="marquee-text"></text>
+            </g>
+          </g>
+          <g id="guide" aria-hidden="true" hidden>
+            <g transform="translate(285 53)"><circle r="4"/><rect x="-82" y="-24" width="74" height="21" rx="4"/><text x="-75" y="-10">A　从这里拖</text></g>
+            <g transform="translate(638 321)"><circle r="4"/><rect x="8" y="-3" width="74" height="21" rx="4"/><text x="15" y="11">B　到这里松</text></g>
+          </g>
+        </svg>
+      </article>
+    </section>
+
+    <aside class="inspector" aria-label="选区侧栏">
+      <div class="side-nav"><strong aria-current="true">选区</strong><span>简谱与歌词</span><span>和弦</span><span>歌曲</span></div>
+      <div class="context"><strong id="context-title">六线谱技巧</strong><span id="context-position">第 1 小节</span></div>
+      <div class="side-body">
+        <section class="selection" aria-labelledby="selection-heading">
+          <div class="section-heading"><h2 id="selection-heading">已选技巧</h2><span id="selected-count" class="count"></span></div>
+          <p id="selection-summary"></p>
+          <ul id="selection-list" aria-label="已选技巧位置"></ul>
+        </section>
+        <section class="help" aria-labelledby="help-heading">
+          <div class="section-heading"><h2 id="help-heading">试用框选</h2><button type="button" class="text-button" id="reset">重置示例</button></div>
+          <p id="gesture-help">按住 <kbd>Alt</kbd>／<kbd>Option</kbd> 拖框，可跨小节和谱行。松开鼠标后，将框中的扫弦和琶音加入选区。</p>
+          <p>按住同一键点按箭头或波纹，可增选或移除单项。</p>
+          <div class="help-actions">
+            <button type="button" id="guide-toggle" aria-controls="guide" aria-pressed="false">标出试拖位置</button>
+            <button type="button" id="modifier-lock" aria-pressed="false" title="可用鼠标保持 Alt／Option 组合操作">锁定 Alt／Option</button>
+          </div>
+          <p class="guide-note" id="guide-note" hidden>从 <b>A</b> 拖到 <b>B</b>，可圈到 3 个扫弦、3 个琶音，还会经过普通音符与休止符。</p>
+        </section>
+      </div>
+    </aside>
+  </main>
+
+  <footer class="status-bar">
+    <span id="status-text" role="status"></span>
+    <span id="status-mode">六线谱</span>
+  </footer>
+</body>
+</html>

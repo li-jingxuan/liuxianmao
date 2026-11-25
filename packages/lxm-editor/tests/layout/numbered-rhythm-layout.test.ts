@@ -4,6 +4,7 @@ import {
   buildLayout,
   buildScoreScene,
   EXAMPLE_MVP_7_2_DOCUMENT,
+  getMeasureDurationTicks,
   hitTestNumbered,
   type ILXMNumberedEvent,
 } from "../../src";
@@ -117,6 +118,44 @@ describe("简谱连音标注", () => {
       expect(x2! - rightGap!).toBeGreaterThanOrEqual(4 - 1e-9);
       expect(leftGap).toBeLessThan(ink.x);
       expect(rightGap).toBeGreaterThan(ink.x + ink.width);
+    }
+  });
+
+  it("跨小节三连音随谱行拆段且只显示一个组号，跨线持续不生成输入空位", () => {
+    const { document, measure } = fixture([]);
+    const track = document.score.tracks[0]!;
+    const capacity = getMeasureDurationTicks(measure);
+    const first = note(capacity - 480);
+    measure.numberedVoice.events = [first];
+    const next = { ...structuredClone(measure), id: "next-measure" };
+    next.beats = next.beats.map((beat) => ({ ...beat, id: `next-${beat.id}`, notes: beat.notes.map((item) => ({ ...item, id: `next-${item.id}` })) }));
+    next.numberedVoice.events = [note(0), note(480)];
+    track.measures.push(next);
+    const result = applyScoreCommand(document, {
+      type: "numbered.tuplet.add", trackId: track.id, measureId: measure.id,
+      eventIds: [first.id, "e0", "e480"],
+    });
+    if (!result.ok) throw new Error(result.message);
+    for (const purpose of ["editing", "presentation"] as const) {
+      const wide = buildLayout(result.document, { purpose, density: "compact", systemWidth: 1100 });
+      const narrow = buildLayout(result.document, { purpose, density: "compact", systemWidth: 100 });
+      expect(wide.systems).toHaveLength(1);
+      expect(narrow.systems).toHaveLength(2);
+      const marks = (layout: typeof wide) => layout.systems.flatMap((system) => system.numberedMarks!.filter(({ type }) => type === "tuplet"));
+      const sameLine = marks(wide);
+      expect(sameLine).toHaveLength(1);
+      expect(sameLine[0]!.labels.map(({ text }) => text)).toEqual(["3"]);
+      const wrapped = marks(narrow);
+      expect(wrapped).toHaveLength(2);
+      expect(wrapped.every(({ markId, path }) => markId === sameLine[0]!.markId && !!path && !/NaN|Infinity/.test(path.d))).toBe(true);
+      expect(wrapped.map(({ labels }) => labels.map(({ text }) => text))).toEqual([["3"], []]);
+      const [left, right] = wide.systems[0]!.measures;
+      expect(left!.timeAnchors.at(-1)!.tick).toBe(capacity);
+      expect(right!.numberedSlots.find(({ id }) => id === "e480")?.tick).toBe(160);
+      if (purpose === "editing") {
+        expect(right!.numberedInputSlots?.length).toBeGreaterThan(0);
+        expect(right!.numberedInputSlots!.every(({ startTick }) => startTick >= 160)).toBe(true);
+      }
     }
   });
 });

@@ -108,6 +108,9 @@ const renderToolbar = ({
     beforeAction: () => {},
     execute: async () => ({ status: "cancelled", message: "test" }),
     onNavigate: () => "accepted",
+    onOpenRepeatEnding: () => false,
+    onOpenJumpMarks: () => false,
+    onOpenMeasureRepeat: () => false,
   };
   let single: Record<string, unknown> | null = null;
   let double: Record<string, unknown> | null = null;

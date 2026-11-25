@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>琶音练习曲｜六线猫</title>
+  <link rel="icon" href="liuxianmao-32.png">
+  <link rel="stylesheet" href="prototype.css">
+  <script src="prototype.js" defer></script>
+</head>
+<body>
+  <svg class="icon-library" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="icon-undo" viewBox="0 0 24 24"><path d="m9 14-5-5 5-5M4 9h10a5 5 0 0 1 0 10h-2"/></symbol>
+    <symbol id="icon-redo" viewBox="0 0 24 24"><path d="m15 14 5-5-5-5m5 5H10a5 5 0 0 0 0 10h2"/></symbol>
+    <symbol id="icon-arpeggio" viewBox="0 0 24 24"><path d="M10 21c-5-2 5-4 0-6s-5-4 0-6V3m-4 4 4-4 4 4"/></symbol>
+    <symbol id="icon-up" viewBox="0 0 24 24"><path d="M12 19V5m-5 5 5-5 5 5"/></symbol>
+    <symbol id="icon-down" viewBox="0 0 24 24"><path d="M12 5v14m-5-5 5 5 5-5"/></symbol>
+  </svg>
+
+  <header class="app-header">
+    <div class="brand"><img src="liuxianmao-32.png" width="24" height="24" alt=""><strong>六线猫</strong></div>
+    <div class="document-name">琶音练习曲</div>
+    <div class="header-actions"><span class="file-status">示例曲谱</span><button id="reset" class="tool" type="button">重置示例</button></div>
+  </header>
+
+  <div class="toolbar" role="group" aria-label="编辑工具栏">
+    <div class="toolbar-group">
+      <button id="undo" class="tool" type="button" title="撤销 (⌘/Ctrl + Z)" disabled><svg class="icon" aria-hidden="true"><use href="#icon-undo"/></svg>撤销</button>
+      <button id="redo" class="tool" type="button" title="重做 (⌘/Ctrl + Shift + Z)" disabled><svg class="icon" aria-hidden="true"><use href="#icon-redo"/></svg>重做</button>
+    </div>
+    <button id="technique" class="tool current-tool" type="button" aria-controls="inspector"><svg class="icon" aria-hidden="true"><use href="#icon-arpeggio"/></svg>技巧</button>
+  </div>
+
+  <main class="workspace">
+    <section class="viewport" aria-label="曲谱画布">
+      <article class="paper" aria-labelledby="score-title">
+        <h1 id="score-title">琶音练习曲</h1>
+        <svg id="score" viewBox="0 0 696 495" role="group" aria-labelledby="score-title" xmlns="http://www.w3.org/2000/svg"></svg>
+      </article>
+    </section>
+
+    <aside class="sidebar" id="inspector" aria-label="技巧侧栏">
+      <div class="sidebar-tab"><span>技巧</span></div>
+      <div class="selection-context">
+        <strong id="context-title">琶音</strong>
+        <p id="context-detail"></p>
+      </div>
+      <div class="sidebar-body">
+        <div id="empty-selection" hidden>点按谱面上的波线箭头，选择一个琶音。</div>
+        <section class="range-inspector" id="range-inspector" aria-labelledby="range-title">
+          <h2 id="range-title">琶音范围</h2>
+          <div class="range-readout">
+            <span id="range-direction"></span>
+            <strong id="range-summary"></strong>
+            <span id="preview-state" hidden>拖动预览</span>
+          </div>
+          <div class="range-fields">
+            <label for="upper">上端弦<select id="upper" data-endpoint="upper" aria-describedby="range-rule"></select></label>
+            <label for="lower">下端弦<select id="lower" data-endpoint="lower" aria-describedby="range-rule"></select></label>
+          </div>
+          <p class="hint" id="range-rule">每个琶音至少覆盖两根弦。</p>
+          <ul id="selected-ranges" aria-label="所选琶音的范围" hidden></ul>
+        </section>
+        <div class="gesture-help">
+          <p>拖动谱面蓝色圆点，调整对应端点。</p>
+          <p><kbd>Alt / Option</kbd> + 点按波线箭头，增选或移除琶音。</p>
+          <p id="batch-help" hidden>批量调整同一端，各自的另一端和方向保留。</p>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <footer class="status-bar" aria-label="编辑器状态">
+    <span id="selection-status"></span>
+    <span id="action-status" role="status" aria-atomic="true"></span>
+    <span class="view-label">六线谱</span>
+  </footer>
+</body>
+</html>

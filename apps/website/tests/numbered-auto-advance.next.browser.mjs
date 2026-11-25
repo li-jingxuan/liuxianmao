@@ -28,6 +28,7 @@ revisedMeasure.chordSymbols = [];
 revisedMeasure.lyrics = [];
 track.techniques = [];
 track.numberedMarks = [];
+delete track.playbackReplay;
 track.measures = [
   measure("advance", [[0, "eighth"], [480, "eighth"], [960, "quarter"], [1920, "quarter"], [2880, "quarter"]], [note("previous", 0, "eighth")]),
   measure("exact-fit", [[0, "quarter"], [960, "quarter"], [1920, "quarter"], [2880, "eighth"], [3360, "sixteenth"], [3600, "sixteenth"]], [note("exact-first", 2880, "sixteenth"), note("exact-second", 3120, "eighth")]),

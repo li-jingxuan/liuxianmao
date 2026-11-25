@@ -86,15 +86,20 @@ const labels: Readonly<Record<string, string>> = {
   "measure.copy": "复制并插入小节",
   "measure.copyRange": "复制并插入小节范围",
   "measure.remove": "删除小节",
+  "measureRepeat.add": "添加单小节重复",
+  "measureRepeat.expand": "展开单小节重复",
   "measure.setTimeSignature": "修改拍号",
   "measure.setDuration": "修改小节时长",
   "barline.setBoundary": "修改小节线",
   "track.setTuning": "修改调弦",
   "track.setCapo": "修改变调夹",
   "measure.setSectionLabel": "修改段落标记",
+  "jumpMark.set": "应用跳转记号",
+  "jumpMark.remove": "删除跳转记号",
   "technique.add": "添加技巧",
   "technique.update": "修改技巧",
   "strum.setEndpoint": "调整扫弦范围",
+  "arpeggio.setEndpoint": "调整琶音范围",
   "technique.remove": "删除技巧",
   "tuplet.set": "设置连音组",
   "tuplet.remove": "删除连音组",
@@ -109,6 +114,7 @@ const labels: Readonly<Record<string, string>> = {
   "numbered.event.split": "拆分简谱拍点",
   "numbered.event.merge": "合并简谱拍点",
   "numbered.tuplet.add": "设置简谱三连音",
+  "numbered.tuplet.createInBeat": "在本拍创建三连音",
   "numbered.tuplet.remove": "删除简谱连音组",
   "numbered.mark.add": "添加简谱记号",
   "numbered.mark.update": "修改简谱记号",
@@ -160,15 +166,18 @@ const describeCommand = (document: ILXMDocument, command: ILXMScoreCommand) => {
 
   const technique: References | undefined = c.technique ?? track.techniques.find((item) => item.id === c.techniqueId);
   const mark: References | undefined = c.mark ?? track.numberedMarks.find((item) => item.id === c.markId);
+  // 批量范围编辑只有一条历史记录，定位包含本次调整的所有拍点。
+  const endpointIds = command.type === "strum.setEndpoint" || command.type === "arpeggio.setEndpoint"
+    ? command.techniqueIds : undefined;
   const objectIds = strings(
-    command.type === "strum.setEndpoint" ? command.techniqueIds : undefined,
-    c.techniqueId, c.markId, c.tupletId, c.lyricId, c.chordSymbolId,
+    endpointIds,
+    c.techniqueId, c.markId, command.type === "jumpMark.set" ? command.mark.id || undefined : undefined, c.tupletId, c.lyricId, c.chordSymbolId,
     c.eventId, c.eventIds, c.itemId, technique?.fromNoteId, technique?.toNoteId,
     mark?.eventId, mark?.fromEventId, mark?.toEventId, mark?.fromItemId, mark?.toItemId,
   );
   const beatIds = strings(
-    command.type === "strum.setEndpoint" ? track.techniques.flatMap(t =>
-      t.type === "strum" && command.techniqueIds.includes(t.id) ? [t.beatId] : []) : undefined,
+    endpointIds ? track.techniques.flatMap(t =>
+      (t.type === "strum" || t.type === "arpeggio") && endpointIds.includes(t.id) ? [t.beatId] : []) : undefined,
     c.beatId, c.startBeatId, c.endBeatId, c.range?.anchor?.beatId,
     c.range?.focus?.beatId, technique?.beatId,
   );
@@ -187,7 +196,8 @@ const describeCommand = (document: ILXMDocument, command: ILXMScoreCommand) => {
       objectIds.includes(event.id) || event.items.some((item) => objectIds.includes(item.id)),
     ) || measure.tuplets.some((item) => objectIds.includes(item.id)) ||
       measure.lyrics.some((item) => objectIds.includes(item.id)) ||
-      measure.chordSymbols.some((item) => objectIds.includes(item.id));
+      measure.chordSymbols.some((item) => objectIds.includes(item.id)) ||
+      measure.jumpMarks?.some((item) => objectIds.includes(item.id));
     if (!measureIds.includes(measure.id) && !locatedBeats.length && !hasObject) return;
     if (!measureIds.includes(measure.id)) measureIds.push(measure.id);
     locatedBeats.forEach((beat) => {

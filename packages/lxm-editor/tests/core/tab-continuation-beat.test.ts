@@ -13,6 +13,7 @@ const fixture = (): ILXMDocument => {
   track.techniques = [];
   track.numberedMarks = [];
   track.measures = [track.measures[0]!];
+  delete track.playbackReplay;
   const measure = track.measures[0]!;
   measure.timeSignature = { numerator: 4, denominator: 4 };
   measure.lyrics = [];

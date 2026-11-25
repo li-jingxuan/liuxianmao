@@ -10,6 +10,9 @@ import {
   type ILXMDocument,
   type ILXMTimeSignature,
   type PlaybackPlan,
+  type PlaybackJumpEnd,
+  type PlaybackJumpIssue,
+  type PlaybackRepeatEndingIssue,
   type PlaybackWarningCode,
 } from "@liuxianmao/lxm-editor";
 import { chordCatalogResource } from "../chords/chord-catalog-resource";
@@ -20,9 +23,10 @@ import { createScoreMetronomeGrid, DEFAULT_METER, isMetronomeBpm, readMeter, typ
 
 type Position = {
   measureId: string;
-  beatId: string;
+  beatId?: string;
   measureIndex: number;
   visitIndex: number;
+  measureEnd?: boolean;
 };
 interface SessionState {
   enabled: boolean;
@@ -38,16 +42,25 @@ interface SessionState {
   clickBeat: number | null;
   clickFailed: boolean;
   currentMeter: ILXMTimeSignature | null;
+  jumpIssue?: PlaybackJumpIssue;
+  repeatEndingIssue?: PlaybackRepeatEndingIssue;
+  jumpEnd?: PlaybackJumpEnd;
+  guitarMuted: boolean;
 }
+type VisitFragment = { first: number; last: number };
 export interface ScorePlaybackControls extends SessionState {
   setEnabled(enabled: boolean): void;
   setBpm(bpm: number): void;
   resetBpm(): void;
   setStartMeasure(measureId: string | null): void;
   suspendFollow(): void;
+  resumeFollow(): void;
+  setGuitarMuted(muted: boolean): void;
   startOptions: { value: number; label: string; measureId: string | null }[];
   togglePlay(): void;
   stop(): void;
+  playVisits(first: number, last?: number): void;
+  jumpRoute: Pick<PlaybackPlan, "visits" | "jumpIssue" | "jumpEnd" | "repeatEndingIssue"> | null;
   setClickEnabled(enabled: boolean): void;
   setClickAccent(accent: boolean): void;
   startingMeter: ILXMTimeSignature;
@@ -64,10 +77,14 @@ function performanceKey(doc: ILXMDocument | null) {
     track.tuning.strings.map((s) => [s.index, s.midi]),
     track.capo,
     track.startBarline,
+    // 重奏端点和小节跳转改变播放顺序，已加载或暂停的计划也需要重新生成。
+    track.playbackReplay,
+    track.repeatEndingGroups,
     track.techniques,
     track.measures.map((m) => [
       m.id,
       m.barline,
+      m.jumpMarks,
       m.timeSignature,
       m.actualDurationTicks,
       m.tuplets,
@@ -82,6 +99,11 @@ function performanceKey(doc: ILXMDocument | null) {
   ]);
 }
 
+const hasScoreRoute = (doc: ILXMDocument) => {
+  const track = doc.score.tracks[0];
+  return Boolean(track?.repeatEndingGroups?.length || track?.measures.some((measure) => measure.jumpMarks?.length));
+};
+
 const warningText: Record<PlaybackWarningCode, string> = {
   missingChordVoicing: "部分和弦缺少指法，已跳过相应弦音",
   outOfRangePitch: "部分音高超出范围，已跳过",
@@ -90,7 +112,7 @@ const warningText: Record<PlaybackWarningCode, string> = {
   approximateHarmonic: "部分泛音使用近似音高",
   conflictingTechnique: "部分技巧方向冲突，已取单一方向",
 };
-function planMessage(plan: PlaybackPlan) {
+function planMessage(plan: PlaybackPlan, hasOtherTraversal: boolean) {
   const numbers = new Map(
     plan.visits.map((v) => [v.measureId, v.measureIndex + 1]),
   );
@@ -101,9 +123,27 @@ function planMessage(plan: PlaybackPlan) {
         .filter((n) => n !== undefined);
       const range =
         measures.slice(0, 4).join("、") + (measures.length > 4 ? "等" : "");
-      return (range ? `第 ${range} 小节` : "") + warningText[warning.code];
+      // 反复线无效时仍可执行谱件的重奏和跳转指令。
+      const text = warning.code === "invalidRepeat" && hasOtherTraversal
+        ? "反复线无法配对，已忽略反复线"
+        : warningText[warning.code];
+      return (range ? `第 ${range} 小节` : "") + text;
     })
     .join("；");
+}
+
+function positionAtTick(plan: PlaybackPlan, tick: number, includeGaps: boolean): Position | null {
+  const beat = getPlaybackBeatAtTick(plan, tick);
+  if (beat || !includeGaps) return beat ?? null;
+  let lower = 0;
+  let upper = plan.visits.length;
+  while (lower < upper) {
+    const middle = Math.floor((lower + upper) / 2);
+    if (plan.visits[middle]!.endTick <= tick) lower = middle + 1;
+    else upper = middle;
+  }
+  const visit = plan.visits[lower];
+  return visit && visit.startTick <= tick ? visit : null;
 }
 
 export class PlaybackSession {
@@ -121,6 +161,7 @@ export class PlaybackSession {
     clickBeat: null,
     clickFailed: false,
     currentMeter: null,
+    guitarMuted: false,
   };
   private listeners = new Set<() => void>();
   private engine: ScoreAudioEngine | null = null;
@@ -133,6 +174,8 @@ export class PlaybackSession {
   private documentKey?: string;
   private offset = 0;
   private frame = 0;
+  private fragment = false;
+  private hasRoute = false;
 
   constructor(private readonly chords = chordCatalogResource, private readonly audioDirectory?: string,
     private readonly bundled?: BundledGuitarSamples) {}
@@ -162,6 +205,7 @@ export class PlaybackSession {
     this.offset = 0;
     this.clickFromTick = 0;
     this.resumeSkipsOnset = false;
+    this.fragment = false;
     this.update({
       phase: "idle",
       message,
@@ -169,6 +213,9 @@ export class PlaybackSession {
       clickBeat: null,
       clickFailed: false,
       currentMeter: null,
+      jumpIssue: undefined,
+      repeatEndingIssue: undefined,
+      jumpEnd: undefined,
       // 手动滚动只让出本轮播放的视口。停播、播完或失败后，下轮起播重新自动跟随。
       follow: true,
     });
@@ -204,12 +251,13 @@ export class PlaybackSession {
     if (!enabled) {
       this.stop();
       this.resetBpm();
+      this.setGuitarMuted(false);
     }
     // 每次进入试听时默认启用随谱点击音。停播保留本轮选择，退出后清除试听起点与开关状态。
     this.update({ enabled, message: "", startMeasureId: null, clickEnabled: enabled });
   };
   private get editable() {
-    return this.state.phase === "idle" || this.state.phase === "error";
+    return this.state.phase === "idle" || this.state.phase === "error" || Boolean(this.state.jumpIssue || this.state.repeatEndingIssue);
   }
   setBpm = (value: number) => {
     if (!Number.isFinite(value)) return;
@@ -227,11 +275,18 @@ export class PlaybackSession {
   resetBpm = () => this.setBpm(this.state.savedBpm ?? DEFAULT_PLAYBACK_BPM);
   setStartMeasure = (startMeasureId: string | null) => {
     // 起点同时驱动下拉和谱面高亮。加载、播放和暂停期间锁定，以免更改已建立的播放计划或续播位置。
-    if (this.state.enabled && this.editable && startMeasureId !== this.state.startMeasureId)
+    if (this.state.enabled && this.editable && startMeasureId !== this.state.startMeasureId) {
+      if (this.state.jumpIssue || this.state.repeatEndingIssue || this.state.jumpEnd || this.fragment) this.stop();
       this.update({ startMeasureId });
+    }
   };
   suspendFollow = () => {
     if (this.state.follow) this.update({ follow: false });
+  };
+  resumeFollow = () => this.update({ follow: true });
+  setGuitarMuted = (guitarMuted: boolean) => {
+    this.engine?.setGuitarMuted(guitarMuted);
+    this.update({ guitarMuted });
   };
   setClickEnabled = (enabled: boolean) => {
     if (!this.state.enabled || this.state.clickEnabled === enabled) return;
@@ -258,10 +313,21 @@ export class PlaybackSession {
     if (!this.engine || !this.plan || this.state.phase !== "playing") return;
     const tick = this.engine.currentTick();
     if (tick >= this.plan.durationTicks) {
-      this.stop();
+      const { jumpIssue, repeatEndingIssue, jumpEnd, durationTicks } = this.plan;
+      const issue = jumpIssue ?? repeatEndingIssue;
+      if (issue || jumpEnd || this.fragment) {
+        // 自然结束和异常都已演奏完整个小节。用最后一次到访定位右边界，片段试听继续保留末拍位置。
+        const last = this.plan.visits.at(-1);
+        const position = (issue || jumpEnd) && last ? { ...last, measureEnd: true } : positionAtTick(this.plan, durationTicks - 1, true);
+        this.cancel();
+        const message = issue ? `第 ${issue.measureIndex + 1} 小节 · 试听已暂停 · ${issue.message}` : "";
+        this.update({ phase: issue ? "paused" : "idle", position, clickBeat: null, jumpIssue, repeatEndingIssue, jumpEnd, message });
+      } else {
+        this.stop();
+      }
       return;
     }
-    const position = getPlaybackBeatAtTick(this.plan, tick) ?? null;
+    const position = positionAtTick(this.plan, tick, this.hasRoute);
     const currentMeter = this.clickGrid?.meterAt(tick) ?? null;
     const clickBeat = this.engine.hasStarted() ? this.visibleBeat(tick) : this.state.clickBeat;
     if (this.state.position !== position || this.state.currentMeter !== currentMeter || this.state.clickBeat !== clickBeat)
@@ -281,7 +347,7 @@ export class PlaybackSession {
     this.cancel();
     this.update({
       phase: "paused",
-      position: getPlaybackBeatAtTick(this.plan, this.offset) ?? null,
+      position: positionAtTick(this.plan, this.offset, this.hasRoute),
       currentMeter: this.clickGrid?.meterAt(this.offset) ?? null,
       clickBeat,
       message: message ?? this.state.message,
@@ -291,24 +357,31 @@ export class PlaybackSession {
     this.stop();
     this.update({ phase: "error", message: error instanceof Error ? `试听失败，请重试。${error.message}` : "试听失败，请重试" });
   }
-  async togglePlay(doc: ILXMDocument | null) {
+  async togglePlay(doc: ILXMDocument | null, fragment?: VisitFragment) {
     if (!this.state.enabled || !doc || this.state.phase === "loading") return;
     this.documentChanged(doc);
-    if (this.state.phase === "playing") {
+    if (fragment) {
+      const { follow } = this.state;
+      this.stop();
+      if (!follow) this.suspendFollow();
+    } else if (this.state.phase === "playing") {
       this.pause();
       return;
     }
-    const resume = this.state.phase === "paused";
+    const resume = this.state.phase === "paused" && !this.state.jumpIssue && !this.state.repeatEndingIssue;
     const { startMeasureId } = this.state;
     const request = new AbortController();
     this.request = request;
     this.key = performanceKey(doc);
-    this.update({ phase: "loading", message: "正在准备木吉他音源…" });
+    this.hasRoute = hasScoreRoute(doc);
+    this.update({ phase: "loading", jumpIssue: undefined, repeatEndingIssue: undefined, jumpEnd: undefined,
+      message: "正在准备木吉他音源…" });
     try {
       const engine = (this.engine ??= new ScoreAudioEngine(undefined, this.audioDirectory, this.bundled));
       engine.onInterrupted = () => this.pause("音频已中断，可继续播放", true);
       engine.onClickFailed = () => this.update({ clickFailed: true });
       await engine.unlock(request.signal);
+      engine.setGuitarMuted(this.state.guitarMuted);
       request.signal.throwIfAborted();
       if (!resume || !this.plan) {
         const needsCatalog = doc.score.tracks[0]?.measures.some((m) =>
@@ -316,18 +389,35 @@ export class PlaybackSession {
         );
         if (needsCatalog) await this.chords.ensureLoaded();
         request.signal.throwIfAborted();
-        this.plan = createPlaybackPlan(doc, {
+        const fullPlan = createPlaybackPlan(doc, {
           bpm: this.state.bpm,
           startMeasureId: startMeasureId ?? undefined,
           chordCatalog: this.chords.getSnapshot().catalog,
         });
-        this.clickGrid = createScoreMetronomeGrid(this.plan, doc.score.tracks[0]?.measures ?? []);
+        this.plan = fullPlan;
+        this.fragment = Boolean(fragment);
         this.offset = 0;
+        if (fragment) {
+          const visits = fullPlan.visits.filter(({ visitIndex }) => visitIndex >= fragment.first && visitIndex <= fragment.last);
+          const first = visits[0];
+          const last = visits.at(-1);
+          if (!first || !last) { this.stop(); return; }
+          this.offset = first.startTick;
+          // 保留完整计划的到访 ID 和拍点刻度。仅裁掉片段外的音符和点击，游标仍读取同一时间轴。
+          this.plan = {
+            ...fullPlan, visits, durationTicks: last.endTick, jumpIssue: undefined, repeatEndingIssue: undefined, jumpEnd: undefined,
+            beats: fullPlan.beats.filter((beat) => beat.visitIndex >= first.visitIndex && beat.visitIndex <= last.visitIndex),
+            sounds: fullPlan.sounds.filter((sound) => sound.startTick < last.endTick && sound.endTick > first.startTick)
+              .map((sound) => ({ ...sound, endTick: Math.min(sound.endTick, last.endTick) })),
+          };
+        }
+        this.clickGrid = createScoreMetronomeGrid(this.plan, doc.score.tracks[0]?.measures ?? []);
       }
       const plan = this.plan;
-      if (!plan.sounds.length) {
+      const message = planMessage(plan, this.hasRoute || Boolean(doc.score.tracks[0]?.playbackReplay));
+      if (!plan.sounds.length && !this.fragment && !this.hasRoute) {
         this.stop(
-          ["这段六线谱没有可播放的音符", planMessage(plan)]
+          ["这段六线谱没有可播放的音符", message]
             .filter(Boolean)
             .join("。"),
         );
@@ -340,7 +430,7 @@ export class PlaybackSession {
         grid: this.clickGrid, enabled: this.state.clickEnabled,
         accent: this.state.clickAccent, skipOnset: resume && this.resumeSkipsOnset,
       } : undefined);
-      this.update({ phase: "playing", message: planMessage(plan) });
+      this.update({ phase: "playing", message });
       this.paint();
     } catch (error) {
       if (request.signal.aborted) return;
@@ -381,6 +471,12 @@ export function useScorePlayback(
     };
   }, [session]);
   const measures = doc?.score.tracks[0]?.measures;
+  const jumpRoute = useMemo(() => {
+    if (!state.enabled || !doc || !hasScoreRoute(doc)) return null;
+    // 路线可在加载音源前检查，和真正演奏计划共用同一个路径解析器及选中起点。
+    const { visits, jumpIssue, jumpEnd, repeatEndingIssue } = createPlaybackPlan(doc, { startMeasureId: state.startMeasureId ?? undefined });
+    return { visits, jumpIssue, jumpEnd, repeatEndingIssue };
+  }, [doc, state.enabled, state.startMeasureId]);
   // 下拉值使用显示序号，0 专供谱首选项，避免与导入曲谱中任意字符串形式的小节 ID 冲突。
   const startOptions = useMemo(() => [
     { value: 0, label: "从头开始", measureId: null },
@@ -393,6 +489,8 @@ export function useScorePlayback(
     startMeasureId: selectedMeasure?.id ?? null,
     setEnabled: session.setEnabled,
     suspendFollow: session.suspendFollow,
+    resumeFollow: session.resumeFollow,
+    setGuitarMuted: session.setGuitarMuted,
     setStartMeasure: session.setStartMeasure,
     setBpm: session.setBpm,
     resetBpm: session.resetBpm,
@@ -400,6 +498,8 @@ export function useScorePlayback(
     setClickAccent: session.setClickAccent,
     startingMeter: readMeter((selectedMeasure ?? measures?.[0])?.timeSignature) ?? DEFAULT_METER,
     startOptions,
+    jumpRoute,
+    playVisits: (first, last = first) => { void session.togglePlay(doc, { first, last }); },
     togglePlay: () => {
       void session.togglePlay(doc);
     },

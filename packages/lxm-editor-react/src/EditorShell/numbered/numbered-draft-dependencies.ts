@@ -1,7 +1,7 @@
-import { createNumberedRhythmContext, parseNumberedSequence, planNumberedEventRhythm, planNumberedSequenceOverwrite, planNumberedSequenceSlots, type ILXMMeasure, type ILXMNumberedVoiceCommand, type ILXMTrack } from "@liuxianmao/lxm-editor";
+import { createNumberedTrackRhythmContext, parseNumberedSequence, planNumberedEventRhythm, planNumberedSequenceOverwrite, planNumberedSequenceSlots, type ILXMMeasure, type ILXMNumberedVoiceCommand, type ILXMTrack } from "@liuxianmao/lxm-editor";
 
-export const numberedSequenceRangeText = (measure: ILXMMeasure, startTick: number, endTick: number): string => {
-  const items = planNumberedSequenceSlots(measure).filter(slot => slot.startTick >= startTick && slot.startTick < endTick).map(slot => {
+export const numberedSequenceRangeText = (measure: ILXMMeasure, startTick: number, endTick: number, rhythm?: ReturnType<typeof createNumberedTrackRhythmContext>): string => {
+  const items = planNumberedSequenceSlots(measure, rhythm).filter(slot => slot.startTick >= startTick && slot.startTick < endTick).map(slot => {
     const event = measure.numberedVoice.events.find(event => event.id === slot.eventId);
     return event?.items.map(item => item.token).join("+") || "_";
   });
@@ -41,9 +41,9 @@ export const numberedContentDependency = (
   if (operation?.type === "numbered.range.replace" || operation?.type === "numbered.sequence.insert") {
     const measure = track.measures.find(measure => measure.id === operation.measureId);
     if (!measure) return "missing measure";
-    const context = createNumberedRhythmContext(measure.numberedVoice);
+    const context = createNumberedTrackRhythmContext(track);
     return JSON.stringify({
-      slots: planNumberedSequenceSlots(measure).filter(slot => slot.startTick < operation.endTick && slot.endTick > operation.startTick),
+      slots: planNumberedSequenceSlots(measure, context).filter(slot => slot.startTick < operation.endTick && slot.endTick > operation.startTick),
       events: measure.numberedVoice.events.filter(event => {
         const duration = context.getEventDurationTicks(event);
         return duration.ok && event.tick < operation.endTick && event.tick + duration.ticks > operation.startTick;
@@ -60,10 +60,10 @@ export const numberedContentDependency = (
       const explicit = continuation || (operation.type === "numbered.sequence.overwrite" && !!operation.rhythms);
       // A reflow can consume old events between planned onsets. Snapshot the
       // entire written interval, including events removed by the operation.
+      const context = createNumberedTrackRhythmContext(track);
       return JSON.stringify(track.measures.flatMap(measure => {
         const targets = plan.targets.filter(target => target.measureId === measure.id);
         if (!targets.length) return [];
-        const context = createNumberedRhythmContext(measure.numberedVoice);
         const start = targets[0]!.startTick, end = targets.at(-1)!.endTick;
         return [{ measureId: measure.id,
           targets: targets.map(target => target.eventId && !explicit ? { eventId: target.eventId, startTick: target.startTick } : { startTick: target.startTick, endTick: target.endTick, rhythm: target.rhythm, ratio: target.ratio }),

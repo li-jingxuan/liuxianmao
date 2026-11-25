@@ -498,6 +498,56 @@ try {
     assert.match(await page.getByRole("dialog", { name: "小节工具参数" }).innerText(), /第 2 小节/);
     await page.keyboard.press("Escape");
   });
+  await check("BUG-078 简谱提供六种比例，二连音校验余量，两种五连音时值不同", async () => {
+    const ratios = [[2, 3], [3, 2], [4, 3], [5, 4], [5, 3], [6, 4]];
+    const names = ["二", "三", "四", "五", "五", "六"];
+    const score = page.getByRole("application", { name: "六线谱编辑器" });
+    const makeEvents = (actual, blocked = false) => Array.from({ length: actual + 1 }, (_, index) => ({
+      id: `e0${index}`, tick: index === actual && !blocked ? 1920 : index * 240,
+      kind: "notes", rhythm: { base: "sixteenth", dots: 0 }, items: [{ id: `i0${index}`, token: "4" }],
+    }));
+    const selectRange = async (actual, blocked = false) => {
+      const document = fixture();
+      const measure = document.score.tracks[0].measures[0];
+      measure.numberedVoice.events = makeEvents(actual, blocked);
+      measure.lyrics = [{ id: "bug078-lyric", eventId: "e01", verse: 1, text: "词" }];
+      await load(document);
+      await score.locator('text[data-numbered-event="e00"]').click();
+      await score.locator(`text[data-numbered-event="e0${actual - 1}"]`).click({ modifiers: ["Shift"] });
+      await open("tuplet");
+      return page.getByRole("group", { name: "简谱连音工具" });
+    };
+    for (const [index, [actual, normal]] of ratios.entries()) {
+      const tool = await selectRange(actual);
+      const grid = tool.getByRole("group", { name: "连音比例" });
+      assert.equal(await grid.getByRole("button").count(), 6);
+      assert.equal(await grid.getByRole("button", { disabled: false }).count(), actual === 5 ? 2 : 1);
+      const name = `${names[index]}连音（${actual}:${normal}）`;
+      const before = await state();
+      await grid.getByRole("button", { name, exact: true }).click();
+      const after = await state();
+      const measure = after.document.score.tracks[0].measures[0];
+      const group = measure.numberedVoice.tuplets[0];
+      assert.deepEqual(group.ratio, { actual, normal });
+      assert.deepEqual(measure.numberedVoice.events.map(({ tick }) => tick), [...Array.from({ length: actual }, (_, i) => i * 240 * normal / actual), 1920]);
+      assert.deepEqual(measure.lyrics, before.document.score.tracks[0].measures[0].lyrics);
+      const mark = `text[data-numbered-mark="${group.id}"]`;
+      assert.equal(await score.locator(mark).textContent(), actual === 3 ? "3" : `${actual}:${normal}`);
+      assert.equal(await page.locator(`[data-score-print-layer] ${mark}`).textContent(), actual === 3 ? "3" : `${actual}:${normal}`);
+      assert.equal(await grid.getByRole("button", { name, exact: true }).getAttribute("aria-pressed"), "true");
+      await tool.getByRole("button", { name: "删除连音组", exact: true }).click();
+      assert.deepEqual((await state()).document.score, before.document.score);
+    }
+    const tool = await selectRange(2, true);
+    const blocked = tool.getByRole("button", { name: "二连音（2:3）", exact: true });
+    assert.equal(await blocked.isDisabled(), true);
+    assert.match(await blocked.getAttribute("aria-description"), /连续空位不足/);
+    const explanation = tool.locator('[data-tool-action="tuplet-actions"]');
+    await explanation.focus();
+    assert.match(await explanation.getAttribute("aria-label"), /连续空位不足/);
+    await page.keyboard.press("Escape");
+    await toolTrigger("tuplet").and(page.locator(":focus")).waitFor();
+  });
   await check("《理想》第 32 小节三个简谱音符可用顶栏设置或删除三连音", async () => {
     const ideal = JSON.parse(await readFile(new URL("../../../packages/lxm-editor/example/ideal-score.lxm.json", import.meta.url), "utf8"));
     // 默认谱面已经编组，从历史小节状态开始才能通过顶栏完整验证新增、删除和撤销。
@@ -531,6 +581,99 @@ try {
     if (!(await tool.isVisible())) await open("tuplet");
     await tool.getByRole("button", { name: "删除连音组" }).click();
     assert.deepEqual((await state()).document.score.tracks[0].measures[31], measure);
+    await state("undo");
+    assert.deepEqual((await state()).document, after.document);
+    await state("undo");
+    assert.deepEqual((await state()).document, before.document);
+  });
+  await check("BUG-080 简谱末拍预览均分三连音，保留歌词且可一次撤销", async () => {
+    for (const hasThirdNote of [true, false]) {
+      const document = fixture();
+      const measure = document.score.tracks[0].measures[0];
+      const ids = ["triplet-a", "triplet-b", ...(hasThirdNote ? ["triplet-c"] : [])];
+      const lastBeat = ids.map((id, index) => ({
+        id, tick: [2880, 3360, 3600][index], kind: "notes",
+        rhythm: { base: hasThirdNote && index !== 0 ? "sixteenth" : "eighth", dots: 0 },
+        items: [{ id: `${id}-note`, token: String(index + 4) }],
+      }));
+      measure.numberedVoice.events.splice(3, 1, ...lastBeat);
+      measure.lyrics = [{ id: "triplet-lyric", eventId: ids[1], verse: 1, text: "盛" }];
+      await load(document);
+      const before = await state();
+      await page.locator(`text[data-numbered-event="${ids[1]}"]`).first().click();
+      await open("tuplet");
+      const tool = page.getByRole("group", { name: "简谱连音工具" });
+      await tool.getByRole("button", { name: "在本拍创建三连音" }).click();
+      const preview = tool.getByRole("group", { name: "本拍三连音预览" });
+      assert.match(await preview.innerText(), /第 1 小节 · 第 4 拍/);
+      const slots = preview.getByRole("group", { name: "三个等分八分音槽位" });
+      assert.deepEqual(await slots.locator("span").allTextContents(), ["4", "5", hasThirdNote ? "6" : "空位"]);
+      assert.equal((await state()).history.past, before.history.past);
+      await preview.getByRole("button", { name: /^取\s*消$/ }).click();
+      assert.equal(await preview.count(), 0);
+      await tool.getByRole("button", { name: "在本拍创建三连音" }).click();
+      await preview.getByRole("button", { name: /^应\s*用$/ }).click();
+      await preview.waitFor({ state: "detached" });
+      const after = await state();
+      const updated = after.document.score.tracks[0].measures[0];
+      const converted = updated.numberedVoice.events.slice(3);
+      assert.deepEqual(converted.map(({ tick, rhythm }) => [tick, rhythm.base]), [[2880, "eighth"], [3200, "eighth"], [3520, "eighth"]]);
+      assert.deepEqual(converted.slice(0, ids.length).map(({ id, items }) => ({ id, items })), lastBeat.map(({ id, items }) => ({ id, items })));
+      assert.equal(converted[2].kind, hasThirdNote ? "notes" : "gap");
+      assert.deepEqual(updated.lyrics, measure.lyrics);
+      assert.equal(after.history.past, before.history.past + 1);
+      await state("undo");
+      assert.deepEqual((await state()).document, before.document);
+      if (!hasThirdNote) {
+        await load(after.document);
+        const score = page.getByRole("application", { name: "六线谱编辑器" });
+        const placeholder = score.locator(`[data-paragraph-cell="numbered/m0/${converted[2].id}/3840"]`);
+        const point = await placeholder.evaluate((node) => {
+          const box = node.getBBox();
+          const center = new DOMPoint(box.x + box.width / 2, box.y + box.height / 2).matrixTransform(node.getScreenCTM());
+          return { x: center.x, y: center.y };
+        });
+        await page.mouse.click(point.x, point.y);
+        const input = page.locator("[id$=music-text-edit-popover]").getByRole("textbox", { name: "简谱内容", exact: true });
+        await input.fill("6");
+        await input.press("Enter");
+        const filled = (await state()).document.score.tracks[0].measures[0];
+        const third = filled.numberedVoice.events.find(({ id }) => id === converted[2].id);
+        assert.equal(third.items[0].token, "6");
+        assert.equal(third.tick, 3520);
+        assert.deepEqual(filled.numberedVoice.tuplets, updated.numberedVoice.tuplets);
+      }
+    }
+  });
+  await check("BUG-079 反向跨小节选择可合组，保留首音、歌词及选区并可拆组", async () => {
+    const document = fixture();
+    const [first, next] = document.score.tracks[0].measures;
+    const eighth = { base: "eighth", dots: 0 };
+    const note = (id, tick, token) => ({ id, tick, rhythm: eighth, kind: "notes", items: [{ id: `${id}-note`, token }] });
+    first.numberedVoice.events.splice(3, 1, note("across-a", 2880, "3"), note("across-b", 3360, "1"));
+    next.numberedVoice.events.splice(0, 1, note("across-c", 0, "3"));
+    next.lyrics = [{ id: "across-lyric", eventId: "across-c", verse: 1, text: "年" }];
+    await load(document);
+    const before = await state();
+    await page.locator('text[data-numbered-event="across-c"]').first().click();
+    await page.locator('text[data-numbered-event="across-a"]').first().click({ modifiers: ["Shift"] });
+    assert.equal(await toolTrigger("tuplet").isEnabled(), true);
+    await open("tuplet");
+    const tool = page.getByRole("group", { name: "简谱连音工具" });
+    await tool.getByRole("button", { name: "三连音（3:2）" }).click();
+    const after = await state();
+    const [updatedFirst, updatedNext] = after.document.score.tracks[0].measures;
+    const [group] = updatedFirst.numberedVoice.tuplets;
+    assert.deepEqual(group.eventIds, ["across-a", "across-b", "across-c"]);
+    assert.deepEqual(updatedFirst.numberedVoice.events.slice(-3).map(({ tick }) => tick), [2880, 3200, 3520]);
+    assert.deepEqual(updatedFirst.lyrics, next.lyrics);
+    assert.deepEqual(updatedNext.lyrics, []);
+    assert.equal(after.history.past, before.history.past + 1);
+    const score = page.locator('svg[aria-label="六线谱编辑器"]');
+    assert.equal(await score.locator(`text[data-numbered-mark="${group.id}"]`).textContent(), "3");
+    if (!(await tool.isVisible())) await open("tuplet");
+    await tool.getByRole("button", { name: "删除连音组" }).click();
+    assert.deepEqual((await state()).document.score.tracks[0].measures, before.document.score.tracks[0].measures);
     await state("undo");
     assert.deepEqual((await state()).document, after.document);
     await state("undo");

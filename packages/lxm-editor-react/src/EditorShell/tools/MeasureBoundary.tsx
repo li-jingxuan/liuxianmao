@@ -30,12 +30,13 @@ export const BarlineSymbol = ({ value }: { value: ILXMBarlineType }) => (
   </svg>
 );
 
-export const MeasureBoundary = ({ document, target, blocked, onAction }: {
-  document: ILXMDocument; target?: MeasureToolTarget | null; blocked: boolean; onAction: ToolActionHandler;
+export const MeasureBoundary = ({ document, target, blocked, multipleMeasures, onAction }: {
+  document: ILXMDocument; target?: MeasureToolTarget | null; blocked: boolean; multipleMeasures?: boolean; onAction: ToolActionHandler;
 }) => {
   const resolved = resolveMeasureControlTarget(document, target);
   const atEnd = !!resolved && resolved.index === resolved.track.measures.length - 1;
-  const blockedReason = !resolved ? "请选择目标小节。" : blocked ? "请先完成当前编辑或等待提交结束。" : "";
+  const blockedReason = !resolved ? "请选择目标小节。" : blocked ? "请先完成当前编辑或等待提交结束。"
+    : multipleMeasures ? "请选择一个小节。" : "";
   return <div className={styles.boundaries} role="group" aria-label="小节线与反复">
     {BARLINES.map((barline) => {
       const reason = blockedReason || (atEnd && (barline.value === "repeatStart" || barline.value === "repeatBoth") ? "谱尾右边界没有下一小节，不能开始反复。" : "");

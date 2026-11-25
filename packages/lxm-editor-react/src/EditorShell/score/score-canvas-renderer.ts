@@ -23,7 +23,7 @@ const drawPrimitive = (ctx: CanvasRenderingContext2D, p: ScorePrimitive) => {
   ctx.lineJoin = "round";
   ctx.setLineDash(p.dash ? p.dash.trim().split(/[ ,]+/).map(Number) : []);
   if (p.kind === "text") {
-    ctx.font = `${p.fontWeight} ${p.fontSize}px ${p.fontFamily}`;
+    ctx.font = `${p.fontStyle ?? "normal"} ${p.fontWeight} ${p.fontSize}px ${p.fontFamily}`;
     ctx.textBaseline = "alphabetic";
     ctx.textAlign =
       p.textAnchor === "middle"

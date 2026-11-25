@@ -22,6 +22,8 @@ import type {
   ILXMBarlineType,
   ILXMTechniqueType,
   ILXMNumberedEvent,
+  ILXMJumpMark,
+  ILXMRepeatEnding,
 } from "../core/types";
 
 /** 谱面横向排版密度；舒适模式保留节奏权重，紧凑模式收紧列宽与小节留白。 */
@@ -41,6 +43,8 @@ export interface ILXMLayoutOptions {
   purpose?: ILXMLayoutPurpose;
   /** 编辑态最后一行留给谱尾操作的逻辑宽度。 */
   editingTailWidth?: number;
+  /** 仅编辑态额外排版蓝色虚线。不写入成品场景或文件。 */
+  repeatEndingPreview?: ILXMRepeatEnding;
   /** 全局指法图显示偏好；省略时沿用单个和弦的旧 display。 */
   showChordDiagrams?: boolean;
   /** 仅编辑态为目标谱行预留空白文本区域，不进入文档。 */
@@ -96,6 +100,8 @@ export interface ILXMLayout {
 
 /** 一条谱面行（system）的几何结果。 */
 export interface ILXMSystemLayout {
+  repeatEndings?: ILXMRepeatEndingSegmentLayout[];
+  repeatEndingPreview?: ILXMRepeatEndingSegmentLayout[];
   numberedMarks?: NumberedMarkLayout[];
   numberedRow?: { y: number; height: number };
   /** 谱行最左侧的竖向收边线，从首弦延伸至第一行歌词上缘或最下层横梁。 */
@@ -132,6 +138,17 @@ export interface ILXMSystemLayout {
   techniqueLaneCount: number;
 }
 
+/** 同一房子按谱行切分，所有续段保留整个房子的身份和起止小节。 */
+export interface ILXMRepeatEndingSegmentLayout {
+  id: string;
+  startMeasureId: string;
+  endMeasureId: string;
+  label: string;
+  starts: boolean;
+  ends: boolean;
+  bounds: MusicTextRect;
+}
+
 export type ILXMTechniqueContinuation =
   | "none"
   | "fromPrevious"
@@ -158,6 +175,8 @@ export interface ILXMTechniqueSegmentLayout {
   techniqueId: string;
   type: ILXMTechniqueType;
   strum?: { beatId: string; minString: number; maxString: number };
+  /** 琶音端点编辑使用原始弦号，谱面上下端与弹奏方向独立。 */
+  arpeggio?: { beatId: string; minString: number; maxString: number };
   systemIndex: number;
   segmentIndex: number;
   continuation: ILXMTechniqueContinuation;
@@ -189,6 +208,19 @@ export interface ILXMMeasureLayout {
   timeAnchors: { tick: number; x: number }[];
   lyrics?: LyricLayout[];
   chordSymbols?: ChordSymbolLayout[];
+  /** 缩写的可见符号、整节命中及仅供游标使用的真实拍位。 */
+  measureRepeat?: {
+    x: number;
+    y: number;
+    bounds: MusicTextRect;
+    playbackBeats: { id: string; x: number }[];
+  };
+  /** 跳转记号的成品锚点及编辑命中框，编辑和输出消费同一份坐标。 */
+  jumpMarks?: ILXMJumpMarkLayout[];
+  /** 小节人为拉开间距时，为落点补出起始线；常规共用边界无需重画。 */
+  jumpMarkStartBarline?: ILXMBarlineLayout;
+  /** 小节号与同一条小节线上的落点同排时，向左让出的文字基线。 */
+  numberPosition?: { x: number; y: number };
   visualBounds?: MusicTextRect;
   id: string;
   index: number;
@@ -231,6 +263,16 @@ export interface ILXMMeasureLayout {
 
   // 小节的边界框，用于后期做命中检测、框选 等
   // bounds: [],
+}
+
+export interface ILXMJumpMarkLayout {
+  id: string;
+  kind: ILXMJumpMark["kind"];
+  /** 落点的符号中心，或指令文字右对齐的基线锚点。 */
+  x: number;
+  y: number;
+  label: string;
+  bounds: MusicTextRect;
 }
 
 /** 页面可直接映射为 SVG text 的最终文字几何。 */

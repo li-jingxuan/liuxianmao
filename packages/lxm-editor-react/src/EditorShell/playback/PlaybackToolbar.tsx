@@ -17,8 +17,10 @@ export const PlaybackToolbar = ({ playback }: {
   const tempoId = `${idPrefix}editor-playback-bpm`;
   const tempoNoteId = `${idPrefix}editor-playback-tempo-note`;
   const descriptionId = `${idPrefix}editor-playback-description`;
-  const active = phase === "loading" || phase === "playing" || phase === "paused";
-  const playLabel = { idle: "播放", loading: "加载中…", playing: "暂停", paused: "继续", error: "重试" }[phase];
+  // 配对和缺房都已抵达有效路线末端，允许切换起点或从头重新试听。
+  const blocked = Boolean(playback.jumpIssue || playback.repeatEndingIssue);
+  const active = phase === "loading" || phase === "playing" || (phase === "paused" && !blocked);
+  const playLabel = blocked ? "重新播放" : { idle: "播放", loading: "加载中…", playing: "暂停", paused: "继续", error: "重试" }[phase];
   const [tempoDraft, setTempoDraft] = useState<string | null>(null);
   const playButton = useRef<HTMLButtonElement>(null);
   useEffect(() => {
@@ -32,7 +34,7 @@ export const PlaybackToolbar = ({ playback }: {
   // 常用速度使用较细的滑杆范围。已应用或手动输入的极值也必须能在滑杆上正确显示和恢复。
   const sliderMin = Math.min(40, scoreBpm, playback.bpm);
   const sliderMax = Math.max(180, scoreBpm, playback.bpm);
-  const playbackStatus = phase === "playing" ? "正在试听" : phase === "paused" ? "试听已暂停"
+  const playbackStatus = playback.jumpEnd ? "试听结束" : phase === "playing" ? "正在试听" : phase === "paused" ? "试听已暂停"
     : phase === "loading" ? "正在准备试听" : adjusted ? "临时调速试听" : "按曲谱速度试听";
   const startValue = playback.startOptions.find(({ measureId }) => measureId === playback.startMeasureId)?.value ?? 0;
 
@@ -52,7 +54,7 @@ export const PlaybackToolbar = ({ playback }: {
           {phase === "playing" ? <Pause size={16} aria-hidden="true" /> : <Play size={16} aria-hidden="true" />}
           {playLabel}
         </button>
-        <button type="button" className={styles.playbackButton} disabled={!active && phase !== "error"} onClick={playback.stop}>
+        <button type="button" className={styles.playbackButton} disabled={!active && !position && phase !== "error"} onClick={playback.stop}>
           <Square size={14} aria-hidden="true" />停止
         </button>
         {/* 下拉和谱面单选共用起点。播放期间锁定已选值，暂停后可继续原位置。 */}

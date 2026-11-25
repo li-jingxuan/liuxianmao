@@ -32,11 +32,15 @@ import { LXM_TUPLET_BOTTOM_PADDING } from "../layout-constants";
 import { layoutTimeSignature } from "./time-signature-layout";
 import { getRhythmBottom } from "../rhythm/rhythm-bounds";
 import { isPureTabContinuationBeat } from "../../core/rhythm/tab-continuation";
+import type { createNumberedTrackRhythmContext } from "../../core/numbered/numbered-rhythm";
+import { isMeasureRepeat } from "../../core/document/measure-repeat";
+import { getMeasureDurationTicks } from "../../core/rhythm/rhythm";
 
 export interface ILXMLayoutMeasureContext {
   musicTextMetrics?: ILXMMusicTextMetrics;
   /** 正式布局复用候选行已经避让和弦的间距摘要。 */
   spacingSummary?: ILXMSummarizeMeasureSpacingWidth;
+  numberedRhythm?: ReturnType<typeof createNumberedTrackRhythmContext>;
   chordTraversalBottomOffsets?: ReadonlyMap<string, number>;
   index: number;
   /** 当前小节所属谱面行；由 system-layout 在最终定位时传入。 */
@@ -152,10 +156,34 @@ export const layoutMeasure = (
     leadingWidth,
     musicTextMetrics: context.musicTextMetrics,
     spacingSummary: context.spacingSummary,
+    numberedRhythm: context.numberedRhythm,
   });
 
   const beats = Object.values(slotsByBeatId);
   const strings = buildStringLines(x, y, assignedWidth);
+  if (isMeasureRepeat(measure)) {
+    const top = strings[0]!.y1, bottom = strings.at(-1)!.y1;
+    const bodyLeft = x + leadingWidth, bodyWidth = assignedWidth - leadingWidth;
+    const duration = getMeasureDurationTicks(measure);
+    const cursorInset = 10;
+    return {
+      id: measure.id, index, systemIndex, x, y, width: assignedWidth,
+      height: calculateMeasureHeight(y, bottom),
+      strings, barline: layoutBarline(visualBarline, strings),
+      timeSignature: showTimeSignature ? layoutTimeSignature(measure, x, y, leadingBarlineClearance) : null,
+      columns, numberedSlots: [], timeAnchors: [],
+      beats: [], notes: [], restMarks: [], beamSegments: [], durationMarks: [], tuplets: [],
+      measureRepeat: {
+        x: bodyLeft + bodyWidth / 2, y: (top + bottom) / 2,
+        bounds: { x, y: top - 3, width: assignedWidth, height: bottom - top + 6 },
+        // 游标按真实节内 tick 插值，无需把隐藏拍位加入 TAB 或简谱的命中索引。
+        playbackBeats: measure.beats.map((beat) => ({
+          id: beat.id,
+          x: bodyLeft + cursorInset + (bodyWidth - cursorInset * 2) * beat.tick / duration,
+        })),
+      },
+    };
+  }
   const notes = layoutNodes(
     measure.id,
     measure.beats,

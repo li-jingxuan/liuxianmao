@@ -19,7 +19,7 @@ import {
   parseNumberedSequence,
   createDocumentIdFactory,
   editNumberedTrack,
-  createNumberedRhythmContext,
+  createNumberedTrackRhythmContext,
   getMeasureDurationTicks,
   NUMBERED_CONTINUATION_RHYTHM_REASON,
   numberedContinuationRhythm,
@@ -318,6 +318,7 @@ export const NumberedEditor = ({
       : null;
   }, [document, target, submittedTarget, targetInputKey]);
   const track = document.score.tracks.find((t) => t.id === resolved?.trackId);
+  const numberedRhythm = useMemo(() => track && createNumberedTrackRhythmContext(track), [track]);
   const measure = track?.measures.find((m) => m.id === resolved?.measureId);
   const targetEvent =
     resolved?.kind === "numberedEvent"
@@ -327,8 +328,8 @@ export const NumberedEditor = ({
       : resolved?.kind === "numberedTime"
         ? measure?.numberedVoice.events.find((event) => {
             if (event.kind !== "gap" || event.tick !== resolved.tick) return false;
-            const duration = createNumberedRhythmContext(measure.numberedVoice).getEventDurationTicks(event);
-            return duration.ok && event.tick + duration.ticks === resolved.endTick;
+            const duration = numberedRhythm?.getEventDurationTicks(event);
+            return duration?.ok && event.tick + duration.ticks === resolved.endTick;
           })
         : undefined;
   const sourceBeat =
@@ -377,11 +378,9 @@ export const NumberedEditor = ({
   const [selectedId, setSelectedId] = useState(firstEvent?.id ?? "");
   const event = measure?.numberedVoice.events.find((e) => e.id === selectedId);
   const window =
-    event && measure
+    event && numberedRhythm
       ? (() => {
-          const d = createNumberedRhythmContext(
-            measure.numberedVoice,
-          ).getEventDurationTicks(event);
+          const d = numberedRhythm.getEventDurationTicks(event);
           return { start: event.tick, end: event.tick + (d.ok ? d.ticks : 0) };
         })()
       : firstBeat
@@ -396,7 +395,7 @@ export const NumberedEditor = ({
     mode === "single"
       ? (firstEvent?.items.map((i) => i.token).join("+") ?? "")
       : firstBeat && measure
-        ? numberedSequenceRangeText(measure, Math.min(firstBeat.tick, firstEvent?.tick ?? Infinity), selectedEnd)
+        ? numberedSequenceRangeText(measure, Math.min(firstBeat.tick, firstEvent?.tick ?? Infinity), selectedEnd, numberedRhythm)
         : firstEvent?.items.map(item => item.token).join("+") ?? "";
   const [raw, setRaw] = useState(value),
     [initial, setInitial] = useState(value),
@@ -1210,7 +1209,7 @@ export const NumberedEditor = ({
               state.mode === "single"
                 ? afterEvent.items.map((i) => i.token).join("+")
                 : state.selectionRange
-                  ? numberedSequenceRangeText(afterTrack!.measures.find(m => m.id === state.measureId)!, state.selectionRange.start, state.selectionRange.end)
+                  ? numberedSequenceRangeText(afterTrack!.measures.find(m => m.id === state.measureId)!, state.selectionRange.start, state.selectionRange.end, createNumberedTrackRhythmContext(afterTrack!))
                   : afterEvent.items.map(i => i.token).join("+");
             setRaw(text);
             setInitial(text);
@@ -1229,7 +1228,7 @@ export const NumberedEditor = ({
             editorStore.getState().setNumberedSelection({ kind: "numberedEvent", trackId: op.trackId,
               measureId: editedMeasure.id, eventId: afterEvent.id, ...(member ? { itemId: member.id } : {}) });
           } else {
-            const blank = planNumberedInputRanges(editedMeasure).find((slot) => slot.startTick === startTick);
+            const blank = planNumberedInputRanges(editedMeasure, 0, createNumberedTrackRhythmContext(afterTrack)).find((slot) => slot.startTick === startTick);
             if (blank) editorStore.getState().setNumberedSelection({ kind: "numberedTime", trackId: op.trackId,
               measureId: editedMeasure.id, tick: blank.startTick, endTick: blank.endTick });
           }

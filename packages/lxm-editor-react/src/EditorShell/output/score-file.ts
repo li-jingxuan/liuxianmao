@@ -130,8 +130,7 @@ const inspectMusicScale = (document: ILXMDocument): string | null => {
   return null;
 };
 
-/** 正式布局和场景预检，避免合法 schema 却无法正常绘制的文件替换当前曲谱。 */
-const inspectScene = (document: ILXMDocument): string | null => {
+const inspectSceneProjection = (document: ILXMDocument): string | null => {
   try {
     const layout = buildLayout(document, {
       x: 0,
@@ -140,35 +139,34 @@ const inspectScene = (document: ILXMDocument): string | null => {
       density: "compact",
     });
     const measures = layout.systems.flatMap((system) => system.measures);
+    const sourceMeasures = document.score.tracks[0]!.measures;
     if (
       !layout.systems.length ||
       !Number.isFinite(layout.width) ||
       !Number.isFinite(layout.height) ||
       layout.height <= 0 ||
-      measures.length !== document.score.tracks[0]!.measures.length ||
-      measures.some(
-        (measure, index) =>
-          measure.id !== document.score.tracks[0]!.measures[index]!.id ||
-          measure.beats.length !==
-            document.score.tracks[0]!.measures[index]!.beats.length ||
-          measure.beats.some(
-            (beat, beatIndex) =>
-              beat.id !==
-              document.score.tracks[0]!.measures[index]!.beats[beatIndex]!.id,
-          ),
-      )
+      measures.length !== sourceMeasures.length ||
+      measures.some((measure, index) => {
+        const source = sourceMeasures[index]!;
+        const repeat = measure.measureRepeat;
+        const beats = repeat?.playbackBeats ?? measure.beats;
+        return measure.id !== source.id || Boolean(repeat) !== Boolean(source.measureRepeat) ||
+          (repeat && (measure.beats.length > 0 || beats.some((beat) => !Number.isFinite(beat.x)))) ||
+          beats.length !== source.beats.length ||
+          beats.some((beat, beatIndex) => beat.id !== source.beats[beatIndex]!.id);
+      })
     )
       return "曲谱布局不完整，无法导入";
     for (const [i, measure] of measures.entries()) {
-      const source = document.score.tracks[0]!.measures[i]!;
+      const events = measure.measureRepeat ? [] : sourceMeasures[i]!.numberedVoice.events;
       if (
         JSON.stringify(measure.numberedSlots.map((e) => e.id)) !==
-          JSON.stringify(source.numberedVoice.events.map((e) => e.id)) ||
+          JSON.stringify(events.map((e) => e.id)) ||
         JSON.stringify(
           (measure.numberedNotation ?? []).map((e) => e.eventId),
         ) !==
           JSON.stringify(
-            source.numberedVoice.events
+            events
               .filter((e) => e.kind !== "gap")
               .map((e) => e.id),
           ) ||
@@ -188,6 +186,25 @@ const inspectScene = (document: ILXMDocument): string | null => {
   } catch {
     return "曲谱无法完成排版，未替换当前曲谱";
   }
+};
+
+/** 先校验显示的谱面，再将含隐藏简谱的快照临时展开，用同一套布局和场景约束检查其内容。 */
+const inspectScene = (document: ILXMDocument): string | null => {
+  const error = inspectSceneProjection(document);
+  if (error) return error;
+  const track = document.score.tracks[0]!;
+  const hidesNumbered = (measure: (typeof track.measures)[number]) =>
+    Boolean(measure.measureRepeat && measure.numberedVoice.events.length);
+  if (!track.measures.some(hidesNumbered)) return null;
+  const measures = track.measures.map((measure) => {
+    if (!hidesNumbered(measure)) return measure;
+    const { measureRepeat: _measureRepeat, ...snapshot } = measure;
+    return snapshot;
+  });
+  return inspectSceneProjection({
+    ...document,
+    score: { ...document.score, tracks: [{ ...track, measures }] },
+  });
 };
 
 /** 导入和导出回读共用入口，始终以本版编辑器可操作的完整曲谱为准。 */

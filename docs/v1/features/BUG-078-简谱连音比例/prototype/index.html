@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>简谱连音工具 · 六线猫交互稿</title>
+<style>
+  :root { color: #202936; font: 15px/1.5 system-ui, "PingFang SC", "Microsoft YaHei", sans-serif; background: #f0f3f7; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-width: 1440px; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  button:focus-visible, .option:focus-visible { outline: 2px solid #1677ff; outline-offset: 3px; }
+  button[disabled] { cursor: not-allowed; }
+  header { height: 62px; display: flex; align-items: center; justify-content: space-between; padding: 0 36px; background: #fff; border-bottom: 1px solid #dce2eb; }
+  h1 { margin: 0; font-size: 18px; font-weight: 650; }
+  .brand { color: #5f6d80; }
+  .toolbar { display: flex; justify-content: flex-end; align-items: center; padding: 8px 36px; height: 54px; background: #fff; border-bottom: 1px solid #dce2eb; }
+  #open, .scenario { border: 1px solid #cbd5e1; border-radius: 5px; background: white; padding: 5px 12px; }
+  #open[aria-expanded="true"], .scenario[aria-checked="true"] { background: #e8f2ff; border-color: #8cbaff; color: #145bb7; }
+  main { position: relative; max-width: 1320px; min-height: 440px; margin: 0 auto; padding: 64px 70px 36px; background: white; }
+  .panel { position: absolute; top: 6px; right: 14px; width: 324px; padding: 15px; border: 1px solid #dce2eb; border-radius: 8px; background: white; box-shadow: 0 8px 24px #172a4520; z-index: 1; }
+  .panel-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 9px; }
+  h2 { margin: 0; font-size: 16px; }
+  #close { border: 0; border-radius: 4px; background: white; font-size: 20px; line-height: 1; padding: 4px 8px; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .option { display: block; min-width: 0; border-radius: 5px; }
+  .option button, #remove { width: 100%; height: 36px; border: 1px solid #aebdd0; border-radius: 5px; background: #fff; }
+  .option button { display: grid; place-items: center; }
+  .option button[disabled] { background: #f4f5f7; border-color: #dce2eb; color: #758093; }
+  #remove { margin-top: 8px; color: #b0323e; }
+  #remove[disabled] { background: #f4f5f7; border-color: #dce2eb; color: #758093; }
+  #reason { min-height: 2.8em; margin: 8px 0 0; font-size: 13px; color: #626e80; }
+  #score { display: block; width: 100%; overflow: visible; }
+  .scenarios { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .scenarios h2 { margin-right: 6px; }
+  #feedback { color: #42566f; min-height: 1.5em; margin: 12px 0 0; }
+</style>
+</head>
+<body>
+<header><span class="brand">六线猫</span><h1>简谱连音工具</h1><span class="brand">交互稿</span></header>
+<div class="toolbar"><button id="open" aria-controls="panel" aria-expanded="false">连音工具</button></div>
+<main>
+  <svg id="score" viewBox="0 0 1180 250" role="img" aria-labelledby="score-title"></svg>
+  <section id="panel" class="panel" aria-labelledby="panel-title" hidden>
+    <div class="panel-heading"><h2 id="panel-title">连音工具</h2><button id="close" aria-label="关闭连音工具">×</button></div>
+    <div class="grid" id="ratios" role="group" aria-label="连音比例"></div>
+    <button id="remove">删除连音组</button>
+    <p id="reason" role="status" aria-atomic="true"></p>
+  </section>
+  <div class="scenarios" id="scenarios" role="radiogroup" aria-labelledby="example-title"><h2 id="example-title">示例选区</h2></div>
+  <p id="feedback" role="status" aria-atomic="true"></p>
+</main>
+<script>
+  const ratios = [[2, 3, '二连音'], [3, 2, '三连音'], [4, 3, '四连音'], [5, 4, '五连音'], [5, 3, '五连音'], [6, 4, '六连音']];
+  const examples = [
+    { count: 2, label: '2 个音，有空位' }, { count: 2, label: '2 个音，空位不足', blocked: true },
+    { count: 3, label: '3 个音' }, { count: 4, label: '4 个音' }, { count: 5, label: '5 个音' }, { count: 6, label: '6 个音' },
+  ];
+  const byId = (id) => document.getElementById(id);
+  const open = byId('open');
+  const panel = byId('panel');
+  const reasons = byId('reason');
+  const feedback = byId('feedback');
+  const remove = byId('remove');
+  const quietHint = '选择同一小节内连续、时值相同的音符。';
+  let selected = 2;
+  let applied = null;
+
+  function drawScore() {
+    const { count, blocked } = examples[selected];
+    const x = 454;
+    const naturalStep = 48;
+    const step = applied ? naturalStep * applied[1] / applied[0] : naturalStep;
+    const numbers = [4, 4, 4, 4, 3, 1];
+    const last = x + (count - 1) * step;
+    const marks = Array.from({ length: count }, (_, i) => `<text x="${x + i * step}" y="183">${numbers[i]}</text>`).join('');
+    const tab = Array.from({ length: 6 }, (_, i) => `<path d="M32 ${34 + i * 12}H1148"/>`).join('');
+    const groupMark = applied ? `<path d="M${x - 10} 155q${(last - x + 20) / 2} -23 ${last - x + 20} 0" fill="none" stroke="#263242" stroke-width="1.5"/><text x="${(x + last) / 2}" y="143" font-size="13" paint-order="stroke" stroke="white" stroke-width="5">${applied[0]}</text>` : '';
+    byId('score').innerHTML = `<title id="score-title">${count} 个选中简谱音${applied ? `，已应用 ${applied[0]}:${applied[1]} 连音` : ''}</title>
+      <g stroke="#263242" stroke-width="1.25" fill="none">${tab}<path d="M32 34v60m377-60v60m394-60v60m345-60v60M32 158v47m377-47v47m394-47v47m345-47v47M108 38v88m122-88v88m100-88v88m124-88v88m198-88v88m195-88v88m145-88v88"/></g>
+      <g fill="#4f6178" font-size="13"><text x="32" y="26">30</text><text x="410" y="26">31</text><text x="804" y="26">32</text></g>
+      <rect x="${x - 18}" y="161" width="${last - x + 36}" height="32" rx="5" fill="#e8f2ff" stroke="#87b8ff"/>
+      <g fill="#202936" text-anchor="middle" font-family="Arial, sans-serif" font-size="22"><text x="109" y="183">3</text><text x="230" y="183">4</text><text x="330" y="183">6</text>${marks}${groupMark}${blocked ? '<text x="550" y="183">1</text>' : ''}<text x="846" y="183">3</text><text x="950" y="183">2</text><text x="1018" y="183">2</text></g>
+      <path d="M${x - 10} 190H${last + 10}" stroke="#263242" stroke-width="1.5"/><g fill="#5d6879" font-size="14" text-anchor="middle"><text x="109" y="223">谢</text><text x="230" y="223">了</text><text x="330" y="223">又</text><text x="846" y="223">活</text><text x="950" y="223">里</text></g>`;
+  }
+
+  function setPanel(isOpen, restoreFocus = true) {
+    panel.hidden = !isOpen;
+    open.setAttribute('aria-expanded', isOpen);
+    if (isOpen) {
+      renderOptions();
+      byId('close').focus();
+    } else if (restoreFocus) {
+      open.focus();
+    }
+  }
+
+  function disabledReason(actual, normal) {
+    const example = examples[selected];
+    if (applied) return '已经应用连音组，可在下方删除。';
+    if (example.count !== actual) return `需要选择 ${actual} 个音，当前选中 ${example.count} 个。`;
+    if (example.blocked && normal > actual) return '本小节的空位不足，二连音会占到后续音符。';
+    return '';
+  }
+
+  function renderOptions() {
+    reasons.textContent = examples[selected].blocked && !applied ? disabledReason(2, 3) : quietHint;
+    const defaultReason = reasons.textContent;
+    const options = ratios.map((ratio) => {
+      const [actual, normal, name] = ratio;
+      const desc = `${name}（${actual}:${normal}）`;
+      const reason = disabledReason(actual, normal);
+      const wrapper = document.createElement('span');
+      wrapper.className = 'option';
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.setAttribute('aria-label', desc);
+      button.disabled = !!reason;
+      button.innerHTML = `<svg width="54" height="24" viewBox="0 0 54 24" aria-hidden="true"><path d="M3 9v7h9m30 0h9V9" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="27" y="16" text-anchor="middle" fill="currentColor" font-size="12">${actual === 5 ? `${actual}:${normal}` : actual}</text></svg>`;
+      if (reason) {
+        wrapper.tabIndex = 0;
+        wrapper.setAttribute('aria-label', `${desc}。${reason}`);
+      }
+      const hint = reason || `${desc}。${actual} 个等时值音符占原本 ${normal} 个的时间。`;
+      wrapper.addEventListener('pointerenter', () => { reasons.textContent = hint; });
+      wrapper.addEventListener('pointerleave', () => { reasons.textContent = defaultReason; });
+      wrapper.addEventListener('focusin', () => { reasons.textContent = hint; });
+      wrapper.addEventListener('focusout', () => { reasons.textContent = defaultReason; });
+      button.addEventListener('click', () => {
+        applied = ratio;
+        drawScore();
+        feedback.textContent = `已应用 ${desc}。`;
+        setPanel(false);
+      });
+      wrapper.append(button);
+      return wrapper;
+    });
+    byId('ratios').replaceChildren(...options);
+    remove.disabled = !applied;
+  }
+
+  function selectExample(index, moveFocus = false) {
+    selected = index;
+    applied = null;
+    feedback.textContent = '';
+    exampleButtons.forEach((button, i) => {
+      button.setAttribute('aria-checked', i === selected);
+      button.tabIndex = i === selected ? 0 : -1;
+    });
+    drawScore();
+    if (!panel.hidden) renderOptions();
+    if (moveFocus) exampleButtons[index].focus();
+  }
+
+  const exampleButtons = examples.map(({ label }, index) => {
+    const button = document.createElement('button');
+    button.className = 'scenario';
+    button.setAttribute('role', 'radio');
+    button.textContent = label;
+    button.addEventListener('click', () => selectExample(index));
+    button.addEventListener('keydown', (event) => {
+      const delta = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[event.key];
+      if (!delta) return;
+      event.preventDefault();
+      selectExample((index + delta + examples.length) % examples.length, true);
+    });
+    byId('scenarios').append(button);
+    return button;
+  });
+  open.addEventListener('click', () => setPanel(panel.hidden));
+  byId('close').addEventListener('click', () => setPanel(false));
+  panel.addEventListener('keydown', (event) => { if (event.key === 'Escape') setPanel(false); });
+  remove.addEventListener('click', () => {
+    applied = null;
+    drawScore();
+    feedback.textContent = '已删除连音组。';
+    setPanel(false);
+  });
+  selectExample(selected);
+</script>
+</body>
+</html>

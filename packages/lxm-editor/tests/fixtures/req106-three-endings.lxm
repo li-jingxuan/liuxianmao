@@ -1,0 +1,142 @@
+{
+  "schema": "lxm-tab-score",
+  "schemaVersion": 8,
+  "documentRevision": 1,
+  "score": {
+    "id": "req106-three-endings", "title": "三遍反复房子练习", "arranger": "", "keySignature": "C", "tempoBpm": 120, "meta": {},
+    "tracks": [{
+      "id": "track", "name": "吉他", "instrument": "guitar", "capo": 0, "startBarline": "repeatStart",
+      "tuning": { "strings": [
+        { "index": 1, "pitch": "E4", "midi": 64 }, { "index": 2, "pitch": "B3", "midi": 59 },
+        { "index": 3, "pitch": "G3", "midi": 55 }, { "index": 4, "pitch": "D3", "midi": 50 },
+        { "index": 5, "pitch": "A2", "midi": 45 }, { "index": 6, "pitch": "E2", "midi": 40 }
+      ] },
+      "techniques": [], "numberedMarks": [],
+      "repeatEndingGroups": [{
+        "id": "repeat-group-1", "startMeasureId": "m1", "sharedEndMeasureId": "m3", "endMeasureId": "m8", "passCount": 3,
+        "endings": [
+          { "id": "ending-1", "startMeasureId": "m4", "endMeasureId": "m5", "passes": [1] },
+          { "id": "ending-2", "startMeasureId": "m6", "endMeasureId": "m6", "passes": [2] },
+          { "id": "ending-3", "startMeasureId": "m7", "endMeasureId": "m8", "passes": [3] }
+        ]
+      }],
+      "measures": [
+        { "id": "m1", "timeSignature": { "numerator": 4, "denominator": 4 }, "barline": "single",
+          "chordSymbols": [], "lyrics": [], "tuplets": [], "numberedVoice": { "events": [], "tuplets": [] }, "beats": [
+            { "id": "b1-1", "tick": 0, "kind": "notes", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [{ "id": "n1", "string": 1, "fret": 1 }] },
+            { "id": "b1-2", "tick": 240, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b1-3", "tick": 480, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b1-4", "tick": 720, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b1-5", "tick": 960, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b1-6", "tick": 1200, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b1-7", "tick": 1440, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b1-8", "tick": 1680, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b1-9", "tick": 1920, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b1-10", "tick": 2160, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b1-11", "tick": 2400, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b1-12", "tick": 2640, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b1-13", "tick": 2880, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b1-14", "tick": 3120, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b1-15", "tick": 3360, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b1-16", "tick": 3600, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] }
+          ] },
+        { "id": "m2", "timeSignature": { "numerator": 4, "denominator": 4 }, "barline": "single",
+          "chordSymbols": [], "lyrics": [], "tuplets": [], "numberedVoice": { "events": [], "tuplets": [] }, "beats": [
+            { "id": "b2-1", "tick": 0, "kind": "notes", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [{ "id": "n2", "string": 1, "fret": 2 }] },
+            { "id": "b2-2", "tick": 240, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b2-3", "tick": 480, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b2-4", "tick": 720, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b2-5", "tick": 960, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b2-6", "tick": 1200, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b2-7", "tick": 1440, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b2-8", "tick": 1680, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b2-9", "tick": 1920, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b2-10", "tick": 2160, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b2-11", "tick": 2400, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b2-12", "tick": 2640, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b2-13", "tick": 2880, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b2-14", "tick": 3120, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b2-15", "tick": 3360, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b2-16", "tick": 3600, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] }
+          ] },
+        { "id": "m3", "timeSignature": { "numerator": 4, "denominator": 4 }, "barline": "single",
+          "chordSymbols": [], "lyrics": [], "tuplets": [], "numberedVoice": { "events": [], "tuplets": [] }, "beats": [
+            { "id": "b3-1", "tick": 0, "kind": "notes", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [{ "id": "n3", "string": 1, "fret": 3 }] },
+            { "id": "b3-2", "tick": 240, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b3-3", "tick": 480, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b3-4", "tick": 720, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b3-5", "tick": 960, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b3-6", "tick": 1200, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b3-7", "tick": 1440, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b3-8", "tick": 1680, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b3-9", "tick": 1920, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b3-10", "tick": 2160, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b3-11", "tick": 2400, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b3-12", "tick": 2640, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b3-13", "tick": 2880, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b3-14", "tick": 3120, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b3-15", "tick": 3360, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b3-16", "tick": 3600, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] }
+          ] },
+        { "id": "m4", "timeSignature": { "numerator": 4, "denominator": 4 }, "barline": "single",
+          "chordSymbols": [], "lyrics": [], "tuplets": [], "numberedVoice": { "events": [], "tuplets": [] }, "beats": [
+            { "id": "b4-1", "tick": 0, "kind": "notes", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [{ "id": "n4", "string": 1, "fret": 4 }] },
+            { "id": "b4-2", "tick": 240, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b4-3", "tick": 480, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b4-4", "tick": 720, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b4-5", "tick": 960, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b4-6", "tick": 1200, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b4-7", "tick": 1440, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b4-8", "tick": 1680, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b4-9", "tick": 1920, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b4-10", "tick": 2160, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b4-11", "tick": 2400, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b4-12", "tick": 2640, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b4-13", "tick": 2880, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b4-14", "tick": 3120, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b4-15", "tick": 3360, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b4-16", "tick": 3600, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] }
+          ] },
+        { "id": "m5", "timeSignature": { "numerator": 4, "denominator": 4 }, "barline": "repeatEnd",
+          "chordSymbols": [], "lyrics": [], "tuplets": [], "numberedVoice": { "events": [], "tuplets": [] }, "beats": [
+            { "id": "b5-1", "tick": 0, "kind": "notes", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [{ "id": "n5", "string": 1, "fret": 5 }] },
+            { "id": "b5-2", "tick": 240, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b5-3", "tick": 480, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b5-4", "tick": 720, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b5-5", "tick": 960, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b5-6", "tick": 1200, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b5-7", "tick": 1440, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b5-8", "tick": 1680, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b5-9", "tick": 1920, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b5-10", "tick": 2160, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b5-11", "tick": 2400, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b5-12", "tick": 2640, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b5-13", "tick": 2880, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b5-14", "tick": 3120, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b5-15", "tick": 3360, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] },
+            { "id": "b5-16", "tick": 3600, "kind": "rest", "rhythm": { "base": "sixteenth", "dots": 0 }, "notes": [] }
+          ] },
+        { "id": "m6", "timeSignature": { "numerator": 4, "denominator": 4 }, "barline": "single",
+          "chordSymbols": [], "lyrics": [], "tuplets": [], "numberedVoice": { "events": [], "tuplets": [] }, "beats": [
+            { "id": "b6-1", "tick": 0, "kind": "notes", "rhythm": { "base": "whole", "dots": 0 }, "notes": [{ "id": "n6", "string": 1, "fret": 6 }] }
+          ] },
+        { "id": "m7", "timeSignature": { "numerator": 4, "denominator": 4 }, "barline": "single",
+          "chordSymbols": [], "lyrics": [], "tuplets": [], "numberedVoice": { "events": [], "tuplets": [] }, "beats": [
+            { "id": "b7-1", "tick": 0, "kind": "notes", "rhythm": { "base": "whole", "dots": 0 }, "notes": [{ "id": "n7", "string": 1, "fret": 7 }] }
+          ] },
+        { "id": "m8", "timeSignature": { "numerator": 4, "denominator": 4 }, "barline": "single",
+          "chordSymbols": [], "lyrics": [], "tuplets": [], "numberedVoice": { "events": [], "tuplets": [] }, "beats": [
+            { "id": "b8-1", "tick": 0, "kind": "notes", "rhythm": { "base": "whole", "dots": 0 }, "notes": [{ "id": "n8", "string": 1, "fret": 8 }] }
+          ] },
+        { "id": "m9", "timeSignature": { "numerator": 4, "denominator": 4 }, "barline": "single",
+          "chordSymbols": [], "lyrics": [], "tuplets": [], "numberedVoice": { "events": [], "tuplets": [] }, "beats": [
+            { "id": "b9-1", "tick": 0, "kind": "notes", "rhythm": { "base": "whole", "dots": 0 }, "notes": [{ "id": "n9", "string": 1, "fret": 9 }] }
+          ] },
+        { "id": "m10", "timeSignature": { "numerator": 4, "denominator": 4 }, "barline": "final",
+          "chordSymbols": [], "lyrics": [], "tuplets": [], "numberedVoice": { "events": [], "tuplets": [] }, "beats": [
+            { "id": "b10-1", "tick": 0, "kind": "notes", "rhythm": { "base": "whole", "dots": 0 }, "notes": [{ "id": "n10", "string": 1, "fret": 10 }] }
+          ] }
+      ]
+    }]
+  }
+}

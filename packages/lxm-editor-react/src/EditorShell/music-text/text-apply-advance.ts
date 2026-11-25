@@ -1,6 +1,6 @@
 import {
   calculateRhythmTicks,
-  createNumberedRhythmContext,
+  createNumberedTrackRhythmContext,
   planLyricPositions,
   planNumberedInputRanges,
   type ILXMDocument,
@@ -33,6 +33,7 @@ export function nextNumberedTextInput(
   command: ILXMNumberedVoiceCommand,
   candidate: Extract<NumberedCandidate, { ok: true }>,
 ): MusicTextTarget | undefined {
+  const rhythm = createNumberedTrackRhythmContext(after);
   let boundary: { measureId: string; endTick: number } | undefined;
   if (command.type === "numbered.sequence.overwrite" || command.type === "numbered.sequence.set") {
     boundary = candidate.sequenceTargets?.at(-1);
@@ -60,13 +61,13 @@ export function nextNumberedTextInput(
     const measure = after.measures.find((item) => item.id === command.measureId);
     const event = measure?.numberedVoice.events.find((item) => item.id === command.eventId);
     if (!event || !measure || !changedNumberedTokens(before, command.measureId, event.tick, command.tokens)) return;
-    const duration = createNumberedRhythmContext(measure.numberedVoice).getEventDurationTicks(event);
+    const duration = rhythm.getEventDurationTicks(event);
     if (duration.ok) boundary = { measureId: command.measureId, endTick: event.tick + duration.ticks };
   }
   if (!boundary) return;
   // 提交可能拆分虚拟空位。按保存后的真实空位重新规划，既支持已有 gap，也支持虚拟时间窗。
   const next = findFollowingSlot(after, boundary.measureId, boundary.endTick, (measure, minTick) =>
-    planNumberedInputRanges(measure).find((slot) => slot.startTick >= minTick));
+    planNumberedInputRanges(measure, 0, rhythm).find((slot) => slot.startTick >= minTick));
   if (next) return { kind: "numbered", trackId: after.id, measureId: next.measureId, ...(next.slot.eventId
     ? { eventId: next.slot.eventId }
     : { tick: next.slot.startTick, endTick: next.slot.endTick }) };
@@ -81,8 +82,9 @@ function changedNumberedTokens(track: ILXMTrack, measureId: string, tick: number
 export function nextLyricTextInput(document: ILXMDocument, last: LyricSequenceTarget, endTick: number): MusicTextTarget | undefined {
   const track = document.score.tracks.find((item) => item.id === last.trackId);
   if (!track) return;
+  const rhythm = createNumberedTrackRhythmContext(track);
   const next = findFollowingSlot(track, last.measureId, endTick, (measure, minTick) =>
-    planLyricPositions(measure).find((position) => position.tick >= minTick &&
+    planLyricPositions(measure, rhythm).find((position) => position.tick >= minTick &&
       !measure.lyrics.some((lyric) => lyric.eventId === position.eventId && lyric.verse === last.verse)));
   if (next) return { kind: "lyric", trackId: track.id, measureId: next.measureId, verse: last.verse, ...(next.slot.eventId
     ? { eventId: next.slot.eventId }

@@ -14,13 +14,10 @@ import { buildTechniqueIndex } from "../../core/techniques/technique-rules";
 import type { ILXMTechnique, ILXMTrack } from "../../core/types";
 import {
   LXM_TECHNIQUE_AREA_PADDING_TOP,
-  LXM_TECHNIQUE_ARROW_HEIGHT,
-  LXM_TECHNIQUE_ARROW_WIDTH,
   LXM_TECHNIQUE_LANE_HEIGHT,
   LXM_TECHNIQUE_PATH_STROKE_WIDTH,
   LXM_TECHNIQUE_TEXT_FONT_SIZE,
   LXM_TECHNIQUE_TEXT_HALO_WIDTH,
-  LXM_TECHNIQUE_ARROW_OFFSET_Y,
   LXM_TECHNIQUE_NOTE_CLEARANCE_Y,
   LXM_TECHNIQUE_FRET_GAP_X,
   LXM_TECHNIQUE_CURVE_HEIGHT,
@@ -45,6 +42,7 @@ import {
   getFretTextBounds,
   getTextBounds,
   getTechniqueInkBounds,
+  getTechniqueMarkerArrowPoints,
   hasChordTraversalRange,
   placeCurveLabelAboveApex,
   translateTechniqueSegment,
@@ -498,8 +496,20 @@ const assignLanes = (
       const obstacles = [...notes, ...segments.flatMap((other, otherIndex) =>
         otherIndex === index ? [] : isAnchoredCurve(other)
           ? getTechniqueInkBounds(other) : [other.visualBounds])];
-      const compact = compactRangeTechnique(segment,
+      let compact = compactRangeTechnique(segment,
         Math.max(0, segment.lane) * LXM_TECHNIQUE_LANE_HEIGHT, obstacles);
+      // 区间标记尝试下移时，扫弦和琶音仍要留足整个符号的碰撞净空。
+      // 若逐笔计算的落点越过该净空，贴到允许的边缘即可，避免退回整档高度。
+      for (const other of segments) {
+        if (
+          (other.type !== "strum" && other.type !== "arpeggio") ||
+          !techniqueInkIntersects(compact, other)
+        ) continue;
+        const compactBottom = compact.collisionBounds.y + compact.collisionBounds.height;
+        const clearanceShift = other.collisionBounds.y - compactBottom;
+        const originalShift = segment.visualBounds.y - compact.visualBounds.y;
+        compact = translateTechniqueSegment(compact, Math.max(clearanceShift, originalShift));
+      }
       // 仍遵守最终通用碰撞合同；极密组合不为压紧空白引入交叠。
       if (!segments.some((other, otherIndex) => otherIndex !== index && techniqueInkIntersects(compact, other))) {
         segments[index] = compact;
@@ -593,17 +603,18 @@ const wavePath = (x1: number, x2: number, y: number): string => {
   return parts.join(" ");
 };
 
-const verticalWavePath = (x: number, y1: number, y2: number): string => {
+/** 成品和端点拖动预览共用波线；y1 是起笔位置，y2 是箭头底边。 */
+export const getArpeggioWavePath = (x: number, y1: number, y2: number): string => {
   const parts = [`M ${x} ${y1}`];
-  const direction = y2 >= y1 ? 1 : -1;
-  // 琶音既可能从低音弦向高音弦，也可能反向；步长携带方向后，两种路径共用
-  // 同一算法，箭头始终落在音乐语义中的终点。
-  for (let y = y1; direction > 0 ? y < y2 : y > y2; y += 6 * direction) {
-    const candidateEnd = y + 6 * direction;
-    const end =
-      direction > 0 ? Math.min(candidateEnd, y2) : Math.max(candidateEnd, y2);
-    parts.push(`Q ${x - 2} ${y + 1.5 * direction} ${x} ${y + 3 * direction}`);
-    parts.push(`Q ${x + 2} ${y + 4.5 * direction} ${x} ${end}`);
+  // 以约 6 个布局单位为一个周期，把完整波形均匀铺到箭头底边。最短的相邻两弦
+  // 也保留左右各一段曲线；带方向的插值让两种走向的控制点都留在路径范围内，尾部不会折返。
+  const length = y2 - y1;
+  const cycles = Math.max(1, Math.round(Math.abs(length) / 6));
+  const step = length / cycles;
+  for (let cycle = 0; cycle < cycles; cycle++) {
+    const y = y1 + cycle * step;
+    parts.push(`Q ${x - 2} ${y + step / 4} ${x} ${y + step / 2}`);
+    parts.push(`Q ${x + 2} ${y + (step * 3) / 4} ${x} ${y + step}`);
   }
   return parts.join(" ");
 };
@@ -808,57 +819,36 @@ const createNaturalSegmentLayout = (
         const x = technique.type === "strum" && technique.showFrets
           ? beat.x - strumOffsetFromFrets(Math.max(0, ...beat.notes.map((note) => getFretTextBounds(note).width / 2)))
           : beat.x;
-        const directionStartY =
-          technique.type === "arpeggio"
-            ? technique.direction === "ascending"
-              ? y2
-              : y1
-            : technique.stroke === "down"
-              ? y2
-              : y1;
-        const directionEndY = directionStartY === y1 ? y2 : y1;
+        // TAB 的低音弦在下方，上行琶音与 down 扫弦都从下往上画；起止点继续用于点击选端。
+        const goesUp = technique.type === "arpeggio"
+          ? technique.direction === "ascending"
+          : technique.stroke === "down";
+        const directionStartY = goesUp ? y2 : y1;
+        const directionEndY = goesUp ? y1 : y2;
         focusEndpoints = {
           start: { x, y: directionStartY },
           end: { x, y: directionEndY },
         };
-        path =
-          technique.type === "arpeggio"
-            ? {
-                // TAB 的低音弦在视觉下方：上行音高从 y2 走向 y1，下行反之。
-                d:
-                  technique.direction === "ascending"
-                    ? verticalWavePath(x, y2, y1)
-                    : verticalWavePath(x, y1, y2),
-                strokeWidth: LXM_TECHNIQUE_PATH_STROKE_WIDTH,
-              }
-            : {
-                // down/up 是演奏手方向。TAB 的低音弦在下方，因此 down 从 y2 指向
-                // y1；up 反向。页面只渲染 marker，不接触这层坐标语义。
-                d:
-                  technique.stroke === "down"
-                    ? `M ${x} ${y2} L ${x} ${y1}`
-                    : `M ${x} ${y1} L ${x} ${y2}`,
-                strokeWidth: LXM_TECHNIQUE_PATH_STROKE_WIDTH,
-                markerEnd: "arrow",
-              };
         if (technique.type === "arpeggio") {
-          const direction = technique.direction === "ascending" ? "up" : "down";
-          const offsetTipY =
-            direction === "up"
-              ? -LXM_TECHNIQUE_ARROW_OFFSET_Y
-              : LXM_TECHNIQUE_ARROW_OFFSET_Y;
-          const tipY = (direction === "up" ? y1 : y2) + offsetTipY;
-          const baseY =
-            direction === "up"
-              ? tipY + LXM_TECHNIQUE_ARROW_HEIGHT
-              : tipY - LXM_TECHNIQUE_ARROW_HEIGHT;
+          // 同弦范围的扫弦与琶音从同一高度起笔，箭尖也落在同一高度。琶音保留显式的
+          // 垂直箭头，避免随波线末端切线倾斜；波线收到三角形底边，两者直接相接。
+          const [firstBase, tip, secondBase] = getTechniqueMarkerArrowPoints(
+            [x, directionEndY],
+            goesUp ? -Math.PI / 2 : Math.PI / 2,
+          );
+          path = {
+            d: getArpeggioWavePath(x, directionStartY, firstBase[1]),
+            strokeWidth: LXM_TECHNIQUE_PATH_STROKE_WIDTH,
+          };
           arrowHead = {
-            direction,
-            points: [
-              [x, tipY],
-              [x - LXM_TECHNIQUE_ARROW_WIDTH / 2, baseY],
-              [x + LXM_TECHNIQUE_ARROW_WIDTH / 2, baseY],
-            ],
+            direction: goesUp ? "up" : "down",
+            points: [tip, firstBase, secondBase],
+          };
+        } else {
+          path = {
+            d: `M ${x} ${directionStartY} L ${x} ${directionEndY}`,
+            strokeWidth: LXM_TECHNIQUE_PATH_STROKE_WIDTH,
+            markerEnd: "arrow",
           };
         }
       }
@@ -954,6 +944,9 @@ const createNaturalSegmentLayout = (
     type: technique.type,
     ...(technique.type === "strum" && path ? {
       strum: { beatId: technique.beatId, minString: technique.minString, maxString: technique.maxString },
+    } : {}),
+    ...(technique.type === "arpeggio" && path ? {
+      arpeggio: { beatId: technique.beatId, minString: technique.minString, maxString: technique.maxString },
     } : {}),
     systemIndex: candidate.systemIndex,
     segmentIndex: candidate.segmentIndex,

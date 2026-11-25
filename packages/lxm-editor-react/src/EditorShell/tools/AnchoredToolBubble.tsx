@@ -6,10 +6,11 @@ import { contextPanelPosition, fitContextOverlay } from "../score/context-panel-
 import styles from "./AnchoredToolBubble.module.scss";
 
 /** 小气泡挂到页面浮层，避免被工具面板的滚动区域裁切；业务目标和提交仍由入口持有。 */
-export const AnchoredToolBubble = ({ anchor, label, contextCopy = false, compactCentered = false, suspended = false, dismissOnOutside = true, className, onDismiss, children }: {
+export const AnchoredToolBubble = ({ anchor, label, contextCopy = false, contextPanel, compactCentered = false, suspended = false, dismissOnOutside = true, className, onDismiss, children }: {
   anchor: HTMLElement | null;
   label: string;
   contextCopy?: boolean;
+  contextPanel?: "numberedArc";
   compactCentered?: boolean;
   suspended?: boolean;
   dismissOnOutside?: boolean;
@@ -20,11 +21,13 @@ export const AnchoredToolBubble = ({ anchor, label, contextCopy = false, compact
   const root = useRef<HTMLDivElement>(null);
   const dismiss = useRef(onDismiss);
   useLayoutEffect(() => { dismiss.current = onDismiss; }, [onDismiss]);
+  // 复制小节和简谱弧线的菜单入口都以菜单外沿定位，工具栏入口仍按原按钮对齐。
+  const context = contextCopy ? "copy" : contextPanel;
 
   useLayoutEffect(() => {
     const panel = root.current;
     if (!panel || !anchor || suspended) return;
-    const escapeScope = contextCopy ? anchor.closest("[data-score-context-menu]") ?? anchor : anchor;
+    const escapeScope = context ? anchor.closest("[data-score-context-menu]") ?? anchor : anchor;
     const place = () => {
       if (!anchor.isConnected || !anchor.getClientRects().length || anchor.closest("[inert]")) {
         panel.style.visibility = "hidden";
@@ -33,17 +36,17 @@ export const AnchoredToolBubble = ({ anchor, label, contextCopy = false, compact
       const rect = anchor.getBoundingClientRect();
       const { offsetWidth: width, offsetHeight: height } = panel;
       const above = rect.bottom + 8 + height > window.innerHeight - 8;
-      const { left, top } = contextCopy
+      const { left, top } = context
         ? contextPanelPosition(anchor, width, height)
         : fitContextOverlay(compactCentered ? rect.left + (rect.width - width) / 2 : rect.left,
           above ? rect.top - height - 8 : rect.bottom + 8, width, height);
-      const side = contextCopy ? left >= rect.right ? "right" : "left" : above ? "above" : "below";
+      const side = context ? left >= rect.right ? "right" : "left" : above ? "above" : "below";
       panel.dataset.side = side;
       panel.style.left = `${left}px`;
       panel.style.top = `${top}px`;
       panel.style.visibility = "visible";
       const x = side === "left" || side === "right" ? rect.top + rect.height / 2 - top : rect.left + rect.width / 2 - left;
-      const length = contextCopy ? height : width;
+      const length = context ? height : width;
       panel.style.setProperty("--bubble-arrow-offset", `${Math.max(10, Math.min(length - 10, x))}px`);
     };
     place();
@@ -82,12 +85,12 @@ export const AnchoredToolBubble = ({ anchor, label, contextCopy = false, compact
       window.removeEventListener("pointerdown", outside, true);
       window.removeEventListener("keydown", escape, true);
     };
-  }, [anchor, compactCentered, contextCopy, dismissOnOutside, suspended]);
+  }, [anchor, compactCentered, context, dismissOnOutside, suspended]);
 
   if (!anchor) return null;
   return createPortal(<div ref={root} className={`${styles.bubble}${className ? ` ${className}` : ""}`} role="dialog" aria-label={label} hidden={suspended}
     tabIndex={compactCentered ? -1 : undefined} data-compact-centered={compactCentered || undefined}
-    data-editor-anchored-tool data-score-context-panel={contextCopy ? "copy" : undefined}
+    data-editor-anchored-tool data-score-context-panel={context}
     onKeyDown={(event) => event.stopPropagation()}>
     {children}
   </div>, window.document.body);

@@ -7,7 +7,7 @@ import { EditorModalGuard } from "../session/EditorModalGuard";
 import styles from "./image-export.module.scss";
 
 /**
- * 输出与离开页面共用的草稿处理入口：列出各表单登记的输入，提供定位与明确放弃。
+ * 输出、离开页面及简谱菜单共用草稿处理入口，列出各表单登记的输入，提供定位与明确放弃。
  * 不在这里批量应用内容，也不保存待续跑的导航/导出请求；用户处理完后重新发起，
  * 让宿主重新核对当前会话。整体放弃需要绑定目录版本的二次确认。
  */
@@ -190,7 +190,7 @@ export const OutputBlockedModal = ({
           <Alert
             type="warning"
             showIcon
-            title={`将放弃 ${confirmation.ids.length} 处未应用输入，丢弃后不会自动开始导出。`}
+            title={`将放弃 ${confirmation.ids.length} 处未应用输入，之后可重新发起原操作。`}
           />
         )}
         {message && <Alert type="error" showIcon title={message} />}

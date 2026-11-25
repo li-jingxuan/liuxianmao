@@ -1,5 +1,5 @@
 import {
-  createNumberedRhythmContext,
+  createNumberedTrackRhythmContext,
   buildOrderedBeatIndex,
   createCollapsedTabCellSelection,
   getFirstTabCellReference,
@@ -34,21 +34,21 @@ export const reconcileNumberedSelection = (
   target: ILXMNumberedTarget | null,
 ): ILXMNumberedTarget | null => {
   if (!target) return null;
-  const measure = document.score.tracks
-    .find((t) => t.id === target.trackId)
-    ?.measures.find((m) => m.id === target.measureId);
+  const track = document.score.tracks.find((t) => t.id === target.trackId);
+  if (!track) return null;
+  if (target.kind === "numberedEvent") {
+    // 压缩与撤销均可让连音成员换小节；稳定事件 ID 保留焦点，避免回落到 TAB。
+    const owner = track.measures.find((measure) => measure.numberedVoice.events.some((event) => event.id === target.eventId));
+    return owner ? owner.id === target.measureId ? target : { ...target, measureId: owner.id } : null;
+  }
+  const measure = track.measures.find((m) => m.id === target.measureId);
   if (!measure) return null;
-  if (target.kind === "numberedEvent")
-    return measure.numberedVoice.events.some((e) => e.id === target.eventId)
-      ? target
-      : null;
-  return target.tick >= 0 &&
+  const rhythm = createNumberedTrackRhythmContext(track);
+  return target.tick >= (rhythm.incomingSustainEndTickByMeasureId.get(measure.id) ?? 0) &&
     target.endTick > target.tick &&
     target.endTick <= getMeasureDurationTicks(measure) &&
     !measure.numberedVoice.events.some((event) => {
-      const duration = createNumberedRhythmContext(
-        measure.numberedVoice,
-      ).getEventDurationTicks(event);
+      const duration = rhythm.getEventDurationTicks(event);
       return (
         !duration.ok ||
         (event.tick < target.endTick &&

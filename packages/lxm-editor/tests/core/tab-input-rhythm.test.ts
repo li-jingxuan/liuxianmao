@@ -11,6 +11,7 @@ export const numberedFirstDocument = (): ILXMDocument => {
   track.techniques = [];
   track.numberedMarks = [];
   track.measures = [track.measures[0]!];
+  delete track.playbackReplay;
   const measure = track.measures[0]!;
   measure.chordSymbols = [];
   measure.lyrics = [];

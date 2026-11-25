@@ -5,9 +5,9 @@ import type { ToolAvailability } from "./editor-tool-state";
 import styles from "./EditorToolSymbolButton.module.scss";
 
 /** A named symbol with a viewport-bounded tooltip outside the toolbar's scrolling clip. */
-export const EditorToolSymbolButton = ({ label, title, showDisabledReason = true, availability, pressed, expanded, popup, onClick, children, triggerId }: {
+export const EditorToolSymbolButton = ({ label, title, showDisabledReason = true, availability, pressed, expanded, popup, variant, onClick, children, triggerId }: {
   label: string; title?: ReactNode; showDisabledReason?: boolean; availability: ToolAvailability; pressed?: boolean; expanded?: boolean;
-  popup?: boolean; onClick: (anchor: HTMLElement) => void; children: ReactNode; triggerId?: string;
+  popup?: boolean; variant?: "outlined"; onClick: (anchor: HTMLElement) => void; children: ReactNode; triggerId?: string;
 }) => {
   const id = useId();
   const wrapper = useRef<HTMLSpanElement>(null);
@@ -46,13 +46,17 @@ export const EditorToolSymbolButton = ({ label, title, showDisabledReason = true
     // 气泡展开时立即隐藏入口提示，避免 Tooltip 的退场动画遮挡选项。
     styles={expanded ? { root: { visibility: "hidden" } } : undefined}
     getPopupContainer={(node) => node.closest<HTMLElement>("[data-editor-interactive-domain], [role=dialog]") ?? window.document.body}>
-    <span ref={wrapper} className={styles.wrap} tabIndex={!availability.enabled ? 0 : undefined}
-      aria-label={!availability.enabled ? label : undefined} aria-describedby={!availability.enabled && open ? id : undefined} onPointerDown={() => setVisible(false)}>
+    <span ref={wrapper} className={styles.wrap} tabIndex={!availability.enabled && !variant ? 0 : undefined}
+      aria-label={!availability.enabled && !variant ? label : undefined} aria-describedby={!availability.enabled && !variant && open ? id : undefined} onPointerDown={() => setVisible(false)}>
       <Button className={styles.button} aria-label={label} aria-describedby={open ? id : undefined}
         aria-pressed={pressed} aria-expanded={expanded} aria-haspopup={popup ? "dialog" : undefined}
-        data-tool-trigger={triggerId} disabled={!availability.enabled} color={pressed || expanded ? "primary" : "default"}
-        variant={pressed || expanded ? "filled" : "text"} onClick={(event) => {
+        data-tool-trigger={triggerId} disabled={!availability.enabled && !variant} color={pressed || expanded ? "primary" : "default"}
+        aria-disabled={!availability.enabled && !!variant || undefined}
+        aria-description={!availability.enabled && variant ? availability.reason : undefined}
+        variant={variant ?? (pressed || expanded ? "filled" : "text")} onClick={(event) => {
           event.stopPropagation();
+          // 小节符号用可聚焦的禁用按钮，让键盘用户在原控件上看到原因，激活禁用项不会启动表单。
+          if (!availability.enabled) return;
           setVisible(false);
           // Ant Design 切换按钮样式时可能替换 DOM，用外层元素保持气泡锚点稳定。
           onClick(wrapper.current ?? event.currentTarget);

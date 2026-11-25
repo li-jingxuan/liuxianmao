@@ -381,6 +381,12 @@ export class ScoreAudioEngine {
     }
   }
 
+  /** 木吉他静音不影响共享音频时钟或独立的节拍点击。 */
+  setGuitarMuted(muted: boolean) {
+    if (this.master && this.context)
+      this.master.gain.setTargetAtTime(muted ? 0 : MASTER_GAIN, this.context.currentTime, 0.012);
+  }
+
   start(plan: PlaybackPlan, bpm: number, offsetTick: number, metronome?: MetronomeRunOptions): void {
     this.startRun(plan, bpm, offsetTick, metronome, START_LEAD_SECONDS);
   }

@@ -10,6 +10,8 @@ export type EditorDraftKind =
   | "numbered"
   | "chord"
   | "technique"
+  | "jumpMark"
+  | "repeatEnding"
   | "beatPaste";
 export type EditorDraftApplyResult = "applied" | "blocked" | "stale";
 

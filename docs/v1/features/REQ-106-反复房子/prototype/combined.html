@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>反复与跳转 · 六线猫设计稿</title>
+  <link rel="stylesheet" href="combined.css">
+  <script src="combined.js" defer></script>
+</head>
+<body>
+  <header class="top">
+    <div class="brand"><img src="liuxianmao-32.png" alt="" width="26" height="26">六线猫</div>
+    <details id="file-menu"><summary>文件</summary><div class="file-options">
+      <button data-do="save">保存模拟</button><button data-do="load">重开模拟</button>
+    </div></details>
+    <strong id="document-title"></strong>
+    <label class="example">评审谱例 <select id="example">
+      <option value="rooms">一、二、三房</option>
+      <option value="jumps">曲首回跳与 Fine</option>
+      <option value="single">单小节重复</option>
+    </select></label>
+    <button id="audition" data-do="audition" class="primary">试听</button>
+  </header>
+  <div class="toolbar">
+    <button data-do="undo" aria-label="撤销" title="撤销">↶</button><button data-do="redo" aria-label="重做" title="重做">↷</button>
+    <span class="divider"></span>
+    <button id="measure-tool" data-do="tools" aria-expanded="true" aria-controls="measure-popup">小节工具 <span aria-hidden="true">▾</span></button>
+    <span class="toolbar-note">在谱面上按 Shift 单击可选择连续小节</span>
+  </div>
+  <main class="workbench">
+    <section class="workspace" aria-label="六线谱工作区">
+      <article class="paper" aria-label="练习谱">
+        <header class="paper-header"><p>六线谱练习</p><h1 id="score-title"></h1><span>木吉他　♩ = 90</span></header>
+        <div id="score" class="score"></div>
+      </article>
+      <section id="measure-popup" class="popup" aria-labelledby="measure-heading"></section>
+    </section>
+    <aside class="inspector" id="inspector" aria-label="小节属性和试听"></aside>
+  </main>
+  <footer class="status"><span id="status" role="status"></span><a href="../design-review.md">交付规格</a><a href="../../REQ-105-谱面跳转记号/prototype/index.html#ideal">《理想》路线对照 ↗</a></footer>
+  <div id="tooltip" role="tooltip" hidden></div>
+  <div id="context" class="context" hidden><button data-do="tools">反复与跳转…</button></div>
+  <dialog id="confirmation" aria-labelledby="confirm-title">
+    <form method="dialog"><h2 id="confirm-title"></h2><p id="confirm-copy"></p><div class="form-actions">
+      <button value="cancel" autofocus>取消</button><button class="primary" id="confirm-action" value="confirm">确认</button>
+    </div></form>
+  </dialog>
+</body>
+</html>

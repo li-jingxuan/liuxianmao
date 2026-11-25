@@ -33,6 +33,7 @@ const markNames: Record<string, string> = {
   fermata: "延长记号",
 };
 const labels: Record<string, string> = {
+  "measureRepeat.expanded": "重复记号已展开，原内容保留",
   "beats.structured": "拍点结构编辑",
   "beats.pasted": "拍点粘贴",
   "tuplets.structured": "连音组结构",
@@ -70,6 +71,8 @@ export const formatEditorImpact = (
   const location = `${context === "clipboard" || effect.kind.endsWith("omitted") ? "复制范围" : "编辑前"}第 ${effect.measureNumber} 小节：${"beatNumber" in effect ? `第 ${effect.beatNumber} 拍，` : ""}`;
   let description: string;
   switch (effect.kind) {
+    case "measureRepeat.expanded":
+      return `第 ${effect.measureNumber} 小节${preview ? "将展开" : undone ? "曾展开" : "已展开"}，保留原演奏内容${undone ? "（已撤销）" : ""}`;
     case "beats.structured":
       description = `${effect.operation === "split" ? "等分拍点，持续音使用 Tie" : "合并拍点"}（消耗 ${effect.consumedTieCount} 个内部 Tie）`;
       break;
@@ -122,6 +125,8 @@ export const formatEditorImpact = (
 
 const historyEffectText = (effect: ILXMCommandEffect): string => {
   switch (effect.kind) {
+    case "measureRepeat.expanded":
+      return "展开重复记号，保留原演奏内容";
     case "beats.structured": {
       if (effect.operation === "split") return "等分拍点，持续音加延音线";
       return effect.consumedTieCount > 0

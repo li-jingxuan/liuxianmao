@@ -1,6 +1,6 @@
 import { memo } from "react";
 import type { ScorePrimitive, ScoreScene } from "@liuxianmao/lxm-editor";
-import { getStrumHighlight, useScoreStrumInteraction } from "./StrumInteractionLayer";
+import { getStrumHighlight, traversalPreviewHighlight, useScoreStrumInteraction } from "./StrumInteractionLayer";
 import type { ScoreStrumInteraction } from "./StrumInteractionLayer";
 
 /** SVG 与 Canvas 消费同一显式图元，焦点仅在编辑 SVG 中改变颜色。 */
@@ -15,12 +15,13 @@ export const SceneItems = ({
   selectedTechniqueId?: string | null;
   selectedNumberedMarkId?: string | null;
   selectedNumberedEventId?: string | null;
-  strums?: Pick<ReturnType<typeof useScoreStrumInteraction>, "selected" | "activeId" | "geometry" | "previewPrimitive">;
+  strums?: Pick<ReturnType<typeof useScoreStrumInteraction>, "selected" | "previewIds" | "activeId" | "geometry" | "previewPrimitive">;
 }) => (
   <>
     {items.map((item, index) => {
       const p = strums?.previewPrimitive(item) ?? item;
-      const strumId = p.techniqueId && strums?.geometry.has(p.techniqueId) ? p.techniqueId : undefined;
+      const traversal = p.techniqueId ? strums?.geometry.get(p.techniqueId) : undefined;
+      const strumId = traversal ? p.techniqueId : undefined;
       const strumSelected = !!strumId && strums?.selected.has(strumId);
       const strumActive = strumSelected && strumId === strums?.activeId;
       const traversalSelected = !!p.techniqueId && strums?.selected.has(p.techniqueId);
@@ -29,18 +30,25 @@ export const SceneItems = ({
         (!!p.techniqueId && p.techniqueId === selectedTechniqueId) ||
         (!!p.numberedMarkId && p.numberedMarkId === selectedNumberedMarkId) ||
         (!!p.numberedEventId && p.numberedEventId === selectedNumberedEventId);
-      const { color: selectedColor, extraWidth } = getStrumHighlight(strumSelected ? !!strumActive : true);
+      // Alt 框选候选沿用同一图元高亮，已有选中项保留正式高亮，不写入选中或端点预览标记。
+      const traversalPreview = !!strumId && !selected && strums?.previewIds.has(strumId);
+      const highlighted = selected || traversalPreview;
+      const { color, extraWidth } = traversalPreview ? traversalPreviewHighlight : getStrumHighlight(strumSelected ? !!strumActive : true);
       const style = {
+        "data-jump-mark": p.jumpMarkId,
+        "data-measure-repeat": p.measureRepeatId,
         "data-numbered-mark": p.numberedMarkId,
         "data-numbered-event": p.numberedEventId,
         "data-strum-id": strumId,
+        "data-strum-type": traversal?.type,
         "data-strum-selected": strumSelected || undefined,
         "data-strum-active": strumActive || undefined,
         "data-strum-preview": p !== item || undefined,
-        fill: selected && p.fill && p.fill !== "none" ? selectedColor : p.fill,
+        "data-traversal-preview": traversalPreview || undefined,
+        fill: highlighted && p.fill && p.fill !== "none" ? color : p.fill,
         stroke:
-          selected && p.stroke && p.stroke !== "#fff" ? selectedColor : p.stroke,
-        strokeWidth: strumSelected && p.strokeWidth ? p.strokeWidth + extraWidth : p.strokeWidth,
+          highlighted && p.stroke && p.stroke !== "#fff" ? color : p.stroke,
+        strokeWidth: (strumSelected || traversalPreview) && p.strokeWidth ? p.strokeWidth + extraWidth : p.strokeWidth,
         strokeDasharray: p.dash,
         strokeLinecap: p.lineCap,
         strokeLinejoin: "round" as const,
@@ -90,6 +98,7 @@ export const SceneItems = ({
               fontSize={p.fontSize}
               fontFamily={p.fontFamily}
               fontWeight={p.fontWeight}
+              fontStyle={p.fontStyle}
               textAnchor={p.textAnchor}
               dominantBaseline="alphabetic"
               style={{ whiteSpace: "pre", paintOrder: "stroke fill" }}

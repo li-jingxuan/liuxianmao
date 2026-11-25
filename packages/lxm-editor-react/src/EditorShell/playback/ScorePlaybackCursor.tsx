@@ -11,14 +11,15 @@ type CursorProps = {
   playback: ScorePlaybackControls;
 };
 
-function locateBeat(layout: ILXMLayout, measureId: string, beatId: string) {
+function locatePosition(layout: ILXMLayout, measureId: string, beatId?: string, measureEnd?: boolean) {
   for (const row of layout.systems) {
     const measure = row.measures.find((item) => item.id === measureId);
-    const beat = measure?.beats.find((item) => item.id === beatId);
+    const beat = (measure?.measureRepeat?.playbackBeats ?? measure?.beats)?.find((item) => item.id === beatId);
     const top = measure?.strings[0];
     const bottom = measure?.strings.at(-1);
-    if (beat && top && bottom) {
-      return { x: beat.x, top: top.y1 - 6, bottom: bottom.y1 + 6, system: row.index };
+    if (top && bottom && (beat || !beatId)) {
+      // 结束或断链时落在已弹完的小节右边界。无拍点的正常到访仍从小节起始线开始。
+      return { x: measureEnd ? top.x2 : beat?.x ?? top.x1, top: top.y1 - 6, bottom: bottom.y1 + 6, system: row.index };
     }
   }
   return null;
@@ -28,11 +29,12 @@ export const ScorePlaybackCursor = ({ layout, viewportRef, playback }: CursorPro
   const { follow, phase, position, suspendFollow } = playback;
   const marker = useRef<SVGRectElement>(null);
   const scrollIntentUntil = useRef(0);
-  const lastRow = useRef<{ system: number; measureId: string; beatId: string; visitIndex: number } | null>(null);
+  const lastRow = useRef<{ system: number; measureId: string; beatId?: string; visitIndex: number } | null>(null);
   const measureId = position?.measureId;
   const beatId = position?.beatId;
   const visitIndex = position?.visitIndex;
-  const bounds = measureId && beatId ? locateBeat(layout, measureId, beatId) : null;
+  const measureEnd = position?.measureEnd;
+  const bounds = measureId ? locatePosition(layout, measureId, beatId, measureEnd) : null;
 
   const active = phase === "loading" || phase === "playing" || phase === "paused";
   useEffect(() => {
@@ -79,11 +81,11 @@ export const ScorePlaybackCursor = ({ layout, viewportRef, playback }: CursorPro
 
   const system = bounds?.system;
   useEffect(() => {
-    if (!follow || !measureId || !beatId || system === undefined || visitIndex === undefined) {
+    if (!follow || !measureId || system === undefined || visitIndex === undefined) {
       lastRow.current = null;
       return;
     }
-    if (phase !== "playing") return;
+    if (phase !== "playing" && !measureEnd) return;
     const previous = lastRow.current;
     lastRow.current = { system, measureId, beatId, visitIndex };
     const sameBeat = previous?.measureId === measureId && previous.beatId === beatId && previous.visitIndex === visitIndex;
@@ -102,15 +104,16 @@ export const ScorePlaybackCursor = ({ layout, viewportRef, playback }: CursorPro
       viewport.scrollBy({ left: dx, top: dy, behavior: "instant" });
     });
     return () => cancelAnimationFrame(frame);
-  }, [beatId, follow, measureId, phase, system, viewportRef, visitIndex]);
+  }, [beatId, follow, measureEnd, measureId, phase, system, viewportRef, visitIndex]);
 
   if (!bounds) return null;
+  const lineX = measureEnd ? bounds.x : bounds.x - 9;
   return (
     <g className={styles.playbackCursor} aria-hidden="true" pointerEvents="none" data-playback-cursor
       data-playback-measure={measureId} data-playback-beat={beatId} data-playback-visit={visitIndex}
-      data-playback-system={system} data-paused={phase === "paused" || undefined}>
+      data-playback-system={system} data-playback-measure-end={measureEnd} data-paused={phase === "paused" || undefined}>
       <rect ref={marker} x={bounds.x - 10} y={bounds.top} width={20} height={bounds.bottom - bounds.top} rx={3} />
-      <line x1={bounds.x - 9} x2={bounds.x - 9} y1={bounds.top} y2={bounds.bottom} />
+      <line x1={lineX} x2={lineX} y1={bounds.top} y2={bounds.bottom} />
     </g>
   );
 };

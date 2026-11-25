@@ -1,6 +1,7 @@
 import { Button, Form, Input, Popover } from "antd";
 import { QuestionCircleOutlined } from "@ant-design/icons";
 import {
+  createNumberedMeasureRhythmContext,
   getMeasureDurationTicks,
   planLyricSequence,
   resolveLyricPosition,
@@ -28,8 +29,10 @@ export function buildLyricMappingPreview(
   const measureKeys = new Set<string>();
   for (const row of plan.rows) {
     const track = document.score.tracks.find((value) => value.id === row.target?.trackId);
-    const measure = track?.measures.find((value) => value.id === row.target?.measureId);
-    const position = measure && row.target ? resolveLyricPosition(measure, row.target) : undefined;
+    const measureIndex = track?.measures.findIndex((value) => value.id === row.target?.measureId) ?? -1;
+    const measure = track?.measures[measureIndex];
+    const position = track && measure && row.target
+      ? resolveLyricPosition(measure, row.target, createNumberedMeasureRhythmContext(track, measureIndex)) : undefined;
     if (row.target && (!measure || !position)) return null;
     const sourcePosition = row.target && position ? {
       trackId: row.target.trackId,
@@ -40,12 +43,11 @@ export function buildLyricMappingPreview(
     if (measure) measureKeys.add(measure.id);
     const event = measure?.numberedVoice.events.find((value) => value.id === position?.eventId);
     const beatLabel = measure && position ? formatNumberedBeatPosition(position.tick, measure.timeSignature.denominator) : null;
-    const measureNumber = track?.measures.findIndex((value) => value.id === measure?.id);
     rows.push({
       key: String(row.index),
       before: row.previous ?? "空",
       after: row.item.kind === "clear" ? "" : row.item.text,
-      positionLabel: measure && position ? `${measureNumber! + 1} 小节 / ${beatLabel}${!event || event.kind === "gap" ? `～${formatNumberedBeatPosition(position.endTick, measure.timeSignature.denominator)}` : ""}` : "超出谱尾",
+      positionLabel: measure && position ? `${measureIndex + 1} 小节 / ${beatLabel}${!event || event.kind === "gap" ? `～${formatNumberedBeatPosition(position.endTick, measure.timeSignature.denominator)}` : ""}` : "超出谱尾",
       status: row.status,
       sourcePosition,
       plannedPosition: sourcePosition,

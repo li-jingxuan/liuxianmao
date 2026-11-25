@@ -1,5 +1,5 @@
 import {
-  createNumberedRhythmContext,
+  createNumberedTrackRhythmContext,
   type ILXMNumberedEvent,
   type ILXMNumberedVoiceCommand,
   type ILXMTrack,
@@ -42,15 +42,10 @@ const bases = {
 const eventText = (event?: ILXMNumberedEvent) =>
   event ? event.items.map((item) => item.token).join("+") || "空白" : "—";
 const eventEnd = (
-  track: ILXMTrack,
-  measureId: string,
+  context: ReturnType<typeof createNumberedTrackRhythmContext>,
   event: ILXMNumberedEvent,
 ) => {
-  const measure = track.measures.find((item) => item.id === measureId);
-  if (!measure) return event.tick;
-  const duration = createNumberedRhythmContext(
-    measure.numberedVoice,
-  ).getEventDurationTicks(event);
+  const duration = context.getEventDurationTicks(event);
   return duration.ok ? event.tick + duration.ticks : event.tick;
 };
 
@@ -85,6 +80,8 @@ export const buildNumberedPreviewRows = (
   command: ILXMNumberedVoiceCommand,
 ): NumberedPreviewRow[] => {
   const rows: NumberedPreviewRow[] = [];
+  const beforeRhythm = createNumberedTrackRhythmContext(beforeTrack);
+  const afterRhythm = createNumberedTrackRhythmContext(candidate.track);
   const append = (
     measureId: string,
     before: ILXMNumberedEvent | undefined,
@@ -110,14 +107,13 @@ export const buildNumberedPreviewRows = (
               JSON.stringify(before.rhythm) === JSON.stringify(after.rhythm)
             ? "same"
             : "change";
-    const tuplet = measure.numberedVoice.tuplets.find((group) =>
-      group.eventIds.includes(event.id),
-    );
+    const rhythm = after ? afterRhythm : beforeRhythm;
+    const tuplet = rhythm.tupletByEventId.get(event.id);
     rows.push({
       key: `${measureId}/${event.tick}/${event.id}`,
       eventId: event.id,
-      sourcePosition: before ? { trackId: beforeTrack.id, measureId, startTick: before.tick, endTick: eventEnd(beforeTrack, measureId, before) } : null,
-      plannedPosition: after ? { trackId: candidate.track.id, measureId, startTick: after.tick, endTick: eventEnd(candidate.track, measureId, after) } : null,
+      sourcePosition: before ? { trackId: beforeTrack.id, measureId, startTick: before.tick, endTick: eventEnd(beforeRhythm, before) } : null,
+      plannedPosition: after ? { trackId: candidate.track.id, measureId, startTick: after.tick, endTick: eventEnd(afterRhythm, after) } : null,
       measureId,
       measureNumber: measureIndex + 1,
       position: formatNumberedBeatPosition(
@@ -125,11 +121,7 @@ export const buildNumberedPreviewRows = (
         measure.timeSignature.denominator,
       ),
       startTick: event.tick,
-      endTick: eventEnd(
-        after ? candidate.track : beforeTrack,
-        measureId,
-        event,
-      ),
+      endTick: eventEnd(rhythm, event),
       before: eventText(before),
       after: eventText(after),
       rhythm: `${bases[event.rhythm.base]}${event.rhythm.dots ? ` · ${event.rhythm.dots} 附点` : ""}${tuplet ? ` · ${tuplet.ratio.actual}:${tuplet.ratio.normal}` : ""}`,
@@ -189,8 +181,7 @@ export const buildNumberedPreviewRows = (
       command.type === "numbered.range.replace" &&
       (next ?? original)!.tick < command.endTick &&
       eventEnd(
-        next ? candidate.track : beforeTrack,
-        measure.id,
+        next ? afterRhythm : beforeRhythm,
         (next ?? original)!,
       ) > command.startTick;
     const targeted =

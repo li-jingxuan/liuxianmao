@@ -8,7 +8,10 @@ import {
 import type { ILXMLayout, ILXMSystemLayout, ILXMBarlineLayout } from "../layout/layout-types";
 import type { MusicTextGlyph } from "../layout/music-text/music-text-metrics";
 import { SCORE_TEXT_FONT } from "./constants";
+import { jumpMarkPrimitives } from "./jump-mark-scene";
+import { repeatEndingPrimitives } from "./repeat-ending-scene";
 import type { ScorePrimitive, ScoreScene } from "./scene-types";
+import { measureRepeatPrimitives } from "./measure-repeat-scene";
 
 /** 显式样式图元由两个渲染器共享，不继承页面 CSS 或编辑焦点色。 */
 export const textPrimitive = (
@@ -155,6 +158,7 @@ const systemScene = (s: ILXMSystemLayout): ScorePrimitive[] => {
   if (s.header.leadingBarline) items.push(...barline(s.header.leadingBarline));
   for (const m of s.measures) {
     items.push(...m.strings.map((l) => line(l.x1, l.y1, l.x2, l.y2)));
+    if (m.jumpMarkStartBarline) items.push(...barline(m.jumpMarkStartBarline));
     if (m.timeSignature)
       for (const t of [m.timeSignature.numerator, m.timeSignature.denominator])
         items.push(
@@ -275,6 +279,10 @@ const systemScene = (s: ILXMSystemLayout): ScorePrimitive[] => {
       ...primitives.map((p) => ({ ...p, techniqueId: t.techniqueId })),
     );
   }
+  for (const measure of s.measures)
+    for (const mark of measure.jumpMarks ?? []) items.push(...jumpMarkPrimitives(mark));
+  for (const measure of s.measures) items.push(...measureRepeatPrimitives(measure));
+  for (const ending of s.repeatEndings ?? []) items.push(...repeatEndingPrimitives(ending));
   return items;
 };
 /**
