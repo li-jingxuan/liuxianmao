@@ -168,7 +168,7 @@ describe("score playback session", () => {
     await session.togglePlay(doc);
     const plan = createPlaybackPlan(doc, { startMeasureId });
     const raf = vi.mocked(requestAnimationFrame);
-    for (const [visitIndex, measureNumber] of [[33, 17], [51, 25], [58, 35]] as const) {
+    for (const [visitIndex, measureNumber] of [[33, 17], [48, 34], [49, 25], [56, 35]] as const) {
       const visit = plan.visits.find((item) => item.visitIndex === visitIndex)!;
       audio.currentTick.mockReturnValue(visit.startTick);
       raf.mock.lastCall![0](0);

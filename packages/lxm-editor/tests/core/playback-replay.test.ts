@@ -13,18 +13,18 @@ const idealTrack = DEFAULT_MOCK_DOCUMENT.score.tracks[0]!;
 const measureId = (number: number) => idealTrack.measures[number - 1]!.id;
 const range = (first: number, last: number) =>
   Array.from({ length: last - first + 1 }, (_, offset) => first + offset);
-const order = [...range(1, 33), ...range(17, 34), ...range(25, 31), ...range(35, 42)];
+const order = [...range(1, 33), ...range(17, 31), 34, ...range(25, 31), ...range(35, 42)];
 
 describe("谱面重奏指令", () => {
   it("《理想》保留 33→17，播完 34 后重奏 25–31，从 35 接回，试听音符与游标均跟随到访", () => {
     const plan = createPlaybackPlan(DEFAULT_MOCK_DOCUMENT);
     expect(plan.visits.map(({ measureIndex }) => measureIndex + 1)).toEqual(order);
     const jumpTargets = plan.visits.filter(({ jumped }) => jumped);
-    expect(jumpTargets.map(({ measureIndex }) => measureIndex + 1)).toEqual([17, 25, 35]);
+    expect(jumpTargets.map(({ measureIndex }) => measureIndex + 1)).toEqual([17, 34, 25, 35]);
     for (const { measureId, startTick, visitIndex } of jumpTargets) {
       expect(getPlaybackBeatAtTick(plan, startTick)).toMatchObject({ measureId, visitIndex });
     }
-    const replayVisits = plan.visits.slice(51, 58);
+    const replayVisits = plan.visits.slice(order.lastIndexOf(25), order.lastIndexOf(31) + 1);
     const audibleVisits = new Set(plan.sounds.map(({ visitIndex }) => visitIndex));
     expect(replayVisits.every(({ visitIndex }) => audibleVisits.has(visitIndex))).toBe(true);
     expect(plan.visits.at(-1)?.endTick).toBe(plan.durationTicks);
@@ -45,6 +45,7 @@ describe("谱面重奏指令", () => {
     measures[3]!.barline = "repeatEnd";
     const source = {
       ...idealTrack,
+      repeatEndingGroups: undefined,
       measures,
       techniques: [],
       playbackReplay: { afterMeasureId: d!, fromMeasureId: a!, throughMeasureId: c! },
@@ -58,7 +59,7 @@ describe("谱面重奏指令", () => {
   });
 
   it("未记录重奏指令的旧谱仍使用原本的反复线顺序", () => {
-    const { playbackReplay: _replay, ...legacyTrack } = idealTrack;
+    const { playbackReplay: _replay, repeatEndingGroups: _groups, ...legacyTrack } = idealTrack;
     const document = { ...DEFAULT_MOCK_DOCUMENT, score: { ...DEFAULT_MOCK_DOCUMENT.score, tracks: [legacyTrack] } };
     const loaded = loadDocument(JSON.stringify(document));
     if (!loaded.ok) throw new Error(loaded.errors.join("\n"));

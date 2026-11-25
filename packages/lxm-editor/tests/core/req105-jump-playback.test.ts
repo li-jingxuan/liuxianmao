@@ -136,6 +136,9 @@ describe("REQ-105 谱面跳转试听", () => {
 
   it("旧《理想》谱件重开后仍保留 66 次到访及三处衔接", () => {
     const doc = reopen(idealFile);
+    // 旧谱仅用普通反复线和重奏区间；在独立副本中还原这种文件格式，继续验证兼容路线。
+    delete track(doc).repeatEndingGroups;
+    for (const measure of measures(doc)) delete measure.jumpMarks;
     const plan = createPlaybackPlan(reopen(doc));
     expect(measures(doc).every(({ jumpMarks }) => jumpMarks === undefined)).toBe(true);
     expect(plan.visits).toHaveLength(66);

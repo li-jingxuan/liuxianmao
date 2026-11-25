@@ -48,7 +48,7 @@ describe("MVP v7.2 简谱 mock", () => {
     expect(loaded.ok, JSON.stringify(loaded)).toBe(true);
     expect(websiteEditorSession.getDocument()).toEqual(DEFAULT_MOCK_DOCUMENT);
     // 通过修订号确认首页会话读到的是用户导出的新版《理想》。
-    expect(DEFAULT_MOCK_DOCUMENT.documentRevision).toBe(793);
+    expect(DEFAULT_MOCK_DOCUMENT.documentRevision).toBe(799);
     expect(DEFAULT_MOCK_DOCUMENT.score).toMatchObject({
       title: "理想",
       keySignature: "G",

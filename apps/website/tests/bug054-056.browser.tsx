@@ -10,6 +10,8 @@ score.score.keySignature = "C";
 score.score.meta = {};
 score.score.tracks = [track];
 track.measures = [measure];
+delete track.playbackReplay;
+delete track.repeatEndingGroups;
 track.techniques = [];
 track.numberedMarks = [];
 Object.assign(measure, {
