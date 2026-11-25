@@ -108,6 +108,7 @@ export const buildLayout = (
     placeholders,
     numberedRhythm,
     purpose === "editing" ? options.repeatEndingPreview : undefined,
+    purpose === "editing" ? options.repeatEndingGroupPreview : undefined,
   );
   const lastSystem = systems[systems.length - 1];
 

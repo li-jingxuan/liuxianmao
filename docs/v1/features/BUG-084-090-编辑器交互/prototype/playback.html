@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>理想 · 试听 · 六线猫</title>
+  <link rel="icon" href="liuxianmao-32.png">
+  <link rel="stylesheet" href="playback.css">
+  <script defer src="playback.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="identity">
+      <span class="brand"><img src="liuxianmao-32.png" width="24" height="24" alt="">六线猫</span>
+      <span class="divider" aria-hidden="true"></span>
+      <a class="back" href="index.html"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m11.5 5-5 5 5 5"/></svg>返回总览</a>
+    </div>
+    <h1>理想</h1>
+    <span class="document-type"><i aria-hidden="true"></i>示例曲谱</span>
+  </header>
+
+  <section class="transport" aria-label="试听控制">
+    <button type="button" id="play" class="primary" aria-label="播放"><svg viewBox="0 0 20 20" aria-hidden="true"><path id="play-shape" d="m7 4 9 6-9 6z"/></svg><span id="play-text">播放</span></button>
+    <button type="button" id="stop" class="secondary"><svg viewBox="0 0 20 20" aria-hidden="true"><rect x="5.5" y="5.5" width="9" height="9" rx="1"/></svg>停止</button>
+    <span class="divider" aria-hidden="true"></span>
+    <label class="tempo" for="bpm">临时速度 <input id="bpm" type="number" min="40" max="240" value="90"> <span>BPM</span></label>
+    <div class="position"><span id="mode">已暂停</span><span class="position-separator" aria-hidden="true"></span><span id="location" role="status">第 17 小节 · 第 2 次</span></div>
+    <span class="preview"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 11V9.5a6.5 6.5 0 1 1 13 0V11M3.5 11h2a1 1 0 0 1 1 1v2.5a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1zm13 0h-2a1 1 0 0 0-1 1v2.5a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1z"/></svg>试听预览</span>
+  </section>
+
+  <main class="workspace">
+    <section class="score-shell scroll-shell" aria-label="谱面工作区">
+      <div class="score-view scroll-view" id="score-view" tabindex="0" aria-label="谱面，使用方向键或滚轮滚动">
+        <div class="paper-space"><article class="paper" id="score" aria-label="《理想》六线谱，42 小节"></article></div>
+      </div>
+      <div class="scroll-track vertical" aria-hidden="true"><span class="thumb"></span></div>
+      <div class="scroll-track horizontal" aria-hidden="true"><span class="thumb"></span></div>
+      <div class="zoom" aria-label="谱面缩放">
+        <button type="button" id="zoom-out" aria-label="缩小谱面">−</button>
+        <button type="button" id="zoom-reset" aria-label="重设缩放为 100%" title="重设缩放">100%</button>
+        <button type="button" id="zoom-in" aria-label="放大谱面">＋</button>
+      </div>
+    </section>
+
+    <aside class="side" aria-labelledby="order-title">
+      <header class="side-head">
+        <div class="side-title"><h2 id="order-title">小节播放顺序</h2><span>共 57 次到访</span></div>
+        <p id="order-hint">选择小节试听单次到访</p>
+      </header>
+      <div class="order-shell scroll-shell">
+        <div class="order-view scroll-view" id="order-view" tabindex="0" aria-label="播放顺序列表" aria-describedby="order-hint"></div>
+        <div class="scroll-track vertical" aria-hidden="true"><span class="thumb"></span></div>
+      </div>
+    </aside>
+  </main>
+
+  <footer class="statusbar">
+    <span id="status-current">第 17 小节 <span class="status-dot">·</span> 第 2 次到访</span>
+    <span id="status-position">进度 34 / 57</span>
+  </footer>
+</body>
+</html>

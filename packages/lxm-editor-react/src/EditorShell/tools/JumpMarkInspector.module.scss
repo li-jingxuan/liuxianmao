@@ -1,18 +1,11 @@
-.inspector {
+.inspector,
+.form {
   display: grid;
   gap: 8px;
   min-width: 0;
-  padding: 12px 0 0;
-  border-top: 1px solid var(--ant-color-border-secondary, #e7ebf0);
   color: var(--ant-color-text, #202838);
   font-size: 13px;
   line-height: 1.5;
-
-  .row > h3 {
-    margin: 0;
-    font-size: inherit;
-    font-weight: 600;
-  }
 
   p {
     margin: 0;
@@ -32,14 +25,23 @@
   }
 }
 
-.marks,
-.form {
+.inspector {
+  padding: 12px 0 0;
+  border-top: 1px solid var(--ant-color-border-secondary, #e7ebf0);
+
+  .row > h3 {
+    margin: 0;
+    font-size: inherit;
+    font-weight: 600;
+  }
+}
+
+.marks {
   display: grid;
   gap: 8px;
 }
 
-.card,
-.form {
+.card {
   min-width: 0;
   padding: 8px;
   border: 1px solid var(--ant-color-border-secondary, #e7ebf0);
@@ -58,13 +60,31 @@
   justify-content: space-between;
 }
 
+.formNote {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  .helpButton {
+    color: var(--ant-color-text-secondary, #626e82);
+  }
+}
+
+.form {
+  gap: 10px;
+}
+
+.actions {
+  justify-content: flex-end;
+}
+
 .actions .delete {
-  margin-inline-start: auto;
+  margin-inline-end: auto;
 }
 
 .field {
   display: grid;
-  gap: 3px;
+  gap: 4px;
   min-width: 0;
 }
 

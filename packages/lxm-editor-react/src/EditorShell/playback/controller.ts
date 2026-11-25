@@ -276,7 +276,7 @@ export class PlaybackSession {
   setStartMeasure = (startMeasureId: string | null) => {
     // 起点同时驱动下拉和谱面高亮。加载、播放和暂停期间锁定，以免更改已建立的播放计划或续播位置。
     if (this.state.enabled && this.editable && startMeasureId !== this.state.startMeasureId) {
-      if (this.state.jumpIssue || this.state.repeatEndingIssue || this.state.jumpEnd || this.fragment) this.stop();
+      if (this.state.position || this.state.jumpIssue || this.state.repeatEndingIssue || this.state.jumpEnd || this.fragment) this.stop();
       this.update({ startMeasureId });
     }
   };
@@ -313,21 +313,18 @@ export class PlaybackSession {
     if (!this.engine || !this.plan || this.state.phase !== "playing") return;
     const tick = this.engine.currentTick();
     if (tick >= this.plan.durationTicks) {
-      const { jumpIssue, repeatEndingIssue, jumpEnd, durationTicks } = this.plan;
+      const { jumpIssue, repeatEndingIssue, jumpEnd } = this.plan;
       const issue = jumpIssue ?? repeatEndingIssue;
-      if (issue || jumpEnd || this.fragment) {
-        // 自然结束和异常都已演奏完整个小节。用最后一次到访定位右边界，片段试听继续保留末拍位置。
-        const last = this.plan.visits.at(-1);
-        const position = (issue || jumpEnd) && last ? { ...last, measureEnd: true } : positionAtTick(this.plan, durationTicks - 1, true);
-        this.cancel();
-        const message = issue ? `第 ${issue.measureIndex + 1} 小节 · 试听已暂停 · ${issue.message}` : "";
-        this.update({ phase: issue ? "paused" : "idle", position, clickBeat: null, jumpIssue, repeatEndingIssue, jumpEnd, message });
-      } else {
-        this.stop();
-      }
+      // 自然结束也保留最后一次到访；显式停止才清除游标。
+      const last = this.plan.visits.at(-1);
+      const position = last ? { ...last, measureEnd: true } : null;
+      this.cancel();
+      const message = issue ? `第 ${issue.measureIndex + 1} 小节 · 试听已暂停 · ${issue.message}` : "";
+      this.update({ phase: issue ? "paused" : "idle", position, clickBeat: null, currentMeter: null, jumpIssue, repeatEndingIssue, jumpEnd, message });
       return;
     }
-    const position = positionAtTick(this.plan, tick, this.hasRoute);
+    // 无拍点的小节和拍间空白也属于真实到访，顺序栏与步进控件应保留当前位置。
+    const position = positionAtTick(this.plan, tick, true);
     const currentMeter = this.clickGrid?.meterAt(tick) ?? null;
     const clickBeat = this.engine.hasStarted() ? this.visibleBeat(tick) : this.state.clickBeat;
     if (this.state.position !== position || this.state.currentMeter !== currentMeter || this.state.clickBeat !== clickBeat)
@@ -347,7 +344,7 @@ export class PlaybackSession {
     this.cancel();
     this.update({
       phase: "paused",
-      position: positionAtTick(this.plan, this.offset, this.hasRoute),
+      position: positionAtTick(this.plan, this.offset, true),
       currentMeter: this.clickGrid?.meterAt(this.offset) ?? null,
       clickBeat,
       message: message ?? this.state.message,
@@ -367,8 +364,13 @@ export class PlaybackSession {
     } else if (this.state.phase === "playing") {
       this.pause();
       return;
+    } else if (this.state.phase === "idle" && this.state.position && !this.fragment) {
+      // 自然结束后重新起播沿用选定起点，并恢复本轮手动滚动前的自动跟随。
+      this.resumeFollow();
     }
     const resume = this.state.phase === "paused" && !this.state.jumpIssue && !this.state.repeatEndingIssue;
+    // 点听结束后，工具栏「播放」从该次到访按完整顺序重新起播。显式停止或换起点已清除该锚点。
+    const afterFragment = !fragment && this.fragment && this.state.phase === "idle" ? this.state.position?.visitIndex : undefined;
     const { startMeasureId } = this.state;
     const request = new AbortController();
     this.request = request;
@@ -396,7 +398,7 @@ export class PlaybackSession {
         });
         this.plan = fullPlan;
         this.fragment = Boolean(fragment);
-        this.offset = 0;
+        this.offset = fullPlan.visits.find(({ visitIndex }) => visitIndex === afterFragment)?.startTick ?? 0;
         if (fragment) {
           const visits = fullPlan.visits.filter(({ visitIndex }) => visitIndex >= fragment.first && visitIndex <= fragment.last);
           const first = visits[0];
@@ -472,7 +474,7 @@ export function useScorePlayback(
   }, [session]);
   const measures = doc?.score.tracks[0]?.measures;
   const jumpRoute = useMemo(() => {
-    if (!state.enabled || !doc || !hasScoreRoute(doc)) return null;
+    if (!state.enabled || !doc) return null;
     // 路线可在加载音源前检查，和真正演奏计划共用同一个路径解析器及选中起点。
     const { visits, jumpIssue, jumpEnd, repeatEndingIssue } = createPlaybackPlan(doc, { startMeasureId: state.startMeasureId ?? undefined });
     return { visits, jumpIssue, jumpEnd, repeatEndingIssue };

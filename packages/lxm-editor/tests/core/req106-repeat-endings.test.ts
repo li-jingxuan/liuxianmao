@@ -5,10 +5,13 @@ import {
   applyScoreCommand,
   buildLayout,
   buildScoreScene,
+  createDocumentHistory,
   createPlaybackPlan,
   getPlaybackBeatAtTick,
   loadDocument,
   LXMScoreCommandEnum as Command,
+  transitionDocumentHistory,
+  validateRepeatEndingGroup,
   type ILXMDocument,
   type ILXMScoreCommand,
 } from "../../src";
@@ -70,6 +73,78 @@ describe("REQ-106 反复房子", () => {
     const repaired = apply(missing, { type: Command.UpsertRepeatEnding, trackId: "track", group, ending: { ...ending, id: "" } });
     expect(track(repaired).repeatEndingGroups![0]!.endings.find(({ passes }) => passes.includes(2))!.id).not.toBe(ending.id);
     expect(numbers(createPlaybackPlan(reopen(repaired)))).toEqual(expected);
+  });
+
+  it("整组草稿一次提交并保持组与房子 ID，缺房由可复用校验结果报告", () => {
+    const document = reopen();
+    const current = track(document).repeatEndingGroups![0]!;
+    const draft = { ...current, endings: current.endings.slice(0, 2) };
+    const validation = validateRepeatEndingGroup(track(document), draft);
+    expect(validation.ok).toBe(true);
+    expect(validation.missingPasses).toEqual([3]);
+    const result = applyScoreCommand(document, {
+      type: Command.UpsertRepeatEndingGroup,
+      trackId: "track",
+      group: draft,
+    });
+    expect(result).toMatchObject({ ok: true, changed: true });
+    if (!result.ok) return;
+    expect(result.document.score.tracks[0]!.repeatEndingGroups![0]).toEqual(draft);
+    expect(applyScoreCommand(result.document, {
+      type: Command.UpsertRepeatEndingGroup,
+      trackId: "track",
+      group: { ...draft, endings: [draft.endings[0]!, { ...draft.endings[1]!, startMeasureId: "m5" }] },
+    })).toMatchObject({ ok: false, code: "INVALID_REPEAT_ENDING" });
+  });
+
+  it("互换两房遍次并缩短组末可一起提交，一步撤销恢复整组", () => {
+    const document = reopen();
+    const original = track(document).repeatEndingGroups![0]!;
+    const [first, second] = original.endings;
+    const group = { ...original, endMeasureId: "m7", endings: [
+      { ...first!, passes: [2] },
+      { ...second!, passes: [1] },
+    ] };
+    const command = { type: Command.UpsertRepeatEndingGroup, trackId: "track", group } as const;
+    const edited = apply(document, command);
+    expect(edited.documentRevision).toBe(document.documentRevision + 1);
+    expect(track(edited).repeatEndingGroups).toEqual([group]);
+    expect(applyScoreCommand(edited, command)).toMatchObject({ ok: true, changed: false });
+    const history = transitionDocumentHistory(createDocumentHistory<typeof command>(), { type: "commit", document, entry: command });
+    expect(track(history.past[0]!).repeatEndingGroups).toEqual([original]);
+    const restored = transitionDocumentHistory(history, { type: "undo", document: edited, keepCount: 0 });
+    expect(restored.past).toEqual([]);
+    expect(restored.future).toEqual([edited]);
+  });
+
+  it("整组新建时为组和每个房子生成可重开的稳定 ID", () => {
+    const document = reopen();
+    const original = track(document).repeatEndingGroups![0]!;
+    const withoutGroup = apply(document, {
+      type: Command.DeleteRepeatEndingGroup,
+      trackId: "track",
+      groupId: original.id,
+    });
+    const draft = {
+      ...original,
+      id: "",
+      endings: original.endings.map((ending) => ({ ...ending, id: "" })),
+    };
+    expect(validateRepeatEndingGroup(track(withoutGroup), { ...draft, endings: [] }).issues[0]?.field).toBe("endings");
+    expect(validateRepeatEndingGroup(track(document), { ...draft }).issues[0]?.field).toBe("startMeasureId");
+    expect(validateRepeatEndingGroup(track(withoutGroup), { ...draft, endings: original.endings }).issues[0]?.field).toBe("id");
+    const result = applyScoreCommand(withoutGroup, {
+      type: Command.UpsertRepeatEndingGroup,
+      trackId: "track",
+      group: draft,
+    });
+    expect(result).toMatchObject({ ok: true, changed: true });
+    if (!result.ok) return;
+    const saved = track(result.document).repeatEndingGroups![0]!;
+    expect(saved.id).toBeTruthy();
+    expect(saved.endings.every(({ id }) => id)).toBe(true);
+    expect(new Set([saved.id, ...saved.endings.map(({ id }) => id)])).toHaveProperty("size", 4);
+    expect(track(reopen(result.document)).repeatEndingGroups![0]).toEqual(saved);
   });
 
   it("回跳进入共享段保留最终遍次，错落到其它房在发音前定位来源指令", () => {

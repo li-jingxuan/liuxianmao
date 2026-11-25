@@ -1,16 +1,18 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Select } from "antd";
-import { Pause, Play, Square } from "lucide-react";
-import { DEFAULT_PLAYBACK_BPM, MAX_PLAYBACK_BPM, MIN_PLAYBACK_BPM } from "@liuxianmao/lxm-editor";
+import { Dropdown, Select } from "antd";
+import { ChevronDown, LocateFixed, Pause, Play, Square, StepBack, StepForward, Volume2, VolumeX } from "lucide-react";
+import { DEFAULT_PLAYBACK_BPM, JUMP_MARK_LABEL, MAX_PLAYBACK_BPM, MIN_PLAYBACK_BPM, type PlaybackRepeatEndingIssue } from "@liuxianmao/lxm-editor";
 import type { ScorePlaybackControls } from "./controller";
 import { AuditionMetronomeControls } from "./MetronomeControls";
 import { useEditorIdPrefix } from "../session/EditorSessionRuntime";
 import styles from "../workspace/EditorToolbar.module.scss";
 
-export const PlaybackToolbar = ({ playback }: {
+export const PlaybackToolbar = ({ playback, onRepairJumpMark, onRepairRepeatEnding }: {
   playback: ScorePlaybackControls;
+  onRepairJumpMark: (markId: string) => void;
+  onRepairRepeatEnding: (issue: PlaybackRepeatEndingIssue) => void;
 }) => {
   const { phase, position } = playback;
   const idPrefix = useEditorIdPrefix();
@@ -34,9 +36,23 @@ export const PlaybackToolbar = ({ playback }: {
   // 常用速度使用较细的滑杆范围。已应用或手动输入的极值也必须能在滑杆上正确显示和恢复。
   const sliderMin = Math.min(40, scoreBpm, playback.bpm);
   const sliderMax = Math.max(180, scoreBpm, playback.bpm);
-  const playbackStatus = playback.jumpEnd ? "试听结束" : phase === "playing" ? "正在试听" : phase === "paused" ? "试听已暂停"
+  const playbackStatus = playback.jumpEnd || phase === "idle" && position ? "试听结束" : phase === "playing" ? "正在试听" : phase === "paused" ? "试听已暂停"
     : phase === "loading" ? "正在准备试听" : adjusted ? "临时调速试听" : "按曲谱速度试听";
   const startValue = playback.startOptions.find(({ measureId }) => measureId === playback.startMeasureId)?.value ?? 0;
+  const route = playback.jumpRoute;
+  const current = route?.visits.findIndex(({ visitIndex }) => visitIndex === position?.visitIndex) ?? -1;
+  const previous = route?.visits[current - 1];
+  const next = current < 0 ? undefined : route?.visits[current + 1];
+  const issue = playback.jumpIssue ?? route?.jumpIssue;
+  const repeatIssue = playback.repeatEndingIssue ?? route?.repeatEndingIssue;
+  const startSkipped = playback.startMeasureId !== null && route && !route.visits.some(({ measureId }) => measureId === playback.startMeasureId);
+  // 保留原来的两小节片段试听能力，按真实计划中的相邻到访截取跳出和落点。
+  const jumps = route?.visits.flatMap((visit, index) => {
+    const from = route.visits[index - 1];
+    if (!from || !visit.jump) return [];
+    return [{ key: String(visit.visitIndex), label: `${JUMP_MARK_LABEL[visit.jump.kind]} · ${from.measureIndex + 1} → ${visit.measureIndex + 1}`,
+      onClick: () => playback.playVisits(from.visitIndex, visit.visitIndex) }];
+  });
 
   return (
     <div
@@ -57,6 +73,10 @@ export const PlaybackToolbar = ({ playback }: {
         <button type="button" className={styles.playbackButton} disabled={!active && !position && phase !== "error"} onClick={playback.stop}>
           <Square size={14} aria-hidden="true" />停止
         </button>
+        <button type="button" className={styles.playbackButton} title="上一步" aria-label="上一步" disabled={!previous || phase === "loading"}
+          onClick={() => previous && playback.playVisits(previous.visitIndex)}><StepBack size={15} aria-hidden="true" /></button>
+        <button type="button" className={styles.playbackButton} title="下一步" aria-label="下一步" disabled={!next || phase === "loading"}
+          onClick={() => next && playback.playVisits(next.visitIndex)}><StepForward size={15} aria-hidden="true" /></button>
         {/* 下拉和谱面单选共用起点。播放期间锁定已选值，暂停后可继续原位置。 */}
         <Select<number> className={styles.playbackStart} aria-label="播放起点" disabled={active}
           value={startValue} options={playback.startOptions}
@@ -84,15 +104,46 @@ export const PlaybackToolbar = ({ playback }: {
         <span>BPM</span>
         <button type="button" className={styles.playbackButton} aria-label="恢复曲谱速度" disabled={!adjusted}
           onClick={restoreTempo}>恢复</button>
-        <div id={tempoNoteId} className={styles.playbackDetails}>
+        <div id={tempoNoteId} className={styles.hint}>
           <span>{playback.savedBpm === null ? `曲谱未设置速度，默认 ${scoreBpm} BPM` : `曲谱速度 ${scoreBpm} BPM`}</span>
         </div>
       </div>
+      <div className={styles.playbackGroup} role="group" aria-label="试听选项">
+        <button type="button" className={styles.playbackButton} title="跟随谱面" aria-label="跟随谱面" aria-pressed={playback.follow}
+          onClick={playback.follow ? playback.suspendFollow : playback.resumeFollow}><LocateFixed size={15} aria-hidden="true" /></button>
+        <button type="button" className={styles.playbackButton} title="木吉他声音" aria-label="木吉他声音" aria-pressed={!playback.guitarMuted}
+          onClick={() => playback.setGuitarMuted(!playback.guitarMuted)}>
+          {playback.guitarMuted ? <VolumeX size={15} aria-hidden="true" /> : <Volume2 size={15} aria-hidden="true" />}
+        </button>
+      </div>
+      {!!jumps?.length && <Dropdown trigger={["click"]} autoFocus menu={{ items: jumps }}>
+        <button type="button" className={styles.playbackButton} aria-haspopup="menu" disabled={phase === "loading"}>
+          试听单次跳转<ChevronDown size={14} aria-hidden="true" />
+        </button>
+      </Dropdown>}
       <div className={`${styles.playbackDetails} ${styles.playbackStatus}`}>
         <strong>{playbackStatus}</strong>
-        {position && <span>第 {position.measureIndex + 1} 小节</span>}
+        {position && <span>第 {position.measureIndex + 1} 小节{current >= 0 && ` · 到访 ${current + 1}/${route?.visits.length}`}</span>}
+        {playback.jumpEnd && <span role="status" data-jump-playback-end={playback.jumpEnd.kind}>
+          {playback.jumpEnd.kind === "fine" ? "Fine · 重奏结束" : "曲尾 · 试听结束"}
+        </span>}
       </div>
       <AuditionMetronomeControls playback={playback} onRestore={restoreTempo} />
+      {startSkipped && <div className={styles.playbackNotice}>
+        <span>演奏路线未到访当前起点，将从曲首试听。</span>
+        <button type="button" className={styles.playbackButton} disabled={active} onClick={() => playback.setStartMeasure(null)}>从曲首</button>
+      </div>}
+      {issue && <div className={styles.playbackNotice} data-jump-playback-issue>
+        <span>{`第 ${issue.measureIndex + 1} 小节${playback.jumpIssue ? "已暂停" : "弹完后暂停"}。${issue.message}。`}</span>
+        <button type="button" className={styles.playbackButton} onClick={() => onRepairJumpMark(issue.repairMarkId)}>返回编辑并定位</button>
+      </div>}
+      {repeatIssue && <div className={styles.playbackNotice} data-repeat-ending-playback-issue>
+        <span>{`第 ${repeatIssue.measureIndex + 1} 小节${playback.repeatEndingIssue ? "已暂停" : "弹完后暂停"}。${repeatIssue.message}。`}</span>
+        <button type="button" className={styles.playbackButton} onClick={() => repeatIssue.repairMarkId
+          ? onRepairJumpMark(repeatIssue.repairMarkId) : onRepairRepeatEnding(repeatIssue)}>
+          {repeatIssue.repairMarkId ? "返回编辑跳转记号" : "返回编辑反复房子"}
+        </button>
+      </div>}
     </div>
   );
 };

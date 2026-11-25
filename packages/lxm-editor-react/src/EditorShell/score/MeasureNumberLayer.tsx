@@ -17,7 +17,8 @@ export const MeasureNumberLayer = memo(function MeasureNumberLayer({ layout, act
       // 额外拍数只随编辑图层绘制；打印、图片和只读试听均使用原谱的拍号及小节线。
       const source = editingMeasures?.[measure.index];
       const duration = source?.actualDurationTicks;
-      // 共用边界有跳转落点时，沿用核心算好的避让坐标；其余小节号保留原锚点。
+      // Segno/Coda 的所属号随记号贴起始线，发生重叠的共线前节号也由核心让位。
+      // 其它普通编号仍锚在原来的结束线，实际拍数提示保留编辑态可见性。
       const position = measure.numberPosition;
       return {
         id: measure.id,

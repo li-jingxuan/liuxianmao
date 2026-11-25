@@ -102,6 +102,7 @@ export const layoutSystemContent = (
   placeholders?: ILXMLayoutOptions["paragraphPlaceholders"],
   numberedRhythm = createNumberedTrackRhythmContext(track),
   endingPreview?: ILXMLayoutOptions["repeatEndingPreview"],
+  groupPreview?: ILXMLayoutOptions["repeatEndingGroupPreview"],
 ): ILXMSystemLayout[] => {
   const profile = numberedLayoutProfile(purpose);
   const visibleTrack = getVisibleMeasureRepeatTrack(track);
@@ -110,6 +111,12 @@ export const layoutSystemContent = (
   const source = new Map(visibleTrack.measures.map((m) => [m.id, m]));
   const repeatEndings = track.repeatEndingGroups?.flatMap(({ endings }) => endings) ?? [];
   const measureIndexes = new Map(track.measures.map(({ id }, index) => [id, index]));
+  const draftEndings = groupPreview?.endings.map((ending, index) => ({
+    ...ending, id: ending.id || `draft-ending-${index}`,
+  })) ?? (endingPreview ? [endingPreview] : []);
+  const previewStart = measureIndexes.get(groupPreview?.startMeasureId ?? "") ?? -1;
+  const previewShared = measureIndexes.get(groupPreview?.sharedEndMeasureId ?? "") ?? -1;
+  const previewEnd = measureIndexes.get(groupPreview?.endMeasureId ?? "") ?? -1;
   let nextTop = planned[0]?.y ?? 0;
   return planned.map((system) => {
     const techniqueTop = Math.min(
@@ -290,21 +297,19 @@ export const layoutSystemContent = (
         lyrics,
         chordSymbols,
         numberedNotation: numberedByMeasure.get(measure.id),
-        visualBounds: unionMusicBounds([
-          {
-            x: measure.x,
-            y: measure.y,
-            width: measure.width,
-            height: measure.height,
-          },
-          ...lyrics.map((l) => l.bounds),
-          ...numberedByMeasure.get(measure.id)!.map((n) => n.bounds),
-          ...chordSymbols.map((b) => b.bounds),
-        ]),
       };
     });
-    // 跳转记号在既有和弦与技巧排版后加入，只占用上方净空，不重新分配拍点。
+    // 起始记号可能局部抬高和弦图。先完成避让再算各小节实际范围和房子上层，
+    // 否则换行分页与和弦点击可能仍使用水平基线时的旧坐标。
     const jumpBounds = layoutJumpMarks(system, measures, source);
+    for (const measure of measures) {
+      measure.visualBounds = unionMusicBounds([
+        { x: measure.x, y: measure.y, width: measure.width, height: measure.height },
+        ...measure.lyrics!.map((lyric) => lyric.bounds),
+        ...measure.numberedNotation!.map((notation) => notation.bounds),
+        ...measure.chordSymbols!.map((chord) => chord.bounds),
+      ]);
+    }
     const [firstMeasure] = measures;
     // 行首无反复线时，落点仍需对应一根真实的起始线。已有反复线直接复用。
     const leadingBarline = system.header.leadingBarline ?? (
@@ -323,9 +328,7 @@ export const layoutSystemContent = (
     const endingTop = musicTop - REPEAT_ENDING_LANE_HEIGHT - 2;
     const endingSegments = layoutRepeatEndingSegments(system, repeatEndings, measureIndexes, endingTop);
     const previewTop = endingTop - (endingSegments.length ? REPEAT_ENDING_LANE_HEIGHT : 0);
-    const endingPreviewSegments = endingPreview
-      ? layoutRepeatEndingSegments(system, [endingPreview], measureIndexes, previewTop)
-      : [];
+    const endingPreviewSegments = layoutRepeatEndingSegments(system, draftEndings, measureIndexes, previewTop);
     const finalBottom = maxVerse
       ? lyricBaseline +
         (maxVerse - 1) * rowHeight +
@@ -338,6 +341,13 @@ export const layoutSystemContent = (
     // 段落标记仅保存在文档中，不再投影为标签或影响顶部占位。
     const originalTop = endingPreviewSegments.length ? previewTop : endingSegments.length ? endingTop : musicTop;
     const dy = nextTop - originalTop;
+    // 只投影可读的组边界。不完整草稿仍可显示有效房子的虚线括线，便于逐项修正。
+    const groupPreviewBounds: NonNullable<ILXMSystemLayout["repeatEndingGroupPreview"]> =
+      previewStart >= 0 && previewStart <= previewShared && previewShared < previewEnd
+        ? system.measures.filter(({ index }) => index >= previewStart && index <= previewEnd).map((measure) => ({
+          kind: measure.index <= previewShared ? "shared" : "ending",
+          bounds: { x: measure.x, y: measure.strings[0]!.y1 + dy - 3, width: measure.width, height: 3 },
+        })) : [];
     // 全部简谱事件参与中点划分，只有音符生成歌词入口；真实文字优先命中。
     const musicTextCells: NonNullable<ILXMSystemLayout["musicTextCells"]> = [];
     // 占位只使用数字正文带，不把高音点、减时线和上方连线当作输入框基线。
@@ -416,6 +426,7 @@ export const layoutSystemContent = (
       ...(endingPreviewSegments.length && { repeatEndingPreview: endingPreviewSegments.map((segment) => ({
         ...segment, bounds: { ...segment.bounds, y: segment.bounds.y + dy },
       })) }),
+      ...(groupPreviewBounds.length && { repeatEndingGroupPreview: groupPreviewBounds }),
       ...(rawNumbered.length || rawNumberedMarks.length || showNumberedInput
         ? {
             numberedRow: {

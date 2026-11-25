@@ -2,14 +2,10 @@
   display: grid;
   gap: 10px;
 
-  h3,
   p {
     margin: 0;
   }
 
-  h3 {
-    font-size: 15px;
-  }
 }
 
 .detail {
@@ -22,10 +18,23 @@
   }
 }
 
-.actions {
+.title {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
+}
+
+.help {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #667085;
+  font-size: 15px;
+  cursor: help;
 }
 
 .reason,

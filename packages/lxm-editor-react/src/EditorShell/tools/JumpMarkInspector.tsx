@@ -1,6 +1,7 @@
 "use client";
 
-import { Button, Modal, Select } from "antd";
+import { QuestionCircleOutlined } from "@ant-design/icons";
+import { Button, Modal, Select, Tooltip } from "antd";
 import { useCallback, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   createJumpMarkIndex,
@@ -59,6 +60,21 @@ const kinds = ["segno", "ds", "dsAlCoda", "toCoda", "coda", "dc", "fine", "dcAlF
 const measureLabel = (index: number) => `第 ${index + 1} 小节`;
 const entryLabel = ({ mark, measureIndex }: JumpMarkEntry) => `${measureLabel(measureIndex)} ${JUMP_MARK_LABEL[mark.kind]}`;
 const kindOptions = kinds.map((value) => ({ value, label: JUMP_MARK_LABEL[value] }));
+// 弹层须位于对话框内容容器内。挂到 body 会被工作区设为 inert，挂到对话框外壳会继承
+// AntD 的 pointer-events: none，导致下拉项可见却由下面的表单标签接收鼠标点击。
+const getDialogPopup = (trigger: HTMLElement) => trigger.closest<HTMLElement>(".ant-modal-container") ?? trigger.parentElement!;
+const markHelp: Record<ILXMJumpMarkKind, string> = {
+  segno: "回跳后从本小节第 1 拍继续。",
+  ds: "弹完本小节，回到配对的 Segno。",
+  dsAlCoda: "回到 Segno，重奏时经 To Coda 进入尾声。",
+  toCoda: "重奏命中配对时，弹完本小节再跳至 Coda。",
+  coda: "从本小节第 1 拍进入尾声。",
+  dc: "弹完本小节，回到曲首并重奏至曲尾。",
+  fine: "首遍顺行，重奏命中配对时在本小节末结束。",
+  dcAlFine: "回到曲首，重奏到配对的 Fine 停止。",
+  dsAlFine: "回到 Segno，重奏到配对的 Fine 停止。",
+  dcAlCoda: "回到曲首，重奏时经 To Coda 进入尾声。",
+};
 
 interface Draft {
   sourceMeasureId: string;
@@ -183,15 +199,18 @@ function inspectDraft(draft: Draft, measures: readonly ILXMMeasure[], index: Ind
 export function JumpMarkInspector({ measures, measureId, request, onRequestHandled, version, disabled = false, onLocateMark,
   onDraftMeasure, onDirtyChange, onApply, onDelete }: JumpMarkInspectorProps) {
   const titleId = useId();
-  const rootRef = useRef<HTMLElement>(null);
+  const formId = `${titleId}-form`;
   const headingRef = useRef<HTMLHeadingElement>(null);
-  const formTitleRef = useRef<HTMLElement>(null);
+  const modalTitleRef = useRef<HTMLSpanElement>(null);
+  const deleteButtonRef = useRef<HTMLButtonElement>(null);
+  const returnFocus = useRef<HTMLElement | SVGElement | null>(null);
   const consumedRequest = useRef<JumpMarkInspectorRequest | undefined>(undefined);
-  const pendingFocus = useRef<"form" | "heading" | null>(null);
+  const pendingFocus = useRef<"title" | "delete" | null>(null);
   const committing = useRef(false);
   const mounted = useRef(false);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const index = useMemo(() => createJumpMarkIndex(measures), [measures]);
@@ -204,6 +223,7 @@ export function JumpMarkInspector({ measures, measureId, request, onRequestHandl
     // 换小节或目标被移除时，清理原表单，避免重新选回后恢复过期的输入。
     setDraft(null);
     setConfirmation(null);
+    setHelpOpen(false);
     setSubmitError(null);
   }
   const preview = useMemo(() => validDraft && inspectDraft(validDraft, measures, index), [validDraft, measures, index]);
@@ -226,10 +246,12 @@ export function JumpMarkInspector({ measures, measureId, request, onRequestHandl
   }, []);
 
   const closeDraft = useCallback((restoreFocus = true) => {
-    pendingFocus.current = restoreFocus ? "heading" : null;
+    pendingFocus.current = null;
+    if (!restoreFocus) returnFocus.current = null;
     setDraft(null);
     setSubmitError(null);
     setConfirmation(null);
+    setHelpOpen(false);
   }, []);
 
   // 只登记有修改的表单。统一闸门提供定位和放弃，改类确认仍由这里的应用入口处理。
@@ -247,10 +269,10 @@ export function JumpMarkInspector({ measures, measureId, request, onRequestHandl
       dirty: true,
       composing: false,
       canApply: false,
-      error: "请在「反复与跳转」原表单应用。",
+      error: "请在跳转记号弹窗中应用。",
       version: { document: scoreDocument, sessionId, sessionVersion, stateVersion },
       focus: () => {
-        const title = formTitleRef.current;
+        const title = modalTitleRef.current;
         if (!title?.isConnected) return false;
         title.scrollIntoView({ block: "nearest" });
         title.focus({ preventScroll: true });
@@ -276,10 +298,16 @@ export function JumpMarkInspector({ measures, measureId, request, onRequestHandl
     registration.invalidateOwner();
     setSubmitError(null);
     setConfirmation(null);
+    setHelpOpen(false);
+    if (!currentDraft.current) {
+      const active = document.activeElement;
+      // 工具栏入口可能随参数面板关闭而卸载。记录真实入口，关闭后再检查是否仍可聚焦。
+      returnFocus.current = active !== document.body && (active instanceof HTMLElement || active instanceof SVGElement) ? active : headingRef.current;
+    }
+    pendingFocus.current = "title";
     if (intent.kind === "edit") {
       const entry = index.byId.get(intent.entry.mark.id);
       if (!entry) return;
-      pendingFocus.current = "form";
       setDraft({ sourceMeasureId: entry.measureId, measureId: entry.measureId, mark: entry.mark, dirty: false });
       if (intent.locate) {
         // 显式接受离开后先同步释放草稿守卫，随后工作台才能切换谱面选区。
@@ -289,22 +317,28 @@ export function JumpMarkInspector({ measures, measureId, request, onRequestHandl
     } else {
       if (!measuresById.has(measureId)) return;
       const hasStart = index.entries.some((entry) => entry.measureId === measureId && getJumpMarkSide(entry.mark.kind) === "start");
-      pendingFocus.current = "form";
       // 留空 ID 由命令创建，避免预览或取消消耗持久化身份。
       const kind = intent.markKind ?? (hasStart ? "dsAlCoda" : "segno");
       setDraft({ sourceMeasureId: measureId, measureId, mark: { id: "", kind }, dirty: false });
     }
   }, [index, measureId, measuresById, onLocateMark, registration]);
 
+  const showConfirmation = useCallback((next: Confirmation) => {
+    // 编辑和确认共用一个 Modal。切换内容时保留草稿、预览和登记，避免两层弹窗同时争抢焦点。
+    pendingFocus.current = "title";
+    setHelpOpen(false);
+    setConfirmation(next);
+  }, []);
+
   const open = useCallback((intent: OpenIntent) => {
     if (disabled || committing.current) return;
     if (intent.kind === "section") begin(intent);
     else if (intent.kind === "edit" && validDraft?.mark.id === intent.entry.mark.id) {
-      formTitleRef.current?.focus({ preventScroll: true });
+      modalTitleRef.current?.focus({ preventScroll: true });
     } else if (validDraft?.dirty) {
-      setConfirmation({ kind: "switch", intent });
+      showConfirmation({ kind: "switch", intent });
     } else begin(intent);
-  }, [begin, disabled, validDraft]);
+  }, [begin, disabled, showConfirmation, validDraft]);
 
   useLayoutEffect(() => {
     if (!request || consumedRequest.current === request || disabled || busy) return;
@@ -324,23 +358,52 @@ export function JumpMarkInspector({ measures, measureId, request, onRequestHandl
     return () => { current = false; };
   }, [busy, disabled, index, measureId, measuresById, onRequestHandled, open, request]);
 
-  useLayoutEffect(() => {
-    if (confirmation) return;
-    // 由谱面或符号按钮进入时先读到表单标题，Tab 再从第一个可编辑字段开始。
-    if (pendingFocus.current === "form" && formTitleRef.current) {
-      pendingFocus.current = null;
-      formTitleRef.current.scrollIntoView({ block: "nearest" });
-      formTitleRef.current.focus({ preventScroll: true });
-    } else if (pendingFocus.current === "heading") {
-      pendingFocus.current = null;
-      headingRef.current?.focus({ preventScroll: true });
-    }
-  });
+  const focusModal = () => {
+    if (!pendingFocus.current) return;
+    const target = pendingFocus.current === "delete" ? deleteButtonRef.current : modalTitleRef.current;
+    if (!target?.isConnected) return;
+    pendingFocus.current = null;
+    target.focus({ preventScroll: true });
+  };
+  // 已打开的 Modal 切换内容时立即移动焦点，首次打开时等 antd 挂载 Portal。
+  useLayoutEffect(focusModal);
+
+  const focusAfterOpen = (visible: boolean) => {
+    if (!visible) return;
+    const dialog = modalTitleRef.current?.closest('[role="dialog"]');
+    const active = document.activeElement;
+    // 开场动画期间用户可能已点击字段。保留该焦点，避免关闭刚展开的下拉选项。
+    if (active !== dialog && dialog?.contains(active)) pendingFocus.current = null;
+    else focusModal();
+  };
+
+  const restoreEntryFocus = () => {
+    const entry = returnFocus.current;
+    returnFocus.current = null;
+    if (!entry || document.activeElement !== document.body) return;
+    if (entry.isConnected && entry.getClientRects().length && !entry.closest(":disabled,[hidden],[inert]"))
+      entry.focus({ preventScroll: true });
+    else headingRef.current?.focus({ preventScroll: true });
+  };
 
   const cancel = () => {
     if (committing.current) return;
     registration.invalidateOwner();
     closeDraft();
+  };
+  const dismissStage = () => {
+    if (committing.current) return;
+    if (!confirmation) {
+      cancel();
+      return;
+    }
+    pendingFocus.current = confirmation.kind === "delete" ? "delete" : "title";
+    setConfirmation(null);
+  };
+  const dismissOnEscape = () => {
+    // 问号提示也支持键盘查看。Esc 先收起提示，下一次才退出当前弹窗步骤。
+    if (helpOpen) setHelpOpen(false);
+    else dismissStage();
   };
   const change = (mark: ILXMJumpMark, destination = validDraft?.measureId) => {
     if (!validDraft || !destination) return;
@@ -376,7 +439,7 @@ export function JumpMarkInspector({ measures, measureId, request, onRequestHandl
   const apply = (confirmed = false) => {
     if (disabled || committing.current || !validDraft || !preview || preview.isOccupied) return;
     if (!confirmed && preview.original && preview.original.mark.kind !== validDraft.mark.kind && preview.dependents.length) {
-      setConfirmation({ kind: "changeKind", entry: preview.original });
+      showConfirmation({ kind: "changeKind", entry: preview.original });
       return;
     }
     // 悬空和位置诊断是可保存状态。同端冲突由面板和命令共同拦截。
@@ -384,6 +447,7 @@ export function JumpMarkInspector({ measures, measureId, request, onRequestHandl
   };
   const confirm = () => {
     if (disabled || committing.current || !confirmation) return;
+    pendingFocus.current = "title";
     setConfirmation(null);
     if (confirmation.kind === "switch") begin(confirmation.intent);
     else if (confirmation.kind === "changeKind") apply(true);
@@ -400,73 +464,25 @@ export function JumpMarkInspector({ measures, measureId, request, onRequestHandl
   const blocked = disabled || busy;
   const original = preview?.original;
   const formLabel = validDraft?.mark.id ? "编辑记号" : "插入记号";
+  const draftKind = validDraft?.mark.kind;
+  const dialogTitle = confirmation?.kind === "switch" ? "放弃未应用的记号编辑？"
+    : confirmation?.kind === "delete" ? `删除${entryLabel(confirmation.entry)}？`
+    : confirmation?.kind === "changeKind" ? "更改记号类型？"
+    : draftKind && `${validDraft.mark.id ? "编辑" : "添加"} ${JUMP_MARK_LABEL[draftKind]}`;
   return (
-    <section ref={rootRef} className={styles.inspector} aria-labelledby={titleId} data-jump-mark-inspector onKeyDown={(event) => {
-      if (event.key !== "Escape" || event.defaultPrevented || event.nativeEvent.isComposing || !validDraft || confirmation || busy || event.target instanceof Element &&
-        (!rootRef.current?.contains(event.target) || event.target.closest('.ant-select-open,[aria-expanded="true"][role="combobox"]'))) return;
-      event.preventDefault();
-      event.stopPropagation();
-      cancel();
-    }}>
+    <section className={styles.inspector} aria-labelledby={titleId} data-jump-mark-inspector>
       <div className={styles.row}>
         <h3 ref={headingRef} id={titleId} tabIndex={-1}>反复与跳转</h3>
         <Button size="small" disabled={blocked} onClick={() => open({ kind: "insert" })}>插入记号</Button>
       </div>
-      {validDraft && preview ? (
-        <form className={styles.form} aria-label={formLabel} onSubmit={(event) => { event.preventDefault(); apply(); }}>
-          <strong ref={formTitleRef} tabIndex={-1}>{formLabel}</strong>
-          <label className={styles.field} htmlFor={`${titleId}-kind`}>记号类型
-            <Select id={`${titleId}-kind`} aria-label="记号类型" size="small" value={validDraft.mark.kind} disabled={blocked} options={kindOptions} onChange={changeKind} />
-          </label>
-          <label className={styles.field} htmlFor={`${titleId}-measure`}>位置小节
-            <Select id={`${titleId}-measure`} aria-label="位置小节" size="small" value={validDraft.measureId} disabled={blocked}
-              options={measureOptions} onChange={(id) => change(validDraft.mark, id)} />
-          </label>
-          <p className={styles.hint}>{getJumpMarkSide(validDraft.mark.kind) === "start" ? "位于小节开头，与小节线对齐。" : "位于小节末端，弹完整节后触发。"}</p>
-          {getJumpMarkFields(validDraft.mark.kind).map((field) => {
-            const { label, target } = fields[field];
-            const candidates = getJumpMarkCandidates(preview.resolved, field, preview.candidateIndex, measuresById.get(validDraft.measureId));
-            const current = validDraft.mark[field];
-            const value = current ?? preview.resolved[field] ?? "";
-            const fieldId = `${titleId}-${field}`;
-            const issues = preview.ownIssues.filter((issue) => issue.markId === validDraft.mark.id && issue.field === field);
-            const options = candidates.map((candidate) => ({ value: candidate.mark.id, label: entryLabel(candidate) }));
-            if (current && !candidates.some(({ mark }) => mark.id === current)) {
-              const saved = preview.candidateIndex.byId.get(current);
-              options.unshift({ value: current, label: saved?.mark.kind === target ? `${entryLabel(saved)}（位置待修复）` : "原配对已删除或改类" });
-            }
-            if (candidates.length !== 1) options.unshift({ value: "", label: candidates.length ? "请选择一处" : "暂无可用候选" });
-            return (
-              <label className={styles.field} key={field} htmlFor={fieldId}>{label}
-                <Select id={fieldId} aria-label={label} size="small" options={options} value={value} disabled={blocked}
-                  status={issues.length ? "error" : undefined} aria-invalid={issues.length > 0}
-                  aria-describedby={issues.length ? `${fieldId}-issue` : undefined}
-                  onChange={(id) => change({ ...validDraft.mark, [field]: id || undefined })} />
-                {issues.length > 0 && <span className={styles.issue} id={`${fieldId}-issue`}>{issues.map(({ message }) => message).join("。")}</span>}
-              </label>
-            );
-          })}
-          {preview.otherIssues.map(({ entry, message }) => <div key={`${entry.mark.id}-${message}`} className={styles.issue}>
-            <Button type="link" size="small" disabled={blocked} onClick={() => open({ kind: "edit", entry, locate: true })}>{entryLabel(entry)}</Button>
-            <p className={styles.issue}>{message}</p>
-          </div>)}
-          {preview.isOccupied && <p className={styles.issue} role="alert">这个小节的同一端已有记号。请选择其它小节或编辑现有记号。</p>}
-          {submitError && <p className={styles.issue} role="alert">{submitError}</p>}
-          <div className={styles.actions}>
-            <Button size="small" type="primary" htmlType="submit" loading={busy} disabled={blocked || preview.isOccupied}>应用</Button>
-            <Button size="small" disabled={busy} onClick={cancel}>取消</Button>
-            {original && <Button danger type="text" size="small" disabled={blocked} className={styles.delete}
-              onClick={() => setConfirmation({ kind: "delete", entry: original })}>删除</Button>}
-          </div>
-        </form>
-      ) : at.length ? (
+      {at.length ? (
         <div className={styles.marks}>
           {at.map((entry) => <PairingCard key={entry.mark.id} entry={entry} index={index} disabled={blocked}
             onEdit={() => open({ kind: "edit", entry, locate: false })}
             onLocate={(target) => open({ kind: "edit", entry: target, locate: true })} />)}
         </div>
       ) : <p className={styles.hint}>本小节还没有跳转记号。</p>}
-      {!validDraft && unresolved.length > 0 && (
+      {unresolved.length > 0 && (
         <details className={styles.unresolved}>
           <summary>配对待补全（{unresolved.length}）</summary>
           <ul>
@@ -477,16 +493,73 @@ export function JumpMarkInspector({ measures, measureId, request, onRequestHandl
           </ul>
         </details>
       )}
-      <Modal open={!!confirmation} centered width={440} keyboard={false} mask={{ closable: false }}
-        title={confirmation?.kind === "switch" ? "放弃未应用的记号编辑？" : confirmation?.kind === "delete" ? `删除${entryLabel(confirmation.entry)}？` : "更改记号类型？"}
+      <Modal open={!!validDraft} centered width={440} keyboard={false} mask={{ closable: false }} destroyOnHidden
+        focusable={{ focusTriggerAfterClose: false }} afterClose={restoreEntryFocus} afterOpenChange={focusAfterOpen}
+        closable={busy ? false : { "aria-label": "关闭" }} onCancel={dismissStage}
+        title={<span ref={modalTitleRef} tabIndex={-1}>{dialogTitle}</span>}
         okText={confirmation?.kind === "switch" ? "放弃修改" : confirmation?.kind === "delete" ? "删除" : "更改类型"}
-        cancelText={confirmation?.kind === "switch" ? "继续编辑" : "取消"} okButtonProps={{ danger: confirmation?.kind === "delete", disabled }}
-        onOk={confirm} onCancel={() => setConfirmation(null)}
-        modalRender={(content) => <EditorModalGuard dismissable onDismiss={() => setConfirmation(null)}>{content}</EditorModalGuard>}>
-        {confirmation?.kind === "switch" ? <p>当前修改尚未应用。</p> : impact.length ? <>
-          <p>以下指令的配对将受影响，请在应用后重新指定目标。</p>
-          <ul className={styles.impactList}>{impact.map((entry) => <li key={entry.mark.id}>{entryLabel(entry)}</li>)}</ul>
-        </> : <p>确认后，谱面将移除此记号。</p>}
+        cancelText={confirmation?.kind === "switch" ? "继续编辑" : "取消"} okButtonProps={{ danger: confirmation?.kind === "delete", disabled: blocked }}
+        onOk={confirm} footer={confirmation ? undefined : <div className={styles.actions}>
+          {original && <Button ref={deleteButtonRef} danger type="text" disabled={blocked} className={styles.delete}
+            onClick={() => showConfirmation({ kind: "delete", entry: original })}>删除记号</Button>}
+          <Button disabled={busy} onClick={cancel}>取消</Button>
+          <Button type="primary" htmlType="submit" form={formId} loading={busy} disabled={blocked || preview?.isOccupied}>应用</Button>
+        </div>}
+        modalRender={(content) => <EditorModalGuard dismissable busy={busy} onDismiss={dismissOnEscape}>{content}</EditorModalGuard>}>
+        {confirmation ? (
+          confirmation.kind === "switch" ? <p>当前修改尚未应用。</p> : impact.length ? <>
+            <p>以下指令的配对将受影响，请在{confirmation.kind === "delete" ? "删除" : "应用"}后重新指定目标。</p>
+            <ul className={styles.impactList}>{impact.map((entry) => <li key={entry.mark.id}>{entryLabel(entry)}</li>)}</ul>
+          </> : <p>{confirmation.kind === "delete" ? "确认后，谱面将移除此记号。" : "确认后，谱面将应用新的记号类型。"}</p>
+        ) : validDraft && preview && draftMeasureIndex !== undefined && (
+          <form id={formId} className={styles.form} aria-label={formLabel} onSubmit={(event) => { event.preventDefault(); apply(); }}>
+            <div className={styles.formNote}>
+              <p className={styles.hint}>{measureLabel(draftMeasureIndex)} · {getJumpMarkSide(validDraft.mark.kind) === "start" ? "小节开头" : "小节末端"}</p>
+              <Tooltip title={markHelp[validDraft.mark.kind]} trigger={["hover", "focus"]} open={helpOpen} onOpenChange={setHelpOpen}
+                getPopupContainer={getDialogPopup}>
+                <Button type="text" size="small" className={styles.helpButton} aria-label="记号说明" icon={<QuestionCircleOutlined aria-hidden="true" />} />
+              </Tooltip>
+            </div>
+            {/* 收起选项后立即交还 Esc 给弹窗，避免退场动画仍被键盘守卫当作开放的下拉层。 */}
+            <label className={styles.field} htmlFor={`${formId}-kind`}>记号类型
+              <Select id={`${formId}-kind`} aria-label="记号类型" value={validDraft.mark.kind} disabled={blocked} options={kindOptions}
+                getPopupContainer={getDialogPopup} transitionName="" onChange={changeKind} />
+            </label>
+            <label className={styles.field} htmlFor={`${formId}-measure`}>位置小节
+              <Select id={`${formId}-measure`} aria-label="位置小节" value={validDraft.measureId} disabled={blocked}
+                options={measureOptions} getPopupContainer={getDialogPopup} transitionName="" onChange={(id) => change(validDraft.mark, id)} />
+            </label>
+            {getJumpMarkFields(validDraft.mark.kind).map((field) => {
+              const { label, target } = fields[field];
+              const candidates = getJumpMarkCandidates(preview.resolved, field, preview.candidateIndex, draftMeasureIndex);
+              const current = validDraft.mark[field];
+              const value = current ?? preview.resolved[field] ?? "";
+              const fieldId = `${formId}-${field}`;
+              const issues = preview.ownIssues.filter((issue) => issue.markId === validDraft.mark.id && issue.field === field);
+              const options = candidates.map((candidate) => ({ value: candidate.mark.id, label: entryLabel(candidate) }));
+              if (current && !candidates.some(({ mark }) => mark.id === current)) {
+                const saved = preview.candidateIndex.byId.get(current);
+                options.unshift({ value: current, label: saved?.mark.kind === target ? `${entryLabel(saved)}（位置待修复）` : "原配对已删除或改类" });
+              }
+              if (candidates.length !== 1) options.unshift({ value: "", label: candidates.length ? "请选择一处" : "暂无可用候选" });
+              return (
+                <label className={styles.field} key={field} htmlFor={fieldId}>{label}
+                  <Select id={fieldId} aria-label={label} options={options} value={value} disabled={blocked} getPopupContainer={getDialogPopup} transitionName=""
+                    status={issues.length ? "error" : undefined} aria-invalid={issues.length > 0}
+                    aria-describedby={issues.length ? `${fieldId}-issue` : undefined}
+                    onChange={(id) => change({ ...validDraft.mark, [field]: id || undefined })} />
+                  {issues.length > 0 && <span className={styles.issue} id={`${fieldId}-issue`}>{issues.map(({ message }) => message).join("。")}</span>}
+                </label>
+              );
+            })}
+            {preview.otherIssues.map(({ entry, message }) => <div key={`${entry.mark.id}-${message}`} className={styles.issue}>
+              <Button type="link" size="small" disabled={blocked} onClick={() => open({ kind: "edit", entry, locate: true })}>{entryLabel(entry)}</Button>
+              <p className={styles.issue}>{message}</p>
+            </div>)}
+            {preview.isOccupied && <p className={styles.issue} role="alert">这个小节的同一端已有记号。请选择其它小节或编辑现有记号。</p>}
+            {submitError && <p className={styles.issue} role="alert">{submitError}</p>}
+          </form>
+        )}
       </Modal>
     </section>
   );

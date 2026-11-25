@@ -49,7 +49,12 @@ try {
   const menuItem = name => menu.getByRole("menuitem", { name, exact: true });
   const chord = /^(添加|编辑)和弦$/;
   const copy = "复制当前小节";
-  const destinations = page.getByRole("dialog", { name: "复制到", exact: true });
+  const destinations = page.getByRole("dialog", { name: "复制小节", exact: true });
+  const destinationField = destinations.getByRole("combobox", { name: "插入位置" });
+  const copyTo = async (label) => {
+    await destinationField.selectOption({ label });
+    await destinations.getByRole("button", { name: /^复\s*制$/ }).click();
+  };
   const tools = [
     { entry: "小节工具", popup: page.getByRole("dialog", { name: "小节工具参数", exact: true }) },
     { entry: "节奏型", popup: page.getByRole("dialog", { name: "节奏型工具参数", exact: true }) },
@@ -78,8 +83,8 @@ try {
   const expectMenu = async () => {
     await menu.waitFor();
     const rows = menu.getByRole("menuitem");
-    assert.equal(await rows.count(), 5);
-    for (const label of [...tools.map(({ entry }) => entry), copy]) {
+    assert.equal(await rows.count(), 6);
+    for (const label of [...tools.map(({ entry }) => entry), "反复与跳转…", copy]) {
       assert.equal(await menuItem(label).count(), 1, String(label));
     }
   };
@@ -115,6 +120,7 @@ try {
   await score.focus();
   await page.keyboard.press("Shift+F10");
   await expectMenu();
+  await page.keyboard.press("ArrowDown");
   await page.keyboard.press("ArrowDown");
   await page.keyboard.press("ArrowDown");
   await page.keyboard.press("ArrowDown");
@@ -159,20 +165,23 @@ try {
       assert.ok(menuBounds, "谱面菜单可见");
       await item.click();
       await popup.waitFor();
+      if (entry === copy) await destinationField.and(page.locator(":focus")).waitFor();
       const label = `${String(entry)} (${side})`;
-      // Ant 浮窗会先挂载再测量，等待实际位置稳定后检查视口边缘。
+      // 浮层挂载后才进入缩放动画。保留满足条件的那次测量，避免等待结束与再次读取之间取到动画起始的零尺寸。
       const popupElement = await popup.elementHandle();
-      await page.waitForFunction((panel) => {
-        const rect = panel.getBoundingClientRect();
-        return rect.width > 100 && rect.height > 50 &&
-          !panel.closest(".ant-popover")?.getAnimations().some(animation => animation.playState === "running");
+      const rect = await page.waitForFunction((panel) => {
+        const next = panel.getBoundingClientRect();
+        if (next.width <= 100 || next.height <= 50 || panel.closest(".ant-popover")?.getAnimations().some(animation => animation.playState === "running")) return false;
+        return { x: next.x, y: next.y, width: next.width, height: next.height };
       }, popupElement);
-      const bounds = await popup.boundingBox();
+      const bounds = await rect.jsonValue();
       assert.ok(bounds && bounds.width > 0 && bounds.height > 0, `${label} ${JSON.stringify(bounds)}`);
       assert.ok(bounds.x >= -1 && bounds.y >= -1 && bounds.x + bounds.width <= viewport.width + 1
         && bounds.y + bounds.height <= viewport.height + 1, `${label} 在视口内 ${JSON.stringify(bounds)}`);
       assert.equal(await menu.isVisible(), true, `${label} 保留右键菜单`);
-      if (side === "right") {
+      if (entry === copy) {
+        assert.ok(Math.abs(bounds.x + bounds.width / 2 - viewport.width / 2) < 4, `${label} 复制弹窗水平居中 ${JSON.stringify(bounds)}`);
+      } else if (side === "right") {
         assert.ok(bounds.x >= menuBounds.x + menuBounds.width - 1, `${label} 位于菜单右侧 ${JSON.stringify({ bounds, menuBounds })}`);
       } else {
         assert.ok(bounds.x + bounds.width <= menuBounds.x + 1, `${label} 翻转到菜单左侧 ${JSON.stringify({ bounds, menuBounds })}`);
@@ -191,14 +200,14 @@ try {
   await rightClick(fret(5));
   await expectSelection(ref(0, 3), ref(1, 1));
   await menuItem(copy).click();
-  await destinations.getByRole("button", { name: "曲首", exact: true }).and(page.locator(":focus")).waitFor();
+  await destinationField.and(page.locator(":focus")).waitFor();
   assert.match(await destinations.innerText(), /来源 · 第 2 小节/);
   assert.equal((await snapshot()).history, before.history);
   await page.keyboard.press("Escape");
   await destinations.waitFor({ state: "hidden" });
   await menuItem(copy).and(page.locator(":focus")).waitFor();
   await page.keyboard.press("ArrowRight");
-  await destinations.getByRole("button", { name: "曲首", exact: true }).click();
+  await copyTo("曲首");
   await menu.waitFor({ state: "hidden" });
   const measureNumbers = score.locator("[data-measure-number]");
   await measureNumbers.filter({ hasText: /^5$/ }).waitFor();
@@ -219,13 +228,13 @@ try {
   assert.deepEqual(undone.measures, before.measures);
   assert.equal(undone.history, before.history);
 
-  // 工具栏也用同一位置列表。任意小节后插入时只关闭气泡，保留小节工具。
+  // 工具栏也用同一位置表单。任意小节后插入时只关闭弹窗，保留小节工具。
   await fret(7).click();
   await page.locator('[data-tool-trigger="measure"]').click();
   const measurePanel = tools[0].popup;
   const copyButton = measurePanel.getByRole("button", { name: copy, exact: true });
   await copyButton.click();
-  await destinations.getByRole("button", { name: "第 3 小节后", exact: true }).click();
+  await copyTo("第 3 小节后");
   await destinations.waitFor({ state: "hidden" });
   assert.ok(await measurePanel.isVisible());
   const inserted = await snapshot();
@@ -294,11 +303,12 @@ try {
   const impact = page.getByRole("dialog", { name: "小节范围复制影响确认", exact: true });
   assert.equal((await snapshot()).techniques[0]?.id, "cross-measure");
   assert.match(await destinations.innerText(), /来源 · 第 2 小节/);
-  await destinations.getByRole("button", { name: "曲首", exact: true }).click();
+  await copyTo("曲首");
   await impact.getByRole("button", { name: /^取\s*消$/ }).click();
-  await destinations.getByRole("button", { name: "曲首", exact: true }).and(page.locator(":focus")).waitFor();
+  await destinationField.and(page.locator(":focus")).waitFor();
+  assert.equal(await destinationField.locator("option:checked").textContent(), "曲首");
   assert.equal((await snapshot()).measures.length, 4);
-  await destinations.getByRole("button", { name: "曲末", exact: true }).click();
+  await copyTo("曲末");
   await impact.getByRole("button", { name: "确认修改", exact: true }).click();
   await measureNumbers.filter({ hasText: /^5$/ }).waitFor();
   await destinations.waitFor({ state: "hidden" });
@@ -306,6 +316,17 @@ try {
   assert.equal(confirmed.measures[4].beats[1].notes[0].fret, 7);
   assert.equal(confirmed.techniques.length, 1);
   assert.equal(confirmed.history, 1);
+  await impact.waitFor({ state: "hidden" });
+  await page.locator('[data-tool-trigger="measure"]').click();
+  await measurePanel.waitFor({ state: "hidden" });
+  assert.equal((await snapshot(withCrossMeasureTechnique)).ok, true);
+  await rightClick(fret(7));
+  await menuItem(copy).click();
+  await copyTo("曲末");
+  await impact.getByRole("button", { name: "确认修改", exact: true }).click();
+  await impact.waitFor({ state: "hidden" });
+  await measureNumbers.filter({ hasText: /^5$/ }).waitFor();
+  await expectScoreFocus();
   assert.deepEqual(errors, []);
   console.log("Browser passed: score menu positioning, both copy entries, copy confirmation and undo, and both technique direction bubbles.");
 } finally {

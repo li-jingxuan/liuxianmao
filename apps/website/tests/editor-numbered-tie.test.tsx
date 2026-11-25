@@ -233,6 +233,7 @@ const renderToolbar = (options: { single?: boolean; blocked?: boolean; numberedB
     onAction, beforeAction: () => {}, execute: async () => ({ status: "cancelled", message: "test" }),
     onNavigate: () => "accepted", sidebarCollapsed: false, onToggleSidebar: () => {}, sidebarToggleRef: null,
     onOpenRepeatEnding: () => false, onOpenJumpMarks: () => false, onOpenMeasureRepeat: () => false,
+    onRepairJumpMark: vi.fn(), onRepairRepeatEnding: vi.fn(),
   };
   let tool: ArcToolProps | null = null;
   const Harness = () => { const tree = EditorToolbar({ ...props, playback: useScorePlayback(document), isPlaybackEntryBlocked: () => false }); tool = findArcTool(tree); return tree; };

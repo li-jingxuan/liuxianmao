@@ -37,7 +37,8 @@
 
     > [data-jump-audition] { grid-area: 2 / 3; }
   }
-  > [data-score-viewport] { grid-area: 1 / 3; }
+  > [data-score-viewport],
+  > .scoreScrollbars { grid-area: 1 / 3; }
   > [data-music-text-sidebar] { grid-area: 1 / 4; }
   > .historyRail,
   > [data-history-rail] {

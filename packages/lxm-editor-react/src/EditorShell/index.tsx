@@ -13,6 +13,8 @@ import {
   createJumpMarkIndex,
   A4_CONTENT_WIDTH,
   createCollapsedTabCellSelection,
+  getJumpMarkFields,
+  getJumpMarkSide,
   getMeasureRepeatAvailability,
   getMusicTextRows,
   hitTestLayout,
@@ -33,8 +35,9 @@ import {
   type ILXMLayout,
   type ILXMLayoutOptions,
   type ILXMLayoutPoint,
+  type ILXMJumpMarkKind,
   type ILXMNumberedTarget,
-  type ILXMRepeatEnding,
+  type ILXMRepeatEndingGroup,
   type ILXMFret,
   type ILXMTabCellReference,
   type ILXMTabCellSelection,
@@ -116,6 +119,7 @@ import { resolveEditorChordTarget } from "./chords/editor-chord-target";
 import { useScorePlayback } from "./playback/controller";
 import { ScorePlaybackCursor } from "./playback/ScorePlaybackCursor";
 import { JumpAuditionPanel } from "./playback/JumpAuditionPanel";
+import { EditorScrollbars, editorScrollbarStyles } from "./shared/EditorScrollbars";
 import { JumpMarkInspector, type JumpMarkInspectorRequest } from "./tools/JumpMarkInspector";
 import { RepeatEndingInspector, type RepeatEndingInspectorRequest } from "./tools/RepeatEndingInspector";
 import { MeasureRepeatInspector } from "./tools/MeasureRepeatInspector";
@@ -139,8 +143,6 @@ import {
 
 /** 在同一选区内，把紧接的两个数字合成一个品位。 */
 const FRET_DIGIT_INTERVAL_MS = 600;
-
-type TraversalTechnique = "strum" | "arpeggio";
 
 interface TraversalMarqueeGesture {
   pointerId: number;
@@ -197,7 +199,7 @@ const isTextEditingTarget = (target: EventTarget | null): boolean =>
         '[role="combobox"], [role="listbox"], .ant-select-dropdown',
       )));
 
-/** Chromium 会把经典滚动条的 pointerdown 发给谱面容器，须保留选区和侧栏滚动位置。 */
+/** 强制颜色使用系统滚动条。经典滚动槽若把 pointerdown 发到谱面，仍须保留选区和侧栏位置。 */
 function isScoreScrollbarPointerDown(event: React.PointerEvent<HTMLDivElement>): boolean {
   const { target, currentTarget: viewport, clientX, clientY } = event;
   if (target !== viewport) return false;
@@ -205,7 +207,7 @@ function isScoreScrollbarPointerDown(event: React.PointerEvent<HTMLDivElement>):
   if (clientX < left || clientX >= right || clientY < top || clientY >= bottom) return false;
 
   // 谱面容器无边框，外框与 client 尺寸之差就是经典滚动槽的实际尺寸。
-  // 覆盖式没有占槽，只有预留竖槽但内容未溢出时也保留灰区点击语义。
+  // 覆盖层是视口的同级节点，不会进入这里；经典模式只在实际溢出时识别拖动。
   const verticalSlot = viewport.offsetWidth - viewport.clientWidth;
   const horizontalSlot = viewport.offsetHeight - viewport.clientHeight;
   const inVerticalSlot = viewport.clientLeft > 0
@@ -242,18 +244,17 @@ export const EditorShell: React.FC<{
   const [scoreMenuPanel, setScoreMenuPanel] = useState<ScoreMenuPanel | null>(null);
   const [jumpDraftMeasure, setJumpDraftMeasure] = useState<string>();
   const [jumpInspectorRequest, setJumpInspectorRequest] = useState<{
-    sessionKey: string; measureId: string; request: JumpMarkInspectorRequest;
+    sessionKey: string; target: MeasureToolTarget; request: JumpMarkInspectorRequest;
   }>();
-  const [repeatEndingPreview, setRepeatEndingPreview] = useState<ILXMRepeatEnding>();
+  const [repeatEndingPreview, setRepeatEndingPreview] = useState<ILXMRepeatEndingGroup>();
   const [repeatEndingInspectorRequest, setRepeatEndingInspectorRequest] = useState<{
     sessionKey: string; target: MeasureToolTarget; measureIds: readonly string[]; request: RepeatEndingInspectorRequest;
   }>();
   const [measureRepeatInspectorTarget, setMeasureRepeatInspectorTarget] = useState<{
-    sessionKey: string; target: MeasureToolTarget;
+    sessionKey: string; target: MeasureToolTarget; document: ILXMDocument;
   }>();
-  const [measureSelection, setMeasureSelection] = useState<{ sessionKey: string; range: MeasureSelection }>();
+  const [measureSelection, setMeasureSelection] = useState<{ sessionKey: string; range: MeasureSelection; endingId?: string }>();
   const [activeMeasureMarkTool, setActiveMeasureMarkTool] = useState<"jump" | "ending" | "repeat">("jump");
-  const measureRepeatInspectorFocus = useRef<HTMLDivElement>(null);
   // 剪贴板独立于单个乐谱和撤销栈，只有成功复制才替换保存的简谱内容。
   const [numberedClipboard, setNumberedClipboard] = useState<NumberedClipboard | null>(null);
   const [contextCopy, setContextCopy] = useState<{
@@ -704,7 +705,7 @@ export const EditorShell: React.FC<{
   const layoutOptions = useMemo<ILXMLayoutOptions>(() => ({
       purpose: "editing",
       editingTailWidth: SCORE_TAIL_BUTTON_WIDTH,
-      repeatEndingPreview,
+      repeatEndingGroupPreview: repeatEndingPreview,
       x: 0,
       y: 0,
       systemWidth: A4_CONTENT_WIDTH,
@@ -1220,23 +1221,18 @@ export const EditorShell: React.FC<{
     return traversalTrack.techniques.filter(t => t.type === "strum" || t.type === "arpeggio").filter(t => ids.has(t.id));
   }, [traversalContext, traversalTrack, selectedTraversalIds]);
   const canInteractWithTraversals = !scoreReadOnly && !activeModal && !imageExportSnapshot && !fileFlow.panel && !fileFlow.pending;
-  const changeTraversalEndpoint = useCallback(async (endpoint: StrumEndpoint, string: number, techniqueType: TraversalTechnique) => {
+  const changeTraversalEndpoint = useCallback(async (endpoint: StrumEndpoint, string: number) => {
     const now = session.getState();
     if (!canInteractWithTraversals || !traversalTrack || modals.isOpen() ||
       now.document !== document || now.selectedTraversalIds !== selectedTraversalIds) return;
-    // 扫弦和琶音可以混合选中做休止等通用操作。范围编辑按类型各走一个原子命令，保留其他技巧及各自对端。
-    const techniqueIds = traversals.filter(technique => technique.type === techniqueType).map(technique => technique.id);
+    // 谱面手柄和侧栏共用整组离散选区，两种记号一并校验并写入同一条撤销记录。
+    const techniqueIds = traversals.map(technique => technique.id);
     if (!techniqueIds.length) return;
     endFretInput();
-    const type = techniqueType === "strum" ? LXMScoreCommandEnum.SetStrumEndpoint : LXMScoreCommandEnum.SetArpeggioEndpoint;
-    const result = await toolExecute({ type, trackId: traversalTrack.id, techniqueIds, endpoint, string }, "modal", { tabOnly: true });
+    const result = await toolExecute({ type: LXMScoreCommandEnum.SetTraversalEndpoint, trackId: traversalTrack.id, techniqueIds, endpoint, string }, "modal", { tabOnly: true });
     if (result.status === "blocked" || result.status === "stale") setErrorMessage(result.message);
   }, [canInteractWithTraversals, document, traversalTrack, traversals, selectedTraversalIds, session, modals, endFretInput, toolExecute, setErrorMessage]);
-  const changeStrumEndpoint = useCallback((endpoint: StrumEndpoint, string: number) =>
-    changeTraversalEndpoint(endpoint, string, "strum"), [changeTraversalEndpoint]);
-  const changeArpeggioEndpoint = useCallback((endpoint: StrumEndpoint, string: number) =>
-    changeTraversalEndpoint(endpoint, string, "arpeggio"), [changeTraversalEndpoint]);
-  /** 点按和框选共用技巧选区。原活动项仍在选区时保留焦点及其范围手柄，否则定位第一项。 */
+  /** 点按和框选共用技巧选区。原活动项仍在选区时保留 TAB 焦点，否则定位第一项。 */
   const applyTraversalSelection = useCallback((ids: readonly string[]) => {
     const now = session.getState();
     if (!now.document) return;
@@ -1254,11 +1250,11 @@ export const EditorShell: React.FC<{
   const strumInteraction = useMemo<ScoreStrumInteraction | undefined>(() => {
     if (!canInteractWithTraversals || !lxmLayout || !document || !traversalTrack) return undefined;
     return {
-      layout: lxmLayout, selectedIds: traversalContext ? selectedTraversalIds : [], activeId: selectedTechniqueId,
+      layout: lxmLayout, selectedRanges: traversals, activeId: selectedTechniqueId,
       previewIds: traversalPreviewIds, onPreview: setStrumPreview,
       onSelect: selectTraversal, onCommit: changeTraversalEndpoint,
     };
-  }, [canInteractWithTraversals, lxmLayout, document, traversalTrack, traversalContext, selectedTraversalIds, selectedTechniqueId,
+  }, [canInteractWithTraversals, lxmLayout, document, traversalTrack, traversals, selectedTechniqueId,
     traversalPreviewIds, selectTraversal, changeTraversalEndpoint]);
   useLayoutEffect(() => {
     // 换谱、重排、进入只读或外部选区变化时，旧坐标和目标都不能继续提交。
@@ -1405,7 +1401,7 @@ export const EditorShell: React.FC<{
   };
 
   /** 整节选区只引用小节。在缩写内部没有可见的拍点，不向 TAB 编辑工具暴露快照拍位。 */
-  const selectWholeMeasures = (range: MeasureSelection) => {
+  const selectWholeMeasures = (range: MeasureSelection, endingId?: string) => {
     clearScoreInteraction();
     setContinuousRange(null);
     setActiveMusicTextTarget(null);
@@ -1413,7 +1409,7 @@ export const EditorShell: React.FC<{
     state.setSelection(null);
     state.setNumberedSelection(null);
     state.setSelectedTechniqueId(null);
-    setMeasureSelection({ sessionKey, range });
+    setMeasureSelection({ sessionKey, range, endingId });
   };
 
   const selectedWholeMeasureIds = (range: MeasureSelection) => {
@@ -1775,6 +1771,13 @@ export const EditorShell: React.FC<{
       return;
     if (!scoreReadOnly && wholeMeasureSelection) {
       const { focus } = wholeMeasureSelection;
+      if (event.key === "Escape" && measureSelection?.endingId) {
+        // 房子用整小节选择，TAB 选区为空。Modal 关闭后再次按 Esc 从这里撤掉蓝色选框。
+        event.preventDefault();
+        event.stopPropagation();
+        setMeasureSelection(undefined);
+        return;
+      }
       if (event.key === "ContextMenu" || event.key === "F10" && event.shiftKey) {
         const measure = event.currentTarget.querySelector(`[data-measure-repeat-target="${CSS.escape(focus.measureId)}"], [data-measure-number="${CSS.escape(focus.measureId)}"]`);
         const rect = measure?.getBoundingClientRect();
@@ -2172,8 +2175,27 @@ export const EditorShell: React.FC<{
     setActiveMeasureMarkTool("jump");
     setMeasureRepeatInspectorTarget(undefined);
     setRepeatEndingInspectorRequest(undefined);
-    setJumpInspectorRequest({ sessionKey, measureId: target.measureId, request });
+    setJumpInspectorRequest({ sessionKey, target, request });
     return true;
+  };
+
+  const placeJumpMark = async (target: MeasureToolTarget, kind: ILXMJumpMarkKind) => {
+    if (getJumpMarkFields(kind).length) return false;
+    const state = session.getState();
+    const measure = state.document?.score.tracks.find(({ id }) => id === target.trackId)?.measures.find(({ id }) => id === target.measureId);
+    if (!measure) return false;
+    // 普通记号直接走同一命令入口；旧界面按钮可能滞后一个 render，所以落谱前再核对当前端点。
+    const existing = measure.jumpMarks?.find((mark) => mark.kind === kind);
+    if (existing) return openJumpMarks(target, { markId: existing.id });
+    if (measure.jumpMarks?.some((mark) => getJumpMarkSide(mark.kind) === getJumpMarkSide(kind))) {
+      setErrorMessage("当前小节这一端已有记号，请先编辑或删除它。");
+      return false;
+    }
+    if (!beginMeasureInspector(target, false)) return false;
+    const result = await executeTool({ type: LXMScoreCommandEnum.SetJumpMark, ...target, mark: { id: "", kind },
+      expectedRevision: state.document?.documentRevision });
+    if ("message" in result) setErrorMessage(result.message);
+    return result.status === "applied" || result.status === "noop";
   };
 
   const openRepeatEnding = (target: MeasureToolTarget, measureIds: readonly string[] = [target.measureId],
@@ -2182,7 +2204,7 @@ export const EditorShell: React.FC<{
     const ending = request.endingId && track?.repeatEndingGroups?.flatMap(({ endings }) => endings).find(({ id }) => id === request.endingId);
     if (request.endingId && !ending) return false;
     if (!beginMeasureInspector(target, false)) return false;
-    if (ending) selectRepeatEndingRange(target.trackId, ending.startMeasureId, ending.endMeasureId);
+    if (ending) selectRepeatEndingRange(target.trackId, ending.startMeasureId, ending.endMeasureId, ending.id);
     setActiveMeasureMarkTool("ending");
     setJumpInspectorRequest(undefined);
     setMeasureRepeatInspectorTarget(undefined);
@@ -2190,23 +2212,12 @@ export const EditorShell: React.FC<{
     return true;
   };
 
-  // 已经进入房子属性后，范围定位只动谱面，不重新发起侧栏导航或抢走表单焦点。
-  const selectRepeatEndingRange = (trackId: string, startMeasureId: string, endMeasureId: string) => {
-    const state = session.getState();
-    const measures = state.document?.score.tracks.find(({ id }) => id === trackId)?.measures;
-    const startBeat = measures?.find(({ id }) => id === startMeasureId)?.beats[0];
-    const endBeat = measures?.find(({ id }) => id === endMeasureId)?.beats.at(-1);
-    if (startBeat && endBeat) {
-      clearScoreInteraction();
-      setMeasureSelection(undefined);
-      setContinuousRange(null);
-      state.setNumberedSelection(null);
-      state.setSelectedTechniqueId(null);
-      state.setSelection({
-        anchor: { trackId, measureId: startMeasureId, beatId: startBeat.id, string: 1 },
-        focus: { trackId, measureId: endMeasureId, beatId: endBeat.id, string: 6 },
-      });
-    }
+  const openRepeatEndingTool = (target: MeasureToolTarget, measureIds: readonly string[], endingId?: string) =>
+    openRepeatEnding(target, measureIds, endingId ? { endingId } : undefined);
+
+  // 房子是整小节对象。以稳定房子 ID 区分括线选择，空小节也可定位，且不暴露 TAB 拍位。
+  const selectRepeatEndingRange = (trackId: string, startMeasureId: string, endMeasureId: string, endingId?: string) => {
+    selectWholeMeasures({ anchor: { trackId, measureId: startMeasureId }, focus: { trackId, measureId: endMeasureId } }, endingId);
     locateSidebarObject({ trackId, measureId: startMeasureId });
   };
 
@@ -2220,14 +2231,14 @@ export const EditorShell: React.FC<{
     setActiveMeasureMarkTool("repeat");
     setJumpInspectorRequest(undefined);
     setRepeatEndingInspectorRequest(undefined);
-    setMeasureRepeatInspectorTarget({ sessionKey, target });
-    const version = captureEditorVersion(state);
-    requestAnimationFrame(() => {
-      if (!sameEditorSession(session.getState(), version)) return;
-      const host = measureRepeatInspectorFocus.current;
-      host?.scrollIntoView({ block: "nearest" });
-      (host?.querySelector<HTMLElement>("[data-measure-repeat-inspector]") ?? host)?.focus({ preventScroll: true });
-    });
+    // 空白小节没有需要覆写的内容，直接应用。覆盖和展开都绑定当前快照并进入同一个弹窗入口。
+    if (!repeat.existing && !repeat.replacement) {
+      setMeasureRepeatInspectorTarget(undefined);
+      void executeTool({ type: LXMScoreCommandEnum.AddMeasureRepeat, ...target,
+        expectedRevision: state.document.documentRevision }).then((result) => {
+        if ("message" in result) setErrorMessage(result.message);
+      });
+    } else setMeasureRepeatInspectorTarget({ sessionKey, target, document: state.document });
     return true;
   };
 
@@ -2271,11 +2282,12 @@ export const EditorShell: React.FC<{
   const renderMeasureMarks = (target: MeasureToolTarget) => {
     const track = document.score.tracks.find(({ id }) => id === target.trackId);
     if (!track) return null;
-    const jumpRequest = jumpInspectorRequest?.sessionKey === sessionKey && jumpInspectorRequest.measureId === target.measureId
-      ? jumpInspectorRequest.request : undefined;
-    const matches = (entry?: { sessionKey: string; target: MeasureToolTarget }) => entry?.sessionKey === sessionKey &&
-      entry.target.measureId === target.measureId && entry.target.trackId === target.trackId;
-    const endingRequest = matches(repeatEndingInspectorRequest) ? repeatEndingInspectorRequest : undefined;
+    // 房子点击选中起止小节后，侧栏焦点会落到末小节。待处理的请求绑定会话及轨道，
+    // 使用发起时的小节／选区，不能把侧栏此刻呈现的小节当作请求身份。
+    const onTrack = (entry?: { sessionKey: string; target: MeasureToolTarget }) => entry?.sessionKey === sessionKey && entry.target.trackId === track.id;
+    const jumpRequest = onTrack(jumpInspectorRequest) ? jumpInspectorRequest : undefined;
+    const endingRequest = onTrack(repeatEndingInspectorRequest) ? repeatEndingInspectorRequest : undefined;
+    const jumpMeasureId = jumpRequest?.target.measureId ?? target.measureId;
     const selectedRange = wholeMeasureSelection?.focus.trackId === track.id ? wholeMeasureSelection
       : continuousRange?.trackId === track.id ? continuousRange
         : selection?.focus.trackId === track.id && !numberedSelection && !activeMusicTextTarget ? selection : undefined;
@@ -2301,8 +2313,8 @@ export const EditorShell: React.FC<{
       locateSidebarObject(beat ? { ...location, beatId: beat.id } : location);
     };
     return <>
-    <JumpMarkInspector key={`jump:${sessionKey}:${activeMeasureMarkTool === "jump"}`} measures={track.measures} measureId={target.measureId}
-      request={jumpRequest} onRequestHandled={(handled) => setJumpInspectorRequest((current) => current?.request === handled ? undefined : current)}
+    <JumpMarkInspector key={`jump:${sessionKey}:${activeMeasureMarkTool === "jump"}`} measures={track.measures} measureId={jumpMeasureId}
+      request={jumpRequest?.request} onRequestHandled={(handled) => setJumpInspectorRequest((current) => current?.request === handled ? undefined : current)}
       version={version} disabled={disabled}
       onDraftMeasure={setJumpDraftMeasure}
       onLocateMark={(id) => {
@@ -2329,20 +2341,38 @@ export const EditorShell: React.FC<{
     <RepeatEndingInspector key={`ending:${sessionKey}:${activeMeasureMarkTool === "ending"}`} track={track} measureIds={measureIds}
       request={endingRequest?.request} version={version} disabled={disabled}
       onRequestHandled={(handled) => setRepeatEndingInspectorRequest((current) => current?.request === handled ? undefined : current)}
-      onLocateRange={(start, end) => selectRepeatEndingRange(track.id, start, end)}
+      onRevealMeasure={(measureId) => locateSidebarObject({ trackId: track.id, measureId })}
+      onSelectEnding={(ending) => selectRepeatEndingRange(track.id, ending.startMeasureId, ending.endMeasureId, ending.id)}
       onPreviewChange={setRepeatEndingPreview}
-      onApply={(group, ending, owner) => commit({ type: LXMScoreCommandEnum.UpsertRepeatEnding, trackId: track.id, group, ending }, owner)}
-      onDelete={(endingId, owner) => commit({ type: LXMScoreCommandEnum.DeleteRepeatEnding, trackId: track.id, endingId }, owner)}
-      onDeleteGroup={(groupId, owner) => commit({ type: LXMScoreCommandEnum.DeleteRepeatEndingGroup, trackId: track.id, groupId }, owner)} />
-    {matches(measureRepeatInspectorTarget) && <div key={`repeat:${sessionKey}:${target.measureId}`} ref={measureRepeatInspectorFocus} tabIndex={-1}>
-      <MeasureRepeatInspector score={document.score} measureId={target.measureId} documentRevision={document.documentRevision}
+      onApply={async (group, ending, opened, owner) => {
+        const isCurrent = () => !opened || (sameEditorSession(session.getState(), opened) && session.getState().document === opened.document);
+        const result = await executeTool({ type: LXMScoreCommandEnum.UpsertRepeatEndingGroup, trackId: track.id, group,
+          expectedRevision: opened?.document?.documentRevision }, "modal", { owner, isCurrent });
+        if (result.status !== "applied" && result.status !== "noop") return false;
+        const applied = result.status === "applied" ? result.result.document : session.getState().document;
+        const savedGroup = applied?.score.tracks.find(({ id }) => id === track.id)?.repeatEndingGroups?.find((candidate) =>
+          group.id ? candidate.id === group.id : candidate.startMeasureId === group.startMeasureId);
+        // 核心为新房生成稳定 ID。有效组内的房子范围互不重叠，可用起点找到这次实际新增的房子。
+        const saved = ending && savedGroup?.endings.find((candidate) => ending.id ? candidate.id === ending.id : candidate.startMeasureId === ending.startMeasureId);
+        if (saved && session.getState().document === applied) selectRepeatEndingRange(track.id, saved.startMeasureId, saved.endMeasureId, saved.id);
+        return true;
+      }}
+      onDeleteGroup={async (groupId, opened, owner) => {
+        const result = await executeTool({ type: LXMScoreCommandEnum.DeleteRepeatEndingGroup, trackId: track.id, groupId,
+          expectedRevision: opened?.document?.documentRevision }, "modal", {
+          owner, isCurrent: () => !opened || (sameEditorSession(session.getState(), opened) && session.getState().document === opened.document),
+        });
+        return result.status === "applied";
+      }} />
+    {measureRepeatInspectorTarget && onTrack(measureRepeatInspectorTarget) && measureRepeatInspectorTarget.target.measureId === target.measureId && measureRepeatInspectorTarget.document === document &&
+      <MeasureRepeatInspector key={`repeat:${sessionKey}:${target.measureId}`} score={document.score} measureId={target.measureId} documentRevision={document.documentRevision}
+        onCancel={() => setMeasureRepeatInspectorTarget(undefined)}
         onApply={(command) => {
           // 替换确认由 Inspector 持有，适配器再次校验命令观察到的版本；换谱后的旧表单不能提交。
           if (session.getState().document !== document) return false;
           return commit(command);
         }}
-        onSelectMeasure={(id) => selectBeat(id)} onSelectBeat={(id) => selectBeat(target.measureId, id)} />
-    </div>}
+        onSelectMeasure={(id) => selectBeat(id)} onSelectBeat={(id) => selectBeat(target.measureId, id)} />}
     </>;
   };
 
@@ -2692,9 +2722,12 @@ export const EditorShell: React.FC<{
         sidebarToggleRef={sidebarToggleRef}
         onToggleSidebar={toggleSidebar}
         playback={{ ...playback, setEnabled: setPlaybackEnabled }}
+        onRepairJumpMark={repairJumpMark}
+        onRepairRepeatEnding={repairRepeatEnding}
         onOpenJumpMarks={openJumpMarks}
-        onOpenRepeatEnding={(target, measureIds, endingId) => openRepeatEnding(target, measureIds, endingId ? { endingId } : undefined)}
+        onOpenRepeatEnding={openRepeatEndingTool}
         onOpenMeasureRepeat={openMeasureRepeat}
+        onPlaceJumpMark={placeJumpMark}
         isPlaybackEntryBlocked={() => musicTextController.current?.isTransitionBlocked() ?? false}
         activeTarget={activeMusicTextTarget}
         blocked={musicTextEditing}
@@ -2769,8 +2802,12 @@ export const EditorShell: React.FC<{
         )}
         <div
           ref={pageViewportRef}
-          className={scoreInteractionStyles.pageViewport}
+          className={`${scoreInteractionStyles.pageViewport} ${editorScrollbarStyles.viewport}`}
           data-score-viewport
+          data-editor-scroll-viewport
+          role="region"
+          aria-label="谱面滚动区"
+          tabIndex={0}
           onPointerDownCapture={(event) => {
             if (!scoreReadOnly && event.button === 0 && !isScoreScrollbarPointerDown(event)) setRhythmPatternScope(null);
           }}
@@ -2822,7 +2859,10 @@ export const EditorShell: React.FC<{
                 onPointerUp={finishPointerDrag}
                 onPointerCancel={finishPointerDrag}
                 onKeyDown={(event) => {
-                  if (scoreReadOnly || event.target !== event.currentTarget) return;
+                  // 房子组拥有自己的 Tab 停靠点。把它的 Esc 交给整节选区处理，其他按键仍由对象消费。
+                  const endingEscape = event.key === "Escape" && event.target instanceof SVGElement &&
+                    !!event.target.closest("[data-repeat-ending-target]");
+                  if (scoreReadOnly || (event.target !== event.currentTarget && !endingEscape)) return;
                   if (event.key === "Escape" && traversalMarqueeRef.current) {
                     event.preventDefault();
                     event.stopPropagation();
@@ -2959,8 +2999,18 @@ export const EditorShell: React.FC<{
                 />
                 {!scoreReadOnly && <JumpMarkInteractionLayer layout={lxmLayout} draftMeasureId={jumpDraftMeasure}
                   onEditMark={(measureId, markId) => openJumpMarks({ trackId: lxmLayout.trackId, measureId }, { markId })} />}
-                {!scoreReadOnly && <RepeatEndingInteractionLayer layout={lxmLayout} onEditEnding={(start, end, endingId) => {
-                  openRepeatEnding({ trackId: lxmLayout.trackId, measureId: start }, [start, end], { endingId });
+                {!scoreReadOnly && <RepeatEndingInteractionLayer layout={lxmLayout}
+                  selectedEndingId={wholeMeasureSelection ? measureSelection?.endingId : undefined} onEditEnding={(start, end, endingId, trigger) => {
+                  const version = captureEditorVersion(session.getState());
+                  openRepeatEnding({ trackId: lxmLayout.trackId, measureId: start }, [start, end], { endingId, restoreFocus: () => {
+                    if (!sameEditorSession(session.getState(), version) || scoreReadOnlyRef.current) return;
+                    const score = scoreSvgRef.current;
+                    // 重排可能替换最初点击的 SVG 段。先尝试原段，再按房子 ID 定位当前段，最后回到谱面。
+                    const current = trigger.isConnected && score?.contains(trigger) ? trigger
+                      : score?.querySelector<SVGGElement>(`[data-repeat-ending-target="${CSS.escape(endingId)}"]`);
+                    if (current) current.focus({ preventScroll: true });
+                    else focusScore();
+                  } });
                 }} />}
                 {!scoreReadOnly && <MeasureRepeatInteractionLayer layout={lxmLayout}
                   activeMeasureId={wholeMeasureSelection?.focus.measureId}
@@ -3021,6 +3071,10 @@ export const EditorShell: React.FC<{
             </main>
           </div>
         </div>
+        {/* 覆盖滚动条同样不经过谱面指针处理，试听期间手动滚动只暂停自动跟随。 */}
+        <EditorScrollbars viewportRef={pageViewportRef} className={styles.scoreScrollbars} horizontal
+          onPointerScroll={playback.phase === "playing" || playback.phase === "paused" || playback.phase === "loading"
+            ? playback.suspendFollow : undefined} />
         {/* 同级覆盖层不经过谱面 pointerdown，缩放不会清空选区或提交草稿。 */}
         <div className={styles.scoreZoom} role="group" aria-label="谱面缩放" data-score-zoom-controls>
           <Button
@@ -3066,18 +3120,17 @@ export const EditorShell: React.FC<{
         </div>
         <MusicTextSidebar
           renderMeasureMarks={renderMeasureMarks}
-          onOpenMeasureSymbols={() => toolbarController.current?.openMeasureSymbols()}
+          onOpenJumpMarks={openJumpMarks}
+          onOpenRepeatEnding={openRepeatEndingTool}
+          onOpenMeasureRepeat={openMeasureRepeat}
+          onPlaceJumpMark={placeJumpMark}
           wholeMeasureTarget={wholeMeasureSelection?.focus}
           strumInspector={canInteractWithTraversals && traversalTrack && traversals.length > 0
-            ? (["strum", "arpeggio"] as const).map(techniqueType => {
-              const ranges = traversals.filter(t => t.type === techniqueType);
-              const preview = strumPreview?.techniqueType === techniqueType ? strumPreview : null;
-              return <StrumRangeInspector key={techniqueType} techniqueType={techniqueType}
-                ranges={preview ? ranges.map(t => ({ ...t, [preview.endpoint]: preview.string })) : ranges}
+            ? <StrumRangeInspector
+                ranges={strumPreview ? traversals.map(t => ({ ...t, [strumPreview.endpoint]: strumPreview.string })) : traversals}
                 stringCount={traversalTrack.tuning.strings.length}
                 disabled={!!strumPreview || musicTextEditing}
-                onChange={techniqueType === "strum" ? changeStrumEndpoint : changeArpeggioEndpoint} />;
-            }) : undefined}
+                onChange={changeTraversalEndpoint} /> : undefined}
           continuousRange={continuousRange}
           paragraphPlaceholders={paragraphPlaceholders}
           onRangeChange={(range) => { if (range) setMeasureSelection(undefined); setContinuousRange(range); }}
@@ -3109,8 +3162,7 @@ export const EditorShell: React.FC<{
           getFloatingViewport={getFloatingViewport}
           getFloatingObservedElements={() => [pageViewportRef.current]}
         />
-        {playback.jumpRoute && <JumpAuditionPanel playback={{ ...playback, setEnabled: setPlaybackEnabled }}
-          onRepair={repairJumpMark} onRepairRepeatEnding={repairRepeatEnding} />}
+        {playback.jumpRoute && <JumpAuditionPanel playback={{ ...playback, setEnabled: setPlaybackEnabled }} visits={playback.jumpRoute.visits} />}
       </div>
       {scoreMenu && !scoreReadOnly && numberedMenuActions?.ok && (
         <NumberedScoreContextMenu point={scoreMenu.point} scope={numberedMenuActions.scope}

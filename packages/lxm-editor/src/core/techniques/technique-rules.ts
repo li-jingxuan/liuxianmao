@@ -184,6 +184,17 @@ const intervalsOverlap = (
 export const usesChordVoicingForTraversal = (beat: Pick<ILXMBeat, "notes">): boolean =>
   beat.notes.length === 0;
 
+export type LXMTraversalEndpoint = "minString" | "maxString";
+
+/** 谱面上端对应较小弦号。每个记号保留原对端，两端须至少相差一弦，因此整组只能取各自可用弦号的交集。 */
+export const getTraversalEndpointBounds = (
+  ranges: readonly { minString: number; maxString: number }[],
+  endpoint: LXMTraversalEndpoint,
+  stringCount: number = GUITAR_STRING_COUNT,
+) => endpoint === "minString"
+  ? { min: 1, max: ranges.reduce((max, range) => Math.min(max, range.maxString - 1), stringCount) }
+  : { min: ranges.reduce((min, range) => Math.max(min, range.minString + 1), 1), max: stringCount };
+
 const validateTraversalTie = (
   track: ILXMTrack,
   from: ILXMIndexedBeat,

@@ -107,12 +107,6 @@ export function useScoreView({
   useLayoutEffect(() => {
     const viewport = viewportRef.current;
     if (!viewport) return;
-    const workspace = viewport.parentElement;
-    // 用无自定义样式的探针区分占槽和覆盖式滚动条。观察内容区尺寸，系统切换模式时
-    // 也能给工作区下的两个滚动容器同步样式，探针本身不占布局空间。
-    const scrollbarProbe = viewport.ownerDocument.createElement("div");
-    scrollbarProbe.style.cssText = "position:fixed;top:0;left:0;width:100px;height:100px;overflow:scroll;visibility:hidden;";
-    viewport.ownerDocument.body.append(scrollbarProbe);
     let frame: number | null = null;
     const rememberScroll = () => {
       lastScroll.current = {
@@ -122,7 +116,6 @@ export function useScoreView({
     };
     const measure = () => {
       frame = null;
-      workspace?.toggleAttribute("data-editor-classic-scrollbars", scrollbarProbe.offsetWidth > scrollbarProbe.clientWidth);
       const current = latest.current;
       if (viewport.clientWidth === current.viewportWidth) return;
       if (lastScroll.current && !pendingAnchor.current) {
@@ -139,13 +132,10 @@ export function useScoreView({
     viewport.addEventListener("scroll", rememberScroll, { passive: true });
     const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(schedule);
     observer?.observe(viewport);
-    observer?.observe(scrollbarProbe);
     window.addEventListener("resize", schedule);
     return () => {
       if (frame !== null) cancelAnimationFrame(frame);
       observer?.disconnect();
-      scrollbarProbe.remove();
-      workspace?.removeAttribute("data-editor-classic-scrollbars");
       viewport.removeEventListener("scroll", rememberScroll);
       window.removeEventListener("resize", schedule);
     };

@@ -24,6 +24,7 @@ import type {
   ILXMNumberedEvent,
   ILXMJumpMark,
   ILXMRepeatEnding,
+  ILXMRepeatEndingGroup,
 } from "../core/types";
 
 /** 谱面横向排版密度；舒适模式保留节奏权重，紧凑模式收紧列宽与小节留白。 */
@@ -45,6 +46,8 @@ export interface ILXMLayoutOptions {
   editingTailWidth?: number;
   /** 仅编辑态额外排版蓝色虚线。不写入成品场景或文件。 */
   repeatEndingPreview?: ILXMRepeatEnding;
+  /** 整组编辑态草稿。包含共享段、结尾区和所有房子，独立于已保存的谱面。 */
+  repeatEndingGroupPreview?: ILXMRepeatEndingGroup;
   /** 全局指法图显示偏好；省略时沿用单个和弦的旧 display。 */
   showChordDiagrams?: boolean;
   /** 仅编辑态为目标谱行预留空白文本区域，不进入文档。 */
@@ -102,6 +105,8 @@ export interface ILXMLayout {
 export interface ILXMSystemLayout {
   repeatEndings?: ILXMRepeatEndingSegmentLayout[];
   repeatEndingPreview?: ILXMRepeatEndingSegmentLayout[];
+  /** 整组预览在本行的小节范围，使用已完成避让和垂直平移的坐标。 */
+  repeatEndingGroupPreview?: { bounds: MusicTextRect; kind: "shared" | "ending" }[];
   numberedMarks?: NumberedMarkLayout[];
   numberedRow?: { y: number; height: number };
   /** 谱行最左侧的竖向收边线，从首弦延伸至第一行歌词上缘或最下层横梁。 */
@@ -219,7 +224,7 @@ export interface ILXMMeasureLayout {
   jumpMarks?: ILXMJumpMarkLayout[];
   /** 小节人为拉开间距时，为落点补出起始线；常规共用边界无需重画。 */
   jumpMarkStartBarline?: ILXMBarlineLayout;
-  /** 小节号与同一条小节线上的落点同排时，向左让出的文字基线。 */
+  /** 有落点时，所属节号的起始线锚点；共线且重叠时也记录前一节号的让位坐标。 */
   numberPosition?: { x: number; y: number };
   visualBounds?: MusicTextRect;
   id: string;

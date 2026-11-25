@@ -24,7 +24,7 @@ import toolbarStyles from "../workspace/EditorToolbar.module.scss";
 import { contextPanelPosition, fitContextOverlay } from "../score/context-panel-position";
 
 export type ContextToolGroup = ToolGroupId;
-const MEASURE_PANEL_WIDTH = 790;
+const MEASURE_PANEL_WIDTH = 345;
 
 interface ContextToolEntry {
   anchor: HTMLElement;
@@ -330,8 +330,8 @@ export const EditorToolPanelHost = ({
     if (!open) return;
     const outside = (event: PointerEvent) => {
       if (group === "beat" || blocked || !(event.target instanceof Node) || content.current?.contains(event.target)) return;
-      // 子气泡为避免滚动裁切渲染到页面浮层，点击方向或复制位置仍属于当前工具面板。
-      if (event.target instanceof Element && event.target.closest("[data-open-shortcuts],[data-playback-toggle],[data-editor-anchored-tool]")) return;
+      // 子气泡和 Modal 都通过 Portal 渲染。点击其中的控件时保留父面板，取消后可原地继续操作。
+      if (event.target instanceof Element && event.target.closest("[data-open-shortcuts],[data-playback-toggle],[data-editor-anchored-tool],.ant-modal-root")) return;
       const button = event.target instanceof Element && event.target.closest("[data-tool-trigger]");
       if (button && trigger.current?.contains(button)) return;
       close();
@@ -340,6 +340,7 @@ export const EditorToolPanelHost = ({
     if (group !== "beat" && !contextEntry) window.document.addEventListener("pointerdown", outside, true);
     const escape = (event: KeyboardEvent) => {
       if (event.key !== "Escape" || event.isComposing || blocked || content.current?.closest("[inert]")) return;
+      if (event.target instanceof Element && event.target.closest(".ant-modal-root")) return;
       if (content.current?.querySelector('[role="combobox"][aria-expanded="true"]')) return;
       event.stopPropagation();
       if (canClose()) { event.preventDefault(); close(true); }
@@ -399,6 +400,8 @@ export const EditorToolPanelHost = ({
   };
   const handlePopupKeyDownCapture = (event: ReactKeyboardEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement;
+    // Modal 的 React 事件仍会经过 Portal 的父组件，让 Modal 自己处理 Escape 与输入法。
+    if (target.closest(".ant-modal-root")) return;
     const expandedControl = target.closest('[aria-expanded="true"], .ant-select-open');
     if (
       event.key === "Escape" &&

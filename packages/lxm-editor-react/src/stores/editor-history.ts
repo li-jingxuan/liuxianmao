@@ -96,10 +96,13 @@ const labels: Readonly<Record<string, string>> = {
   "measure.setSectionLabel": "修改段落标记",
   "jumpMark.set": "应用跳转记号",
   "jumpMark.remove": "删除跳转记号",
+  "repeatEnding.upsertGroup": "应用反复房子",
+  "repeatEnding.deleteGroup": "删除反复组",
   "technique.add": "添加技巧",
   "technique.update": "修改技巧",
   "strum.setEndpoint": "调整扫弦范围",
   "arpeggio.setEndpoint": "调整琶音范围",
+  "traversal.setEndpoint": "调整扫弦与琶音范围",
   "technique.remove": "删除技巧",
   "tuplet.set": "设置连音组",
   "tuplet.remove": "删除连音组",
@@ -167,21 +170,32 @@ const describeCommand = (document: ILXMDocument, command: ILXMScoreCommand) => {
   const technique: References | undefined = c.technique ?? track.techniques.find((item) => item.id === c.techniqueId);
   const mark: References | undefined = c.mark ?? track.numberedMarks.find((item) => item.id === c.markId);
   // 批量范围编辑只有一条历史记录，定位包含本次调整的所有拍点。
-  const endpointIds = command.type === "strum.setEndpoint" || command.type === "arpeggio.setEndpoint"
+  const endpointIds = command.type === "strum.setEndpoint" || command.type === "arpeggio.setEndpoint" || command.type === "traversal.setEndpoint"
     ? command.techniqueIds : undefined;
+  const affectedTraversals = endpointIds ? track.techniques
+    .filter(t => t.type === "strum" || t.type === "arpeggio").filter(t => endpointIds.includes(t.id)) : [];
+  // 工具栏可提交同种或混合记号。历史沿用同种记号的原名称，只有真正混选才显示两种记号。
+  if (command.type === "traversal.setEndpoint" && affectedTraversals.length) {
+    if (affectedTraversals.every(t => t.type === "strum")) label = labels["strum.setEndpoint"]!;
+    else if (affectedTraversals.every(t => t.type === "arpeggio")) label = labels["arpeggio.setEndpoint"]!;
+  }
+  // 删除前仍可按原组定位。新建草稿的空 ID 将由核心生成，历史位置只依赖已经存在的小节 ID。
+  const repeatGroup = command.type === "repeatEnding.upsertGroup" ? command.group
+    : command.type === "repeatEnding.deleteGroup" ? track.repeatEndingGroups?.find(group => group.id === command.groupId) : undefined;
   const objectIds = strings(
     endpointIds,
+    repeatGroup?.id || undefined,
     c.techniqueId, c.markId, command.type === "jumpMark.set" ? command.mark.id || undefined : undefined, c.tupletId, c.lyricId, c.chordSymbolId,
     c.eventId, c.eventIds, c.itemId, technique?.fromNoteId, technique?.toNoteId,
     mark?.eventId, mark?.fromEventId, mark?.toEventId, mark?.fromItemId, mark?.toItemId,
   );
   const beatIds = strings(
-    endpointIds ? track.techniques.flatMap(t =>
-      (t.type === "strum" || t.type === "arpeggio") && endpointIds.includes(t.id) ? [t.beatId] : []) : undefined,
+    affectedTraversals.map(t => t.beatId),
     c.beatId, c.startBeatId, c.endBeatId, c.range?.anchor?.beatId,
     c.range?.focus?.beatId, technique?.beatId,
   );
   const measureIds = strings(
+    repeatGroup?.startMeasureId, repeatGroup?.sharedEndMeasureId, repeatGroup?.endMeasureId,
     c.measureId, c.sourceStartMeasureId, c.sourceEndMeasureId,
     c.afterMeasureId, c.boundary?.measureId,
     c.range?.anchor?.measureId, c.range?.focus?.measureId,

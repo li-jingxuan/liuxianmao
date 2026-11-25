@@ -85,6 +85,7 @@ try {
   const resetTempo = transport.getByRole("button", { name: "恢复曲谱速度" });
   const editorTools = page.getByRole("toolbar", { name: "节奏、小节与历史工具" });
   const playbackTools = page.getByRole("toolbar", { name: "木吉他试听", exact: true });
+  const playbackOrder = page.locator("[data-jump-audition]");
   const firstTabFret = score.locator('[data-layer="score-music"] [data-system-index="0"]')
     .getByText("2", { exact: true }).first();
   const appendMeasure = score.getByRole("button", { name: "在曲末新增小节", exact: true });
@@ -152,18 +153,29 @@ try {
 
   for (const width of [1440, 1600]) {
     await page.setViewportSize({ width, height: 680 });
+    await page.waitForFunction((width) => document.querySelector("[data-music-text-sidebar]")?.getBoundingClientRect().width === width,
+      Math.min(384, Math.max(352, width * 0.24)));
     const editBounds = await editorTools.boundingBox();
+    const editPanel = await page.locator("[data-music-text-sidebar]").boundingBox();
     assert.ok((await toggle.boundingBox()).x < (await sidebar.boundingBox()).x);
     await toggle.click();
     await play.and(page.locator(":focus")).waitFor();
     assert.equal(await editorTools.count(), 0);
     assert.equal(await playbackTools.getByRole("group", { name: "木吉他试听工具" }).count(), 1);
-    assert.equal(await transport.getByRole("button", { name: "跟随谱面", exact: true }).count(), 0);
+    assert.equal(await transport.getByRole("button", { name: "跟随谱面", exact: true }).getAttribute("aria-pressed"), "true");
+    assert.equal(await transport.getByRole("button", { name: "木吉他声音", exact: true }).getAttribute("aria-pressed"), "true");
     assert.ok(await clickToggle.isChecked());
     assert.equal(await page.getByRole("dialog", { name: "试听速度" }).count(), 0);
     assert.equal(await workspace.getAttribute("data-sidebar-collapsed"), "true");
     assert.ok(await history.isDisabled());
     assert.equal(await sidebar.count(), 0);
+    const auditionPanel = await playbackOrder.boundingBox();
+    assert.equal(auditionPanel.width, editPanel.width);
+    assert.equal(auditionPanel.x, editPanel.x);
+    assert.equal(await playbackOrder.locator("[data-jump-visit]").count(), fixture.score.tracks[0].measures.length);
+    const cells = await Promise.all((await playbackOrder.locator("[data-jump-visit]").all()).slice(0, 7).map((item) => item.boundingBox()));
+    assert.ok(cells.every(({ width, height }) => width === 46 && height === 34));
+    assert.ok(cells.slice(0, 6).every(({ y }) => y === cells[0].y) && cells[6].y > cells[0].y);
     assert.equal((await playbackTools.boundingBox()).height, editBounds.height, `Keeps a single toolbar row at ${width}px`);
     await play.press("Escape");
     await toggle.and(page.locator(":focus")).waitFor();
@@ -383,6 +395,14 @@ try {
   assert.equal(await tempo.inputValue(), "90");
   await startControl.getByText("从头开始", { exact: true }).waitFor();
   assert.ok(await clickToggle.isChecked());
+  await clickMeasure("m24");
+  await tempo.fill("300");
+  await play.click();
+  await cursor.and(score.locator('[data-playback-measure="m24"][data-playback-measure-end="true"]')).waitFor();
+  assert.equal(await playbackOrder.locator('[aria-current="step"]').getAttribute("data-jump-visit"), "24");
+  await stop.click();
+  assert.equal(await playbackOrder.locator('[aria-current="step"]').count(), 0);
+  await cursor.waitFor({ state: "detached" });
   await exitPlayback.click();
   const practice = page.getByRole("button", { name: "节拍器", exact: true });
   await practice.click();

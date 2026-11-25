@@ -22,6 +22,7 @@ import editorFormStyles from "../shared/editor-form.module.scss";
 import taskStyles from "../shared/SelectionTaskDetails.module.scss";
 import { MeasureBoundary } from "./MeasureBoundary";
 import { MeasureActions } from "./MeasureActions";
+import { MeasureSymbols, resolveMeasureEndingId, type MeasureSymbolCallbacks } from "./MeasureSymbols";
 import measureStyles from "./MeasureControls.module.scss";
 import { formatMeasureDuration } from "../shared/measure-duration";
 export { BARLINES } from "./MeasureBoundary";
@@ -75,6 +76,8 @@ export const MeasureToolDetails = ({
   onAction,
   navigate,
   measureHost,
+  measureAnchor,
+  symbolCallbacks,
 }: {
   ref?: Ref<{ focusBoundary: () => boolean }>;
   document: ILXMDocument;
@@ -84,6 +87,8 @@ export const MeasureToolDetails = ({
   onAction: ToolActionHandler;
   navigate: (destination: ToolNavigation) => void;
   measureHost?: (node: HTMLDivElement | null) => void;
+  measureAnchor?: MeasureToolTarget;
+  symbolCallbacks?: MeasureSymbolCallbacks;
 }) => {
   const signatureId = useId();
   const settingsRoot = useRef<HTMLDivElement>(null);
@@ -101,6 +106,7 @@ export const MeasureToolDetails = ({
     return focusBoundary();
   } }));
   const [boundaryHost, setBoundaryHost] = useState<HTMLElement | null>(null);
+  const [actionBusy, setActionBusy] = useState(false);
   // 设置 owner 的插槽稍后挂载时，恢复同一次显式边界导航的标题焦点。
   useLayoutEffect(() => {
     if (boundaryFocusPending.current) {
@@ -147,10 +153,24 @@ export const MeasureToolDetails = ({
     });
   const atEnd = index === (track?.measures.length ?? 0) - 1;
   const currentTarget = track && measure ? { trackId: track.id, measureId: measure.id } : undefined;
+  // 用谱面顺序解析反向选择，普通记号仅限制跨小节范围，房子仍可使用整个范围。
+  const anchorIndex = measureAnchor?.trackId === track?.id ? (track?.measures.findIndex(({ id }) => id === measureAnchor?.measureId) ?? -1) : -1;
+  const startIndex = Math.min(anchorIndex < 0 ? index : anchorIndex, index);
+  const endIndex = Math.max(anchorIndex, index);
+  const measureIds = track?.measures.slice(startIndex, endIndex + 1).map(({ id }) => id) ?? [];
+  const multipleMeasures = measureIds.length > 1;
+  const endingId = track && resolveMeasureEndingId(track, measureIds);
   const boundary = <section ref={boundaryRoot} className={measureStyles.sidebarControls} aria-label="小节线与反复">
-    <MeasureBoundary document={document} target={currentTarget} blocked={blocked} onAction={onAction} />
+    <MeasureBoundary document={document} target={currentTarget} blocked={blocked || actionBusy} multipleMeasures={multipleMeasures} onAction={onAction} />
+    {symbolCallbacks && track && measure && currentTarget && <MeasureSymbols document={document} trackId={track.id} measure={measure}
+      multipleMeasures={multipleMeasures} blocked={blocked || actionBusy} repeatEndingId={endingId}
+      repeatEndingDisabledReason={track.measures.length < 2 ? "至少需要一个共享小节和一个结尾小节" : undefined}
+      onOpenRepeatEnding={() => symbolCallbacks.onOpenRepeatEnding(currentTarget, measureIds, endingId)}
+      onOpenJumpMarks={(request) => symbolCallbacks.onOpenJumpMarks(currentTarget, request)}
+      onOpenMeasureRepeat={() => symbolCallbacks.onOpenMeasureRepeat(currentTarget)}
+      onPlaceJumpMark={symbolCallbacks.onPlaceJumpMark && ((kind) => { void symbolCallbacks.onPlaceJumpMark?.(currentTarget, kind); })} />}
     <MeasureActions document={document} target={currentTarget} blocked={blocked} onAction={onAction}
-      getTargetIdentity={() => JSON.stringify({ selection, target: currentTarget })} />
+      getTargetIdentity={() => JSON.stringify({ selection, target: currentTarget, anchor: measureAnchor })} onBusyChange={setActionBusy} />
   </section>;
   return (
     <section className={`${taskStyles.noteDetails} ${taskStyles.measureDetails}`} aria-label="小节属性详情">

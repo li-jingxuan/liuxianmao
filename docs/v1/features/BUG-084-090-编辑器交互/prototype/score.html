@@ -1,0 +1,571 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>谱面交互评审 · 六线猫</title>
+<style>
+  :root {
+    color-scheme: light;
+    --work: #f1f3f7; --white: #fff; --ink: #202839; --muted: #53637a;
+    --line: #d8e0eb; --blue: #2457d7; --soft: #edf3ff; --score: #20242a;
+    font: 13px/1.55 -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: var(--ink); background: var(--work);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-width: 1440px; height: 100dvh; min-height: 560px; display: grid; grid-template-rows: 49px 46px 1fr 31px; }
+  button, select { color: inherit; font: inherit; }
+  button, select, a { -webkit-tap-highlight-color: transparent; }
+  button { cursor: pointer; }
+  button:disabled { cursor: default; color: #788598; }
+  :focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
+  [hidden] { display: none !important; }
+  h1, h2, h3, p, ul { margin: 0; }
+  a { color: var(--blue); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .top, .toolbar, .status { display: flex; gap: 14px; align-items: center; padding: 0 18px; background: var(--white); border-bottom: 1px solid var(--line); }
+  .top { justify-content: space-between; position: relative; }
+  .brand { display: flex; gap: 8px; align-items: center; font-size: 15px; font-weight: 650; color: var(--blue); }
+  .logo { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 6px; background: var(--blue); color: white; }
+  .logo svg { width: 16px; height: 16px; }
+  .top-title { position: absolute; left: 50%; transform: translateX(-50%); font-size: 14px; font-weight: 650; }
+  .top-review { display: flex; gap: 16px; align-items: center; }
+  .badge { background: var(--soft); color: var(--blue); border: 1px solid #d7e4fc; border-radius: 4px; padding: 2px 7px; font-size: 12px; }
+  .toolbar-group { display: flex; align-items: center; gap: 5px; }
+  .toolbar-group + .toolbar-group { border-left: 1px solid var(--line); padding-left: 12px; }
+  .tool { display: inline-flex; gap: 6px; align-items: center; background: transparent; border: 1px solid transparent; border-radius: 5px; min-height: 32px; padding: 0 8px; }
+  .tool:hover:enabled { background: var(--work); }
+  .tool svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  .mode { color: var(--blue); background: var(--soft); padding: 5px 10px; border-radius: 5px; font-weight: 650; }
+  .toolbar-note, .muted { color: var(--muted); }
+  .spacer { flex: 1; }
+  .workspace { min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) clamp(352px, 24%, 384px); }
+  .canvas, .inspector-body { overflow: auto; scrollbar-color: #b5c1d0 transparent; scrollbar-width: thin; overscroll-behavior: contain; }
+  .canvas { padding: 24px 28px 48px; }
+  .paper { max-width: 1000px; min-height: 920px; margin: 0 auto; padding: 25px 38px 40px; background: var(--white); box-shadow: 0 2px 14px #233b6410; }
+  .paper-title { color: var(--score); text-align: center; }
+  .paper-title h1 { font: 600 28px/1.4 "Songti SC", SimSun, serif; letter-spacing: .12em; }
+  .score-meta { display: flex; justify-content: space-between; margin-top: 8px; color: #3c4656; font-size: 12px; }
+  #score { display: block; width: 100%; color: var(--score); user-select: none; overflow: visible; }
+  #score text { fill: currentColor; }
+  .staff { fill: none; stroke: currentColor; stroke-width: 1.05; }
+  .ink { fill: currentColor; }
+  .line { fill: none; stroke: currentColor; }
+  .number { color: #5d6e85; font-size: 11px; }
+  .fret { font: 14px Arial, sans-serif; text-anchor: middle; dominant-baseline: central; paint-order: stroke; stroke: white; stroke-width: 3.5; stroke-linejoin: round; }
+  .melody { font: 15px Arial, sans-serif; text-anchor: middle; }
+  .lyric { font-size: 14px; text-anchor: middle; }
+  .lyric-empty { color: #bbc7d6; }
+  .highlight { fill: #eef4ff; stroke: #b7cbfa; stroke-width: 1; }
+  .guide { color: var(--blue); stroke: currentColor; stroke-width: 1; stroke-dasharray: 4 3; pointer-events: none; }
+  .mark-hit { fill: transparent; }
+  .tech, .room { cursor: pointer; }
+  .tech.is-selected, .handle, .room-draft { color: var(--blue); }
+  .tech .shape { stroke-width: 1.65; stroke-linecap: round; stroke-linejoin: round; }
+  .tech.is-selected .shape { stroke-width: 2.1; }
+  .tech:focus, .handle:focus, .room:focus { outline: none; }
+  .tech:focus-visible .mark-hit, .handle:focus-visible .mark-hit { stroke: var(--blue); stroke-dasharray: 2 2; }
+  .handle { cursor: ns-resize; touch-action: none; }
+  .handle .knob { fill: white; stroke: currentColor; stroke-width: 1.55; pointer-events: none; }
+  .handle:hover .knob, .handle.is-dragging .knob { fill: var(--blue); }
+  .room .selected-box, .room .focus-box { fill: none; stroke: var(--blue); stroke-width: 1; opacity: 0; pointer-events: none; }
+  .room.is-selected .selected-box { opacity: 1; }
+  .room:focus-visible .focus-box { opacity: 1; stroke: #28467d; stroke-dasharray: 1 2.5; stroke-linecap: round; }
+  .room:hover:not(.is-selected) .mark-hit { fill: #dde8ff50; }
+  .room-draft { pointer-events: none; }
+  .room-draft path { stroke-dasharray: 5 3; }
+  .sidebar { min-height: 0; border-left: 1px solid var(--line); background: white; display: grid; grid-template-rows: auto auto minmax(0, 1fr); }
+  .tabbar { padding: 0 18px; border-bottom: 1px solid var(--line); }
+  .tab { min-height: 42px; color: var(--blue); display: inline-grid; align-items: center; padding: 0 4px; border-bottom: 2px solid var(--blue); font-weight: 650; }
+  .context { padding: 12px 18px; border-bottom: 1px solid var(--line); background: #f9fbfe; }
+  .context h2 { font-size: 15px; margin-bottom: 2px; }
+  .inspector-body { padding: 16px 18px 20px; }
+  .section { padding-bottom: 16px; }
+  .section + .section { border-top: 1px solid var(--line); padding-top: 15px; }
+  .section h3 { font-size: 14px; margin-bottom: 9px; }
+  .section p + p { margin-top: 6px; }
+  .section .actions { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
+  .control { border: 1px solid #aab8cd; background: white; border-radius: 5px; min-height: 31px; padding: 4px 9px; }
+  button.control:hover:enabled { border-color: var(--blue); background: var(--soft); }
+  .control[aria-pressed="true"], .control.primary { border-color: var(--blue); background: var(--soft); color: var(--blue); font-weight: 650; }
+  .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px; }
+  .fields label { display: grid; gap: 4px; }
+  .readout { list-style: none; padding: 0; margin-top: 10px; border-top: 1px solid var(--line); }
+  .readout li { display: flex; justify-content: space-between; gap: 5px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+  .notice { color: var(--blue); background: var(--soft); border-radius: 5px; padding: 7px 9px; margin-top: 8px; }
+  .legend { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+  .sample { width: 24px; height: 11px; border: 1px solid var(--blue); border-radius: 2px; }
+  .sample.focus { border-style: dotted; border-color: #28467d; }
+  .sample.draft { height: 10px; border-style: dashed; border-bottom: none; border-right: none; border-radius: 0; }
+  kbd { font: 11px/1.4 ui-monospace, monospace; padding: 1px 4px; border: 1px solid var(--line); border-radius: 3px; background: #f9fbfe; }
+  .status { font-size: 12px; border-top: 1px solid var(--line); border-bottom: 0; color: var(--muted); }
+  #action-status { color: var(--blue); }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M5 11V4l5 4h4l5-4v7a7 7 0 1 1-14 0Z"/><path d="M9 13h1m4 0h1m-4 3 1 1 1-1"/></svg></span>六线猫</div>
+  <div class="top-title">理想</div>
+  <nav class="top-review" aria-label="专题评审导航"><span class="badge">谱面评审</span><a href="index.html">评审总览</a><a href="measure.html">小节工具</a><a href="playback.html">试听</a></nav>
+</header>
+<div class="toolbar" role="group" aria-label="谱面编辑工具">
+  <div class="toolbar-group">
+    <button class="tool" id="undo" title="Ctrl / ⌘ + Z" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 14-5-5 5-5M4 9h10a5 5 0 0 1 0 10h-2"/></svg>撤销</button>
+    <button class="tool" id="redo" title="Ctrl / ⌘ + Shift + Z" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 14 5-5-5-5m5 5H10a5 5 0 0 0 0 10h2"/></svg>重做</button>
+  </div>
+  <div class="toolbar-group"><span class="mode" id="mode"></span></div>
+  <span class="toolbar-note" id="toolbar-note"></span><span class="spacer"></span>
+  <label for="scene">评审场景</label><select class="control" id="scene"><option value="084">BUG-084　扫弦与琶音混选</option><option value="088">BUG-088　跳转记号布局</option><option value="090">BUG-090　反复房子选框</option></select>
+  <button class="tool" id="reset">重置场景</button>
+</div>
+<main class="workspace">
+  <section class="canvas" aria-label="谱面工作区">
+    <article class="paper" aria-labelledby="score-title">
+      <header class="paper-title"><h1 id="score-title">理想</h1><div class="score-meta"><span>1 = C　　4/4　　♩ = 88</span><span>木吉他 · 第 27–38 小节</span></div></header>
+      <svg id="score" viewBox="0 0 920 831" role="group" aria-label="六线谱、简谱与歌词"></svg>
+    </article>
+  </section>
+  <aside class="sidebar" aria-labelledby="context-title">
+    <div class="tabbar"><span class="tab" id="tab"></span></div>
+    <header class="context"><h2 id="context-title"></h2><p class="muted" id="context-note"></p></header>
+    <div class="inspector-body" id="inspector"></div>
+  </aside>
+</main>
+<footer class="status"><span id="selection-status"></span><span class="spacer"></span><span id="action-status" role="status"></span><span class="spacer"></span><span>六线谱　100%</span></footer>
+<script>
+  const byId = (id) => document.getElementById(id);
+  const score = byId('score');
+  const inspector = byId('inspector');
+  const sceneControl = byId('scene');
+  const sceneNames = {
+    '084': ['技巧', 'Alt / Option + 点按扫弦或琶音，增选或移除'],
+    '088': ['小节', '对照第 33、34 小节开头的跳转记号与和弦图'],
+    '090': ['小节', '点击反复括线可选中，Tab 可独立移动键盘焦点'],
+  };
+  const objects = [
+    { id: 'a', measure: 32, beat: '2 拍', x: 281, kind: '扫弦', up: true, upper: 1, lower: 4 },
+    { id: 'b', measure: 32, beat: '3 拍', x: 335, kind: '琶音', up: false, upper: 2, lower: 6 },
+    { id: 'c', measure: 33, beat: '3 拍', x: 555, kind: '扫弦', up: false, upper: 3, lower: 5 },
+  ];
+  const initialRanges = Object.fromEntries(objects.map(({ id, upper, lower }) => [id, { upper, lower }]));
+  const edgeName = { upper: '上端', lower: '下端' };
+  const centerY = 360;
+  const stringY = (y, string) => y + (string - 1) * 9;
+  const bars = [20, 213, 406, 696, 900];
+  const scenes = Object.keys(sceneNames);
+  let scene, ranges, selected, drag, undo, redo, layout, room, draft, rooms;
+
+  function setScene(next) {
+    stopDrag(null, false);
+    scene = scenes.includes(next) ? next : '084';
+    ranges = initialRanges;
+    selected = new Set(scene === '084' ? ['a'] : []);
+    undo = [];
+    redo = [];
+    layout = 'after';
+    room = '2';
+    draft = null;
+    rooms = [
+      { id: '1', name: '一房', passes: 1, start: 31, end: 32 },
+      { id: '2', name: '二房', passes: 2, start: 33, end: 33 },
+    ];
+    sceneControl.value = scene;
+    byId('mode').textContent = byId('tab').textContent = sceneNames[scene][0];
+    byId('toolbar-note').textContent = sceneNames[scene][1];
+    announce('');
+    render();
+  }
+
+  function announce(message) { byId('action-status').textContent = message; }
+  const line = (x1, y1, x2, y2, width = 1) => `<path class="line" stroke-width="${width}" d="M${x1} ${y1}L${x2} ${y2}"/>`;
+  const text = (x, y, value, klass = '', anchor = 'start') => `<text x="${x}" y="${y}" class="${klass}" text-anchor="${anchor}">${value}</text>`;
+  const dot = (x, y, r) => `<circle class="ink" cx="${x}" cy="${y}" r="${r}"/>`;
+  const positions = (left, right, count) => Array.from({ length: count }, (_, i) => left + 27 + (right - left - 52) * i / (count - 1));
+  const diagrams = { C: [-1, 3, 2, 0, 1, 0], D: [-1, -1, 0, 2, 3, 2], Dsus4: [-1, -1, 0, 2, 3, 3], G: [3, 2, 0, 0, 0, 3], Am: [-1, 0, 2, 2, 1, 0] };
+
+  function chord(x, staffY, name, lift = 0, id = '') {
+    const y = staffY - 38 - lift;
+    let grid = '';
+    diagrams[name].forEach((fret, i) => {
+      const col = i * 7.4;
+      grid += line(col, 0, col, 27, .65);
+      if (fret > 0) grid += dot(col, fret * 9 - 4.5, 2.8);
+      else grid += text(col, -4, fret === 0 ? '○' : '×', 'number', 'middle');
+    });
+    for (let i = 0; i <= 3; i++) grid += line(0, i * 9, 37, i * 9, i ? .65 : 1.7);
+    return `<g data-chord="${id}" data-beat-x="${x}" transform="translate(${x - 18.5},${y})">${text(18.5, -15, name, '', 'middle')}${grid}</g>`;
+  }
+
+  function shape(x, top, bottom, up, wave) {
+    let shaft = `M${x} ${top}V${bottom}`;
+    if (wave) {
+      const steps = Math.max(2, Math.round((bottom - top) / 5));
+      const step = (bottom - top) / steps;
+      shaft = `M${x} ${top}`;
+      for (let i = 0; i < steps; i++) shaft += `q${i % 2 ? -5 : 5} ${step / 2},0 ${step}`;
+    }
+    const end = up ? top : bottom;
+    const back = end + (up ? 5.8 : -5.8);
+    return `<path class="line shape" d="${shaft}"/><path class="ink" d="M${x} ${end + (up ? -1.5 : 1.5)}L${x - 3.1} ${back}H${x + 3.1}Z"/>`;
+  }
+
+  function staff(y, bounds, numbers) {
+    let art = '';
+    for (let i = 0; i < 6; i++) art += line(bounds[0], y + i * 9, bounds.at(-1), y + i * 9, 1.05);
+    bounds.forEach((x, i) => {
+      art += line(x, y, x, y + 45, 1.1) + line(x, y + 101, x, y + 134, 1.1);
+      if (numbers[i]) art += text(x, y - 4, numbers[i], 'number', 'middle');
+    });
+    return art;
+  }
+
+  function notes(y, left, right, melody, lyric, verse = '') {
+    const values = melody.split(' ');
+    const xs = positions(left, right, values.length);
+    return xs.map((x, i) => {
+      let art = text(x, y + 117, values[i], 'melody', 'middle');
+      if (i % 3 !== 2) art += line(x - 6, y + 123, Math.min(x + (xs[1] - xs[0]) - 6, right - 9), y + 123, 1.2);
+      if (i % 3 === 0) art += line(x - 6, y + 127, x + 6, y + 127, 1.2);
+      art += text(x, y + 153, lyric[i] || '|', `lyric${lyric[i] ? '' : ' lyric-empty'}`, 'middle');
+      if (verse) art += text(x, y + 174, verse[i] || '|', `lyric${verse[i] ? '' : ' lyric-empty'}`, 'middle');
+      return art;
+    }).join('');
+  }
+
+  function backgroundSystem(y, numbers, content) {
+    let art = staff(y, bars, numbers);
+    content.forEach(([name, melody, lyric, second], m) => {
+      const xs = positions(bars[m], bars[m + 1], 6);
+      art += chord(xs[0], y, name) + notes(y, bars[m], bars[m + 1], melody, lyric, second);
+      xs.forEach((x, i) => {
+        if (i === 0 || i === 2) art += `<g>${text(x, stringY(y, i + 2), i === 0 ? 0 : 2, 'fret', 'middle')}</g>`;
+        else art += shape(x, y - 2, y + 34, i % 3 !== 0, false);
+        art += line(x, y + 45, x, y + 72, 1.05);
+        if (i % 3 !== 2 && i > 0) art += line(x, y + 72, xs[i + 1], y + 72, 1.6);
+      });
+    });
+    return art;
+  }
+
+  function jumpIcon(kind, x, y) {
+    if (kind === 'Coda') return `<g aria-label="Coda"><circle cx="${x}" cy="${y}" r="5.4" class="line" stroke-width="1.35"/>${line(x - 8, y, x + 8, y, 1.35)}${line(x, y - 8, x, y + 8, 1.35)}</g>`;
+    return `<g aria-label="Segno" transform="translate(${x},${y})"><path d="M4 -6C-3 -10 -7 -4 -2 -1L2 1C7 4 3 10 -4 6M-6 6L6 -6" class="line" stroke-width="1.35"/>${dot(-5, -2, 1.1)}${dot(5, 2, 1.1)}</g>`;
+  }
+
+  function jumpMarks(y) {
+    // 修正后小节号和起点符号共用起线附近的记号带。两种对照复用横向拍点和末尾文字坐标。
+    const after = layout === 'after';
+    return [[33, bars[2], 'Segno'], [34, bars[3], 'Coda']].map(([number, x, kind]) => {
+      const markY = after ? y - 14 : y - 65;
+      const markX = after ? x + 10 : x - 4;
+      return `<g data-start-mark="${kind}" data-measure="${number}">${text(markX - 13, markY + 4, number, 'number', 'end')}${jumpIcon(kind, markX, markY)}</g>`;
+    }).join('') + `<g data-end-mark="true">${text(bars[2] - 9, y - 71, 'To Coda', '', 'end')}${text(bars[4] - 5, y - 55, 'D.S. al Coda', '', 'end')}</g>`;
+  }
+
+  function houseBracket(item, preview = false) {
+    const x = bars[item.start - 31] + 2;
+    const end = bars[item.end - 30] - 3;
+    const y = centerY - 89 - (preview ? 24 : 0);
+    const path = `<path class="line" stroke-width="1.25" d="M${x} ${y + 12}V${y}H${end}${item.passes !== 1 ? 'v12' : ''}"/>${text(x + 6, y + 17, `${item.passes}.`)}`;
+    if (preview) return `<g class="room-draft" data-room-draft="true">${path}</g>`;
+    return `<g class="room${room === item.id ? ' is-selected' : ''}" role="button" tabindex="0" data-room="${item.id}" aria-pressed="${room === item.id}" aria-label="${item.name}，第 ${item.start} 至 ${item.end} 小节">
+      <rect class="mark-hit" x="${x - 3}" y="${y - 7}" width="${end - x + 6}" height="29" rx="2"/>
+      <rect class="selected-box" x="${x - 3}" y="${y - 4}" width="${end - x + 6}" height="24" rx="2"/>
+      <rect class="focus-box" x="${x - 5}" y="${y - 7}" width="${end - x + 10}" height="30" rx="3"/>${path}</g>`;
+  }
+
+  function objectRange(id) {
+    if (drag?.value != null && selected.has(id)) return { ...ranges[id], [drag.edge]: drag.value };
+    return ranges[id];
+  }
+
+  function technique(item, y) {
+    const { id, x, up, kind, measure, beat } = item;
+    const active = scene === '084';
+    const marked = active && selected.has(id);
+    const { upper, lower } = active ? objectRange(id) : initialRanges[id];
+    const top = stringY(y, upper);
+    const bottom = stringY(y, lower);
+    const label = `第 ${measure} 小节第 ${beat}，${up ? '向上' : '向下'}${kind}，第 ${upper} 至 ${lower} 弦`;
+    const attrs = active ? `role="button" tabindex="0" aria-label="${label}" aria-pressed="${marked}"` : '';
+    let art = `<g class="${active ? 'tech' : ''}${marked ? ' is-selected' : ''}" ${attrs} data-tech="${id}" data-upper="${upper}" data-lower="${lower}" data-direction="${up ? 'up' : 'down'}">
+      <rect class="mark-hit" x="${x - 8}" y="${y - 6}" width="17" height="56"/>
+      ${shape(x, top, bottom, up, kind === '琶音')}${line(x, y + 45, x, y + 75, marked ? 1.7 : 1)}</g>`;
+    if (marked) art += ['upper', 'lower'].map((edge) => {
+      const cy = stringY(y, edge === 'upper' ? upper : lower);
+      const current = edge === 'upper' ? upper : lower;
+      const [min, max] = bounds(edge);
+      return `<g class="handle${drag?.id === id && drag.edge === edge ? ' is-dragging' : ''}" role="slider" tabindex="0" aria-label="${kind}第 ${measure} 小节第 ${beat} ${edgeName[edge]}弦" aria-orientation="vertical" aria-valuemin="${Math.min(min, current)}" aria-valuemax="${Math.max(max, current)}" aria-valuenow="${current}" aria-valuetext="第 ${current} 弦" data-handle="${id}-${edge}">
+        <rect class="mark-hit" x="${x - 21}" y="${cy - 4.5}" width="13" height="9" rx="3"/>
+        ${line(x - 13, cy, x, cy, .9)}<circle class="knob" cx="${x - 14}" cy="${cy}" r="4"/></g>`;
+    }).join('');
+    return art;
+  }
+
+  function mainSystem() {
+    const y = centerY;
+    const numbers = scene === '088' ? [31, 32, null, null, 35] : [31, 32, 33, 34, 35];
+    let art = staff(y, bars, numbers);
+    if (scene === '088') art = `<rect x="${bars[2] + 18}" y="${y - 3}" width="19" height="52" rx="2" class="highlight"/>${art}`;
+    art += line(bars[2] - 5, y, bars[2] - 5, y + 45, 1.15) + line(bars[2], y, bars[2], y + 45, 2.8);
+    art += dot(bars[2] - 11, y + 13.5, 2.2) + dot(bars[2] - 11, y + 31.5, 2.2);
+    art += line(bars[2] - 5, y + 101, bars[2] - 5, y + 134) + line(bars[2], y + 101, bars[2], y + 134, 2.8);
+    art += dot(bars[2] - 11, y + 112, 2.2) + dot(bars[2] - 11, y + 123, 2.2);
+    art += line(bars[3] - 5, y, bars[3] - 5, y + 45) + line(bars[3] - 5, y + 101, bars[3] - 5, y + 134);
+    art += chord(48, y, 'C') + chord(245, y, 'Dsus4', 0, '32-1') + chord(350, y, 'D');
+    // 两张首拍和弦图横向碰到起线记号带，仅向上挪动冲突图；第 32 小节保留作对照。
+    const lift = scene === '088' && layout === 'after' ? 25 : 0;
+    art += chord(bars[2] + 27, y, 'C', lift, '33-1') + chord(bars[3] + 27, y, 'C', lift, '34-1');
+    const rhythm = [[48, 3, 6, true], [123, 1, 4, true], [154, 1, 4, true], [180, 2, 5, false], [245, 3, 6, true], [309, 1, 4, true], [376], [433, 3, 6, true], [495, 1, 4, true], [526, 2, 5, false], [589], [614, 1, 4, true], [650, 2, 5, false], [723, 3, 6, true], [784, 1, 4, true], [832, 1, 4, true], [860, 2, 5, false]];
+    for (const [x, a, b, up] of rhythm) {
+      art += a ? shape(x, stringY(y, a), stringY(y, b), up, false) + line(x, y + 45, x, y + 75) : line(x - 6, y + 22, x + 6, y + 22, 2);
+    }
+    for (const [x1, x2] of [[123, 180], [281, 309], [495, 555], [614, 650], [784, 860]]) art += line(x1, y + 75, x2, y + 75, 1.65);
+    [['4 4 4 4 3 1', '沉入失望的生'], ['3 2· 2 - -', '活里'], ['4 4 4 4 4 4 5 5· 1 7 5', '沉入失望的生活里又一个'], ['5 4 3 3 1 3', '花儿再 次']].forEach(([melody, words], i) => {
+      art += notes(y, bars[i], bars[i + 1], melody, words, '      ');
+    });
+    if (scene === '088') art += jumpMarks(y);
+    if (scene === '090') art += rooms.map((item) => houseBracket(item)).join('') + (draft ? houseBracket(draft, true) : '');
+    if (drag?.value != null) {
+      const snap = stringY(y, drag.value);
+      art += `<path class="guide" d="M${bars[1] + 12} ${snap}H${bars[3] - 16}"/>`;
+    }
+    return art + objects.map((item) => technique(item, y)).join('');
+  }
+
+  function renderScore() {
+    // SVG 图形更新时按语义标识恢复焦点，键盘调弦和选择房子后仍可从原控件继续操作。
+    const focused = document.activeElement;
+    const key = ['handle', 'tech', 'room'].find((name) => score.contains(focused) && focused?.dataset[name]);
+    const value = key && focused.dataset[key];
+    score.innerHTML = backgroundSystem(87, [27, 28, 29, 30], [
+      ['Am', '6 6 6 5 6 6', '了你麻木的', '为了父亲的'], ['G', '3 3· 3 0 1 1 1 7 6', '血肉 理想今年你', '年纪 理想永远都'], ['C', '5 6· 6 0· 1· 1 1', '几岁  你总是', '年轻  你让我'], ['Am', '7 7 7 7 5 7 7 6· 0 6 6 6', '诱惑着年轻的朋友你总是', '倔强地反抗着命运你让我'],
+    ]) + (scene === '090' ? `<g transform="translate(0 31)">${mainSystem()}</g>` : mainSystem()) + backgroundSystem(scene === '090' ? 662 : 631, [35, 36, 37, 38, 39], [
+      ['C', '5 4 3 3 1 3', '花儿再一次'], ['D', '3 2 1 1 2 3', '开放'], ['G', '4 4 3 2 1 2', '理想'], ['C', '3 3 2 2 1 1', '又让我'],
+    ]);
+    if (key && !drag) score.querySelector(`[data-${key}="${value}"]`)?.focus({ preventScroll: true });
+  }
+
+  function bounds(edge) {
+    const values = [...selected].map((id) => ranges[id]);
+    return edge === 'upper' ? [1, Math.min(...values.map((range) => range.lower)) - 1] : [Math.max(...values.map((range) => range.upper)) + 1, 6];
+  }
+
+  function rangeSelect(edge) {
+    const ids = [...selected];
+    const values = ids.map((id) => objectRange(id)[edge]);
+    const mixed = values.some((value) => value !== values[0]);
+    const [min, max] = bounds(edge);
+    const options = Array.from({ length: max - min + 1 }, (_, i) => min + i).map((n) => `<option value="${n}"${!mixed && values[0] === n ? ' selected' : ''}>第 ${n} 弦</option>`).join('');
+    return `<label for="${edge}">${edgeName[edge]}弦<select class="control" id="${edge}" data-edge="${edge}" ${drag ? 'disabled' : ''}>${mixed ? '<option value="" selected disabled>多个值</option>' : ''}${options}</select></label>`;
+  }
+
+  function techniquesPanel() {
+    byId('context-title').textContent = selected.size ? `已选 ${selected.size} 个技巧` : '技巧未选中';
+    byId('context-note').textContent = selected.size > 1 ? '允许跨拍混选扫弦与琶音' : '第 32–33 小节 · 六线谱技巧';
+    const active = objects.filter(({ id }) => selected.has(id));
+    const items = active.map(({ id, measure, beat, kind, up }) => {
+      const { upper, lower } = objectRange(id);
+      return `<li><span>${measure} 小节第 ${beat}<br><span class="muted">${up ? '向上' : '向下'}${kind}</span></span><strong>${upper}–${lower} 弦</strong></li>`;
+    }).join('');
+    return `<section class="section"><h3>弦范围</h3>${selected.size ? `<div class="fields">${rangeSelect('upper')}${rangeSelect('lower')}</div><p class="muted">调整同一端，各自保留方向和另一端。每个技巧至少覆盖两根弦。</p>${drag?.value != null ? `<p class="notice">${edgeName[drag.edge]}预览 · 第 ${drag.value} 弦${drag.clamped ? '（已吸附到共同可用范围）' : ''}</p>` : ''}<ul class="readout">${items}</ul>` : '<p class="muted">点按第 32、33 小节的扫弦箭头或琶音波线。</p>'}</section>
+      <section class="section"><h3>混选操作</h3><p><kbd>Alt / Option</kbd> + 点按技巧以增选或移除。拖动任一已选技巧的蓝色端点。</p><p><kbd>Esc</kbd> 取消拖动预览。键盘聚焦端点后可用 <kbd>↑</kbd> 和 <kbd>↓</kbd> 调弦。</p><div class="actions"><button class="control" data-action="select-all">选中三个示例</button><button class="control" data-action="clear" ${!selected.size ? 'disabled' : ''}>清除选择</button></div></section>`;
+  }
+
+  function jumpPanel() {
+    byId('context-title').textContent = '反复与跳转';
+    byId('context-note').textContent = '第 33 小节 Segno · 第 34 小节 Coda';
+    return `<section class="section"><h3>跳转记号布局</h3><div class="actions" role="group" aria-label="布局对照"><button class="control" data-layout="before" aria-pressed="${layout === 'before'}">修正前</button><button class="control" data-layout="after" aria-pressed="${layout === 'after'}">修正后</button></div><p class="notice">${layout === 'after' ? '小节号与符号贴起线，冲突和弦图垂直上移。' : '对照状态：符号和小节号远离起线。'}</p></section>
+      <section class="section"><h3>谱面位置</h3><ul class="readout"><li><span>Segno</span><strong>第 33 小节开头</strong></li><li><span>Coda</span><strong>第 34 小节开头</strong></li><li><span>To Coda</span><strong>第 32 小节末尾</strong></li><li><span>D.S. al Coda</span><strong>第 34 小节末尾</strong></li></ul></section>
+      <section class="section"><p class="muted">切换前后对照，观察首拍和弦图的纵向位置。两种布局使用相同拍点。</p></section>`;
+  }
+
+  function roomPanel() {
+    const item = rooms.find(({ id }) => id === room);
+    byId('context-title').textContent = item ? `${item.name}已选中` : '反复房子未选中';
+    byId('context-note').textContent = item ? `第 ${item.start}${item.start === item.end ? '' : `–${item.end}`} 小节 · 第 ${item.passes} 遍` : '第 31–34 小节';
+    return `<section class="section"><h3>反复房子</h3><p>${item ? '可点按谱面上的其他房子切换选区。' : '点按谱面括线选择房子。'}</p><div class="actions">${rooms.map((entry) => `<button class="control" data-select-room="${entry.id}" aria-pressed="${room === entry.id}">${entry.name}</button>`).join('')}</div></section>
+      <section class="section"><h3>草稿预览</h3>${draft ? `<p class="notice">第 34 小节 · 第 3 遍 · 未应用</p><div class="actions"><button class="control primary" data-action="apply-draft">应用</button><button class="control" data-action="cancel-draft">取消</button></div>` : `<p class="muted">${rooms.length > 2 ? '三房已添加。重置场景可以再试一次。' : '在第 34 小节预览一段反复括线。'}</p><div class="actions"><button class="control" data-action="create-draft" ${rooms.length > 2 ? 'disabled' : ''}>预览三房草稿</button></div>`}</section>
+      <section class="section"><h3>谱面状态</h3><div class="legend"><span class="sample" aria-hidden="true"></span>细蓝实线框 · 已选中</div><div class="legend"><span class="sample focus" aria-hidden="true"></span>外侧点线框 · 键盘焦点</div><div class="legend"><span class="sample draft" aria-hidden="true"></span>蓝色虚线括线 · 草稿</div><p class="muted"><kbd>Tab</kbd> 移动焦点，<kbd>Enter</kbd> 或 <kbd>Space</kbd> 选择，<kbd>Esc</kbd> 取消草稿或选区。</p></section>`;
+  }
+
+  function render() {
+    renderScore();
+    const focused = document.activeElement;
+    const attrs = ['edge', 'action', 'layout', 'selectRoom'];
+    const restore = attrs.find((key) => inspector.contains(focused) && focused?.dataset[key]);
+    const value = restore && focused.dataset[restore];
+    inspector.innerHTML = (scene === '084' ? techniquesPanel : scene === '088' ? jumpPanel : roomPanel)();
+    if (restore) [...inspector.querySelectorAll('button,select')].find((el) => el.dataset[restore] === value)?.focus({ preventScroll: true });
+    byId('undo').disabled = !undo.length || Boolean(drag);
+    byId('redo').disabled = !redo.length || Boolean(drag);
+    byId('selection-status').textContent = byId('context-title').textContent;
+  }
+
+  function selectTechnique(id, toggle) {
+    if (drag) return;
+    if (!toggle) selected = new Set([id]);
+    else if (selected.has(id)) selected.delete(id);
+    else selected.add(id);
+    announce('');
+    render();
+  }
+
+  function clamp(edge, value) {
+    const [min, max] = bounds(edge);
+    return Math.max(min, Math.min(max, value));
+  }
+
+  function commit(edge, value) {
+    // 遍历所选对象的对端得到共同可用区间。混选顺序不参与限制，反向箭头也始终按谱面上下端处理。
+    if (!selected.size || !Number.isInteger(value)) return false;
+    const target = clamp(edge, value);
+    if ([...selected].every((id) => ranges[id][edge] === target)) return false;
+    undo.push(ranges);
+    redo = [];
+    ranges = { ...ranges };
+    for (const id of selected) ranges[id] = { ...ranges[id], [edge]: target };
+    announce(`已更新 ${selected.size} 个技巧的${edgeName[edge]} · 第 ${target} 弦`);
+    return true;
+  }
+
+  function historyStep(back) {
+    const source = back ? undo : redo;
+    if (!source.length || drag) return;
+    (back ? redo : undo).push(ranges);
+    ranges = source.pop();
+    announce(back ? '已撤销弦范围修改' : '已重做弦范围修改');
+    render();
+  }
+
+  function pointerY(event) {
+    return new DOMPoint(event.clientX, event.clientY).matrixTransform(score.getScreenCTM().inverse()).y;
+  }
+
+  score.addEventListener('pointerdown', (event) => {
+    const handle = event.target.closest('[data-handle]');
+    if (!handle || event.button !== 0 || drag) return;
+    event.preventDefault();
+    const [id, edge] = handle.dataset.handle.split('-');
+    const start = ranges[id][edge];
+    drag = { id, edge, start, pointer: event.pointerId, offset: pointerY(event) - stringY(centerY, start), value: null, clamped: false };
+    // 稳定的 SVG 根持有指针捕获，重绘圆点或拖出谱纸时仍能结束手势。
+    score.setPointerCapture(event.pointerId);
+  });
+
+  score.addEventListener('pointermove', (event) => {
+    if (drag?.pointer !== event.pointerId) return;
+    const raw = Math.round((pointerY(event) - drag.offset - centerY) / 9) + 1;
+    const value = raw === drag.start ? null : clamp(drag.edge, raw);
+    const clamped = value !== null && value !== raw;
+    if (drag.value === value && drag.clamped === clamped) return;
+    drag.value = value;
+    drag.clamped = clamped;
+    render();
+  });
+
+  function stopDrag(event, apply) {
+    if (!drag || (event && drag.pointer !== event.pointerId)) return false;
+    const { pointer, edge, value } = drag;
+    drag = null;
+    if (score.hasPointerCapture(pointer)) score.releasePointerCapture(pointer);
+    if (apply && value !== null) commit(edge, value);
+    if (!apply) announce('已取消拖动预览');
+    render();
+    return true;
+  }
+
+  score.addEventListener('pointerup', (event) => stopDrag(event, true));
+  score.addEventListener('pointercancel', (event) => stopDrag(event, false));
+  score.addEventListener('lostpointercapture', (event) => stopDrag(event, false));
+
+  function selectRoom(id) {
+    room = id;
+    announce(`${rooms.find((item) => item.id === id).name}已选中`);
+    render();
+  }
+
+  score.addEventListener('click', (event) => {
+    const item = event.target.closest('[data-tech]');
+    if (scene === '084' && item) selectTechnique(item.dataset.tech, event.altKey);
+    const bracket = event.target.closest('[data-room]');
+    if (scene === '090' && bracket) selectRoom(bracket.dataset.room);
+  });
+
+  score.addEventListener('keydown', (event) => {
+    const target = event.target;
+    if (target.dataset.handle && ['ArrowUp', 'ArrowDown'].includes(event.key)) {
+      event.preventDefault();
+      const [id, edge] = target.dataset.handle.split('-');
+      if (commit(edge, ranges[id][edge] + (event.key === 'ArrowUp' ? -1 : 1))) render();
+    }
+    if (['Enter', ' '].includes(event.key) && (target.dataset.tech || target.dataset.room)) {
+      event.preventDefault();
+      if (target.dataset.tech) selectTechnique(target.dataset.tech, event.altKey);
+      if (target.dataset.room) selectRoom(target.dataset.room);
+    }
+  });
+
+  inspector.addEventListener('change', (event) => {
+    const edge = event.target.dataset.edge;
+    if (edge && event.target.value) {
+      commit(edge, Number(event.target.value));
+      render();
+    }
+  });
+
+  inspector.addEventListener('click', (event) => {
+    const target = event.target.closest('button');
+    if (!target) return;
+    const { action, layout: comparison, selectRoom: roomId } = target.dataset;
+    if (comparison) layout = comparison;
+    if (roomId) return selectRoom(roomId);
+    if (action === 'select-all') selected = new Set(objects.map(({ id }) => id));
+    if (action === 'clear') selected.clear();
+    // 草稿和选区采用不同字段。插入预览时保留现有房子的选框，应用后才选中新房子。
+    if (action === 'create-draft') draft = { id: '3', name: '三房', passes: 3, start: 34, end: 34 };
+    if (action === 'apply-draft' && draft) {
+      rooms.push(draft);
+      room = draft.id;
+      draft = null;
+      announce('已应用三房');
+    } else if (action === 'cancel-draft') {
+      draft = null;
+      announce('已取消三房草稿');
+    } else announce('');
+    render();
+    if (action === 'create-draft') inspector.querySelector('[data-action="apply-draft"]').focus({ preventScroll: true });
+    if (action === 'apply-draft') score.querySelector('[data-room="3"]').focus({ preventScroll: true });
+    if (action === 'cancel-draft') inspector.querySelector('[data-action="create-draft"]').focus({ preventScroll: true });
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      if (stopDrag(null, false)) { event.preventDefault(); return; }
+      if (scene === '090') {
+        const cancel = Boolean(draft);
+        const restore = cancel && inspector.contains(document.activeElement);
+        if (cancel) { draft = null; announce('已取消三房草稿'); }
+        else { room = null; announce('已清除房子选区'); }
+        render();
+        if (restore) inspector.querySelector('[data-action="create-draft"]').focus({ preventScroll: true });
+      }
+    }
+    if (scene === '084' && (event.ctrlKey || event.metaKey)) {
+      const key = event.key.toLowerCase();
+      if (key === 'z' || key === 'y') {
+        event.preventDefault();
+        historyStep(key === 'z' && !event.shiftKey);
+      }
+    }
+  });
+
+  byId('undo').addEventListener('click', () => historyStep(true));
+  byId('redo').addEventListener('click', () => historyStep(false));
+  sceneControl.addEventListener('change', () => { location.hash = sceneControl.value; });
+  byId('reset').addEventListener('click', () => { setScene(scene); announce('已重置场景'); });
+  window.addEventListener('hashchange', () => setScene(location.hash.slice(1)));
+  setScene(location.hash.slice(1));
+</script>
+</body>
+</html>

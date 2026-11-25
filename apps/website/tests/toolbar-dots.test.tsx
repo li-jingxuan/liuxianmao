@@ -111,6 +111,8 @@ const renderToolbar = ({
     onOpenRepeatEnding: () => false,
     onOpenJumpMarks: () => false,
     onOpenMeasureRepeat: () => false,
+    onRepairJumpMark: vi.fn(),
+    onRepairRepeatEnding: vi.fn(),
   };
   let single: Record<string, unknown> | null = null;
   let double: Record<string, unknown> | null = null;

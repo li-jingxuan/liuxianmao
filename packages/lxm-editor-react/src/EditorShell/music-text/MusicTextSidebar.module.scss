@@ -1,4 +1,3 @@
-@use "../shared/editor-scrollbar";
 
 // 侧栏与浮窗共用同一草稿；data-editor-form-* 保留跨模块表单覆盖的选择器权重。
 .rhythmAndDots {
@@ -346,8 +345,10 @@
   overflow-x: hidden;
   scroll-padding-block: 12px;
   padding: 16px 20px 20px;
-  scrollbar-width: thin;
-  scrollbar-color: #ccd5e3 transparent;
+  &:not([data-music-text-fields]) {
+    scrollbar-width: thin;
+    scrollbar-color: #ccd5e3 transparent;
+  }
   :global(.ant-form-item-label) { white-space: normal; }
   :global(.ant-form-item-control),
   :global(.ant-input-number),
@@ -357,10 +358,7 @@
   :global(.ant-form-item-explain) { overflow-wrap: anywhere; }
 }
 
-// 属性栏只有页签与页脚之间的正文预留滚动槽；快捷编辑浮窗也复用 sidebarBody。
-.musicTextSidebar .sidebarBody[data-music-text-fields] {
-  @include editor-scrollbar.native-scrollbar;
-}
+.sidebarBody[data-music-text-fields] { overscroll-behavior: contain; }
 
 .addParagraphRow:global(.ant-btn) {
   color: var(--accent);

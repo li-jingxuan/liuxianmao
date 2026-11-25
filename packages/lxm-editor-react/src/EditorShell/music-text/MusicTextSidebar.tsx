@@ -75,6 +75,7 @@ import { shouldIgnoreMusicTextKey } from "./music-text-interaction";
 import { sameMusicTextTarget } from "./music-text-hover";
 import { nextLyricTextInput } from "./text-apply-advance";
 import { isEditorInputEnter } from "../shared/editor-input-enter";
+import { EditorScrollbars, editorScrollbarStyles } from "../shared/EditorScrollbars";
 import {
   readMusicTextDraft,
   lyricDraftMappingDependency,
@@ -114,6 +115,7 @@ import type {
 import type { EditorCommandAdapter } from "../session/editor-command-adapter";
 import { NoteToolDetails } from "../tools/NoteToolDetails";
 import { MeasureToolDetails } from "../tools/MeasureToolDetails";
+import type { MeasureSymbolCallbacks } from "../tools/MeasureSymbols";
 import { TupletToolbar } from "../tools/TupletToolbar";
 import { SidebarRhythmPatternPanel } from "../tools/RhythmPatternPanel";
 import { resolveParagraphLyricTarget } from "./music-text-target";
@@ -180,6 +182,11 @@ export const MusicTextSidebar = ({
   strumInspector,
   renderMeasureMarks,
   onOpenMeasureSymbols,
+  onOpenJumpMarks,
+  onOpenRepeatEnding,
+  onOpenMeasureRepeat,
+  onPlaceJumpMark,
+  measureSelection,
   wholeMeasureTarget,
   getNumberedBeatEventIds,
   onToolAction,
@@ -221,6 +228,7 @@ export const MusicTextSidebar = ({
   strumInspector?: React.ReactNode;
   renderMeasureMarks?: (target: MeasureToolTarget) => React.ReactNode;
   onOpenMeasureSymbols?: () => void;
+  measureSelection?: { anchor: MeasureToolTarget; focus: MeasureToolTarget };
   wholeMeasureTarget?: MeasureToolTarget;
   getNumberedBeatEventIds: (target: MusicTextTarget) => string[];
   getFloatingAnchor: (
@@ -234,7 +242,7 @@ export const MusicTextSidebar = ({
   onLocate?: (location: SidebarLocation) => void;
   continuousRange?: MusicTextRange | null;
   onRangeChange?: (range: MusicTextRange | null) => void;
-}) => {
+} & Partial<MeasureSymbolCallbacks>) => {
   const collapsed = collapsedByEditor || suspendedForPlayback;
   const editorStore = useEditorSessionStore();
   const rangeEditor = useRef<MusicTextRangeEditorController>(null);
@@ -266,6 +274,7 @@ export const MusicTextSidebar = ({
   const [detailFocus, setDetailFocus] = useState(0);
   const [selectionToolsRequested, setSelectionToolsRequested] = useState(false);
   const detailRegion = useRef<HTMLDivElement>(null);
+  const propertyViewport = useRef<HTMLDivElement>(null);
   const settingsFieldRequest = useRef<"label" | "copy" | null>(null);
   const boundaryFocusRequest = useRef(false);
   const measureDetailsRef = useRef<{ focusBoundary: () => boolean }>(null);
@@ -2386,12 +2395,16 @@ export const MusicTextSidebar = ({
           }
         }}
       >
+        {/* 覆盖轨只跟随属性正文。前面的页签、对象摘要和后面的页脚都留在滚动视口之外。 */}
+        <div className={editorScrollbarStyles.shell} inert={!!pending && !numberedBusy}>
         <div
-          className={musicTextSidebarStyles.sidebarBody}
+          ref={propertyViewport}
+          className={`${musicTextSidebarStyles.sidebarBody} ${editorScrollbarStyles.viewport}`}
           data-music-text-fields
+          data-editor-scroll-viewport
+          tabIndex={0}
           role="tabpanel"
           aria-label={`${propertyTab} 属性面板`}
-          inert={!!pending && !numberedBusy}
           onFocusCapture={(event) => {
             if (
               event.target instanceof Element &&
@@ -2499,9 +2512,13 @@ export const MusicTextSidebar = ({
                     ref={measureDetailsRef}
                     document={score}
                     selection={selection}
-                    target={wholeMeasureTarget ?? detailTarget}
+                    target={measureSelection?.focus ?? measureTarget}
+                    measureAnchor={measureSelection?.anchor ?? (!continuousRange && !activeObject && !numberedSelection ? selection?.anchor : undefined)}
+                    symbolCallbacks={onOpenJumpMarks && onOpenRepeatEnding && onOpenMeasureRepeat
+                      ? { onOpenJumpMarks, onOpenRepeatEnding, onOpenMeasureRepeat, onPlaceJumpMark }
+                      : undefined}
                     measureHost={setMeasureHost}
-                    blocked={editing}
+                    blocked={editing || !!activeModal}
                     onAction={onToolAction}
                     navigate={(destination) =>
                       request({
@@ -2522,7 +2539,8 @@ export const MusicTextSidebar = ({
                     }
                   />
                   {!collapsed && propertyTab === "selection" && selectionDetail === "measure" && measureTarget && <>
-                    {onOpenMeasureSymbols && <Button size="small" disabled={editing || !!activeModal} onClick={onOpenMeasureSymbols}>选记号…</Button>}
+                    {onOpenMeasureSymbols && !(onOpenJumpMarks && onOpenRepeatEnding && onOpenMeasureRepeat) &&
+                      <Button size="small" disabled={editing || !!activeModal} onClick={onOpenMeasureSymbols}>选记号…</Button>}
                     {renderMeasureMarks?.(measureTarget)}
                   </>}
                 </div>
@@ -2771,6 +2789,8 @@ export const MusicTextSidebar = ({
                 )}
               </div>
             )}
+        </div>
+        <EditorScrollbars viewportRef={propertyViewport} />
         </div>
         {propertyTab === "selection" && selectionDetail !== "measure" && !showSelectionInvitation && !pending && (
           <div className={musicTextSidebarStyles.sidebarFooter}>

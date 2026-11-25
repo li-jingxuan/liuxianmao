@@ -21,6 +21,13 @@ export interface RepeatEndingValidationIssue {
   message: string;
 }
 
+export interface RepeatEndingGroupValidationResult {
+  ok: boolean;
+  issues: readonly (RepeatEndingValidationIssue | (Omit<RepeatEndingValidationIssue, "field"> & { field: "id" | "endings" }))[];
+  /** 缺房可保存，UI 可用此字段提示未覆盖的演奏遍次。 */
+  missingPasses: number[];
+}
+
 /** 以当前小节顺序统一解析稳定 ID。插入／复制到两个端点之间时，新小节自然进入范围。 */
 export function inspectRepeatEndingGroups(measures: readonly ILXMMeasure[], groups: readonly ILXMRepeatEndingGroup[]) {
   const indexes = new Map(measures.map(({ id }, index) => [id, index]));
@@ -33,9 +40,9 @@ export function inspectRepeatEndingGroups(measures: readonly ILXMMeasure[], grou
     const end = indexOf(group.endMeasureId);
     const issue = (field: RepeatEndingValidationIssue["field"], message: string, endingIndex?: number) =>
       issues.push({ groupIndex, endingIndex, field, message });
+    if (sharedEnd < 0) issue("sharedEndMeasureId", "请选择有效的共享段末小节");
     if (start < 0 || (sharedEnd >= 0 && start > sharedEnd))
       issue("startMeasureId", "反复起点须在共享段末小节或之前");
-    if (sharedEnd < 0) issue("sharedEndMeasureId", "请选择有效的共享段末小节");
     if (end < 0 || end <= sharedEnd) issue("endMeasureId", "结尾区末小节须在共享段之后");
     if (resolved.some((other) => start <= other.end && other.start <= end))
       issue("startMeasureId", "反复组范围不能相交或嵌套");
@@ -49,10 +56,10 @@ export function inspectRepeatEndingGroups(measures: readonly ILXMMeasure[], grou
         issue("startMeasureId", "房子起始小节须在本组结尾区内", endingIndex);
       if (through < 0 || through < from || through > end)
         issue("endMeasureId", "房子结束小节须在起始小节到本组结尾区末之间", endingIndex);
-      if (endings.some((other) => from <= other.end && other.start <= through))
-        issue("startMeasureId", "这里与同组的其他房子重叠", endingIndex);
       if (!ending.passes.length || ending.passes.some((pass) => !Number.isInteger(pass) || pass < 1 || pass > group.passCount))
         issue("passes", "请勾选至少一个有效遍次", endingIndex);
+      if (endings.some((other) => from <= other.end && other.start <= through))
+        issue("startMeasureId", "这里与同组的其他房子重叠", endingIndex);
       for (const pass of ending.passes) {
         if (usedPasses.has(pass)) issue("passes", `第 ${pass} 遍已有房子`, endingIndex);
         usedPasses.add(pass);
@@ -62,6 +69,38 @@ export function inspectRepeatEndingGroups(measures: readonly ILXMMeasure[], grou
     resolved.push({ group, start, sharedEnd, end, endings });
   });
   return { groups: resolved, issues };
+}
+
+/**
+ * 校验 UI 的整组草稿。组边界、组间相交、房子相交和遍次重复沿用试听使用的同一规则，
+ * 校验时把草稿放在其他组之后，确保相交问题指向正在编辑的组。空 ID 表示新增，已填 ID
+ * 必须来自原组。新组至少需要一个房子，已有组允许移除最后一个房子并保留缺房遍次。
+ */
+export function validateRepeatEndingGroup(
+  track: Pick<ILXMTrack, "measures" | "repeatEndingGroups">,
+  group: ILXMRepeatEndingGroup,
+): RepeatEndingGroupValidationResult {
+  const existing = track.repeatEndingGroups ?? [];
+  const previous = existing.find(({ id }) => id === group.id);
+  const otherGroups = existing.filter((candidate) => candidate !== previous);
+  const groupIndex = otherGroups.length;
+  const issues: RepeatEndingGroupValidationResult["issues"][number][] = [];
+  if (group.id && !previous)
+    issues.push({ groupIndex, field: "id", message: "反复组已不存在" });
+  issues.push(...inspectRepeatEndingGroups(track.measures, [...otherGroups, group]).issues
+    .filter((issue) => issue.groupIndex === groupIndex));
+  if (!group.id && !group.endings.length)
+    issues.push({ groupIndex, field: "endings", message: "请为新建反复组添加至少一个房子" });
+  const availableIds = new Set(previous?.endings.map(({ id }) => id));
+  group.endings.forEach(({ id }, endingIndex) => {
+    if (id && !availableIds.delete(id))
+      issues.push({ groupIndex, endingIndex, field: "id", message: "此房子已不存在、不属于此组或重复使用" });
+  });
+  return {
+    ok: issues.length === 0,
+    issues,
+    missingPasses: group.passCount === 2 || group.passCount === 3 ? getMissingRepeatEndingPasses(group) : [],
+  };
 }
 
 export function getMissingRepeatEndingPasses(group: ILXMRepeatEndingGroup) {

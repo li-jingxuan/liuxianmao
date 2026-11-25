@@ -55,7 +55,7 @@ import {
 } from "../../editing/tab-cell-selection";
 import { createDocumentIdFactory } from "../id-factory";
 import { createJumpMarkIndex, getJumpMarkFields, getJumpMarkSide, resolveJumpMarkDraft } from "../playback/jump-marks";
-import { inspectRepeatEndingGroups, withoutRepeatEndingMeasure } from "../playback/repeat-endings";
+import { inspectRepeatEndingGroups, validateRepeatEndingGroup, withoutRepeatEndingMeasure } from "../playback/repeat-endings";
 import { createMeasureRestBeats } from "../rhythm/rest-beats";
 import { changeMeasureBeatRhythm } from "../rhythm/rhythm-change";
 import { getMeasureCapacityTicks, isEditableTimeSignature, isSameTimeSignature } from "../rhythm/rhythm";
@@ -133,6 +133,8 @@ export enum LXMScoreCommandEnum {
   SetJumpMark = "jumpMark.set",
   RemoveJumpMark = "jumpMark.remove",
   UpsertRepeatEnding = "repeatEnding.upsert",
+  /** 一次替换整组房子，供表单草稿原子提交。 */
+  UpsertRepeatEndingGroup = "repeatEnding.upsertGroup",
   DeleteRepeatEnding = "repeatEnding.delete",
   DeleteRepeatEndingGroup = "repeatEnding.deleteGroup",
   AddTechnique = "technique.add",
@@ -140,6 +142,7 @@ export enum LXMScoreCommandEnum {
   RemoveTechnique = "technique.remove",
   SetStrumEndpoint = "strum.setEndpoint",
   SetArpeggioEndpoint = "arpeggio.setEndpoint",
+  SetTraversalEndpoint = "traversal.setEndpoint",
   SetTuplet = "tuplet.set",
   RemoveTuplet = "tuplet.remove",
 }
@@ -293,6 +296,10 @@ export interface ILXMSetStrumEndpointCommand extends ILXMSetTraversalEndpointCom
 }
 export interface ILXMSetArpeggioEndpointCommand extends ILXMSetTraversalEndpointCommandBase {
   type: LXMScoreCommandEnum.SetArpeggioEndpoint;
+}
+/** 混选同一轨道上不同拍的扫弦、琶音时，整组选区共用一次端点修改。 */
+export interface ILXMSetTraversalEndpointCommand extends ILXMSetTraversalEndpointCommandBase {
+  type: LXMScoreCommandEnum.SetTraversalEndpoint;
 }
 
 export interface ILXMSetTupletCommand extends ILXMScoreCommandBase {
@@ -489,13 +496,15 @@ type ScoreCommandOperation =
   | (ILXMScoreCommandBase & { type: LXMScoreCommandEnum.SetJumpMark; measureId: string; mark: ILXMJumpMark })
   | (ILXMScoreCommandBase & { type: LXMScoreCommandEnum.RemoveJumpMark; markId: string })
   | (ILXMScoreCommandBase & { type: LXMScoreCommandEnum.UpsertRepeatEnding; group: ILXMRepeatEndingGroup; ending: ILXMRepeatEnding })
+  | (ILXMScoreCommandBase & { type: LXMScoreCommandEnum.UpsertRepeatEndingGroup; group: ILXMRepeatEndingGroup })
   | (ILXMScoreCommandBase & { type: LXMScoreCommandEnum.DeleteRepeatEnding; endingId: string })
   | (ILXMScoreCommandBase & { type: LXMScoreCommandEnum.DeleteRepeatEndingGroup; groupId: string })
   | ILXMAddTechniqueCommand
   | ILXMUpdateTechniqueCommand
   | ILXMRemoveTechniqueCommand
   | ILXMSetStrumEndpointCommand
-  | ILXMSetArpeggioEndpointCommand;
+  | ILXMSetArpeggioEndpointCommand
+  | ILXMSetTraversalEndpointCommand;
 
 export type ILXMScoreCommand = ScoreCommandOperation & {
   expectedRevision?: number;
@@ -1434,24 +1443,28 @@ const editTechnique = (
 
 const setTraversalEndpoint = (
   document: ILXMDocument,
-  command: ILXMSetStrumEndpointCommand | ILXMSetArpeggioEndpointCommand,
+  command: ILXMSetStrumEndpointCommand | ILXMSetArpeggioEndpointCommand | ILXMSetTraversalEndpointCommand,
 ): ILXMApplyScoreCommandResult => {
   const track = document.score.tracks.find((candidate) => candidate.id === command.trackId);
   if (!track) return fail("TRACK_NOT_FOUND", "目标轨道不存在");
   if (!isValidString(command.string))
     return fail("INVALID_STRING", `弦序必须是 1 到 ${GUITAR_STRING_COUNT} 的整数`);
 
-  const techniqueType = command.type === LXMScoreCommandEnum.SetStrumEndpoint ? "strum" : "arpeggio";
+  // 既有单类型命令仍校验原有目标类型，混选命令才允许两种记号进入同一批次。
+  const techniqueType = command.type === LXMScoreCommandEnum.SetStrumEndpoint ? "strum"
+    : command.type === LXMScoreCommandEnum.SetArpeggioEndpoint ? "arpeggio" : undefined;
   const techniquesById = new Map(track.techniques.map((item) => [item.id, item]));
   const updated = new Map<string, (typeof track.techniques)[number]>();
   for (const id of new Set(command.techniqueIds)) {
     const technique = techniquesById.get(id);
     if (!technique) return fail("TECHNIQUE_NOT_FOUND", "目标技巧不存在");
-    if (technique.type !== techniqueType)
+    if (techniqueType && technique.type !== techniqueType)
       return fail(
         "TECHNIQUE_TARGET_INVALID",
         techniqueType === "strum" ? "只能修改扫弦技巧的弦线范围" : "只能修改琶音技巧的弦线范围",
       );
+    if (technique.type !== "strum" && technique.type !== "arpeggio")
+      return fail("TECHNIQUE_TARGET_INVALID", "只能修改扫弦或琶音技巧的弦线范围");
     if (technique[command.endpoint] === command.string) continue;
     // 以原技巧为基底更新指定端点，保留 ID、对端和方向。每个候选都须满足至少两根弦。
     const next = { ...technique, [command.endpoint]: command.string };
@@ -1968,7 +1981,8 @@ const applyScoreCommandInternal = (
   }
   if (
     command.type === LXMScoreCommandEnum.SetStrumEndpoint ||
-    command.type === LXMScoreCommandEnum.SetArpeggioEndpoint
+    command.type === LXMScoreCommandEnum.SetArpeggioEndpoint ||
+    command.type === LXMScoreCommandEnum.SetTraversalEndpoint
   )
     return setTraversalEndpoint(document, command);
   if (
@@ -2242,10 +2256,28 @@ const applyScoreCommandInternal = (
   );
   if (!track) return fail("TRACK_NOT_FOUND", "目标轨道不存在");
   const factory = createDocumentIdFactory(document);
-  if (command.type === LXMScoreCommandEnum.UpsertRepeatEnding || command.type === LXMScoreCommandEnum.DeleteRepeatEnding ||
-    command.type === LXMScoreCommandEnum.DeleteRepeatEndingGroup) {
+  if (command.type === LXMScoreCommandEnum.UpsertRepeatEndingGroup || command.type === LXMScoreCommandEnum.UpsertRepeatEnding ||
+    command.type === LXMScoreCommandEnum.DeleteRepeatEnding || command.type === LXMScoreCommandEnum.DeleteRepeatEndingGroup) {
     const groups = [...(track.repeatEndingGroups ?? [])];
-    if (command.type === LXMScoreCommandEnum.UpsertRepeatEnding) {
+    if (command.type === LXMScoreCommandEnum.UpsertRepeatEndingGroup) {
+      const [issue] = validateRepeatEndingGroup(track, command.group).issues;
+      if (issue) return fail("INVALID_REPEAT_ENDING", issue.message);
+      const groupIndex = groups.findIndex(({ id }) => id === command.group.id);
+      const previous = groups[groupIndex];
+      // 先校验完整草稿，再分配新身份。换遍次、调整边界与删除房子共用一份新快照，
+      // 无须保存逐房修改之间的无效状态，已有房子保留 ID，撤销也只需恢复一份旧快照。
+      const updated = {
+        ...command.group,
+        id: command.group.id || factory.createRepeatEndingGroupId(),
+        endings: command.group.endings.map((ending) => ({
+          ...ending,
+          id: ending.id || factory.createRepeatEndingId(),
+          passes: [...ending.passes].sort((a, b) => a - b),
+        })),
+      };
+      if (previous && JSON.stringify(previous) === JSON.stringify(updated)) return unchanged(document);
+      groups[groupIndex < 0 ? groups.length : groupIndex] = updated;
+    } else if (command.type === LXMScoreCommandEnum.UpsertRepeatEnding) {
       const { group, ending } = command;
       const groupIndex = groups.findIndex(({ id }) => id === group.id);
       const previous = groups[groupIndex];

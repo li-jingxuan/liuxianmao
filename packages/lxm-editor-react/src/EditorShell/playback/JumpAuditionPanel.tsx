@@ -1,82 +1,94 @@
-import { Button, Checkbox } from "antd";
-import { Fragment } from "react";
-import { JUMP_MARK_LABEL, type PlaybackRepeatEndingIssue } from "@liuxianmao/lxm-editor";
+import { useId, useLayoutEffect, useMemo, useRef } from "react";
+import { CornerDownLeft, CornerDownRight } from "lucide-react";
+import { JUMP_MARK_LABEL, type PlaybackMeasureVisit } from "@liuxianmao/lxm-editor";
+import { EditorScrollbars, editorScrollbarStyles } from "../shared/EditorScrollbars";
 import type { ScorePlaybackControls } from "./controller";
 import styles from "./JumpAuditionPanel.module.scss";
 
-export function JumpAuditionPanel({ playback, onRepair, onRepairRepeatEnding }: {
+function groupVisits(visits: readonly PlaybackMeasureVisit[]) {
+  const counts = new Map<string, number>();
+  const seen = new Map<string, number>();
+  for (const { measureId } of visits) counts.set(measureId, (counts.get(measureId) ?? 0) + 1);
+
+  // 仅按真实计划中的相邻到访分段。起点裁剪后，首项之前的跳转没有在本轮发生，不绘制连线。
+  const passages: { from?: PlaybackMeasureVisit; items: { visit: PlaybackMeasureVisit; ordinal: number; repeated: boolean }[] }[] = [];
+  visits.forEach((visit, index) => {
+    if (!index || visit.jumped) passages.push({ from: visits[index - 1], items: [] });
+    const ordinal = (seen.get(visit.measureId) ?? 0) + 1;
+    seen.set(visit.measureId, ordinal);
+    passages.at(-1)!.items.push({ visit, ordinal, repeated: counts.get(visit.measureId)! > 1 });
+  });
+  return passages;
+}
+
+export function JumpAuditionPanel({ playback, visits }: {
   playback: ScorePlaybackControls;
-  onRepair: (markId: string) => void;
-  onRepairRepeatEnding?: (issue: PlaybackRepeatEndingIssue) => void;
+  visits: readonly PlaybackMeasureVisit[];
 }) {
-  const route = playback.jumpRoute;
-  if (!route) return null;
-  const { visits } = route;
-  const current = visits.findIndex(({ visitIndex }) => visitIndex === playback.position?.visitIndex);
-  const previous = visits[current - 1];
-  const next = visits[current + 1];
-  const at = visits[current];
-  const issue = playback.jumpIssue ?? route.jumpIssue;
-  const repeatIssue = playback.repeatEndingIssue ?? route.repeatEndingIssue;
-  const repeatRepairMarkId = repeatIssue?.repairMarkId;
-  const startSkipped = playback.startMeasureId && !visits.some(({ measureId }) => measureId === playback.startMeasureId);
+  const id = useId();
+  const view = useRef<HTMLDivElement>(null);
+  const current = playback.position?.visitIndex;
+  const passages = useMemo(() => groupVisits(visits), [visits]);
   const loading = playback.phase === "loading";
+
+  useLayoutEffect(() => {
+    const viewport = view.current;
+    const target = viewport?.querySelector("[aria-current=step]");
+    if (!viewport || !target) return;
+    const box = target.getBoundingClientRect();
+    const bounds = viewport.getBoundingClientRect();
+    // 只滚动列表自身。scrollIntoView 会连带滚动宿主，且可能改变谱面的跟随视口。
+    if (box.top < bounds.top + 6) viewport.scrollTop += box.top - bounds.top - 6;
+    else if (box.bottom > bounds.bottom - 6) viewport.scrollTop += box.bottom - bounds.bottom + 6;
+  }, [current, passages]);
+
   return (
-    <aside className={styles.panel} data-jump-audition aria-label="跳转试听" onKeyDown={(event) => {
+    <aside className={styles.panel} data-jump-audition aria-labelledby={`${id}-title`} onKeyDown={(event) => {
       if (event.key === "Escape" && !event.defaultPrevented && !event.nativeEvent.isComposing) playback.setEnabled(false);
     }}>
-      <h2>跳转试听</h2>
-      <p className={styles.position} aria-live="polite">
-        {at ? `第 ${at.measureIndex + 1} 小节 · 到访 ${current + 1}/${visits.length}${at.repeatEnding ? ` · 反复第 ${at.repeatEnding.pass} 遍` : ""}` : `${visits.length} 次到访`}
-      </p>
-      {at?.jump && <p>{JUMP_MARK_LABEL[at.jump.kind]} · 进入第 {at.measureIndex + 1} 小节</p>}
-      {startSkipped && <div className={styles.issue}>
-        <p>演奏路线未到访当前起点，将从曲首试听。</p>
-        <Button size="small" onClick={() => playback.setStartMeasure(null)}>从曲首</Button>
-      </div>}
-      {playback.jumpEnd && <p role="status" data-jump-playback-end={playback.jumpEnd.kind}>
-        第 {playback.jumpEnd.measureIndex + 1} 小节 · {playback.jumpEnd.kind === "fine" ? "Fine · 重奏结束" : "曲尾 · 试听结束"}
-      </p>}
-      {issue && <div className={styles.issue} data-jump-playback-issue>
-        <p>{`第 ${issue.measureIndex + 1} 小节${playback.jumpIssue ? "已暂停" : "弹完后暂停"}。${issue.message}。`}</p>
-        <Button size="small" onClick={() => onRepair(issue.repairMarkId)}>返回编辑并定位</Button>
-      </div>}
-      {/* 房子缺遍次时用组身份修复，跳转记号仍沿用自己的身份和面板。 */}
-      {repeatIssue && <div className={styles.issue} data-repeat-ending-playback-issue>
-        <p>{`第 ${repeatIssue.measureIndex + 1} 小节${playback.repeatEndingIssue ? "已暂停" : "弹完后暂停"}。${repeatIssue.message}。`}</p>
-        {repeatRepairMarkId && <Button size="small" onClick={() => onRepair(repeatRepairMarkId)}>返回编辑跳转记号</Button>}
-        {!repeatRepairMarkId && onRepairRepeatEnding && <Button size="small" onClick={() => onRepairRepeatEnding(repeatIssue)}>返回编辑反复房子</Button>}
-      </div>}
-      <div className={styles.actions}>
-        <Button size="small" disabled={!previous || loading} onClick={() => previous && playback.playVisits(previous.visitIndex)}>上一步</Button>
-        <Button size="small" disabled={!next || loading} onClick={() => next && playback.playVisits(next.visitIndex)}>下一步</Button>
-      </div>
-      <div className={styles.options}>
-        <Checkbox checked={playback.follow} onChange={({ target }) => target.checked ? playback.resumeFollow() : playback.suspendFollow()}>跟随谱面</Checkbox>
-        <Checkbox checked={!playback.guitarMuted} onChange={({ target }) => playback.setGuitarMuted(!target.checked)}>木吉他声音</Checkbox>
-      </div>
-      <h3>到访顺序</h3>
-      {/* 使用到访 ID 区分同一书写小节的多个实例，每项试听仍由实际音频时钟推进。 */}
-      <ol className={styles.visits}>
-        {visits.map((visit, index) => <li key={visit.visitIndex}>
-          {index > 0 && <span aria-hidden="true" className={visit.jumped ? styles.jump : undefined}>{visit.jumped ? "↪" : "→"}</span>}
-          <Button size="small" disabled={loading} data-jump-visit={visit.visitIndex}
-            aria-current={index === current ? "step" : undefined} aria-label={`到访 ${index + 1}，第 ${visit.measureIndex + 1} 小节`}
-            onClick={() => playback.playVisits(visit.visitIndex)}>{visit.measureIndex + 1}</Button>
-        </li>)}
-      </ol>
-      {visits.some(({ jump }) => jump) && <Fragment>
-        <h3>试听单次跳转</h3>
-        <div className={styles.fragments}>
-          {visits.map((visit, index) => {
-            const from = visits[index - 1];
-            if (!from || !visit.jump) return null;
-            return <Button key={visit.visitIndex} disabled={loading} onClick={() => playback.playVisits(from.visitIndex, visit.visitIndex)}>
-              {`${JUMP_MARK_LABEL[visit.jump.kind]} · ${from.measureIndex + 1} → ${visit.measureIndex + 1}`}
-            </Button>;
+      <header className={styles.header}>
+        <div><h2 id={`${id}-title`}>小节播放顺序</h2><span>共 {visits.length} 次到访</span></div>
+        <p id={`${id}-hint`}>选择小节试听单次到访</p>
+      </header>
+      <div className={editorScrollbarStyles.shell}>
+        <div ref={view} className={`${styles.orderView} ${editorScrollbarStyles.viewport}`} data-editor-scroll-viewport data-playback-order tabIndex={0}
+          role="region" aria-label="播放顺序列表" aria-describedby={`${id}-hint`}>
+          {passages.map(({ from, items }) => {
+            const first = items[0]!.visit;
+            const last = items.at(-1)!.visit;
+            const backward = Boolean(from && from.measureIndex >= first.measureIndex);
+            const Arrow = backward ? CornerDownLeft : CornerDownRight;
+            const jumpLabel = first.jump ? JUMP_MARK_LABEL[first.jump.kind]
+              : backward ? (first.repeatEnding ? "反复回跳" : "回跳")
+                : first.repeatEnding || from?.repeatEnding ? "切换反复房子" : "跳过小节";
+            return <section className={styles.passage} key={first.visitIndex}>
+              <div className={styles.passageHeading}>
+                <h3>{from ? backward ? "重奏段" : "继续演奏" : "首次演奏"}</h3>
+                <span>第 {first.measureIndex + 1}{first === last ? "" : `–${last.measureIndex + 1}`} 小节</span>
+              </div>
+              {from && <p className={styles.bridge} data-jump-transition={first.visitIndex}>
+                <Arrow size={14} aria-hidden="true" /><strong>{from.measureIndex + 1} → {first.measureIndex + 1}</strong><span>{jumpLabel}</span>
+              </p>}
+              <ol className={styles.visits} role="list" start={first.visitIndex - visits[0]!.visitIndex + 1}>
+                {items.map(({ visit, ordinal, repeated }) => {
+                  const number = visit.measureIndex + 1;
+                  const order = visit.visitIndex - visits[0]!.visitIndex + 1;
+                  return <li key={visit.visitIndex}>
+                    <button type="button" className={styles.visit} aria-disabled={loading || undefined} data-jump-visit={visit.visitIndex}
+                      data-revisited={ordinal > 1 || undefined} aria-current={visit.visitIndex === current ? "step" : undefined}
+                      aria-label={`试听第 ${number} 小节，第 ${ordinal} 次到访，播放顺序 ${order} / ${visits.length}`}
+                      onClick={() => { if (!loading) playback.playVisits(visit.visitIndex); }}>
+                      <strong data-visit-measure>{number}</strong>
+                      {repeated && <span>第 {ordinal} 次</span>}
+                    </button>
+                  </li>;
+                })}
+              </ol>
+            </section>;
           })}
         </div>
-      </Fragment>}
+        <EditorScrollbars viewportRef={view} />
+      </div>
     </aside>
   );
 }

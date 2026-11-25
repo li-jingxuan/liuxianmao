@@ -34,7 +34,7 @@ import { ShortcutHint } from "../session/EditorShortcutReference";
 import { RhythmPatternPanel, useSharedRhythmPatternBusy } from "../tools/RhythmPatternPanel";
 import { MeasureBoundary, resolveMeasureControlTarget } from "../tools/MeasureBoundary";
 import { MeasureActions } from "../tools/MeasureActions";
-import { MeasureSymbols } from "../tools/MeasureSymbols";
+import { MeasureSymbols, resolveMeasureEndingId, type MeasureSymbolCallbacks } from "../tools/MeasureSymbols";
 import measureStyles from "../tools/MeasureControls.module.scss";
 import { resolveEditorRhythmPatternTarget } from "../tools/editor-rhythm-pattern-target";
 import { NumberedTupletToolbar, resolveTupletToolbarTarget, TupletToolbar } from "../tools/TupletToolbar";
@@ -51,7 +51,6 @@ import { createBeatPasteController } from "../tools/beat-paste-controller";
 import { useEditorRuntime } from "../session/EditorSessionRuntime";
 import type { EditorCommandAdapter } from "../session/editor-command-adapter";
 import type { MeasureToolTarget, ToolActionHandler } from "../tools/editor-tool-actions";
-import type { JumpMarkInspectorRequest } from "../tools/JumpMarkInspector";
 import type { ToolNavigation } from "../tools/editor-tool-catalog";
 import type { SelectionRequestResult } from "../session/editor-object-selection";
 import editorToolPanelStyles from "../shared/editor-tool-panel.module.scss";
@@ -114,10 +113,13 @@ export const EditorToolbar = ({
   onToggleSidebar,
   sidebarToggleRef,
   playback,
+  onRepairJumpMark,
+  onRepairRepeatEnding,
   isPlaybackEntryBlocked,
   onOpenJumpMarks,
   onOpenRepeatEnding,
   onOpenMeasureRepeat,
+  onPlaceJumpMark,
   customToolbar,
 }: {
   ref?: Ref<EditorToolbarController>;
@@ -139,12 +141,11 @@ export const EditorToolbar = ({
   onToggleSidebar: () => void;
   sidebarToggleRef: Ref<HTMLButtonElement>;
   playback: ScorePlaybackControls;
+  onRepairJumpMark: ComponentProps<typeof PlaybackToolbar>["onRepairJumpMark"];
+  onRepairRepeatEnding: ComponentProps<typeof PlaybackToolbar>["onRepairRepeatEnding"];
   isPlaybackEntryBlocked: () => boolean;
-  onOpenJumpMarks: (target: MeasureToolTarget, request: JumpMarkInspectorRequest) => boolean;
-  onOpenRepeatEnding: (target: MeasureToolTarget, measureIds: readonly string[], endingId?: string) => boolean;
-  onOpenMeasureRepeat: (target: MeasureToolTarget) => boolean;
   customToolbar?: ReactNode;
-}) => {
+} & MeasureSymbolCallbacks) => {
   const session = useEditorSessionStore();
   const { drafts, modals, idPrefix } = useEditorRuntime();
   const document = useEditorStore((state) => state.document),
@@ -313,13 +314,7 @@ export const EditorToolbar = ({
   const multipleMeasures = !continuousRange && measureIds.length > 1;
   const measureLabel = !measureControlTarget ? "未选择小节" : multipleMeasures
     ? `第 ${firstMeasureIndex + 1}–${lastMeasureIndex + 1} 小节` : `第 ${measureIndex + 1} 小节`;
-  const endingId = measureControlTarget?.track.repeatEndingGroups?.flatMap(({ endings }) => endings).find((ending) => {
-    if (measureIds.length > 1) return ending.startMeasureId === measureIds[0] && ending.endMeasureId === measureIds.at(-1);
-    const { measures } = measureControlTarget.track;
-    const first = measures.findIndex(({ id }) => id === ending.startMeasureId);
-    const last = measures.findIndex(({ id }) => id === ending.endMeasureId);
-    return first >= 0 && first <= measureIndex && measureIndex <= last;
-  })?.id;
+  const endingId = measureControlTarget ? resolveMeasureEndingId(measureControlTarget.track, measureIds) : undefined;
   const tabReason = tabToolTargetReason(session.getState(), activeTarget);
   const tabPanelReason = activeTarget || continuousRange ? "请先选择 TAB 目标。" : tabReason;
   const tabPanelSelection = tabPanelReason ? null : selection;
@@ -436,7 +431,8 @@ export const EditorToolbar = ({
     >
       {/* 替换编辑按钮时保留面板控制器。右键菜单的参数会通过 Portal 挂回当前工作区，继续复用同一份草稿。 */}
       {customToolbar !== undefined && !playback.enabled && <div className={toolbarStyles.custom}>{customToolbar}</div>}
-      {playback.enabled ? <PlaybackToolbar key={sessionVersion} playback={playback} /> : <div className={toolbarStyles.content}>
+      {playback.enabled ? <PlaybackToolbar key={sessionVersion} playback={playback}
+        onRepairJumpMark={onRepairJumpMark} onRepairRepeatEnding={onRepairRepeatEnding} /> : <div className={toolbarStyles.content}>
       <div className={`${toolbarStyles.row} ${toolbarStyles.primary}`} data-toolbar-row="rhythm">
       <div className={toolbarStyles.toolbarGroup} role="group" aria-label="历史">
         <ToolButton
@@ -567,13 +563,14 @@ export const EditorToolbar = ({
                 <Button type="text" aria-label="关闭小节工具" onClick={() => host.current?.close(true)}>×</Button>
               </div>
               <div className={measureStyles.measureMenu}>
-                <MeasureBoundary document={document} target={measureTarget} blocked={editingBlocked || !!modal}
+                <MeasureBoundary document={document} target={measureTarget} blocked={editingBlocked || !!modal || immediateBusy}
                   multipleMeasures={multipleMeasures} onAction={run} />
                 {measureTarget && measureControlTarget && <MeasureSymbols document={document} trackId={measureTarget.trackId} measure={measureControlTarget.measure}
                   multipleMeasures={multipleMeasures} blocked={editingBlocked || !!modal || immediateBusy} repeatEndingId={endingId}
                   repeatEndingDisabledReason={measureControlTarget.track.measures.length < 2 ? "至少需要一个共享小节和一个结尾小节" : undefined}
                   onOpenRepeatEnding={() => { if (onOpenRepeatEnding(measureTarget, measureIds, endingId)) host.current?.close(); }}
                   onOpenJumpMarks={(request) => { if (onOpenJumpMarks(measureTarget, request)) host.current?.close(); }}
+                  onPlaceJumpMark={onPlaceJumpMark && ((kind) => { void onPlaceJumpMark(measureTarget, kind); })}
                   onOpenMeasureRepeat={() => { if (onOpenMeasureRepeat(measureTarget)) host.current?.close(); }} />}
                 <MeasureActions document={document} target={measureTarget} blocked={editingBlocked || !!modal} onAction={run}
                   getDocument={() => session.getState().document}

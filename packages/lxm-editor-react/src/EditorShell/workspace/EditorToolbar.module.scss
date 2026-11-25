@@ -27,7 +27,7 @@
 .moreTrigger { display: none; }
 .triggers { display: inline-flex; flex: 0 0 auto; gap: 4px; align-items: center; }
 .popupContent { box-sizing: border-box; width: 100% !important; padding: 14px; }
-.popupContent.measurePopup { padding: 16px 22px; }
+.popupContent.measurePopup { padding: 14px 16px; }
 .viewControls {
   display: flex;
   align-items: center;
@@ -78,6 +78,14 @@
   > strong { color: var(--foreground); }
 }
 .playbackStatus { margin-inline-start: auto; }
+.playbackNotice {
+  flex: 1 0 100%;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  color: var(--foreground);
+}
 .playbackStart { width: 151px; }
 .playbackSlider { width: 88px; margin: 0; accent-color: var(--accent); }
 .playbackButton, .playbackField {

@@ -105,11 +105,20 @@ describe("REQ-103 琶音端点命令", () => {
     expect(document).toEqual(before);
   });
 
-  it("用一次快照撤销和重做整批修改，无变化时保留原文档引用", () => {
-    const { document, command } = fixture();
+  it.each([
+    [["strum", "asc", "desc"], "minString", 3],
+    [["desc", "asc", "strum"], "maxString", 5],
+  ] as const)("BUG-084 混选 %j 对齐 %s 并一次撤销和重做", (techniqueIds, endpoint, string) => {
+    const { document, track } = fixture();
+    track.techniques = track.techniques.map(technique => technique.type === "strum" ? { ...technique, maxString: 5 } : technique);
+    const command = { type: LXMScoreCommandEnum.SetTraversalEndpoint, trackId: track.id, techniqueIds, endpoint, string } as const;
+    const before = structuredClone(document);
     const result = applyScoreCommand(document, command);
     if (!result.ok) throw new Error(`${result.code} ${result.message}`);
     expect(result.changed).toBe(true);
+    expect(result.document.documentRevision).toBe(document.documentRevision + 1);
+    expect(result.document.score.tracks[0]!.techniques).toEqual(track.techniques.map(technique => ({ ...technique, [endpoint]: string })));
+    expect(document).toEqual(before);
     let history = transitionDocumentHistory(createDocumentHistory<typeof command.type>(), {
       type: "commit", document, entry: command.type,
     });
@@ -130,5 +139,17 @@ describe("REQ-103 琶音端点命令", () => {
       expect(unchanged).toEqual({ ok: true, changed: false, document: redone });
       if (unchanged.ok) expect(unchanged.document).toBe(redone);
     }
+  });
+
+  it("BUG-084 琶音或扫弦的对端都限制整组，任一范围非法时原子拒绝", () => {
+    const { document, track } = fixture();
+    const before = structuredClone(document);
+    const command = { type: LXMScoreCommandEnum.SetTraversalEndpoint, trackId: track.id } as const;
+    // 上端受扫弦第 2 弦限制，下端受第 4 弦起的琶音限制，另一种类型本来可编辑。
+    expect(applyScoreCommand(document, { ...command, techniqueIds: ["asc", "strum"], endpoint: "minString", string: 2 }))
+      .toMatchObject({ ok: false, code: "TECHNIQUE_TARGET_INVALID" });
+    expect(applyScoreCommand(document, { ...command, techniqueIds: ["strum", "desc"], endpoint: "maxString", string: 4 }))
+      .toMatchObject({ ok: false, code: "TECHNIQUE_TARGET_INVALID" });
+    expect(document).toEqual(before);
   });
 });

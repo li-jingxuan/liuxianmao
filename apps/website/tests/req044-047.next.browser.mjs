@@ -369,12 +369,16 @@ try {
     await page.setViewportSize({ width: 1600, height: 1080 });
   });
   await load(); await select();
-  await check("小节复制只作用焦点，保持浮层打开，撤销恢复", async () => {
+  await check("复制小节弹窗确认后只作用焦点，保持工具面板打开，撤销恢复", async () => {
     await state("selection", { anchor: ref(0, 0), focus: ref(1, 1) });
     await open("measure");
     await page.getByRole("button", { name: "复制当前小节", exact: true }).last().click();
-    const destinations = page.getByRole("dialog", { name: "复制到", exact: true });
-    await destinations.getByRole("button", { name: "曲末", exact: true }).click();
+    const destinations = page.getByRole("dialog", { name: "复制小节", exact: true });
+    const copy = destinations.getByRole("button", { name: /^复\s*制$/ });
+    assert.equal(await copy.isDisabled(), true);
+    await destinations.getByRole("combobox", { name: "插入位置" }).selectOption({ label: "曲末" });
+    assert.equal((await state()).document.score.tracks[0].measures.length, 3);
+    await copy.click();
     await destinations.waitFor({ state: "hidden" });
     assert.equal((await state()).document.score.tracks[0].measures.length, 4);
     assert.ok(await page.getByRole("button", { name: "复制当前小节", exact: true }).last().isVisible());
@@ -382,17 +386,46 @@ try {
     assert.equal((await state()).document.score.tracks[0].measures.length, 3);
   });
   await shot("measure-popup");
-  await check("点击即删除当前小节，无确认，提示原小节编号，可一次撤销", async () => {
+  await check("删除小节可取消，确认后提示原小节编号，可一次撤销", async () => {
     const before = await state();
-    await page.getByRole("button", { name: "删除当前小节", exact: true }).last().click();
-    assert.equal(await page.getByRole("region", { name: "删除当前小节确认" }).count(), 0);
-    assert.equal(await page.locator('.ant-modal').count(), 0);
+    const remove = page.getByRole("button", { name: "删除当前小节", exact: true }).last();
+    const confirmation = page.getByRole("dialog", { name: "删除小节", exact: true });
+    await remove.click();
+    await confirmation.getByText(/删除第 2 小节/).waitFor();
+    await confirmation.getByRole("button", { name: /^取\s*消$/ }).and(page.locator(":focus")).waitFor();
+    await page.keyboard.press("Escape");
+    await confirmation.waitFor({ state: "hidden" });
+    await remove.and(page.locator(":focus")).waitFor();
+    assert.deepEqual((await state()).document, before.document);
+    await remove.click();
+    await confirmation.getByRole("button", { name: "确认删除", exact: true }).click();
+    await confirmation.waitFor({ state: "hidden" });
     const after = await state();
     assert.deepEqual(after.document.score.tracks[0].measures.map(measure => measure.id), ["m0", "m2"]);
     assert.equal(after.history.past, before.history.past + 1);
     await page.locator(".ant-message-success").getByText("第 2 小节已删除", { exact: true }).waitFor();
     await state("undo");
     assert.deepEqual((await state()).document, before.document);
+  });
+  await load(); await select(1);
+  await check("右侧小节属性使用同一复制和删除弹窗", async () => {
+    const measureTab = page.getByRole("radio", { name: "小节", exact: true });
+    await page.locator("label").filter({ has: measureTab }).click();
+    const sidebar = page.getByRole("region", { name: "小节属性详情", exact: true });
+    const copy = sidebar.getByRole("button", { name: "复制当前小节", exact: true });
+    const destinations = page.getByRole("dialog", { name: "复制小节", exact: true });
+    const before = (await state()).document;
+    await copy.click();
+    await destinations.getByRole("combobox", { name: "插入位置" }).selectOption({ label: "曲首" });
+    await page.keyboard.press("Escape");
+    await destinations.waitFor({ state: "hidden" });
+    await copy.and(page.locator(":focus")).waitFor();
+    assert.deepEqual((await state()).document, before);
+    const confirmation = page.getByRole("dialog", { name: "删除小节", exact: true });
+    await sidebar.getByRole("button", { name: "删除当前小节", exact: true }).click();
+    await confirmation.getByRole("button", { name: "确认删除", exact: true }).click();
+    await confirmation.waitFor({ state: "hidden" });
+    assert.deepEqual((await state()).document.score.tracks[0].measures.map(({ id }) => id), ["m0", "m2"]);
   });
   await page.keyboard.press("Escape"); await load(); await select();
   await check("全部十六技巧紧凑显示，应用删除撤销", async () => {
@@ -450,8 +483,8 @@ try {
       assert.equal(await page.getByRole("button", { name, exact: true }).last().isDisabled(), true);
     const dimensions = await page.getByRole("group", { name: "当前小节操作" }).last().evaluate(root => ({
       group: root.offsetHeight, heights: [...root.querySelectorAll("button")].map(b => b.offsetHeight) }));
-    assert.equal(dimensions.group, 44);
-    assert.deepEqual(dimensions.heights, [36, 36, 36]);
+    assert.equal(dimensions.group, 37);
+    assert.deepEqual(dimensions.heights, [29, 29, 29]);
   });
   await page.keyboard.press("Escape"); await load(); await select();
   await check("技巧离散参数即时更新同一对象，数字校验后Enter提交", async () => {

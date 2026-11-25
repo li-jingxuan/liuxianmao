@@ -17,8 +17,8 @@ const enabledStrings = (selector: string) =>
 describe("扫弦范围侧栏", () => {
   it("两端各自显示多个值，并禁用会与任一原有对端重合或交叉的弦号", () => {
     const { markup, selectors: [upper, lower] } = render([
-      { minString: 1, maxString: 5, stroke: "up" },
-      { minString: 3, maxString: 4, stroke: "down" },
+      { type: "strum", minString: 1, maxString: 5, stroke: "up" },
+      { type: "strum", minString: 3, maxString: 4, stroke: "down" },
     ]);
 
     expect(markup).toContain("扫弦范围");
@@ -35,8 +35,22 @@ describe("扫弦范围侧栏", () => {
     expect(enabledStrings(lower!)).toEqual([4, 5, 6]);
   });
 
+  it("BUG-084 跨类型混选只显示一组范围，两种点选顺序的可用弦号相同", () => {
+    const ranges = [
+      { type: "strum", minString: 1, maxString: 4, stroke: "down" },
+      { type: "arpeggio", minString: 3, maxString: 6, direction: "descending" },
+    ] as const;
+    for (const order of [ranges, [...ranges].reverse()]) {
+      const { markup, selectors } = render(order);
+      expect(markup).toContain("扫弦与琶音范围");
+      expect(markup).toContain("已选 2 个记号");
+      expect(selectors).toHaveLength(2);
+      expect(selectors.map(enabledStrings)).toEqual([[1, 2, 3], [4, 5, 6]]);
+    }
+  });
+
   it("单个扫弦显示当前弦范围和可用的方向", () => {
-    const { markup } = render([{ minString: 2, maxString: 5, stroke: "down" }]);
+    const { markup } = render([{ type: "strum", minString: 2, maxString: 5, stroke: "down" }]);
     expect(markup).toContain("2–5 弦");
     expect(markup).toContain("↑ 下扫");
     expect(markup).toContain("已选 1 个音符");
@@ -44,8 +58,8 @@ describe("扫弦范围侧栏", () => {
 
   it("只在实际混合的一端显示多个值，锁定时禁用两端选择", () => {
     const { selectors: [upper, lower] } = render([
-      { minString: 2, maxString: 4 },
-      { minString: 2, maxString: 6 },
+      { type: "strum", minString: 2, maxString: 4, stroke: "down" },
+      { type: "strum", minString: 2, maxString: 6, stroke: "down" },
     ], true);
 
     expect(upper).toContain('<option value="2" selected="">第 2 弦</option>');

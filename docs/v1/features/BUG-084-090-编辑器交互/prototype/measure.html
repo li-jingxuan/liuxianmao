@@ -1,0 +1,1148 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>理想 - 六线猫小节工具交互稿</title>
+<script src="measure-room-help.js"></script>
+<style>
+  :root{--ink:#202839;--muted:#56647a;--line:#dce3ed;--surface:#f1f4f8;--blue:#2457d7;--pale:#edf4ff;--danger:#ac2835;--shadow:0 8px 26px #24364d23}
+  *{box-sizing:border-box}
+  body{margin:0;min-width:1440px;height:100dvh;display:flex;flex-direction:column;color:var(--ink);background:white;font:14px/1.45 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
+  button,input,select{font:inherit;color:inherit}
+  button{cursor:pointer;background:white;border:1px solid var(--line);border-radius:5px}
+  button:hover{background:var(--pale);border-color:#a5b9e6}
+  button:disabled{cursor:default;opacity:.58}
+  button[aria-disabled=true]{cursor:default;color:#667186;background:#f3f5f8;border-color:var(--line)}
+  :focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+  [hidden]{display:none!important}
+  .review,.header,.toolbar,.footer{display:flex;align-items:center;flex:none;border-bottom:1px solid var(--line)}
+  .review{height:34px;padding:0 20px;gap:14px;background:#f6f8fb;color:var(--muted);font-size:12px}
+  .review a{color:var(--blue);text-decoration:none;font-weight:650}
+  .review a:hover{text-decoration:underline}
+  .header{height:49px;padding:0 20px;gap:26px;position:relative}
+  .brand{color:var(--blue);font-weight:750;display:flex;align-items:center;gap:8px}
+  .brand i{display:grid;place-items:center;width:24px;height:24px;background:var(--pale);border:1px solid #cbdcf9;border-radius:6px;font:700 17px Georgia,serif}
+  .menu{display:flex;gap:22px;font-size:13px;color:var(--muted)}
+  .docname{position:absolute;left:50%;transform:translateX(-50%);font-weight:650}
+  .sample{margin-left:auto;color:var(--muted);font-size:12px}
+  .toolbar{height:44px;padding:0 16px;gap:10px;position:relative;z-index:4}
+  .band{display:flex;align-items:center;gap:4px;padding-right:10px;border-right:1px solid var(--line)}
+  .tool{height:32px;min-width:34px;padding:0 8px;border-color:transparent;font-weight:600}
+  .tool[aria-expanded=true],.tool[aria-pressed=true]{color:var(--blue);background:var(--pale)}
+  #sidebar-toggle{margin-left:279px}
+  .notation{display:flex;align-items:center;justify-content:space-around;gap:16px;padding:0 12px;color:var(--muted);font:16px Georgia,serif}
+  .spacer{flex:1}
+  /* 与工作台及谱面评审稿对齐分栏线。 */
+  .workspace{display:grid;grid-template-columns:minmax(0,1fr) 352px;flex:1;min-height:0}
+  .canvas{overflow:auto;position:relative;background:var(--surface);padding:28px 36px 36px;scrollbar-color:#aebbcf transparent;scrollbar-width:thin}
+  .workspace.closed{grid-template-columns:minmax(0,1fr)}
+  .paper{width:min(100%,950px);min-height:720px;margin:auto;padding:40px 56px 52px;background:#fff;box-shadow:0 1px 4px #22364d12}
+  .paper h1{margin:0;text-align:center;font:700 29px/1.25 "Songti SC",SimSun,serif;letter-spacing:.12em;color:#171a20}
+  .arranger{text-align:center;margin:7px 0 16px;color:#353d4a;font-size:12px}
+  .key{font:600 13px Arial,sans-serif;margin-bottom:14px;color:#333a46}
+  .system{position:relative;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));min-height:170px}
+  .bar{position:relative;height:153px;min-width:0}
+  .bar-hit{position:absolute;inset:26px 0 12px;width:100%;border:1px solid transparent;border-radius:2px;background:transparent}
+  .bar-hit:hover{background:#f2f7ff;border-color:#d5e3fc}
+  .bar.selected .bar-hit{background:#edf4ff;border-color:#95b3f2}
+  .bar.preview .bar-hit{border:1px dashed var(--blue)}
+  .chord{position:absolute;left:22px;top:26px;width:40px;display:grid;justify-items:center;font:600 11px/1.2 Arial,sans-serif;pointer-events:none}
+  .chord-grid{position:relative;margin-top:4px;width:25px;height:20px;border:1px solid #515762;border-top-width:2px;background:repeating-linear-gradient(to right,transparent 0 4px,#737883 4px 5px),repeating-linear-gradient(to bottom,transparent 0 5px,#737883 5px 6px)}
+  .chord-grid i{position:absolute;width:4px;height:4px;border-radius:50%;background:#20242b}
+  .staff{position:absolute;top:70px;left:0;right:0;height:36px;pointer-events:none;background:repeating-linear-gradient(to bottom,#555d69 0 1px,transparent 1px 7px)}
+  .staff::before{content:"";position:absolute;left:0;top:0;height:36px;border-left:1px solid #555d69}
+  .measure-no{position:absolute;right:5px;top:57px;font:9px Arial,sans-serif;color:#586477;pointer-events:none}
+  .ending-line{position:absolute;top:70px;right:0;height:36px;color:#262934;pointer-events:none;display:flex;align-items:stretch}
+  .tab-name{position:absolute;left:-23px;top:72px;font:700 10px/10px Arial,sans-serif;pointer-events:none;color:#323844}
+  .beat{position:absolute;top:70px;height:57px;width:5px;pointer-events:none}
+  .fret{position:absolute;left:-4px;min-width:11px;text-align:center;font:10px/11px SFMono-Regular,Consolas,monospace;background:white;color:#232934}
+  .selected .fret{background:var(--pale)}
+  .stem{position:absolute;top:36px;left:3px;height:20px;width:12px;border-left:1px solid #353a43}
+  .stem.beam{border-bottom:2px solid #353a43}
+  .bass{position:absolute;top:131px;font:10px Arial,sans-serif;pointer-events:none;color:#333a45}
+  .score-mark{position:absolute;z-index:2;min-width:24px;min-height:23px;padding:0 5px;background:transparent;border-color:transparent;white-space:nowrap;color:#242833}
+  .score-mark:hover,.score-mark[aria-pressed=true]{background:var(--pale);color:var(--blue);border-color:#aec6f3}
+  .score-mark.start{top:39px;left:0;transform:translateX(-50%)}
+  .score-mark.end{top:34px;right:0}
+  .bar.next-start .score-mark.end{right:14px}
+  .score-mark.repeat{top:75px;left:50%;transform:translateX(-50%);background:white}
+  .selected .score-mark.repeat{background:var(--pale)}
+  .volta{position:absolute;top:2px;height:22px;border:0;border-top:1px solid currentColor;border-radius:0;background:transparent;z-index:2;text-align:left;padding:1px 6px;color:#242833;font:italic 13px Georgia,serif}
+  .volta.first{border-left:1px solid}.volta.last{border-right:1px solid}
+  .volta[aria-pressed=true]{color:var(--blue);background:var(--pale)}
+  .volta.draft{top:21px;height:13px;color:var(--blue);border-style:dashed;pointer-events:none;z-index:3}
+  .sidebar{display:flex;flex-direction:column;min-height:0;border-left:1px solid var(--line)}
+  .tabs{height:42px;flex:none;display:flex;gap:23px;align-items:stretch;padding:0 16px;border-bottom:1px solid var(--line);font-size:13px;color:var(--muted)}
+  .tabs strong{display:grid;place-items:center;border-bottom:2px solid var(--blue);color:var(--blue)}
+  .tabs span{align-self:center}
+  .selection{padding:11px 16px;background:#f7f9fc;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+  .selection small{color:var(--muted)}
+  .side-scroll{overflow:auto;padding:16px;scrollbar-width:thin;scrollbar-color:#aebbcf transparent}
+  h2,h3,p{margin:0}
+  h2{font-size:14px} h3{font-size:12px;font-weight:650;color:var(--muted);margin-bottom:8px}
+  .field-context{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;color:var(--muted);font-size:12px}
+  .field-context b{font-weight:550;color:var(--ink)}
+  .panel-part+.panel-part{border-top:1px solid var(--line);margin-top:13px;padding-top:12px}
+  .line-grid{display:flex;align-items:start;gap:4px}
+  .mark-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:7px 2px}
+  .line-item{display:grid;justify-items:center;gap:3px;width:40px;min-width:40px}
+  .line-item small,.mark-item small{white-space:nowrap;font-size:10px;color:var(--muted)}
+  .mark-item{display:grid;justify-items:center;gap:3px;min-width:0}
+  .mark-item .icon-btn{width:100%}
+  .icon-btn{width:40px;height:30px;flex:0 0 40px;padding:0;display:inline-grid;place-items:center;border-color:#aebad0}
+  .icon-btn[aria-pressed=true]{color:var(--blue);background:var(--pale);border-color:#8baaf0}
+  .glyph{display:inline-block;color:inherit;font:700 italic 15px/.92 Georgia,"Times New Roman",serif;white-space:nowrap;text-align:center}
+  .glyph.two{font-size:12px;line-height:11px}
+  .glyph.two small{display:block;font:700 italic 11px/11px "Times New Roman",serif;letter-spacing:-.12px}
+  .glyph.bracket{border-top:1.4px solid;border-left:1.4px solid;width:19px;height:13px;text-align:left;padding-left:3px;font-size:11px}
+  .glyph.segno{position:relative;font:700 italic 22px/.9 Georgia,serif}
+  .glyph.segno::before{content:"";position:absolute;left:6px;top:-2px;width:1px;height:22px;background:currentColor;transform:rotate(38deg)}
+  .glyph.segno::after{content:"";position:absolute;right:-3px;top:4px;width:2px;height:2px;background:currentColor;border-radius:50%;box-shadow:-12px 10px currentColor}
+  .glyph.coda{position:relative;width:13px;height:13px;border:1.6px solid;border-radius:50%;margin:4px}
+  .glyph.coda::before,.glyph.coda::after{content:"";position:absolute;background:currentColor;top:50%;left:50%;transform:translate(-50%,-50%)}
+  .glyph.coda::before{width:21px;height:1.3px}.glyph.coda::after{width:1.3px;height:21px}
+  .glyph.percent{font:700 22px/.95 Georgia,serif}
+  .line-symbol{display:inline-flex;align-items:stretch;gap:2px;height:16px;color:inherit}
+  .line-symbol i,.ending-line i{width:1px;background:currentColor}
+  .line-symbol .thick,.ending-line .thick{width:3px}
+  .line-symbol .dots,.ending-line .dots{width:3px;background:radial-gradient(circle at center 35%,currentColor 1px,transparent 1.3px),radial-gradient(circle at center 65%,currentColor 1px,transparent 1.3px)}
+  .actions{display:flex;padding:3px;background:#f4f7fb;border:1px solid var(--line);border-radius:6px}
+  .actions button{flex:1;min-height:29px;background:transparent;border:0;border-radius:3px;font-size:12px}
+  .actions button+button{border-left:1px solid var(--line)}
+  .actions button:hover{background:#e8f0ff}
+  .actions button:first-child{color:var(--blue)}.actions button:last-child{color:var(--danger)}
+  .action-icon{font-size:15px;vertical-align:-1px;margin-right:4px}
+  .tools{position:absolute;top:calc(100% + 7px);width:345px;background:white;border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:14px 16px}
+  .tools::before{content:"";position:absolute;top:-6px;right:22px;width:10px;height:10px;border-top:1px solid var(--line);border-left:1px solid var(--line);background:white;transform:rotate(45deg)}
+  .pop-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+  .pop-head div{margin-left:auto;color:var(--muted);font-size:12px}
+  .close{height:25px;width:27px;border-color:transparent;font-size:17px;line-height:1}
+  .footer{height:33px;gap:16px;padding:0 18px;border-top:1px solid var(--line);border-bottom:0;color:var(--muted);font-size:12px}
+  .footer #message{color:var(--blue);font-weight:550;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .footer #message.error{color:var(--danger)}
+  .footer .scale{margin-left:auto;flex:none}
+  .tooltip{position:fixed;z-index:8;background:#243147;color:white;border-radius:5px;padding:6px 9px;max-width:260px;font-size:12px;pointer-events:none;box-shadow:0 3px 9px #24364d28}
+  dialog{width:420px;max-height:calc(100dvh - 40px);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:18px;color:var(--ink)}
+  dialog::backdrop{background:#2634504d}
+  /* Tooltip 挂在 dialog 内以留在模态顶层。允许它越过上边缘，长表单在内部滚动。 */
+  dialog.room-editor{width:680px;overflow:visible}
+  dialog.room-editor>form{max-height:calc(100dvh - 40px - 2 * (18px + 1px));overflow:auto}
+  .form-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+  .form-head h2{font-size:16px}
+  .form-title-group{display:flex;align-items:center;gap:8px}
+  #room-help-mount{display:flex;align-items:center}
+  .form-note{font-size:12px;color:var(--muted);margin:0 0 12px}
+  .fields{display:grid;gap:9px}.fields.two-col{grid-template-columns:1fr 1fr}.fields .full{grid-column:1/-1}
+  .fields label{display:grid;gap:4px;font-size:12px;font-weight:550}
+  select,input[type=number]{background:#fff;border:1px solid #aebad0;border-radius:5px;height:32px;width:100%;padding:0 7px}
+  [aria-invalid=true]{border-color:var(--danger)}
+  .error-text{margin-top:9px;font-size:12px;color:var(--danger)}
+  .form-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-top:14px}
+  .form-actions button{min-height:32px;padding:0 11px}
+  .form-actions .delete{color:var(--danger);margin-right:auto}
+  .primary{background:var(--blue);color:white;border-color:var(--blue)}
+  .primary:hover{background:#1649bf;border-color:#1649bf}
+  .primary.danger{background:var(--danger);border-color:var(--danger)}
+  .sample-jump{padding:4px 8px;color:var(--blue);margin-left:8px}
+  .room-group-fields{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .room-list{display:grid;gap:7px;margin-top:12px}
+  .room-heading,.room-row,.room-passes{display:flex;align-items:center;gap:9px}
+  .room-heading{justify-content:space-between}
+  .room-heading h3{margin:0;color:var(--ink);font-size:13px}
+  .room-heading button,.room-row button{padding:4px 8px}
+  .room-row{background:#f7f9fc;border:1px solid var(--line);border-radius:6px;padding:8px;display:grid;grid-template-columns:40px repeat(2,minmax(0,1fr)) auto auto;align-items:end}
+  .room-row strong{font-size:12px;align-self:center}
+  .room-row fieldset{border:0;padding:0;margin:0;min-width:0}
+  .room-row legend{padding:0;margin-bottom:5px;font-size:12px;font-weight:550}
+  .room-passes{min-height:26px;gap:6px}
+  .room-passes label{display:flex;align-items:center;gap:2px;white-space:nowrap}
+  .room-passes input{margin:0;accent-color:var(--blue)}
+  .room-passes input[aria-invalid=true]{box-shadow:0 0 0 1px var(--danger)}
+  .room-row button{color:var(--danger);align-self:center}
+  .room-preview{margin-top:12px;padding:8px 10px;background:var(--pale);border-radius:6px;font-size:12px}
+  .room-summary{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .room-summary button{padding:3px 8px;color:var(--blue)}
+  .room-details{margin-top:6px;padding-top:6px;border-top:1px solid #cbdcf9}
+  .room-preview p+p{margin-top:4px}
+  .room-preview .warning{color:#894900}
+  .room-group-preview{position:absolute;top:25px;left:0;right:0;border-top:2px solid #7899e5;pointer-events:none}
+  .room-group-preview.ending{border-top-style:dotted}
+</style>
+</head>
+<body>
+  <div class="review"><a href="index.html">← 返回交互稿目录</a><span>BUG-086 · BUG-087</span></div>
+  <header class="header">
+    <span class="brand"><i aria-hidden="true">♪</i>六线猫</span>
+    <div class="menu" aria-hidden="true"><span>文件</span><span>编辑</span><span>视图</span><span>帮助</span></div>
+    <span class="docname">理想</span><span class="sample">● 示意曲谱 <a class="sample-jump" id="room-example" href="#endings">打开反复房子示例</a></span>
+  </header>
+  <nav class="toolbar" aria-label="编辑工具栏">
+    <div class="band"><button type="button" class="tool" id="undo" aria-label="撤销" title="撤销">↶</button><button type="button" class="tool" id="redo" aria-label="重做" title="重做">↷</button></div>
+    <div class="band notation" aria-hidden="true"><span>○</span><span>♩</span><span>♪</span><span>♫</span><span>♬</span></div>
+    <div class="band notation" aria-hidden="true"><span>H</span><span>P</span><span>S</span><span>⌒</span></div>
+    <div class="spacer"></div>
+    <button type="button" class="tool" id="tool-toggle" aria-expanded="false" aria-controls="measure-tools"><span aria-hidden="true">║</span> 小节工具</button>
+    <button type="button" class="tool" id="sidebar-toggle" aria-pressed="true" aria-controls="measure-sidebar"><span aria-hidden="true">◫</span> 属性</button>
+    <section id="measure-tools" class="tools" aria-labelledby="tools-title" hidden>
+      <div class="pop-head"><h2 id="tools-title">小节工具</h2><div id="tools-selection"></div><button type="button" class="close" data-action="close-tools" aria-label="关闭小节工具">×</button></div>
+      <div id="tools-controls" data-entry="tools"></div>
+    </section>
+  </nav>
+  <main class="workspace">
+    <div class="canvas" id="canvas">
+      <article class="paper" aria-label="理想六线谱">
+        <h1>理想</h1><p class="arranger">编谱：六线猫</p><div class="key">1=G　4/4</div>
+        <div id="score"></div>
+      </article>
+    </div>
+    <aside class="sidebar" id="measure-sidebar" aria-label="小节属性">
+      <div class="tabs"><span aria-hidden="true">音符</span><strong>小节</strong></div>
+      <div class="selection"><strong id="side-selection"></strong><small>4/4 拍</small></div>
+      <div class="side-scroll">
+        <div class="field-context"><span>段落标记</span><b id="section-name"></b></div>
+        <div id="side-controls" data-entry="side"></div>
+      </div>
+    </aside>
+  </main>
+  <footer class="footer"><span id="position"></span><span id="message" role="status"></span><span id="range-hint">按住 Shift 点选连续小节</span><span class="scale">100%</span></footer>
+  <div id="measure-tooltip" class="tooltip" role="tooltip" hidden></div>
+  <dialog id="measure-modal" aria-labelledby="form-title"></dialog>
+<script>
+  const $ = selector => document.querySelector(selector);
+  const lines = [
+    ['single','单线',['thin']], ['double','双线',['thin','thin']], ['final','终止线',['thin','thick']],
+    ['start','开始反复',['thick','thin','dots']], ['end','结束反复',['dots','thin','thick']],
+    ['both','双向反复',['dots','thin','thick','thin','dots']], ['first','谱首反复',['thick','thin','dots']]
+  ];
+  const marks = {
+    room: { label:'反复房子', name:'反复房子', desc:'选择小节范围和演奏遍次。', glyph:'<span class="glyph bracket">1.</span>' },
+    segno: { label:'回跳记号', name:'Segno', desc:'在小节开头写入回跳落点。', glyph:'<span class="glyph segno">S</span>', edge:'start' },
+    ds: { label:'回到记号', name:'D.S.', desc:'弹完本节后回到选定的 Segno。', text:'D.S.', fields:['segno'] },
+    dsCoda: { label:'记号至尾声', name:'D.S. al Coda', desc:'回到 Segno，重奏时经 To Coda 去尾声。', text:'D.S.', sub:'al Coda', fields:['segno','toCoda'] },
+    toCoda: { label:'跳到尾声', name:'To Coda', desc:'配对 Coda，重奏时弹完本节再跳。', text:'To', sub:'Coda', fields:['coda'] },
+    coda: { label:'尾声记号', name:'Coda', desc:'在小节开头写入尾声落点。', glyph:'<span class="glyph coda"></span>', edge:'start' },
+    dc: { label:'回到曲首', name:'D.C.', desc:'弹完本节后回到曲首。', text:'D.C.' },
+    fine: { label:'结束记号', name:'Fine', desc:'在小节末标记重奏终点。', text:'Fine' },
+    dcFine: { label:'曲首至结束', name:'D.C. al Fine', desc:'回到曲首，重奏到选定的 Fine。', text:'D.C.', sub:'al Fine', fields:['fine'] },
+    dsFine: { label:'记号至结束', name:'D.S. al Fine', desc:'回到 Segno，重奏到选定的 Fine。', text:'D.S.', sub:'al Fine', fields:['segno','fine'] },
+    dcCoda: { label:'曲首至尾声', name:'D.C. al Coda', desc:'回到曲首，重奏时经 To Coda 去尾声。', text:'D.C.', sub:'al Coda', fields:['toCoda'] },
+    repeat: { label:'小节重复', name:'单小节重复', desc:'以记号缩写前一小节的演奏内容。', glyph:'<span class="glyph percent">%</span>', edge:'repeat' }
+  };
+  const chordShapes = {
+    G:[[0,2],[1,1],[5,2]], C:[[1,2],[2,1],[4,0]], Asus2:[[2,1],[3,1]], Am:[[2,1],[3,1],[4,0]],
+    D:[[3,1],[4,2],[5,1]], Gadd9:[[0,2],[1,1],[4,2],[5,2]], Dsus2:[[3,1],[4,2]], Em:[[1,1],[2,1]]
+  };
+  const patterns = [
+    [[5,3],[3,0],[2,0],[1,0],[2,0],[3,0],[1,3],[2,0]], [[4,3],[3,2],[2,0],[1,1],[2,0],[3,2],[1,1],[2,0]],
+    [[4,0],[3,2],[2,2],[1,0],[2,2],[3,2],[0,0],[2,2]], [[5,0],[3,2],[2,0],[1,0],[2,0],[3,2],[0,0],[2,0]],
+    [[4,0],[3,2],[2,2],[1,1],[2,2],[3,2],[1,1],[2,2]], [[3,0],[2,2],[1,3],[0,2],[1,3],[2,2],[0,2],[1,3]]
+  ];
+  let nextId = 100;
+  const sampleChords = ['G','C','Asus2','Em','Am','D','G','Gadd9','Asus2','Dsus2','Gadd9','G'];
+  let model = {
+    bars:Array.from({length:40},(_,i) => ({
+      id:i+1, chord:i===6?'':sampleChords[i%sampleChords.length], notes:i===6 ? [] : structuredClone(patterns[i%patterns.length]),
+      line:i===2 || i===32 ? 'end' : i===15 ? 'start' : i===39 ? 'final' : 'single'
+    })),
+    groups:[{id:60,start:17,sharedEnd:31,end:35,passCount:2}],
+    signs:[{id:51,type:'segno',at:2},{id:52,type:'fine',at:3},{id:53,type:'toCoda',at:5,links:{coda:54}},
+      {id:54,type:'coda',at:10},{id:55,type:'dsCoda',at:11,links:{segno:51,toCoda:53}},
+      {id:61,type:'room',groupId:60,at:32,end:33,passes:[1]}, {id:62,type:'room',groupId:60,at:34,end:35,passes:[2]}]
+  };
+  let range = { from:4, to:4 };
+  let active = null;
+  let draft = null;
+  let returnFocus = null;
+  const undoStack = [], redoStack = [];
+  const bars = () => model.bars;
+  const indexOf = id => bars().findIndex(bar => bar.id === id);
+  const number = id => indexOf(id)+1;
+  const barAt = id => bars().find(bar => bar.id === id);
+  const signById = id => model.signs.find(sign => sign.id === id);
+  const ordered = () => [range.from,range.to].sort((a,b) => indexOf(a)-indexOf(b));
+  const multiple = () => range.from !== range.to;
+  const label = id => `第 ${number(id)} 小节`;
+  const rangeLabel = ([start,end] = ordered()) => start===end ? label(start) : `第 ${number(start)}–${number(end)} 小节`;
+  const edge = type => marks[type].edge || 'end';
+  const signAt = (type,id = range.to) => model.signs.find(sign => sign.type===type && sign.at===id);
+  const groupRooms = id => model.signs.filter(sign=>sign.type==='room' && sign.groupId===id);
+  const roomAt = (start,end) => model.signs.find(sign=>sign.type==='room' &&
+    (start===end ? indexOf(sign.at)<=indexOf(start) && indexOf(sign.end)>=indexOf(start) : sign.at===start && sign.end===end));
+  const sideControls = $('#side-controls');
+  const toolsControls = $('#tools-controls');
+  const tools = $('#measure-tools');
+  const toggle = $('#tool-toggle');
+  const modal = $('#measure-modal');
+  const tooltip = $('#measure-tooltip');
+  const staffLine = kind => (lines.find(line => line[0]===kind) || lines[0])[2].map(part=>`<i class="${part}"></i>`).join('');
+
+  function symbol(type, compact = false) {
+    const item = marks[type];
+    if (item.glyph) return item.glyph;
+    if (item.sub && compact) return `<span class="glyph two">${item.text}<small>${item.sub}</small></span>`;
+    return `<span class="glyph">${item.name}</span>`;
+  }
+
+  function announce(text, error = false) {
+    const message = $('#message');
+    message.textContent = text;
+    message.classList.toggle('error',error);
+    $('#range-hint').hidden = Boolean(text);
+  }
+
+  function repeatReason(id) {
+    const target = barAt(id);
+    const previous = bars()[indexOf(id)-1];
+    if (!previous) return '第 1 小节没有前一小节。';
+    if (signAt('repeat',previous.id)) return '先展开前一小节的重复记号。';
+    if (!previous.notes.length) return '前一小节没有可重复的音符。';
+    const boundary = model.signs.some(sign => sign.type==='room'
+      ? sign.at===id || sign.end===previous.id
+      : (edge(sign.type)==='start' && sign.at===id) || (edge(sign.type)==='end' && sign.at===previous.id));
+    if (previous.line!=='single' || target.line==='first' || boundary) return '相邻小节之间有分段、反复或跳转边界。';
+    return '';
+  }
+
+  function availability(type) {
+    if (multiple() && type!=='room') return '请选择单个小节。';
+    if (type==='room' && bars().length<2) return '反复房子至少需要两个小节。';
+    if (type==='first' && number(range.to)!==1) return '仅可设在谱首。';
+    if (type==='repeat' && !signAt(type)) return repeatReason(range.to);
+    return '';
+  }
+
+  function renderControls() {
+    const lineButtons = lines.map(([type,name])=>{
+      const why = availability(type);
+      return `<div class="line-item"><button class="icon-btn" type="button" data-line="${type}" data-hint="${name}${why?' · '+why:''}" aria-label="${name}" aria-pressed="${!multiple()&&barAt(range.to).line===type}" aria-disabled="${Boolean(why)}"><span class="line-symbol" aria-hidden="true">${staffLine(type)}</span></button><small aria-hidden="true">${name}</small></div>`;
+    }).join('');
+    const [start,end] = ordered();
+    const markButtons = Object.entries(marks).map(([type,item])=>{
+      const why = availability(type);
+      const current = type==='room' ? roomAt(start,end) : !multiple() && signAt(type);
+      return `<div class="mark-item"><button class="icon-btn" type="button" data-kind="${type}" data-hint="${item.name} · ${why || item.desc}" aria-label="${item.label}${item.label===item.name?'':`（${item.name}）`}" aria-pressed="${Boolean(current)}" aria-disabled="${Boolean(why)}"><span aria-hidden="true">${symbol(type,true)}</span></button><small aria-hidden="true">${item.label}</small></div>`;
+    }).join('');
+    const html = `<section class="panel-part"><h3>小节线</h3><div class="line-grid" role="group" aria-label="小节线">${lineButtons}</div></section>
+      <section class="panel-part"><h3>反复与跳转</h3><div class="mark-grid" role="group" aria-label="反复与跳转">${markButtons}</div></section>
+      <section class="panel-part"><div class="actions" role="group" aria-label="小节操作">
+        <button type="button" data-action="add"><span class="action-icon" aria-hidden="true">＋</span>新增小节</button>
+        <button type="button" data-action="copy"><span class="action-icon" aria-hidden="true">▢</span>复制小节</button>
+        <button type="button" data-action="remove"><span class="action-icon" aria-hidden="true">−</span>删除小节</button>
+      </div></section>`;
+    for (const entry of [sideControls,toolsControls]) {
+      entry.innerHTML = html;
+      entry.querySelectorAll('button').forEach(button=>{button.dataset.entry = entry.dataset.entry;});
+    }
+    $('#side-selection').textContent = rangeLabel();
+    $('#tools-selection').textContent = rangeLabel();
+    $('#section-name').textContent = number(range.to) <= 4 ? '前奏' : '主歌';
+    $('#position').textContent = `当前位置 ${rangeLabel()}${multiple()?'，已选 '+(Math.abs(indexOf(range.from)-indexOf(range.to))+1)+' 小节':''}`;
+    $('#undo').disabled = !undoStack.length;
+    $('#redo').disabled = !redoStack.length;
+  }
+
+  function chordGraphic(chord) {
+    if (!chord) return '';
+    const dots = chordShapes[chord].map(([x,y])=>`<i style="left:${x*4.7-2}px;top:${y*6+1}px"></i>`).join('');
+    return `<div class="chord">${chord}<span class="chord-grid">${dots}</span></div>`;
+  }
+
+  function tabNotes(bar) {
+    return bar.notes.map(([string,fret],i)=>{
+      const x = 13+i*10.25;
+      return `<span class="beat" style="left:${x}%"><span class="fret" style="top:${string*7-5}px">${fret}</span><i class="stem ${i%2===0?'beam':''}"></i></span>${i%2===0?`<span class="bass" style="left:${x-1}%">${i===0?bar.notes[0][1]:0}</span>`:''}`;
+    }).join('');
+  }
+
+  function scoreSign(sign) {
+    const bad = marks[sign.type].fields && linkError(sign);
+    const title = `${label(sign.at)} ${marks[sign.type].name}${bad?'（配对待修复）':''}`;
+    return `<button type="button" class="score-mark ${edge(sign.type)}" data-sign="${sign.id}" aria-label="编辑 ${title}" aria-pressed="${active===sign.id}" title="${title}">${symbol(sign.type)}${bad?' <span style="color:#9a4e08" aria-hidden="true">!</span>':''}</button>`;
+  }
+
+  function bracket(sign, rowStart, rowLength, preview = false) {
+    const start = indexOf(sign.at), end = indexOf(sign.end);
+    if (start<0 || end<start || end<rowStart || start>=rowStart+rowLength) return '';
+    const first = start>=rowStart, last = end<rowStart+rowLength;
+    const left = Math.max(start-rowStart,0)*25;
+    const right = (Math.min(end-rowStart,rowLength-1)+1)*25;
+    const count = sign.passes.length ? sign.passes.map(value=>`${value}.`).join(' ') : '预览';
+    const text = first ? count : `(${count})`;
+    const style = `style="left:${left}%;width:${right-left}%"`;
+    const classes = `volta ${first?'first':''} ${last?'last':''}`;
+    if (preview) return `<span class="${classes} draft" ${style} aria-hidden="true">${text}</span>`;
+    return `<button type="button" class="${classes}" ${style} data-sign="${sign.id}" aria-pressed="${active===sign.id}" aria-label="编辑 ${rangeLabel([sign.at,sign.end])}反复房子">${text}</button>`;
+  }
+
+  function renderScore() {
+    const [start,end] = ordered().map(indexOf);
+    const rooms = model.signs.filter(sign=>sign.type==='room');
+    const preview = draft?.type==='room' && draft.stage==='edit' ? draft.group : null;
+    const previewRooms = preview?.rooms.filter(room=>indexOf(room.at)>=0 && indexOf(room.end)>=indexOf(room.at)) || [];
+    const [groupStart,sharedEnd,groupEnd] = preview ? [preview.start,preview.sharedEnd,preview.end].map(indexOf) : [-1,-1,-1];
+    const paper = [];
+    for (let row = 0; row < bars().length; row += 4) {
+      const rowBars = bars().slice(row,row+4);
+      const cells = rowBars.map((bar,column)=>{
+        const i = row+column;
+        const selected = i>=start && i<=end;
+        const repeated = signAt('repeat',bar.id);
+        const inPreview = previewRooms.some(room=>i>=indexOf(room.at) && i<=indexOf(room.end));
+        const groupPreview = groupStart>=0 && groupStart<=sharedEnd && sharedEnd<groupEnd && i>=groupStart && i<=groupEnd;
+        const nextStart = column<3 && rowBars[column+1] && model.signs.some(sign=>edge(sign.type)==='start'&&sign.at===rowBars[column+1].id);
+        return `<div class="bar ${selected?'selected':''} ${inPreview?'preview':''} ${nextStart?'next-start':''}" data-bar="${bar.id}">
+          <button type="button" class="bar-hit" data-select="${bar.id}" aria-label="选择第 ${i+1} 小节" aria-pressed="${selected}"></button>
+          ${column===0?'<span class="tab-name" aria-hidden="true">T<br>A<br>B</span>':''}
+          ${repeated?'':chordGraphic(bar.chord)}<div class="staff" aria-hidden="true"></div>
+          ${groupPreview?`<i class="room-group-preview ${i>sharedEnd?'ending':''}" aria-hidden="true"></i>`:''}
+          <span class="measure-no" aria-hidden="true">${i+1}</span>
+          <span class="ending-line" aria-hidden="true">${staffLine(bar.line==='first'?'single':bar.line)}</span>
+          ${bar.line==='first'?`<span class="ending-line" style="left:0;right:auto" aria-hidden="true">${staffLine('first')}</span>`:''}
+          ${repeated?'':tabNotes(bar)}
+          ${model.signs.filter(sign=>sign.at===bar.id&&sign.type!=='room').map(scoreSign).join('')}
+        </div>`;
+      }).join('');
+      paper.push(`<div class="system">${cells}${rooms.map(sign=>bracket(sign,row,rowBars.length)).join('')}${previewRooms.map(room=>bracket(room,row,rowBars.length,true)).join('')}</div>`);
+    }
+    $('#score').innerHTML = paper.join('');
+  }
+
+  function render() {
+    hideTooltip();
+    renderControls();
+    renderScore();
+  }
+
+  // 工具栏、侧栏和谱面通过同一曲谱快照提交，撤销可以一次恢复引用关系与谱面。
+  function snapshot() { return structuredClone({model,range,active}); }
+  function commit(change, message) {
+    undoStack.push(snapshot());
+    redoStack.length = 0;
+    change();
+    const expanded = model.signs.filter(sign=>sign.type==='repeat'&&repeatReason(sign.at));
+    expanded.forEach(sign=>dropRepeat(sign.at));
+    if (active && !signById(active)) active = null;
+    render();
+    announce(message+(expanded.length?` ${expanded.map(sign=>label(sign.at)).join('、')}已展开为普通小节。`:''));
+  }
+  // 编辑撤销栈独立于浏览器 History，示例入口通过后者切换 #endings。
+  function applyHistory(source,target,message) {
+    if (!source.length || draft) return;
+    target.push(snapshot());
+    ({model,range,active} = source.pop());
+    render();
+    announce(message);
+  }
+
+  function positionTools() {
+    tools.style.left = `${Math.max(12,toggle.offsetLeft+toggle.offsetWidth/2-tools.offsetWidth+27)}px`;
+  }
+
+  function setTools(open, focus = false) {
+    tools.hidden = !open;
+    toggle.setAttribute('aria-expanded',String(open));
+    hideTooltip();
+    if (open) positionTools();
+    if (focus) (open ? tools.querySelector('button') : toggle).focus({preventScroll:true});
+  }
+
+  function select(id, extend = false, focus = true) {
+    range = { from:extend?range.from:id, to:id };
+    active = null;
+    render();
+    announce('');
+    if (focus) $(`[data-select="${id}"]`)?.focus({preventScroll:true});
+  }
+
+  function hideTooltip() { tooltip.hidden = true; }
+
+  function showTooltip(button) {
+    const rect = button.getBoundingClientRect();
+    tooltip.textContent = button.dataset.hint;
+    tooltip.hidden = false;
+    tooltip.style.left = `${Math.max(8,Math.min(rect.x+(rect.width-tooltip.offsetWidth)/2,innerWidth-tooltip.offsetWidth-8))}px`;
+    const top = rect.bottom+6+tooltip.offsetHeight>innerHeight ? rect.top-tooltip.offsetHeight-6 : rect.bottom+6;
+    tooltip.style.top = `${top}px`;
+  }
+
+  // 配对按记号身份保存。删除目标后依然保留旧引用，显示待修复并可重新指定。
+  function optionsFor(field, value) {
+    return model.signs.filter(sign=>sign.type===field && sign.id!==value.id).sort((a,b)=>indexOf(a.at)-indexOf(b.at));
+  }
+
+  function validTarget(field, target, value) {
+    if (!target || target.type!==field) return false;
+    const from = indexOf(value.at), to = indexOf(target.at);
+    if (field==='segno') return to<=from;
+    if (field==='coda') return to>from;
+    const segno = signById(value.links?.segno);
+    return to<from && (!marks[value.type].fields.includes('segno') || (segno && to>=indexOf(segno.at)));
+  }
+
+  function linkError(value) {
+    for (const field of marks[value.type].fields || []) {
+      const linked = signById(value.links?.[field]);
+      const name = marks[field].name;
+      const relevant = optionsFor(field,value);
+      if (!linked) {
+        if (value.links?.[field]) return [field,`原配对 ${name} 已删除，请重新选择。`];
+        if (!relevant.length) return [field,`谱面上没有 ${name}，请先添加对应记号。`];
+        return [field,`请选择配对的 ${name}。`];
+      }
+      if (!validTarget(field,linked,value)) return [field,`${label(linked.at)}的 ${name} 不在可配对范围内。`];
+      if (field==='toCoda' && !validTarget('coda',signById(linked.links?.coda),linked)) return [field,`请先为${label(linked.at)}的 To Coda 配对有效的 Coda。`];
+    }
+    return null;
+  }
+
+  const passNumbers = group => Array.from({length:group.passCount},(_,i)=>i+1);
+  const missingPasses = group => passNumbers(group).filter(pass=>!group.rooms.some(room=>room.passes.includes(pass)));
+
+  // 相交按谱面顺序判断，端点重合也算相交。优先指出能单独移出冲突的边界，避免把右侧结尾区越界标在反复起点上。
+  function groupConflict(group,start,shared,end) {
+    const other = model.groups.find(item=>item.id!==group.id && start<=indexOf(item.end) && indexOf(item.start)<=end);
+    if (!other) return null;
+    const before = indexOf(other.start)-1, after = indexOf(other.end)+1;
+    const conflict = `与既有反复组（${rangeLabel([other.start,other.end])}）相交。`;
+    if (shared<before) return {fields:['end'],message:`${conflict}把结尾区末小节改到${label(bars()[before].id)}或更早。`};
+    if (after<=shared) return {fields:['start'],message:`${conflict}把反复起点改到${label(bars()[after].id)}或更晚。`};
+    // 共享段末贴着或落入既有组时，同时移动相应外边界与共享段末，给结尾区留至少一小节。
+    const reuse = group.id ? '' : `可在「所属反复组」选择${rangeLabel([other.start,other.end])}来编辑该组，或`;
+    if (start<before) return {fields:['end','sharedEnd'],message:`${conflict}${reuse}把结尾区末小节改到${label(bars()[before].id)}或更早，并把共享段末移到它之前。`};
+    if (after<end) return {fields:['start','sharedEnd'],message:`${conflict}${reuse}把反复起点改到${label(bars()[after].id)}或更晚，并把共享段末移到新起点与结尾区末之间。`};
+    const spaces = [before>=1 ? rangeLabel([bars()[0].id,bars()[before].id]) : '',
+      after<bars().length-1 ? rangeLabel([bars()[after].id,bars().at(-1).id]) : ''].filter(Boolean);
+    if (spaces.length) return {fields:['start','sharedEnd','end'],message:`${conflict}${reuse}把反复起点、共享段末和结尾区末都移到${spaces.join('或')}内。`};
+    return group.id
+      ? {fields:['start','end'],message:`${conflict}该组前后都没有足够的小节。请取消本次编辑。`}
+      : {fields:['group'],message:`${conflict}请在「所属反复组」选择${rangeLabel([other.start,other.end])}来编辑该组。`};
+  }
+
+  // 保留 REQ-106 的结构校验。先处理组边界，再按房子顺序提示一处可修正的问题；缺房和未演奏空档不阻止应用。
+  function roomError(group) {
+    const [start,shared,end] = [group.start,group.sharedEnd,group.end].map(indexOf);
+    const issue = (field,message,row) => ({fields:[field],message,row});
+    if (shared<0) return issue('sharedEnd','请选择有效的共享段末小节。');
+    if (start<0 || start>shared) return issue('start','把反复起点移到共享段末小节或之前。');
+    if (end<0 || end<=shared) return issue('end','把结尾区末小节移到共享段之后。');
+    const conflict = groupConflict(group,start,shared,end);
+    if (conflict) return conflict;
+    if (![2,3].includes(group.passCount)) return issue('passCount','请选择 2 遍或 3 遍。');
+    if (!group.id && !group.rooms.length) return issue('add-room','请为新建反复组添加至少一个房子。');
+    for (const [row,room] of group.rooms.entries()) {
+      const [from,through] = [room.at,room.end].map(indexOf);
+      if (from<=shared || from>end || from<0) return issue('at','把起始小节移到本组结尾区内。',row);
+      if (through<from || through>end || through<0) return issue('end','把结束小节移到起始小节至本组结尾区末之间。',row);
+      if (!room.passes.length || room.passes.some(pass=>!passNumbers(group).includes(pass))) {
+        return issue('passes',`请在总遍数范围内勾选至少一遍（第 1–${group.passCount} 遍）。`,row);
+      }
+      for (const [otherRow,other] of group.rooms.slice(0,row).entries()) {
+        const otherStart = indexOf(other.at), otherEnd = indexOf(other.end);
+        if (from<=otherEnd && otherStart<=through) {
+          const overlap = `与房子 ${otherRow+1}（${rangeLabel([other.at,other.end])}）重叠。`;
+          if (from<otherStart) return issue('end',`${overlap}把结束小节移到房子 ${otherRow+1} 之前。`,row);
+          if (otherEnd<through) return issue('at',`${overlap}把起始小节移到房子 ${otherRow+1} 之后。`,row);
+          return {fields:['at','end'],row,message:`${overlap}请将起止小节移到结尾区的空位，或调整结尾区范围。`};
+        }
+        const pass = room.passes.find(value=>other.passes.includes(value));
+        if (pass) return {...issue('passes',`第 ${pass} 遍已分给房子 ${otherRow+1}。请在其中一个房子取消勾选第 ${pass} 遍。`,row),pass};
+      }
+    }
+    return null;
+  }
+
+  function roomDraft(selection, groupId) {
+    const [from,through] = selection;
+    const start = indexOf(from), end = indexOf(through);
+    const existing = groupId===0 ? null : model.groups.find(group=>group.id===groupId) || model.groups.find(group=>
+      start>=indexOf(group.start) && end<=indexOf(group.end));
+    if (existing) return structuredClone({...existing,rooms:groupRooms(existing.id).sort((a,b)=>indexOf(a.at)-indexOf(b.at))});
+    // 在组后紧邻的选区补房时，只延展仍缺房且不与另一组相交的原组。
+    const preceding = groupId===undefined && model.groups.find(group=>start===indexOf(group.end)+1 &&
+      missingPasses({...group,rooms:groupRooms(group.id)}).length && !model.groups.some(other=>
+        other.id!==group.id && indexOf(other.start)<=end && start<=indexOf(other.end)));
+    if (preceding) return structuredClone({...preceding,end:through,rooms:groupRooms(preceding.id).sort((a,b)=>indexOf(a.at)-indexOf(b.at))});
+    // 新组借用附近的普通反复线预填。谱首入选时为共享段留出一小节，所有边界仍可在表单里改。
+    const first = Math.max(1,start);
+    let groupStart = 0, groupEnd = Math.max(first,end);
+    for (let i=0; i<bars().length; i++) {
+      const {line} = bars()[i];
+      if (i+1<first && ['start','both'].includes(line)) groupStart = i+1;
+      if (i>=first && ['end','both'].includes(line)) { groupEnd = Math.max(groupEnd,i); break; }
+    }
+    const group = {start:bars()[groupStart].id,sharedEnd:bars()[first-1].id,end:bars()[groupEnd].id,passCount:2,rooms:[]};
+    addRoom(group,[bars()[first].id,bars()[Math.max(first,end)].id]);
+    return group;
+  }
+
+  function addRoom(group, selection) {
+    const first = indexOf(group.sharedEnd)+1, last = indexOf(group.end);
+    const free = bars().find((bar,i)=>i>=first && i<=last && !group.rooms.some(room=>i>=indexOf(room.at) && i<=indexOf(room.end)));
+    // 优先沿用结尾区里的选区。没有空位时给出可编辑的起止值，由同一校验提示冲突。
+    const [at,end] = selection && indexOf(selection[0])>=first && indexOf(selection[1])<=last
+      ? selection : [free?.id ?? bars()[first]?.id ?? group.end,free?.id ?? bars()[first]?.id ?? group.end];
+    const pass = missingPasses(group)[0];
+    group.rooms.push({type:'room',at,end,passes:pass ? [pass] : []});
+  }
+
+  function formMarkup(title,note,fields,apply,allowDelete = false,withRoomHelp = false) {
+    const heading = `<h2 id="form-title">${title}</h2>`;
+    return `<form novalidate><div class="form-head">${withRoomHelp ? `<div class="form-title-group">${heading}<span id="room-help-mount"></span></div>` : heading}
+      <button class="close" type="button" data-action="cancel" aria-label="关闭">×</button></div>
+      ${note ? `<p class="form-note">${note}</p>` : ''}${fields}<p class="error-text" id="form-error" role="alert" hidden></p>
+      <div class="form-actions">${allowDelete?'<button class="delete" type="button" data-action="delete-sign">删除记号</button>':''}
+      <button type="button" data-action="cancel">取消</button><button class="primary" type="submit">${apply}</button></div></form>`;
+  }
+
+  function allBars(value) {
+    return bars().map(bar=>`<option value="${bar.id}" ${value===bar.id?'selected':''}>${label(bar.id)}</option>`).join('');
+  }
+
+  function pairLabel(field,sign,value) {
+    return `${label(sign.at)} · ${marks[field].name}${validTarget(field,sign,value)?'':'（超出范围）'}`;
+  }
+
+  function roomFields(group) {
+    const field = (name,title,value,row='')=>`<label>${title}<select name="${name}" data-row="${row}">${allBars(value)}</select></label>`;
+    const groupOptions = model.groups.map(item=>`<option value="${item.id}" ${item.id===group.id?'selected':''}>${rangeLabel([item.start,item.end])}</option>`).join('');
+    const rows = group.rooms.map((room,row)=>{
+      const passes = [1,2,3].filter(pass=>pass<=group.passCount || room.passes.includes(pass)).map(pass=>
+        `<label><input type="checkbox" name="passes" data-row="${row}" value="${pass}" ${room.passes.includes(pass)?'checked':''}>第 ${pass} 遍</label>`).join('');
+      return `<div class="room-row" role="group" aria-label="房子 ${row+1}"><strong>房子 ${row+1}</strong>${field('at','起始小节',room.at,row)}${field('end','结束小节',room.end,row)}
+        <fieldset><legend>演奏遍次</legend><div class="room-passes">${passes}</div></fieldset><button type="button" data-action="delete-room" data-row="${row}" aria-label="删除房子 ${row+1}">删除</button></div>`;
+    }).join('');
+    return `<div class="fields room-group-fields">
+      <label class="full">所属反复组<select name="group" data-row=""><option value="0">新建反复组</option>${groupOptions}</select></label>
+      ${field('start','反复起点',group.start)}${field('sharedEnd','共享段末小节',group.sharedEnd)}${field('end','结尾区末小节',group.end)}
+      <label>总遍数<select name="passCount" data-row=""><option value="2">2 遍</option><option value="3" ${group.passCount===3?'selected':''}>3 遍</option></select></label></div>
+      <section class="room-list" aria-labelledby="room-list-heading"><div class="room-heading"><h3 id="room-list-heading">反复房子</h3>
+      <button type="button" name="add-room" data-row="" data-action="add-room">添加房子</button></div><div class="fields">${rows}</div></section>
+      <section class="room-preview" aria-label="演奏预览" hidden><div class="room-summary">
+      <p aria-live="polite"></p><button type="button" data-action="room-details" aria-controls="room-details" aria-expanded="false">展开演奏详情</button></div>
+      <div class="room-details" id="room-details" hidden></div></section>`;
+  }
+
+  function updateRoomPreview(focus = false) {
+    const {group} = draft;
+    const error = roomError(group);
+    const region = modal.querySelector('#form-error');
+    const preview = modal.querySelector('.room-preview');
+    modal.querySelectorAll('[aria-invalid]').forEach(control=>{control.removeAttribute('aria-invalid');control.removeAttribute('aria-describedby');});
+    region.hidden = !error;
+    preview.hidden = Boolean(error);
+    // 按所在行区分同名字段。只有当前提示指向的控件加标记和朗读关联，应用失败时聚焦首个控件。
+    if (error) {
+      const {fields,row,pass,message} = error;
+      const passFilter = pass ? `[value="${pass}"]` : '';
+      const controls = fields.flatMap(field=>[...modal.querySelectorAll(`[name="${field}"][data-row="${row??''}"]${passFilter}`)]);
+      const text = row===undefined ? message : `房子 ${row+1}：${message}`;
+      if (region.textContent!==text) region.textContent = text;
+      controls.forEach(control=>{
+        control.setAttribute('aria-invalid','true');
+        control.setAttribute('aria-describedby','form-error');
+      });
+      if (focus) controls[0]?.focus();
+      return false;
+    }
+    region.textContent = '';
+    const summary = preview.querySelector('.room-summary p');
+    // 缺房允许保存，但试听会在该遍暂停。用原有摘要行提醒，详情里的路线展示具体暂停位置。
+    const missing = missingPasses(group);
+    const text = missing.length ? `第 ${missing.join('、')} 遍还没选房子，可稍后补` : `${group.passCount} 遍 · ${group.rooms.length} 个房子`;
+    summary.classList.toggle('warning',missing.length>0);
+    if (summary.textContent!==text) summary.textContent = text;
+    renderRoomDetails(group,preview.querySelector('.room-details'));
+    return true;
+  }
+
+  function renderRoomDetails(group,details) {
+    const first = indexOf(group.sharedEnd)+1, last = indexOf(group.end);
+    const exit = bars()[last+1];
+    const used = group.rooms.map(room=>[indexOf(room.at),indexOf(room.end)]);
+    const unused = [];
+    // 只在结尾区扫描未被房子覆盖的小节，按谱面顺序合并相邻项，兼容插入后不连续的小节 ID。
+    for (let i=first;i<=last;i++) {
+      if (used.some(([from,through])=>from<=i && i<=through)) continue;
+      const previous = unused.at(-1);
+      if (previous && previous[1]===i-1) previous[1] = i;
+      else unused.push([i,i]);
+    }
+    const shared = rangeLabel([group.start,group.sharedEnd]);
+    const ending = rangeLabel([bars()[first].id,group.end]);
+    // 预览只描述本组的反复路线。缺房在该遍共享段末暂停，之后的遍次仍可作为配置核对。
+    let stopped = false;
+    const routes = passNumbers(group).map(pass=>{
+      const room = group.rooms.find(item=>item.passes.includes(pass));
+      const route = !room ? '缺房，播完共享段暂停' : rangeLabel([room.at,room.end]);
+      const next = !room ? '' : pass<group.passCount ? ` → 回到${label(group.start)}` : ` → ${exit ? label(exit.id) : '曲谱末'}`;
+      const prefix = stopped ? '（补房后）' : '';
+      if (!room) stopped = true;
+      return `<p>第 ${pass} 遍${prefix}　${shared} → ${route}${next}</p>`;
+    }).join('');
+    details.innerHTML = `<p><strong>共享段</strong> ${shared}　<strong>结尾区</strong> ${ending}　<strong>共同出口</strong> ${exit ? label(exit.id) : '曲谱末'}</p>
+      ${routes}
+      ${unused.length?`<p class="warning">未被任何遍次演奏的小节　${unused.map(([from,through])=>rangeLabel([bars()[from].id,bars()[through].id])).join('、')}</p>`:''}`;
+  }
+
+  function setRoomDetails(open) {
+    const trigger = modal.querySelector('[data-action="room-details"]');
+    trigger.setAttribute('aria-expanded',String(open));
+    trigger.textContent = open ? '收起演奏详情' : '展开演奏详情';
+    modal.querySelector('#room-details').hidden = !open;
+  }
+
+  function paintForm() {
+    const {type,value,stage,group} = draft;
+    const item = marks[type];
+    const existing = Boolean(value?.id);
+    let html;
+    if (stage==='delete-room') {
+      const room = group.rooms[draft.row];
+      const passes = room.passes.filter(pass=>pass<=group.passCount && !group.rooms.some(other=>other!==room && other.passes.includes(pass)));
+      const note = passes.length ? `应用后，第 ${passes.join('、')} 遍将缺房，播完该遍的共享段后暂停。也可在应用之前重新分配遍次。` : '应用后，此房子的括线会从谱面移除。';
+      html = formMarkup(`删除房子 ${draft.row+1}`,note,'','从草稿移除');
+    } else if (stage==='delete-group') {
+      html = formMarkup('删除反复组','确认后移除整个显式反复组。这段改按谱面上的普通反复线演奏。','','确认删除');
+    } else if (stage==='switch-group') {
+      html = formMarkup('切换反复组','切换时将放弃当前反复组尚未应用的修改。','','放弃修改并切换');
+    } else if (stage==='delete-sign') {
+      const direct = model.signs.filter(sign=>Object.values(sign.links||{}).includes(value.id));
+      const affected = [...direct,...model.signs.filter(sign=>!direct.includes(sign)&&direct.some(link=>Object.values(sign.links||{}).includes(link.id)))];
+      const note = affected.length ? `删除后，${affected.map(sign=>`${label(sign.at)}的 ${marks[sign.type].name}`).join('、')}需要重新配对。` : `从${label(value.at)}移除此记号。`;
+      html = formMarkup(`删除${item.name}`,note,'','确认删除');
+    } else if (stage==='overwrite') {
+      html = formMarkup('替换为单小节重复',`用${label(bars()[indexOf(value.at)-1].id)}的演奏内容替换${label(value.at)}已有的 ${barAt(value.at).notes.length} 个 TAB 音符。`,'','替换并添加');
+    } else if (stage==='remove') {
+      html = formMarkup('删除小节',`删除${rangeLabel()}、其中的谱面内容和受影响的反复房子。相关跳转可能需要重新配对。`,'','确认删除');
+    } else if (stage==='repeat-edit') {
+      html = formMarkup('单小节重复',`${label(value.at)}重复${label(bars()[indexOf(value.at)-1].id)}的四拍内容。展开后可继续编辑。`,'','展开为普通小节');
+    } else if (type==='room') {
+      html = formMarkup(group.id?'编辑反复房子':'添加反复房子','',roomFields(group),'应用',false,true);
+    } else {
+      const fields = (item.fields || []).map(field=>{
+        const current = value.links?.[field];
+        const candidates = optionsFor(field,value);
+        const lost = current && !candidates.some(sign=>sign.id===current);
+        const options = candidates.map(sign=>`<option value="${sign.id}" ${current===sign.id?'selected':''}>${pairLabel(field,sign,value)}</option>`).join('');
+        return `<label>配对 ${marks[field].name}<select name="${field}"><option value="">请选择</option>${lost?'<option value="lost" selected>原配对已失效</option>':''}${options}</select></label>`;
+      }).join('');
+      html = formMarkup(`${existing?'编辑':'添加'} ${item.name}`,`${label(value.at)} · ${item.desc}`,`<div class="fields">${fields}</div>`,'应用',existing);
+    }
+    const detailsOpen = modal.querySelector('#room-details')?.hidden===false;
+    // 表单重画前卸载组件，由组件清理挂在 dialog 内的浮层和监听器。
+    window.roomHelpTooltip.unmount();
+    modal.classList.toggle('room-editor',type==='room' && stage==='edit');
+    modal.innerHTML = html;
+    const helpMount = modal.querySelector('#room-help-mount');
+    if (helpMount) window.roomHelpTooltip.mount(helpMount);
+    if (['delete-sign','delete-room','delete-group','remove'].includes(stage)) modal.querySelector('.primary').classList.add('danger');
+    if (type==='room' && stage==='edit') {
+      if (group.id && !group.rooms.length) modal.querySelector('.form-actions').insertAdjacentHTML('afterbegin',
+        '<button type="button" class="delete" data-action="delete-group">删除反复组</button>');
+      updateRoomPreview();
+      if (detailsOpen) setRoomDetails(true);
+    }
+  }
+
+  function openForm(next, source) {
+    const fromTools = source?.dataset.entry==='tools';
+    returnFocus = fromTools ? '#tool-toggle' : source?.dataset.sign ? `[data-sign="${source.dataset.sign}"]` : source?.dataset.kind ? `#side-controls [data-kind="${source.dataset.kind}"]` : source?.dataset.action ? `#side-controls [data-action="${source.dataset.action}"]` : null;
+    setTools(false);
+    draft = next;
+    if (draft.type==='room') {
+      renderScore();
+      reveal(draft.focusAt ?? range.to);
+    }
+    paintForm();
+    modal.showModal();
+    if (draft.stage==='edit' && next.value?.id) setFormError(linkError(next.value));
+    const editedRoom = draft.group?.rooms.findIndex(room=>room.id===draft.roomId);
+    (modal.querySelector(`[name="at"][data-row="${editedRoom}"]`) || modal.querySelector('select') || modal.querySelector('[data-action="cancel"]')).focus({preventScroll:true});
+  }
+
+  function endForm(restore = true) {
+    if (!draft) return;
+    window.roomHelpTooltip.unmount();
+    if (modal.open) modal.close();
+    draft = null;
+    modal.innerHTML = '';
+    renderScore();
+    if (restore) focusReturn();
+  }
+
+  function focusReturn() {
+    const target = (returnFocus && $(returnFocus)) || $(`[data-select="${range.to}"]`) || toggle;
+    target.focus({preventScroll:true});
+    returnFocus = null;
+  }
+
+  function cancelForm() {
+    if (['delete-sign','delete-room','delete-group','switch-group'].includes(draft.stage)) {
+      const {stage,row} = draft;
+      draft.stage = 'edit';
+      paintForm();
+      renderScore();
+      const action = stage==='delete-room' ? `[data-action="delete-room"][data-row="${row}"]` : `[data-action="${stage}"]`;
+      (modal.querySelector(action) || modal.querySelector('[name="group"]'))?.focus();
+      return;
+    }
+    endForm();
+    announce('已取消，谱面保持原样。');
+  }
+
+  function setFormError(error, focus = false) {
+    const region = modal.querySelector('#form-error');
+    const controls = [...modal.querySelectorAll('select, input')];
+    controls.forEach(control=>{control.removeAttribute('aria-invalid');control.removeAttribute('aria-describedby');});
+    region.hidden = !error;
+    region.textContent = error?.[1] || '';
+    if (error) {
+      const control = controls.find(field=>field.name===error[0]);
+      if (!control) return;
+      control.setAttribute('aria-invalid','true');
+      control.setAttribute('aria-describedby','form-error');
+      if (focus) control.focus({preventScroll:true});
+    }
+  }
+
+  function populateLinks(value) {
+    for (const field of marks[value.type].fields || []) {
+      const candidates = optionsFor(field,value).filter(sign=>validTarget(field,sign,value));
+      if (candidates.length===1) value.links[field] = candidates[0].id;
+    }
+  }
+
+  function startEditing(sign, source, pick = false) {
+    if (pick) {
+      range = {from:sign.at,to:sign.end??sign.at};
+      active = sign.id;
+      render();
+    }
+    if (sign.type==='room') {
+      const selection = [sign.at,sign.end];
+      openForm({type:'room',group:roomDraft(selection,sign.groupId),selection,roomId:sign.id,focusAt:sign.at,stage:'edit'},source);
+      return;
+    }
+    openForm({type:sign.type,value:structuredClone(sign),stage:sign.type==='repeat'?'repeat-edit':'edit'},source);
+  }
+
+  function applySign(value,message) {
+    commit(()=>{
+      if (value.id) model.signs = model.signs.map(sign=>sign.id===value.id?value:sign);
+      else model.signs.push({...value,id:nextId++});
+      range = {from:value.at,to:value.end??value.at};
+      active = value.id??nextId-1;
+    },message);
+  }
+
+  function applyRepeat(value) {
+    const previous = bars()[indexOf(value.at)-1];
+    commit(()=>{
+      const target = barAt(value.at);
+      target.notes = structuredClone(previous.notes);
+      target.chord = previous.chord;
+      const id = nextId++;
+      model.signs.push({...value,id});
+      active = id;
+    },`已在${label(value.at)}添加单小节重复。`);
+  }
+
+  function activateMark(type,source) {
+    const why = availability(type);
+    if (why) { announce(why,true); return; }
+    const [start,end] = ordered();
+    const existing = type==='room' ? roomAt(start,end) : signAt(type);
+    if (existing) { startEditing(existing,source,true); return; }
+    const value = {type,at:start,links:{}};
+    if (type==='room') {
+      const selection = [start,end];
+      const group = roomDraft(selection);
+      const freeRange = group.rooms.every(room=>indexOf(room.end)<indexOf(start) || indexOf(room.at)>indexOf(end));
+      const prefill = group.id && freeRange && missingPasses(group).length && indexOf(start)>indexOf(group.sharedEnd);
+      if (prefill) addRoom(group,selection);
+      openForm({type,group,selection,stage:'edit',dirty:Boolean(prefill)},source);
+      return;
+    }
+    if (type==='repeat') {
+      if (barAt(start).notes.length) openForm({type,value,stage:'overwrite'},source);
+      else { applyRepeat(value); refocusControl(source); }
+      return;
+    }
+    const occupied = model.signs.find(sign=>sign.at===start && sign.type!=='room' && edge(sign.type)===edge(type));
+    if (occupied) {
+      announce(`${label(start)}此处已有 ${marks[occupied.type].name}。点选谱面记号可编辑或删除。`,true);
+      return;
+    }
+    if (marks[type].fields) {
+      populateLinks(value);
+      openForm({type,value,stage:'edit'},source);
+    } else {
+      applySign(value,`已在${label(start)}写入 ${marks[type].name}。`);
+      refocusControl(source);
+    }
+  }
+
+  function refocusControl(source) {
+    const area = source.dataset.entry==='tools' ? toolsControls : sideControls;
+    const [attribute,value] = source.dataset.kind ? ['kind',source.dataset.kind] : source.dataset.line ? ['line',source.dataset.line] : ['action',source.dataset.action];
+    area.querySelector(`[data-${attribute}="${value}"]`)?.focus({preventScroll:true});
+  }
+
+  // 新增和复制落在选区之后。结构修改用稳定的小节身份关联记号，并展开已换来源的重复小节。
+  function structure(action, source) {
+    if (action==='remove') {
+      if (bars().length===Math.abs(indexOf(range.to)-indexOf(range.from))+1) { announce('曲谱至少需保留一个小节。',true); return; }
+      openForm({stage:'remove'},source);
+      return;
+    }
+    const [start,end] = ordered();
+    const at = indexOf(end)+1;
+    const sample = action==='copy'?bars().slice(indexOf(start),at):[{chord:'',notes:[],line:'single'}];
+    const inserted = sample.map(bar=>({...structuredClone(bar),line:bar.line==='first'?'single':bar.line,id:nextId++}));
+    commit(()=>{
+      dropRepeat(bars()[at]?.id);
+      bars().splice(at,0,...inserted);
+      range = {from:inserted[0].id,to:inserted.at(-1).id};
+      active = null;
+    },`已${action==='copy'?'复制':'新增'} ${inserted.length} 个小节。`);
+    reveal(range.to);
+    refocusControl(source);
+  }
+
+  function dropRepeat(id) {
+    model.signs = model.signs.filter(sign=>sign.type!=='repeat'||sign.at!==id);
+  }
+
+  function reveal(id) {
+    $(`[data-select="${id}"]`)?.scrollIntoView({block:'nearest',inline:'nearest'});
+  }
+
+  function deleteMeasures() {
+    const [start,end] = ordered().map(indexOf);
+    const count = end-start+1;
+    commit(()=>{
+      const removed = bars().slice(start,end+1).map(bar=>bar.id);
+      dropRepeat(bars()[end+1]?.id);
+      // 删房子端点留下缺房；删反复组任一边界解除整组及其括线，避免向相邻小节误移。
+      const removedGroups = model.groups.filter(group=>[group.start,group.sharedEnd,group.end].some(id=>removed.includes(id)));
+      model.groups = model.groups.filter(group=>!removedGroups.includes(group));
+      model.signs = model.signs.filter(sign=>!removed.includes(sign.at) && !removed.includes(sign.end) &&
+        !removedGroups.some(group=>group.id===sign.groupId));
+      bars().splice(start,count);
+      const id = bars()[Math.min(start,bars().length-1)].id;
+      range = {from:id,to:id};
+      active = null;
+    },`已删除 ${count} 个小节。`);
+    reveal(range.to);
+  }
+
+  function submitDraft() {
+    const {stage,value,type} = draft;
+    if (stage==='delete-room') {
+      draft.group.rooms.splice(draft.row,1);
+      draft.dirty = true;
+      draft.stage = 'edit';
+      paintForm();
+      renderScore();
+      modal.querySelector('[data-action="add-room"]').focus();
+      return;
+    }
+    if (stage==='switch-group') { switchGroup(draft.nextGroup); return; }
+    if (type==='room') {
+      if (stage==='edit' && !updateRoomPreview(true)) return;
+      const {group,roomId} = draft;
+      endForm(false);
+      // 整组边界、各房子与遍次在同一快照提交。取消只撤掉预览，撤销一次即可恢复整组。
+      commit(()=>{
+        const id = group.id || nextId++;
+        model.groups = model.groups.filter(item=>item.id!==id);
+        model.signs = model.signs.filter(sign=>sign.groupId!==id);
+        if (stage==='delete-group') { active = null; return; }
+        const {rooms,...boundaries} = group;
+        model.groups.push({...boundaries,id});
+        const saved = rooms.map(room=>({...room,id:room.id || nextId++,groupId:id}));
+        model.signs.push(...saved);
+        const selected = saved.find(room=>room.id===roomId) || saved[0];
+        range = {from:selected?.at??group.sharedEnd,to:selected?.end??group.sharedEnd};
+        active = selected?.id??null;
+      },stage==='delete-group'?'已删除反复组。':'已应用反复房子设置。');
+      if (stage==='edit') reveal(range.to);
+      focusReturn();
+      return;
+    }
+    if (stage==='edit') {
+      const error = linkError(value);
+      if (error) { setFormError(error,true); return; }
+    }
+    endForm(false);
+    if (stage==='remove') deleteMeasures();
+    else if (stage==='delete-sign' || stage==='repeat-edit') {
+      commit(()=>{
+        model.signs = model.signs.filter(sign=>sign.id!==value.id);
+        active = null;
+      },stage==='repeat-edit'?`已展开${label(value.at)}，保留实际演奏内容。`:`已删除${label(value.at)}的 ${marks[type].name}。`);
+    } else if (stage==='overwrite') applyRepeat(value);
+    else applySign(value,`已${value.id?'更新':'写入'}${label(value.at)}的 ${marks[type].name}。`);
+    focusReturn();
+  }
+
+  function confirmStage(stage) {
+    draft.stage = stage;
+    paintForm();
+    modal.querySelector('.form-actions [data-action="cancel"]').focus();
+  }
+
+  function switchGroup(id) {
+    draft.group = roomDraft(draft.selection,id);
+    draft.stage = 'edit';
+    draft.dirty = false;
+    paintForm();
+    renderScore();
+    reveal(draft.group.sharedEnd);
+    modal.querySelector('[name="group"]').focus({preventScroll:true});
+  }
+
+  modal.addEventListener('submit',event=>{event.preventDefault();submitDraft();});
+  modal.addEventListener('change',event=>{
+    if (draft.stage!=='edit') return;
+    const {name,value,dataset} = event.target;
+    if (draft.type==='room') {
+      if (name==='group') {
+        if (draft.dirty) {
+          draft.nextGroup = Number(value);
+          confirmStage('switch-group');
+        } else switchGroup(Number(value));
+        return;
+      }
+      draft.dirty = true;
+      const group = draft.group;
+      const room = dataset.row!=='' ? group.rooms[Number(dataset.row)] : null;
+      if (name==='passes') {
+        room.passes = [...modal.querySelectorAll(`[name="passes"][data-row="${dataset.row}"]:checked`)].map(input=>Number(input.value));
+      } else (room || group)[name] = Number(value);
+      if (name==='passCount') {
+        paintForm();
+        modal.querySelector('[name="passCount"]').focus({preventScroll:true});
+      } else updateRoomPreview();
+      renderScore();
+      if (name!=='passes' && name!=='passCount') reveal(Number(value));
+    } else {
+      if (value!=='lost') draft.value.links[name] = Number(value)||null;
+      modal.querySelectorAll('select option').forEach(option=>{
+        const sign = signById(Number(option.value));
+        if (sign) option.textContent = pairLabel(option.parentElement.name,sign,draft.value);
+      });
+      setFormError(linkError(draft.value));
+    }
+  });
+
+  // 工具调色板只选记号。所有需要确认的操作共用一个原生模态，按 Esc 取消当前层级。
+  document.addEventListener('click',event=>{
+    const button = event.target.closest('button');
+    if (!tools.hidden && button!==toggle && !tools.contains(event.target)) setTools(false);
+    if (!button) return;
+    const {action,kind,line,sign,select:id} = button.dataset;
+    if (action==='room-details') { setRoomDetails(button.getAttribute('aria-expanded')==='false'); return; }
+    if (action==='cancel') { cancelForm(); return; }
+    if (action==='delete-sign' || action==='delete-group') { confirmStage(action); return; }
+    if (action==='delete-room') { draft.row = Number(button.dataset.row); confirmStage(action); return; }
+    if (action==='add-room') {
+      addRoom(draft.group);
+      draft.dirty = true;
+      paintForm();
+      renderScore();
+      const row = draft.group.rooms.length-1;
+      reveal(draft.group.rooms[row].at);
+      modal.querySelector(`[name="at"][data-row="${row}"]`).focus();
+      return;
+    }
+    if (action==='close-tools') { setTools(false,true); return; }
+    if (button===toggle) { setTools(tools.hidden); return; }
+    if (button.id==='sidebar-toggle') {
+      const sidebar = $('#measure-sidebar');
+      sidebar.hidden = !sidebar.hidden;
+      $('.workspace').classList.toggle('closed',sidebar.hidden);
+      button.setAttribute('aria-pressed',String(!sidebar.hidden));
+    }
+    if (button.id==='undo') applyHistory(undoStack,redoStack,'已撤销上一次编辑。');
+    if (button.id==='redo') applyHistory(redoStack,undoStack,'已重做上一次编辑。');
+    if (id) { setTools(false);select(Number(id),event.shiftKey); }
+    if (sign) startEditing(signById(Number(sign)),button,true);
+    if (kind) activateMark(kind,button);
+    if (line) {
+      const why = availability(line);
+      if (why) { announce(why,true); return; }
+      if (barAt(range.to).line===line) return;
+      commit(()=>{
+        barAt(range.to).line = line;
+        if (!['single','first'].includes(line)) dropRepeat(bars()[indexOf(range.to)+1]?.id);
+        if (line==='first') dropRepeat(range.to);
+        active = null;
+      },`已将${label(range.to)}设为${lines.find(row=>row[0]===line)[1]}。`);
+      refocusControl(button);
+    }
+    if (['add','copy','remove'].includes(action)) structure(action,button);
+  });
+
+  function contextTools(event,target) {
+    if (!target || draft) return;
+    event.preventDefault();
+    const id = Number(target.dataset.bar);
+    const [start,end] = ordered().map(indexOf);
+    if (indexOf(id)<start || indexOf(id)>end) select(id,false,false);
+    setTools(true,true);
+  }
+
+  function openRoomExample() {
+    if (draft) return;
+    const room = signById(61);
+    const source = $('[data-sign="61"]');
+    if (!room || !source) { announce('第一遍反复房子示例已删除，可撤销后再打开。',true); return; }
+    $(`[data-select="${room.at}"]`).scrollIntoView({block:'center'});
+    startEditing(room,source,true);
+  }
+
+  $('#score').addEventListener('contextmenu',event=>contextTools(event,event.target.closest('[data-bar]')));
+  function cancelModalLayer(event) {
+    event.preventDefault();
+    cancelForm();
+  }
+  // 在浏览器执行原生关闭前处理 Escape；从删除确认返回编辑时会重绘表单，应保留原对话框。
+  modal.addEventListener('keydown',event=>{if (event.key==='Escape') cancelModalLayer(event);});
+  modal.addEventListener('cancel',cancelModalLayer);
+  document.addEventListener('keydown',event=>{
+    if (draft) return;
+    if (event.key==='Escape' && !tooltip.hidden) { hideTooltip(); return; }
+    if (event.key==='Escape' && !tools.hidden) { setTools(false,true); return; }
+    if (event.shiftKey && event.key==='F10') contextTools(event,event.target.closest('[data-bar]'));
+    if (draft || !event.target.dataset.select || !['ArrowLeft','ArrowRight'].includes(event.key)) return;
+    const next = bars()[indexOf(Number(event.target.dataset.select))+(event.key==='ArrowLeft'?-1:1)];
+    if (next) {event.preventDefault();select(next.id,event.shiftKey);reveal(next.id);}
+  });
+
+  document.addEventListener('pointerover',event=>{
+    const button = event.target.closest('[data-hint]');
+    if (button && !button.contains(event.relatedTarget)) showTooltip(button);
+  });
+  document.addEventListener('pointerout',event=>{
+    const button = event.target.closest('[data-hint]');
+    if (button && !button.contains(event.relatedTarget)) hideTooltip();
+  });
+  document.addEventListener('focusin',event=>{if(event.target.dataset.hint) showTooltip(event.target);});
+  document.addEventListener('focusout',hideTooltip);
+  window.addEventListener('resize',()=>{if (!tools.hidden) positionTools();});
+  $('#room-example').addEventListener('click',event=>{
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    if (location.hash!=='#endings') window.history.pushState(null,'','#endings');
+    openRoomExample();
+  });
+  window.addEventListener('hashchange',()=>{if (location.hash==='#endings') openRoomExample();});
+
+  render();
+  // 离线深链接只在指定片段键时打开示例，普通页面保留工具与谱面初始状态。
+  if (location.hash==='#endings') openRoomExample();
+</script>
+</body>
+</html>
