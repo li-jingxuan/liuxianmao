@@ -109,21 +109,28 @@ const waitForEntrance = (locator) => locator.evaluate(async (element) => {
   await Promise.allSettled(animations.map((animation) => animation.finished));
 });
 
-async function checkSymbolGrid(row) {
+async function checkSymbolGrid(row, entry) {
   await row.waitFor();
   const items = row.getByRole("button");
   await symbol(row, "反复房子").click({ trial: true });
   await waitForEntrance(row);
-  const lines = await row.locator("..").getByRole("group", { name: "小节线与反复", exact: true })
-    .getByRole("button").evaluateAll((buttons) => buttons.map((item) => {
+  const lineGrid = row.locator("..").getByRole("group", { name: "小节线与反复", exact: true });
+  const markGrid = row.getByRole("group", { name: "反复与跳转", exact: true });
+  const gap = (grid) => grid.evaluate((element) => getComputedStyle(element).gap);
+  const toolbar = entry === "toolbar";
+  // 三个入口共用组件。分别检查截图入口的新尺寸和另外两个入口的网格，避免弹层样式影响右键定位或侧栏宽度。
+  assert.equal(await gap(lineGrid), toolbar ? "8px 6px" : "4px");
+  assert.equal(await gap(markGrid), toolbar ? "8px 6px" : "7px 2px");
+  const lines = await lineGrid.getByRole("button").evaluateAll((buttons) => buttons.map((item) => {
       const { width, height } = getComputedStyle(item);
-      const { left, right } = item.getBoundingClientRect();
-      return { width, height, left, right };
+      const { left, right, top } = item.getBoundingClientRect();
+      return { width, height, left, right, top };
     }));
   assert.equal(lines.length, 7);
   for (const line of lines) {
-    assert.equal(line.width, "40px");
+    assert.equal(line.width, toolbar ? "50px" : "40px");
     assert.equal(line.height, "30px");
+    assert.ok(Math.abs(line.top - lines[0].top) < 1, "七种小节线位于同一排");
     assert.ok(line.left >= 0 && line.right <= viewport.width, `小节线按钮在视口内 ${JSON.stringify(line)}`);
   }
   const bounds = await items.evaluateAll((buttons) => buttons.map((item) => {
@@ -150,6 +157,19 @@ async function checkSymbolGrid(row) {
     if (index % 6 !== 0) assert.ok(left >= bounds[index - 1].right, `${label} 位于独立列`);
   }
   assert.ok(bounds[6].top > bounds[0].top, "两排记号纵向分开");
+  if (entry !== "sidebar") {
+    const panel = await markGrid.evaluate((grid) => {
+      const dialog = grid.closest('[role="dialog"]');
+      const { width, left, right, top, bottom } = dialog.getBoundingClientRect();
+      const content = dialog.firstElementChild;
+      return { width, left, right, top, bottom, overflow: content.scrollWidth - content.clientWidth };
+    });
+    assert.equal(panel.width, toolbar ? 425 : 345);
+    assert.ok(Math.abs(bounds[0].width - (toolbar ? 60.5 : 50.5)) < 0.1, `跳转按钮宽度 ${bounds[0].width}`);
+    assert.ok(panel.left >= 0 && panel.right <= viewport.width && panel.top >= 0 && panel.bottom <= viewport.height);
+    assert.equal(panel.overflow, 0, "弹层没有横向溢出");
+    if (toolbar) console.log(`小节工具（${viewport.width}×${viewport.height}）弹层 ${panel.width}px，小节线 ${lines[0].width}，反复与跳转 ${bounds[0].width}px，两组 gap 8px 6px`);
+  }
 }
 
 async function checkRepeatEndings(page) {
@@ -185,7 +205,8 @@ async function checkRepeatEndings(page) {
   await tools.waitFor({ state: "hidden" });
   const help = buttonIn(addDialog, "反复房子说明");
   const tip = addDialog.getByRole("tooltip").filter({ hasText: "总遍数含首遍" });
-  await waitForEntrance(help);
+  // 从小节工具打开表单时，入场动画以点击位置为起点。首字段获得焦点后，说明按钮才位于最终的悬停坐标。
+  await field(addDialog, "所属反复组").and(page.locator(":focus")).waitFor();
   await help.hover();
   await tip.waitFor();
   await help.focus();
@@ -340,6 +361,7 @@ try {
   };
   const activateMark = async (number, kind, entry) => {
     const tools = await openMeasureTools(page, number, entry);
+    if (entry === "context" && kind === "To Coda") await checkSymbolGrid(symbolRow(tools), "context");
     await symbol(symbolRow(tools), kind).click();
     return tools;
   };
@@ -358,7 +380,7 @@ try {
 
   const tools = await openMeasureTools(page, 1, "toolbar");
   const symbols = symbolRow(tools);
-  await checkSymbolGrid(symbols);
+  await checkSymbolGrid(symbols, "toolbar");
   assert.equal(await symbols.evaluate((node) => getComputedStyle(node).borderTopWidth), "1px");
   const repeat = symbol(symbols, "单小节重复");
   assert.equal(await repeat.getAttribute("aria-disabled"), "true");
@@ -386,7 +408,7 @@ try {
   await score.locator('[data-whole-measure-selection="m3"]').waitFor();
   await page.keyboard.press("ArrowLeft");
   await score.locator('[data-whole-measure-selection="m2"]').waitFor();
-  await checkSymbolGrid(await openSidebarMeasure(page, 2));
+  await checkSymbolGrid(await openSidebarMeasure(page, 2), "sidebar");
 
   await add(2, "Segno", "keyboard");
   await add(8, "Coda", "toolbar");

@@ -24,7 +24,7 @@
 .remove { color: var(--foreground, #26364a); svg { color: #ff4d4f; } &:not(:disabled):hover { color: #ff4d4f !important; background: #fff1f0 !important; } }
 .measureMenu { display: grid; gap: 12px; }
 .symbols {
-  // 两处入口共用六列等宽布局，中文名称与对应符号纵向对齐。
+  // 共用六列等宽布局，中文名称与对应符号纵向对齐。
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 7px 2px;
@@ -47,6 +47,15 @@
     &:focus-visible { outline: 2px solid var(--accent, #1677ff); outline-offset: 2px; }
     svg { width: 23px; height: 20px; }
   }
+}
+// 工具栏弹层给两组谱面符号增加横向点击面积，并保留七个小节线同排、跳转记号每排六个的布局。
+:global([role="dialog"]:not([data-score-context-panel])) .measureMenu {
+  .boundaries, .symbols { gap: 8px 6px; }
+  .boundaries {
+    max-width: 386px; // 七个 50px 按钮与六个 6px 列间距。
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+  .boundaryItem > button { width: 100%; }
 }
 .musicSymbol { font-family: Bravura, serif; font-size: 20px; line-height: 1; }
 // Segno 和 Coda 的墨迹偏上，向下校准以留出按钮上边距。

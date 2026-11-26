@@ -24,7 +24,10 @@ import toolbarStyles from "../workspace/EditorToolbar.module.scss";
 import { contextPanelPosition, fitContextOverlay } from "../score/context-panel-position";
 
 export type ContextToolGroup = ToolGroupId;
-const MEASURE_PANEL_WIDTH = 345;
+// 工具栏浮层的定位宽度包含六个 60.5px 跳转按钮、五个 6px 列间距及两侧各 16px 内边距。
+const MEASURE_TOOLBAR_PANEL_WIDTH = 425;
+// 右键入口沿用原有窄布局，其定位宽度用于判定应展开到谱面菜单哪一侧。
+const MEASURE_CONTEXT_PANEL_WIDTH = 345;
 
 interface ContextToolEntry {
   anchor: HTMLElement;
@@ -173,7 +176,7 @@ export const EditorToolPanelHost = ({
     const anchor = button?.getBoundingClientRect();
     if (!editor || !anchor) return;
     const bounds = editor.getBoundingClientRect();
-    const width = Math.min(group === "beat" && !moreMenu ? 456 : group === "measure" ? (moreMenu ? 410 : MEASURE_PANEL_WIDTH) : group === "tuplet" ? 300 : 392,
+    const width = Math.min(group === "beat" && !moreMenu ? 456 : group === "measure" ? (moreMenu ? 410 : MEASURE_TOOLBAR_PANEL_WIDTH) : group === "tuplet" ? 300 : 392,
       Math.max(0, bounds.width - 16), window.innerWidth - 16);
     const minLeft = Math.max(8, bounds.left + 8);
     const maxRight = Math.min(window.innerWidth - 8, bounds.right - 8);
@@ -285,7 +288,7 @@ export const EditorToolPanelHost = ({
     if (!menu) return;
     const update = () => {
       // 菜单行决定垂直起点，父菜单边缘决定水平起点。按实际内容高度重新定位，参数展开后也能保持在视口内。
-      const width = Math.min(group === "beat" ? 456 : group === "measure" ? MEASURE_PANEL_WIDTH : group === "tuplet" ? 300 : 392, window.innerWidth - 16);
+      const width = Math.min(group === "beat" ? 456 : group === "measure" ? MEASURE_CONTEXT_PANEL_WIDTH : group === "tuplet" ? 300 : 392, window.innerWidth - 16);
       let maxHeight = Math.min(660, window.innerHeight - 16);
       const height = Math.min(contextContent?.getBoundingClientRect().height || maxHeight, maxHeight);
       let { left, top } = contextPanelPosition(anchor, width, height);
@@ -293,7 +296,7 @@ export const EditorToolPanelHost = ({
         const bounds = menu.getBoundingClientRect();
         const edgeGap = 14; // 视口保留 8px，气泡与菜单留 6px。
         if (Math.max(bounds.left, window.innerWidth - bounds.right) < width + edgeGap) {
-          // 一行 12 个符号需要完整宽度。菜单两侧空间不足时上下摆放，保留菜单行和全部符号的点击区域。
+          // 六列符号需要完整宽度。菜单两侧空间不足时上下摆放，保留菜单行和全部符号的点击区域。
           const above = bounds.top - edgeGap;
           const below = window.innerHeight - bounds.bottom - edgeGap;
           const after = height <= below || below >= above;
