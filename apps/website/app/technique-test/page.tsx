@@ -1,13 +1,11 @@
 "use client";
 
 import { createEditorSession, LxmEditor } from "@liuxianmao/lxm-editor-react";
-import {
-  EXAMPLE_TECHNIQUE_RHYTHM_DOCUMENT,
-  createQualityScore,
-  EXAMPLE_MUTED_NOTE_DOCUMENT,
-  EXAMPLE_MVP7C_DOCUMENT,
-  EXAMPLE_MVP7C_LONG_DOCUMENT,
-} from "../../../../packages/lxm-editor/example/fixtures";
+// 直接依赖本页验收谱，避免汇总入口的默认谱初始化把《理想》一起编入公开静态 JS。
+import EXAMPLE_TECHNIQUE_RHYTHM_DOCUMENT from "../../../../packages/lxm-editor/example/example-technique-rhythm";
+import EXAMPLE_MUTED_NOTE_DOCUMENT from "../../../../packages/lxm-editor/example/example-muted-note";
+import { EXAMPLE_MVP7C_DOCUMENT, EXAMPLE_MVP7C_LONG_DOCUMENT } from "../../../../packages/lxm-editor/example/example-mvp7c";
+import { createQualityScore } from "../../../../packages/lxm-editor/example/quality-score";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useState, useSyncExternalStore } from "react";

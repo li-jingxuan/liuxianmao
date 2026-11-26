@@ -2,6 +2,7 @@ import { join } from "node:path";
 import { app, BrowserWindow, dialog, ipcMain, Menu, session, type IpcMainEvent, type IpcMainInvokeEvent, type MenuItemConstructorOptions } from "electron";
 import type { EditorHostAction } from "@liuxianmao/lxm-editor-react" with { "resolution-mode": "import" };
 import { WindowEditorHost } from "./editor-host.cjs";
+import { LibraryIndex } from "./library-index.cjs";
 import { APP_URL, DEV_URL, protectNavigation, protectRenderer, registerEditorScheme } from "./renderer-protocol.cjs";
 
 type MenuAction = Exclude<EditorHostAction, "close">;
@@ -40,7 +41,16 @@ function registerIpc() {
   type Handler = (host: WindowEditorHost, ...args: unknown[]) => unknown;
   const operations: Record<string, [number, Handler]> = {
     "desktop:open": [0, (host) => host.openScore()],
-    "desktop:save": [1, (host, request) => host.saveScore(request)],
+    "desktop:save": [2, (host, request, summary) => host.saveScore(request, summary)],
+    "desktop:score-accept": [2, (host, id, summary) => host.acceptScore(id, summary)],
+    "desktop:score-discard": [1, (host, id) => host.discardScore(id)],
+    "desktop:library-list": [0, (host) => host.listLibrary()],
+    "desktop:library-import": [0, (host) => host.importScore()],
+    "desktop:library-open": [1, (host, id) => host.openLibraryScore(id)],
+    "desktop:library-relocate": [1, (host, id) => host.relocateScore(id)],
+    "desktop:library-rename": [2, (host, id, name) => host.renameLibraryScore(id, name)],
+    "desktop:library-remove": [1, (host, id) => host.removeLibraryScore(id)],
+    "desktop:library-retry": [1, (host, id) => host.retryRegistration(id)],
     "desktop:print": [0, (host) => host.print()],
     "desktop:output-start": [1, (host, request) => host.beginOutput(request)],
     "desktop:output-chunk": [2, (host, id, bytes) => host.outputChunk(id, bytes)],
@@ -114,7 +124,7 @@ function createEditorWindow() {
     },
   });
   const state: EditorWindow = {
-    window, host: new WindowEditorHost(window), ready: false,
+    window, host: new WindowEditorHost(window, new LibraryIndex(join(app.getPath("userData"), "score-library.json"))), ready: false,
     pendingAction: null, pendingClose: null, allowClose: false,
   };
   current = state;
@@ -134,7 +144,7 @@ function createEditorWindow() {
   });
   void window.loadURL(rendererUrl).catch(() => {
     if (window.isDestroyed()) return;
-    dialog.showErrorBox("六线猫", "编辑器未能启动，请重新打开六线猫。");
+    dialog.showErrorBox("六线猫", "工作区未能启动，请重新打开六线猫。");
     state.allowClose = true;
     window.close();
   });

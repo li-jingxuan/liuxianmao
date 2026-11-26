@@ -25,7 +25,7 @@ export function ScoreFilePanels({ flow, session, document }: {
     {flow.panel === "new" && <NewScoreModal onCancel={flow.cancel} onCreate={(candidate) => {
       flow.requestReplacement(candidate, "new", captureEditorVersion(session.getState()));
     }} />}
-    {flow.panel === "import" && <ScoreImportModal session={session} nativeFile={flow.nativeImport} canContinue={flow.checkDrafts} onClose={flow.cancel} onOpen={(candidate, name, version, sourceVersion) => {
+    {flow.panel === "import" && <ScoreImportModal session={session} nativeFile={flow.nativeImport} nativeBusy={flow.saving} nativeError={flow.error} canContinue={flow.checkDrafts} onClose={flow.cancel} onOpen={(candidate, name, version, sourceVersion) => {
       flow.requestReplacement(candidate, "file", version, name, sourceVersion);
     }} />}
     {flow.panel === "json" && <ScoreFileDialog title={exportLabel} onClose={flow.cancel}>
@@ -41,8 +41,9 @@ export function ScoreFilePanels({ flow, session, document }: {
       <p>即将{flow.pending.label}。「{title}」有未保存的内容。</p>
       {flow.error && <p role="alert" className={styles.error}>{flow.error}</p>}
       <div className={styles.actions}>
-        <Button data-initial-focus disabled={flow.saving} onClick={flow.cancel}>取消</Button>
-        <Button danger disabled={flow.saving} onClick={() => flow.finishLeave(true)}>不保存</Button>
+        <Button data-initial-focus disabled={flow.saving} onClick={flow.cancel}>继续编辑</Button>
+        <Button danger disabled={flow.saving} onClick={() => flow.finishLeave(true)}>不保存并继续</Button>
+        {flow.error && <Button disabled={flow.saving} onClick={() => void flow.saveNative(true, true)}>另存为…</Button>}
         <Button type="primary" loading={flow.saving} onClick={() => void flow.saveNative(false, true)}>保存并继续</Button>
       </div>
     </ScoreFileDialog>}

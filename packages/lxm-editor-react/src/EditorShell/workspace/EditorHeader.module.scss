@@ -90,6 +90,14 @@
   outline-offset: 2px;
 }
 
+.homeLink {
+  flex: none;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.desktopSave { border: 1px solid var(--border); }
+
 .historyItem {
   display: flex;
   align-items: center;
@@ -146,6 +154,7 @@
   }
 
   .fileStatus { grid-row: 2; grid-column: 3; justify-self: end; }
+  .desktopSave { display: none; }
 }
 
 :global([data-editor-shell][data-layout="narrow"]) { @include narrowHeader; }

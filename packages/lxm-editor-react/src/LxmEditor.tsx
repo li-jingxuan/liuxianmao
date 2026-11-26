@@ -7,7 +7,7 @@ import { useStore } from "zustand";
 import { EditorSession as EditorSessionView } from "./EditorShell/session/EditorSession";
 import { ScoreFilePanels } from "./EditorShell/output/ScoreFilePanels";
 import { useScoreFileFlow } from "./EditorShell/output/use-score-file-flow";
-import { getEditorSessionStore, type EditorSession } from "./editor-session.js";
+import { getEditorSessionFileRef, getEditorSessionStore, type EditorSession } from "./editor-session.js";
 import type { LxmEditorNavigation, LxmEditorResources, LxmEditorToolbar } from "./editor-integration.js";
 import type { EditorHost } from "./editor-host.js";
 import page from "./editor-page.module.scss";
@@ -40,7 +40,7 @@ export interface LxmEditorProps {
 /** 工作区为句柄对应的已存在会话构建界面。卸载界面后，宿主仍能通过句柄访问曲谱和历史。 */
 export function LxmEditor({ session, fullPage, ...props }: LxmEditorProps) {
   const store = getEditorSessionStore(session);
-  const editor = <EditorSessionView session={store} {...props} />;
+  const editor = <EditorSessionView session={store} boundFileRef={getEditorSessionFileRef(session)} {...props} />;
   return <ConfigProvider locale={zhCN} theme={editorTheme}>
     {fullPage ? (
       <div className={page.editorShell} data-editor-page>

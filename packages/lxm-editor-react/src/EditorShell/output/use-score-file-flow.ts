@@ -17,13 +17,13 @@ type PendingAction = {
   onCancel?: () => void;
 };
 export type BoundScoreFile = EditorHostFile & Pick<EditorSessionVersion, "sessionId" | "sessionVersion"> & { sourceVersion?: number };
-export type NativeImport = EditorHostFile & { bytes: ArrayBuffer; version: EditorSessionVersion };
+export type NativeImport = EditorHostFile & { bytes: ArrayBuffer; path?: string; version: EditorSessionVersion };
 
 export function useScoreFileFlow({ session, drafts, isBlocked, onBlocked, onReplacement, onNotice, host, boundFileRef }: {
   session: StoreApi<EditorStoreState>;
   drafts?: EditorDraftCoordinator;
   isBlocked?: () => boolean;
-  onBlocked?: (trigger: HTMLElement | null) => void;
+  onBlocked?: (trigger: HTMLElement | null, afterDiscard?: () => void) => void;
   onReplacement?: () => void;
   onNotice?: (type: "success" | "warning", content: string) => void;
   host?: EditorHost;
@@ -43,6 +43,7 @@ export function useScoreFileFlow({ session, drafts, isBlocked, onBlocked, onRepl
   const origin = useRef<HTMLElement | null>(null);
   const pendingRef = useRef<PendingAction | undefined>(undefined);
   const nativeTask = useRef<object | null>(null);
+  const previewId = useRef<string | undefined>(undefined);
   const allowUnload = useRef(false);
   const allowPageUnload = () => { allowUnload.current = true; };
 
@@ -76,17 +77,23 @@ export function useScoreFileFlow({ session, drafts, isBlocked, onBlocked, onRepl
     };
   }, [session, drafts, host]);
 
-  useEffect(() => () => { nativeTask.current = null; }, [session, host]);
+  useEffect(() => () => {
+    nativeTask.current = null;
+    if (previewId.current) host?.discardOpenScore?.(previewId.current);
+    previewId.current = undefined;
+  }, [session, host]);
 
-  const checkDrafts = (trigger = origin.current) => {
+  const checkDrafts = (trigger = origin.current, afterDiscard?: () => void) => {
     if (!isBlocked?.()) return true;
     setPanel(undefined);
-    onBlocked?.(trigger);
+    onBlocked?.(trigger, afterDiscard);
     return false;
   };
 
   const cancel = () => {
     if (saving) return;
+    if (previewId.current) host?.discardOpenScore?.(previewId.current);
+    previewId.current = undefined;
     const trigger = origin.current;
     setPanel(undefined);
     setNativeImport(undefined);
@@ -108,15 +115,23 @@ export function useScoreFileFlow({ session, drafts, isBlocked, onBlocked, onRepl
     nativeTask.current = task;
     try {
       const result = await host.openScore();
-      if (nativeTask.current !== task) return;
+      if (nativeTask.current !== task) {
+        if (result.status === "ok") host.discardOpenScore?.(result.value.id);
+        return;
+      }
       if (result.status === "error") showNotice("warning", result.message);
       if (result.status !== "ok") return;
       // 系统对话框打开后，任何文档变更都会使这次换谱意图失效。
       if (!sameEditorVersion(session.getState(), version)) {
+        host.discardOpenScore?.(result.value.id);
         showNotice("warning", "选择文件期间曲谱已变化，请重新打开。");
         return;
       }
-      if (!checkDrafts()) return;
+      if (!checkDrafts()) {
+        host.discardOpenScore?.(result.value.id);
+        return;
+      }
+      previewId.current = result.value.id;
       setNativeImport({ ...result.value, version });
       setPanel("import");
     } catch {
@@ -149,6 +164,7 @@ export function useScoreFileFlow({ session, drafts, isBlocked, onBlocked, onRepl
   };
 
   const requestReplacement = (document: ILXMDocument, source: "file" | "new", version: EditorSessionVersion, filename?: string, sourceVersion?: number) => {
+    if (host && (nativeTask.current || pendingRef.current)) return;
     if (!checkDrafts()) return;
     const current = session.getState();
     if (!sameEditorVersion(current, version)) {
@@ -156,13 +172,44 @@ export function useScoreFileFlow({ session, drafts, isBlocked, onBlocked, onRepl
       showNotice("warning", "当前曲谱已变化，请重新发起操作。");
       return;
     }
-    const replace = () => {
+    const replace = async () => {
+      const candidate = source === "file" ? nativeImport : undefined;
+      if (candidate && host?.confirmOpenScore) {
+        // 先完成换谱保护，才允许桌面复核已预览的文件版本并登记；等待时仍保留预览与旧会话。
+        const task = {};
+        nativeTask.current = task;
+        setNativeImport(candidate);
+        setPanel("import");
+        setError("");
+        setSaving(true);
+        try {
+          const result = await host.confirmOpenScore(candidate, document);
+          if (nativeTask.current !== task) return;
+          if (result.status !== "ok") {
+            setError(result.status === "error" ? result.message : "打开已取消，请重新选择文件。");
+            return;
+          }
+          previewId.current = undefined;
+          if (!sameEditorVersion(session.getState(), version)) {
+            setError("打开期间曲谱已变化，请取消后重新打开。");
+            return;
+          }
+        } catch {
+          if (nativeTask.current === task) setError("暂时无法打开曲谱文件，请重试。");
+          return;
+        } finally {
+          if (nativeTask.current === task) {
+            nativeTask.current = null;
+            setSaving(false);
+          }
+        }
+      }
       const result = session.getState().replaceDocument(document, source, filename);
       if (result.ok) {
         if (boundFileRef) {
           const { sessionId, sessionVersion } = session.getState();
-          boundFileRef.current = source === "file" && nativeImport
-            ? { id: nativeImport.id, name: nativeImport.name, sourceVersion, sessionId, sessionVersion }
+          boundFileRef.current = candidate
+            ? { id: candidate.id, name: candidate.name, sourceVersion, sessionId, sessionVersion }
             : undefined;
         }
         setPanel(undefined);
@@ -173,11 +220,12 @@ export function useScoreFileFlow({ session, drafts, isBlocked, onBlocked, onRepl
     };
     if (selectScoreFileStatus(current) === "pending") {
       confirmLeave(source === "new" ? "新建曲谱" : `打开「${filename}」`, replace, version);
-    } else replace();
+    } else void replace();
   };
 
-  const requestNavigation = (label: string, trigger: HTMLElement | null, run: PendingAction["run"]) => {
-    if (!checkDrafts(trigger)) return false;
+  const requestNavigation = (label: string, trigger: HTMLElement | null, run: PendingAction["run"], afterDiscard?: () => void) => {
+    if (host && (nativeTask.current || panel || pendingRef.current)) return false;
+    if (!checkDrafts(trigger, afterDiscard)) return false;
     const current = session.getState();
     if (selectScoreFileStatus(current) !== "pending") return true;
     origin.current = trigger;

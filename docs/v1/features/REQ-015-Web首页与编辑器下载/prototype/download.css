@@ -1,0 +1,31 @@
+.download-layout { grid-template-columns: minmax(0, 1fr) minmax(0, 1.04fr); gap: 66px; }
+.download-content { padding-right: 0; }
+.download-intro { margin-bottom: 26px; }
+.try-online { display: flex; align-items: center; gap: 10px; margin-top: 3px; color: var(--muted); font-size: 14px; }
+.try-online button, .autoplay { min-height: 40px; padding: 0 4px; background: transparent; color: #28449b; font-size: 14px; text-decoration: underline; text-underline-offset: 4px; }
+.try-online button:hover, .autoplay:hover { color: var(--blue); }
+.gallery { overflow: hidden; align-self: center; border: 1px solid var(--line); border-radius: 14px; background: white; }
+.slide-photo { display: grid; place-items: center; height: 336px; overflow: hidden; background-color: #e8efff; background-image: radial-gradient(#b8c8e4 .85px,transparent .85px); background-size: 16px 16px; }
+.slide-photo img { display: block; max-width: 90%; width: auto; height: auto; border: 1px solid #d4deeb; border-radius: 4px; box-shadow: 0 8px 24px #253b7020; }
+.tab-photo img { width: 88%; }
+.chord-photo { background-color: #eaf2f3; }
+.chord-photo img { height: 270px; }
+.a4-photo { background-color: #e8ecf5; }
+.a4-photo img { height: 306px; border-radius: 1px; }
+.slide figcaption { padding: 20px 26px 0; }
+.slide h2 { font-size: 23px; letter-spacing: -.04em; }
+.slide p { margin-top: 2px; color: var(--muted); }
+.gallery:has(.gallery-controls[hidden]) .slide figcaption { padding-bottom: 20px; }
+.gallery-controls:not([hidden]) { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin: 14px 26px 16px; }
+.gallery-count { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 14px; }
+.paging { display: flex; align-items: center; gap: 8px; }
+.autoplay { margin-right: 8px; color: var(--muted); text-decoration: none; }
+.previous,.next { display: grid; place-items: center; width: 38px; height: 38px; border: 1px solid var(--line); border-radius: 50%; background: white; }
+.previous:hover,.next:hover { background: #edf2ff; }
+.paging img { width: 16px; height: 16px; }
+.next img { transform: rotate(180deg); }
+.visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (prefers-reduced-motion: no-preference) {
+  .gallery.is-switching .slide:not([hidden]) .slide-photo img { animation: slide-in 500ms ease-out; }
+}
+@keyframes slide-in { from { opacity: .55; transform: translateX(6px); } to { opacity: 1; transform: none; } }

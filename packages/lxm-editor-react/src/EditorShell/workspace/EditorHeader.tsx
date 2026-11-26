@@ -84,7 +84,7 @@ export const EditorHeader = ({
   const previousZoom = SCORE_ZOOM_LEVELS[zoomIndex - 1];
   const nextZoom = SCORE_ZOOM_LEVELS[zoomIndex + 1];
   const scoreTitle = empty ? "曲谱编辑器" : title || "未命名曲谱";
-  const { homeHref, learningHref, renderLink } = navigation ?? {};
+  const { homeHref, homeLabel, learningHref, renderLink } = navigation ?? {};
 
   const findTrigger = (menu: MenuName) =>
     headerRef.current?.querySelector<HTMLButtonElement>(`button[data-editor-menu="${menu}"]`);
@@ -190,10 +190,14 @@ export const EditorHeader = ({
   return (
     <header ref={headerRef} className={styles.editorHeader} data-empty={empty}>
       <div className={styles.headerStart}>
-        {homeHref ? <NavigationLink renderLink={renderLink} onFollowLink={onFollowLink} linkProps={{ href: homeHref, ref: homeLinkRef, className: styles.editorBrand, "aria-label": "六线猫首页",
+        {homeHref && !homeLabel ? <NavigationLink renderLink={renderLink} onFollowLink={onFollowLink} linkProps={{ href: homeHref, ref: homeLinkRef, className: styles.editorBrand, "aria-label": "六线猫首页",
           children: <><BrandIcon size={32} /><strong>六线猫</strong></>,
           onNavigate: (event) => { if (!onNavigate(homeHref, "返回首页", homeLinkRef.current)) event.preventDefault(); },
         }} /> : <span className={styles.editorBrand}><BrandIcon size={32} /><strong>六线猫</strong></span>}
+        {homeHref && homeLabel && <NavigationLink renderLink={renderLink} onFollowLink={onFollowLink} linkProps={{ href: homeHref, ref: homeLinkRef, className: `${styles.menuButton} ${styles.homeLink}`, "aria-label": homeLabel,
+          children: <><span aria-hidden="true">←</span>{homeLabel}</>,
+          onNavigate: (event) => { if (!onNavigate(homeHref, homeLabel, homeLinkRef.current)) event.preventDefault(); },
+        }} />}
         <nav className={styles.menuBar} aria-label="编辑器菜单" onKeyDown={moveBetweenMenus}>
           {renderMenu("file", "文件", [
             { key: "new", label: "新建曲谱", run: (trigger) => onFileAction("new", trigger) },
@@ -202,7 +206,7 @@ export const EditorHeader = ({
               { key: "save", label: "保存", disabled: empty, run: (trigger: HTMLButtonElement) => onSave(false, trigger) },
               { key: "saveAs", label: "另存为…", disabled: empty, run: (trigger: HTMLButtonElement) => onSave(true, trigger) },
             ] : []),
-            ...(homeHref ? ["divider" as const, { key: "home", label: "返回首页", run: (trigger: HTMLButtonElement) => onFileAction("home", trigger) }] : []),
+            ...(homeHref ? ["divider" as const, { key: "home", label: homeLabel ?? "返回首页", run: (trigger: HTMLButtonElement) => onFileAction("home", trigger) }] : []),
           ])}
           {renderMenu("edit", "编辑", (["undo", "redo"] as const).map((action) => ({
             key: action,
@@ -232,6 +236,7 @@ export const EditorHeader = ({
       <strong className={styles.editorHeading} title={scoreTitle}>{scoreTitle}</strong>
       {!empty && <div className={styles.headerActions}>
         <span className={styles.fileStatus} data-file-status={status} role="status">{onSave && status === "exported" ? "已保存" : onSave && status === "pending" ? "未保存" : statusText[status]}</span>
+        {homeLabel && onSave && <button type="button" className={`${styles.menuButton} ${styles.desktopSave}`} onClick={(event) => onSave(false, event.currentTarget)}>保存</button>}
         {renderMenu("export", "导出", [
           ...(!onSave ? [{ key: "json", label: SCORE_FILE_LABEL, run: (trigger: HTMLButtonElement) => onExportAction("json", trigger) }] : []),
           { key: "png", label: "图片(.png)", run: (trigger) => onExportAction("png", trigger) },

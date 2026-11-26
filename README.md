@@ -4,7 +4,7 @@
 
 六线猫是一款在浏览器里使用的吉他曲谱编辑器。想记下一段指弹、整理一首弹唱谱，可以把六线谱（TAB）、简谱、歌词和和弦指法写在同一份谱里。
 
-![六线猫编辑器打开示例曲《理想》，谱面上有和弦指法图、六线谱、简谱与歌词，右侧是编辑面板。](apps/website/public/assets/home/editor-preview.png)
+![六线猫编辑器打开示例曲《理想》，谱面上有和弦指法图、六线谱、简谱与歌词，右侧是编辑面板。](apps/website/assets/marketing/editor-preview.png)
 
 ## 从这里开始
 

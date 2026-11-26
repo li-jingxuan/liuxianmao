@@ -27,6 +27,8 @@ export interface LxmEditorNavigationLinkProps {
 
 export interface LxmEditorNavigation {
   homeHref?: string;
+  /** 同窗宿主可在品牌旁显示独立的返回入口，并沿用工作区离开保护。 */
+  homeLabel?: string;
   learningHref?: string;
   renderLink?: (props: LxmEditorNavigationLinkProps) => ReactNode;
   /** 菜单和确认继续后使用的路由入口，普通链接可由 renderLink 自行完成跳转。 */

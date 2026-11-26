@@ -398,6 +398,8 @@ export const EditorShell: React.FC<{
     version: number;
   }>({ value: null, version: 0 });
   const [outputBlockedOpen, setOutputBlockedOpen] = useState(false);
+  const [outputBlockedContinues, setOutputBlockedContinues] = useState(false);
+  const afterDraftDiscard = useRef<(() => void) | undefined>(undefined);
   const outputBlockedTrigger = useRef<HTMLElement | null>(null);
   const [editSidebarCollapsed, setSidebarCollapsed] = useState(false);
   /** 全谱共享的会话视图偏好，不修改和弦指法或音乐历史。 */
@@ -1198,10 +1200,12 @@ export const EditorShell: React.FC<{
 
   const hasFileInput = () => !!musicTextController.current?.isOutputBlocked();
   const isOutputBlocked = () => !!imageExportSnapshot || modals.isOpen() || drafts.isOutputBlocked() || hasFileInput();
-  const showOutputBlocked = (trigger: HTMLElement | null) => {
+  const showOutputBlocked = (trigger: HTMLElement | null, continueAfterDiscard?: () => void) => {
     if (modals.isOpen() || imageExportSnapshot) setErrorMessage("请先完成当前弹层操作。");
     else {
       outputBlockedTrigger.current = trigger;
+      afterDraftDiscard.current = continueAfterDiscard;
+      setOutputBlockedContinues(!!continueAfterDiscard);
       setOutputBlockedOpen(true);
     }
   };
@@ -1275,11 +1279,17 @@ export const EditorShell: React.FC<{
       window.location.assign(destination);
     }
   };
-  const requestNavigation = (destination: string, label: string, trigger: HTMLElement | null) =>
-    fileFlow.requestNavigation(label, trigger, (discard) => {
+  const requestNavigation = (destination: string, label: string, trigger: HTMLElement | null) => {
+    const navigate = (discard: boolean) => {
       if (discard) navigation?.onDiscard?.();
       navigateTo(destination);
-    });
+    };
+    // 返回谱库可在明确放弃草稿后继续；检查此刻的保存基线，仍待保存就显示第二层保护。
+    const continueAfterDiscard = host && navigation?.homeLabel && destination === navigation.homeHref
+      ? () => { if (fileFlow.requestNavigation(label, trigger, navigate)) navigate(false); }
+      : undefined;
+    return fileFlow.requestNavigation(label, trigger, navigate, continueAfterDiscard);
+  };
 
   /** 使用 SVG CTM 完成 client 坐标到 layout 逻辑坐标的唯一转换。 */
   const getLayoutPoint = (
@@ -2083,7 +2093,7 @@ export const EditorShell: React.FC<{
     }}
     onFileAction={(action, trigger) => {
       if (action !== "home") fileFlow.showPanel(action, trigger);
-      else if (navigation?.homeHref && requestNavigation(navigation.homeHref, "返回首页", trigger)) navigateTo(navigation.homeHref);
+      else if (navigation?.homeHref && requestNavigation(navigation.homeHref, navigation.homeLabel ?? "返回首页", trigger)) navigateTo(navigation.homeHref);
     }}
     onSave={host ? (saveAs, trigger) => void fileFlow.saveNative(saveAs, false, trigger) : undefined}
     exportButtonRef={imageExportButtonRef}
@@ -3239,6 +3249,13 @@ export const EditorShell: React.FC<{
         }}
         onClose={() => setOutputBlockedOpen(false)}
         onBlocked={setErrorMessage}
+        continueOnDiscard={outputBlockedContinues}
+        onDismissed={(discarded) => {
+          const next = afterDraftDiscard.current;
+          afterDraftDiscard.current = undefined;
+          if (discarded && next) next();
+          return discarded && !!next;
+        }}
       />
       {imageExportSnapshot && (
         <ImageExportModal

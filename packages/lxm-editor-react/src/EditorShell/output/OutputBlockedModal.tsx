@@ -8,8 +8,8 @@ import styles from "./image-export.module.scss";
 
 /**
  * 输出、离开页面及简谱菜单共用草稿处理入口，列出各表单登记的输入，提供定位与明确放弃。
- * 不在这里批量应用内容，也不保存待续跑的导航/导出请求；用户处理完后重新发起，
- * 让宿主重新核对当前会话。整体放弃需要绑定目录版本的二次确认。
+ * 不在这里批量应用内容。整体放弃需要绑定目录版本的二次确认；工作区可在关窗后
+ * 重新核对并继续显式的返回动作，普通导出和其他入口仍由用户重新发起。
  */
 export const OutputBlockedModal = ({
   open,
@@ -17,12 +17,16 @@ export const OutputBlockedModal = ({
   returnFocus,
   onClose,
   onBlocked,
+  onDismissed,
+  continueOnDiscard = false,
 }: {
   open: boolean;
   drafts: EditorDraftCoordinator;
   returnFocus: () => void;
   onClose: () => void;
   onBlocked: (message: string) => void;
+  onDismissed?: (discarded: boolean) => boolean;
+  continueOnDiscard?: boolean;
 }) => {
   useSyncExternalStore(
     drafts.subscribe,
@@ -37,6 +41,7 @@ export const OutputBlockedModal = ({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const focusAfterClose = useRef<string | null>(null);
+  const didDiscard = useRef(false);
   const firstAction = useRef<HTMLButtonElement>(null);
 
   const close = (focusId?: string) => {
@@ -58,6 +63,7 @@ export const OutputBlockedModal = ({
       return;
     }
     if (result.status === "accepted") {
+      didDiscard.current = true;
       close();
       return;
     }
@@ -105,6 +111,9 @@ export const OutputBlockedModal = ({
       afterClose={() => {
         const id = focusAfterClose.current;
         focusAfterClose.current = null;
+        const discarded = didDiscard.current;
+        didDiscard.current = false;
+        if (onDismissed?.(discarded)) return;
         if (!id) { returnFocus(); return; }
         void drafts.request({ type: "focus", id }).then((result) => {
           if (result.status === "accepted") return;
@@ -152,7 +161,8 @@ export const OutputBlockedModal = ({
     >
       <div className={styles.blockedBody}>
         <p>
-          当前输入尚未应用到曲谱。请先处理这些输入，再重新发起原操作。
+          {continueOnDiscard ? "当前输入尚未应用到曲谱。请返回编辑，或确认放弃这些输入后继续返回谱库。"
+            : "当前输入尚未应用到曲谱。请先处理这些输入，再重新发起原操作。"}
         </p>
         {pending.length ? (
           <ul className={styles.blockedList} aria-label="当前未应用输入">
@@ -190,7 +200,7 @@ export const OutputBlockedModal = ({
           <Alert
             type="warning"
             showIcon
-            title={`将放弃 ${confirmation.ids.length} 处未应用输入，之后可重新发起原操作。`}
+            title={`将放弃 ${confirmation.ids.length} 处未应用输入，${continueOnDiscard ? "继续返回谱库。" : "之后可重新发起原操作。"}`}
           />
         )}
         {message && <Alert type="error" showIcon title={message} />}

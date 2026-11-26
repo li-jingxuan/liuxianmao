@@ -14,19 +14,23 @@ let electron;
 try {
   await copyFile(new URL("../../../packages/lxm-editor/example/ideal-score.lxm.json", import.meta.url), scorePath);
   electron = await _electron.launch({
-    executablePath: createRequire(import.meta.url)("electron"),
+    executablePath: process.env.LXM_ELECTRON_EXECUTABLE ?? createRequire(import.meta.url)("electron"),
     args: [desktop, `--user-data-dir=${profile}`],
   });
   const page = await electron.firstWindow();
   const shell = page.locator("[data-editor-shell]");
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.getByRole("button", { name: "打开曲谱", exact: true }).waitFor();
-  assert.equal((await shell.boundingBox()).height, 900, "空工作区应填满窗口");
+  await page.getByRole("heading", { name: "谱库里还没有曲谱" }).waitFor();
+  assert.equal((await page.locator(".library-screen").boundingBox()).height, 900, "本地谱库应填满窗口");
 
   await electron.evaluate(({ dialog }, file) => {
     dialog.showOpenDialog = async () => ({ filePaths: [file], canceled: false });
   }, scorePath);
-  await page.getByRole("button", { name: "打开曲谱", exact: true }).click();
+  await electron.evaluate(({ Menu, BrowserWindow }) => {
+    const window = BrowserWindow.getAllWindows()[0];
+    const open = Menu.getApplicationMenu().items.find(({ label }) => label === "文件").submenu.items[0];
+    open.click(open, window);
+  });
   const preview = page.getByRole("dialog", { name: "打开曲谱预览" });
   await preview.getByText("理想", { exact: true }).waitFor();
   await preview.getByRole("button", { name: "打开曲谱", exact: true }).click();
@@ -49,7 +53,7 @@ try {
   assert.equal((await shell.boundingBox()).width, 1400);
   assert.ok(Math.abs(sidebar.x + sidebar.width - 800) < 1, "横向滚动应能看到整个属性栏");
   assert.ok(Math.abs(header.x) < 1 && header.width === 800, "横移工作区时菜单应留在视口内");
-  console.log("桌面空会话、多页谱面独立滚动、固定状态栏和窄窗横移通过。");
+  console.log("桌面空谱库、系统打开、多页谱面独立滚动、固定状态栏和窄窗横移通过。");
 } finally {
   try { await electron?.close(); }
   finally { await rm(profile, { recursive: true, force: true }); }

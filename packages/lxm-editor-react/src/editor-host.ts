@@ -10,7 +10,10 @@ export type EditorHostResult<T = void> =
 export type EditorHostFile = { id: string; name: string };
 
 export interface EditorHost {
-  openScore(): Promise<EditorHostResult<EditorHostFile & { bytes: ArrayBuffer }>>;
+  openScore(): Promise<EditorHostResult<EditorHostFile & { bytes: ArrayBuffer; path?: string }>>;
+  /** 具备文件索引的宿主可在预览确认后复核原件。取消或未通过校验的预览没有写入权限。 */
+  confirmOpenScore?(file: EditorHostFile, document: import("@liuxianmao/lxm-editor").ILXMDocument): Promise<EditorHostResult>;
+  discardOpenScore?(fileId: string): void;
   saveScore(request: { fileId?: string; suggestedName: string; text: string; confirmUpgrade?: boolean }): Promise<EditorHostResult<EditorHostFile>>;
   writeOutput(request: { suggestedName: string; bytes: ArrayBuffer }): Promise<EditorHostResult>;
   print(): Promise<EditorHostResult>;

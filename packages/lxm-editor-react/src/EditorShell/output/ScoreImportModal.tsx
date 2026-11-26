@@ -34,12 +34,14 @@ function inspectCandidate(name: string, bytes: ArrayBuffer, version: EditorSessi
   return { candidate: undefined, errors: checked.errors, summary };
 }
 
-export function ScoreImportModal({ session, canContinue, onClose, onOpen, nativeFile }: {
+export function ScoreImportModal({ session, canContinue, onClose, onOpen, nativeFile, nativeBusy, nativeError }: {
   session: StoreApi<EditorStoreState>;
   canContinue: () => boolean;
   onClose: () => void;
   onOpen: (document: ILXMDocument, filename: string, version: EditorSessionVersion, sourceVersion?: number) => void;
   nativeFile?: NativeImport;
+  nativeBusy?: boolean;
+  nativeError?: string;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const canContinueRef = useRef(canContinue);
@@ -107,7 +109,7 @@ export function ScoreImportModal({ session, canContinue, onClose, onOpen, native
   const tonality = candidate && readScoreTonality(candidate.document);
 
   return (
-    <ScoreFileDialog title={nativeFile ? "打开曲谱预览" : "导入曲谱"} onClose={close}>
+    <ScoreFileDialog title={nativeFile ? "打开曲谱预览" : "导入曲谱"} onClose={close} busy={nativeBusy}>
       {!nativeFile && <div className={styles.dropZone}
         onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = busy ? "none" : "copy"; }}
         onDrop={(event) => { event.preventDefault(); void readFile(event.dataTransfer.files); }}>
@@ -123,6 +125,7 @@ export function ScoreImportModal({ session, canContinue, onClose, onOpen, native
           }} />
       </div>}
       {busy && <p role="status">正在读取曲谱…</p>}
+      {nativeError && <p role="alert" className={styles.error}>{nativeError}</p>}
       {!!errors.length && <div role="alert" className={styles.error}>
         <p>{errorSummary || errors[0]}</p>
         {(errorSummary || errors.length > 1) && <details><summary>查看错误详情（{errors.length} 项）</summary>
@@ -132,6 +135,7 @@ export function ScoreImportModal({ session, canContinue, onClose, onOpen, native
       {score && candidate && <>
         <dl aria-label="导入曲谱预览" aria-live="polite">
           <dt>文件</dt><dd>{candidate.name}</dd>
+          {nativeFile?.path && <><dt>位置</dt><dd>{nativeFile.path}</dd></>}
           <dt>曲名</dt><dd>{score.title.trim() || "未命名曲谱"}</dd>
           <dt>编谱作者</dt><dd>{score.arranger || "未填写"}</dd>
           <dt>拍号</dt><dd>{measures?.[0] && displaySignature(measures[0].timeSignature)}</dd>
@@ -142,8 +146,8 @@ export function ScoreImportModal({ session, canContinue, onClose, onOpen, native
         {candidate.sourceVersion !== undefined && <p>版本 {candidate.sourceVersion} 将升级后打开，原文件不会被覆盖。</p>}
       </>}
       <div className={styles.actions}>
-        <Button data-initial-focus={nativeFile ? true : undefined} onClick={close}>取消</Button>
-        <Button type="primary" onClick={open} disabled={!candidate || busy}>打开曲谱</Button>
+        <Button data-initial-focus={nativeFile ? true : undefined} disabled={nativeBusy} onClick={close}>取消</Button>
+        <Button type="primary" onClick={open} disabled={!candidate || busy} loading={nativeBusy}>打开曲谱</Button>
       </div>
     </ScoreFileDialog>
   );

@@ -6,6 +6,8 @@ import type {
   ILXMScoreCommand,
 } from "@liuxianmao/lxm-editor";
 import { createEditorSessionStore } from "./stores/editor-store";
+import type { EditorHostFile } from "./editor-host";
+import type { BoundScoreFile } from "./EditorShell/output/use-score-file-flow";
 
 export interface EditorChangeEvent {
   /** 已提交的当前快照。宿主应按不可变数据读取，可复制后另行修改。 */
@@ -31,22 +33,31 @@ export interface EditorSession {
   execute(command: ILXMScoreCommand): ILXMApplyScoreCommandResult | null;
   undo(): void;
   redo(): void;
-  replaceDocument(input: unknown): DocumentLoadResult;
+  replaceDocument(input: unknown, source?: EditorSessionDocumentSource): DocumentLoadResult;
   on(event: "change", listener: (event: EditorChangeEvent) => void): () => void;
   on(event: "error", listener: (event: EditorErrorEvent) => void): () => void;
 }
+
+/** 宿主用已获准的文件标识打开原件，或明确开启尚无保存基线的新谱。 */
+export type EditorSessionDocumentSource = { kind: "new" } | { kind: "file"; file: EditorHostFile; sourceVersion?: number };
 
 type ChangeListener = (event: EditorChangeEvent) => void;
 type ErrorListener = (event: EditorErrorEvent) => void;
 
 // 一个公开句柄只对应一个 store。WeakMap 键跟随句柄回收，工作区和外置文件入口共享同一份状态。
 const sessionStores = new WeakMap<EditorSession, ReturnType<typeof createEditorSessionStore>>();
+const sessionFiles = new WeakMap<EditorSession, { current: BoundScoreFile | undefined }>();
 
 /** @internal 仅供源码内部与仓库测试使用，包导出不提供取出 StoreApi 的入口。 */
 export function getEditorSessionStore(session: EditorSession) {
   const store = sessionStores.get(session);
   if (!store) throw new Error("请使用当前编辑器包的 createEditorSession 创建会话。");
   return store;
+}
+
+/** @internal 文件绑定跟随同一个公开会话，宿主可先完成打开，再挂载其工作区。 */
+export function getEditorSessionFileRef(session: EditorSession) {
+  return sessionFiles.get(session)!;
 }
 
 /** 校验宿主文档并创建独立会话，可在挂载组件前调用。省略文档时显示新建和导入入口。 */
@@ -73,6 +84,7 @@ export function createEditorSession(input?: unknown, options: EditorSessionOptio
   const store = createEditorSessionStore(input, { onChange: publishChange, onError: publishError,
     onReplace: (document) => publishChange({ document, reason: "replace", effects: [] }),
   });
+  const fileRef: { current: BoundScoreFile | undefined } = { current: undefined };
 
   function on(event: "change", listener: ChangeListener): () => void;
   function on(event: "error", listener: ErrorListener): () => void;
@@ -93,9 +105,21 @@ export function createEditorSession(input?: unknown, options: EditorSessionOptio
     execute: (command: ILXMScoreCommand) => store.getState().execute(command),
     undo: () => store.getState().undo(),
     redo: () => store.getState().redo(),
-    replaceDocument: (next: unknown) => store.getState().replaceDocument(next),
+    replaceDocument: (next: unknown, source?: EditorSessionDocumentSource) => {
+      const filename = source?.kind === "file" ? source.file.name : undefined;
+      const result = store.getState().replaceDocument(next, source?.kind, filename);
+      if (result.ok) {
+        const { sessionId, sessionVersion, document } = store.getState();
+        // 换谱通知可能触发宿主同步换谱。只为本次仍有效的文档交接文件授权。
+        if (document === result.document) fileRef.current = source?.kind === "file"
+          ? { ...source.file, sourceVersion: source.sourceVersion, sessionId, sessionVersion }
+          : undefined;
+      }
+      return result;
+    },
     on,
   });
   sessionStores.set(session, store);
+  sessionFiles.set(session, fileRef);
   return session;
 }

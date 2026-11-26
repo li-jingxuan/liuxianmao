@@ -5,6 +5,7 @@
 - 设计稿调用：ui-ux、fronted-design skills，设计稿、交互稿先与我确认再实施；设计稿基于 docs/v1/design-baseline/** 基线进行
 - 交互稿、原型和前端实现统一以 1440px 为最小视口宽度。小于 1440px 的窄屏不在设计和适配范围内，无需为其准备布局方案或验收用例。
 - 每次完成功能实现或 Bug 修复后，都要为本次新增或修改的关键代码补充详细中文注释。说明业务意图、实现原因，以及涉及的边界条件、异常处理和兼容逻辑；行为变化时同步更新相关旧注释。交付前检查注释与实际行为一致。
+- 如果需求带了版本号，文档“features/xxx/” 命名建议加上版本号，比如：[v1.0]REQ-001-xxxx
 
 ## 读取飞书bugfix和需求
 - 使用 `lark-cli` 和 `lark-sheets` skill，按 BUG/REQ 编号定位实际行，并按表头确认「状态」和「备注」列。
@@ -21,6 +22,7 @@
 - 修复 Bug 或完成需求后，在对应行的「备注」补充验收路径。有合并提交时，在验收完成后补充分支名和提交号。
 
 ## lark-cli 凭证
+> 注意：如果没有 nice007 就使用本机的 lark-cli 认证
 - 在本项目中运行 `lark-cli` 时，每次都显式传入 `--profile nice007`，例如 `lark-cli --profile nice007 whoami`。
 
 ## 飞牛 NAS 连接
@@ -35,6 +37,7 @@
 - 实现新需求或者新需求/bugfix与现有功能冲突时，要与我对口径，不要把已经确认的功能和能力给删掉了
 
 ## 域名和服务
+> 注意：需要操作服务器我会跟你讲，不要动不动就操作 aliyun
 - 服务器在阿里云上面，统一使用 alibabacloud-workbench-cli Skill 操作
 - 域名：解析 www.liuxianmao.com、liuxianmao.com -> www.liuxianmao.com
 - aliyun 轻量服务器实例ID：b3a7d9e4749c43799c40501ab2221c6e
