@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   A4_CONTENT_WIDTH,
@@ -7,6 +8,7 @@ import {
   EXAMPLE_MVP_7_2_DOCUMENT,
   getMeasureNumberPosition,
   hitTestMusicText,
+  loadDocument,
   paginateLayout,
   type ILXMMeasureLayout,
 } from "../../src";
@@ -37,9 +39,8 @@ describe("REQ-105 跳转记号记谱", () => {
     const [first, second] = system.measures;
     const coda = first!.jumpMarks![0]!;
     const segno = second!.jumpMarks![0]!;
-    expect(coda.x).toBeCloseTo(getMeasureNumberPosition(first!).x);
-    const segnoSystem = layout.systems[second!.systemIndex]!;
-    expect(segno.x).toBeCloseTo(Math.min(getMeasureNumberPosition(second!).x, segnoSystem.x + segnoSystem.width - segno.bounds.width / 2));
+    expect(coda.x).toBe(first!.strings[0]!.x1);
+    expect(segno.x).toBe(second!.strings[0]!.x1);
     expect(system.header.leadingBarline).toEqual(before.systems[0]!.header.leadingBarline);
     layout.systems.forEach((row) => {
       for (const mark of row.measures.flatMap((measure) => measure.jumpMarks ?? [])) {
@@ -72,7 +73,7 @@ describe("REQ-105 跳转记号记谱", () => {
     { systemWidth: 1200 },
     { systemWidth: 1200, measureGap: 8 },
     { systemWidth: 60 },
-  ])("共线、分隔、换行时使用本节号坐标且不改线 ($systemWidth, $measureGap)", (options) => {
+  ])("共线、分隔、换行时符号沿用本节左边界，节号和小节线沿用右边界 ($systemWidth, $measureGap)", (options) => {
     const { document, measures } = fixture();
     measures[1]!.barline = "repeatEnd";
     const before = buildLayout(document, options);
@@ -80,16 +81,62 @@ describe("REQ-105 跳转记号记谱", () => {
     const after = buildLayout(document, options);
     const [previous, marked] = after.systems.flatMap((row) => row.measures);
     const [oldPrevious, oldMarked] = before.systems.flatMap((row) => row.measures);
-    expect(getMeasureNumberPosition(previous!).x).toEqual(getMeasureNumberPosition(oldPrevious!).x);
+    expect(getMeasureNumberPosition(previous!).x).toBe(getMeasureNumberPosition(oldPrevious!).x);
     const number = getMeasureNumberPosition(marked!);
     expect(number.x).toBe(getMeasureNumberPosition(oldMarked!).x);
     const mark = marked!.jumpMarks![0]!;
     const bounds = mark.bounds;
     const row = after.systems[marked!.systemIndex]!;
-    expect(mark.x).toBeCloseTo(Math.min(number.x, row.x + row.width - bounds.width / 2));
+    expect(mark.x).toBe(marked!.strings[0]!.x1);
+    expect(bounds.x).toBeGreaterThanOrEqual(row.x);
     expect(bounds.y + bounds.height).toBeLessThan(number.y - 7);
     expect(after.systems.map((system) => system.header.leadingBarline?.type))
       .toEqual(before.systems.map((system) => system.header.leadingBarline?.type));
+  });
+
+  it("BUG-091 左边界的符号为上一小节的末端文字让位", () => {
+    const { document, measures } = fixture();
+    measures.forEach((measure) => {
+      measure.chordSymbols = [];
+      measure.beats.forEach((beat) => beat.notes.forEach((note) => { note.string = 6; }));
+    });
+    measures[0]!.jumpMarks = [{ id: "to-coda", kind: "toCoda" }];
+    const options = { systemWidth: 1200 };
+    const before = buildLayout(document, options).systems[0]!.measures[0]!;
+    measures[1]!.jumpMarks = [{ id: "coda", kind: "coda" }];
+    const [previous, marked] = buildLayout(document, options).systems[0]!.measures;
+    const instruction = previous!.jumpMarks![0]!;
+    const symbol = marked!.jumpMarks![0]!;
+    expect(instruction.x).toBe(before.jumpMarks![0]!.x);
+    expect(instruction.y - previous!.strings[0]!.y1).toBe(before.jumpMarks![0]!.y - before.strings[0]!.y1);
+    expect(symbol.x).toBe(previous!.strings[0]!.x2);
+    expect(symbol.bounds.y + symbol.bounds.height).toBeLessThan(instruction.bounds.y);
+  });
+
+  it.each([
+    ["editing", 1475.5454088541662],
+    ["presentation", 1354.5454088541667],
+  ] as const)("BUG-091 %s《理想》保留 v1.0 第 27、28 小节号的坐标", (purpose, numberY) => {
+    const result = loadDocument(readFileSync(new URL("../../example/ideal-score.lxm.json", import.meta.url), "utf8"));
+    if (!result.ok) throw new Error(result.errors.join("\n"));
+    const layout = buildLayout(result.document, {
+      purpose, systemWidth: A4_CONTENT_WIDTH, density: "compact", showChordDiagrams: true,
+      ...(purpose === "editing" && { editingTailWidth: 36 }),
+    });
+    const measures = layout.systems.flatMap((row) => row.measures);
+    // 用修复前 v1.0 的实际坐标约束整条谱行位移，单独检查节号锚点不足以发现纵向变化。
+    for (const [index, numberX] of [[26, 517.0188976377952], [27, 733.228346456693]] as const) {
+      const { x, y } = getMeasureNumberPosition(measures[index]!);
+      expect(x).toBeCloseTo(numberX);
+      expect(y).toBeCloseTo(numberY);
+    }
+    const segnoMeasure = measures[24]!;
+    const codaMeasure = measures[34]!;
+    expect(segnoMeasure.jumpMarks![0]).toMatchObject({ kind: "segno", x: segnoMeasure.strings[0]!.x1 });
+    expect(codaMeasure.jumpMarks![0]).toMatchObject({ kind: "coda", x: codaMeasure.strings[0]!.x1 });
+    const coda = codaMeasure.jumpMarks![0]!;
+    const diagram = codaMeasure.chordSymbols![0]!;
+    expect(diagram.bounds.y + diagram.bounds.height).toBeLessThan(coda.bounds.y);
   });
 
   it.each(["editing", "presentation"] as const)("%s 只抬起碰撞和弦图，房子在其上方且末端指令仍贴本节末", (purpose) => {
@@ -103,12 +150,12 @@ describe("REQ-105 跳转记号记谱", () => {
     measures.forEach((measure, index) => {
       measure.beats.forEach((beat) => beat.notes.forEach((note) => { note.string = 6; }));
       measure.chordSymbols = [{
-        id: `chord-${index}`, beatId: (index === 1 ? measure.beats.at(-1) : measure.beats[0])!.id,
+        id: `chord-${index}`, beatId: measure.beats[0]!.id,
         display: "nameAndDiagram", chord: copyChordPreset("Am")!,
       }];
     });
     measures[0]!.jumpMarks = [{ id: "to-coda", kind: "toCoda" }];
-    const options = { purpose, systemWidth: A4_CONTENT_WIDTH, density: "compact" } as const;
+    const options = { purpose, systemWidth: A4_CONTENT_WIDTH, density: "compact", measureGap: 2 } as const;
     const before = buildLayout(document, options).systems[0]!;
     measures[1]!.jumpMarks = [{ id: "coda", kind: "coda" }];
     const layout = buildLayout(document, options);

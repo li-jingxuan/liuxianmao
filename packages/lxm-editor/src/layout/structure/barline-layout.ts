@@ -15,7 +15,7 @@ import type {
   ILXMStringLineLayout,
 } from "../layout-types";
 
-/** 节号始终对准本节右侧最外一根小节线，无线时使用弦线终点。跳转符号沿用同一横坐标。 */
+/** 节号始终对准本节右侧最外一根小节线，无线时使用弦线终点。 */
 export const getMeasureNumberPosition = (measure: ILXMMeasureLayout) => {
   const staff = measure.strings[0]!;
   const lines = measure.barline.parts.filter((part) => part.kind === "line");

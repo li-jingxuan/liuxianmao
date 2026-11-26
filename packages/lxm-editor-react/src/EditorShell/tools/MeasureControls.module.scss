@@ -24,7 +24,7 @@
 .remove { color: var(--foreground, #26364a); svg { color: #ff4d4f; } &:not(:disabled):hover { color: #ff4d4f !important; background: #fff1f0 !important; } }
 .measureMenu { display: grid; gap: 12px; }
 .symbols {
-  // 共用六列等宽布局，中文名称与对应符号纵向对齐。
+  // 工具栏和右键入口默认六列，所有入口的中文名称均与对应符号纵向对齐。
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 7px 2px;
@@ -48,10 +48,16 @@
     svg { width: 23px; height: 20px; }
   }
 }
+// 侧栏的 12 个记号按既有顺序排成三行四列。标题、常显标签和按钮状态沿用气泡的共享组件，
+// 仅在侧栏的小节控件内调整记号列数，避免影响同区的小节线或其他入口。
+.sidebarControls .symbols { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.sidebarControls .symbols,
+:global([role="dialog"]:not([data-score-context-panel])) .measureMenu .symbols { gap: 8px 6px; }
+
 // 工具栏弹层给两组谱面符号增加横向点击面积，并保留七个小节线同排、跳转记号每排六个的布局。
 :global([role="dialog"]:not([data-score-context-panel])) .measureMenu {
-  .boundaries, .symbols { gap: 8px 6px; }
   .boundaries {
+    gap: 8px 6px;
     max-width: 386px; // 七个 50px 按钮与六个 6px 列间距。
     grid-template-columns: repeat(7, minmax(0, 1fr));
   }

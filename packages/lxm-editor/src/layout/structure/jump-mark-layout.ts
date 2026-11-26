@@ -4,7 +4,6 @@ import type { ILXMJumpMarkLayout, ILXMMeasureLayout, ILXMSystemLayout } from "..
 import { translateChordBlock } from "../music-text/music-text-layout";
 import { unionMusicBounds, type MusicTextRect } from "../music-text/music-text-metrics";
 import { getFretTextBounds } from "../techniques/technique-geometry";
-import { getMeasureNumberPosition } from "./barline-layout";
 
 const isJumpDestination = (kind: ILXMJumpMark["kind"]) =>
   getJumpMarkSide(kind) === "start";
@@ -15,8 +14,8 @@ const LABEL_WIDTHS = {
   dc: 24, fine: 24, dcAlFine: 60, dsAlFine: 60, dcAlCoda: 62,
 } satisfies Record<ILXMJumpMark["kind"], number>;
 
-// 从节号基线往上留出数字和符号的空间，符号中心与原节号对齐。
-const DESTINATION_ABOVE_NUMBER = 17;
+// 沿用符号相对第一根弦的高度，给边界上的小节号留出原有纵向净空。
+const DESTINATION_ABOVE_STAFF = 18;
 const MARK_CLEARANCE = 2;
 const right = (rect: MusicTextRect) => rect.x + rect.width;
 const bottom = (rect: MusicTextRect) => rect.y + rect.height;
@@ -39,9 +38,9 @@ const clearObstacles = (bounds: MusicTextRect, obstacles: readonly MusicTextRect
 };
 
 /**
- * Segno/Coda 放在所属节号上方，回跳仍从数据中配对小节的首拍继续。
- * 相邻两节即使共用边界，也不调整任何节号。技巧和纯和弦名仍占原位。末端文字沿用右端锚点，
- * 按原始和弦位置完成避让，避免局部抬图把文字指令带到更高一层。
+ * Segno/Coda 画在配对小节的起点，与试听落点一致。共线时这里也是前一节的右边界。
+ * 小节号独立使用各节的右端锚点。先按原始和弦位置排末端文字，随后让符号避开已有文字，
+ * 避免符号移到共用边界时把前一节的文字指令抬高。
  */
 export const layoutJumpMarks = (
   system: ILXMSystemLayout,
@@ -54,28 +53,25 @@ export const layoutJumpMarks = (
   if (!pending.length) return undefined;
   const staffTop = measures[0]!.strings[0]!.y1;
   const chords = measures.flatMap((measure) => measure.chordSymbols ?? []);
-  const obstacles = [
+  const fixedObstacles = [
     ...chords.filter((chord) => !chord.diagram).map((chord) => chord.bounds),
     ...measures.flatMap((measure) => measure.notes.map(getFretTextBounds)).filter((bounds) => bounds.y < staffTop),
     ...system.techniques.map((technique) => technique.visualBounds),
   ];
   const destinations: MusicTextRect[] = [];
   const instructions: MusicTextRect[] = [];
-  for (const destination of [true, false]) {
-    if (!destination) {
-      obstacles.push(...chords.filter((chord) => chord.diagram).map((chord) => chord.bounds));
-    }
+  for (const destination of [false, true]) {
+    const obstacles = destination
+      ? [...fixedObstacles, ...instructions]
+      : [...fixedObstacles, ...chords.filter((chord) => chord.diagram).map((chord) => chord.bounds)];
     for (const { measure, mark } of pending) {
       if (isJumpDestination(mark.kind) !== destination) continue;
       const staff = measure.strings[0]!;
       const width = LABEL_WIDTHS[mark.kind];
-      const number = getMeasureNumberPosition(measure);
       // 空小节可能很窄。保留既有列宽，指令向左使用同一谱行的空间，且不越过行头。
-      // 最右侧的回跳符号仅向行内收进半个符号框，打印时不会超出纸面，节号仍对准原线。
-      const x = destination
-        ? Math.min(number.x, system.x + system.width - width / 2)
-        : Math.max(system.x + width, staff.x2 - 11);
-      const y = destination ? number.y - DESTINATION_ABOVE_NUMBER : staff.y1 - 17;
+      // 符号跟随本节弦线起点，换行、有小节间距或复合小节线时也使用实际的行内位置。
+      const x = destination ? staff.x1 : Math.max(system.x + width, staff.x2 - 11);
+      const y = staff.y1 - (destination ? DESTINATION_ABOVE_STAFF : 17);
       const bounds = destination
         ? { x: x - width / 2, y: y - 8, width, height: 16 }
         : { x: x - width, y: y - 11, width: width + 2, height: 15 };
@@ -84,7 +80,9 @@ export const layoutJumpMarks = (
         id: mark.id, kind: mark.kind, label: JUMP_MARK_LABEL[mark.kind], x, y: y + dy,
         bounds: { ...bounds, y: bounds.y + dy },
       };
-      (measure.jumpMarks ??= []).push(layout);
+      const marks = measure.jumpMarks ??= [];
+      if (destination) marks.unshift(layout);
+      else marks.push(layout);
       obstacles.push(layout.bounds);
       (destination ? destinations : instructions).push(layout.bounds);
     }

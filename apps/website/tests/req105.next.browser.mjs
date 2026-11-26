@@ -118,9 +118,11 @@ async function checkSymbolGrid(row, entry) {
   const markGrid = row.getByRole("group", { name: "反复与跳转", exact: true });
   const gap = (grid) => grid.evaluate((element) => getComputedStyle(element).gap);
   const toolbar = entry === "toolbar";
-  // 三个入口共用组件。分别检查截图入口的新尺寸和另外两个入口的网格，避免弹层样式影响右键定位或侧栏宽度。
+  const sidebar = entry === "sidebar";
+  const columns = sidebar ? 4 : 6;
+  // 侧栏按批注排成三行四列并沿用工具栏气泡的间距，逐个检查记号与标签的位置，覆盖三个入口各自的布局。
   assert.equal(await gap(lineGrid), toolbar ? "8px 6px" : "4px");
-  assert.equal(await gap(markGrid), toolbar ? "8px 6px" : "7px 2px");
+  assert.equal(await gap(markGrid), toolbar || sidebar ? "8px 6px" : "7px 2px");
   const lines = await lineGrid.getByRole("button").evaluateAll((buttons) => buttons.map((item) => {
       const { width, height } = getComputedStyle(item);
       const { left, right, top } = item.getBoundingClientRect();
@@ -134,8 +136,8 @@ async function checkSymbolGrid(row, entry) {
     assert.ok(line.left >= 0 && line.right <= viewport.width, `小节线按钮在视口内 ${JSON.stringify(line)}`);
   }
   const bounds = await items.evaluateAll((buttons) => buttons.map((item) => {
-    const { top, left, width, right } = item.getBoundingClientRect();
-    return { top, left, width, right };
+    const { top, left, width, right, bottom } = item.getBoundingClientRect();
+    return { top, left, width, right, bottom };
   }));
   assert.equal(bounds.length, 12);
   for (const [index, [kind, label]] of [...labels].entries()) {
@@ -150,14 +152,19 @@ async function checkSymbolGrid(row, entry) {
       return captionBounds.top >= buttonBounds.bottom - 1 &&
         Math.abs((captionBounds.left + captionBounds.right) - (buttonBounds.left + buttonBounds.right)) < 2;
     }), `${label} 的常显标签位于图标下方`);
-    const { top, left, width, right } = bounds[index];
+    const { top, left, width, right, bottom } = bounds[index];
+    const column = index % columns;
+    const rowIndex = Math.floor(index / columns);
     assert.ok(left >= 0 && right <= viewport.width && width > 0, `${label} 在视口内 ${JSON.stringify(bounds[index])}`);
-    assert.ok(Math.abs(top - bounds[index < 6 ? 0 : 6].top) < 1, `${label} 在第 ${index < 6 ? 1 : 2} 排`);
-    assert.ok(Math.abs(width - bounds[0].width) < 1 && Math.abs(left - bounds[index % 6].left) < 1, `${label} 网格等宽对齐`);
-    if (index % 6 !== 0) assert.ok(left >= bounds[index - 1].right, `${label} 位于独立列`);
+    assert.ok(Math.abs(bottom - top - 30) < 1, `${label} 沿用气泡按钮高度`);
+    assert.ok(Math.abs(top - bounds[rowIndex * columns].top) < 1, `${label} 在第 ${rowIndex + 1} 排`);
+    assert.ok(Math.abs(width - bounds[0].width) < 1 && Math.abs(left - bounds[column].left) < 1, `${label} 网格等宽对齐`);
+    if (column > 0) assert.ok(left >= bounds[index - 1].right, `${label} 位于独立列`);
+    if (rowIndex > 0) assert.ok(top > bounds[index - columns].bottom, `${label} 与上一排纵向分开`);
   }
-  assert.ok(bounds[6].top > bounds[0].top, "两排记号纵向分开");
-  if (entry !== "sidebar") {
+  if (sidebar) {
+    assert.equal(await markGrid.evaluate((grid) => grid.scrollWidth - grid.clientWidth), 0, "侧栏记号组没有横向溢出");
+  } else {
     const panel = await markGrid.evaluate((grid) => {
       const dialog = grid.closest('[role="dialog"]');
       const { width, left, right, top, bottom } = dialog.getBoundingClientRect();
@@ -527,7 +534,7 @@ try {
   console.log("REQ-105 passed: context and keyboard entry, move and undo, .lxm round trip, audio and cursor, repair, PNG and print scenes");
   const endings = await browser.newPage({ viewport });
   await checkRepeatEndings(endings);
-  console.log("BUG-086/087 passed: both 6×2 grids, group tooltips and form, whole-group undo, and runtime repair");
+  console.log("BUG-086/087/092 passed: toolbar/context 6×2 and sidebar 4×3 grids, group tooltips and form, whole-group undo, and runtime repair");
 } finally {
   await browser.close();
 }
