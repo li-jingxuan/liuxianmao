@@ -13,6 +13,7 @@
   &:focus-visible { outline: 2px solid var(--accent, #1677ff); outline-offset: 2px; border-radius: 5px; }
 }
 .boundaryLabel, .markLabel { color: var(--muted, #63748a); font-size: 10px; white-space: nowrap; }
+.markLabel { font-weight: 400; }
 .actionSection, .symbolSection { border-top: 1px solid var(--border, #d8e0eb); padding-top: 12px; }
 .actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: center; padding: 3px; background: var(--panel-muted, #f4f6fa); border: 1px solid var(--border, #e9edf3); border-radius: 6px; box-sizing: border-box;
   > span { display: flex; min-width: 0; justify-content: center; border-right: 1px solid var(--border, #e9edf3); &:last-child { border-right: 0; } }
@@ -47,14 +48,15 @@
     svg { width: 23px; height: 20px; }
   }
 }
-.musicSymbol { font-family: Bravura, serif; font-size: 24px; line-height: 1; }
+.musicSymbol { font-family: Bravura, serif; font-size: 20px; line-height: 1; }
 // Segno 和 Coda 的墨迹偏上，向下校准以留出按钮上边距。
 .jumpGlyph { transform: translateY(6px); }
 .jumpText {
   font: italic 600 15px/1.05 Georgia, serif;
   text-align: center;
   white-space: nowrap;
-  span { display: block; font-size: 11px; }
+  // 双行跳转缩写的续行使用常规字重，与首行的粗斜体区分。
+  span { display: block; font-size: 10px; font-weight: 400; }
 }
 .header { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; color: var(--foreground, #26364a);
   h3 { margin: 0 !important; flex: 1; font-size: 16px; }
