@@ -29,6 +29,8 @@ describe("BUG-090 反复房子编辑图层", () => {
     expect(html).toMatch(/<rect data-repeat-ending-hit[^>]*height="23"[^>]*pointer-events="all"/);
     expect(html).toMatch(/<rect data-repeat-ending-focus[^>]*stroke-dasharray="1 2.5"/);
     expect(html).toMatch(/data-repeat-ending-preview="true"[^>]*><line[^>]*stroke-dasharray="5 3"/);
+    // 草稿跟随正式房子的字号，继续用蓝色区别草稿状态。
+    expect(html).toMatch(/<text[^>]*font-size="7"[^>]*fill="#2457d7">1\.<\/text>/);
     expect(html).toContain('data-repeat-ending-group-preview="shared"');
     expect(html).toContain('data-repeat-ending-group-preview="ending"');
   });

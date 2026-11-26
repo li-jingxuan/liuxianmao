@@ -1,5 +1,5 @@
 import { Fragment, memo, useMemo } from "react";
-import { getMeasureCapacityTicks, type ILXMLayout, type ILXMMeasure } from "@liuxianmao/lxm-editor";
+import { getMeasureCapacityTicks, getMeasureNumberPosition, type ILXMLayout, type ILXMMeasure } from "@liuxianmao/lxm-editor";
 import { formatMeasureDuration } from "../shared/measure-duration";
 import styles from "./score-interaction.module.scss";
 
@@ -12,21 +12,15 @@ export const MeasureNumberLayer = memo(function MeasureNumberLayer({ layout, act
 }) {
   const numbers = useMemo(() => layout.systems.flatMap((system) =>
     system.measures.map((measure) => {
-      const topString = measure.strings[0]!;
-      const lines = measure.barline.parts.filter((part) => part.kind === "line");
       // 额外拍数只随编辑图层绘制；打印、图片和只读试听均使用原谱的拍号及小节线。
       const source = editingMeasures?.[measure.index];
       const duration = source?.actualDurationTicks;
-      // Segno/Coda 的所属号随记号贴起始线，发生重叠的共线前节号也由核心让位。
-      // 其它普通编号仍锚在原来的结束线，实际拍数提示保留编辑态可见性。
-      const position = measure.numberPosition;
       return {
         id: measure.id,
         text: measure.index + 1,
         durationLabel: duration !== undefined && source && duration < getMeasureCapacityTicks(source.timeSignature)
           ? `实际 ${formatMeasureDuration(duration)}` : undefined,
-        x: position?.x ?? (lines.length ? Math.max(...lines.map((line) => line.x)) : topString.x2),
-        y: position?.y ?? topString.y1 - 1,
+        ...getMeasureNumberPosition(measure),
       };
     }),
   ), [layout, editingMeasures]);

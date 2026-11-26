@@ -24,8 +24,7 @@ import type {
 import { numberedLayoutProfile } from "../music-text/numbered-layout-profile";
 import { planTrackTechniques } from "../techniques/technique-layout";
 import { translateMeasure, translateBarline } from "../layout-translation";
-import { layoutBarline } from "./barline-layout";
-import { isJumpDestination, layoutJumpMarks } from "./jump-mark-layout";
+import { layoutJumpMarks } from "./jump-mark-layout";
 import { layoutRepeatEndingSegments, REPEAT_ENDING_LANE_HEIGHT } from "./repeat-ending-layout";
 import {
   getFretTextBounds,
@@ -299,7 +298,7 @@ export const layoutSystemContent = (
         numberedNotation: numberedByMeasure.get(measure.id),
       };
     });
-    // 起始记号可能局部抬高和弦图。先完成避让再算各小节实际范围和房子上层，
+    // 回跳符号可能局部抬高和弦图。先完成避让再算各小节实际范围和房子上层，
     // 否则换行分页与和弦点击可能仍使用水平基线时的旧坐标。
     const jumpBounds = layoutJumpMarks(system, measures, source);
     for (const measure of measures) {
@@ -310,13 +309,6 @@ export const layoutSystemContent = (
         ...measure.chordSymbols!.map((chord) => chord.bounds),
       ]);
     }
-    const [firstMeasure] = measures;
-    // 行首无反复线时，落点仍需对应一根真实的起始线。已有反复线直接复用。
-    const leadingBarline = system.header.leadingBarline ?? (
-      firstMeasure?.jumpMarks?.some((mark) => isJumpDestination(mark.kind))
-        ? layoutBarline("single", firstMeasure.strings, system.header.staffX)
-        : null
-    );
     const musicTop = Math.min(
       system.y - techniqueHeight,
       jumpBounds?.y ?? Infinity,
@@ -456,7 +448,7 @@ export const layoutSystemContent = (
           y1: l.y1 + dy,
           y2: l.y2 + dy,
         })),
-        leadingBarline: translateBarline(leadingBarline, dy),
+        leadingBarline: translateBarline(system.header.leadingBarline, dy),
       },
       measures: measures.map((m) => ({
         ...translateMeasure(m, dy),
@@ -475,12 +467,6 @@ export const layoutSystemContent = (
             y: mark.y + dy,
             bounds: { ...mark.bounds, y: mark.bounds.y + dy },
           })),
-        }),
-        ...(m.jumpMarkStartBarline && {
-          jumpMarkStartBarline: translateBarline(m.jumpMarkStartBarline, dy)!,
-        }),
-        ...(m.numberPosition && {
-          numberPosition: { ...m.numberPosition, y: m.numberPosition.y + dy },
         }),
         visualBounds: { ...m.visualBounds!, y: m.visualBounds!.y + dy },
       })),

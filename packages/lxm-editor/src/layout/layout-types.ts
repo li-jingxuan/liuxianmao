@@ -222,10 +222,6 @@ export interface ILXMMeasureLayout {
   };
   /** 跳转记号的成品锚点及编辑命中框，编辑和输出消费同一份坐标。 */
   jumpMarks?: ILXMJumpMarkLayout[];
-  /** 小节人为拉开间距时，为落点补出起始线；常规共用边界无需重画。 */
-  jumpMarkStartBarline?: ILXMBarlineLayout;
-  /** 有落点时，所属节号的起始线锚点；共线且重叠时也记录前一节号的让位坐标。 */
-  numberPosition?: { x: number; y: number };
   visualBounds?: MusicTextRect;
   id: string;
   index: number;

@@ -158,7 +158,6 @@ const systemScene = (s: ILXMSystemLayout): ScorePrimitive[] => {
   if (s.header.leadingBarline) items.push(...barline(s.header.leadingBarline));
   for (const m of s.measures) {
     items.push(...m.strings.map((l) => line(l.x1, l.y1, l.x2, l.y2)));
-    if (m.jumpMarkStartBarline) items.push(...barline(m.jumpMarkStartBarline));
     if (m.timeSignature)
       for (const t of [m.timeSignature.numerator, m.timeSignature.denominator])
         items.push(

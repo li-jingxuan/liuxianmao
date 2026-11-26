@@ -5,6 +5,7 @@ import {
   buildScoreScene,
   copyChordPreset,
   EXAMPLE_MVP_7_2_DOCUMENT,
+  getMeasureNumberPosition,
   hitTestMusicText,
   paginateLayout,
   type ILXMMeasureLayout,
@@ -36,12 +37,10 @@ describe("REQ-105 跳转记号记谱", () => {
     const [first, second] = system.measures;
     const coda = first!.jumpMarks![0]!;
     const segno = second!.jumpMarks![0]!;
-    expect(coda.x).toBeCloseTo(system.header.staffX + 9);
-    expect(system.header.leadingBarline?.parts[0]).toMatchObject({ kind: "line", x: system.header.staffX });
-    expect(segno.x).toBeCloseTo(second!.strings[0]!.x1 + 9);
-    expect(first!.numberPosition).toEqual({ x: coda.x - 13, y: coda.y + 3 });
-    expect(second!.numberPosition).toEqual({ x: segno.x - 13, y: segno.y + 3 });
-    expect(layout.systems.flatMap((row) => row.measures)[2]!.numberPosition).toBeUndefined();
+    expect(coda.x).toBeCloseTo(getMeasureNumberPosition(first!).x);
+    const segnoSystem = layout.systems[second!.systemIndex]!;
+    expect(segno.x).toBeCloseTo(Math.min(getMeasureNumberPosition(second!).x, segnoSystem.x + segnoSystem.width - segno.bounds.width / 2));
+    expect(system.header.leadingBarline).toEqual(before.systems[0]!.header.leadingBarline);
     layout.systems.forEach((row) => {
       for (const mark of row.measures.flatMap((measure) => measure.jumpMarks ?? [])) {
         expect(mark.bounds.y).toBeGreaterThanOrEqual(row.y);
@@ -69,20 +68,28 @@ describe("REQ-105 跳转记号记谱", () => {
     expect(paginateLayout(layout).ok).toBe(true);
   });
 
-  it("换行或小节分隔使用独立起始线，前节号仍在原位", () => {
+  it.each([
+    { systemWidth: 1200 },
+    { systemWidth: 1200, measureGap: 8 },
+    { systemWidth: 60 },
+  ])("共线、分隔、换行时使用本节号坐标且不改线 ($systemWidth, $measureGap)", (options) => {
     const { document, measures } = fixture();
+    measures[1]!.barline = "repeatEnd";
+    const before = buildLayout(document, options);
     measures[1]!.jumpMarks = [{ id: "segno", kind: "segno" }];
-    const wrapped = buildLayout(document, { systemWidth: 60 });
-    const [outgoing, incoming] = wrapped.systems;
-    expect(outgoing!.measures[0]!.numberPosition).toBeUndefined();
-    expect(incoming!.header.leadingBarline?.parts[0]).toMatchObject({ kind: "line", x: incoming!.header.staffX });
-    expect(incoming!.measures[0]!.jumpMarks![0]!.x).toBeCloseTo(incoming!.header.staffX + 9);
-    expect(incoming!.measures[0]!.numberPosition?.x).toBeCloseTo(incoming!.header.staffX - 4);
-
-    const [first, second] = buildLayout(document, { systemWidth: 1200, measureGap: 8 }).systems[0]!.measures;
-    expect(first!.numberPosition).toBeUndefined();
-    expect(second!.jumpMarkStartBarline?.parts[0]).toMatchObject({ kind: "line", x: second!.strings[0]!.x1 });
-    expect(second!.jumpMarks![0]!.x).toBeCloseTo(second!.strings[0]!.x1 + 9);
+    const after = buildLayout(document, options);
+    const [previous, marked] = after.systems.flatMap((row) => row.measures);
+    const [oldPrevious, oldMarked] = before.systems.flatMap((row) => row.measures);
+    expect(getMeasureNumberPosition(previous!).x).toEqual(getMeasureNumberPosition(oldPrevious!).x);
+    const number = getMeasureNumberPosition(marked!);
+    expect(number.x).toBe(getMeasureNumberPosition(oldMarked!).x);
+    const mark = marked!.jumpMarks![0]!;
+    const bounds = mark.bounds;
+    const row = after.systems[marked!.systemIndex]!;
+    expect(mark.x).toBeCloseTo(Math.min(number.x, row.x + row.width - bounds.width / 2));
+    expect(bounds.y + bounds.height).toBeLessThan(number.y - 7);
+    expect(after.systems.map((system) => system.header.leadingBarline?.type))
+      .toEqual(before.systems.map((system) => system.header.leadingBarline?.type));
   });
 
   it.each(["editing", "presentation"] as const)("%s 只抬起碰撞和弦图，房子在其上方且末端指令仍贴本节末", (purpose) => {
@@ -96,7 +103,8 @@ describe("REQ-105 跳转记号记谱", () => {
     measures.forEach((measure, index) => {
       measure.beats.forEach((beat) => beat.notes.forEach((note) => { note.string = 6; }));
       measure.chordSymbols = [{
-        id: `chord-${index}`, beatId: measure.beats[0]!.id, display: "nameAndDiagram", chord: copyChordPreset("Am")!,
+        id: `chord-${index}`, beatId: (index === 1 ? measure.beats.at(-1) : measure.beats[0])!.id,
+        display: "nameAndDiagram", chord: copyChordPreset("Am")!,
       }];
     });
     measures[0]!.jumpMarks = [{ id: "to-coda", kind: "toCoda" }];
@@ -111,15 +119,12 @@ describe("REQ-105 跳转记号记谱", () => {
     const [previous, marked, ordinary] = after.measures;
     const mark = marked!.jumpMarks![0]!;
     const diagram = marked!.chordSymbols![0]!;
-    expect(mark.y - marked!.strings[0]!.y1).toBe(-13);
+    expect(mark.y - marked!.strings[0]!.y1).toBe(-18);
     expect(chordAnchors(marked!)[0]![1]).toBeLessThan(chordAnchors(before.measures[1]!)[0]![1]!);
     expect(diagram.bounds.y + diagram.bounds.height).toBeLessThan(mark.bounds.y);
     expect(hitTestMusicText(layout, { x: diagram.label.x, y: diagram.label.y })).toMatchObject({ id: diagram.id });
     expect(chordAnchors(previous!)).toEqual(chordAnchors(before.measures[0]!));
     expect(chordAnchors(ordinary!)).toEqual(chordAnchors(before.measures[2]!));
-    expect(ordinary!.numberPosition).toBeUndefined();
-    expect(previous!.numberPosition?.x).toBeLessThanOrEqual(marked!.numberPosition!.x - 7);
-    expect(previous!.numberPosition?.y).toBeCloseTo(previous!.strings[0]!.y1 - 1);
     const instruction = previous!.jumpMarks![0]!;
     expect(instruction.x).toBeCloseTo(previous!.strings[0]!.x2 - 11);
     expect(instruction.y - previous!.strings[0]!.y1).toBeCloseTo(before.measures[0]!.jumpMarks![0]!.y - before.measures[0]!.strings[0]!.y1);

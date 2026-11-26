@@ -57,6 +57,31 @@ describe("REQ-106 反复房子", () => {
     expect(numbers(createPlaybackPlan(document, { startMeasureId: "m6" }))).toEqual(expected.slice(8));
   });
 
+  it.each(["editing", "presentation"] as const)("BUG-090 %s 场景使用浅灰 7px 标签及 8px 竖端点", (purpose) => {
+    const layout = buildLayout(reopen(), { systemWidth: A4_CONTENT_WIDTH, purpose, density: "compact" });
+    const scene = buildScoreScene(layout);
+    const segments = layout.systems.flatMap((system) =>
+      (system.repeatEndings ?? []).map((segment) => ({ segment, systemIndex: system.index })),
+    );
+    // 夹具含两段跨行括线和两个完整房子，覆盖左右端点的裁切规则。
+    expect(segments).toHaveLength(4);
+    for (const { segment, systemIndex } of segments) {
+      const { x, width } = segment.bounds;
+      const items = scene.systems.find(({ index }) => index === systemIndex)!.items
+        .filter(({ repeatEndingId }) => repeatEndingId === segment.id);
+      const [horizontal, ...endpoints] = items.filter((item) => item.kind === "line");
+      expect(horizontal).toMatchObject({ x1: x, x2: x + width, stroke: "#1d2025" });
+      expect(horizontal!.y2).toBe(horizontal!.y1);
+      expect(endpoints.map(({ x1, x2, y1, y2 }) => [x1, x2, y1, y2 - y1])).toEqual([
+        ...(segment.starts ? [[x, x, horizontal!.y1, 8]] : []),
+        ...(segment.ends ? [[x + width, x + width, horizontal!.y1, 8]] : []),
+      ]);
+      expect(items.filter((item) => item.kind === "text")).toMatchObject([
+        { text: segment.label, fontSize: 7, fill: "#7b8795", y: horizontal!.y1 + 8 },
+      ]);
+    }
+  });
+
   it("重叠、重复遍次和越界拒绝保存，删除后缺房可保存、定位并补回", () => {
     const document = reopen();
     const group = track(document).repeatEndingGroups![0]!;

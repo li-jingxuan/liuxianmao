@@ -24,6 +24,7 @@ import { layoutSystems } from "./structure/system-layout";
 import { layoutSystemContent } from "./structure/system-content-layout";
 import { buildTechniqueInsets } from "./techniques/technique-spacing";
 import { getChordTraversalBottomOffsets } from "./techniques/technique-geometry";
+export { getMeasureNumberPosition } from "./structure/barline-layout";
 export {
   layoutChordDiagram,
   translateChordDiagram,
