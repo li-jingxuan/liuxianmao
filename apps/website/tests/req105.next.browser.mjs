@@ -423,6 +423,32 @@ try {
   await add(1, "Segno");
   await symbol(await openSidebarMeasure(page, 6), "D.S. al Coda").click();
   await parameterDialog(page, "添加 D.S. al Coda").waitFor();
+  // 类型下拉展示实际谱面图标和说明，同时保留原生键盘选择与鼠标选择。
+  const kindSelect = inspector.getByRole("combobox", { name: "记号类型", exact: true });
+  await kindSelect.click();
+  const kindList = inspector.getByRole("listbox");
+  await kindList.waitFor();
+  const renderedKinds = await kindList.getByRole("option").evaluateAll((options) => options.map((option) => {
+    const icon = option.querySelector('[aria-hidden="true"]');
+    const name = icon?.nextElementSibling;
+    const description = name?.nextElementSibling;
+    return {
+      icon: icon?.textContent,
+      name: name?.textContent,
+      description: description?.textContent,
+      muted: !!name && !!description && getComputedStyle(name).color !== getComputedStyle(description).color,
+    };
+  }));
+  assert.deepEqual(renderedKinds.map(({ name, description }) => [name, description]), [...labels].slice(1, -1));
+  assert.equal(renderedKinds[0].icon, "\uE047");
+  assert.equal(renderedKinds[4].icon, "\uE048");
+  assert.ok(renderedKinds.every(({ icon, muted }) => icon && muted));
+  await kindSelect.press("ArrowDown");
+  await kindSelect.press("Enter");
+  await parameterDialog(page, "添加 To Coda").waitFor();
+  await kindSelect.click();
+  await kindList.getByRole("option", { name: /D\.S\. al Coda\s+记号至尾声/ }).click();
+  await parameterDialog(page, "添加 D.S. al Coda").waitFor();
   await inspector.getByText(/有 2 个 Segno/).waitFor();
   await select("回到 Segno", "第 2 小节 Segno");
   await button("应用", inspector).click();

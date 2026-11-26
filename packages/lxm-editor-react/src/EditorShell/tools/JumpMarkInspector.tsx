@@ -23,6 +23,7 @@ import { useEditorDraftRecords } from "../session/EditorSessionRuntime";
 import { EditorModalGuard } from "../session/EditorModalGuard";
 import type { EditorDraftOwner, EditorDraftRecord } from "../session/editor-draft-coordinator";
 import type { EditorSessionVersion } from "../session/editor-session-version";
+import { JUMP_MARK_SYMBOLS, JumpMarkSymbol } from "./JumpMarkSymbol";
 import styles from "./JumpMarkInspector.module.scss";
 
 export interface JumpMarkInspectorRequest {
@@ -56,10 +57,10 @@ const fields: Record<JumpMarkField, { label: string; target: ILXMJumpMarkKind }>
   codaId: { label: "跳到 Coda", target: "coda" },
   fineId: { label: "重奏结束于 Fine", target: "fine" },
 };
-const kinds = ["segno", "ds", "dsAlCoda", "toCoda", "coda", "dc", "fine", "dcAlFine", "dsAlFine", "dcAlCoda"] as const;
 const measureLabel = (index: number) => `第 ${index + 1} 小节`;
 const entryLabel = ({ mark, measureIndex }: JumpMarkEntry) => `${measureLabel(measureIndex)} ${JUMP_MARK_LABEL[mark.kind]}`;
-const kindOptions = kinds.map((value) => ({ value, label: JUMP_MARK_LABEL[value] }));
+// 保留折叠态的英文名称。展开时再显示图标与中文，清空默认 title 以免悬停出现重复提示。
+const kindOptions = JUMP_MARK_SYMBOLS.map(({ kind: value, glyph, description }) => ({ value, label: JUMP_MARK_LABEL[value], glyph, description, title: "" }));
 // 弹层须位于对话框内容容器内。挂到 body 会被工作区设为 inert，挂到对话框外壳会继承
 // AntD 的 pointer-events: none，导致下拉项可见却由下面的表单标签接收鼠标点击。
 const getDialogPopup = (trigger: HTMLElement) => trigger.closest<HTMLElement>(".ant-modal-container") ?? trigger.parentElement!;
@@ -523,6 +524,13 @@ export function JumpMarkInspector({ measures, measureId, request, onRequestHandl
             {/* 收起选项后立即交还 Esc 给弹窗，避免退场动画仍被键盘守卫当作开放的下拉层。 */}
             <label className={styles.field} htmlFor={`${formId}-kind`}>记号类型
               <Select id={`${formId}-kind`} aria-label="记号类型" value={validDraft.mark.kind} disabled={blocked} options={kindOptions}
+                virtual={false} optionRender={({ data }) => (
+                  <span className={styles.kindOption}>
+                    <JumpMarkSymbol name={data.label} glyph={data.glyph} />
+                    <span>{data.label}</span>
+                    <span className={styles.kindDescription}>{data.description}</span>
+                  </span>
+                )}
                 getPopupContainer={getDialogPopup} transitionName="" onChange={changeKind} />
             </label>
             <label className={styles.field} htmlFor={`${formId}-measure`}>位置小节

@@ -88,6 +88,25 @@
   min-width: 0;
 }
 
+.kindOption {
+  // 固定图标栏，让字形和双行缩写都能居中，英文名称从同一条竖线起排。
+  display: grid;
+  grid-template-columns: 36px max-content minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 22px;
+
+  > :first-child {
+    justify-self: center;
+  }
+}
+
+.kindDescription {
+  color: var(--ant-color-text-secondary, #626e82);
+  font-size: 12px;
+  font-weight: 400;
+}
+
 .pairings,
 .unresolved ul {
   list-style: none;
