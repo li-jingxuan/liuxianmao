@@ -84,7 +84,7 @@
 - 公开源码入口已接入项目远端。部署文档与 Git 远端的仓库名一致，GitHub 匿名 API 返回 `private: false`、`visibility: public`。匿名 Releases 列表为空，两端正式安装包继续显示待发布说明。 [GitHub 仓库](https://github.com/li-jingxuan/liuxianmao) · [GitHub 匿名 API](https://api.github.com/repos/li-jingxuan/liuxianmao)
 - 本地开发默认接入 `/editor` 和《理想》评审图。生产默认暂缓开放 Web 编辑器，首页与下载页显示开放说明，直接访问 `/editor` 返回 HTTP 404。阿里云既有部署说明将 `/editor` 列为验收入口，本次 REQ-015 将正式开放安排列为待确认，因此使用显式运行配置承接这一差异。 [发布配置](../../../../apps/website/lib/website-release.ts) · [阿里云部署说明](../../../../deploy/aliyun/README.md)
 - 在正式站未确认《理想》公开展示授权前，默认使用仓库自有样谱《风吹过山谷》。首页预览、谱例局部和下载轮播首张来自实际编辑器，A4 图来自实际 PNG 导出。原评审图位于 `public` 之外，授权开关关闭时直达返回 404。生产编辑器也以《风吹过山谷》初始化，保留新建、导入、试听和导出。 [样谱源文件](../../../../packages/lxm-editor/example/default-score.lxm.json) · [素材路由](../../../../apps/website/app/previews/ideal/[asset]/route.ts)
-- Next.js Proxy 在页面渲染前返回 HTTP 404。覆盖 `/guitar-advanced` 及模块、理论、练习、进度、考试、作答、结果深链，也关闭 `/technique-test`。生产编辑器不显示进阶链接，进阶与验收页源码保留。仅本地开发可用 `LXM_WEBSITE_INTERNAL_PREVIEW=1` 打开内部验收入口。 [路由边界](../../../../apps/website/proxy.ts)
+- 本地开发默认在产品首页顶部导航显示「吉他进阶」。设置 `LXM_WEBSITE_INTERNAL_PREVIEW=0` 可同时关闭首页入口和进阶页面。技巧验收页在本地需显式设置 `LXM_WEBSITE_INTERNAL_PREVIEW=1` 才会开放。生产隐藏首页入口，并对 `/guitar-advanced`、其深链和 `/technique-test` 返回 HTTP 404。 [路由边界](../../../../apps/website/proxy.ts)
 
 | 运行配置 | 确认后填入的值 |
 | --- | --- |

@@ -67,9 +67,10 @@
 }
 .footer { background: #fff; border-top: 1px solid var(--line); }
 .footerInner {
-  display: flex;
+  display: grid;
+  // 左右等宽，让备案链接居中，同时保留左侧的品牌文字。
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
   min-height: 41px;
   color: var(--muted);
   font-size: 14px;

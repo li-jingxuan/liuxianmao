@@ -4,7 +4,7 @@ import { BrandIcon } from "../BrandIcon";
 import { marketingAsset } from "./marketing-assets";
 import styles from "./site.module.scss";
 
-export function SiteNav({ active }: { active: "home" | "download" }) {
+export function SiteNav({ active, guitarAdvancedOpen = false }: { active: "home" | "download"; guitarAdvancedOpen?: boolean }) {
   return (
     <header className={styles.mast}>
       <div className={`${styles.wrap} ${styles.mastInner}`}>
@@ -12,6 +12,8 @@ export function SiteNav({ active }: { active: "home" | "download" }) {
         <nav aria-label="主导航">
           <Link href="/" aria-current={active === "home" ? "page" : undefined}>产品首页</Link>
           <Link href="/download" aria-current={active === "download" ? "page" : undefined}>编辑器下载</Link>
+          {/* 入口仅放在产品首页，跟随进阶页面的发布开关，避免链接到关闭的页面。 */}
+          {active === "home" && guitarAdvancedOpen && <Link href="/guitar-advanced">吉他进阶</Link>}
         </nav>
       </div>
     </header>

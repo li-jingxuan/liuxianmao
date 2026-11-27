@@ -31,7 +31,7 @@ export default function HomePage() {
 
   return (
     <div className={site.site}>
-      <SiteNav active="home" />
+      <SiteNav active="home" guitarAdvancedOpen={release.guitarAdvanced} />
       <main className={`${site.wrap} ${styles.home}`}>
         <HeroPreview workbench={media.workbench} title={media.title} ideal={release.idealPreview}>
           <div className={styles.heroCopy}>

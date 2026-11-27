@@ -7,7 +7,12 @@ export function isWebEditorOpen() {
   return isDevelopment || process.env.LXM_WEBSITE_WEB_EDITOR === "1";
 }
 
-// 进阶路线与技巧验收页保留给本地开发。生产运行时没有启用进阶功能的开关。
+// 本地默认开放吉他进阶，显式设置 0 可关闭入口和所有子页面。生产始终关闭此功能。
+export function isGuitarAdvancedOpen() {
+  return isDevelopment && process.env.LXM_WEBSITE_INTERNAL_PREVIEW !== "0";
+}
+
+// 技巧验收页仍需在本地显式打开，避免随吉他进阶入口一起开放。
 export function isInternalPreviewOpen() {
   return isDevelopment && process.env.LXM_WEBSITE_INTERNAL_PREVIEW === "1";
 }
@@ -32,10 +37,12 @@ function readDownloadUrl(value: string | undefined) {
 export function readWebsiteRelease() {
   return {
     webEditor: isWebEditorOpen(),
+    guitarAdvanced: isGuitarAdvancedOpen(),
     idealPreview: isIdealPreviewOpen(),
     macDownload: readDownloadUrl(process.env.LXM_WEBSITE_MAC_DOWNLOAD_URL),
     windowsDownload: readDownloadUrl(process.env.LXM_WEBSITE_WINDOWS_DOWNLOAD_URL),
-    icpNumber: process.env.LXM_WEBSITE_ICP_NUMBER?.trim(),
+    // 默认展示已核准的网站备案号（含网站序号），并保留部署环境显式覆盖的能力。
+    icpNumber: process.env.LXM_WEBSITE_ICP_NUMBER?.trim() ?? "湘ICP备2026058082号-1",
     // 与项目远端和部署文档一致，并通过 GitHub 匿名 API 核验为公开仓库。
     github: "https://github.com/li-jingxuan/liuxianmao",
   };

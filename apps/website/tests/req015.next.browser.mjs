@@ -41,6 +41,22 @@ async function imagesDecode(page) {
 }
 
 try {
+  if (!production) {
+    const learningPage = await browser.newPage({ viewport });
+    assert.equal((await learningPage.goto(origin)).status(), 200);
+    const homeNav = learningPage.getByRole("navigation", { name: "主导航" });
+    await homeNav.getByRole("link", { name: "吉他进阶", exact: true }).click();
+    await learningPage.waitForURL(`${origin}/guitar-advanced`);
+    await learningPage.getByRole("heading", { name: "吉他进阶", exact: true }).waitFor();
+
+    assert.equal((await learningPage.goto(`${origin}/editor`)).status(), 200);
+    const editorMenu = learningPage.getByRole("navigation", { name: "编辑器菜单" });
+    await editorMenu.waitFor();
+    assert.equal(await editorMenu.getByRole("link", { name: "吉他进阶", exact: true }).count(), 0);
+    await learningPage.close();
+    console.log("REQ-015 home learning link passed · navigation and editor placement");
+  }
+
   const page = await browser.newPage({ viewport });
   page.setDefaultTimeout(20000);
   const errors = [];
@@ -50,7 +66,9 @@ try {
   });
 
   assert.equal((await page.goto(origin)).status(), 200);
-  assert.equal(await page.getByRole("navigation", { name: "主导航" }).getByRole("link", { name: "产品首页" }).getAttribute("aria-current"), "page");
+  const homeNav = page.getByRole("navigation", { name: "主导航" });
+  assert.equal(await homeNav.getByRole("link", { name: "产品首页" }).getAttribute("aria-current"), "page");
+  if (production) assert.equal(await homeNav.getByRole("link", { name: "吉他进阶", exact: true }).count(), 0);
   assert.equal(await page.getByRole("heading", { level: 1 }).innerText(), "吉他谱，\n一弦一弦写");
   await imagesDecode(page);
   const home = await page.evaluate(() => {
@@ -170,8 +188,8 @@ try {
   await checkDialog(noScript, noScript.getByRole("button", { name: "下载 macOS 版" }), "macOS 安装包");
   await imagesDecode(noScript);
 
-  // 新匿名上下文回访全部深链，并检查生产默认的同一发布边界覆盖编辑器与资源直达。
-  for (const path of deepLinks) {
+  // 生产关闭全部内部深链。本地默认只关闭技巧验收页，首页进阶入口已实际点击验证。
+  for (const path of production ? deepLinks : ["/technique-test"]) {
     assert.equal((await noScript.goto(`${origin}${path}`)).status(), 404, path);
     assert.equal((await noScript.reload()).status(), 404, `${path} 刷新`);
   }
