@@ -7,9 +7,10 @@ export function isWebEditorOpen() {
   return isDevelopment || process.env.LXM_WEBSITE_WEB_EDITOR === "1";
 }
 
-// 本地默认开放吉他进阶，显式设置 0 可关闭入口和所有子页面。生产始终关闭此功能。
+// 首页入口和进阶深链共用发布开关。开发环境默认开放，生产需要由部署配置显式启用。
 export function isGuitarAdvancedOpen() {
-  return isDevelopment && process.env.LXM_WEBSITE_INTERNAL_PREVIEW !== "0";
+  if (isDevelopment) return process.env.LXM_WEBSITE_INTERNAL_PREVIEW !== "0";
+  return process.env.LXM_WEBSITE_GUITAR_ADVANCED === "1";
 }
 
 // 技巧验收页仍需在本地显式打开，避免随吉他进阶入口一起开放。

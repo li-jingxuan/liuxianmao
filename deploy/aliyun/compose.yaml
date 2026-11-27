@@ -10,6 +10,11 @@ services:
     pull_policy: never
     restart: unless-stopped
 
+    environment:
+      # 正式站每次切换版本都由 Compose 开放 Web 编辑器和首页的吉他进阶。
+      LXM_WEBSITE_WEB_EDITOR: "1"
+      LXM_WEBSITE_GUITAR_ADVANCED: "1"
+
     ports:
       # 备案期间通过 Workbench 在服务器内验收。备案通过后由宿主机 Nginx 代理到此地址。
       - "127.0.0.1:3000:3000"

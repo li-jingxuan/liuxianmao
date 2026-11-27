@@ -84,11 +84,12 @@
 - 公开源码入口已接入项目远端。部署文档与 Git 远端的仓库名一致，GitHub 匿名 API 返回 `private: false`、`visibility: public`。匿名 Releases 列表为空，两端正式安装包继续显示待发布说明。 [GitHub 仓库](https://github.com/li-jingxuan/liuxianmao) · [GitHub 匿名 API](https://api.github.com/repos/li-jingxuan/liuxianmao)
 - 本地开发默认接入 `/editor` 和《理想》评审图。生产默认暂缓开放 Web 编辑器，首页与下载页显示开放说明，直接访问 `/editor` 返回 HTTP 404。阿里云既有部署说明将 `/editor` 列为验收入口，本次 REQ-015 将正式开放安排列为待确认，因此使用显式运行配置承接这一差异。 [发布配置](../../../../apps/website/lib/website-release.ts) · [阿里云部署说明](../../../../deploy/aliyun/README.md)
 - 在正式站未确认《理想》公开展示授权前，默认使用仓库自有样谱《风吹过山谷》。首页预览、谱例局部和下载轮播首张来自实际编辑器，A4 图来自实际 PNG 导出。原评审图位于 `public` 之外，授权开关关闭时直达返回 404。生产编辑器也以《风吹过山谷》初始化，保留新建、导入、试听和导出。 [样谱源文件](../../../../packages/lxm-editor/example/default-score.lxm.json) · [素材路由](../../../../apps/website/app/previews/ideal/[asset]/route.ts)
-- 本地开发默认在产品首页顶部导航显示「吉他进阶」。设置 `LXM_WEBSITE_INTERNAL_PREVIEW=0` 可同时关闭首页入口和进阶页面。技巧验收页在本地需显式设置 `LXM_WEBSITE_INTERNAL_PREVIEW=1` 才会开放。生产隐藏首页入口，并对 `/guitar-advanced`、其深链和 `/technique-test` 返回 HTTP 404。 [路由边界](../../../../apps/website/proxy.ts)
+- 本地开发默认在产品首页顶部导航显示「吉他进阶」。设置 `LXM_WEBSITE_INTERNAL_PREVIEW=0` 可同时关闭首页入口和进阶页面。阿里云正式站通过 `LXM_WEBSITE_GUITAR_ADVANCED=1` 开放首页入口和进阶深链。技巧验收页仅在本地设置 `LXM_WEBSITE_INTERNAL_PREVIEW=1` 后开放。 [路由边界](../../../../apps/website/proxy.ts) · [阿里云 Compose](../../../../deploy/aliyun/compose.yaml)
 
 | 运行配置 | 确认后填入的值 |
 | --- | --- |
 | `LXM_WEBSITE_WEB_EDITOR` | `1` 开放生产站 Web 编辑器。首页与下载页共用此开关。 |
+| `LXM_WEBSITE_GUITAR_ADVANCED` | `1` 开放生产站首页顶部导航的「吉他进阶」及其深链。 |
 | `LXM_WEBSITE_MAC_DOWNLOAD_URL`、`LXM_WEBSITE_WINDOWS_DOWNLOAD_URL` | 各平台正式安装包的 HTTPS 地址。用服务器下载响应交付文件。 |
 | `LXM_WEBSITE_ICP_NUMBER` | 确认的备案号文字。配置后在首页页脚链接备案网站。 |
 | `LXM_WEBSITE_IDEAL_PREVIEW` | 公开展示获授权后设置 `1` 来启用评审谱面图片。本地开发可设 `0` 查看生产默认素材。 |
@@ -97,5 +98,5 @@
 | --- | --- |
 | Next.js 开发站 `http://127.0.0.1:3031` | Chrome 1440 × 900 验证首页、`/download`、返回导航、按键操作、安装包提示及关闭后焦点、图片解码、工作台 72px／1320ms 入场、4 秒选框节奏、手动暂停与滚出冻结、轮播 7 秒计时、悬停与聚焦暂停、500ms 切换、减少动态效果及无脚本首张。 |
 | standalone 生产默认 `http://127.0.0.1:3176/app/liuxianmao` | 同一组浏览器验收通过。匿名直达并刷新进阶及内部验收页均返回 404，生产默认的 `/editor` 与未授权素材亦返回 404。 |
-| standalone 发布配置 | 同一份子路径构建以测试值验证两端链接、备案链接、Web 入口、样谱与受控素材。生产进阶开关即使设置也维持 HTTP 404。测试值只用于独立本地进程。 |
+| standalone 发布配置（功能开放前） | 同一份子路径构建以测试值验证两端链接、备案链接、Web 入口、样谱与受控素材。测试值只用于独立本地进程。 |
 | 构建与回归 | 网站 `type-check`、`lint`、Webpack 生产 `build` 通过。`lint` 有 4 条既有未使用参数警告。Vitest 99 个文件、920 项通过。REQ-011 浏览器回归验证无脚本正文及 `.lxm` 导出后重新导入。 [浏览器回归脚本](../../../../apps/website/tests/req015.next.browser.mjs) |
